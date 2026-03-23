@@ -26,7 +26,7 @@ export const sendMail = async (to, subject, order) => {
     `;
 
     const res = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to,
       subject,
       html,
@@ -55,9 +55,9 @@ export const sendCheckinMail = async (to, data) => {
     `;
 
     const res = await resend.emails.send({
-      from: "HT Coaching <noreply@htcoaching.site>",
+      from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to,
-      subject: "Xác nhận buổi tập",
+      subject: "💪 Xác nhận buổi tập",
       html,
     });
 
