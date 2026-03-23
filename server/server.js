@@ -79,6 +79,8 @@ app.get("/fix-userid", async (req, res) => {
     res.status(500).json({ message: "Lỗi fix userId" });
   }
 });
+
+const PORT = process.env.PORT || 5000;
 app.listen(process.env.PORT, () => {
   console.log(`Server chạy tại port ${process.env.PORT}`);
 });
