@@ -10,6 +10,9 @@ export const createCheckin = async (req, res) => {
 
     const formattedTime = new Date(time);
 
+    if (!time || isNaN(formattedTime.getTime())) {
+      return res.status(400).json({ message: "Thời gian không hợp lệ" });
+    }
     // 🔥 FIX: atomic update (tránh double click bug)
     const order = await Order.findOneAndUpdate(
       { _id: orderId, sessions: { $gt: 0 } },

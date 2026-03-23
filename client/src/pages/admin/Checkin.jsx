@@ -141,6 +141,7 @@ const Checkin = () => {
 
       await createCheckin({
         ...form,
+        time: new Date(form.time).toISOString(),
         orderId: selectedOrder,
       });
 
@@ -321,9 +322,47 @@ const Checkin = () => {
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className={`${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`
+      relative px-6 py-2.5 rounded-lg font-medium text-white
+      bg-gradient-to-r from-indigo-600 to-indigo-700
+      hover:from-indigo-700 hover:to-indigo-800
+      focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
+      transition-all duration-200 ease-in-out
+      shadow-md hover:shadow-lg
+      disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:from-indigo-600 disabled:hover:to-indigo-700
+      flex items-center gap-2
+    `}
             >
-              {submitting ? "Đang xử lý..." : "Check-in"}
+              {submitting ? (
+                <>
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5" />
+                  Checkin buổi tập
+                </>
+              )}
             </button>
           </div>
         </div>
