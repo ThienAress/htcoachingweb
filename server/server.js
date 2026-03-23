@@ -7,18 +7,23 @@ import passport from "passport";
 
 import connectDB from "./src/config/db.js";
 import "./src/config/passport.js";
+
 import authRoutes from "./src/routes/auth.routes.js";
-
 import userRoutes from "./src/routes/user.routes.js";
-import bcrypt from "bcryptjs";
-import User from "./src/models/User.js";
-
 import orderRoutes from "./src/routes/order.routes.js";
 import checkinRoutes from "./src/routes/checkin.routes.js";
+
+import bcrypt from "bcryptjs";
+import User from "./src/models/User.js";
 import Order from "./src/models/Order.js";
 
+// ✅ TẠO APP (QUAN TRỌNG)
+const app = express();
+
+// ✅ CONNECT DATABASE
 connectDB();
 
+// ✅ MIDDLEWARE
 app.use(
   cors({
     origin: ["http://localhost:5173", "https://htcoachingweb.netlify.app"],
@@ -29,12 +34,13 @@ app.use(
 app.use(express.json());
 app.use(passport.initialize());
 
+// ✅ ROUTES
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
-
 app.use("/api/orders", orderRoutes);
 app.use("/api/checkin", checkinRoutes);
 
+// ✅ CREATE ADMIN (chỉ chạy 1 lần)
 app.get("/create-admin", async (req, res) => {
   try {
     const existing = await User.findOne({ email: "admin@gmail.com" });
@@ -59,6 +65,7 @@ app.get("/create-admin", async (req, res) => {
   }
 });
 
+// ✅ FIX USERID CHO ORDER
 app.get("/fix-userid", async (req, res) => {
   try {
     const orders = await Order.find();
@@ -84,7 +91,6 @@ app.get("/fix-userid", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
 app.listen(process.env.PORT, () => {
   console.log(`Server chạy tại port ${process.env.PORT}`);
 });
