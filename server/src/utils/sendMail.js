@@ -1,4 +1,6 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // format time
 const formatTime = (t) =>
@@ -11,75 +13,10 @@ const formatTime = (t) =>
     hour12: false,
   });
 
-// 🔥 dùng ENV (QUAN TRỌNG)
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
-
-// ================== ORDER MAIL ==================
-export const sendMail = async (to, subject, order) => {
-  try {
-    console.log("SEND MAIL DATA:", order);
-
-    const html = `
-      <div style="font-family: Arial; max-width:600px; margin:auto; border:1px solid #eee; padding:20px; border-radius:8px;">
-        
-        <h2 style="color:#f97316; text-align:center;">HT Coaching</h2>
-
-        <h3 style="text-align:center;">🎉 Xác nhận đăng ký thành công</h3>
-
-        <p>Chào <b>${order?.name || "Khách hàng"}</b>,</p>
-
-        <p>Bạn đã đăng ký gói tập thành công với thông tin sau:</p>
-
-        <table style="width:100%; border-collapse: collapse; margin-top:10px;">
-          <tr>
-            <td style="padding:8px;"><b>Gói tập:</b></td>
-            <td style="padding:8px;">${order?.package || ""}</td>
-          </tr>
-
-          <tr>
-            <td style="padding:8px;"><b>Số buổi:</b></td>
-            <td style="padding:8px;">${order?.sessions || ""}</td>
-          </tr>
-
-          <tr>
-            <td style="padding:8px;"><b>Phòng tập:</b></td>
-            <td style="padding:8px;">${order?.gym || ""}</td>
-          </tr>
-
-          <tr>
-            <td style="padding:8px;"><b>Thời gian:</b></td>
-            <td style="padding:8px;">${order?.schedule || ""}</td>
-          </tr>
-        </table>
-
-        <p style="margin-top:20px;">Cảm ơn bạn đã tin tưởng HT Coaching 💪</p>
-
-      </div>
-    `;
-
-    const info = await transporter.sendMail({
-      from: `"HT Coaching" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html,
-    });
-
-    console.log("MAIL SENT:", info.response);
-  } catch (err) {
-    console.error("SEND MAIL ERROR:", err);
-  }
-};
-
 // ================== CHECKIN MAIL ==================
 export const sendCheckinMail = async (to, data) => {
   try {
-    console.log("CHECKIN MAIL DATA:", data);
+    console.log("📧 RESEND MAIL DATA:", data);
 
     const html = `
       <div style="font-family: Arial; max-width:600px; margin:auto; padding:20px;">
@@ -89,8 +26,6 @@ export const sendCheckinMail = async (to, data) => {
         <h3>📅 Xác nhận buổi tập</h3>
 
         <p>Chào <b>${data.name}</b>,</p>
-
-        <p>Thông tin buổi tập:</p>
 
         <ul>
           <li><b>Gói:</b> ${data.package}</li>
@@ -104,15 +39,15 @@ export const sendCheckinMail = async (to, data) => {
       </div>
     `;
 
-    const info = await transporter.sendMail({
-      from: `"HT Coaching" <${process.env.EMAIL_USER}>`,
+    const response = await resend.emails.send({
+      from: "onboarding@resend.dev", // dùng tạm domain của resend
       to,
       subject: "Xác nhận buổi tập",
       html,
     });
 
-    console.log("CHECKIN MAIL SENT:", info.response);
+    console.log("✅ RESEND SUCCESS:", response);
   } catch (err) {
-    console.error("CHECKIN MAIL ERROR:", err);
+    console.error("❌ RESEND ERROR:", err);
   }
 };
