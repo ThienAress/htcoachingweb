@@ -6,21 +6,22 @@ import { sendCheckinMail } from "../utils/sendMail.js";
 // CREATE CHECKIN
 export const createCheckin = async (req, res) => {
   try {
+    console.log("🔥 API CHECKIN HIT");
+
     const { orderId, time, muscle, note } = req.body;
 
     const formattedTime = new Date(time);
 
-    if (!time || isNaN(formattedTime.getTime())) {
-      return res.status(400).json({ message: "Thời gian không hợp lệ" });
-    }
-    // 🔥 FIX: atomic update (tránh double click bug)
     const order = await Order.findOneAndUpdate(
       { _id: orderId, sessions: { $gt: 0 } },
       { $inc: { sessions: -1 } },
       { new: true },
     );
 
+    console.log("🔥 ORDER:", order);
+
     if (!order) {
+      console.log("❌ ORDER NULL");
       return res.status(400).json({ message: "Hết buổi hoặc không tồn tại" });
     }
 
@@ -34,29 +35,28 @@ export const createCheckin = async (req, res) => {
       remainingSessions: order.sessions,
     });
 
-    // gửi mail (không crash hệ thống)
-    console.log("🔥 ĐANG GỌI SEND MAIL");
-    try {
-      await sendCheckinMail(order.email, {
-        name: order.name,
-        package: order.package,
-        time: formattedTime,
-        muscle,
-        note,
-        remainingSessions: order.sessions,
-      });
-      console.log("🔥 ĐANG GỌI SEND MAIL");
-    } catch (err) {
-      console.error("MAIL CHECKIN ERROR:", err);
-    }
+    console.log("🔥 CHECKIN CREATED");
+
+    // 👇 QUAN TRỌNG
+    console.log("🔥 GỌI SEND MAIL");
+
+    await sendCheckinMail(order.email, {
+      name: order.name,
+      package: order.package,
+      time: formattedTime,
+      muscle,
+      note,
+      remainingSessions: order.sessions,
+    });
+
+    console.log("🔥 MAIL DONE");
 
     res.json(checkin);
   } catch (err) {
-    console.error(err);
+    console.error("❌ CHECKIN ERROR:", err);
     res.status(500).json({ message: "Lỗi checkin" });
   }
 };
-
 // UPDATE
 export const updateCheckin = async (req, res) => {
   try {
