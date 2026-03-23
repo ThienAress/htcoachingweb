@@ -55,7 +55,7 @@ export const sendCheckinMail = async (to, data) => {
     `;
 
     const res = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: "HT Coaching <noreply@htcoaching.site>",
       to,
       subject: "Xác nhận buổi tập",
       html,
