@@ -35,6 +35,7 @@ export const createCheckin = async (req, res) => {
     });
 
     // gửi mail (không crash hệ thống)
+    console.log("🔥 ĐANG GỌI SEND MAIL");
     try {
       await sendCheckinMail(order.email, {
         name: order.name,
@@ -44,6 +45,7 @@ export const createCheckin = async (req, res) => {
         note,
         remainingSessions: order.sessions,
       });
+      console.log("🔥 ĐANG GỌI SEND MAIL");
     } catch (err) {
       console.error("MAIL CHECKIN ERROR:", err);
     }
