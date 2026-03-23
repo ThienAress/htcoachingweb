@@ -13,15 +13,18 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        const email = profile.emails[0].value;
+        const email = profile.emails?.[0]?.value;
+
+        if (!email) {
+          return done(new Error("No email from Google"), null);
+        }
 
         let user = await User.findOne({ email });
-
         if (!user) {
           user = await User.create({
             name: profile.displayName,
             email,
-            avatar: profile.photos[0].value,
+            avatar: profile.photos?.[0]?.value || "",
             role: "user",
           });
         }
