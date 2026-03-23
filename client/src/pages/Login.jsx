@@ -9,7 +9,7 @@ import "swiper/css/effect-fade";
 
 const Login = () => {
   const handleGoogleLogin = () => {
-    window.location.href = "https://htcoachingweb.netlify.app/api/auth/google";
+    window.location.href = "https://htcoachingweb.onrender.com/api/auth/google";
   };
 
   const slides = [
