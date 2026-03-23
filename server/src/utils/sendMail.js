@@ -13,41 +13,56 @@ const formatTime = (t) =>
     hour12: false,
   });
 
-// ================== CHECKIN MAIL ==================
-export const sendCheckinMail = async (to, data) => {
+// ================== ORDER MAIL ==================
+export const sendMail = async (to, subject, order) => {
   try {
-    console.log("📧 RESEND MAIL DATA:", data);
-
     const html = `
-      <div style="font-family: Arial; max-width:600px; margin:auto; padding:20px;">
-        
-        <h2 style="color:#f97316;">HT Coaching</h2>
-
-        <h3>📅 Xác nhận buổi tập</h3>
-
-        <p>Chào <b>${data.name}</b>,</p>
-
-        <ul>
-          <li><b>Gói:</b> ${data.package}</li>
-          <li><b>Thời gian:</b> ${formatTime(data.time)}</li>
-          <li><b>Nhóm cơ:</b> ${data.muscle}</li>
-          <li><b>Ghi chú:</b> ${data.note || "-"}</li>
-          <li><b>Còn lại:</b> ${data.remainingSessions} buổi</li>
-        </ul>
-
-        <p>💪 Tiếp tục cố gắng nhé!</p>
+      <div style="font-family: Arial; padding:20px;">
+        <h2>🎉 Đăng ký thành công</h2>
+        <p>Chào <b>${order.name}</b></p>
+        <p>Gói: ${order.package}</p>
+        <p>Số buổi: ${order.sessions}</p>
       </div>
     `;
 
-    const response = await resend.emails.send({
-      from: "onboarding@resend.dev", // dùng tạm domain của resend
+    const res = await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to,
+      subject,
+      html,
+    });
+
+    console.log("✅ ORDER MAIL:", res);
+  } catch (err) {
+    console.error("❌ ORDER MAIL ERROR:", err);
+  }
+};
+
+// ================== CHECKIN MAIL ==================
+export const sendCheckinMail = async (to, data) => {
+  try {
+    const html = `
+      <div style="font-family: Arial; padding:20px;">
+        <h2>📅 Xác nhận buổi tập</h2>
+        <p>Chào <b>${data.name}</b></p>
+        <ul>
+          <li>Gói: ${data.package}</li>
+          <li>Thời gian: ${formatTime(data.time)}</li>
+          <li>Nhóm cơ: ${data.muscle}</li>
+          <li>Còn lại: ${data.remainingSessions}</li>
+        </ul>
+      </div>
+    `;
+
+    const res = await resend.emails.send({
+      from: "onboarding@resend.dev",
       to,
       subject: "Xác nhận buổi tập",
       html,
     });
 
-    console.log("✅ RESEND SUCCESS:", response);
+    console.log("✅ CHECKIN MAIL:", res);
   } catch (err) {
-    console.error("❌ RESEND ERROR:", err);
+    console.error("❌ CHECKIN MAIL ERROR:", err);
   }
 };
