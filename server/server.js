@@ -19,7 +19,12 @@ import Order from "./src/models/Order.js";
 
 connectDB();
 
-const app = express();
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "https://htcoachingweb.netlify.app"],
+    credentials: true,
+  }),
+);
 
 app.use(cors());
 app.use(express.json());
