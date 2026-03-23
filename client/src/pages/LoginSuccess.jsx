@@ -12,20 +12,25 @@ const LoginSuccess = () => {
     if (token) {
       localStorage.setItem("token", token);
 
-      const user = jwtDecode(token);
+      try {
+        const user = jwtDecode(token);
 
-      // 👉 phân luồng
-      if (user.role === "admin") {
-        navigate("/admin");
-      } else {
-        navigate("/"); // 👈 user về home
+        if (user.role === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
+      } catch (err) {
+        console.error("Token decode lỗi", err);
+        localStorage.removeItem("token");
+        navigate("/login");
       }
     } else {
       navigate("/login");
     }
-  }, []);
+  }, [navigate, params]);
 
-  return <div>Đang đăng nhập...</div>;
+  return <div className="p-4 text-center">Đang đăng nhập...</div>;
 };
 
 export default LoginSuccess;
