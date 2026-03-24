@@ -49,24 +49,37 @@ export const createOrder = async (req, res) => {
 };
 
 export const getOrders = async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = 5;
+  try {
+    const page = Number(req.query.page) || 1;
+    const limit = 5;
+    const skip = (page - 1) * limit;
 
-  const total = await Order.countDocuments();
-  const orders = await Order.find()
-    .skip((page - 1) * limit)
-    .limit(limit)
-    .sort({ createdAt: -1 });
+    const total = await Order.countDocuments();
 
-  res.json({
-    success: true,
-    data: {
-      orders,
-      total,
-      page,
-      totalPages,
-    },
-  });
+    const orders = await Order.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      success: true,
+      data: {
+        orders,
+        total,
+        page,
+        totalPages,
+      },
+    });
+  } catch (err) {
+    console.error("GET ORDERS ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
 };
 
 export const approveOrder = async (req, res) => {

@@ -7,29 +7,42 @@ const AdminLogin = () => {
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
+    console.log("CLICK LOGIN");
+
     if (!email || !password) {
       alert("Nhập đầy đủ thông tin");
       return;
     }
 
     try {
+      console.log("CALL API...");
+
       const res = await api.post("/auth/admin/login", {
         email,
         password,
       });
 
-      const data = res.data;
+      console.log("LOGIN RES:", res.data);
 
-      if (data.token) {
-        localStorage.setItem("token", res.data.data.token);
-        localStorage.setItem("refreshToken", res.data.data.refreshToken);
-        localStorage.setItem("token_exp", Date.now() + 15 * 60 * 1000);
-        // redirect như cũ của bạn
-        window.location.href = "/admin";
+      const token = res.data?.data?.token || res.data?.token;
+      const refreshToken =
+        res.data?.data?.refreshToken || res.data?.refreshToken;
+
+      if (!token) {
+        alert("Không lấy được token");
+        return;
       }
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("refreshToken", refreshToken);
+      localStorage.setItem("token_exp", Date.now() + 15 * 60 * 1000);
+
+      window.location.href = "/admin";
     } catch (err) {
-      console.error("LOGIN ERROR:", err);
-      alert(err.response?.data?.message || "Login thất bại");
+      console.error("LOGIN ERROR FULL:", err);
+      console.log("ERROR RESPONSE:", err.response);
+
+      alert(err?.response?.data?.message || err.message || "Login thất bại");
     }
   };
   return (

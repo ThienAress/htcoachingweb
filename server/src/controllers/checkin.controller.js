@@ -119,10 +119,23 @@ export const deleteCheckin = async (req, res) => {
 // GET ALL
 export const getCheckins = async (req, res) => {
   try {
-    const data = await Checkin.find().sort({ createdAt: -1 });
-    res.json(data);
+    console.log("🔥 API GET CHECKINS HIT");
+
+    const checkins = await Checkin.find().sort({ createdAt: -1 });
+
+    console.log("🔥 CHECKINS:", checkins);
+
+    res.json({
+      success: true,
+      data: checkins,
+    });
   } catch (err) {
-    res.status(500).json({ message: "Lỗi lấy dữ liệu" });
+    console.error("❌ GET CHECKINS ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 

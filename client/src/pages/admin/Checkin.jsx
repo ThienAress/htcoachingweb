@@ -88,7 +88,9 @@ const Checkin = () => {
         const checkinRes = await getCheckins();
 
         setOrders(orderRes.data.data.orders || []);
-        setCheckins(checkinRes.data.data);
+        setCheckins(
+          checkinRes.data?.data?.checkins || checkinRes.data?.data || [],
+        );
       } catch (err) {
         console.error(err);
       } finally {
@@ -102,7 +104,7 @@ const Checkin = () => {
   const fetchOrders = async () => {
     try {
       const res = await getOrders();
-      setOrders(res.data.orders || []);
+      setOrders(res.data.data.orders || []);
     } catch (err) {
       console.error("FETCH ORDERS ERROR:", err);
     }
@@ -111,7 +113,8 @@ const Checkin = () => {
   const fetchCheckins = async () => {
     try {
       const res = await getCheckins();
-      setCheckins(res.data);
+      console.log("CHECKINS:", res.data);
+      setCheckins(res.data?.data?.checkins || res.data?.data || []);
     } catch (err) {
       console.error("FETCH CHECKINS ERROR:", err);
     }

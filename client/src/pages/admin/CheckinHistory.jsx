@@ -40,7 +40,8 @@ const CheckinHistory = () => {
       setLoading(true);
 
       const res = await getCheckins();
-      setCheckins(res.data.data);
+      console.log("CHECKIN HISTORY:", res.data);
+      setCheckins(res.data?.data?.checkins || res.data?.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -92,7 +93,7 @@ const CheckinHistory = () => {
     }
   };
   // LỌC DỮ LIỆU
-  const filteredCheckins = checkins.filter((c) => {
+  const filteredCheckins = (checkins || []).filter((c) => {
     if (searchName && !c.name?.toLowerCase().includes(searchName.toLowerCase()))
       return false;
     if (selectedMonth && selectedYear && c.time) {
