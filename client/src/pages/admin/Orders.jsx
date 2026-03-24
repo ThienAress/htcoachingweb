@@ -29,6 +29,7 @@ import {
 
 const Orders = () => {
   const [loading, setLoading] = useState(true);
+  const [loadingId, setLoadingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
@@ -124,16 +125,22 @@ const Orders = () => {
 
   // ================= APPROVE =================
   const handleApprove = async (id) => {
+    if (loadingId === id) return;
+
     try {
+      setLoadingId(id);
+
       await approveOrder(id);
       toast.success("Đã xác nhận");
-      fetchOrders();
+
+      await fetchOrders();
     } catch (err) {
       console.error(err);
       toast.error("Lỗi xác nhận");
+    } finally {
+      setLoadingId(null);
     }
   };
-
   // ================= DELETE =================
   const handleDelete = async (id) => {
     if (!window.confirm("Xóa đơn này?")) return;
@@ -295,9 +302,10 @@ const Orders = () => {
                     <div className="flex items-center gap-2">
                       {o.status === "pending" && (
                         <button
+                          disabled={loadingId === o._id}
                           onClick={() => handleApprove(o._id)}
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Xác nhận"
+                          className={`p-1.5 text-green-600 rounded-lg transition-colors
+    ${loadingId === o._id ? "opacity-50 cursor-not-allowed" : "hover:bg-green-50"}`}
                         >
                           <Check className="w-4 h-4" />
                         </button>
@@ -518,7 +526,7 @@ const Orders = () => {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className={`${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {submitting ? "Đang xử lý..." : "Lưu"}
               </button>
