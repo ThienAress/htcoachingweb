@@ -18,7 +18,7 @@ const formatDate = (t) => {
 
 // ================== FORMAT TIME ==================
 const formatTime = (t) => {
-  if (!t) return "";
+  if (!t) return "Không xác định";
   return new Date(t).toLocaleString("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh",
     hour: "2-digit",
