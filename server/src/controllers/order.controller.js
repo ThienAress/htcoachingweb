@@ -6,45 +6,48 @@ import jwt from "jsonwebtoken";
 
 export const createOrder = async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
+    const { name, email } = req.body;
 
-    if (!token) {
-      return res.status(401).json({ message: "Thiếu token" });
+    if (!email || !name) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu email",
+      });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const normalizedEmail = email.toLowerCase().trim();
 
-    if (!req.body.email) {
-      return res.status(400).json({ message: "Thiếu email" });
-    }
-
-    const email = req.body.email.toLowerCase().trim();
-
-    // 👉 tìm user
-    let user = await User.findOne({ email });
+    // 👉 tìm user theo email (khách)
+    let user = await User.findOne({ email: normalizedEmail });
 
     // 👉 nếu chưa có thì tạo
     if (!user) {
       user = await User.create({
-        name: req.body.name,
-        email,
+        name,
+        email: normalizedEmail,
+        role: "user",
       });
     }
 
     const order = await Order.create({
       ...req.body,
-      email,
+      email: normalizedEmail,
       userId: user._id,
       sessions: Number(req.body.sessions),
       totalSessions: Number(req.body.sessions),
     });
 
-    res.json(order);
+    res.json({
+      success: true,
+      data: order,
+      message: "Tạo đơn thành công",
+    });
   } catch (err) {
     console.error("CREATE ORDER ERROR:", err);
     res.status(500).json({ message: err.message });
   }
 };
+
 export const getOrders = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = 5;
@@ -56,10 +59,13 @@ export const getOrders = async (req, res) => {
     .sort({ createdAt: -1 });
 
   res.json({
-    orders,
-    total,
-    page,
-    totalPages: Math.ceil(total / limit),
+    success: true,
+    data: {
+      orders,
+      total,
+      page,
+      totalPages,
+    },
   });
 };
 
@@ -72,7 +78,10 @@ export const approveOrder = async (req, res) => {
     );
 
     if (!order) {
-      return res.status(404).json({ message: "Không tìm thấy đơn" });
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn",
+      });
     }
 
     // 👉 gửi mail (không được để crash)
@@ -82,10 +91,17 @@ export const approveOrder = async (req, res) => {
       console.error("MAIL ERROR:", mailErr);
     }
 
-    res.json(order);
+    res.json({
+      success: true,
+      data: order,
+      message: "Đã xác nhận đơn",
+    });
   } catch (err) {
     console.error("APPROVE ERROR:", err);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
@@ -94,7 +110,11 @@ export const updateOrder = async (req, res) => {
     new: true,
   });
 
-  res.json(order);
+  res.json({
+    success: true,
+    data: order,
+    message: "Cập nhật thành công",
+  });
 };
 
 export const deleteOrder = async (req, res) => {
@@ -107,7 +127,10 @@ export const deleteOrder = async (req, res) => {
     // 👉 xoá luôn checkin liên quan
     await Checkin.deleteMany({ orderId });
 
-    res.json({ message: "Đã xóa đơn" });
+    res.json({
+      success: true,
+      message: "Đã xóa đơn",
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Lỗi xóa đơn" });

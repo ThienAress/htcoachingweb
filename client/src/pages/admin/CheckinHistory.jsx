@@ -40,7 +40,7 @@ const CheckinHistory = () => {
       setLoading(true);
 
       const res = await getCheckins();
-      setCheckins(res.data);
+      setCheckins(res.data.data);
     } catch (err) {
       console.error(err);
     } finally {

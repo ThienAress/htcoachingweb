@@ -87,8 +87,8 @@ const Checkin = () => {
         const orderRes = await getOrders();
         const checkinRes = await getCheckins();
 
-        setOrders(orderRes.data.orders || []);
-        setCheckins(checkinRes.data);
+        setOrders(orderRes.data.data.orders || []);
+        setCheckins(checkinRes.data.data);
       } catch (err) {
         console.error(err);
       } finally {

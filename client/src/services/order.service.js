@@ -1,6 +1,6 @@
 import api from "../utils/api";
 
-export const getOrders = () => api.get("/orders");
+export const getOrders = (page = 1) => api.get(`/orders?page=${page}`);
 
 export const createOrder = (data) => api.post("/orders", data);
 

@@ -21,9 +21,9 @@ const AdminLogin = () => {
       const data = res.data;
 
       if (data.token) {
-        localStorage.setItem("token", res.data.token);
-        localStorage.setItem("refreshToken", res.data.refreshToken);
-
+        localStorage.setItem("token", res.data.data.token);
+        localStorage.setItem("refreshToken", res.data.data.refreshToken);
+        localStorage.setItem("token_exp", Date.now() + 15 * 60 * 1000);
         // redirect như cũ của bạn
         window.location.href = "/admin";
       }

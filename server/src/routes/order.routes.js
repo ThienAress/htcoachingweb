@@ -11,8 +11,8 @@ import {
 
 const router = express.Router();
 
-// 🔥 USER tạo đơn
-router.post("/", protect, createOrder);
+// 🔥 Admin tạo đơn
+router.post("/", protect, requireAdmin, createOrder);
 
 // 🔥 ADMIN
 router.get("/", protect, requireAdmin, getOrders);

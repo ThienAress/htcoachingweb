@@ -37,6 +37,7 @@ api.interceptors.response.use(
 
         // lưu token mới
         localStorage.setItem("token", newToken);
+        localStorage.setItem("token_exp", Date.now() + 15 * 60 * 1000);
 
         // gắn lại header
         originalRequest.headers.Authorization = `Bearer ${newToken}`;

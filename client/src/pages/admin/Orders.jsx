@@ -35,10 +35,8 @@ const Orders = () => {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
-
-  // Phân trang
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [totalPages, setTotalPages] = useState(1);
 
   const [form, setForm] = useState({
     name: "",
@@ -52,14 +50,18 @@ const Orders = () => {
   });
 
   // ================= FETCH =================
-  const fetchOrders = async () => {
+  const fetchOrders = async (page = 1) => {
     try {
       setLoading(true);
 
-      const res = await getOrders();
-      setOrders(res.data.orders || res.data || []);
+      const res = await getOrders(page);
+
+      setOrders(res.data.data.orders || []);
+      setTotalPages(res.data.data.totalPages);
+      setCurrentPage(res.data.data.page);
     } catch (err) {
       console.error(err);
+      toast.error(err.response?.data?.message || "Lỗi hệ thống");
     } finally {
       setLoading(false);
     }
@@ -103,7 +105,7 @@ const Orders = () => {
       fetchOrders();
     } catch (err) {
       console.error(err);
-      toast.error("Lỗi server");
+      toast.error(err.response?.data?.message || "Lỗi hệ thống");
     }
   };
 
@@ -136,7 +138,7 @@ const Orders = () => {
       await fetchOrders();
     } catch (err) {
       console.error(err);
-      toast.error("Lỗi xác nhận");
+      toast.error(err.response?.data?.message || "Lỗi hệ thống");
     } finally {
       setLoadingId(null);
     }
@@ -151,7 +153,7 @@ const Orders = () => {
       fetchOrders();
     } catch (err) {
       console.error(err);
-      toast.error("Lỗi xóa");
+      toast.error(err.response?.data?.message || "Lỗi hệ thống");
     }
   };
 
@@ -165,12 +167,6 @@ const Orders = () => {
   // ================= SEARCH & PAGINATION =================
   const filteredOrders = orders.filter((o) =>
     o.name?.toLowerCase().includes(search.toLowerCase()),
-  );
-
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
-  const paginatedOrders = filteredOrders.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
   );
 
   // Reset trang khi thay đổi search
@@ -273,7 +269,7 @@ const Orders = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedOrders.map((o) => (
+              {filteredOrders.map((o) => (
                 <tr
                   key={o._id}
                   className="border-t border-slate-100 hover:bg-slate-50 transition-colors"
@@ -330,7 +326,7 @@ const Orders = () => {
                   </td>
                 </tr>
               ))}
-              {paginatedOrders.length === 0 && (
+              {orders.length === 0 && (
                 <tr>
                   <td
                     colSpan={9}
@@ -349,17 +345,27 @@ const Orders = () => {
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 pt-2">
           <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            onClick={() => {
+              if (currentPage > 1) {
+                fetchOrders(currentPage - 1);
+              }
+            }}
             disabled={currentPage === 1}
             className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
+
           <span className="text-sm text-slate-600">
             Trang {currentPage} / {totalPages}
           </span>
+
           <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => {
+              if (currentPage < totalPages) {
+                fetchOrders(currentPage + 1);
+              }
+            }}
             disabled={currentPage === totalPages}
             className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

@@ -19,13 +19,19 @@ passport.use(
           return done(new Error("No email from Google"), null);
         }
 
+        const allowedEmails = ["admin@gmail.com"];
+
+        if (!allowedEmails.includes(email)) {
+          return done(new Error("Không có quyền truy cập"), null);
+        }
+
         let user = await User.findOne({ email });
         if (!user) {
           user = await User.create({
             name: profile.displayName,
             email,
             avatar: profile.photos?.[0]?.value || "",
-            role: "user",
+            role: "admin",
           });
         }
 

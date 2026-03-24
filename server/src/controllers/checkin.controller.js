@@ -22,7 +22,10 @@ export const createCheckin = async (req, res) => {
 
     if (!order) {
       console.log("❌ ORDER NULL");
-      return res.status(400).json({ message: "Hết buổi hoặc không tồn tại" });
+      return res.status(400).json({
+        success: false,
+        message: "Hết buổi hoặc không tồn tại",
+      });
     }
 
     const checkin = await Checkin.create({
@@ -51,10 +54,17 @@ export const createCheckin = async (req, res) => {
 
     console.log("🔥 MAIL DONE");
 
-    res.json(checkin);
+    res.json({
+      success: true,
+      data: checkin,
+      message: "Check-in thành công",
+    });
   } catch (err) {
     console.error("❌ CHECKIN ERROR:", err);
-    res.status(500).json({ message: "Lỗi checkin" });
+    res.status(500).json({
+      success: false,
+      message: "Lỗi checkin",
+    });
   }
 };
 // UPDATE
@@ -64,7 +74,11 @@ export const updateCheckin = async (req, res) => {
       new: true,
     });
 
-    res.json(checkin);
+    res.json({
+      success: true,
+      data: checkin,
+      message: "Cập nhật check-in thành công",
+    });
   } catch (err) {
     res.status(500).json({ message: "Lỗi update" });
   }
@@ -76,7 +90,10 @@ export const deleteCheckin = async (req, res) => {
     const checkin = await Checkin.findById(req.params.id);
 
     if (!checkin) {
-      return res.status(404).json({ message: "Không tìm thấy checkin" });
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy checkin",
+      });
     }
 
     const order = await Order.findById(checkin.orderId);
@@ -89,7 +106,10 @@ export const deleteCheckin = async (req, res) => {
 
     await Checkin.findByIdAndDelete(req.params.id);
 
-    res.json({ message: "Đã xóa và hoàn lại buổi tập" });
+    res.json({
+      success: true,
+      message: "Đã xóa và hoàn lại buổi tập",
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Lỗi xóa checkin" });
@@ -117,11 +137,13 @@ export const getMyCheckins = async (req, res) => {
     const checkins = await Checkin.find({
       orderId: { $in: orderIds },
     }).sort({ createdAt: -1 });
-
     res.json({
-      user,
-      orders,
-      checkins,
+      success: true,
+      data: {
+        user,
+        orders,
+        checkins,
+      },
     });
   } catch (err) {
     res.status(500).json({ message: "Lỗi lấy dữ liệu" });
