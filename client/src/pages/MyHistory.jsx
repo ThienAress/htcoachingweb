@@ -48,19 +48,26 @@ const MyHistory = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-
   const fetchData = async () => {
     try {
       setLoading(true);
       const res = await getMyCheckins();
-      setData(res.data);
+
+      const payload = res.data ? res.data : res;
+
+      setData({
+        user: payload.user || null,
+        checkins: payload.checkins || [],
+        orders: payload.orders || [],
+      });
     } catch (err) {
       console.error(err);
-      setData({ user: null, checkins: [] });
+      setData({ user: null, checkins: [], orders: [] });
     } finally {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -69,7 +76,7 @@ const MyHistory = () => {
     setCurrentPage(1);
   }, [data?.checkins]);
 
-  const checkins = data.checkins;
+  const checkins = data?.checkins || [];
   const totalPages = Math.ceil(checkins.length / itemsPerPage);
   const paginatedCheckins = checkins.slice(
     (currentPage - 1) * itemsPerPage,
