@@ -53,7 +53,9 @@ const MyHistory = () => {
       setLoading(true);
       const res = await getMyCheckins();
 
-      const payload = res.data ? res.data : res;
+      console.log("MY API:", res);
+
+      const payload = res.data?.data || res.data || res;
 
       setData({
         user: payload.user || null,
@@ -67,7 +69,6 @@ const MyHistory = () => {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchData();
   }, []);
