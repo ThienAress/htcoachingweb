@@ -2,9 +2,11 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// format time
-const formatTime = (t) =>
-  new Date(t).toLocaleString("vi-VN", {
+// ================== FORMAT DATE ==================
+const formatDate = (t) => {
+  if (!t) return "Chưa xác nhận";
+  return new Date(t).toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
     hour: "2-digit",
     minute: "2-digit",
     day: "2-digit",
@@ -12,7 +14,21 @@ const formatTime = (t) =>
     year: "numeric",
     hour12: false,
   });
+};
 
+// ================== FORMAT TIME ==================
+const formatTime = (t) => {
+  if (!t) return "";
+  return new Date(t).toLocaleString("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour12: false,
+  });
+};
 // ================== ORDER MAIL ==================
 export const sendMail = async (to, subject, order) => {
   try {
@@ -46,7 +62,7 @@ export const sendMail = async (to, subject, order) => {
                     <table width="100%" cellpadding="12" cellspacing="0" border="0" style="background:#f9fafc; border-radius:16px; margin-bottom:24px;">
                       <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Gói tập</td><td style="color:#2c3e50;">${order.package}</td></tr>
                       <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Số buổi</td><td style="color:#2c3e50;">${order.sessions}</td></tr>
-                      <tr><td style="font-weight:600; color:#1e2a3a;">Thời gian đăng ký</td><td style="color:#2c3e50;">${formatTime(order.createdAt)}</td></tr>
+                      <tr><td style="font-weight:600; color:#1e2a3a;">Thời gian đăng ký</td><td style="color:#2c3e50;">${formatDate(order.approvedAt)}</td></tr>
                     </table>
                     
                     <p style="font-size:14px; color:#6c757d; line-height:1.4; margin:0;">🔥 Hãy sẵn sàng để bắt đầu hành trình tập luyện! Mọi thắc mắc vui lòng liên hệ qua email này</p>
@@ -72,6 +88,7 @@ export const sendMail = async (to, subject, order) => {
       to,
       subject,
       html,
+      headers: { "X-Entity-Ref-ID": Date.now().toString() },
     });
 
     console.log("✅ ORDER MAIL:", res);
@@ -146,6 +163,7 @@ export const sendCheckinMail = async (to, data) => {
       to,
       subject: "💪 Xác nhận buổi tập",
       html,
+      headers: { "X-Entity-Ref-ID": Date.now().toString() },
     });
 
     console.log("✅ CHECKIN MAIL:", res);

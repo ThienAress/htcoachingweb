@@ -23,7 +23,12 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: "pending",
     },
+
+    approvedAt: {
+      type: Date,
+    },
   },
   { timestamps: true },
 );
+
 export default mongoose.model("Order", orderSchema);

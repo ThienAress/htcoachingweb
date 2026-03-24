@@ -67,7 +67,7 @@ export const approveOrder = async (req, res) => {
   try {
     const order = await Order.findByIdAndUpdate(
       req.params.id,
-      { status: "approved" },
+      { status: "approved", approvedAt: new Date() },
       { returnDocument: "after" },
     );
 
