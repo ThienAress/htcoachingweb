@@ -10,7 +10,7 @@ export const createCheckin = async (req, res) => {
 
     const { orderId, time, muscle, note } = req.body;
 
-    const formattedTime = time ? new Date(time + "+07:00") : new Date();
+    const formattedTime = time ? new Date(time) : new Date();
 
     const order = await Order.findOneAndUpdate(
       { _id: orderId, sessions: { $gt: 0 } },
