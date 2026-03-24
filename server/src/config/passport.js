@@ -16,22 +16,17 @@ passport.use(
         const email = profile.emails?.[0]?.value;
 
         if (!email) {
-          return done(new Error("No email from Google"), null);
-        }
-
-        const allowedEmails = ["admin@gmail.com"];
-
-        if (!allowedEmails.includes(email)) {
-          return done(new Error("Không có quyền truy cập"), null);
+          return done(null, false);
         }
 
         let user = await User.findOne({ email });
+
         if (!user) {
           user = await User.create({
             name: profile.displayName,
             email,
             avatar: profile.photos?.[0]?.value || "",
-            role: "admin",
+            role: "user", // 👈 mặc định user
           });
         }
 
@@ -42,5 +37,3 @@ passport.use(
     },
   ),
 );
-
-export default passport;
