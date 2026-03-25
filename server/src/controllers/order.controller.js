@@ -33,6 +33,7 @@ export const createOrder = async (req, res) => {
       ...req.body,
       email: normalizedEmail,
       userId: user._id,
+      trainerId: req.body.trainerId || null,
       sessions: Number(req.body.sessions),
       totalSessions: Number(req.body.sessions),
     });
@@ -54,9 +55,15 @@ export const getOrders = async (req, res) => {
     const limit = 5;
     const skip = (page - 1) * limit;
 
-    const total = await Order.countDocuments();
+    let query = {};
+    if (req.user.role === "trainer") {
+      // Trainer chỉ thấy đơn có trainerId là chính họ
+      query.trainerId = req.user.id;
+    }
 
-    const orders = await Order.find()
+    const total = await Order.countDocuments(query);
+    const orders = await Order.find(query)
+      .populate("trainerId", "name email")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -74,7 +81,6 @@ export const getOrders = async (req, res) => {
     });
   } catch (err) {
     console.error("GET ORDERS ERROR:", err);
-
     res.status(500).json({
       success: false,
       message: err.message,

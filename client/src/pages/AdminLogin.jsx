@@ -24,14 +24,12 @@ const AdminLogin = () => {
 
       console.log("LOGIN RES:", res.data);
 
-      const token = res.data?.data?.token || res.data?.token;
-      const refreshToken =
-        res.data?.data?.refreshToken || res.data?.refreshToken;
-
-      if (!token) {
-        alert("Không lấy được token");
-        return;
+      if (!res.data.success) {
+        throw new Error(res.data.message || "Login failed");
       }
+
+      const token = res.data.data.token;
+      const refreshToken = res.data.data.refreshToken;
 
       localStorage.setItem("token", token);
       localStorage.setItem("refreshToken", refreshToken);

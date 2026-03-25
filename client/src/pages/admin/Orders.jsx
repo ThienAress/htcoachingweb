@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   getOrders,
   createOrder,
@@ -26,6 +27,9 @@ import {
   deleteOrder,
   approveOrder,
 } from "../../services/order.service";
+
+import { getTrainers } from "../../services/user.service";
+import { getUserFromToken } from "../../utils/auth";
 
 const Orders = () => {
   const [loading, setLoading] = useState(true);
@@ -38,6 +42,9 @@ const Orders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  const [trainers, setTrainers] = useState([]);
+  const user = getUserFromToken();
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -47,15 +54,14 @@ const Orders = () => {
     gym: "",
     schedule: "",
     note: "",
+    trainerId: "",
   });
 
   // ================= FETCH =================
   const fetchOrders = async (page = 1) => {
     try {
       setLoading(true);
-
       const res = await getOrders(page);
-
       setOrders(res.data.data.orders || []);
       setTotalPages(res.data.data.totalPages);
       setCurrentPage(res.data.data.page);
@@ -71,6 +77,21 @@ const Orders = () => {
     fetchOrders();
   }, []);
 
+  const fetchTrainers = async () => {
+    try {
+      const res = await getTrainers();
+      setTrainers(res.data.data || []);
+    } catch (err) {
+      console.error("FETCH TRAINERS ERROR:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.role === "admin") {
+      fetchTrainers();
+    }
+  }, []);
+
   // ================= HANDLE INPUT =================
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -82,6 +103,7 @@ const Orders = () => {
 
   // ================= CREATE / UPDATE =================
   const handleSubmit = async () => {
+    console.log("handleSubmit triggered");
     if (!form.name || !form.email) {
       toast.error("Thiếu thông tin");
       return;
@@ -93,11 +115,16 @@ const Orders = () => {
     }
 
     try {
+      let submitData = { ...form };
+      if (submitData.trainerId === "") {
+        submitData.trainerId = null;
+      }
+
       if (editingId) {
-        await updateOrder(editingId, form);
+        await updateOrder(editingId, submitData);
         toast.success("Cập nhật thành công");
       } else {
-        await createOrder(form);
+        await createOrder(submitData);
         toast.success("Tạo đơn thành công");
       }
 
@@ -120,6 +147,7 @@ const Orders = () => {
       gym: "",
       schedule: "",
       note: "",
+      trainerId: "",
     });
     setEditingId(null);
     setShowModal(false);
@@ -131,10 +159,8 @@ const Orders = () => {
 
     try {
       setLoadingId(id);
-
       await approveOrder(id);
       toast.success("Đã xác nhận");
-
       await fetchOrders();
     } catch (err) {
       console.error(err);
@@ -143,6 +169,7 @@ const Orders = () => {
       setLoadingId(null);
     }
   };
+
   // ================= DELETE =================
   const handleDelete = async (id) => {
     if (!window.confirm("Xóa đơn này?")) return;
@@ -162,6 +189,9 @@ const Orders = () => {
     setForm(order);
     setEditingId(order._id);
     setShowModal(true);
+    if (user?.role === "admin") {
+      fetchTrainers();
+    }
   };
 
   // ================= SEARCH & PAGINATION =================
@@ -169,7 +199,6 @@ const Orders = () => {
     o.name?.toLowerCase().includes(search.toLowerCase()),
   );
 
-  // Reset trang khi thay đổi search
   useEffect(() => {
     setCurrentPage(1);
   }, [search]);
@@ -177,17 +206,12 @@ const Orders = () => {
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse p-4">
-        {/* Header */}
-        <div className="h-6 bg-gray-300 rounded w-1/4"></div>
-
-        {/* Form */}
+        <div className="h-6 bg-gray-300 rounded w-1/3 md:w-1/4"></div>
         <div className="bg-white p-4 rounded shadow space-y-3">
           <div className="h-10 bg-gray-200 rounded"></div>
           <div className="h-10 bg-gray-200 rounded"></div>
           <div className="h-10 bg-gray-200 rounded w-32"></div>
         </div>
-
-        {/* Table */}
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="h-12 bg-gray-200 rounded"></div>
         ))}
@@ -196,30 +220,41 @@ const Orders = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 h-full">
       <ToastContainer position="top-right" autoClose={3000} />
 
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Package className="w-6 h-6 text-indigo-600" />
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Package className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
             Quản lý đơn hàng
           </h2>
           <p className="text-sm text-slate-500 mt-1">
             Quản lý và xử lý đơn hàng của khách hàng
           </p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setShowModal(true);
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Tạo đơn mới</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {user?.role === "admin" && (
+            <button
+              onClick={() => {
+                resetForm();
+                setShowModal(true);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm md:text-base"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tạo đơn mới</span>
+            </button>
+          )}
+          <Link
+            to="/admin/create-trainer"
+            className="px-3 py-2 md:px-4 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm md:text-base inline-flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Tạo Trainer
+          </Link>
+        </div>
       </div>
 
       {/* SEARCH */}
@@ -227,43 +262,46 @@ const Orders = () => {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           placeholder="Tìm kiếm theo tên khách hàng..."
-          className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+          className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-sm md:text-base"
           onChange={(e) => setSearch(e.target.value)}
           value={search}
         />
       </div>
 
-      {/* TABLE */}
+      {/* TABLE - Responsive với cuộn ngang */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[120px]">
                   Họ tên
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[140px]">
                   Email
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[100px]">
                   SĐT
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[120px]">
                   Gói
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[70px]">
                   Buổi
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[140px]">
                   Phòng
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[120px]">
                   Thời gian
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[120px]">
+                  Trainer
+                </th>
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[110px]">
                   Trạng thái
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[100px]">
                   Hành động
                 </th>
               </tr>
@@ -274,39 +312,57 @@ const Orders = () => {
                   key={o._id}
                   className="border-t border-slate-100 hover:bg-slate-50 transition-colors"
                 >
-                  <td className="px-4 py-3 font-medium text-slate-700">
+                  <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-slate-700 break-words">
                     {o.name}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{o.email}</td>
-                  <td className="px-4 py-3 text-slate-600">{o.phone}</td>
-                  <td className="px-4 py-3 text-slate-600">{o.package}</td>
-                  <td className="px-4 py-3 text-slate-600">{o.sessions}</td>
-                  <td className="px-4 py-3 text-slate-600">{o.gym}</td>
-                  <td className="px-4 py-3 text-slate-600">{o.schedule}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600 break-words">
+                    {o.email}
+                  </td>
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
+                    {o.phone}
+                  </td>
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
+                    {o.package}
+                  </td>
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
+                    {o.sessions}
+                  </td>
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600 break-words">
+                    {o.gym}
+                  </td>
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
+                    {o.schedule}
+                  </td>
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
+                    {o.trainerId ? o.trainerId.email : "—"}
+                  </td>
+                  <td className="px-3 md:px-4 py-2 md:py-3">
                     {o.status === "approved" ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 whitespace-nowrap">
                         <Check className="w-3 h-3" /> Đã xác nhận
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 whitespace-nowrap">
                         <Clock className="w-3 h-3" /> Chờ xác nhận
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {o.status === "pending" && (
+                  <td className="px-3 md:px-4 py-2 md:py-3">
+                    <div className="flex items-center gap-1 md:gap-2">
+                      {user?.role === "admin" && o.status === "pending" && (
                         <button
                           disabled={loadingId === o._id}
                           onClick={() => handleApprove(o._id)}
-                          className={`p-1.5 text-green-600 rounded-lg transition-colors
-    ${loadingId === o._id ? "opacity-50 cursor-not-allowed" : "hover:bg-green-50"}`}
+                          className={`p-1.5 text-green-600 rounded-lg transition-colors ${
+                            loadingId === o._id
+                              ? "opacity-50 cursor-not-allowed"
+                              : "hover:bg-green-50"
+                          }`}
                         >
                           <Check className="w-4 h-4" />
                         </button>
                       )}
-                      {o.status === "approved" && (
+                      {user?.role === "admin" && o.status === "approved" && (
                         <button
                           onClick={() => handleEdit(o)}
                           className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -315,24 +371,28 @@ const Orders = () => {
                           <Edit className="w-4 h-4" />
                         </button>
                       )}
-                      <button
-                        onClick={() => handleDelete(o._id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Xóa"
-                      >
-                        <Trash className="w-4 h-4" />
-                      </button>
+                      {user?.role === "admin" && (
+                        <button
+                          onClick={() => handleDelete(o._id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Xóa"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ))}
-              {orders.length === 0 && (
+              {filteredOrders.length === 0 && (
                 <tr>
                   <td
-                    colSpan={9}
-                    className="px-4 py-8 text-center text-slate-500"
+                    colSpan={10}
+                    className="px-3 md:px-4 py-6 md:py-8 text-center text-slate-500"
                   >
-                    Không có đơn hàng nào.
+                    {search
+                      ? "Không tìm thấy đơn hàng nào."
+                      : "Không có đơn hàng nào."}
                   </td>
                 </tr>
               )}
@@ -355,11 +415,9 @@ const Orders = () => {
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-
           <span className="text-sm text-slate-600">
             Trang {currentPage} / {totalPages}
           </span>
-
           <button
             onClick={() => {
               if (currentPage < totalPages) {
@@ -374,12 +432,12 @@ const Orders = () => {
         </div>
       )}
 
-      {/* MODAL giữ nguyên như cũ, chỉ thay icon và giao diện đã có từ trước */}
+      {/* MODAL - Responsive */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
+              <h2 className="text-lg md:text-xl font-bold text-slate-800">
                 {editingId ? "Cập nhật đơn hàng" : "Tạo đơn hàng mới"}
               </h2>
               <button
@@ -389,8 +447,7 @@ const Orders = () => {
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              {/* Các input giống như đã có, không thay đổi */}
+            <div className="p-4 md:p-6 space-y-4">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                   <User className="w-4 h-4" /> Họ tên{" "}
@@ -401,7 +458,7 @@ const Orders = () => {
                   value={form.name}
                   onChange={handleChange}
                   placeholder="Nhập họ tên"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
                 />
               </div>
               <div className="space-y-1">
@@ -414,7 +471,7 @@ const Orders = () => {
                   value={form.email}
                   onChange={handleChange}
                   placeholder="example@email.com"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
                 />
               </div>
               <div className="space-y-1">
@@ -427,7 +484,7 @@ const Orders = () => {
                   placeholder="0901234567"
                   value={form.phone}
                   onChange={handleChange}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -439,7 +496,7 @@ const Orders = () => {
                     name="package"
                     value={form.package}
                     onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
                   >
                     <option value="">Chọn gói</option>
                     <option value="Trail(Trải nghiệm)">
@@ -463,7 +520,7 @@ const Orders = () => {
                     value={form.sessions}
                     onChange={handleChange}
                     placeholder="Số buổi"
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
                   />
                 </div>
               </div>
@@ -476,7 +533,7 @@ const Orders = () => {
                     name="gym"
                     value={form.gym}
                     onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
                   >
                     <option value="">Chọn phòng</option>
                     <option value="Waystation Trương Văn Hải">
@@ -505,7 +562,7 @@ const Orders = () => {
                     value={form.schedule}
                     onChange={handleChange}
                     placeholder="VD: Sáng 8h-10h"
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
                   />
                 </div>
               </div>
@@ -518,21 +575,45 @@ const Orders = () => {
                   value={form.note}
                   onChange={handleChange}
                   rows={3}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
                 />
               </div>
+              {user?.role === "admin" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Trainer phụ trách
+                  </label>
+                  <select
+                    name="trainerId"
+                    value={form.trainerId || ""}
+                    onChange={handleChange}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 text-sm md:text-base"
+                  >
+                    <option value="">
+                      -- Không có trainer (xóa nếu có) --
+                    </option>
+                    {trainers.map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.name} ({t.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
-            <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 flex justify-end gap-3">
+            <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-end gap-3">
               <button
                 onClick={resetForm}
-                className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+                className="px-3 py-2 md:px-4 md:py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 text-sm md:text-base"
               >
                 Hủy
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className={`px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 ${submitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`px-3 py-2 md:px-4 md:py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 text-sm md:text-base ${
+                  submitting ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
                 {submitting ? "Đang xử lý..." : "Lưu"}
               </button>

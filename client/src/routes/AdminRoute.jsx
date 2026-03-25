@@ -1,49 +1,65 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 
 const AdminRoute = ({ children }) => {
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
-  const [isValid, setIsValid] = useState(false);
+  const [redirectTo, setRedirectTo] = useState(null);
 
   useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token");
 
-      // ❌ Không có token
-      if (!token) {
-        setIsValid(false);
+    if (!token) {
+      setRedirectTo("/login");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const user = jwtDecode(token);
+
+      // Kiểm tra hết hạn
+      if (user.exp * 1000 < Date.now()) {
+        localStorage.removeItem("token");
+        setRedirectTo("/login");
         setLoading(false);
         return;
       }
 
-      try {
-        const user = jwtDecode(token);
-
-        // 🔥 Check token hết hạn
-        if (user.exp * 1000 < Date.now()) {
-          localStorage.removeItem("token");
-          setIsValid(false);
-        } else if (user.role !== "admin") {
-          // ❌ Không phải admin
-          setIsValid(false);
-        } else {
-          // ✅ Hợp lệ
-          setIsValid(true);
-        }
-      } catch (err) {
-        // ❌ Token lỗi
-        localStorage.removeItem("token");
-        setIsValid(false);
+      // Kiểm tra role hợp lệ
+      if (!["admin", "trainer"].includes(user.role)) {
+        setRedirectTo("/login");
+        setLoading(false);
+        return;
       }
 
+      // Trainer chỉ được vào các route bắt đầu bằng /trainer
+      if (
+        user.role === "trainer" &&
+        !location.pathname.startsWith("/trainer")
+      ) {
+        setRedirectTo("/trainer");
+        setLoading(false);
+        return;
+      }
+
+      // Admin chỉ được vào các route bắt đầu bằng /admin
+      if (user.role === "admin" && !location.pathname.startsWith("/admin")) {
+        setRedirectTo("/admin");
+        setLoading(false);
+        return;
+      }
+
+      setRedirectTo(null);
       setLoading(false);
-    };
+    } catch (err) {
+      localStorage.removeItem("token");
+      setRedirectTo("/login");
+      setLoading(false);
+    }
+  }, [location.pathname]);
 
-    checkAuth();
-  }, []);
-
-  // 🔄 Loading tránh flicker
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen text-gray-500">
@@ -52,12 +68,10 @@ const AdminRoute = ({ children }) => {
     );
   }
 
-  // ❌ Không hợp lệ
-  if (!isValid) {
-    return <Navigate to="/login" />;
+  if (redirectTo) {
+    return <Navigate to={redirectTo} />;
   }
 
-  // ✅ OK
   return children;
 };
 

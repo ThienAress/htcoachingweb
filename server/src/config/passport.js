@@ -26,7 +26,7 @@ passport.use(
             name: profile.displayName,
             email,
             avatar: profile.photos?.[0]?.value || "",
-            role: "user", // 👈 mặc định user
+            role: "user",
           });
         }
 

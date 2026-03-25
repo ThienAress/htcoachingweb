@@ -12,8 +12,18 @@ export const createCheckin = async (req, res) => {
 
     const formattedTime = time ? new Date(time) : new Date();
 
+    let query = {
+      _id: orderId,
+      sessions: { $gt: 0 },
+    };
+
+    // 🔥 TRAINER CHỈ ĐƯỢC CHECKIN KHÁCH CỦA MÌNH
+    if (req.user.role === "trainer") {
+      query.trainerId = req.user.id;
+    }
+
     const order = await Order.findOneAndUpdate(
-      { _id: orderId, sessions: { $gt: 0 } },
+      query,
       { $inc: { sessions: -1 } },
       { new: true },
     );
@@ -121,7 +131,17 @@ export const getCheckins = async (req, res) => {
   try {
     console.log("🔥 API GET CHECKINS HIT");
 
-    const checkins = await Checkin.find().sort({ createdAt: -1 });
+    let query = {};
+
+    // Nếu là trainer, chỉ lấy check-in của các order mà trainer đó phụ trách
+    if (req.user.role === "trainer") {
+      // Lấy danh sách orderId mà trainer này quản lý
+      const orders = await Order.find({ trainerId: req.user.id }).select("_id");
+      const orderIds = orders.map((o) => o._id);
+      query.orderId = { $in: orderIds };
+    }
+
+    const checkins = await Checkin.find(query).sort({ createdAt: -1 });
 
     console.log("🔥 CHECKINS:", checkins);
 
@@ -131,7 +151,6 @@ export const getCheckins = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ GET CHECKINS ERROR:", err);
-
     res.status(500).json({
       success: false,
       message: err.message,
@@ -154,8 +173,8 @@ export const getMyCheckins = async (req, res) => {
       success: true,
       data: {
         user,
-        orders,
         checkins,
+        orders,
       },
     });
   } catch (err) {

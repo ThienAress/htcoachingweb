@@ -1,5 +1,5 @@
 import express from "express";
-import { protect, requireAdmin } from "../middlewares/auth.middleware.js";
+import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 
 import {
   createOrder,
@@ -12,12 +12,12 @@ import {
 const router = express.Router();
 
 // 🔥 Admin tạo đơn
-router.post("/", protect, requireAdmin, createOrder);
+router.post("/", protect, requireRoles("admin"), createOrder);
 
 // 🔥 ADMIN
-router.get("/", protect, requireAdmin, getOrders);
-router.put("/:id/approve", protect, requireAdmin, approveOrder);
-router.put("/:id", protect, requireAdmin, updateOrder);
-router.delete("/:id", protect, requireAdmin, deleteOrder);
+router.get("/", protect, requireRoles("admin", "trainer"), getOrders);
+router.put("/:id/approve", protect, requireRoles("admin"), approveOrder);
+router.put("/:id", protect, requireRoles("admin"), updateOrder);
+router.delete("/:id", protect, requireRoles("admin"), deleteOrder);
 
 export default router;

@@ -27,6 +27,11 @@ const orderSchema = new mongoose.Schema(
     approvedAt: {
       type: Date,
     },
+
+    trainerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   { timestamps: true },
 );

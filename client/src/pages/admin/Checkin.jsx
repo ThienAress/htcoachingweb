@@ -18,6 +18,7 @@ import {
 // Services
 import { getOrders } from "../../services/order.service";
 import { getCheckins, createCheckin } from "../../services/checkin.service";
+import { getUserFromToken } from "../../utils/auth";
 
 const muscles = [
   "Ngực",
@@ -79,6 +80,8 @@ const Checkin = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  const user = getUserFromToken(); // Lấy user từ token
+
   // LOAD DATA
   useEffect(() => {
     const fetchData = async () => {
@@ -88,9 +91,7 @@ const Checkin = () => {
         const checkinRes = await getCheckins();
 
         setOrders(orderRes.data.data.orders || []);
-        setCheckins(
-          checkinRes.data?.data?.checkins || checkinRes.data?.data || [],
-        );
+        setCheckins(checkinRes.data.data);
       } catch (err) {
         console.error(err);
       } finally {
@@ -114,18 +115,25 @@ const Checkin = () => {
     try {
       const res = await getCheckins();
       console.log("CHECKINS:", res.data);
-      setCheckins(res.data?.data?.checkins || res.data?.data || []);
+      setCheckins(res.data.data);
     } catch (err) {
       console.error("FETCH CHECKINS ERROR:", err);
     }
   };
 
   // UNIQUE CUSTOMER
-  const customers = [...new Map(orders.map((o) => [o.email, o])).values()];
+  // Nếu là admin, chỉ hiển thị khách hàng của các đơn chưa có trainer
+  // Nếu là trainer, hiển thị tất cả khách của trainer đó (backend đã filter)
+  const filteredOrdersForCustomer =
+    user?.role === "admin" ? orders.filter((o) => !o.trainerId) : orders;
+
+  const customers = [
+    ...new Map(filteredOrdersForCustomer.map((o) => [o.email, o])).values(),
+  ];
 
   // SELECT ORDER
   const handleSelectOrder = (id) => {
-    const order = orders.find((o) => o._id === id);
+    const order = filteredOrdersForCustomer.find((o) => o._id === id);
     setSelectedOrder(id);
     setSelectedOrderData(order);
   };
@@ -163,7 +171,7 @@ const Checkin = () => {
     }
   };
 
-  // Phân trang
+  // Phân trang lịch sử check-in
   const totalPages = Math.ceil(checkins.length / itemsPerPage);
   const paginatedCheckins = checkins.slice(
     (currentPage - 1) * itemsPerPage,
@@ -193,7 +201,6 @@ const Checkin = () => {
             <div className="h-10 bg-gray-200 rounded"></div>
             <div className="h-10 bg-gray-200 rounded md:col-span-2"></div>
           </div>
-
           <div className="h-10 bg-gray-300 rounded w-32"></div>
         </div>
 
@@ -263,7 +270,7 @@ const Checkin = () => {
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">Chọn gói</option>
-                {orders
+                {filteredOrdersForCustomer
                   .filter((o) => o.email === selectedCustomer)
                   .map((o) => (
                     <option key={o._id} value={o._id}>
@@ -326,15 +333,15 @@ const Checkin = () => {
               onClick={handleSubmit}
               disabled={submitting}
               className={`
-      relative px-6 py-2.5 rounded-lg font-medium text-white
-      bg-gradient-to-r from-indigo-600 to-indigo-700
-      hover:from-indigo-700 hover:to-indigo-800
-      focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
-      transition-all duration-200 ease-in-out
-      shadow-md hover:shadow-lg
-      disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:from-indigo-600 disabled:hover:to-indigo-700
-      flex items-center gap-2
-    `}
+                relative px-6 py-2.5 rounded-lg font-medium text-white
+                bg-gradient-to-r from-indigo-600 to-indigo-700
+                hover:from-indigo-700 hover:to-indigo-800
+                focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
+                transition-all duration-200 ease-in-out
+                shadow-md hover:shadow-lg
+                disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:from-indigo-600 disabled:hover:to-indigo-700
+                flex items-center gap-2
+              `}
             >
               {submitting ? (
                 <>

@@ -91,6 +91,11 @@ app.get("/fix-userid", async (req, res) => {
   }
 });
 
+app.use((req, res, next) => {
+  console.log("👉 HIT:", req.method, req.url);
+  next();
+});
+
 app.listen(process.env.PORT, () => {
   console.log(`Server chạy tại port ${process.env.PORT}`);
 });

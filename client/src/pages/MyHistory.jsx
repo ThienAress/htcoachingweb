@@ -55,12 +55,12 @@ const MyHistory = () => {
 
       console.log("MY API:", res);
 
-      const payload = res.data?.data || res.data || res;
+      const payload = res.data.data;
 
       setData({
-        user: payload.user || null,
-        checkins: payload.checkins || [],
-        orders: payload.orders || [],
+        user: payload.user,
+        checkins: payload.checkins,
+        orders: payload.orders,
       });
     } catch (err) {
       console.error(err);

@@ -87,16 +87,19 @@ function Header() {
   };
 
   // Dropdown items dựa trên role
-  const dropdownItems =
-    user?.role === "admin"
-      ? [
-          { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
-          { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
-        ]
-      : [
-          { label: "Lịch sử tập", icon: History, path: "/my-history" },
-          { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
-        ];
+  const dropdownItems = ["admin", "trainer"].includes(user?.role)
+    ? [
+        {
+          label: "Checkin khách hàng",
+          icon: UserCheck,
+          path: "/checkin",
+        },
+        { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
+      ]
+    : [
+        { label: "Lịch sử tập", icon: History, path: "/my-history" },
+        { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
+      ];
 
   return (
     <header
@@ -190,7 +193,7 @@ function Header() {
               </Link>
             </li>
 
-            {user?.role === "admin" && (
+            {["admin", "trainer"].includes(user?.role) && (
               <li>
                 <Link
                   to="/admin"
