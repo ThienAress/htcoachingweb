@@ -1,8 +1,28 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { generateCsrfToken } from "../middlewares/csrf.js";
 
 const isProd = process.env.NODE_ENV === "production";
+
+// Helper lấy cookie options cho production (cross-domain)
+const getCookieOptions = (maxAge = null) => {
+  const options = {
+    httpOnly: true,
+    secure: true, // Bắt buộc với sameSite=none
+    sameSite: "none",
+  };
+  if (maxAge) options.maxAge = maxAge;
+  return options;
+};
+
+// Helper cho CSRF cookie (frontend cần đọc để gửi header)
+const getCsrfCookieOptions = () => ({
+  httpOnly: false,
+  secure: true,
+  sameSite: "none",
+  maxAge: 24 * 60 * 60 * 1000, // 1 ngày
+});
 
 export const loginAdmin = async (req, res) => {
   try {
@@ -39,23 +59,21 @@ export const loginAdmin = async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    // Hash refresh token trước khi lưu
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
     user.refreshToken = hashedRefreshToken;
     await user.save();
 
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "strict" : "lax",
-      maxAge: 15 * 60 * 1000,
-    });
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "strict" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    // Set cookies
+    res.cookie("accessToken", accessToken, getCookieOptions(15 * 60 * 1000));
+    res.cookie(
+      "refreshToken",
+      refreshToken,
+      getCookieOptions(7 * 24 * 60 * 60 * 1000),
+    );
+
+    // Set CSRF token cookie
+    const csrfToken = generateCsrfToken();
+    res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
 
     res.json({
       success: true,
@@ -113,18 +131,15 @@ export const loginTrainer = async (req, res) => {
     user.refreshToken = hashedRefreshToken;
     await user.save();
 
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "strict" : "lax",
-      maxAge: 15 * 60 * 1000,
-    });
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "strict" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("accessToken", accessToken, getCookieOptions(15 * 60 * 1000));
+    res.cookie(
+      "refreshToken",
+      refreshToken,
+      getCookieOptions(7 * 24 * 60 * 60 * 1000),
+    );
+
+    const csrfToken = generateCsrfToken();
+    res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
 
     res.json({
       success: true,
@@ -153,7 +168,6 @@ export const refreshTokenController = async (req, res) => {
   try {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
     const user = await User.findById(decoded.id);
-    // So sánh hash
     if (
       !user ||
       !user.refreshToken ||
@@ -179,19 +193,16 @@ export const refreshTokenController = async (req, res) => {
     user.refreshToken = hashedNewRefreshToken;
     await user.save();
 
-    const isProd = process.env.NODE_ENV === "production";
-    res.cookie("accessToken", newAccessToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "strict" : "lax",
-      maxAge: 15 * 60 * 1000,
-    });
-    res.cookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "strict" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("accessToken", newAccessToken, getCookieOptions(15 * 60 * 1000));
+    res.cookie(
+      "refreshToken",
+      newRefreshToken,
+      getCookieOptions(7 * 24 * 60 * 60 * 1000),
+    );
+
+    // Refresh CSRF token cũng nên thay mới để tăng bảo mật
+    const newCsrfToken = generateCsrfToken();
+    res.cookie("csrfToken", newCsrfToken, getCsrfCookieOptions());
 
     res.json({ success: true, data: { token: newAccessToken } });
   } catch (err) {
@@ -206,21 +217,10 @@ export const logout = async (req, res) => {
     await user.save();
   }
 
-  res.clearCookie("accessToken", {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "strict" : "lax",
-  });
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "strict" : "lax",
-  });
-  res.clearCookie("csrfToken", {
-    httpOnly: false,
-    secure: isProd,
-    sameSite: isProd ? "strict" : "lax",
-  });
+  // Xóa cookies với đúng cấu hình
+  res.clearCookie("accessToken", getCookieOptions());
+  res.clearCookie("refreshToken", getCookieOptions());
+  res.clearCookie("csrfToken", getCsrfCookieOptions());
 
   res.json({ success: true, message: "Logged out" });
 };

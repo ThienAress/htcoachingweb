@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from "react";
 import api from "../utils/api";
 
@@ -16,8 +17,18 @@ export const AuthProvider = ({ children }) => {
   const fetchUser = async () => {
     try {
       const res = await api.get("/user/me");
-      setUser(res.data);
+      const fetchedUser = res.data;
+      // Kiểm tra user hợp lệ: phải có email
+      if (fetchedUser && !fetchedUser.email) {
+        console.warn(
+          "User fetched but missing email, treating as not logged in",
+        );
+        setUser(null);
+      } else {
+        setUser(fetchedUser);
+      }
     } catch (err) {
+      console.error("Fetch user error:", err);
       setUser(null);
     } finally {
       setLoading(false);

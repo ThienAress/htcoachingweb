@@ -99,6 +99,8 @@ const Hero = () => {
 
   // Swiper init
   useEffect(() => {
+    if (!prevRef.current || !nextRef.current) return;
+
     const swiper = new Swiper(".hero-swiper", {
       loop: true,
       autoplay: {
@@ -110,23 +112,13 @@ const Hero = () => {
         el: ".swiper-pagination",
         clickable: true,
       },
+      navigation: {
+        prevEl: prevRef.current,
+        nextEl: nextRef.current,
+      },
     });
 
-    setTimeout(() => {
-      if (swiper && prevRef.current && nextRef.current) {
-        swiper.params.navigation = {
-          prevEl: prevRef.current,
-          nextEl: nextRef.current,
-        };
-
-        swiper.navigation.init();
-        swiper.navigation.update();
-      }
-    });
-
-    return () => {
-      swiper.destroy();
-    };
+    return () => swiper.destroy();
   }, []);
 
   return (

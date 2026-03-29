@@ -1,5 +1,5 @@
 import axios from "axios";
-import { redirectTo } from "./navigation";
+
 import Cookies from "js-cookie";
 
 const api = axios.create({
@@ -38,7 +38,7 @@ api.interceptors.response.use(
         await axios.post(`/api/auth/refresh`, {}, { withCredentials: true });
         return api(originalRequest);
       } catch (refreshError) {
-        redirectTo("/login");
+        window.location.href = "/login";
         return Promise.reject(refreshError);
       }
     }

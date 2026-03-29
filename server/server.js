@@ -20,29 +20,34 @@ import checkinRoutes from "./src/routes/checkin.routes.js";
 import { generateCsrfToken, csrfProtection } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
 
-import bcrypt from "bcryptjs";
-import User from "./src/models/User.js";
-import Order from "./src/models/Order.js";
-
 // ================= INIT APP =================
 const app = express();
-
-// ================= SECURITY =================
-app.use(helmet());
 
 // ================= CONNECT DB =================
 connectDB();
 
 // ================= GLOBAL MIDDLEWARE =================
+const allowedOrigins = [
+  "https://htcoachingweb.netlify.app",
+  "http://localhost:5173",
+];
+
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://htcoachingweb.netlify.app"],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   }),
 );
 
+app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
@@ -87,7 +92,7 @@ if (isProd) {
   app.use("/api/checkin", apiLimiter);
 }
 
-// ================= CSRF =================
+// ================= CSRF TOKEN GENERATE =================
 app.use((req, res, next) => {
   if (!req.cookies.csrfToken) {
     const newToken = generateCsrfToken();
@@ -101,7 +106,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Apply CSRF protection
+// ================= CSRF PROTECTION =================
 app.use("/api/orders", csrfProtection);
 app.use("/api/checkin", csrfProtection);
 app.use("/api/user", csrfProtection);
@@ -113,7 +118,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/checkin", checkinRoutes);
 
-// ================= ERROR HANDLER (QUAN TRỌNG) =================
+// ================= ERROR HANDLER =================
 app.use(errorHandler);
 
 // ================= START SERVER =================
