@@ -1,9 +1,13 @@
+// ================= IMPORT =================
 import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
 import cors from "cors";
 import passport from "passport";
+import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 
 import connectDB from "./src/config/db.js";
 import "./src/config/passport.js";
@@ -13,89 +17,106 @@ import userRoutes from "./src/routes/user.routes.js";
 import orderRoutes from "./src/routes/order.routes.js";
 import checkinRoutes from "./src/routes/checkin.routes.js";
 
+import { generateCsrfToken, csrfProtection } from "./src/middlewares/csrf.js";
+import { errorHandler } from "./src/middlewares/errorHandler.js";
+
 import bcrypt from "bcryptjs";
 import User from "./src/models/User.js";
 import Order from "./src/models/Order.js";
 
-// ✅ TẠO APP (QUAN TRỌNG)
+// ================= INIT APP =================
 const app = express();
 
-// ✅ CONNECT DATABASE
+// ================= SECURITY =================
+app.use(helmet());
+
+// ================= CONNECT DB =================
 connectDB();
 
-// ✅ MIDDLEWARE
+// ================= GLOBAL MIDDLEWARE =================
 app.use(
   cors({
     origin: ["http://localhost:5173", "https://htcoachingweb.netlify.app"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   }),
 );
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(passport.initialize());
 
-// ✅ ROUTES
+// ================= RATE LIMIT =================
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: {
+    success: false,
+    message: "Quá nhiều yêu cầu, vui lòng thử lại sau 15 phút",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  skipSuccessfulRequests: true,
+  message: {
+    success: false,
+    message: "Quá nhiều lần thử, vui lòng thử lại sau 15 phút",
+  },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  message: {
+    success: false,
+    message: "Quá nhiều yêu cầu, vui lòng thử lại sau",
+  },
+});
+
+const isProd = process.env.NODE_ENV === "production";
+
+if (isProd) {
+  app.use("/api", globalLimiter);
+  app.use("/api/auth", authLimiter);
+  app.use("/api/orders", apiLimiter);
+  app.use("/api/checkin", apiLimiter);
+}
+
+// ================= CSRF =================
+app.use((req, res, next) => {
+  if (!req.cookies.csrfToken) {
+    const newToken = generateCsrfToken();
+    res.cookie("csrfToken", newToken, {
+      httpOnly: false,
+      secure: isProd,
+      sameSite: isProd ? "strict" : "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+  }
+  next();
+});
+
+// Apply CSRF protection
+app.use("/api/orders", csrfProtection);
+app.use("/api/checkin", csrfProtection);
+app.use("/api/user", csrfProtection);
+app.use("/api/auth/logout", csrfProtection);
+
+// ================= ROUTES =================
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/checkin", checkinRoutes);
 
-// ✅ CREATE ADMIN (chỉ chạy 1 lần)
-app.get("/create-admin", async (req, res) => {
-  try {
-    const existing = await User.findOne({ email: "admin@gmail.com" });
+// ================= ERROR HANDLER (QUAN TRỌNG) =================
+app.use(errorHandler);
 
-    if (existing) {
-      return res.json({ message: "Admin đã tồn tại" });
-    }
-
-    const hashedPassword = await bcrypt.hash("123456", 10);
-
-    const admin = await User.create({
-      name: "Admin",
-      email: "admin@gmail.com",
-      password: hashedPassword,
-      role: "admin",
-    });
-
-    res.json(admin);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ✅ FIX USERID CHO ORDER
-app.get("/fix-userid", async (req, res) => {
-  try {
-    const orders = await Order.find();
-
-    let updated = 0;
-
-    for (let o of orders) {
-      const user = await User.findOne({
-        email: o.email?.toLowerCase().trim(),
-      });
-
-      if (user) {
-        o.userId = user._id;
-        await o.save();
-        updated++;
-      }
-    }
-
-    res.json({ updated });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Lỗi fix userId" });
-  }
-});
-
-app.use((req, res, next) => {
-  console.log("👉 HIT:", req.method, req.url);
-  next();
-});
-
+// ================= START SERVER =================
 app.listen(process.env.PORT, () => {
-  console.log(`Server chạy tại port ${process.env.PORT}`);
+  console.log(`🚀 Server chạy tại port ${process.env.PORT}`);
 });

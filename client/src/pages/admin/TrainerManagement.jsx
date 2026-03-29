@@ -1,47 +1,45 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Trash2, UserCog } from "lucide-react";
 import { toast } from "react-toastify";
 import { getTrainers, deleteTrainer } from "../../services/user.service";
 
 const TrainerManagement = () => {
-  const [trainers, setTrainers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const limit = 10;
 
-  const fetchTrainers = async () => {
-    try {
-      setLoading(true);
-      const res = await getTrainers();
-      setTrainers(res.data.data || []);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi tải danh sách trainer");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: trainersData,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["trainers", currentPage, searchTerm],
+    queryFn: () =>
+      getTrainers(currentPage, limit, searchTerm).then((res) => res.data),
+    keepPreviousData: true,
+  });
 
-  useEffect(() => {
-    fetchTrainers();
-  }, []);
+  const trainers = trainersData?.data || [];
+  const pagination = trainersData?.pagination || { total: 0, totalPages: 0 };
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Xóa trainer "${name}"?`)) return;
-    try {
-      await deleteTrainer(id);
+  const deleteMutation = useMutation({
+    mutationFn: deleteTrainer,
+    onSuccess: () => {
       toast.success("Xóa trainer thành công");
-      fetchTrainers();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi xóa");
-    }
+      queryClient.invalidateQueries({ queryKey: ["trainers"] });
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+  });
+
+  const handleDelete = (id, name) => {
+    if (!window.confirm(`Xóa trainer "${name}"?`)) return;
+    deleteMutation.mutate(id);
   };
 
-  const filteredTrainers = trainers.filter(
-    (trainer) =>
-      trainer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trainer.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4 md:p-6 space-y-4 animate-pulse">
         <div className="h-6 bg-gray-300 rounded w-1/3 md:w-1/4"></div>
@@ -51,6 +49,14 @@ const TrainerManagement = () => {
             <div key={i} className="h-12 bg-gray-200 rounded"></div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6 text-center text-red-500">
+        Lỗi tải dữ liệu: {error.message}
       </div>
     );
   }
@@ -67,14 +73,16 @@ const TrainerManagement = () => {
         Danh sách huấn luyện viên đã tạo.
       </p>
 
-      {/* Thanh tìm kiếm */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           type="text"
           placeholder="Tìm kiếm theo tên hoặc email..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
           className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm md:text-base"
         />
       </div>
@@ -84,10 +92,10 @@ const TrainerManagement = () => {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[140px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Tên
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[180px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Email
                 </th>
                 <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
@@ -96,15 +104,15 @@ const TrainerManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredTrainers.map((trainer) => (
+              {trainers.map((trainer) => (
                 <tr
                   key={trainer._id}
                   className="border-t border-slate-100 hover:bg-slate-50"
                 >
-                  <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-slate-700 break-words">
+                  <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-slate-700">
                     {trainer.name}
                   </td>
-                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600 break-words">
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
                     {trainer.email}
                   </td>
                   <td className="px-3 md:px-4 py-2 md:py-3">
@@ -118,7 +126,7 @@ const TrainerManagement = () => {
                   </td>
                 </tr>
               ))}
-              {filteredTrainers.length === 0 && (
+              {trainers.length === 0 && (
                 <tr>
                   <td
                     colSpan={3}
@@ -132,6 +140,30 @@ const TrainerManagement = () => {
           </table>
         </div>
       </div>
+
+      {pagination.totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 pt-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm text-slate-600">
+            Trang {pagination.page} / {pagination.totalPages}
+          </span>
+          <button
+            onClick={() =>
+              setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
+            }
+            disabled={currentPage === pagination.totalPages}
+            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

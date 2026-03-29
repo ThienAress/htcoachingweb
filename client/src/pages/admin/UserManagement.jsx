@@ -1,52 +1,45 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Trash2, User } from "lucide-react";
 import { toast } from "react-toastify";
 import { getUsers, deleteUser } from "../../services/user.service";
 
 const UserManagement = () => {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const limit = 10;
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const res = await getUsers();
-      setUsers(res.data.data || []);
-    } catch (err) {
-      console.error("FETCH USERS ERROR:", err);
-      toast.error(
-        err.response?.data?.message || "Lỗi tải danh sách người dùng",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    data: usersData,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["users", currentPage, searchTerm],
+    queryFn: () =>
+      getUsers(currentPage, limit, searchTerm).then((res) => res.data),
+    keepPreviousData: true,
+  });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const users = usersData?.data || [];
+  const pagination = usersData?.pagination || { total: 0, totalPages: 0 };
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Xóa người dùng "${name}"?`)) return;
-    try {
-      await deleteUser(id);
+  const deleteMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
       toast.success("Xóa người dùng thành công");
-      fetchUsers(); // refresh danh sách
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Lỗi xóa người dùng");
-    }
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+  });
+
+  const handleDelete = (id, name) => {
+    if (!window.confirm(`Xóa người dùng "${name}"?`)) return;
+    deleteMutation.mutate(id);
   };
 
-  // Lọc theo tên hoặc email
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-4 md:p-6 space-y-4 animate-pulse">
         <div className="h-6 bg-gray-300 rounded w-1/3 md:w-1/4"></div>
@@ -56,6 +49,14 @@ const UserManagement = () => {
             <div key={i} className="h-12 bg-gray-200 rounded"></div>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6 text-center text-red-500">
+        Lỗi tải dữ liệu: {error.message}
       </div>
     );
   }
@@ -72,28 +73,29 @@ const UserManagement = () => {
         Danh sách khách hàng đã đăng nhập qua Google.
       </p>
 
-      {/* Thanh tìm kiếm */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           type="text"
           placeholder="Tìm kiếm theo tên hoặc email..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
           className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm md:text-base"
         />
       </div>
 
-      {/* Bảng với cuộn ngang khi cần */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[140px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Tên
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[180px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Email
                 </th>
                 <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
@@ -102,15 +104,15 @@ const UserManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user) => (
+              {users.map((user) => (
                 <tr
                   key={user._id}
                   className="border-t border-slate-100 hover:bg-slate-50"
                 >
-                  <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-slate-700 break-words">
+                  <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-slate-700">
                     {user.name}
                   </td>
-                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600 break-words">
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
                     {user.email}
                   </td>
                   <td className="px-3 md:px-4 py-2 md:py-3">
@@ -124,15 +126,13 @@ const UserManagement = () => {
                   </td>
                 </tr>
               ))}
-              {filteredUsers.length === 0 && (
+              {users.length === 0 && (
                 <tr>
                   <td
                     colSpan={3}
                     className="px-3 md:px-4 py-6 md:py-8 text-center text-slate-500"
                   >
-                    {searchTerm
-                      ? "Không tìm thấy người dùng nào."
-                      : "Chưa có người dùng nào."}
+                    Không tìm thấy người dùng nào.
                   </td>
                 </tr>
               )}
@@ -140,6 +140,30 @@ const UserManagement = () => {
           </table>
         </div>
       </div>
+
+      {pagination.totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 pt-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm text-slate-600">
+            Trang {pagination.page} / {pagination.totalPages}
+          </span>
+          <button
+            onClick={() =>
+              setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
+            }
+            disabled={currentPage === pagination.totalPages}
+            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

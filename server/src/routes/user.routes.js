@@ -3,7 +3,15 @@ import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { createTrainer } from "../controllers/admin.controller.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
-import { getUsers, deleteUser } from "../controllers/user.controller.js";
+import {
+  getUsers,
+  deleteUser,
+  getTrainers,
+} from "../controllers/user.controller.js";
+import {
+  validateCreateTrainer,
+  validateDeleteUser,
+} from "../middlewares/validation.js";
 
 const router = express.Router();
 
@@ -14,14 +22,7 @@ router.get("/me", protect, async (req, res) => {
 });
 
 // ===== GET TRAINERS =====
-router.get("/trainers", protect, async (req, res) => {
-  const trainers = await User.find({ role: "trainer" }).select("-password");
-
-  res.json({
-    success: true,
-    data: trainers,
-  });
-});
+router.get("/trainers", protect, requireRoles("admin"), getTrainers);
 
 // ===== DELETE TRAINERS =====
 router.delete(
@@ -50,10 +51,22 @@ router.delete(
 );
 
 // ===== CREATE TRAINER =====
-router.post("/create-trainer", protect, requireRoles("admin"), createTrainer);
+router.post(
+  "/create-trainer",
+  protect,
+  requireRoles("admin"),
+  validateCreateTrainer,
+  createTrainer,
+);
 
 // ===== GET USER FROM GOOGLE =====
 router.get("/users", protect, requireRoles("admin"), getUsers);
-router.delete("/:id", protect, requireRoles("admin"), deleteUser);
+router.delete(
+  "/:id",
+  protect,
+  requireRoles("admin"),
+  validateDeleteUser,
+  deleteUser,
+);
 
 export default router;

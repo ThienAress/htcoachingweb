@@ -1,4 +1,8 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+
+import { AuthProvider } from "./context/AuthContext";
+import { setNavigate } from "./utils/navigation";
 
 import MainLayout from "./layouts/MainLayout";
 import AdminLayout from "./layouts/AdminLayout";
@@ -19,57 +23,76 @@ import CreateTrainer from "./pages/admin/CreateTrainer";
 import TrainerLogin from "./pages/auth/TrainerLogin";
 import TrainerManagement from "./pages/admin/TrainerManagement";
 import UserManagement from "./pages/admin/UserManagement";
+import TrainerCheckinHistory from "./pages/trainer/TrainerCheckinHistory";
 
+import "./index.css";
 import "./App.css";
 
+// ================= APP CONTENT =================
+function AppContent() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    setNavigate(navigate);
+  }, [navigate]);
+
+  return (
+    <Routes>
+      {/* USER ROUTES */}
+      <Route element={<MainLayout />}>
+        <Route path="/" element={<Home />} />
+      </Route>
+
+      <Route path="/login" element={<Login />} />
+      <Route path="/login-success" element={<LoginSuccess />} />
+      <Route path="/checkin" element={<Checkin />} />
+      <Route path="/my-history" element={<MyHistory />} />
+
+      {/* TRAINER LOGIN */}
+      <Route path="/trainer-login" element={<TrainerLogin />} />
+
+      {/* TRAINER PANEL */}
+      <Route
+        path="/trainer"
+        element={
+          <AdminRoute>
+            <TrainerLayout />
+          </AdminRoute>
+        }
+      >
+        <Route index element={<TrainerDashboard />} />
+        <Route path="checkin-history" element={<TrainerCheckinHistory />} />
+      </Route>
+
+      {/* ADMIN LOGIN */}
+      <Route path="/admin-login" element={<AdminLogin />} />
+
+      {/* ADMIN PANEL */}
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminLayout />
+          </AdminRoute>
+        }
+      >
+        <Route path="orders" element={<Orders />} />
+        <Route path="dashboard" element={<CheckinHistory />} />
+        <Route path="create-trainer" element={<CreateTrainer />} />
+        <Route path="trainers" element={<TrainerManagement />} />
+        <Route path="users" element={<UserManagement />} />
+      </Route>
+    </Routes>
+  );
+}
+
+// ================= ROOT APP =================
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* USER ROUTES */}
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<Home />} />
-        </Route>
-
-        <Route path="/login" element={<Login />} />
-        <Route path="/login-success" element={<LoginSuccess />} />
-        <Route path="/checkin" element={<Checkin />} />
-        <Route path="/my-history" element={<MyHistory />} />
-
-        {/* TRAINER LOGIN */}
-        <Route path="/trainer-login" element={<TrainerLogin />} />
-
-        {/* TRAINER PANEL */}
-        <Route
-          path="/trainer"
-          element={
-            <AdminRoute>
-              <TrainerLayout />
-            </AdminRoute>
-          }
-        >
-          <Route index element={<TrainerDashboard />} />
-        </Route>
-
-        {/* ADMIN LOGIN */}
-        <Route path="/admin-login" element={<AdminLogin />} />
-
-        {/* ADMIN PANEL */}
-        <Route
-          path="/admin"
-          element={
-            <AdminRoute>
-              <AdminLayout />
-            </AdminRoute>
-          }
-        >
-          <Route path="orders" element={<Orders />} />
-          <Route path="dashboard" element={<CheckinHistory />} />
-          <Route path="create-trainer" element={<CreateTrainer />} />
-          <Route path="trainers" element={<TrainerManagement />} />
-          <Route path="users" element={<UserManagement />} />
-        </Route>
-      </Routes>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </BrowserRouter>
   );
 }

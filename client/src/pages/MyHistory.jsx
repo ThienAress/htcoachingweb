@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   User,
   Mail,
@@ -10,83 +11,31 @@ import {
   ChevronRight,
   CheckCircle,
 } from "lucide-react";
+
 import { getMyCheckins } from "../services/checkin.service";
 
-const formatTime24h = (timeStr) => {
-  if (!timeStr) return "";
-  let date = new Date(timeStr);
-  if (!isNaN(date.getTime())) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  }
-  const match = timeStr.match(
-    /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)?$/i,
-  );
-  if (match) {
-    let [_, day, month, year, hour, minute, ampm] = match;
-    let h = parseInt(hour, 10);
-    if (ampm) {
-      if (ampm.toUpperCase() === "PM" && h !== 12) h += 12;
-      if (ampm.toUpperCase() === "AM" && h === 12) h = 0;
-    }
-    const hours = String(h).padStart(2, "0");
-    return `${day}/${month}/${year} ${hours}:${minute}`;
-  }
-  return timeStr;
-};
-
 const MyHistory = () => {
-  const [data, setData] = useState({
-    user: null,
-    checkins: [],
-    orders: [],
-  });
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const res = await getMyCheckins();
 
-      console.log("MY API:", res);
-
-      const payload = res.data.data;
-
-      setData({
-        user: payload.user,
-        checkins: payload.checkins,
-        orders: payload.orders,
-      });
-    } catch (err) {
-      console.error(err);
-      setData({ user: null, checkins: [], orders: [] });
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [data?.checkins]);
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["myCheckins"],
+    queryFn: () => getMyCheckins().then((res) => res.data.data),
+  });
 
   const checkins = data?.checkins || [];
+  const orders = data?.orders || [];
+  const userData = data?.user;
+
   const totalPages = Math.ceil(checkins.length / itemsPerPage);
   const paginatedCheckins = checkins.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
   );
-  if (loading) {
+
+  if (isLoading) {
     return (
       <div className="p-4 md:p-6 space-y-6 animate-pulse">
-        {/* HEADER */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full"></div>
           <div className="space-y-2">
@@ -94,21 +43,15 @@ const MyHistory = () => {
             <div className="h-3 w-24 bg-gray-200 rounded"></div>
           </div>
         </div>
-
-        {/* CARD USER */}
         <div className="bg-white rounded-xl shadow-sm border p-5 space-y-4">
           <div className="h-5 w-48 bg-gray-300 rounded"></div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="h-4 w-32 bg-gray-200 rounded"></div>
             <div className="h-4 w-40 bg-gray-200 rounded"></div>
           </div>
         </div>
-
-        {/* CARD PACKAGES */}
         <div className="bg-white rounded-xl shadow-sm border p-5 space-y-4">
           <div className="h-5 w-40 bg-gray-300 rounded"></div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[1, 2].map((i) => (
               <div
@@ -122,14 +65,11 @@ const MyHistory = () => {
             ))}
           </div>
         </div>
-
-        {/* TABLE */}
         <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
           <div className="px-5 py-4 border-b bg-slate-50 flex justify-between">
             <div className="h-4 w-40 bg-gray-300 rounded"></div>
             <div className="h-4 w-16 bg-gray-200 rounded"></div>
           </div>
-
           <div className="p-4 space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="grid grid-cols-6 gap-4 items-center">
@@ -147,16 +87,30 @@ const MyHistory = () => {
     );
   }
 
-  if (!data || !data.checkins)
+  if (isError) {
+    return (
+      <div className="p-6 text-center text-red-500 bg-red-50 rounded-xl border border-red-200">
+        Lỗi tải dữ liệu: {error?.message}
+        <button
+          onClick={() => refetch()}
+          className="ml-4 px-3 py-1 bg-blue-500 text-white rounded"
+        >
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+
+  if (!data || !checkins) {
     return (
       <div className="p-6 text-center text-red-500 bg-red-50 rounded-xl border border-red-200">
         Không có dữ liệu hoặc xảy ra lỗi.
       </div>
     );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      {/* Card 1: Thông tin khách hàng */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
         <div className="flex items-start gap-3">
           <div className="p-2 bg-indigo-100 rounded-lg">
@@ -169,18 +123,17 @@ const MyHistory = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mt-3">
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <User className="w-4 h-4 text-slate-400" />
-                <span className="font-medium">Họ tên:</span> {data.user?.name}
+                <span className="font-medium">Họ tên:</span> {userData?.name}
               </div>
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <Mail className="w-4 h-4 text-slate-400" />
-                <span className="font-medium">Email:</span> {data.user?.email}
+                <span className="font-medium">Email:</span> {userData?.email}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Card 2: Gói tập */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
         <div className="flex items-center gap-2 mb-4">
           <Package className="w-5 h-5 text-indigo-600" />
@@ -188,9 +141,9 @@ const MyHistory = () => {
             Gói tập của tôi
           </h3>
         </div>
-        {data.orders && data.orders.length > 0 ? (
+        {orders.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {data.orders.map((o) => (
+            {orders.map((o) => (
               <div
                 key={o._id}
                 className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4"
@@ -221,7 +174,6 @@ const MyHistory = () => {
         )}
       </div>
 
-      {/* Card 3: Lịch sử check-in */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -270,7 +222,9 @@ const MyHistory = () => {
                     <td className="px-4 py-3 text-slate-600">{c.package}</td>
                     <td className="px-4 py-3 text-slate-600 flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      {formatTime24h(c.time)}
+                      {new Date(c.time).toLocaleString("vi-VN", {
+                        hour12: false,
+                      })}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       <span className="inline-flex items-center gap-1">
@@ -307,7 +261,7 @@ const MyHistory = () => {
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-50"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -317,7 +271,7 @@ const MyHistory = () => {
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-50"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

@@ -1,59 +1,49 @@
 import axios from "axios";
+import { redirectTo } from "./navigation";
+import Cookies from "js-cookie";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: "/api",
+  withCredentials: true,
 });
 
-// 🔥 REQUEST INTERCEPTOR (gắn access token)
+// Request interceptor: gắn CSRF token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const safeMethods = ["GET", "HEAD", "OPTIONS"];
+  if (!safeMethods.includes(config.method.toUpperCase())) {
+    const csrfToken = Cookies.get("csrfToken");
+    if (csrfToken) {
+      config.headers["X-CSRF-Token"] = csrfToken;
+    }
   }
-
   return config;
 });
 
-// 🔥 RESPONSE INTERCEPTOR (auto refresh token)
+// Response interceptor: xử lý refresh, bỏ log 401 cho /user/me
 api.interceptors.response.use(
-  (res) => res,
-  async (err) => {
-    const originalRequest = err.config;
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    const isUserMeRequest = originalRequest?.url === "/user/me";
 
-    // nếu token hết hạn
-    if (err.response?.status === 401 && !originalRequest._retry) {
+    // Nếu là lỗi 401 của /user/me, không log, chỉ reject để AuthProvider xử lý
+    if (error.response?.status === 401 && isUserMeRequest) {
+      return Promise.reject(error);
+    }
+
+    // Các lỗi 401 khác: thử refresh token
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
       try {
-        const refreshToken = localStorage.getItem("refreshToken");
-
-        const res = await axios.post(
-          `${import.meta.env.VITE_API_URL}/auth/refresh`,
-          { refreshToken },
-        );
-
-        const newToken = res.data.token;
-
-        // lưu token mới
-        localStorage.setItem("token", newToken);
-        localStorage.setItem("token_exp", Date.now() + 15 * 60 * 1000);
-
-        // gắn lại header
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-
-        // gọi lại request cũ
+        await axios.post(`/api/auth/refresh`, {}, { withCredentials: true });
         return api(originalRequest);
-      } catch (error) {
-        // refresh fail → logout
-        localStorage.removeItem("token");
-        localStorage.removeItem("refreshToken");
-
-        window.location.href = "/login";
+      } catch (refreshError) {
+        redirectTo("/login");
+        return Promise.reject(refreshError);
       }
     }
 
-    return Promise.reject(err);
+    return Promise.reject(error);
   },
 );
 

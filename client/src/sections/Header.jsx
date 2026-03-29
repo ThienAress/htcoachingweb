@@ -1,64 +1,37 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Menu, X, LogOut, History, ChevronDown, UserCheck } from "lucide-react";
 import logo from "../assets/images/logo/logo.svg";
-
-import { getCurrentUser } from "../services/user.service.js";
-import { jwtDecode } from "jwt-decode";
+import { useAuth } from "../context/AuthContext";
 
 function Header() {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const headerRef = useRef(null);
-
-  const [user, setUser] = useState(null);
-
   const [openDropdown, setOpenDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
-  // click ngoài để đóng dropdown
+  // Click ngoài để đóng dropdown
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setOpenDropdown(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Hiệu ứng scroll
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
-        const decoded = jwtDecode(token);
-        const data = await getCurrentUser();
-
-        setUser({
-          ...data,
-          role: decoded.role,
-        });
-      } catch (err) {
-        console.log("Chưa login");
-      }
-    };
-
-    fetchUser();
-  }, []);
-
-  // Hiệu ứng đổi màu header khi scroll
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 0);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const handleScroll = () => setIsScrolled(window.scrollY > 0);
+    window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Đóng menu khi click ra ngoài
+  // Đóng menu khi click ngoài
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (headerRef.current && !headerRef.current.contains(event.target)) {
@@ -76,24 +49,18 @@ function Header() {
     } else {
       document.body.style.overflow = "";
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => (document.body.style.overflow = "");
   }, [menuOpen]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    window.location.reload();
+  const handleLogout = async () => {
+    await logout();
+    navigate("/");
   };
 
   // Dropdown items dựa trên role
   const dropdownItems = ["admin", "trainer"].includes(user?.role)
     ? [
-        {
-          label: "Checkin khách hàng",
-          icon: UserCheck,
-          path: "/checkin",
-        },
+        { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ]
     : [
@@ -104,23 +71,23 @@ function Header() {
   return (
     <header
       ref={headerRef}
-      className={`fixed top-0 w-full z-50 h-[80px] md:h-[100px] transition-all duration-300 ${
+      className={`fixed top-0 w-full z-50 h-20 md:h-25 transition-all duration-300 ${
         isScrolled
-          ? "bg-gradient-to-r from-[#f39c12] to-[#1a1a1a]"
+          ? "bg-linear-to-r from-[#f39c12] to-[#1a1a1a]"
           : "bg-transparent"
       }`}
     >
-      <div className="relative h-full flex items-center justify-between px-5 max-w-7xl mx-auto max-md:bg-gradient-to-r max-md:from-[#f39c12] max-md:to-[#1a1a1a]">
-        {/* Logo bên trái */}
+      <div className="relative h-full flex items-center justify-between px-5 max-w-7xl mx-auto max-md:bg-linear-to-r max-md:from-[#f39c12] max-md:to-[#1a1a1a]">
+        {/* Logo */}
         <Link
           to="/"
-          className="overflow-hidden z-20"
           onClick={() => setMenuOpen(false)}
+          className="overflow-hidden z-20"
         >
           <img
             src={logo}
             alt="HT Coaching"
-            className="h-[50px] md:h-[60px] max-w-full object-contain block"
+            className="h-12.5 md:h-15 max-w-full object-contain"
           />
         </Link>
 
@@ -130,7 +97,7 @@ function Header() {
             <li>
               <a
                 href="/"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
               >
                 Trang chủ
               </a>
@@ -138,7 +105,7 @@ function Header() {
             <li>
               <a
                 href="#about"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
               >
                 Giới thiệu
               </a>
@@ -146,7 +113,7 @@ function Header() {
             <li>
               <a
                 href="#trainers"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
               >
                 Huấn luyện viên
               </a>
@@ -154,7 +121,7 @@ function Header() {
             <li>
               <a
                 href="#customer"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
               >
                 Feedback
               </a>
@@ -162,7 +129,7 @@ function Header() {
             <li>
               <a
                 href="#classes"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
               >
                 Chương trình
               </a>
@@ -170,7 +137,7 @@ function Header() {
             <li>
               <a
                 href="#pricing"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
               >
                 Gói tập
               </a>
@@ -178,26 +145,24 @@ function Header() {
             <li>
               <a
                 href="#contact"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
               >
                 Liên hệ
               </a>
             </li>
-
             <li>
               <Link
                 to="/club"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
               >
                 CLB
               </Link>
             </li>
-
             {["admin", "trainer"].includes(user?.role) && (
               <li>
                 <Link
                   to="/admin"
-                  className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                  className="nav-link-hover text-white font-medium relative whitespace-nowrap "
                 >
                   Quản trị
                 </Link>
@@ -212,7 +177,7 @@ function Header() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setOpenDropdown(!openDropdown)}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-full px-3 py-1.5 transition-colors"
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-full px-3 py-1.5"
               >
                 <img
                   src={user.avatar || "https://i.pravatar.cc/32"}
@@ -224,22 +189,16 @@ function Header() {
                 </span>
                 <ChevronDown size={16} className="text-white" />
               </button>
-
               {openDropdown && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg overflow-hidden z-50 border border-gray-100">
-                  {/* Header thông tin người dùng (không avatar) */}
                   <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-                    <div>
-                      <p className="font-semibold text-gray-800 truncate">
-                        {user.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {user.email || "user@example.com"}
-                      </p>
-                    </div>
+                    <p className="font-semibold text-gray-800 truncate">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {user.email || "user@example.com"}
+                    </p>
                   </div>
-
-                  {/* Danh sách mục */}
                   <div className="py-2">
                     {dropdownItems.map((item, idx) => {
                       const Icon = item.icon;
@@ -250,11 +209,11 @@ function Header() {
                             if (item.onClick) {
                               item.onClick();
                             } else if (item.path) {
-                              window.location.href = item.path;
+                              navigate(item.path);
                             }
                             setOpenDropdown(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                         >
                           <Icon size={18} />
                           <span>{item.label}</span>
@@ -284,12 +243,11 @@ function Header() {
 
         {/* MOBILE MENU */}
         <div
-          className={`fixed inset-0 top-[80px] bg-gradient-to-b from-[#f39c12] to-[#1a1a1a] z-10 transform transition-transform duration-300 ${
+          className={`fixed inset-0 top-20 bg-linear-to-b from-[#f39c12] to-[#1a1a1a] z-10 transform transition-transform duration-300 ${
             menuOpen ? "translate-x-0" : "translate-x-full"
           } md:hidden overflow-y-auto`}
         >
           <div className="flex flex-col items-center justify-start min-h-full py-8 px-5">
-            {/* Phần user trên mobile (có avatar) */}
             {user ? (
               <div className="w-full mb-8 bg-white/10 backdrop-blur-sm rounded-2xl overflow-hidden">
                 <div className="p-5 flex flex-col items-center border-b border-white/20">
@@ -315,11 +273,11 @@ function Header() {
                           if (item.onClick) {
                             item.onClick();
                           } else if (item.path) {
-                            window.location.href = item.path;
+                            navigate(item.path);
                           }
                           setMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-3 px-5 py-3 text-white hover:bg-white/10 transition-colors"
+                        className="w-full flex items-center gap-3 px-5 py-3 text-white hover:bg-white/10"
                       >
                         <Icon size={20} />
                         <span>{item.label}</span>
@@ -333,14 +291,12 @@ function Header() {
                 <Link
                   to="/login"
                   onClick={() => setMenuOpen(false)}
-                  className="block w-full text-center bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-3 rounded-full transition-colors"
+                  className="block w-full text-center bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-3 rounded-full"
                 >
                   Đăng nhập
                 </Link>
               </div>
             )}
-
-            {/* Các link menu chính */}
             <ul className="w-full flex flex-col items-center gap-3">
               {[
                 ["Trang chủ", "/"],
@@ -358,7 +314,7 @@ function Header() {
                     <a
                       href={href}
                       onClick={() => setMenuOpen(false)}
-                      className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 transition-colors"
+                      className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10"
                     >
                       {label}
                     </a>
@@ -366,7 +322,7 @@ function Header() {
                     <Link
                       to={href}
                       onClick={() => setMenuOpen(false)}
-                      className={`block text-center text-lg py-3 px-4 rounded-lg hover:bg-white/10 transition-colors ${
+                      className={`block text-center text-lg py-3 px-4 rounded-lg hover:bg-white/10 ${
                         label === "Quản trị"
                           ? "text-orange-300 font-semibold"
                           : "text-white"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Edit,
   Trash,
@@ -13,136 +13,125 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import {
   getCheckins,
   deleteCheckin,
   updateCheckin,
 } from "../../services/checkin.service";
+import { utcToLocalDateTime, localDateTimeToUTC } from "../../utils/date";
 
 const CheckinHistory = () => {
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [checkins, setCheckins] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState(null);
-
-  // State tìm kiếm
+  const queryClient = useQueryClient();
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchName, setSearchName] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const limit = 10;
 
-  // Phân trang
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  const fetchCheckins = async () => {
-    try {
-      setLoading(true);
-
-      const res = await getCheckins();
-      console.log("CHECKIN HISTORY:", res.data);
-      setCheckins(res.data.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+  // Build query params
+  const buildParams = () => {
+    const params = new URLSearchParams();
+    params.append("page", currentPage);
+    params.append("limit", limit);
+    if (searchName) params.append("search", searchName);
+    if (selectedMonth && selectedYear) {
+      params.append("month", selectedMonth);
+      params.append("year", selectedYear);
     }
-  };
-  useEffect(() => {
-    fetchCheckins();
-  }, []);
-
-  // DELETE
-  const handleDelete = async (id) => {
-    if (!window.confirm("Xóa checkin này?")) return;
-
-    try {
-      setSaving(true);
-
-      await deleteCheckin(id);
-      await fetchCheckins();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
-  };
-  // OPEN MODAL
-  const handleEdit = (c) => {
-    setEditing(c);
-    setShowModal(true);
+    return params.toString();
   };
 
-  // SAVE EDIT
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-
-      await updateCheckin(editing._id, {
-        time: editing.time,
-        muscle: editing.muscle,
-        note: editing.note,
-      });
-
-      setShowModal(false);
-      await fetchCheckins();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
-  };
-  // LỌC DỮ LIỆU
-  const filteredCheckins = (checkins || []).filter((c) => {
-    if (searchName && !c.name?.toLowerCase().includes(searchName.toLowerCase()))
-      return false;
-    if (selectedMonth && selectedYear && c.time) {
-      let date;
-      if (c.time.includes("-")) {
-        date = new Date(c.time);
-      } else if (c.time.includes("/")) {
-        const parts = c.time.split("/");
-        if (parts.length === 3)
-          date = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-      } else {
-        date = new Date(c.time);
-      }
-      if (!isNaN(date.getTime())) {
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const year = date.getFullYear().toString();
-        if (month !== selectedMonth || year !== selectedYear) return false;
-      }
-    }
-    return true;
+  const {
+    data: checkinsData,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: [
+      "checkins",
+      currentPage,
+      searchName,
+      selectedMonth,
+      selectedYear,
+    ],
+    queryFn: () =>
+      getCheckins(buildParams()).then((res) => ({
+        data: res.data.data,
+        pagination: res.data.pagination,
+      })),
+    keepPreviousData: true,
   });
 
-  // PHÂN TRANG
-  const totalPages = Math.ceil(filteredCheckins.length / itemsPerPage);
-  const paginatedCheckins = filteredCheckins.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
+  const checkins = checkinsData?.data || [];
+  const pagination = checkinsData?.pagination || {
+    total: 0,
+    totalPages: 0,
+    page: 1,
+  };
 
-  // Reset trang khi thay đổi bộ lọc
-  useEffect(() => {
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: deleteCheckin,
+    onSuccess: () => {
+      toast.success("Xóa check-in thành công");
+      queryClient.invalidateQueries({ queryKey: ["checkins"] });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => updateCheckin(id, data),
+    onSuccess: () => {
+      toast.success("Cập nhật thành công");
+      setShowModal(false);
+      queryClient.invalidateQueries({ queryKey: ["checkins"] });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleDelete = (id) => {
+    if (!window.confirm("Xóa checkin này?")) return;
+    deleteMutation.mutate(id);
+  };
+
+  const handleEdit = (c) => {
+    setEditing({
+      ...c,
+      timeUTC: c.time,
+      timeLocal: utcToLocalDateTime(c.time),
+    });
+    setShowModal(true);
+  };
+  const handleSave = () => {
+    if (!editing) return;
+    const updatedTimeUTC = localDateTimeToUTC(editing.timeLocal);
+    updateMutation.mutate({
+      id: editing._id,
+      data: {
+        time: updatedTimeUTC,
+        muscle: editing.muscle,
+        note: editing.note,
+      },
+    });
+  };
+
+  // Reset filters
+  const resetFilters = () => {
+    setSearchName("");
+    setSelectedMonth("");
+    setSelectedYear("");
     setCurrentPage(1);
-  }, [searchName, selectedMonth, selectedYear]);
+  };
 
-  // Danh sách năm có sẵn
-  const availableYears = [
-    ...new Set(
-      checkins
-        .map((c) => {
-          if (!c.time) return null;
-          if (c.time.includes("-")) return c.time.split("-")[0];
-          if (c.time.includes("/")) return c.time.split("/")[2];
-          return null;
-        })
-        .filter((y) => y),
-    ),
-  ].sort((a, b) => b - a);
+  // Danh sách năm có sẵn (từ dữ liệu, nhưng nếu không có dữ liệu thì bạn có thể tạo danh sách năm từ 2020-2030)
+  const availableYears = [2024, 2025, 2026]; // bạn có thể lấy từ API riêng
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-4 p-4 animate-pulse">
         <div className="h-6 bg-gray-300 rounded w-1/3 md:w-1/4"></div>
@@ -157,9 +146,17 @@ const CheckinHistory = () => {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="p-6 text-center text-red-500">
+        Lỗi tải dữ liệu, vui lòng thử lại.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 md:space-y-6 h-full">
-      {/* Header */}
+      <ToastContainer position="top-right" autoClose={3000} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -171,11 +168,10 @@ const CheckinHistory = () => {
           </p>
         </div>
         <div className="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full self-start sm:self-center">
-          Tổng: {filteredCheckins.length} / {checkins.length} lượt
+          Tổng: {pagination.total} lượt
         </div>
       </div>
 
-      {/* Search Filters */}
       <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -222,11 +218,7 @@ const CheckinHistory = () => {
           </div>
           {(searchName || selectedMonth || selectedYear) && (
             <button
-              onClick={() => {
-                setSearchName("");
-                setSelectedMonth("");
-                setSelectedYear("");
-              }}
+              onClick={resetFilters}
               className="px-3 py-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
               title="Xóa bộ lọc"
             >
@@ -236,7 +228,6 @@ const CheckinHistory = () => {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -269,13 +260,13 @@ const CheckinHistory = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedCheckins.map((c, i) => (
+              {checkins.map((c, i) => (
                 <tr
                   key={c._id}
                   className="border-t border-slate-100 hover:bg-slate-50 transition-colors"
                 >
                   <td className="px-3 md:px-4 py-2 md:py-3 text-slate-500">
-                    {(currentPage - 1) * itemsPerPage + i + 1}
+                    {(pagination.page - 1) * limit + i + 1}
                   </td>
                   <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-slate-700 break-words">
                     {c.name}
@@ -286,11 +277,11 @@ const CheckinHistory = () => {
                   <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600 whitespace-nowrap">
                     <Calendar className="inline w-3.5 h-3.5 text-slate-400 mr-1" />
                     {new Date(c.time).toLocaleString("vi-VN", {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
                       hour: "2-digit",
                       minute: "2-digit",
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
                       hour12: false,
                     })}
                   </td>
@@ -319,8 +310,8 @@ const CheckinHistory = () => {
                       </button>
                       <button
                         onClick={() => handleDelete(c._id)}
-                        disabled={saving}
-                        className={`p-1.5 text-red-600 hover:bg-red-50 rounded-lg ${saving ? "opacity-50 cursor-not-allowed" : ""}`}
+                        disabled={deleteMutation.isPending}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
                         title="Xóa"
                       >
                         <Trash className="w-4 h-4" />
@@ -329,7 +320,7 @@ const CheckinHistory = () => {
                   </td>
                 </tr>
               ))}
-              {paginatedCheckins.length === 0 && (
+              {checkins.length === 0 && (
                 <tr>
                   <td
                     colSpan={8}
@@ -344,22 +335,23 @@ const CheckinHistory = () => {
         </div>
       </div>
 
-      {/* PAGINATION */}
-      {totalPages > 1 && (
+      {pagination.totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 pt-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
+            disabled={pagination.page === 1}
             className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="text-sm text-slate-600">
-            Trang {currentPage} / {totalPages}
+            Trang {pagination.page} / {pagination.totalPages}
           </span>
           <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
+            onClick={() =>
+              setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
+            }
+            disabled={pagination.page === pagination.totalPages}
             className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronRight className="w-4 h-4" />
@@ -367,7 +359,6 @@ const CheckinHistory = () => {
         </div>
       )}
 
-      {/* MODAL */}
       {showModal && editing && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -389,10 +380,10 @@ const CheckinHistory = () => {
                   <Calendar className="w-4 h-4" /> Ngày check-in
                 </label>
                 <input
-                  type="text"
-                  value={editing.time}
+                  type="datetime-local"
+                  value={editing.timeLocal || ""}
                   onChange={(e) =>
-                    setEditing({ ...editing, time: e.target.value })
+                    setEditing({ ...editing, timeLocal: e.target.value })
                   }
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
                 />
@@ -433,10 +424,10 @@ const CheckinHistory = () => {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving}
-                className="px-3 py-2 md:px-4 md:py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 text-sm md:text-base"
+                disabled={updateMutation.isPending}
+                className="px-3 py-2 md:px-4 md:py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
               >
-                {saving ? "Đang lưu..." : "Lưu"}
+                {updateMutation.isPending ? "Đang lưu..." : "Lưu"}
               </button>
             </div>
           </div>

@@ -1,4 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import {
   User,
   Package,
@@ -13,12 +19,13 @@ import {
   Phone,
   Mail,
   Info,
+  ChevronDown,
+  X,
 } from "lucide-react";
 
-// Services
 import { getOrders } from "../../services/order.service";
 import { getCheckins, createCheckin } from "../../services/checkin.service";
-import { getUserFromToken } from "../../utils/auth";
+import { useAuth } from "../../context/AuthContext";
 
 const muscles = [
   "Ngực",
@@ -31,168 +38,158 @@ const muscles = [
   "Boxing",
 ];
 
-// Helper: chuyển đổi thời gian sang 24h
-const formatTime24h = (timeStr) => {
-  if (!timeStr) return "";
-  let date = new Date(timeStr);
-  if (!isNaN(date.getTime())) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
-  }
-  const match = timeStr.match(
-    /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)?$/i,
-  );
-  if (match) {
-    let [_, day, month, year, hour, minute, ampm] = match;
-    let h = parseInt(hour, 10);
-    if (ampm) {
-      if (ampm.toUpperCase() === "PM" && h !== 12) h += 12;
-      if (ampm.toUpperCase() === "AM" && h === 12) h = 0;
-    }
-    const hours = String(h).padStart(2, "0");
-    return `${day}/${month}/${year} ${hours}:${minute}`;
-  }
-  return timeStr;
-};
+const checkinSchema = z.object({
+  time: z.string().min(1, "Vui lòng chọn thời gian check-in"),
+  muscle: z.array(z.string()).min(1, "Vui lòng chọn ít nhất một nhóm cơ"),
+  note: z.string().optional(),
+});
 
 const Checkin = () => {
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const dropdownRef = useRef(null);
+  const [isMuscleDropdownOpen, setIsMuscleDropdownOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const limit = 5;
 
-  const [orders, setOrders] = useState([]);
-  const [checkins, setCheckins] = useState([]);
-
-  const [selectedCustomer, setSelectedCustomer] = useState("");
-  const [selectedOrder, setSelectedOrder] = useState("");
-  const [selectedOrderData, setSelectedOrderData] = useState(null);
-
-  const [form, setForm] = useState({
-    time: "",
-    muscle: "",
-    note: "",
+  // Fetch orders
+  const { data: orders = [], isLoading: isLoadingOrders } = useQuery({
+    queryKey: ["orders"],
+    queryFn: () => getOrders().then((res) => res.data.data.orders || []),
   });
 
-  // Phân trang cho lịch sử
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  // Fetch checkins
+  const {
+    data: checkinsData,
+    isLoading: isLoadingCheckins,
+    isError,
+  } = useQuery({
+    queryKey: ["checkins", currentPage],
+    queryFn: () =>
+      getCheckins(currentPage, limit).then((res) => ({
+        data: res.data.data,
+        pagination: res.data.pagination,
+      })),
+    keepPreviousData: true,
+  });
 
-  const user = getUserFromToken(); // Lấy user từ token
+  const checkins = checkinsData?.data || [];
+  const pagination = checkinsData?.pagination || {
+    total: 0,
+    totalPages: 0,
+    page: 1,
+  };
 
-  // LOAD DATA
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const orderRes = await getOrders();
-        const checkinRes = await getCheckins();
-
-        setOrders(orderRes.data.data.orders || []);
-        setCheckins(checkinRes.data.data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  const fetchOrders = async () => {
-    try {
-      const res = await getOrders();
-      setOrders(res.data.data.orders || []);
-    } catch (err) {
-      console.error("FETCH ORDERS ERROR:", err);
+  // Lọc order theo role: admin chỉ thấy order chưa có trainer (trainerId == null)
+  const filteredOrdersForCustomer = useMemo(() => {
+    if (user?.role === "admin") {
+      return orders.filter((o) => !o.trainerId);
     }
-  };
+    return orders;
+  }, [orders, user?.role]);
 
-  const fetchCheckins = async () => {
-    try {
-      const res = await getCheckins();
-      console.log("CHECKINS:", res.data);
-      setCheckins(res.data.data);
-    } catch (err) {
-      console.error("FETCH CHECKINS ERROR:", err);
-    }
-  };
+  // Danh sách khách hàng (unique email) từ orders đã lọc
+  const customers = useMemo(() => {
+    return [
+      ...new Map(filteredOrdersForCustomer.map((o) => [o.email, o])).values(),
+    ];
+  }, [filteredOrdersForCustomer]);
 
-  // UNIQUE CUSTOMER
-  // Nếu là admin, chỉ hiển thị khách hàng của các đơn chưa có trainer
-  // Nếu là trainer, hiển thị tất cả khách của trainer đó (backend đã filter)
-  const filteredOrdersForCustomer =
-    user?.role === "admin" ? orders.filter((o) => !o.trainerId) : orders;
+  const [selection, setSelection] = useState({
+    customer: "",
+    orderId: "",
+    orderData: null,
+  });
 
-  const customers = [
-    ...new Map(filteredOrdersForCustomer.map((o) => [o.email, o])).values(),
-  ];
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(checkinSchema),
+    defaultValues: { time: "", muscle: [], note: "" },
+  });
 
-  // SELECT ORDER
-  const handleSelectOrder = (id) => {
-    const order = filteredOrdersForCustomer.find((o) => o._id === id);
-    setSelectedOrder(id);
-    setSelectedOrderData(order);
-  };
+  const selectedMuscles = watch("muscle");
 
-  // INPUT
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  // SUBMIT
-  const handleSubmit = async () => {
-    if (!selectedOrder) return alert("Chưa chọn gói");
-
-    try {
-      setSubmitting(true);
-
-      await createCheckin({
-        ...form,
-        time: new Date(form.time).toISOString(),
-        orderId: selectedOrder,
-      });
-
-      setForm({
-        time: "",
-        muscle: "",
-        note: "",
-      });
-
-      await fetchOrders();
-      await fetchCheckins();
-    } catch (err) {
-      alert("Check-in thất bại");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Phân trang lịch sử check-in
-  const totalPages = Math.ceil(checkins.length / itemsPerPage);
-  const paginatedCheckins = checkins.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
+  const toggleMuscle = useCallback(
+    (muscle) => {
+      const current = selectedMuscles;
+      const updated = current.includes(muscle)
+        ? current.filter((m) => m !== muscle)
+        : [...current, muscle];
+      setValue("muscle", updated, { shouldValidate: true });
+    },
+    [selectedMuscles, setValue],
   );
 
-  // Reset trang khi dữ liệu checkins thay đổi
+  // Click outside dropdown
   useEffect(() => {
-    setCurrentPage(1);
-  }, [checkins]);
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsMuscleDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  if (loading) {
+  const handleSelectOrder = useCallback(
+    (id) => {
+      const order = filteredOrdersForCustomer.find((o) => o._id === id);
+      setSelection((prev) => ({ ...prev, orderId: id, orderData: order }));
+    },
+    [filteredOrdersForCustomer],
+  );
+
+  const createCheckinMutation = useMutation({
+    mutationFn: createCheckin,
+    onSuccess: () => {
+      toast.success("Check-in thành công!");
+      reset({ time: "", muscle: [], note: "" });
+      setSelection({ customer: "", orderId: "", orderData: null });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["checkins"] });
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Check-in thất bại");
+    },
+  });
+
+  const onSubmit = useCallback(
+    (data) => {
+      if (!selection.customer) {
+        toast.error("Vui lòng chọn khách hàng");
+        return;
+      }
+      if (!selection.orderId) {
+        toast.error("Vui lòng chọn gói tập");
+        return;
+      }
+      const muscleString = data.muscle.join(", ");
+      createCheckinMutation.mutate({
+        time: new Date(data.time).toISOString(),
+        muscle: muscleString,
+        note: data.note,
+        orderId: selection.orderId,
+      });
+    },
+    [selection, createCheckinMutation],
+  );
+
+  const isLoading = isLoadingOrders || isLoadingCheckins;
+
+  if (isLoading) {
     return (
       <div className="space-y-6 p-4 md:p-6 animate-pulse">
-        {/* Header skeleton */}
+        {/* skeleton loading giữ nguyên */}
         <div className="space-y-2">
           <div className="h-6 bg-gray-300 rounded w-1/3"></div>
           <div className="h-4 bg-gray-200 rounded w-1/4"></div>
         </div>
-
-        {/* Form skeleton */}
         <div className="bg-white rounded-xl shadow-sm border p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="h-10 bg-gray-200 rounded"></div>
@@ -203,19 +200,28 @@ const Checkin = () => {
           </div>
           <div className="h-10 bg-gray-300 rounded w-32"></div>
         </div>
-
-        {/* Table skeleton */}
         <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-12 bg-gray-200 rounded"></div>
-          ))}
+          {Array(5)
+            .fill()
+            .map((_, i) => (
+              <div key={i} className="h-12 bg-gray-200 rounded"></div>
+            ))}
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6 text-center text-red-500">
+        Lỗi tải dữ liệu, vui lòng thử lại.
       </div>
     );
   }
 
   return (
     <>
+      <ToastContainer position="top-right" autoClose={3000} />
       <div className="space-y-6 p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -229,156 +235,204 @@ const Checkin = () => {
             </p>
           </div>
           <div className="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-            Tổng lượt check‑in: {checkins.length}
+            Tổng lượt check‑in: {pagination.total}
           </div>
         </div>
 
-        {/* Form check-in */}
+        {/* Form checkin */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Chọn khách */}
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <User className="w-4 h-4" /> Khách hàng
-              </label>
-              <select
-                value={selectedCustomer}
-                onChange={(e) => {
-                  setSelectedCustomer(e.target.value);
-                  setSelectedOrder("");
-                  setSelectedOrderData(null);
-                }}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Chọn khách hàng</option>
-                {customers.map((c) => (
-                  <option key={c.email} value={c.email}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Chọn gói */}
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <Package className="w-4 h-4" /> Gói tập
-              </label>
-              <select
-                value={selectedOrder}
-                onChange={(e) => handleSelectOrder(e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Chọn gói</option>
-                {filteredOrdersForCustomer
-                  .filter((o) => o.email === selectedCustomer)
-                  .map((o) => (
-                    <option key={o._id} value={o._id}>
-                      {o.package} ({o.sessions} buổi còn lại)
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Chọn khách hàng */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                  <User className="w-4 h-4" /> Khách hàng{" "}
+                  <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selection.customer}
+                  onChange={(e) =>
+                    setSelection({
+                      customer: e.target.value,
+                      orderId: "",
+                      orderData: null,
+                    })
+                  }
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Chọn khách hàng</option>
+                  {customers.map((c) => (
+                    <option key={c.email} value={c.email}>
+                      {c.name}
                     </option>
                   ))}
-              </select>
-            </div>
+                </select>
+              </div>
 
-            {/* Thời gian */}
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> Thời gian
-              </label>
-              <input
-                type="datetime-local"
-                name="time"
-                value={form.time}
-                onChange={handleChange}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+              {/* Chọn gói tập */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                  <Package className="w-4 h-4" /> Gói tập{" "}
+                  <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selection.orderId}
+                  onChange={(e) => handleSelectOrder(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Chọn gói</option>
+                  {filteredOrdersForCustomer
+                    .filter((o) => o.email === selection.customer)
+                    .map((o) => (
+                      <option key={o._id} value={o._id}>
+                        {o.package} ({o.sessions} buổi còn lại)
+                      </option>
+                    ))}
+                </select>
+              </div>
 
-            {/* Nhóm cơ */}
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <Dumbbell className="w-4 h-4" /> Nhóm cơ
-              </label>
-              <select
-                name="muscle"
-                value={form.muscle}
-                onChange={handleChange}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Chọn nhóm cơ</option>
-                {muscles.map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </div>
+              {/* Thời gian */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                  <Calendar className="w-4 h-4" /> Thời gian{" "}
+                  <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  {...register("time")}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                {errors.time && (
+                  <p className="text-red-500 text-xs">{errors.time.message}</p>
+                )}
+              </div>
 
-            {/* Ghi chú (full width) */}
-            <div className="md:col-span-2 space-y-1">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <FileText className="w-4 h-4" /> Ghi chú
-              </label>
-              <input
-                name="note"
-                value={form.note}
-                placeholder="Ghi chú thêm (nếu có)"
-                onChange={handleChange}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-
-          {/* Nút xác nhận */}
-          <div className="mt-5 flex justify-end">
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className={`
-                relative px-6 py-2.5 rounded-lg font-medium text-white
-                bg-gradient-to-r from-indigo-600 to-indigo-700
-                hover:from-indigo-700 hover:to-indigo-800
-                focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
-                transition-all duration-200 ease-in-out
-                shadow-md hover:shadow-lg
-                disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:from-indigo-600 disabled:hover:to-indigo-700
-                flex items-center gap-2
-              `}
-            >
-              {submitting ? (
-                <>
-                  <svg
-                    className="animate-spin h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
+              {/* Nhóm cơ */}
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                  <Dumbbell className="w-4 h-4" /> Nhóm cơ{" "}
+                  <span className="text-red-500">*</span>
+                </label>
+                <div className="relative" ref={dropdownRef}>
+                  <div
+                    onClick={() =>
+                      setIsMuscleDropdownOpen(!isMuscleDropdownOpen)
+                    }
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 cursor-pointer bg-white flex justify-between items-center"
                   >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Đang xử lý...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-5 h-5" />
-                  Checkin buổi tập
-                </>
-              )}
-            </button>
-          </div>
+                    <span>
+                      {selectedMuscles.length === 0
+                        ? "Chọn nhóm cơ"
+                        : `${selectedMuscles.length} nhóm đã chọn`}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform ${isMuscleDropdownOpen ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                  {isMuscleDropdownOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {muscles.map((muscle) => (
+                        <label
+                          key={muscle}
+                          className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedMuscles.includes(muscle)}
+                            onChange={() => toggleMuscle(muscle)}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-slate-700">
+                            {muscle}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {errors.muscle && (
+                  <p className="text-red-500 text-xs">
+                    {errors.muscle.message}
+                  </p>
+                )}
+                {selectedMuscles.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {selectedMuscles.map((m) => (
+                      <span
+                        key={m}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-50 text-indigo-700"
+                      >
+                        {m}
+                        <button
+                          type="button"
+                          onClick={() => toggleMuscle(m)}
+                          className="hover:text-indigo-900"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-slate-500 mt-1">
+                  Có thể chọn nhiều nhóm cơ
+                </p>
+              </div>
+
+              {/* Ghi chú */}
+              <div className="md:col-span-2 space-y-1">
+                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                  <FileText className="w-4 h-4" /> Ghi chú
+                </label>
+                <input
+                  {...register("note")}
+                  placeholder="Ghi chú thêm (nếu có)"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="submit"
+                disabled={createCheckinMutation.isPending || isSubmitting}
+                className="relative px-6 py-2.5 rounded-lg font-medium text-white bg-linear-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {createCheckinMutation.isPending ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" /> Checkin buổi tập
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
 
-        {/* Thông tin chi tiết gói tập (khi đã chọn) */}
-        {selectedOrderData && (
+        {/* Hiển thị thông tin order đã chọn */}
+        {selection.orderData && (
           <div className="bg-linear-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-xl p-5 shadow-sm">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-indigo-100 rounded-lg">
@@ -386,34 +440,32 @@ const Checkin = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                  {selectedOrderData.name}
+                  {selection.orderData.name}
                   <span className="text-xs font-normal bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-                    {selectedOrderData.package}
+                    {selection.orderData.package}
                   </span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mt-3">
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <Phone className="w-4 h-4 text-slate-400" />
-                    <span>{selectedOrderData.phone || "Chưa có"}</span>
+                    {selection.orderData.phone || "Chưa có"}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <Mail className="w-4 h-4 text-slate-400" />
-                    <span>{selectedOrderData.email}</span>
+                    {selection.orderData.email}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <Clock className="w-4 h-4 text-slate-400" />
-                    <span>
-                      Ngày đăng ký:{" "}
-                      {new Date(selectedOrderData.createdAt).toLocaleDateString(
-                        "vi-VN",
-                      )}
-                    </span>
+                    Ngày đăng ký:{" "}
+                    {new Date(selection.orderData.createdAt).toLocaleDateString(
+                      "vi-VN",
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <Info className="w-4 h-4 text-slate-400" />
-                    <span>Số buổi còn lại: </span>
+                    Số buổi còn lại:{" "}
                     <span className="font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
-                      {selectedOrderData.sessions}
+                      {selection.orderData.sessions}
                     </span>
                   </div>
                 </div>
@@ -422,7 +474,7 @@ const Checkin = () => {
           </div>
         )}
 
-        {/* Bảng lịch sử check-in */}
+        {/* Bảng lịch sử checkin */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -430,10 +482,9 @@ const Checkin = () => {
               <h3 className="font-semibold text-slate-800">Lịch sử check‑in</h3>
             </div>
             <span className="text-xs text-slate-500 bg-white px-2 py-1 rounded-full shadow-sm">
-              {checkins.length} lượt
+              {pagination.total} lượt
             </span>
           </div>
-
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
@@ -462,13 +513,13 @@ const Checkin = () => {
                 </tr>
               </thead>
               <tbody>
-                {paginatedCheckins.map((c, i) => (
+                {checkins.map((c, i) => (
                   <tr
                     key={c._id}
-                    className="border-t border-slate-100 hover:bg-slate-50 transition-colors"
+                    className="border-t border-slate-100 hover:bg-slate-50"
                   >
                     <td className="px-4 py-3 text-slate-500">
-                      {(currentPage - 1) * itemsPerPage + i + 1}
+                      {(pagination.page - 1) * limit + i + 1}
                     </td>
                     <td className="px-4 py-3 font-medium text-slate-700">
                       {c.name}
@@ -476,7 +527,9 @@ const Checkin = () => {
                     <td className="px-4 py-3 text-slate-600">{c.package}</td>
                     <td className="px-4 py-3 text-slate-600 flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      {formatTime24h(c.time)}
+                      {new Date(c.time).toLocaleString("vi-VN", {
+                        hour12: false,
+                      })}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       <span className="inline-flex items-center gap-1">
@@ -494,7 +547,7 @@ const Checkin = () => {
                     </td>
                   </tr>
                 ))}
-                {paginatedCheckins.length === 0 && (
+                {checkins.length === 0 && (
                   <tr>
                     <td
                       colSpan={7}
@@ -507,26 +560,24 @@ const Checkin = () => {
               </tbody>
             </table>
           </div>
-
-          {/* Phân trang */}
-          {totalPages > 1 && (
+          {pagination.totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 py-4 border-t border-slate-200 bg-slate-50">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={pagination.page === 1}
+                className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-50"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <span className="text-sm text-slate-600">
-                Trang {currentPage} / {totalPages}
+                Trang {pagination.page} / {pagination.totalPages}
               </span>
               <button
                 onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
                 }
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={pagination.page === pagination.totalPages}
+                className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-white disabled:opacity-50"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

@@ -1,4 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -19,7 +24,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+
 import {
   getOrders,
   createOrder,
@@ -27,118 +32,83 @@ import {
   deleteOrder,
   approveOrder,
 } from "../../services/order.service";
-
 import { getTrainers } from "../../services/user.service";
-import { getUserFromToken } from "../../utils/auth";
+import { useAuth } from "../../context/AuthContext";
+
+const orderSchema = z.object({
+  name: z.string().min(1, "Họ tên không được để trống"),
+  email: z.string().email("Email không hợp lệ"),
+  phone: z.string().optional(),
+  package: z.string().min(1, "Vui lòng chọn gói tập"),
+  sessions: z.number().min(1, "Số buổi phải lớn hơn 0"),
+  gym: z.string().min(1, "Vui lòng chọn phòng tập"),
+  schedule: z.string().min(1, "Vui lòng nhập thời gian tập"),
+  note: z.string().optional(),
+  trainerId: z.string().nullable(),
+});
 
 const Orders = () => {
-  const [loading, setLoading] = useState(true);
-  const [loadingId, setLoadingId] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [orders, setOrders] = useState([]);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
   const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
 
-  const [trainers, setTrainers] = useState([]);
-  const user = getUserFromToken();
-
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    package: "",
-    sessions: "",
-    gym: "",
-    schedule: "",
-    note: "",
-    trainerId: "",
+  const {
+    data: ordersData,
+    isLoading: isLoadingOrders,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["orders", currentPage],
+    queryFn: () => getOrders(currentPage).then((res) => res.data.data),
+    keepPreviousData: true,
   });
 
-  // ================= FETCH =================
-  const fetchOrders = async (page = 1) => {
-    try {
-      setLoading(true);
-      const res = await getOrders(page);
-      setOrders(res.data.data.orders || []);
-      setTotalPages(res.data.data.totalPages);
-      setCurrentPage(res.data.data.page);
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Lỗi hệ thống");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const orders = ordersData?.orders || [];
+  const totalPages = ordersData?.totalPages || 1;
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  const { data: trainersData } = useQuery({
+    queryKey: ["trainers"],
+    queryFn: () => getTrainers().then((res) => res.data.data),
+    enabled: user?.role === "admin",
+  });
+  const trainers = trainersData || [];
 
-  const fetchTrainers = async () => {
-    try {
-      const res = await getTrainers();
-      setTrainers(res.data.data || []);
-    } catch (err) {
-      console.error("FETCH TRAINERS ERROR:", err);
-    }
-  };
+  // Tối ưu: dùng useMemo để filter orders theo search
+  const filteredOrders = useMemo(() => {
+    if (!search) return orders;
+    return orders.filter((o) =>
+      o.name?.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [orders, search]);
 
-  useEffect(() => {
-    if (user?.role === "admin") {
-      fetchTrainers();
-    }
-  }, []);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors, isSubmitting: isFormSubmitting },
+  } = useForm({
+    resolver: zodResolver(orderSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      package: "",
+      sessions: "",
+      gym: "",
+      schedule: "",
+      note: "",
+      trainerId: "",
+    },
+  });
 
-  // ================= HANDLE INPUT =================
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm({
-      ...form,
-      [name]: name === "sessions" ? Number(value) : value,
-    });
-  };
-
-  // ================= CREATE / UPDATE =================
-  const handleSubmit = async () => {
-    console.log("handleSubmit triggered");
-    if (!form.name || !form.email) {
-      toast.error("Thiếu thông tin");
-      return;
-    }
-
-    if (!form.sessions || form.sessions <= 0) {
-      toast.error("Số buổi không hợp lệ");
-      return;
-    }
-
-    try {
-      let submitData = { ...form };
-      if (submitData.trainerId === "") {
-        submitData.trainerId = null;
-      }
-
-      if (editingId) {
-        await updateOrder(editingId, submitData);
-        toast.success("Cập nhật thành công");
-      } else {
-        await createOrder(submitData);
-        toast.success("Tạo đơn thành công");
-      }
-
-      resetForm();
-      fetchOrders();
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Lỗi hệ thống");
-    }
-  };
-
-  // ================= RESET =================
-  const resetForm = () => {
-    setForm({
+  const resetForm = useCallback(() => {
+    reset({
       name: "",
       email: "",
       phone: "",
@@ -151,59 +121,97 @@ const Orders = () => {
     });
     setEditingId(null);
     setShowModal(false);
-  };
+  }, [reset]);
 
-  // ================= APPROVE =================
-  const handleApprove = async (id) => {
-    if (loadingId === id) return;
+  const createOrderMutation = useMutation({
+    mutationFn: createOrder,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success("Tạo đơn hàng thành công");
+      resetForm();
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "Lỗi hệ thống"),
+  });
 
-    try {
-      setLoadingId(id);
-      await approveOrder(id);
-      toast.success("Đã xác nhận");
-      await fetchOrders();
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Lỗi hệ thống");
-    } finally {
-      setLoadingId(null);
-    }
-  };
+  const updateOrderMutation = useMutation({
+    mutationFn: ({ id, data }) => updateOrder(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success("Cập nhật đơn hàng thành công");
+      resetForm();
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "Lỗi hệ thống"),
+  });
 
-  // ================= DELETE =================
-  const handleDelete = async (id) => {
-    if (!window.confirm("Xóa đơn này?")) return;
+  const approveOrderMutation = useMutation({
+    mutationFn: (id) => approveOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success("Đã xác nhận đơn hàng");
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "Lỗi xác nhận"),
+  });
 
-    try {
-      await deleteOrder(id);
-      toast.success("Đã xóa");
-      fetchOrders();
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Lỗi hệ thống");
-    }
-  };
+  const deleteOrderMutation = useMutation({
+    mutationFn: (id) => deleteOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      toast.success("Đã xóa đơn hàng");
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+  });
 
-  // ================= EDIT =================
-  const handleEdit = (order) => {
-    setForm(order);
-    setEditingId(order._id);
-    setShowModal(true);
-    if (user?.role === "admin") {
-      fetchTrainers();
-    }
-  };
+  const onSubmit = useCallback(
+    (data) => {
+      const submitData = { ...data, sessions: Number(data.sessions) };
+      if (submitData.trainerId === "") submitData.trainerId = null;
 
-  // ================= SEARCH & PAGINATION =================
-  const filteredOrders = orders.filter((o) =>
-    o.name?.toLowerCase().includes(search.toLowerCase()),
+      if (editingId) {
+        updateOrderMutation.mutate({ id: editingId, data: submitData });
+      } else {
+        createOrderMutation.mutate(submitData);
+      }
+    },
+    [editingId, updateOrderMutation, createOrderMutation],
   );
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search]);
+  const handleApprove = useCallback(
+    (id) => {
+      approveOrderMutation.mutate(id);
+    },
+    [approveOrderMutation],
+  );
 
-  if (loading) {
+  const handleDelete = useCallback(
+    (id) => {
+      if (window.confirm("Xóa đơn này?")) {
+        deleteOrderMutation.mutate(id);
+      }
+    },
+    [deleteOrderMutation],
+  );
+
+  const handleEdit = useCallback(
+    (order) => {
+      setValue("name", order.name);
+      setValue("email", order.email);
+      setValue("phone", order.phone || "");
+      setValue("package", order.package);
+      setValue("sessions", order.sessions);
+      setValue("gym", order.gym);
+      setValue("schedule", order.schedule);
+      setValue("note", order.note || "");
+      setValue("trainerId", order.trainerId?._id || order.trainerId || "");
+      setEditingId(order._id);
+      setShowModal(true);
+    },
+    [setValue],
+  );
+
+  if (isLoadingOrders) {
     return (
       <div className="space-y-4 animate-pulse p-4">
         <div className="h-6 bg-gray-300 rounded w-1/3 md:w-1/4"></div>
@@ -219,11 +227,24 @@ const Orders = () => {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="p-4 text-red-500">
+        Lỗi tải dữ liệu: {error?.message}
+        <button
+          onClick={() => refetch()}
+          className="ml-4 px-3 py-1 bg-blue-500 text-white rounded"
+        >
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 md:space-y-6 h-full">
       <ToastContainer position="top-right" autoClose={3000} />
 
-      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -251,57 +272,54 @@ const Orders = () => {
             to="/admin/create-trainer"
             className="px-3 py-2 md:px-4 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm md:text-base inline-flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" />
-            Tạo Trainer
+            <Plus className="w-4 h-4" /> Tạo Trainer
           </Link>
         </div>
       </div>
 
-      {/* SEARCH */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           placeholder="Tìm kiếm theo tên khách hàng..."
-          className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-sm md:text-base"
+          className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm md:text-base"
           onChange={(e) => setSearch(e.target.value)}
           value={search}
         />
       </div>
 
-      {/* TABLE - Responsive với cuộn ngang */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[120px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Họ tên
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[140px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Email
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[100px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   SĐT
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[120px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Gói
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[70px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Buổi
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[140px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Phòng
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[120px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Thời gian
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[120px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Trainer
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[110px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Trạng thái
                 </th>
-                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600 min-w-[100px]">
+                <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                   Hành động
                 </th>
               </tr>
@@ -312,10 +330,10 @@ const Orders = () => {
                   key={o._id}
                   className="border-t border-slate-100 hover:bg-slate-50 transition-colors"
                 >
-                  <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-slate-700 break-words">
+                  <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-slate-700">
                     {o.name}
                   </td>
-                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600 break-words">
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
                     {o.email}
                   </td>
                   <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
@@ -327,7 +345,7 @@ const Orders = () => {
                   <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
                     {o.sessions}
                   </td>
-                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600 break-words">
+                  <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
                     {o.gym}
                   </td>
                   <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
@@ -338,11 +356,11 @@ const Orders = () => {
                   </td>
                   <td className="px-3 md:px-4 py-2 md:py-3">
                     {o.status === "approved" ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
                         <Check className="w-3 h-3" /> Đã xác nhận
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
                         <Clock className="w-3 h-3" /> Chờ xác nhận
                       </span>
                     )}
@@ -351,13 +369,9 @@ const Orders = () => {
                     <div className="flex items-center gap-1 md:gap-2">
                       {user?.role === "admin" && o.status === "pending" && (
                         <button
-                          disabled={loadingId === o._id}
                           onClick={() => handleApprove(o._id)}
-                          className={`p-1.5 text-green-600 rounded-lg transition-colors ${
-                            loadingId === o._id
-                              ? "opacity-50 cursor-not-allowed"
-                              : "hover:bg-green-50"
-                          }`}
+                          disabled={approveOrderMutation.isPending}
+                          className="p-1.5 text-green-600 rounded-lg hover:bg-green-50 disabled:opacity-50"
                         >
                           <Check className="w-4 h-4" />
                         </button>
@@ -365,8 +379,7 @@ const Orders = () => {
                       {user?.role === "admin" && o.status === "approved" && (
                         <button
                           onClick={() => handleEdit(o)}
-                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                          title="Cập nhật"
+                          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -374,8 +387,8 @@ const Orders = () => {
                       {user?.role === "admin" && (
                         <button
                           onClick={() => handleDelete(o._id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Xóa"
+                          disabled={deleteOrderMutation.isPending}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
                         >
                           <Trash className="w-4 h-4" />
                         </button>
@@ -401,17 +414,12 @@ const Orders = () => {
         </div>
       </div>
 
-      {/* PAGINATION */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 pt-2">
           <button
-            onClick={() => {
-              if (currentPage > 1) {
-                fetchOrders(currentPage - 1);
-              }
-            }}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -419,20 +427,16 @@ const Orders = () => {
             Trang {currentPage} / {totalPages}
           </span>
           <button
-            onClick={() => {
-              if (currentPage < totalPages) {
-                fetchOrders(currentPage + 1);
-              }
-            }}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* MODAL - Responsive */}
+      {/* Modal tạo/cập nhật */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -447,19 +451,24 @@ const Orders = () => {
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
-            <div className="p-4 md:p-6 space-y-4">
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="p-4 md:p-6 space-y-4"
+            >
+              {/* Các trường input giữ nguyên như cũ */}
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                   <User className="w-4 h-4" /> Họ tên{" "}
                   <span className="text-red-500">*</span>
                 </label>
                 <input
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
+                  {...register("name")}
                   placeholder="Nhập họ tên"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+                {errors.name && (
+                  <p className="text-red-500 text-xs">{errors.name.message}</p>
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
@@ -467,36 +476,33 @@ const Orders = () => {
                   <span className="text-red-500">*</span>
                 </label>
                 <input
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
+                  {...register("email")}
                   placeholder="example@email.com"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+                {errors.email && (
+                  <p className="text-red-500 text-xs">{errors.email.message}</p>
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                   <Phone className="w-4 h-4" /> Số điện thoại
                 </label>
                 <input
-                  type="text"
-                  name="phone"
+                  {...register("phone")}
                   placeholder="0901234567"
-                  value={form.phone}
-                  onChange={handleChange}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <Package className="w-4 h-4" /> Gói tập
+                    <Package className="w-4 h-4" /> Gói tập{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <select
-                    name="package"
-                    value={form.package}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
+                    {...register("package")}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2"
                   >
                     <option value="">Chọn gói</option>
                     <option value="Trail(Trải nghiệm)">
@@ -509,61 +515,76 @@ const Orders = () => {
                     <option value="Nâng Cao(Online)">Nâng Cao(Online)</option>
                     <option value="Vip(Online)">Vip(Online)</option>
                   </select>
+                  {errors.package && (
+                    <p className="text-red-500 text-xs">
+                      {errors.package.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" /> Số buổi
+                    <Calendar className="w-4 h-4" /> Số buổi{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
-                    name="sessions"
-                    value={form.sessions}
-                    onChange={handleChange}
+                    {...register("sessions", { valueAsNumber: true })}
                     placeholder="Số buổi"
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2"
                   />
+                  {errors.sessions && (
+                    <p className="text-red-500 text-xs">
+                      {errors.sessions.message}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <MapPin className="w-4 h-4" /> Phòng tập
+                    <MapPin className="w-4 h-4" /> Phòng tập{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <select
-                    name="gym"
-                    value={form.gym}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
+                    {...register("gym")}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2"
                   >
                     <option value="">Chọn phòng</option>
                     <option value="Waystation Trương Văn Hải">
-                      Waystation Trương Văn Hải{" "}
+                      Waystation Trương Văn Hải
                     </option>
                     <option value="Waystation Dân chủ">
-                      Waystation Dân chủ{" "}
+                      Waystation Dân chủ
                     </option>
                     <option value="Waystation Hiệp Bình">
-                      Waystation Hiệp Bình{" "}
+                      Waystation Hiệp Bình
                     </option>
                     <option value="Chung cư Flora Novia">
-                      Chung cư Flora Novia{" "}
+                      Chung cư Flora Novia
                     </option>
                     <option value="Waystation Nguyễn Xí">
                       Waystation Nguyễn Xí
                     </option>
                   </select>
+                  {errors.gym && (
+                    <p className="text-red-500 text-xs">{errors.gym.message}</p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <Clock className="w-4 h-4" /> Thời gian
+                    <Clock className="w-4 h-4" /> Thời gian{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
-                    name="schedule"
-                    value={form.schedule}
-                    onChange={handleChange}
+                    {...register("schedule")}
                     placeholder="VD: Sáng 8h-10h"
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2"
                   />
+                  {errors.schedule && (
+                    <p className="text-red-500 text-xs">
+                      {errors.schedule.message}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="space-y-1">
@@ -571,11 +592,9 @@ const Orders = () => {
                   <FileText className="w-4 h-4" /> Ghi chú
                 </label>
                 <textarea
-                  name="note"
-                  value={form.note}
-                  onChange={handleChange}
+                  {...register("note")}
                   rows={3}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2"
                 />
               </div>
               {user?.role === "admin" && (
@@ -584,14 +603,10 @@ const Orders = () => {
                     Trainer phụ trách
                   </label>
                   <select
-                    name="trainerId"
-                    value={form.trainerId || ""}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1 text-sm md:text-base"
+                    {...register("trainerId")}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1"
                   >
-                    <option value="">
-                      -- Không có trainer (xóa nếu có) --
-                    </option>
+                    <option value="">-- Không có trainer --</option>
                     {trainers.map((t) => (
                       <option key={t._id} value={t._id}>
                         {t.name} ({t.email})
@@ -600,24 +615,31 @@ const Orders = () => {
                   </select>
                 </div>
               )}
-            </div>
-            <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-end gap-3">
-              <button
-                onClick={resetForm}
-                className="px-3 py-2 md:px-4 md:py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 text-sm md:text-base"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className={`px-3 py-2 md:px-4 md:py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 text-sm md:text-base ${
-                  submitting ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              >
-                {submitting ? "Đang xử lý..." : "Lưu"}
-              </button>
-            </div>
+              <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-3 py-2 md:px-4 md:py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    createOrderMutation.isPending ||
+                    updateOrderMutation.isPending ||
+                    isFormSubmitting
+                  }
+                  className="px-3 py-2 md:px-4 md:py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {createOrderMutation.isPending ||
+                  updateOrderMutation.isPending ||
+                  isFormSubmitting
+                    ? "Đang xử lý..."
+                    : "Lưu"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

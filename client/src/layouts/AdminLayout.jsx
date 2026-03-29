@@ -15,7 +15,7 @@ const SidebarContent = ({ onItemClick }) => {
 
   const navItems = [
     { path: "/admin/users", label: "Quản lý người dùng", icon: Users },
-    { path: "/admin/orders", label: "Đơn hàng", icon: Package },
+    { path: "/admin/orders", label: "Quản lý đơn hàng", icon: Package },
     { path: "/admin/trainers", label: "Quản lý Trainer", icon: Users },
     { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
   ];
@@ -24,7 +24,7 @@ const SidebarContent = ({ onItemClick }) => {
     <div className="flex flex-col h-full">
       {/* Branding */}
       <div className="flex items-center gap-2 mb-6">
-        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-lg flex items-center justify-center shadow-sm">
+        <div className="w-8 h-8 bg-linear-to-br from-indigo-500 to-indigo-700 rounded-lg flex items-center justify-center shadow-sm">
           <Sparkles className="w-4 h-4 text-white" />
         </div>
         <div>

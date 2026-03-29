@@ -1,43 +1,23 @@
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Autoplay, Pagination, EffectFade } from "swiper/modules";
 import { Home, Flame } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "../assets/images/logo/logo.svg";
-import "swiper/css";
-import "swiper/css/pagination";
-import "swiper/css/effect-fade";
 
 const Login = () => {
   const handleGoogleLogin = () => {
     window.location.href = "https://htcoachingweb.onrender.com/api/auth/google";
   };
 
-  const slides = [
-    "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-    "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-    "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
-  ];
+  // Chọn một ảnh duy nhất làm nền (ảnh đầu tiên từ mảng cũ)
+  const backgroundImage =
+    "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80";
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
-      {/* Swiper Background */}
-      <Swiper
-        modules={[Autoplay, Pagination, EffectFade]}
-        effect="fade"
-        autoplay={{ delay: 4000, disableOnInteraction: false }}
-        pagination={{ clickable: true }}
-        loop={true}
-        className="absolute inset-0 w-full h-full z-0"
-      >
-        {slides.map((src, idx) => (
-          <SwiperSlide key={idx}>
-            <div
-              className="w-full h-full bg-cover bg-center"
-              style={{ backgroundImage: `url(${src})` }}
-            />
-          </SwiperSlide>
-        ))}
-      </Swiper>
+      {/* Ảnh nền cố định */}
+      <div
+        className="absolute inset-0 w-full h-full bg-cover bg-center z-0"
+        style={{ backgroundImage: `url(${backgroundImage})` }}
+      />
 
       {/* Overlay */}
       <div className="absolute inset-0 bg-black/50 z-10" />

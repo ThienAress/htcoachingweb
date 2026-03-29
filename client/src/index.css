@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* ================= ROOT (BẮT BUỘC để màu hoạt động) ================= */
+:root {
+  --color-primary: #ff5500;
+  --color-primary-dark: #e54600;
+  --color-secondary: #333;
+  --color-gray: #6c757d;
+  --color-light: #f8f9fa;
+  --color-dark: #212529;
+  --color-white: #ffffff;
+  --color-black: #000000;
+  --color-google: #db4437;
+}
+
+/* ================= THEME (optional cho Tailwind) ================= */
+@theme {
+  --font-sans: "Poppins", system-ui, sans-serif;
+  --font-display: "Bebas Neue", sans-serif;
+}
+
+/* ================= BASE ================= */
+body {
+  @apply font-sans bg-[--color-white] text-[--color-dark];
+}
+
+/* ================= UTIL ================= */
+.container {
+  @apply w-full max-w-[1400px] mx-auto px-5;
+}
+
+.btn {
+  @apply inline-block px-6 py-3 rounded-full font-semibold uppercase tracking-wider border cursor-pointer transition-all duration-300;
+}
+
+/* ================= TEXT ================= */
+.title {
+  @apply font-bold text-[2.5rem] leading-[50px] text-[--color-black];
+}
+
+.desc {
+  @apply pt-5 text-[--color-gray] text-base leading-relaxed;
+}
+
+/* ================= FONT ================= */
+.font-display {
+  font-family: var(--font-display);
+}
