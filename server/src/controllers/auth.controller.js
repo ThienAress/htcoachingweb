@@ -8,7 +8,7 @@ const isProd = process.env.NODE_ENV === "production";
 // Helper lấy cookie options cho production (cross-domain)
 const getCookieOptions = (maxAge = null) => {
   const options = {
-    httpOnly: true,
+    httpOnly: false,
     secure: true, // Bắt buộc với sameSite=none
     sameSite: "none",
   };

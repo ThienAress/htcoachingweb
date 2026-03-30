@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from "react";
 import api from "../utils/api";
-import Cookies from "js-cookie"; // 👈 import thư viện
+import Cookies from "js-cookie";
 
 const AuthContext = createContext(null);
 
@@ -35,25 +35,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    // Gọi API logout (để backend xóa refreshToken trong DB, nhưng không cần chờ kết quả)
     try {
       await api.post("/auth/logout");
     } catch (err) {
       console.error("Logout API error:", err);
+    } finally {
+      // Xóa cookie bằng js-cookie (bây giờ httpOnly=false nên xóa được)
+      Cookies.remove("accessToken", {
+        path: "/",
+        secure: true,
+        sameSite: "none",
+      });
+      Cookies.remove("refreshToken", {
+        path: "/",
+        secure: true,
+        sameSite: "none",
+      });
+      Cookies.remove("csrfToken", {
+        path: "/",
+        secure: true,
+        sameSite: "none",
+      });
+      setUser(null);
+      window.location.href = "/";
     }
-
-    // Xóa cookie thủ công trên domain Netlify
-    const domain = window.location.hostname; // "htcoachingweb.netlify.app"
-    const cookieNames = ["accessToken", "refreshToken", "csrfToken"];
-    cookieNames.forEach((name) => {
-      // Thử nhiều cách để chắc chắn xóa được
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${domain}; Secure; SameSite=None`;
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${domain}; Secure; SameSite=None`;
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; Secure; SameSite=None`;
-    });
-
-    setUser(null);
-    window.location.href = "/";
   };
 
   useEffect(() => {
