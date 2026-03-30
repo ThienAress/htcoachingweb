@@ -77,7 +77,7 @@ router.get(
 );
 
 // Admin & Trainer login
-router.post("/admin/login", validateLogin, csrfProtection, loginAdmin);
+router.post("/admin/login", validateLogin, /* csrfProtection, */ loginAdmin);
 router.post("/trainer/login", validateLogin, csrfProtection, loginTrainer);
 
 // Refresh token & logout
