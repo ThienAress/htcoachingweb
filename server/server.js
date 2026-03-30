@@ -6,7 +6,7 @@ import express from "express";
 import cors from "cors";
 import passport from "passport";
 import cookieParser from "cookie-parser";
-import rateLimit from "express-rate-limit";
+
 import helmet from "helmet";
 
 import connectDB from "./src/config/db.js";
@@ -16,6 +16,7 @@ import {
   globalLimiter,
   authLimiter,
   apiLimiter,
+  contactLimiter,
 } from "./src/middlewares/rateLimit.js";
 import authRoutes from "./src/routes/auth.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
