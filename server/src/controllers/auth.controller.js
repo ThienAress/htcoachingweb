@@ -217,10 +217,24 @@ export const logout = async (req, res) => {
     await user.save();
   }
 
-  // Xóa cookies với đúng cấu hình
-  res.clearCookie("accessToken", getCookieOptions());
-  res.clearCookie("refreshToken", getCookieOptions());
-  res.clearCookie("csrfToken", getCsrfCookieOptions());
+  const clearCookieOptions = {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+  };
+  const clearCsrfOptions = {
+    httpOnly: false,
+    secure: true,
+    sameSite: "none",
+    path: "/",
+  };
 
+  res.clearCookie("accessToken", clearCookieOptions);
+  res.clearCookie("refreshToken", clearCookieOptions);
+  res.clearCookie("csrfToken", clearCsrfOptions);
+
+  // Thêm header để chắc chắn
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.json({ success: true, message: "Logged out" });
 };

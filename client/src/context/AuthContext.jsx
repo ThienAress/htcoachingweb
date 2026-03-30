@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState } from "react";
 import api from "../utils/api";
+import Cookies from "js-cookie"; // 👈 import thư viện
 
 const AuthContext = createContext(null);
 
@@ -18,7 +19,6 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await api.get("/user/me");
       const fetchedUser = res.data;
-      // Kiểm tra user hợp lệ: phải có email
       if (fetchedUser && !fetchedUser.email) {
         console.warn(
           "User fetched but missing email, treating as not logged in",
@@ -28,7 +28,6 @@ export const AuthProvider = ({ children }) => {
         setUser(fetchedUser);
       }
     } catch (err) {
-      console.error("Fetch user error:", err);
       setUser(null);
     } finally {
       setLoading(false);
@@ -37,10 +36,29 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      // Gọi API logout để backend xóa refresh token và cookie
       await api.post("/auth/logout");
     } catch (err) {
-      console.error("Logout error", err);
+      console.error("Logout API error:", err);
     } finally {
+      // 👇 Xóa cookie thủ công bằng js-cookie (phòng backend không xóa được)
+      Cookies.remove("accessToken", {
+        path: "/",
+        secure: true,
+        sameSite: "none",
+      });
+      Cookies.remove("refreshToken", {
+        path: "/",
+        secure: true,
+        sameSite: "none",
+      });
+      Cookies.remove("csrfToken", {
+        path: "/",
+        secure: true,
+        sameSite: "none",
+      });
+
+      // Xóa user state và chuyển hướng về trang chủ
       setUser(null);
       window.location.href = "/";
     }
