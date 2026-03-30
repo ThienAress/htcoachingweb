@@ -35,33 +35,25 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    // Gọi API logout (để backend xóa refreshToken trong DB, nhưng không cần chờ kết quả)
     try {
-      // Gọi API logout để backend xóa refresh token và cookie
       await api.post("/auth/logout");
     } catch (err) {
       console.error("Logout API error:", err);
-    } finally {
-      // 👇 Xóa cookie thủ công bằng js-cookie (phòng backend không xóa được)
-      Cookies.remove("accessToken", {
-        path: "/",
-        secure: true,
-        sameSite: "none",
-      });
-      Cookies.remove("refreshToken", {
-        path: "/",
-        secure: true,
-        sameSite: "none",
-      });
-      Cookies.remove("csrfToken", {
-        path: "/",
-        secure: true,
-        sameSite: "none",
-      });
-
-      // Xóa user state và chuyển hướng về trang chủ
-      setUser(null);
-      window.location.href = "/";
     }
+
+    // Xóa cookie thủ công trên domain Netlify
+    const domain = window.location.hostname; // "htcoachingweb.netlify.app"
+    const cookieNames = ["accessToken", "refreshToken", "csrfToken"];
+    cookieNames.forEach((name) => {
+      // Thử nhiều cách để chắc chắn xóa được
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${domain}; Secure; SameSite=None`;
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${domain}; Secure; SameSite=None`;
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; Secure; SameSite=None`;
+    });
+
+    setUser(null);
+    window.location.href = "/";
   };
 
   useEffect(() => {
