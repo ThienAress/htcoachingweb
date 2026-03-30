@@ -79,8 +79,8 @@ app.use((req, res, next) => {
     const newToken = generateCsrfToken();
     res.cookie("csrfToken", newToken, {
       httpOnly: false,
-      secure: isProd,
-      sameSite: isProd ? "none" : "lax",
+      secure: true, // luôn true vì production HTTPS
+      sameSite: "none", // quan trọng: cho phép cross-site
       path: "/",
       maxAge: 24 * 60 * 60 * 1000,
     });
