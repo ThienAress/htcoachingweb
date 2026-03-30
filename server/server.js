@@ -89,9 +89,9 @@ app.use((req, res, next) => {
 });
 
 // ================= CSRF PROTECTION =================
-app.use("/api/orders", csrfProtection);
-app.use("/api/checkin", csrfProtection);
-app.use("/api/user", csrfProtection);
+// app.use("/api/orders", csrfProtection);
+// app.use("/api/checkin", csrfProtection);
+// app.use("/api/user", csrfProtection);
 // app.use("/api/auth/logout", csrfProtection);
 
 // ================= ROUTES =================
