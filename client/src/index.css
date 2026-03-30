@@ -41,8 +41,3 @@ body {
 .desc {
   @apply pt-5 text-[--color-gray] text-base leading-relaxed;
 }
-
-/* ================= FONT ================= */
-.font-display {
-  font-family: var(--font-display);
-}

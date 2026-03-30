@@ -151,15 +151,15 @@ const Hero = () => {
               className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold uppercase leading-tight mb-4 md:mb-6"
               data-aos="fade-down"
             >
-              <span className="bg-gradient-to-r from-[#ff4d00] via-[#ff8c00] to-[#ff4d00] bg-[length:200%_auto] bg-clip-text text-transparent animate-gradient">
+              <span className="bg-linear-to-r from-[#ff4d00] via-[#ff8c00] to-[#ff4d00] bg-size-[200%_auto] bg-clip-text text-transparent animate-gradient">
                 {getTypedPart(offsets[0])}
               </span>
               {getTypedPart(offsets[1])}
-              <span className="bg-gradient-to-r from-[#ff4d00] via-[#ff8c00] to-[#ff4d00] bg-[length:200%_auto] bg-clip-text text-transparent animate-gradient">
+              <span className="bg-linear-to-r from-[#ff4d00] via-[#ff8c00] to-[#ff4d00] bg-size-[200%_auto] bg-clip-text text-transparent animate-gradient">
                 {getTypedPart(offsets[2])}
               </span>
               {getTypedPart(offsets[3])}
-              <span className="bg-gradient-to-r from-[#ff4d00] via-[#ff8c00] to-[#ff4d00] bg-[length:200%_auto] bg-clip-text text-transparent animate-gradient">
+              <span className="bg-linear-to-r from-[#ff4d00] via-[#ff8c00] to-[#ff4d00] bg-size-[200%_auto] bg-clip-text text-transparent animate-gradient">
                 {getTypedPart(offsets[4])}
               </span>
               {getTypedPart(offsets[5])}
@@ -176,7 +176,7 @@ const Hero = () => {
                   data-aos-delay={feature.delay}
                 >
                   <feature.icon
-                    className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--color-primary)] mr-3 flex-shrink-0"
+                    className="w-5 h-5 sm:w-6 sm:h-6 text-(--color-primary) mr-3 shrink-0"
                     strokeWidth={1.5}
                   />
                   <span>{feature.text}</span>
@@ -188,18 +188,18 @@ const Hero = () => {
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 mt-6 md:mt-8">
               <a
                 href="#classes"
-                className="btn !flex items-center justify-center gap-2 whitespace-nowrap bg-[var(--color-primary)] text-white border-[var(--color-primary)] hover:bg-transparent hover:text-[var(--color-primary)]"
+                className="btn flex! items-center justify-center gap-2 whitespace-nowrap bg-(--color-primary) text-white border-(--color-primary) hover:bg-transparent hover:text-(--color-primary)"
                 data-aos="fade-right"
               >
-                <Search className="w-4 h-4 flex-shrink-0" />
+                <Search className="w-4 h-4 shrink-0" />
                 <span>Khám phá chương trình tập</span>
               </a>
               <a
                 href="#pricing"
-                className="btn !flex items-center justify-center gap-2 whitespace-nowrap border-white text-white hover:bg-white hover:text-[var(--color-primary)]"
+                className="btn flex! items-center justify-center gap-2 whitespace-nowrap border-white text-white hover:bg-white hover:text-(--color-primary)"
                 data-aos="fade-left"
               >
-                <ArrowRight className="w-4 h-4 flex-shrink-0" />
+                <ArrowRight className="w-4 h-4 shrink-0" />
                 <span>Đăng ký ngay</span>
               </a>
             </div>
@@ -207,18 +207,18 @@ const Hero = () => {
         </div>
 
         {/* PAGINATION */}
-        <div className="swiper-pagination !bottom-4 md:!bottom-8"></div>
+        <div className="swiper-pagination bottom-4! md:bottom-8!"></div>
 
         {/* CUSTOM NAV BUTTONS */}
         <button
           ref={prevRef}
-          className="custom-swiper-prev hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/50 backdrop-blur-sm text-[var(--color-gray)] hover:text-white hover:bg-black/70 transition-all items-center justify-center"
+          className="custom-swiper-prev hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/50 backdrop-blur-sm text-(--color-gray) hover:text-white hover:bg-black/70 transition-all items-center justify-center"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
         <button
           ref={nextRef}
-          className="custom-swiper-next hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/50 backdrop-blur-sm text-[var(--color-gray)] hover:text-white hover:bg-black/70 transition-all items-center justify-center"
+          className="custom-swiper-next hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/50 backdrop-blur-sm text-(--color-gray) hover:text-white hover:bg-black/70 transition-all items-center justify-center"
         >
           <ChevronRight className="w-6 h-6" />
         </button>

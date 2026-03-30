@@ -15,6 +15,11 @@
 }
 
 /* Hero Section CSS */
+.hero-swiper .swiper-pagination-bullet-active {
+  opacity: 1;
+  background: var(--color-primary);
+  transform: scale(1.2);
+}
 
 @keyframes animate-gradient {
   0% {
@@ -43,4 +48,23 @@
 
 .cursor {
   animation: blink 1s infinite;
+}
+
+/* About Section CSS */
+.about-image-swiper .swiper-pagination {
+  bottom: 20px !important;
+}
+
+.about-image-swiper .swiper-pagination-bullet {
+  width: 12px;
+  height: 12px;
+  background: white;
+  opacity: 0.5;
+  transition: all 0.3s;
+}
+
+.about-image-swiper .swiper-pagination-bullet-active {
+  opacity: 1;
+  background: var(--color-primary);
+  transform: scale(1.2);
 }
