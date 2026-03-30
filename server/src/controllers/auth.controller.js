@@ -8,20 +8,22 @@ const isProd = process.env.NODE_ENV === "production";
 // Helper lấy cookie options cho production (cross-domain)
 const getCookieOptions = (maxAge = null) => {
   const options = {
-    httpOnly: false,
-    secure: true, // Bắt buộc với sameSite=none
+    httpOnly: false, // Quan trọng: cho phép frontend xóa (sẽ dùng fallback)
+    secure: true,
     sameSite: "none",
+    domain: ".onrender.com", // 👈 Domain backend (có dấu chấm đầu cho phép subdomain)
   };
   if (maxAge) options.maxAge = maxAge;
   return options;
 };
 
-// Helper cho CSRF cookie (frontend cần đọc để gửi header)
+// Helper cho CSRF cookie (giữ nguyên)
 const getCsrfCookieOptions = () => ({
   httpOnly: false,
   secure: true,
   sameSite: "none",
-  maxAge: 24 * 60 * 60 * 1000, // 1 ngày
+  domain: ".onrender.com",
+  maxAge: 24 * 60 * 60 * 1000,
 });
 
 export const loginAdmin = async (req, res) => {
@@ -217,35 +219,16 @@ export const logout = async (req, res) => {
     await user.save();
   }
 
-  // Lấy domain backend (Render)
-  const backendDomain = req.hostname; // Ví dụ: "htcoachingweb.onrender.com"
-  // Nếu domain có subdomain, có thể cần dùng ".onrender.com" nhưng thử trực tiếp trước
-
-  const cookieOptions = {
+  const clearOptions = {
     path: "/",
     secure: true,
     sameSite: "none",
-    domain: backendDomain, // 👈 QUAN TRỌNG
+    domain: ".onrender.com",
   };
 
-  // Xóa cookie với domain chính xác
-  res.clearCookie("accessToken", { ...cookieOptions, httpOnly: true });
-  res.clearCookie("refreshToken", { ...cookieOptions, httpOnly: true });
-  res.clearCookie("csrfToken", { ...cookieOptions, httpOnly: false });
-
-  // Fallback: xóa không có domain (để phòng trường hợp cookie set không có domain)
-  res.clearCookie("accessToken", { path: "/", secure: true, sameSite: "none" });
-  res.clearCookie("refreshToken", {
-    path: "/",
-    secure: true,
-    sameSite: "none",
-  });
-  res.clearCookie("csrfToken", {
-    path: "/",
-    secure: true,
-    sameSite: "none",
-    httpOnly: false,
-  });
+  res.clearCookie("accessToken", { ...clearOptions, httpOnly: false });
+  res.clearCookie("refreshToken", { ...clearOptions, httpOnly: false });
+  res.clearCookie("csrfToken", { ...clearOptions, httpOnly: false });
 
   res.json({ success: true, message: "Logged out" });
 };
