@@ -217,24 +217,35 @@ export const logout = async (req, res) => {
     await user.save();
   }
 
-  const clearCookieOptions = {
-    httpOnly: true,
+  // Lấy domain backend (Render)
+  const backendDomain = req.hostname; // Ví dụ: "htcoachingweb.onrender.com"
+  // Nếu domain có subdomain, có thể cần dùng ".onrender.com" nhưng thử trực tiếp trước
+
+  const cookieOptions = {
+    path: "/",
     secure: true,
     sameSite: "none",
-    path: "/",
+    domain: backendDomain, // 👈 QUAN TRỌNG
   };
-  const clearCsrfOptions = {
+
+  // Xóa cookie với domain chính xác
+  res.clearCookie("accessToken", { ...cookieOptions, httpOnly: true });
+  res.clearCookie("refreshToken", { ...cookieOptions, httpOnly: true });
+  res.clearCookie("csrfToken", { ...cookieOptions, httpOnly: false });
+
+  // Fallback: xóa không có domain (để phòng trường hợp cookie set không có domain)
+  res.clearCookie("accessToken", { path: "/", secure: true, sameSite: "none" });
+  res.clearCookie("refreshToken", {
+    path: "/",
+    secure: true,
+    sameSite: "none",
+  });
+  res.clearCookie("csrfToken", {
+    path: "/",
+    secure: true,
+    sameSite: "none",
     httpOnly: false,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-  };
+  });
 
-  res.clearCookie("accessToken", clearCookieOptions);
-  res.clearCookie("refreshToken", clearCookieOptions);
-  res.clearCookie("csrfToken", clearCsrfOptions);
-
-  // Thêm header để chắc chắn
-  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.json({ success: true, message: "Logged out" });
 };
