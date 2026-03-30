@@ -29,6 +29,9 @@ import { errorHandler } from "./src/middlewares/errorHandler.js";
 // ================= INIT APP =================
 const app = express();
 
+// ================= proxy =================
+app.set("trust proxy", 1);
+
 // ================= CONNECT DB =================
 connectDB();
 
