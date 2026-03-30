@@ -224,9 +224,19 @@ export const logout = async (req, res) => {
     secure: true,
     sameSite: "none",
   };
+  // Xóa accessToken và refreshToken
   res.clearCookie("accessToken", { ...clearOptions, httpOnly: true });
   res.clearCookie("refreshToken", { ...clearOptions, httpOnly: true });
-  res.clearCookie("csrfToken", { ...clearOptions, httpOnly: false });
+
+  // Xóa csrfToken với đúng cấu hình (httpOnly: false, có thể cần domain)
+  res.clearCookie("csrfToken", {
+    path: "/",
+    secure: true,
+    sameSite: "none",
+    httpOnly: false,
+    // Nếu csrfToken được set với domain, cần thêm domain: '.onrender.com' hoặc domain hiện tại
+    // domain: '.onrender.com',  // thử nếu vẫn không xóa được
+  });
 
   res.json({ success: true, message: "Logged out" });
 };
