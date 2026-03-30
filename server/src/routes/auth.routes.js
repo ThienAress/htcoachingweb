@@ -14,20 +14,18 @@ import { csrfProtection, generateCsrfToken } from "../middlewares/csrf.js";
 const router = express.Router();
 
 // Helper cookie options cho production (cross-domain)
-const getCookieOptions = (maxAge = null) => {
-  const options = {
-    httpOnly: true,
-    secure: true, // Bắt buộc với sameSite=none
-    sameSite: "none",
-  };
-  if (maxAge) options.maxAge = maxAge;
-  return options;
-};
-
+const getCookieOptions = (maxAge = null) => ({
+  httpOnly: true,
+  secure: true,
+  sameSite: "none",
+  path: "/",
+  ...(maxAge && { maxAge }),
+});
 const getCsrfCookieOptions = () => ({
   httpOnly: false,
   secure: true,
   sameSite: "none",
+  path: "/",
   maxAge: 24 * 60 * 60 * 1000,
 });
 

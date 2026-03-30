@@ -11,8 +11,8 @@ const getCookieOptions = (maxAge = null) => {
     httpOnly: true,
     secure: true,
     sameSite: "none",
-    domain: ".onrender.com", // 👈 QUAN TRỌNG: dấu chấm đầu
     path: "/",
+    // KHÔNG có domain
   };
   if (maxAge) options.maxAge = maxAge;
   return options;
@@ -22,7 +22,6 @@ const getCsrfCookieOptions = () => ({
   httpOnly: false,
   secure: true,
   sameSite: "none",
-  domain: ".onrender.com",
   path: "/",
   maxAge: 24 * 60 * 60 * 1000,
 });
@@ -222,7 +221,6 @@ export const logout = async (req, res) => {
 
   const clearOptions = {
     path: "/",
-    domain: ".onrender.com",
     secure: true,
     sameSite: "none",
   };
