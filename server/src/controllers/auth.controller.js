@@ -8,21 +8,22 @@ const isProd = process.env.NODE_ENV === "production";
 // Helper lấy cookie options cho production (cross-domain)
 const getCookieOptions = (maxAge = null) => {
   const options = {
-    httpOnly: false, // Quan trọng: cho phép frontend xóa (sẽ dùng fallback)
+    httpOnly: true,
     secure: true,
     sameSite: "none",
-    domain: ".onrender.com", // 👈 Domain backend (có dấu chấm đầu cho phép subdomain)
+    domain: ".onrender.com", // 👈 QUAN TRỌNG: dấu chấm đầu
+    path: "/",
   };
   if (maxAge) options.maxAge = maxAge;
   return options;
 };
 
-// Helper cho CSRF cookie (giữ nguyên)
 const getCsrfCookieOptions = () => ({
   httpOnly: false,
   secure: true,
   sameSite: "none",
   domain: ".onrender.com",
+  path: "/",
   maxAge: 24 * 60 * 60 * 1000,
 });
 
@@ -221,13 +222,12 @@ export const logout = async (req, res) => {
 
   const clearOptions = {
     path: "/",
+    domain: ".onrender.com",
     secure: true,
     sameSite: "none",
-    domain: ".onrender.com",
   };
-
-  res.clearCookie("accessToken", { ...clearOptions, httpOnly: false });
-  res.clearCookie("refreshToken", { ...clearOptions, httpOnly: false });
+  res.clearCookie("accessToken", { ...clearOptions, httpOnly: true });
+  res.clearCookie("refreshToken", { ...clearOptions, httpOnly: true });
   res.clearCookie("csrfToken", { ...clearOptions, httpOnly: false });
 
   res.json({ success: true, message: "Logged out" });
