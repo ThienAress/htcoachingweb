@@ -68,3 +68,94 @@
   background: var(--color-primary);
   transform: scale(1.2);
 }
+
+/* Feedback Section CSS */
+.feedback-card {
+  background: #1a1a1a;
+  background-image: radial-gradient(
+    circle at 10% 20%,
+    rgba(215, 38, 47, 0.1) 0%,
+    transparent 20%
+  );
+}
+
+.info-wrapper {
+  display: flex;
+  width: 100%;
+  margin-top: 15px;
+  background: #f8f8f8;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.info-left {
+  flex: 1;
+  padding: 12px 15px;
+  background-color: #f1f1f8;
+  color: #333;
+  font-weight: 500;
+  font-size: 0.95rem;
+  clip-path: polygon(
+    0 0,
+    calc(100% - 10px) 0,
+    100% 50%,
+    calc(100% - 10px) 100%,
+    0 100%
+  );
+}
+
+.info-right {
+  flex: 1;
+  padding: 12px 15px;
+  background-color: #d32228;
+  color: #fff;
+  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-left: -10px;
+}
+
+.customer .swiper-button-next,
+.customer .swiper-button-prev {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: #fff;
+  transition:
+    background 0.3s ease,
+    transform 0.3s ease;
+  z-index: 10;
+}
+
+.customer .swiper-button-next:hover,
+.customer .swiper-button-prev:hover {
+  background: #d32228;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.customer .swiper-button-next::after,
+.customer .swiper-button-prev::after {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+/* Contact Section CSS */
+@keyframes zoomIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-zoomIn {
+  animation: zoomIn 0.4s ease;
+}

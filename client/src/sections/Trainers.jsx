@@ -6,7 +6,7 @@ import {
   HeartPulse,
   ArrowRight,
 } from "lucide-react";
-import hero1 from "../assets/images/hero/hero1.jpg";
+import trainer from "../assets/images/trainer/trainer.jpg";
 
 const Trainer = () => {
   return (
@@ -16,7 +16,7 @@ const Trainer = () => {
     >
       <div className="container p-0!">
         <h2
-          className="font-display title text-center"
+          className="font-display title text-center "
           data-aos="fade-down"
           data-aos-duration="1500"
         >
@@ -29,7 +29,7 @@ const Trainer = () => {
           data-aos-duration="1000"
         >
           <img
-            src={hero1}
+            src={trainer}
             alt="Trainer"
             className="w-full h-auto rounded-2xl object-cover"
           />

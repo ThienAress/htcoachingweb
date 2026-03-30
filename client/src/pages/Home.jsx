@@ -1,8 +1,8 @@
 import Hero from "../sections/Hero";
 import About from "../sections/About";
 import Trainers from "../sections/Trainers";
-import Customer from "../sections/Customer";
-import Classes from "../sections/Classes";
+import Feedback from "../sections/FeedBackSection/Feedback";
+import Classes from "../sections/class/Classes";
 import Tools from "../sections/Tools";
 import Pricing from "../sections/Pricing";
 import Contact from "../sections/Contact";
@@ -13,7 +13,7 @@ const Home = () => {
       <Hero />
       <About />
       <Trainers />
-      <Customer />
+      <Feedback />
       <Classes />
       <Tools />
       <Pricing />

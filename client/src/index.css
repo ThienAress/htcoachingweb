@@ -30,7 +30,7 @@ body {
 }
 
 .btn {
-  @apply inline-block px-6 py-3 rounded-full font-semibold uppercase tracking-wider border cursor-pointer transition-all duration-300;
+  @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold uppercase tracking-wider border cursor-pointer transition-all duration-300;
 }
 
 /* ================= TEXT ================= */
