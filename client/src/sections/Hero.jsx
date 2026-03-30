@@ -148,7 +148,7 @@ const Hero = () => {
           <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto sm:mx-0 text-left pointer-events-auto px-4 sm:px-0">
             {/* TITLE with Typewriter */}
             <h1
-              className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-extrabold uppercase leading-tight mb-4 md:mb-6"
+              className="font-display text-3xl sm:text-4xl md:text-6xl lg:text-6xl xl:text-7xl font-extrabold uppercase leading-tight mb-4 md:mb-6"
               data-aos="fade-down"
             >
               <span className="bg-linear-to-r from-[#ff4d00] via-[#ff8c00] to-[#ff4d00] bg-size-[200%_auto] bg-clip-text text-transparent animate-gradient">

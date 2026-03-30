@@ -7,6 +7,7 @@ import {
   Home,
   Users,
   Menu,
+  MessageSquare,
   X,
 } from "lucide-react";
 
@@ -18,6 +19,11 @@ const SidebarContent = ({ onItemClick }) => {
     { path: "/admin/orders", label: "Quản lý đơn hàng", icon: Package },
     { path: "/admin/trainers", label: "Quản lý Trainer", icon: Users },
     { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
+    {
+      path: "/admin/contact-messages",
+      label: "Quản lý liên hệ",
+      icon: MessageSquare,
+    },
   ];
 
   return (

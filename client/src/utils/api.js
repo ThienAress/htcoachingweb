@@ -2,18 +2,22 @@ import axios from "axios";
 
 import Cookies from "js-cookie";
 
+const API_URL = import.meta.env.VITE_API_URL || "/api";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "/api",
-  withCredentials: true,
+  baseURL: API_URL,
+  withCredentials: true, // gửi kèm cookie
 });
 
-// Request interceptor: gắn CSRF token
+// Request interceptor: gắn CSRF token cho các method POST/PUT/DELETE
 api.interceptors.request.use((config) => {
   const safeMethods = ["GET", "HEAD", "OPTIONS"];
   if (!safeMethods.includes(config.method.toUpperCase())) {
     const csrfToken = Cookies.get("csrfToken");
     if (csrfToken) {
       config.headers["X-CSRF-Token"] = csrfToken;
+    } else {
+      console.warn("CSRF token not found in cookies");
     }
   }
   return config;

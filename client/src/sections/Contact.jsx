@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { MapPin, Phone, Mail, Clock, CheckCircle } from "lucide-react";
+import { sendContactMessage } from "../services/contact.service";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -190,11 +193,20 @@ const Contact = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-    setFormData({ name: "", email: "", phone: "", social: "", package: "" });
-    setShowSuccess(true);
+
+    try {
+      await sendContactMessage(formData);
+      setFormData({ name: "", email: "", phone: "", social: "", package: "" });
+      setShowSuccess(true);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.message ||
+          "Gửi thông tin thất bại, vui lòng thử lại.",
+      );
+    }
   };
 
   return (
@@ -319,9 +331,9 @@ const Contact = () => {
                 <option value="" disabled>
                   Chọn gói tập quan tâm
                 </option>
-                <option value="Gói cơ bản">ONLINE</option>
-                <option value="Gói nâng cao">1-1</option>
-                <option value="Gói trial">TRIAL</option>
+                <option value="ONLINE">ONLINE</option>
+                <option value="1-1">1-1</option>
+                <option value="TRIAL">TRIAL</option>
               </select>
               {errors.package && (
                 <p className="text-red-500 text-sm mt-1">{errors.package}</p>

@@ -12,10 +12,16 @@ import helmet from "helmet";
 import connectDB from "./src/config/db.js";
 import "./src/config/passport.js";
 
+import {
+  globalLimiter,
+  authLimiter,
+  apiLimiter,
+} from "./src/middlewares/rateLimit.js";
 import authRoutes from "./src/routes/auth.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
 import orderRoutes from "./src/routes/order.routes.js";
 import checkinRoutes from "./src/routes/checkin.routes.js";
+import contactRoutes from "./src/routes/contact.routes.js";
 
 import { generateCsrfToken, csrfProtection } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
@@ -43,7 +49,7 @@ app.use(
     },
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   }),
 );
 
@@ -53,36 +59,6 @@ app.use(cookieParser());
 app.use(passport.initialize());
 
 // ================= RATE LIMIT =================
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: {
-    success: false,
-    message: "Quá nhiều yêu cầu, vui lòng thử lại sau 15 phút",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  skipSuccessfulRequests: true,
-  message: {
-    success: false,
-    message: "Quá nhiều lần thử, vui lòng thử lại sau 15 phút",
-  },
-});
-
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-  message: {
-    success: false,
-    message: "Quá nhiều yêu cầu, vui lòng thử lại sau",
-  },
-});
-
 const isProd = process.env.NODE_ENV === "production";
 
 if (isProd) {
@@ -90,6 +66,7 @@ if (isProd) {
   app.use("/api/auth", authLimiter);
   app.use("/api/orders", apiLimiter);
   app.use("/api/checkin", apiLimiter);
+  app.use("/api/contact", contactLimiter, contactRoutes);
 }
 
 // ================= CSRF TOKEN GENERATE =================
@@ -117,6 +94,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/checkin", checkinRoutes);
+app.use("/api/contact", contactRoutes);
 
 // ================= ERROR HANDLER =================
 app.use(errorHandler);

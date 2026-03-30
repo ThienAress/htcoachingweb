@@ -150,3 +150,40 @@ export const validateDeleteUser = [
   param("id").isMongoId().withMessage("ID không hợp lệ"),
   handleValidationErrors,
 ];
+
+// Validation cho tạo contact message
+export const validateContactMessage = [
+  body("name")
+    .notEmpty()
+    .withMessage("Họ tên không được để trống")
+    .isLength({ min: 8 })
+    .withMessage("Họ tên phải có ít nhất 8 ký tự")
+    .trim(),
+  body("email")
+    .notEmpty()
+    .withMessage("Email không được để trống")
+    .isEmail()
+    .withMessage("Email không hợp lệ")
+    .normalizeEmail(),
+  body("phone")
+    .notEmpty()
+    .withMessage("Số điện thoại không được để trống")
+    .isMobilePhone("vi-VN")
+    .withMessage("Số điện thoại không hợp lệ (phải 10 số)"),
+  body("social")
+    .notEmpty()
+    .withMessage("Vui lòng nhập Facebook/Zalo")
+    .isURL({
+      protocols: ["https"],
+      require_protocol: true,
+    })
+    .withMessage("Link không hợp lệ, phải bắt đầu bằng https://")
+    .isLength({ max: 200 })
+    .withMessage("Link quá dài (tối đa 200 ký tự)"),
+  body("package")
+    .notEmpty()
+    .withMessage("Vui lòng chọn gói tập")
+    .isIn(["ONLINE", "1-1", "TRIAL"])
+    .withMessage("Gói tập không hợp lệ"),
+  handleValidationErrors,
+];

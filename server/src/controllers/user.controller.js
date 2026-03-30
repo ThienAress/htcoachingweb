@@ -1,4 +1,6 @@
 import User from "../models/User.js";
+import Order from "../models/Order.js";
+import Checkin from "../models/Checkin.js";
 export const getTrainers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -73,15 +75,40 @@ export const getUsers = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi server" });
   }
 };
+
 export const deleteUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
-    if (!user)
+    const userId = req.params.id;
+
+    // Tìm user
+    const user = await User.findById(userId);
+    if (!user) {
       return res
         .status(404)
-        .json({ success: false, message: "Không tìm thấy" });
-    res.json({ success: true, message: "Xóa thành công" });
+        .json({ success: false, message: "Không tìm thấy người dùng" });
+    }
+
+    // Tìm tất cả orders của user
+    const orders = await Order.find({ userId });
+    const orderIds = orders.map((o) => o._id);
+
+    // Xóa checkins thuộc các order này
+    if (orderIds.length > 0) {
+      await Checkin.deleteMany({ orderId: { $in: orderIds } });
+    }
+
+    // Xóa orders
+    await Order.deleteMany({ userId });
+
+    // Xóa user
+    await User.findByIdAndDelete(userId);
+
+    res.json({
+      success: true,
+      message: "Xóa người dùng và dữ liệu liên quan thành công",
+    });
   } catch (err) {
+    console.error("DELETE USER ERROR:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

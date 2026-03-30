@@ -23,6 +23,7 @@ import CreateTrainer from "./pages/admin/CreateTrainer";
 import TrainerLogin from "./pages/auth/TrainerLogin";
 import TrainerManagement from "./pages/admin/TrainerManagement";
 import UserManagement from "./pages/admin/UserManagement";
+import ContactMessages from "./pages/admin/ContactMessages";
 import TrainerCheckinHistory from "./pages/trainer/TrainerCheckinHistory";
 
 import "./index.css";
@@ -81,6 +82,7 @@ function AppContent() {
         <Route path="create-trainer" element={<CreateTrainer />} />
         <Route path="trainers" element={<TrainerManagement />} />
         <Route path="users" element={<UserManagement />} />
+        <Route path="contact-messages" element={<ContactMessages />} />
       </Route>
     </Routes>
   );

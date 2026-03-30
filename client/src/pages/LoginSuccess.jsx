@@ -1,13 +1,18 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const LoginSuccess = () => {
   const navigate = useNavigate();
+  const { refetch } = useAuth();
 
   useEffect(() => {
-    // Chuyển hướng về trang chủ, AuthProvider sẽ tự lấy user
-    navigate("/", { replace: true });
-  }, [navigate]);
+    const updateUser = async () => {
+      await refetch(); // gọi lại API /user/me
+      navigate("/", { replace: true });
+    };
+    updateUser();
+  }, [refetch, navigate]);
 
   return <div className="p-4 text-center">Đang đăng nhập...</div>;
 };

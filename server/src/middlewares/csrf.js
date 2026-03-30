@@ -1,4 +1,3 @@
-// src/middlewares/csrf.js
 import crypto from "crypto";
 
 export const generateCsrfToken = () => {
