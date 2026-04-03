@@ -187,3 +187,78 @@ export const validateContactMessage = [
     .withMessage("Gói tập không hợp lệ"),
   handleValidationErrors,
 ];
+
+// Validation cho thực phẩm
+export const validateFood = [
+  body("label").notEmpty().withMessage("Tên thực phẩm không được trống"),
+  body("protein").isFloat({ min: 0 }).withMessage("Protein phải >=0"),
+  body("carb").isFloat({ min: 0 }).withMessage("Carb phải >=0"),
+  body("fat").isFloat({ min: 0 }).withMessage("Fat phải >=0"),
+  body("calories")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Calories phải >=0"),
+  handleValidationErrors,
+];
+
+// Validation cho tạo booking (đăng ký gói tập)
+export const validateCreateBooking = [
+  body("name")
+    .notEmpty()
+    .withMessage("Họ tên không được để trống")
+    .isLength({ min: 8 })
+    .withMessage("Họ tên phải có ít nhất 8 ký tự")
+    .trim()
+    .escape(),
+  body("phone")
+    .notEmpty()
+    .withMessage("Số điện thoại không được để trống")
+    .matches(/^[0-9]{10}$/)
+    .withMessage("Số điện thoại phải đúng 10 chữ số"),
+  body("email")
+    .notEmpty()
+    .withMessage("Email không được để trống")
+    .isEmail()
+    .withMessage("Email không hợp lệ")
+    .normalizeEmail()
+    .matches(/@gmail\.com$/)
+    .withMessage("Email phải là @gmail.com"),
+  body("gym")
+    .notEmpty()
+    .withMessage("Phòng tập không được để trống")
+    .isString()
+    .withMessage("Phòng tập không hợp lệ")
+    .trim(),
+  body("schedule")
+    .notEmpty()
+    .withMessage("Lịch tập không được để trống")
+    .isString()
+    .withMessage("Lịch tập không hợp lệ")
+    .trim(),
+  body("note")
+    .optional()
+    .isString()
+    .withMessage("Ghi chú phải là chuỗi")
+    .isLength({ max: 500 })
+    .withMessage("Ghi chú tối đa 500 ký tự")
+    .trim()
+    .escape(),
+  body("package")
+    .notEmpty()
+    .withMessage("Gói tập không được để trống")
+    .isString()
+    .withMessage("Gói tập không hợp lệ")
+    .trim(),
+  body("sessions")
+    .notEmpty()
+    .withMessage("Số buổi không được để trống")
+    .isInt({ min: 1, max: 100 })
+    .withMessage("Số buổi không hợp lệ"),
+  body("discountCode")
+    .optional({ nullable: true, checkFalsy: true })
+    .isString()
+    .withMessage("Mã giảm giá không hợp lệ")
+    .isLength({ max: 20 }),
+  body("gifts").optional().isArray().withMessage("Quà tặng phải là mảng"),
+  handleValidationErrors,
+];

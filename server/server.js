@@ -23,6 +23,8 @@ import userRoutes from "./src/routes/user.routes.js";
 import orderRoutes from "./src/routes/order.routes.js";
 import checkinRoutes from "./src/routes/checkin.routes.js";
 import contactRoutes from "./src/routes/contact.routes.js";
+import foodRoutes from "./src/routes/food.routes.js";
+import bookingRoutes from "./src/routes/booking.routes.js";
 
 import { generateCsrfToken, csrfProtection } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
@@ -100,6 +102,8 @@ app.use("/api/user", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/checkin", checkinRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/foods", foodRoutes);
+app.use("/api/bookings", bookingRoutes);
 
 // ================= ERROR HANDLER =================
 app.use(errorHandler);

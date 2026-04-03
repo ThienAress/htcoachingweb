@@ -41,3 +41,14 @@ export const contactLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const bookingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: 5, // tối đa 5 lần đăng ký / IP
+  message: {
+    success: false,
+    message: "Bạn đã gửi quá nhiều đăng ký. Vui lòng thử lại sau 15 phút.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

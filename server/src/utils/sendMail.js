@@ -242,3 +242,80 @@ export const sendContactNotificationToAdmin = async (contact) => {
     console.error("❌ Error sending contact notification email:", err);
   }
 };
+
+// Booking mail
+export const sendBookingNotificationToAdmin = async (booking) => {
+  try {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (!adminEmail) {
+      console.warn("⚠️ ADMIN_EMAIL not set, skipping booking notification");
+      return;
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>📋 Đăng ký mới từ khách hàng</title>
+      </head>
+      <body style="margin:0; padding:0; background-color:#f4f4f4; font-family:'Segoe UI', Roboto, Arial, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4; padding:20px 0;">
+          <tr>
+            <td align="center">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background:#ffffff; border-radius:24px; box-shadow:0 8px 20px rgba(0,0,0,0.05); overflow:hidden;">
+                <tr>
+                  <td style="background:linear-gradient(135deg, #e53935 0%, #b71c1c 100%); padding:32px 24px; text-align:center;">
+                    <div style="font-size:48px; margin-bottom:8px;">📋✨</div>
+                    <h1 style="margin:0; color:#fff; font-size:28px; letter-spacing:-0.5px;">ĐĂNG KÝ MỚI</h1>
+                    <p style="margin:8px 0 0; color:#ffcdd2; font-size:16px;">Có khách hàng vừa gửi yêu cầu tư vấn</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:32px 28px;">
+                    <p style="font-size:18px; margin:0 0 12px; color:#1e2a3a;">Xin chào Admin,</p>
+                    <p style="font-size:16px; line-height:1.5; color:#2c3e50; margin:0 0 24px;">Một khách hàng mới đã gửi đăng ký gói tập. Dưới đây là thông tin chi tiết:</p>
+                    
+                    <table width="100%" cellpadding="12" cellspacing="0" border="0" style="background:#f9fafc; border-radius:16px; margin-bottom:24px;">
+                      <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Họ tên</td><td style="color:#2c3e50;">${escapeHtml(booking.name)}</td></tr>
+                      <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Số điện thoại</td><td style="color:#2c3e50;">${escapeHtml(booking.phone)}</td></tr>
+                      <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Email</td><td style="color:#2c3e50;">${escapeHtml(booking.email)}</td></tr>
+                      <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Gói tập</td><td style="color:#2c3e50;">${escapeHtml(booking.package)}</td></tr>
+                      <tr><td style="font-weight:600; color:#1e2a3a;">Số buổi</td><td style="color:#2c3e50;">${booking.sessions} buổi</td></tr>
+                    </table>
+                    
+                    <div style="background:#eef2f7; padding:16px; border-radius:14px; margin-bottom:16px; text-align:center;">
+                      <p style="margin:0; font-size:14px; color:#2c3e50;">📋 Hãy truy cập trang quản trị để xem chi tiết và xử lý.</p>
+                    </div>
+                    
+                    <p style="font-size:12px; color:#6c757d; line-height:1.4; margin:24px 0 0; border-top:1px solid #e9ecef; padding-top:16px; text-align:center;">
+                      📧 <strong>Đây là tin nhắn tự động từ hệ thống HT Coaching.</strong>
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background:#f8f9fa; padding:20px 28px; text-align:center; border-top:1px solid #e9ecef;">
+                    <p style="margin:0; font-size:12px; color:#6c757d;">© 2026 HT Coaching – Nâng tầm sức mạnh</p>                   
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    await resend.emails.send({
+      from: "HT Coaching <noreply@htcoachingweb.io.vn>",
+      to: adminEmail,
+      subject: "📋 Đăng ký mới từ khách hàng",
+      html,
+      headers: { "X-Entity-Ref-ID": Date.now().toString() },
+    });
+
+    console.log(`📧 Booking notification sent to admin: ${adminEmail}`);
+  } catch (err) {
+    console.error("❌ Error sending booking notification email:", err);
+  }
+};

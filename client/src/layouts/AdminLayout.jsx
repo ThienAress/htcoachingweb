@@ -8,6 +8,8 @@ import {
   Users,
   Menu,
   MessageSquare,
+  Apple,
+  ClipboardList,
   X,
 } from "lucide-react";
 
@@ -18,12 +20,14 @@ const SidebarContent = ({ onItemClick }) => {
     { path: "/admin/users", label: "Quản lý người dùng", icon: Users },
     { path: "/admin/orders", label: "Quản lý đơn hàng", icon: Package },
     { path: "/admin/trainers", label: "Quản lý Trainer", icon: Users },
-    { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
+    { path: "/admin/bookings", label: "Quản lý đặt hàng", icon: ClipboardList },
     {
       path: "/admin/contact-messages",
       label: "Quản lý liên hệ",
       icon: MessageSquare,
     },
+    { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
+    { path: "/admin/foods", label: "Quản lý thực phẩm", icon: Apple },
   ];
 
   return (
