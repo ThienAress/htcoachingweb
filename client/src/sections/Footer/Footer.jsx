@@ -1,6 +1,6 @@
 import React from "react";
 import { Facebook, Instagram, Youtube, Send } from "lucide-react";
-import logo from "../assets/images/logo/logo.svg";
+import logo from "../../assets/images/logo/logo.svg";
 
 const Footer = () => {
   return (

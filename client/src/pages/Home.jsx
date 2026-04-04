@@ -6,6 +6,8 @@ import Classes from "../sections/class/Classes";
 import Tools from "../sections/Tools";
 import Pricing from "../sections/Pricing";
 import Contact from "../sections/Contact";
+import ScrollToTop from "../components/ScrollToTop";
+import ChatIcons from "../components/ChatIcons";
 
 const Home = () => {
   return (
@@ -18,6 +20,8 @@ const Home = () => {
       <Tools />
       <Pricing />
       <Contact />
+      <ScrollToTop />
+      <ChatIcons />
     </>
   );
 };

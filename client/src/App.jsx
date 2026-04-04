@@ -30,6 +30,7 @@ import TdeeCalculator from "./pages/TdeeCalculator/TdeeCalculator";
 import MealPlan from "./pages/MealPlan/MealPlan";
 import RegisterPage from "./pages/RegisterPage/RegisterPage";
 import BookingManagement from "./pages/admin/BookingManagement";
+import Club from "./pages/Club";
 
 import "./index.css";
 import "./App.css";
@@ -54,6 +55,7 @@ function AppContent() {
       <Route path="/checkin" element={<Checkin />} />
       <Route path="/my-history" element={<MyHistory />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/club" element={<Club />} />
 
       {/* TDEE Calculator */}
       <Route path="/tdee-calculator" element={<TdeeCalculator />} />

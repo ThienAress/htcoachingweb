@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, X, LogOut, History, ChevronDown, UserCheck } from "lucide-react";
-import logo from "../assets/images/logo/logo.svg";
-import { useAuth } from "../context/AuthContext";
+import logo from "../../assets/images/logo/logo.svg";
+import { useAuth } from "../../context/AuthContext";
 
 function Header() {
   const navigate = useNavigate();

@@ -15,6 +15,8 @@ import FoodSelectorModal from "../../pages/MealPlan/FoodSelectorModal";
 import { useMacroSet } from "../../hooks/useMacroSet";
 import { useFoodDatabase } from "../../hooks/useFoodDatabase";
 import { useMealGenerator } from "../../hooks/useMealGenerator";
+import Header from "../../sections/Header/Header";
+import ChatIcons from "../../components/ChatIcons";
 
 const MealPlan = () => {
   const [selectedPlan, setSelectedPlan] = useState(3);
@@ -141,148 +143,152 @@ const MealPlan = () => {
     : "✨ Gợi ý thực đơn mẫu";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+    <>
+      <Header />
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+        <ToastContainer position="top-right" autoClose={3000} theme="dark" />
 
-      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="text-center mb-8 sm:mb-10">
-          <div className="inline-flex items-center gap-2 sm:gap-3 bg-orange-500/20 rounded-full px-4 sm:px-5 py-1.5 sm:py-2 mb-4">
-            <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
-            <span className="font-semibold text-orange-400 tracking-wide text-sm sm:text-base">
-              MEAL PLAN
-            </span>
+        <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="text-center mb-8 sm:mb-10">
+            <div className="inline-flex items-center gap-2 sm:gap-3 bg-orange-500/20 rounded-full px-4 sm:px-5 py-1.5 sm:py-2 mb-4 mt-20">
+              <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
+              <span className="font-semibold text-orange-400 tracking-wide text-sm sm:text-base">
+                MEAL PLAN
+              </span>
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tighter">
+              THỰC ĐƠN <span className="text-orange-500">CỦA BẠN</span>
+            </h2>
+
+            <div className="w-20 sm:w-24 h-1 bg-orange-500 mx-auto mt-3 sm:mt-4 rounded-full"></div>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tighter">
-            THỰC ĐƠN <span className="text-orange-500">CỦA BẠN</span>
-          </h2>
-
-          <div className="w-20 sm:w-24 h-1 bg-orange-500 mx-auto mt-3 sm:mt-4 rounded-full"></div>
-        </div>
-
-        <MealSelector
-          selectedPlan={selectedPlan}
-          setSelectedPlan={setSelectedPlan}
-          macroSet={macroSet}
-          selectedMacroPlan={selectedMacroPlan}
-          setSelectedMacroPlan={setSelectedMacroPlan}
-        />
-
-        {activeMacroTarget && (
-          <div className="mb-6 text-center text-sm text-gray-300">
-            Target đang dùng:{" "}
-            <span className="text-red-400 font-semibold">
-              P {activeMacroTarget.protein}g
-            </span>{" "}
-            |{" "}
-            <span className="text-green-400 font-semibold">
-              C {activeMacroTarget.carb}g
-            </span>{" "}
-            |{" "}
-            <span className="text-yellow-400 font-semibold">
-              F {activeMacroTarget.fat}g
-            </span>{" "}
-            |{" "}
-            <span className="text-orange-400 font-semibold">
-              {activeMacroTarget.calories} kcal
-            </span>
-          </div>
-        )}
-
-        <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 mb-8">
-          <MealButton
-            onGenerate={handleGenerateMeal}
-            isGenerating={isGenerating}
-            disabled={!isMacroReady || isLoadingFoods}
-            label={buttonLabel}
+          <MealSelector
+            selectedPlan={selectedPlan}
+            setSelectedPlan={setSelectedPlan}
+            macroSet={macroSet}
+            selectedMacroPlan={selectedMacroPlan}
+            setSelectedMacroPlan={setSelectedMacroPlan}
           />
 
-          <button
-            onClick={() => setIsFoodModalOpen(true)}
-            className="w-full sm:w-auto px-5 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium transition flex items-center justify-center gap-2"
-          >
-            <Heart className="w-4 h-4" /> Chọn món yêu thích
-          </button>
-
-          {selectedFoods && (
-            <button
-              onClick={handleResetSelectedFoods}
-              className="w-full sm:w-auto px-5 py-2.5 bg-red-900/50 hover:bg-red-800/50 rounded-full text-red-300 font-medium transition flex items-center justify-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" /> Reset
-            </button>
+          {activeMacroTarget && (
+            <div className="mb-6 text-center text-sm text-gray-300">
+              Target đang dùng:{" "}
+              <span className="text-red-400 font-semibold">
+                P {activeMacroTarget.protein}g
+              </span>{" "}
+              |{" "}
+              <span className="text-green-400 font-semibold">
+                C {activeMacroTarget.carb}g
+              </span>{" "}
+              |{" "}
+              <span className="text-yellow-400 font-semibold">
+                F {activeMacroTarget.fat}g
+              </span>{" "}
+              |{" "}
+              <span className="text-orange-400 font-semibold">
+                {activeMacroTarget.calories} kcal
+              </span>
+            </div>
           )}
-        </div>
 
-        <div className="border-b border-gray-700 mb-6">
-          <div className="flex justify-center sm:justify-start gap-4 sm:gap-6">
-            <button
-              onClick={() => setActiveTab("menu")}
-              className={`py-2 px-1 font-semibold text-sm transition-all ${
-                activeTab === "menu"
-                  ? "border-b-2 border-orange-500 text-orange-400"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              📋 Thực đơn
-            </button>
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 mb-8">
+            <MealButton
+              onGenerate={handleGenerateMeal}
+              isGenerating={isGenerating}
+              disabled={!isMacroReady || isLoadingFoods}
+              label={buttonLabel}
+            />
 
             <button
-              onClick={() => setActiveTab("nutrition")}
-              className={`py-2 px-1 font-semibold text-sm transition-all flex items-center gap-1 ${
-                activeTab === "nutrition"
-                  ? "border-b-2 border-orange-500 text-orange-400"
-                  : "text-gray-400 hover:text-gray-200"
-              }`}
+              onClick={() => setIsFoodModalOpen(true)}
+              className="w-full sm:w-auto px-5 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium transition flex items-center justify-center gap-2"
             >
-              <Database className="w-4 h-4" /> Dinh dưỡng
+              <Heart className="w-4 h-4" /> Chọn món yêu thích
             </button>
+
+            {selectedFoods && (
+              <button
+                onClick={handleResetSelectedFoods}
+                className="w-full sm:w-auto px-5 py-2.5 bg-red-900/50 hover:bg-red-800/50 rounded-full text-red-300 font-medium transition flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" /> Reset
+              </button>
+            )}
+          </div>
+
+          <div className="border-b border-gray-700 mb-6">
+            <div className="flex justify-center sm:justify-start gap-4 sm:gap-6">
+              <button
+                onClick={() => setActiveTab("menu")}
+                className={`py-2 px-1 font-semibold text-sm transition-all ${
+                  activeTab === "menu"
+                    ? "border-b-2 border-orange-500 text-orange-400"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                📋 Thực đơn
+              </button>
+
+              <button
+                onClick={() => setActiveTab("nutrition")}
+                className={`py-2 px-1 font-semibold text-sm transition-all flex items-center gap-1 ${
+                  activeTab === "nutrition"
+                    ? "border-b-2 border-orange-500 text-orange-400"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                <Database className="w-4 h-4" /> Dinh dưỡng
+              </button>
+            </div>
+          </div>
+
+          <div>
+            {activeTab === "menu" ? (
+              <>
+                <MealTable meals={meals} />
+
+                {meals.length > 0 && (
+                  <>
+                    <NutritionLegend />
+                    <MealSummary
+                      totalMacros={totalMacros}
+                      totalCalories={totalCalories}
+                      targetMacros={activeMacroTarget}
+                      targetLabel={
+                        customMacroTarget
+                          ? "Mục tiêu đã tinh chỉnh"
+                          : selectedMacroPlan
+                      }
+                      onOpenMacroModal={() => setIsMacroModalOpen(true)}
+                    />
+                  </>
+                )}
+              </>
+            ) : (
+              <FoodNutritionTable foodDatabase={foodDatabase} />
+            )}
           </div>
         </div>
 
-        <div>
-          {activeTab === "menu" ? (
-            <>
-              <MealTable meals={meals} />
+        <FoodSelectorModal
+          isOpen={isFoodModalOpen}
+          onClose={() => setIsFoodModalOpen(false)}
+          onSave={handleSaveSelectedFoods}
+          initialSelected={selectedFoods}
+          foodDatabase={foodDatabase}
+        />
 
-              {meals.length > 0 && (
-                <>
-                  <NutritionLegend />
-                  <MealSummary
-                    totalMacros={totalMacros}
-                    totalCalories={totalCalories}
-                    targetMacros={activeMacroTarget}
-                    targetLabel={
-                      customMacroTarget
-                        ? "Mục tiêu đã tinh chỉnh"
-                        : selectedMacroPlan
-                    }
-                    onOpenMacroModal={() => setIsMacroModalOpen(true)}
-                  />
-                </>
-              )}
-            </>
-          ) : (
-            <FoodNutritionTable foodDatabase={foodDatabase} />
-          )}
-        </div>
+        <MacroAdjustModal
+          isOpen={isMacroModalOpen}
+          onClose={() => setIsMacroModalOpen(false)}
+          initialValues={modalInitialValues}
+          onSave={handleSaveCustomMacroTarget}
+        />
       </div>
-
-      <FoodSelectorModal
-        isOpen={isFoodModalOpen}
-        onClose={() => setIsFoodModalOpen(false)}
-        onSave={handleSaveSelectedFoods}
-        initialSelected={selectedFoods}
-        foodDatabase={foodDatabase}
-      />
-
-      <MacroAdjustModal
-        isOpen={isMacroModalOpen}
-        onClose={() => setIsMacroModalOpen(false)}
-        initialValues={modalInitialValues}
-        onSave={handleSaveCustomMacroTarget}
-      />
-    </div>
+      <ChatIcons />
+    </>
   );
 };
 

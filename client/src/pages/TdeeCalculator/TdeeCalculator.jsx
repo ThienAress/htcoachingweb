@@ -4,6 +4,8 @@ import { Flame, BarChart3, Utensils, Calendar } from "lucide-react";
 import TdeeForm from "./TdeeForm";
 import TdeeResultBox from "./TdeeResultBox";
 import MacroTable from "./MacroTable";
+import Header from "../../sections/Header/Header";
+import ChatIcons from "../../components/ChatIcons";
 
 const TdeeCalculator = () => {
   const [form, setForm] = useState({
@@ -155,7 +157,8 @@ const TdeeCalculator = () => {
 
   return (
     <section className="py-12 md:py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <div className="container mx-auto px-4">
+      <Header />
+      <div className="container mx-auto px-4 m-10">
         <div className="text-center mb-12 md:mb-16">
           <div className="inline-flex items-center gap-3 bg-red-600/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
             <Flame className="text-red-500 w-6 h-6" />
@@ -285,6 +288,7 @@ const TdeeCalculator = () => {
           </div>
         )}
       </div>
+      <ChatIcons />
     </section>
   );
 };
