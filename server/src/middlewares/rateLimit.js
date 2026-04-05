@@ -52,3 +52,14 @@ export const bookingLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const exerciseSuggestionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 giờ
+  max: 5, // tối đa 5 góp ý
+  message: {
+    success: false,
+    message: "Bạn đã gửi quá nhiều góp ý. Vui lòng thử lại sau 1 giờ.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

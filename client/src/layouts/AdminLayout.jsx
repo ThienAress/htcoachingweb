@@ -10,6 +10,8 @@ import {
   MessageSquare,
   Apple,
   ClipboardList,
+  Dumbbell,
+  MessageSquareText,
   X,
 } from "lucide-react";
 
@@ -26,8 +28,14 @@ const SidebarContent = ({ onItemClick }) => {
       label: "Quản lý liên hệ",
       icon: MessageSquare,
     },
-    { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
     { path: "/admin/foods", label: "Quản lý thực phẩm", icon: Apple },
+    { path: "/admin/exercises", label: "Quản lý bài tập", icon: Dumbbell },
+    {
+      path: "/admin/exercise-suggestions",
+      label: "Góp ý bài tập",
+      icon: MessageSquareText,
+    },
+    { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
   ];
 
   return (

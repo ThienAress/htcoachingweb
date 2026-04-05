@@ -25,6 +25,8 @@ import checkinRoutes from "./src/routes/checkin.routes.js";
 import contactRoutes from "./src/routes/contact.routes.js";
 import foodRoutes from "./src/routes/food.routes.js";
 import bookingRoutes from "./src/routes/booking.routes.js";
+import exerciseRoutes from "./src/routes/exercise.routes.js";
+import exerciseSuggestionRoutes from "./src/routes/exerciseSuggestion.routes.js";
 
 import { generateCsrfToken, csrfProtection } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
@@ -104,6 +106,8 @@ app.use("/api/checkin", checkinRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/foods", foodRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/exercises", exerciseRoutes);
+app.use("/api/exercise-suggestions", exerciseSuggestionRoutes);
 
 // ================= ERROR HANDLER =================
 app.use(errorHandler);

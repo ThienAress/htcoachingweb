@@ -25,12 +25,15 @@ import TrainerManagement from "./pages/admin/TrainerManagement";
 import UserManagement from "./pages/admin/UserManagement";
 import ContactMessages from "./pages/admin/ContactMessages";
 import FoodManagement from "./pages/admin/FoodManagement";
+import BookingManagement from "./pages/admin/BookingManagement";
+import ExerciseManagement from "./pages/admin/ExerciseManagement";
+import ExerciseSuggestionsManagement from "./pages/admin/ExerciseSuggestionsManagement";
 import TrainerCheckinHistory from "./pages/trainer/TrainerCheckinHistory";
 import TdeeCalculator from "./pages/TdeeCalculator/TdeeCalculator";
 import MealPlan from "./pages/MealPlan/MealPlan";
 import RegisterPage from "./pages/RegisterPage/RegisterPage";
-import BookingManagement from "./pages/admin/BookingManagement";
 import Club from "./pages/Club";
+import ExercisesPage from "./pages/ExercisesPage/ExercisesPage";
 
 import "./index.css";
 import "./App.css";
@@ -56,6 +59,7 @@ function AppContent() {
       <Route path="/my-history" element={<MyHistory />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/club" element={<Club />} />
+      <Route path="/exercises" element={<ExercisesPage />} />
 
       {/* TDEE Calculator */}
       <Route path="/tdee-calculator" element={<TdeeCalculator />} />
@@ -99,6 +103,11 @@ function AppContent() {
         <Route path="contact-messages" element={<ContactMessages />} />
         <Route path="foods" element={<FoodManagement />} />
         <Route path="bookings" element={<BookingManagement />} />
+        <Route path="exercises" element={<ExerciseManagement />} />
+        <Route
+          path="exercise-suggestions"
+          element={<ExerciseSuggestionsManagement />}
+        />
       </Route>
     </Routes>
   );
