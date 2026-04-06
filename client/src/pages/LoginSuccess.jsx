@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import api from "../utils/api";
 
 const LoginSuccess = () => {
   const navigate = useNavigate();
@@ -8,9 +9,25 @@ const LoginSuccess = () => {
 
   useEffect(() => {
     const updateUser = async () => {
-      await refetch(); // gọi lại API /user/me
-      navigate("/", { replace: true });
+      try {
+        const res = await api.get("/user/me");
+
+        if (res.data?.email) {
+          await refetch();
+          navigate("/", { replace: true });
+        } else {
+          alert("Google login fail: /user/me không có email");
+          navigate("/login", { replace: true });
+        }
+      } catch (err) {
+        alert(
+          "Google login fail: " +
+            (err?.response?.data?.message || err.message || "Unknown error"),
+        );
+        navigate("/login", { replace: true });
+      }
     };
+
     updateUser();
   }, [refetch, navigate]);
 
