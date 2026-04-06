@@ -1,6 +1,8 @@
 import express from "express";
 import passport from "passport";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+
 import {
   loginAdmin,
   loginTrainer,
@@ -12,24 +14,55 @@ import { validateLogin } from "../middlewares/validation.js";
 import { csrfProtection, generateCsrfToken } from "../middlewares/csrf.js";
 
 const router = express.Router();
+const isProd = process.env.NODE_ENV === "production";
 
-// Helper cookie options cho production (cross-domain)
-const getCookieOptions = (maxAge = null) => ({
-  httpOnly: true,
-  secure: true,
-  sameSite: "none",
-  path: "/",
-  ...(maxAge && { maxAge }),
-});
+// ===== COOKIE HELPERS =====
+const getAuthCookieOptions = (maxAge = null) => {
+  const options = {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    path: "/",
+  };
+
+  if (maxAge) {
+    options.maxAge = maxAge;
+  }
+
+  return options;
+};
+
 const getCsrfCookieOptions = () => ({
   httpOnly: false,
-  secure: true,
-  sameSite: "none",
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
   path: "/",
   maxAge: 24 * 60 * 60 * 1000,
 });
 
-// Google OAuth routes
+const signAccessToken = (user) =>
+  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+    expiresIn: "15m",
+  });
+
+const signRefreshToken = (user) =>
+  jwt.sign({ id: user._id }, process.env.REFRESH_SECRET, {
+    expiresIn: "7d",
+  });
+
+const setAuthCookies = (res, accessToken, refreshToken) => {
+  res.cookie("accessToken", accessToken, getAuthCookieOptions(15 * 60 * 1000));
+  res.cookie(
+    "refreshToken",
+    refreshToken,
+    getAuthCookieOptions(7 * 24 * 60 * 60 * 1000),
+  );
+
+  const csrfToken = generateCsrfToken();
+  res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
+};
+
+// ===== GOOGLE OAUTH =====
 router.get(
   "/google",
   passport.authenticate("google", {
@@ -41,61 +74,40 @@ router.get(
 router.get(
   "/google/callback",
   passport.authenticate("google", { session: false }),
-  (req, res) => {
-    const user = req.user;
+  async (req, res) => {
+    try {
+      const user = req.user;
 
-    const accessToken = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" },
-    );
-    const refreshToken = jwt.sign(
-      { id: user._id },
-      process.env.REFRESH_SECRET,
-      { expiresIn: "7d" },
-    );
-
-    // Lưu refresh token (nên hash, nhưng giữ plain cho đơn giản)
-    user.refreshToken = refreshToken;
-    user.save().catch((err) => console.error("Save refresh token error:", err));
-
-    // Set cookies với cấu hình đúng cho cross-domain
-    res.cookie("accessToken", accessToken, getCookieOptions(15 * 60 * 1000));
-    res.cookie(
-      "refreshToken",
-      refreshToken,
-      getCookieOptions(7 * 24 * 60 * 60 * 1000),
-    );
-
-    // Set CSRF token cookie
-    const csrfToken = generateCsrfToken();
-    res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
-
-    if (process.env.NODE_ENV === "production") {
-      const setCookieHeader = res.getHeader("Set-Cookie");
-      if (setCookieHeader) {
-        const modified = Array.isArray(setCookieHeader)
-          ? setCookieHeader.map((c) => `${c}; Partitioned`)
-          : [`${setCookieHeader}; Partitioned`];
-        res.setHeader("Set-Cookie", modified);
+      if (!user) {
+        return res.redirect(
+          `${process.env.CLIENT_URL}/login?error=google_auth`,
+        );
       }
-    }
 
-    // Redirect về frontend
-    res.redirect(`${process.env.CLIENT_URL}/login-success`);
+      const accessToken = signAccessToken(user);
+      const refreshToken = signRefreshToken(user);
+
+      // QUAN TRỌNG: hash refresh token giống auth.controller.js
+      const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+      user.refreshToken = hashedRefreshToken;
+      await user.save();
+
+      setAuthCookies(res, accessToken, refreshToken);
+
+      return res.redirect(`${process.env.CLIENT_URL}/login-success`);
+    } catch (err) {
+      console.error("[GOOGLE CALLBACK ERROR]:", err);
+      return res.redirect(`${process.env.CLIENT_URL}/login?error=server`);
+    }
   },
 );
 
-// Admin & Trainer login
-router.post("/admin/login", validateLogin, /* csrfProtection, */ loginAdmin);
-router.post(
-  "/trainer/login",
-  validateLogin,
-  /* csrfProtection, */ loginTrainer,
-);
+// ===== ADMIN / TRAINER LOGIN =====
+router.post("/admin/login", validateLogin, loginAdmin);
+router.post("/trainer/login", validateLogin, loginTrainer);
 
-// Refresh token & logout
+// ===== REFRESH / LOGOUT =====
 router.post("/refresh", csrfProtection, refreshTokenController);
-router.post("/logout", protect, /* csrfProtection, */ logout);
+router.post("/logout", protect, logout);
 
 export default router;

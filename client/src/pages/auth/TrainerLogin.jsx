@@ -1,4 +1,3 @@
-// frontend/src/pages/auth/TrainerLogin.js
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -7,6 +6,7 @@ import { z } from "zod";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../../utils/api";
+import { useAuth } from "../../context/AuthContext";
 
 const loginSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
@@ -15,6 +15,7 @@ const loginSchema = z.object({
 
 const TrainerLogin = () => {
   const navigate = useNavigate();
+  const { refetch } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -27,8 +28,13 @@ const TrainerLogin = () => {
 
   const onSubmit = async (data) => {
     setIsLoading(true);
+
     try {
       await api.post("/auth/trainer/login", data);
+
+      // QUAN TRỌNG: đồng bộ lại user sau khi backend set cookie
+      await refetch();
+
       toast.success("Đăng nhập thành công!");
       navigate("/trainer", { replace: true });
     } catch (err) {
@@ -42,10 +48,11 @@ const TrainerLogin = () => {
     <>
       <ToastContainer position="top-right" autoClose={3000} />
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-800 to-slate-900">
-        <div className="bg-white p-8 rounded-2xl shadow-xl w-[400px]">
+        <div className="bg-white p-8 rounded-2xl shadow-xl w-[400px] max-w-[90vw]">
           <h2 className="text-2xl font-bold text-center mb-6 text-slate-800">
             Trainer Login
           </h2>
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <input
@@ -60,6 +67,7 @@ const TrainerLogin = () => {
                 </p>
               )}
             </div>
+
             <div>
               <input
                 type="password"
@@ -73,6 +81,7 @@ const TrainerLogin = () => {
                 </p>
               )}
             </div>
+
             <button
               type="submit"
               disabled={isLoading}

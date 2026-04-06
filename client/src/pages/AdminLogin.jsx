@@ -7,6 +7,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Mail, Lock, LogIn } from "lucide-react";
 import api from "../utils/api";
+import { useAuth } from "../context/AuthContext";
 
 const loginSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
@@ -15,6 +16,7 @@ const loginSchema = z.object({
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+  const { refetch } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -27,16 +29,22 @@ const AdminLogin = () => {
 
   const onSubmit = async (data) => {
     setIsLoading(true);
+
     try {
-      console.log("🔑 [Login] Attempting admin login...");
+      console.log("🔑 [Admin Login] Attempting login...");
+
       const res = await api.post("/auth/admin/login", data);
-      console.log("✅ [Login] Login success:", res.data);
+      console.log("✅ [Admin Login] Success:", res.data);
+
+      // QUAN TRỌNG: login xong phải fetch lại user từ cookie session hiện tại
+      await refetch();
+
       toast.success("Đăng nhập thành công!");
       navigate("/admin", { replace: true });
     } catch (err) {
       console.error(
-        "❌ [Login] Login error:",
-        err.response?.data || err.message,
+        "❌ [Admin Login] Error:",
+        err?.response?.data || err.message,
       );
       toast.error(err?.response?.data?.message || "Đăng nhập thất bại");
     } finally {
@@ -61,7 +69,7 @@ const AdminLogin = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="relative">
               <Mail
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                 size={18}
               />
               <input
@@ -79,7 +87,7 @@ const AdminLogin = () => {
 
             <div className="relative">
               <Lock
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                 size={18}
               />
               <input
@@ -104,7 +112,8 @@ const AdminLogin = () => {
                 "Đang xử lý..."
               ) : (
                 <>
-                  <LogIn size={18} /> Đăng nhập Admin
+                  <LogIn size={18} />
+                  Đăng nhập Admin
                 </>
               )}
             </button>

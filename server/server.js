@@ -6,7 +6,6 @@ import express from "express";
 import cors from "cors";
 import passport from "passport";
 import cookieParser from "cookie-parser";
-
 import helmet from "helmet";
 
 import connectDB from "./src/config/db.js";
@@ -18,6 +17,7 @@ import {
   apiLimiter,
   contactLimiter,
 } from "./src/middlewares/rateLimit.js";
+
 import authRoutes from "./src/routes/auth.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
 import orderRoutes from "./src/routes/order.routes.js";
@@ -28,75 +28,91 @@ import bookingRoutes from "./src/routes/booking.routes.js";
 import exerciseRoutes from "./src/routes/exercise.routes.js";
 import exerciseSuggestionRoutes from "./src/routes/exerciseSuggestion.routes.js";
 
-import { generateCsrfToken, csrfProtection } from "./src/middlewares/csrf.js";
+import { generateCsrfToken } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
 
 // ================= INIT APP =================
 const app = express();
+const isProd = process.env.NODE_ENV === "production";
+const PORT = process.env.PORT || 5000;
 
-// ================= proxy =================
+// ================= TRUST PROXY =================
 app.set("trust proxy", 1);
 
 // ================= CONNECT DB =================
 connectDB();
 
-// ================= GLOBAL MIDDLEWARE =================
-const allowedOrigins = [
+// ================= CORS =================
+const fallbackOrigins = [
   "https://htcoachingweb.netlify.app",
   "http://localhost:5173",
 ];
 
+const allowedOrigins = (
+  process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
+    : fallbackOrigins
+).filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Cho phép request không có origin (Postman, mobile app, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+};
+
+app.use(cors(corsOptions));
+
+// ================= SECURITY =================
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  helmet({
+    crossOriginResourcePolicy: false,
   }),
 );
 
-app.use(helmet());
+// ================= BODY / COOKIE / PASSPORT =================
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
 
 // ================= RATE LIMIT =================
-const isProd = process.env.NODE_ENV === "production";
-
 if (isProd) {
   app.use("/api", globalLimiter);
   app.use("/api/auth", authLimiter);
   app.use("/api/orders", apiLimiter);
   app.use("/api/checkin", apiLimiter);
-  app.use("/api/contact", contactLimiter, contactRoutes);
+  app.use("/api/contact", contactLimiter);
 }
 
+// ================= CSRF COOKIE HELPER =================
+const getCsrfCookieOptions = () => ({
+  httpOnly: false,
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
+  path: "/",
+  maxAge: 24 * 60 * 60 * 1000,
+});
+
 // ================= CSRF TOKEN GENERATE =================
+// Tạo csrfToken nếu client chưa có
 app.use((req, res, next) => {
   if (!req.cookies.csrfToken) {
     const newToken = generateCsrfToken();
-    res.cookie("csrfToken", newToken, {
-      httpOnly: false,
-      secure: true, // luôn true vì production HTTPS
-      sameSite: "none", // quan trọng: cho phép cross-site
-      path: "/",
-      maxAge: 24 * 60 * 60 * 1000,
-    });
+    res.cookie("csrfToken", newToken, getCsrfCookieOptions());
   }
   next();
 });
-
-// ================= CSRF PROTECTION =================
-// app.use("/api/orders", csrfProtection);
-// app.use("/api/checkin", csrfProtection);
-// app.use("/api/user", csrfProtection);
-// app.use("/api/auth/logout", csrfProtection);
 
 // ================= ROUTES =================
 app.use("/api/auth", authRoutes);
@@ -109,10 +125,19 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/exercises", exerciseRoutes);
 app.use("/api/exercise-suggestions", exerciseSuggestionRoutes);
 
+// ================= HEALTH CHECK =================
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "Server is running",
+  });
+});
+
 // ================= ERROR HANDLER =================
 app.use(errorHandler);
 
 // ================= START SERVER =================
-app.listen(process.env.PORT, () => {
-  console.log(`🚀 Server chạy tại port ${process.env.PORT}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Server chạy tại port ${PORT}`);
+  console.log("🌐 Allowed origins:", allowedOrigins);
 });

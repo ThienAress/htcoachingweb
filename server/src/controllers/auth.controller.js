@@ -5,257 +5,221 @@ import { generateCsrfToken } from "../middlewares/csrf.js";
 
 const isProd = process.env.NODE_ENV === "production";
 
-// Helper lấy cookie options cho production (cross-domain)
-const getCookieOptions = (maxAge = null) => {
-  const isProduction = process.env.NODE_ENV === "production";
+const ACCESS_TOKEN_EXPIRES_IN = "15m";
+const REFRESH_TOKEN_EXPIRES_IN = "7d";
+
+const getAuthCookieOptions = (maxAge = null) => {
   const options = {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: "none",
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     path: "/",
   };
-  if (maxAge) options.maxAge = maxAge;
+
+  if (maxAge) {
+    options.maxAge = maxAge;
+  }
+
   return options;
 };
 
 const getCsrfCookieOptions = () => ({
   httpOnly: false,
-  secure: true,
-  sameSite: "none",
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
   path: "/",
   maxAge: 24 * 60 * 60 * 1000,
 });
 
-export const loginAdmin = async (req, res) => {
+const signAccessToken = (user) =>
+  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+    expiresIn: ACCESS_TOKEN_EXPIRES_IN,
+  });
+
+const signRefreshToken = (user) =>
+  jwt.sign({ id: user._id }, process.env.REFRESH_SECRET, {
+    expiresIn: REFRESH_TOKEN_EXPIRES_IN,
+  });
+
+const setAuthCookies = (res, accessToken, refreshToken) => {
+  res.cookie("accessToken", accessToken, getAuthCookieOptions(15 * 60 * 1000));
+  res.cookie(
+    "refreshToken",
+    refreshToken,
+    getAuthCookieOptions(7 * 24 * 60 * 60 * 1000),
+  );
+
+  const csrfToken = generateCsrfToken();
+  res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
+};
+
+const clearAuthCookies = (res) => {
+  res.clearCookie("accessToken", {
+    ...getAuthCookieOptions(),
+    httpOnly: true,
+  });
+
+  res.clearCookie("refreshToken", {
+    ...getAuthCookieOptions(),
+    httpOnly: true,
+  });
+
+  res.clearCookie("csrfToken", {
+    ...getCsrfCookieOptions(),
+    httpOnly: false,
+  });
+};
+
+const sanitizeUserResponse = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+});
+
+const handleRoleLogin = async (req, res, role) => {
   try {
     const { email, password } = req.body;
+
     if (!email || !password) {
       return res
         .status(400)
         .json({ success: false, message: "Thiếu thông tin" });
     }
-    const user = await User.findOne({ email, role: "admin" });
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail, role });
+
     if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy admin" });
+      return res.status(404).json({
+        success: false,
+        message:
+          role === "admin" ? "Không tìm thấy admin" : "Không tìm thấy trainer",
+      });
     }
+
     if (!user.password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Admin chưa có mật khẩu" });
+      return res.status(400).json({
+        success: false,
+        message:
+          role === "admin"
+            ? "Admin chưa có mật khẩu"
+            : "Tài khoản chưa có mật khẩu",
+      });
     }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ success: false, message: "Sai mật khẩu" });
     }
 
-    const accessToken = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" },
-    );
-    const refreshToken = jwt.sign(
-      { id: user._id },
-      process.env.REFRESH_SECRET,
-      { expiresIn: "7d" },
-    );
+    const accessToken = signAccessToken(user);
+    const refreshToken = signRefreshToken(user);
 
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
     user.refreshToken = hashedRefreshToken;
     await user.save();
 
-    // Set cookies
-    res.cookie("accessToken", accessToken, getCookieOptions(15 * 60 * 1000));
-    res.cookie(
-      "refreshToken",
-      refreshToken,
-      getCookieOptions(7 * 24 * 60 * 60 * 1000),
-    );
+    setAuthCookies(res, accessToken, refreshToken);
 
-    if (process.env.NODE_ENV === "production") {
-      const setCookieHeader = res.getHeader("Set-Cookie");
-      if (setCookieHeader) {
-        const modified = Array.isArray(setCookieHeader)
-          ? setCookieHeader.map((c) => `${c}; Partitioned`)
-          : [`${setCookieHeader}; Partitioned`];
-        res.setHeader("Set-Cookie", modified);
-      }
-    }
-
-    // Set CSRF token cookie
-    const csrfToken = generateCsrfToken();
-    res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
-
-    res.json({
+    return res.json({
       success: true,
       data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
+        user: sanitizeUserResponse(user),
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Lỗi server" });
+    console.error(`[${role.toUpperCase()} LOGIN ERROR]:`, err);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+    });
   }
 };
 
+export const loginAdmin = async (req, res) => {
+  return handleRoleLogin(req, res, "admin");
+};
+
 export const loginTrainer = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Thiếu thông tin" });
-    }
-    const user = await User.findOne({ email, role: "trainer" });
-    if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Không tìm thấy trainer" });
-    }
-    if (!user.password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Tài khoản chưa có mật khẩu" });
-    }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ success: false, message: "Sai mật khẩu" });
-    }
-
-    const accessToken = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" },
-    );
-    const refreshToken = jwt.sign(
-      { id: user._id },
-      process.env.REFRESH_SECRET,
-      { expiresIn: "7d" },
-    );
-
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    user.refreshToken = hashedRefreshToken;
-    await user.save();
-
-    res.cookie("accessToken", accessToken, getCookieOptions(15 * 60 * 1000));
-    res.cookie(
-      "refreshToken",
-      refreshToken,
-      getCookieOptions(7 * 24 * 60 * 60 * 1000),
-    );
-
-    const csrfToken = generateCsrfToken();
-    res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
-    if (process.env.NODE_ENV === "production") {
-      const setCookieHeader = res.getHeader("Set-Cookie");
-      if (setCookieHeader) {
-        const modified = Array.isArray(setCookieHeader)
-          ? setCookieHeader.map((c) => `${c}; Partitioned`)
-          : [`${setCookieHeader}; Partitioned`];
-        res.setHeader("Set-Cookie", modified);
-      }
-    }
-
-    res.json({
-      success: true,
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      },
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Lỗi server" });
-  }
+  return handleRoleLogin(req, res, "trainer");
 };
 
 export const refreshTokenController = async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
+
   if (!refreshToken) {
     return res
       .status(401)
       .json({ success: false, message: "No refresh token" });
   }
+
   try {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
     const user = await User.findById(decoded.id);
+
     if (
       !user ||
       !user.refreshToken ||
       !(await bcrypt.compare(refreshToken, user.refreshToken))
     ) {
+      clearAuthCookies(res);
       return res
         .status(403)
         .json({ success: false, message: "Invalid refresh token" });
     }
 
-    const newAccessToken = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" },
-    );
-    const newRefreshToken = jwt.sign(
-      { id: user._id },
-      process.env.REFRESH_SECRET,
-      { expiresIn: "7d" },
-    );
+    const newAccessToken = signAccessToken(user);
+    const newRefreshToken = signRefreshToken(user);
 
     const hashedNewRefreshToken = await bcrypt.hash(newRefreshToken, 10);
     user.refreshToken = hashedNewRefreshToken;
     await user.save();
 
-    res.cookie("accessToken", newAccessToken, getCookieOptions(15 * 60 * 1000));
-    res.cookie(
-      "refreshToken",
-      newRefreshToken,
-      getCookieOptions(7 * 24 * 60 * 60 * 1000),
-    );
+    setAuthCookies(res, newAccessToken, newRefreshToken);
 
-    // Refresh CSRF token cũng nên thay mới để tăng bảo mật
-    const newCsrfToken = generateCsrfToken();
-    res.cookie("csrfToken", newCsrfToken, getCsrfCookieOptions());
-
-    res.json({ success: true, data: { token: newAccessToken } });
+    return res.json({
+      success: true,
+      data: {
+        token: newAccessToken,
+        user: sanitizeUserResponse(user),
+      },
+    });
   } catch (err) {
-    return res.status(403).json({ success: false, message: "Token expired" });
+    clearAuthCookies(res);
+    return res.status(403).json({
+      success: false,
+      message: "Token expired",
+    });
   }
 };
 
 export const logout = async (req, res) => {
-  const user = await User.findById(req.user.id);
-  if (user) {
-    user.refreshToken = null;
-    await user.save();
+  try {
+    const userId = req.user?.id;
+
+    if (userId) {
+      const user = await User.findById(userId);
+      if (user) {
+        user.refreshToken = null;
+        await user.save();
+      }
+    }
+
+    clearAuthCookies(res);
+
+    return res.json({
+      success: true,
+      message: "Logged out",
+    });
+  } catch (err) {
+    console.error("[LOGOUT ERROR]:", err);
+
+    clearAuthCookies(res);
+
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi logout",
+    });
   }
-
-  const clearOptions = {
-    path: "/",
-    secure: true,
-    sameSite: "none",
-  };
-  // Xóa accessToken và refreshToken
-  res.clearCookie("accessToken", { ...clearOptions, httpOnly: true });
-  res.clearCookie("refreshToken", { ...clearOptions, httpOnly: true });
-
-  // Xóa csrfToken với đúng cấu hình (httpOnly: false, có thể cần domain)
-  res.clearCookie("csrfToken", {
-    path: "/",
-    secure: true,
-    sameSite: "none",
-    httpOnly: false,
-    // Nếu csrfToken được set với domain, cần thêm domain: '.onrender.com' hoặc domain hiện tại
-    // domain: '.onrender.com',  // thử nếu vẫn không xóa được
-  });
-
-  res.json({ success: true, message: "Logged out" });
 };
