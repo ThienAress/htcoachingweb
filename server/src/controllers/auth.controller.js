@@ -7,12 +7,12 @@ const isProd = process.env.NODE_ENV === "production";
 
 // Helper lấy cookie options cho production (cross-domain)
 const getCookieOptions = (maxAge = null) => {
+  const isProduction = process.env.NODE_ENV === "production";
   const options = {
     httpOnly: true,
-    secure: true,
+    secure: isProduction,
     sameSite: "none",
     path: "/",
-    // KHÔNG có domain
   };
   if (maxAge) options.maxAge = maxAge;
   return options;
@@ -72,6 +72,16 @@ export const loginAdmin = async (req, res) => {
       refreshToken,
       getCookieOptions(7 * 24 * 60 * 60 * 1000),
     );
+
+    if (process.env.NODE_ENV === "production") {
+      const setCookieHeader = res.getHeader("Set-Cookie");
+      if (setCookieHeader) {
+        const modified = Array.isArray(setCookieHeader)
+          ? setCookieHeader.map((c) => `${c}; Partitioned`)
+          : [`${setCookieHeader}; Partitioned`];
+        res.setHeader("Set-Cookie", modified);
+      }
+    }
 
     // Set CSRF token cookie
     const csrfToken = generateCsrfToken();
@@ -142,6 +152,15 @@ export const loginTrainer = async (req, res) => {
 
     const csrfToken = generateCsrfToken();
     res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
+    if (process.env.NODE_ENV === "production") {
+      const setCookieHeader = res.getHeader("Set-Cookie");
+      if (setCookieHeader) {
+        const modified = Array.isArray(setCookieHeader)
+          ? setCookieHeader.map((c) => `${c}; Partitioned`)
+          : [`${setCookieHeader}; Partitioned`];
+        res.setHeader("Set-Cookie", modified);
+      }
+    }
 
     res.json({
       success: true,

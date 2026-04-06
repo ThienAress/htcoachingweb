@@ -71,6 +71,16 @@ router.get(
     const csrfToken = generateCsrfToken();
     res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
 
+    if (process.env.NODE_ENV === "production") {
+      const setCookieHeader = res.getHeader("Set-Cookie");
+      if (setCookieHeader) {
+        const modified = Array.isArray(setCookieHeader)
+          ? setCookieHeader.map((c) => `${c}; Partitioned`)
+          : [`${setCookieHeader}; Partitioned`];
+        res.setHeader("Set-Cookie", modified);
+      }
+    }
+
     // Redirect về frontend
     res.redirect(`${process.env.CLIENT_URL}/login-success`);
   },
