@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import {
   muscleGroups,
   workoutSections,
@@ -18,8 +18,8 @@ export default function useExercisesLogic() {
 
   // Lấy danh sách bài tập từ backend
   useEffect(() => {
-    axios
-      .get("/api/exercises?limit=500")
+    api
+      .get("/exercises?limit=500")
       .then((res) => {
         const exercisesArray = res.data.data || [];
         setExerciseOptions(exercisesArray);
@@ -119,7 +119,7 @@ export default function useExercisesLogic() {
   // Hàm gửi góp ý
   const sendExerciseSuggestion = async (suggestion) => {
     try {
-      await axios.post("/api/exercise-suggestions", {
+      await api.post("/exercise-suggestions", {
         name: suggestion,
         description: suggestion,
       });
