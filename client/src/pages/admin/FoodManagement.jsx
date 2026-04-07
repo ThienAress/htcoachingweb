@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -21,10 +21,12 @@ import {
   deleteFood,
   createManyFoods,
 } from "../../services/food.service";
+import { useDebounce } from "../../hooks/useDebounce";
 
 const FoodManagement = () => {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearchTerm = useDebounce(searchInput, 500);
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
@@ -40,7 +42,10 @@ const FoodManagement = () => {
   const [batchResult, setBatchResult] = useState(null);
   const limit = 10;
 
-  // Fetch foods
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm]);
+
   const {
     data: foodsData,
     isLoading,
@@ -48,16 +53,15 @@ const FoodManagement = () => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["foods", currentPage, searchTerm],
+    queryKey: ["foods", currentPage, debouncedSearchTerm],
     queryFn: () =>
-      getFoods(currentPage, limit, searchTerm).then((res) => res.data),
+      getFoods(currentPage, limit, debouncedSearchTerm).then((res) => res.data),
     keepPreviousData: true,
   });
 
   const foods = foodsData?.data || [];
   const pagination = foodsData?.pagination || { total: 0, totalPages: 0 };
 
-  // Mutations
   const createMutation = useMutation({
     mutationFn: createFood,
     onSuccess: () => {
@@ -232,22 +236,17 @@ const FoodManagement = () => {
         </div>
       </div>
 
-      {/* Tìm kiếm */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           type="text"
           placeholder="Tìm kiếm theo tên thực phẩm..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm md:text-base"
         />
       </div>
 
-      {/* Bảng thực phẩm */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -329,7 +328,6 @@ const FoodManagement = () => {
         </div>
       </div>
 
-      {/* Phân trang */}
       {pagination.totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 pt-2">
           <button
@@ -354,7 +352,6 @@ const FoodManagement = () => {
         </div>
       )}
 
-      {/* Modal thêm/sửa đơn lẻ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -476,7 +473,6 @@ const FoodManagement = () => {
         </div>
       )}
 
-      {/* Modal import batch JSON */}
       {showBatchModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">

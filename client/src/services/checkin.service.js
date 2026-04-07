@@ -1,7 +1,7 @@
 import api from "../utils/api";
 
-export const getCheckins = (page = 1, limit = 10) =>
-  api.get(`/checkin?page=${page}&limit=${limit}`);
+export const getCheckins = (queryString = "page=1&limit=10") =>
+  api.get(`/checkin?${queryString}`);
 
 export const createCheckin = (data) => api.post("/checkin", data);
 

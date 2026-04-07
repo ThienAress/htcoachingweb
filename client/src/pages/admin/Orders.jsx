@@ -307,7 +307,13 @@ const Orders = () => {
                 className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100"
               >
                 {/* Header */}
-                <div className="px-4 py-3 border-b bg-gray-50">
+                <div
+                  className={`px-4 py-3 border-b ${
+                    order.status === "approved"
+                      ? "bg-[#dbfce7]"
+                      : "bg-[#fef9c2]"
+                  }`}
+                >
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <User size={18} className="text-gray-600" />

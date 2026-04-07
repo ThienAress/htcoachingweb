@@ -1,14 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Trash2, UserCog } from "lucide-react";
+import {
+  Search,
+  Trash2,
+  UserCog,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import { getTrainers, deleteTrainer } from "../../services/user.service";
+import { useDebounce } from "../../hooks/useDebounce";
 
 const TrainerManagement = () => {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearchTerm = useDebounce(searchInput, 500);
   const [currentPage, setCurrentPage] = useState(1);
   const limit = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm]);
 
   const {
     data: trainersData,
@@ -16,9 +28,11 @@ const TrainerManagement = () => {
     isError,
     error,
   } = useQuery({
-    queryKey: ["trainers", currentPage, searchTerm],
+    queryKey: ["trainers", currentPage, debouncedSearchTerm],
     queryFn: () =>
-      getTrainers(currentPage, limit, searchTerm).then((res) => res.data),
+      getTrainers(currentPage, limit, debouncedSearchTerm).then(
+        (res) => res.data,
+      ),
     keepPreviousData: true,
   });
 
@@ -78,11 +92,8 @@ const TrainerManagement = () => {
         <input
           type="text"
           placeholder="Tìm kiếm theo tên hoặc email..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm md:text-base"
         />
       </div>
@@ -151,7 +162,7 @@ const TrainerManagement = () => {
             <ChevronLeft className="w-4 h-4" />
           </button>
           <span className="text-sm text-slate-600">
-            Trang {pagination.page} / {pagination.totalPages}
+            Trang {currentPage} / {pagination.totalPages}
           </span>
           <button
             onClick={() =>

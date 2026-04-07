@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Edit,
   Trash,
@@ -22,23 +22,30 @@ import {
   updateCheckin,
 } from "../../services/checkin.service";
 import { utcToLocalDateTime, localDateTimeToUTC } from "../../utils/date";
+import { useDebounce } from "../../hooks/useDebounce";
 
 const CheckinHistory = () => {
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchName, setSearchName] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearchName = useDebounce(searchInput, 500);
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [editing, setEditing] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const limit = 10;
 
+  // Reset page khi debouncedSearchName, selectedMonth, selectedYear thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchName, selectedMonth, selectedYear]);
+
   // Build query params
   const buildParams = () => {
     const params = new URLSearchParams();
     params.append("page", currentPage);
     params.append("limit", limit);
-    if (searchName) params.append("search", searchName);
+    if (debouncedSearchName) params.append("search", debouncedSearchName);
     if (selectedMonth && selectedYear) {
       params.append("month", selectedMonth);
       params.append("year", selectedYear);
@@ -54,7 +61,7 @@ const CheckinHistory = () => {
     queryKey: [
       "checkins",
       currentPage,
-      searchName,
+      debouncedSearchName,
       selectedMonth,
       selectedYear,
     ],
@@ -122,14 +129,13 @@ const CheckinHistory = () => {
 
   // Reset filters
   const resetFilters = () => {
-    setSearchName("");
+    setSearchInput("");
     setSelectedMonth("");
     setSelectedYear("");
     setCurrentPage(1);
   };
 
-  // Danh sách năm có sẵn (từ dữ liệu, nhưng nếu không có dữ liệu thì bạn có thể tạo danh sách năm từ 2020-2030)
-  const availableYears = [2024, 2025, 2026]; // bạn có thể lấy từ API riêng
+  const availableYears = [2024, 2025, 2026];
 
   if (isLoading) {
     return (
@@ -178,8 +184,8 @@ const CheckinHistory = () => {
           <input
             type="text"
             placeholder="Tìm theo tên khách hàng..."
-            value={searchName}
-            onChange={(e) => setSearchName(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm md:text-base"
           />
         </div>
@@ -216,7 +222,7 @@ const CheckinHistory = () => {
               ))}
             </select>
           </div>
-          {(searchName || selectedMonth || selectedYear) && (
+          {(searchInput || selectedMonth || selectedYear) && (
             <button
               onClick={resetFilters}
               className="px-3 py-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
