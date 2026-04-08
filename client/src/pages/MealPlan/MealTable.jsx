@@ -16,7 +16,7 @@ const MealTable = ({ meals = [] }) => {
         <table className="w-full bg-gray-800/40 rounded-2xl border border-gray-700 shadow-lg">
           <thead className="bg-gray-700/60">
             <tr>
-              <th className="px-3 sm:px-5 py-3 text-left text-orange-300 font-bold border-b border-gray-600 text-sm sm:text-base">
+              <th className="px-3 sm:px-5 py-3 text-left text-primary font-bold border-b border-gray-600 text-sm sm:text-base">
                 Bữa ăn
               </th>
               <th className="px-3 sm:px-5 py-3 text-left text-green-300 font-bold border-b border-gray-600">
@@ -28,7 +28,7 @@ const MealTable = ({ meals = [] }) => {
               <th className="px-3 sm:px-5 py-3 text-left text-yellow-300 font-bold border-b border-gray-600">
                 <Fish className="w-4 h-4 inline mr-1" /> Chất béo
               </th>
-              <th className="px-3 sm:px-5 py-3 text-left text-orange-300 font-bold border-b border-gray-600">
+              <th className="px-3 sm:px-5 py-3 text-left text-primary font-bold border-b border-gray-600">
                 Calo
               </th>
             </tr>
@@ -147,7 +147,7 @@ const MealTable = ({ meals = [] }) => {
                     "—"
                   )}
                 </td>
-                <td className="px-3 sm:px-5 py-3 sm:py-4 font-bold text-orange-400 text-sm sm:text-base">
+                <td className="px-3 sm:px-5 py-3 sm:py-4 font-bold text-primary text-sm sm:text-base">
                   {meal.totalCalories} kcal
                 </td>
               </tr>

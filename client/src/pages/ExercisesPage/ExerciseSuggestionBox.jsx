@@ -27,7 +27,7 @@ const ExerciseSuggestionBox = () => {
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-5 mt-6">
       <div className="flex items-center gap-2 mb-4">
-        <MessageSquare className="w-5 h-5 text-red-500" />
+        <MessageSquare className="w-5 h-5 text-primary" />
         <h3 className="text-lg font-bold text-white">Góp ý bài tập</h3>
       </div>
       <div className="flex flex-col sm:flex-row gap-3">
@@ -37,12 +37,12 @@ const ExerciseSuggestionBox = () => {
           value={suggestion}
           onChange={(e) => setSuggestion(e.target.value)}
           disabled={sending}
-          className="flex-1 p-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+          className="flex-1 p-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 resize-none focus:ring-2 focus:ring-primary focus:border-transparent"
         />
         <button
           onClick={handleSend}
           disabled={sending}
-          className="px-4 py-1.5 bg-red-600 hover:bg-red-700 rounded-full text-white font-semibold shadow-md shadow-red-600/30 disabled:opacity-50 flex items-center justify-center gap-1.5 transition text-sm"
+          className="px-4 py-1.5 bg-primary hover:bg-primary-dark rounded-full text-white font-semibold shadow-md shadow-primary/30 disabled:opacity-50 flex items-center justify-center gap-1.5 transition text-sm"
         >
           <Send size={14} /> {sending ? "Đang gửi..." : "Gửi"}
         </button>

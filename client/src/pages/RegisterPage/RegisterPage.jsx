@@ -1,16 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import {
-  X,
-  Gift,
-  ShoppingBag,
-  Tag,
-  Calendar,
-  MapPin,
-  Clock,
-  Sparkles,
-} from "lucide-react";
+import { X, Gift, Tag, Calendar, MapPin, Clock, Sparkles } from "lucide-react";
 import {
   createBooking,
   checkUserHasBookings,
@@ -49,7 +40,6 @@ function RegisterPage() {
     schedule: [],
   });
 
-  // Hàm kiểm tra user đã có booking chưa
   const fetchUserBookings = async () => {
     if (isLoggedIn) {
       try {
@@ -69,7 +59,6 @@ function RegisterPage() {
     fetchUserBookings();
   }, [isLoggedIn]);
 
-  // Tạo mã giảm giá chỉ khi chưa từng đăng ký
   useEffect(() => {
     if (isLoggedIn && !hasExistingBooking && !loadingCheck) {
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
@@ -289,7 +278,6 @@ function RegisterPage() {
 
     try {
       await createBooking(bookingData);
-      // Cập nhật lại trạng thái đã có booking
       await fetchUserBookings();
       showToast(
         "Đăng ký thành công! Chúng tôi sẽ liên hệ tư vấn sớm nhất.",
@@ -345,7 +333,7 @@ function RegisterPage() {
   if (loadingCheck) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div>Đang tải...</div>
+        <div className="text-primary text-xl">Đang tải...</div>
       </div>
     );
   }
@@ -353,12 +341,10 @@ function RegisterPage() {
   return (
     <>
       <HeaderMinimal />
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
+        <div className="container-custom">
           <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
-              Đăng ký gói tập
-            </h1>
+            <h1 className="text-gray-800">ĐĂNG KÝ GÓI TẬP</h1>
             <p className="text-gray-500 mt-2">
               Vui lòng điền thông tin bên dưới để chúng tôi liên hệ tư vấn
             </p>
@@ -368,10 +354,7 @@ function RegisterPage() {
             {/* Cột trái - Form đăng ký */}
             <div className="flex-1 bg-white rounded-2xl shadow-lg p-6 md:p-8">
               <div className="flex items-center gap-2 border-b border-gray-200 pb-4 mb-6">
-                <ShoppingBag className="text-red-500" size={24} />
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Thông tin đăng ký
-                </h2>
+                <h2 className="text-gray-800">THÔNG TIN ĐĂNG KÝ</h2>
               </div>
               <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
                 <div>
@@ -380,7 +363,7 @@ function RegisterPage() {
                   </label>
                   <input
                     type="text"
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-400 transition"
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary transition"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
@@ -397,7 +380,7 @@ function RegisterPage() {
                   </label>
                   <input
                     type="tel"
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-400"
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
                     value={formData.phone}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -417,7 +400,7 @@ function RegisterPage() {
                   </label>
                   <input
                     type="email"
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-400"
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
                     value={formData.email}
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
@@ -433,7 +416,7 @@ function RegisterPage() {
                     Phòng tập mong muốn *
                   </label>
                   <select
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-400"
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
                     value={formData.location}
                     onChange={(e) =>
                       setFormData({ ...formData, location: e.target.value })
@@ -492,7 +475,7 @@ function RegisterPage() {
                     <button
                       type="button"
                       onClick={handleAddSchedule}
-                      className="order-button px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-lg hover:scale-105 transition"
+                      className="order-button px-4 py-3 bg-gradient-to-r from-primary to-primary-dark text-white font-semibold rounded-lg hover:scale-105 transition"
                     >
                       + Thêm
                     </button>
@@ -528,7 +511,7 @@ function RegisterPage() {
                   </label>
                   <textarea
                     rows={4}
-                    className="w-full p-3 border rounded-lg resize-none focus:ring-2 focus:ring-red-400"
+                    className="w-full p-3 border rounded-lg resize-none focus:ring-2 focus:ring-primary"
                     placeholder="VD: link Facebook, Zalo, địa chỉ cụ thể, mong muốn khác..."
                     value={formData.note}
                     onChange={(e) =>
@@ -564,7 +547,7 @@ function RegisterPage() {
 
                 <button
                   type="submit"
-                  className="order-button w-full py-4 text-lg font-bold text-white bg-gradient-to-r from-red-500 to-red-600 rounded-xl shadow-md hover:shadow-lg transition-all mt-4"
+                  className="order-button w-full py-4 text-lg font-bold text-white bg-gradient-to-r from-primary to-primary-dark rounded-xl shadow-md hover:shadow-lg transition-all mt-4"
                 >
                   GỬI ĐĂNG KÝ
                 </button>
@@ -573,18 +556,18 @@ function RegisterPage() {
 
             {/* Cột phải - Đơn hàng của bạn */}
             <div className="lg:w-96">
-              <div className="sticky top-8 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-                <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+              <div className="sticky top-8 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-white/30">
+                <div className="bg-gradient-to-r from-primary to-primary-dark px-6 py-4">
                   <h3 className="text-white text-xl font-bold flex items-center gap-2">
-                    <ShoppingBag size={22} /> Đơn hàng của bạn
+                    ĐƠN HÀNG CỦA BẠN
                   </h3>
                 </div>
 
                 <div className="p-6 space-y-5">
                   <div className="border-b border-gray-100 pb-4">
                     <div className="flex items-start gap-3">
-                      <div className="bg-red-100 p-2 rounded-lg">
-                        <Sparkles size={20} className="text-red-600" />
+                      <div className="bg-primary/10 p-2 rounded-lg">
+                        <Sparkles size={20} className="text-primary" />
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 uppercase tracking-wide">
@@ -601,7 +584,6 @@ function RegisterPage() {
                     </div>
                   </div>
 
-                  {/* Chỉ hiển thị giảm giá nếu đăng nhập và chưa có booking */}
                   {isLoggedIn && !hasExistingBooking && (
                     <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
                       <div className="flex items-center gap-3 mb-3">
@@ -643,7 +625,6 @@ function RegisterPage() {
                     </div>
                   )}
 
-                  {/* Nếu đã có booking thì hiển thị thông báo đã dùng ưu đãi */}
                   {isLoggedIn && hasExistingBooking && (
                     <div className="bg-gray-100 rounded-xl p-4 border border-gray-300 text-center">
                       <p className="text-gray-600 text-sm">
@@ -701,7 +682,7 @@ function RegisterPage() {
         </div>
       </div>
 
-      {/* Toast giữa màn hình */}
+      {/* Toast */}
       {toast.show && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
           <div
@@ -714,7 +695,7 @@ function RegisterPage() {
         </div>
       )}
 
-      {/* Modal xác nhận lần đầu (chỉ hiện khi chưa có booking và modal được mở) */}
+      {/* Modal xác nhận lần đầu */}
       {showFirstTimeModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60">
           <div className="bg-white rounded-2xl max-w-md w-full mx-4 p-6 shadow-2xl animate-fade-in">

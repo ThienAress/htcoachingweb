@@ -23,7 +23,7 @@ const TdeeForm = ({
   setGoalNotice,
 }) => {
   const inputClasses =
-    "w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all";
+    "w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all";
   const labelClasses =
     "block text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2";
 
@@ -224,13 +224,13 @@ const TdeeForm = ({
       <div className="flex flex-wrap justify-center gap-5 mt-10">
         <button
           type="submit"
-          className="bg-red-600 hover:bg-red-700 transform hover:scale-105 transition-all duration-200 text-white font-bold py-3 px-10 rounded-full shadow-lg shadow-red-600/30 flex items-center gap-2"
+          className="btn btn-primary shadow-lg shadow-primary/30 flex items-center gap-2"
         >
           <BarChart3 className="w-5 h-5" /> Xem kết quả
         </button>
         <button
           type="reset"
-          className="bg-gray-700 hover:bg-gray-600 transition-all duration-200 text-white font-bold py-3 px-10 rounded-full flex items-center gap-2"
+          className="btn bg-gray-700 hover:bg-gray-600 text-white border-none shadow-md flex items-center gap-2"
         >
           <RotateCcw className="w-5 h-5" /> Đặt lại
         </button>

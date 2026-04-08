@@ -3,7 +3,7 @@ import { Info, Wheat, Drumstick, Fish, Scale } from "lucide-react";
 
 const NutritionLegend = () => (
   <div className="my-6 p-4 sm:p-5 bg-gray-800/40 rounded-2xl border border-gray-700">
-    <h4 className="font-bold mb-4 text-orange-300 flex items-center gap-2 text-base sm:text-lg">
+    <h4 className="font-bold mb-4 text-primary flex items-center gap-2 text-base sm:text-lg">
       <Scale className="w-5 h-5" /> Chú thích dinh dưỡng
     </h4>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

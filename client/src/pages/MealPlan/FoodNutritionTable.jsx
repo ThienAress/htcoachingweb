@@ -36,7 +36,7 @@ const FoodNutritionTable = ({ foodDatabase = [] }) => {
             placeholder="Tìm kiếm thực phẩm..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <Search className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
         </div>
@@ -46,7 +46,7 @@ const FoodNutritionTable = ({ foodDatabase = [] }) => {
             onClick={() => setSortOrder(sortOrder === "asc" ? null : "asc")}
             className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-all text-sm sm:text-base ${
               sortOrder === "asc"
-                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30"
+                ? "bg-primary text-white shadow-lg shadow-primary/30"
                 : "bg-gray-700 text-gray-300 hover:bg-gray-600"
             }`}
           >
@@ -57,7 +57,7 @@ const FoodNutritionTable = ({ foodDatabase = [] }) => {
             onClick={() => setSortOrder(sortOrder === "desc" ? null : "desc")}
             className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-all text-sm sm:text-base ${
               sortOrder === "desc"
-                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30"
+                ? "bg-primary text-white shadow-lg shadow-primary/30"
                 : "bg-gray-700 text-gray-300 hover:bg-gray-600"
             }`}
           >
@@ -75,7 +75,7 @@ const FoodNutritionTable = ({ foodDatabase = [] }) => {
             <div>Carb</div>
             <div>Fat</div>
             <div>
-              <Flame className="w-4 h-4 inline mr-1 text-orange-400" /> Calo
+              <Flame className="w-4 h-4 inline mr-1 text-primary" /> Calo
             </div>
           </div>
 
@@ -100,7 +100,7 @@ const FoodNutritionTable = ({ foodDatabase = [] }) => {
                 <div className="text-yellow-400">
                   {Number(item.fat || 0).toFixed(1)}
                 </div>
-                <div className="text-orange-400 font-semibold">{calories}</div>
+                <div className="text-primary font-semibold">{calories}</div>
               </div>
             );
           })}

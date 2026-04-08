@@ -79,7 +79,7 @@ const MacroAdjustModal = ({ isOpen, onClose, initialValues, onSave }) => {
               type="text"
               value={formValues.protein}
               onChange={(e) => handleChange("protein", e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="Nhập đạm"
             />
           </div>
@@ -92,7 +92,7 @@ const MacroAdjustModal = ({ isOpen, onClose, initialValues, onSave }) => {
               type="text"
               value={formValues.carb}
               onChange={(e) => handleChange("carb", e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="Nhập tinh bột"
             />
           </div>
@@ -105,15 +105,15 @@ const MacroAdjustModal = ({ isOpen, onClose, initialValues, onSave }) => {
               type="text"
               value={formValues.fat}
               onChange={(e) => handleChange("fat", e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+              className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="Nhập chất béo"
             />
           </div>
 
-          <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-3 text-sm">
+          <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm">
             <div className="text-gray-300">
               Calories dự kiến:
-              <span className="ml-2 font-bold text-orange-400">
+              <span className="ml-2 font-bold text-primary">
                 {previewCalories.toLocaleString()} kcal
               </span>
             </div>
@@ -130,7 +130,7 @@ const MacroAdjustModal = ({ isOpen, onClose, initialValues, onSave }) => {
 
           <button
             onClick={handleSave}
-            className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold transition"
+            className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white font-semibold transition"
           >
             Lưu
           </button>

@@ -1,43 +1,198 @@
 @import "tailwindcss";
 
-/* ================= ROOT (BẮT BUỘC để màu hoạt động) ================= */
-:root {
+/* ================= ĐỊNH NGHĨA MÀU SẮC TRONG THEME (Tailwind v4) ================= */
+@theme {
+  /* Font */
+  --font-sans: "Poppins", system-ui, sans-serif;
+  --font-display: "Bebas Neue", sans-serif;
+
+  /* Màu sắc */
   --color-primary: #ff5500;
   --color-primary-dark: #e54600;
-  --color-secondary: #333;
+  --color-primary-light: #ff7b2c;
+  --color-secondary: #333333;
   --color-gray: #6c757d;
   --color-light: #f8f9fa;
   --color-dark: #212529;
   --color-white: #ffffff;
   --color-black: #000000;
-  --color-google: #db4437;
 }
 
-/* ================= THEME (optional cho Tailwind) ================= */
-@theme {
-  --font-sans: "Poppins", system-ui, sans-serif;
-  --font-display: "Bebas Neue", sans-serif;
+/* ================= BASE – HỆ THỐNG HEADING ================= */
+@layer base {
+  h1,
+  .h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.2;
+    font-size: 2.25rem; /* 36px */
+  }
+  h2,
+  .h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    line-height: 1.2;
+    font-size: 1.875rem; /* 30px */
+  }
+  h3,
+  .h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.3;
+    font-size: 1.5rem; /* 24px */
+  }
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-white);
+    color: var(--color-dark);
+  }
 }
 
-/* ================= BASE ================= */
-body {
-  @apply font-sans bg-[--color-white] text-[--color-dark];
+/* Responsive heading sizes dùng media queries hoặc tailwind utilities */
+@media (min-width: 640px) {
+  h1,
+  .h1 {
+    font-size: 3rem;
+  } /* 48px */
+  h2,
+  .h2 {
+    font-size: 2.25rem;
+  } /* 36px */
+  h3,
+  .h3 {
+    font-size: 1.875rem;
+  } /* 30px */
+}
+@media (min-width: 768px) {
+  h1,
+  .h1 {
+    font-size: 3.75rem;
+  } /* 60px */
+  h2,
+  .h2 {
+    font-size: 3rem;
+  } /* 48px */
+  h3,
+  .h3 {
+    font-size: 2.25rem;
+  } /* 36px */
+}
+@media (min-width: 1024px) {
+  h1,
+  .h1 {
+    font-size: 4.5rem;
+  } /* 72px */
+  h2,
+  .h2 {
+    font-size: 3.75rem;
+  } /* 60px */
+  h3,
+  .h3 {
+    font-size: 3rem;
+  } /* 48px */
 }
 
-/* ================= UTIL ================= */
-.container {
-  @apply w-full max-w-[1400px] mx-auto px-5;
+/* ================= UTILITY CLASS BỔ SUNG ================= */
+.container-custom {
+  width: 100%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+@media (min-width: 640px) {
+  .container-custom {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  .container-custom {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
 }
 
 .btn {
-  @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold uppercase tracking-wider border cursor-pointer transition-all duration-300;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-width: 1px;
+  cursor: pointer;
+  transition: all 0.3s;
 }
 
-/* ================= TEXT ================= */
-.title {
-  @apply font-bold text-[2.5rem] leading-[50px] text-[--color-black];
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+.btn-primary:hover {
+  background-color: transparent;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
-.desc {
-  @apply pt-5 text-[--color-gray] text-base leading-relaxed;
+.btn-outline {
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+}
+.btn-outline:hover {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.btn-white {
+  border-color: white;
+  color: white;
+  background-color: transparent;
+}
+.btn-white:hover {
+  background-color: white;
+  color: var(--color-primary);
+}
+
+.gradient-text {
+  background: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-primary-light),
+    var(--color-primary)
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  color: transparent;
+  animation: animate-gradient 2.5s linear infinite;
+}
+
+@keyframes animate-gradient {
+  0% {
+    background-position: 0% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.cursor {
+  animation: blink 1s infinite;
+}
+@keyframes blink {
+  0%,
+  50%,
+  100% {
+    opacity: 1;
+  }
+  25%,
+  75% {
+    opacity: 0;
+  }
 }

@@ -14,7 +14,7 @@ const Classes = () => {
   const classes = [
     {
       image: class1,
-      title: "Personal Training",
+      title: "PERSONAL TRAINING",
       desc: "Huấn luyện 1:1 giúp bạn theo sát tiến độ, tập đúng kỹ thuật và đạt mục tiêu nhanh hơn bao giờ hết.",
       benefits: [
         "Lộ trình cá nhân hóa",
@@ -24,7 +24,7 @@ const Classes = () => {
     },
     {
       image: class2,
-      title: "Cardio & HIIT",
+      title: "CARDIO & HIIT",
       desc: "Đốt cháy mỡ thừa hiệu quả, tăng nhịp tim và cải thiện sức bền chỉ trong vài phút mỗi buổi tập.",
       benefits: [
         "Bài tập ngắn - Hiệu quả vượt trội",
@@ -34,8 +34,8 @@ const Classes = () => {
     },
     {
       image: class3,
-      title: "Boxing",
-      desc: "Tăng sức bền, cải thiện phản xạ và giải phóng căng thẳng với những bài tập đầy năng lượng.",
+      title: "BOXING",
+      desc: "Tăng sức bền, cải thiện phản xạ, giải phóng căng thẳng với những bài tập đầy năng lượng và linh hoạt.",
       benefits: [
         "Đốt mỡ, săn chắc toàn thân",
         "Nâng cao phản xạ và sự tự tin",
@@ -45,22 +45,24 @@ const Classes = () => {
   ];
 
   return (
-    <section id="classes" className="py-16 bg-gray-50">
-      <div className="container">
+    <section id="classes" className="py-12 sm:py-16 bg-[#0f172b]">
+      <div className="mx-auto w-full max-w-[1650px] px-4 sm:px-6 xl:px-8">
         <h2
-          className="font-display text-[2rem] sm:text-[2.5rem] md:text-[3rem] lg:text-[4rem] leading-tight text-black text-center mb-4"
+          className="text-center text-primary text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
           data-aos="fade-down"
         >
-          CHƯƠNG TRÌNH ĐÀO TẠO TRỰC TIẾP
+          CHƯƠNG TRÌNH TẬP LUYỆN TRỰC TIẾP
         </h2>
+
         <p
-          className="text-center text-(--color-gray) text-lg max-w-2xl mx-auto mb-12"
+          className="text-center text-gray text-base sm:text-lg max-w-2xl mx-auto mb-8 sm:mb-12 px-4"
           data-aos="fade-down"
         >
           Cùng mình chinh phục mục tiêu thể chất với 3 bộ môn đặc trưng
         </p>
+
         <div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8 xl:gap-10"
           data-aos="flip-down"
         >
           {classes.map((item, index) => (

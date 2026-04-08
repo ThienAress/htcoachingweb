@@ -16,7 +16,7 @@ const Pricing = () => {
   // Gói ONLINE
   const onlinePlans = [
     {
-      title: "Cơ bản",
+      title: "CƠ BẢN",
       durationText: "8 tuần",
       features: [
         "Tập 1 kèm 1",
@@ -31,7 +31,7 @@ const Pricing = () => {
       totalSessions: 24,
     },
     {
-      title: "Nâng cao",
+      title: "NÂNG CAO",
       durationText: "16 tuần",
       features: [
         "Tập 1 kèm 1",
@@ -181,11 +181,9 @@ const Pricing = () => {
   };
 
   return (
-    <section className="py-16 bg-[#262626]">
-      <div className="container mx-auto px-4">
-        <h2 className="font-display text-[2rem] sm:text-[2.5rem] md:text-[3rem] lg:text-[4rem] font-bold text-center text-red-500 uppercase tracking-wide mb-8">
-          Gói tập của chúng tôi
-        </h2>
+    <section id="pricing" className="py-16 bg-[#262626]">
+      <div className="container-custom mx-auto px-4">
+        <h2 className="text-center text-primary">GÓI TẬP CỦA CHÚNG TÔI</h2>
 
         <div className="flex justify-center items-center gap-4 flex-wrap mb-10">
           <div className="relative w-64 h-12 rounded-full bg-[#222] shadow-lg">
@@ -223,7 +221,7 @@ const Pricing = () => {
                 ONLINE
               </label>
               <div
-                className={`absolute top-0 w-1/2 h-full bg-gradient-to-r from-red-500 to-red-600 rounded-full transition-all duration-500 ease-out ${
+                className={`absolute top-0 w-1/2 h-full bg-gradient-to-r from-primary to-primary-dark rounded-full transition-all duration-500 ease-out ${
                   mode === "1-1" ? "left-0" : "left-1/2"
                 }`}
               ></div>
@@ -233,7 +231,7 @@ const Pricing = () => {
             onClick={() => setMode("trial")}
             className={`h-12 px-6 rounded-full font-semibold text-base transition-all duration-300 shadow-md ${
               mode === "trial"
-                ? "bg-gradient-to-r from-red-500 to-red-600 text-white"
+                ? "bg-gradient-to-r from-primary to-primary-dark text-white"
                 : "bg-[#222] text-white hover:-translate-y-0.5 hover:shadow-lg"
             }`}
           >
@@ -247,13 +245,13 @@ const Pricing = () => {
               key={idx}
               className={`relative bg-[#1a1a1a] border-2 rounded-xl p-8 transition-all duration-300 w-96 ${
                 plan.featured
-                  ? "border-red-500 bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a]"
+                  ? "border-primary bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a]"
                   : "border-gray-800"
-              } hover:-translate-y-2 hover:scale-105 hover:border-red-500 hover:shadow-red-500/30`}
+              } hover:-translate-y-2 hover:scale-105 hover:border-primary hover:shadow-red-500/30`}
             >
               {plan.featured && (
-                <div className="absolute -top-3 -right-3 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                  Phổ biến
+                <div className="absolute -top-3 -right-3 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                  PHỔ BIẾN
                 </div>
               )}
               <div className="text-center mb-4">
@@ -272,7 +270,7 @@ const Pricing = () => {
                     key={i}
                     className="flex items-start gap-2 border-b border-gray-700 pb-1"
                   >
-                    <span className="text-red-500">✓</span>
+                    <span className="text-primary">✓</span>
                     <span>{feature}</span>
                   </li>
                 ))}
@@ -292,10 +290,10 @@ const Pricing = () => {
                 onClick={() =>
                   handleRegister(plan, mode === "trial" ? "trial" : mode)
                 }
-                className="relative w-full mt-5 py-3 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-red-500 text-red-500 hover:text-white hover:border-transparent text-base"
+                className="relative w-full mt-5 py-3 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-base"
               >
                 <span className="relative z-10">Đăng ký ngay</span>
-                <span className="absolute inset-0 bg-red-500 transform -translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></span>
+                <span className="absolute inset-0 bg-primary transform -translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></span>
               </button>
             </div>
           ))}
@@ -342,11 +340,11 @@ const Pricing = () => {
             onClick={() => setShowLoginPrompt(false)}
           >
             <div
-              className="bg-[#1a1a1a] border-2 border-red-500 rounded-2xl max-w-md w-full shadow-2xl"
+              className="bg-[#1a1a1a] border-2 border-primary rounded-2xl max-w-md w-full shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-between items-center p-4 border-b border-red-500/30">
-                <h3 className="text-xl font-bold text-red-400 flex items-center gap-2">
+              <div className="flex justify-between items-center p-4 border-b border-primary/30">
+                <h3 className="text-xl font-bold text-primary flex items-center gap-2">
                   <Sparkles className="w-6 h-6" /> ƯU ĐÃI ĐẶC BIỆT
                 </h3>
                 <button
@@ -359,13 +357,13 @@ const Pricing = () => {
               <div className="p-6 space-y-4">
                 <p className="text-gray-300 text-center text-lg">
                   Đăng nhập ngay để nhận{" "}
-                  <strong className="text-red-400">GIẢM 15%</strong> cho gói tập
+                  <strong className="text-primary">GIẢM 15%</strong> cho gói tập
                   đầu tiên!
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
                   <button
                     onClick={handleLoginRedirect}
-                    className="flex-1 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-lg flex items-center justify-center gap-2 hover:scale-105 transition"
+                    className="flex-1 py-3 bg-gradient-to-r from-primary to-primary-dark text-white font-bold rounded-lg flex items-center justify-center gap-2 hover:scale-105 transition"
                   >
                     <LogIn size={18} /> Đăng nhập ngay
                   </button>

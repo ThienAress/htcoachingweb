@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Menu,
   X,
@@ -14,6 +14,7 @@ import { useAuth } from "../../context/AuthContext";
 
 function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -21,7 +22,47 @@ function Header() {
   const [openDropdown, setOpenDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Click ngoài để đóng dropdown
+  // Hàm scroll đến section
+  const handleScrollToSection = (sectionId) => {
+    if (location.pathname !== "/") {
+      // Chuyển về trang chủ và lưu lại section cần scroll
+      navigate("/", { state: { scrollTo: sectionId } });
+      return;
+    }
+
+    const element = document.getElementById(sectionId);
+    if (element) {
+      const offset = 80; // chiều cao header (có thể chỉnh lại nếu header cao hơn)
+      const elementPosition =
+        element.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementPosition - offset;
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  // Khi quay về trang chủ với state scrollTo
+  useEffect(() => {
+    if (location.pathname === "/" && location.state?.scrollTo) {
+      const sectionId = location.state.scrollTo;
+      // Xóa state để không bị scroll lại khi refresh
+      navigate("/", { replace: true, state: {} });
+      setTimeout(() => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+          const offset = 80;
+          const elementPosition =
+            element.getBoundingClientRect().top + window.scrollY;
+          const offsetPosition = elementPosition - offset;
+          window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+        }
+      }, 100);
+    }
+  }, [location, navigate]);
+
+  // Click ngoài dropdown
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -32,7 +73,7 @@ function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Hiệu ứng scroll
+  // Scroll effect
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 0);
     window.addEventListener("scroll", handleScroll);
@@ -65,7 +106,6 @@ function Header() {
     navigate("/");
   };
 
-  // Dropdown items dựa trên role
   const dropdownItems = ["admin", "trainer"].includes(user?.role)
     ? [
         { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
@@ -105,65 +145,65 @@ function Header() {
         <nav className="hidden md:block absolute left-1/2 transform -translate-x-1/2">
           <ul className="flex gap-5 list-none m-0 p-0">
             <li>
-              <a
-                href="/"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
+              <Link
+                to="/"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
               >
                 Trang chủ
-              </a>
+              </Link>
             </li>
             <li>
-              <a
-                href="#about"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
+              <button
+                onClick={() => handleScrollToSection("about")}
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
               >
                 Giới thiệu
-              </a>
+              </button>
             </li>
             <li>
-              <a
-                href="#trainers"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
+              <button
+                onClick={() => handleScrollToSection("trainers")}
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
               >
                 Huấn luyện viên
-              </a>
+              </button>
             </li>
             <li>
-              <a
-                href="#customer"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
+              <button
+                onClick={() => handleScrollToSection("customer")}
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
               >
                 Feedback
-              </a>
+              </button>
             </li>
             <li>
-              <a
-                href="#classes"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
+              <button
+                onClick={() => handleScrollToSection("classes")}
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
               >
                 Chương trình
-              </a>
+              </button>
             </li>
             <li>
-              <a
-                href="#pricing"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
+              <button
+                onClick={() => handleScrollToSection("pricing")}
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
               >
                 Gói tập
-              </a>
+              </button>
             </li>
             <li>
-              <a
-                href="#contact"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
+              <button
+                onClick={() => handleScrollToSection("contact")}
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
               >
                 Liên hệ
-              </a>
+              </button>
             </li>
             <li>
               <Link
                 to="/club"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap "
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
               >
                 CLB
               </Link>
@@ -172,7 +212,7 @@ function Header() {
               <li>
                 <Link
                   to="/admin"
-                  className="nav-link-hover text-white font-medium relative whitespace-nowrap "
+                  className="nav-link-hover text-white font-medium relative whitespace-nowrap"
                 >
                   Quản trị
                 </Link>
@@ -308,41 +348,101 @@ function Header() {
               </div>
             )}
             <ul className="w-full flex flex-col items-center gap-3">
-              {[
-                ["Trang chủ", "/"],
-                ["Giới thiệu", "#about"],
-                ["Huấn luyện viên", "#trainers"],
-                ["Feedback", "#customer"],
-                ["Chương trình đào tạo", "#classes"],
-                ["Gói tập", "#pricing"],
-                ["Liên hệ", "#contact"],
-                ["CLB", "/club"],
-                ...(user?.role === "admin" ? [["Quản trị", "/admin"]] : []),
-              ].map(([label, href]) => (
-                <li key={label} className="w-full">
-                  {href.startsWith("#") ? (
-                    <a
-                      href={href}
-                      onClick={() => setMenuOpen(false)}
-                      className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10"
-                    >
-                      {label}
-                    </a>
-                  ) : (
-                    <Link
-                      to={href}
-                      onClick={() => setMenuOpen(false)}
-                      className={`block text-center text-lg py-3 px-4 rounded-lg hover:bg-white/10 ${
-                        label === "Quản trị"
-                          ? "text-orange-300 font-semibold"
-                          : "text-white"
-                      }`}
-                    >
-                      {label}
-                    </Link>
-                  )}
+              <li className="w-full">
+                <Link
+                  to="/"
+                  onClick={() => setMenuOpen(false)}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10"
+                >
+                  Trang chủ
+                </Link>
+              </li>
+              <li className="w-full">
+                <button
+                  onClick={() => {
+                    handleScrollToSection("about");
+                    setMenuOpen(false);
+                  }}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
+                >
+                  Giới thiệu
+                </button>
+              </li>
+              <li className="w-full">
+                <button
+                  onClick={() => {
+                    handleScrollToSection("trainers");
+                    setMenuOpen(false);
+                  }}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
+                >
+                  Huấn luyện viên
+                </button>
+              </li>
+              <li className="w-full">
+                <button
+                  onClick={() => {
+                    handleScrollToSection("customer");
+                    setMenuOpen(false);
+                  }}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
+                >
+                  Feedback
+                </button>
+              </li>
+              <li className="w-full">
+                <button
+                  onClick={() => {
+                    handleScrollToSection("classes");
+                    setMenuOpen(false);
+                  }}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
+                >
+                  Chương trình đào tạo
+                </button>
+              </li>
+              <li className="w-full">
+                <button
+                  onClick={() => {
+                    handleScrollToSection("pricing");
+                    setMenuOpen(false);
+                  }}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
+                >
+                  Gói tập
+                </button>
+              </li>
+              <li className="w-full">
+                <button
+                  onClick={() => {
+                    handleScrollToSection("contact");
+                    setMenuOpen(false);
+                  }}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
+                >
+                  Liên hệ
+                </button>
+              </li>
+              <li className="w-full">
+                <Link
+                  to="/club"
+                  onClick={() => setMenuOpen(false)}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10"
+                >
+                  CLB
+                </Link>
+              </li>
+              {user?.role === "admin" && (
+                <li className="w-full">
+                  <Link
+                    to="/admin"
+                    onClick={() => setMenuOpen(false)}
+                    className="block text-center text-orange-300 font-semibold text-lg py-3 px-4 rounded-lg hover:bg-white/10"
+                  >
+                    Quản trị
+                  </Link>
                 </li>
-              ))}
+              )}
             </ul>
           </div>
         </div>

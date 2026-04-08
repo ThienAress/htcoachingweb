@@ -18,7 +18,7 @@ const FeedbackCard = ({
               alt="Before"
               className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
             />
-            <span className="absolute bottom-3 left-3 bg-red-600 text-white text-xs sm:text-sm font-semibold py-1 px-3 rounded-full uppercase z-10">
+            <span className="absolute bottom-3 left-3 bg-primary text-white text-xs sm:text-sm font-semibold py-1 px-3 rounded-full uppercase z-10">
               Before
             </span>
           </div>
@@ -28,7 +28,7 @@ const FeedbackCard = ({
               alt="After"
               className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
             />
-            <span className="absolute bottom-3 left-3 bg-red-600 text-white text-xs sm:text-sm font-semibold py-1 px-3 rounded-full uppercase z-10">
+            <span className="absolute bottom-3 left-3 bg-primary text-white text-xs sm:text-sm font-semibold py-1 px-3 rounded-full uppercase z-10">
               After
             </span>
           </div>

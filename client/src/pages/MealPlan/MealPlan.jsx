@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { toast } from "react-toastify";
@@ -138,9 +138,7 @@ const MealPlan = () => {
   };
 
   const hasMeals = meals.length > 0;
-  const buttonLabel = hasMeals
-    ? "🔄 Đổi thực đơn khác"
-    : "✨ Gợi ý thực đơn mẫu";
+  const buttonLabel = hasMeals ? "Đổi thực đơn khác" : "Gợi ý thực đơn mẫu";
 
   return (
     <>
@@ -148,20 +146,20 @@ const MealPlan = () => {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
         <ToastContainer position="top-right" autoClose={3000} theme="dark" />
 
-        <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="container-custom py-6 sm:py-8">
           <div className="text-center mb-8 sm:mb-10">
-            <div className="inline-flex items-center gap-2 sm:gap-3 bg-orange-500/20 rounded-full px-4 sm:px-5 py-1.5 sm:py-2 mb-4 mt-20">
-              <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
-              <span className="font-semibold text-orange-400 tracking-wide text-sm sm:text-base">
+            <div className="inline-flex items-center gap-2 sm:gap-3 bg-primary/20 rounded-full px-4 sm:px-5 py-1.5 sm:py-2 mb-4 mt-20">
+              <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+              <span className="font-semibold text-primary tracking-wide text-sm sm:text-base">
                 MEAL PLAN
               </span>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tighter">
-              THỰC ĐƠN <span className="text-orange-500">CỦA BẠN</span>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-normal">
+              THỰC ĐƠN <span className="text-primary">CỦA BẠN</span>
             </h2>
 
-            <div className="w-20 sm:w-24 h-1 bg-orange-500 mx-auto mt-3 sm:mt-4 rounded-full"></div>
+            <div className="w-20 sm:w-24 h-1 bg-primary mx-auto mt-3 sm:mt-4 rounded-full"></div>
           </div>
 
           <MealSelector
@@ -187,7 +185,7 @@ const MealPlan = () => {
                 F {activeMacroTarget.fat}g
               </span>{" "}
               |{" "}
-              <span className="text-orange-400 font-semibold">
+              <span className="text-primary font-semibold">
                 {activeMacroTarget.calories} kcal
               </span>
             </div>
@@ -224,7 +222,7 @@ const MealPlan = () => {
                 onClick={() => setActiveTab("menu")}
                 className={`py-2 px-1 font-semibold text-sm transition-all ${
                   activeTab === "menu"
-                    ? "border-b-2 border-orange-500 text-orange-400"
+                    ? "border-b-2 border-primary text-primary"
                     : "text-gray-400 hover:text-gray-200"
                 }`}
               >
@@ -235,7 +233,7 @@ const MealPlan = () => {
                 onClick={() => setActiveTab("nutrition")}
                 className={`py-2 px-1 font-semibold text-sm transition-all flex items-center gap-1 ${
                   activeTab === "nutrition"
-                    ? "border-b-2 border-orange-500 text-orange-400"
+                    ? "border-b-2 border-primary text-primary"
                     : "text-gray-400 hover:text-gray-200"
                 }`}
               >

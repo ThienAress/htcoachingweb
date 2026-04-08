@@ -127,19 +127,19 @@ const ExercisesPage = () => {
       <HeaderMinimal />
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white py-8">
-        <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="container-custom">
           {/* Header section */}
           <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-3 bg-red-600/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
-              <Flame className="text-red-500 w-6 h-6" />
-              <span className="font-semibold text-red-400 tracking-wide">
+            <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
+              <Flame className="text-primary w-6 h-6" />
+              <span className="font-semibold text-primary tracking-wide">
                 HỆ THỐNG BÀI TẬP
               </span>
             </div>
-            <h1 className="font-display text-6xl font-black uppercase tracking-normal">
-              TẠO LỊCH TẬP <span className="text-red-500">CÁ NHÂN HÓA</span>
+            <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-normal">
+              TẠO LỊCH TẬP <span className="text-primary">CÁ NHÂN HÓA</span>
             </h1>
-            <div className="w-24 h-1 bg-red-500 mx-auto mt-4 rounded-full"></div>
+            <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
             <p className="text-gray-400 mt-4 max-w-xl mx-auto">
               Chọn nhóm cơ, thêm bài tập và xuất lịch tập PDF chuyên nghiệp
             </p>
@@ -149,12 +149,12 @@ const ExercisesPage = () => {
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6 mb-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               <div className="flex items-center gap-2">
-                <Dumbbell className="text-red-500 w-7 h-7" />
+                <Dumbbell className="text-primary w-7 h-7" />
                 <h2 className="text-2xl font-bold text-white">CHỌN NHÓM CƠ</h2>
               </div>
               <button
                 onClick={() => logic.setShowExerciseList(true)}
-                className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 rounded-full shadow-lg shadow-red-600/30 transition"
+                className="flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-dark rounded-full shadow-lg shadow-primary/30 transition"
               >
                 <List size={18} /> Xem danh sách bài tập
               </button>
@@ -188,11 +188,10 @@ const ExercisesPage = () => {
           )}
 
           {/* Giải thích lịch tập */}
-          {/* Giải thích lịch tập */}
           {logic.selectedMuscleGroups.length > 0 && (
             <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-6 mt-8">
               <div className="flex items-center gap-2 mb-5">
-                <Info className="text-red-500 w-6 h-6" />
+                <Info className="text-primary w-6 h-6" />
                 <h3 className="text-xl font-bold text-white">
                   GIẢI THÍCH LỊCH TẬP
                 </h3>
@@ -204,7 +203,7 @@ const ExercisesPage = () => {
                     key={idx}
                     className="grid grid-cols-[260px_1fr] gap-x-6 py-4 items-start"
                   >
-                    <div className="font-bold text-red-400 text-base leading-relaxed whitespace-nowrap">
+                    <div className="font-bold text-primary text-base leading-relaxed whitespace-nowrap">
                       {item.title}:
                     </div>
 
@@ -258,12 +257,12 @@ const ExercisesPage = () => {
                 value={suggestion}
                 onChange={(e) => setSuggestion(e.target.value)}
                 disabled={sending}
-                className="flex-1 p-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 resize-none focus:ring-2 focus:ring-red-500"
+                className="flex-1 p-3 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 resize-none focus:ring-2 focus:ring-primary"
               />
               <button
                 onClick={handleSendSuggestion}
                 disabled={sending}
-                className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-full text-white font-semibold shadow-lg shadow-red-600/30 disabled:opacity-50 flex items-center justify-center gap-2 transition"
+                className="px-6 py-2 bg-primary hover:bg-primary-dark rounded-full text-white font-semibold shadow-lg shadow-primary/30 disabled:opacity-50 flex items-center justify-center gap-2 transition"
               >
                 <Send size={16} /> {sending ? "Đang gửi..." : "Gửi góp ý"}
               </button>

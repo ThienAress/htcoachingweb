@@ -30,7 +30,7 @@ const MealSummary = ({
 
   const getDiffColor = (value) => {
     if (value === 0) return "text-green-400";
-    if (value > 0) return "text-orange-400";
+    if (value > 0) return "text-primary";
     return "text-red-400";
   };
 
@@ -48,7 +48,7 @@ const MealSummary = ({
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6 mt-8 shadow-xl">
       <h3 className="text-xl sm:text-2xl font-bold text-center mb-6 flex items-center justify-center gap-2">
-        <Target className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400" />
+        <Target className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
         Tổng dinh dưỡng cả ngày
       </h3>
 
@@ -124,7 +124,7 @@ const MealSummary = ({
       </div>
 
       <div className="text-center mt-6 pt-4 border-t border-gray-700">
-        <div className="text-3xl sm:text-4xl font-black text-orange-400">
+        <div className="text-3xl sm:text-4xl font-black text-primary">
           {totalCalories.toLocaleString()}{" "}
           <span className="text-base sm:text-lg">kcal</span>
         </div>
@@ -161,7 +161,7 @@ const MealSummary = ({
       <div className="mt-6 flex justify-center">
         <button
           onClick={onOpenMacroModal}
-          className="px-5 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold transition"
+          className="px-5 py-2.5 rounded-full bg-primary hover:bg-primary-dark text-white font-semibold transition"
         >
           ✏️ Tinh chỉnh macro
         </button>

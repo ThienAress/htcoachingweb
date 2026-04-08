@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-import Swiper from "swiper/bundle";
+import { useEffect, useMemo } from "react";
 import "swiper/css/bundle";
 import AOS from "aos";
 import "aos/dist/aos.css";
@@ -8,7 +7,8 @@ import FeedbackCard from "./FeedbackCard";
 import Customer1 from "../../assets/images/feedback/tu.jpg";
 import Customer2 from "../../assets/images/feedback/nhi.jpg";
 import Hero1 from "../../assets/images/hero/hero1.jpg";
-import Hero2 from "../../assets/images//hero/hero2.jpg";
+import Hero2 from "../../assets/images/hero/hero2.jpg";
+import { useSwiper } from "../../hooks/useSwiper";
 
 const feedbacks = [
   {
@@ -34,46 +34,33 @@ const feedbacks = [
 ];
 
 const Feedback = () => {
-  const prevRef = useRef(null);
-  const nextRef = useRef(null);
-
   useEffect(() => {
     AOS.init({ duration: 1000, once: true });
   }, []);
 
-  useEffect(() => {
-    if (!prevRef.current || !nextRef.current) return;
-
-    const swiperInstance = new Swiper(".feedback-slider", {
+  const swiperOptions = useMemo(
+    () => ({
       slidesPerView: 1,
       spaceBetween: 30,
       loop: feedbacks.length > 1,
-      autoplay: {
-        delay: 4000,
-        disableOnInteraction: false,
-      },
+      autoplay: { delay: 4000, disableOnInteraction: false },
       effect: "slide",
       speed: 800,
-      navigation: {
-        prevEl: prevRef.current,
-        nextEl: nextRef.current,
-      },
-    });
+    }),
+    [feedbacks.length],
+  );
 
-    return () => {
-      swiperInstance.destroy();
-    };
-  }, []);
+  const { prevRef, nextRef } = useSwiper(".feedback-slider", swiperOptions);
 
   return (
     <section className="customer py-10 bg-white" id="customer">
-      <div className="container">
+      <div className="container-custom">
         <h2
-          className="font-display text-[2rem] sm:text-[2.5rem] md:text-[3rem] lg:text-[4rem] leading-tight text-black text-center mb-8"
+          className="text-center mb-8"
           data-aos="fade-down"
           data-aos-duration="1500"
         >
-          Câu chuyện thay đổi của khách hàng
+          CÂU CHUYỆN THAY ĐỔI CỦA KHÁCH HÀNG
         </h2>
         <div
           className="swiper feedback-slider relative"

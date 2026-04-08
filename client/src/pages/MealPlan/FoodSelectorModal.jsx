@@ -326,7 +326,7 @@ const FoodSelectorModal = ({
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 rounded-xl text-white font-semibold flex items-center gap-2 shadow-lg"
+            className="px-4 py-2 bg-primary hover:bg-primary-dark rounded-xl text-white font-semibold flex items-center gap-2 shadow-lg"
           >
             <Save className="w-4 h-4" /> Lưu
           </button>

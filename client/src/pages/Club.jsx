@@ -11,8 +11,8 @@ import class3 from "../assets/images/classes/class3.jpg";
 import AOS from "aos";
 import "aos/dist/aos.css";
 
-// Danh sách các hiệu ứng AOS (zoom + 4 hướng)
 AOS.init();
+
 const aosAnimations = ["flip-left", "flip-up", "flip-down", "flip-right"];
 
 const clubs = [
@@ -102,11 +102,8 @@ const Club = () => {
     <>
       <HeaderMinimal />
       <section className="py-12 md:py-16 px-5 bg-gray-100">
-        <div className="container mx-auto">
-          <h2
-            className="font-display text-center text-(--color-dark) mb-5 font-bold text-3xl sm:text-4xl md:text-5xl lg:text-6xl"
-            data-aos="fade-up"
-          >
+        <div className="container-custom">
+          <h2 className="text-center mb-8" data-aos="fade-up">
             CÂU LẠC BỘ HIỆN MÌNH ĐANG DẠY
           </h2>
 
@@ -118,7 +115,7 @@ const Club = () => {
               id="district-filter"
               value={selectedDistrict}
               onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500 transition"
+              className="px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary transition"
             >
               {districts.map((d, index) => (
                 <option key={index} value={d}>
@@ -130,13 +127,12 @@ const Club = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredClubs.map((club, index) => {
-              // Chọn animation luân phiên theo index
               const animation = aosAnimations[index % aosAnimations.length];
               return (
                 <div
                   key={index}
                   data-aos={animation}
-                  data-aos-delay={index * 100} // delay nhẹ cho từng card
+                  data-aos-delay={index * 100}
                   data-aos-duration="800"
                   className="bg-white shadow-md overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-lg rounded-lg"
                 >
@@ -146,11 +142,11 @@ const Club = () => {
                     className="w-full h-48 sm:h-56 md:h-64 lg:h-72 object-cover transition duration-300"
                   />
                   <div className="p-5">
-                    <h3 className="text-xl text-red-600 font-bold mb-3 uppercase">
+                    <h3 className="text-xl text-primary font-bold mb-3 uppercase">
                       {club.name}
                     </h3>
                     <p className="flex items-center gap-2 text-gray-800 text-sm">
-                      <MapPin size={16} className="text-red-600" />
+                      <MapPin size={16} className="text-primary" />
                       {club.address}
                     </p>
                   </div>

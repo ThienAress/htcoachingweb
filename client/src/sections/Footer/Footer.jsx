@@ -5,7 +5,7 @@ import logo from "../../assets/images/logo/logo.svg";
 const Footer = () => {
   return (
     <footer className="bg-[#1a1a1a] text-white pt-16 md:pt-20">
-      <div className="container">
+      <div className="container-custom">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10 mb-12 md:mb-16">
           {/* About */}
           <div>
@@ -21,28 +21,28 @@ const Footer = () => {
             <div className="flex gap-3">
               <a
                 href="https://www.facebook.com/thienvo123456"
-                className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-(--color-primary) transition-colors"
+                className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-primary transition-colors"
                 aria-label="Facebook"
               >
                 <Facebook size={18} />
               </a>
               <a
                 href="#"
-                className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-(--color-primary) transition-colors"
+                className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-primary transition-colors"
                 aria-label="Instagram"
               >
                 <Instagram size={18} />
               </a>
               <a
                 href="#"
-                className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-(--color-primary) transition-colors"
+                className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-primary transition-colors"
                 aria-label="Youtube"
               >
                 <Youtube size={18} />
               </a>
               <a
                 href="#"
-                className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-(--color-primary) transition-colors"
+                className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-primary transition-colors"
                 aria-label="TikTok"
               >
                 <svg
@@ -64,14 +64,14 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 pb-2 relative after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-(--color-primary)">
-              Liên kết nhanh
+            <h3 className="text-lg font-semibold mb-4 pb-2 relative after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-primary">
+              LIÊN KẾT NHANH
             </h3>
             <ul className="space-y-2 text-gray-300">
               <li>
                 <a
                   href="#home"
-                  className="hover:text-(--color-primary) hover:pl-1 transition-all"
+                  className="hover:text-primary hover:pl-1 transition-all"
                 >
                   Trang chủ
                 </a>
@@ -79,7 +79,7 @@ const Footer = () => {
               <li>
                 <a
                   href="#about"
-                  className="hover:text-(--color-primary) hover:pl-1 transition-all"
+                  className="hover:text-primary hover:pl-1 transition-all"
                 >
                   Giới thiệu
                 </a>
@@ -87,7 +87,7 @@ const Footer = () => {
               <li>
                 <a
                   href="#trainers"
-                  className="hover:text-(--color-primary) hover:pl-1 transition-all"
+                  className="hover:text-primary hover:pl-1 transition-all"
                 >
                   Huấn luyện viên
                 </a>
@@ -95,7 +95,7 @@ const Footer = () => {
               <li>
                 <a
                   href="#customer"
-                  className="hover:text-(--color-primary) hover:pl-1 transition-all"
+                  className="hover:text-primary hover:pl-1 transition-all"
                 >
                   Feedback
                 </a>
@@ -103,15 +103,15 @@ const Footer = () => {
               <li>
                 <a
                   href="#classes"
-                  className="hover:text-(--color-primary) hover:pl-1 transition-all"
+                  className="hover:text-primary hover:pl-1 transition-all"
                 >
-                  Chương trình đào tạo
+                  CHƯƠNG TRÌNH TẬP LUYỆN
                 </a>
               </li>
               <li>
                 <a
                   href="#pricing"
-                  className="hover:text-(--color-primary) hover:pl-1 transition-all"
+                  className="hover:text-primary hover:pl-1 transition-all"
                 >
                   Gói tập
                 </a>
@@ -119,7 +119,7 @@ const Footer = () => {
               <li>
                 <a
                   href="#contact"
-                  className="hover:text-(--color-primary) hover:pl-1 transition-all"
+                  className="hover:text-primary hover:pl-1 transition-all"
                 >
                   Liên hệ
                 </a>
@@ -129,14 +129,14 @@ const Footer = () => {
 
           {/* Training Programs */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 pb-2 relative after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-(--color-primary)">
-              Chương trình đào tạo
+            <h3 className="text-lg font-semibold mb-4 pb-2 relative after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-primary">
+              CHƯƠNG TRÌNH TẬP LUYỆN
             </h3>
             <ul className="space-y-2 text-gray-300">
               <li>
                 <a
                   href="#classes"
-                  className="hover:text-(--color-primary) hover:pl-1 transition-all"
+                  className="hover:text-primary hover:pl-1 transition-all"
                 >
                   Personal Training
                 </a>
@@ -144,7 +144,7 @@ const Footer = () => {
               <li>
                 <a
                   href="#classes"
-                  className="hover:text-(--color-primary) hover:pl-1 transition-all"
+                  className="hover:text-primary hover:pl-1 transition-all"
                 >
                   Cardio & HIIT
                 </a>
@@ -152,7 +152,7 @@ const Footer = () => {
               <li>
                 <a
                   href="#classes"
-                  className="hover:text-(--color-primary) hover:pl-1 transition-all"
+                  className="hover:text-primary hover:pl-1 transition-all"
                 >
                   Boxing
                 </a>
@@ -162,8 +162,8 @@ const Footer = () => {
 
           {/* Newsletter */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 pb-2 relative after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-(--color-primary)">
-              Đăng ký nhận tin
+            <h3 className="text-lg font-semibold mb-4 pb-2 relative after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-primary">
+              ĐĂNG KÝ NHẬN TIN
             </h3>
             <p className="text-gray-300 text-sm mb-4">
               Nhận ưu đãi và thông tin mới nhất từ chúng tôi
@@ -173,11 +173,11 @@ const Footer = () => {
                 type="email"
                 placeholder="Email của bạn"
                 required
-                className="flex-1 px-3 py-2 rounded-l-md bg-white/10 text-white border-none focus:outline-none focus:ring-1 focus:ring-(--color-primary)"
+                className="flex-1 px-3 py-2 rounded-l-md bg-white/10 text-white border-none focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <button
                 type="submit"
-                className="px-4 bg-(--color-primary) text-white rounded-r-md hover:bg-white hover:text-(--color-primary) transition-colors"
+                className="px-4 bg-primary text-white rounded-r-md hover:bg-white hover:text-primary transition-colors"
                 aria-label="Gửi"
               >
                 <Send size={18} />
@@ -188,9 +188,7 @@ const Footer = () => {
       </div>
 
       <div className="bg-black/20 py-4 text-center">
-        <div className="container">
-          <p className="text-gray-400 text-sm">&copy; 2026 HTCOACHING</p>
-        </div>
+        <p className="text-gray text-sm">&copy; 2026 HTCOACHING</p>
       </div>
     </footer>
   );

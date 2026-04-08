@@ -158,19 +158,19 @@ const TdeeCalculator = () => {
   return (
     <section className="py-12 md:py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
       <Header />
-      <div className="container mx-auto px-4 m-10">
+      <div className="container-custom mt-10">
         <div className="text-center mb-12 md:mb-16">
-          <div className="inline-flex items-center gap-3 bg-red-600/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
-            <Flame className="text-red-500 w-6 h-6" />
-            <span className="font-semibold text-red-400 tracking-wide">
+          <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
+            <Flame className="text-primary w-6 h-6" />
+            <span className="font-semibold text-primary tracking-wide">
               TDEE CALCULATOR
             </span>
           </div>
-          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-normal">
-            ĐO LƯỢNG <span className="text-red-500">CALO ĐỐT CHÁY</span> TRONG 1
+          <h2>
+            ĐO LƯỢNG <span className="text-primary">CALO ĐỐT CHÁY</span> TRONG 1
             NGÀY
           </h2>
-          <div className="w-24 h-1 bg-red-500 mx-auto mt-4 rounded-full"></div>
+          <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
           <p className="text-gray-400 mt-4 max-w-xl mx-auto">
             Tính toán chính xác TDEE để tối ưu hóa quá trình tập luyện và dinh
             dưỡng
@@ -200,17 +200,17 @@ const TdeeCalculator = () => {
 
         {adjustedCalories && (
           <div className="mt-12 space-y-8 animate-fade-in-up">
-            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/10 hover:border-red-500/30 transition-all">
+            <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/10 hover:border-primary/30 transition-all">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                  <Flame className="text-red-400 w-5 h-5" />
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Flame className="text-primary w-5 h-5" />
                 </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-[#e60000]">
+                <h3 className="text-2xl md:text-3xl font-bold text-primary">
                   1. TDEE là gì?
                 </h3>
               </div>
               <p className="text-gray-300 leading-relaxed text-lg">
-                <strong className="text-light ">
+                <strong className="text-gray-200">
                   TDEE (Total Daily Energy Expenditure)
                 </strong>{" "}
                 là tổng năng lượng bạn tiêu hao trong một ngày, bao gồm các hoạt
@@ -222,25 +222,25 @@ const TdeeCalculator = () => {
 
             <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/10">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                  <BarChart3 className="text-red-400 w-5 h-5" />
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <BarChart3 className="text-primary w-5 h-5" />
                 </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-[#e60000]">
+                <h3 className="text-2xl md:text-3xl font-bold text-primary">
                   2. Tính toán macros
                 </h3>
               </div>
               <p className="text-gray-300 leading-relaxed mb-6">
                 Khi đã biết được tổng năng lượng bạn cần, bước tiếp theo là xác
                 định các chất đa lượng{" "}
-                <strong className="text-light ">(macros)</strong> bao gồm:{" "}
-                <strong className="text-light ">Đạm (Protein)</strong>,{" "}
-                <strong className="text-light ">Tinh bột (Carb)</strong>,{" "}
-                <strong className="text-light ">Chất béo (Fat)</strong>. Bạn
+                <strong className="text-gray-200">(macros)</strong> bao gồm:{" "}
+                <strong className="text-gray-200">Đạm (Protein)</strong>,{" "}
+                <strong className="text-gray-200">Tinh bột (Carb)</strong>,{" "}
+                <strong className="text-gray-200">Chất béo (Fat)</strong>. Bạn
                 muốn mình tính giúp dựa trên thông số trên không?
               </p>
               <button
                 onClick={calculateMacro}
-                className="bg-red-600 hover:bg-red-700 transform hover:scale-105 transition-all duration-200 text-white font-bold py-3 px-8 rounded-full shadow-lg shadow-red-600/30 flex items-center gap-2"
+                className="btn btn-primary shadow-lg shadow-primary/30 flex items-center gap-2"
               >
                 <BarChart3 className="w-5 h-5" />
                 <span>Tính toán macro</span>
@@ -256,18 +256,18 @@ const TdeeCalculator = () => {
                   />
                   <div className="mt-8 pt-6 border-t border-white/10">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                        <Utensils className="text-red-400 w-5 h-5" />
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                        <Utensils className="text-primary w-5 h-5" />
                       </div>
-                      <h3 className="text-2xl md:text-3xl font-bold text-[#e60000]">
+                      <h3 className="text-2xl md:text-3xl font-bold text-primary">
                         3. Lịch ăn cụ thể sẽ như thế nào?
                       </h3>
                     </div>
                     <p className="text-gray-300 leading-relaxed mb-6">
                       Sau khi đã tính được{" "}
-                      <strong className="text-light ">macros</strong>, bạn có
+                      <strong className="text-gray-200">macros</strong>, bạn có
                       muốn mình{" "}
-                      <strong className="text-light ">
+                      <strong className="text-gray-200">
                         gợi ý luôn lịch ăn hàng ngày
                       </strong>{" "}
                       dựa trên thông số đó không? Nhấn vào nút dưới để nhận thực
@@ -276,7 +276,7 @@ const TdeeCalculator = () => {
                     </p>
                     <button
                       onClick={() => navigate("/mealplan")}
-                      className="bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white font-bold py-3 px-8 rounded-full shadow-lg flex items-center gap-2 transition-all"
+                      className="btn btn-primary shadow-lg flex items-center gap-2"
                     >
                       <Calendar className="w-5 h-5" />
                       <span>Gợi ý lịch ăn</span>

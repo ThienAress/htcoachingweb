@@ -22,17 +22,17 @@ export default function MuscleGroupSelector({
               onClick={() => onToggle(group.id)}
               className={`p-4 rounded-xl text-center cursor-pointer transition-all duration-200 border-2 ${
                 isSelected
-                  ? "bg-red-500/20 border-red-500 shadow-lg shadow-red-500/20"
-                  : "bg-gray-800/50 border-gray-700 hover:border-red-500/50"
+                  ? "bg-primary/20 border-primary shadow-lg shadow-primary/20"
+                  : "bg-gray-800/50 border-gray-700 hover:border-primary/50"
               }`}
             >
               <span
-                className={`font-semibold ${isSelected ? "text-red-400" : "text-gray-300"}`}
+                className={`font-semibold ${isSelected ? "text-primary" : "text-gray-300"}`}
               >
                 {group.name}
               </span>
               {isSelected && (
-                <CheckCircle className="w-4 h-4 text-red-500 mx-auto mt-1" />
+                <CheckCircle className="w-4 h-4 text-primary mx-auto mt-1" />
               )}
             </div>
           );
@@ -45,7 +45,7 @@ export default function MuscleGroupSelector({
           <div className="bg-gray-800 rounded-2xl max-w-md w-full p-6 border border-gray-700 shadow-2xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-red-500" />
+                <CheckCircle className="w-5 h-5 text-primary" />
                 CHỌN NHÓM CƠ
               </h3>
               <button
@@ -74,7 +74,7 @@ export default function MuscleGroupSelector({
                             : prev.filter((id) => id !== group.id),
                         );
                       }}
-                      className="w-4 h-4 text-red-600 focus:ring-red-500"
+                      className="w-4 h-4 text-primary focus:ring-primary"
                     />
                     <span className="text-gray-200">{group.name}</span>
                   </label>
@@ -89,7 +89,7 @@ export default function MuscleGroupSelector({
               </button>
               <button
                 onClick={handleCreateCustomGroup}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg shadow-red-600/30 transition"
+                className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-xl shadow-lg shadow-primary/30 transition"
               >
                 Tạo nhóm
               </button>

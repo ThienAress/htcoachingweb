@@ -13,13 +13,13 @@ const MacroTable = ({ macroSet, tdee, adjustedCalories, goal }) => {
 
   return (
     <div className="mt-10">
-      <div className="mb-8 p-5 bg-gradient-to-r from-red-900/30 to-red-600/10 border-l-4 border-red-500 rounded-r-xl backdrop-blur-sm">
+      <div className="mb-8 p-5 bg-gradient-to-r from-primary/30 to-primary/10 border-l-4 border-primary rounded-r-xl backdrop-blur-sm">
         <p className="text-gray-200 leading-relaxed">
           🔥 Đây là lượng calories mình đã điều chỉnh từ TDEE ban đầu của bạn là{" "}
-          <strong className="text-[#e60000] text-lg">{tdee}</strong> kcal thành
+          <strong className="text-primary text-lg">{tdee}</strong> kcal thành
           lượng calories cần thiết để{" "}
           <strong className="text-yellow-300">{goalText}</strong> là{" "}
-          <strong className="text-[#e60000] text-lg">{adjustedCalories}</strong>{" "}
+          <strong className="text-primary text-lg">{adjustedCalories}</strong>{" "}
           kcal. Theo dõi và thay đổi theo tuần cho phù hợp bạn nhé.
         </p>
       </div>
@@ -28,9 +28,9 @@ const MacroTable = ({ macroSet, tdee, adjustedCalories, goal }) => {
         {Object.entries(macroSet).map(([goalName, values]) => (
           <div
             key={goalName}
-            className="relative bg-gray-800/80 backdrop-blur-sm rounded-2xl overflow-hidden border border-gray-700 hover:border-red-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-red-500/20 group"
+            className="relative bg-gray-800/80 backdrop-blur-sm rounded-2xl overflow-hidden border border-gray-700 hover:border-primary/50 transition-all duration-300 hover:shadow-2xl hover:shadow-primary/20 group"
           >
-            <div className="bg-gradient-to-r from-red-600 to-red-800 py-3 text-center">
+            <div className="bg-gradient-to-r from-primary to-primary-dark py-3 text-center">
               <h4 className="text-white font-black text-xl tracking-wider">
                 {goalName}
               </h4>
@@ -40,8 +40,8 @@ const MacroTable = ({ macroSet, tdee, adjustedCalories, goal }) => {
               {/* Protein */}
               <div className="flex items-center justify-between group-hover:translate-x-1 transition">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                    <Drumstick className="w-5 h-5 text-red-400" />
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Drumstick className="w-5 h-5 text-primary" />
                   </div>
                   <span className="text-gray-300 font-medium">Protein</span>
                 </div>
@@ -56,8 +56,8 @@ const MacroTable = ({ macroSet, tdee, adjustedCalories, goal }) => {
               {/* Fat */}
               <div className="flex items-center justify-between group-hover:translate-x-1 transition">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                    <Droplet className="w-5 h-5 text-red-400" />
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Droplet className="w-5 h-5 text-primary" />
                   </div>
                   <span className="text-gray-300 font-medium">Fat</span>
                 </div>
@@ -72,8 +72,8 @@ const MacroTable = ({ macroSet, tdee, adjustedCalories, goal }) => {
               {/* Carbs */}
               <div className="flex items-center justify-between group-hover:translate-x-1 transition">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
-                    <Wheat className="w-5 h-5 text-red-400" />
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Wheat className="w-5 h-5 text-primary" />
                   </div>
                   <span className="text-gray-300 font-medium">Carbs</span>
                 </div>
@@ -86,7 +86,7 @@ const MacroTable = ({ macroSet, tdee, adjustedCalories, goal }) => {
               </div>
             </div>
 
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
+            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
           </div>
         ))}
       </div>

@@ -14,9 +14,9 @@ const Trainer = () => {
       id="trainers"
       className="max-w-5xl mx-auto my-12 bg-white rounded-2xl flex flex-wrap gap-10 p-8 shadow-lg"
     >
-      <div className="container p-0!">
+      <div className="container-custom p-0!">
         <h2
-          className="font-display title text-center "
+          className="text-center "
           data-aos="fade-down"
           data-aos-duration="1500"
         >
@@ -41,9 +41,7 @@ const Trainer = () => {
           data-aos-duration="1500"
           data-aos-delay="100"
         >
-          <h3 className="text-3xl sm:text-4xl font-extrabold mt-4 text-black">
-            Hoàng Thiện (HTCOACHING)
-          </h3>
+          <h3>HOÀNG THIỆN (HTCOACHING)</h3>
           <h4 className="text-base sm:text-lg text-black font-semibold mt-2">
             Chuyên gia huấn luyện cá nhân | 4+ năm kinh nghiệm
           </h4>
@@ -56,27 +54,25 @@ const Trainer = () => {
           <div className="flex flex-col gap-5 mb-5">
             <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl transition-all hover:bg-blue-100 hover:-translate-y-1 hover:shadow-md cursor-pointer">
               <Dumbbell size={22} color="#2a5be2" />
-              <span className="font-semibold text-(--color-gray)">
+              <span className="font-semibold text-gray">
                 Huấn luyện 1-1 (Online/Offline)
               </span>
             </div>
             <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl transition-all hover:bg-blue-100 hover:-translate-y-1 hover:shadow-md cursor-pointer">
               <Utensils size={22} color="#2a5be2" />
-              <span className="font-semibold text-(--color-gray)">
+              <span className="font-semibold text-gray">
                 Meal plan cá nhân hóa
               </span>
             </div>
             <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl transition-all hover:bg-blue-100 hover:-translate-y-1 hover:shadow-md cursor-pointer">
               <ChartLine size={22} color="#2a5be2" />
-              <span className="font-semibold text-(--color-gray)">
+              <span className="font-semibold text-gray">
                 Theo dõi tiến độ định kỳ
               </span>
             </div>
             <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl transition-all hover:bg-blue-100 hover:-translate-y-1 hover:shadow-md cursor-pointer">
               <HeartPulse size={22} color="#2a5be2" />
-              <span className="font-semibold text-(--color-gray)">
-                Hỗ trợ phục hồi
-              </span>
+              <span className="font-semibold text-gray">Hỗ trợ phục hồi</span>
             </div>
           </div>
           <a

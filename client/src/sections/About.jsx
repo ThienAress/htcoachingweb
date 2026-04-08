@@ -1,7 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import AOS from "aos";
 import "aos/dist/aos.css";
-import Swiper from "swiper/bundle";
 import "swiper/css/bundle";
 import "swiper/css/pagination";
 
@@ -9,15 +8,29 @@ import { Flame, Zap, Target, Dumbbell } from "lucide-react";
 import hero1 from "../assets/images/hero/hero1.jpg";
 import hero2 from "../assets/images/hero/hero2.jpg";
 import hero3 from "../assets/images/hero/hero3.jpg";
+import { useSwiper } from "../hooks/useSwiper";
 
 const About = () => {
   const images = [hero1, hero2, hero3];
   const statRef = useRef([]);
 
+  // Swiper options (không có navigation)
+  const swiperOptions = useMemo(
+    () => ({
+      loop: true,
+      autoplay: { delay: 4000, disableOnInteraction: false },
+      speed: 800,
+      pagination: { el: ".swiper-pagination", clickable: true },
+    }),
+    [],
+  );
+
+  useSwiper(".about-image-swiper", swiperOptions);
+
   useEffect(() => {
     AOS.init({ once: true });
 
-    const observer = new IntersectionObserver((entries, observer) => {
+    const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           const stat = entry.target;
@@ -29,7 +42,6 @@ const About = () => {
             const progress = Math.min((currentTime - startTime) / duration, 1);
             const currentValue = Math.floor(progress * targetValue);
             stat.textContent = new Intl.NumberFormat().format(currentValue);
-
             if (progress < 1) {
               requestAnimationFrame(animate);
             } else {
@@ -41,7 +53,6 @@ const About = () => {
                 (isFirstOrLast ? "+" : "");
             }
           };
-
           requestAnimationFrame(animate);
           observer.unobserve(stat);
         }
@@ -49,20 +60,6 @@ const About = () => {
     });
 
     statRef.current.forEach((stat) => observer.observe(stat));
-
-    const aboutSwiper = new Swiper(".about-image-swiper", {
-      loop: true,
-      autoplay: { delay: 4000, disableOnInteraction: false },
-      speed: 800,
-      pagination: {
-        el: ".swiper-pagination",
-        clickable: true,
-      },
-    });
-
-    aboutSwiper.on("slideChange", () => {
-      if (typeof AOS !== "undefined") AOS.refresh();
-    });
 
     const setFullHeight = () => {
       const vh = window.innerHeight * 0.01;
@@ -79,22 +76,14 @@ const About = () => {
   }, []);
 
   return (
-    <section
-      id="about"
-      className="py-16 sm:py-20 md:py-24 lg:py-25 bg-(--color-light)"
-    >
-      <div className="container flex flex-col md:flex-row items-center gap-8 md:gap-12">
+    <section id="about" className="py-16 sm:py-20 md:py-24 lg:py-25 bg-light">
+      <div className="container-custom flex flex-col md:flex-row items-center gap-8 md:gap-12">
         {/* LEFT */}
         <div className="w-full md:w-1/2 lg:flex-1 min-w-0">
-          <h2
-            className="font-display text-[2rem] sm:text-[2.5rem] md:text-[3rem] lg:text-[4rem] leading-tight text-black"
-            data-aos="fade-right"
-          >
-            NGƯỜI ĐỒNG HÀNH THAY ĐỔI CỦA BẠN
-          </h2>
+          <h2 data-aos="fade-right">NGƯỜI ĐỒNG HÀNH THAY ĐỔI CỦA BẠN</h2>
 
           <p
-            className="italic text-(--color-primary) font-semibold text-base sm:text-lg md:text-xl mt-4"
+            className="italic text-primary font-semibold text-base sm:text-lg md:text-xl mt-4"
             data-aos="fade-right"
           >
             "Không có body đỉnh trong vùng an toàn. Hoặc là thay đổi – hoặc là
@@ -109,36 +98,27 @@ const About = () => {
             ngày là những thứ bạn sẽ đạt được khi đồng hành cùng mình.
           </p>
 
-          {/* STYLE */}
           <div className="mt-6 sm:mt-8">
-            <h3
-              className="text-xl sm:text-2xl md:text-3xl font-semibold"
-              data-aos="fade-right"
-            >
-              Phong cách huấn luyện
-            </h3>
+            <h3 data-aos="fade-right">PHONG CÁCH HUẤN LUYỆN</h3>
 
             <ul className="mt-3 sm:mt-4 space-y-3" data-aos="fade-right">
               <li className="flex items-center gap-3 font-semibold text-sm sm:text-base">
-                <Flame className="text-(--color-primary) shrink-0" size={18} />
+                <Flame className="text-primary shrink-0" size={18} />
                 Máu lửa, kỷ luật, thân thiện, sát cánh trong từng buổi tập
               </li>
               <li className="flex items-center gap-3 font-semibold text-sm sm:text-base">
-                <Zap className="text-(--color-primary) shrink-0" size={18} />
+                <Zap className="text-primary shrink-0" size={18} />
                 Động lực thực chất – Không tâng bốc, chỉ thẳng vào vấn đề bạn
                 cần sửa
               </li>
               <li className="flex items-center gap-3 font-semibold text-sm sm:text-base">
-                <Target className="text-(--color-primary) shrink-0" size={18} />
+                <Target className="text-primary shrink-0" size={18} />
                 Lộ trình cá nhân hóa – Tập đúng kỹ thuật, ăn đúng cách, đánh
                 trúng mục tiêu
               </li>
               <li className="flex items-center gap-3 font-semibold text-sm sm:text-base">
-                <Dumbbell
-                  className="text-(--color-primary) shrink-0"
-                  size={18}
-                />
-                Với Sologan NO PAIN NO GAIN, mình sẽ đưa bạn vượt qua mọi giới
+                <Dumbbell className="text-primary shrink-0" size={18} />
+                Với slogan NO PAIN NO GAIN, mình sẽ đưa bạn vượt qua mọi giới
                 hạn.
               </li>
             </ul>
@@ -149,13 +129,13 @@ const About = () => {
             {[50, 3, 4].map((value, index) => (
               <div key={index} className="text-center min-w-25">
                 <span
-                  className="block text-2xl sm:text-3xl md:text-4xl font-bold text-(--color-primary)"
+                  className="block text-2xl sm:text-3xl md:text-4xl font-bold text-primary"
                   data-count={value}
                   ref={(el) => (statRef.current[index] = el)}
                 >
                   0
                 </span>
-                <span className="text-xs sm:text-sm text-(--color-gray)">
+                <span className="text-xs sm:text-sm text-gray">
                   {index === 0
                     ? "Học viên thay đổi ngoạn mục"
                     : index === 1

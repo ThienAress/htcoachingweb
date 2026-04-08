@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
 import {
   User,
   Package,
@@ -26,6 +27,7 @@ import {
 import { getOrders } from "../../services/order.service";
 import { getCheckins, createCheckin } from "../../services/checkin.service";
 import { useAuth } from "../../context/AuthContext";
+import HeaderMinimal from "../../sections/Header/HeaderMinimal";
 
 const muscles = [
   "Ngực",
@@ -221,14 +223,15 @@ const Checkin = () => {
 
   return (
     <>
+      <HeaderMinimal />
       <ToastContainer position="top-right" autoClose={3000} />
-      <div className="space-y-6 p-4 md:p-6">
+      <div className="container-custom space-y-6 p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-              <CheckCircle className="w-6 h-6 text-indigo-600" />
-              Check‑in khách hàng
+            <h2 className="flex items-center gap-2">
+              <CheckCircle className="w-6 h-6 text-primary" />
+              CHECK-IN KHÁCH HÀNG
             </h2>
             <p className="text-sm text-slate-500 mt-1">
               Xác nhận buổi tập và ghi nhận lịch sử
@@ -258,7 +261,7 @@ const Checkin = () => {
                       orderData: null,
                     })
                   }
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Chọn khách hàng</option>
                   {customers.map((c) => (
@@ -278,7 +281,7 @@ const Checkin = () => {
                 <select
                   value={selection.orderId}
                   onChange={(e) => handleSelectOrder(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Chọn gói</option>
                   {filteredOrdersForCustomer
@@ -300,7 +303,7 @@ const Checkin = () => {
                 <input
                   type="datetime-local"
                   {...register("time")}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 {errors.time && (
                   <p className="text-red-500 text-xs">{errors.time.message}</p>
@@ -340,7 +343,7 @@ const Checkin = () => {
                             type="checkbox"
                             checked={selectedMuscles.includes(muscle)}
                             onChange={() => toggleMuscle(muscle)}
-                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-primary"
                           />
                           <span className="text-sm text-slate-700">
                             {muscle}
@@ -360,7 +363,7 @@ const Checkin = () => {
                     {selectedMuscles.map((m) => (
                       <span
                         key={m}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-50 text-indigo-700"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary"
                       >
                         {m}
                         <button
@@ -387,7 +390,7 @@ const Checkin = () => {
                 <input
                   {...register("note")}
                   placeholder="Ghi chú thêm (nếu có)"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             </div>
@@ -396,7 +399,7 @@ const Checkin = () => {
               <button
                 type="submit"
                 disabled={createCheckinMutation.isPending || isSubmitting}
-                className="relative px-6 py-2.5 rounded-lg font-medium text-white bg-linear-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                className="relative px-6 py-2.5 rounded-lg font-medium text-white bg-linear-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {createCheckinMutation.isPending ? (
                   <>
@@ -441,7 +444,7 @@ const Checkin = () => {
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                   {selection.orderData.name}
-                  <span className="text-xs font-normal bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                  <span className="text-xs font-normal bg-indigo-100 text-primary px-2 py-0.5 rounded-full">
                     {selection.orderData.package}
                   </span>
                 </h3>
@@ -464,7 +467,7 @@ const Checkin = () => {
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <Info className="w-4 h-4 text-slate-400" />
                     Số buổi còn lại:{" "}
-                    <span className="font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
+                    <span className="font-bold text-primary bg-indigo-100 px-2 py-0.5 rounded-full">
                       {selection.orderData.sessions}
                     </span>
                   </div>
@@ -479,7 +482,7 @@ const Checkin = () => {
           <div className="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <History className="w-5 h-5 text-indigo-600" />
-              <h3 className="font-semibold text-slate-800">Lịch sử check‑in</h3>
+              <h3 className="font-semibold text-slate-800">LỊCH SỬ CHECK-IN</h3>
             </div>
             <span className="text-xs text-slate-500 bg-white px-2 py-1 rounded-full shadow-sm">
               {pagination.total} lượt
@@ -541,7 +544,7 @@ const Checkin = () => {
                       {c.note || "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex justify-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
+                      <span className="inline-flex justify-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
                         {c.remainingSessions} buổi
                       </span>
                     </td>

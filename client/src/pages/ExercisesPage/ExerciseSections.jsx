@@ -27,7 +27,7 @@ export default function ExerciseSections({
         onChange={(e) =>
           handleExerciseChange(record._id, field, e.target.value)
         }
-        className="w-full px-2 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm text-center focus:ring-2 focus:ring-red-500"
+        className="w-full px-2 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm text-center focus:ring-2 focus:ring-primary"
         placeholder={placeholder}
       />
     );
@@ -38,7 +38,7 @@ export default function ExerciseSections({
         onChange={(e) =>
           handleExerciseChange(record._id, "name", e.target.value)
         }
-        className="w-full px-2 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-red-500"
+        className="w-full px-2 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-primary"
       >
         <option value="">Chọn bài tập</option>
         {exerciseOptions.map((ex) => (
@@ -60,14 +60,14 @@ export default function ExerciseSections({
           }}
         >
           <div className="flex items-center gap-2 flex-shrink-0">
-            <Activity className="w-5 h-5 text-red-400 flex-shrink-0" />
+            <Activity className="w-5 h-5 text-primary flex-shrink-0" />
             <h4 className="font-bold text-lg text-white whitespace-nowrap">
               {section.title}
             </h4>
           </div>
           <button
             onClick={() => handleAddExercise(section.id, muscleGroupId)}
-            className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg shadow-red-600/30 transition flex-shrink-0"
+            className="flex items-center gap-1 px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-full shadow-lg shadow-primary/30 transition flex-shrink-0"
           >
             <Plus size={16} /> Thêm bài tập
           </button>
@@ -153,7 +153,7 @@ export default function ExerciseSections({
           >
             <div className="flex justify-between items-center border-b border-gray-700 pb-3 mb-4 flex-wrap gap-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <Dumbbell className="w-6 h-6 text-red-400 flex-shrink-0" />
+                <Dumbbell className="w-6 h-6 text-primary flex-shrink-0" />
                 <h2
                   className="text-2xl font-bold whitespace-nowrap"
                   style={{ color: group.color }}

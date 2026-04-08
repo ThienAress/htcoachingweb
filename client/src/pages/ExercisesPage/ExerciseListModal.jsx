@@ -76,7 +76,7 @@ export default function ExerciseListModal({
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-gray-700">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Dumbbell className="w-6 h-6 text-red-500" />
+            <Dumbbell className="w-6 h-6 text-primary" />
             DANH SÁCH BÀI TẬP
           </h2>
           <button
@@ -96,7 +96,7 @@ export default function ExerciseListModal({
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value)}
-              className="border border-gray-600 rounded-xl px-4 py-2.5 bg-gray-700 text-white focus:ring-2 focus:ring-red-500"
+              className="border border-gray-600 rounded-xl px-4 py-2.5 bg-gray-700 text-white focus:ring-2 focus:ring-primary"
             >
               <option value="name">Tên bài tập</option>
               <option value="muscle">Nhóm cơ</option>
@@ -108,7 +108,7 @@ export default function ExerciseListModal({
                 placeholder={`Tìm theo ${searchType === "name" ? "tên bài tập" : "nhóm cơ"}`}
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-red-500"
+                className="w-full pl-10 pr-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
@@ -135,7 +135,7 @@ export default function ExerciseListModal({
                     <td className="p-3 text-sm text-white">{ex.name}</td>
                     <td className="p-3 text-sm">
                       {ex.muscleGroup ? (
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-300">
+                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/20 text-primary">
                           {ex.muscleGroup}
                         </span>
                       ) : (

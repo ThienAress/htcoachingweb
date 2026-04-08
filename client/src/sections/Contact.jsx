@@ -136,6 +136,7 @@ const Contact = () => {
   const [countdown, setCountdown] = useState(5);
   const [isSocialFocused, setIsSocialFocused] = useState(false);
   const [isHintHovered, setIsHintHovered] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     let timer, interval;
@@ -195,7 +196,11 @@ const Contact = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isSubmitting) return;
     if (!validateForm()) return;
+
+    setIsSubmitting(true);
 
     try {
       await sendContactMessage(formData);
@@ -206,12 +211,14 @@ const Contact = () => {
         err.response?.data?.message ||
           "Gửi thông tin thất bại, vui lòng thử lại.",
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <section id="contact" className="bg-[#262626] text-gray-200 py-16">
-      <div className="container">
+      <div className="container-custom">
         {showSuccess && (
           <div className="fixed inset-0 bg-black/60 z-9999 flex items-center justify-center">
             <div className="bg-white rounded-xl p-8 max-w-md w-[90%] text-center shadow-xl animate-zoomIn">
@@ -229,10 +236,10 @@ const Contact = () => {
         )}
 
         <div className="max-w-3xl mx-auto text-center mb-12">
-          <h2 className="font-display text-[2rem] sm:text-[2.5rem] md:text-[3rem] lg:text-[4rem] leading-tight text-[#e53935]">
-            Liên hệ với chúng tôi
+          <h2 className="font-display text-[2rem] sm:text-[2.5rem] md:text-[3rem] lg:text-[4rem] leading-tight text-primary">
+            LIÊN HỆ VỚI CHÚNG TÔI
           </h2>
-          <p className="text-(--color-gray) text-lg">
+          <p className="text-gray text-lg">
             Để lại thông tin, chúng tôi sẽ liên hệ tư vấn miễn phí cho bạn
           </p>
         </div>
@@ -243,7 +250,7 @@ const Contact = () => {
               <input
                 type="text"
                 placeholder="Họ và tên"
-                className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all hover:scale-[1.01] "
+                className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-primary focus:ring-1  transition-all hover:scale-[1.01] "
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
@@ -258,7 +265,7 @@ const Contact = () => {
               <input
                 type="email"
                 placeholder="Email"
-                className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all hover:scale-[1.01] "
+                className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-primary focus:ring-1  transition-all hover:scale-[1.01] "
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
@@ -274,7 +281,7 @@ const Contact = () => {
                 type="tel"
                 placeholder="Số điện thoại"
                 maxLength="10"
-                className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all hover:scale-[1.01] "
+                className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-primary focus:ring-1  transition-all hover:scale-[1.01] "
                 value={formData.phone}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -291,7 +298,7 @@ const Contact = () => {
               <input
                 type="text"
                 placeholder="Trang cá nhân FB or ZALO"
-                className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all hover:scale-[1.01] "
+                className="w-full px-4 py-3 rounded-md border border-gray bg-[#1a1a1a] text-white  focus:ring-1  transition-all hover:scale-[1.01] "
                 value={formData.social}
                 onChange={(e) =>
                   setFormData({ ...formData, social: e.target.value })
@@ -342,27 +349,32 @@ const Contact = () => {
 
             <button
               type="submit"
-              className="w-full py-3 rounded-md bg-red-600 text-white font-bold uppercase tracking-wide hover:bg-red-700 transform hover:scale-105 transition-all shadow-lg hover:shadow-red-500/30"
+              disabled={isSubmitting}
+              className={`w-full py-3 rounded-md text-white font-bold uppercase tracking-wide transition-all shadow-lg ${
+                isSubmitting
+                  ? "bg-primary opacity-70 cursor-not-allowed"
+                  : "bg-primary hover:bg-primary transform hover:scale-105 hover:shadow-red-500/30"
+              }`}
             >
-              Gửi thông tin
+              {isSubmitting ? "Đang gửi..." : "Gửi thông tin"}
             </button>
           </form>
 
           <div className="space-y-5 text-gray-300">
             <div className="flex items-center gap-3">
-              <MapPin className="text-[#e53935] w-6 h-6" />
+              <MapPin className="text-primary w-6 h-6" />
               <p>Tùy vào phòng tập bạn chọn</p>
             </div>
             <div className="flex items-center gap-3">
-              <Phone className="text-[#e53935] w-6 h-6" />
+              <Phone className="text-primary w-6 h-6" />
               <p>0934.215.227</p>
             </div>
             <div className="flex items-center gap-3">
-              <Mail className="text-[#e53935] w-6 h-6" />
+              <Mail className="text-primary w-6 h-6" />
               <p>hoangthiengym99@gmail.com</p>
             </div>
             <div className="flex items-center gap-3">
-              <Clock className="text-[#e53935] w-6 h-6" />
+              <Clock className="text-primary w-6 h-6" />
               <p>Thứ 2 - Chủ nhật: 6:00 - 22:00</p>
             </div>
           </div>
