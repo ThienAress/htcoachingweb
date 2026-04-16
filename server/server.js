@@ -22,6 +22,7 @@ import authRoutes from "./src/routes/auth.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
 import orderRoutes from "./src/routes/order.routes.js";
 import checkinRoutes from "./src/routes/checkin.routes.js";
+import f1CustomerRoutes from "./src/routes/f1Customer.routes.js";
 import contactRoutes from "./src/routes/contact.routes.js";
 import foodRoutes from "./src/routes/food.routes.js";
 import bookingRoutes from "./src/routes/booking.routes.js";
@@ -30,6 +31,8 @@ import exerciseSuggestionRoutes from "./src/routes/exerciseSuggestion.routes.js"
 
 import { generateCsrfToken } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
+
+import path from "path";
 
 // ================= INIT APP =================
 const app = express();
@@ -119,11 +122,13 @@ app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/checkin", checkinRoutes);
+app.use("/api/f1-customers", f1CustomerRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/foods", foodRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/exercises", exerciseRoutes);
 app.use("/api/exercise-suggestions", exerciseSuggestionRoutes);
+app.use("/uploads", express.static(path.resolve("uploads")));
 
 // ================= HEALTH CHECK =================
 app.get("/", (req, res) => {

@@ -39,17 +39,14 @@ const SidebarContent = ({ onItemClick }) => {
   ];
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Branding */}
-      <div className="flex items-center gap-2 mb-6">
-        <div className="w-8 h-8 bg-linear-to-br from-indigo-500 to-indigo-700 rounded-lg flex items-center justify-center shadow-sm">
-          <Sparkles className="w-4 h-4 text-white" />
-        </div>
+    <div className="flex flex-col h-full text-white">
+      {/* Branding - giống F1Customers */}
+      <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-800 leading-tight">
+          <h3 className="text-lg font-bold tracking-tight leading-tight">
             HTCOACHING
-          </h2>
-          <p className="text-xs text-slate-400">Admin Panel</p>
+          </h3>
+          <p className="text-xs text-white/60">Admin Panel</p>
         </div>
       </div>
 
@@ -65,8 +62,8 @@ const SidebarContent = ({ onItemClick }) => {
                 onClick={onItemClick}
                 className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
                   isActive
-                    ? "bg-indigo-50 text-indigo-700 font-medium"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "bg-white/20 text-white font-medium"
+                    : "text-white/80 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <Icon className="w-5 h-5" />
@@ -78,11 +75,11 @@ const SidebarContent = ({ onItemClick }) => {
       </ul>
 
       {/* Nút về trang chủ */}
-      <div className="mt-auto pt-4">
+      <div className="mt-auto pt-4 border-t border-white/10">
         <Link
           to="/"
           onClick={onItemClick}
-          className="flex items-center gap-3 px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+          className="flex items-center gap-3 px-4 py-2 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-colors"
         >
           <Home className="w-5 h-5" />
           <span>Trang chủ</span>
@@ -111,15 +108,16 @@ const AdminLayout = () => {
     if (isMobile) setIsSidebarOpen(false);
   }, [location, isMobile]);
 
+  // Desktop layout
   if (!isMobile) {
     return (
       <div className="flex min-h-screen bg-slate-100">
-        {/* Sidebar cố định */}
-        <div className="w-64 bg-white shadow-lg p-4 border-r border-slate-200">
+        {/* Sidebar cố định với màu #1C2D42 */}
+        <div className="w-64 bg-[#1C2D42] shadow-lg p-4 flex flex-col">
           <SidebarContent />
         </div>
 
-        {/* Content - sửa để full chiều cao */}
+        {/* Nội dung chính */}
         <div className="flex-1 flex flex-col p-6">
           <div className="flex-1">
             <Outlet />
@@ -148,14 +146,14 @@ const AdminLayout = () => {
       )}
 
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-full w-64 bg-[#1C2D42] shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="relative h-full p-4 border-r border-slate-200">
+        <div className="relative h-full p-4 flex flex-col">
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="absolute top-4 right-4 p-1 rounded-md text-slate-500 hover:bg-slate-100 transition-colors"
+            className="absolute top-4 right-4 p-1 rounded-md text-white/60 hover:bg-white/10 transition-colors"
             aria-label="Đóng menu"
           >
             <X className="w-5 h-5" />
@@ -164,7 +162,7 @@ const AdminLayout = () => {
         </div>
       </aside>
 
-      {/* Content - sửa để full chiều cao */}
+      {/* Nội dung chính */}
       <div className="flex flex-col p-6 pt-16 min-h-screen">
         <div className="flex-1">
           <Outlet />

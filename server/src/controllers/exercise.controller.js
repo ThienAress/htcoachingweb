@@ -113,13 +113,11 @@ export const createManyExercises = async (req, res) => {
         results.failed.push({ ...item, error: err.message });
       }
     }
-    res
-      .status(201)
-      .json({
-        success: true,
-        data: results,
-        message: `Thêm thành công ${results.success.length} / ${exercises.length} bài tập`,
-      });
+    res.status(201).json({
+      success: true,
+      data: results,
+      message: `Thêm thành công ${results.success.length} / ${exercises.length} bài tập`,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
