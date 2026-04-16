@@ -8,6 +8,7 @@ import {
   ChevronDown,
   UserCheck,
   Dumbbell,
+  Users, // Import icon cho Hệ thống khách F1
 } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
@@ -109,6 +110,7 @@ function Header() {
   const dropdownItems = ["admin", "trainer"].includes(user?.role)
     ? [
         { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
+        { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" }, // Thêm mới
         { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ]
@@ -284,9 +286,9 @@ function Header() {
           )}
         </div>
 
-        {/* MOBILE BUTTON */}
+        {/* MOBILE BUTTON - Thêm màu trắng cho icon */}
         <div className="absolute right-5 md:hidden flex items-center gap-3 z-20">
-          <button onClick={() => setMenuOpen(!menuOpen)}>
+          <button onClick={() => setMenuOpen(!menuOpen)} className="text-white">
             {menuOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
         </div>

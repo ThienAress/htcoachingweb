@@ -374,35 +374,10 @@ const ChatIcons = () => {
           </span>
 
           {!open && (
-            <span className="absolute inset-0 rounded-full animate-ping-slow bg-lime-400/20 pointer-events-none" />
+            <span className="absolute inset-0 rounded-full pointer-events-none chat-icons-ping-slow" />
           )}
         </button>
       </div>
-
-      <style jsx>{`
-        @keyframes ping-slow {
-          0% {
-            transform: scale(1);
-            opacity: 0.5;
-          }
-          75% {
-            transform: scale(1.3);
-            opacity: 0;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 0;
-          }
-        }
-
-        .animate-ping-slow {
-          animation: ping-slow 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
-
-        .drop-shadow-glow {
-          filter: drop-shadow(0 0 4px rgba(163, 230, 53, 0.5));
-        }
-      `}</style>
     </div>
   );
 };

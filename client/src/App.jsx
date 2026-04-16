@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import { AuthProvider } from "./context/AuthContext";
 import { setNavigate } from "./utils/navigation";
 
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 import MainLayout from "./layouts/MainLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import TrainerLayout from "./layouts/TrainerLayout";
@@ -34,6 +37,7 @@ import MealPlan from "./pages/MealPlan/MealPlan";
 import RegisterPage from "./pages/RegisterPage/RegisterPage";
 import Club from "./pages/Club";
 import ExercisesPage from "./pages/ExercisesPage/ExercisesPage";
+import F1Customers from "./pages/F1CustomersPage/F1Customers";
 
 import "./index.css";
 import "./App.css";
@@ -47,69 +51,73 @@ function AppContent() {
   }, [navigate]);
 
   return (
-    <Routes>
-      {/* USER ROUTES */}
-      <Route element={<MainLayout />}>
-        <Route path="/" element={<Home />} />
-      </Route>
+    <>
+      <Routes>
+        {/* USER ROUTES */}
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<Home />} />
+        </Route>
 
-      <Route path="/login" element={<Login />} />
-      <Route path="/login-success" element={<LoginSuccess />} />
-      <Route path="/checkin" element={<Checkin />} />
-      <Route path="/my-history" element={<MyHistory />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/club" element={<Club />} />
-      <Route path="/exercises" element={<ExercisesPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/login-success" element={<LoginSuccess />} />
+        <Route path="/checkin" element={<Checkin />} />
+        <Route path="/my-history" element={<MyHistory />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/club" element={<Club />} />
+        <Route path="/exercises" element={<ExercisesPage />} />
+        <Route path="/f1-customers" element={<F1Customers />} />
 
-      {/* TDEE Calculator */}
-      <Route path="/tdee-calculator" element={<TdeeCalculator />} />
+        {/* TDEE Calculator */}
+        <Route path="/tdee-calculator" element={<TdeeCalculator />} />
 
-      {/* Suggested Mealplan */}
-      <Route path="/mealplan" element={<MealPlan />} />
+        {/* Suggested Mealplan */}
+        <Route path="/mealplan" element={<MealPlan />} />
 
-      {/* TRAINER LOGIN */}
-      <Route path="/trainer-login" element={<TrainerLogin />} />
+        {/* TRAINER LOGIN */}
+        <Route path="/trainer-login" element={<TrainerLogin />} />
 
-      {/* TRAINER PANEL */}
-      <Route
-        path="/trainer"
-        element={
-          <AdminRoute>
-            <TrainerLayout />
-          </AdminRoute>
-        }
-      >
-        <Route index element={<TrainerDashboard />} />
-        <Route path="checkin-history" element={<TrainerCheckinHistory />} />
-      </Route>
-
-      {/* ADMIN LOGIN */}
-      <Route path="/admin-login" element={<AdminLogin />} />
-
-      {/* ADMIN PANEL */}
-      <Route
-        path="/admin"
-        element={
-          <AdminRoute>
-            <AdminLayout />
-          </AdminRoute>
-        }
-      >
-        <Route path="orders" element={<Orders />} />
-        <Route path="dashboard" element={<CheckinHistory />} />
-        <Route path="create-trainer" element={<CreateTrainer />} />
-        <Route path="trainers" element={<TrainerManagement />} />
-        <Route path="users" element={<UserManagement />} />
-        <Route path="contact-messages" element={<ContactMessages />} />
-        <Route path="foods" element={<FoodManagement />} />
-        <Route path="bookings" element={<BookingManagement />} />
-        <Route path="exercises" element={<ExerciseManagement />} />
+        {/* TRAINER PANEL */}
         <Route
-          path="exercise-suggestions"
-          element={<ExerciseSuggestionsManagement />}
-        />
-      </Route>
-    </Routes>
+          path="/trainer"
+          element={
+            <AdminRoute>
+              <TrainerLayout />
+            </AdminRoute>
+          }
+        >
+          <Route index element={<TrainerDashboard />} />
+          <Route path="checkin-history" element={<TrainerCheckinHistory />} />
+        </Route>
+
+        {/* ADMIN LOGIN */}
+        <Route path="/admin-login" element={<AdminLogin />} />
+
+        {/* ADMIN PANEL */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminLayout />
+            </AdminRoute>
+          }
+        >
+          <Route path="orders" element={<Orders />} />
+          <Route path="dashboard" element={<CheckinHistory />} />
+          <Route path="create-trainer" element={<CreateTrainer />} />
+          <Route path="trainers" element={<TrainerManagement />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="contact-messages" element={<ContactMessages />} />
+          <Route path="foods" element={<FoodManagement />} />
+          <Route path="bookings" element={<BookingManagement />} />
+          <Route path="exercises" element={<ExerciseManagement />} />
+          <Route
+            path="exercise-suggestions"
+            element={<ExerciseSuggestionsManagement />}
+          />
+        </Route>
+      </Routes>
+      <ToastContainer position="top-right" autoClose={2500} />
+    </>
   );
 }
 
