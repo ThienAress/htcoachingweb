@@ -1,5 +1,12 @@
+// F1IntakeWizard.jsx
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  ClipboardList,
+} from "lucide-react";
 import {
   createF1Media,
   getLatestIntake,
@@ -91,17 +98,12 @@ const normalizeArrayToText = (value) => {
 const normalizeOptionalHealthText = (value = "") => {
   const normalized = String(value || "").trim();
   const negativeWords = ["không", "khong", "none", "no", "không có"];
-
-  if (negativeWords.includes(normalized.toLowerCase())) {
-    return "";
-  }
-
+  if (negativeWords.includes(normalized.toLowerCase())) return "";
   return normalized;
 };
 
 const normalizeHealthScreening = (health = {}) => {
   const hasPainNow = Boolean(health.hasPainNow);
-
   return {
     ...health,
     hasPainNow,
@@ -126,21 +128,18 @@ const normalizeHealthScreening = (health = {}) => {
 const normalizeTrainingProfileGoal = (training = {}) => {
   const currentlyTraining = Boolean(training.currentlyTraining);
   const trainingExperience = String(training.trainingExperience || "").trim();
-
   const normalizedSportsHistory = training.sportsHistory
     ? String(training.sportsHistory)
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean)
     : [];
-
   const targetWeightKg =
     training.targetWeightKg !== "" &&
     training.targetWeightKg !== null &&
     training.targetWeightKg !== undefined
       ? Number(training.targetWeightKg) || null
       : null;
-
   const targetDeadline = training.targetDeadline || null;
 
   if (!currentlyTraining) {
@@ -162,7 +161,6 @@ const normalizeTrainingProfileGoal = (training = {}) => {
       targetDeadline,
     };
   }
-
   return {
     currentlyTraining: true,
     trainingDaysPerWeek: Number(training.trainingDaysPerWeek) || 0,
@@ -178,12 +176,10 @@ const normalizeTrainingProfileGoal = (training = {}) => {
 
 const validateTrainingGoalStep = (training = {}) => {
   const errors = {};
-
   const isCurrentlyTraining = Boolean(training.currentlyTraining);
   const trainingExperience = String(training.trainingExperience || "").trim();
   const breakDuration = String(training.breakDuration || "").trim();
   const primaryGoal = String(training.primaryGoal || "").trim();
-
   const trainingDaysPerWeek = Number(training.trainingDaysPerWeek);
   const sessionDurationMinutes = Number(training.sessionDurationMinutes);
 
@@ -196,7 +192,6 @@ const validateTrainingGoalStep = (training = {}) => {
       errors.trainingDaysPerWeek =
         "Nếu khách đang tập, số ngày tập/tuần phải từ 1 đến 14";
     }
-
     if (
       !Number.isInteger(sessionDurationMinutes) ||
       sessionDurationMinutes <= 0 ||
@@ -205,32 +200,22 @@ const validateTrainingGoalStep = (training = {}) => {
       errors.sessionDurationMinutes =
         "Nếu khách đang tập, thời lượng buổi tập phải từ 1 đến 600 phút";
     }
-
-    if (!trainingExperience) {
+    if (!trainingExperience)
       errors.trainingExperience = "Vui lòng chọn kinh nghiệm tập luyện";
-    }
   } else {
-    if (!trainingExperience) {
+    if (!trainingExperience)
       errors.trainingExperience =
         "Vui lòng chọn khách chưa từng tập hay đã từng tập";
-    }
-
-    if (trainingExperience !== "none" && !breakDuration) {
+    if (trainingExperience !== "none" && !breakDuration)
       errors.breakDuration = "Vui lòng nhập khách đã nghỉ tập bao lâu";
-    }
   }
-
-  if (!primaryGoal) {
-    errors.primaryGoal = "Vui lòng chọn mục tiêu chính";
-  }
-
+  if (!primaryGoal) errors.primaryGoal = "Vui lòng chọn mục tiêu chính";
   if (
     training.targetWeightKg !== "" &&
     training.targetWeightKg !== null &&
     training.targetWeightKg !== undefined
   ) {
     const targetWeight = Number(training.targetWeightKg);
-
     if (
       !Number.isFinite(targetWeight) ||
       targetWeight < 10 ||
@@ -239,23 +224,17 @@ const validateTrainingGoalStep = (training = {}) => {
       errors.targetWeightKg = "Cân nặng mong muốn không hợp lệ";
     }
   }
-
   if (training.targetDeadline) {
     const date = new Date(training.targetDeadline);
-    if (Number.isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime()))
       errors.targetDeadline = "Thời gian mong muốn không hợp lệ";
-    }
   }
-
   return errors;
 };
 
 const mergeLatestIntoForm = (baseForm, latest) => ({
   ...baseForm,
-  customerInfo: {
-    ...baseForm.customerInfo,
-    ...(latest?.customerInfo || {}),
-  },
+  customerInfo: { ...baseForm.customerInfo, ...(latest?.customerInfo || {}) },
   healthScreening: {
     ...baseForm.healthScreening,
     ...(latest?.healthScreening || {}),
@@ -290,10 +269,7 @@ const mergeLatestIntoForm = (baseForm, latest) => ({
       ? String(latest.trainingProfileGoal.targetDeadline).slice(0, 10)
       : "",
   },
-  consent: {
-    ...baseForm.consent,
-    ...(latest?.consent || {}),
-  },
+  consent: { ...baseForm.consent, ...(latest?.consent || {}) },
 });
 
 const isBrowserFile = (value) =>
@@ -308,8 +284,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
   const [stepErrors, setStepErrors] = useState({});
 
   useEffect(() => {
-    const nextForm = createInitialForm(customer);
-    setFormData(nextForm);
+    setFormData(createInitialForm(customer));
     setCurrentStep(1);
     setStepErrors({});
   }, [customer?._id]);
@@ -317,12 +292,10 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
   useEffect(() => {
     const loadLatest = async () => {
       if (!customer?._id) return;
-
       try {
         setLoadingLatest(true);
         const res = await getLatestIntake(customer._id);
         const latest = res?.data;
-
         if (latest) {
           const baseForm = createInitialForm(customer);
           const merged = mergeLatestIntoForm(baseForm, latest);
@@ -333,29 +306,25 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
           setCurrentStep(1);
         }
       } catch (error) {
-        console.error("GET LATEST INTAKE ERROR:", error);
+        console.error(error);
         setFormData(createInitialForm(customer));
         setCurrentStep(1);
       } finally {
         setLoadingLatest(false);
       }
     };
-
     loadLatest();
   }, [customer?._id]);
 
   useEffect(() => {
-    if (currentStep !== 5 && Object.keys(stepErrors).length > 0) {
+    if (currentStep !== 5 && Object.keys(stepErrors).length > 0)
       setStepErrors({});
-    }
   }, [currentStep, stepErrors]);
 
   const bmi = useMemo(() => {
     const h = Number(formData.bodyMetrics.heightCm);
     const w = Number(formData.bodyMetrics.weightKg);
-
     if (!h || !w) return "";
-
     const heightM = h / 100;
     return (w / (heightM * heightM)).toFixed(1);
   }, [formData.bodyMetrics.heightCm, formData.bodyMetrics.weightKg]);
@@ -363,9 +332,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
   const waistHipRatio = useMemo(() => {
     const waist = Number(formData.bodyMetrics.waistCm);
     const hip = Number(formData.bodyMetrics.hipCm);
-
     if (!waist || !hip) return "";
-
     return (waist / hip).toFixed(2);
   }, [formData.bodyMetrics.waistCm, formData.bodyMetrics.hipCm]);
 
@@ -381,32 +348,24 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
   const updateSection = (section, field, value) => {
     setFormData((prev) => ({
       ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value,
-      },
+      [section]: { ...prev[section], [field]: value },
     }));
-
     if (section === "trainingProfileGoal") {
       clearTrainingGoalError(field);
-
       if (field === "currentlyTraining") {
         clearTrainingGoalError("trainingDaysPerWeek");
         clearTrainingGoalError("sessionDurationMinutes");
         clearTrainingGoalError("trainingExperience");
         clearTrainingGoalError("breakDuration");
       }
-
-      if (field === "trainingExperience") {
+      if (field === "trainingExperience")
         clearTrainingGoalError("breakDuration");
-      }
     }
   };
 
   const toggleWarningSign = (value) => {
     setFormData((prev) => {
       const exists = prev.healthScreening.warningSigns.includes(value);
-
       return {
         ...prev,
         healthScreening: {
@@ -422,10 +381,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
   const updatePostureMedia = (field, file) => {
     setFormData((prev) => ({
       ...prev,
-      postureMedia: {
-        ...prev.postureMedia,
-        [field]: file,
-      },
+      postureMedia: { ...prev.postureMedia, [field]: file },
     }));
   };
 
@@ -433,15 +389,12 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
     switch (step) {
       case 1:
         return { customerInfo: formData.customerInfo };
-
       case 2:
         return {
           healthScreening: normalizeHealthScreening(formData.healthScreening),
         };
-
       case 3:
         return { lifestyleNutrition: formData.lifestyleNutrition };
-
       case 4:
         return {
           bodyMetrics: {
@@ -473,14 +426,12 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
             waistHipRatio: waistHipRatio || null,
           },
         };
-
       case 5:
         return {
           trainingProfileGoal: normalizeTrainingProfileGoal(
             formData.trainingProfileGoal,
           ),
         };
-
       case 6:
         return {
           postureMediaSummary: {
@@ -490,7 +441,6 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
           },
           consent: formData.consent,
         };
-
       default:
         return {};
     }
@@ -502,31 +452,26 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
         alert("Vui lòng nhập họ và tên");
         return false;
       }
-
       if (!formData.customerInfo.age) {
         alert("Vui lòng nhập tuổi");
         return false;
       }
-
       if (!formData.customerInfo.gender) {
         alert("Vui lòng chọn giới tính");
         return false;
       }
     }
-
     if (currentStep === 4) {
       if (!formData.bodyMetrics.heightCm || !formData.bodyMetrics.weightKg) {
         alert("Vui lòng nhập chiều cao và cân nặng");
         return false;
       }
     }
-
     if (currentStep === 5) {
       const nextErrors = validateTrainingGoalStep(formData.trainingProfileGoal);
       setStepErrors(nextErrors);
       return Object.keys(nextErrors).length === 0;
     }
-
     if (currentStep === 6) {
       if (
         !formData.consent.allowDataStorage ||
@@ -536,24 +481,20 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
         return false;
       }
     }
-
     return true;
   };
 
   const handleSaveDraft = async () => {
     if (!customer?._id) return;
-
     try {
       setSavingDraft(true);
-
       await saveIntakeDraft(customer._id, {
         step: currentStep,
         data: getStepPayload(currentStep),
       });
-
       alert("Đã lưu nháp");
     } catch (error) {
-      console.error("SAVE INTAKE DRAFT ERROR:", error);
+      console.error(error);
       alert(error?.response?.data?.message || "Lưu nháp thất bại");
     } finally {
       setSavingDraft(false);
@@ -575,37 +516,27 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
     const form = new FormData();
     form.append("file", file);
     form.append("type", type);
-
-    if (intakeId) {
-      form.append("intakeId", intakeId);
-    }
-
+    if (intakeId) form.append("intakeId", intakeId);
     return createF1Media(customer._id, form);
   };
 
   const handleSubmit = async () => {
     if (!customer?._id) return;
     if (!validateCurrentStep()) return;
-
     try {
       setSubmitting(true);
-
       let intakeId = customer?.lastIntakeId || null;
       const hasSelectedPostureFiles =
         isBrowserFile(formData.postureMedia.frontImage) ||
         isBrowserFile(formData.postureMedia.backImage) ||
         isBrowserFile(formData.postureMedia.sideImage);
-
       if (hasSelectedPostureFiles) {
         const draftRes = await saveIntakeDraft(customer._id, {
           step: 6,
           data: getStepPayload(6),
         });
-
         intakeId = draftRes?.data?._id || intakeId;
-
         const uploadTasks = [];
-
         if (isBrowserFile(formData.postureMedia.frontImage)) {
           uploadTasks.push(
             uploadMediaFile({
@@ -622,7 +553,6 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
             }),
           );
         }
-
         if (isBrowserFile(formData.postureMedia.backImage)) {
           uploadTasks.push(
             uploadMediaFile({
@@ -632,7 +562,6 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
             }),
           );
         }
-
         if (isBrowserFile(formData.postureMedia.sideImage)) {
           uploadTasks.push(
             uploadMediaFile({
@@ -649,12 +578,8 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
             }),
           );
         }
-
-        if (uploadTasks.length > 0) {
-          await Promise.all(uploadTasks);
-        }
+        if (uploadTasks.length > 0) await Promise.all(uploadTasks);
       }
-
       const payload = {
         customerInfo: {
           ...formData.customerInfo,
@@ -704,17 +629,11 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
         },
         consent: formData.consent,
       };
-
       const res = await submitIntake(customer._id, payload);
-
       alert("Hoàn tất intake thành công");
-
-      onSubmitted?.({
-        ...res?.data,
-        customerId: customer._id,
-      });
+      onSubmitted?.({ ...res?.data, customerId: customer._id });
     } catch (error) {
-      console.error("SUBMIT INTAKE ERROR:", error);
+      console.error(error);
       alert(error?.response?.data?.message || "Submit intake thất bại");
     } finally {
       setSubmitting(false);
@@ -732,7 +651,6 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
             }
           />
         );
-
       case 2:
         return (
           <StepHealthScreening
@@ -743,7 +661,6 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
             onToggleWarningSign={toggleWarningSign}
           />
         );
-
       case 3:
         return (
           <StepLifestyleNutrition
@@ -753,7 +670,6 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
             }
           />
         );
-
       case 4:
         return (
           <StepBodyMetrics
@@ -765,7 +681,6 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
             }
           />
         );
-
       case 5:
         return (
           <StepTrainingGoal
@@ -776,7 +691,6 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
             errors={stepErrors}
           />
         );
-
       case 6:
         return (
           <StepPostureMedia
@@ -788,108 +702,109 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
             }
           />
         );
-
       default:
         return null;
     }
   };
 
   return (
-    <section className="space-y-5">
+    <section className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6">
       <button
         onClick={onBack}
-        className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900"
+        className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-amber-600"
       >
-        <ArrowLeft size={18} />
+        <ArrowLeft
+          size={18}
+          className="transition-transform group-hover:-translate-x-1"
+        />
         Quay lại chi tiết khách hàng
       </button>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-sm text-slate-500">
-              Intake NASM • {customer?.code || "--"}
-            </p>
-            <h2 className="text-2xl font-bold text-slate-900">
-              {customer?.fullName}
-            </h2>
-            <p className="mt-1 text-slate-500">
-              Bước {currentStep}/{intakeSteps.length} •{" "}
-              {intakeSteps[currentStep - 1]}
-            </p>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-6 md:px-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-sm text-slate-500">
+                Intake NASM • {customer?.code || "--"}
+              </p>
+              <h2 className="text-2xl font-extrabold text-slate-800">
+                {customer?.fullName}
+              </h2>
+              <p className="mt-1 text-slate-500">
+                Bước {currentStep}/{intakeSteps.length} •{" "}
+                {intakeSteps[currentStep - 1]}
+              </p>
+            </div>
+            <button
+              onClick={handleSaveDraft}
+              disabled={savingDraft || loadingLatest}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              <Save size={18} />
+              {savingDraft ? "Đang lưu..." : "Lưu nháp"}
+            </button>
+          </div>
+        </div>
+
+        <div className="px-6 py-6 md:px-8">
+          <div className="mb-8 grid grid-cols-2 gap-2 md:grid-cols-6">
+            {intakeSteps.map((item, index) => {
+              const stepNumber = index + 1;
+              const active = currentStep === stepNumber;
+              const done = currentStep > stepNumber;
+              return (
+                <div
+                  key={item}
+                  className={`rounded-xl px-3 py-2.5 text-center text-sm font-semibold transition ${
+                    active
+                      ? "bg-gradient-to-r from-amber-600 to-amber-500 text-white shadow-md"
+                      : done
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-50 text-slate-500"
+                  }`}
+                >
+                  {item}
+                </div>
+              );
+            })}
           </div>
 
-          <button
-            onClick={handleSaveDraft}
-            disabled={savingDraft || loadingLatest}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            <Save size={18} />
-            {savingDraft ? "Đang lưu..." : "Lưu nháp"}
-          </button>
-        </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-6">
-          {intakeSteps.map((item, index) => {
-            const stepNumber = index + 1;
-            const active = currentStep === stepNumber;
-            const done = currentStep > stepNumber;
-
-            return (
-              <div
-                key={item}
-                className={`rounded-2xl border px-3 py-3 text-center text-sm font-medium ${
-                  active
-                    ? "border-[#1C2D42] bg-[#1C2D42] text-white"
-                    : done
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-slate-50 text-slate-500"
-                }`}
-              >
-                {item}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-8">
           {loadingLatest ? (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-slate-500">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-500">
               Đang tải dữ liệu intake...
             </div>
           ) : (
             renderStep()
           )}
-        </div>
 
-        <div className="mt-8 flex flex-wrap justify-between gap-3">
-          <button
-            onClick={handlePrevStep}
-            disabled={currentStep === 1 || loadingLatest}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 font-medium text-slate-700 disabled:opacity-50"
-          >
-            <ChevronLeft size={18} />
-            Quay lại
-          </button>
-
-          {currentStep < intakeSteps.length ? (
+          <div className="mt-8 flex flex-wrap justify-between gap-3">
             <button
-              onClick={handleNextStep}
-              disabled={loadingLatest}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#1C2D42] px-5 py-3 font-semibold text-white hover:opacity-90 disabled:opacity-60"
+              onClick={handlePrevStep}
+              disabled={currentStep === 1 || loadingLatest}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
             >
-              Tiếp theo
-              <ChevronRight size={18} />
+              <ChevronLeft size={18} />
+              Quay lại
             </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={submitting || loadingLatest}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white hover:opacity-90 disabled:opacity-60"
-            >
-              {submitting ? "Đang submit..." : "Hoàn tất intake"}
-            </button>
-          )}
+            {currentStep < intakeSteps.length ? (
+              <button
+                onClick={handleNextStep}
+                disabled={loadingLatest}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-6 py-3 font-bold text-white shadow-md transition hover:shadow-lg"
+              >
+                Tiếp theo
+                <ChevronRight size={18} />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || loadingLatest}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 px-6 py-3 font-bold text-white shadow-md transition hover:shadow-lg"
+              >
+                {submitting ? "Đang submit..." : "Hoàn tất intake"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </section>

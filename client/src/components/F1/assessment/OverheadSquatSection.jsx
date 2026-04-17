@@ -1,3 +1,6 @@
+// OverheadSquatSection.jsx
+import { Eye, Move, Target } from "lucide-react";
+
 const ohsaOptionGroups = {
   anterior: {
     title: "Góc nhìn mặt trước",
@@ -40,24 +43,31 @@ const CheckboxGroup = ({
   onToggle,
 }) => {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <h4 className="font-semibold text-slate-800">{title}</h4>
-      <p className="mt-1 text-sm text-slate-500">{helper}</p>
-
-      <div className="mt-4 grid gap-3">
-        {options.map((item) => (
-          <label
-            key={item.value}
-            className="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-3 hover:bg-slate-50"
-          >
-            <input
-              type="checkbox"
-              checked={values.includes(item.value)}
-              onChange={() => onToggle(item.value)}
-            />
-            <span className="text-sm text-slate-700">{item.label}</span>
-          </label>
-        ))}
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-4">
+        <div className="flex items-center gap-2">
+          <Eye size={18} className="text-amber-600" />
+          <h4 className="font-bold text-slate-800">{title}</h4>
+        </div>
+      </div>
+      <div className="p-5">
+        <p className="text-sm text-slate-500">{helper}</p>
+        <div className="mt-4 space-y-2">
+          {options.map((item) => (
+            <label
+              key={item.value}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-100 bg-white px-4 py-3 transition hover:bg-slate-50"
+            >
+              <input
+                type="checkbox"
+                checked={values.includes(item.value)}
+                onChange={() => onToggle(item.value)}
+                className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+              />
+              <span className="text-sm text-slate-700">{item.label}</span>
+            </label>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -65,17 +75,20 @@ const CheckboxGroup = ({
 
 const OverheadSquatSection = ({ value, onToggle }) => {
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-lg font-bold text-slate-900">
-          Đánh giá squat tay qua đầu
-        </h3>
-        <p className="mt-1 text-sm text-slate-500">
-          Chọn các biểu hiện quan sát được theo từng góc nhìn.
-        </p>
+    <div className="space-y-5">
+      <div className="flex items-center gap-2 border-l-4 border-amber-500 pl-3">
+        <Move size={20} className="text-amber-600" />
+        <div>
+          <h3 className="text-xl font-bold text-slate-800">
+            Đánh giá squat tay qua đầu
+          </h3>
+          <p className="text-sm text-slate-500">
+            Chọn các biểu hiện quan sát được theo từng góc nhìn.
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-5 xl:grid-cols-3">
         <CheckboxGroup
           title={ohsaOptionGroups.anterior.title}
           helper={ohsaOptionGroups.anterior.helper}
@@ -83,7 +96,6 @@ const OverheadSquatSection = ({ value, onToggle }) => {
           options={ohsaOptionGroups.anterior.options}
           onToggle={(item) => onToggle("anterior", item)}
         />
-
         <CheckboxGroup
           title={ohsaOptionGroups.lateral.title}
           helper={ohsaOptionGroups.lateral.helper}
@@ -91,7 +103,6 @@ const OverheadSquatSection = ({ value, onToggle }) => {
           options={ohsaOptionGroups.lateral.options}
           onToggle={(item) => onToggle("lateral", item)}
         />
-
         <CheckboxGroup
           title={ohsaOptionGroups.posterior.title}
           helper={ohsaOptionGroups.posterior.helper}
