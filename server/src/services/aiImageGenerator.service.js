@@ -1,4 +1,4 @@
-const SUPPORTED_PROVIDERS = ["mock", "webhook"];
+const SUPPORTED_PROVIDERS = ["mock", "openai"];
 
 const safeText = (value = "") => String(value || "").trim();
 
@@ -11,19 +11,26 @@ const isValidHttpUrl = (value = "") => {
   }
 };
 
+const isValidDataUrl = (value = "") =>
+  /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(String(value || "").trim());
+
+const isSupportedImageRef = (value = "") =>
+  isValidHttpUrl(value) || isValidDataUrl(value);
+
 const getProviderConfig = () => {
   const provider = safeText(
     process.env.AI_IMAGE_PROVIDER || "mock",
   ).toLowerCase();
-  const model = safeText(
-    process.env.AI_IMAGE_MODEL || "default-stage-image-model",
-  );
-  const webhookUrl = safeText(process.env.AI_IMAGE_WEBHOOK_URL || "");
-  const webhookApiKey = safeText(process.env.AI_IMAGE_WEBHOOK_API_KEY || "");
+
+  const model = safeText(process.env.AI_IMAGE_MODEL || "gpt-image-1");
+
+  const openaiApiKey = safeText(process.env.OPENAI_API_KEY || "");
 
   if (!SUPPORTED_PROVIDERS.includes(provider)) {
     const error = new Error(
-      `AI_IMAGE_PROVIDER không hợp lệ. Chỉ hỗ trợ: ${SUPPORTED_PROVIDERS.join(", ")}`,
+      `AI_IMAGE_PROVIDER không hợp lệ. Chỉ hỗ trợ: ${SUPPORTED_PROVIDERS.join(
+        ", ",
+      )}`,
     );
     error.status = 500;
     throw error;
@@ -32,12 +39,11 @@ const getProviderConfig = () => {
   return {
     provider,
     model,
-    webhookUrl,
-    webhookApiKey,
+    openaiApiKey,
   };
 };
 
-const normalizeGeneratedImageUrls = ({
+const normalizeGeneratedImageRefs = ({
   frontUrl,
   sideUrl,
   provider,
@@ -46,13 +52,13 @@ const normalizeGeneratedImageUrls = ({
   const normalizedFrontUrl = safeText(frontUrl);
   const normalizedSideUrl = safeText(sideUrl);
 
-  if (!isValidHttpUrl(normalizedFrontUrl)) {
+  if (!isSupportedImageRef(normalizedFrontUrl)) {
     const error = new Error("frontUrl trả về từ AI provider không hợp lệ");
     error.status = 502;
     throw error;
   }
 
-  if (!isValidHttpUrl(normalizedSideUrl)) {
+  if (!isSupportedImageRef(normalizedSideUrl)) {
     const error = new Error("sideUrl trả về từ AI provider không hợp lệ");
     error.status = 502;
     throw error;
@@ -85,7 +91,7 @@ const generateMockStageImages = async ({
 
   // Mock mode chỉ để test full luồng FE/BE.
   // Nó KHÔNG tạo ảnh mới, chỉ trả lại ảnh before để UI/DB contract chạy thông.
-  return normalizeGeneratedImageUrls({
+  return normalizeGeneratedImageRefs({
     frontUrl,
     sideUrl,
     provider,
@@ -93,48 +99,111 @@ const generateMockStageImages = async ({
   });
 };
 
-const generateWebhookStageImages = async ({
-  beforeImages,
-  prompts,
-  context,
+const getMimeTypeFromContentType = (contentType = "") => {
+  const normalized = safeText(contentType).toLowerCase();
+
+  if (normalized.includes("image/png")) return "image/png";
+  if (normalized.includes("image/jpeg")) return "image/jpeg";
+  if (normalized.includes("image/jpg")) return "image/jpeg";
+  if (normalized.includes("image/webp")) return "image/webp";
+
+  return "image/png";
+};
+
+const getFileExtensionFromMimeType = (mimeType = "") => {
+  switch (mimeType) {
+    case "image/jpeg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    case "image/png":
+    default:
+      return "png";
+  }
+};
+
+const dataUrlToBlob = async (dataUrl) => {
+  const response = await fetch(dataUrl);
+  return response.blob();
+};
+
+const fetchImageAsBlob = async (imageUrl) => {
+  const value = safeText(imageUrl);
+
+  if (isValidDataUrl(value)) {
+    return dataUrlToBlob(value);
+  }
+
+  const response = await fetch(value);
+
+  if (!response.ok) {
+    const error = new Error(`Không thể tải ảnh nguồn: ${value}`);
+    error.status = 502;
+    throw error;
+  }
+
+  return response.blob();
+};
+
+const blobToDataUrl = async (blob) => {
+  const buffer = Buffer.from(await blob.arrayBuffer());
+  const mimeType = safeText(blob.type) || "image/png";
+  return `data:${mimeType};base64,${buffer.toString("base64")}`;
+};
+
+const base64ToDataUrl = (base64, mimeType = "image/png") =>
+  `data:${mimeType};base64,${safeText(base64)}`;
+
+const buildOpenAiEditPrompt = ({ prompt, phaseKey, view }) => {
+  const extraRules = [
+    "Keep the same person recognizable.",
+    "Preserve the same general pose and camera angle.",
+    "Keep the image realistic and avoid exaggerated or unnatural body changes.",
+    "Keep the background simple and consistent when possible.",
+    "This is a visual simulation of the body after training at the specified phase.",
+    `View: ${view}.`,
+    `Phase key: ${phaseKey}.`,
+  ];
+
+  return `${safeText(prompt)} ${extraRules.join(" ")}`.trim();
+};
+
+const callOpenAiImageEdit = async ({
+  imageUrl,
+  prompt,
   phaseKey,
-  provider,
+  view,
   model,
-  webhookUrl,
-  webhookApiKey,
+  openaiApiKey,
 }) => {
-  if (!webhookUrl) {
-    const error = new Error("Thiếu AI_IMAGE_WEBHOOK_URL cho provider webhook");
+  if (!openaiApiKey) {
+    const error = new Error("Thiếu OPENAI_API_KEY");
     error.status = 500;
     throw error;
   }
 
-  const payload = {
-    phaseKey,
-    model,
-    context,
-    beforeImages: {
-      frontUrl: safeText(beforeImages?.frontUrl),
-      sideUrl: safeText(beforeImages?.sideUrl),
-    },
-    prompts: {
-      front: safeText(prompts?.front),
-      side: safeText(prompts?.side),
-    },
-  };
+  const sourceBlob = await fetchImageAsBlob(imageUrl);
+  const mimeType = getMimeTypeFromContentType(sourceBlob.type);
+  const ext = getFileExtensionFromMimeType(mimeType);
 
-  const headers = {
-    "Content-Type": "application/json",
-  };
+  const formData = new FormData();
+  formData.append(
+    "image",
+    new File([sourceBlob], `${view}.${ext}`, { type: mimeType }),
+  );
+  formData.append("prompt", buildOpenAiEditPrompt({ prompt, phaseKey, view }));
+  formData.append("model", model);
+  formData.append("size", "1024x1024");
 
-  if (webhookApiKey) {
-    headers.Authorization = `Bearer ${webhookApiKey}`;
-  }
+  // Một số model hỗ trợ input_fidelity
+  formData.append("input_fidelity", "high");
 
-  const response = await fetch(webhookUrl, {
+  const response = await fetch("https://api.openai.com/v1/images/edits", {
     method: "POST",
-    headers,
-    body: JSON.stringify(payload),
+    headers: {
+      Authorization: `Bearer ${openaiApiKey}`,
+    },
+    body: formData,
   });
 
   let data = null;
@@ -146,19 +215,78 @@ const generateWebhookStageImages = async ({
 
   if (!response.ok) {
     const message =
+      safeText(data?.error?.message) ||
       safeText(data?.message) ||
-      safeText(data?.error) ||
-      "AI image webhook trả về lỗi";
+      "OpenAI image edit trả về lỗi";
     const error = new Error(message);
     error.status = response.status || 502;
     throw error;
   }
 
-  return normalizeGeneratedImageUrls({
-    frontUrl: data?.data?.frontUrl || data?.frontUrl,
-    sideUrl: data?.data?.sideUrl || data?.sideUrl,
+  const firstImage = data?.data?.[0];
+
+  if (!firstImage) {
+    const error = new Error("OpenAI không trả về ảnh kết quả");
+    error.status = 502;
+    throw error;
+  }
+
+  if (firstImage.b64_json) {
+    return base64ToDataUrl(firstImage.b64_json, "image/png");
+  }
+
+  if (firstImage.url && isValidHttpUrl(firstImage.url)) {
+    return firstImage.url;
+  }
+
+  const error = new Error("Kết quả ảnh từ OpenAI không hợp lệ");
+  error.status = 502;
+  throw error;
+};
+
+const generateOpenAiStageImages = async ({
+  beforeImages,
+  prompts,
+  phaseKey,
+  provider,
+  model,
+  openaiApiKey,
+}) => {
+  const frontSource = safeText(beforeImages?.frontUrl);
+  const sideSource = safeText(beforeImages?.sideUrl);
+
+  if (!isSupportedImageRef(frontSource) || !isSupportedImageRef(sideSource)) {
+    const error = new Error(
+      "OpenAI image generator cần beforeImages.frontUrl và beforeImages.sideUrl hợp lệ",
+    );
+    error.status = 400;
+    throw error;
+  }
+
+  const [frontUrl, sideUrl] = await Promise.all([
+    callOpenAiImageEdit({
+      imageUrl: frontSource,
+      prompt: safeText(prompts?.front),
+      phaseKey,
+      view: "front",
+      model,
+      openaiApiKey,
+    }),
+    callOpenAiImageEdit({
+      imageUrl: sideSource,
+      prompt: safeText(prompts?.side),
+      phaseKey,
+      view: "side",
+      model,
+      openaiApiKey,
+    }),
+  ]);
+
+  return normalizeGeneratedImageRefs({
+    frontUrl,
+    sideUrl,
     provider,
-    model: safeText(data?.data?.model || data?.model || model),
+    model,
   });
 };
 
@@ -179,16 +307,15 @@ export const generateStageImagesWithAI = async ({
     });
   }
 
-  if (config.provider === "webhook") {
-    return generateWebhookStageImages({
+  if (config.provider === "openai") {
+    return generateOpenAiStageImages({
       beforeImages,
       prompts,
       context,
       phaseKey,
       provider: config.provider,
       model: config.model,
-      webhookUrl: config.webhookUrl,
-      webhookApiKey: config.webhookApiKey,
+      openaiApiKey: config.openaiApiKey,
     });
   }
 

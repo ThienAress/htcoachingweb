@@ -119,6 +119,15 @@ const visualStageGenerationSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    lastRequestedAt: {
+      type: Date,
+      default: null,
+    },
+    attemptCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     provider: {
       type: String,
       default: "",

@@ -53,6 +53,8 @@ const TRAINING_FOCUS_LABELS = {
   core_control: "Cải thiện kiểm soát core",
 };
 
+const MAX_ATTEMPTS_FALLBACK = 3;
+
 const translateTrainingFocus = (items = []) =>
   items.map((item) => TRAINING_FOCUS_LABELS[item] || item);
 
@@ -234,12 +236,7 @@ const OutcomeComparisonTable = ({ outcomeTable }) => {
       subLabel: "Chỉ số cơ thể",
       suffix: "%",
     },
-    {
-      key: "bmi",
-      label: "BMI",
-      subLabel: "Chỉ số cơ thể",
-      suffix: "",
-    },
+    { key: "bmi", label: "BMI", subLabel: "Chỉ số cơ thể", suffix: "" },
     {
       key: "waistCm",
       label: "Vòng eo",
@@ -268,11 +265,9 @@ const OutcomeComparisonTable = ({ outcomeTable }) => {
 
   const formatValue = (value, suffix = "", key = "") => {
     if (value === null || value === undefined || value === "") return "—";
-
     if (key === "overallPhysicalLevel") {
       return translateValue(value, PHYSICAL_LEVEL_LABELS);
     }
-
     return suffix ? `${value} ${suffix}` : value;
   };
 
@@ -411,6 +406,12 @@ const VisualComparisonSection = ({
   const isGenerating = generatingStageKey === selectedPhaseKey;
   const hasGeneratedImages = hasAfterFront || hasAfterSide;
 
+  const attemptCount = Number(
+    selectedVisualStage?.generation?.attemptCount || 0,
+  );
+  const maxAttempts = MAX_ATTEMPTS_FALLBACK;
+  const limitReached = attemptCount >= maxAttempts;
+
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -436,14 +437,17 @@ const VisualComparisonSection = ({
         <div>
           <p className="text-sm font-semibold text-slate-900">{afterLabel}</p>
           <p className="mt-1 text-sm text-slate-500">
-            Tạo ảnh AI cho phase đang chọn để so sánh trực tiếp với ảnh before.
+            Mỗi lần tạo hoặc tạo lại ảnh AI đều có thể phát sinh chi phí.
+          </p>
+          <p className="mt-1 text-xs text-amber-600">
+            Đã dùng {attemptCount}/{maxAttempts} lượt cho phase này.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => onGenerateImages(hasGeneratedImages)}
-          disabled={!canGenerate || isGenerating}
+          disabled={!canGenerate || isGenerating || limitReached}
           className="inline-flex items-center gap-2 rounded-xl bg-[#1C2D42] px-4 py-3 font-semibold text-white hover:opacity-90 disabled:opacity-60"
         >
           <Sparkles size={18} />
@@ -529,25 +533,6 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     }
   }, [prediction]);
 
-  const handleGenerate = async () => {
-    if (!customer?._id) return;
-
-    try {
-      setGenerating(true);
-      const res = await generateResultPrediction(customer._id);
-      setPrediction(res?.data || null);
-      toast.success("Đã tạo dự đoán kết quả thành công");
-      onGenerated?.(res?.data);
-    } catch (error) {
-      console.error("GENERATE RESULT PREDICTION ERROR:", error);
-      toast.error(
-        error?.response?.data?.message || "Tạo dự đoán kết quả thất bại",
-      );
-    } finally {
-      setGenerating(false);
-    }
-  };
-
   const sourceSummary = useMemo(
     () => prediction?.sourceSummary || {},
     [prediction],
@@ -571,12 +556,47 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     );
   }, [prediction, selectedStageKey]);
 
+  const handleGenerate = async () => {
+    if (!customer?._id) return;
+
+    try {
+      setGenerating(true);
+      const res = await generateResultPrediction(customer._id);
+      setPrediction(res?.data || null);
+      toast.success("Đã tạo dự đoán kết quả thành công");
+      onGenerated?.(res?.data);
+    } catch (error) {
+      console.error("GENERATE RESULT PREDICTION ERROR:", error);
+      toast.error(
+        error?.response?.data?.message || "Tạo dự đoán kết quả thất bại",
+      );
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleGenerateStageImages = async (forceRegenerate = false) => {
     if (!customer?._id || !prediction?._id || !selectedVisualStage?.phaseKey) {
       return;
     }
 
     const phaseKey = selectedVisualStage.phaseKey;
+    const attemptCount = Number(
+      selectedVisualStage?.generation?.attemptCount || 0,
+    );
+    const maxAttempts = MAX_ATTEMPTS_FALLBACK;
+
+    if (forceRegenerate) {
+      const confirmed = window.confirm(
+        `Bạn sắp tạo lại ảnh AI cho ${selectedVisualStage?.label || phaseKey}.\n\nMỗi lần tạo lại sẽ phát sinh chi phí.\nHiện đã dùng ${attemptCount}/${maxAttempts} lượt.\n\nBạn có chắc muốn tiếp tục không?`,
+      );
+      if (!confirmed) return;
+    } else {
+      const confirmed = window.confirm(
+        `Tạo ảnh AI cho ${selectedVisualStage?.label || phaseKey}?\n\nMỗi lần tạo ảnh sẽ phát sinh chi phí.`,
+      );
+      if (!confirmed) return;
+    }
 
     try {
       setGeneratingStageKey(phaseKey);

@@ -15,6 +15,11 @@ import {
 import { buildStageImageGenerationPayload } from "./resultPredictionImage.helpers.js";
 import { generateStageImagesWithAI } from "../../services/aiImageGenerator.service.js";
 
+const MAX_AI_IMAGE_ATTEMPTS_PER_STAGE = Math.max(
+  Number(process.env.MAX_AI_IMAGE_ATTEMPTS_PER_STAGE || 3),
+  1,
+);
+
 export const generateResultPrediction = async (req, res, next) => {
   try {
     const customer = await F1Customer.findById(req.params.id);
@@ -215,6 +220,9 @@ export const generateResultPredictionStageImages = async (req, res, next) => {
     }
 
     const currentStage = prediction.visualStages[stageIndex];
+    const currentAttemptCount = Number(
+      currentStage?.generation?.attemptCount || 0,
+    );
 
     if (
       generationPayload.alreadyGenerated &&
@@ -236,9 +244,18 @@ export const generateResultPredictionStageImages = async (req, res, next) => {
       });
     }
 
+    if (currentAttemptCount >= MAX_AI_IMAGE_ATTEMPTS_PER_STAGE) {
+      return res.status(400).json({
+        success: false,
+        message: `Phase này đã đạt giới hạn ${MAX_AI_IMAGE_ATTEMPTS_PER_STAGE} lần tạo ảnh AI. Hãy dùng lại ảnh hiện tại để tối ưu chi phí.`,
+      });
+    }
+
     prediction.visualStages[stageIndex].imageStatus = "generating";
     prediction.visualStages[stageIndex].generation = {
       ...(prediction.visualStages[stageIndex].generation || {}),
+      attemptCount: currentAttemptCount + 1,
+      lastRequestedAt: new Date(),
       lastError: "",
     };
     prediction.markModified("visualStages");
@@ -257,6 +274,7 @@ export const generateResultPredictionStageImages = async (req, res, next) => {
       sideUrl: aiResult.sideUrl,
     };
     prediction.visualStages[stageIndex].generation = {
+      ...(prediction.visualStages[stageIndex].generation || {}),
       generatedAt: new Date(),
       provider: aiResult.provider || "",
       model: aiResult.model || "",
@@ -278,6 +296,7 @@ export const generateResultPredictionStageImages = async (req, res, next) => {
           sideUrl: "",
         },
         generation: updatedStage.generation || {},
+        maxAttempts: MAX_AI_IMAGE_ATTEMPTS_PER_STAGE,
       },
       message: "Đã tạo ảnh AI cho phase thành công",
     });
@@ -292,7 +311,7 @@ export const generateResultPredictionStageImages = async (req, res, next) => {
         prediction.markModified("visualStages");
         await prediction.save();
       } catch (_saveError) {
-        // Không throw thêm để tránh che mất lỗi gốc
+        // giữ lỗi gốc
       }
     }
 
