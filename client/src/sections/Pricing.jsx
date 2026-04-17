@@ -109,7 +109,7 @@ const Pricing = () => {
         "Cam kết kết quả 100%",
       ],
       gifts: [
-        "Whey Protein Isolate cao cấp",
+        "Balo cao cấp Degrey",
         "Shaker Bình Lắc Cao Cấp 600ml",
         "2 bánh Biscotti 300g",
       ],
