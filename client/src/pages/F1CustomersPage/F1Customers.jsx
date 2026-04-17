@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Home, UserPlus } from "lucide-react";
+import { Home, UserPlus, Users, Menu, X } from "lucide-react";
 import {
   createF1Customer,
   deleteF1Customer as deleteF1CustomerApi,
@@ -31,6 +31,7 @@ const F1Customers = () => {
   const [viewMode, setViewMode] = useState("list");
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [submittingCreate, setSubmittingCreate] = useState(false);
@@ -48,7 +49,6 @@ const F1Customers = () => {
   const filteredCustomers = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     if (!keyword) return customers;
-
     return customers.filter((item) => {
       return (
         item.fullName?.toLowerCase().includes(keyword) ||
@@ -78,25 +78,21 @@ const F1Customers = () => {
   const handleOpenCreate = () => {
     resetCreateForm();
     setViewMode("create");
+    setMobileMenuOpen(false);
   };
 
   const handleCreateCustomer = async (e) => {
     e.preventDefault();
-
     try {
       setSubmittingCreate(true);
-
       const payload = {
         ...createForm,
         age: Number(createForm.age) || 0,
       };
-
       const res = await createF1Customer(payload);
       const createdCustomer = res.data;
-
       setSelectedCustomer(createdCustomer);
       setViewMode("intake");
-
       await fetchCustomers();
     } catch (error) {
       console.error("CREATE F1 CUSTOMER ERROR:", error);
@@ -108,17 +104,13 @@ const F1Customers = () => {
 
   const handleDeleteCustomer = async () => {
     if (!selectedCustomer?._id) return;
-
     const confirmed = window.confirm(
       `Bạn có chắc muốn xóa khách hàng "${selectedCustomer.fullName}" không?\n\nDữ liệu intake, media, đánh giá thể chất, AI report và dự đoán kết quả liên quan sẽ bị xóa.`,
     );
-
     if (!confirmed) return;
-
     try {
       setDeletingCustomer(true);
       await deleteF1CustomerApi(selectedCustomer._id);
-
       toast.success("Xóa khách hàng thành công");
       setSelectedCustomer(null);
       setViewMode("list");
@@ -134,6 +126,7 @@ const F1Customers = () => {
   const handleSelectCustomer = (customer) => {
     setSelectedCustomer(customer);
     setViewMode("detail");
+    setMobileMenuOpen(false);
   };
 
   const handleIntakeSubmitted = async (result) => {
@@ -164,7 +157,6 @@ const F1Customers = () => {
         [],
       lastIntakeId: result?._id || result?.data?._id || prev?.lastIntakeId,
     }));
-
     setViewMode("detail");
     await fetchCustomers();
   };
@@ -180,7 +172,6 @@ const F1Customers = () => {
         result?.data?.overallPhysicalLevel ||
         prev?.overallPhysicalLevel,
     }));
-
     setViewMode("detail");
     await fetchCustomers();
   };
@@ -191,20 +182,16 @@ const F1Customers = () => {
       status: "ai_report_generated",
       lastAiReportId: result?._id || result?.data?._id || prev?.lastAiReportId,
     }));
-
     await fetchCustomers();
   };
 
   const handleReviewTestPermission = async (payload) => {
     if (!selectedCustomer?._id) return;
-
     try {
       setReviewingTestPermission(true);
-
       const res = await reviewTestPermission(selectedCustomer._id, payload);
       const updatedCustomer = res?.data?.customer;
       const updatedIntake = res?.data?.intake;
-
       setSelectedCustomer((prev) => ({
         ...prev,
         readinessStatus:
@@ -219,7 +206,6 @@ const F1Customers = () => {
           [],
         lastIntakeId: updatedIntake?._id || prev?.lastIntakeId,
       }));
-
       toast.success(res?.message || "PT review thành công");
       await fetchCustomers();
     } catch (error) {
@@ -238,116 +224,145 @@ const F1Customers = () => {
       lastResultPredictionId:
         result?._id || result?.data?._id || prev?.lastResultPredictionId,
     }));
-
     await fetchCustomers();
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
-      <aside className="hidden w-64 flex-col bg-[#1C2D42] text-white shadow-lg md:flex">
-        <div className="border-b border-white/10 p-5">
-          <h3 className="text-xl font-bold tracking-normal text-light">
-            HTCOACHING
-          </h3>
-          <p className="mt-1 text-xs text-gray">powered by FitAssess AI</p>
-        </div>
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-100 to-slate-200">
+      {/* Mobile menu button */}
+      <button
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        className="fixed left-4 top-4 z-50 rounded-full bg-white p-2 shadow-lg md:hidden"
+      >
+        {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+      </button>
 
-        <nav className="flex-1 space-y-1 px-3 py-6">
-          <button
-            onClick={() => setViewMode("list")}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-light transition-colors hover:bg-white/10"
-          >
-            <span>Khách hàng F1</span>
-          </button>
+      {/* Sidebar - desktop & mobile overlay */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-72 transform bg-gradient-to-b from-slate-800 to-slate-900 text-white shadow-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex h-full flex-col">
+          <div className="border-b border-white/10 p-6">
+            <h3 className="text-2xl font-black tracking-tight">HTCOACHING</h3>
+            <p className="mt-1 text-xs text-slate-400">
+              powered by FitAssess AI
+            </p>
+          </div>
 
-          <button
-            onClick={handleOpenCreate}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-light transition-colors hover:bg-white/10"
-          >
-            <UserPlus size={20} />
-            <span>Thêm khách hàng F1</span>
-          </button>
-        </nav>
+          <nav className="flex-1 space-y-1 px-4 py-8">
+            <button
+              onClick={() => {
+                setViewMode("list");
+                setMobileMenuOpen(false);
+              }}
+              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                viewMode === "list"
+                  ? "bg-amber-500/20 text-amber-300 shadow-inner"
+                  : "text-slate-300 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <Users size={20} />
+              <span>Khách hàng F1</span>
+            </button>
 
-        <div className="border-t border-white/10 p-4">
-          <Link
-            to="/"
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-light transition-colors hover:bg-white/20"
-          >
-            <Home size={18} />
-            <span>Trở về trang chủ</span>
-          </Link>
+            <button
+              onClick={handleOpenCreate}
+              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${
+                viewMode === "create"
+                  ? "bg-amber-500/20 text-amber-300 shadow-inner"
+                  : "text-slate-300 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              <UserPlus size={20} />
+              <span>Thêm khách hàng F1</span>
+            </button>
+          </nav>
+
+          <div className="border-t border-white/10 p-4">
+            <Link
+              to="/"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/20"
+            >
+              <Home size={18} />
+              <span>Trở về trang chủ</span>
+            </Link>
+          </div>
         </div>
       </aside>
 
-      <main className="flex-1 p-4 md:p-8">
-        {viewMode === "list" && (
-          <F1CustomerList
-            loading={loading}
-            search={search}
-            setSearch={setSearch}
-            customers={filteredCustomers}
-            onOpenCreate={handleOpenCreate}
-            onSelectCustomer={handleSelectCustomer}
-          />
-        )}
+      {/* Main content */}
+      <main className="flex-1 overflow-x-auto p-4 md:p-8">
+        <div className="mx-auto max-w-7xl">
+          {viewMode === "list" && (
+            <F1CustomerList
+              loading={loading}
+              search={search}
+              setSearch={setSearch}
+              customers={filteredCustomers}
+              onOpenCreate={handleOpenCreate}
+              onSelectCustomer={handleSelectCustomer}
+            />
+          )}
 
-        {viewMode === "create" && (
-          <F1CreateCustomerForm
-            createForm={createForm}
-            setCreateForm={setCreateForm}
-            submittingCreate={submittingCreate}
-            onBack={() => setViewMode("list")}
-            onSubmit={handleCreateCustomer}
-          />
-        )}
+          {viewMode === "create" && (
+            <F1CreateCustomerForm
+              createForm={createForm}
+              setCreateForm={setCreateForm}
+              submittingCreate={submittingCreate}
+              onBack={() => setViewMode("list")}
+              onSubmit={handleCreateCustomer}
+            />
+          )}
 
-        {viewMode === "detail" && selectedCustomer && (
-          <F1CustomerDetail
-            customer={selectedCustomer}
-            onBack={() => setViewMode("list")}
-            onStartIntake={() => setViewMode("intake")}
-            onStartAssessment={() => setViewMode("assessment")}
-            onOpenAiReport={() => setViewMode("report")}
-            onOpenResultPrediction={() => setViewMode("result_prediction")}
-            onDelete={handleDeleteCustomer}
-            deleting={deletingCustomer}
-            reviewingTestPermission={reviewingTestPermission}
-            onReviewTestPermission={handleReviewTestPermission}
-          />
-        )}
+          {viewMode === "detail" && selectedCustomer && (
+            <F1CustomerDetail
+              customer={selectedCustomer}
+              onBack={() => setViewMode("list")}
+              onStartIntake={() => setViewMode("intake")}
+              onStartAssessment={() => setViewMode("assessment")}
+              onOpenAiReport={() => setViewMode("report")}
+              onOpenResultPrediction={() => setViewMode("result_prediction")}
+              onDelete={handleDeleteCustomer}
+              deleting={deletingCustomer}
+              reviewingTestPermission={reviewingTestPermission}
+              onReviewTestPermission={handleReviewTestPermission}
+            />
+          )}
 
-        {viewMode === "intake" && selectedCustomer && (
-          <F1IntakeWizard
-            customer={selectedCustomer}
-            onBack={() => setViewMode("detail")}
-            onSubmitted={handleIntakeSubmitted}
-          />
-        )}
+          {viewMode === "intake" && selectedCustomer && (
+            <F1IntakeWizard
+              customer={selectedCustomer}
+              onBack={() => setViewMode("detail")}
+              onSubmitted={handleIntakeSubmitted}
+            />
+          )}
 
-        {viewMode === "assessment" && selectedCustomer && (
-          <F1AssessmentPanel
-            customer={selectedCustomer}
-            onBack={() => setViewMode("detail")}
-            onSubmitted={handleAssessmentSubmitted}
-          />
-        )}
+          {viewMode === "assessment" && selectedCustomer && (
+            <F1AssessmentPanel
+              customer={selectedCustomer}
+              onBack={() => setViewMode("detail")}
+              onSubmitted={handleAssessmentSubmitted}
+            />
+          )}
 
-        {viewMode === "report" && selectedCustomer && (
-          <F1AiReportPanel
-            customer={selectedCustomer}
-            onBack={() => setViewMode("detail")}
-            onGenerated={handleAiReportGenerated}
-          />
-        )}
+          {viewMode === "report" && selectedCustomer && (
+            <F1AiReportPanel
+              customer={selectedCustomer}
+              onBack={() => setViewMode("detail")}
+              onGenerated={handleAiReportGenerated}
+            />
+          )}
 
-        {viewMode === "result_prediction" && selectedCustomer && (
-          <F1ResultPredictionPanel
-            customer={selectedCustomer}
-            onBack={() => setViewMode("detail")}
-            onGenerated={handleResultPredictionGenerated}
-          />
-        )}
+          {viewMode === "result_prediction" && selectedCustomer && (
+            <F1ResultPredictionPanel
+              customer={selectedCustomer}
+              onBack={() => setViewMode("detail")}
+              onGenerated={handleResultPredictionGenerated}
+            />
+          )}
+        </div>
       </main>
     </div>
   );

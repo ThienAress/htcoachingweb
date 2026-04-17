@@ -173,6 +173,15 @@ const attachProtocolOptions = (items = []) =>
     protocolOptions: extractProtocolOptions(item?.dosage),
   }));
 
+const formatTieredTitle = ({ easy = [], standard = [], advanced = [] }) =>
+  [
+    easy.length ? `Mức dễ:\n- ${easy.join("\n- ")}` : "",
+    standard.length ? `Mức tiêu chuẩn:\n- ${standard.join("\n- ")}` : "",
+    advanced.length ? `Mức nâng cao:\n- ${advanced.join("\n- ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
 const buildFallbackStrengthSuggestions = ({ intake }) => {
   const training = intake?.trainingProfileGoal || {};
   const goal = training.primaryGoal || "";
@@ -189,51 +198,69 @@ const buildFallbackStrengthSuggestions = ({ intake }) => {
 
   const dosage = buildStarterDosage({ beginnerLike, lowRecovery });
 
-  const upperPushTitle = beginnerLike
-    ? "Wall Push-Up / Incline Push-Up"
-    : "Incline Push-Up / Chest Press máy nhẹ";
+  const upperPushTitle = formatTieredTitle({
+    easy: ["Wall Push-Up", "Band Chest Press"],
+    standard: ["Incline Push-Up", "Dumbbell Floor Press"],
+    advanced: ["Knee Push-Up", "Seated Dumbbell Press nhẹ"],
+  });
 
-  const pullTitle = beginnerLike
-    ? "Band Row / Seated Row nhẹ"
-    : "Seated Row / Cable Row nhẹ";
+  const upperPullTitle = formatTieredTitle({
+    easy: ["Band Row", "Seated Band Row"],
+    standard: ["One Arm Dumbbell Row", "Chest Supported Dumbbell Row"],
+    advanced: ["Bent Over Dumbbell Row nhẹ", "Face Pull"],
+  });
 
   const lowerBodyTitle =
     goal === "fat_loss"
-      ? "Sit-To-Stand / Box Squat cơ bản"
-      : "Box Squat / Goblet Squat rất nhẹ";
+      ? formatTieredTitle({
+          easy: ["Sit-To-Stand", "Box Squat"],
+          standard: ["Bodyweight Squat", "Step-Up thấp"],
+          advanced: ["Goblet Squat nhẹ", "Supported Split Squat"],
+        })
+      : formatTieredTitle({
+          easy: ["Sit-To-Stand", "Box Squat"],
+          standard: ["Bodyweight Squat", "Goblet Squat nhẹ"],
+          advanced: ["Supported Split Squat", "DB Romanian Deadlift nhẹ"],
+        });
+
+  const coreStrengthTitle = formatTieredTitle({
+    easy: ["Dead Bug", "Bird Dog"],
+    standard: ["Incline Plank", "Pallof Press"],
+    advanced: ["Front Plank", "Suitcase Hold"],
+  });
 
   return [
     {
       title: upperPushTitle,
-      target: "Upper body push cơ bản",
+      target: "Upper Body Push Strength",
       reason:
-        "Phù hợp cho khách mới hoặc nền thấp, dễ học kỹ thuật đẩy và kiểm soát thân người tốt hơn các bài vai khó.",
+        "Ưu tiên các bài đẩy bằng bodyweight, band và dumbbell để PT dễ quan sát, dễ chỉnh form và vẫn đủ đa dạng cho khách F1.",
+      dosage,
+      source: "fallback_engine",
+    },
+    {
+      title: upperPullTitle,
+      target: "Upper Body Pull Strength",
+      reason:
+        "Các bài kéo bằng band hoặc dumbbell an toàn hơn, ít đòi hỏi setup phức tạp và phù hợp để test nền lực kéo thân trên.",
       dosage,
       source: "fallback_engine",
     },
     {
       title: lowerBodyTitle,
-      target: "Lower body foundation",
+      target: "Lower Body Strength",
       reason:
         goal === "fat_loss"
-          ? "Giúp tạo nền lực chân và pattern squat cơ bản trước khi tăng khối lượng vận động."
-          : "Giúp xây nền sức mạnh chân an toàn, dễ theo dõi kỹ thuật cho khách F1.",
+          ? "Nhóm bài squat, sit-to-stand và step-up giúp đánh giá nền lực thân dưới rõ, dễ dạy và phù hợp khách F1."
+          : "Nhóm bài thân dưới bằng bodyweight hoặc dumbbell giúp test sức mạnh chân an toàn mà vẫn đủ đa dạng.",
       dosage,
       source: "fallback_engine",
     },
     {
-      title: pullTitle,
-      target: "Upper body pull cơ bản",
+      title: coreStrengthTitle,
+      target: "Core Strength",
       reason:
-        "An toàn và dễ coaching hơn các bài kéo phức tạp, phù hợp để xây nền lưng - tay sau intake ban đầu.",
-      dosage,
-      source: "fallback_engine",
-    },
-    {
-      title: "Glute Bridge / Dead Bug",
-      target: "Core + kiểm soát thân người",
-      reason:
-        "Giúp khách mới học cách siết core, ổn định thân người và hỗ trợ các bài chính phía sau.",
+        "Ưu tiên các bài core dễ kiểm soát như dead bug, bird dog, plank và anti-rotation để PT quan sát brace, stability và control.",
       dosage,
       source: "fallback_engine",
     },
@@ -255,28 +282,44 @@ const buildFallbackEnduranceSuggestions = ({ intake }) => {
 
   const dosage = buildStarterDosage({ beginnerLike, lowRecovery });
 
+  const muscularEnduranceTitle = beginnerLike
+    ? formatTieredTitle({
+        easy: ["March In Place", "Step Touch"],
+        standard: ["Sit-To-Stand liên tục", "Wall Push-Up liên tục"],
+        advanced: ["Step-Up liên tục", "Band Row reps cao"],
+      })
+    : formatTieredTitle({
+        easy: ["March In Place", "Step Touch"],
+        standard: ["Bodyweight Squat liên tục", "Incline Push-Up reps cao"],
+        advanced: ["Step-Up liên tục", "Band Row reps cao"],
+      });
+
+  const coreEnduranceTitle = beginnerLike
+    ? formatTieredTitle({
+        easy: ["Dead Bug tempo", "Bird Dog hold"],
+        standard: ["Incline Plank Hold", "Pallof Press hold"],
+        advanced: ["Front Plank Hold", "Bear Hold"],
+      })
+    : formatTieredTitle({
+        easy: ["Dead Bug tempo", "Bird Dog hold"],
+        standard: ["Front Plank Hold", "Side Plank gối"],
+        advanced: ["Pallof Press hold", "Bear Hold"],
+      });
+
   return [
     {
-      title: "March In Place / Step Touch",
-      target: "General endurance khởi đầu",
+      title: muscularEnduranceTitle,
+      target: "Muscular Endurance (Sức bền cơ bắp)",
       reason:
-        "Rất dễ tiếp cận cho khách mới, giúp làm quen nhịp vận động liên tục mà không quá tải.",
+        "Ưu tiên các bài lặp lại đơn giản bằng bodyweight, band hoặc nhịp vận động liên tục để test sức bền cơ mà không đòi hỏi kỹ thuật phức tạp.",
       dosage,
       source: "fallback_engine",
     },
     {
-      title: "Low Step-Up / Sit-To-Stand liên tục",
-      target: "Lower body endurance",
+      title: coreEnduranceTitle,
+      target: "Core Endurance (Sức bền core)",
       reason:
-        "Giúp nâng nền sức bền chân bằng bài đơn giản, an toàn và sát thực tế cho khách F1.",
-      dosage,
-      source: "fallback_engine",
-    },
-    {
-      title: "Wall Sit ngắn / Plank trên ghế",
-      target: "Core - isometric endurance",
-      reason:
-        "Tăng sức bền cơ bản mà vẫn dễ chỉnh level theo thể trạng và mức tự tin của khách.",
+        "Các bài hold hoặc tempo chậm giúp PT đánh giá sức bền core rõ ràng, ít rủi ro và rất phù hợp với khách F1.",
       dosage,
       source: "fallback_engine",
     },
