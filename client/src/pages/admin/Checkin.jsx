@@ -147,6 +147,16 @@ const Checkin = () => {
     [filteredOrdersForCustomer],
   );
 
+  const currentDateTimeLocal = useMemo(() => {
+    const now = new Date();
+    const tzOffsetMs = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+  }, []);
+
+  const currentYearStart = useMemo(() => {
+    return `${new Date().getFullYear()}-01-01T00:00`;
+  }, []);
+
   const createCheckinMutation = useMutation({
     mutationFn: createCheckin,
     onSuccess: () => {
@@ -303,6 +313,8 @@ const Checkin = () => {
                 <input
                   type="datetime-local"
                   {...register("time")}
+                  max={currentDateTimeLocal}
+                  min={currentYearStart}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 {errors.time && (

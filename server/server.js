@@ -1,3 +1,5 @@
+
+import dns from "dns";
 // ================= IMPORT =================
 import dotenv from "dotenv";
 dotenv.config();
@@ -33,6 +35,10 @@ import { generateCsrfToken } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
 
 import path from "path";
+
+if (process.env.NODE_ENV !== "production") {
+  dns.setServers(["1.1.1.1", "1.0.0.1"]);
+}
 
 // ================= INIT APP =================
 const app = express();
