@@ -16,6 +16,17 @@ import { getCheckins, updateCheckin } from "../../services/checkin.service";
 import { utcToLocalDateTime, localDateTimeToUTC } from "../../utils/date";
 const TrainerCheckinHistory = () => {
   const queryClient = useQueryClient();
+
+  const currentDateTimeLocal = (() => {
+    const now = new Date();
+    const tzOffsetMs = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+  })();
+
+  const currentYearStart = (() => {
+    return `${new Date().getFullYear()}-01-01T00:00`;
+  })();
+
   const [currentPage, setCurrentPage] = useState(1);
   const [editing, setEditing] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -323,6 +334,8 @@ const TrainerCheckinHistory = () => {
                   onChange={(e) =>
                     setEditing({ ...editing, timeLocal: e.target.value })
                   }
+                  max={currentDateTimeLocal}
+                  min={currentYearStart}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2"
                 />
               </div>

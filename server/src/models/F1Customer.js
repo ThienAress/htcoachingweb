@@ -97,7 +97,7 @@ const f1CustomerSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-f1CustomerSchema.index({ code: 1 }, { unique: true });
+
 f1CustomerSchema.index({ phone: 1 });
 f1CustomerSchema.index({ email: 1 });
 f1CustomerSchema.index({ assignedTrainerId: 1, status: 1 });
