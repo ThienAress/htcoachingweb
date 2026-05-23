@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Chặn các trang quản trị và không public
+Disallow: /admin/
+Disallow: /trainer/
+Disallow: /login
+Disallow: /admin-login
+Disallow: /trainer-login
+Disallow: /register
+Disallow: /checkin
+
+# Khai báo sitemap
+Sitemap: https://yourdomain.com/sitemap.xml

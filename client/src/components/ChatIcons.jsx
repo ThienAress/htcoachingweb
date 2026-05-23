@@ -347,6 +347,8 @@ const ChatIcons = () => {
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
+          aria-label={open ? "Đóng liên hệ" : "Mở liên hệ nhanh"}
+          aria-expanded={open}
           className="absolute right-0 bottom-0 flex items-center justify-center rounded-full border border-white/10 bg-gradient-to-br from-[#2d2d2d] via-[#1a1a1a] to-[#000000] shadow-[0_10px_30px_-5px_rgba(0,0,0,0.8),inset_0_1px_2px_rgba(255,255,255,0.1)] transition-all duration-300 hover:scale-105 active:scale-95 group"
           style={{
             width: `${ui.mainSize}px`,

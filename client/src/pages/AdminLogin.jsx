@@ -8,6 +8,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { Mail, Lock, LogIn } from "lucide-react";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
+import SEO from "../components/SEO";
 
 const loginSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
@@ -54,6 +55,7 @@ const AdminLogin = () => {
 
   return (
     <>
+      <SEO title="Admin Login" noindex />
       <ToastContainer position="top-right" autoClose={3000} />
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 w-full max-w-md border border-white/20">

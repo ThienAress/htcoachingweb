@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { X, Gift, Sparkles, LogIn, ArrowRight } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -286,15 +286,17 @@ const Pricing = () => {
               <div className="mt-4 pt-3 border-t border-dashed border-gray-700 text-base text-gray-400 text-center">
                 Tổng số buổi: {plan.totalSessions}
               </div>
-              <button
-                onClick={() =>
-                  handleRegister(plan, mode === "trial" ? "trial" : mode)
-                }
-                className="relative w-full mt-5 py-3 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-base"
+              <Link
+                to="/register"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRegister(plan, mode === "trial" ? "trial" : mode);
+                }}
+                className="relative flex items-center justify-center w-full mt-5 py-3 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-base"
               >
                 <span className="relative z-10">Đăng ký ngay</span>
                 <span className="absolute inset-0 bg-primary transform -translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></span>
-              </button>
+              </Link>
             </div>
           ))}
         </div>

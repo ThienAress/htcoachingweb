@@ -1,5 +1,6 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { csrfProtection } from "../middlewares/csrf.js";
 import {
   createContactMessage,
   getContactMessages,
@@ -22,6 +23,7 @@ router.get("/", protect, requireRoles("admin"), getContactMessages);
 router.patch(
   "/:id/status",
   protect,
+  csrfProtection,
   requireRoles("admin"),
   validateId,
   updateContactStatus,
@@ -29,6 +31,7 @@ router.patch(
 router.delete(
   "/:id",
   protect,
+  csrfProtection,
   requireRoles("admin"),
   validateId,
   deleteContactMessage,

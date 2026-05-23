@@ -5,6 +5,7 @@ import "aos/dist/aos.css";
 
 import Header from "../sections/Header/Header";
 import Footer from "../sections/Footer/Footer";
+import ScrollRestoration from "../components/ScrollRestoration";
 
 function MainLayout() {
   useEffect(() => {
@@ -16,6 +17,7 @@ function MainLayout() {
 
   return (
     <>
+      <ScrollRestoration />
       <Header />
       <Outlet />
       <Footer />

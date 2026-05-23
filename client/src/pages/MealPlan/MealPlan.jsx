@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { toast } from "react-toastify";
@@ -10,13 +10,14 @@ import MealTable from "./MealTable";
 import MealSummary from "./MealSummary";
 import NutritionLegend from "./NutritionLegend";
 import FoodNutritionTable from "./FoodNutritionTable";
-import MacroAdjustModal from "./MacroAdjustModal";
-import FoodSelectorModal from "../../pages/MealPlan/FoodSelectorModal";
+import FoodSelectorModal from "./FoodSelectorModal";
+
 import { useMacroSet } from "../../hooks/useMacroSet";
 import { useFoodDatabase } from "../../hooks/useFoodDatabase";
 import { useMealGenerator } from "../../hooks/useMealGenerator";
 import Header from "../../sections/Header/Header";
 import ChatIcons from "../../components/ChatIcons";
+import SEO from "../../components/SEO";
 
 const MealPlan = () => {
   const [selectedPlan, setSelectedPlan] = useState(3);
@@ -27,9 +28,6 @@ const MealPlan = () => {
   const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
   const [selectedFoods, setSelectedFoods] = useState(null);
 
-  const [isMacroModalOpen, setIsMacroModalOpen] = useState(false);
-  const [customMacroTarget, setCustomMacroTarget] = useState(null);
-
   // Đợi macroSet load xong
   const [isMacroReady, setIsMacroReady] = useState(false);
   useEffect(() => {
@@ -38,10 +36,9 @@ const MealPlan = () => {
     }
   }, [macroSet, isMacroReady]);
 
-  // Xác định macro đang active (ưu tiên custom, nếu không thì lấy từ chế độ đã chọn)
-  const baseMacroTarget =
+  // Xác định macro đang active từ chế độ đã chọn
+  const activeMacroTarget =
     selectedMacroPlan && macroSet ? macroSet[selectedMacroPlan] : null;
-  const activeMacroTarget = customMacroTarget || baseMacroTarget;
 
   // Khôi phục danh sách thực phẩm yêu thích từ localStorage
   useEffect(() => {
@@ -55,11 +52,6 @@ const MealPlan = () => {
     }
   }, []);
 
-  // Khi đổi chế độ, xóa custom macro
-  useEffect(() => {
-    setCustomMacroTarget(null);
-  }, [selectedMacroPlan]);
-
   const { generateMeals, meals, totalMacros, totalCalories, isGenerating } =
     useMealGenerator({
       selectedPlan,
@@ -68,25 +60,7 @@ const MealPlan = () => {
       customFoods: selectedFoods,
     });
 
-  // Giá trị hiển thị trong modal tinh chỉnh macro
-  const modalInitialValues = useMemo(() => {
-    if (meals.length > 0) {
-      return {
-        protein: totalMacros.protein,
-        carb: totalMacros.carb,
-        fat: totalMacros.fat,
-        calories: totalCalories,
-      };
-    }
-    return (
-      activeMacroTarget || {
-        protein: 0,
-        carb: 0,
-        fat: 0,
-        calories: 0,
-      }
-    );
-  }, [meals.length, totalMacros, totalCalories, activeMacroTarget]);
+
 
   // Lưu danh sách món yêu thích
   const handleSaveSelectedFoods = (selected) => {
@@ -104,37 +78,15 @@ const MealPlan = () => {
 
   // Xử lý tạo thực đơn (gợi ý)
   const handleGenerateMeal = () => {
-    // Trường hợp 1: đã có custom macro (từ tinh chỉnh)
-    if (customMacroTarget) {
-      generateMeals(customMacroTarget);
-      return;
-    }
-    // Trường hợp 2: đã chọn chế độ dinh dưỡng và macroSet đã sẵn sàng
     if (selectedMacroPlan && macroSet && macroSet[selectedMacroPlan]) {
       generateMeals(macroSet[selectedMacroPlan]);
       return;
     }
-    // Trường hợp 3: chưa có macro hợp lệ
     if (!macroSet || !isMacroReady) {
       toast.info("⏳ Đang tải dữ liệu macro, vui lòng chờ...");
       return;
     }
-    toast.error(
-      "❌ Vui lòng chọn chế độ dinh dưỡng hoặc tinh chỉnh macro trước",
-    );
-  };
-
-  // Xử lý lưu macro tinh chỉnh
-  const handleSaveCustomMacroTarget = (nextTarget) => {
-    setCustomMacroTarget(nextTarget);
-    // Nếu đã có thực đơn, tạo lại ngay; nếu chưa, chỉ lưu target
-    if (meals.length > 0) {
-      generateMeals(nextTarget);
-    } else {
-      toast.success(
-        "✅ Đã lưu macro mục tiêu, hãy nhấn 'Gợi ý thực đơn' để tạo",
-      );
-    }
+    toast.error("❌ Vui lòng chọn chế độ dinh dưỡng trước");
   };
 
   const hasMeals = meals.length > 0;
@@ -142,8 +94,13 @@ const MealPlan = () => {
 
   return (
     <>
+      <SEO
+        title="Gợi ý thực đơn cá nhân hóa"
+        description="Thực đơn giảm mỡ, tăng cơ tự động dựa trên TDEE và Macros của bạn. Xây dựng chế độ ăn chuẩn khoa học cùng HTCOACHING."
+        canonical="/mealplan"
+      />
       <Header />
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
         <ToastContainer position="top-right" autoClose={3000} theme="dark" />
 
         <div className="container-custom py-6 sm:py-8">
@@ -155,9 +112,9 @@ const MealPlan = () => {
               </span>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-normal">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-normal">
               THỰC ĐƠN <span className="text-primary">CỦA BẠN</span>
-            </h2>
+            </h1>
 
             <div className="w-20 sm:w-24 h-1 bg-primary mx-auto mt-3 sm:mt-4 rounded-full"></div>
           </div>
@@ -216,6 +173,7 @@ const MealPlan = () => {
             )}
           </div>
 
+
           <div className="border-b border-gray-700 mb-6">
             <div className="flex justify-center sm:justify-start gap-4 sm:gap-6">
               <button
@@ -254,12 +212,7 @@ const MealPlan = () => {
                       totalMacros={totalMacros}
                       totalCalories={totalCalories}
                       targetMacros={activeMacroTarget}
-                      targetLabel={
-                        customMacroTarget
-                          ? "Mục tiêu đã tinh chỉnh"
-                          : selectedMacroPlan
-                      }
-                      onOpenMacroModal={() => setIsMacroModalOpen(true)}
+                      targetLabel={selectedMacroPlan}
                     />
                   </>
                 )}
@@ -277,14 +230,7 @@ const MealPlan = () => {
           initialSelected={selectedFoods}
           foodDatabase={foodDatabase}
         />
-
-        <MacroAdjustModal
-          isOpen={isMacroModalOpen}
-          onClose={() => setIsMacroModalOpen(false)}
-          initialValues={modalInitialValues}
-          onSave={handleSaveCustomMacroTarget}
-        />
-      </div>
+      </main>
       <ChatIcons />
     </>
   );

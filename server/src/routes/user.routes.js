@@ -1,5 +1,6 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { csrfProtection } from "../middlewares/csrf.js";
 import { createTrainer } from "../controllers/admin.controller.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
@@ -28,6 +29,7 @@ router.get("/trainers", protect, requireRoles("admin"), getTrainers);
 router.delete(
   "/trainers/:id",
   protect,
+  csrfProtection,
   requireRoles("admin"),
   async (req, res) => {
     try {
@@ -54,6 +56,7 @@ router.delete(
 router.post(
   "/create-trainer",
   protect,
+  csrfProtection,
   requireRoles("admin"),
   validateCreateTrainer,
   createTrainer,
@@ -64,6 +67,7 @@ router.get("/users", protect, requireRoles("admin"), getUsers);
 router.delete(
   "/:id",
   protect,
+  csrfProtection,
   requireRoles("admin"),
   validateDeleteUser,
   deleteUser,

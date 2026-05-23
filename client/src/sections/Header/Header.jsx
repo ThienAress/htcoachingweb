@@ -144,8 +144,8 @@ function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:block absolute left-1/2 transform -translate-x-1/2">
-          <ul className="flex gap-5 list-none m-0 p-0">
+        <nav className="hidden md:flex flex-1 justify-center ml-4" aria-label="Menu chính">
+          <ul className="flex gap-3 list-none m-0 p-0">
             <li>
               <Link
                 to="/"
@@ -201,6 +201,14 @@ function Header() {
               >
                 Liên hệ
               </button>
+            </li>
+            <li>
+              <Link
+                to="/ket-qua-khach-hang"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+              >
+                Kết quả
+              </Link>
             </li>
             <li>
               <Link
@@ -288,7 +296,12 @@ function Header() {
 
         {/* MOBILE BUTTON - Thêm màu trắng cho icon */}
         <div className="absolute right-5 md:hidden flex items-center gap-3 z-20">
-          <button onClick={() => setMenuOpen(!menuOpen)} className="text-white">
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="text-white"
+            aria-label={menuOpen ? "Đóng menu" : "Mở menu"}
+            aria-expanded={menuOpen}
+          >
             {menuOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
         </div>
@@ -424,6 +437,15 @@ function Header() {
                 >
                   Liên hệ
                 </button>
+              </li>
+              <li className="w-full">
+                <Link
+                  to="/ket-qua-khach-hang"
+                  onClick={() => setMenuOpen(false)}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10"
+                >
+                  Kết quả khách hàng
+                </Link>
               </li>
               <li className="w-full">
                 <Link

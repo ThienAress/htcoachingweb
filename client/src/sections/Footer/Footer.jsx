@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Facebook, Instagram, Youtube, Send } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 
@@ -69,60 +70,34 @@ const Footer = () => {
             </h3>
             <ul className="space-y-2 text-gray-300">
               <li>
-                <a
-                  href="#home"
-                  className="hover:text-primary hover:pl-1 transition-all"
-                >
+                <Link to="/" className="hover:text-primary hover:pl-1 transition-all">
                   Trang chủ
-                </a>
+                </Link>
               </li>
               <li>
-                <a
-                  href="#about"
-                  className="hover:text-primary hover:pl-1 transition-all"
-                >
-                  Giới thiệu
-                </a>
+                <Link to="/ket-qua-khach-hang" className="hover:text-primary hover:pl-1 transition-all">
+                  Kết quả khách hàng
+                </Link>
               </li>
               <li>
-                <a
-                  href="#trainers"
-                  className="hover:text-primary hover:pl-1 transition-all"
-                >
-                  Huấn luyện viên
-                </a>
+                <Link to="/exercises" className="hover:text-primary hover:pl-1 transition-all">
+                  Hệ thống bài tập
+                </Link>
               </li>
               <li>
-                <a
-                  href="#customer"
-                  className="hover:text-primary hover:pl-1 transition-all"
-                >
-                  Feedback
-                </a>
+                <Link to="/tdee-calculator" className="hover:text-primary hover:pl-1 transition-all">
+                  Tính TDEE
+                </Link>
               </li>
               <li>
-                <a
-                  href="#classes"
-                  className="hover:text-primary hover:pl-1 transition-all"
-                >
-                  CHƯƠNG TRÌNH TẬP LUYỆN
-                </a>
+                <Link to="/mealplan" className="hover:text-primary hover:pl-1 transition-all">
+                  Gợi ý thực đơn
+                </Link>
               </li>
               <li>
-                <a
-                  href="#pricing"
-                  className="hover:text-primary hover:pl-1 transition-all"
-                >
-                  Gói tập
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#contact"
-                  className="hover:text-primary hover:pl-1 transition-all"
-                >
-                  Liên hệ
-                </a>
+                <Link to="/club" className="hover:text-primary hover:pl-1 transition-all">
+                  CLB
+                </Link>
               </li>
             </ul>
           </div>

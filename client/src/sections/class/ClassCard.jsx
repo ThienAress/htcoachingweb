@@ -147,6 +147,7 @@ const ClassCard = ({ image, title, desc, benefits }) => {
             <img
               src={image}
               alt={title}
+              loading="lazy"
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0a1023]/20 via-transparent to-transparent" />

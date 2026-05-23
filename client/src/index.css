@@ -20,6 +20,14 @@
 
 /* ================= BASE – HỆ THỐNG HEADING ================= */
 @layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   h1,
   .h1 {
     font-family: var(--font-display);

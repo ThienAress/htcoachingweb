@@ -1,5 +1,6 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { csrfProtection } from "../middlewares/csrf.js";
 import { bookingLimiter } from "../middlewares/rateLimit.js";
 import { validateCreateBooking } from "../middlewares/validation.js";
 import {
@@ -27,10 +28,17 @@ router.get("/", protect, requireRoles("admin"), getBookings);
 router.patch(
   "/:id/status",
   protect,
+  csrfProtection,
   requireRoles("admin"),
   updateBookingStatus,
 );
 router.get("/check-user", protect, checkUserHasBookings);
-router.delete("/:id", protect, requireRoles("admin"), deleteBooking);
+router.delete(
+  "/:id",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  deleteBooking,
+);
 
 export default router;

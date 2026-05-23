@@ -1,5 +1,6 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { csrfProtection } from "../middlewares/csrf.js";
 import {
   validateCheckin,
   validateUpdateCheckin,
@@ -20,6 +21,7 @@ const router = express.Router();
 router.post(
   "/",
   protect,
+  csrfProtection,
   requireRoles("admin", "trainer"),
   validateCheckin,
   createCheckin,
@@ -28,6 +30,7 @@ router.get("/", protect, requireRoles("admin", "trainer"), getCheckins);
 router.put(
   "/:id",
   protect,
+  csrfProtection,
   requireRoles("admin", "trainer"),
   validateUpdateCheckin,
   updateCheckin,
@@ -35,6 +38,7 @@ router.put(
 router.delete(
   "/:id",
   protect,
+  csrfProtection,
   requireRoles("admin"),
   validateId,
   deleteCheckin,

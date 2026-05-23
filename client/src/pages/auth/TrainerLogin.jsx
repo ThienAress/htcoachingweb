@@ -7,6 +7,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import SEO from "../../components/SEO";
 
 const loginSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
@@ -46,6 +47,7 @@ const TrainerLogin = () => {
 
   return (
     <>
+      <SEO title="Trainer Login" noindex />
       <ToastContainer position="top-right" autoClose={3000} />
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-800 to-slate-900">
         <div className="bg-white p-8 rounded-2xl shadow-xl w-[400px] max-w-[90vw]">

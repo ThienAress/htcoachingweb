@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 
 import { AuthProvider } from "./context/AuthContext";
 import { setNavigate } from "./utils/navigation";
@@ -10,34 +10,39 @@ import "react-toastify/dist/ReactToastify.css";
 import MainLayout from "./layouts/MainLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import TrainerLayout from "./layouts/TrainerLayout";
-
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import LoginSuccess from "./pages/LoginSuccess";
-import AdminLogin from "./pages/AdminLogin";
 import AdminRoute from "./routes/AdminRoute";
+import GlobalLoading from "./components/GlobalLoading";
 
-import Orders from "./pages/admin/Orders";
-import Checkin from "./pages/admin/Checkin";
-import CheckinHistory from "./pages/admin/CheckinHistory";
-import MyHistory from "./pages/MyHistory";
-import TrainerDashboard from "./pages/trainer/Dashboard";
-import CreateTrainer from "./pages/admin/CreateTrainer";
-import TrainerLogin from "./pages/auth/TrainerLogin";
-import TrainerManagement from "./pages/admin/TrainerManagement";
-import UserManagement from "./pages/admin/UserManagement";
-import ContactMessages from "./pages/admin/ContactMessages";
-import FoodManagement from "./pages/admin/FoodManagement";
-import BookingManagement from "./pages/admin/BookingManagement";
-import ExerciseManagement from "./pages/admin/ExerciseManagement";
-import ExerciseSuggestionsManagement from "./pages/admin/ExerciseSuggestionsManagement";
-import TrainerCheckinHistory from "./pages/trainer/TrainerCheckinHistory";
-import TdeeCalculator from "./pages/TdeeCalculator/TdeeCalculator";
-import MealPlan from "./pages/MealPlan/MealPlan";
-import RegisterPage from "./pages/RegisterPage/RegisterPage";
-import Club from "./pages/Club";
-import ExercisesPage from "./pages/ExercisesPage/ExercisesPage";
-import F1Customers from "./pages/F1CustomersPage/F1Customers";
+// Lazy-loaded pages (Code Splitting)
+const Home = lazy(() => import("./pages/Home"));
+const Login = lazy(() => import("./pages/Login"));
+const LoginSuccess = lazy(() => import("./pages/LoginSuccess"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+
+const Orders = lazy(() => import("./pages/admin/Orders"));
+const Checkin = lazy(() => import("./pages/admin/Checkin"));
+const CheckinHistory = lazy(() => import("./pages/admin/CheckinHistory"));
+const MyHistory = lazy(() => import("./pages/MyHistory"));
+const TrainerDashboard = lazy(() => import("./pages/trainer/Dashboard"));
+const CreateTrainer = lazy(() => import("./pages/admin/CreateTrainer"));
+const TrainerLogin = lazy(() => import("./pages/auth/TrainerLogin"));
+const TrainerManagement = lazy(() => import("./pages/admin/TrainerManagement"));
+const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
+const ContactMessages = lazy(() => import("./pages/admin/ContactMessages"));
+const FoodManagement = lazy(() => import("./pages/admin/FoodManagement"));
+const BookingManagement = lazy(() => import("./pages/admin/BookingManagement"));
+const ExerciseManagement = lazy(() => import("./pages/admin/ExerciseManagement"));
+const ExerciseSuggestionsManagement = lazy(() => import("./pages/admin/ExerciseSuggestionsManagement"));
+const CustomerStoryManagement = lazy(() => import("./pages/admin/CustomerStoryManagement"));
+const TrainerCheckinHistory = lazy(() => import("./pages/trainer/TrainerCheckinHistory"));
+const TdeeCalculator = lazy(() => import("./pages/TdeeCalculator/TdeeCalculator"));
+const MealPlan = lazy(() => import("./pages/MealPlan/MealPlan"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage/RegisterPage"));
+const Club = lazy(() => import("./pages/Club"));
+const ExercisesPage = lazy(() => import("./pages/ExercisesPage/ExercisesPage"));
+const F1Customers = lazy(() => import("./pages/F1CustomersPage/F1Customers"));
+const CustomerStories = lazy(() => import("./pages/CustomerStories"));
+const CustomerStoryDetail = lazy(() => import("./pages/CustomerStoryDetail"));
 
 import "./index.css";
 import "./App.css";
@@ -52,10 +57,16 @@ function AppContent() {
 
   return (
     <>
-      <Routes>
+      <Suspense fallback={<GlobalLoading />}>
+        <Routes>
         {/* USER ROUTES */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
+          <Route path="/ket-qua-khach-hang" element={<CustomerStories />} />
+          <Route
+            path="/ket-qua-khach-hang/:slug"
+            element={<CustomerStoryDetail />}
+          />
         </Route>
 
         <Route path="/login" element={<Login />} />
@@ -110,12 +121,14 @@ function AppContent() {
           <Route path="foods" element={<FoodManagement />} />
           <Route path="bookings" element={<BookingManagement />} />
           <Route path="exercises" element={<ExerciseManagement />} />
+          <Route path="customer-stories" element={<CustomerStoryManagement />} />
           <Route
             path="exercise-suggestions"
             element={<ExerciseSuggestionsManagement />}
           />
         </Route>
       </Routes>
+      </Suspense>
       <ToastContainer position="top-right" autoClose={2500} />
     </>
   );

@@ -108,6 +108,6 @@ router.post("/trainer/login", validateLogin, loginTrainer);
 
 // ===== REFRESH / LOGOUT =====
 router.post("/refresh", csrfProtection, refreshTokenController);
-router.post("/logout", protect, logout);
+router.post("/logout", protect, csrfProtection, logout);
 
 export default router;

@@ -44,6 +44,7 @@ export const useMealGenerator = ({
   const roundInt = (num) => Math.round(num);
 
   const getFoodKey = (food) => food.label || food.name;
+  const getFoodName = (food) => food?.label || food?.name || "";
 
   const classifyFood = (food) => {
     const protein = Number(food.protein || 0);
@@ -144,17 +145,17 @@ export const useMealGenerator = ({
   const getBoundsByGroup = (group) => {
     if (group === "protein") return { min: 60, max: 220 };
     if (group === "carb") return { min: 80, max: 350 };
-    return { min: 5, max: 30 };
+    return { min: 5, max: 80 };
   };
 
   const getBoundsByFood = (food) => {
-    const name = (food?.name || "").toLowerCase();
+    const name = getFoodName(food).toLowerCase();
     const category = food?.category || "";
     if (name.includes("whey")) return { min: 20, max: 50 };
     if (category === "cooking_fat" || name.includes("dầu"))
-      return { min: 5, max: 15 };
+      return { min: 5, max: 60 };
     if (name.includes("bơ đậu phộng") || name.includes("bơ hạnh nhân"))
-      return { min: 10, max: 25 };
+      return { min: 10, max: 70 };
     if (category === "fruit") return { min: 80, max: 250 };
     if (
       name.includes("gạo") ||
@@ -260,7 +261,7 @@ export const useMealGenerator = ({
 
   const isDenseProtein = (food) => {
     if (!food) return false;
-    const name = (food.name || "").toLowerCase();
+    const name = getFoodName(food).toLowerCase();
     return (
       name.includes("whey") ||
       name.includes("tempeh") ||
@@ -270,7 +271,7 @@ export const useMealGenerator = ({
     );
   };
 
-  const tuneMealToCalories = (mealFoods, targetCalories) => {
+  const _tuneMealToCalories = (mealFoods, targetCalories) => {
     let foods = mealFoods.map((f) => (f ? { ...f } : null));
     let totals = getMealTotals(foods.filter(Boolean));
     const tolerance = 15;
@@ -379,7 +380,7 @@ export const useMealGenerator = ({
     return bestIndex;
   };
 
-  const fineTuneDayCalories = (mealsInput, targetCalories) => {
+  const _fineTuneDayCalories = (mealsInput, targetCalories) => {
     let mealsDraft = mealsInput.map((meal) => ({
       ...meal,
       proteinFood: meal.proteinFood ? { ...meal.proteinFood } : null,
@@ -472,6 +473,109 @@ export const useMealGenerator = ({
     return { meals: mealsDraft, totals: dayTotals };
   };
 
+  const getMacroScore = (totals, target, targetCalories) => {
+    const proteinDiff = Number(totals.protein || 0) - Number(target.protein);
+    const carbDiff = Number(totals.carb || 0) - Number(target.carb);
+    const fatDiff = Number(totals.fat || 0) - Number(target.fat);
+    const calorieDiff = Number(totals.calories || 0) - targetCalories;
+
+    return (
+      proteinDiff * proteinDiff +
+      carbDiff * carbDiff +
+      fatDiff * fatDiff +
+      (calorieDiff * calorieDiff) / 400
+    );
+  };
+
+  const isMacroCloseEnough = (totals, target) => {
+    const tolerance = 3;
+    return (
+      Math.abs(Number(totals.protein || 0) - Number(target.protein)) <=
+        tolerance &&
+      Math.abs(Number(totals.carb || 0) - Number(target.carb)) <= tolerance &&
+      Math.abs(Number(totals.fat || 0) - Number(target.fat)) <= tolerance
+    );
+  };
+
+  const fineTuneDayMacros = (mealsInput, target, targetCalories) => {
+    let mealsDraft = mealsInput.map((meal) => ({
+      ...meal,
+      proteinFood: meal.proteinFood ? { ...meal.proteinFood } : null,
+      carbFood: meal.carbFood ? { ...meal.carbFood } : null,
+      fatFood: meal.fatFood ? { ...meal.fatFood } : null,
+    }));
+
+    mealsDraft = recalcMealsWithTotals(mealsDraft);
+
+    const foodKeys = ["proteinFood", "carbFood", "fatFood"];
+    const steps = [10, 5, 2, 1];
+
+    for (const step of steps) {
+      let safeGuard = 0;
+      while (safeGuard < 3000) {
+        safeGuard += 1;
+
+        const currentTotals = getDayTotals(mealsDraft);
+        if (step === 1 && isMacroCloseEnough(currentTotals, target)) break;
+
+        const currentScore = getMacroScore(
+          currentTotals,
+          target,
+          targetCalories,
+        );
+        let bestMove = null;
+        let bestScore = currentScore;
+
+        mealsDraft.forEach((meal, mealIndex) => {
+          foodKeys.forEach((foodKey) => {
+            const food = meal[foodKey];
+            if (!food) return;
+
+            [-step, step].forEach((delta) => {
+              const nextAmount = clampAmountByFood(food, food.amount + delta);
+              if (nextAmount === food.amount) return;
+
+              const candidateMeals = mealsDraft.map((draftMeal, index) => {
+                if (index !== mealIndex) return draftMeal;
+
+                return {
+                  ...draftMeal,
+                  [foodKey]: { ...food, amount: nextAmount },
+                };
+              });
+              const candidateTotals = getDayTotals(
+                recalcMealsWithTotals(candidateMeals),
+              );
+              const candidateScore = getMacroScore(
+                candidateTotals,
+                target,
+                targetCalories,
+              );
+
+              if (candidateScore < bestScore) {
+                bestScore = candidateScore;
+                bestMove = { mealIndex, foodKey, nextAmount };
+              }
+            });
+          });
+        });
+
+        if (!bestMove) break;
+
+        mealsDraft[bestMove.mealIndex] = {
+          ...mealsDraft[bestMove.mealIndex],
+          [bestMove.foodKey]: {
+            ...mealsDraft[bestMove.mealIndex][bestMove.foodKey],
+            amount: bestMove.nextAmount,
+          },
+        };
+        mealsDraft = recalcMealsWithTotals(mealsDraft);
+      }
+    }
+
+    return { meals: mealsDraft, totals: getDayTotals(mealsDraft) };
+  };
+
   const mapFoodData = (food) =>
     food
       ? {
@@ -517,7 +621,6 @@ export const useMealGenerator = ({
       const proteinPerMeal = target.protein / selectedPlan;
       const carbPerMeal = target.carb / selectedPlan;
       const fatPerMeal = target.fat / selectedPlan;
-      const caloriesPerMeal = targetCalories / selectedPlan;
 
       const usedKeys = { protein: [], carb: [], fat: [] };
       let mealsResult = [];
@@ -546,29 +649,25 @@ export const useMealGenerator = ({
           categoryRule?.fat || [],
         );
         if (fatFood) usedKeys.fat.push(getFoodKey(fatFood));
-        const tunedMeal = tuneMealToCalories(
-          [proteinFood, carbFood, fatFood].filter(Boolean),
-          caloriesPerMeal,
-        );
+        const mealFoods = [proteinFood, carbFood, fatFood].filter(Boolean);
+        const mealTotals = getMealTotals(mealFoods);
         mealsResult.push({
           mealName: `Bữa ${i + 1}`,
           key: `meal-${i + 1}`,
           mealType,
           proteinFood: mapFoodData(
-            tunedMeal.foods.find((f) => f?.group === "protein"),
+            mealFoods.find((f) => f?.group === "protein"),
           ),
-          carbFood: mapFoodData(
-            tunedMeal.foods.find((f) => f?.group === "carb"),
-          ),
-          fatFood: mapFoodData(tunedMeal.foods.find((f) => f?.group === "fat")),
-          totalProtein: tunedMeal.totals.protein,
-          totalCarb: tunedMeal.totals.carb,
-          totalFat: tunedMeal.totals.fat,
-          totalCalories: tunedMeal.totals.calories,
+          carbFood: mapFoodData(mealFoods.find((f) => f?.group === "carb")),
+          fatFood: mapFoodData(mealFoods.find((f) => f?.group === "fat")),
+          totalProtein: mealTotals.protein,
+          totalCarb: mealTotals.carb,
+          totalFat: mealTotals.fat,
+          totalCalories: mealTotals.calories,
         });
       }
       mealsResult = recalcMealsWithTotals(mealsResult);
-      const fineTuned = fineTuneDayCalories(mealsResult, targetCalories);
+      const fineTuned = fineTuneDayMacros(mealsResult, target, targetCalories);
       setMeals(fineTuned.meals);
       setTotalMacros({
         protein: roundInt(fineTuned.totals.protein),
