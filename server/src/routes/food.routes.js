@@ -1,6 +1,6 @@
-// routes/food.routes.js
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { csrfProtection } from "../middlewares/csrf.js";
 import { validateId, validateFood } from "../middlewares/validation.js";
 import {
   getFoods,
@@ -18,9 +18,36 @@ router.get("/", getFoods);
 router.get("/:id", validateId, getFoodById);
 
 // Admin only
-router.post("/", protect, requireRoles("admin"), validateFood, createFood);
-router.post("/batch", protect, requireRoles("admin"), createManyFoods);
-router.put("/:id", protect, requireRoles("admin"), validateId, updateFood);
-router.delete("/:id", protect, requireRoles("admin"), validateId, deleteFood);
+router.post(
+  "/",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  validateFood,
+  createFood,
+);
+router.post(
+  "/batch",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  createManyFoods,
+);
+router.put(
+  "/:id",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  validateId,
+  updateFood,
+);
+router.delete(
+  "/:id",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  validateId,
+  deleteFood,
+);
 
 export default router;

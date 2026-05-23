@@ -5,6 +5,7 @@ import FooterMinimal from "../sections/Footer/FooterMinimal";
 import Contact from "../sections/Contact";
 import ChatIcons from "../components/ChatIcons";
 import ScrollToTop from "../components/ScrollToTop";
+import SEO from "../components/SEO";
 import class1 from "../assets/images/classes/class1.jpg";
 import class2 from "../assets/images/classes/class2.jpg";
 import class3 from "../assets/images/classes/class3.jpg";
@@ -100,12 +101,18 @@ const Club = () => {
 
   return (
     <>
+      <SEO 
+        title="Danh sách phòng tập - HTCOACHING" 
+        description="Các câu lạc bộ, phòng tập Gym, Boxing hiện HTCOACHING đang huấn luyện tại Hồ Chí Minh."
+        canonical="/club"
+      />
       <HeaderMinimal />
-      <section className="py-12 md:py-16 px-5 bg-gray-100">
-        <div className="container-custom">
-          <h2 className="text-center mb-8" data-aos="fade-up">
-            CÂU LẠC BỘ HIỆN MÌNH ĐANG DẠY
-          </h2>
+      <main>
+        <section className="py-12 md:py-16 px-5 bg-gray-100">
+          <div className="container-custom">
+            <h1 className="text-center mb-8 text-3xl font-bold uppercase" data-aos="fade-up">
+              CÂU LẠC BỘ HIỆN MÌNH ĐANG DẠY
+            </h1>
 
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 my-6 font-medium text-base">
             <label htmlFor="district-filter" className="text-gray-700">
@@ -139,6 +146,7 @@ const Club = () => {
                   <img
                     src={club.image}
                     alt={club.name}
+                    loading="lazy"
                     className="w-full h-48 sm:h-56 md:h-64 lg:h-72 object-cover transition duration-300"
                   />
                   <div className="p-5">
@@ -155,8 +163,9 @@ const Club = () => {
             })}
           </div>
         </div>
-      </section>
-      <Contact />
+        </section>
+        <Contact />
+      </main>
       <FooterMinimal />
       <ChatIcons />
       <ScrollToTop />

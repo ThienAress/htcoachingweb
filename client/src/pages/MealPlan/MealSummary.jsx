@@ -6,7 +6,6 @@ const MealSummary = ({
   totalCalories,
   targetMacros,
   targetLabel,
-  onOpenMacroModal,
 }) => {
   if (!totalMacros || totalMacros.protein === undefined) return null;
 
@@ -158,14 +157,7 @@ const MealSummary = ({
         )}
       </div>
 
-      <div className="mt-6 flex justify-center">
-        <button
-          onClick={onOpenMacroModal}
-          className="px-5 py-2.5 rounded-full bg-primary hover:bg-primary-dark text-white font-semibold transition"
-        >
-          ✏️ Tinh chỉnh macro
-        </button>
-      </div>
+
     </div>
   );
 };

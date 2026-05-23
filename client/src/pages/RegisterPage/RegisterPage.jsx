@@ -7,6 +7,7 @@ import {
   checkUserHasBookings,
 } from "../../services/booking.service.js";
 import HeaderMinimal from "../../sections/Header/HeaderMinimal";
+import SEO from "../../components/SEO";
 
 function RegisterPage() {
   const { state } = useLocation();
@@ -340,6 +341,7 @@ function RegisterPage() {
 
   return (
     <>
+      <SEO title="Đăng ký gói tập" noindex />
       <HeaderMinimal />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
         <div className="container-custom">

@@ -155,7 +155,8 @@ const About = () => {
                 <div key={index} className="swiper-slide">
                   <img
                     src={img}
-                    alt={`hero-${index}`}
+                    alt={`HTCOACHING không gian tập luyện ${index + 1}`}
+                    loading="lazy"
                     className="w-full h-full object-cover"
                   />
                 </div>

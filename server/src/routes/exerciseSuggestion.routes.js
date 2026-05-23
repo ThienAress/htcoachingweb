@@ -1,5 +1,6 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { csrfProtection } from "../middlewares/csrf.js";
 import { optionalAuth } from "../middlewares/optionalAuth.js";
 import { exerciseSuggestionLimiter } from "../middlewares/rateLimit.js";
 import {
@@ -19,9 +20,16 @@ router.get("/", protect, requireRoles("admin"), getSuggestions);
 router.patch(
   "/:id/status",
   protect,
+  csrfProtection,
   requireRoles("admin"),
   updateSuggestionStatus,
 );
-router.delete("/:id", protect, requireRoles("admin"), deleteSuggestion);
+router.delete(
+  "/:id",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  deleteSuggestion,
+);
 
 export default router;

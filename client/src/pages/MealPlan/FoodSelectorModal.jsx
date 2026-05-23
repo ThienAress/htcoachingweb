@@ -1,339 +1,169 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { X, Save, Search } from "lucide-react";
+import { useState, useMemo } from "react";
+import { X, Search, Check } from "lucide-react";
 
-const GROUP_CATEGORY_MAP = {
-  carb: ["main_carb", "light_carb", "fruit"],
-  protein: [
-    "animal_protein",
-    "dairy_protein",
-    "supplement_protein",
-    "plant_protein",
-  ],
-  fat: ["cooking_fat", "whole_food_fat"],
+const GROUP_LABELS = {
+  protein: { label: "Đạm (Protein)", color: "text-red-400", border: "border-red-400", bg: "bg-red-400/10" },
+  carb: { label: "Tinh bột (Carb)", color: "text-green-400", border: "border-green-400", bg: "bg-green-400/10" },
+  fat: { label: "Chất béo (Fat)", color: "text-yellow-400", border: "border-yellow-400", bg: "bg-yellow-400/10" },
 };
 
-const FoodSelectorModal = ({
-  isOpen,
-  onClose,
-  onSave,
-  initialSelected,
-  foodDatabase = [],
-}) => {
-  const [searchTerms, setSearchTerms] = useState({
-    carb: "",
-    protein: "",
-    fat: "",
-  });
+const classifyFood = (food) => {
+  const protein = Number(food.protein || 0);
+  const carb = Number(food.carb || 0);
+  const fat = Number(food.fat || 0);
+  const max = Math.max(protein, carb, fat);
+  if (max === protein) return "protein";
+  if (max === carb) return "carb";
+  return "fat";
+};
 
-  const [selected, setSelected] = useState({ carb: [], protein: [], fat: [] });
-
-  const getFoodDisplayName = useCallback(
-    (food) => food?.label || food?.name || "Không tên",
-    [],
-  );
+export default function FoodSelectorModal({ isOpen, onClose, onSave, initialSelected, foodDatabase = [] }) {
+  const [search, setSearch] = useState("");
+  const [activeGroup, setActiveGroup] = useState("protein");
+  const [selected, setSelected] = useState(() => initialSelected || { protein: [], carb: [], fat: [] });
 
   const groupedFoods = useMemo(() => {
-    if (!foodDatabase || foodDatabase.length === 0) {
-      return { carb: [], protein: [], fat: [] };
-    }
-
-    return {
-      carb: foodDatabase.filter((f) =>
-        GROUP_CATEGORY_MAP.carb.includes(f.category),
-      ),
-      protein: foodDatabase.filter((f) =>
-        GROUP_CATEGORY_MAP.protein.includes(f.category),
-      ),
-      fat: foodDatabase.filter((f) =>
-        GROUP_CATEGORY_MAP.fat.includes(f.category),
-      ),
-    };
+    const groups = { protein: [], carb: [], fat: [] };
+    foodDatabase.forEach((food) => {
+      const group = classifyFood(food);
+      if (groups[group]) groups[group].push(food);
+    });
+    return groups;
   }, [foodDatabase]);
 
-  useEffect(() => {
-    if (initialSelected) {
-      setSelected(initialSelected);
-      return;
-    }
+  const filteredFoods = useMemo(() => {
+    const keyword = search.toLowerCase().trim();
+    return groupedFoods[activeGroup]?.filter((food) =>
+      !keyword || (food.label || food.name || "").toLowerCase().includes(keyword)
+    ) || [];
+  }, [groupedFoods, activeGroup, search]);
 
-    setSelected({
-      carb: groupedFoods.carb.map((f) => f._id),
-      protein: groupedFoods.protein.map((f) => f._id),
-      fat: groupedFoods.fat.map((f) => f._id),
-    });
-  }, [initialSelected, groupedFoods]);
-
-  const handleToggle = useCallback((foodId, group) => {
+  const toggleFood = (food) => {
+    const id = food._id;
+    const current = selected[activeGroup] || [];
+    const isSelected = current.includes(id);
     setSelected((prev) => ({
       ...prev,
-      [group]: prev[group].includes(foodId)
-        ? prev[group].filter((id) => id !== foodId)
-        : [...prev[group], foodId],
-    }));
-  }, []);
-
-  const handleSelectAll = useCallback(
-    (group) => {
-      setSelected((prev) => ({
-        ...prev,
-        [group]: groupedFoods[group].map((f) => f._id),
-      }));
-    },
-    [groupedFoods],
-  );
-
-  const handleClearAll = useCallback((group) => {
-    setSelected((prev) => ({
-      ...prev,
-      [group]: [],
-    }));
-  }, []);
-
-  const handleSave = useCallback(() => onSave(selected), [onSave, selected]);
-
-  const handleSearchChange = (group, value) => {
-    setSearchTerms((prev) => ({
-      ...prev,
-      [group]: value,
+      [activeGroup]: isSelected ? current.filter((i) => i !== id) : [...current, id],
     }));
   };
 
-  const filterBySearch = useCallback(
-    (foods, term) => {
-      const keyword = term.trim().toLowerCase();
-      if (!keyword) return foods;
+  const totalSelected = Object.values(selected).flat().length;
 
-      return foods.filter((f) =>
-        getFoodDisplayName(f).toLowerCase().includes(keyword),
-      );
-    },
-    [getFoodDisplayName],
-  );
+  const handleSave = () => {
+    onSave(selected);
+  };
+
+  const handleReset = () => {
+    setSelected({ protein: [], carb: [], fat: [] });
+  };
 
   if (!isOpen) return null;
 
-  if (!foodDatabase || foodDatabase.length === 0) {
-    return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-2xl p-6 text-white">
-          Đang tải dữ liệu...
-        </div>
-      </div>
-    );
-  }
-
-  const carbFoods = filterBySearch(groupedFoods.carb, searchTerms.carb);
-  const proteinFoods = filterBySearch(
-    groupedFoods.protein,
-    searchTerms.protein,
-  );
-  const fatFoods = filterBySearch(groupedFoods.fat, searchTerms.fat);
-
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-gray-700 shadow-2xl">
-        <div className="sticky top-0 bg-gray-800 border-b border-gray-700 px-4 sm:px-6 py-4 flex justify-between items-center">
-          <h2 className="text-lg sm:text-xl font-bold text-white">
-            📌 Chọn thực phẩm yêu thích
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-700 rounded-lg"
-          >
-            <X className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
-
-        <div className="p-4 sm:p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Tinh bột */}
-            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700">
-              <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
-                <h3 className="font-bold text-green-400 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  Tinh bột
-                </h3>
-                <div className="space-x-2 text-xs">
-                  <button
-                    onClick={() => handleSelectAll("carb")}
-                    className="text-blue-400 hover:underline"
-                  >
-                    Chọn tất
-                  </button>
-                  <button
-                    onClick={() => handleClearAll("carb")}
-                    className="text-red-400 hover:underline"
-                  >
-                    Bỏ hết
-                  </button>
-                </div>
-              </div>
-
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm..."
-                  value={searchTerms.carb}
-                  onChange={(e) => handleSearchChange("carb", e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-1 focus:ring-green-500"
-                />
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {carbFoods.map((food) => (
-                  <label
-                    key={food._id}
-                    className="flex items-center gap-2 text-sm text-gray-200 p-1 hover:bg-gray-700 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.carb.includes(food._id)}
-                      onChange={() => handleToggle(food._id, "carb")}
-                      className="rounded"
-                    />
-                    <span className="break-words">
-                      {getFoodDisplayName(food)}
-                    </span>
-                  </label>
-                ))}
-                {carbFoods.length === 0 && (
-                  <div className="text-gray-500 text-sm">Không có</div>
-                )}
-              </div>
-            </div>
-
-            {/* Đạm */}
-            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700">
-              <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
-                <h3 className="font-bold text-red-400 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                  Đạm
-                </h3>
-                <div className="space-x-2 text-xs">
-                  <button
-                    onClick={() => handleSelectAll("protein")}
-                    className="text-blue-400 hover:underline"
-                  >
-                    Chọn tất
-                  </button>
-                  <button
-                    onClick={() => handleClearAll("protein")}
-                    className="text-red-400 hover:underline"
-                  >
-                    Bỏ hết
-                  </button>
-                </div>
-              </div>
-
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm..."
-                  value={searchTerms.protein}
-                  onChange={(e) =>
-                    handleSearchChange("protein", e.target.value)
-                  }
-                  className="w-full pl-9 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-1 focus:ring-red-500"
-                />
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {proteinFoods.map((food) => (
-                  <label
-                    key={food._id}
-                    className="flex items-center gap-2 text-sm text-gray-200 p-1 hover:bg-gray-700 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.protein.includes(food._id)}
-                      onChange={() => handleToggle(food._id, "protein")}
-                      className="rounded"
-                    />
-                    <span>{getFoodDisplayName(food)}</span>
-                  </label>
-                ))}
-                {proteinFoods.length === 0 && (
-                  <div className="text-gray-500 text-sm">Không có</div>
-                )}
-              </div>
-            </div>
-
-            {/* Chất béo */}
-            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700">
-              <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
-                <h3 className="font-bold text-yellow-400 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
-                  Chất béo
-                </h3>
-                <div className="space-x-2 text-xs">
-                  <button
-                    onClick={() => handleSelectAll("fat")}
-                    className="text-blue-400 hover:underline"
-                  >
-                    Chọn tất
-                  </button>
-                  <button
-                    onClick={() => handleClearAll("fat")}
-                    className="text-red-400 hover:underline"
-                  >
-                    Bỏ hết
-                  </button>
-                </div>
-              </div>
-
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm..."
-                  value={searchTerms.fat}
-                  onChange={(e) => handleSearchChange("fat", e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-1 focus:ring-yellow-500"
-                />
-              </div>
-
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {fatFoods.map((food) => (
-                  <label
-                    key={food._id}
-                    className="flex items-center gap-2 text-sm text-gray-200 p-1 hover:bg-gray-700 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.fat.includes(food._id)}
-                      onChange={() => handleToggle(food._id, "fat")}
-                      className="rounded"
-                    />
-                    <span>{getFoodDisplayName(food)}</span>
-                  </label>
-                ))}
-                {fatFoods.length === 0 && (
-                  <div className="text-gray-500 text-sm">Không có</div>
-                )}
-              </div>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+          <div>
+            <h3 className="text-lg font-bold text-white">Chọn món yêu thích</h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Hệ thống sẽ ưu tiên các món bạn chọn khi tạo thực đơn
+            </p>
           </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="sticky bottom-0 bg-gray-800 border-t border-gray-700 px-4 sm:px-6 py-4 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-600 rounded-xl text-gray-300 hover:bg-gray-700 transition"
-          >
-            Hủy
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-primary hover:bg-primary-dark rounded-xl text-white font-semibold flex items-center gap-2 shadow-lg"
-          >
-            <Save className="w-4 h-4" /> Lưu
-          </button>
+        {/* Group Tabs */}
+        <div className="flex gap-2 px-6 pt-4">
+          {Object.entries(GROUP_LABELS).map(([group, meta]) => (
+            <button
+              key={group}
+              onClick={() => { setActiveGroup(group); setSearch(""); }}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold border transition ${
+                activeGroup === group
+                  ? `${meta.bg} ${meta.border} ${meta.color}`
+                  : "border-gray-700 text-gray-400 hover:border-gray-500"
+              }`}
+            >
+              {meta.label}
+              {selected[group]?.length > 0 && (
+                <span className={`ml-1.5 text-xs font-bold ${meta.color}`}>
+                  ({selected[group].length})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="px-6 pt-3 pb-2 relative">
+          <Search className="absolute left-9 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 mt-1.5" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Tìm kiếm món ăn..."
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+          />
+        </div>
+
+        {/* Food List */}
+        <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-2">
+          {filteredFoods.length === 0 ? (
+            <p className="text-center text-gray-500 py-8 text-sm">Không tìm thấy món nào</p>
+          ) : (
+            filteredFoods.map((food) => {
+              const id = food._id;
+              const isSelected = (selected[activeGroup] || []).includes(id);
+              const meta = GROUP_LABELS[activeGroup];
+              return (
+                <button
+                  key={id}
+                  onClick={() => toggleFood(food)}
+                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-left transition ${
+                    isSelected
+                      ? `${meta.bg} ${meta.border}`
+                      : "border-gray-700 hover:border-gray-500 bg-gray-800/50"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold ${isSelected ? meta.color : "text-white"}`}>
+                      {food.label || food.name}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Đạm: {food.protein}g · Carb: {food.carb}g · Béo: {food.fat}g / 100g
+                    </p>
+                  </div>
+                  {isSelected && <Check className={`w-4 h-4 shrink-0 ${meta.color}`} />}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-700 flex items-center justify-between gap-3">
+          <div className="text-sm text-gray-400">
+            Đã chọn: <span className="font-bold text-white">{totalSelected}</span> món
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 text-sm text-gray-400 hover:text-white border border-gray-600 rounded-lg transition"
+            >
+              Xóa tất cả
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded-lg transition"
+            >
+              Lưu danh sách
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
-};
-
-export default FoodSelectorModal;
+}

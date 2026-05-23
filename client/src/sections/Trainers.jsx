@@ -30,7 +30,10 @@ const Trainer = () => {
         >
           <img
             src={trainer}
-            alt="Trainer"
+            alt="Personal Trainer HTCOACHING - Hoàng Thiện"
+            loading="lazy"
+            width="600"
+            height="400"
             className="w-full h-auto rounded-2xl object-cover"
           />
         </div>

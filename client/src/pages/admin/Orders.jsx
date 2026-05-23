@@ -664,11 +664,17 @@ const Orders = () => {
                     <option value="Waystation Hiệp Bình">
                       Waystation Hiệp Bình
                     </option>
+                    <option value="Waystation Nguyễn Xí">
+                      Waystation Nguyễn Xí
+                    </option>
+                    <option value="Waystation Ung Văn Khiêm">
+                      Waystation Ung Văn Khiêm
+                    </option>
                     <option value="Chung cư Flora Novia">
                       Chung cư Flora Novia
                     </option>
-                    <option value="Waystation Nguyễn Xí">
-                      Waystation Nguyễn Xí
+                    <option value="Chung cư Flora Novia">
+                      Chung cư Phú Đông Sky Garden
                     </option>
                   </select>
                   {errors.gym && (

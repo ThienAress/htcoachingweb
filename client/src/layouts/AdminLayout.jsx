@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Dumbbell,
   MessageSquareText,
+  BookOpenText,
   X,
 } from "lucide-react";
 
@@ -30,6 +31,11 @@ const SidebarContent = ({ onItemClick }) => {
     },
     { path: "/admin/foods", label: "Quản lý thực phẩm", icon: Apple },
     { path: "/admin/exercises", label: "Quản lý bài tập", icon: Dumbbell },
+    {
+      path: "/admin/customer-stories",
+      label: "Câu chuyện khách hàng",
+      icon: BookOpenText,
+    },
     {
       path: "/admin/exercise-suggestions",
       label: "Góp ý bài tập",

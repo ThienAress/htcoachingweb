@@ -1,6 +1,7 @@
 import { Home, Flame } from "lucide-react";
 import { Link } from "react-router-dom";
 import logo from "../assets/images/logo/logo.svg";
+import SEO from "../components/SEO";
 
 const Login = () => {
   const handleGoogleLogin = () => {
@@ -13,6 +14,7 @@ const Login = () => {
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
+      <SEO title="Đăng nhập" noindex />
       {/* Ảnh nền cố định */}
       <div
         className="absolute inset-0 w-full h-full bg-cover bg-center z-0"

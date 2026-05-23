@@ -24,6 +24,7 @@ import FooterMinimal from "../../sections/Footer/FooterMinimal";
 import ChatIcons from "../../components/ChatIcons";
 import Contact from "../../sections/Contact";
 import { usePrompt } from "../../hooks/usePrompt";
+import SEO from "../../components/SEO";
 
 const ExercisesPage = () => {
   const logic = useExercisesLogic();
@@ -124,9 +125,14 @@ const ExercisesPage = () => {
 
   return (
     <>
+      <SEO
+        title="Hệ thống bài tập & Lịch tập cá nhân"
+        description="Tạo lịch tập cá nhân hóa với hệ thống bài tập chuyên nghiệp từ HTCOACHING. Có đầy đủ hướng dẫn, video và xuất file PDF miễn phí."
+        canonical="/exercises"
+      />
       <HeaderMinimal />
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white py-8">
+      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white py-8">
         <div className="container-custom">
           {/* Header section */}
           <div className="text-center mb-10">
@@ -269,7 +275,7 @@ const ExercisesPage = () => {
             </div>
           )}
         </div>
-      </div>
+      </main>
       <Contact />
       <ChatIcons />
       <FooterMinimal />

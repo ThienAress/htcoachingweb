@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Flame, BarChart3, Utensils, Calendar } from "lucide-react";
 import TdeeForm from "./TdeeForm";
 import TdeeResultBox from "./TdeeResultBox";
 import MacroTable from "./MacroTable";
 import Header from "../../sections/Header/Header";
 import ChatIcons from "../../components/ChatIcons";
+import SEO from "../../components/SEO";
 
 const TdeeCalculator = () => {
   const [form, setForm] = useState({
@@ -155,8 +156,23 @@ const TdeeCalculator = () => {
     localStorage.setItem("macroSet", JSON.stringify(results));
   };
 
+  const webAppSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Công cụ tính TDEE & Macro HTCOACHING",
+    "url": "https://htcoachingweb.io.vn/tdee-calculator",
+    "applicationCategory": "HealthApplication",
+    "description": "Công cụ tính TDEE chuẩn khoa học, xác định lượng calo cần thiết để giảm mỡ hoặc tăng cơ, kèm theo phân bổ Macro chi tiết."
+  };
+
   return (
-    <section className="py-12 md:py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+    <main className="py-12 md:py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      <SEO 
+        title="Công cụ tính TDEE & Macro chuẩn khoa học"
+        description="Tính TDEE (Tổng lượng calo tiêu thụ mỗi ngày) và Macro (Đạm, Tinh bột, Béo) chuẩn khoa học giúp giảm mỡ, tăng cơ hiệu quả."
+        canonical="/tdee-calculator"
+        jsonLd={webAppSchema}
+      />
       <Header />
       <div className="container-custom mt-10">
         <div className="text-center mb-12 md:mb-16">
@@ -166,10 +182,10 @@ const TdeeCalculator = () => {
               TDEE CALCULATOR
             </span>
           </div>
-          <h2>
+          <h1 className="text-3xl md:text-5xl font-black uppercase">
             ĐO LƯỢNG <span className="text-primary">CALO ĐỐT CHÁY</span> TRONG 1
             NGÀY
-          </h2>
+          </h1>
           <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
           <p className="text-gray-400 mt-4 max-w-xl mx-auto">
             Tính toán chính xác TDEE để tối ưu hóa quá trình tập luyện và dinh
@@ -274,13 +290,13 @@ const TdeeCalculator = () => {
                       đơn mẫu phù hợp với những thực phẩm đa dạng hỗ trợ mục
                       tiêu của bạn được tốt hơn.
                     </p>
-                    <button
-                      onClick={() => navigate("/mealplan")}
-                      className="btn btn-primary shadow-lg flex items-center gap-2"
+                    <Link
+                      to="/mealplan"
+                      className="btn btn-primary shadow-lg flex items-center gap-2 inline-flex"
                     >
                       <Calendar className="w-5 h-5" />
                       <span>Gợi ý lịch ăn</span>
-                    </button>
+                    </Link>
                   </div>
                 </>
               )}
@@ -289,7 +305,7 @@ const TdeeCalculator = () => {
         )}
       </div>
       <ChatIcons />
-    </section>
+    </main>
   );
 };
 
