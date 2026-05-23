@@ -31,7 +31,7 @@ async function prerender() {
   
   // Xử lý SPA fallback (chuyển mọi route về index.html để CSR tiếp quản nếu route không tồn tại)
   app.use(express.static(DIST_DIR));
-  app.get('*', (req, res) => {
+  app.get(/.*/, (req, res) => {
     res.sendFile(path.join(DIST_DIR, 'index.html'));
   });
 
