@@ -282,12 +282,6 @@ const Orders = () => {
               <Plus className="w-4 h-4" /> Tạo đơn mới
             </button>
           )}
-          <Link
-            to="/admin/create-trainer"
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg inline-flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" /> Tạo Trainer
-          </Link>
         </div>
       </div>
 
@@ -308,11 +302,10 @@ const Orders = () => {
               >
                 {/* Header */}
                 <div
-                  className={`px-4 py-3 border-b ${
-                    order.status === "approved"
+                  className={`px-4 py-3 border-b ${order.status === "approved"
                       ? "bg-[#dbfce7]"
                       : "bg-[#fef9c2]"
-                  }`}
+                    }`}
                 >
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
@@ -676,6 +669,9 @@ const Orders = () => {
                     <option value="Chung cư Flora Novia">
                       Chung cư Phú Đông Sky Garden
                     </option>
+                    <option value="Home gym">
+                      Home gym
+                    </option>
                   </select>
                   {errors.gym && (
                     <p className="text-red-500 text-xs">{errors.gym.message}</p>
@@ -744,8 +740,8 @@ const Orders = () => {
                   className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
                 >
                   {createOrderMutation.isPending ||
-                  updateOrderMutation.isPending ||
-                  isFormSubmitting
+                    updateOrderMutation.isPending ||
+                    isFormSubmitting
                     ? "Đang xử lý..."
                     : "Lưu"}
                 </button>

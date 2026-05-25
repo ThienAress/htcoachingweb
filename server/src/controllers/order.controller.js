@@ -52,23 +52,27 @@ export const createOrder = async (req, res) => {
 export const getOrders = async (req, res) => {
   try {
     const page = Number(req.query.page) || 1;
-    const limit = 5;
+    const limit = req.query.limit ? Number(req.query.limit) : 5;
     const skip = (page - 1) * limit;
 
     let query = {};
-    if (req.user.role === "trainer") {
+    if (!req.isAdmin) {
       // Trainer chỉ thấy đơn có trainerId là chính họ
       query.trainerId = req.user.id;
     }
 
     const total = await Order.countDocuments(query);
-    const orders = await Order.find(query)
+    const ordersQuery = Order.find(query)
       .populate("trainerId", "name email")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+      .sort({ createdAt: -1 });
 
-    const totalPages = Math.ceil(total / limit);
+    if (limit > 0) {
+      ordersQuery.skip(skip).limit(limit);
+    }
+
+    const orders = await ordersQuery;
+
+    const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
 
     res.json({
       success: true,

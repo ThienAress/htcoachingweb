@@ -41,7 +41,7 @@ export const createCheckin = async (req, res) => {
       status: "approved",
     };
 
-    if (req.user.role === "trainer") {
+    if (!req.isAdmin) {
       query.trainerId = req.user.id;
     }
 
@@ -118,7 +118,7 @@ export const updateCheckin = async (req, res) => {
     }
 
     // Kiểm tra quyền
-    if (req.user.role === "trainer") {
+    if (!req.isAdmin) {
       const order = await Order.findById(checkin.orderId);
 
       if (!order || order.trainerId?.toString() !== req.user.id.toString()) {
@@ -214,7 +214,7 @@ export const getCheckins = async (req, res) => {
     const year = req.query.year;
 
     let query = {};
-    if (req.user.role === "trainer") {
+    if (!req.isAdmin) {
       const orders = await Order.find({ trainerId: req.user.id }).select("_id");
       const orderIds = orders.map((o) => o._id);
       query.orderId = { $in: orderIds };

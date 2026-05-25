@@ -4,7 +4,7 @@ import F1Customer from "../../models/F1Customer.js";
 export const getF1DashboardSummary = async (req, res, next) => {
   try {
     const baseMatch =
-      req.user.role === "trainer"
+      !req.isAdmin
         ? { assignedTrainerId: new mongoose.Types.ObjectId(req.user.id) }
         : {};
 

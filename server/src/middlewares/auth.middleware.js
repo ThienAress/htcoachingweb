@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import TrainerSubscription from "../models/TrainerSubscription.js";
 
 // ✅ Dùng 1 middleware duy nhất (bỏ verifyToken)
 export const protect = async (req, res, next) => {
@@ -43,3 +44,39 @@ export const requireRoles =
     }
     next();
   };
+
+// ✅ Check trainer access (Admin, Trainer cứng, hoặc User có subscription active)
+export const requireTrainerAccess = async (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: "Không có token" });
+  }
+
+  const { id, role } = req.user;
+
+  // Nếu là admin hoặc trainer (legacy)
+  if (role === "admin" || role === "trainer") {
+    req.isAdmin = role === "admin";
+    req.isTrainer = true;
+    return next();
+  }
+
+  // Kiểm tra gói đăng ký
+  try {
+    const activeSub = await TrainerSubscription.findOne({
+      userId: id,
+      status: "active",
+      endDate: { $gt: new Date() },
+    });
+
+    if (activeSub) {
+      req.isAdmin = false;
+      req.isTrainer = true;
+      return next();
+    }
+
+    return res.status(403).json({ success: false, message: "Không có quyền truy cập Trainer" });
+  } catch (err) {
+    console.error("requireTrainerAccess Error:", err);
+    return res.status(500).json({ success: false, message: "Lỗi kiểm tra quyền" });
+  }
+};

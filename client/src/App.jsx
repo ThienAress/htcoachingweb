@@ -34,6 +34,8 @@ const BookingManagement = lazy(() => import("./pages/admin/BookingManagement"));
 const ExerciseManagement = lazy(() => import("./pages/admin/ExerciseManagement"));
 const ExerciseSuggestionsManagement = lazy(() => import("./pages/admin/ExerciseSuggestionsManagement"));
 const CustomerStoryManagement = lazy(() => import("./pages/admin/CustomerStoryManagement"));
+const DepositManagement = lazy(() => import("./pages/admin/DepositManagement"));
+const TrainerSubscriberManagement = lazy(() => import("./pages/admin/TrainerSubscriberManagement"));
 const TrainerCheckinHistory = lazy(() => import("./pages/trainer/TrainerCheckinHistory"));
 const TdeeCalculator = lazy(() => import("./pages/TdeeCalculator/TdeeCalculator"));
 const MealPlan = lazy(() => import("./pages/MealPlan/MealPlan"));
@@ -43,6 +45,7 @@ const ExercisesPage = lazy(() => import("./pages/ExercisesPage/ExercisesPage"));
 const F1Customers = lazy(() => import("./pages/F1CustomersPage/F1Customers"));
 const CustomerStories = lazy(() => import("./pages/CustomerStories"));
 const CustomerStoryDetail = lazy(() => import("./pages/CustomerStoryDetail"));
+const MyWallet = lazy(() => import("./pages/wallet/MyWallet"));
 
 import "./index.css";
 import "./App.css";
@@ -77,6 +80,7 @@ function AppContent() {
         <Route path="/club" element={<Club />} />
         <Route path="/exercises" element={<ExercisesPage />} />
         <Route path="/f1-customers" element={<F1Customers />} />
+        <Route path="/wallet" element={<MyWallet />} />
 
         {/* TDEE Calculator */}
         <Route path="/tdee-calculator" element={<TdeeCalculator />} />
@@ -84,8 +88,8 @@ function AppContent() {
         {/* Suggested Mealplan */}
         <Route path="/mealplan" element={<MealPlan />} />
 
-        {/* TRAINER LOGIN */}
-        <Route path="/trainer-login" element={<TrainerLogin />} />
+        {/* TRAINER LOGIN — ẩn: trainer giờ login bằng Google bình thường */}
+        {/* <Route path="/trainer-login" element={<TrainerLogin />} /> */}
 
         {/* TRAINER PANEL */}
         <Route
@@ -114,14 +118,17 @@ function AppContent() {
         >
           <Route path="orders" element={<Orders />} />
           <Route path="dashboard" element={<CheckinHistory />} />
-          <Route path="create-trainer" element={<CreateTrainer />} />
-          <Route path="trainers" element={<TrainerManagement />} />
+          {/* Ẩn: trainer giờ dựa trên subscription, không tạo thủ công */}
+          {/* <Route path="create-trainer" element={<CreateTrainer />} /> */}
+          {/* <Route path="trainers" element={<TrainerManagement />} /> */}
+          <Route path="trainer-subscribers" element={<TrainerSubscriberManagement />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="contact-messages" element={<ContactMessages />} />
           <Route path="foods" element={<FoodManagement />} />
           <Route path="bookings" element={<BookingManagement />} />
           <Route path="exercises" element={<ExerciseManagement />} />
           <Route path="customer-stories" element={<CustomerStoryManagement />} />
+          <Route path="deposits" element={<DepositManagement />} />
           <Route
             path="exercise-suggestions"
             element={<ExerciseSuggestionsManagement />}

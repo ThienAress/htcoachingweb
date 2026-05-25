@@ -212,6 +212,16 @@
   animation: fadeIn 0.2s ease-out;
 }
 
+/* Drawer Slide-in CSS */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 /* ChatIcon CSS */
 @keyframes ping-slow {
   0% {

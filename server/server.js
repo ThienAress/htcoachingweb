@@ -31,6 +31,10 @@ import bookingRoutes from "./src/routes/booking.routes.js";
 import exerciseRoutes from "./src/routes/exercise.routes.js";
 import exerciseSuggestionRoutes from "./src/routes/exerciseSuggestion.routes.js";
 import customerStoryRoutes from "./src/routes/customerStory.routes.js";
+import depositRoutes from "./src/routes/deposit.routes.js";
+import { getMyWallet } from "./src/routes/deposit.routes.js";
+import { startDepositCronJobs } from "./src/services/depositCron.js";
+import { startSubscriptionCronJobs } from "./src/services/subscriptionCron.js";
 
 import { generateCsrfToken } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
@@ -136,6 +140,16 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/exercises", exerciseRoutes);
 app.use("/api/exercise-suggestions", exerciseSuggestionRoutes);
 app.use("/api/customer-stories", customerStoryRoutes);
+app.use("/api/deposits", depositRoutes);
+import adminDepositRoutes from "./src/routes/adminDeposit.routes.js";
+app.use("/api/admin/deposits", adminDepositRoutes);
+
+import trainerSubscriptionRoutes from "./src/routes/trainerSubscription.routes.js";
+app.use("/api/trainer-subscriptions", trainerSubscriptionRoutes);
+
+import { protect } from "./src/middlewares/auth.middleware.js";
+app.get("/api/me/wallet", protect, getMyWallet);
+
 app.use("/uploads", express.static(path.resolve("uploads")));
 
 // ================= HEALTH CHECK =================
@@ -153,4 +167,8 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`🚀 Server chạy tại port ${PORT}`);
   console.log("🌐 Allowed origins:", allowedOrigins);
+
+  // Khởi động Cron Jobs
+  startDepositCronJobs();
+  startSubscriptionCronJobs();
 });

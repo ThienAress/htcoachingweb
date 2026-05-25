@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -50,14 +51,16 @@ const Checkin = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const dropdownRef = useRef(null);
+  const customerDropdownRef = useRef(null);
   const [isMuscleDropdownOpen, setIsMuscleDropdownOpen] = useState(false);
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const limit = 5;
 
   // Fetch orders
   const { data: orders = [], isLoading: isLoadingOrders } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => getOrders().then((res) => res.data.data.orders || []),
+    queryFn: () => getOrders(1, 1000).then((res) => res.data.data.orders || []),
   });
 
   // Fetch checkins
@@ -133,6 +136,9 @@ const Checkin = () => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsMuscleDropdownOpen(false);
+      }
+      if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target)) {
+        setIsCustomerDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -253,33 +259,59 @@ const Checkin = () => {
         </div>
 
         {/* Form checkin */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 overflow-visible">
           <form onSubmit={handleSubmit(onSubmit)}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Chọn khách hàng */}
-              <div className="space-y-1">
+              <div className="space-y-1" style={{ overflow: "visible" }}>
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                   <User className="w-4 h-4" /> Khách hàng{" "}
                   <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={selection.customer}
-                  onChange={(e) =>
-                    setSelection({
-                      customer: e.target.value,
-                      orderId: "",
-                      orderData: null,
-                    })
-                  }
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">Chọn khách hàng</option>
-                  {customers.map((c) => (
-                    <option key={c.email} value={c.email}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative" ref={customerDropdownRef}>
+                  <div
+                    onClick={() => setIsCustomerDropdownOpen(!isCustomerDropdownOpen)}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 cursor-pointer bg-white flex justify-between items-center"
+                  >
+                    <span className={selection.customer ? "text-slate-800" : "text-slate-400"}>
+                      {selection.customer
+                        ? customers.find((c) => c.email === selection.customer)?.name || "Chọn khách hàng"
+                        : "Chọn khách hàng"}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform ${isCustomerDropdownOpen ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                  {isCustomerDropdownOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-y-auto" style={{ maxHeight: "160px" }}>
+                      <div
+                        onClick={() => {
+                          setSelection({ customer: "", orderId: "", orderData: null });
+                          setIsCustomerDropdownOpen(false);
+                        }}
+                        className="px-3 py-2 text-slate-400 hover:bg-slate-50 cursor-pointer text-sm"
+                      >
+                        Chọn khách hàng
+                      </div>
+                      {customers.map((c) => (
+                        <div
+                          key={c.email}
+                          onClick={() => {
+                            setSelection({ customer: c.email, orderId: "", orderData: null });
+                            setIsCustomerDropdownOpen(false);
+                          }}
+                          className={`px-3 py-2 cursor-pointer text-sm hover:bg-slate-50 ${
+                            selection.customer === c.email
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "text-slate-700"
+                          }`}
+                        >
+                          {c.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Chọn gói tập */}

@@ -22,7 +22,7 @@ export const createF1Customer = async (req, res, next) => {
       email: (req.body.email || "").toLowerCase().trim(),
       assignedTrainerId:
         req.body.assignedTrainerId ||
-        (req.user.role === "trainer" ? req.user.id : null),
+        (!req.isAdmin ? req.user.id : null),
       source: req.body.source || "manual",
       createdBy: req.user.id,
       notesInternal: req.body.notesInternal || "",
@@ -49,7 +49,7 @@ export const getF1Customers = async (req, res, next) => {
 
     const filter = {};
 
-    if (req.user.role === "trainer") {
+    if (!req.isAdmin) {
       filter.assignedTrainerId = req.user.id;
     } else if (trainerId && mongoose.Types.ObjectId.isValid(trainerId)) {
       filter.assignedTrainerId = trainerId;
