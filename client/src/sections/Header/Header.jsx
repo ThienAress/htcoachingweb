@@ -8,10 +8,13 @@ import {
   ChevronDown,
   UserCheck,
   Dumbbell,
-  Users, // Import icon cho Hệ thống khách F1
+  Users,
+  Wallet,
 } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
+import { getMyWallet } from "../../services/wallet.service";
+import { getMySubscription } from "../../services/trainerSubscription.service";
 
 function Header() {
   const navigate = useNavigate();
@@ -22,6 +25,30 @@ function Header() {
   const headerRef = useRef(null);
   const [openDropdown, setOpenDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [activeSubscription, setActiveSubscription] = useState(null);
+
+  // Map tên gói -> icon
+  const planIconMap = {
+    "Tiêu chuẩn": "\uD83D\uDD25",
+    "Chuyên nghiệp": "\uD83D\uDC8E",
+    "Doanh nghiệp": "\uD83D\uDC51",
+  };
+
+  // Fetch số dư ví + gói dịch vụ
+  useEffect(() => {
+    if (user) {
+      getMyWallet()
+        .then((res) => setWalletBalance(res.data.data.balance))
+        .catch(() => setWalletBalance(null));
+      getMySubscription()
+        .then((res) => setActiveSubscription(res.data.data))
+        .catch(() => setActiveSubscription(null));
+    } else {
+      setWalletBalance(null);
+      setActiveSubscription(null);
+    }
+  }, [user]);
 
   // Hàm scroll đến section
   const handleScrollToSection = (sectionId) => {
@@ -107,16 +134,29 @@ function Header() {
     navigate("/");
   };
 
-  const dropdownItems = ["admin", "trainer"].includes(user?.role)
+  // Kiểm tra quyền: admin/trainer role HOẶC user có subscription
+  const isAdmin = user?.role === "admin";
+  const hasTrainerAccess = user?.role === "trainer" || activeSubscription;
+
+  const dropdownItems = isAdmin
     ? [
+        { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
         { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
-        { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" }, // Thêm mới
+        { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
+        { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+        { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
+      ]
+    : hasTrainerAccess
+    ? [
+        { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
+        { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
+        { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
         { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ]
     : [
+        { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
         { label: "Lịch sử tập", icon: History, path: "/my-history" },
-        { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ];
 
@@ -191,7 +231,7 @@ function Header() {
                 onClick={() => handleScrollToSection("pricing")}
                 className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
               >
-                Gói tập
+                {["admin", "trainer"].includes(user?.role) ? "Gói dịch vụ" : "Gói tập"}
               </button>
             </li>
             <li>
@@ -202,14 +242,7 @@ function Header() {
                 Liên hệ
               </button>
             </li>
-            <li>
-              <Link
-                to="/ket-qua-khach-hang"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
-              >
-                Kết quả
-              </Link>
-            </li>
+
             <li>
               <Link
                 to="/club"
@@ -218,13 +251,23 @@ function Header() {
                 CLB
               </Link>
             </li>
-            {["admin", "trainer"].includes(user?.role) && (
+            {isAdmin && (
               <li>
                 <Link
                   to="/admin"
                   className="nav-link-hover text-white font-medium relative whitespace-nowrap"
                 >
                   Quản trị
+                </Link>
+              </li>
+            )}
+            {!isAdmin && hasTrainerAccess && (
+              <li>
+                <Link
+                  to="/trainer"
+                  className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                >
+                  Quản lý
                 </Link>
               </li>
             )}
@@ -239,21 +282,35 @@ function Header() {
                 onClick={() => setOpenDropdown(!openDropdown)}
                 className="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-full px-3 py-1.5"
               >
-                <img
-                  src={user.avatar || "https://i.pravatar.cc/32"}
-                  className="w-8 h-8 rounded-full"
-                  alt="avatar"
-                />
-                <span className="text-white text-sm font-medium">
-                  {user.name}
-                </span>
+                <div className="relative">
+                  <img
+                    src={user.avatar || "https://i.pravatar.cc/32"}
+                    className="w-8 h-8 rounded-full"
+                    alt="avatar"
+                  />
+                  {activeSubscription && (
+                    <span className="absolute -top-1 -right-1 text-xs" title={activeSubscription.planTitle}>
+                      {planIconMap[activeSubscription.planTitle] || ""}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-white text-sm font-medium leading-tight">
+                    {user.name}
+                  </span>
+                  {walletBalance !== null && (
+                    <span className="text-[11px] text-yellow-400 font-semibold leading-tight">
+                      Số dư ví: {new Intl.NumberFormat("vi-VN").format(walletBalance)}đ
+                    </span>
+                  )}
+                </div>
                 <ChevronDown size={16} className="text-white" />
               </button>
               {openDropdown && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg overflow-hidden z-50 border border-gray-100">
                   <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
                     <p className="font-semibold text-gray-800 truncate">
-                      {user.name}
+                      {user.name}{activeSubscription ? ` - ${activeSubscription.planTitle}` : ""}
                     </p>
                     <p className="text-xs text-gray-500 truncate">
                       {user.email || "user@example.com"}
@@ -322,7 +379,7 @@ function Header() {
                     alt="avatar"
                   />
                   <span className="text-white text-lg font-semibold">
-                    {user.name}
+                    {user.name}{activeSubscription ? ` - ${activeSubscription.planTitle}` : ""}
                   </span>
                   <span className="text-white/70 text-sm mt-1 text-center break-all">
                     {user.email || "user@example.com"}
@@ -424,7 +481,7 @@ function Header() {
                   }}
                   className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
                 >
-                  Gói tập
+                  {["admin", "trainer"].includes(user?.role) ? "Gói dịch vụ" : "Gói tập"}
                 </button>
               </li>
               <li className="w-full">
@@ -438,15 +495,7 @@ function Header() {
                   Liên hệ
                 </button>
               </li>
-              <li className="w-full">
-                <Link
-                  to="/ket-qua-khach-hang"
-                  onClick={() => setMenuOpen(false)}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10"
-                >
-                  Kết quả khách hàng
-                </Link>
-              </li>
+
               <li className="w-full">
                 <Link
                   to="/club"
@@ -456,7 +505,7 @@ function Header() {
                   CLB
                 </Link>
               </li>
-              {user?.role === "admin" && (
+              {isAdmin && (
                 <li className="w-full">
                   <Link
                     to="/admin"
@@ -464,6 +513,17 @@ function Header() {
                     className="block text-center text-orange-300 font-semibold text-lg py-3 px-4 rounded-lg hover:bg-white/10"
                   >
                     Quản trị
+                  </Link>
+                </li>
+              )}
+              {!isAdmin && hasTrainerAccess && (
+                <li className="w-full">
+                  <Link
+                    to="/trainer"
+                    onClick={() => setMenuOpen(false)}
+                    className="block text-center text-orange-300 font-semibold text-lg py-3 px-4 rounded-lg hover:bg-white/10"
+                  >
+                    Quản lý
                   </Link>
                 </li>
               )}

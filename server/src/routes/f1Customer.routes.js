@@ -1,5 +1,5 @@
 import express from "express";
-import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { protect, requireRoles, requireTrainerAccess } from "../middlewares/auth.middleware.js";
 import {
   approveAiReport,
   createAssessment,
@@ -57,24 +57,24 @@ const router = express.Router();
 router.get(
   "/dashboard/summary",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   getF1DashboardSummary,
 );
 
 router.post(
   "/",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateCreateF1Customer,
   createF1Customer,
 );
 
-router.get("/", protect, requireRoles("admin", "trainer"), getF1Customers);
+router.get("/", protect, requireTrainerAccess, getF1Customers);
 
 router.get(
   "/:id",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateF1CustomerId,
   getF1CustomerById,
 );
@@ -82,7 +82,7 @@ router.get(
 router.patch(
   "/:id",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateUpdateF1Customer,
   updateF1Customer,
 );
@@ -90,7 +90,7 @@ router.patch(
 router.patch(
   "/:id/status",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateUpdateF1Status,
   updateF1CustomerStatus,
 );
@@ -98,7 +98,7 @@ router.patch(
 router.delete(
   "/:id",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateF1CustomerId,
   deleteF1Customer,
 );
@@ -109,7 +109,7 @@ router.delete(
 router.get(
   "/:id/intake/latest",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateF1CustomerId,
   getLatestIntake,
 );
@@ -117,7 +117,7 @@ router.get(
 router.post(
   "/:id/intake/draft",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateSaveIntakeDraft,
   saveIntakeDraft,
 );
@@ -125,7 +125,7 @@ router.post(
 router.post(
   "/:id/intake/submit",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateSubmitIntake,
   submitIntake,
 );
@@ -133,7 +133,7 @@ router.post(
 router.patch(
   "/:id/test-permission-review",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateReviewTestPermission,
   reviewTestPermission,
 );
@@ -144,7 +144,7 @@ router.patch(
 router.post(
   "/:id/media",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   uploadF1Media.single("file"),
   validateCreateF1Media,
   createF1Media,
@@ -153,7 +153,7 @@ router.post(
 router.get(
   "/:id/media",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateF1CustomerId,
   getF1Media,
 );
@@ -161,7 +161,7 @@ router.get(
 router.delete(
   "/:id/media/:mediaId",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateDeleteF1Media,
   deleteF1Media,
 );
@@ -172,7 +172,7 @@ router.delete(
 router.post(
   "/:id/assessments",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateCreateAssessment,
   createAssessment,
 );
@@ -180,7 +180,7 @@ router.post(
 router.get(
   "/:id/assessments/latest",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateF1CustomerId,
   getLatestAssessment,
 );
@@ -188,7 +188,7 @@ router.get(
 router.patch(
   "/:id/assessments/:assessmentId",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateUpdateAssessment,
   updateAssessment,
 );
@@ -196,7 +196,7 @@ router.patch(
 router.get(
   "/:id/assessment-starter-suggestions",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateF1CustomerId,
   getAssessmentStarterSuggestions,
 );
@@ -207,7 +207,7 @@ router.get(
 router.post(
   "/:id/ai-reports/generate",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateGenerateAiReport,
   generateAiReport,
 );
@@ -215,7 +215,7 @@ router.post(
 router.get(
   "/:id/ai-reports/latest",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateF1CustomerId,
   getLatestAiReport,
 );
@@ -223,7 +223,7 @@ router.get(
 router.patch(
   "/:id/ai-reports/:reportId/approve",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateApproveAiReport,
   approveAiReport,
 );
@@ -234,7 +234,7 @@ router.patch(
 router.post(
   "/:id/forecasts/generate",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateGenerateOutcomeForecast,
   generateOutcomeForecast,
 );
@@ -242,7 +242,7 @@ router.post(
 router.get(
   "/:id/forecasts/latest",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateF1CustomerId,
   getLatestOutcomeForecast,
 );
@@ -253,7 +253,7 @@ router.get(
 router.post(
   "/:id/result-predictions/generate",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateGenerateResultPrediction,
   generateResultPrediction,
 );
@@ -261,7 +261,7 @@ router.post(
 router.get(
   "/:id/result-predictions/latest",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateF1CustomerId,
   getLatestResultPrediction,
 );
@@ -269,9 +269,10 @@ router.get(
 router.post(
   "/:id/result-predictions/:predictionId/visual-stages/:phaseKey/generate-images",
   protect,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateGenerateResultPredictionStageImages,
   generateResultPredictionStageImages,
 );
 
 export default router;
+

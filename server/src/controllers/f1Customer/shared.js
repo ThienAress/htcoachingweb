@@ -28,7 +28,7 @@ export const assertCustomerAccess = (customer, req) => {
   }
 
   if (
-    req.user?.role === "trainer" &&
+    !req.isAdmin &&
     customer.assignedTrainerId &&
     customer.assignedTrainerId.toString() !== req.user.id.toString()
   ) {

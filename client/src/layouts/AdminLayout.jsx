@@ -14,6 +14,7 @@ import {
   MessageSquareText,
   BookOpenText,
   X,
+  Wallet,
 } from "lucide-react";
 
 const SidebarContent = ({ onItemClick }) => {
@@ -21,8 +22,8 @@ const SidebarContent = ({ onItemClick }) => {
 
   const navItems = [
     { path: "/admin/users", label: "Quản lý người dùng", icon: Users },
+    { path: "/admin/trainer-subscribers", label: "Quản lý huấn luyện viên", icon: Sparkles },
     { path: "/admin/orders", label: "Quản lý đơn hàng", icon: Package },
-    { path: "/admin/trainers", label: "Quản lý Trainer", icon: Users },
     { path: "/admin/bookings", label: "Quản lý đặt hàng", icon: ClipboardList },
     {
       path: "/admin/contact-messages",
@@ -42,6 +43,7 @@ const SidebarContent = ({ onItemClick }) => {
       icon: MessageSquareText,
     },
     { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
+    { path: "/admin/deposits", label: "Quản lý nạp tiền", icon: Wallet },
   ];
 
   return (

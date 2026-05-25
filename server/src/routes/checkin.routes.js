@@ -1,5 +1,5 @@
 import express from "express";
-import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { protect, requireRoles, requireTrainerAccess } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import {
   validateCheckin,
@@ -22,16 +22,16 @@ router.post(
   "/",
   protect,
   csrfProtection,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateCheckin,
   createCheckin,
 );
-router.get("/", protect, requireRoles("admin", "trainer"), getCheckins);
+router.get("/", protect, requireTrainerAccess, getCheckins);
 router.put(
   "/:id",
   protect,
   csrfProtection,
-  requireRoles("admin", "trainer"),
+  requireTrainerAccess,
   validateUpdateCheckin,
   updateCheckin,
 );

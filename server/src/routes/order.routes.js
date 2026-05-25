@@ -1,5 +1,5 @@
 import express from "express";
-import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { protect, requireRoles, requireTrainerAccess } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import {
   validateCreateOrder,
@@ -28,7 +28,7 @@ router.post(
 );
 
 // 🔥 ADMIN
-router.get("/", protect, requireRoles("admin", "trainer"), getOrders);
+router.get("/", protect, requireTrainerAccess, getOrders);
 router.put(
   "/:id/approve",
   protect,
