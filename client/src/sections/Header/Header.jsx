@@ -15,6 +15,7 @@ import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
 import { getMyWallet } from "../../services/wallet.service";
 import { getMySubscription } from "../../services/trainerSubscription.service";
+import { getMyCheckins } from "../../services/checkin.service";
 
 function Header() {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ function Header() {
   const dropdownRef = useRef(null);
   const [walletBalance, setWalletBalance] = useState(null);
   const [activeSubscription, setActiveSubscription] = useState(null);
+  const [hasOrders, setHasOrders] = useState(false);
 
   // Map tên gói -> icon
   const planIconMap = {
@@ -35,7 +37,7 @@ function Header() {
     "Doanh nghiệp": "\uD83D\uDC51",
   };
 
-  // Fetch số dư ví + gói dịch vụ
+  // Fetch số dư ví + gói dịch vụ + đơn hàng
   useEffect(() => {
     if (user) {
       getMyWallet()
@@ -44,9 +46,17 @@ function Header() {
       getMySubscription()
         .then((res) => setActiveSubscription(res.data.data))
         .catch(() => setActiveSubscription(null));
+      // Check xem user có đơn hàng không
+      getMyCheckins()
+        .then((res) => {
+          const orders = res.data.data?.orders || [];
+          setHasOrders(orders.length > 0);
+        })
+        .catch(() => setHasOrders(false));
     } else {
       setWalletBalance(null);
       setActiveSubscription(null);
+      setHasOrders(false);
     }
   }, [user]);
 
@@ -156,7 +166,7 @@ function Header() {
       ]
     : [
         { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
-        { label: "Lịch sử tập", icon: History, path: "/my-history" },
+        ...(hasOrders ? [{ label: "Lịch sử tập", icon: History, path: "/my-history" }] : []),
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ];
 
