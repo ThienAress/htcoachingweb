@@ -53,6 +53,13 @@ const signRefreshToken = (user) =>
   });
 
 const setAuthCookies = (res, accessToken, refreshToken) => {
+  // Xóa cookie cũ (không có domain) để tránh trùng lặp trên production
+  if (isProd) {
+    res.clearCookie("csrfToken", { path: "/", httpOnly: false, secure: true, sameSite: "none" });
+    res.clearCookie("accessToken", { path: "/", httpOnly: true, secure: true, sameSite: "none" });
+    res.clearCookie("refreshToken", { path: "/", httpOnly: true, secure: true, sameSite: "none" });
+  }
+
   res.cookie("accessToken", accessToken, getAuthCookieOptions(15 * 60 * 1000));
   res.cookie(
     "refreshToken",
