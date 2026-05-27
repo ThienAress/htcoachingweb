@@ -21,7 +21,7 @@ import SEO from "../../components/SEO";
 import { useMealPlanAccess } from "../../hooks/useMealPlanAccess";
 import { useAuth } from "../../context/AuthContext";
 import { Navigate, Link } from "react-router-dom";
-import { Lock, Clock } from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 
 const MealPlan = () => {
   const [selectedPlan, setSelectedPlan] = useState(3);
@@ -33,7 +33,7 @@ const MealPlan = () => {
   const [selectedFoods, setSelectedFoods] = useState(null);
 
   const { user, loading: authLoading } = useAuth();
-  const { accessLevel, isChecking, isBlocked, remainingTime } = useMealPlanAccess();
+  const { accessLevel, isChecking, canGenerate, remainingGenerations, recordGeneration, maxGenerations } = useMealPlanAccess();
 
   // Đợi macroSet load xong
   const [isMacroReady, setIsMacroReady] = useState(false);
@@ -84,8 +84,23 @@ const MealPlan = () => {
   };
 
   // Xử lý tạo thực đơn (gợi ý)
-  const handleGenerateMeal = () => {
+  const handleGenerateMeal = async () => {
+    // Kiểm tra giới hạn lượt cho trial users
+    if (!canGenerate) {
+      toast.error(
+        `❌ Bạn đã sử dụng hết ${maxGenerations} lượt gợi ý miễn phí. Vui lòng đăng ký gói dịch vụ để tiếp tục sử dụng không giới hạn.`,
+        { autoClose: 5000 }
+      );
+      return;
+    }
+
     if (selectedMacroPlan && macroSet && macroSet[selectedMacroPlan]) {
+      // Ghi nhận lượt lên server trước
+      const recorded = await recordGeneration();
+      if ((!recorded) && accessLevel === "trial") {
+        toast.error("❌ Đã hết lượt gợi ý miễn phí.");
+        return;
+      }
       generateMeals(macroSet[selectedMacroPlan]);
       return;
     }
@@ -111,41 +126,6 @@ const MealPlan = () => {
   // Not logged in
   if (!user) {
     return <Navigate to="/login" replace />;
-  }
-
-  // Blocked state
-  if (isBlocked) {
-    return (
-      <>
-        <SEO title="Giới hạn truy cập" noindex />
-        <Header />
-        <main className="min-h-screen bg-gray-900 flex items-center justify-center px-4 pt-20">
-          <div className="max-w-md w-full bg-gray-800 rounded-2xl shadow-xl p-8 text-center border border-gray-700">
-            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Lock className="w-8 h-8 text-red-500" />
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-4">Đã hết thời gian truy cập</h2>
-            <p className="text-gray-300 mb-6">
-              Phiên sử dụng thử của bạn đã kết thúc. Để tiếp tục sử dụng tính năng này không giới hạn, vui lòng đăng ký gói dịch vụ hoặc gói tập của chúng tôi.
-            </p>
-            {remainingTime && (
-              <div className="flex items-center justify-center gap-2 text-yellow-500 font-medium mb-8 bg-yellow-500/10 py-3 rounded-lg border border-yellow-500/20">
-                <Clock className="w-5 h-5" />
-                <span>Thử lại sau: {remainingTime}</span>
-              </div>
-            )}
-            <div className="space-y-3">
-              <Link to="/club" className="block w-full py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl transition-colors">
-                Xem các gói dịch vụ
-              </Link>
-              <Link to="/" className="block w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-xl transition-colors">
-                Về trang chủ
-              </Link>
-            </div>
-          </div>
-        </main>
-      </>
-    );
   }
 
   return (
@@ -204,7 +184,7 @@ const MealPlan = () => {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 mb-4">
             <MealButton
               onGenerate={handleGenerateMeal}
               isGenerating={isGenerating}
@@ -229,6 +209,27 @@ const MealPlan = () => {
             )}
           </div>
 
+          {/* Thông báo giới hạn lượt cho trial users */}
+          {accessLevel === "trial" && (
+            <div className={`flex items-center justify-center gap-2 text-sm mb-6 py-2.5 px-4 rounded-lg mx-auto max-w-lg ${
+              canGenerate
+                ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                : "bg-red-500/10 text-red-400 border border-red-500/20"
+            }`}>
+              <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+              {canGenerate ? (
+                <span>Bạn còn <strong>{remainingGenerations}/{maxGenerations}</strong> lượt gợi ý miễn phí</span>
+              ) : (
+                <span>
+                  Đã hết lượt miễn phí.{" "}
+                  <Link to="/" className="underline font-semibold hover:text-red-300">
+                    Đăng ký gói dịch vụ
+                  </Link>{" "}
+                  để sử dụng không giới hạn.
+                </span>
+              )}
+            </div>
+          )}
 
           <div className="border-b border-gray-700 mb-6">
             <div className="flex justify-center sm:justify-start gap-4 sm:gap-6">
