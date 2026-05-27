@@ -1,6 +1,33 @@
 import React from "react";
 import { Wheat, Drumstick, Fish } from "lucide-react";
 
+const round1 = (num) => Math.round(num * 10) / 10;
+const calcCalories = (p, c, f) => round1(p * 4 + c * 4 + f * 9);
+
+const getFoodDisplayMacros = (food) => {
+  if (!food) return null;
+  const p = round1(((food.protein || 0) * (food.amount || 0)) / 100);
+  const c = round1(((food.carb || 0) * (food.amount || 0)) / 100);
+  const f = round1(((food.fat || 0) * (food.amount || 0)) / 100);
+  return { p, c, f, cal: calcCalories(p, c, f) };
+};
+
+const FoodCell = ({ food, colorClass }) => {
+  if (!food) return "—";
+  const m = getFoodDisplayMacros(food);
+  return (
+    <div>
+      <div className={`font-medium ${colorClass}`}>
+        {food.label || food.name}
+        <span className="ml-1 text-gray-400">({food.amount}g)</span>
+      </div>
+      <div className="mt-1 text-gray-400 text-xs">
+        P: {m.p}g | C: {m.c}g | F: {m.f}g
+      </div>
+    </div>
+  );
+};
+
 const MealTable = ({ meals = [] }) => {
   if (!meals.length) {
     return (
@@ -34,124 +61,39 @@ const MealTable = ({ meals = [] }) => {
             </tr>
           </thead>
           <tbody>
-            {meals.map((meal, idx) => (
-              <tr
-                key={idx}
-                className="border-b border-gray-700 hover:bg-gray-700/30 transition"
-              >
-                <td className="px-3 sm:px-5 py-3 sm:py-4 font-semibold text-white text-sm sm:text-base">
-                  {meal.mealName}
-                </td>
-                <td className="px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm">
-                  {meal.carbFood ? (
-                    <div>
-                      <div className="font-medium text-green-300">
-                        {meal.carbFood.label || meal.carbFood.name}
-                        <span className="ml-1 text-gray-400">
-                          ({meal.carbFood.amount}g)
-                        </span>
-                      </div>
-                      <div className="mt-1 text-gray-400 text-xs">
-                        P:{" "}
-                        {(
-                          ((meal.carbFood.protein || 0) *
-                            (meal.carbFood.amount || 0)) /
-                          100
-                        ).toFixed(1)}
-                        g | C:{" "}
-                        {(
-                          ((meal.carbFood.carb || 0) *
-                            (meal.carbFood.amount || 0)) /
-                          100
-                        ).toFixed(1)}
-                        g | F:{" "}
-                        {(
-                          ((meal.carbFood.fat || 0) *
-                            (meal.carbFood.amount || 0)) /
-                          100
-                        ).toFixed(1)}
-                        g
-                      </div>
-                    </div>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td className="px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm">
-                  {meal.proteinFood ? (
-                    <div>
-                      <div className="font-medium text-red-300">
-                        {meal.proteinFood.label || meal.proteinFood.name}
-                        <span className="ml-1 text-gray-400">
-                          ({meal.proteinFood.amount}g)
-                        </span>
-                      </div>
-                      <div className="mt-1 text-gray-400 text-xs">
-                        P:{" "}
-                        {(
-                          ((meal.proteinFood.protein || 0) *
-                            (meal.proteinFood.amount || 0)) /
-                          100
-                        ).toFixed(1)}
-                        g | C:{" "}
-                        {(
-                          ((meal.proteinFood.carb || 0) *
-                            (meal.proteinFood.amount || 0)) /
-                          100
-                        ).toFixed(1)}
-                        g | F:{" "}
-                        {(
-                          ((meal.proteinFood.fat || 0) *
-                            (meal.proteinFood.amount || 0)) /
-                          100
-                        ).toFixed(1)}
-                        g
-                      </div>
-                    </div>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td className="px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm">
-                  {meal.fatFood ? (
-                    <div>
-                      <div className="font-medium text-yellow-300">
-                        {meal.fatFood.label || meal.fatFood.name}
-                        <span className="ml-1 text-gray-400">
-                          ({meal.fatFood.amount}g)
-                        </span>
-                      </div>
-                      <div className="mt-1 text-gray-400 text-xs">
-                        P:{" "}
-                        {(
-                          ((meal.fatFood.protein || 0) *
-                            (meal.fatFood.amount || 0)) /
-                          100
-                        ).toFixed(1)}
-                        g | C:{" "}
-                        {(
-                          ((meal.fatFood.carb || 0) *
-                            (meal.fatFood.amount || 0)) /
-                          100
-                        ).toFixed(1)}
-                        g | F:{" "}
-                        {(
-                          ((meal.fatFood.fat || 0) *
-                            (meal.fatFood.amount || 0)) /
-                          100
-                        ).toFixed(1)}
-                        g
-                      </div>
-                    </div>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td className="px-3 sm:px-5 py-3 sm:py-4 font-bold text-primary text-sm sm:text-base">
-                  {meal.totalCalories} kcal
-                </td>
-              </tr>
-            ))}
+            {meals.map((meal, idx) => {
+              // Tính Calo bữa trực tiếp từ P/C/F hiển thị để khớp 100%
+              const foods = [meal.carbFood, meal.proteinFood, meal.fatFood];
+              let mealP = 0, mealC = 0, mealF = 0;
+              foods.forEach((food) => {
+                const m = getFoodDisplayMacros(food);
+                if (m) { mealP += m.p; mealC += m.c; mealF += m.f; }
+              });
+              const mealCal = calcCalories(round1(mealP), round1(mealC), round1(mealF));
+
+              return (
+                <tr
+                  key={idx}
+                  className="border-b border-gray-700 hover:bg-gray-700/30 transition"
+                >
+                  <td className="px-3 sm:px-5 py-3 sm:py-4 font-semibold text-white text-sm sm:text-base">
+                    {meal.mealName}
+                  </td>
+                  <td className="px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm">
+                    <FoodCell food={meal.carbFood} colorClass="text-green-300" />
+                  </td>
+                  <td className="px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm">
+                    <FoodCell food={meal.proteinFood} colorClass="text-red-300" />
+                  </td>
+                  <td className="px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm">
+                    <FoodCell food={meal.fatFood} colorClass="text-yellow-300" />
+                  </td>
+                  <td className="px-3 sm:px-5 py-3 sm:py-4 font-bold text-primary text-sm sm:text-base">
+                    {mealCal} kcal
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

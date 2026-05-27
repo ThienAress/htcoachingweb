@@ -1,9 +1,24 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Facebook, Instagram, Youtube, Send } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
+import { useAuth } from "../../context/AuthContext";
+import LoginModal from "../../pages/MealPlan/LoginModal";
 
 const Footer = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const handleMealPlanClick = (e) => {
+    e.preventDefault();
+    if (user) {
+      navigate("/mealplan");
+    } else {
+      setShowLoginModal(true);
+    }
+  };
+
   return (
     <footer className="bg-[#1a1a1a] text-white pt-16 md:pt-20">
       <div className="container-custom">
@@ -90,9 +105,9 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/mealplan" className="hover:text-primary hover:pl-1 transition-all">
+                <button onClick={handleMealPlanClick} className="hover:text-primary hover:pl-1 transition-all bg-transparent border-none text-gray-300 p-0 text-left font-inherit cursor-pointer inline-block">
                   Gợi ý thực đơn
-                </Link>
+                </button>
               </li>
               <li>
                 <Link to="/club" className="hover:text-primary hover:pl-1 transition-all">
@@ -165,6 +180,7 @@ const Footer = () => {
       <div className="bg-black/20 py-4 text-center">
         <p className="text-gray text-sm">&copy; 2026 HTCOACHING</p>
       </div>
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </footer>
   );
 };

@@ -12,12 +12,14 @@ import {
   Wallet,
   User,
   Filter,
+  Trash2,
 } from "lucide-react";
 
 import {
   getAdminDeposits,
   approveDeposit,
   rejectDeposit,
+  deleteAdminDeposit,
 } from "../../services/adminDeposit.service";
 
 const formatVND = (amount) =>
@@ -91,6 +93,25 @@ const DepositManagement = () => {
   const handleRejectSubmit = () => {
     if (!rejectModal) return;
     rejectMutation.mutate({ id: rejectModal._id, reason: rejectReason });
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => deleteAdminDeposit(id),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-deposits"] });
+      toast.success(res.data.message);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+  });
+
+  const handleDelete = (deposit) => {
+    if (
+      window.confirm(
+        `Xác nhận xóa yêu cầu nạp ${formatVND(deposit.amount)} của ${deposit.userId?.name || "user"}?`
+      )
+    ) {
+      deleteMutation.mutate(deposit._id);
+    }
   };
 
   const statusTabs = [
@@ -236,26 +257,37 @@ const DepositManagement = () => {
                 </div>
 
                 {/* Card actions */}
-                {["pending", "needs_review", "expired"].includes(deposit.status) && (
-                  <div className="px-4 py-3 bg-gray-50 border-t flex justify-end gap-2">
+                <div className="px-4 py-3 bg-gray-50 border-t flex justify-end gap-2">
+                  {["pending", "needs_review", "expired"].includes(deposit.status) && (
+                    <>
+                      <button
+                        onClick={() => handleApprove(deposit)}
+                        disabled={approveMutation.isPending}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                      >
+                        <Check className="w-4 h-4" /> Duyệt
+                      </button>
+                      <button
+                        onClick={() => {
+                          setRejectModal(deposit);
+                          setRejectReason("");
+                        }}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
+                      >
+                        <X className="w-4 h-4" /> Từ chối
+                      </button>
+                    </>
+                  )}
+                  {deposit.status !== "success" && (
                     <button
-                      onClick={() => handleApprove(deposit)}
-                      disabled={approveMutation.isPending}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                      onClick={() => handleDelete(deposit)}
+                      disabled={deleteMutation.isPending}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
                     >
-                      <Check className="w-4 h-4" /> Duyệt
+                      <Trash2 className="w-4 h-4" /> Xóa
                     </button>
-                    <button
-                      onClick={() => {
-                        setRejectModal(deposit);
-                        setRejectReason("");
-                      }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
-                    >
-                      <X className="w-4 h-4" /> Từ chối
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           })}

@@ -74,8 +74,9 @@ const MyWallet = () => {
   const [activeDeposit, setActiveDeposit] = useState(null);
 
   // Fetch dữ liệu
-  // Kiểm tra có giao dịch đang chờ duyệt không
+  // Kiểm tra có giao dịch đang chờ duyệt hoặc đang pending
   const hasNeedsReview = deposits.some((d) => d.status === "needs_review");
+  const hasPendingDeposit = deposits.some((d) => d.status === "pending");
 
   const fetchData = useCallback(async () => {
     try {
@@ -92,6 +93,23 @@ const MyWallet = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Tự mở lại QR nếu có deposit đang pending
+  useEffect(() => {
+    if (!activeDeposit && deposits.length > 0) {
+      const pendingDeposit = deposits.find((d) => d.status === "pending");
+      if (pendingDeposit) {
+        setActiveDeposit({
+          depositRequestId: pendingDeposit._id,
+          amount: pendingDeposit.amount,
+          depositCode: pendingDeposit.depositCode,
+          qrPayload: pendingDeposit.qrPayload,
+          expiresAt: pendingDeposit.expiresAt,
+          status: pendingDeposit.status,
+        });
+      }
+    }
+  }, [deposits]);
 
   // Tạo yêu cầu nạp tiền
   const handleCreateDeposit = async () => {
@@ -181,13 +199,18 @@ const MyWallet = () => {
 
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         {/* Nút Nạp tiền */}
-        {hasNeedsReview ? (
+        {hasNeedsReview || hasPendingDeposit ? (
           <div className="w-full py-4 bg-[#222] border border-orange-500/30 text-orange-400 font-semibold text-center rounded-xl space-y-2">
             <div className="flex items-center justify-center gap-2">
               <Clock className="w-5 h-5" />
-              <span>Đang có giao dịch chờ admin duyệt</span>
+              <span>{hasNeedsReview ? "Đang có giao dịch chờ admin duyệt" : "Bạn đang có giao dịch chưa hoàn tất"}</span>
             </div>
-            <p className="text-xs text-gray-500">Bạn cần đợi giao dịch hiện tại được duyệt trước khi tạo yêu cầu nạp tiền mới.</p>
+            <p className="text-xs text-gray-500">
+              {hasNeedsReview
+                ? "Bạn cần đợi giao dịch hiện tại được duyệt trước khi tạo yêu cầu nạp tiền mới."
+                : "Vui lòng hoàn tất hoặc chờ hết hạn giao dịch hiện tại trước khi tạo yêu cầu mới."
+              }
+            </p>
           </div>
         ) : (
           <button

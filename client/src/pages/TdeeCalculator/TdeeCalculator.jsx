@@ -7,6 +7,8 @@ import MacroTable from "./MacroTable";
 import Header from "../../sections/Header/Header";
 import ChatIcons from "../../components/ChatIcons";
 import SEO from "../../components/SEO";
+import { useAuth } from "../../context/AuthContext";
+import LoginModal from "../MealPlan/LoginModal";
 
 const TdeeCalculator = () => {
   const [form, setForm] = useState({
@@ -26,7 +28,9 @@ const TdeeCalculator = () => {
   const [adjustedCalories, setAdjustedCalories] = useState(null);
   const [macroSet, setMacroSet] = useState(null);
   const [goalNotice, setGoalNotice] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const savedForm = localStorage.getItem("tdeeForm");
@@ -165,6 +169,15 @@ const TdeeCalculator = () => {
     "description": "Công cụ tính TDEE chuẩn khoa học, xác định lượng calo cần thiết để giảm mỡ hoặc tăng cơ, kèm theo phân bổ Macro chi tiết."
   };
 
+  const handleMealPlanClick = (e) => {
+    e.preventDefault();
+    if (user) {
+      navigate("/mealplan");
+    } else {
+      setShowLoginModal(true);
+    }
+  };
+
   return (
     <main className="py-12 md:py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
       <SEO 
@@ -290,13 +303,13 @@ const TdeeCalculator = () => {
                       đơn mẫu phù hợp với những thực phẩm đa dạng hỗ trợ mục
                       tiêu của bạn được tốt hơn.
                     </p>
-                    <Link
-                      to="/mealplan"
+                    <button
+                      onClick={handleMealPlanClick}
                       className="btn btn-primary shadow-lg flex items-center gap-2 inline-flex"
                     >
                       <Calendar className="w-5 h-5" />
                       <span>Gợi ý lịch ăn</span>
-                    </Link>
+                    </button>
                   </div>
                 </>
               )}
@@ -305,6 +318,7 @@ const TdeeCalculator = () => {
         )}
       </div>
       <ChatIcons />
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </main>
   );
 };

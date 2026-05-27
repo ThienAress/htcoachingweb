@@ -32,6 +32,7 @@ import exerciseRoutes from "./src/routes/exercise.routes.js";
 import exerciseSuggestionRoutes from "./src/routes/exerciseSuggestion.routes.js";
 import customerStoryRoutes from "./src/routes/customerStory.routes.js";
 import depositRoutes from "./src/routes/deposit.routes.js";
+import mealplanAccessRoutes from "./src/routes/mealplanAccess.routes.js";
 import { getMyWallet } from "./src/routes/deposit.routes.js";
 import { startDepositCronJobs } from "./src/services/depositCron.js";
 import { startSubscriptionCronJobs } from "./src/services/subscriptionCron.js";
@@ -141,6 +142,7 @@ app.use("/api/exercises", exerciseRoutes);
 app.use("/api/exercise-suggestions", exerciseSuggestionRoutes);
 app.use("/api/customer-stories", customerStoryRoutes);
 app.use("/api/deposits", depositRoutes);
+app.use("/api/mealplan-access", mealplanAccessRoutes);
 import adminDepositRoutes from "./src/routes/adminDeposit.routes.js";
 app.use("/api/admin/deposits", adminDepositRoutes);
 

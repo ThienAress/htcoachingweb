@@ -201,3 +201,49 @@ export const rejectDeposit = async (req, res) => {
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   }
 };
+
+// ===== DELETE /api/admin/deposits/:id — Xóa yêu cầu nạp tiền =====
+export const deleteDeposit = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.id;
+    const adminRole = req.user.role;
+
+    const deposit = await DepositRequest.findById(id);
+    if (!deposit) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy yêu cầu nạp tiền" });
+    }
+
+    // Không cho xóa nếu đã duyệt thành công (đã cộng tiền vào ví)
+    if (deposit.status === "success") {
+      return res.status(400).json({ success: false, message: "Không thể xóa yêu cầu đã duyệt thành công" });
+    }
+
+    await DepositRequest.findByIdAndDelete(id);
+
+    // Ghi audit log
+    await AuditLog.create({
+      actorId: adminId,
+      actorRole: adminRole,
+      action: "delete_deposit",
+      targetType: "deposit_request",
+      targetId: deposit._id,
+      metadata: {
+        amount: deposit.amount,
+        depositCode: deposit.depositCode,
+        status: deposit.status,
+        userId: deposit.userId,
+      },
+      ipAddress: req.ip,
+      userAgent: req.get("User-Agent"),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Đã xóa yêu cầu nạp tiền",
+    });
+  } catch (err) {
+    console.error("deleteDeposit error:", err);
+    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+  }
+};
