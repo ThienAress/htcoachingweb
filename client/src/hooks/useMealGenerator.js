@@ -143,20 +143,20 @@ export const useMealGenerator = ({
   };
 
   const getBoundsByGroup = (group) => {
-    if (group === "protein") return { min: 60, max: 220 };
-    if (group === "carb") return { min: 80, max: 350 };
-    return { min: 5, max: 80 };
+    if (group === "protein") return { min: 20, max: 250 };
+    if (group === "carb") return { min: 20, max: 350 };
+    return { min: 2, max: 80 };
   };
 
   const getBoundsByFood = (food) => {
     const name = getFoodName(food).toLowerCase();
     const category = food?.category || "";
-    if (name.includes("whey")) return { min: 20, max: 50 };
+    if (name.includes("whey")) return { min: 10, max: 60 };
     if (category === "cooking_fat" || name.includes("dầu"))
-      return { min: 5, max: 60 };
+      return { min: 2, max: 60 };
     if (name.includes("bơ đậu phộng") || name.includes("bơ hạnh nhân"))
-      return { min: 10, max: 70 };
-    if (category === "fruit") return { min: 80, max: 250 };
+      return { min: 5, max: 70 };
+    if (category === "fruit") return { min: 40, max: 250 };
     if (
       name.includes("gạo") ||
       name.includes("cơm") ||
@@ -169,7 +169,7 @@ export const useMealGenerator = ({
       category === "main_carb" ||
       category === "light_carb"
     ) {
-      return { min: 80, max: 320 };
+      return { min: 30, max: 320 };
     }
     if (
       name.includes("cá") ||
@@ -184,14 +184,14 @@ export const useMealGenerator = ({
       category === "plant_protein" ||
       category === "dairy_protein"
     ) {
-      return { min: 60, max: 220 };
+      return { min: 30, max: 250 };
     }
     return getBoundsByGroup(food?.group);
   };
 
   const clampAmountByFood = (food, amount) => {
     const { min, max } = getBoundsByFood(food);
-    return Math.min(max, Math.max(min, amount));
+    return roundInt(Math.min(max, Math.max(min, amount)));
   };
 
   const selectFoodForGroup = (
@@ -221,15 +221,15 @@ export const useMealGenerator = ({
 
   const getFoodMacrosByAmount = (food) => {
     if (!food) return { protein: 0, carb: 0, fat: 0, calories: 0 };
-    const protein = (Number(food.protein || 0) * food.amount) / 100;
-    const carb = (Number(food.carb || 0) * food.amount) / 100;
-    const fat = (Number(food.fat || 0) * food.amount) / 100;
-    const calories = calcCalories(protein, carb, fat);
+    const protein = round1((Number(food.protein || 0) * food.amount) / 100);
+    const carb = round1((Number(food.carb || 0) * food.amount) / 100);
+    const fat = round1((Number(food.fat || 0) * food.amount) / 100);
+    const calories = round1(calcCalories(protein, carb, fat));
     return {
-      protein: round1(protein),
-      carb: round1(carb),
-      fat: round1(fat),
-      calories: round1(calories),
+      protein,
+      carb,
+      fat,
+      calories,
     };
   };
 
@@ -240,16 +240,20 @@ export const useMealGenerator = ({
         acc.protein += m.protein;
         acc.carb += m.carb;
         acc.fat += m.fat;
-        acc.calories += m.calories;
         return acc;
       },
-      { protein: 0, carb: 0, fat: 0, calories: 0 },
+      { protein: 0, carb: 0, fat: 0 },
     );
+    
+    const finalP = round1(totals.protein);
+    const finalC = round1(totals.carb);
+    const finalF = round1(totals.fat);
+
     return {
-      protein: round1(totals.protein),
-      carb: round1(totals.carb),
-      fat: round1(totals.fat),
-      calories: round1(totals.calories),
+      protein: finalP,
+      carb: finalC,
+      fat: finalF,
+      calories: round1(calcCalories(finalP, finalC, finalF)),
     };
   };
 
@@ -592,6 +596,55 @@ export const useMealGenerator = ({
         }
       : null;
 
+  const solveMealAmounts = (proteinFood, carbFood, fatFood, targetP, targetC, targetF) => {
+    if (!proteinFood || !carbFood || !fatFood) return null;
+
+    const pP = Number(proteinFood.protein || 0) / 100;
+    const cP = Number(proteinFood.carb || 0) / 100;
+    const fP = Number(proteinFood.fat || 0) / 100;
+
+    const pC = Number(carbFood.protein || 0) / 100;
+    const cC = Number(carbFood.carb || 0) / 100;
+    const fC = Number(carbFood.fat || 0) / 100;
+
+    const pF = Number(fatFood.protein || 0) / 100;
+    const cF = Number(fatFood.carb || 0) / 100;
+    const fF = Number(fatFood.fat || 0) / 100;
+
+    const detMatrix = (m) =>
+      m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+      m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+      m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+
+    const D = detMatrix([
+      [pP, pC, pF],
+      [cP, cC, cF],
+      [fP, fC, fF],
+    ]);
+
+    if (Math.abs(D) < 1e-6) return null;
+
+    const Da = detMatrix([
+      [targetP, pC, pF],
+      [targetC, cC, cF],
+      [targetF, fC, fF],
+    ]);
+
+    const Db = detMatrix([
+      [pP, targetP, pF],
+      [cP, targetC, cF],
+      [fP, targetF, fF],
+    ]);
+
+    const Dc = detMatrix([
+      [pP, pC, targetP],
+      [cP, cC, targetC],
+      [fP, fC, targetF],
+    ]);
+
+    return { amountA: Da / D, amountB: Db / D, amountC: Dc / D };
+  };
+
   // ========== HÀM GENERATE CHÍNH - ĐÃ SỬA ĐỂ NHẬN forcedTarget ==========
   const generateMeals = (forcedTarget = null) => {
     // Ưu tiên dùng forcedTarget, nếu không thì dùng propsTargetMacros
@@ -628,27 +681,84 @@ export const useMealGenerator = ({
       for (let i = 0; i < selectedPlan; i++) {
         const mealType = getMealType(i, selectedPlan);
         const categoryRule = mealCategoryRules[mealType];
-        let proteinFood = selectFoodForGroup(
-          "protein",
-          proteinPerMeal,
-          usedKeys.protein,
-          categoryRule?.protein || [],
-        );
+
+        const proteinOptions = getFoodsByGroup("protein", usedKeys.protein, categoryRule?.protein || []);
+        const carbOptions = getFoodsByGroup("carb", usedKeys.carb, categoryRule?.carb || []);
+        const fatOptions = getFoodsByGroup("fat", usedKeys.fat, categoryRule?.fat || []);
+
+        let bestCombo = null;
+        let bestScore = Infinity;
+
+        for (let pIdx = 0; pIdx < Math.min(proteinOptions.length, 5); pIdx++) {
+          for (let cIdx = 0; cIdx < Math.min(carbOptions.length, 5); cIdx++) {
+             for (let fIdx = 0; fIdx < Math.min(fatOptions.length, 5); fIdx++) {
+                const pFood = proteinOptions[pIdx];
+                const cFood = carbOptions[cIdx];
+                const fFood = fatOptions[fIdx];
+                
+                const amounts = solveMealAmounts(pFood, cFood, fFood, proteinPerMeal, carbPerMeal, fatPerMeal);
+                if (amounts) {
+                    const { amountA, amountB, amountC } = amounts;
+                    let score = 0;
+                    
+                    if (amountA < 0) score += Math.abs(amountA) * 10;
+                    if (amountB < 0) score += Math.abs(amountB) * 10;
+                    if (amountC < 0) score += Math.abs(amountC) * 10;
+
+                    const pBounds = getBoundsByFood(pFood);
+                    if (amountA > pBounds.max) score += (amountA - pBounds.max);
+                    if (amountA < pBounds.min && amountA > 0) score += (pBounds.min - amountA);
+
+                    const cBounds = getBoundsByFood(cFood);
+                    if (amountB > cBounds.max) score += (amountB - cBounds.max);
+                    if (amountB < cBounds.min && amountB > 0) score += (cBounds.min - amountB);
+
+                    const fBounds = getBoundsByFood(fFood);
+                    if (amountC > fBounds.max) score += (amountC - fBounds.max);
+                    if (amountC < fBounds.min && amountC > 0) score += (fBounds.min - amountC);
+
+                    if (score < bestScore) {
+                        bestScore = score;
+                        bestCombo = { 
+                            pFood: { ...pFood, group: "protein" }, 
+                            cFood: { ...cFood, group: "carb" }, 
+                            fFood: { ...fFood, group: "fat" }, 
+                            amounts 
+                        };
+                    }
+                }
+                if (bestScore === 0) break;
+             }
+             if (bestScore === 0) break;
+          }
+          if (bestScore === 0) break;
+        }
+
+        let proteinFood = null;
+        let carbFood = null;
+        let fatFood = null;
+
+        if (bestCombo) {
+            proteinFood = bestCombo.pFood;
+            carbFood = bestCombo.cFood;
+            fatFood = bestCombo.fFood;
+            
+            proteinFood.amount = clampAmountByFood(proteinFood, bestCombo.amounts.amountA);
+            carbFood.amount = clampAmountByFood(carbFood, bestCombo.amounts.amountB);
+            fatFood.amount = clampAmountByFood(fatFood, bestCombo.amounts.amountC);
+        } else {
+            proteinFood = selectFoodForGroup("protein", proteinPerMeal, usedKeys.protein, categoryRule?.protein || []);
+            carbFood = selectFoodForGroup("carb", carbPerMeal, usedKeys.carb, categoryRule?.carb || []);
+            fatFood = selectFoodForGroup("fat", fatPerMeal, usedKeys.fat, categoryRule?.fat || []);
+            if (proteinFood) proteinFood.amount = clampAmountByFood(proteinFood, proteinFood.amount || 0);
+            if (carbFood) carbFood.amount = clampAmountByFood(carbFood, carbFood.amount || 0);
+            if (fatFood) fatFood.amount = clampAmountByFood(fatFood, fatFood.amount || 0);
+        }
+
         if (proteinFood) usedKeys.protein.push(getFoodKey(proteinFood));
-        let carbFood = selectFoodForGroup(
-          "carb",
-          carbPerMeal,
-          usedKeys.carb,
-          categoryRule?.carb || [],
-        );
         if (carbFood) usedKeys.carb.push(getFoodKey(carbFood));
-        let fatFood = selectFoodForGroup(
-          "fat",
-          fatPerMeal,
-          usedKeys.fat,
-          categoryRule?.fat || [],
-        );
         if (fatFood) usedKeys.fat.push(getFoodKey(fatFood));
+
         const mealFoods = [proteinFood, carbFood, fatFood].filter(Boolean);
         const mealTotals = getMealTotals(mealFoods);
         mealsResult.push({
@@ -669,12 +779,17 @@ export const useMealGenerator = ({
       mealsResult = recalcMealsWithTotals(mealsResult);
       const fineTuned = fineTuneDayMacros(mealsResult, target, targetCalories);
       setMeals(fineTuned.meals);
+      const finalProtein = roundInt(fineTuned.totals.protein);
+      const finalCarb = roundInt(fineTuned.totals.carb);
+      const finalFat = roundInt(fineTuned.totals.fat);
+
       setTotalMacros({
-        protein: roundInt(fineTuned.totals.protein),
-        carb: roundInt(fineTuned.totals.carb),
-        fat: roundInt(fineTuned.totals.fat),
+        protein: finalProtein,
+        carb: finalCarb,
+        fat: finalFat,
       });
-      setTotalCalories(roundInt(fineTuned.totals.calories));
+      // Tính toán Calo chuẩn chỉnh theo Macro để giao diện khớp 100%
+      setTotalCalories(calcCalories(finalProtein, finalCarb, finalFat));
       toast.success("Tạo thực đơn thành công!");
     } catch (err) {
       console.error(err);

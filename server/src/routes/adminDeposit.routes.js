@@ -6,6 +6,7 @@ import {
   getAllDeposits,
   approveDeposit,
   rejectDeposit,
+  deleteDeposit,
 } from "../controllers/adminDeposit.controller.js";
 
 const router = express.Router();
@@ -18,5 +19,8 @@ router.post("/:id/approve", protect, csrfProtection, requireRoles("admin"), appr
 
 // ❌ Từ chối nạp tiền
 router.post("/:id/reject", protect, csrfProtection, requireRoles("admin"), rejectDeposit);
+
+// 🗑️ Xóa yêu cầu nạp tiền
+router.delete("/:id", protect, csrfProtection, requireRoles("admin"), deleteDeposit);
 
 export default router;

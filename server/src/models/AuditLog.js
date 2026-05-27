@@ -23,6 +23,7 @@ const auditLogSchema = new mongoose.Schema(
       enum: [
         "approve_deposit",
         "reject_deposit",
+        "delete_deposit",
         "manual_adjustment",
         "purchase_with_wallet",
         "purchase_trainer_plan",
