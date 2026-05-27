@@ -1,12 +1,17 @@
 import React from "react";
-import { Flame, X } from "lucide-react";
+import { X } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 
 const LoginModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const handleGoogleLogin = () => {
-    window.location.href = "https://htcoachingweb.onrender.com/api/auth/google";
+    // Lưu trang hiện tại để sau login quay lại
+    localStorage.setItem("redirectAfterLogin", "/mealplan");
+    const baseUrl = import.meta.env.DEV
+      ? "http://localhost:5000"
+      : "https://htcoachingweb.onrender.com";
+    window.location.href = `${baseUrl}/api/auth/google`;
   };
 
   return (

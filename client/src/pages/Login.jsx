@@ -5,7 +5,10 @@ import SEO from "../components/SEO";
 
 const Login = () => {
   const handleGoogleLogin = () => {
-    window.location.href = "https://htcoachingweb.onrender.com/api/auth/google";
+    const baseUrl = import.meta.env.DEV
+      ? "http://localhost:5000"
+      : "https://htcoachingweb.onrender.com";
+    window.location.href = `${baseUrl}/api/auth/google`;
   };
 
   // Chọn một ảnh duy nhất làm nền (ảnh đầu tiên từ mảng cũ)
