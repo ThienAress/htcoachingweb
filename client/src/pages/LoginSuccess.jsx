@@ -14,7 +14,10 @@ const LoginSuccess = () => {
 
         if (res.data?.email) {
           await refetch();
-          navigate("/", { replace: true });
+          // Redirect về trang trước đó (nếu có) hoặc trang chủ
+          const redirectTo = localStorage.getItem("redirectAfterLogin") || "/";
+          localStorage.removeItem("redirectAfterLogin");
+          navigate(redirectTo, { replace: true });
         } else {
           alert("Google login fail: /user/me không có email");
           navigate("/login", { replace: true });

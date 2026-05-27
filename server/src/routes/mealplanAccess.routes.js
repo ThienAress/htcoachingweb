@@ -66,7 +66,7 @@ router.get("/check", protect, async (req, res) => {
 });
 
 // ===== GHI NHẬN 1 LƯỢT GENERATE =====
-router.post("/record", protect, csrfProtection, async (req, res) => {
+router.post("/record", protect, async (req, res) => {
   try {
     const { id } = req.user;
 

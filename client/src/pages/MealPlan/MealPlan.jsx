@@ -123,8 +123,9 @@ const MealPlan = () => {
     );
   }
 
-  // Not logged in
+  // Not logged in → lưu redirect path và chuyển đến login
   if (!user) {
+    localStorage.setItem("redirectAfterLogin", "/mealplan");
     return <Navigate to="/login" replace />;
   }
 
