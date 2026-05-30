@@ -85,6 +85,11 @@ const corsOptions = {
       return callback(null, true);
     }
 
+    // Allow Netlify preview/staging domains dynamically
+    if (origin.startsWith("https://") && origin.endsWith(".netlify.app")) {
+      return callback(null, true);
+    }
+
     return callback(new Error(`Not allowed by CORS: ${origin}`));
   },
   credentials: true,
