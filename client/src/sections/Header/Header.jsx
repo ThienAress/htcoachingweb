@@ -199,11 +199,11 @@ function Header() {
         ...(hasOrders ? [
           { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
           { label: "Gợi ý meal plan", icon: Utensils, path: "/tdee-calculator" },
-          { label: "Lịch sử checkin", icon: History, path: "/my-history" },
         ] : []),
         ...(hasOnlinePackage ? [
           { label: "Giáo án online", icon: Sparkles, path: "/online-coaching" }
         ] : []),
+        { label: "Lịch sử checkin", icon: History, path: "/my-history" },
         { label: "Tài khoản", icon: User, path: "/account" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ];
@@ -212,8 +212,8 @@ function Header() {
     <header
       ref={headerRef}
       className={`fixed top-0 w-full z-50 h-20 md:h-25 transition-all duration-300 ${isScrolled
-          ? "bg-linear-to-r from-[#f39c12] to-[#1a1a1a]"
-          : "bg-transparent"
+        ? "bg-linear-to-r from-[#f39c12] to-[#1a1a1a]"
+        : "bg-transparent"
         }`}
     >
       <div className="relative h-full flex items-center justify-between px-5 max-w-7xl mx-auto max-md:bg-linear-to-r max-md:from-[#f39c12] max-md:to-[#1a1a1a]">
