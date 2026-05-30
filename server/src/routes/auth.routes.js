@@ -74,10 +74,19 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
 // ===== GOOGLE OAUTH =====
 router.get(
   "/google",
-  passport.authenticate("google", {
-    scope: ["profile", "email"],
-    prompt: "select_account",
-  }),
+  (req, res, next) => {
+    // Lấy client_url từ request, nếu không có thì dùng mặc định
+    const clientUrl = req.query.client_url || process.env.CLIENT_URL;
+    
+    // Mã hóa state để truyền qua Google
+    const state = Buffer.from(JSON.stringify({ clientUrl })).toString("base64");
+    
+    passport.authenticate("google", {
+      scope: ["profile", "email"],
+      prompt: "select_account",
+      state: state,
+    })(req, res, next);
+  }
 );
 
 router.get(
@@ -86,10 +95,32 @@ router.get(
   async (req, res) => {
     try {
       const user = req.user;
+      
+      // Mặc định là CLIENT_URL trong env
+      let clientUrl = process.env.CLIENT_URL;
+
+      // Giải mã state để lấy client_url (nếu có)
+      if (req.query.state) {
+        try {
+          const decodedState = JSON.parse(Buffer.from(req.query.state, "base64").toString("utf-8"));
+          if (decodedState.clientUrl) {
+            // Chỉ cho phép các origin hợp lệ
+            if (
+              decodedState.clientUrl === process.env.CLIENT_URL || 
+              decodedState.clientUrl.startsWith("http://localhost:") || 
+              (decodedState.clientUrl.startsWith("https://") && decodedState.clientUrl.endsWith(".netlify.app"))
+            ) {
+              clientUrl = decodedState.clientUrl;
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse state", e);
+        }
+      }
 
       if (!user) {
         return res.redirect(
-          `${process.env.CLIENT_URL}/login?error=google_auth`,
+          `${clientUrl}/login?error=google_auth`,
         );
       }
 
@@ -103,9 +134,10 @@ router.get(
 
       setAuthCookies(res, accessToken, refreshToken);
 
-      return res.redirect(`${process.env.CLIENT_URL}/login-success`);
+      return res.redirect(`${clientUrl}/login-success`);
     } catch (err) {
       console.error("[GOOGLE CALLBACK ERROR]:", err);
+      // Fallback url nếu lỗi ko lấy được state
       return res.redirect(`${process.env.CLIENT_URL}/login?error=server`);
     }
   },

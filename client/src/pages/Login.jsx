@@ -8,7 +8,7 @@ const Login = () => {
     const baseUrl = import.meta.env.DEV
       ? "http://localhost:5000"
       : "https://htcoachingweb.onrender.com";
-    window.location.href = `${baseUrl}/api/auth/google`;
+    window.location.href = `${baseUrl}/api/auth/google?client_url=${encodeURIComponent(window.location.origin)}`;
   };
 
   // Chọn một ảnh duy nhất làm nền (ảnh đầu tiên từ mảng cũ)
