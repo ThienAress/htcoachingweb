@@ -199,6 +199,7 @@ function Header() {
         ...(hasOrders ? [
           { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
           { label: "Gợi ý meal plan", icon: Utensils, path: "/tdee-calculator" },
+          { label: "Lịch sử checkin", icon: History, path: "/my-history" },
         ] : []),
         ...(hasOnlinePackage ? [
           { label: "Giáo án online", icon: Sparkles, path: "/online-coaching" }
