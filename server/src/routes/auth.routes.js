@@ -23,7 +23,6 @@ const getAuthCookieOptions = (maxAge = null) => {
     secure: isProd,
     sameSite: isProd ? "none" : "lax",
     path: "/",
-    ...(isProd && { domain: ".htcoachingweb.io.vn" }),
   };
 
   if (maxAge) {
@@ -39,7 +38,6 @@ const getCsrfCookieOptions = () => ({
   sameSite: isProd ? "none" : "lax",
   path: "/",
   maxAge: 24 * 60 * 60 * 1000,
-  ...(isProd && { domain: ".htcoachingweb.io.vn" }),
 });
 
 const signAccessToken = (user) =>
