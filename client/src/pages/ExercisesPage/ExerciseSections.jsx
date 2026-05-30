@@ -154,8 +154,7 @@ export default function ExerciseSections({
             <div className="flex justify-between items-center border-b border-gray-700 pb-3 mb-4 flex-wrap gap-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <Dumbbell className="w-6 h-6 text-primary flex-shrink-0" />
-                <h2
-                  className="text-2xl font-bold whitespace-nowrap"
+                <h2 className="text-2xl font-bold whitespace-nowrap uppercase"
                   style={{ color: group.color }}
                 >
                   {group.name}

@@ -64,6 +64,7 @@ export const getOrders = async (req, res) => {
     const total = await Order.countDocuments(query);
     const ordersQuery = Order.find(query)
       .populate("trainerId", "name email")
+      .populate("userId", "phone address")
       .sort({ createdAt: -1 });
 
     if (limit > 0) {
@@ -130,7 +131,7 @@ export const approveOrder = async (req, res) => {
 
 export const updateOrder = async (req, res) => {
   const order = await Order.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
+    returnDocument: 'after',
   });
 
   res.json({

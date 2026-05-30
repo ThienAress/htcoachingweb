@@ -1,3 +1,6 @@
+import F1AiRule from "../../models/F1AiRule.js";
+import get from "lodash/get.js";
+
 const PHASE_LABELS = {
   pending_review: "Chờ review thêm trước khi vào phase huấn luyện",
   phase_1: "Cấp độ 1 · Phase 1 - Stabilization Endurance",
@@ -381,119 +384,105 @@ const buildTrainingFocus = ({
   return Array.from(focus);
 };
 
-// === ĐÃ CẬP NHẬT ===
-const buildTrainingNotes = ({
-  phase,
-  intake,
-  riskFlags,
-  lifestyleFlags,
-  compensationFlags,
-  strengthFlags = [],
-  enduranceFlags = [],
-  cardioFlags = [],
+const evaluateCondition = (condition, context) => {
+  const { field, operator, value } = condition;
+  const contextValue = get(context, field);
+
+  switch (operator) {
+    case "EQUals":
+      return String(contextValue) === String(value);
+    case "NOT_EQUals":
+      return String(contextValue) !== String(value);
+    case "GREATER_THAN":
+      return Number(contextValue) > Number(value);
+    case "LESS_THAN":
+      return Number(contextValue) < Number(value);
+    case "INCLUDES":
+      if (Array.isArray(contextValue)) return contextValue.includes(value);
+      if (typeof contextValue === "string") return contextValue.includes(String(value));
+      return false;
+    case "NOT_INCLUDES":
+      if (Array.isArray(contextValue)) return !contextValue.includes(value);
+      if (typeof contextValue === "string") return !contextValue.includes(String(value));
+      return true;
+    case "EXISTS":
+      return contextValue !== undefined && contextValue !== null;
+    case "NOT_EXISTS":
+      return contextValue === undefined || contextValue === null;
+    case "TRUE":
+      return Boolean(contextValue) === true;
+    case "FALSE":
+      return Boolean(contextValue) === false;
+    default:
+      return false;
+  }
+};
+
+const evaluateRule = (rule, context) => {
+  if (!rule.conditions || rule.conditions.length === 0) return true;
+  // All conditions must be met (AND)
+  return rule.conditions.every((cond) => evaluateCondition(cond, context));
+};
+
+const buildTrainingNotesAsync = async ({
+  context
 }) => {
   const notes = [];
-
-  if (phase === "pending_review") {
-    notes.push(
-      "Chưa nên đẩy khách vào giáo án chính thức cho đến khi làm rõ thêm yếu tố sức khỏe.",
-    );
-    notes.push(
-      "Ưu tiên theo dõi triệu chứng, mức an toàn vận động và phản ứng cơ thể ở buổi đầu.",
-    );
+  
+  try {
+    const rules = await F1AiRule.find({ isActive: true }).sort({ priority: -1 });
+    
+    for (const rule of rules) {
+      if (evaluateRule(rule, context)) {
+        notes.push(rule.recommendation.content);
+      }
+    }
+  } catch (err) {
+    console.error("Lỗi khi load rules từ DB:", err);
   }
 
-  if (phase === "phase_1") {
-    notes.push(
-      "Ưu tiên các bài giúp khách cảm nhận cơ thể tốt hơn và kiểm soát chuyển động rõ hơn.",
-    );
-    notes.push(
-      "Tempo nên chậm, tải vừa phải và độ khó bài tập nên tăng từ từ.",
-    );
-    notes.push(
-      "Mục tiêu chính là xây lại nền ổn định, cảm nhận cơ thể và khả năng chịu vận động cơ bản.",
-    );
-  }
+  // Fallback to hardcoded rules if DB is empty or fails
+  if (notes.length === 0) {
+    const { phase, flags: { lifestyleFlags, compensationFlags, riskFlags, strengthFlags, enduranceFlags, cardioFlags } } = context;
+    if (phase === "pending_review") {
+      notes.push("Chưa nên đẩy khách vào giáo án chính thức cho đến khi làm rõ thêm yếu tố sức khỏe.");
+      notes.push("Ưu tiên theo dõi triệu chứng, mức an toàn vận động và phản ứng cơ thể ở buổi đầu.");
+    }
 
-  if (phase === "phase_2") {
-    notes.push(
-      "Có thể bắt đầu tăng dần sức mạnh bền, nhưng vẫn cần giữ kỹ thuật ổn định ở từng bài.",
-    );
-    notes.push(
-      "Nên ưu tiên các bài cơ bản, unilateral work và khối lượng vừa phải để khách thích nghi tốt.",
-    );
-    notes.push(
-      "Volume có thể tăng dần nếu khách đáp ứng tốt và recovery ổn định.",
-    );
-  }
+    if (phase === "phase_1") {
+      notes.push("Ưu tiên các bài giúp khách cảm nhận cơ thể tốt hơn và kiểm soát chuyển động rõ hơn.");
+      notes.push("Tempo nên chậm, tải vừa phải và độ khó bài tập nên tăng từ từ.");
+      notes.push("Mục tiêu chính là xây lại nền ổn định, cảm nhận cơ thể và khả năng chịu vận động cơ bản.");
+    }
 
-  if (phase === "phase_3") {
-    notes.push(
-      "Có thể đi theo hướng phát triển cơ bắp rõ ràng hơn với cấu trúc bài tập mạch lạc hơn.",
-    );
-    notes.push(
-      "Ưu tiên progressive overload, volume đủ tốt và theo dõi recovery sát để tránh quá tải.",
-    );
-    notes.push(
-      "Corrective lúc này chỉ cần giữ ở mức duy trì nếu khách không còn lỗi nổi bật.",
-    );
-  }
+    if (phase === "phase_2") {
+      notes.push("Có thể bắt đầu tăng dần sức mạnh bền, nhưng vẫn cần giữ kỹ thuật ổn định ở từng bài.");
+      notes.push("Nên ưu tiên các bài cơ bản, unilateral work và khối lượng vừa phải để khách thích nghi tốt.");
+      notes.push("Volume có thể tăng dần nếu khách đáp ứng tốt và recovery ổn định.");
+    }
 
-  if (lifestyleFlags.includes("sleep_low")) {
-    notes.push("Nên để ý hồi phục vì thời lượng ngủ hiện tại còn thấp.");
-  }
+    if (phase === "phase_3") {
+      notes.push("Có thể đi theo hướng phát triển cơ bắp rõ ràng hơn với cấu trúc bài tập mạch lạc hơn.");
+      notes.push("Ưu tiên progressive overload, volume đủ tốt và theo dõi recovery sát để tránh quá tải.");
+      notes.push("Corrective lúc này chỉ cần giữ ở mức duy trì nếu khách không còn lỗi nổi bật.");
+    }
 
-  if (lifestyleFlags.includes("stress_high")) {
-    notes.push(
-      "Nếu stress cao, nên giữ volume đầu vào vừa phải thay vì tăng nhanh.",
-    );
-  }
-
-  if (
-    compensationFlags.includes("knees_move_inward") ||
-    compensationFlags.includes("excessive_forward_lean")
-  ) {
-    notes.push(
-      "Chưa nên tăng nhanh các bài squat nặng khi pattern vận động vẫn chưa thật sự ổn.",
-    );
-  }
-
-  if (riskFlags.includes("medical_review_needed")) {
-    notes.push(
-      "Cần giữ sự thận trọng với yếu tố sức khỏe trước khi tăng cường độ tập.",
-    );
-  }
-
-  if (strengthFlags.includes("core_strength_low")) {
-    notes.push("Nên nâng nền core trước khi đẩy nhanh các bài compound.");
-  }
-
-  if (strengthFlags.includes("lower_body_strength_low")) {
-    notes.push(
-      "Sức mạnh thân dưới nên được tăng dần bằng các bài cơ bản, dễ kiểm soát form.",
-    );
-  }
-
-  if (enduranceFlags.includes("muscular_endurance_low")) {
-    notes.push(
-      "Nên tăng volume từ từ, tránh dồn mật độ bài tập quá sớm ngay giai đoạn đầu.",
-    );
-  }
-
-  if (cardioFlags.includes("cardio_capacity_low")) {
-    notes.push(
-      "Nên bổ sung cardio nền cường độ vừa để cải thiện khả năng chịu vận động tổng thể.",
-    );
-  }
-
-  if (cardioFlags.includes("resting_hr_elevated")) {
-    notes.push(
-      "Nên theo dõi nhịp tim nghỉ và mức hồi phục trước khi nâng volume thêm.",
-    );
+    if (lifestyleFlags.includes("sleep_low")) notes.push("Nên để ý hồi phục vì thời lượng ngủ hiện tại còn thấp.");
+    if (lifestyleFlags.includes("stress_high")) notes.push("Nếu stress cao, nên giữ volume đầu vào vừa phải thay vì tăng nhanh.");
+    if (compensationFlags.includes("knees_move_inward") || compensationFlags.includes("excessive_forward_lean")) {
+      notes.push("Chưa nên tăng nhanh các bài squat nặng khi pattern vận động vẫn chưa thật sự ổn.");
+    }
+    if (riskFlags.includes("medical_review_needed")) notes.push("Cần giữ sự thận trọng với yếu tố sức khỏe trước khi tăng cường độ tập.");
+    if (strengthFlags.includes("core_strength_low")) notes.push("Nên nâng nền core trước khi đẩy nhanh các bài compound.");
+    if (strengthFlags.includes("lower_body_strength_low")) notes.push("Sức mạnh thân dưới nên được tăng dần bằng các bài cơ bản, dễ kiểm soát form.");
+    if (enduranceFlags.includes("muscular_endurance_low")) notes.push("Nên tăng volume từ từ, tránh dồn mật độ bài tập quá sớm ngay giai đoạn đầu.");
+    if (cardioFlags.includes("cardio_capacity_low")) notes.push("Nên bổ sung cardio nền cường độ vừa để cải thiện khả năng chịu vận động tổng thể.");
+    if (cardioFlags.includes("resting_hr_elevated")) notes.push("Nên theo dõi nhịp tim nghỉ và mức hồi phục trước khi nâng volume thêm.");
   }
 
   return [...new Set(notes)];
 };
+
 
 const mapReadinessLabel = (value = "pending") => {
   const map = {
@@ -1240,7 +1229,7 @@ const buildAiReportSummary = ({
   };
 };
 
-export const buildAiReport = ({ customer, intake, assessment }) => {
+export const buildAiReport = async ({ customer, intake, assessment }) => {
   const riskFlags = buildRiskFlags(intake);
   const lifestyleFlags = buildLifestyleFlags(intake);
   const compensationFlags = collectCompensations(assessment);
@@ -1269,17 +1258,23 @@ export const buildAiReport = ({ customer, intake, assessment }) => {
     compensationFlags,
   });
 
-  const trainingNotes = new Set(
-    buildTrainingNotes({
-      phase: recommendedStartPhase,
-      intake,
+  const context = {
+    phase: recommendedStartPhase,
+    intake,
+    customer,
+    assessment,
+    flags: {
       riskFlags,
       lifestyleFlags,
       compensationFlags,
       strengthFlags,
       enduranceFlags,
       cardioFlags,
-    }),
+    }
+  };
+
+  const trainingNotes = new Set(
+    await buildTrainingNotesAsync({ context })
   );
 
   return {

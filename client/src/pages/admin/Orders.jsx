@@ -67,7 +67,7 @@ const Orders = () => {
     refetch,
   } = useQuery({
     queryKey: ["orders", currentPage],
-    queryFn: () => getOrders(currentPage).then((res) => res.data.data),
+    queryFn: () => getOrders(currentPage, 6).then((res) => res.data.data),
     keepPreviousData: true,
   });
 
@@ -217,16 +217,6 @@ const Orders = () => {
     return new Date(dateString).toLocaleString("vi-VN");
   };
 
-  if (isLoadingOrders) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
-        </div>
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -244,12 +234,13 @@ const Orders = () => {
   }
 
   return (
+    <phantom-ui loading={isLoadingOrders || undefined}>
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <ToastContainer position="top-right" autoClose={3000} />
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 uppercase">
           <Package className="w-6 h-6 text-red-500" />
           Quản lý đơn hàng
         </h1>
@@ -441,7 +432,7 @@ const Orders = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 uppercase">
                 <Package className="w-5 h-5 text-red-500" /> Chi tiết đơn hàng
               </h2>
               <button
@@ -542,7 +533,7 @@ const Orders = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800">
+              <h2 className="text-xl font-bold text-gray-800 uppercase">
                 {editingId ? "Cập nhật đơn hàng" : "Tạo đơn hàng mới"}
               </h2>
               <button
@@ -751,6 +742,7 @@ const Orders = () => {
         </div>
       )}
     </div>
+    </phantom-ui>
   );
 };
 

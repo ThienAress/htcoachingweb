@@ -48,19 +48,19 @@ const F1TestPermissionReviewCard = ({
   };
 
   return (
-    <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm">
+    <div className="mt-6 rounded-xl border border-orange-200 bg-orange-50/60 p-5 shadow-sm">
       <div className="flex items-center gap-2">
-        <AlertCircle size={20} className="text-amber-700" />
-        <h3 className="text-base font-extrabold text-amber-800">
+        <AlertCircle size={20} className="text-orange-700" />
+        <h3 className="text-base font-extrabold text-orange-800">
           PT review trước khi cho khách đi tiếp
         </h3>
       </div>
-      <p className="mt-2 text-sm text-amber-800">
+      <p className="mt-2 text-sm text-orange-800">
         Khách hiện đang ở trạng thái <strong>HOLD TEST</strong>. PT cần review
         lý do hold trước khi quyết định.
       </p>
 
-      <div className="mt-4 rounded-lg border border-amber-200 bg-white p-4">
+      <div className="mt-4 rounded-lg border border-orange-200 bg-white p-4">
         <p className="text-sm font-semibold text-slate-800">
           Ghi chú review của PT
         </p>
@@ -69,7 +69,7 @@ const F1TestPermissionReviewCard = ({
           value={reviewNote}
           onChange={(e) => setReviewNote(e.target.value)}
           placeholder="Ví dụ: Đã xem giới hạn từ bác sĩ. Cho phép modified test, tránh squat nặng và bài tăng áp lực cột sống."
-          className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+          className="mt-2 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
         />
       </div>
 

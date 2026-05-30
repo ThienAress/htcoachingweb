@@ -503,7 +503,7 @@ const CustomerStoryManagement = () => {
 
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 md:text-3xl">
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 md:text-3xl uppercase">
             <BookOpenText className="h-7 w-7 text-primary" />
             Quản lý câu chuyện khách hàng
           </h1>
@@ -708,7 +708,7 @@ const CustomerStoryManagement = () => {
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-800">
+                <h2 className="text-xl font-bold text-slate-800 uppercase">
                   {editingStory ? "Sửa câu chuyện" : "Thêm câu chuyện"}
                 </h2>
                 <p className="text-sm text-slate-500">

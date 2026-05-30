@@ -43,7 +43,7 @@ const SelectField = ({ label, value, onChange, options = [] }) => {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
       >
         <option value="">Chọn kết quả</option>
         {options.map((item) => (
@@ -59,8 +59,8 @@ const SelectField = ({ label, value, onChange, options = [] }) => {
 const StaticPostureSection = ({ value, onChange }) => {
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-2 border-l-4 border-amber-500 pl-3">
-        <User size={20} className="text-amber-600" />
+      <div className="flex items-center gap-2 border-l-4 border-orange-500 pl-3">
+        <User size={20} className="text-orange-600" />
         <div>
           <h3 className="text-xl font-bold text-slate-800">
             Đánh giá tư thế tĩnh

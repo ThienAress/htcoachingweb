@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
   },
 
   avatar: String,
+  address: String,
 
   mealPlanGenerations: {
     type: Number,

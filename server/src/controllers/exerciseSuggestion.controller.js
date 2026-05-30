@@ -68,7 +68,7 @@ export const updateSuggestionStatus = async (req, res) => {
     const suggestion = await ExerciseSuggestion.findByIdAndUpdate(
       id,
       { status, adminNote },
-      { new: true },
+      { returnDocument: 'after' },
     );
     if (!suggestion)
       return res

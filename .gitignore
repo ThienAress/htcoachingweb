@@ -1,6 +1,7 @@
 # env
 .env
 server/.env
+server/.env.development
 client/.env
 
 # node

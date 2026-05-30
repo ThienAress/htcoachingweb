@@ -148,21 +148,6 @@ const CheckinHistory = () => {
 
   const availableYears = [2024, 2025, 2026];
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4 p-4 animate-pulse">
-        <div className="h-6 bg-gray-300 rounded w-1/3 md:w-1/4"></div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="h-10 bg-gray-200 rounded"></div>
-          <div className="h-10 bg-gray-200 rounded"></div>
-        </div>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-12 bg-gray-200 rounded"></div>
-        ))}
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <div className="p-6 text-center text-red-500">
@@ -172,11 +157,12 @@ const CheckinHistory = () => {
   }
 
   return (
+    <phantom-ui loading={isLoading || undefined}>
     <div className="space-y-4 md:space-y-6 h-full">
       <ToastContainer position="top-right" autoClose={3000} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 uppercase">
             <History className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
             Lịch sử check-in
           </h2>
@@ -380,7 +366,7 @@ const CheckinHistory = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
-              <h2 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
+              <h2 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2 uppercase">
                 <Edit className="w-5 h-5 text-indigo-600" />
                 Sửa thông tin check-in
               </h2>
@@ -453,6 +439,7 @@ const CheckinHistory = () => {
         </div>
       )}
     </div>
+    </phantom-ui>
   );
 };
 

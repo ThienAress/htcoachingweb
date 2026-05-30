@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { MapPin } from "lucide-react";
-import HeaderMinimal from "../sections/Header/HeaderMinimal";
-import FooterMinimal from "../sections/Footer/FooterMinimal";
+import Header from "../sections/Header/Header";
+import Footer from "../sections/Footer/Footer";
 import Contact from "../sections/Contact";
 import ChatIcons from "../components/ChatIcons";
 import ScrollToTop from "../components/ScrollToTop";
@@ -106,8 +106,8 @@ const Club = () => {
         description="Các câu lạc bộ, phòng tập Gym, Boxing hiện HTCOACHING đang huấn luyện tại Hồ Chí Minh."
         canonical="/club"
       />
-      <HeaderMinimal />
-      <main>
+      <Header />
+      <main className="pt-28">
         <section className="py-12 md:py-16 px-5 bg-gray-100">
           <div className="container-custom">
             <h1 className="text-center mb-8 text-3xl font-bold uppercase" data-aos="fade-up">
@@ -166,7 +166,7 @@ const Club = () => {
         </section>
         <Contact />
       </main>
-      <FooterMinimal />
+      <Footer />
       <ChatIcons />
       <ScrollToTop />
     </>

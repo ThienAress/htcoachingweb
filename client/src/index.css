@@ -204,3 +204,25 @@
     opacity: 0;
   }
 }
+
+/* ================= DARK THEME FORM INPUTS (Coach Online) ================= */
+input[type="number"],
+input[type="date"],
+input[type="text"],
+textarea,
+select {
+  color-scheme: dark;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.5;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff;
+  -webkit-box-shadow: 0 0 0px 1000px #0a0a0f inset;
+  transition: background-color 5000s ease-in-out 0s;
+}

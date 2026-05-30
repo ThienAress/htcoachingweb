@@ -61,12 +61,12 @@ const SuggestionBlock = ({ suggestion, loading }) => {
       </div>
     );
   return (
-    <div className="rounded-xl border-l-4 border-l-amber-500 bg-amber-50/40 p-4">
+    <div className="rounded-xl border-l-4 border-l-orange-500 bg-orange-50/40 p-4">
       <p className="font-bold text-slate-800">
         {suggestion.title || suggestion.name}
       </p>
       {suggestion.target && (
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-amber-600">
+        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-orange-600">
           {suggestion.target}
         </p>
       )}
@@ -74,7 +74,7 @@ const SuggestionBlock = ({ suggestion, loading }) => {
         <p className="mt-2 text-sm text-slate-600">{suggestion.reason}</p>
       )}
       {suggestion.dosage && (
-        <div className="mt-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-700">
+        <div className="mt-2 rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm text-slate-700">
           <span className="font-semibold">Gợi ý khởi đầu:</span>{" "}
           {suggestion.dosage}
         </div>
@@ -110,7 +110,7 @@ const MetricCard = ({
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-4">
         <div className="flex items-center gap-2">
-          <Heart size={18} className="text-amber-600" />
+          <Heart size={18} className="text-orange-600" />
           <h4 className="font-bold text-slate-800">{title}</h4>
         </div>
       </div>
@@ -126,9 +126,14 @@ const MetricCard = ({
             </span>
             <input
               type="number"
+              min="1"
               value={value.result ?? ""}
-              onChange={(e) => onChange("result", e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val !== "" && Number(val) < 1) return;
+                onChange("result", val);
+              }}
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
               placeholder={placeholder}
             />
           </label>
@@ -167,7 +172,7 @@ const MetricCard = ({
               rows={3}
               value={value.notes || ""}
               onChange={(e) => onChange("notes", e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
               placeholder="Ví dụ: hồi phục nhịp tim chậm, nền tim mạch thấp."
             />
           </label>
@@ -198,8 +203,8 @@ const CardioAssessmentSection = ({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-2 border-l-4 border-amber-500 pl-3">
-        <Activity size={20} className="text-amber-600" />
+      <div className="flex items-center gap-2 border-l-4 border-orange-500 pl-3">
+        <Activity size={20} className="text-orange-600" />
         <div>
           <h3 className="text-xl font-bold text-slate-800">Tim mạch</h3>
           <p className="text-sm text-slate-500">

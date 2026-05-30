@@ -43,7 +43,7 @@ const Feedback = () => {
           data-aos="fade-down"
           data-aos-duration="1500"
         >
-          <h2>CÂU CHUYỆN THAY ĐỔI CỦA KHÁCH HÀNG</h2>
+          <h2 className="uppercase">CÂU CHUYỆN THAY ĐỔI CỦA KHÁCH HÀNG</h2>
           <Link
             to="/ket-qua-khach-hang"
             className="inline-flex items-center justify-center rounded-full border border-primary px-5 py-2 text-sm font-bold uppercase tracking-[0.12em] text-primary transition hover:bg-primary hover:text-white"

@@ -94,10 +94,11 @@ const BookingManagement = () => {
   };
 
   return (
+    <phantom-ui loading={loading || undefined}>
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 uppercase">
           Quản lý đặt hàng
         </h1>
         <p className="text-gray-500 mt-1">
@@ -133,11 +134,7 @@ const BookingManagement = () => {
       </div>
 
       {/* Card Grid */}
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
-        </div>
-      ) : bookings.length === 0 ? (
+      {bookings.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <p className="text-gray-500">Không có dữ liệu</p>
         </div>
@@ -299,7 +296,7 @@ const BookingManagement = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800">
+              <h2 className="text-xl font-bold text-gray-800 uppercase">
                 Chi tiết đăng ký
               </h2>
               <button
@@ -403,6 +400,7 @@ const BookingManagement = () => {
         </div>
       )}
     </div>
+    </phantom-ui>
   );
 };
 

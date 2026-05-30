@@ -1,16 +1,17 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
-import { createTrainer } from "../controllers/admin.controller.js";
+
 import User from "../models/User.js";
 import Order from "../models/Order.js";
+import WalletTransaction from "../models/WalletTransaction.js";
+import TrainerSubscription from "../models/TrainerSubscription.js";
+import { uploadAvatar } from "../middlewares/avatarUpload.js";
 import {
   getUsers,
   deleteUser,
-  getTrainers,
 } from "../controllers/user.controller.js";
 import {
-  validateCreateTrainer,
   validateDeleteUser,
 } from "../middlewares/validation.js";
 
@@ -22,45 +23,105 @@ router.get("/me", protect, async (req, res) => {
   res.json(user);
 });
 
-// ===== GET TRAINERS =====
-router.get("/trainers", protect, requireRoles("admin"), getTrainers);
-
-// ===== DELETE TRAINERS =====
-router.delete(
-  "/trainers/:id",
-  protect,
-  csrfProtection,
-  requireRoles("admin"),
-  async (req, res) => {
-    try {
-      const trainerId = req.params.id;
-
-      // Kiểm tra xem trainer có đang phụ trách order nào không
-      const orders = await Order.find({ trainerId });
-      if (orders.length > 0) {
-        // Có thể xóa hoặc gán lại cho null, tuỳ logic. Ở đây ta xóa nhưng cảnh báo.
-        // Nên set trainerId = null để không mất order
-        await Order.updateMany({ trainerId }, { trainerId: null });
-      }
-
-      await User.findByIdAndDelete(trainerId);
-      res.json({ success: true, message: "Xóa trainer thành công" });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ success: false, message: "Lỗi xóa trainer" });
+// ===== UPDATE PROFILE =====
+router.put("/me/profile", protect, csrfProtection, async (req, res) => {
+  try {
+    const { name, phone, address } = req.body;
+    
+    // validation
+    if (!name || name.trim() === "") {
+      return res.status(400).json({ success: false, message: "Họ tên không được để trống" });
     }
-  },
-);
 
-// ===== CREATE TRAINER =====
-router.post(
-  "/create-trainer",
-  protect,
-  csrfProtection,
-  requireRoles("admin"),
-  validateCreateTrainer,
-  createTrainer,
-);
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { 
+        $set: { 
+          name: name.trim(), 
+          phone: phone ? phone.trim() : "", 
+          address: address ? address.trim() : "" 
+        } 
+      },
+      { returnDocument: 'after' }
+    ).select("-password");
+
+    res.json({ success: true, message: "Cập nhật thông tin thành công", user: updatedUser });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Lỗi cập nhật thông tin cá nhân" });
+  }
+});
+
+// ===== UPDATE AVATAR =====
+router.put("/me/avatar", protect, csrfProtection, uploadAvatar.single("avatar"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Không tìm thấy file tải lên" });
+    }
+
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: { avatar: avatarUrl } },
+      { returnDocument: 'after' }
+    ).select("-password");
+
+    res.json({ success: true, message: "Cập nhật ảnh đại diện thành công", avatar: avatarUrl, user: updatedUser });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message || "Lỗi cập nhật ảnh đại diện" });
+  }
+});
+
+// ===== GET USER ORDERS =====
+router.get("/me/orders", protect, async (req, res) => {
+  try {
+    // Đơn hàng HLV: những người mua gói HLV để quản lý học viên
+    const trainerSubscriptions = await TrainerSubscription.find({ userId: req.user.id })
+      .sort({ createdAt: -1 });
+
+    // Đơn hàng Khách PT: khách hàng mua gói PT (userId là user hiện tại)
+    const trainerOrders = await Order.find({ userId: req.user.id })
+      .populate("trainerId", "name email phone avatar")
+      .sort({ createdAt: -1 });
+
+    // Đơn hàng Khách PT: đối với trainer xem danh sách học viên
+    const clientOrders = await Order.find({ trainerId: req.user.id })
+      .populate("userId", "name email phone avatar")
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      trainerSubscriptions,
+      trainerOrders,
+      clientOrders,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Lỗi lấy danh sách đơn hàng" });
+  }
+});
+
+// ===== GET USER TRANSACTIONS =====
+router.get("/me/transactions", protect, async (req, res) => {
+  try {
+    const transactions = await WalletTransaction.find({ userId: req.user.id })
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      transactions,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Lỗi lấy lịch sử giao dịch" });
+  }
+});
+
+
+
+
 
 // ===== GET USER FROM GOOGLE =====
 router.get("/users", protect, requireRoles("admin"), getUsers);

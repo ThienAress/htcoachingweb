@@ -639,17 +639,6 @@ export const validateLogin = [
   handleValidationErrors,
 ];
 
-export const validateCreateTrainer = [
-  body("name").notEmpty().withMessage("Tên không được để trống"),
-  body("email").notEmpty().withMessage("Email không được để trống").isEmail(),
-  body("password")
-    .notEmpty()
-    .withMessage("Mật khẩu không được để trống")
-    .isLength({ min: 6 })
-    .withMessage("Mật khẩu tối thiểu 6 ký tự"),
-  handleValidationErrors,
-];
-
 export const validateDeleteUser = [
   param("id").isMongoId().withMessage("ID không hợp lệ"),
   handleValidationErrors,

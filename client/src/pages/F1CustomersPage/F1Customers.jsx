@@ -352,6 +352,7 @@ const F1Customers = () => {
               customer={selectedCustomer}
               onBack={() => setViewMode("detail")}
               onGenerated={handleAiReportGenerated}
+              onOpenResultPrediction={() => setViewMode("result_prediction")}
             />
           )}
 

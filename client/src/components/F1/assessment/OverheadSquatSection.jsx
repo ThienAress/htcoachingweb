@@ -46,7 +46,7 @@ const CheckboxGroup = ({
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-4">
         <div className="flex items-center gap-2">
-          <Eye size={18} className="text-amber-600" />
+          <Eye size={18} className="text-orange-600" />
           <h4 className="font-bold text-slate-800">{title}</h4>
         </div>
       </div>
@@ -62,7 +62,7 @@ const CheckboxGroup = ({
                 type="checkbox"
                 checked={values.includes(item.value)}
                 onChange={() => onToggle(item.value)}
-                className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
               />
               <span className="text-sm text-slate-700">{item.label}</span>
             </label>
@@ -76,8 +76,8 @@ const CheckboxGroup = ({
 const OverheadSquatSection = ({ value, onToggle }) => {
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-2 border-l-4 border-amber-500 pl-3">
-        <Move size={20} className="text-amber-600" />
+      <div className="flex items-center gap-2 border-l-4 border-orange-500 pl-3">
+        <Move size={20} className="text-orange-600" />
         <div>
           <h3 className="text-xl font-bold text-slate-800">
             Đánh giá squat tay qua đầu

@@ -298,7 +298,7 @@ const buildExitCriteriaByPhase = (phaseKey) => {
 
   if (phaseKey === "phase_2") {
     return [
-      "Giữ kỹ thuật tốt dưới tải vừa",
+      "Giữ form chuẩn khi tập tạ vừa",
       "Hoàn thành khối lượng tập ổn định",
       "Hồi phục sau buổi tập ở mức tốt",
     ];

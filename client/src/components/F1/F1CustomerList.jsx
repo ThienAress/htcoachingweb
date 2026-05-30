@@ -3,10 +3,10 @@ import { Search, UserPlus } from "lucide-react";
 const StatusBadge = ({ value }) => {
   const map = {
     new: "Mới tạo",
-    intake_in_progress: "Đang khai thác thông tin",
-    intake_completed: "Đã hoàn tất intake",
-    assessment_completed: "Đã hoàn tất assessment",
-    ai_report_generated: "Đã tạo AI Report",
+    intake_in_progress: "Đang khảo sát",
+    intake_completed: "Đã khảo sát",
+    assessment_completed: "Đã đánh giá thể chất",
+    ai_report_generated: "Đã có AI report",
     program_started: "Đã bắt đầu lộ trình",
     archived: "Đã lưu trữ",
   };
@@ -20,17 +20,17 @@ const StatusBadge = ({ value }) => {
 
 const ReadinessBadge = ({ value }) => {
   const styles = {
-    pending: "bg-amber-100 text-amber-700",
+    pending: "bg-orange-100 text-orange-700",
     ready: "bg-emerald-100 text-emerald-700",
     caution: "bg-orange-100 text-orange-700",
     hold: "bg-red-100 text-red-700",
   };
 
   const labels = {
-    pending: "Chờ đánh giá",
-    ready: "Phù hợp tập luyện",
-    caution: "Cần điều chỉnh",
-    hold: "Chưa nên tập",
+    pending: "Đang chờ",
+    ready: "Sẵn sàng",
+    caution: "Chú ý",
+    hold: "Tạm hoãn",
   };
 
   return (
@@ -56,7 +56,7 @@ const F1CustomerList = ({
     <section className="space-y-5">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-slate-900 uppercase">
             Hệ thống khách hàng F1
           </h1>
           <p className="text-slate-500 mt-1">

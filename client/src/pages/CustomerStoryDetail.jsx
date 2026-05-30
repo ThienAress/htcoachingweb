@@ -95,9 +95,16 @@ const CustomerStoryDetail = () => {
     return (
       <main className="min-h-screen bg-white pt-32">
         <div className="container-custom">
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">
-            Đang tải câu chuyện khách hàng...
-          </p>
+          <phantom-ui loading>
+            <div className="space-y-6">
+              <div className="h-8 w-2/3 bg-gray-100 rounded"></div>
+              <div className="h-64 bg-gray-100 rounded"></div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="h-40 bg-gray-100 rounded"></div>
+                <div className="h-40 bg-gray-100 rounded"></div>
+              </div>
+            </div>
+          </phantom-ui>
         </div>
       </main>
     );
@@ -161,7 +168,7 @@ const CustomerStoryDetail = () => {
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-primary">
             Kết quả thay đổi
           </p>
-          <h1 className="max-w-4xl text-white">
+          <h1 className="max-w-4xl text-white uppercase">
             Hành trình {story.duration} của {story.name}
           </h1>
           <div className="mt-5 flex flex-wrap gap-3 text-sm font-semibold text-white/90">
@@ -220,13 +227,13 @@ const CustomerStoryDetail = () => {
           <div className="min-w-0">
             <div className="grid gap-5 md:grid-cols-2">
               <article className="border-l-4 border-primary bg-light p-5">
-                <h2 className="h3 mb-3 text-2xl">Vấn đề ban đầu</h2>
+                <h2 className="h3 mb-3 text-2xl uppercase">Vấn đề ban đầu</h2>
                 <p className="text-sm leading-7 text-gray sm:text-base">
                   {story.problem}
                 </p>
               </article>
               <article className="border-l-4 border-black bg-light p-5">
-                <h2 className="h3 mb-3 text-2xl">Giải pháp</h2>
+                <h2 className="h3 mb-3 text-2xl uppercase">Giải pháp</h2>
                 <p className="text-sm leading-7 text-gray sm:text-base">
                   {story.solution}
                 </p>
@@ -249,7 +256,7 @@ const CustomerStoryDetail = () => {
               <section className="mt-10">
                 <div className="mb-5 flex items-center gap-3">
                   <CalendarDays className="h-5 w-5 text-primary" />
-                  <h2 className="h3 text-2xl">Timeline hành trình</h2>
+                  <h2 className="h3 text-2xl uppercase">Timeline hành trình</h2>
                 </div>
                 <div className="space-y-8">
                   {story.milestones.map((milestone) => (
@@ -296,7 +303,7 @@ const CustomerStoryDetail = () => {
             <section className="mt-10 border-y border-gray-200 py-8">
               <div className="mb-5 flex items-center gap-3">
                 <Dumbbell className="h-5 w-5 text-primary" />
-                <h2 className="h3 text-2xl">Kết quả đạt được</h2>
+                <h2 className="h3 text-2xl uppercase">Kết quả đạt được</h2>
               </div>
               {story.highlights.length > 0 && (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -324,7 +331,7 @@ const CustomerStoryDetail = () => {
 
             {relatedStories.length > 0 && (
               <section className="mt-10">
-                <h2 className="h3 text-center text-2xl text-primary">
+                <h2 className="h3 text-center text-2xl text-primary uppercase">
                   Các câu chuyện tương tự
                 </h2>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

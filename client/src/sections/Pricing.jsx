@@ -350,7 +350,7 @@ const Pricing = () => {
   return (
     <section id="pricing" className="py-16 bg-[#262626]">
       <div className="container-custom mx-auto px-4">
-        <h2 className="text-center text-primary">
+        <h2 className="text-center text-primary uppercase">
           {isTrainer ? "GÓI DỊCH VỤ CỦA CHÚNG TÔI" : "GÓI TẬP CỦA CHÚNG TÔI"}
         </h2>
 

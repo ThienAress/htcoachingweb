@@ -4,6 +4,7 @@ import { Flame, BarChart3, Utensils, Calendar } from "lucide-react";
 import TdeeForm from "./TdeeForm";
 import TdeeResultBox from "./TdeeResultBox";
 import MacroTable from "./MacroTable";
+import ManualMacroForm from "./ManualMacroForm";
 import Header from "../../sections/Header/Header";
 import ChatIcons from "../../components/ChatIcons";
 import SEO from "../../components/SEO";
@@ -22,6 +23,7 @@ const TdeeCalculator = () => {
     goal: "",
   });
 
+  const [calcMode, setCalcMode] = useState("auto"); // "auto" | "manual"
   const [errors, setErrors] = useState({});
   const [tdee, setTdee] = useState(null);
   const [bmr, setBmr] = useState(null);
@@ -206,15 +208,45 @@ const TdeeCalculator = () => {
           </p>
         </div>
 
-        <TdeeForm
-          form={form}
-          errors={errors}
-          handleChange={handleChange}
-          handleSubmit={handleSubmit}
-          handleReset={handleReset}
-          goalNotice={goalNotice}
-          setGoalNotice={setGoalNotice}
-        />
+        {/* Toggle Mode */}
+        <div className="flex justify-center mb-10">
+          <div className="bg-gray-800/80 p-1 rounded-2xl flex border border-gray-700 w-full max-w-md">
+            <button
+              onClick={() => setCalcMode("auto")}
+              className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
+                calcMode === "auto"
+                  ? "bg-primary text-white shadow-lg"
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              Tính tự động
+            </button>
+            <button
+              onClick={() => setCalcMode("manual")}
+              className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
+                calcMode === "manual"
+                  ? "bg-primary text-white shadow-lg"
+                  : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              Đã có Macro (Nhập tay)
+            </button>
+          </div>
+        </div>
+
+        {calcMode === "manual" ? (
+          <ManualMacroForm setShowLoginModal={setShowLoginModal} />
+        ) : (
+          <>
+            <TdeeForm
+              form={form}
+              errors={errors}
+              handleChange={handleChange}
+              handleSubmit={handleSubmit}
+              handleReset={handleReset}
+              goalNotice={goalNotice}
+              setGoalNotice={setGoalNotice}
+            />
 
         {tdee && bmr && (
           <div className="animate-fade-in-up">
@@ -315,6 +347,8 @@ const TdeeCalculator = () => {
               )}
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
       <ChatIcons />

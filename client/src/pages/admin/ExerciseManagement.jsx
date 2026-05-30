@@ -183,13 +183,14 @@ const ExerciseManagement = () => {
   ];
 
   return (
+    <phantom-ui loading={isLoading || undefined}>
     <div className="min-h-screen bg-gray-50/40 p-4 md:p-6">
       <ToastContainer position="top-right" autoClose={3000} theme="light" />
 
       {/* Header + actions */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 uppercase">
             <Dumbbell className="w-7 h-7 text-indigo-600" />
             Quản lý bài tập
           </h1>
@@ -225,15 +226,7 @@ const ExerciseManagement = () => {
         />
       </div>
 
-      {/* Loading state */}
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl shadow-sm border">
-          <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-3" />
-          <p className="text-gray-500">Đang tải danh sách bài tập...</p>
-        </div>
-      ) : (
-        <>
-          {/* Table container - responsive */}
+      {/* Table container - responsive */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full">
@@ -326,8 +319,6 @@ const ExerciseManagement = () => {
               </button>
             </div>
           )}
-        </>
-      )}
 
       {/* Modal thêm/sửa bài tập */}
       {showModal && (
@@ -340,7 +331,7 @@ const ExerciseManagement = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-5">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 uppercase">
                 {editingId ? (
                   <>
                     <Edit size={20} className="text-indigo-600" /> Sửa bài tập
@@ -468,7 +459,7 @@ const ExerciseManagement = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 uppercase">
                 <Upload size={20} className="text-emerald-600" /> Thêm nhiều bài
                 tập
               </h2>
@@ -516,6 +507,7 @@ const ExerciseManagement = () => {
         </div>
       )}
     </div>
+    </phantom-ui>
   );
 };
 

@@ -24,26 +24,13 @@ const TrainerDashboard = () => {
     refetch,
   } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => getOrders().then((res) => res.data.data.orders || []),
+    queryFn: () => getOrders(1, 0).then((res) => res.data.data.orders || []),
   });
 
   // Lọc khách hàng theo tên
   const filteredOrders = orders.filter((order) =>
     order.name?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
-
-  if (isLoading) {
-    return (
-      <div className="p-4 space-y-4 animate-pulse">
-        <div className="h-8 bg-gray-300 rounded w-1/3"></div>
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 bg-gray-200 rounded"></div>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   if (isError) {
     return (
@@ -60,11 +47,12 @@ const TrainerDashboard = () => {
   }
 
   return (
+    <phantom-ui loading={isLoading || undefined}>
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 uppercase">
             <User className="w-6 h-6 text-primary" />
             KHÁCH HÀNG CỦA BẠN
           </h2>
@@ -106,6 +94,9 @@ const TrainerDashboard = () => {
                   SĐT
                 </th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                  Địa chỉ
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-600">
                   Gói
                 </th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">
@@ -130,7 +121,10 @@ const TrainerDashboard = () => {
                   </td>
                   <td className="px-4 py-3 text-slate-600">{order.email}</td>
                   <td className="px-4 py-3 text-slate-600">
-                    {order.phone || "—"}
+                    {order.userId?.phone || order.phone || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {order.userId?.address || "—"}
                   </td>
                   <td className="px-4 py-3 text-slate-600">{order.package}</td>
                   <td className="px-4 py-3">
@@ -186,7 +180,11 @@ const TrainerDashboard = () => {
               </div>
               <div className="flex items-center gap-2 text-slate-600">
                 <Phone className="w-4 h-4 text-slate-400" />
-                <span>{order.phone || "—"}</span>
+                <span>{order.userId?.phone || order.phone || "—"}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-600">
+                <MapPin className="w-4 h-4 text-slate-400" />
+                <span>{order.userId?.address || "—"}</span>
               </div>
               <div className="flex items-center gap-2 text-slate-600">
                 <Package className="w-4 h-4 text-slate-400" />
@@ -212,6 +210,7 @@ const TrainerDashboard = () => {
         )}
       </div>
     </div>
+    </phantom-ui>
   );
 };
 

@@ -274,7 +274,7 @@ const MealPlan = () => {
                 )}
               </>
             ) : (
-              <FoodNutritionTable foodDatabase={foodDatabase} />
+              <FoodNutritionTable foodDatabase={foodDatabase} canViewFull={accessLevel === "unlimited" || canGenerate} />
             )}
           </div>
         </div>

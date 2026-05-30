@@ -48,7 +48,7 @@ export const createCheckin = async (req, res) => {
     const order = await Order.findOneAndUpdate(
       query,
       { $inc: { sessions: -1 } },
-      { new: true, session },
+      { returnDocument: 'after', session },
     );
 
     if (!order) {
@@ -147,7 +147,7 @@ export const updateCheckin = async (req, res) => {
     const updatedCheckin = await Checkin.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     res.json({

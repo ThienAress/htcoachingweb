@@ -6,14 +6,14 @@ const Input = ({ label, required, error, ...props }) => {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-semibold text-slate-800">
-        {label} {required && <span className="text-amber-500">*</span>}
+        {label} {required && <span className="text-orange-500">*</span>}
       </span>
       <input
         {...props}
         className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-800 outline-none transition-all duration-200 focus:ring-2 ${
           error
             ? "border-red-300 focus:border-red-500 focus:ring-red-100"
-            : "border-slate-200 focus:border-amber-400 focus:ring-amber-100"
+            : "border-slate-200 focus:border-orange-400 focus:ring-orange-100"
         }`}
       />
       {error && <p className="mt-1.5 text-sm text-red-500">{error}</p>}
@@ -25,14 +25,14 @@ const Select = ({ label, options = [], required, error, ...props }) => {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-semibold text-slate-800">
-        {label} {required && <span className="text-amber-500">*</span>}
+        {label} {required && <span className="text-orange-500">*</span>}
       </span>
       <select
         {...props}
         className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-800 outline-none transition-all duration-200 focus:ring-2 ${
           error
             ? "border-red-300 focus:border-red-500 focus:ring-red-100"
-            : "border-slate-200 focus:border-amber-400 focus:ring-amber-100"
+            : "border-slate-200 focus:border-orange-400 focus:ring-orange-100"
         }`}
       >
         {options.map((item) => (
@@ -144,7 +144,7 @@ const F1CreateCustomerForm = ({
     <section className="mx-auto max-w-4xl px-4 py-6 md:px-6">
       <button
         onClick={onBack}
-        className="group mb-6 inline-flex items-center gap-2 text-slate-500 transition hover:text-amber-600"
+        className="group mb-6 inline-flex items-center gap-2 text-slate-500 transition hover:text-orange-600"
       >
         <ArrowLeft
           size={18}
@@ -156,11 +156,11 @@ const F1CreateCustomerForm = ({
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
         <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5 md:px-8">
           <div className="flex items-center gap-3">
-            <div className="rounded-full bg-amber-100 p-2 text-amber-600">
+            <div className="rounded-full bg-orange-100 p-2 text-orange-600">
               <UserPlus size={22} />
             </div>
             <div>
-              <h2 className="text-2xl font-extrabold tracking-tight text-slate-800">
+              <h2 className="text-2xl font-extrabold tracking-tight text-slate-800 uppercase">
                 Tạo khách hàng F1
               </h2>
               <p className="mt-1 text-sm text-slate-500">
@@ -255,7 +255,7 @@ const F1CreateCustomerForm = ({
             <button
               type="submit"
               disabled={submittingCreate}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-6 py-3 font-bold text-white shadow-md transition-all hover:shadow-lg hover:brightness-105 disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-6 py-3 font-bold text-white shadow-md transition-all hover:shadow-lg hover:brightness-105 disabled:opacity-60"
             >
               {submittingCreate ? (
                 <>

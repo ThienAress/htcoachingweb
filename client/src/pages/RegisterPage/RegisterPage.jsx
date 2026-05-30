@@ -6,7 +6,6 @@ import {
   createBooking,
   checkUserHasBookings,
 } from "../../services/booking.service.js";
-import HeaderMinimal from "../../sections/Header/HeaderMinimal";
 import SEO from "../../components/SEO";
 
 function RegisterPage() {
@@ -342,11 +341,10 @@ function RegisterPage() {
   return (
     <>
       <SEO title="Đăng ký gói tập" noindex />
-      <HeaderMinimal />
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-12 pb-8">
         <div className="container-custom">
           <div className="text-center mb-8">
-            <h1 className="text-gray-800">ĐĂNG KÝ GÓI TẬP</h1>
+            <h1 className="text-gray-800 uppercase">ĐĂNG KÝ GÓI TẬP</h1>
             <p className="text-gray-500 mt-2">
               Vui lòng điền thông tin bên dưới để chúng tôi liên hệ tư vấn
             </p>
@@ -356,7 +354,7 @@ function RegisterPage() {
             {/* Cột trái - Form đăng ký */}
             <div className="flex-1 bg-white rounded-2xl shadow-lg p-6 md:p-8">
               <div className="flex items-center gap-2 border-b border-gray-200 pb-4 mb-6">
-                <h2 className="text-gray-800">THÔNG TIN ĐĂNG KÝ</h2>
+                <h2 className="text-gray-800 uppercase">THÔNG TIN ĐĂNG KÝ</h2>
               </div>
               <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
                 <div>

@@ -1,17 +1,20 @@
 // F1AssessmentPanel.jsx
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Save, AlertTriangle, ClipboardList } from "lucide-react";
+import { toast } from "react-toastify";
 import {
   createAssessment,
   getLatestAssessment,
   getAssessmentStarterSuggestions,
   updateAssessment,
+  getLatestIntake,
 } from "../../services/f1Customer.service";
 import StaticPostureSection from "./assessment/StaticPostureSection";
 import OverheadSquatSection from "./assessment/OverheadSquatSection";
 import StrengthAssessmentSection from "./assessment/StrengthAssessmentSection";
 import EnduranceAssessmentSection from "./assessment/EnduranceAssessmentSection";
 import CardioAssessmentSection from "./assessment/CardioAssessmentSection";
+import { computeOverallPhysicalLevel } from "../../utils/assessment.helpers";
 
 const initialMetricItem = {
   score: "",
@@ -47,6 +50,7 @@ const createInitialAssessmentForm = () => ({
     coreEndurance: { ...initialMetricItem },
   },
   cardioAssessment: {
+    restingHeartRate: null,
     cardioCapacity: { ...initialMetricItem },
     recoveryHeartRate: { ...initialMetricItem },
   },
@@ -93,8 +97,14 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
       if (!customer?._id) return;
       try {
         setLoadingLatest(true);
-        const res = await getLatestAssessment(customer._id);
+        const [res, intakeRes] = await Promise.all([
+          getLatestAssessment(customer._id).catch(() => null),
+          getLatestIntake(customer._id).catch(() => null),
+        ]);
         const latest = res?.data;
+        const latestIntake = intakeRes?.data;
+        const intakeRestingHR = latestIntake?.bodyMetrics?.restingHeartRate;
+
         if (latest?._id) {
           setLatestAssessmentId(latest._id);
           setFormData({
@@ -139,6 +149,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
               ),
             },
             cardioAssessment: {
+              restingHeartRate: latest?.cardioAssessment?.restingHeartRate || intakeRestingHR || null,
               cardioCapacity: withMetricDefaults(
                 latest?.cardioAssessment?.cardioCapacity,
               ),
@@ -151,7 +162,14 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
           });
         } else {
           setLatestAssessmentId(null);
-          setFormData(createInitialAssessmentForm());
+          setFormData({
+            ...createInitialAssessmentForm(),
+            cardioAssessment: {
+              restingHeartRate: intakeRestingHR || null,
+              cardioCapacity: { ...initialMetricItem },
+              recoveryHeartRate: { ...initialMetricItem },
+            }
+          });
         }
       } catch (error) {
         console.error(error);
@@ -239,6 +257,37 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
 
   const handleSubmit = async () => {
     if (!customer?._id) return;
+
+    // Validation
+    const { postureAssessment, strengthAssessment, enduranceAssessment, cardioAssessment, assessorNotes } = formData;
+    
+    // Validate Posture
+    const missingPosture = Object.keys(postureAssessment).some(key => !postureAssessment[key]);
+    if (missingPosture) {
+      return toast.warning("Vui lòng đánh giá tất cả các mục trong Tư thế tĩnh.");
+    }
+
+    // Validate Strength (Must have level calculated, meaning sets/reps filled and protocol chosen)
+    const missingStrength = Object.values(strengthAssessment).some(metric => !metric.level);
+    if (missingStrength) {
+      return toast.warning("Vui lòng nhập đầy đủ Số set và Số reps/giây cho tất cả các bài Đánh giá Sức mạnh.");
+    }
+
+    // Validate Endurance
+    const missingEndurance = Object.values(enduranceAssessment).some(metric => !metric.level);
+    if (missingEndurance) {
+      return toast.warning("Vui lòng nhập đầy đủ dữ liệu cho các bài Đánh giá Sức bền.");
+    }
+
+    // Validate Cardio
+    if (!cardioAssessment.cardioCapacity?.level || !cardioAssessment.recoveryHeartRate?.level) {
+      return toast.warning("Vui lòng nhập đầy đủ dữ liệu cho các bài Đánh giá Tim mạch (Cardio).");
+    }
+
+    if (!assessorNotes?.trim()) {
+      return toast.warning("Vui lòng nhập Ghi chú tổng hợp.");
+    }
+
     try {
       setSubmitting(true);
       const payload = {
@@ -256,10 +305,10 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
       let res;
       if (latestAssessmentId) {
         res = await updateAssessment(customer._id, latestAssessmentId, payload);
-        alert("Cập nhật đánh giá thể chất thành công");
+        toast.success("Cập nhật đánh giá thể chất thành công");
       } else {
         res = await createAssessment(customer._id, payload);
-        alert("Lưu đánh giá thể chất thành công");
+        toast.success("Lưu đánh giá thể chất thành công");
       }
       const saved = res?.data || null;
       if (saved?._id) {
@@ -273,7 +322,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
       onSubmitted?.(saved);
     } catch (error) {
       console.error(error);
-      alert(error?.response?.data?.message || "Lưu đánh giá thể chất thất bại");
+      toast.error(error?.response?.data?.message || "Lưu đánh giá thể chất thất bại");
     } finally {
       setSubmitting(false);
     }
@@ -287,7 +336,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
     <section className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6">
       <button
         onClick={onBack}
-        className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-amber-600"
+        className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-orange-600"
       >
         <ArrowLeft
           size={18}
@@ -299,14 +348,14 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
         <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-6 md:px-8">
           <div className="flex items-center gap-3">
-            <div className="rounded-full bg-amber-100 p-2 text-amber-600">
+            <div className="rounded-full bg-orange-100 p-2 text-orange-600">
               <ClipboardList size={22} />
             </div>
             <div>
               <p className="text-sm text-slate-500">
                 Đánh giá thể chất • {customer?.code || "--"}
               </p>
-              <h2 className="text-2xl font-extrabold text-slate-800">
+              <h2 className="text-2xl font-extrabold text-slate-800 uppercase">
                 {customer?.fullName}
               </h2>
               <p className="mt-1 text-slate-500">
@@ -374,11 +423,11 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
                   <input
                     value={
                       {
-                        low: "Thấp",
+                        low: "Yếu",
                         below_average: "Dưới trung bình",
                         average: "Trung bình",
                         good: "Tốt",
-                      }[formData.overallPhysicalLevel] || ""
+                      }[computeOverallPhysicalLevel(formData)] || ""
                     }
                     readOnly
                     className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-700 outline-none"
@@ -400,7 +449,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
                       assessorNotes: e.target.value,
                     }))
                   }
-                  className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                   placeholder="Tổng hợp điểm mạnh, điểm yếu, ưu tiên corrective, hạn chế hiện tại..."
                 />
               </label>
@@ -409,7 +458,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
                 <button
                   onClick={handleSubmit}
                   disabled={submitting || loadingLatest}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-6 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-6 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
                 >
                   <Save size={18} />
                   {submitting

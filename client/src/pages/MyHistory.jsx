@@ -33,60 +33,6 @@ const MyHistory = () => {
     currentPage * itemsPerPage,
   );
 
-  if (isLoading) {
-    return (
-      <div className="p-4 md:p-6 space-y-6 animate-pulse">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-gray-200 to-gray-300 rounded-full"></div>
-          <div className="space-y-2">
-            <div className="h-4 w-40 bg-gray-300 rounded"></div>
-            <div className="h-3 w-24 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border p-5 space-y-4">
-          <div className="h-5 w-48 bg-gray-300 rounded"></div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="h-4 w-32 bg-gray-200 rounded"></div>
-            <div className="h-4 w-40 bg-gray-200 rounded"></div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border p-5 space-y-4">
-          <div className="h-5 w-40 bg-gray-300 rounded"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[1, 2].map((i) => (
-              <div
-                key={i}
-                className="p-4 rounded-xl border bg-gray-50 space-y-3"
-              >
-                <div className="h-4 w-32 bg-gray-300 rounded"></div>
-                <div className="h-3 w-24 bg-gray-200 rounded"></div>
-                <div className="h-3 w-20 bg-gray-200 rounded"></div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          <div className="px-5 py-4 border-b bg-slate-50 flex justify-between">
-            <div className="h-4 w-40 bg-gray-300 rounded"></div>
-            <div className="h-4 w-16 bg-gray-200 rounded"></div>
-          </div>
-          <div className="p-4 space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="grid grid-cols-6 gap-4 items-center">
-                <div className="h-3 bg-gray-200 rounded col-span-1"></div>
-                <div className="h-3 bg-gray-300 rounded col-span-1"></div>
-                <div className="h-3 bg-gray-200 rounded col-span-1"></div>
-                <div className="h-3 bg-gray-200 rounded col-span-1"></div>
-                <div className="h-3 bg-gray-200 rounded col-span-1"></div>
-                <div className="h-4 bg-gray-300 rounded col-span-1"></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <div className="p-6 text-center text-red-500 bg-red-50 rounded-xl border border-red-200">
@@ -110,6 +56,7 @@ const MyHistory = () => {
   }
 
   return (
+    <phantom-ui loading={isLoading || undefined}>
     <div className="p-4 md:p-6 space-y-6">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
         <div className="flex items-start gap-3">
@@ -279,6 +226,7 @@ const MyHistory = () => {
         )}
       </div>
     </div>
+    </phantom-ui>
   );
 };
 

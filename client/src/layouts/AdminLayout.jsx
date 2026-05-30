@@ -15,40 +15,73 @@ import {
   BookOpenText,
   X,
   Wallet,
+  ChevronDown,
+  BrainCircuit,
 } from "lucide-react";
 
 const SidebarContent = ({ onItemClick }) => {
   const location = useLocation();
 
-  const navItems = [
-    { path: "/admin/users", label: "Quản lý người dùng", icon: Users },
-    { path: "/admin/trainer-subscribers", label: "Quản lý huấn luyện viên", icon: Sparkles },
-    { path: "/admin/orders", label: "Quản lý đơn hàng", icon: Package },
-    { path: "/admin/bookings", label: "Quản lý đặt hàng", icon: ClipboardList },
+  const navGroups = [
     {
-      path: "/admin/contact-messages",
-      label: "Quản lý liên hệ",
-      icon: MessageSquare,
-    },
-    { path: "/admin/foods", label: "Quản lý thực phẩm", icon: Apple },
-    { path: "/admin/exercises", label: "Quản lý bài tập", icon: Dumbbell },
-    {
-      path: "/admin/customer-stories",
-      label: "Câu chuyện khách hàng",
-      icon: BookOpenText,
+      key: "manage",
+      label: "Quản lý",
+      items: [
+        { path: "/admin/users", label: "Người dùng", icon: Users },
+        { path: "/admin/trainer-subscribers", label: "Huấn luyện viên", icon: Sparkles },
+        { path: "/admin/orders", label: "Đơn hàng", icon: Package },
+        { path: "/admin/bookings", label: "Đặt lịch", icon: ClipboardList },
+        { path: "/admin/deposits", label: "Nạp tiền", icon: Wallet },
+        { path: "/admin/f1-ai-rules", label: "Quy tắc AI", icon: BrainCircuit },
+        { path: "/admin/contact-messages", label: "Liên hệ", icon: MessageSquare },
+      ],
     },
     {
-      path: "/admin/exercise-suggestions",
-      label: "Góp ý bài tập",
-      icon: MessageSquareText,
+      key: "data",
+      label: "Kho dữ liệu",
+      items: [
+        { path: "/admin/exercises", label: "Bài tập", icon: Dumbbell },
+        { path: "/admin/foods", label: "Thực phẩm", icon: Apple },
+      ],
     },
-    { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
-    { path: "/admin/deposits", label: "Quản lý nạp tiền", icon: Wallet },
+    {
+      key: "content",
+      label: "Nội dung",
+      items: [
+        { path: "/admin/customer-stories", label: "Câu chuyện khách hàng", icon: BookOpenText },
+        { path: "/admin/exercise-suggestions", label: "Góp ý bài tập", icon: MessageSquareText },
+      ],
+    },
+    {
+      key: "activity",
+      label: "Hoạt động",
+      items: [
+        { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
+      ],
+    },
   ];
+
+  // Auto-expand group containing active page
+  const getInitialOpen = () => {
+    const open = {};
+    navGroups.forEach((group) => {
+      const hasActive = group.items.some((item) => location.pathname === item.path);
+      open[group.key] = hasActive;
+    });
+    // If no group is active, open the first group
+    if (!Object.values(open).some(Boolean)) open["manage"] = true;
+    return open;
+  };
+
+  const [openGroups, setOpenGroups] = useState(getInitialOpen);
+
+  const toggleGroup = (key) => {
+    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <div className="flex flex-col h-full text-white">
-      {/* Branding - giống F1Customers */}
+      {/* Branding */}
       <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-4">
         <div>
           <h3 className="text-lg font-bold tracking-tight leading-tight">
@@ -58,29 +91,53 @@ const SidebarContent = ({ onItemClick }) => {
         </div>
       </div>
 
-      {/* Navigation */}
-      <ul className="space-y-2 flex-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+      {/* Navigation Groups */}
+      <div className="flex-1 space-y-2 overflow-y-auto">
+        {navGroups.map((group) => {
+          const isOpen = !!openGroups[group.key];
           return (
-            <li key={item.path}>
-              <Link
-                to={item.path}
-                onClick={onItemClick}
-                className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
-                  isActive
-                    ? "bg-white/20 text-white font-medium"
-                    : "text-white/80 hover:bg-white/10 hover:text-white"
+            <div key={group.key}>
+              <button
+                onClick={() => toggleGroup(group.key)}
+                className="w-full flex items-center justify-between px-4 py-2 text-[11px] font-bold text-white/50 uppercase tracking-widest hover:text-white/80 transition-colors cursor-pointer"
+              >
+                <span>{group.label}</span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <Icon className="w-5 h-5" />
-                <span>{item.label}</span>
-              </Link>
-            </li>
+                <ul className="space-y-1 pb-2">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <li key={item.path}>
+                        <Link
+                          to={item.path}
+                          onClick={onItemClick}
+                          className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                            isActive
+                              ? "bg-white/20 text-white font-medium"
+                              : "text-white/80 hover:bg-white/10 hover:text-white"
+                          }`}
+                        >
+                          <Icon className="w-5 h-5" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
           );
         })}
-      </ul>
+      </div>
 
       {/* Nút về trang chủ */}
       <div className="mt-auto pt-4 border-t border-white/10">

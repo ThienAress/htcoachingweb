@@ -135,12 +135,12 @@ const SuggestionBlock = ({
     );
   const protocolOptions = extractProtocolOptions(suggestion);
   return (
-    <div className="rounded-xl border-l-4 border-l-amber-500 bg-amber-50/40 p-4">
+    <div className="rounded-xl border-l-4 border-l-orange-500 bg-orange-50/40 p-4">
       <p className="font-bold text-slate-800 whitespace-pre-line">
         {suggestion.title || suggestion.name}
       </p>
       {suggestion.target && (
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-amber-600">
+        <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-orange-600">
           {suggestion.target}
         </p>
       )}
@@ -148,14 +148,14 @@ const SuggestionBlock = ({
         <p className="mt-2 text-sm text-slate-600">{suggestion.reason}</p>
       )}
       {suggestion.dosage && (
-        <div className="mt-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-slate-700">
+        <div className="mt-2 rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm text-slate-700">
           <span className="font-semibold">Gợi ý khởi đầu:</span>{" "}
           {suggestion.dosage}
         </div>
       )}
       {protocolOptions.length ? (
         <div className="mt-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">
+          <p className="text-xs font-semibold uppercase tracking-wider text-orange-700">
             Chọn nhanh bài test sức mạnh
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -170,8 +170,8 @@ const SuggestionBlock = ({
                   onClick={() => onChooseProtocol(option)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                     active
-                      ? "border-amber-600 bg-amber-600 text-white shadow-sm"
-                      : "border-amber-200 bg-white text-amber-700 hover:bg-amber-100"
+                      ? "border-orange-600 bg-orange-600 text-white shadow-sm"
+                      : "border-orange-200 bg-white text-orange-700 hover:bg-orange-100"
                   }`}
                 >
                   {option.label}
@@ -232,7 +232,7 @@ const MetricCard = ({
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-4">
         <div className="flex items-center gap-2">
-          <Dumbbell size={18} className="text-amber-600" />
+          <Dumbbell size={18} className="text-orange-600" />
           <h4 className="font-bold text-slate-800">{title}</h4>
         </div>
       </div>
@@ -253,9 +253,14 @@ const MetricCard = ({
             </span>
             <input
               type="number"
+              min="1"
               value={value.sets ?? ""}
-              onChange={(e) => onChange("sets", e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val !== "" && Number(val) < 1) return;
+                onChange("sets", val);
+              }}
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
               placeholder="Ví dụ: 3"
             />
           </label>
@@ -266,9 +271,14 @@ const MetricCard = ({
               </span>
               <input
                 type="number"
+                min="1"
                 value={value.reps ?? ""}
-                onChange={(e) => onChange("reps", e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val !== "" && Number(val) < 1) return;
+                  onChange("reps", val);
+                }}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                 placeholder="Ví dụ: 10"
               />
             </label>
@@ -280,9 +290,14 @@ const MetricCard = ({
               </span>
               <input
                 type="number"
+                min="1"
                 value={value.durationSec ?? ""}
-                onChange={(e) => onChange("durationSec", e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val !== "" && Number(val) < 1) return;
+                  onChange("durationSec", val);
+                }}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
                 placeholder="Ví dụ: 20"
               />
             </label>
@@ -328,7 +343,7 @@ const MetricCard = ({
               rows={3}
               value={value.notes || ""}
               onChange={(e) => onChange("notes", e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
               placeholder="Ví dụ: lực đẩy yếu bên trái, core chưa ổn định."
             />
           </label>
@@ -371,8 +386,8 @@ const StrengthAssessmentSection = ({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-2 border-l-4 border-amber-500 pl-3">
-        <Battery size={20} className="text-amber-600" />
+      <div className="flex items-center gap-2 border-l-4 border-orange-500 pl-3">
+        <Battery size={20} className="text-orange-600" />
         <div>
           <h3 className="text-xl font-bold text-slate-800">Sức mạnh</h3>
           <p className="text-sm text-slate-500">

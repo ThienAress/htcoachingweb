@@ -1,8 +1,12 @@
 
 import dns from "dns";
 // ================= IMPORT =================
-import dotenv from "dotenv";
-dotenv.config();
+import "./src/config/env.js"; // Load env TRƯỚC TẤT CẢ
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 import express from "express";
 import cors from "cors";
@@ -36,11 +40,12 @@ import mealplanAccessRoutes from "./src/routes/mealplanAccess.routes.js";
 import { getMyWallet } from "./src/routes/deposit.routes.js";
 import { startDepositCronJobs } from "./src/services/depositCron.js";
 import { startSubscriptionCronJobs } from "./src/services/subscriptionCron.js";
+import { startScheduleReminderCron } from "./src/services/scheduleReminderCron.js";
 
 import { generateCsrfToken } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
 
-import path from "path";
+
 
 if (process.env.NODE_ENV !== "production") {
   dns.setServers(["1.1.1.1", "1.0.0.1"]);
@@ -135,6 +140,8 @@ app.use("/api/user", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/checkin", checkinRoutes);
 app.use("/api/f1-customers", f1CustomerRoutes);
+import f1AiRuleRoutes from "./src/routes/f1AiRule.routes.js";
+app.use("/api/f1-ai-rules", f1AiRuleRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/foods", foodRoutes);
 app.use("/api/bookings", bookingRoutes);
@@ -148,6 +155,12 @@ app.use("/api/admin/deposits", adminDepositRoutes);
 
 import trainerSubscriptionRoutes from "./src/routes/trainerSubscription.routes.js";
 app.use("/api/trainer-subscriptions", trainerSubscriptionRoutes);
+
+import trainingScheduleRoutes from "./src/routes/trainingSchedule.routes.js";
+app.use("/api/training-schedules", trainingScheduleRoutes);
+
+import coachingRoutes from "./src/routes/coaching.routes.js";
+app.use("/api/coaching", coachingRoutes);
 
 import { protect } from "./src/middlewares/auth.middleware.js";
 app.get("/api/me/wallet", protect, getMyWallet);
@@ -173,4 +186,5 @@ app.listen(PORT, () => {
   // Khởi động Cron Jobs
   startDepositCronJobs();
   startSubscriptionCronJobs();
+  startScheduleReminderCron();
 });

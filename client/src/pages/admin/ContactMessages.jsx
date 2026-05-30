@@ -124,16 +124,6 @@ const ContactMessages = () => {
   };
 
   // ================= EARLY RETURN =================
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
-        </div>
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -151,12 +141,13 @@ const ContactMessages = () => {
   }
 
   return (
+    <phantom-ui loading={isLoading || undefined}>
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <ToastContainer position="top-right" autoClose={3000} />
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 uppercase">
           <Mail className="w-6 h-6 text-red-500" />
           Quản lý liên hệ
         </h1>
@@ -330,7 +321,7 @@ const ContactMessages = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 uppercase">
                 <Mail className="w-5 h-5 text-red-500" />
                 Chi tiết liên hệ
               </h2>
@@ -414,6 +405,7 @@ const ContactMessages = () => {
         </div>
       )}
     </div>
+    </phantom-ui>
   );
 };
 
