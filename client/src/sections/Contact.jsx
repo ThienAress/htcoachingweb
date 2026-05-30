@@ -236,7 +236,7 @@ const Contact = () => {
         )}
 
         <div className="max-w-3xl mx-auto text-center mb-12">
-          <h2 className="font-display text-[2rem] sm:text-[2.5rem] md:text-[3rem] lg:text-[4rem] leading-tight text-primary">
+          <h2 className="font-display text-[2rem] sm:text-[2.5rem] md:text-[3rem] lg:text-[4rem] leading-tight text-primary uppercase">
             LIÊN HỆ VỚI CHÚNG TÔI
           </h2>
           <p className="text-gray text-lg">

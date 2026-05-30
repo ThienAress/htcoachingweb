@@ -7,15 +7,10 @@ const MealSelector = ({
   selectedMacroPlan,
   setSelectedMacroPlan,
 }) => {
-  if (!macroSet)
-    return (
-      <div className="text-center py-8 text-gray-400 animate-pulse">
-        Đang tải dữ liệu...
-      </div>
-    );
+  const isLoadingMacro = !macroSet;
 
   const currentPlanData = selectedMacroPlan
-    ? macroSet[selectedMacroPlan]
+    ? macroSet?.[selectedMacroPlan]
     : null;
 
   const cardClass =
@@ -34,6 +29,7 @@ const MealSelector = ({
     "mt-5 p-4 bg-gray-900/60 rounded-xl border border-gray-700 space-y-2";
 
   return (
+    <phantom-ui loading={isLoadingMacro || undefined}>
     <div className="w-full max-w-5xl mx-auto my-8 px-4 sm:px-0">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 xl:gap-8 items-stretch">
         {/* Card chế độ dinh dưỡng */}
@@ -146,6 +142,7 @@ const MealSelector = ({
         </div>
       </div>
     </div>
+    </phantom-ui>
   );
 };
 

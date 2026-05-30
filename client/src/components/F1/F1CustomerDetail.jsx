@@ -16,11 +16,14 @@ import F1TestPermissionReviewCard from "./F1TestPermissionReviewCard";
 
 const InfoItem = ({ label, value }) => {
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:bg-white">
+    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 transition hover:bg-white overflow-hidden">
       <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
         {label}
       </p>
-      <p className="mt-1.5 text-base font-semibold text-slate-800">
+      <p
+        className="mt-1.5 text-base font-semibold text-slate-800 truncate"
+        title={value}
+      >
         {value || "--"}
       </p>
     </div>
@@ -30,11 +33,10 @@ const InfoItem = ({ label, value }) => {
 const ProgressCard = ({ title, done }) => {
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${
-        done
+      className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${done
           ? "border-emerald-200 bg-emerald-50/60 shadow-sm"
           : "border-slate-100 bg-white hover:border-slate-200"
-      }`}
+        }`}
     >
       {done ? (
         <CheckCircle2 size={20} className="text-emerald-600" />
@@ -58,8 +60,8 @@ const ProgressCard = ({ title, done }) => {
 const StatusBadge = ({ value }) => {
   const map = {
     new: "Mới tạo",
-    intake_in_progress: "Đang intake",
-    intake_completed: "Đã intake",
+    intake_in_progress: "Đang khảo sát",
+    intake_completed: "Đã khảo sát",
     testing_completed: "Đã đánh giá thể chất",
     assessment_completed: "Đã đánh giá thể chất",
     ai_report_generated: "Đã có AI report",
@@ -74,22 +76,21 @@ const StatusBadge = ({ value }) => {
 
 const ReadinessBadge = ({ value }) => {
   const styles = {
-    pending: "bg-amber-50 text-amber-700 ring-amber-200",
+    pending: "bg-orange-50 text-orange-700 ring-orange-200",
     ready: "bg-emerald-50 text-emerald-700 ring-emerald-200",
     caution: "bg-orange-50 text-orange-700 ring-orange-200",
     hold: "bg-red-50 text-red-700 ring-red-200",
   };
   const labels = {
-    pending: "Pending",
-    ready: "Ready",
-    caution: "Caution",
-    hold: "Hold",
+    pending: "Đang chờ",
+    ready: "Sẵn sàng",
+    caution: "Chú ý",
+    hold: "Tạm hoãn",
   };
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${
-        styles[value] || "bg-slate-100 text-slate-700 ring-slate-200"
-      }`}
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${styles[value] || "bg-slate-100 text-slate-700 ring-slate-200"
+        }`}
     >
       {labels[value] || value}
     </span>
@@ -103,16 +104,15 @@ const PermissionBadge = ({ value }) => {
     hold_test: "bg-red-50 text-red-700 ring-red-200",
   };
   const labels = {
-    full_test: "Full Test",
-    modified_test: "Modified Test",
-    hold_test: "Hold Test",
+    full_test: "Đánh giá đầy đủ",
+    modified_test: "Đánh giá có điều chỉnh",
+    hold_test: "Hoãn đánh giá",
   };
   if (!value) return null;
   return (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${
-        styles[value] || "bg-slate-100 text-slate-700 ring-slate-200"
-      }`}
+      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${styles[value] || "bg-slate-100 text-slate-700 ring-slate-200"
+        }`}
     >
       {labels[value] || value}
     </span>
@@ -214,7 +214,7 @@ const F1CustomerDetail = ({
     <section className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6">
       <button
         onClick={onBack}
-        className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-amber-600"
+        className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-orange-600"
       >
         <ArrowLeft
           size={18}
@@ -228,17 +228,27 @@ const F1CustomerDetail = ({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-sm text-slate-500">{customer.code || "--"}</p>
-              <h2 className="text-3xl font-extrabold tracking-tight text-slate-800">
+              <h2 className="text-3xl font-extrabold tracking-tight text-slate-800 uppercase">
                 {customer.fullName}
               </h2>
               <p className="mt-1 text-slate-500">
                 {customer.occupation || "Chưa có nghề nghiệp"}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <StatusBadge value={customer.status || "new"} />
-              <ReadinessBadge value={customer.readinessStatus || "pending"} />
-              <PermissionBadge value={customer.testPermission} />
+            <div className="flex flex-col items-end gap-3">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <StatusBadge value={customer.status || "new"} />
+                <ReadinessBadge value={customer.readinessStatus || "pending"} />
+                <PermissionBadge value={customer.testPermission} />
+              </div>
+              <button
+                onClick={onDelete}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50 disabled:opacity-60"
+              >
+                <Trash2 size={16} />
+                {deleting ? "Đang xóa..." : "Xóa khách hàng"}
+              </button>
             </div>
           </div>
         </div>
@@ -274,7 +284,7 @@ const F1CustomerDetail = ({
             </p>
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-5">
               <ProgressCard title="Hồ sơ cơ bản" done />
-              <ProgressCard title="Intake" done={intakeDone} />
+              <ProgressCard title="Khảo sát" done={intakeDone} />
               <ProgressCard title="Đánh giá thể chất" done={assessmentDone} />
               <ProgressCard title="AI Report" done={reportDone} />
               <ProgressCard
@@ -284,18 +294,18 @@ const F1CustomerDetail = ({
             </div>
           </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex w-full flex-nowrap gap-3 overflow-x-auto pb-2 scrollbar-hide">
             <button
               onClick={onStartIntake}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-slate-800 to-slate-700 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg"
+              className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg"
             >
               <ClipboardList size={18} />
-              Bắt đầu intake
+              Bắt đầu khảo sát
             </button>
             <button
               onClick={onStartAssessment}
               disabled={!canOpenAssessment}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+              className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               <Activity size={18} />
               Đánh giá thể chất
@@ -303,7 +313,7 @@ const F1CustomerDetail = ({
             <button
               onClick={onOpenAiReport}
               disabled={!canOpenAiReport}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+              className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               <Sparkles size={18} />
               AI Report
@@ -311,18 +321,10 @@ const F1CustomerDetail = ({
             <button
               onClick={onOpenResultPrediction}
               disabled={!canOpenResultPrediction}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+              className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
             >
               <TrendingUp size={18} />
               Dự đoán kết quả
-            </button>
-            <button
-              onClick={onDelete}
-              disabled={deleting}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
-            >
-              <Trash2 size={18} />
-              {deleting ? "Đang xóa..." : "Xóa khách hàng"}
             </button>
           </div>
         </div>

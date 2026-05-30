@@ -164,15 +164,8 @@ const MyWallet = () => {
   // Số tiền nhanh
   const quickAmounts = [5000, 10000, 50000, 100000, 200000, 500000];
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
-        <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
   return (
+    <phantom-ui loading={loading || undefined}>
     <div className="min-h-screen bg-[#1a1a1a] text-white">
       <SEO title="Ví của tôi | HT Coaching" description="Quản lý số dư và nạp tiền vào ví nội bộ" />
 
@@ -184,7 +177,7 @@ const MyWallet = () => {
           </button>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
+              <h1 className="text-2xl font-bold flex items-center gap-2 uppercase">
                 <Wallet className="w-7 h-7 text-primary" /> Ví của tôi
               </h1>
               <p className="text-gray-400 text-sm mt-1">Xin chào, {user?.name || user?.email}</p>
@@ -454,6 +447,7 @@ const MyWallet = () => {
         </div>
       )}
     </div>
+    </phantom-ui>
   );
 };
 

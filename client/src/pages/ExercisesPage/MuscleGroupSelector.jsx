@@ -1,5 +1,5 @@
 import React from "react";
-import { X, CheckCircle } from "lucide-react";
+import { X, CheckCircle, Edit3 } from "lucide-react";
 
 export default function MuscleGroupSelector({
   muscleGroups,
@@ -10,6 +10,8 @@ export default function MuscleGroupSelector({
   tempSelectedGroups,
   setTempSelectedGroups,
   handleCreateCustomGroup,
+  customGroupName,
+  setCustomGroupName,
 }) {
   return (
     <>
@@ -55,7 +57,30 @@ export default function MuscleGroupSelector({
                 <X size={20} />
               </button>
             </div>
-            <div className="space-y-3 max-h-80 overflow-auto">
+
+            {/* Ô nhập tên nhóm cơ tùy chỉnh */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                <Edit3 className="w-4 h-4 inline mr-1.5 text-teal-400" />
+                Nhập tên nhóm cơ tùy chỉnh
+              </label>
+              <input
+                type="text"
+                value={customGroupName}
+                onChange={(e) => setCustomGroupName(e.target.value)}
+                placeholder="VD: Abs, Forearm, Glute..."
+                className="w-full px-4 py-2.5 bg-gray-900 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              />
+              <p className="text-xs text-gray-500 mt-1.5">
+                Để trống nếu chỉ muốn chọn từ danh sách bên dưới
+              </p>
+            </div>
+
+            <div className="border-t border-gray-700 pt-4 mb-3">
+              <p className="text-sm font-medium text-gray-300 mb-3">Hoặc chọn từ danh sách có sẵn:</p>
+            </div>
+
+            <div className="space-y-3 max-h-60 overflow-auto">
               {muscleGroups
                 .filter((g) => g.id !== "custom")
                 .map((group) => (

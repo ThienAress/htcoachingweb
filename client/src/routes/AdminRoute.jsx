@@ -33,9 +33,9 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Admin → chỉ vào /admin
+  // Admin → chỉ vào /admin hoặc /trainer
   if (user.role === "admin") {
-    if (!location.pathname.startsWith("/admin")) {
+    if (!location.pathname.startsWith("/admin") && !location.pathname.startsWith("/trainer")) {
       return <Navigate to="/admin" replace />;
     }
     return children;

@@ -4,7 +4,6 @@ import { csrfProtection } from "../middlewares/csrf.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
-import F1Customer from "../models/F1Customer.js";
 
 const router = express.Router();
 
@@ -41,15 +40,7 @@ router.get("/check", protect, async (req, res) => {
       return res.json({ success: true, data: { access: "unlimited", generationCount: 0, maxGenerations: MAX_FREE_GENERATIONS } });
     }
 
-    // 4. Check F1Customer (khách hàng F1)
-    if (currentUser && currentUser.email) {
-      const f1Customer = await F1Customer.findOne({ email: currentUser.email });
-      if (f1Customer) {
-        return res.json({ success: true, data: { access: "unlimited", generationCount: 0, maxGenerations: MAX_FREE_GENERATIONS } });
-      }
-    }
-
-    // 5. User thường → trial với giới hạn lượt
+    // 4. User thường (kể cả F1 Customer) → trial với giới hạn lượt
     const generationCount = currentUser?.mealPlanGenerations || 0;
     return res.json({
       success: true,

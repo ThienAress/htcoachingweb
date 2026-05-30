@@ -75,7 +75,7 @@ export default function ExerciseListModal({
       >
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2 uppercase">
             <Dumbbell className="w-6 h-6 text-primary" />
             DANH SÁCH BÀI TẬP
           </h2>

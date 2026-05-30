@@ -15,8 +15,7 @@ const Trainer = () => {
       className="max-w-5xl mx-auto my-12 bg-white rounded-2xl flex flex-wrap gap-10 p-8 shadow-lg"
     >
       <div className="container-custom p-0!">
-        <h2
-          className="text-center "
+        <h2 className="text-center  uppercase"
           data-aos="fade-down"
           data-aos-duration="1500"
         >

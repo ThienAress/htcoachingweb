@@ -14,6 +14,11 @@ export const useMacroSet = () => {
         parsedData[plan].calories = protein * 4 + carb * 4 + fat * 9;
       });
       setMacroSet(parsedData);
+      
+      const keys = Object.keys(parsedData);
+      if (keys.length > 0) {
+        setSelectedMacroPlan(keys[0]);
+      }
     } else {
       toast.warning("Vui lòng tính TDEE trước khi sử dụng tính năng này");
     }

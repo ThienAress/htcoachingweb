@@ -17,3 +17,18 @@ export const getUsers = (page = 1, limit = 10, search = "") =>
     `/user/users?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`,
   );
 export const deleteUser = (id) => api.delete(`/user/${id}`);
+
+export const updateMyProfile = (data) => api.put("/user/me/profile", data);
+export const updateMyAvatar = (formData) => api.put("/user/me/avatar", formData, {
+  headers: {
+    "Content-Type": "multipart/form-data",
+  },
+});
+export const getMyOrders = async () => {
+  const res = await api.get("/user/me/orders");
+  return res.data;
+};
+export const getMyTransactions = async () => {
+  const res = await api.get("/user/me/transactions");
+  return res.data;
+};

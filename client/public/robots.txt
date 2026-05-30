@@ -11,4 +11,4 @@ Disallow: /register
 Disallow: /checkin
 
 # Khai báo sitemap
-Sitemap: https://yourdomain.com/sitemap.xml
+Sitemap: https://htcoachingweb.io.vn/sitemap.xml

@@ -47,8 +47,7 @@ const Classes = () => {
   return (
     <section id="classes" className="py-12 sm:py-16 bg-[#0f172b]">
       <div className="mx-auto w-full max-w-[1650px] px-4 sm:px-6 xl:px-8">
-        <h2
-          className="text-center text-primary text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
+        <h2 className="text-center text-primary text-2xl sm:text-3xl md:text-4xl lg:text-5xl uppercase"
           data-aos="fade-down"
         >
           CHƯƠNG TRÌNH TẬP LUYỆN TRỰC TIẾP

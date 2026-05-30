@@ -10,6 +10,10 @@ import {
   Dumbbell,
   Users,
   Wallet,
+  CalendarDays,
+  Sparkles,
+  User,
+  Utensils,
 } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
@@ -21,6 +25,18 @@ function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  const getAvatarUrl = (avatar) => {
+    if (!avatar) return "https://i.pravatar.cc/32";
+    if (avatar.startsWith("http://") || avatar.startsWith("https://")) {
+      return avatar;
+    }
+    const serverUrl = import.meta.env.VITE_API_URL
+      ? import.meta.env.VITE_API_URL.replace("/api", "")
+      : "http://localhost:5000";
+    return `${serverUrl}${avatar}`;
+  };
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const headerRef = useRef(null);
@@ -29,6 +45,7 @@ function Header() {
   const [walletBalance, setWalletBalance] = useState(null);
   const [activeSubscription, setActiveSubscription] = useState(null);
   const [hasOrders, setHasOrders] = useState(false);
+  const [hasOnlinePackage, setHasOnlinePackage] = useState(false);
 
   // Map tên gói -> icon
   const planIconMap = {
@@ -46,17 +63,24 @@ function Header() {
       getMySubscription()
         .then((res) => setActiveSubscription(res.data.data))
         .catch(() => setActiveSubscription(null));
-      // Check xem user có đơn hàng không
       getMyCheckins()
         .then((res) => {
           const orders = res.data.data?.orders || [];
           setHasOrders(orders.length > 0);
+          const isOnline = orders.some(
+            (o) => o.package && o.package.toLowerCase().includes("online")
+          );
+          setHasOnlinePackage(isOnline);
         })
-        .catch(() => setHasOrders(false));
+        .catch(() => {
+          setHasOrders(false);
+          setHasOnlinePackage(false);
+        });
     } else {
       setWalletBalance(null);
       setActiveSubscription(null);
       setHasOrders(false);
+      setHasOnlinePackage(false);
     }
   }, [user]);
 
@@ -150,34 +174,46 @@ function Header() {
 
   const dropdownItems = isAdmin
     ? [
-        { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
-        { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
-        { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
-        { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
-        { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
-      ]
+      { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
+      { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
+      { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
+      { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+      { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
+      { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },
+      { label: "Tài khoản", icon: User, path: "/account" },
+      { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
+    ]
     : hasTrainerAccess
-    ? [
+      ? [
         { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
         { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
         { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
         { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+        { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
+        { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },
+        { label: "Tài khoản", icon: User, path: "/account" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ]
-    : [
+      : [
         { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
-        ...(hasOrders ? [{ label: "Lịch sử tập", icon: History, path: "/my-history" }] : []),
+        ...(hasOrders ? [
+          { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+          { label: "Gợi ý meal plan", icon: Utensils, path: "/tdee-calculator" },
+        ] : []),
+        ...(hasOnlinePackage ? [
+          { label: "Giáo án online", icon: Sparkles, path: "/online-coaching" }
+        ] : []),
+        { label: "Tài khoản", icon: User, path: "/account" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ];
 
   return (
     <header
       ref={headerRef}
-      className={`fixed top-0 w-full z-50 h-20 md:h-25 transition-all duration-300 ${
-        isScrolled
+      className={`fixed top-0 w-full z-50 h-20 md:h-25 transition-all duration-300 ${isScrolled
           ? "bg-linear-to-r from-[#f39c12] to-[#1a1a1a]"
           : "bg-transparent"
-      }`}
+        }`}
     >
       <div className="relative h-full flex items-center justify-between px-5 max-w-7xl mx-auto max-md:bg-linear-to-r max-md:from-[#f39c12] max-md:to-[#1a1a1a]">
         {/* Logo */}
@@ -294,7 +330,7 @@ function Header() {
               >
                 <div className="relative">
                   <img
-                    src={user.avatar || "https://i.pravatar.cc/32"}
+                    src={getAvatarUrl(user.avatar)}
                     className="w-8 h-8 rounded-full"
                     alt="avatar"
                   />
@@ -375,16 +411,15 @@ function Header() {
 
         {/* MOBILE MENU */}
         <div
-          className={`fixed inset-0 top-20 bg-linear-to-b from-[#f39c12] to-[#1a1a1a] z-10 transform transition-transform duration-300 ${
-            menuOpen ? "translate-x-0" : "translate-x-full"
-          } md:hidden overflow-y-auto`}
+          className={`fixed inset-0 top-20 bg-linear-to-b from-[#f39c12] to-[#1a1a1a] z-10 transform transition-transform duration-300 ${menuOpen ? "translate-x-0" : "translate-x-full"
+            } md:hidden overflow-y-auto`}
         >
           <div className="flex flex-col items-center justify-start min-h-full py-8 px-5">
             {user ? (
               <div className="w-full mb-8 bg-white/10 backdrop-blur-sm rounded-2xl overflow-hidden">
                 <div className="p-5 flex flex-col items-center border-b border-white/20">
                   <img
-                    src={user.avatar || "https://i.pravatar.cc/80"}
+                    src={getAvatarUrl(user.avatar)}
                     className="w-20 h-20 rounded-full border-2 border-white mb-3"
                     alt="avatar"
                   />

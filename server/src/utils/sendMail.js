@@ -319,3 +319,78 @@ export const sendBookingNotificationToAdmin = async (booking) => {
     console.error("❌ Error sending booking notification email:", err);
   }
 };
+
+// SCHEDULE REMINDER MAIL — Nhắc lịch tập trước 30 phút
+export const sendScheduleReminderMail = async (to, data) => {
+  try {
+    const dayLabels = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
+    const dayLabel = dayLabels[data.dayOfWeek] || "";
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Nhắc lịch tập</title>
+      </head>
+      <body style="margin:0; padding:0; background-color:#f4f4f4; font-family:'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4; padding:20px 0;">
+          <tr>
+            <td align="center">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background:#ffffff; border-radius:24px; box-shadow:0 8px 20px rgba(0,0,0,0.05); overflow:hidden;">
+                <tr>
+                  <td style="background:linear-gradient(135deg, #e67e22 0%, #d35400 100%); padding:32px 24px; text-align:center;">
+                    <div style="font-size:48px; margin-bottom:8px;">⏰🏋️</div>
+                    <h1 style="margin:0; color:#fff; font-size:28px; letter-spacing:-0.5px;">NHẮC LỊCH TẬP</h1>
+                    <p style="margin:8px 0 0; color:#fdebd0; font-size:16px;">Còn 30 phút nữa tới giờ dạy!</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:32px 28px;">
+                    <p style="font-size:18px; margin:0 0 12px; color:#1e2a3a;">Chào <strong style="color:#e67e22;">${safe(data.trainerName)}</strong>,</p>
+                    <p style="font-size:16px; line-height:1.5; color:#2c3e50; margin:0 0 24px;">Bạn có buổi tập sắp bắt đầu trong <strong style="color:#e67e22;">30 phút</strong> nữa. Dưới đây là thông tin chi tiết:</p>
+                    
+                    <table width="100%" cellpadding="12" cellspacing="0" border="0" style="background:#f9fafc; border-radius:16px; margin-bottom:24px;">
+                      <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Khách hàng</td><td style="color:#2c3e50; font-weight:bold; font-size:18px;">${safe(data.clientName)}</td></tr>
+                      <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Ngày</td><td style="color:#2c3e50;">${safe(dayLabel)}</td></tr>
+                      <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Giờ</td><td style="color:#2c3e50; font-size:20px; font-weight:bold;">${safe(data.startTime)} - ${safe(data.endTime)}</td></tr>
+                      <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Loại bài tập</td><td style="color:#2c3e50;">${safe(data.exerciseType)}</td></tr>
+                      ${data.notes ? `<tr><td style="font-weight:600; color:#1e2a3a;">Ghi chú</td><td style="color:#2c3e50;">${safe(data.notes)}</td></tr>` : ""}
+                    </table>
+                    
+                    <div style="background:#fef9e7; padding:16px; border-radius:14px; margin-bottom:16px; text-align:center; border:1px solid #f9e79f;">
+                      <p style="margin:0; font-size:14px; color:#7d6608;">🔔 Hãy chuẩn bị sẵn sàng để đón khách hàng nhé!</p>
+                    </div>
+                    
+                    <p style="font-size:12px; color:#6c757d; line-height:1.4; margin:24px 0 0; border-top:1px solid #e9ecef; padding-top:16px; text-align:center;">
+                      📧 <strong>Đây là tin nhắn tự động từ hệ thống HT Coaching.</strong>
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background:#f8f9fa; padding:20px 28px; text-align:center; border-top:1px solid #e9ecef;">
+                    <p style="margin:0; font-size:12px; color:#6c757d;">© 2026 HT Coaching – Nâng tầm sức mạnh</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    await resend.emails.send({
+      from: "HT Coaching <noreply@htcoachingweb.io.vn>",
+      to,
+      subject: `⏰ Nhắc lịch tập — ${data.clientName} lúc ${data.startTime}`,
+      html,
+      headers: { "X-Entity-Ref-ID": Date.now().toString() },
+    });
+
+    console.log(`📧 Schedule reminder sent to ${to} for client: ${data.clientName}`);
+  } catch (err) {
+    console.error("❌ SCHEDULE REMINDER MAIL ERROR:", err);
+  }
+};

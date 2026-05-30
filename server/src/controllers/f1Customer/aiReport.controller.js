@@ -33,7 +33,7 @@ export const generateAiReport = async (req, res, next) => {
       });
     }
 
-    const reportPayload = buildAiReport({
+    const reportPayload = await buildAiReport({
       customer,
       intake,
       assessment,

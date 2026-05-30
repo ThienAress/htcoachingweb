@@ -45,9 +45,9 @@ const ListCard = ({ title, items = [], emptyText = "Chưa có dữ liệu" }) =>
 );
 
 const ForecastCaseCard = ({ title, data }) => (
-  <div className="rounded-xl border-l-4 border-l-amber-500 bg-white p-5 shadow-sm">
+  <div className="rounded-xl border-l-4 border-l-orange-500 bg-white p-5 shadow-sm">
     <h3 className="text-lg font-bold text-slate-800">{title}</h3>
-    <p className="mt-2 text-3xl font-black text-amber-600">
+    <p className="mt-2 text-3xl font-black text-orange-600">
       {data?.months ? `${data.months} tháng` : "--"}
     </p>
     <p className="mt-2 text-sm text-slate-600">
@@ -100,7 +100,7 @@ const F1ForecastPanel = ({ customer, onBack, onGenerated }) => {
     <section className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6">
       <button
         onClick={onBack}
-        className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-amber-600"
+        className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-orange-600"
       >
         <ArrowLeft
           size={18}
@@ -116,7 +116,7 @@ const F1ForecastPanel = ({ customer, onBack, onGenerated }) => {
               <p className="text-sm text-slate-500">
                 Dự đoán kết quả • {customer?.code || "--"}
               </p>
-              <h2 className="text-2xl font-extrabold text-slate-800">
+              <h2 className="text-2xl font-extrabold text-slate-800 uppercase">
                 {customer?.fullName}
               </h2>
               <p className="mt-1 text-slate-500">
@@ -127,7 +127,7 @@ const F1ForecastPanel = ({ customer, onBack, onGenerated }) => {
             <button
               onClick={handleGenerate}
               disabled={generating || loadingLatest}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
             >
               {forecast ? <RefreshCcw size={18} /> : <TrendingUp size={18} />}
               {generating

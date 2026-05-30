@@ -71,7 +71,7 @@ export const createDeposit = async (req, res) => {
     await Wallet.findOneAndUpdate(
       { userId },
       { $setOnInsert: { userId, balance: 0, currency: "VND", version: 0 } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     // Sinh mã nạp tiền unique
@@ -197,7 +197,7 @@ export const getMyWallet = async (req, res) => {
     let wallet = await Wallet.findOneAndUpdate(
       { userId },
       { $setOnInsert: { userId, balance: 0, currency: "VND", version: 0 } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     return res.status(200).json({

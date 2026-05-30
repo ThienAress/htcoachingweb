@@ -90,19 +90,6 @@ const TrainerCheckinHistory = () => {
       },
     });
   };
-  if (isLoading) {
-    return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-6 bg-gray-300 rounded w-1/4"></div>
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-12 bg-gray-200 rounded"></div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <div className="p-6 text-center text-red-500">
@@ -112,11 +99,12 @@ const TrainerCheckinHistory = () => {
   }
 
   return (
+    <phantom-ui loading={isLoading || undefined}>
     <div className="space-y-6">
       <ToastContainer position="top-right" autoClose={3000} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 uppercase">
             <History className="w-6 h-6 text-primary" />
             LỊCH SỬ CHECK-IN
           </h2>
@@ -312,7 +300,7 @@ const TrainerCheckinHistory = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 uppercase">
                 <Edit className="w-5 h-5 text-indigo-600" />
                 Sửa thông tin check-in
               </h2>
@@ -385,6 +373,7 @@ const TrainerCheckinHistory = () => {
         </div>
       )}
     </div>
+    </phantom-ui>
   );
 };
 

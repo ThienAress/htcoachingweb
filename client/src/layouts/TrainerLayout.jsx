@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, History, Sparkles, Menu, X, Users } from "lucide-react";
+import { Home, History, Sparkles, Menu, X, Users, CalendarDays, ChevronDown } from "lucide-react";
 
 const TrainerLayout = () => {
   const location = useLocation();
@@ -33,14 +33,46 @@ const TrainerLayout = () => {
     };
   }, [isSidebarOpen]);
 
-  const navItems = [
-    { path: "/trainer", label: "Khách của tôi", icon: Users },
+  const navGroups = [
     {
-      path: "/trainer/checkin-history",
-      label: "Lịch sử check-in",
-      icon: History,
+      key: "clients",
+      label: "Khách hàng",
+      items: [
+        { path: "/trainer", label: "Khách của tôi", icon: Users },
+        { path: "/training-schedule", label: "Lịch tập khách hàng", icon: CalendarDays },
+      ],
+    },
+    {
+      key: "tools",
+      label: "Công cụ",
+      items: [
+        { path: "/trainer/checkin-history", label: "Lịch sử check-in", icon: History },
+        { path: "/trainer/coaching", label: "Hệ thống Coach Online", icon: Sparkles },
+      ],
     },
   ];
+
+  // Only show groups that have items
+  const visibleGroups = navGroups.filter((g) => g.items.length > 0);
+
+  // Auto-expand group containing active page
+  const getInitialOpen = () => {
+    const open = {};
+    visibleGroups.forEach((group) => {
+      const hasActive = group.items.some((item) => location.pathname === item.path);
+      open[group.key] = hasActive;
+    });
+    if (!Object.values(open).some(Boolean) && visibleGroups.length > 0) {
+      open[visibleGroups[0].key] = true;
+    }
+    return open;
+  };
+
+  const [openGroups, setOpenGroups] = useState(getInitialOpen);
+
+  const toggleGroup = (key) => {
+    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-100">
@@ -79,33 +111,55 @@ const TrainerLayout = () => {
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 p-4">
-            <ul className="space-y-2">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path;
-                return (
-                  <li key={item.path}>
-                    <Link
-                      to={item.path}
-                      onClick={() => setIsSidebarOpen(false)}
-                      className={`
-                        flex items-center gap-3 px-4 py-2 rounded-lg transition-colors
-                        ${
-                          isActive
-                            ? "bg-white/20 text-white font-medium"
-                            : "text-white/80 hover:bg-white/10 hover:text-white"
-                        }
-                      `}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span>{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+          {/* Navigation Groups */}
+          <nav className="flex-1 p-4 space-y-2">
+            {visibleGroups.map((group) => {
+              const isOpen = !!openGroups[group.key];
+              return (
+                <div key={group.key}>
+                  <button
+                    onClick={() => toggleGroup(group.key)}
+                    className="w-full flex items-center justify-between px-4 py-2 text-[11px] font-bold text-white/50 uppercase tracking-widest hover:text-white/80 transition-colors cursor-pointer"
+                  >
+                    <span>{group.label}</span>
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  <div
+                    className={`overflow-hidden transition-all duration-200 ${
+                      isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                    }`}
+                  >
+                    <ul className="space-y-1 pb-2">
+                      {group.items.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location.pathname === item.path;
+                        return (
+                          <li key={item.path}>
+                            <Link
+                              to={item.path}
+                              onClick={() => setIsSidebarOpen(false)}
+                              className={`
+                                flex items-center gap-3 px-4 py-2 rounded-lg transition-colors
+                                ${
+                                  isActive
+                                    ? "bg-white/20 text-white font-medium"
+                                    : "text-white/80 hover:bg-white/10 hover:text-white"
+                                }
+                              `}
+                            >
+                              <Icon className="w-5 h-5" />
+                              <span>{item.label}</span>
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
+              );
+            })}
           </nav>
 
           {/* Nút về trang chủ */}

@@ -89,12 +89,13 @@ const ExerciseSuggestionsManagement = () => {
   };
 
   return (
+    <phantom-ui loading={isLoading || undefined}>
     <div className="min-h-screen bg-gray-50/40 p-4 md:p-6">
       <ToastContainer position="top-right" autoClose={3000} theme="light" />
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 uppercase">
           <MessageSquare className="w-7 h-7 text-indigo-600" />
           Quản lý góp ý bài tập
         </h1>
@@ -130,14 +131,6 @@ const ExerciseSuggestionsManagement = () => {
         </div>
       </div>
 
-      {/* Loading state */}
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl shadow-sm border">
-          <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-3" />
-          <p className="text-gray-500">Đang tải danh sách góp ý...</p>
-        </div>
-      ) : (
-        <>
           {/* Bảng dữ liệu - responsive */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="overflow-x-auto">
@@ -266,9 +259,9 @@ const ExerciseSuggestionsManagement = () => {
               </button>
             </div>
           )}
-        </>
-      )}
+
     </div>
+    </phantom-ui>
   );
 };
 

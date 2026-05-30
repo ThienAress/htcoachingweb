@@ -53,7 +53,7 @@ export const saveIntakeDraft = async (req, res, next) => {
     const updated = await F1Intake.findByIdAndUpdate(
       draft._id,
       { $set: patch },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     customer.status = "intake_in_progress";
@@ -120,7 +120,7 @@ export const submitIntake = async (req, res, next) => {
           updatedBy: req.user.id,
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     customer.status = "intake_completed";

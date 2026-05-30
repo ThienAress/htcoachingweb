@@ -96,7 +96,7 @@ export const updateBookingStatus = async (req, res) => {
     if (noteAdmin !== undefined) updateData.noteAdmin = noteAdmin;
 
     const booking = await Booking.findByIdAndUpdate(id, updateData, {
-      new: true,
+      returnDocument: 'after',
     });
     if (!booking)
       return res

@@ -92,7 +92,7 @@ export const updateContactStatus = async (req, res) => {
         status,
         processedAt: status === "processed" ? new Date() : null,
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
 
     if (!message) {

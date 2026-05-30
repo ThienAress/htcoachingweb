@@ -495,11 +495,8 @@ const CustomerStories = () => {
           </div>
 
           <div className="mt-8">
-            {isLoading ? (
-              <div className="border border-dashed border-slate-300 bg-white py-16 text-center text-sm font-semibold uppercase tracking-[0.16em] text-primary">
-                Đang tải kết quả khách hàng...
-              </div>
-            ) : filteredStories.length === 0 ? (
+            <phantom-ui loading={isLoading || undefined}>
+            {filteredStories.length === 0 ? (
               <div className="border border-dashed border-slate-300 bg-white py-16 text-center">
                 <p className="text-lg font-bold text-slate-800">
                   Chưa có câu chuyện phù hợp
@@ -516,6 +513,7 @@ const CustomerStories = () => {
                 ))}
               </div>
             )}
+            </phantom-ui>
           </div>
         </div>
       </section>

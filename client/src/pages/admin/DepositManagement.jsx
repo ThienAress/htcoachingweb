@@ -99,7 +99,7 @@ const DepositManagement = () => {
     mutationFn: (id) => deleteAdminDeposit(id),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["admin-deposits"] });
-      toast.success(res.data.message);
+      toast.success("Đã xóa");
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
   });
@@ -123,21 +123,12 @@ const DepositManagement = () => {
     { value: "rejected", label: "Từ chối" },
   ];
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500" />
-        </div>
-      </div>
-    );
-  }
-
   return (
+    <phantom-ui loading={isLoading || undefined}>
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 uppercase">
           <Wallet className="w-6 h-6 text-red-500" />
           Quản lý nạp tiền
         </h1>
@@ -278,15 +269,13 @@ const DepositManagement = () => {
                       </button>
                     </>
                   )}
-                  {deposit.status !== "success" && (
-                    <button
-                      onClick={() => handleDelete(deposit)}
-                      disabled={deleteMutation.isPending}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
-                    >
-                      <Trash2 className="w-4 h-4" /> Xóa
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleDelete(deposit)}
+                    disabled={deleteMutation.isPending}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" /> Xóa
+                  </button>
                 </div>
               </div>
             );
@@ -332,6 +321,7 @@ const DepositManagement = () => {
         </div>
       )}
     </div>
+    </phantom-ui>
   );
 };
 

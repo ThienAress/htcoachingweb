@@ -1,3 +1,4 @@
+// StepHealthScreening.jsx
 import {
   Heart,
   AlertTriangle,
@@ -7,36 +8,48 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
-const Field = ({ label, icon: Icon, ...props }) => {
+const Field = ({ label, icon: Icon, error, registration, ...props }) => {
   return (
     <label className="block">
       <span className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700">
-        {Icon && <Icon size={16} className="text-amber-500" />}
+        {Icon && <Icon size={16} className="text-orange-500" />}
         {label}
       </span>
       <input
+        {...registration}
         {...props}
-        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+        className={`w-full rounded-lg border bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:ring-2 ${
+          error
+            ? "border-red-400 focus:border-red-400 focus:ring-red-100"
+            : "border-slate-200 focus:border-orange-400 focus:ring-orange-100"
+        }`}
       />
+      {error && <p className="mt-1 text-xs text-red-500">{error.message}</p>}
     </label>
   );
 };
 
-const TextArea = ({ label, helperText, icon: Icon, ...props }) => {
+const TextArea = ({ label, helperText, icon: Icon, error, registration, ...props }) => {
   return (
     <label className="block">
       <span className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700">
-        {Icon && <Icon size={16} className="text-amber-500" />}
+        {Icon && <Icon size={16} className="text-orange-500" />}
         {label}
       </span>
       <textarea
+        {...registration}
         {...props}
         rows={4}
-        className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+        className={`w-full rounded-lg border bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:ring-2 ${
+          error
+            ? "border-red-400 focus:border-red-400 focus:ring-red-100"
+            : "border-slate-200 focus:border-orange-400 focus:ring-orange-100"
+        }`}
       />
       {helperText && (
         <p className="mt-1 text-xs text-slate-500">{helperText}</p>
       )}
+      {error && <p className="mt-1 text-xs text-red-500">{error.message}</p>}
     </label>
   );
 };
@@ -46,7 +59,7 @@ const SwitchRow = ({ label, checked, onChange, helperText, icon: Icon }) => {
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          {Icon && <Icon size={18} className="mt-0.5 text-amber-500" />}
+          {Icon && <Icon size={18} className="mt-0.5 text-orange-500" />}
           <div>
             <span className="text-sm font-bold text-slate-800">{label}</span>
             {helperText && (
@@ -58,7 +71,7 @@ const SwitchRow = ({ label, checked, onChange, helperText, icon: Icon }) => {
           type="button"
           onClick={() => onChange(!checked)}
           className={`relative h-7 w-14 shrink-0 rounded-full transition ${
-            checked ? "bg-amber-500" : "bg-slate-300"
+            checked ? "bg-orange-500" : "bg-slate-300"
           }`}
         >
           <span
@@ -72,7 +85,7 @@ const SwitchRow = ({ label, checked, onChange, helperText, icon: Icon }) => {
   );
 };
 
-const StepHealthScreening = ({ value, onChange, onToggleWarningSign }) => {
+const StepHealthScreening = ({ register, watch, setValue, errors }) => {
   const warningOptions = [
     { label: "Đau ngực", value: "chest_pain" },
     { label: "Chóng mặt", value: "dizziness" },
@@ -81,31 +94,43 @@ const StepHealthScreening = ({ value, onChange, onToggleWarningSign }) => {
     { label: "Mất thăng bằng", value: "balance_loss" },
   ];
 
-  // Derived booleans – computed directly from props, no local state needed
-  const hasInjuries = Boolean((value.injuries || "").trim());
-  const hasCurrentConditions = Boolean((value.currentConditions || "").trim());
-  const hasSurgeries = Boolean((value.surgeries || "").trim());
-  const takesMedications = Boolean((value.medications || "").trim());
-  const hasDoctorRestrictions = Boolean(
-    (value.doctorRestrictions || "").trim(),
-  );
+  const hasPainNow = watch("healthScreening.hasPainNow");
+  const injuries = watch("healthScreening.injuries");
+  const currentConditions = watch("healthScreening.currentConditions");
+  const surgeries = watch("healthScreening.surgeries");
+  const medications = watch("healthScreening.medications");
+  const doctorRestrictions = watch("healthScreening.doctorRestrictions");
+  const warningSigns = watch("healthScreening.warningSigns") || [];
+
+  const hasInjuries = Boolean((injuries || "").trim());
+  const hasCurrentConditions = Boolean((currentConditions || "").trim());
+  const hasSurgeries = Boolean((surgeries || "").trim());
+  const takesMedications = Boolean((medications || "").trim());
+  const hasDoctorRestrictions = Boolean((doctorRestrictions || "").trim());
 
   const handlePainToggle = (checked) => {
-    onChange("hasPainNow", checked);
+    setValue("healthScreening.hasPainNow", checked, { shouldValidate: true });
     if (!checked) {
-      onChange("painLocation", "");
-      onChange("painLevel", 0);
+      setValue("healthScreening.painLocation", "");
+      setValue("healthScreening.painLevel", 0);
     }
   };
 
   const handleTextToggle = (field) => (checked) => {
-    if (!checked) onChange(field, "");
+    if (!checked) setValue(`healthScreening.${field}`, "");
+  };
+
+  const handleWarningToggle = (value) => {
+    const newWarnings = warningSigns.includes(value)
+      ? warningSigns.filter((v) => v !== value)
+      : [...warningSigns, value];
+    setValue("healthScreening.warningSigns", newWarnings, { shouldValidate: true });
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 border-l-4 border-amber-500 pl-3">
-        <Heart size={20} className="text-amber-600" />
+      <div className="flex items-center gap-2 border-l-4 border-orange-500 pl-3">
+        <Heart size={20} className="text-orange-600" />
         <div>
           <h3 className="text-xl font-bold text-slate-800">Sức khỏe</h3>
           <p className="text-sm text-slate-500">
@@ -118,18 +143,18 @@ const StepHealthScreening = ({ value, onChange, onToggleWarningSign }) => {
         <SwitchRow
           label="Hiện tại có đau hoặc khó chịu không?"
           icon={AlertTriangle}
-          checked={value.hasPainNow}
+          checked={hasPainNow}
           onChange={handlePainToggle}
           helperText="Nếu không có, hệ thống sẽ mặc định coi như không đau hiện tại."
         />
 
-        {value.hasPainNow && (
+        {hasPainNow && (
           <div className="grid gap-4 md:grid-cols-2">
             <Field
               label="Vị trí đau / khó chịu"
               icon={Activity}
-              value={value.painLocation}
-              onChange={(e) => onChange("painLocation", e.target.value)}
+              registration={register("healthScreening.painLocation")}
+              error={errors?.healthScreening?.painLocation}
               placeholder="Ví dụ: gối trái, lưng dưới"
             />
             <Field
@@ -138,8 +163,8 @@ const StepHealthScreening = ({ value, onChange, onToggleWarningSign }) => {
               type="number"
               min="0"
               max="10"
-              value={value.painLevel}
-              onChange={(e) => onChange("painLevel", e.target.value)}
+              registration={register("healthScreening.painLevel")}
+              error={errors?.healthScreening?.painLevel}
             />
           </div>
         )}
@@ -154,8 +179,8 @@ const StepHealthScreening = ({ value, onChange, onToggleWarningSign }) => {
           <TextArea
             label="Chấn thương"
             icon={Activity}
-            value={value.injuries}
-            onChange={(e) => onChange("injuries", e.target.value)}
+            registration={register("healthScreening.injuries")}
+            error={errors?.healthScreening?.injuries}
             helperText="Ví dụ: rách sụn chêm, trật vai cũ, đau cổ tay..."
           />
         )}
@@ -171,8 +196,8 @@ const StepHealthScreening = ({ value, onChange, onToggleWarningSign }) => {
           <TextArea
             label="Bệnh lý hiện tại"
             icon={Stethoscope}
-            value={value.currentConditions}
-            onChange={(e) => onChange("currentConditions", e.target.value)}
+            registration={register("healthScreening.currentConditions")}
+            error={errors?.healthScreening?.currentConditions}
             helperText="Ví dụ: thoát vị đĩa đệm, tăng huyết áp, đau thần kinh tọa..."
           />
         )}
@@ -188,8 +213,8 @@ const StepHealthScreening = ({ value, onChange, onToggleWarningSign }) => {
           <TextArea
             label="Phẫu thuật từng có"
             icon={Activity}
-            value={value.surgeries}
-            onChange={(e) => onChange("surgeries", e.target.value)}
+            registration={register("healthScreening.surgeries")}
+            error={errors?.healthScreening?.surgeries}
             helperText="Ví dụ: mổ dây chằng chéo, mổ thoát vị, mổ vai..."
           />
         )}
@@ -204,8 +229,8 @@ const StepHealthScreening = ({ value, onChange, onToggleWarningSign }) => {
           <TextArea
             label="Thuốc đang dùng"
             icon={Pill}
-            value={value.medications}
-            onChange={(e) => onChange("medications", e.target.value)}
+            registration={register("healthScreening.medications")}
+            error={errors?.healthScreening?.medications}
             helperText="Ví dụ: thuốc huyết áp, thuốc giảm đau, thuốc chống viêm..."
           />
         )}
@@ -221,15 +246,15 @@ const StepHealthScreening = ({ value, onChange, onToggleWarningSign }) => {
           <TextArea
             label="Hạn chế vận động do bác sĩ"
             icon={ShieldAlert}
-            value={value.doctorRestrictions}
-            onChange={(e) => onChange("doctorRestrictions", e.target.value)}
+            registration={register("healthScreening.doctorRestrictions")}
+            error={errors?.healthScreening?.doctorRestrictions}
             helperText="Ví dụ: không squat sâu, tránh xoay cột sống, hạn chế tải nặng..."
           />
         )}
 
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <AlertTriangle size={18} className="text-amber-500" />
+            <AlertTriangle size={18} className="text-orange-500" />
             <p className="font-bold text-slate-800">Dấu hiệu cảnh báo</p>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -240,9 +265,9 @@ const StepHealthScreening = ({ value, onChange, onToggleWarningSign }) => {
               >
                 <input
                   type="checkbox"
-                  checked={value.warningSigns.includes(item.value)}
-                  onChange={() => onToggleWarningSign(item.value)}
-                  className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  checked={warningSigns.includes(item.value)}
+                  onChange={() => handleWarningToggle(item.value)}
+                  className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
                 />
                 <span className="text-sm text-slate-700">{item.label}</span>
               </label>

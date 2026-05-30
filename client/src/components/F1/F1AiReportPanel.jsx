@@ -9,6 +9,8 @@ import {
   ShieldAlert,
   Target,
   Brain,
+  TrendingUp,
+  ArrowRight,
 } from "lucide-react";
 import {
   generateAiReport,
@@ -260,7 +262,7 @@ const PhysicalRadarChart = ({ data = [] }) => {
             y={cy - (ring / 10) * maxR + 4}
             className="fill-slate-400 text-[10px]"
           >
-            {rings[rings.length - 1 - idx]}
+            {ring}
           </text>
         ))}
         <polygon
@@ -279,7 +281,7 @@ const PhysicalRadarChart = ({ data = [] }) => {
             <p className="text-xs uppercase tracking-wider text-slate-500">
               {item.label}
             </p>
-            <p className="mt-1 text-xl font-black text-amber-600">
+            <p className="mt-1 text-xl font-black text-orange-600">
               {item.score}/10
             </p>
           </div>
@@ -345,7 +347,7 @@ const buildFallbackSummary = (report) => {
   };
 };
 
-const F1AiReportPanel = ({ customer, onBack, onGenerated }) => {
+const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction }) => {
   const [report, setReport] = useState(null);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -429,7 +431,7 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated }) => {
     <section className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-6">
       <button
         onClick={onBack}
-        className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-amber-600"
+        className="group inline-flex items-center gap-2 text-slate-500 transition hover:text-orange-600"
       >
         <ArrowLeft
           size={18}
@@ -445,7 +447,7 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated }) => {
               <p className="text-sm text-slate-500">
                 AI Report NASM • {customer?.code || "--"}
               </p>
-              <h2 className="text-2xl font-extrabold text-slate-800">
+              <h2 className="text-2xl font-extrabold text-slate-800 uppercase">
                 {customer?.fullName}
               </h2>
               <p className="mt-1 text-slate-500">
@@ -456,7 +458,7 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated }) => {
             <button
               onClick={handleGenerate}
               disabled={generating || loadingLatest}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
             >
               {report ? <RefreshCcw size={18} /> : <Sparkles size={18} />}
               {generating
@@ -525,7 +527,7 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated }) => {
                 title="Nhận xét tổng quát"
                 subtitle="AI diễn giải dữ liệu thành nhận định có ý nghĩa"
               >
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <SummaryCard
                     title="Sức khỏe"
                     items={summary?.generalReview?.health || []}
@@ -559,8 +561,8 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated }) => {
                 subtitle="Phần PT nên đọc đầu tiên"
               >
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-lg bg-amber-50 p-5">
-                    <p className="text-xs font-bold uppercase tracking-wider text-amber-700">
+                  <div className="rounded-lg bg-orange-50 p-5">
+                    <p className="text-xs font-bold uppercase tracking-wider text-orange-700">
                       Kết luận AI
                     </p>
                     <p className="mt-2 text-base font-bold text-slate-800">
@@ -590,8 +592,8 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated }) => {
                 subtitle="Giai đoạn đề xuất, ưu tiên đầu tiên và điều cần theo dõi"
               >
                 <div className="grid gap-4 lg:grid-cols-[280px,1fr]">
-                  <div className="rounded-lg bg-amber-50 p-5">
-                    <p className="text-xs font-bold uppercase tracking-wider text-amber-700">
+                  <div className="rounded-lg bg-orange-50 p-5">
+                    <p className="text-xs font-bold uppercase tracking-wider text-orange-700">
                       Giai đoạn khởi đầu đề xuất
                     </p>
                     <p className="mt-2 text-lg font-bold text-slate-800">
@@ -658,6 +660,19 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated }) => {
                   />
                 </div>
               </SectionCard>
+
+              {onOpenResultPrediction && (
+                <div className="flex justify-start pt-4">
+                  <button
+                    onClick={onOpenResultPrediction}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-6 py-3 font-bold text-white shadow-md transition hover:shadow-lg"
+                  >
+                    <TrendingUp size={20} />
+                    Tới Dự đoán kết quả
+                    <ArrowRight size={20} />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

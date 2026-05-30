@@ -4,11 +4,13 @@ export default function SEO({ title, description, canonical, type = 'website', i
   const siteName = "HTCOACHING";
   const defaultTitle = "HTCOACHING - HLV cá nhân: Gym, Boxing, Tăng cơ & Giảm mỡ";
   const defaultDescription = "Chương trình luyện tập cá nhân hóa cùng HLV chuyên nghiệp tại HTCOACHING. Boxing, Gym & cardio giúp tăng cơ giảm mỡ hiệu quả. Đăng ký tập ngay hôm nay!";
-  const domain = "https://htcoachingweb.io.vn"; // Domain của bạn
+  const domain = "https://htcoachingweb.io.vn";
+  const defaultImage = `${domain}/og-image.png`;
   
   // Tự động thêm brand vào title nếu có title truyền vào
   const seoTitle = title ? `${title} | ${siteName}` : defaultTitle;
   const seoDescription = description || defaultDescription;
+  const seoImage = image || defaultImage;
   
   return (
     <Helmet>
@@ -30,14 +32,16 @@ export default function SEO({ title, description, canonical, type = 'website', i
       <meta property="og:title" content={seoTitle} />
       <meta property="og:description" content={seoDescription} />
       <meta property="og:site_name" content={siteName} />
-      {image && <meta property="og:image" content={image} />}
+      <meta property="og:image" content={seoImage} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
       {!noindex && canonical && <meta property="og:url" content={`${domain}${canonical}`} />}
       
       {/* Twitter Card */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={seoTitle} />
       <meta name="twitter:description" content={seoDescription} />
-      {image && <meta name="twitter:image" content={image} />}
+      <meta name="twitter:image" content={seoImage} />
 
       {/* JSON-LD Structured Data */}
       {jsonLd && (

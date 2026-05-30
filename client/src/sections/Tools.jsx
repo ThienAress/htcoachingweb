@@ -16,7 +16,7 @@ const Tools = () => {
           }}
         >
           <div className="bg-black/60 py-10 md:py-[60px] px-4 md:px-5 my-10 md:my-[60px] rounded-2xl text-center text-white ">
-            <h2 className="text-primary">CÔNG CỤ MIỄN PHÍ</h2>
+            <h2 className="text-primary uppercase">CÔNG CỤ MIỄN PHÍ</h2>
             <div className="bg-white/10 p-6 sm:p-8 md:p-10 rounded-2xl backdrop-blur-md shadow-lg transition-transform duration-300 hover:-translate-y-1 max-w-[800px] mx-auto">
               <div className="tool-content">
                 <h3 className="text-center">

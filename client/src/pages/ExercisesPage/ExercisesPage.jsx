@@ -19,8 +19,8 @@ import ExerciseSections from "./ExerciseSections";
 import ExerciseListModal from "./ExerciseListModal";
 import WorkoutPlanPDF from "./WorkoutPlanPDF";
 import { workoutExplanations, workoutSections } from "./constants";
-import HeaderMinimal from "../../sections/Header/HeaderMinimal";
-import FooterMinimal from "../../sections/Footer/FooterMinimal";
+import Header from "../../sections/Header/Header";
+import Footer from "../../sections/Footer/Footer";
 import ChatIcons from "../../components/ChatIcons";
 import Contact from "../../sections/Contact";
 import { usePrompt } from "../../hooks/usePrompt";
@@ -130,9 +130,9 @@ const ExercisesPage = () => {
         description="Tạo lịch tập cá nhân hóa với hệ thống bài tập chuyên nghiệp từ HTCOACHING. Có đầy đủ hướng dẫn, video và xuất file PDF miễn phí."
         canonical="/exercises"
       />
-      <HeaderMinimal />
+      <Header />
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white py-8">
+      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pt-28 pb-8">
         <div className="container-custom">
           {/* Header section */}
           <div className="text-center mb-10">
@@ -156,7 +156,7 @@ const ExercisesPage = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               <div className="flex items-center gap-2">
                 <Dumbbell className="text-primary w-7 h-7" />
-                <h2 className="text-2xl font-bold text-white">CHỌN NHÓM CƠ</h2>
+                <h2 className="text-2xl font-bold text-white uppercase">CHỌN NHÓM CƠ</h2>
               </div>
               <button
                 onClick={() => logic.setShowExerciseList(true)}
@@ -174,6 +174,8 @@ const ExercisesPage = () => {
               tempSelectedGroups={logic.tempSelectedGroups}
               setTempSelectedGroups={logic.setTempSelectedGroups}
               handleCreateCustomGroup={logic.handleCreateCustomGroup}
+              customGroupName={logic.customGroupName}
+              setCustomGroupName={logic.setCustomGroupName}
             />
           </div>
 
@@ -278,7 +280,7 @@ const ExercisesPage = () => {
       </main>
       <Contact />
       <ChatIcons />
-      <FooterMinimal />
+      <Footer />
     </>
   );
 };

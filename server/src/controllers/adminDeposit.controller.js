@@ -214,10 +214,10 @@ export const deleteDeposit = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy yêu cầu nạp tiền" });
     }
 
-    // Không cho xóa nếu đã duyệt thành công (đã cộng tiền vào ví)
-    if (deposit.status === "success") {
-      return res.status(400).json({ success: false, message: "Không thể xóa yêu cầu đã duyệt thành công" });
-    }
+    // Bỏ chặn xóa để Admin có thể dọn dẹp các yêu cầu nạp tiền cũ (lưu ý: không tự động trừ tiền trong ví)
+    // if (deposit.status === "success") {
+    //   return res.status(400).json({ success: false, message: "Không thể xóa yêu cầu đã duyệt thành công" });
+    // }
 
     await DepositRequest.findByIdAndDelete(id);
 

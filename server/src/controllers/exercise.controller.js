@@ -127,7 +127,7 @@ export const createManyExercises = async (req, res) => {
 export const updateExercise = async (req, res) => {
   try {
     const exercise = await Exercise.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
+      returnDocument: 'after',
     });
     if (!exercise) {
       return res

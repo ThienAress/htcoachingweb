@@ -8,23 +8,24 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-const Field = ({ label, helperText, error, icon: Icon, ...props }) => {
+const Field = ({ label, helperText, error, registration, icon: Icon, ...props }) => {
   return (
     <label className="block">
       <span className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700">
-        {Icon && <Icon size={16} className="text-amber-500" />}
+        {Icon && <Icon size={16} className="text-orange-500" />}
         {label}
       </span>
       <input
+        {...registration}
         {...props}
         className={`w-full rounded-lg border bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:ring-2 ${
           error
             ? "border-red-300 focus:border-red-500 focus:ring-red-100"
-            : "border-slate-200 focus:border-amber-400 focus:ring-amber-100"
+            : "border-slate-200 focus:border-orange-400 focus:ring-orange-100"
         }`}
       />
       {error ? (
-        <p className="mt-1 text-xs text-red-500">{error}</p>
+        <p className="mt-1 text-xs text-red-500">{error.message}</p>
       ) : helperText ? (
         <p className="mt-1 text-xs text-slate-500">{helperText}</p>
       ) : null}
@@ -37,21 +38,23 @@ const SelectField = ({
   options = [],
   helperText,
   error,
+  registration,
   icon: Icon,
   ...props
 }) => {
   return (
     <label className="block">
       <span className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-slate-700">
-        {Icon && <Icon size={16} className="text-amber-500" />}
+        {Icon && <Icon size={16} className="text-orange-500" />}
         {label}
       </span>
       <select
+        {...registration}
         {...props}
         className={`w-full rounded-lg border bg-white px-4 py-2.5 text-slate-800 outline-none transition focus:ring-2 ${
           error
             ? "border-red-300 focus:border-red-500 focus:ring-red-100"
-            : "border-slate-200 focus:border-amber-400 focus:ring-amber-100"
+            : "border-slate-200 focus:border-orange-400 focus:ring-orange-100"
         }`}
       >
         {options.map((item) => (
@@ -61,7 +64,7 @@ const SelectField = ({
         ))}
       </select>
       {error ? (
-        <p className="mt-1 text-xs text-red-500">{error}</p>
+        <p className="mt-1 text-xs text-red-500">{error.message}</p>
       ) : helperText ? (
         <p className="mt-1 text-xs text-slate-500">{helperText}</p>
       ) : null}
@@ -74,7 +77,7 @@ const SwitchRow = ({ label, checked, onChange, icon: Icon }) => {
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:shadow-md md:col-span-2">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          {Icon && <Icon size={18} className="mt-0.5 text-amber-500" />}
+          {Icon && <Icon size={18} className="mt-0.5 text-orange-500" />}
           <div>
             <span className="text-sm font-bold text-slate-800">{label}</span>
             <p className="mt-1 text-xs text-slate-500">
@@ -86,7 +89,7 @@ const SwitchRow = ({ label, checked, onChange, icon: Icon }) => {
           type="button"
           onClick={() => onChange(!checked)}
           className={`relative h-7 w-14 shrink-0 rounded-full transition ${
-            checked ? "bg-amber-500" : "bg-slate-300"
+            checked ? "bg-orange-500" : "bg-slate-300"
           }`}
         >
           <span
@@ -116,39 +119,37 @@ const goalOptions = [
   { label: "Duy trì", value: "maintenance" },
 ];
 
-const StepTrainingGoal = ({ value, onChange, errors = {} }) => {
-  const isCurrentlyTraining = Boolean(value.currentlyTraining);
+const StepTrainingGoal = ({ register, watch, setValue, errors = {} }) => {
+  const isCurrentlyTraining = Boolean(watch("trainingProfileGoal.currentlyTraining"));
+  const trainingExperience = watch("trainingProfileGoal.trainingExperience");
+  
   const hasPreviousTraining =
-    value.trainingExperience &&
-    value.trainingExperience !== "" &&
-    value.trainingExperience !== "none";
-  const isNeverTrained = value.trainingExperience === "none";
+    trainingExperience &&
+    trainingExperience !== "" &&
+    trainingExperience !== "none";
+  const isNeverTrained = trainingExperience === "none";
 
   const handleCurrentlyTrainingChange = (checked) => {
-    onChange("currentlyTraining", checked);
+    setValue("trainingProfileGoal.currentlyTraining", checked, { shouldValidate: true });
     if (!checked) {
-      onChange("trainingDaysPerWeek", 0);
-      onChange("sessionDurationMinutes", 0);
+      setValue("trainingProfileGoal.trainingDaysPerWeek", "");
+      setValue("trainingProfileGoal.sessionDurationMinutes", "");
     }
   };
 
-  const handleExperienceChange = (nextValue) => {
-    onChange("trainingExperience", nextValue);
+  const handleExperienceChange = (e) => {
+    const nextValue = e.target.value;
+    setValue("trainingProfileGoal.trainingExperience", nextValue, { shouldValidate: true });
     if (nextValue === "none") {
-      onChange("breakDuration", "");
-      onChange("sportsHistory", "");
+      setValue("trainingProfileGoal.breakDuration", "");
+      setValue("trainingProfileGoal.sportsHistory", "");
     }
-  };
-
-  const handleNumberInput = (field, rawValue) => {
-    const onlyNumber = rawValue.replace(/\D/g, "");
-    onChange(field, onlyNumber === "" ? "" : Number(onlyNumber));
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 border-l-4 border-amber-500 pl-3">
-        <Target size={20} className="text-amber-600" />
+      <div className="flex items-center gap-2 border-l-4 border-orange-500 pl-3">
+        <Target size={20} className="text-orange-600" />
         <div>
           <h3 className="text-xl font-bold text-slate-800">
             Tập luyện & Mục tiêu
@@ -175,12 +176,9 @@ const StepTrainingGoal = ({ value, onChange, errors = {} }) => {
               type="number"
               min="0"
               max="14"
-              value={value.trainingDaysPerWeek ?? ""}
-              onChange={(e) =>
-                handleNumberInput("trainingDaysPerWeek", e.target.value)
-              }
+              registration={register("trainingProfileGoal.trainingDaysPerWeek")}
+              error={errors?.trainingProfileGoal?.trainingDaysPerWeek}
               helperText="Ví dụ: 3, 4, 5 buổi/tuần"
-              error={errors.trainingDaysPerWeek}
             />
             <Field
               label="Mỗi buổi tập bao lâu (phút)"
@@ -188,27 +186,24 @@ const StepTrainingGoal = ({ value, onChange, errors = {} }) => {
               type="number"
               min="0"
               max="600"
-              value={value.sessionDurationMinutes ?? ""}
-              onChange={(e) =>
-                handleNumberInput("sessionDurationMinutes", e.target.value)
-              }
+              registration={register("trainingProfileGoal.sessionDurationMinutes")}
+              error={errors?.trainingProfileGoal?.sessionDurationMinutes}
               helperText="Ví dụ: 60 phút"
-              error={errors.sessionDurationMinutes}
             />
             <SelectField
               label="Kinh nghiệm tập luyện"
               icon={TrendingUp}
-              value={value.trainingExperience || ""}
-              onChange={(e) => handleExperienceChange(e.target.value)}
+              registration={register("trainingProfileGoal.trainingExperience")}
+              onChange={handleExperienceChange}
               options={experienceOptions}
+              error={errors?.trainingProfileGoal?.trainingExperience}
               helperText="Chọn mức kinh nghiệm hiện tại gần đúng nhất"
-              error={errors.trainingExperience}
             />
             <Field
               label="Các môn đã từng tập"
               icon={Dumbbell}
-              value={value.sportsHistory || ""}
-              onChange={(e) => onChange("sportsHistory", e.target.value)}
+              registration={register("trainingProfileGoal.sportsHistory")}
+              error={errors?.trainingProfileGoal?.sportsHistory}
               placeholder="Gym, chạy bộ, boxing..."
               helperText="Có thể nhập nhiều môn, cách nhau bằng dấu phẩy"
             />
@@ -218,28 +213,27 @@ const StepTrainingGoal = ({ value, onChange, errors = {} }) => {
             <SelectField
               label="Trước đây đã từng tập chưa?"
               icon={RotateCcw}
-              value={value.trainingExperience || ""}
-              onChange={(e) => handleExperienceChange(e.target.value)}
+              registration={register("trainingProfileGoal.trainingExperience")}
+              onChange={handleExperienceChange}
               options={experienceOptions}
+              error={errors?.trainingProfileGoal?.trainingExperience}
               helperText="Nếu khách chưa từng tập, chọn 'Chưa từng tập'"
-              error={errors.trainingExperience}
             />
             {hasPreviousTraining ? (
               <>
                 <Field
                   label="Đã nghỉ tập bao lâu"
                   icon={Clock}
-                  value={value.breakDuration || ""}
-                  onChange={(e) => onChange("breakDuration", e.target.value)}
+                  registration={register("trainingProfileGoal.breakDuration")}
+                  error={errors?.trainingProfileGoal?.breakDuration}
                   placeholder="Ví dụ: 6 tháng"
                   helperText="Chỉ nhập khi khách đã từng tập nhưng hiện đang nghỉ"
-                  error={errors.breakDuration}
                 />
                 <Field
                   label="Các môn đã từng tập"
                   icon={Dumbbell}
-                  value={value.sportsHistory || ""}
-                  onChange={(e) => onChange("sportsHistory", e.target.value)}
+                  registration={register("trainingProfileGoal.sportsHistory")}
+                  error={errors?.trainingProfileGoal?.sportsHistory}
                   placeholder="Gym, chạy bộ, boxing..."
                   helperText="Giúp AI hiểu nền vận động trước đây của khách"
                 />
@@ -260,10 +254,9 @@ const StepTrainingGoal = ({ value, onChange, errors = {} }) => {
         <SelectField
           label="Mục tiêu chính"
           icon={Target}
-          value={value.primaryGoal || ""}
-          onChange={(e) => onChange("primaryGoal", e.target.value)}
+          registration={register("trainingProfileGoal.primaryGoal")}
+          error={errors?.trainingProfileGoal?.primaryGoal}
           options={goalOptions}
-          error={errors.primaryGoal}
         />
 
         <Field
@@ -271,20 +264,18 @@ const StepTrainingGoal = ({ value, onChange, errors = {} }) => {
           icon={TrendingUp}
           type="number"
           min="0"
-          value={value.targetWeightKg ?? ""}
-          onChange={(e) => handleNumberInput("targetWeightKg", e.target.value)}
+          registration={register("trainingProfileGoal.targetWeightKg")}
+          error={errors?.trainingProfileGoal?.targetWeightKg}
           helperText="Có thể để trống nếu khách chưa xác định rõ"
-          error={errors.targetWeightKg}
         />
 
         <Field
           label="Thời gian mong muốn"
           icon={Calendar}
           type="date"
-          value={value.targetDeadline || ""}
-          onChange={(e) => onChange("targetDeadline", e.target.value)}
+          registration={register("trainingProfileGoal.targetDeadline")}
+          error={errors?.trainingProfileGoal?.targetDeadline}
           helperText="Có thể để trống nếu khách chưa có deadline cụ thể"
-          error={errors.targetDeadline}
         />
       </div>
     </div>
