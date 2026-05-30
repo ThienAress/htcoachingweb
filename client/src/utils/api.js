@@ -35,9 +35,26 @@ api.interceptors.request.use(
 
 // ===== RESPONSE INTERCEPTOR =====
 // Tự refresh khi accessToken hết hạn
+// ===== RESPONSE INTERCEPTOR =====
+// Tự refresh khi accessToken hết hạn và lưu CSRF token từ header
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Lưu lại CSRF token nếu server trả về qua header (hữu ích cho cross-origin)
+    const csrfToken = response.headers["x-csrf-token"];
+    if (csrfToken) {
+      Cookies.set("csrfToken", csrfToken, { path: "/" });
+    }
+    return response;
+  },
   async (error) => {
+    // Lưu lại CSRF token ngay cả khi request lỗi
+    if (error.response && error.response.headers) {
+      const csrfToken = error.response.headers["x-csrf-token"];
+      if (csrfToken) {
+        Cookies.set("csrfToken", csrfToken, { path: "/" });
+      }
+    }
+
     const originalRequest = error.config || {};
     const requestUrl = originalRequest.url || "";
     const status = error.response?.status;

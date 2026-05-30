@@ -94,6 +94,7 @@ const corsOptions = {
   },
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
+  exposedHeaders: ["X-CSRF-Token"],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 };
 
@@ -132,10 +133,13 @@ const getCsrfCookieOptions = () => ({
 // ================= CSRF TOKEN GENERATE =================
 // Tạo csrfToken nếu client chưa có
 app.use((req, res, next) => {
-  if (!req.cookies.csrfToken) {
-    const newToken = generateCsrfToken();
-    res.cookie("csrfToken", newToken, getCsrfCookieOptions());
+  let token = req.cookies.csrfToken;
+  if (!token) {
+    token = generateCsrfToken();
+    res.cookie("csrfToken", token, getCsrfCookieOptions());
   }
+  // Expose token qua header để Frontend khác domain có thể đọc được
+  res.setHeader("X-CSRF-Token", token);
   next();
 });
 
