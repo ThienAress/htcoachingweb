@@ -1,24 +1,26 @@
-import fs from "fs";
 import path from "path";
 import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
-const uploadDir = path.resolve("uploads/avatars");
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase();
-    const safeBaseName = path
-      .basename(file.originalname || "avatar", ext)
-      .replace(/[^a-zA-Z0-9-_]/g, "_");
-
-    cb(null, `${Date.now()}-${safeBaseName}${ext || ".png"}`);
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "htcoaching/avatars",
+    allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
+    public_id: (req, file) => {
+      const ext = path.extname(file.originalname || "").toLowerCase();
+      const safeBaseName = path
+        .basename(file.originalname || "avatar", ext)
+        .replace(/[^a-zA-Z0-9-_]/g, "_");
+      return `${Date.now()}-${safeBaseName}`;
+    },
   },
 });
 

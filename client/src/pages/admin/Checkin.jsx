@@ -592,7 +592,7 @@ const Checkin = () => {
                   </span>
                   <button
                     onClick={() =>
-                      setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
+                      setCurrentPage((p) => Math.min(pagination.totalPages, Number(p) + 1))
                     }
                     disabled={pagination.page === pagination.totalPages}
                     className="p-2 rounded-lg border border-gray-700 text-gray-400 bg-gray-800 hover:bg-gray-700 hover:text-white transition disabled:opacity-30 disabled:cursor-not-allowed"
