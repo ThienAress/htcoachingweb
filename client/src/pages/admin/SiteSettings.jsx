@@ -94,7 +94,7 @@ const SettingSection = ({ title, fieldName, images, isMultiple, maxCount, onUplo
           />
           <button
             onClick={handleUpload}
-            disabled={!selectedFiles || isLoading}
+            disabled={!selectedFiles || selectedFiles.length === 0 || isLoading}
             className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {isLoading ? <Loader2 size={18} className="animate-spin" /> : <UploadCloud size={18} />}
