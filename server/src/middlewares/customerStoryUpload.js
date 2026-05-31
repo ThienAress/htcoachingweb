@@ -1,28 +1,30 @@
-import fs from "fs";
 import path from "path";
 import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
 
-const uploadDir = path.resolve("uploads/customer-stories");
-
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Cấu hình Cloudinary sẽ lấy tự động từ biến môi trường
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const allowedExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase();
-    const safeExt = allowedExtensions.has(ext) ? ext : ".jpg";
-    const safeBaseName = path
-      .basename(file.originalname || "customer-story", ext)
-      .replace(/[^a-zA-Z0-9-_]/g, "_")
-      .slice(0, 80);
-
-    cb(null, `${Date.now()}-${safeBaseName}${safeExt}`);
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "htcoaching/customer-stories",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    public_id: (req, file) => {
+      const ext = path.extname(file.originalname || "").toLowerCase();
+      const safeBaseName = path
+        .basename(file.originalname || "customer-story", ext)
+        .replace(/[^a-zA-Z0-9-_]/g, "_")
+        .slice(0, 80);
+      return `${Date.now()}-${safeBaseName}`;
+    },
   },
 });
 

@@ -352,7 +352,7 @@ const CheckinHistory = () => {
           </span>
           <button
             onClick={() =>
-              setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
+              setCurrentPage((p) => Math.min(pagination.totalPages, Number(p) + 1))
             }
             disabled={pagination.page === pagination.totalPages}
             className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"

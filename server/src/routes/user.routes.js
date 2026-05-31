@@ -59,7 +59,7 @@ router.put("/me/avatar", protect, csrfProtection, uploadAvatar.single("avatar"),
       return res.status(400).json({ success: false, message: "Không tìm thấy file tải lên" });
     }
 
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const avatarUrl = req.file.path;
     
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,

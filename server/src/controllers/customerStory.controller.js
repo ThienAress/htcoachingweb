@@ -315,7 +315,7 @@ export const uploadCustomerStoryImageFile = async (req, res) => {
     res.status(201).json({
       success: true,
       data: {
-        url: `/uploads/customer-stories/${req.file.filename}`,
+        url: req.file.path,
         filename: req.file.filename,
       },
     });
