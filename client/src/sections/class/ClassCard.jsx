@@ -3,8 +3,10 @@ import { Check, ArrowRight } from "lucide-react";
 
 const ClassCard = ({ image, title, desc, benefits }) => {
   return (
-    <div className="group flex flex-col h-full bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)] transition-all duration-500 hover:-translate-y-2 border border-slate-100 overflow-hidden">
-      
+    <div className="group flex flex-col h-full bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] 
+    hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)] transition-all duration-500 
+    hover:-translate-y-2 border border-slate-100 overflow-hidden">
+
       {/* Image Section */}
       <div className="relative h-64 sm:h-72 w-full overflow-hidden">
         <img
@@ -22,7 +24,7 @@ const ClassCard = ({ image, title, desc, benefits }) => {
         <h3 className="text-2xl sm:text-[1.75rem] font-bold text-slate-800 mb-3 tracking-tight">
           {title}
         </h3>
-        
+
         <p className="text-slate-500 text-sm sm:text-base leading-relaxed mb-6">
           {desc}
         </p>
@@ -30,8 +32,8 @@ const ClassCard = ({ image, title, desc, benefits }) => {
         <ul className="space-y-3.5 mb-8">
           {benefits.map((b, i) => (
             <li key={i} className="flex items-start gap-3">
-              <div className="mt-0.5 rounded-full bg-blue-50 p-1">
-                <Check className="h-3.5 w-3.5 text-blue-600 stroke-[3]" />
+              <div className="mt-0.5 rounded-full bg-[#ff5500]/10 p-1">
+                <Check className="h-3.5 w-3.5 text-primary stroke-[3]" />
               </div>
               <span className="text-slate-600 text-sm sm:text-[15px] font-medium leading-relaxed">
                 {b}
@@ -44,14 +46,14 @@ const ClassCard = ({ image, title, desc, benefits }) => {
         <div className="mt-auto pt-2">
           <a
             href="#contact"
-            className="group/btn flex items-center justify-center gap-2 w-full py-3.5 px-4 bg-slate-50 hover:bg-blue-600 text-slate-700 hover:text-white rounded-xl font-semibold transition-all duration-300 border border-slate-200 hover:border-transparent"
+            className="group/btn flex items-center justify-center gap-2 w-full py-3.5 px-4 bg-slate-50 hover:bg-primary text-slate-700 hover:text-white rounded-xl font-semibold transition-all duration-300 border border-slate-200 hover:border-transparent"
           >
             <span>NHẬN TƯ VẤN MIỄN PHÍ</span>
             <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
           </a>
         </div>
       </div>
-      
+
     </div>
   );
 };
