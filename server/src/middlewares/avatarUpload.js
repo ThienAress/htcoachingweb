@@ -14,6 +14,7 @@ const storage = new CloudinaryStorage({
   params: {
     folder: "htcoaching/avatars",
     allowed_formats: ["jpg", "jpeg", "png", "gif", "webp"],
+    transformation: [{ width: 500, height: 500, crop: "fill", gravity: "face" }, { quality: "auto", fetch_format: "auto" }],
     public_id: (req, file) => {
       const ext = path.extname(file.originalname || "").toLowerCase();
       const safeBaseName = path
