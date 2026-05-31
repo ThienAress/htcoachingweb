@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
-import { UploadCloud, Trash2, Loader2, Image as ImageIcon } from "lucide-react";
+import { UploadCloud, Trash2, Loader2, Image as ImageIcon, X } from "lucide-react";
 import {
   getSiteSettings,
   uploadSettingImage,
@@ -24,6 +24,13 @@ const SettingSection = ({ title, fieldName, images, isMultiple, maxCount, onUplo
     setSelectedFiles(files);
     const urls = files.map(file => URL.createObjectURL(file));
     setPreviewUrls(urls);
+    // Reset input value to allow selecting the same files again if needed
+    e.target.value = null;
+  };
+
+  const removePreview = (indexToRemove) => {
+    setSelectedFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    setPreviewUrls((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleUpload = async () => {
@@ -98,17 +105,27 @@ const SettingSection = ({ title, fieldName, images, isMultiple, maxCount, onUplo
 
       {/* Preview */}
       {previewUrls.length > 0 && (
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+        <div className="mt-4 pt-3 flex gap-3 overflow-x-auto pb-2">
           {previewUrls.map((url, idx) => (
-            <div key={idx} className="relative group">
+            <div key={idx} className="relative group shrink-0">
               <img 
                 src={url} 
                 alt="Preview" 
-                className="h-16 w-16 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity" 
+                className="h-20 w-20 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm" 
                 onClick={() => onPreview && onPreview(url)}
                 title="Nhấn để xem lớn"
               />
-              <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full z-10">Mới</span>
+              <span className="absolute -top-2 -left-2 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10 shadow-sm pointer-events-none">
+                Mới
+              </span>
+              <button
+                type="button"
+                onClick={() => removePreview(idx)}
+                className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-10 shadow-sm"
+                title="Hủy chọn ảnh này"
+              >
+                <X size={14} />
+              </button>
             </div>
           ))}
         </div>
