@@ -61,11 +61,12 @@ const Classes = ({ images }) => {
         </p>
 
         <div
-          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8 xl:gap-10"
-          data-aos="flip-down"
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 md:gap-10 xl:gap-12 px-2"
         >
           {classes.map((item, index) => (
-            <ClassCard key={index} {...item} />
+            <div key={index} data-aos="fade-up" data-aos-delay={index * 150}>
+              <ClassCard {...item} />
+            </div>
           ))}
         </div>
       </div>
