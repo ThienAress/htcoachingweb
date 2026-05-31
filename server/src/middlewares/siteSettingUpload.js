@@ -27,7 +27,8 @@ const createSiteSettingStorage = (folderName, maxWidth) => {
           .basename(file.originalname || "image", ext)
           .replace(/[^a-zA-Z0-9-_]/g, "_")
           .slice(0, 50);
-        return `${Date.now()}-${safeBaseName}`;
+        const randomStr = Math.round(Math.random() * 10000);
+        return `${Date.now()}-${randomStr}-${safeBaseName}`;
       },
     },
   });

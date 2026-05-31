@@ -8,7 +8,7 @@ import {
   removeSettingImage,
 } from "../../services/siteSetting.service";
 
-const SettingSection = ({ title, fieldName, images, isMultiple, maxCount, onUpload, onRemove, isLoading }) => {
+const SettingSection = ({ title, fieldName, images, isMultiple, maxCount, onUpload, onRemove, isLoading, onPreview }) => {
   const [selectedFiles, setSelectedFiles] = useState(null);
   const [previewUrls, setPreviewUrls] = useState([]);
 
@@ -53,7 +53,12 @@ const SettingSection = ({ title, fieldName, images, isMultiple, maxCount, onUplo
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
         {images.map((url, idx) => (
           <div key={idx} className="relative group aspect-video md:aspect-square bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
-            <img src={url} alt="Cấu hình" className="w-full h-full object-cover" />
+            <img 
+              src={url} 
+              alt="Cấu hình" 
+              className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+              onClick={() => onPreview && onPreview(url)}
+            />
             <button
               onClick={() => onRemove({ fieldName, imageUrl: url })}
               className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
@@ -136,6 +141,8 @@ const SiteSettings = () => {
     },
   });
 
+  const [previewImage, setPreviewImage] = useState(null);
+
   if (isLoading) {
     return <div className="p-8 text-center text-slate-500">Đang tải dữ liệu...</div>;
   }
@@ -168,6 +175,7 @@ const SiteSettings = () => {
         onUpload={uploadMutation.mutate}
         onRemove={removeMutation.mutate}
         isLoading={uploadMutation.isPending}
+        onPreview={setPreviewImage}
       />
 
       <SettingSection
@@ -179,6 +187,7 @@ const SiteSettings = () => {
         onUpload={uploadMutation.mutate}
         onRemove={removeMutation.mutate}
         isLoading={uploadMutation.isPending}
+        onPreview={setPreviewImage}
       />
 
       <SettingSection
@@ -189,6 +198,7 @@ const SiteSettings = () => {
         onUpload={uploadMutation.mutate}
         onRemove={removeMutation.mutate}
         isLoading={uploadMutation.isPending}
+        onPreview={setPreviewImage}
       />
 
       <SettingSection
@@ -200,6 +210,7 @@ const SiteSettings = () => {
         onUpload={uploadMutation.mutate}
         onRemove={removeMutation.mutate}
         isLoading={uploadMutation.isPending}
+        onPreview={setPreviewImage}
       />
 
       <SettingSection
@@ -210,7 +221,28 @@ const SiteSettings = () => {
         onUpload={uploadMutation.mutate}
         onRemove={removeMutation.mutate}
         isLoading={uploadMutation.isPending}
+        onPreview={setPreviewImage}
       />
+
+      {/* Fullscreen Preview Modal */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setPreviewImage(null)}
+        >
+          <img 
+            src={previewImage} 
+            alt="Preview Fullscreen" 
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+          />
+          <button 
+            className="absolute top-6 right-6 text-white hover:text-red-400 bg-black/50 p-2 rounded-full"
+            onClick={() => setPreviewImage(null)}
+          >
+            Đóng (X)
+          </button>
+        </div>
+      )}
     </div>
   );
 };
