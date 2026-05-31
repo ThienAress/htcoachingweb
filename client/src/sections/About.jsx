@@ -10,8 +10,9 @@ import hero2 from "../assets/images/hero/hero2.jpg";
 import hero3 from "../assets/images/hero/hero3.jpg";
 import { useSwiper } from "../hooks/useSwiper";
 
-const About = () => {
-  const images = [hero1, hero2, hero3];
+const About = ({ images }) => {
+  const defaultImages = [hero1, hero2, hero3];
+  const displayImages = images && images.length > 0 ? images : defaultImages;
   const statRef = useRef([]);
 
   // Swiper options (không có navigation)
@@ -151,7 +152,7 @@ const About = () => {
         <div className="w-full md:w-1/2 lg:flex-1 overflow-hidden rounded-xl shadow-lg aspect-video">
           <div className="swiper about-image-swiper w-full h-full rounded-xl overflow-hidden">
             <div className="swiper-wrapper">
-              {images.map((img, index) => (
+              {displayImages.map((img, index) => (
                 <div key={index} className="swiper-slide">
                   <img
                     src={img}

@@ -32,6 +32,7 @@ const BookingManagement = lazy(() => import("./pages/admin/BookingManagement"));
 const ExerciseManagement = lazy(() => import("./pages/admin/ExerciseManagement"));
 const ExerciseSuggestionsManagement = lazy(() => import("./pages/admin/ExerciseSuggestionsManagement"));
 const CustomerStoryManagement = lazy(() => import("./pages/admin/CustomerStoryManagement"));
+const SiteSettings = lazy(() => import("./pages/admin/SiteSettings"));
 const DepositManagement = lazy(() => import("./pages/admin/DepositManagement"));
 const F1AiRuleManagement = lazy(() => import("./pages/admin/F1AiRuleManagement"));
 const TrainerSubscriberManagement = lazy(() => import("./pages/admin/TrainerSubscriberManagement"));
@@ -143,6 +144,7 @@ function AppContent() {
           <Route path="exercises" element={<ExerciseManagement />} />
           <Route path="f1-ai-rules" element={<F1AiRuleManagement />} />
           <Route path="customer-stories" element={<CustomerStoryManagement />} />
+          <Route path="site-settings" element={<SiteSettings />} />
           <Route path="deposits" element={<DepositManagement />} />
           <Route
             path="exercise-suggestions"

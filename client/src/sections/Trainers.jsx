@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import trainer from "../assets/images/trainer/trainer.jpg";
 
-const Trainer = () => {
+const Trainer = ({ image }) => {
+  const displayImage = image || trainer;
   return (
     <section
       id="trainers"
@@ -28,7 +29,7 @@ const Trainer = () => {
           data-aos-duration="1000"
         >
           <img
-            src={trainer}
+            src={displayImage}
             alt="Personal Trainer HTCOACHING - Hoàng Thiện"
             loading="lazy"
             width="600"

@@ -6,14 +6,14 @@ import class1 from "../../assets/images/classes/class1.jpg";
 import class2 from "../../assets/images/classes/class2.jpg";
 import class3 from "../../assets/images/classes/class3.jpg";
 
-const Classes = () => {
+const Classes = ({ images }) => {
   React.useEffect(() => {
     AOS.init({ duration: 1000, once: true });
   }, []);
 
   const classes = [
     {
-      image: class1,
+      image: images?.[0] || class1,
       title: "PERSONAL TRAINING",
       desc: "Huấn luyện 1:1 giúp bạn theo sát tiến độ, tập đúng kỹ thuật và đạt mục tiêu nhanh hơn bao giờ hết.",
       benefits: [
@@ -23,7 +23,7 @@ const Classes = () => {
       ],
     },
     {
-      image: class2,
+      image: images?.[1] || class2,
       title: "CARDIO & HIIT",
       desc: "Đốt cháy mỡ thừa hiệu quả, tăng nhịp tim và cải thiện sức bền chỉ trong vài phút mỗi buổi tập.",
       benefits: [
@@ -33,7 +33,7 @@ const Classes = () => {
       ],
     },
     {
-      image: class3,
+      image: images?.[2] || class3,
       title: "BOXING",
       desc: "Tăng sức bền, cải thiện phản xạ, giải phóng căng thẳng với những bài tập đầy năng lượng và linh hoạt.",
       benefits: [
@@ -45,7 +45,7 @@ const Classes = () => {
   ];
 
   return (
-    <section id="classes" className="py-12 sm:py-16 bg-[#0f172b]">
+    <section id="classes" className="py-12 sm:py-16 bg-light">
       <div className="mx-auto w-full max-w-[1650px] px-4 sm:px-6 xl:px-8">
         <h2 className="text-center text-primary text-2xl sm:text-3xl md:text-4xl lg:text-5xl uppercase"
           data-aos="fade-down"
