@@ -17,6 +17,7 @@ import {
   Wallet,
   ChevronDown,
   BrainCircuit,
+  LayoutTemplate,
 } from "lucide-react";
 
 const SidebarContent = ({ onItemClick }) => {
@@ -50,6 +51,13 @@ const SidebarContent = ({ onItemClick }) => {
       items: [
         { path: "/admin/customer-stories", label: "Câu chuyện khách hàng", icon: BookOpenText },
         { path: "/admin/exercise-suggestions", label: "Góp ý bài tập", icon: MessageSquareText },
+      ],
+    },
+    {
+      key: "interface",
+      label: "Giao diện",
+      items: [
+        { path: "/admin/site-settings", label: "Trang chủ", icon: LayoutTemplate },
       ],
     },
     {

@@ -171,6 +171,9 @@ app.use("/api/training-schedules", trainingScheduleRoutes);
 import coachingRoutes from "./src/routes/coaching.routes.js";
 app.use("/api/coaching", coachingRoutes);
 
+import siteSettingRoutes from "./src/routes/siteSetting.routes.js";
+app.use("/api/site-settings", siteSettingRoutes);
+
 import { protect } from "./src/middlewares/auth.middleware.js";
 app.get("/api/me/wallet", protect, getMyWallet);
 

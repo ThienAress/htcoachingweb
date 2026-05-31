@@ -2,14 +2,15 @@ import React from "react";
 import { Link } from "react-router-dom";
 import toolImg from "../assets/images/hero/hero1.jpg";
 
-const Tools = () => {
+const Tools = ({ image }) => {
+  const displayImage = image || toolImg;
   return (
     <section className="py-10 md:py-[60px] px-4 md:px-5 flex justify-center">
       <div className="container">
         <div
           className="relative overflow-hidden rounded-2xl"
           style={{
-            backgroundImage: `url(${toolImg})`,
+            backgroundImage: `url(${displayImage})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundAttachment: "fixed",

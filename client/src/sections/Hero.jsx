@@ -20,7 +20,7 @@ import hero2 from "../assets/images/hero/hero2.jpg";
 import hero3 from "../assets/images/hero/hero3.jpg";
 import { useSwiper } from "../hooks/useSwiper";
 
-const Hero = () => {
+const Hero = ({ images }) => {
   const [typedIndex, setTypedIndex] = useState(0);
 
   const texts = [
@@ -32,11 +32,13 @@ const Hero = () => {
     " NÀY CHƯA!",
   ];
 
-  const slides = [
-    { bgImage: `url(${hero1})` },
-    { bgImage: `url(${hero2})` },
-    { bgImage: `url(${hero3})` },
-  ];
+  const slides = images && images.length > 0 
+    ? images.map(img => ({ bgImage: `url(${img})` }))
+    : [
+        { bgImage: `url(${hero1})` },
+        { bgImage: `url(${hero2})` },
+        { bgImage: `url(${hero3})` },
+      ];
 
   const features = [
     { icon: Route, text: "Lộ trình riêng biệt", delay: "1000" },

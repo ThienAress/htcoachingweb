@@ -1,3 +1,5 @@
+import { useQuery } from "@tanstack/react-query";
+import { getSiteSettings } from "../services/siteSetting.service";
 import Hero from "../sections/Hero";
 import About from "../sections/About";
 import Trainers from "../sections/Trainers";
@@ -11,6 +13,17 @@ import ChatIcons from "../components/ChatIcons";
 import SEO from "../components/SEO";
 
 const Home = () => {
+  const { data: settingsResponse } = useQuery({
+    queryKey: ["site-settings"],
+    queryFn: async () => {
+      const res = await getSiteSettings();
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const settings = settingsResponse?.data || {};
+
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -30,12 +43,12 @@ const Home = () => {
         canonical="/" 
         jsonLd={organizationSchema}
       />
-      <Hero />
-      <About />
-      <Trainers />
+      <Hero images={settings.heroImages} />
+      <About images={settings.aboutImages} />
+      <Trainers image={settings.trainerImage} />
       <Feedback />
-      <Classes />
-      <Tools />
+      <Classes images={settings.classesImages} />
+      <Tools image={settings.toolsImage} />
       <Pricing />
       <Contact />
       <ScrollToTop />
