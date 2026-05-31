@@ -100,7 +100,16 @@ const SettingSection = ({ title, fieldName, images, isMultiple, maxCount, onUplo
       {previewUrls.length > 0 && (
         <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
           {previewUrls.map((url, idx) => (
-            <img key={idx} src={url} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-slate-200 opacity-50" />
+            <div key={idx} className="relative group">
+              <img 
+                src={url} 
+                alt="Preview" 
+                className="h-16 w-16 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity" 
+                onClick={() => onPreview && onPreview(url)}
+                title="Nhấn để xem lớn"
+              />
+              <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full z-10">Mới</span>
+            </div>
           ))}
         </div>
       )}
