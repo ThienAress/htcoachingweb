@@ -84,7 +84,7 @@ export const submitFeedback = async (req, res) => {
 
     // Nếu có file video tải lên
     if (req.file) {
-      plan.clientFeedbackVideo = `/uploads/coaching-videos/${req.file.filename}`;
+      plan.clientFeedbackVideo = req.file.path;
     }
 
     // Tự động kiểm tra trạng thái hoàn thành ngày tập
@@ -276,7 +276,7 @@ export const uploadCoachingDemoVideo = async (req, res) => {
     }
     res.json({
       success: true,
-      url: `/uploads/coaching-videos/${req.file.filename}`,
+      url: req.file.path,
       message: "Tải lên video demo thành công",
     });
   } catch (err) {
@@ -293,7 +293,7 @@ export const uploadClientFeedbackVideo = async (req, res) => {
     }
     res.json({
       success: true,
-      url: `/uploads/coaching-videos/${req.file.filename}`,
+      url: req.file.path,
       message: "Tải lên video phản hồi thành công",
     });
   } catch (err) {
