@@ -67,6 +67,7 @@ const getStoryPayload = (body = {}, existingStory = null) => {
     milestones: normalizeMilestones(body.milestones),
     status,
     featured: Boolean(body.featured),
+    isContinuing: Boolean(body.isContinuing),
     sortOrder: Number.isFinite(Number(body.sortOrder))
       ? Number(body.sortOrder)
       : 0,
@@ -191,6 +192,15 @@ export const createCustomerStory = async (req, res) => {
       });
     }
 
+    const existing = await CustomerStory.findOne({ slug: payload.slug });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: "Khách hàng này đã có câu chuyện rồi.",
+        existingStoryId: existing._id,
+      });
+    }
+
     const story = await CustomerStory.create(payload);
     res.status(201).json({ success: true, data: story });
   } catch (err) {
@@ -223,6 +233,14 @@ export const updateCustomerStory = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Tên khách hàng và slug là bắt buộc",
+      });
+    }
+
+    const existingSlug = await CustomerStory.findOne({ slug: payload.slug, _id: { $ne: req.params.id } });
+    if (existingSlug) {
+      return res.status(409).json({
+        success: false,
+        message: "Đường dẫn (slug) đã bị trùng với một câu chuyện khác.",
       });
     }
 

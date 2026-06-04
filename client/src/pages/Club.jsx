@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { MapPin } from "lucide-react";
-import Header from "../sections/Header/Header";
 import Footer from "../sections/Footer/Footer";
 import Contact from "../sections/Contact";
 import ChatIcons from "../components/ChatIcons";
@@ -9,12 +8,10 @@ import SEO from "../components/SEO";
 import class1 from "../assets/images/classes/class1.jpg";
 import class2 from "../assets/images/classes/class2.jpg";
 import class3 from "../assets/images/classes/class3.jpg";
-import AOS from "aos";
-import "aos/dist/aos.css";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-AOS.init();
-
-const aosAnimations = ["flip-left", "flip-up", "flip-down", "flip-right"];
+gsap.registerPlugin(ScrollTrigger);
 
 const clubs = [
   {
@@ -88,11 +85,51 @@ const extractDistricts = (clubs) => {
 const Club = () => {
   const [selectedDistrict, setSelectedDistrict] = useState("Tất cả");
   const [districts, setDistricts] = useState(["Tất cả"]);
+  const titleRef = useRef(null);
+  const gridRef = useRef(null);
 
   useEffect(() => {
     const result = extractDistricts(clubs);
     setDistricts(result);
   }, []);
+
+  // GSAP animations
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      if (titleRef.current) {
+        gsap.from(titleRef.current, {
+          y: -20,
+          opacity: 0,
+          duration: 0.7,
+          ease: "power2.out",
+        });
+      }
+
+      // Animate club cards
+      if (gridRef.current) {
+        const cards = gridRef.current.querySelectorAll(".club-card");
+        if (cards.length) {
+          gsap.fromTo(cards, 
+            { y: 40, opacity: 0 },
+            {
+              y: 0,
+              opacity: 1,
+              duration: 0.6,
+              stagger: 0.08,
+              ease: "power2.out",
+              scrollTrigger: {
+                trigger: gridRef.current,
+                start: "top 90%",
+                once: true,
+              },
+            }
+          );
+        }
+      }
+    });
+
+    return () => ctx.revert();
+  }, [selectedDistrict]);
 
   const filteredClubs =
     selectedDistrict === "Tất cả"
@@ -106,11 +143,10 @@ const Club = () => {
         description="Các câu lạc bộ, phòng tập Gym, Boxing hiện HTCOACHING đang huấn luyện tại Hồ Chí Minh."
         canonical="/club"
       />
-      <Header />
-      <main className="pt-28">
+      <main>
         <section className="py-12 md:py-16 px-5 bg-gray-100">
           <div className="container-custom">
-            <h1 className="text-center mb-8 text-3xl font-bold uppercase" data-aos="fade-up">
+            <h1 ref={titleRef} className="text-center mb-8 text-3xl font-bold uppercase">
               CÂU LẠC BỘ HIỆN MÌNH ĐANG DẠY
             </h1>
 
@@ -132,16 +168,12 @@ const Club = () => {
             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredClubs.map((club, index) => {
-              const animation = aosAnimations[index % aosAnimations.length];
               return (
                 <div
                   key={index}
-                  data-aos={animation}
-                  data-aos-delay={index * 100}
-                  data-aos-duration="800"
-                  className="bg-white shadow-md overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-lg rounded-lg"
+                  className="club-card bg-white shadow-md overflow-hidden transition duration-300 hover:-translate-y-1 hover:shadow-lg rounded-lg"
                 >
                   <img
                     src={club.image}
@@ -174,3 +206,4 @@ const Club = () => {
 };
 
 export default Club;
+

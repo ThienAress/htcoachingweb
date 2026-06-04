@@ -755,7 +755,7 @@ function AccountPage() {
                                   </span>
                                 </div>
                                 <span className="text-[11px] text-gray-500 block">
-                                  {order.createdAt ? new Date(order.createdAt).toLocaleString("vi-VN") : "N/A"}
+                                  {order.createdAt ? new Date(order.createdAt).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "N/A"}
                                 </span>
                                 <span className="text-xs text-gray-300 block font-semibold pt-0.5">
                                   {order.title}
@@ -828,7 +828,7 @@ function AccountPage() {
                                         }).format(tx.balanceAfter)}
                                       </td>
                                       <td className="py-4 px-4 text-gray-500 text-[10px] sm:text-xs">
-                                        {tx.createdAt ? new Date(tx.createdAt).toLocaleString("vi-VN") : "N/A"}
+                                        {tx.createdAt ? new Date(tx.createdAt).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "N/A"}
                                       </td>
                                       <td className="py-4 px-4 text-right">
                                         <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">

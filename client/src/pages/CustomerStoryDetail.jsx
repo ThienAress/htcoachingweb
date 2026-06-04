@@ -1,11 +1,53 @@
+import { useEffect, useRef } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, CheckCircle2, Dumbbell } from "lucide-react";
+import gsap from "gsap";
+import { ArrowLeft, CalendarDays, CheckCircle2, Dumbbell, Hourglass } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   getPublicCustomerStories,
   getPublicCustomerStoryBySlug,
 } from "../services/customerStory.service";
 import SEO from "../components/SEO";
+
+const ContinuingBanner = ({ name }) => {
+  const iconRef = useRef(null);
+  const dot1Ref = useRef(null);
+  const dot2Ref = useRef(null);
+  const dot3Ref = useRef(null);
+
+  useEffect(() => {
+    let ctx = gsap.context(() => {
+      const tl = gsap.timeline({ repeat: -1 });
+      tl.to(iconRef.current, {
+        rotation: "+=180",
+        duration: 1,
+        ease: "back.inOut(1.5)",
+      })
+      .to(dot1Ref.current, { opacity: 1, duration: 0.2 })
+      .to(dot2Ref.current, { opacity: 1, duration: 0.2 })
+      .to(dot3Ref.current, { opacity: 1, duration: 0.2 })
+      .to({}, { duration: 0.5 })
+      .to([dot1Ref.current, dot2Ref.current, dot3Ref.current], { opacity: 0, duration: 0.2 });
+    });
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <section className="mt-8 border-t border-gray-200 pt-8 pb-4">
+      <div className="flex flex-col items-center justify-center text-center">
+        <div ref={iconRef} className="mb-3">
+          <Hourglass className="h-8 w-8 text-primary sm:h-10 sm:w-10" />
+        </div>
+        <p className="max-w-2xl text-sm leading-relaxed text-gray sm:text-base">
+          Khách hàng đang tiếp tục bước vào giai đoạn tập luyện nâng cao. Hãy cùng chờ đón sự lột xác bùng nổ tiếp theo của <strong>{name}</strong> cùng HTCOACHING nhé
+          <span ref={dot1Ref} className="opacity-0 inline-block">.</span>
+          <span ref={dot2Ref} className="opacity-0 inline-block">.</span>
+          <span ref={dot3Ref} className="opacity-0 inline-block">.</span>
+        </p>
+      </div>
+    </section>
+  );
+};
 
 const BeforeAfterBlock = ({ title, subtitle, beforeImg, afterImg }) => (
   <figure className="overflow-hidden border border-gray-200 bg-white">
@@ -75,23 +117,25 @@ const RelatedStoryCard = ({ story }) => (
   </Link>
 );
 
-const CustomerStoryDetail = () => {
+const CustomerStoryDetail = ({ previewData }) => {
   const { slug } = useParams();
 
   const { data: storyResponse, isLoading: isLoadingStory } = useQuery({
     queryKey: ["public-customer-story", slug],
     queryFn: () => getPublicCustomerStoryBySlug(slug),
     retry: false,
+    enabled: !previewData,
   });
 
   const { data: storiesResponse } = useQuery({
     queryKey: ["public-customer-stories", "related"],
     queryFn: () => getPublicCustomerStories({ limit: 20 }),
+    enabled: !previewData,
   });
 
-  const story = storyResponse?.data?.slug ? storyResponse.data : null;
+  const story = previewData || (storyResponse?.data?.slug ? storyResponse.data : null);
 
-  if (isLoadingStory) {
+  if (!previewData && isLoadingStory) {
     return (
       <main className="min-h-screen bg-white pt-32">
         <div className="container-custom">
@@ -142,14 +186,16 @@ const CustomerStoryDetail = () => {
 
   return (
     <main className="bg-white">
-      <SEO 
-        title={`Hành trình ${story.duration} của ${story.name}`}
-        description={`Khám phá hành trình ${story.duration} thay đổi vóc dáng của ${story.name} (${story.age} tuổi, ${story.job}). Kết quả: ${story.result}.`}
-        canonical={`/ket-qua-khach-hang/${story.slug}`}
-        image={story.heroImage || story.afterImg}
-        type="article"
-        jsonLd={articleSchema}
-      />
+      {!previewData && (
+        <SEO
+          title={`Hành trình ${story.duration} của ${story.name}`}
+          description={`Khám phá hành trình ${story.duration} thay đổi vóc dáng của ${story.name} (${story.age} tuổi, ${story.job}). Kết quả: ${story.result}.`}
+          canonical={`/ket-qua-khach-hang/${story.slug}`}
+          image={story.heroImage || story.afterImg}
+          type="article"
+          jsonLd={articleSchema}
+        />
+      )}
       <section className="relative min-h-[420px] overflow-hidden bg-black text-white sm:min-h-[500px]">
         <img
           src={story.heroImage}
@@ -227,13 +273,13 @@ const CustomerStoryDetail = () => {
           <div className="min-w-0">
             <div className="grid gap-5 md:grid-cols-2">
               <article className="border-l-4 border-primary bg-light p-5">
-                <h2 className="h3 mb-3 text-2xl uppercase">Vấn đề ban đầu</h2>
+                <h2 className="h3 mb-3 text-2xl uppercase">Vấn đề của khách hàng</h2>
                 <p className="text-sm leading-7 text-gray sm:text-base">
                   {story.problem}
                 </p>
               </article>
               <article className="border-l-4 border-black bg-light p-5">
-                <h2 className="h3 mb-3 text-2xl uppercase">Giải pháp</h2>
+                <h2 className="h3 mb-3 text-2xl uppercase">Giải pháp của Huấn Luyện Viên</h2>
                 <p className="text-sm leading-7 text-gray sm:text-base">
                   {story.solution}
                 </p>
@@ -247,9 +293,6 @@ const CustomerStoryDetail = () => {
                 beforeImg={story.beforeImg}
                 afterImg={story.afterImg}
               />
-              <p className="mt-4 text-sm leading-7 text-gray sm:text-base">
-                {story.message}
-              </p>
             </div>
 
             {story.milestones.length > 0 && (
@@ -259,10 +302,10 @@ const CustomerStoryDetail = () => {
                   <h2 className="h3 text-2xl uppercase">Timeline hành trình</h2>
                 </div>
                 <div className="space-y-8">
-                  {story.milestones.map((milestone) => (
+                  {story.milestones.map((milestone, index) => (
                     <article
-                      key={milestone.title}
-                      className="grid gap-5 border-t border-gray-200 pt-6 md:grid-cols-[minmax(0,1fr)_260px] xl:grid-cols-[minmax(0,1fr)_340px]"
+                      key={milestone.title || index}
+                      className="grid gap-5 border-t border-gray-200 pt-6 md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_420px]"
                     >
                       <div>
                         <p className="text-sm font-bold uppercase tracking-[0.14em] text-primary">
@@ -275,59 +318,66 @@ const CustomerStoryDetail = () => {
                           {milestone.content}
                         </p>
                         {milestone.bullets.length > 0 && (
-                          <ul className="mt-4 space-y-2">
-                            {milestone.bullets.map((bullet) => (
-                              <li
-                                key={bullet}
-                                className="flex gap-2 text-sm text-dark sm:text-base"
-                              >
-                                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                                <span>{bullet}</span>
-                              </li>
-                            ))}
-                          </ul>
+                          <div className="mt-6 rounded-xl bg-slate-50 p-5 border border-slate-100">
+                            <p className="mb-3 font-semibold text-primary">
+                              Kết quả giai đoạn {index + 1}:
+                            </p>
+                            <ul className="space-y-2">
+                              {milestone.bullets.map((bullet) => (
+                                <li
+                                  key={bullet}
+                                  className="flex gap-2 text-sm text-dark sm:text-base"
+                                >
+                                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                                  <span>{bullet}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
                         )}
                       </div>
-                      <BeforeAfterBlock
-                        title={milestone.title}
-                        subtitle={milestone.subtitle}
-                        beforeImg={milestone.beforeImg}
-                        afterImg={milestone.afterImg}
-                      />
+                      <div className="self-start">
+                        <BeforeAfterBlock
+                          title={milestone.title}
+                          subtitle={milestone.subtitle}
+                          beforeImg={milestone.beforeImg}
+                          afterImg={milestone.afterImg}
+                        />
+                      </div>
                     </article>
                   ))}
                 </div>
               </section>
             )}
 
-            <section className="mt-10 border-y border-gray-200 py-8">
-              <div className="mb-5 flex items-center gap-3">
-                <Dumbbell className="h-5 w-5 text-primary" />
-                <h2 className="h3 text-2xl uppercase">Kết quả đạt được</h2>
-              </div>
-              {story.highlights.length > 0 && (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {story.highlights.map((highlight) => (
-                    <div key={highlight} className="border border-gray-200 p-4">
-                      <CheckCircle2 className="h-5 w-5 text-primary" />
-                      <p className="mt-3 text-sm font-semibold leading-6 text-dark">
-                        {highlight}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {story.quote && (
-                <blockquote className="mt-6 bg-black p-5 text-white sm:p-6">
-                  <p className="text-base font-medium leading-8 sm:text-lg">
+            {story.quote && (
+              <section className="mt-10 border-t border-gray-200 pt-10 pb-4">
+                <blockquote className="relative rounded-r-2xl border-l-4 border-primary bg-primary/5 p-8 sm:p-10">
+                  <div className="absolute -top-3 left-6 bg-white px-2">
+                    <svg
+                      className="h-8 w-8 text-primary/40"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                    </svg>
+                  </div>
+                  <p className="text-lg italic leading-relaxed text-slate-700 sm:text-xl">
                     “{story.quote}”
                   </p>
-                  <footer className="mt-4 text-sm font-bold text-primary">
-                    {story.name}
+                  <footer className="mt-6 flex items-center gap-3">
+                    <div className="h-0.5 w-8 bg-primary"></div>
+                    <span className="text-sm font-bold capitalize tracking-widest text-primary">
+                      {story.name}
+                    </span>
                   </footer>
                 </blockquote>
-              )}
-            </section>
+              </section>
+            )}
+
+            {story.isContinuing && (
+              <ContinuingBanner name={story.name} />
+            )}
 
             {relatedStories.length > 0 && (
               <section className="mt-10">

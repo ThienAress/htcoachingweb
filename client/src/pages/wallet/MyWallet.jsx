@@ -367,7 +367,7 @@ const MyWallet = () => {
                   <div>
                     <p className="font-semibold text-white">{formatVND(d.amount)}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {new Date(d.createdAt).toLocaleString("vi-VN")}
+                      {new Date(d.createdAt).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
                       {d.depositCode && <span className="ml-2 text-gray-600">• {d.depositCode}</span>}
                     </p>
                   </div>

@@ -168,7 +168,8 @@
   color: var(--color-primary);
 }
 
-.gradient-text {
+.gradient-text,
+.gradient-text .char {
   background: linear-gradient(
     to right,
     var(--color-primary),
@@ -177,6 +178,8 @@
   );
   background-size: 200% auto;
   background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
   animation: animate-gradient 2.5s linear infinite;
 }
