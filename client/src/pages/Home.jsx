@@ -45,7 +45,7 @@ const Home = () => {
       />
       <Hero images={settings.heroImages} />
       <About images={settings.aboutImages} />
-      <Trainers image={settings.trainerImage} />
+      <Trainers />
       <Feedback />
       <Classes images={settings.classesImages} />
       <Tools image={settings.toolsImage} />
