@@ -15,11 +15,6 @@
 }
 
 /* Hero Section CSS */
-.hero-swiper .swiper-pagination-bullet-active {
-  opacity: 1;
-  background: var(--color-primary);
-  transform: scale(1.2);
-}
 
 @keyframes blink {
   0%,
@@ -34,23 +29,6 @@
 }
 
 /* About Section CSS */
-.about-image-swiper .swiper-pagination {
-  bottom: 20px !important;
-}
-
-.about-image-swiper .swiper-pagination-bullet {
-  width: 12px;
-  height: 12px;
-  background: white;
-  opacity: 0.5;
-  transition: all 0.3s;
-}
-
-.about-image-swiper .swiper-pagination-bullet-active {
-  opacity: 1;
-  background: var(--color-primary);
-  transform: scale(1.2);
-}
 
 /* Feedback Section CSS */
 .feedback-card {
@@ -99,33 +77,7 @@
   margin-left: -10px;
 }
 
-.customer .swiper-button-next,
-.customer .swiper-button-prev {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 50px;
-  height: 50px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  color: #fff;
-  transition:
-    background 0.3s ease,
-    transform 0.3s ease;
-  z-index: 10;
-}
 
-.customer .swiper-button-next:hover,
-.customer .swiper-button-prev:hover {
-  background: #d32228;
-  transform: translateY(-50%) scale(1.1);
-}
-
-.customer .swiper-button-next::after,
-.customer .swiper-button-prev::after {
-  font-size: 1.5rem;
-  font-weight: 600;
-}
 
 /* Contact Section CSS */
 @keyframes zoomIn {

@@ -280,9 +280,9 @@ const CheckinHistory = () => {
                   <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600 whitespace-nowrap">
                     <Calendar className="inline w-3.5 h-3.5 text-slate-400 mr-1" />
                     {new Date(c.time).toLocaleString("vi-VN", {
-                      year: "numeric",
-                      month: "2-digit",
                       day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
                       hour: "2-digit",
                       minute: "2-digit",
                       hour12: false,
@@ -388,7 +388,6 @@ const CheckinHistory = () => {
                   onChange={(e) =>
                     setEditing({ ...editing, timeLocal: e.target.value })
                   }
-                  max={currentDateTimeLocal}
                   min={currentYearStart}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
                 />

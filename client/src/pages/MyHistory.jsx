@@ -170,6 +170,11 @@ const MyHistory = () => {
                     <td className="px-4 py-3 text-slate-600 flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-slate-400" />
                       {new Date(c.time).toLocaleString("vi-VN", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
                         hour12: false,
                       })}
                     </td>

@@ -340,19 +340,15 @@ const CustomerStories = () => {
                 return (
                   <article
                     key={item.title}
-                    className="grid grid-cols-[44px_minmax(0,1fr)] gap-4 border-l-4 border-primary bg-slate-50 p-4"
+                    className="border-l-4 border-primary bg-slate-50 p-4"
                   >
-                    <div className="flex h-11 w-11 items-center justify-center bg-slate-950 text-primary">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black uppercase text-slate-950">
-                        {item.title}
-                      </h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">
-                        {item.text}
-                      </p>
-                    </div>
+                    <h3 className="flex items-center gap-3 text-lg font-black uppercase text-slate-950">
+                      <Icon className="h-6 w-6 shrink-0 text-primary" />
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 pl-9 text-sm leading-6 text-slate-600">
+                      {item.text}
+                    </p>
                   </article>
                 );
               })}

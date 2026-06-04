@@ -20,13 +20,37 @@ import {
   createCustomerStory,
   deleteCustomerStory,
   getAdminCustomerStories,
+  getAdminCustomerStoryById,
   updateCustomerStory,
   updateCustomerStoryStatus,
   uploadCustomerStoryImage,
 } from "../../services/customerStory.service";
+import { getOrders } from "../../services/order.service";
+import CustomerStoryDetail from "../CustomerStoryDetail";
 import { useDebounce } from "../../hooks/useDebounce";
 
+const getPreviewData = (form, API_ORIGIN) => {
+  const getUrl = (url) => (url && url.startsWith("/uploads/") ? `${API_ORIGIN}${url}` : url);
+  return {
+    ...form,
+    heroImage: getUrl(form.heroImage),
+    beforeImg: getUrl(form.beforeImg),
+    afterImg: getUrl(form.afterImg),
+    milestones: Array.isArray(form.milestones)
+      ? form.milestones.map((m) => ({
+        ...m,
+        beforeImg: getUrl(m.beforeImg),
+        afterImg: getUrl(m.afterImg),
+        bullets: Array.isArray(m.bullets)
+          ? m.bullets
+          : String(m.bullets || "").split("\n").filter(Boolean),
+      }))
+      : [],
+  };
+};
+
 const emptyForm = {
+  orderId: "",
   slug: "",
   name: "",
   age: "",
@@ -45,16 +69,17 @@ const emptyForm = {
   beforeImg: "",
   afterImg: "",
   heroImage: "",
-  highlightsText: "",
   milestones: [],
   status: "draft",
   featured: false,
+  isContinuing: false,
   sortOrder: 0,
 };
 
 const toLines = (value) => (Array.isArray(value) ? value.join("\n") : "");
 
 const storyToForm = (story) => ({
+  orderId: story.orderId || "",
   slug: story.slug || "",
   name: story.name || "",
   age: story.age || "",
@@ -73,28 +98,31 @@ const storyToForm = (story) => ({
   beforeImg: story.beforeImg || "",
   afterImg: story.afterImg || "",
   heroImage: story.heroImage || "",
-  highlightsText: toLines(story.highlights),
-  milestones: Array.isArray(story.milestones) ? story.milestones : [],
+  milestones: Array.isArray(story.milestones) ? story.milestones.map(m => ({
+    ...m,
+    _id: m._id || Math.random().toString(36).substr(2, 9),
+    bullets: toLines(m.bullets)
+  })) : [],
   status: story.status || "draft",
   featured: Boolean(story.featured),
+  isContinuing: Boolean(story.isContinuing),
   sortOrder: Number(story.sortOrder || 0),
 });
 
 const buildPayload = (form) => {
   const milestones = Array.isArray(form.milestones)
     ? form.milestones.map((milestone, index) => ({
-        title: milestone.title || "",
-        subtitle: milestone.subtitle || "",
-        content: milestone.content || "",
-        beforeImg: milestone.beforeImg || "",
-        afterImg: milestone.afterImg || "",
-        bullets: Array.isArray(milestone.bullets)
-          ? milestone.bullets
-              .map((item) => String(item || "").trim())
-              .filter(Boolean)
-          : [],
-        sortOrder: Number(milestone.sortOrder ?? index),
-      }))
+      title: milestone.title || "",
+      subtitle: milestone.subtitle || "",
+      content: milestone.content || "",
+      beforeImg: milestone.beforeImg || "",
+      afterImg: milestone.afterImg || "",
+      bullets: String(milestone.bullets || "")
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean),
+      sortOrder: Number(milestone.sortOrder ?? index),
+    }))
     : [];
   if (!Array.isArray(milestones)) {
     throw new Error("Milestones phải là một mảng JSON");
@@ -119,13 +147,10 @@ const buildPayload = (form) => {
     beforeImg: form.beforeImg,
     afterImg: form.afterImg,
     heroImage: form.heroImage,
-    highlights: form.highlightsText
-      .split("\n")
-      .map((item) => item.trim())
-      .filter(Boolean),
     milestones,
     status: form.status,
     featured: form.featured,
+    isContinuing: form.isContinuing,
     sortOrder: Number(form.sortOrder || 0),
   };
 };
@@ -172,9 +197,11 @@ const CustomerStoryManagement = () => {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 400);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [editingStory, setEditingStory] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [uploadingField, setUploadingField] = useState("");
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, existingStoryId: null });
   const limit = 10;
 
   const queryKey = useMemo(
@@ -194,6 +221,12 @@ const CustomerStoryManagement = () => {
     keepPreviousData: true,
   });
 
+  const { data: ordersData } = useQuery({
+    queryKey: ["admin-orders-for-story"],
+    queryFn: () => getOrders(1, 0), // Lấy tất cả orders
+  });
+  const allOrders = ordersData?.data?.data?.orders || [];
+
   const stories = data?.data || [];
   const totalPages = data?.pagination?.totalPages || 1;
 
@@ -202,6 +235,7 @@ const CustomerStoryManagement = () => {
 
   const closeModal = () => {
     setIsModalOpen(false);
+    setIsPreviewMode(false);
     setEditingStory(null);
     setForm(emptyForm);
   };
@@ -209,12 +243,14 @@ const CustomerStoryManagement = () => {
   const openCreateModal = () => {
     setEditingStory(null);
     setForm(emptyForm);
+    setIsPreviewMode(false);
     setIsModalOpen(true);
   };
 
   const openEditModal = (story) => {
     setEditingStory(story);
     setForm(storyToForm(story));
+    setIsPreviewMode(false);
     setIsModalOpen(true);
   };
 
@@ -225,9 +261,26 @@ const CustomerStoryManagement = () => {
       invalidateStories();
       closeModal();
     },
-    onError: (err) =>
-      toast.error(err.response?.data?.message || "Lỗi tạo câu chuyện"),
+    onError: async (err) => {
+      if (err.response?.status === 409 && err.response?.data?.existingStoryId) {
+        setConfirmModal({ isOpen: true, existingStoryId: err.response.data.existingStoryId });
+      } else {
+        toast.error(err.response?.data?.message || "Lỗi tạo câu chuyện");
+      }
+    },
   });
+
+  const handleConfirmEdit = async () => {
+    try {
+      const res = await getAdminCustomerStoryById(confirmModal.existingStoryId);
+      if (res.data) {
+        openEditModal(res.data);
+        setConfirmModal({ isOpen: false, existingStoryId: null });
+      }
+    } catch (error) {
+      toast.error("Không thể tải thông tin câu chuyện cũ.");
+    }
+  };
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }) => updateCustomerStory(id, payload),
@@ -305,6 +358,7 @@ const CustomerStoryManagement = () => {
       milestones: [
         ...current.milestones,
         {
+          _id: Math.random().toString(36).substr(2, 9),
           title: "",
           subtitle: "",
           content: "",
@@ -332,10 +386,21 @@ const CustomerStoryManagement = () => {
       }
 
       const nextMilestones = [...current.milestones];
+      const movingId = nextMilestones[index]._id;
+
       [nextMilestones[index], nextMilestones[nextIndex]] = [
         nextMilestones[nextIndex],
         nextMilestones[index],
       ];
+
+      setTimeout(() => {
+        const el = document.getElementById(`milestone-${movingId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-2", "ring-primary", "transition-all");
+          setTimeout(() => el.classList.remove("ring-2", "ring-primary"), 1000);
+        }
+      }, 50);
 
       return { ...current, milestones: nextMilestones };
     });
@@ -381,10 +446,23 @@ const CustomerStoryManagement = () => {
     event.preventDefault();
     try {
       const payload = buildPayload(form);
-      if (!payload.name.trim()) {
-        toast.error("Tên khách hàng là bắt buộc");
-        return;
-      }
+
+      // Validation
+      if (!payload.name?.trim()) return toast.error("Vui lòng nhập Tên khách hàng");
+      if (!payload.age || isNaN(Number(payload.age))) return toast.error("Vui lòng nhập Tuổi hợp lệ (phải là số)");
+      if (!payload.job?.trim()) return toast.error("Vui lòng nhập Nghề nghiệp");
+      if (!payload.goal?.trim()) return toast.error("Vui lòng nhập Mục tiêu");
+      if (!payload.packageName?.trim()) return toast.error("Vui lòng nhập Gói tập");
+      if (!payload.schedule?.trim()) return toast.error("Vui lòng nhập Lịch tập");
+      if (!payload.startWeight || isNaN(Number(payload.startWeight))) return toast.error("Vui lòng nhập Cân nặng bắt đầu hợp lệ (phải là số)");
+      if (!payload.endWeight || isNaN(Number(payload.endWeight))) return toast.error("Vui lòng nhập Cân nặng hiện tại hợp lệ (phải là số)");
+      if (!payload.result?.trim()) return toast.error("Vui lòng nhập Kết quả");
+      if (!payload.duration?.trim()) return toast.error("Vui lòng nhập Thời gian");
+
+      // Chuyển kiểu dữ liệu chuẩn trước khi gửi
+      payload.age = Number(payload.age);
+      payload.startWeight = Number(payload.startWeight);
+      payload.endWeight = Number(payload.endWeight);
 
       if (editingStory?._id) {
         updateMutation.mutate({ id: editingStory._id, payload });
@@ -614,11 +692,10 @@ const CustomerStoryManagement = () => {
                       <button
                         type="button"
                         onClick={() => handleStatusToggle(story)}
-                        className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
-                          story.status === "published"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
+                        className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${story.status === "published"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                          }`}
                       >
                         {story.status}
                       </button>
@@ -627,11 +704,10 @@ const CustomerStoryManagement = () => {
                       <button
                         type="button"
                         onClick={() => handleFeaturedToggle(story)}
-                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${
-                          story.featured
-                            ? "bg-primary/10 text-primary"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
+                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${story.featured
+                          ? "bg-primary/10 text-primary"
+                          : "bg-slate-100 text-slate-500"
+                          }`}
                       >
                         <Star className="h-3 w-3" />
                         {story.featured ? "Có" : "Không"}
@@ -706,46 +782,101 @@ const CustomerStoryManagement = () => {
             onSubmit={handleSubmit}
             className="my-6 w-full max-w-5xl rounded-2xl bg-white shadow-xl"
           >
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
               <div>
                 <h2 className="text-xl font-bold text-slate-800 uppercase">
                   {editingStory ? "Sửa câu chuyện" : "Thêm câu chuyện"}
                 </h2>
-                <p className="text-sm text-slate-500">
-                  Điền theo đúng cấu trúc trang chi tiết: hero, thông tin chung,
-                  vấn đề - giải pháp, ảnh before/after, timeline và kết quả.
-                </p>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewMode(false)}
+                    className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${!isPreviewMode
+                      ? "bg-primary text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                  >
+                    📝 Form Nhập Liệu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewMode(true)}
+                    className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${isPreviewMode
+                      ? "bg-black text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                  >
+                    👁️ Xem Trước (Live Preview)
+                  </button>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 self-start"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="grid max-h-[72vh] gap-5 overflow-y-auto p-5 lg:grid-cols-2">
+            <div className={`grid max-h-[72vh] gap-5 overflow-y-auto p-5 lg:grid-cols-2 ${isPreviewMode ? 'hidden' : ''}`}>
               <div className="space-y-4">
                 <FormSectionTitle
                   number="01"
                   title="Thông tin chung"
                   description="Nhóm thông tin này tương ứng với sidebar bên trái của trang chi tiết."
                 />
+                <Field label="Chọn khách hàng">
+                  <select
+                    className={inputClass}
+                    value={form.orderId || ""}
+                    onChange={async (e) => {
+                      const selectedId = e.target.value;
+                      if (!selectedId) {
+                        updateForm("orderId", "");
+                        return;
+                      }
+                      const order = allOrders.find(o => o._id === selectedId);
+                      if (order) {
+                        setForm(prev => ({
+                          ...prev,
+                          orderId: order._id,
+                          name: order.name || prev.name,
+                          packageName: order.package || prev.packageName,
+                          schedule: order.schedule || prev.schedule,
+                        }));
+
+                        // Tự động kiểm tra khách hàng đã có câu chuyện chưa ngay lập tức
+                        if (!editingStory) {
+                          try {
+                            const searchRes = await getAdminCustomerStories({ search: order.name, limit: 5 });
+                            const existingStory = searchRes.data.find(
+                              (s) => s.name?.toLowerCase() === order.name?.toLowerCase() || s.orderId === order._id
+                            );
+                            if (existingStory) {
+                              setConfirmModal({ isOpen: true, existingStoryId: existingStory._id });
+                            }
+                          } catch (error) {
+                            console.error("Lỗi kiểm tra khách hàng trùng:", error);
+                          }
+                        }
+                      }
+                    }}
+                  >
+                    <option value="">-- Vui lòng chọn khách hàng --</option>
+                    {allOrders.map(order => (
+                      <option key={order._id} value={order._id}>
+                        {order.name} - {order.package}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
                 <Field label="Tên khách hàng">
                   <input
                     className={inputClass}
                     value={form.name}
                     onChange={(event) => updateForm("name", event.target.value)}
                     required
-                  />
-                </Field>
-                <Field label="Slug">
-                  <input
-                    className={inputClass}
-                    value={form.slug}
-                    onChange={(event) => updateForm("slug", event.target.value)}
-                    placeholder="Tự tạo từ tên nếu để trống khi tạo mới"
                   />
                 </Field>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -763,24 +894,16 @@ const CustomerStoryManagement = () => {
                       onChange={(event) => updateForm("job", event.target.value)}
                     />
                   </Field>
-                  <Field label="Kết quả">
-                    <input
-                      className={inputClass}
-                      value={form.result}
-                      onChange={(event) =>
-                        updateForm("result", event.target.value)
-                      }
-                    />
-                  </Field>
-                  <Field label="Thời gian">
-                    <input
-                      className={inputClass}
-                      value={form.duration}
-                      onChange={(event) =>
-                        updateForm("duration", event.target.value)
-                      }
-                    />
-                  </Field>
+                  <div className="sm:col-span-2">
+                    <Field label="Mục tiêu">
+                      <textarea
+                        className={inputClass}
+                        rows="3"
+                        value={form.goal}
+                        onChange={(event) => updateForm("goal", event.target.value)}
+                      />
+                    </Field>
+                  </div>
                   <Field label="Gói tập">
                     <input
                       className={inputClass}
@@ -817,30 +940,25 @@ const CustomerStoryManagement = () => {
                       }
                     />
                   </Field>
+                  <Field label="Kết quả ở trang chủ">
+                    <input
+                      className={inputClass}
+                      value={form.result}
+                      onChange={(event) =>
+                        updateForm("result", event.target.value)
+                      }
+                    />
+                  </Field>
+                  <Field label="Thời gian đạt được kết quả">
+                    <input
+                      className={inputClass}
+                      value={form.duration}
+                      onChange={(event) =>
+                        updateForm("duration", event.target.value)
+                      }
+                    />
+                  </Field>
                 </div>
-                <Field label="Mục tiêu">
-                  <textarea
-                    className={inputClass}
-                    rows="3"
-                    value={form.goal}
-                    onChange={(event) => updateForm("goal", event.target.value)}
-                  />
-                </Field>
-                <FormSectionTitle
-                  number="05"
-                  title="Kết quả đạt được"
-                  description="Các dòng highlight sẽ hiển thị trong section kết quả của trang chi tiết."
-                />
-                <Field label="Highlights, mỗi dòng một ý">
-                  <textarea
-                    className={inputClass}
-                    rows="5"
-                    value={form.highlightsText}
-                    onChange={(event) =>
-                      updateForm("highlightsText", event.target.value)
-                    }
-                  />
-                </Field>
               </div>
 
               <div className="space-y-4">
@@ -849,47 +967,39 @@ const CustomerStoryManagement = () => {
                   title="Hero và ảnh chính"
                   description="Hero dùng cho đầu trang; before/after dùng cho block ảnh chính."
                 />
-                {renderImageInput("Hero image", "heroImage")}
+                {renderImageInput("Hero image (Ảnh nền)", "heroImage")}
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {renderImageInput("Before image", "beforeImg")}
-                  {renderImageInput("After image", "afterImg")}
+                  {renderImageInput("Ảnh Before của khách hàng", "beforeImg")}
+                  {renderImageInput("Ảnh After của khách hàng", "afterImg")}
                 </div>
                 <FormSectionTitle
                   number="03"
                   title="Câu chuyện và giải pháp"
                   description="Nội dung này tương ứng các block vấn đề ban đầu, giải pháp và quote."
                 />
-                <Field label="Thông điệp ngắn">
-                  <textarea
-                    className={inputClass}
-                    rows="3"
-                    value={form.message}
-                    onChange={(event) =>
-                      updateForm("message", event.target.value)
-                    }
-                  />
-                </Field>
-                <Field label="Vấn đề ban đầu">
-                  <textarea
-                    className={inputClass}
-                    rows="4"
-                    value={form.problem}
-                    onChange={(event) =>
-                      updateForm("problem", event.target.value)
-                    }
-                  />
-                </Field>
-                <Field label="Giải pháp">
-                  <textarea
-                    className={inputClass}
-                    rows="4"
-                    value={form.solution}
-                    onChange={(event) =>
-                      updateForm("solution", event.target.value)
-                    }
-                  />
-                </Field>
-                <Field label="Quote khách hàng">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Vấn đề ban đầu của khách hàng">
+                    <textarea
+                      className={inputClass}
+                      rows="4"
+                      value={form.problem}
+                      onChange={(event) =>
+                        updateForm("problem", event.target.value)
+                      }
+                    />
+                  </Field>
+                  <Field label="Giải pháp của Huấn Luyện Viên">
+                    <textarea
+                      className={inputClass}
+                      rows="4"
+                      value={form.solution}
+                      onChange={(event) =>
+                        updateForm("solution", event.target.value)
+                      }
+                    />
+                  </Field>
+                </div>
+                <Field label="Cảm nhận của khách hàng">
                   <textarea
                     className={inputClass}
                     rows="3"
@@ -933,12 +1043,13 @@ const CustomerStoryManagement = () => {
                     <div className="space-y-4">
                       {form.milestones.map((milestone, index) => (
                         <div
-                          key={index}
-                          className="rounded-xl border border-slate-200 bg-white p-4"
+                          key={milestone._id || index}
+                          id={`milestone-${milestone._id}`}
+                          className="rounded-xl border border-slate-200 bg-white p-4 transition-all duration-300"
                         >
                           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <p className="font-bold text-slate-800">
-                              Giai đoạn {index + 1}
+                              {milestone.title ? milestone.title : `Giai đoạn ${index + 1}`}
                             </p>
                             <div className="flex flex-wrap gap-2">
                               <button
@@ -978,7 +1089,7 @@ const CustomerStoryManagement = () => {
                                 placeholder="Tuần 1-4"
                               />
                             </Field>
-                            <Field label="Subtitle">
+                            <Field label={`Giai đoạn ${index + 1}`}>
                               <input
                                 className={inputClass}
                                 value={milestone.subtitle || ""}
@@ -989,7 +1100,7 @@ const CustomerStoryManagement = () => {
                                     event.target.value,
                                   )
                                 }
-                                placeholder="Ổn định thói quen"
+                                placeholder="Ổn định form, thích nghi tập luyện..."
                               />
                             </Field>
                             <div className="md:col-span-2">
@@ -1008,42 +1119,26 @@ const CustomerStoryManagement = () => {
                                 />
                               </Field>
                             </div>
-                            <Field label="Bullet list, mỗi dòng một ý">
-                              <textarea
-                                className={inputClass}
-                                rows="5"
-                                value={
-                                  Array.isArray(milestone.bullets)
-                                    ? milestone.bullets.join("\n")
-                                    : ""
-                                }
-                                onChange={(event) =>
-                                  updateMilestoneBullets(index, event.target.value)
-                                }
-                              />
-                            </Field>
-                            <Field label="Thứ tự">
-                              <input
-                                className={inputClass}
-                                type="number"
-                                value={milestone.sortOrder ?? index}
-                                onChange={(event) =>
-                                  updateMilestone(
-                                    index,
-                                    "sortOrder",
-                                    event.target.value,
-                                  )
-                                }
-                              />
-                            </Field>
+                            <div className="md:col-span-2">
+                              <Field label="Kết quả đạt được ở giai đoạn này (mỗi dòng 1 ý)">
+                                <textarea
+                                  className={inputClass}
+                                  rows="5"
+                                  value={milestone.bullets || ""}
+                                  onChange={(event) =>
+                                    updateMilestone(index, "bullets", event.target.value)
+                                  }
+                                />
+                              </Field>
+                            </div>
                             {renderMilestoneImageInput(
                               index,
-                              "Before image",
+                              "Ảnh Before của khách hàng",
                               "beforeImg",
                             )}
                             {renderMilestoneImageInput(
                               index,
-                              "After image",
+                              "Ảnh After của khách hàng",
                               "afterImg",
                             )}
                           </div>
@@ -1090,9 +1185,27 @@ const CustomerStoryManagement = () => {
                     />
                     Featured ngoài trang chủ
                   </label>
+                  <label className="flex items-end gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={form.isContinuing}
+                      onChange={(event) =>
+                        updateForm("isContinuing", event.target.checked)
+                      }
+                    />
+                    Khách hàng này vẫn đang tiếp tục tập luyện
+                  </label>
                 </div>
               </div>
             </div>
+
+            {isPreviewMode && (
+              <div className="max-h-[72vh] overflow-y-auto bg-white border-y border-slate-100">
+                <div className="pointer-events-none pb-10">
+                  <CustomerStoryDetail previewData={getPreviewData(form, API_ORIGIN)} />
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end gap-3 border-t border-slate-100 px-5 py-4">
               <button
@@ -1112,6 +1225,39 @@ const CustomerStoryManagement = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Confirm Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center gap-3">
+              <h3 className="text-lg font-bold text-slate-800">Khách hàng đã tồn tại</h3>
+            </div>
+            <p className="text-sm leading-6 text-slate-600">
+              Hệ thống phát hiện khách hàng này đã có một câu chuyện trước đó. Bạn có muốn chuyển sang trang chỉnh sửa câu chuyện của khách hàng này để cập nhật thêm không?
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmModal({ isOpen: false, existingStoryId: null });
+                  setForm(emptyForm);
+                }}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmEdit}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark transition"
+              >
+                Đồng ý chỉnh sửa
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
