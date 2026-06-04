@@ -14,6 +14,8 @@ const Classes = ({ images }) => {
   const carouselRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [prevIndex, setPrevIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const classes = [
     {
@@ -44,6 +46,21 @@ const Classes = ({ images }) => {
     handleNextRef.current = handleNext;
     handlePrevRef.current = handlePrev;
   });
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile || isPaused) return;
+    const interval = setInterval(() => {
+      if (handleNextRef.current) handleNextRef.current();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isMobile, isPaused]);
 
   // 1. Chỉ chạy 1 lần khi load trang để animate Header, set vị trí ban đầu và gắn Draggable
   useEffect(() => {
@@ -78,6 +95,8 @@ const Classes = ({ images }) => {
         Draggable.create(carouselRef.current, {
           type: "x",
           edgeResistance: 0.65,
+          onPress: () => setIsPaused(true),
+          onRelease: () => setIsPaused(false),
           onDragEnd: function() {
             if (this.getDirection("start") === "left" && this.endX < -50) {
               handleNextRef.current();
@@ -193,7 +212,7 @@ const Classes = ({ images }) => {
           </div>
           
           {/* Controls - Nút điều hướng 2 bên */}
-          <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 flex justify-between z-30 pointer-events-none px-2 sm:px-6 lg:px-12">
+          <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 left-0 right-0 justify-between z-30 pointer-events-none px-2 sm:px-6 lg:px-12">
             <button 
               onClick={handlePrev}
               className="pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-white shadow-xl border border-gray-100 text-primary hover:bg-primary hover:text-white transition-all duration-300 transform hover:scale-110"
