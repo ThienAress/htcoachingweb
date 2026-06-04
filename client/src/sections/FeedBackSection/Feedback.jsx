@@ -136,21 +136,21 @@ const Feedback = () => {
 
     Flip.from(flipState.state, {
       targets: ".flip-item",
-      fade: true,
+      fade: !isMobile,
       absoluteOnLeave: true,
       ease: "power2.out",
       duration: 0.7,
       onComplete: () => setIsAnimating(false),
       onEnter: (elements) => {
         return gsap.fromTo(elements, 
-          { opacity: 0, xPercent: flipState.forward ? 50 : -50 },
+          { opacity: isMobile ? 1 : 0, xPercent: flipState.forward ? (isMobile ? 100 : 50) : (isMobile ? -100 : -50) },
           { opacity: 1, xPercent: 0, duration: 0.7 }
         );
       },
       onLeave: (elements) => {
         return gsap.to(elements, { 
-          opacity: 0, 
-          xPercent: flipState.forward ? -50 : 50, 
+          opacity: isMobile ? 1 : 0, 
+          xPercent: flipState.forward ? (isMobile ? -100 : -50) : (isMobile ? 100 : 50), 
           duration: 0.7
         });
       }
