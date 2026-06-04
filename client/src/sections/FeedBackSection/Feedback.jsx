@@ -18,6 +18,10 @@ const Feedback = () => {
   const [flipState, setFlipState] = useState(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [cardsToShow, setCardsToShow] = useState(3);
+  const [isMobile, setIsMobile] = useState(false);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
 
   const { data: storiesResponse } = useQuery({
     queryKey: ["public-customer-stories", "featured"],
@@ -37,11 +41,43 @@ const Feedback = () => {
   useEffect(() => {
     const handleResize = () => {
       setCardsToShow(window.innerWidth >= 768 ? 3 : 1);
+      setIsMobile(window.innerWidth < 768);
     };
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  const handleNextRef = useRef();
+  useEffect(() => {
+    handleNextRef.current = handleNext;
+  });
+
+  useEffect(() => {
+    if (!isMobile || isPaused) return;
+    const interval = setInterval(() => {
+      if (handleNextRef.current) handleNextRef.current();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isMobile, isPaused]);
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+    setIsPaused(true);
+  };
+
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+
+  const onTouchEndHandler = () => {
+    setIsPaused(false);
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    if (isLeftSwipe) handleNext();
+    if (isRightSwipe) handlePrev();
+  };
 
   useEffect(() => {
     let mm = gsap.matchMedia();
@@ -107,15 +143,14 @@ const Feedback = () => {
       onComplete: () => setIsAnimating(false),
       onEnter: (elements) => {
         return gsap.fromTo(elements, 
-          { opacity: 0, scale: 0.5, transformOrigin: flipState.forward ? "bottom right" : "bottom left" },
-          { opacity: 1, scale: 1, duration: 0.7 }
+          { opacity: 0, xPercent: flipState.forward ? 50 : -50 },
+          { opacity: 1, xPercent: 0, duration: 0.7 }
         );
       },
       onLeave: (elements) => {
         return gsap.to(elements, { 
           opacity: 0, 
-          scale: 0.5, 
-          transformOrigin: flipState.forward ? "bottom left" : "bottom right", 
+          xPercent: flipState.forward ? -50 : 50, 
           duration: 0.7
         });
       }
@@ -145,7 +180,13 @@ const Feedback = () => {
           </Link>
         </div>
 
-        <div ref={sliderRef} className="relative w-full px-1 md:px-4 py-2">
+        <div 
+          ref={sliderRef} 
+          className="relative w-full px-1 md:px-4 py-2"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEndHandler}
+        >
           {/* Vùng chứa các thẻ FLIP */}
           <div className="flex justify-center gap-5 md:gap-[30px] w-full min-h-[450px]">
             {visibleItems.map((story) => (
