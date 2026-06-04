@@ -157,6 +157,10 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/exercises", exerciseRoutes);
 app.use("/api/exercise-suggestions", exerciseSuggestionRoutes);
 app.use("/api/customer-stories", customerStoryRoutes);
+
+import trainerRoutes from "./src/routes/trainer.routes.js";
+app.use("/api/trainers", trainerRoutes);
+
 app.use("/api/deposits", depositRoutes);
 app.use("/api/mealplan-access", mealplanAccessRoutes);
 import adminDepositRoutes from "./src/routes/adminDeposit.routes.js";

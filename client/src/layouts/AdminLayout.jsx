@@ -6,6 +6,7 @@ import {
   Sparkles,
   Home,
   Users,
+  Users2,
   Menu,
   MessageSquare,
   Apple,
@@ -49,6 +50,7 @@ const SidebarContent = ({ onItemClick }) => {
       key: "content",
       label: "Nội dung",
       items: [
+        { path: "/admin/trainers", label: "Đội ngũ HLV", icon: Users2 },
         { path: "/admin/customer-stories", label: "Câu chuyện khách hàng", icon: BookOpenText },
         { path: "/admin/exercise-suggestions", label: "Góp ý bài tập", icon: MessageSquareText },
       ],
