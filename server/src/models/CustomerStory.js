@@ -51,6 +51,11 @@ const customerStorySchema = new mongoose.Schema(
       ref: "Order",
       default: null,
     },
+    trainerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Trainer",
+      default: null,
+    },
     name: {
       type: String,
       required: true,

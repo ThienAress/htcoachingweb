@@ -26,6 +26,7 @@ import {
   uploadCustomerStoryImage,
 } from "../../services/customerStory.service";
 import { getOrders } from "../../services/order.service";
+import { getAdminTrainers } from "../../services/trainer.service";
 import CustomerStoryDetail from "../CustomerStoryDetail";
 import { useDebounce } from "../../hooks/useDebounce";
 
@@ -51,6 +52,7 @@ const getPreviewData = (form, API_ORIGIN) => {
 
 const emptyForm = {
   orderId: "",
+  trainerId: "",
   slug: "",
   name: "",
   age: "",
@@ -80,6 +82,7 @@ const toLines = (value) => (Array.isArray(value) ? value.join("\n") : "");
 
 const storyToForm = (story) => ({
   orderId: story.orderId || "",
+  trainerId: story.trainerId || "",
   slug: story.slug || "",
   name: story.name || "",
   age: story.age || "",
@@ -129,6 +132,8 @@ const buildPayload = (form) => {
   }
 
   return {
+    orderId: form.orderId,
+    trainerId: form.trainerId,
     slug: form.slug,
     name: form.name,
     age: form.age,
@@ -226,6 +231,12 @@ const CustomerStoryManagement = () => {
     queryFn: () => getOrders(1, 0), // Lấy tất cả orders
   });
   const allOrders = ordersData?.data?.data?.orders || [];
+
+  const { data: trainersData } = useQuery({
+    queryKey: ["admin-trainers-for-story"],
+    queryFn: () => getAdminTrainers({ page: 1, limit: 100 }),
+  });
+  const allTrainers = trainersData?.data || [];
 
   const stories = data?.data || [];
   const totalPages = data?.pagination?.totalPages || 1;
@@ -780,7 +791,7 @@ const CustomerStoryManagement = () => {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
           <form
             onSubmit={handleSubmit}
-            className="my-6 w-full max-w-5xl rounded-2xl bg-white shadow-xl"
+            className="my-8 sm:my-12 w-full max-w-5xl rounded-2xl bg-white shadow-xl"
           >
             <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
               <div>
@@ -826,51 +837,67 @@ const CustomerStoryManagement = () => {
                   title="Thông tin chung"
                   description="Nhóm thông tin này tương ứng với sidebar bên trái của trang chi tiết."
                 />
-                <Field label="Chọn khách hàng">
-                  <select
-                    className={inputClass}
-                    value={form.orderId || ""}
-                    onChange={async (e) => {
-                      const selectedId = e.target.value;
-                      if (!selectedId) {
-                        updateForm("orderId", "");
-                        return;
-                      }
-                      const order = allOrders.find(o => o._id === selectedId);
-                      if (order) {
-                        setForm(prev => ({
-                          ...prev,
-                          orderId: order._id,
-                          name: order.name || prev.name,
-                          packageName: order.package || prev.packageName,
-                          schedule: order.schedule || prev.schedule,
-                        }));
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Chọn khách hàng">
+                    <select
+                      className={inputClass}
+                      value={form.orderId || ""}
+                      onChange={async (e) => {
+                        const selectedId = e.target.value;
+                        if (!selectedId) {
+                          updateForm("orderId", "");
+                          return;
+                        }
+                        const order = allOrders.find(o => o._id === selectedId);
+                        if (order) {
+                          setForm(prev => ({
+                            ...prev,
+                            orderId: order._id,
+                            name: order.name || prev.name,
+                            packageName: order.package || prev.packageName,
+                            schedule: order.schedule || prev.schedule,
+                          }));
 
-                        // Tự động kiểm tra khách hàng đã có câu chuyện chưa ngay lập tức
-                        if (!editingStory) {
-                          try {
-                            const searchRes = await getAdminCustomerStories({ search: order.name, limit: 5 });
-                            const existingStory = searchRes.data.find(
-                              (s) => s.name?.toLowerCase() === order.name?.toLowerCase() || s.orderId === order._id
-                            );
-                            if (existingStory) {
-                              setConfirmModal({ isOpen: true, existingStoryId: existingStory._id });
+                          // Tự động kiểm tra khách hàng đã có câu chuyện chưa ngay lập tức
+                          if (!editingStory) {
+                            try {
+                              const searchRes = await getAdminCustomerStories({ search: order.name, limit: 5 });
+                              const existingStory = searchRes.data.find(
+                                (s) => s.name?.toLowerCase() === order.name?.toLowerCase() || s.orderId === order._id
+                              );
+                              if (existingStory) {
+                                setConfirmModal({ isOpen: true, existingStoryId: existingStory._id });
+                              }
+                            } catch (error) {
+                              console.error("Lỗi kiểm tra khách hàng trùng:", error);
                             }
-                          } catch (error) {
-                            console.error("Lỗi kiểm tra khách hàng trùng:", error);
                           }
                         }
-                      }
-                    }}
-                  >
-                    <option value="">-- Vui lòng chọn khách hàng --</option>
-                    {allOrders.map(order => (
-                      <option key={order._id} value={order._id}>
-                        {order.name} - {order.package}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                      }}
+                    >
+                      <option value="">-- Vui lòng chọn khách hàng --</option>
+                      {allOrders.map(order => (
+                        <option key={order._id} value={order._id}>
+                          {order.name} - {order.package}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Chọn Huấn luyện viên">
+                    <select
+                      className={inputClass}
+                      value={form.trainerId || ""}
+                      onChange={(e) => updateForm("trainerId", e.target.value)}
+                    >
+                      <option value="">-- Không chọn (Chung) --</option>
+                      {allTrainers.map((trainer) => (
+                        <option key={trainer._id} value={trainer._id}>
+                          {trainer.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
                 <Field label="Tên khách hàng">
                   <input
                     className={inputClass}

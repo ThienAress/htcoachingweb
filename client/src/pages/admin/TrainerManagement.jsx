@@ -1,13 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Users2,
   ChevronLeft,
   ChevronRight,
   Edit,
-  Eye,
   Plus,
   Save,
   Search,
@@ -15,6 +15,8 @@ import {
   Trash2,
   Upload,
   X,
+  Eye,
+  Settings,
   Dumbbell,
   Utensils,
   ChartLine,
@@ -31,15 +33,23 @@ import {
 } from "../../services/trainer.service";
 import { useDebounce } from "../../hooks/useDebounce";
 import Trainers from "../../sections/Trainers";
+import SetupProfileModal from "./SetupProfileModal";
 
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "");
 const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
+
+const availableIcons = [
+  { value: "dumbbell", label: "Tạ (Dumbbell)" },
+  { value: "utensils", label: "Dinh dưỡng (Utensils)" },
+  { value: "chart-line", label: "Biểu đồ (Chart)" },
+  { value: "heart-pulse", label: "Sức khỏe (Heart)" },
+];
 
 const getPreviewData = (form) => {
   const getUrl = (url) => (url && url.startsWith("/uploads/") ? `${API_ORIGIN}${url}` : url);
   return {
     ...form,
-    image: getUrl(form.image),
+    image: form.images?.[0] || getUrl(form.image),
     specialties: Array.isArray(form.specialties) ? form.specialties : [],
   };
 };
@@ -50,25 +60,35 @@ const emptyForm = {
   title: "",
   experience: "",
   bio: "",
-  image: "",
+  images: [],
   specialties: [],
   status: "draft",
   featured: false,
+  isHeadCoach: false,
   sortOrder: 0,
 };
 
-const trainerToForm = (trainer) => ({
-  slug: trainer.slug || "",
-  name: trainer.name || "",
-  title: trainer.title || "",
-  experience: trainer.experience || "",
-  bio: trainer.bio || "",
-  image: trainer.image || "",
-  specialties: Array.isArray(trainer.specialties) ? trainer.specialties.map(s => ({ ...s, _id: s._id || Math.random().toString(36).substr(2, 9) })) : [],
-  status: trainer.status || "draft",
-  featured: Boolean(trainer.featured),
-  sortOrder: Number(trainer.sortOrder || 0),
-});
+const trainerToForm = (trainer) => {
+  let images = [];
+  if (Array.isArray(trainer.images) && trainer.images.length > 0) {
+    images = trainer.images;
+  } else if (trainer.image) {
+    images = [trainer.image];
+  }
+  return {
+    slug: trainer.slug || "",
+    name: trainer.name || "",
+    title: trainer.title || "",
+    experience: trainer.experience || "",
+    bio: trainer.bio || "",
+    images,
+    specialties: Array.isArray(trainer.specialties) ? trainer.specialties.map(s => ({ ...s, _id: s._id || Math.random().toString(36).substr(2, 9) })) : [],
+    status: trainer.status || "draft",
+    featured: Boolean(trainer.featured),
+    isHeadCoach: Boolean(trainer.isHeadCoach),
+    sortOrder: Number(trainer.sortOrder || 0),
+  };
+};
 
 const buildPayload = (form) => {
   const specialties = Array.isArray(form.specialties)
@@ -84,10 +104,11 @@ const buildPayload = (form) => {
     title: form.title,
     experience: form.experience,
     bio: form.bio,
-    image: form.image,
+    images: Array.isArray(form.images) ? form.images.filter(Boolean) : [],
     specialties,
     status: form.status,
     featured: form.featured,
+    isHeadCoach: form.isHeadCoach,
     sortOrder: Number(form.sortOrder || 0),
   };
 };
@@ -159,19 +180,16 @@ const TableSkeleton = () => (
   </div>
 );
 
-const availableIcons = [
-  { value: "dumbbell", label: "Tạ (Dumbbell)" },
-  { value: "utensils", label: "Dinh dưỡng (Utensils)" },
-  { value: "chart-line", label: "Biểu đồ (Chart)" },
-  { value: "heart-pulse", label: "Sức khỏe (Heart)" },
-];
-
 export default function TrainerManagement() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 500);
   const [statusFilter, setStatusFilter] = useState("");
+  // Setup Profile Modal state
+  const [isSetupProfileOpen, setIsSetupProfileOpen] = useState(false);
+  const [setupProfileTrainerId, setSetupProfileTrainerId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -196,167 +214,161 @@ export default function TrainerManagement() {
     }
   }, [detailData, selectedId]);
 
-  const mutationSave = useMutation({
-    mutationFn: (payload) =>
-      selectedId ? updateTrainer(selectedId, payload) : createTrainer(payload),
+  const trainers = listData?.data || [];
+  const totalPages = listData?.pagination?.totalPages || 1;
+
+  const createMutation = useMutation({
+    mutationFn: createTrainer,
     onSuccess: () => {
-      toast.success(selectedId ? "Cập nhật thành công!" : "Tạo HLV thành công!");
+      toast.success("Thêm HLV thành công!");
       queryClient.invalidateQueries(["admin-trainers"]);
-      handleCloseModal();
+      setIsModalOpen(false);
     },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || "Có lỗi xảy ra khi lưu");
-    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi thêm HLV"),
   });
 
-  const mutationDelete = useMutation({
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => updateTrainer(id, data),
+    onSuccess: () => {
+      toast.success("Cập nhật HLV thành công!");
+      queryClient.invalidateQueries(["admin-trainers"]);
+      queryClient.invalidateQueries(["admin-trainer-detail", selectedId]);
+      setIsModalOpen(false);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật HLV"),
+  });
+
+  const deleteMutation = useMutation({
     mutationFn: deleteTrainer,
     onSuccess: () => {
       toast.success("Xóa HLV thành công!");
       queryClient.invalidateQueries(["admin-trainers"]);
+      setDeleteConfirm(null);
     },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || "Không thể xóa HLV");
-    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa HLV"),
   });
 
-  const mutationStatus = useMutation({
-    mutationFn: ({ id, status }) => updateTrainerStatus(id, { status }),
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }) => updateTrainerStatus(id, status),
     onSuccess: () => {
       toast.success("Cập nhật trạng thái thành công!");
       queryClient.invalidateQueries(["admin-trainers"]);
     },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật trạng thái"),
   });
 
-  const mutationUpload = useMutation({
+  const uploadMutation = useMutation({
     mutationFn: uploadTrainerImage,
-    onSuccess: (data) => {
-      setForm((prev) => ({ ...prev, image: data.data.url }));
-      toast.success("Tải ảnh lên thành công");
+    onSuccess: (res) => {
+      const imageUrl = res.data?.data?.url || res.data?.url;
+      if (!imageUrl) {
+        toast.error("Upload thành công nhưng không nhận được URL ảnh");
+        return;
+      }
+      toast.success("Tải ảnh lên thành công!");
+      setForm((prev) => {
+        const newImages = [...prev.images];
+        newImages[0] = imageUrl;
+        return { ...prev, images: newImages };
+      });
     },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || "Lỗi tải ảnh");
-    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi tải ảnh lên"),
   });
 
-  const handleOpenModal = (id = null) => {
-    setSelectedId(id);
-    if (!id) setForm(emptyForm);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const payload = buildPayload(form);
+    if (selectedId) {
+      updateMutation.mutate({ id: selectedId, data: payload });
+    } else {
+      createMutation.mutate(payload);
+    }
+  };
+
+  const handleOpenCreate = () => {
+    setSelectedId(null);
+    setForm(emptyForm);
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedId(null);
-    setForm(emptyForm);
+  const handleOpenEdit = (id) => {
+    setSelectedId(id);
+    setIsModalOpen(true);
   };
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+  const handleDelete = (id) => {
+    setDeleteConfirm(id);
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
+    const file = e.target.files[0];
     if (file) {
-      if (file.size > 8 * 1024 * 1024) {
-        toast.error("Ảnh không được vượt quá 8MB");
-        return;
-      }
       const formData = new FormData();
       formData.append("file", file);
-      mutationUpload.mutate(formData);
+      uploadMutation.mutate(formData);
     }
+    // reset input
+    e.target.value = "";
   };
 
-  const handleSave = () => {
-    if (!form.name) {
-      toast.error("Tên HLV là bắt buộc");
-      return;
-    }
-    mutationSave.mutate(buildPayload(form));
+  const getImageUrl = (url) => {
+    if (!url) return "https://placehold.co/400x400/1e293b/94a3b8?text=Trainer";
+    if (url.startsWith("http") || url.startsWith("data:")) return url;
+    return `${API_ORIGIN}${url}`;
   };
-
-  const addSpecialty = () => {
-    setForm((prev) => ({
-      ...prev,
-      specialties: [
-        ...prev.specialties,
-        { _id: Math.random().toString(36).substr(2, 9), icon: "dumbbell", label: "" },
-      ],
-    }));
-  };
-
-  const updateSpecialty = (id, field, value) => {
-    setForm((prev) => ({
-      ...prev,
-      specialties: prev.specialties.map((spec) =>
-        spec._id === id ? { ...spec, [field]: value } : spec
-      ),
-    }));
-  };
-
-  const removeSpecialty = (id) => {
-    setForm((prev) => ({
-      ...prev,
-      specialties: prev.specialties.filter((spec) => spec._id !== id),
-    }));
-  };
-
-  const trainersList = useMemo(() => listData?.data || [], [listData]);
-  const pagination = useMemo(
-    () => ({
-      totalPages: listData?.totalPages || 1,
-      currentPage: listData?.currentPage || 1,
-    }),
-    [listData],
-  );
 
   return (
-    <div className="mx-auto max-w-7xl pb-20">
-      <div className="mb-8 flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <ToastContainer position="top-right" autoClose={2500} />
+      
+      {/* HEADER */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-3">
-            <Users2 className="w-8 h-8 text-primary" />
-            Đội ngũ HLV
+          <h1 className="flex items-center gap-2 text-2xl font-black uppercase text-slate-800">
+            <Users2 className="text-primary" size={28} />
+            Quản lý đội ngũ HLV
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Quản lý thông tin và hình ảnh các Huấn luyện viên
+          <p className="mt-1 text-sm text-slate-500">
+            Quản lý danh sách HLV hiển thị ngoài Trang Chủ.
           </p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-primary-dark hover:-translate-y-0.5 transition-all"
-        >
-          <Plus size={18} />
-          Thêm HLV
-        </button>
+        <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setSetupProfileTrainerId(null);
+                setIsSetupProfileOpen(true);
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-800/30 transition-all hover:-translate-y-0.5 hover:shadow-slate-800/40"
+            >
+              <Settings size={18} />
+              Thiết Lập Profile
+            </button>
+            <button
+              onClick={handleOpenCreate}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-lg shadow-primary/30 transition-all hover:-translate-y-0.5 hover:shadow-primary/40"
+            >
+              <Plus size={18} />
+              Thêm HLV Mới
+            </button>
+        </div>
       </div>
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row">
+      {/* FILTERS */}
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center">
         <div className="relative flex-1">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            size={20}
-          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
             type="text"
             placeholder="Tìm kiếm HLV..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium shadow-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
-          className="rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm font-medium shadow-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary min-w-[160px]"
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary md:w-48"
         >
           <option value="">Tất cả trạng thái</option>
           <option value="published">Đã xuất bản</option>
@@ -364,126 +376,135 @@ export default function TrainerManagement() {
         </select>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      {/* TABLE */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          {isLoading ? (
-            <div className="p-6"><TableSkeleton /></div>
-          ) : trainersList.length === 0 ? (
-            <div className="p-12 text-center text-slate-500">
-              Chưa có HLV nào.
-            </div>
-          ) : (
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-xs">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs font-bold uppercase text-slate-500">
+              <tr>
+                <th className="px-6 py-4">Huấn luyện viên</th>
+                <th className="px-6 py-4">Chức danh / Kinh nghiệm</th>
+                <th className="px-6 py-4">Trạng thái</th>
+                <th className="px-6 py-4">Thứ tự</th>
+                <th className="px-6 py-4 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
                 <tr>
-                  <th className="px-6 py-4">HLV</th>
-                  <th className="px-6 py-4">Chức danh</th>
-                  <th className="px-6 py-4 text-center">Featured</th>
-                  <th className="px-6 py-4 text-center">Trạng thái</th>
-                  <th className="px-6 py-4 text-right">Thao tác</th>
+                  <td colSpan="5" className="px-6 py-8">
+                    <TableSkeleton />
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {trainersList.map((trainer) => (
-                  <tr key={trainer._id} className="hover:bg-slate-50/50 transition-colors">
+              ) : trainers.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <Users2 size={48} className="mb-4 text-slate-300" />
+                      <p className="text-base font-medium">Không tìm thấy HLV nào</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                trainers.map((trainer) => (
+                  <tr key={trainer._id} className="group transition-colors hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-100 ring-2 ring-white shadow-sm">
-                          {trainer.image ? (
-                            <img
-                              src={trainer.image}
-                              alt={trainer.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-slate-200 text-slate-400">
-                              <Users2 size={24} />
+                        <div className="relative">
+                          <img
+                            src={getImageUrl(trainer.images?.[0] || trainer.image)}
+                            alt={trainer.name}
+                            className="h-16 w-16 rounded-xl object-cover shadow-sm"
+                          />
+                          {trainer.featured && (
+                            <div className="absolute -right-2 -top-2 rounded-full bg-yellow-400 p-1 text-white shadow">
+                              <Star size={12} className="fill-current" />
                             </div>
                           )}
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900 text-base">
-                            {trainer.name}
-                          </p>
-                          <p className="text-xs text-slate-500 mt-0.5 max-w-[200px] truncate">
-                            /{trainer.slug}
-                          </p>
+                          <div className="font-bold text-slate-800">{trainer.name}</div>
+                          <div className="text-xs text-slate-500">/{trainer.slug}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-600 font-medium max-w-[200px] truncate">
-                      {trainer.title || "-"}
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-slate-700">{trainer.title || "Chưa có"}</div>
+                      <div className="text-xs text-slate-500 mt-1">{trainer.experience || "Chưa có"}</div>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      {trainer.featured ? (
-                        <Star className="inline-block text-amber-400 w-5 h-5 fill-amber-400" />
-                      ) : (
-                        <Star className="inline-block text-slate-300 w-5 h-5" />
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() =>
-                          mutationStatus.mutate({
-                            id: trainer._id,
-                            status: trainer.status === "published" ? "draft" : "published",
-                          })
+                    <td className="px-6 py-4">
+                      <select
+                        value={trainer.status}
+                        onChange={(e) =>
+                          statusMutation.mutate({ id: trainer._id, status: e.target.value })
                         }
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold transition-all hover:scale-105 ${trainer.status === "published"
-                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                            : "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                          }`}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider focus:outline-none ${
+                          trainer.status === "published"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
                       >
-                        {trainer.status === "published" ? "Published" : "Draft"}
-                      </button>
+                        <option value="published">Đã xuất bản</option>
+                        <option value="draft">Bản nháp</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg bg-slate-100 px-2 font-bold text-slate-600">
+                        {trainer.sortOrder}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => handleOpenModal(trainer._id)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                          title="Sửa"
+                          onClick={() => {
+                            setSetupProfileTrainerId(trainer._id);
+                            setIsSetupProfileOpen(true);
+                          }}
+                          className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                          title="Cài đặt Profile chi tiết"
                         >
-                          <Edit size={16} />
+                          <Settings size={18} />
                         </button>
                         <button
-                          onClick={() =>
-                            setDeleteConfirm({
-                              id: trainer._id,
-                              name: trainer.name,
-                            })
-                          }
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                          title="Xóa"
+                          onClick={() => handleOpenEdit(trainer._id)}
+                          title="Sửa HLV"
+                          className="rounded-lg bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-slate-200"
                         >
-                          <Trash2 size={16} />
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(trainer._id)}
+                          title="Xóa HLV"
+                          className="rounded-lg bg-red-50 p-2 text-red-600 transition-colors hover:bg-red-100 hover:text-red-700"
+                        >
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {/* Phân trang */}
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4">
+        {/* PAGINATION */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-6 py-4">
             <button
               disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-white hover:text-slate-900 disabled:opacity-50 transition-colors"
+              onClick={() => setPage(p => p - 1)}
+              className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 disabled:opacity-50"
             >
               <ChevronLeft size={16} /> Trước
             </button>
             <span className="text-sm font-medium text-slate-500">
-              Trang {pagination.currentPage} / {pagination.totalPages}
+              Trang {page} / {totalPages}
             </span>
             <button
-              disabled={page === pagination.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-white hover:text-slate-900 disabled:opacity-50 transition-colors"
+              disabled={page === totalPages}
+              onClick={() => setPage(p => p + 1)}
+              className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 disabled:opacity-50"
             >
               Sau <ChevronRight size={16} />
             </button>
@@ -491,266 +512,279 @@ export default function TrainerManagement() {
         )}
       </div>
 
-      {/* Modal Cập nhật */}
+      {/* Setup Profile Modal */}
+      {isSetupProfileOpen && (
+        <SetupProfileModal
+          trainers={listData?.data || []}
+          initialTrainerId={setupProfileTrainerId}
+          onClose={() => {
+            setIsSetupProfileOpen(false);
+            setSetupProfileTrainerId(null);
+          }}
+        />
+      )}
+
+      {/* CREATE/EDIT MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex flex-col items-center bg-slate-900/40 p-4 sm:p-6 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-sm">
           <div
-            className="w-full max-w-4xl rounded-2xl bg-slate-50 shadow-2xl mt-10 mb-20 relative flex flex-col"
+            className="my-8 sm:my-12 w-full max-w-4xl rounded-3xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4 rounded-t-2xl sticky top-0 z-10">
-              <h2 className="text-xl font-extrabold text-slate-800">
-                {selectedId ? "Chỉnh sửa HLV" : "Thêm HLV mới"}
-              </h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setIsPreviewOpen(true)}
-                  className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200 transition-colors"
-                >
-                  <Eye size={18} /> Preview
-                </button>
-                <button
-                  onClick={handleCloseModal}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition-colors"
-                >
-                  <X size={20} />
-                </button>
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div>
+                <h2 className="text-xl font-black text-slate-800 uppercase">
+                  {selectedId ? "Chỉnh sửa HLV Trang Chủ" : "Thêm HLV Mới"}
+                </h2>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewOpen(false)}
+                    className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${!isPreviewOpen
+                      ? "bg-primary text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                  >
+                    📝 Form Nhập Liệu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPreviewOpen(true)}
+                    className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${isPreviewOpen
+                      ? "bg-black text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                  >
+                    👁️ Xem Trước (Live Preview)
+                  </button>
+                </div>
               </div>
+              <button
+                onClick={() => { setIsModalOpen(false); setIsPreviewOpen(false); }}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 self-start"
+              >
+                <X size={20} />
+              </button>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 p-6">
+            {/* Body */}
+            <div className={`max-h-[75vh] overflow-y-auto p-6 md:p-8 ${isPreviewOpen ? 'hidden' : ''}`}>
               {isFetchingDetail ? (
-                <div className="py-20 text-center text-slate-500 font-medium flex items-center justify-center gap-2">
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                  Đang tải dữ liệu...
+                <div className="flex items-center justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
                 </div>
               ) : (
-                <div className="space-y-8">
-                  {/* Row 1: Ảnh đại diện & Thông tin chung */}
-                  <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-8">
-                    {/* Cột trái: Ảnh */}
-                    <div className="space-y-4">
-                      <FormSectionTitle number="01" title="Hình ảnh" />
-                      <div className="rounded-xl border border-slate-200 bg-white p-4">
-                        <Field label="Ảnh đại diện">
-                          <div className="mt-2 group relative h-[350px] w-full overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 transition-colors hover:border-primary hover:bg-orange-50/50">
-                            {form.image ? (
-                              <>
-                                <img
-                                  src={form.image}
-                                  alt="Preview"
-                                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                                  <span className="rounded-full bg-white/20 backdrop-blur-md p-3 text-white">
-                                    <Upload size={24} />
-                                  </span>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="flex h-full flex-col items-center justify-center text-slate-400">
-                                <Upload size={32} className="mb-3 text-slate-300" />
-                                <span className="text-sm font-medium">
-                                  Click tải ảnh lên
-                                </span>
-                                <span className="text-xs mt-1">Tỷ lệ 3:4, max 8MB</span>
-                              </div>
-                            )}
+                <form id="trainer-form" onSubmit={handleSubmit} className="space-y-8">
+                  <div className="grid gap-8 lg:grid-cols-2">
+                    <div className="space-y-6">
+                      <FormSectionTitle number="01" title="Thông tin cơ bản" description="Sử dụng để hiển thị trên Card." />
+                      <Field label="Tên HLV *">
+                        <input
+                          type="text"
+                          required
+                          value={form.name}
+                          onChange={(e) => setForm({ ...form, name: e.target.value })}
+                          placeholder="VD: Hoàng Thiện"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </Field>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Field label="Chức danh">
+                          <input
+                            type="text"
+                            value={form.title}
+                            onChange={(e) => setForm({ ...form, title: e.target.value })}
+                            placeholder="VD: Chuyên gia"
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        </Field>
+                        <Field label="Kinh nghiệm">
+                          <input
+                            type="text"
+                            value={form.experience}
+                            onChange={(e) => setForm({ ...form, experience: e.target.value })}
+                            placeholder="VD: 4+ năm kinh nghiệm"
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        </Field>
+                      </div>
+
+                      <div className="flex items-center gap-2 p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                        <input
+                          type="checkbox"
+                          id="isHeadCoach"
+                          checked={form.isHeadCoach}
+                          onChange={(e) => setForm({ ...form, isHeadCoach: e.target.checked })}
+                          className="h-5 w-5 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                        />
+                        <label htmlFor="isHeadCoach" className="font-bold text-slate-800 cursor-pointer">
+                          Đây là Profile của Head Coach / Admin
+                          <p className="text-xs font-normal text-slate-500 mt-0.5">Tự động hiển thị tất cả khách hàng chưa gán HLV lên Profile này.</p>
+                        </label>
+                      </div>
+                      <Field label="Tiểu sử ngắn (Bio)">
+                        <textarea
+                          rows={4}
+                          value={form.bio}
+                          onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                          placeholder="Mô tả ngắn gọn về phong cách, triết lý..."
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+                        />
+                      </Field>
+
+                      <FormSectionTitle number="02" title="Ảnh đại diện" description="Ảnh tỷ lệ 4:5 hiển thị trên Card HLV." />
+                      <div className="flex items-start gap-6">
+                        <div className="relative h-32 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100 shadow-inner">
+                          {form.images?.[0] ? (
+                            <img
+                              src={getImageUrl(form.images[0])}
+                              alt="Preview"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-slate-400">
+                              <Users2 size={24} />
+                            </div>
+                          )}
+                          {uploadMutation.isPending && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                              <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-6 hover:bg-slate-100 transition-colors">
+                            <Upload className="mb-2 text-slate-400" size={20} />
+                            <span className="text-sm font-semibold text-slate-600">
+                              Tải ảnh mới lên
+                            </span>
                             <input
                               type="file"
                               accept="image/*"
                               onChange={handleFileChange}
-                              className="absolute inset-0 cursor-pointer opacity-0"
+                              className="hidden"
+                              disabled={uploadMutation.isPending}
                             />
-                          </div>
-                        </Field>
-                        {mutationUpload.isLoading && (
-                          <p className="mt-2 text-center text-sm font-medium text-primary animate-pulse">
-                            Đang tải lên...
-                          </p>
-                        )}
+                          </label>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Cột phải: Thông tin */}
-                    <div className="space-y-4">
-                      <FormSectionTitle
-                        number="02"
-                        title="Thông tin cơ bản"
-                      />
-                      <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-5">
-                        <Field label="Tên HLV *">
-                          <input
-                            type="text"
-                            name="name"
-                            value={form.name}
-                            onChange={handleChange}
-                            className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
-                            placeholder="VD: Hoàng Thiện"
-                          />
-                        </Field>
-                        <Field label="Slug (Tùy chọn - Tự động tạo nếu để trống)">
-                          <input
-                            type="text"
-                            name="slug"
-                            value={form.slug}
-                            onChange={handleChange}
-                            className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
-                            placeholder="hoang-thien"
-                          />
-                        </Field>
-                        <div className="grid grid-cols-2 gap-4">
-                          <Field label="Chức danh">
-                            <input
-                              type="text"
-                              name="title"
-                              value={form.title}
-                              onChange={handleChange}
-                              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
-                              placeholder="VD: Chuyên gia huấn luyện"
-                            />
-                          </Field>
-                          <Field label="Kinh nghiệm">
-                            <input
-                              type="text"
-                              name="experience"
-                              value={form.experience}
-                              onChange={handleChange}
-                              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
-                              placeholder="VD: 4+ năm kinh nghiệm"
-                            />
-                          </Field>
-                        </div>
-
-                        <Field label="Giới thiệu (Bio)">
-                          <textarea
-                            name="bio"
-                            value={form.bio}
-                            onChange={handleChange}
-                            rows={4}
-                            className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-sm font-medium text-slate-900 outline-none transition-colors focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary resize-y"
-                            placeholder="Giới thiệu chi tiết..."
-                          />
-                        </Field>
-
-                        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-                          <Field label="Trạng thái">
+                    <div className="space-y-6">
+                      <FormSectionTitle number="03" title="Chuyên môn huấn luyện" description="Các mục liệt kê bên dưới tiểu sử." />
+                      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
+                        {form.specialties.map((spec, index) => (
+                          <div key={spec._id} className="flex items-center gap-2 bg-slate-50 rounded-lg p-2 border border-slate-100">
                             <select
-                              name="status"
-                              value={form.status}
-                              onChange={handleChange}
-                              className="mt-1 w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm font-bold shadow-sm outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+                              value={spec.icon}
+                              onChange={(e) => {
+                                const newArr = [...form.specialties];
+                                newArr[index].icon = e.target.value;
+                                setForm({ ...form, specialties: newArr });
+                              }}
+                              className="w-12 rounded-lg bg-white px-1 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer text-center"
                             >
-                              <option value="draft">Bản nháp</option>
-                              <option value="published">Đã xuất bản</option>
+                              <option value="dumbbell">🏋️</option>
+                              <option value="utensils">🥗</option>
+                              <option value="chart-line">📈</option>
+                              <option value="heart-pulse">❤️</option>
                             </select>
-                          </Field>
-                          <Field label="Thứ tự hiển thị">
                             <input
-                              type="number"
-                              name="sortOrder"
-                              value={form.sortOrder}
-                              onChange={handleChange}
-                              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-sm font-medium outline-none transition-colors focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+                              type="text"
+                              value={spec.label}
+                              onChange={(e) => {
+                                const newArr = [...form.specialties];
+                                newArr[index].label = e.target.value;
+                                setForm({ ...form, specialties: newArr });
+                              }}
+                              placeholder="Nhập tên chuyên môn..."
+                              className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                             />
-                          </Field>
-                        </div>
-                        <label className="flex items-center gap-3 cursor-pointer pt-2">
-                          <div className="relative flex items-center">
-                            <input
-                              type="checkbox"
-                              name="featured"
-                              checked={form.featured}
-                              onChange={handleChange}
-                              className="peer sr-only"
-                            />
-                            <div className="h-6 w-11 rounded-full bg-slate-200 transition-colors peer-checked:bg-primary"></div>
-                            <div className="absolute left-[2px] top-[2px] h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5 shadow-sm"></div>
+                            <button
+                              type="button"
+                              onClick={() => setForm({ ...form, specialties: form.specialties.filter((_, i) => i !== index) })}
+                              className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
-                          <span className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
-                            <Star size={16} className={form.featured ? "fill-amber-400 text-amber-400" : "text-slate-400"} />
-                            Đánh dấu nổi bật
-                          </span>
+                        ))}
+                        {form.specialties.length < 5 && (
+                          <button
+                            type="button"
+                            onClick={() => setForm({ ...form, specialties: [...form.specialties, { _id: Math.random().toString(), icon: "dumbbell", label: "" }] })}
+                            className="w-full rounded-lg border-2 border-dashed border-slate-200 py-2.5 text-sm font-bold text-slate-500 hover:border-primary hover:text-primary transition-colors hover:bg-slate-50 flex items-center justify-center gap-2 mt-2"
+                          >
+                            <Plus size={16} /> Thêm chuyên môn
+                          </button>
+                        )}
+                      </div>
+
+                      <FormSectionTitle number="04" title="Trạng thái & Hiển thị" />
+                      <div className="grid gap-4 sm:grid-cols-2 rounded-xl border border-slate-200 bg-white p-5">
+                        <Field label="Trạng thái">
+                          <select
+                            value={form.status}
+                            onChange={(e) => setForm({ ...form, status: e.target.value })}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                          >
+                            <option value="draft">Bản nháp</option>
+                            <option value="published">Đã xuất bản</option>
+                          </select>
+                        </Field>
+                        <Field label="Thứ tự hiển thị">
+                          <input
+                            type="number"
+                            value={form.sortOrder}
+                            onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        </Field>
+                        <label className="col-span-2 flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:bg-slate-100">
+                          <input
+                            type="checkbox"
+                            checked={form.featured}
+                            onChange={(e) => setForm({ ...form, featured: e.target.checked })}
+                            className="h-5 w-5 rounded border-slate-300 text-primary focus:ring-primary"
+                          />
+                          <span className="text-sm font-bold text-slate-700">HLV Nổi bật (Hiển thị đầu tiên)</span>
                         </label>
                       </div>
                     </div>
                   </div>
-
-                  {/* Row 2: Chuyên môn */}
-                  <div className="space-y-4">
-                    <FormSectionTitle
-                      number="03"
-                      title="Chuyên môn (Specialties)"
-                      description="Các mảng huấn luyện chính của HLV"
-                    />
-                    <div className="rounded-xl border border-slate-200 bg-white p-6">
-                      <div className="space-y-3">
-                        {form.specialties.map((spec, index) => (
-                          <div key={spec._id} className="flex items-start gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 group">
-                            <div className="w-10 h-10 shrink-0 bg-white rounded-lg border border-slate-200 flex items-center justify-center text-primary shadow-sm">
-                              {spec.icon === "dumbbell" && <Dumbbell size={20} />}
-                              {spec.icon === "utensils" && <Utensils size={20} />}
-                              {spec.icon === "chart-line" && <ChartLine size={20} />}
-                              {spec.icon === "heart-pulse" && <HeartPulse size={20} />}
-                            </div>
-                            <div className="flex-1 grid grid-cols-[150px_1fr] gap-3">
-                              <select
-                                value={spec.icon}
-                                onChange={(e) => updateSpecialty(spec._id, "icon", e.target.value)}
-                                className="w-full rounded-lg border border-slate-200 bg-white py-2 px-3 text-sm font-medium outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                              >
-                                {availableIcons.map(icon => (
-                                  <option key={icon.value} value={icon.value}>{icon.label}</option>
-                                ))}
-                              </select>
-                              <input
-                                type="text"
-                                value={spec.label}
-                                onChange={(e) => updateSpecialty(spec._id, "label", e.target.value)}
-                                placeholder="Tên chuyên môn..."
-                                className="w-full rounded-lg border border-slate-200 bg-white py-2 px-3 text-sm font-medium outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                              />
-                            </div>
-                            <button
-                              onClick={() => removeSpecialty(spec._id)}
-                              className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-
-                      <button
-                        onClick={addSpecialty}
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-sm font-bold text-slate-500 hover:border-primary hover:text-primary transition-colors bg-slate-50 hover:bg-orange-50/30"
-                      >
-                        <Plus size={18} />
-                        Thêm Chuyên môn
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                </form>
               )}
             </div>
 
+            {/* PREVIEW TAB CONTENT */}
+            {isPreviewOpen && (
+              <div className="max-h-[75vh] overflow-y-auto p-4 md:p-8 bg-[#1a1a1a]">
+                <div className="mx-auto max-w-7xl">
+                  <Trainers previewData={[getPreviewData(form)]} />
+                </div>
+              </div>
+            )}
+
+
+
             {/* Footer */}
-            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4 rounded-b-2xl sticky bottom-0 z-10">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4 rounded-b-2xl">
               <button
-                onClick={handleCloseModal}
-                className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                type="button"
+                onClick={() => { setIsModalOpen(false); setIsPreviewOpen(false); }}
+                className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-200 transition-colors"
               >
-                Hủy
+                Hủy bỏ
               </button>
               <button
-                disabled={mutationSave.isLoading || isFetchingDetail}
-                onClick={handleSave}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-primary-dark hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0"
+                type="submit"
+                form="trainer-form"
+                disabled={createMutation.isPending || updateMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-primary/30 transition-all hover:-translate-y-0.5 hover:shadow-primary/40 disabled:opacity-50"
               >
-                {mutationSave.isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                {(createMutation.isPending || updateMutation.isPending) ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                 ) : (
                   <Save size={18} />
                 )}
@@ -761,36 +795,12 @@ export default function TrainerManagement() {
         </div>
       )}
 
-      {/* Preview Modal */}
-      {isPreviewOpen && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-slate-100">
-          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shadow-sm relative z-10">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Eye size={20} className="text-primary" />
-              Preview Giao diện HLV
-            </h2>
-            <button
-              onClick={() => setIsPreviewOpen(false)}
-              className="rounded-lg bg-slate-100 p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition-colors"
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto w-full relative">
-            {/* Sử dụng component Trainers truyền dữ liệu mock */}
-            <div className="py-12 bg-white">
-              <Trainers previewData={[getPreviewData(form)]} />
-            </div>
-          </div>
-        </div>
-      )}
-
       <ConfirmDialog
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
-        onConfirm={() => mutationDelete.mutate(deleteConfirm?.id)}
-        title="Xóa HLV"
-        message={`Bạn có chắc chắn muốn xóa HLV "${deleteConfirm?.name}"?`}
+        onConfirm={() => deleteMutation.mutate(deleteConfirm)}
+        title="Xác nhận xóa HLV"
+        message="Bạn có chắc chắn muốn xóa Huấn luyện viên này? Hành động này không thể hoàn tác."
       />
     </div>
   );

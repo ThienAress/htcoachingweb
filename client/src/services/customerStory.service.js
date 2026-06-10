@@ -42,6 +42,7 @@ const normalizeStory = (story = {}) => ({
 export const getPublicCustomerStories = async ({
   featured = false,
   limit = 12,
+  trainerId,
 } = {}) => {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -49,6 +50,10 @@ export const getPublicCustomerStories = async ({
 
   if (featured) {
     params.set("featured", "true");
+  }
+  
+  if (trainerId) {
+    params.set("trainerId", trainerId);
   }
 
   const res = await api.get(`/customer-stories?${params.toString()}`);

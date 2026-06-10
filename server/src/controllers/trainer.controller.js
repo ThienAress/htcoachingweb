@@ -24,25 +24,76 @@ const normalizeSpecialties = (value) => {
 };
 
 const getTrainerPayload = (body = {}, existingTrainer = null) => {
-  const name = String(body.name || "").trim();
-  const rawSlug = String(body.slug || "").trim();
+  const name = String(body.name ?? existingTrainer?.name ?? "").trim();
+  const rawSlug = String(body.slug ?? existingTrainer?.slug ?? "").trim();
   const fallbackSlug = slugify(name);
-  const status = body.status === "published" ? "published" : "draft";
+  const status = body.status ?? existingTrainer?.status ?? "draft";
   const wasPublished = existingTrainer?.status === "published";
+
+  let images = existingTrainer?.images || [];
+  if (body.images !== undefined) {
+    if (Array.isArray(body.images)) {
+      images = body.images.map(i => String(i || "").trim()).filter(Boolean).slice(0, 3);
+    }
+  } else if (body.image !== undefined) {
+    images = [String(body.image).trim()];
+  }
+
+  const achievements = body.achievements !== undefined
+    ? (Array.isArray(body.achievements) ? body.achievements.map(a => String(a || "").trim()).filter(Boolean) : [])
+    : (existingTrainer?.achievements || []);
+
+  const stats = body.stats !== undefined
+    ? (Array.isArray(body.stats) ? body.stats.filter(s => s && s.label && s.value).map(s => ({ label: String(s.label).trim(), value: String(s.value).trim() })) : [])
+    : (existingTrainer?.stats || []);
+
+  const certifications = body.certifications !== undefined
+    ? (Array.isArray(body.certifications) ? body.certifications.map(c => String(c || "").trim()).filter(Boolean) : [])
+    : (existingTrainer?.certifications || []);
+
+  const methodologies = body.methodologies !== undefined
+    ? (Array.isArray(body.methodologies) ? body.methodologies.filter(m => m && m.title && m.description).map(m => ({ title: String(m.title).trim(), description: String(m.description).trim() })) : [])
+    : (existingTrainer?.methodologies || []);
+
+  const faqs = body.faqs !== undefined
+    ? (Array.isArray(body.faqs) ? body.faqs.filter(f => f && f.question && f.answer).map(f => ({ question: String(f.question).trim(), answer: String(f.answer).trim() })) : [])
+    : (existingTrainer?.faqs || []);
+
+  const socialLinks = body.socialLinks !== undefined
+    ? {
+        facebook: String(body.socialLinks?.facebook ?? existingTrainer?.socialLinks?.facebook ?? "").trim(),
+        instagram: String(body.socialLinks?.instagram ?? existingTrainer?.socialLinks?.instagram ?? "").trim(),
+        tiktok: String(body.socialLinks?.tiktok ?? existingTrainer?.socialLinks?.tiktok ?? "").trim(),
+        zalo: String(body.socialLinks?.zalo ?? existingTrainer?.socialLinks?.zalo ?? "").trim(),
+      }
+    : (existingTrainer?.socialLinks || {});
 
   return {
     slug: slugify(rawSlug || fallbackSlug),
     name,
-    title: String(body.title || "").trim(),
-    experience: String(body.experience || "").trim(),
-    bio: String(body.bio || "").trim(),
-    image: String(body.image || "").trim(),
-    specialties: normalizeSpecialties(body.specialties),
+    title: String(body.title ?? existingTrainer?.title ?? "").trim(),
+    experience: String(body.experience ?? existingTrainer?.experience ?? "").trim(),
+    bio: String(body.bio ?? existingTrainer?.bio ?? "").trim(),
+    motto: String(body.motto ?? existingTrainer?.motto ?? "").trim(),
+    trainingStyle: String(body.trainingStyle ?? existingTrainer?.trainingStyle ?? "").trim(),
+    achievements,
+    headline: String(body.headline ?? existingTrainer?.headline ?? "").trim(),
+    philosophy: String(body.philosophy ?? existingTrainer?.philosophy ?? "").trim(),
+    videoIntro: String(body.videoIntro ?? existingTrainer?.videoIntro ?? "").trim(),
+    stats,
+    certifications,
+    methodologies,
+    faqs,
+    socialLinks,
+    images,
+    image: images[0] || "",
+    specialties: body.specialties !== undefined ? normalizeSpecialties(body.specialties) : (existingTrainer?.specialties || []),
     status,
-    featured: Boolean(body.featured),
-    sortOrder: Number.isFinite(Number(body.sortOrder))
-      ? Number(body.sortOrder)
-      : 0,
+    featured: body.featured !== undefined ? Boolean(body.featured) : Boolean(existingTrainer?.featured),
+    isHeadCoach: body.isHeadCoach !== undefined ? Boolean(body.isHeadCoach) : Boolean(existingTrainer?.isHeadCoach),
+    sortOrder: body.sortOrder !== undefined 
+      ? (Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0)
+      : Number(existingTrainer?.sortOrder || 0),
     publishedAt:
       status === "published"
         ? existingTrainer?.publishedAt || new Date()
