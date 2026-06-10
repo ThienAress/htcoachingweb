@@ -42,6 +42,73 @@ const trainerSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    motto: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    trainingStyle: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    achievements: {
+      type: [String],
+      default: [],
+    },
+    philosophy: {
+      type: String,
+      trim: true,
+    },
+    headline: {
+      type: String,
+      trim: true,
+    },
+    videoIntro: {
+      type: String,
+      trim: true,
+    },
+    stats: {
+      type: [{
+        label: { type: String, required: true },
+        value: { type: String, required: true }
+      }],
+      default: []
+    },
+    certifications: {
+      type: [String],
+      default: []
+    },
+    methodologies: {
+      type: [{
+        title: { type: String, required: true },
+        description: { type: String, required: true }
+      }],
+      default: []
+    },
+    faqs: {
+      type: [{
+        question: { type: String, required: true },
+        answer: { type: String, required: true }
+      }],
+      default: []
+    },
+    socialLinks: {
+      facebook: { type: String, default: "" },
+      instagram: { type: String, default: "" },
+      tiktok: { type: String, default: "" },
+      zalo: { type: String, default: "" },
+    },
+    // Hỗ trợ tối đa 3 ảnh, backward compatible với field `image` cũ
+    images: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (v) => v.length <= 3,
+        message: "Tối đa 3 ảnh",
+      },
+    },
+    // Giữ lại field cũ để backward compatible khi đọc
     image: {
       type: String,
       trim: true,
@@ -54,6 +121,10 @@ const trainerSchema = new mongoose.Schema(
       index: true,
     },
     featured: {
+      type: Boolean,
+      default: false,
+    },
+    isHeadCoach: {
       type: Boolean,
       default: false,
     },

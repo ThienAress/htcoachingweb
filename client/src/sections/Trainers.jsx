@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { getPublicTrainers } from "../services/trainer.service";
+import { useNavigate } from "react-router-dom";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -23,6 +24,7 @@ const iconMap = {
 };
 
 const Trainers = ({ previewData }) => {
+  const navigate = useNavigate();
   const { data: queryData, isLoading } = useQuery({
     queryKey: ["public-trainers"],
     queryFn: async () => {
@@ -133,39 +135,35 @@ const Trainers = ({ previewData }) => {
     if (isAnimating || newIndex === currentIndex) return;
     setIsAnimating(true);
 
-    const outElement = containerRef.current.children[0]; // Cũ
-    const inElement = containerRef.current.children[1];  // Mới (ẩn)
+    const outElement = containerRef.current.children[currentIndex];
+    const inElement = containerRef.current.children[newIndex];
 
-    // Chuẩn bị inElement
-    gsap.set(inElement, {
-      opacity: isMobile ? 1 : 0,
-      xPercent: isMobile ? (direction === "next" ? 100 : -100) : (direction === "next" ? 50 : -50),
-      display: "flex",
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: "100%",
-    });
+    gsap.set([outElement, inElement], { clearProps: "all" });
 
+    // Cập nhật state (dots sẽ đổi ngay)
     setCurrentIndex(newIndex);
 
-    // Animation out
-    gsap.to(outElement, {
-      opacity: isMobile ? 1 : 0,
-      xPercent: isMobile ? (direction === "next" ? -100 : 100) : (direction === "next" ? -50 : 50),
-      duration: 0.6,
-      ease: "power2.inOut",
+    gsap.set(inElement, {
+      opacity: 0,
+      x: direction === "next" ? 20 : -20,
+      zIndex: 20,
     });
 
-    // Animation in
+    gsap.to(outElement, {
+      opacity: 0,
+      x: direction === "next" ? -20 : 20,
+      duration: 0.5,
+      ease: "power2.inOut",
+      zIndex: 10,
+    });
+
     gsap.to(inElement, {
       opacity: 1,
-      xPercent: 0,
-      duration: 0.6,
+      x: 0,
+      duration: 0.5,
       ease: "power2.inOut",
       onComplete: () => {
-        gsap.set(inElement, { position: "relative" });
-        gsap.set(outElement, { display: "none" });
+        gsap.set([outElement, inElement], { clearProps: "all" });
         setIsAnimating(false);
         startAutoplay();
       }
@@ -194,24 +192,32 @@ const Trainers = ({ previewData }) => {
 
   if (trainersList.length === 0) return null;
 
-  const currentTrainer = trainersList[currentIndex];
   // Helper render 1 trainer card
-  const renderTrainerCard = (trainer, isHidden = false) => (
-    <div
-      key={trainer._id || trainer.slug}
-      className="w-full flex-col md:flex-row flex gap-10 bg-white"
-      style={{ display: isHidden ? "none" : "flex" }}
-    >
-      <div className="flex-1 min-w-full md:min-w-75 mt-2 mb-6 md:mb-0">
+  const renderTrainerCard = (trainer) => (
+    <div className="w-full flex-col md:flex-row flex gap-8 lg:gap-12 bg-white">
+      <div className="w-full md:w-5/12 shrink-0 mt-2 mb-6 md:mb-0 flex flex-col">
         <img
-          src={trainer.image || "https://placehold.co/600x400/eeeeee/999999?text=No+Image"}
+          src={trainer.images?.[0] || trainer.image || "https://placehold.co/600x400/eeeeee/999999?text=No+Image"}
           alt={trainer.name}
           loading="lazy"
           className="w-full aspect-[3/4] md:aspect-auto md:h-full max-h-[500px] rounded-2xl object-cover shadow-sm"
         />
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate(`/huan-luyen-vien/${trainer.slug}`);
+          }}
+          className="mt-4 w-full flex items-center justify-center gap-2 text-slate-800 uppercase text-sm font-black tracking-wider group hover:text-primary transition-colors"
+        >
+          Xem chi tiết
+          <span className="bg-primary/10 text-primary p-1.5 rounded-full group-hover:translate-x-1 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+            <ArrowRight size={14} strokeWidth={3} />
+          </span>
+        </button>
       </div>
 
-      <div className="flex-2 min-w-full md:min-w-125 mt-8 md:mt-0 flex flex-col justify-center">
+      <div id={`trainer-info-${trainer._id || trainer.slug}`} className="flex-1 w-full mt-8 md:mt-0 flex flex-col justify-center overflow-hidden">
         <div>
           <h3 className="text-2xl font-bold uppercase text-slate-800">{trainer.name}</h3>
           {(trainer.title || trainer.experience) && (
@@ -244,10 +250,10 @@ const Trainers = ({ previewData }) => {
 
         <a
           href="#contact"
-          className="inline-flex items-center justify-center w-fit gap-2 px-8 py-3.5 bg-primary text-white rounded-xl font-bold shadow-lg hover:bg-primary-dark hover:-translate-y-1 transition-all"
+          className="inline-flex items-center justify-center w-fit mr-auto gap-2 px-8 py-3.5 bg-primary text-white rounded-xl font-bold shadow-lg hover:bg-primary-dark hover:-translate-y-1 transition-all"
         >
           <ArrowRight size={18} />
-          Liên hệ tư vấn cùng HLV {trainer.name.split(" ").pop()}!
+          Liên hệ huấn luyện viên tư vấn miễn phí
         </a>
       </div>
     </div>
@@ -261,8 +267,8 @@ const Trainers = ({ previewData }) => {
     >
       <div className="container-custom p-0!">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-center md:text-left uppercase m-0" data-gsap="title">
-            ĐỘI NGŨ HUẤN LUYỆN VIÊN
+          <h2 className="text-left uppercase m-0" data-gsap="title">
+            HUẤN LUYỆN VIÊN HTCOACHING
           </h2>
           {trainersList.length > 1 && (
             <div className="hidden md:flex gap-3">
@@ -291,12 +297,16 @@ const Trainers = ({ previewData }) => {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          <div ref={containerRef} className="relative w-full flex">
-            {/* Element hiện tại */}
-            {renderTrainerCard(currentTrainer, false)}
-            
-            {/* Element cho animation (ẩn mặc định) */}
-            {trainersList.length > 1 && renderTrainerCard(trainersList[(currentIndex + 1) % trainersList.length], true)}
+          <div ref={containerRef} className="grid w-full relative">
+            {trainersList.map((trainer, index) => (
+              <div
+                key={trainer._id || trainer.slug}
+                className={`row-start-1 col-start-1 w-full transition-opacity duration-300 ${index === currentIndex ? "z-10 pointer-events-auto opacity-100" : "z-0 pointer-events-none opacity-0"
+                  }`}
+              >
+                {renderTrainerCard(trainer)}
+              </div>
+            ))}
           </div>
         </div>
 
@@ -310,9 +320,8 @@ const Trainers = ({ previewData }) => {
                   if (idx > currentIndex) slideTo(idx, "next");
                   else if (idx < currentIndex) slideTo(idx, "prev");
                 }}
-                className={`w-2.5 h-2.5 rounded-full transition-all ${
-                  idx === currentIndex ? "bg-primary w-6" : "bg-slate-300"
-                }`}
+                className={`w-2.5 h-2.5 rounded-full transition-all ${idx === currentIndex ? "bg-primary w-6" : "bg-slate-300"
+                  }`}
                 aria-label={`Go to slide ${idx + 1}`}
               />
             ))}

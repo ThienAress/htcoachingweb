@@ -7,7 +7,7 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
-const MAX_FREE_GENERATIONS = 3;
+const MAX_FREE_GENERATIONS = 1;
 
 // ===== CHECK QUYỀN TRUY CẬP =====
 router.get("/check", protect, async (req, res) => {

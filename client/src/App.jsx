@@ -33,6 +33,7 @@ const ExerciseManagement = lazy(() => import("./pages/admin/ExerciseManagement")
 const ExerciseSuggestionsManagement = lazy(() => import("./pages/admin/ExerciseSuggestionsManagement"));
 const CustomerStoryManagement = lazy(() => import("./pages/admin/CustomerStoryManagement"));
 const TrainerManagement = lazy(() => import("./pages/admin/TrainerManagement"));
+const TrainerProfileEditor = lazy(() => import("./pages/admin/TrainerProfileEditor"));
 const SiteSettings = lazy(() => import("./pages/admin/SiteSettings"));
 const DepositManagement = lazy(() => import("./pages/admin/DepositManagement"));
 const F1AiRuleManagement = lazy(() => import("./pages/admin/F1AiRuleManagement"));
@@ -47,6 +48,7 @@ const ExercisesPage = lazy(() => import("./pages/ExercisesPage/ExercisesPage"));
 const F1Customers = lazy(() => import("./pages/F1CustomersPage/F1Customers"));
 const CustomerStories = lazy(() => import("./pages/CustomerStories"));
 const CustomerStoryDetail = lazy(() => import("./pages/CustomerStoryDetail"));
+const TrainerProfile = lazy(() => import("./pages/TrainerProfile"));
 const MyWallet = lazy(() => import("./pages/wallet/MyWallet"));
 const OnlineCoaching = lazy(() => import("./pages/customer/OnlineCoaching"));
 const TrainerCoaching = lazy(() => import("./pages/trainer/TrainerCoaching"));
@@ -74,6 +76,10 @@ function AppContent() {
           <Route
             path="/ket-qua-khach-hang/:slug"
             element={<CustomerStoryDetail />}
+          />
+          <Route
+            path="/huan-luyen-vien/:slug"
+            element={<TrainerProfile />}
           />
         </Route>
 
@@ -145,6 +151,7 @@ function AppContent() {
           <Route path="exercises" element={<ExerciseManagement />} />
           <Route path="f1-ai-rules" element={<F1AiRuleManagement />} />
           <Route path="trainers" element={<TrainerManagement />} />
+          <Route path="trainers/:id/profile" element={<TrainerProfileEditor />} />
           <Route path="customer-stories" element={<CustomerStoryManagement />} />
           <Route path="site-settings" element={<SiteSettings />} />
           <Route path="deposits" element={<DepositManagement />} />
