@@ -1,5 +1,5 @@
 import express from "express";
-import { protect } from "../middlewares/auth.middleware.js";
+import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 
 import {
@@ -18,9 +18,9 @@ router.post("/purchase", protect, csrfProtection, purchaseTrainerPlan);
 router.get("/my", protect, getMySubscription);
 
 // 👑 Admin: Lấy tất cả HLV có gói active
-router.get("/all", protect, getAllSubscribers);
+router.get("/all", protect, requireRoles("admin"), getAllSubscribers);
 
 // ❌ Admin: Xóa gói HLV
-router.delete("/:id", protect, csrfProtection, deleteSubscription);
+router.delete("/:id", protect, csrfProtection, requireRoles("admin"), deleteSubscription);
 
 export default router;

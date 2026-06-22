@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { getMyWallet } from "../services/wallet.service";
 import { purchaseTrainerPlan } from "../services/trainerSubscription.service";
 
-const Pricing = () => {
+const Pricing = ({ isHeroAnimDone = false }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -13,7 +13,14 @@ const Pricing = () => {
   const [viewMode, setViewMode] = useState(() => {
     return localStorage.getItem("pricingViewMode") || null;
   });
-  const [showModeModal, setShowModeModal] = useState(!viewMode);
+  const [showModeModal, setShowModeModal] = useState(false);
+
+  // Chờ hero animation xong mới hiện modal chọn role
+  useEffect(() => {
+    if (!viewMode && isHeroAnimDone) {
+      setShowModeModal(true);
+    }
+  }, [viewMode, isHeroAnimDone]);
 
   const handleSelectMode = (mode) => {
     setViewMode(mode);
@@ -105,13 +112,20 @@ const Pricing = () => {
       title: "CƠ BẢN",
       durationText: "8 tuần",
       features: [
-        "Tập 1 kèm 1",
+        "Online Coaching — Nhận bài tập & feedback từ HLV",
         "Giáo án cá nhân hóa",
         "Tư vấn dinh dưỡng riêng",
         "Theo dõi tiến độ theo tuần",
         "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
         "Hỗ trợ căng cơ phục hồi sau tập",
         "Cam kết kết quả 100%",
+      ],
+      systemFeatures: [
+        "Truy cập hệ thống bài tập đa dạng",
+        "Gợi ý thực đơn AI không giới hạn",
+        "Đặt lịch tập trực tuyến",
+        "Xem lịch trình tập luyện cá nhân",
+        "Xem lịch sử checkin cá nhân",
       ],
       gifts: [],
       totalSessions: 24,
@@ -120,13 +134,20 @@ const Pricing = () => {
       title: "NÂNG CAO",
       durationText: "16 tuần",
       features: [
-        "Tập 1 kèm 1",
+        "Online Coaching — Nhận bài tập & feedback từ HLV",
         "Giáo án cá nhân hóa",
         "Tư vấn dinh dưỡng riêng",
         "Theo dõi tiến độ theo tuần",
         "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
         "Hỗ trợ căng cơ phục hồi sau tập",
         "Cam kết kết quả 100%",
+      ],
+      systemFeatures: [
+        "Truy cập hệ thống bài tập đa dạng",
+        "Gợi ý thực đơn AI không giới hạn",
+        "Đặt lịch tập trực tuyến",
+        "Xem lịch trình tập luyện cá nhân",
+        "Xem lịch sử checkin cá nhân",
       ],
       gifts: [],
       featured: true,
@@ -136,13 +157,20 @@ const Pricing = () => {
       title: "VIP",
       durationText: "24 tuần",
       features: [
-        "Tập 1 kèm 1",
+        "Online Coaching — Nhận bài tập & feedback từ HLV",
         "Giáo án cá nhân hóa",
         "Tư vấn dinh dưỡng riêng",
         "Theo dõi tiến độ theo tuần",
         "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
         "Hỗ trợ căng cơ phục hồi sau tập",
         "Cam kết kết quả 100%",
+      ],
+      systemFeatures: [
+        "Truy cập hệ thống bài tập đa dạng",
+        "Gợi ý thực đơn AI không giới hạn",
+        "Đặt lịch tập trực tuyến",
+        "Xem lịch trình tập luyện cá nhân",
+        "Xem lịch sử checkin cá nhân",
       ],
       gifts: [],
       totalSessions: 72,
@@ -163,6 +191,13 @@ const Pricing = () => {
         "Hỗ trợ căng cơ phục hồi sau tập",
         "Cam kết kết quả 100%",
       ],
+      systemFeatures: [
+        "Truy cập hệ thống bài tập đa dạng",
+        "Gợi ý thực đơn AI không giới hạn",
+        "Đặt lịch tập trực tuyến",
+        "Xem lịch trình tập luyện cá nhân",
+        "Xem lịch sử checkin cá nhân",
+      ],
       gifts: ["Shaker Bình Lắc Cao Cấp 600ml"],
       totalSessions: 24,
     },
@@ -177,6 +212,13 @@ const Pricing = () => {
         "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
         "Hỗ trợ căng cơ phục hồi sau tập",
         "Cam kết kết quả 100%",
+      ],
+      systemFeatures: [
+        "Truy cập hệ thống bài tập đa dạng",
+        "Gợi ý thực đơn AI không giới hạn",
+        "Đặt lịch tập trực tuyến",
+        "Xem lịch trình tập luyện cá nhân",
+        "Xem lịch sử checkin cá nhân",
       ],
       gifts: ["Shaker Bình Lắc Cao Cấp 600ml", "2 bánh Biscotti 300g"],
       featured: true,
@@ -193,6 +235,13 @@ const Pricing = () => {
         "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
         "Hỗ trợ căng cơ phục hồi sau tập",
         "Cam kết kết quả 100%",
+      ],
+      systemFeatures: [
+        "Truy cập hệ thống bài tập đa dạng",
+        "Gợi ý thực đơn AI không giới hạn",
+        "Đặt lịch tập trực tuyến",
+        "Xem lịch trình tập luyện cá nhân",
+        "Xem lịch sử checkin cá nhân",
       ],
       gifts: [
         "Balo cao cấp Degrey",
@@ -215,6 +264,13 @@ const Pricing = () => {
       "Hỗ trợ căng cơ phục hồi sau tập",
       "Cam kết kết quả 100%",
     ],
+    systemFeatures: [
+      "Truy cập hệ thống bài tập đa dạng",
+      "Gợi ý thực đơn AI không giới hạn",
+      "Đặt lịch tập trực tuyến",
+      "Xem lịch trình tập luyện cá nhân",
+      "Xem lịch sử checkin cá nhân",
+    ],
     gifts: [],
     totalSessions: 12,
   };
@@ -224,23 +280,25 @@ const Pricing = () => {
     {
       title: "Tiêu chuẩn",
       icon: "\uD83D\uDD25",
-      subtitle: "Dành cho cá nhân mới",
-      priceMonth: 5000,
-      priceYear: 50000,
+      subtitle: "Dành cho HLV mới bắt đầu",
+      priceMonth: 200000,
+      priceYear: 2000000,
       categories: [
         {
-          name: "QUYỀN LỢI CƠ BẢN",
+          name: "Quản lý học viên",
           features: [
-            "Quản lý tối đa 10 học viên",
-            "Truy cap kho bai tap Tiêu chuẩn",
-            "Checkin học viên qua hệ thống"
+            "Quản lý tối đa 5 học viên",
+            "Tạo hồ sơ tập luyện cho học viên",
+            "Checkin/Checkout học viên qua hệ thống",
+            "Xem lịch sử checkin tất cả học viên",
+            "Trainer Dashboard — Thống kê tổng quan",
           ]
         },
         {
-          name: "Hỗ trợ",
+          name: "Coaching & Lịch tập",
           features: [
-            "Hỗ trợ kỹ thuật qua email",
-            "Cập nhật tính năng miễn phí"
+            "Online Coaching — Gửi bài tập & feedback cho học viên",
+            "Tạo và quản lý lịch tập cho học viên",
           ]
         }
       ]
@@ -248,52 +306,79 @@ const Pricing = () => {
     {
       title: "Chuyên nghiệp",
       icon: "\uD83D\uDC8E",
-      subtitle: "Dành cho PT độc lập",
-      priceMonth: 7000,
-      priceYear: 70000,
+      subtitle: "Dành cho PT muốn phát triển",
+      priceMonth: 250000,
+      priceYear: 2500000,
       featured: true,
       categories: [
         {
-          name: "QUYỀN LỢI CƠ BẢN",
+          name: "Quản lý học viên",
           features: [
-            "Quản lý không giới hạn học viên",
-            "Truy cập toàn bộ hệ thống bài tập",
-            "Hệ thống CRM quản lý khách hàng F1"
+            "Quản lý tối đa 20 học viên",
+            "Tạo hồ sơ tập luyện cho học viên",
+            "Checkin/Checkout học viên qua hệ thống",
+            "Xem lịch sử checkin tất cả học viên",
+            "Trainer Dashboard — Thống kê tổng quan",
           ]
         },
         {
-          name: "Tính năng AI & Báo cáo",
+          name: "Coaching & Lịch tập",
+          features: [
+            "Online Coaching — Gửi bài tập & feedback cho học viên",
+            "Tạo và quản lý lịch tập cho học viên",
+          ]
+        },
+        {
+          name: "F1 CRM & AI",
           icon: "\u2728",
           features: [
-            "Tự động tạo giáo án bằng AI",
-            "Báo cáo tiến độ tự động",
-            "Gợi ý dinh dưỡng thông minh"
+            "Hệ thống CRM quản lý khách hàng tiềm năng (F1)",
+            "AI phân tích & đánh giá khách hàng F1",
+            "Dự đoán kết quả tập luyện bằng AI",
+            "Báo cáo AI chi tiết cho từng khách hàng",
           ]
         }
       ]
     },
     {
-      title: "Doanh nghiệp",
+      title: "Cao cấp",
       icon: "\uD83D\uDC51",
-      subtitle: "Dành cho Studio/Team",
-      priceMonth: 10000,
-      priceYear: 100000,
+      subtitle: "Dành cho PT chuyên nghiệp",
+      priceMonth: 300000,
+      priceYear: 3000000,
       categories: [
         {
-          name: "Quyền lợi cao cấp",
+          name: "Quản lý học viên",
           features: [
-            "Đăng bài quảng bá trên nền tảng HT",
-            "Trang cá nhân HLV có tick xanh",
-            "Ưu tiên ghép khách hàng mới"
+            "Quản lý tối đa 50 học viên",
+            "Tạo hồ sơ tập luyện cho học viên",
+            "Checkin/Checkout học viên qua hệ thống",
+            "Xem lịch sử checkin tất cả học viên",
+            "Trainer Dashboard — Thống kê tổng quan",
           ]
         },
         {
-          name: "Tính năng AI & Quản lý",
+          name: "Coaching & Lịch tập",
+          features: [
+            "Online Coaching — Gửi bài tập & feedback cho học viên",
+            "Tạo và quản lý lịch tập cho học viên",
+          ]
+        },
+        {
+          name: "F1 CRM & AI",
           icon: "\u2728",
           features: [
-            "Toàn bộ tính năng AI không giới hạn",
-            "Quản lý lịch tập đội ngũ",
-            "Phân tích dữ liệu kinh doanh"
+            "Hệ thống CRM quản lý khách hàng tiềm năng (F1)",
+            "AI phân tích & đánh giá khách hàng F1",
+            "Dự đoán kết quả tập luyện bằng AI",
+            "Báo cáo AI chi tiết cho từng khách hàng",
+          ]
+        },
+        {
+          name: "Đặc quyền",
+          icon: "\uD83D\uDC51",
+          features: [
+            "Cập nhật tính năng mới miễn phí",
           ]
         }
       ]
@@ -434,7 +519,7 @@ const Pricing = () => {
           </div>
         )}
 
-        <div className="flex justify-center gap-6 flex-wrap">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 2xl:gap-8 max-w-5xl 2xl:max-w-6xl mx-auto">
           {isTrainer ? (
             trainerPlans.map((plan, idx) => {
               const currentPrice = billingCycle === "year" ? plan.priceYear : plan.priceMonth;
@@ -444,7 +529,7 @@ const Pricing = () => {
               return (
                 <div
                   key={idx}
-                  className={`relative bg-[#1a1a1a] border-2 rounded-xl p-8 transition-all duration-300 w-[400px] flex flex-col ${plan.featured
+                  className={`relative bg-[#1a1a1a] border-2 rounded-xl p-8 2xl:p-10 transition-all duration-300 w-full flex flex-col ${plan.featured
                     ? "border-primary bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a]"
                     : "border-gray-800"
                     } hover:-translate-y-2 hover:shadow-xl hover:border-primary`}
@@ -456,14 +541,14 @@ const Pricing = () => {
                   )}
 
                   <div className="mb-6">
-                    <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                      {plan.title} <span className="text-2xl">{plan.icon}</span>
+                    <h3 className="text-2xl 2xl:text-3xl font-bold text-white text-center whitespace-nowrap">
+                      {plan.title}
                     </h3>
-                    <p className="text-gray-400 text-sm mt-1">{plan.subtitle}</p>
+                    <p className="text-gray-400 text-sm 2xl:text-base mt-1 text-center">{plan.subtitle}</p>
 
                     <div className="mt-6">
                       <div className="flex items-end gap-2">
-                        <span className="text-4xl font-bold text-white">{formattedPrice}</span>
+                        <span className="text-4xl 2xl:text-5xl font-bold text-white">{formattedPrice}</span>
                         <span className="text-gray-400 mb-1">/{billingCycle === "year" ? "Năm" : "Tháng"}</span>
                       </div>
                       {billingCycle === "year" && (
@@ -474,7 +559,25 @@ const Pricing = () => {
                     </div>
                   </div>
 
-                  <div className="mb-8">
+                  <div className="flex-1 space-y-6">
+                    {plan.categories.map((category, cIdx) => (
+                      <div key={cIdx}>
+                        <h4 className="text-white font-semibold flex items-center gap-2 mb-3">
+                          {category.name} {category.icon && <span className="text-lg">{category.icon}</span>}
+                        </h4>
+                        <ul className="space-y-2.5">
+                          {category.features.map((feature, fIdx) => (
+                            <li key={fIdx} className="flex items-start gap-2 text-sm 2xl:text-base text-gray-300">
+                              <span className="text-green-500 mt-0.5">{"\u2713"}</span>
+                              <span className="leading-relaxed">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-8">
                     <button
                       onClick={async () => {
                         if (!user) {
@@ -503,24 +606,6 @@ const Pricing = () => {
                       MUA
                     </button>
                   </div>
-
-                  <div className="flex-1 space-y-6">
-                    {plan.categories.map((category, cIdx) => (
-                      <div key={cIdx}>
-                        <h4 className="text-white font-semibold flex items-center gap-2 mb-3">
-                          {category.name} {category.icon && <span className="text-lg">{category.icon}</span>}
-                        </h4>
-                        <ul className="space-y-2.5">
-                          {category.features.map((feature, fIdx) => (
-                            <li key={fIdx} className="flex items-start gap-2 text-sm text-gray-300">
-                              <span className="text-green-500 mt-0.5">{"\u2713"}</span>
-                              <span className="leading-relaxed">{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               );
             })
@@ -528,7 +613,7 @@ const Pricing = () => {
             (mode === "trial" ? [trialPlan] : plans).map((plan, idx) => (
               <div
                 key={idx}
-                className={`relative bg-[#1a1a1a] border-2 rounded-xl p-8 transition-all duration-300 w-96 ${plan.featured
+                className={`relative bg-[#1a1a1a] border-2 rounded-xl p-8 2xl:p-10 transition-all duration-300 w-full ${plan.featured
                   ? "border-primary bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a]"
                   : "border-gray-800"
                   } hover:-translate-y-2 hover:scale-105 hover:border-primary hover:shadow-red-500/30`}
@@ -539,16 +624,16 @@ const Pricing = () => {
                   </div>
                 )}
                 <div className="text-center mb-4">
-                  <h3 className="text-2xl font-bold text-white uppercase">
+                  <h3 className="text-2xl 2xl:text-3xl font-bold text-white uppercase">
                     {plan.title}
                   </h3>
                   <div className="mt-1">
-                    <span className="text-base text-gray-400">
+                    <span className="text-base 2xl:text-lg text-gray-400">
                       {plan.durationText}
                     </span>
                   </div>
                 </div>
-                <ul className="space-y-2 mb-4 text-gray-200 text-base">
+                <ul className="space-y-2 mb-4 text-gray-200 text-base 2xl:text-lg">
                   {plan.features.map((feature, i) => (
                     <li
                       key={i}
@@ -559,6 +644,21 @@ const Pricing = () => {
                     </li>
                   ))}
                 </ul>
+                {plan.systemFeatures && plan.systemFeatures.length > 0 && (
+                  <div className="mt-4 mb-4">
+                    <h4 className="text-sm font-semibold text-primary mb-2 uppercase tracking-wide">
+                      ✨ Quyền lợi hệ thống
+                    </h4>
+                    <ul className="space-y-1.5">
+                      {plan.systemFeatures.map((sf, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm 2xl:text-base text-gray-300">
+                          <span className="text-blue-400 mt-0.5">{"\u2713"}</span>
+                          <span>{sf}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {plan.gifts && plan.gifts.length > 0 && (
                   <div
                     onClick={() => showGiftModal(plan.gifts)}
@@ -567,7 +667,7 @@ const Pricing = () => {
                     <Gift className="w-5 h-5" /> QUÀ TẶNG ĐẶC BIỆT
                   </div>
                 )}
-                <div className="mt-4 pt-3 border-t border-dashed border-gray-700 text-base text-gray-400 text-center">
+                <div className="mt-4 pt-3 border-t border-dashed border-gray-700 text-base 2xl:text-lg text-gray-400 text-center">
                   Tổng số buổi: {plan.totalSessions}
                 </div>
                 <Link
@@ -576,7 +676,7 @@ const Pricing = () => {
                     e.preventDefault();
                     handleRegister(plan, mode === "trial" ? "trial" : mode);
                   }}
-                  className="relative flex items-center justify-center w-full mt-5 py-3 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-base"
+                  className="relative flex items-center justify-center w-full mt-5 py-3 2xl:py-4 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-base 2xl:text-lg"
                 >
                   <span className="relative z-10">Đăng ký ngay</span>
                   <span className="absolute inset-0 bg-primary transform -translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></span>
@@ -739,7 +839,7 @@ const Pricing = () => {
                 </button>
               </div>
               <div className="px-6 pb-6 space-y-4 text-center">
-                <span className="text-4xl">{activeSubscription ? ({"Tiêu chuẩn": "\uD83D\uDD25", "Chuyên nghiệp": "\uD83D\uDC8E", "Doanh nghiệp": "\uD83D\uDC51"}[activeSubscription.planTitle] || "") : ""}</span>
+                <span className="text-4xl">{activeSubscription ? ({"Tiêu chuẩn": "\uD83D\uDD25", "Chuyên nghiệp": "\uD83D\uDC8E", "Cao cấp": "\uD83D\uDC51"}[activeSubscription.planTitle] || "") : ""}</span>
                 <h3 className="text-base font-bold text-white">
                   Bạn đang sử dụng gói {activeSubscription?.planTitle}
                 </h3>

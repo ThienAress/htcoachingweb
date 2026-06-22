@@ -6,9 +6,14 @@ import AuditLog from "../models/AuditLog.js";
 
 // ===== Bảng giá gói HLV (nguồn sự thật — server quyết định giá, không tin client) =====
 const TRAINER_PLANS = {
-  "Tiêu chuẩn": { month: 5000, year: 50000 },
-  "Chuyên nghiệp": { month: 7000, year: 70000 },
-  "Doanh nghiệp": { month: 10000, year: 100000 },
+  "Tiêu chuẩn": { month: 5000, year: 50000, maxClients: 5 },
+  "Chuyên nghiệp": { month: 7000, year: 70000, maxClients: 20 },
+  "Cao cấp": { month: 10000, year: 100000, maxClients: 50 },
+};
+
+// Helper: lấy maxClients theo planTitle
+export const getMaxClientsByPlan = (planTitle) => {
+  return TRAINER_PLANS[planTitle]?.maxClients || 0;
 };
 
 // ===== POST /api/trainer-subscriptions/purchase — Mua gói HLV =====

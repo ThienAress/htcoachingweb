@@ -1,4 +1,6 @@
 import TrainingSchedule from "../models/TrainingSchedule.js";
+import Order from "../models/Order.js";
+import User from "../models/User.js";
 
 // Danh sách loại bài tập cố định
 const FIXED_EXERCISE_TYPES = ["Boxing", "Gym", "Cardio", "Yoga", "Stretching"];
@@ -13,6 +15,7 @@ export const getMySchedules = async (req, res) => {
       expiresAt: { $gt: new Date() },
     })
       .sort({ dayOfWeek: 1, startTime: 1 })
+      .populate("clientId", "name")
       .lean();
 
     return res.status(200).json({
@@ -28,18 +31,71 @@ export const getMySchedules = async (req, res) => {
   }
 };
 
+// ===== GET /api/training-schedules/my-clients — Lấy danh sách khách hàng đã mua gói của PT =====
+export const getMyClients = async (req, res) => {
+  try {
+    const trainerId = req.user.id;
+    
+    // Xây dựng câu truy vấn Order
+    let orderQuery = { trainerId, status: "approved" };
+    
+    // Nếu là admin, admin sẽ đảm nhận luôn các đơn chưa phân công HLV (trainerId null)
+    if (req.user.role === "admin") {
+      orderQuery = {
+        status: "approved",
+        $or: [
+          { trainerId },
+          { trainerId: null },
+          { trainerId: { $exists: false } }
+        ]
+      };
+    }
+
+    // Tìm các Order theo query
+    const orders = await Order.find(orderQuery)
+      .populate("userId", "name email phone")
+      .lean();
+
+    // Lọc ra các userId unique
+    const uniqueClientsMap = new Map();
+    orders.forEach((order) => {
+      if (order.userId && !uniqueClientsMap.has(order.userId._id.toString())) {
+        uniqueClientsMap.set(order.userId._id.toString(), order.userId);
+      }
+    });
+
+    const clients = Array.from(uniqueClientsMap.values());
+
+    return res.status(200).json({
+      success: true,
+      data: clients,
+    });
+  } catch (err) {
+    console.error("getMyClients error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi hệ thống khi lấy danh sách khách hàng",
+    });
+  }
+};
+
 // ===== POST /api/training-schedules — Tạo 1 slot lịch tập =====
 export const createSchedule = async (req, res) => {
   try {
     const trainerId = req.user.id;
-    const { clientName, dayOfWeek, startTime, endTime, exerciseType, notes, color } = req.body;
+    const { clientId, dayOfWeek, startTime, endTime, exerciseType, notes, color } = req.body;
 
     // Validate required fields
-    if (!clientName || dayOfWeek === undefined || !startTime || !endTime || !exerciseType) {
+    if (!clientId || dayOfWeek === undefined || !startTime || !endTime || !exerciseType) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu thông tin bắt buộc (clientName, dayOfWeek, startTime, endTime, exerciseType)",
+        message: "Thiếu thông tin bắt buộc (clientId, dayOfWeek, startTime, endTime, exerciseType)",
       });
+    }
+
+    const user = await User.findById(clientId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy khách hàng" });
     }
 
     // Validate dayOfWeek
@@ -73,7 +129,8 @@ export const createSchedule = async (req, res) => {
 
     const schedule = await TrainingSchedule.create({
       trainerId,
-      clientName: clientName.trim(),
+      clientId,
+      clientName: user.name,
       dayOfWeek,
       startTime,
       endTime,
@@ -102,7 +159,7 @@ export const updateSchedule = async (req, res) => {
   try {
     const { id } = req.params;
     const trainerId = req.user.id;
-    const { clientName, dayOfWeek, startTime, endTime, exerciseType, notes, color } = req.body;
+    const { clientId, dayOfWeek, startTime, endTime, exerciseType, notes, color } = req.body;
 
     // Tìm schedule
     const schedule = await TrainingSchedule.findById(id);
@@ -129,8 +186,13 @@ export const updateSchedule = async (req, res) => {
       });
     }
 
-    // Update fields
-    if (clientName !== undefined) schedule.clientName = clientName.trim();
+    if (clientId !== undefined) {
+      const user = await User.findById(clientId);
+      if (user) {
+        schedule.clientId = clientId;
+        schedule.clientName = user.name;
+      }
+    }
     if (dayOfWeek !== undefined) schedule.dayOfWeek = dayOfWeek;
     if (startTime !== undefined) schedule.startTime = startTime;
     if (endTime !== undefined) schedule.endTime = endTime;

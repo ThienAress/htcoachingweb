@@ -1,6 +1,8 @@
 export const errorHandler = (err, req, res, next) => {
   console.error("🔥 [GLOBAL ERROR]:", err);
 
+  const isProd = process.env.NODE_ENV === "production";
+
   // Lỗi mongoose validation
   if (err.name === "ValidationError") {
     const messages = Object.values(err.errors).map((e) => e.message);
@@ -31,6 +33,6 @@ export const errorHandler = (err, req, res, next) => {
   // Lỗi khác
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || "Lỗi server nội bộ",
+    message: isProd ? "Lỗi server nội bộ" : (err.message || "Lỗi server nội bộ"),
   });
 };

@@ -65,6 +65,8 @@ const getTrainerPayload = (body = {}, existingTrainer = null) => {
         instagram: String(body.socialLinks?.instagram ?? existingTrainer?.socialLinks?.instagram ?? "").trim(),
         tiktok: String(body.socialLinks?.tiktok ?? existingTrainer?.socialLinks?.tiktok ?? "").trim(),
         zalo: String(body.socialLinks?.zalo ?? existingTrainer?.socialLinks?.zalo ?? "").trim(),
+        lemon8: String(body.socialLinks?.lemon8 ?? existingTrainer?.socialLinks?.lemon8 ?? "").trim(),
+        threads: String(body.socialLinks?.threads ?? existingTrainer?.socialLinks?.threads ?? "").trim(),
       }
     : (existingTrainer?.socialLinks || {});
 
@@ -278,6 +280,24 @@ export const uploadTrainerImageFile = async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "Vui lòng chọn một file" });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        url: req.file.path,
+        filename: req.file.filename,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadTrainerVideoFile = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Vui lòng chọn một file video" });
     }
 
     res.status(200).json({

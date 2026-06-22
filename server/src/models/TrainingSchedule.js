@@ -68,6 +68,19 @@ const trainingScheduleSchema = new mongoose.Schema(
       default: false,
     },
 
+    // Khách hàng tự đăng ký (dành cho client booking)
+    clientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    // Lần cuối khách hàng cập nhật lịch này
+    lastClientEdit: {
+      type: Date,
+      default: null,
+    },
+
     // Thời điểm hết hạn — MongoDB TTL sẽ tự xóa khi quá thời điểm này
     expiresAt: {
       type: Date,

@@ -170,9 +170,9 @@ const About = ({ images }) => {
           </div>
 
           {/* STATS */}
-          <div className="flex flex-wrap justify-center md:justify-between gap-4 mt-8 sm:mt-10">
+          <div className="grid grid-cols-3 gap-4 mt-8 sm:mt-10">
             {[50, 3, 4].map((value, index) => (
-              <div key={index} className="text-center min-w-25">
+              <div key={index} className="text-center">
                 <span
                   className="block text-2xl sm:text-3xl md:text-4xl font-bold text-primary"
                   data-count={value}
@@ -180,12 +180,12 @@ const About = ({ images }) => {
                 >
                   0
                 </span>
-                <span className="text-xs sm:text-sm text-gray">
+                <span className="text-xs sm:text-sm text-gray whitespace-pre-line">
                   {index === 0
-                    ? "Học viên thay đổi ngoạn mục"
+                    ? "Học viên thay đổi\nngoạn mục"
                     : index === 1
-                      ? "Số lượng chuyên môn"
-                      : "4 Năm kinh nghiệm đúc kết"}
+                      ? "Số lượng\nchuyên môn"
+                      : "4 Năm kinh nghiệm\nđúc kết"}
                 </span>
               </div>
             ))}

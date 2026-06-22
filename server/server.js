@@ -172,11 +172,17 @@ app.use("/api/trainer-subscriptions", trainerSubscriptionRoutes);
 import trainingScheduleRoutes from "./src/routes/trainingSchedule.routes.js";
 app.use("/api/training-schedules", trainingScheduleRoutes);
 
+import trainingBookingRoutes from "./src/routes/trainingBooking.routes.js";
+app.use("/api/training-booking", trainingBookingRoutes);
+
 import coachingRoutes from "./src/routes/coaching.routes.js";
 app.use("/api/coaching", coachingRoutes);
 
 import siteSettingRoutes from "./src/routes/siteSetting.routes.js";
 app.use("/api/site-settings", siteSettingRoutes);
+
+import workoutPlanRoutes from "./src/routes/workoutPlan.routes.js";
+app.use("/api/workout-plans", workoutPlanRoutes);
 
 import { protect } from "./src/middlewares/auth.middleware.js";
 app.get("/api/me/wallet", protect, getMyWallet);

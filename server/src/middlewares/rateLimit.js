@@ -2,7 +2,7 @@ import rateLimit from "express-rate-limit";
 
 export const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 300,
   message: {
     success: false,
     message: "Quá nhiều yêu cầu, vui lòng thử lại sau 15 phút",

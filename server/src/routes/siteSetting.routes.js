@@ -1,5 +1,6 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { csrfProtection } from "../middlewares/csrf.js";
 import {
   getSiteSettings,
   uploadSettingImage,
@@ -18,8 +19,8 @@ const router = express.Router();
 // Lấy settings (Public cho ai cũng xem được)
 router.get("/", getSiteSettings);
 
-// Sửa settings yêu cầu quyền Admin
-router.use(protect, requireRoles("admin"));
+// Sửa settings yêu cầu quyền Admin + CSRF
+router.use(protect, requireRoles("admin"), csrfProtection);
 
 // POST upload ảnh cho từng phần
 router.post("/upload/hero", uploadHeroImage.array("images", 5), (req, res, next) => { req.body.fieldName = 'hero'; next(); }, uploadSettingImage);

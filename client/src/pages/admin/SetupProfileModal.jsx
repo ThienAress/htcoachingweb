@@ -12,6 +12,7 @@ import {
   getAdminTrainerById,
   updateTrainer,
   uploadTrainerImage,
+  uploadTrainerVideo,
 } from "../../services/trainer.service";
 import TrainerProfile from "../TrainerProfile";
 
@@ -35,6 +36,7 @@ const getPreviewData = (form, basicInfo) => {
     specialties: Array.isArray(form.specialties) ? form.specialties : [],
     methodologies: Array.isArray(form.methodologies) ? form.methodologies : [],
     faqs: Array.isArray(form.faqs) ? form.faqs : [],
+    socialLinks: form.socialLinks,
   };
 };
 
@@ -50,7 +52,7 @@ const emptyProfileForm = {
   certifications: [],
   faqs: [],
   methodologies: [],
-  socialLinks: { facebook: "", instagram: "", tiktok: "", zalo: "" },
+  socialLinks: { facebook: "", instagram: "", tiktok: "", zalo: "", lemon8: "", threads: "" },
 };
 
 const trainerToProfileForm = (trainer) => {
@@ -77,6 +79,8 @@ const trainerToProfileForm = (trainer) => {
       instagram: trainer.socialLinks?.instagram || "",
       tiktok: trainer.socialLinks?.tiktok || "",
       zalo: trainer.socialLinks?.zalo || "",
+      lemon8: trainer.socialLinks?.lemon8 || "",
+      threads: trainer.socialLinks?.threads || "",
     },
   };
 };
@@ -147,6 +151,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
   const [basicInfo, setBasicInfo] = useState({});
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isUploadingMultiple, setIsUploadingMultiple] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
 
   const { data: detailData, isFetching: isFetchingDetail } = useQuery({
     queryKey: ["admin-trainer-detail", selectedId],
@@ -577,6 +582,129 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                   >
                     <Plus size={16} /> Thêm câu hỏi FAQ
                   </button>
+                </div>
+              </div>
+
+              {/* SOCIAL LINKS */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <FormSectionTitle number="07" title="Mạng xã hội (Social Links)" description="Thêm liên kết mạng xã hội hiển thị trên Profile." />
+                <div className="mt-6 space-y-3">
+                  {[
+                    { key: "facebook", label: "Facebook", placeholder: "https://facebook.com/..." },
+                    { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/..." },
+                    { key: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@..." },
+                    { key: "zalo", label: "Zalo", placeholder: "0901234567 hoặc https://zalo.me/..." },
+                    { key: "lemon8", label: "Lemon8", placeholder: "https://www.lemon8-app.com/@..." },
+                    { key: "threads", label: "Threads", placeholder: "https://threads.net/@..." },
+                  ].filter(item => form.socialLinks[item.key]).map(item => (
+                    <div key={item.key} className="flex items-center gap-2">
+                      <span className="w-24 text-xs font-semibold uppercase text-slate-500 shrink-0">{item.label}</span>
+                      <input
+                        type={item.key === "zalo" ? "text" : "url"}
+                        value={form.socialLinks[item.key]}
+                        onChange={(e) => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: e.target.value } })}
+                        placeholder={item.placeholder}
+                        className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <button type="button" onClick={() => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: "" } })} className="rounded-xl bg-red-50 p-2.5 text-red-500 hover:bg-red-100 transition-colors">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {[
+                      { key: "facebook", label: "Facebook" },
+                      { key: "instagram", label: "Instagram" },
+                      { key: "tiktok", label: "TikTok" },
+                      { key: "zalo", label: "Zalo" },
+                      { key: "lemon8", label: "Lemon8" },
+                      { key: "threads", label: "Threads" },
+                    ].filter(item => !form.socialLinks[item.key]).map(item => (
+                      <button key={item.key} type="button" onClick={() => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: " " } })} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
+                        <Plus size={14} /> {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* VIDEO INTRO */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <FormSectionTitle number="08" title="Video giới thiệu" description="Upload file video hoặc dán link YouTube. Nếu để trống sẽ không hiển thị trên Profile." />
+                <div className="mt-6 space-y-4">
+                  {/* Upload hoặc nhập URL */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <label className={`inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-600 cursor-pointer hover:bg-slate-100 transition-colors ${isUploadingVideo ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {isUploadingVideo ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                      ) : (
+                        <Upload size={16} />
+                      )}
+                      {isUploadingVideo ? 'Đang tải lên...' : 'Upload Video'}
+                      <input
+                        type="file"
+                        accept="video/mp4,video/mov,video/webm,video/avi"
+                        className="hidden"
+                        disabled={isUploadingVideo}
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          if (file.size > 100 * 1024 * 1024) {
+                            toast.error('File video tối đa 100MB');
+                            return;
+                          }
+                          setIsUploadingVideo(true);
+                          try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            const res = await uploadTrainerVideo(formData);
+                            const url = res.data?.data?.url || res.data?.url;
+                            if (url) {
+                              setForm(prev => ({ ...prev, videoIntro: url }));
+                              toast.success('Upload video thành công!');
+                            }
+                          } catch (err) {
+                            toast.error(err.response?.data?.message || 'Lỗi khi upload video');
+                          } finally {
+                            setIsUploadingVideo(false);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
+                    </label>
+                    <span className="text-xs text-slate-400 self-center">hoặc</span>
+                    <input
+                      type="url"
+                      value={form.videoIntro}
+                      onChange={(e) => setForm({ ...form, videoIntro: e.target.value })}
+                      placeholder="Dán link YouTube hoặc URL video..."
+                      className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    {form.videoIntro && (
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, videoIntro: '' })}
+                        className="rounded-xl bg-red-50 p-2.5 text-red-500 hover:bg-red-100 transition-colors self-start"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+                  {/* Preview */}
+                  {form.videoIntro && (
+                    <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-900 aspect-video">
+                      {form.videoIntro.includes('youtube.com') || form.videoIntro.includes('youtu.be') ? (
+                        <iframe
+                          src={form.videoIntro.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                          className="w-full h-full"
+                          allowFullScreen
+                          title="Video Preview"
+                        />
+                      ) : (
+                        <video src={form.videoIntro} controls className="w-full h-full object-contain" />
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
