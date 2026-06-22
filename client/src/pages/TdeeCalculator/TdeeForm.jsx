@@ -194,16 +194,15 @@ const TdeeForm = ({
             name="goal"
             value={form.goal}
             onChange={(e) => {
-              const prev = form.goal;
               handleChange(e);
-              if (prev && prev !== e.target.value) setGoalNotice(true);
-              else setGoalNotice(false);
             }}
             className={inputClasses}
           >
             <option value="">-- Chọn mục tiêu --</option>
-            <option value="gain">Tăng cơ</option>
-            <option value="lose">Giảm mỡ</option>
+            <option value="gain_muscle">Tăng cơ</option>
+            <option value="gain_weight">Tăng cân</option>
+            <option value="lose_fat">Giảm mỡ</option>
+            <option value="lose_weight">Giảm cân</option>
             <option value="maintain">Duy trì</option>
           </select>
           {goalNotice && (
@@ -219,6 +218,41 @@ const TdeeForm = ({
             </p>
           )}
         </div>
+
+        {/* Lượng Calo thay đổi */}
+        {form.goal && (
+          <div>
+            <label className={labelClasses}>
+              <BarChart3 className="w-4 h-4" /> Lượng Calo thay đổi (kcal)
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                name="customCalorieAdjustment"
+                value={form.customCalorieAdjustment}
+                onChange={handleChange}
+                className={`${inputClasses} pr-12`}
+                placeholder="Ví dụ: 300, -500, 0"
+              />
+              <div className="absolute right-0 top-0 bottom-0 flex items-center pr-4 pointer-events-none">
+                <span className="text-gray-500 text-sm font-medium">kcal</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              {form.goal === "gain_muscle"
+                ? "Mặc định +300 cho tăng cơ. Bạn có thể tự chỉnh sửa."
+                : form.goal === "gain_weight"
+                ? "Mặc định +500 cho tăng cân. Bạn có thể tự chỉnh sửa."
+                : form.goal === "lose_fat"
+                ? "Mặc định -300 cho giảm mỡ. Bạn có thể tự chỉnh sửa."
+                : form.goal === "lose_weight"
+                ? "Mặc định -500 cho giảm cân. Bạn có thể tự chỉnh sửa."
+                : form.goal === "maintain"
+                ? "Mặc định 0 cho duy trì. Bạn có thể tự chỉnh sửa."
+                : "Nhập lượng calo muốn thêm/bớt."}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap justify-center gap-5 mt-10">

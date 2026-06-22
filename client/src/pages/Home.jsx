@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getSiteSettings } from "../services/siteSetting.service";
 import Hero from "../sections/Hero";
@@ -13,6 +14,7 @@ import ChatIcons from "../components/ChatIcons";
 import SEO from "../components/SEO";
 
 const Home = () => {
+  const [heroAnimDone, setHeroAnimDone] = useState(false);
   const { data: settingsResponse } = useQuery({
     queryKey: ["site-settings"],
     queryFn: async () => {
@@ -43,13 +45,13 @@ const Home = () => {
         canonical="/" 
         jsonLd={organizationSchema}
       />
-      <Hero images={settings.heroImages} />
+      <Hero images={settings.heroImages} onAnimationComplete={() => setHeroAnimDone(true)} />
       <About images={settings.aboutImages} />
       <Trainers />
       <Feedback />
       <Classes images={settings.classesImages} />
       <Tools image={settings.toolsImage} />
-      <Pricing />
+      <Pricing isHeroAnimDone={heroAnimDone} />
       <Contact />
       <ScrollToTop />
       <ChatIcons />

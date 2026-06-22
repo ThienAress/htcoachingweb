@@ -14,6 +14,7 @@ import {
   Sparkles,
   User,
   Utensils,
+  FileText,
 } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
@@ -51,7 +52,7 @@ function Header() {
   const planIconMap = {
     "Tiêu chuẩn": "\uD83D\uDD25",
     "Chuyên nghiệp": "\uD83D\uDC8E",
-    "Doanh nghiệp": "\uD83D\uDC51",
+    "Cao cấp": "\uD83D\uDC51",
   };
 
   // Fetch số dư ví + gói dịch vụ + đơn hàng
@@ -180,6 +181,7 @@ function Header() {
       { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
       { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
       { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },
+      { label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" },
       { label: "Tài khoản", icon: User, path: "/account" },
       { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
     ]
@@ -191,18 +193,25 @@ function Header() {
         { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
         { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
         { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },
+        { label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" },
         { label: "Tài khoản", icon: User, path: "/account" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ]
       : [
         { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
         ...(hasOrders ? [
-          { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
-          { label: "Gợi ý meal plan", icon: Utensils, path: "/tdee-calculator" },
-          { label: "Lịch sử checkin", icon: History, path: "/my-history" },
+          { label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" },
         ] : []),
         ...(hasOnlinePackage ? [
           { label: "Giáo án online", icon: Sparkles, path: "/online-coaching" }
+        ] : []),
+        { label: "Gợi ý meal plan", icon: Utensils, path: "/tdee-calculator" },
+        ...(hasOrders ? [
+          { label: "Đăng ký giờ tập luyện", icon: CalendarDays, path: "/book-training" },
+        ] : []),
+        { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+        ...(hasOrders ? [
+          { label: "Lịch sử checkin", icon: History, path: "/my-history" },
         ] : []),
         { label: "Tài khoản", icon: User, path: "/account" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
@@ -211,12 +220,12 @@ function Header() {
   return (
     <header
       ref={headerRef}
-      className={`fixed top-0 w-full z-50 h-20 md:h-25 transition-all duration-300 ${isScrolled
+      className={`fixed top-0 w-full z-50 h-20 2xl:h-24 transition-all duration-300 ${isScrolled
         ? "bg-linear-to-r from-[#f39c12] to-[#1a1a1a]"
         : "bg-transparent"
         }`}
     >
-      <div className="relative h-full flex items-center justify-between px-5 max-w-7xl mx-auto max-md:bg-linear-to-r max-md:from-[#f39c12] max-md:to-[#1a1a1a]">
+      <div className="relative h-full flex items-center justify-between px-5 max-w-7xl 2xl:max-w-[1536px] mx-auto max-lg:bg-linear-to-r max-lg:from-[#f39c12] max-lg:to-[#1a1a1a]">
         {/* Logo */}
         <Link
           to="/"
@@ -226,17 +235,17 @@ function Header() {
           <img
             src={logo}
             alt="HT Coaching"
-            className="h-12.5 md:h-15 max-w-full object-contain"
+            className="h-12.5 lg:h-15 2xl:h-18 max-w-full object-contain"
           />
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex flex-1 justify-center ml-4" aria-label="Menu chính">
-          <ul className="flex gap-3 list-none m-0 p-0">
+        <nav className="hidden lg:flex flex-1 justify-center ml-2" aria-label="Menu chính">
+          <ul className="flex gap-0.5 xl:gap-1.5 2xl:gap-3 list-none m-0 p-0">
             <li>
               <Link
                 to="/"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
               >
                 Trang chủ
               </Link>
@@ -244,7 +253,7 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("about")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
               >
                 Giới thiệu
               </button>
@@ -252,7 +261,7 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("trainers")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
               >
                 Huấn luyện viên
               </button>
@@ -260,7 +269,7 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("customer")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
               >
                 Feedback
               </button>
@@ -268,7 +277,7 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("classes")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
               >
                 Chương trình
               </button>
@@ -276,7 +285,7 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("pricing")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
               >
                 {["admin", "trainer"].includes(user?.role) ? "Gói dịch vụ" : "Gói tập"}
               </button>
@@ -284,7 +293,7 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("contact")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
               >
                 Liên hệ
               </button>
@@ -293,7 +302,7 @@ function Header() {
             <li>
               <Link
                 to="/club"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                className="nav-link-hover text-white font-medium relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
               >
                 CLB
               </Link>
@@ -302,7 +311,7 @@ function Header() {
               <li>
                 <Link
                   to="/admin"
-                  className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                  className="nav-link-hover text-white font-medium relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
                 >
                   Quản trị
                 </Link>
@@ -312,7 +321,7 @@ function Header() {
               <li>
                 <Link
                   to="/trainer"
-                  className="nav-link-hover text-white font-medium relative whitespace-nowrap"
+                  className="nav-link-hover text-white font-medium relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
                 >
                   Quản lý
                 </Link>
@@ -322,17 +331,17 @@ function Header() {
         </nav>
 
         {/* LOGIN / USER - Desktop Dropdown */}
-        <div className="hidden md:block">
+        <div className="hidden lg:block">
           {user ? (
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setOpenDropdown(!openDropdown)}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 rounded-full px-3 py-1.5"
+                className="flex items-center gap-1.5 2xl:gap-2.5 bg-white/10 hover:bg-white/20 rounded-full px-2.5 2xl:px-4 py-1 2xl:py-1.5"
               >
                 <div className="relative">
                   <img
                     src={getAvatarUrl(user.avatar)}
-                    className="w-8 h-8 rounded-full"
+                    className="w-8 h-8 2xl:w-10 2xl:h-10 rounded-full"
                     alt="avatar"
                   />
                   {activeSubscription && (
@@ -342,11 +351,11 @@ function Header() {
                   )}
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="text-white text-sm font-medium leading-tight">
+                  <span className="text-white text-xs 2xl:text-sm font-medium leading-tight max-w-[100px] 2xl:max-w-[140px] truncate">
                     {user.name}
                   </span>
                   {walletBalance !== null && (
-                    <span className="text-[11px] text-yellow-400 font-semibold leading-tight">
+                    <span className="text-[11px] 2xl:text-xs text-yellow-400 font-semibold leading-tight">
                       Số dư ví: {new Intl.NumberFormat("vi-VN").format(walletBalance)}đ
                     </span>
                   )}
@@ -399,7 +408,7 @@ function Header() {
         </div>
 
         {/* MOBILE BUTTON - Thêm màu trắng cho icon */}
-        <div className="absolute right-5 md:hidden flex items-center gap-3 z-20">
+        <div className="absolute right-5 lg:hidden flex items-center gap-3 z-20">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="text-white"
@@ -413,7 +422,7 @@ function Header() {
         {/* MOBILE MENU */}
         <div
           className={`fixed inset-0 top-20 bg-linear-to-b from-[#f39c12] to-[#1a1a1a] z-10 transform transition-transform duration-300 ${menuOpen ? "translate-x-0" : "translate-x-full"
-            } md:hidden overflow-y-auto`}
+            } lg:hidden overflow-y-auto`}
         >
           <div className="flex flex-col items-center justify-start min-h-full py-8 px-5">
             {user ? (

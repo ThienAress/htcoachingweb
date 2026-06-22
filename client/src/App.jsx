@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect, useState, useCallback, lazy, Suspense } from "react";
 
 import { AuthProvider } from "./context/AuthContext";
 import { setNavigate } from "./utils/navigation";
@@ -40,8 +40,11 @@ const F1AiRuleManagement = lazy(() => import("./pages/admin/F1AiRuleManagement")
 const TrainerSubscriberManagement = lazy(() => import("./pages/admin/TrainerSubscriberManagement"));
 const TrainerCheckinHistory = lazy(() => import("./pages/trainer/TrainerCheckinHistory"));
 const TrainingSchedule = lazy(() => import("./pages/trainer/TrainingSchedule"));
+const WorkoutPlan = lazy(() => import("./pages/trainer/WorkoutPlan"));
+const WorkoutPlanDetail = lazy(() => import("./pages/trainer/WorkoutPlanDetail"));
 const TdeeCalculator = lazy(() => import("./pages/TdeeCalculator/TdeeCalculator"));
 const MealPlan = lazy(() => import("./pages/MealPlan/MealPlan"));
+const BookTraining = lazy(() => import("./pages/customer/BookTraining"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage/RegisterPage"));
 const Club = lazy(() => import("./pages/Club"));
 const ExercisesPage = lazy(() => import("./pages/ExercisesPage/ExercisesPage"));
@@ -60,6 +63,32 @@ import "./App.css";
 // ================= APP CONTENT =================
 function AppContent() {
   const navigate = useNavigate();
+  const [showIntro, setShowIntro] = useState(() => !sessionStorage.getItem("introDone"));
+  const [loadApp, setLoadApp] = useState(false);
+
+  const handleIntroComplete = useCallback(() => {
+    setShowIntro(false);
+    sessionStorage.setItem("introDone", "true");
+    window.isIntroDone = true;
+    window.dispatchEvent(new Event("introComplete"));
+  }, []);
+
+  // Set window.isIntroDone immediately if already done
+  if (!showIntro && !window.isIntroDone) {
+    window.isIntroDone = true;
+  }
+
+  useEffect(() => {
+    if (showIntro) {
+      // Delay mounting Routes to prevent JS parsing/rendering from blocking the GSAP animation (stuttering)
+      const timer = setTimeout(() => {
+        setLoadApp(true);
+      }, 1200);
+      return () => clearTimeout(timer);
+    } else {
+      setLoadApp(true);
+    }
+  }, [showIntro]);
 
   useEffect(() => {
     setNavigate(navigate);
@@ -67,7 +96,11 @@ function AppContent() {
 
   return (
     <>
-      <Suspense fallback={<GlobalLoading />}>
+      {showIntro && (
+        <GlobalLoading onComplete={handleIntroComplete} />
+      )}
+      {loadApp && (
+        <Suspense fallback={<GlobalLoading />}>
         <Routes>
         {/* USER ROUTES */}
         <Route element={<MainLayout />}>
@@ -93,6 +126,8 @@ function AppContent() {
         <Route path="/f1-customers" element={<F1Customers />} />
         <Route path="/wallet" element={<MyWallet />} />
         <Route path="/training-schedule" element={<TrainingSchedule />} />
+        <Route path="/workout-plans" element={<WorkoutPlan />} />
+        <Route path="/workout-plans/:id" element={<WorkoutPlanDetail />} />
         <Route path="/online-coaching" element={<OnlineCoaching />} />
         <Route path="/account" element={<AccountPage />} />
 
@@ -101,6 +136,9 @@ function AppContent() {
 
         {/* Suggested Mealplan */}
         <Route path="/mealplan" element={<MealPlan />} />
+
+        {/* Customer Booking */}
+        <Route path="/book-training" element={<BookTraining />} />
 
         {/* TRAINER LOGIN — ẩn: trainer giờ login bằng Google bình thường */}
 
@@ -162,6 +200,7 @@ function AppContent() {
         </Route>
       </Routes>
       </Suspense>
+      )}
       <ToastContainer position="top-right" autoClose={2500} />
     </>
   );

@@ -21,6 +21,7 @@ const TdeeCalculator = () => {
     formula: "",
     bodyfat: "",
     goal: "",
+    customCalorieAdjustment: "",
   });
 
   const [calcMode, setCalcMode] = useState("auto"); // "auto" | "manual"
@@ -54,10 +55,24 @@ const TdeeCalculator = () => {
     if (!name) return;
     if (["height", "weight", "age", "bodyfat"].includes(name) && value < 0)
       return;
-    if (name === "goal" && form.goal && form.goal !== value) {
-      setGoalNotice(true);
-    }
-    setForm((prev) => ({ ...prev, [name]: value }));
+    
+    setForm((prev) => {
+      if (name === "goal") {
+        if (prev.goal && prev.goal !== value) {
+          setGoalNotice(true);
+        }
+        
+        let newCalorieAdjustment = prev.customCalorieAdjustment;
+        if (value === "gain_muscle") newCalorieAdjustment = "300";
+        else if (value === "gain_weight") newCalorieAdjustment = "500";
+        else if (value === "lose_fat") newCalorieAdjustment = "-300";
+        else if (value === "lose_weight") newCalorieAdjustment = "-500";
+        else if (value === "maintain") newCalorieAdjustment = "0";
+
+        return { ...prev, [name]: value, customCalorieAdjustment: newCalorieAdjustment };
+      }
+      return { ...prev, [name]: value };
+    });
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
@@ -99,8 +114,10 @@ const TdeeCalculator = () => {
     const roundedBmr = Math.round(calculatedBmr);
     const roundedTdee = Math.round(tdeeBase);
     let adjusted = tdeeBase;
-    if (goal === "gain") adjusted += 300;
-    else if (goal === "lose") adjusted -= 300;
+    const adjustmentVal = parseFloat(form.customCalorieAdjustment);
+    if (!isNaN(adjustmentVal)) {
+      adjusted += adjustmentVal;
+    }
     const roundedAdjusted = Math.round(adjusted);
     setBmr(roundedBmr);
     setTdee(roundedTdee);
@@ -128,6 +145,7 @@ const TdeeCalculator = () => {
       formula: "",
       bodyfat: "",
       goal: "",
+      customCalorieAdjustment: "",
     });
     setTdee(null);
     setBmr(null);

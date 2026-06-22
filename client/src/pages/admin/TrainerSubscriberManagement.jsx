@@ -8,13 +8,13 @@ import { getAllSubscribers, deleteSubscription } from "../../services/trainerSub
 const planIconMap = {
   "Tiêu chuẩn": "🔥",
   "Chuyên nghiệp": "💎",
-  "Doanh nghiệp": "👑",
+  "Cao cấp": "👑",
 };
 
 const planColorMap = {
   "Tiêu chuẩn": "bg-orange-100 text-orange-700",
   "Chuyên nghiệp": "bg-purple-100 text-purple-700",
-  "Doanh nghiệp": "bg-yellow-100 text-yellow-700",
+  "Cao cấp": "bg-yellow-100 text-yellow-700",
 };
 
 const TrainerSubscriberManagement = () => {

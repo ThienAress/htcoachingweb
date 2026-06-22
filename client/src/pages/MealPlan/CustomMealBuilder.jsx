@@ -4,6 +4,7 @@ import MealSummary from "./MealSummary";
 import NutritionLegend from "./NutritionLegend";
 import { toast } from "react-toastify";
 import { useMealPlanAccess } from "../../hooks/useMealPlanAccess";
+import { useAuth } from "../../context/AuthContext";
 
 const round1 = (num) => Math.round(num * 10) / 10;
 const calcCalories = (p, c, f) => round1(p * 4 + c * 4 + f * 9);
@@ -15,6 +16,9 @@ export default function CustomMealBuilder({
   selectedPlan,
 }) {
   const { accessLevel, canGenerate, recordGeneration } = useMealPlanAccess();
+  const { user } = useAuth();
+  
+  const storageKey = `customMealBuilder_${user ? user._id : "guest"}`;
   
   // State for meals
   const [meals, setMeals] = useState([]);
@@ -23,7 +27,7 @@ export default function CustomMealBuilder({
   // Initialize or adjust meals based on selectedPlan
   useEffect(() => {
     setMeals((prev) => {
-      const saved = localStorage.getItem("customMealBuilder");
+      const saved = localStorage.getItem(storageKey);
       if (saved && prev.length === 0) {
         try {
           const parsed = JSON.parse(saved);
@@ -61,9 +65,9 @@ export default function CustomMealBuilder({
   // Save to localStorage
   useEffect(() => {
     if (meals.length > 0) {
-      localStorage.setItem("customMealBuilder", JSON.stringify(meals));
+      localStorage.setItem(storageKey, JSON.stringify(meals));
     }
-  }, [meals]);
+  }, [meals, storageKey]);
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);

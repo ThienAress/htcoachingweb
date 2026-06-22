@@ -1,5 +1,6 @@
 import express from "express";
 import { protect, requireTrainerAccess } from "../middlewares/auth.middleware.js";
+import { csrfProtection } from "../middlewares/csrf.js";
 import { uploadCoachingVideo } from "../middlewares/coachingUpload.js";
 import {
   getMyPlans,
@@ -26,6 +27,7 @@ router.get("/my-plans/:dateString", protect, getMyPlanDetails);
 router.put(
   "/my-plans/:dateString/feedback",
   protect,
+  csrfProtection,
   uploadCoachingVideo.single("video"),
   submitFeedback
 );
@@ -34,6 +36,7 @@ router.put(
 router.post(
   "/my-plans/upload-feedback-video",
   protect,
+  csrfProtection,
   uploadCoachingVideo.single("video"),
   uploadClientFeedbackVideo
 );
@@ -46,16 +49,17 @@ router.get("/trainer/clients", protect, requireTrainerAccess, getTrainerClients)
 router.get("/trainer/clients/:userId", protect, requireTrainerAccess, getClientTimeline);
 
 // 6. Tạo mới hoặc cập nhật giáo án tập luyện của một khách hàng trong ngày cụ thể
-router.post("/trainer/clients/:userId", protect, requireTrainerAccess, upsertCoachingDay);
+router.post("/trainer/clients/:userId", protect, requireTrainerAccess, csrfProtection, upsertCoachingDay);
 
 // 7. Xoá giáo án tập luyện của một khách hàng trong ngày cụ thể
-router.delete("/trainer/clients/:userId/:dateString", protect, requireTrainerAccess, deleteCoachingDay);
+router.delete("/trainer/clients/:userId/:dateString", protect, requireTrainerAccess, csrfProtection, deleteCoachingDay);
 
 // 8. Tải lên video demo bài tập của Trainer
 router.post(
   "/trainer/upload-demo",
   protect,
   requireTrainerAccess,
+  csrfProtection,
   uploadCoachingVideo.single("video"),
   uploadCoachingDemoVideo
 );

@@ -98,6 +98,8 @@ const trainerSchema = new mongoose.Schema(
       instagram: { type: String, default: "" },
       tiktok: { type: String, default: "" },
       zalo: { type: String, default: "" },
+      lemon8: { type: String, default: "" },
+      threads: { type: String, default: "" },
     },
     // Hỗ trợ tối đa 3 ảnh, backward compatible với field `image` cũ
     images: {

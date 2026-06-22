@@ -2,6 +2,8 @@ import Order from "../models/Order.js";
 import { sendMail } from "../utils/sendMail.js";
 import Checkin from "../models/Checkin.js";
 import User from "../models/User.js";
+import TrainerSubscription from "../models/TrainerSubscription.js";
+import { getMaxClientsByPlan } from "./trainerSubscription.controller.js";
 import jwt from "jsonwebtoken";
 
 export const createOrder = async (req, res) => {
@@ -16,6 +18,41 @@ export const createOrder = async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+    const trainerId = req.body.trainerId || null;
+
+    // ===== Check giới hạn học viên theo gói HLV =====
+    if (trainerId) {
+      // Tìm subscription active của trainer
+      const subscription = await TrainerSubscription.findOne({
+        userId: trainerId,
+        status: "active",
+        endDate: { $gt: new Date() },
+      });
+
+      if (subscription) {
+        const maxClients = getMaxClientsByPlan(subscription.planTitle);
+
+        if (maxClients > 0) {
+          // Đếm số email unique mà trainer đang quản lý
+          const existingEmails = await Order.distinct("email", { trainerId });
+
+          // Nếu email này chưa tồn tại → cần 1 slot mới
+          const isNewClient = !existingEmails.includes(normalizedEmail);
+
+          if (isNewClient && existingEmails.length >= maxClients) {
+            return res.status(403).json({
+              success: false,
+              message: `Gói "${subscription.planTitle}" chỉ cho phép quản lý tối đa ${maxClients} học viên. Hiện tại đã có ${existingEmails.length} học viên. Vui lòng nâng cấp gói để thêm học viên mới.`,
+              data: {
+                currentClients: existingEmails.length,
+                maxClients,
+                planTitle: subscription.planTitle,
+              },
+            });
+          }
+        }
+      }
+    }
 
     // 👉 tìm user theo email (khách)
     let user = await User.findOne({ email: normalizedEmail });
@@ -33,7 +70,7 @@ export const createOrder = async (req, res) => {
       ...req.body,
       email: normalizedEmail,
       userId: user._id,
-      trainerId: req.body.trainerId || null,
+      trainerId,
       sessions: Number(req.body.sessions),
       totalSessions: Number(req.body.sessions),
     });

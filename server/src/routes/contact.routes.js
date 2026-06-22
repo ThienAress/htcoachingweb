@@ -16,7 +16,7 @@ import { contactLimiter } from "../../src/middlewares/rateLimit.js";
 const router = express.Router();
 
 // Public route – không cần đăng nhập
-router.post("/", contactLimiter, validateContactMessage, createContactMessage);
+router.post("/", contactLimiter, csrfProtection, validateContactMessage, createContactMessage);
 
 // Admin routes
 router.get("/", protect, requireRoles("admin"), getContactMessages);

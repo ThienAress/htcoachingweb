@@ -192,7 +192,7 @@ const Classes = ({ images }) => {
         </div>
 
         {/* 3D Carousel Wrapper */}
-        <div className="relative w-full h-[520px] sm:h-[600px] md:h-[650px] flex items-center justify-center perspective-[1000px] mt-4 sm:mt-8">
+        <div className="relative w-full h-[520px] sm:h-[600px] md:h-[650px] lg:h-[720px] flex items-center justify-center perspective-[1000px] mt-4 sm:mt-8">
           
           <div ref={carouselRef} className="relative w-full max-w-[320px] sm:max-w-[400px] h-full flex items-center justify-center z-20 cursor-grab active:cursor-grabbing">
             {classes.map((item, index) => (

@@ -444,6 +444,79 @@ export default function TrainerProfileEditor() {
           </div>
         </div>
 
+        {/* SOCIAL LINKS */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <FormSectionTitle number="05" title="Mạng xã hội (Social Links)" description="Liên kết trang cá nhân hiển thị trên Profile." />
+          <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            <Field label="Facebook">
+              <input
+                type="url"
+                value={form.socialLinks.facebook}
+                onChange={(e) => setForm({ ...form, socialLinks: { ...form.socialLinks, facebook: e.target.value } })}
+                placeholder="https://facebook.com/..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </Field>
+            <Field label="Instagram">
+              <input
+                type="url"
+                value={form.socialLinks.instagram}
+                onChange={(e) => setForm({ ...form, socialLinks: { ...form.socialLinks, instagram: e.target.value } })}
+                placeholder="https://instagram.com/..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </Field>
+            <Field label="TikTok">
+              <input
+                type="url"
+                value={form.socialLinks.tiktok}
+                onChange={(e) => setForm({ ...form, socialLinks: { ...form.socialLinks, tiktok: e.target.value } })}
+                placeholder="https://tiktok.com/@..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </Field>
+            <Field label="Zalo (Số điện thoại hoặc Link)">
+              <input
+                type="text"
+                value={form.socialLinks.zalo}
+                onChange={(e) => setForm({ ...form, socialLinks: { ...form.socialLinks, zalo: e.target.value } })}
+                placeholder="VD: 0901234567 hoặc https://zalo.me/..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </Field>
+          </div>
+        </div>
+
+        {/* VIDEO INTRO */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <FormSectionTitle number="06" title="Video giới thiệu" description="Link YouTube hoặc URL video trực tiếp. Nếu để trống sẽ không hiển thị trên Profile." />
+          <div className="mt-6">
+            <Field label="Video URL">
+              <input
+                type="url"
+                value={form.videoIntro}
+                onChange={(e) => setForm({ ...form, videoIntro: e.target.value })}
+                placeholder="https://youtube.com/watch?v=... hoặc link video trực tiếp"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </Field>
+            {form.videoIntro && (
+              <div className="mt-4 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 aspect-video">
+                {form.videoIntro.includes("youtube.com") || form.videoIntro.includes("youtu.be") ? (
+                  <iframe
+                    src={form.videoIntro.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")}
+                    className="w-full h-full"
+                    allowFullScreen
+                    title="Video Preview"
+                  />
+                ) : (
+                  <video src={form.videoIntro} controls className="w-full h-full object-contain" />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
       </form>
 
       {/* PREVIEW MODAL */}

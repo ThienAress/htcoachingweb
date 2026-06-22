@@ -105,3 +105,10 @@ export const uploadTrainerImage = (formData) =>
       "Content-Type": "multipart/form-data",
     },
   });
+
+export const uploadTrainerVideo = (formData) =>
+  api.post("/trainers/admin/upload-video", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });

@@ -9,11 +9,13 @@ import {
   updateTrainer,
   updateTrainerStatus,
   uploadTrainerImageFile,
+  uploadTrainerVideoFile,
 } from "../controllers/trainer.controller.js";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import { validateId } from "../middlewares/validation.js";
 import { uploadTrainerImage } from "../middlewares/trainerUpload.js";
+import { uploadTrainerVideo } from "../middlewares/trainerVideoUpload.js";
 
 const router = express.Router();
 
@@ -39,6 +41,14 @@ router.post(
   requireRoles("admin"),
   uploadTrainerImage.single("file"),
   uploadTrainerImageFile,
+);
+router.post(
+  "/admin/upload-video",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  uploadTrainerVideo.single("file"),
+  uploadTrainerVideoFile,
 );
 router.patch(
   "/admin/:id",

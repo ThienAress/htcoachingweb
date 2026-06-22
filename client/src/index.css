@@ -103,6 +103,58 @@
   } /* 48px */
 }
 
+/* ================= LAPTOP TEXT SIZE BOOST (1024px - 1439px) ================= */
+/* Tăng root font-size cho laptop → tất cả rem-based text tự động lớn hơn ~12.5% */
+/* Heading giữ nguyên kích thước pixel gốc, chỉ body text được boost */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  html {
+    font-size: 18px; /* 16px → 18px */
+  }
+  /* Pin heading sizes = px cố định (giữ nguyên như root 16px) */
+  h1,
+  .h1 {
+    font-size: 72px;
+  }
+  h2,
+  .h2 {
+    font-size: 60px;
+  }
+  h3,
+  .h3 {
+    font-size: 48px;
+  }
+}
+
+/* ================= SCROLL OFFSET CHO FIXED HEADER ================= */
+[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+/* ================= HERO TITLE RESPONSIVE ================= */
+.hero-title {
+  font-size: 2.4375rem; /* ~39px — mobile default (+30%) */
+}
+@media (min-width: 640px) {
+  .hero-title {
+    font-size: 2.925rem; /* ~47px (+30%) */
+  }
+}
+@media (min-width: 1024px) {
+  .hero-title {
+    font-size: clamp(36px, 5.85vh, 62px) !important; /* +30% */
+  }
+}
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .hero-title {
+    font-size: clamp(57px, 9.4vh, 91px) !important; /* Laptop: +30% */
+  }
+}
+@media (min-width: 1440px) {
+  .hero-title {
+    font-size: clamp(68px, 7.15vh, 104px) !important; /* Desktop lớn: +30% */
+  }
+}
+
 /* ================= UTILITY CLASS BỔ SUNG ================= */
 .container-custom {
   width: 100%;

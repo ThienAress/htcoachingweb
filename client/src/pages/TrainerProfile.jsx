@@ -1,15 +1,16 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getPublicTrainerBySlug } from "../services/trainer.service";
 import { getPublicCustomerStories } from "../services/customerStory.service";
-import { 
+import lemon8Logo from "../assets/images/lemon8/lemon8.svg";
+import {
   ArrowRight,
-  ChevronDown, 
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Dumbbell, 
-  CheckCircle2, 
+  Dumbbell,
+  CheckCircle2,
   Play,
   MessageCircle,
   Brain,
@@ -41,12 +42,14 @@ const TrainerGallery = ({ images, name }) => {
   return (
     <div className="space-y-3">
       {/* Ảnh chính lớn */}
-      <div className="relative aspect-[3/4] md:aspect-square lg:aspect-[4/5] bg-slate-800 shadow-2xl rounded-2xl overflow-hidden group">
+      <div className="relative aspect-[4/5] md:aspect-square lg:aspect-[4/5] bg-slate-800 shadow-2xl rounded-2xl overflow-hidden group">
         {allImages.map((img, idx) => (
-          <img 
+          /* eslint-disable-next-line */
+          <img
             key={idx}
-            src={img} 
+            src={img}
             alt={`${name} - Ảnh ${idx + 1}`}
+            loading={idx === 0 ? "eager" : "lazy"}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${idx === activeIdx ? "opacity-100 z-10" : "opacity-0 z-0"}`}
           />
         ))}
@@ -105,27 +108,27 @@ const CustomerCard = ({ story }) => (
       {/* Before */}
       <div className="flex-1 relative">
         <div className="aspect-[3/4] overflow-hidden">
-          <img 
-            src={story.beforeImg || story.heroImage || "https://placehold.co/400x500/1e293b/94a3b8?text=Before"} 
-            alt="Before" 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+          <img
+            src={story.beforeImg || story.heroImage}
+            alt="Before"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         </div>
         <div className="absolute bottom-4 left-0 bg-primary text-white text-[10px] font-black px-3 py-1.5 rounded-r-lg uppercase tracking-widest shadow-lg z-20">
           BEFORE
         </div>
       </div>
-      
+
       {/* Divider */}
       <div className="w-[2px] bg-slate-100 shrink-0 relative z-10"></div>
-      
+
       {/* After */}
       <div className="flex-1 relative">
         <div className="aspect-[3/4] overflow-hidden">
-          <img 
-            src={story.afterImg || story.heroImage || "https://placehold.co/400x500/1e293b/94a3b8?text=After"} 
-            alt="After" 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+          <img
+            src={story.afterImg || story.heroImage}
+            alt="After"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         </div>
         <div className="absolute bottom-4 right-0 bg-primary text-white text-[10px] font-black px-3 py-1.5 rounded-l-lg uppercase tracking-widest shadow-lg z-20">
@@ -135,7 +138,7 @@ const CustomerCard = ({ story }) => (
     </div>
 
     {/* Overlay nút Xem chi tiết — hiện khi hover */}
-    <Link 
+    <Link
       to={`/ket-qua-khach-hang/${story.slug}`}
       className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30"
     >
@@ -150,7 +153,7 @@ const CustomerCard = ({ story }) => (
         {story.name}{story.age ? `, ${story.age} tuổi` : ''}
       </div>
       {story.duration && (
-        <div 
+        <div
           className="flex items-center justify-end px-5 bg-primary text-white text-xs font-bold z-20 shrink-0"
           style={{ clipPath: 'polygon(20px 0, 100% 0, 100% 100%, 0 100%)', paddingLeft: '28px' }}
         >
@@ -196,8 +199,8 @@ const TrainerProfile = ({ previewData }) => {
   const stories = previewData ? [] : (storiesResponse?.data || []);
 
   // Backward compatible: dùng images[] nếu có, fallback image cũ
-  const trainerImages = trainer?.images?.length > 0 
-    ? trainer.images 
+  const trainerImages = trainer?.images?.length > 0
+    ? trainer.images
     : (trainer?.image ? [trainer.image] : []);
 
   if (!previewData && isLoadingTrainer) {
@@ -212,17 +215,33 @@ const TrainerProfile = ({ previewData }) => {
 
   if (!trainer) return <Navigate to="/#trainers" replace />;
 
-  const zaloLink = trainer.socialLinks?.zalo 
-    ? (trainer.socialLinks.zalo.startsWith('http') ? trainer.socialLinks.zalo : `https://zalo.me/${trainer.socialLinks.zalo}`) 
+  const zaloLink = trainer.socialLinks?.zalo
+    ? (trainer.socialLinks.zalo.startsWith('http') ? trainer.socialLinks.zalo : `https://zalo.me/${trainer.socialLinks.zalo}`)
     : null;
+
+  const hasSocialLinks = trainer.socialLinks && (
+    trainer.socialLinks.facebook || trainer.socialLinks.instagram ||
+    trainer.socialLinks.tiktok || zaloLink ||
+    trainer.socialLinks.lemon8 || trainer.socialLinks.threads
+  );
 
   return (
     <main className="bg-slate-100 min-h-screen font-sans">
-      <SEO 
+      <SEO
         title={`${trainer.name} - ${trainer.title || 'Huấn luyện viên'} | HTCOACHING`}
         description={trainer.headline || trainer.bio || `Huấn luyện viên ${trainer.name} tại HTCOACHING.`}
         image={trainerImages[0]}
         canonical={`/huan-luyen-vien/${trainer.slug}`}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Person",
+          "name": trainer.name,
+          "jobTitle": trainer.title || "Huấn Luyện Viên Cá Nhân",
+          "description": trainer.headline || trainer.bio || `Huấn luyện viên ${trainer.name} tại HTCOACHING`,
+          "image": trainerImages[0] || "",
+          "url": `https://htcoachingweb.io.vn/huan-luyen-vien/${trainer.slug}`,
+          "worksFor": { "@type": "Organization", "name": "HTCOACHING" }
+        }}
       />
 
       {/* =============================================
@@ -230,16 +249,16 @@ const TrainerProfile = ({ previewData }) => {
           ============================================= */}
       <section className="bg-[#1a1a1a] pt-32 md:pt-40 pb-20 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-primary/10 to-transparent pointer-events-none blur-3xl"></div>
-        
+
         <div className="container-custom relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-start">
-            
+
             {/* Cột thông tin */}
             <div className="order-2 lg:order-1 space-y-6">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/15 text-primary font-bold text-sm tracking-wide border border-primary/30 rounded-full">
                 🥇 {trainer.title || "Huấn Luyện Viên Chuyên Nghiệp"}
               </div>
-              
+
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] uppercase">
                 {trainer.headline || trainer.name}
               </h1>
@@ -251,7 +270,6 @@ const TrainerProfile = ({ previewData }) => {
                   <p className="text-lg text-slate-200 italic font-medium leading-relaxed">"{trainer.motto}"</p>
                 </div>
               )}
-
 
               {/* Phong cách huấn luyện */}
               {trainer.trainingStyle && (
@@ -333,14 +351,14 @@ const TrainerProfile = ({ previewData }) => {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Link 
+                <Link
                   to="/#contact"
                   className="inline-flex items-center justify-center bg-primary text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-primary-dark transition-colors shadow-xl shadow-primary/30 gap-2"
                 >
                   <Dumbbell size={20} /> Đăng ký tư vấn miễn phí
                 </Link>
                 {stories.length > 0 && (
-                  <a 
+                  <a
                     href="#customer-results"
                     className="inline-flex items-center justify-center bg-white/10 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/20 transition-colors gap-2 border border-white/10"
                   >
@@ -348,6 +366,42 @@ const TrainerProfile = ({ previewData }) => {
                   </a>
                 )}
               </div>
+
+              {/* Social Links */}
+              {hasSocialLinks && (
+                <div className="flex items-center gap-3 pt-2">
+                  {trainer.socialLinks.facebook && (
+                    <a href={trainer.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-[#1877F2] hover:text-white hover:border-[#1877F2] transition-all" title="Facebook">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                    </a>
+                  )}
+                  {trainer.socialLinks.instagram && (
+                    <a href={trainer.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-[#E1306C] hover:text-white hover:border-[#E1306C] transition-all" title="Instagram">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+                    </a>
+                  )}
+                  {trainer.socialLinks.tiktok && (
+                    <a href={trainer.socialLinks.tiktok} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-[#010101] hover:text-white hover:border-white/10 transition-all" title="TikTok">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+                    </a>
+                  )}
+                  {zaloLink && (
+                    <a href={zaloLink} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center hover:bg-[#0068FF] hover:border-[#0068FF] transition-all" title="Zalo">
+                      <svg className="w-6 h-6" viewBox="0 0 48 48"><path fill="#2962ff" d="M15,36V6.827l-1.211-0.811C8.64,8.083,5,13.112,5,19v10c0,7.732,6.268,14,14,14h10c4.722,0,8.883-2.348,11.417-5.931V36H15z"/><path fill="#eee" d="M29,5H19c-1.845,0-3.601,0.366-5.214,1.014C10.453,9.25,8,14.528,8,19c0,6.771,0.936,10.735,3.712,14.607c0.216,0.301,0.357,0.653,0.376,1.022c0.043,0.835-0.129,2.365-1.634,3.742c-0.162,0.148-0.059,0.419,0.16,0.428c0.942,0.041,2.843-0.014,4.797-0.877c0.557-0.246,1.191-0.203,1.729,0.083C20.453,39.764,24.333,40,28,40c4.676,0,9.339-1.04,12.417-2.916C42.038,34.799,43,32.014,43,29V19C43,11.268,36.732,5,29,5z"/><path fill="#2962ff" d="M36.75,27C34.683,27,33,25.317,33,23.25s1.683-3.75,3.75-3.75s3.75,1.683,3.75,3.75S38.817,27,36.75,27z M36.75,21c-1.24,0-2.25,1.01-2.25,2.25s1.01,2.25,2.25,2.25S39,24.49,39,23.25S37.99,21,36.75,21z"/><path fill="#2962ff" d="M31.5,27h-1c-0.276,0-0.5-0.224-0.5-0.5V18h1.5V27z"/><path fill="#2962ff" d="M27,19.75v0.519c-0.629-0.476-1.403-0.769-2.25-0.769c-2.067,0-3.75,1.683-3.75,3.75S22.683,27,24.75,27c0.847,0,1.621-0.293,2.25-0.769V26.5c0,0.276,0.224,0.5,0.5,0.5h1v-7.25H27z M24.75,25.5c-1.24,0-2.25-1.01-2.25-2.25S23.51,21,24.75,21S27,22.01,27,23.25S25.99,25.5,24.75,25.5z"/><path fill="#2962ff" d="M21.25,18h-8v1.5h5.321L13,26h0.026c-0.163,0.211-0.276,0.463-0.276,0.75V27h7.5c0.276,0,0.5-0.224,0.5-0.5v-1h-5.321L21,19h-0.026c0.163-0.211,0.276-0.463,0.276-0.75V18z"/></svg>
+                    </a>
+                  )}
+                  {trainer.socialLinks.lemon8 && (
+                    <a href={trainer.socialLinks.lemon8} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-[#FFE030] hover:text-black hover:border-[#FFE030] transition-all" title="Lemon8">
+                      <img src={lemon8Logo} alt="Lemon8" className="w-5 h-5" />
+                    </a>
+                  )}
+                  {trainer.socialLinks.threads && (
+                    <a href={trainer.socialLinks.threads} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-white hover:text-black hover:border-white transition-all" title="Threads">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 16 16"><path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161"/></svg>
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Cột Gallery ảnh */}
@@ -360,13 +414,40 @@ const TrainerProfile = ({ previewData }) => {
       </section>
 
       {/* =============================================
+          VIDEO INTRO
+          ============================================= */}
+      {trainer.videoIntro && (
+        <section className="py-20 bg-white">
+          <div className="container-custom max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-black text-slate-900 uppercase">Giới thiệu</h2>
+              <p className="text-lg text-slate-500 font-medium mt-4">Xem video để hiểu thêm về phong cách huấn luyện.</p>
+            </div>
+            <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl border border-slate-200">
+              {trainer.videoIntro.includes("youtube.com") || trainer.videoIntro.includes("youtu.be") ? (
+                <iframe
+                  src={trainer.videoIntro.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")}
+                  className="w-full h-full"
+                  allowFullScreen
+                  loading="lazy"
+                  title={`Video giới thiệu ${trainer.name}`}
+                />
+              ) : (
+                <video src={trainer.videoIntro} controls className="w-full h-full object-contain bg-black" />
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* =============================================
           2. PHƯƠNG PHÁP CỦA TÔI (DYNAMIC)
           ============================================= */}
       {trainer.methodologies?.length > 0 && (
         <section className="py-20 bg-white">
           <div className="container-custom">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-black text-slate-900 uppercase">Phương pháp huấn luyện</h2>
+              <h2 className="text-4xl font-black text-slate-900 uppercase">Phương pháp tập luyện</h2>
               <p className="text-lg text-slate-500 font-medium mt-4">Các trụ cột giúp bạn đạt kết quả bền vững.</p>
             </div>
 
@@ -395,7 +476,7 @@ const TrainerProfile = ({ previewData }) => {
       {stories.length > 0 && (
         <section id="customer-results" className="py-20 bg-[#1a1a1a] relative overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#ffffff 2px, transparent 2px)', backgroundSize: '30px 30px' }}></div>
-          
+
           <div className="container-custom relative z-10">
             <div className="text-center mb-16">
               <h2 className="text-4xl font-black uppercase text-white tracking-wider">Kết quả khách hàng</h2>
@@ -410,11 +491,11 @@ const TrainerProfile = ({ previewData }) => {
                 <CustomerCard key={story._id} story={story} />
               ))}
             </div>
-            
+
             {/* Link xem tất cả */}
             <div className="text-center mt-12">
-              <Link 
-                to="/ket-qua-khach-hang" 
+              <Link
+                to="/ket-qua-khach-hang"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border-2 border-primary text-white font-bold hover:bg-primary transition-colors uppercase tracking-widest"
               >
                 Xem tất cả câu chuyện <ArrowRight size={18} />
@@ -434,10 +515,10 @@ const TrainerProfile = ({ previewData }) => {
               <h2 className="text-4xl font-black uppercase text-slate-900">Câu hỏi thường gặp</h2>
               <p className="text-lg text-slate-500 mt-4 font-medium">Bạn vẫn còn thắc mắc? Dưới đây là những câu hỏi phổ biến nhất.</p>
             </div>
-            
+
             <div className="space-y-2">
               {trainer.faqs.map((faq, index) => (
-                <AccordionItem 
+                <AccordionItem
                   key={index}
                   question={faq.question}
                   answer={faq.answer}
