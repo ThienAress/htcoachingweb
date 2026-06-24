@@ -26,24 +26,67 @@ const Home = () => {
 
   const settings = settingsResponse?.data || {};
 
-  const organizationSchema = {
+  const homeSchema = {
     "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "HTCOACHING",
-    "url": "https://htcoachingweb.io.vn",
-    "logo": "https://htcoachingweb.io.vn/logo.png",
-    "description": "Chương trình luyện tập cá nhân hóa cùng HLV chuyên nghiệp tại HTCOACHING. Boxing, Gym & cardio giúp tăng cơ giảm mỡ hiệu quả. Đăng ký tập ngay hôm nay!",
-    "sameAs": [
-      "https://www.facebook.com/thienvo123456"
+    "@graph": [
+      {
+        "@type": "Organization",
+        "name": "HTCOACHING",
+        "url": "https://htcoachingweb.io.vn",
+        "logo": "https://htcoachingweb.io.vn/logo.png",
+        "description": "Chương trình luyện tập cá nhân hóa cùng HLV chuyên nghiệp tại HTCOACHING. Boxing, Gym & cardio giúp tăng cơ giảm mỡ hiệu quả. Đăng ký tập ngay hôm nay!",
+        "sameAs": [
+          "https://www.facebook.com/thienvo123456"
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "HTCOACHING có những dịch vụ gì?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "HTCOACHING cung cấp dịch vụ huấn luyện cá nhân 1 kèm 1 (Personal Training) với các bộ môn: Gym, Boxing, Cardio, Yoga, Stretching. Ngoài ra còn có Online Coaching (huấn luyện từ xa) và tư vấn dinh dưỡng."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Tập PT 1 kèm 1 tại HTCOACHING có gì khác biệt?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Mỗi học viên được xây dựng giáo án riêng phù hợp mục tiêu (giảm mỡ, tăng cơ), có HLV theo sát từng buổi tập, tư vấn dinh dưỡng cá nhân hóa, và theo dõi tiến độ hàng tuần. Cam kết kết quả 100%."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Các gói tập tại HTCOACHING có thời hạn bao lâu?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "HTCOACHING có 4 gói tập: Trải nghiệm (4 tuần), Cơ bản (8 tuần), Nâng cao (16 tuần), và VIP (24 tuần). Mỗi gói đều bao gồm giáo án cá nhân hóa, tư vấn dinh dưỡng, và hỗ trợ phục hồi sau tập."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "HTCOACHING có công cụ miễn phí nào không?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Có! HTCOACHING cung cấp miễn phí: Công cụ tính TDEE (lượng calo cần nạp mỗi ngày), Gợi ý thực đơn dinh dưỡng phù hợp mục tiêu, và Thư viện bài tập chi tiết với hướng dẫn từng bước."
+            }
+          }
+        ]
+      }
     ]
   };
+
 
   return (
     <main>
       <SEO 
         title="Trang chủ"
+        description="HTCOACHING - Chương trình luyện tập cá nhân hóa cùng HLV chuyên nghiệp. Boxing, Gym & Cardio giúp tăng cơ giảm mỡ hiệu quả tại TP.HCM. Đăng ký tập ngay!"
         canonical="/" 
-        jsonLd={organizationSchema}
+        jsonLd={homeSchema}
       />
       <Hero images={settings.heroImages} onAnimationComplete={() => setHeroAnimDone(true)} />
       <About images={settings.aboutImages} />

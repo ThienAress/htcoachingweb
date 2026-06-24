@@ -167,7 +167,7 @@ const MyWallet = () => {
   return (
     <phantom-ui loading={loading || undefined}>
     <div className="min-h-screen bg-[#1a1a1a] text-white">
-      <SEO title="Ví của tôi | HT Coaching" description="Quản lý số dư và nạp tiền vào ví nội bộ" />
+      <SEO title="Ví của tôi" noindex />
 
       {/* Header */}
       <div className="bg-gradient-to-r from-[#1a1a1a] to-[#2a2a2a] border-b border-gray-800">

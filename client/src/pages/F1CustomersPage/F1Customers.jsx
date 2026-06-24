@@ -8,6 +8,7 @@ import {
   reviewTestPermission,
 } from "../../services/f1Customer.service";
 import { toast } from "react-toastify";
+import SEO from "../../components/SEO";
 
 import F1CustomerList from "../../components/F1/F1CustomerList";
 import F1CustomerDetail from "../../components/F1/F1CustomerDetail";
@@ -228,6 +229,8 @@ const F1Customers = () => {
   };
 
   return (
+    <>
+    <SEO title="Quản lý khách hàng F1" noindex />
     <div className="flex min-h-screen bg-gradient-to-br from-slate-100 to-slate-200">
       {/* Mobile menu button */}
       <button
@@ -366,6 +369,7 @@ const F1Customers = () => {
         </div>
       </main>
     </div>
+    </>
   );
 };
 

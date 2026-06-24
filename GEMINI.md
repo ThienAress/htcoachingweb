@@ -425,25 +425,31 @@ Danh sách trang `noindex`: `/login`, `/admin-login`, `/login-success`, `/admin/
 
 ### Rule 5: JSON-LD Structured Data
 
-**Trang chủ — LocalBusiness:**
+**Trang chủ — Organization + FAQPage (`@graph`):**
 ```json
 {
   "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  "name": "HTCOACHING",
-  "description": "HLV cá nhân: Gym, Boxing, Tăng cơ & Giảm mỡ",
-  "url": "https://htcoachingweb.io.vn",
-  "image": "https://htcoachingweb.io.vn/og-image.png",
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "TP. Hồ Chí Minh",
-    "addressCountry": "VN"
-  },
-  "priceRange": "$$"
+  "@graph": [
+    {
+      "@type": "Organization",
+      "name": "HTCOACHING",
+      "url": "https://htcoachingweb.io.vn"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Câu hỏi?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Trả lời." }
+        }
+      ]
+    }
+  ]
 }
 ```
 
-**Trang Customer Story — Article:**
+**Trang Customer Story — Article (có `datePublished`, `dateModified`):**
 ```json
 {
   "@context": "https://schema.org",
@@ -451,6 +457,7 @@ Danh sách trang `noindex`: `/login`, `/admin-login`, `/login-success`, `/admin/
   "headline": "Vy Ngô - 27 tuổi - Giảm 6kg trong 3 tháng",
   "image": "https://...",
   "datePublished": "2026-01-15",
+  "dateModified": "2026-06-22",
   "author": { "@type": "Organization", "name": "HTCOACHING" }
 }
 ```
@@ -492,7 +499,9 @@ Danh sách trang `noindex`: `/login`, `/admin-login`, `/login-success`, `/admin/
 2. Thêm `<SEO>` component trong page
 3. Thêm vào `staticRoutes` trong `generate-sitemap.js`
 4. Thêm vào `routesToPrerender` trong `prerender.js`
-5. Cân nhắc thêm JSON-LD structured data
+5. Cân nhắc thêm JSON-LD structured data (dùng `@graph` nếu cần FAQPage)
+6. Thêm **internal links** đến ≥2 trang public khác (xem Rule 10)
+7. Cập nhật `llms.txt` nếu page quan trọng (xem Rule 9)
 
 ### Rule 7: Canonical URL
 
@@ -516,6 +525,29 @@ Danh sách trang `noindex`: `/login`, `/admin-login`, `/login-success`, `/admin/
 ```
 
 Áp dụng cho: Customer Story Detail, Trainer Profile — các trang có nested URL.
+
+### Rule 9: AI SEO (llms.txt & robots.txt cho AI bots)
+
+Project đã có:
+- **`client/public/llms.txt`** — Mô tả HTCOACHING cho AI search engines (GPT, Claude, Perplexity)
+- **`client/public/robots.txt`** — Allow 6 AI bots: GPTBot, ClaudeBot, PerplexityBot, GoogleOther, Applebot-Extended, Bytespider. Block CCBot.
+
+**Rules:**
+- Khi thêm page public **quan trọng** → cập nhật `llms.txt` phần "Available Pages"
+- KHÔNG xóa hoặc sửa AI bot rules trong `robots.txt` trừ khi user yêu cầu
+- KHÔNG chặn GPTBot, ClaudeBot, PerplexityBot — đây là lưu lượng tốt cho SEO
+
+### Rule 10: Internal Linking
+
+Mỗi trang public PHẢI có **internal links đến ≥2 trang public khác**:
+
+| Pattern | Áp dụng |
+|---------|--------|
+| Section "Khám phá thêm" | CustomerStoryDetail → TDEE, Exercises, Kết quả KH |
+| Section "Công cụ hỗ trợ" | ExercisesPage → TDEE, Meal Plan, Kết quả KH |
+| CTA tự nhiên trong content | TDEE → Meal Plan (đã có sẵn) |
+
+**Mục đích:** Tạo mạng lưới Hub-and-Spoke cho Google crawl. Không để orphan page.
 
 ---
 
@@ -697,7 +729,7 @@ Agent phải tham chiếu quy tắc chi tiết trong `.agents/`:
 **quality/** — Chất lượng code/UI:
 - [Audit Playbook](.agents/skills/quality/audit-playbook.md) — 7 danh mục quét codebase (bugs, security, perf, tests, tech debt, deps, DX) + finding format + prioritization
 - [Testing Conventions](.agents/skills/quality/testing.md) — Stack, cấu trúc, quy tắc viết test
-- [UI Quality](.agents/skills/quality/ui-quality.md) — Copy rules, color consistency, anti-slop patterns, accessibility
+- [UI Quality](.agents/skills/quality/ui-quality.md) — Brand/Product register, 12 AI-slop bans, color/typography/layout/motion rules, interaction states, accessibility (tích hợp từ Impeccable)
 
 **reference/** — Tham khảo:
 - [Known Issues](.agents/skills/reference/known_issues.md) — Vấn đề đã biết, AI đọc nhưng ĐỪNG tự ý sửa
@@ -706,8 +738,11 @@ Agent phải tham chiếu quy tắc chi tiết trong `.agents/`:
 
 - [/audit](.agents/workflows/audit.md) — Quét proactive codebase: 7 categories, findings table, plan generation, backlog reconcile
 - [/ship](.agents/workflows/ship.md) — Pre-deploy gate: build + security + SEO + cleanup check
-- [/new-page](.agents/workflows/new-page.md) — Thêm trang public mới đầy đủ SEO (6 bước)
+- [/seo-check](.agents/workflows/seo-check.md) — Quét SEO toàn bộ trang public: SEO component, JSON-LD, internal links, sitemap, prerender, AI SEO
+- [/new-page](.agents/workflows/new-page.md) — Thêm trang public mới đầy đủ SEO (8 bước, bao gồm FAQPage + Internal Linking)
 - [/schema-change](.agents/workflows/schema-change.md) — Thay đổi Mongoose schema an toàn (7 bước)
+- [/ui-check](.agents/workflows/ui-check.md) — Quét UI toàn bộ codebase: AI slop, color, typography, layout, motion, interaction states, accessibility (8 dimensions, scored /40)
+- [/pre-deploy](.agents/workflows/pre-deploy.md) — Full pipeline trước push: audit quick → ui-check → seo-check → ship. Gom findings, fix hết, re-check → READY TO PUSH
 
 ### Skill Routing — AI dùng skill/workflow nào khi nào
 
@@ -724,9 +759,16 @@ Agent phải tham chiếu quy tắc chi tiết trong `.agents/`:
 | Hỏi về test structure hoặc cần setup test | `testing-conventions` skill |
 | Làm việc với file lớn hoặc code có workaround | `known-issues` skill |
 | Trước khi deploy lên Netlify/Render | `/ship` workflow |
+| Kiểm tra SEO trang public trước deploy | `/seo-check` workflow |
 | Thêm trang public mới cần SEO | `/new-page` workflow |
 | Thay đổi Mongoose schema | `/schema-change` workflow |
 | Code component UI mới hoặc sửa giao diện | `ui-quality` skill |
+| Quét chất lượng UI toàn bộ hoặc 1 surface | `/ui-check` workflow |
+| Quét UI chỉ Brand surfaces (landing, public) | `/ui-check public` workflow |
+| Quét UI chỉ Product surfaces (admin, trainer) | `/ui-check admin` workflow |
+| **Full pipeline trước push/deploy** | **`/pre-deploy` workflow** |
+| Full pipeline nhưng bỏ qua audit | `/pre-deploy skip-audit` workflow |
+| Full pipeline nhưng bỏ qua UI (chỉ sửa BE) | `/pre-deploy skip-ui` workflow |
 
 ---
 
@@ -741,8 +783,9 @@ Bộ rules này được thiết kế riêng cho htcoachingweb, dựa trên:
 | **Improve** (shadcn) | Audit playbook (7 categories), plan template, finding format, reconcile flow | ~8% |
 | **Harness** (revfactory) | Tư duy Progressive Disclosure, Agent identity, Pipeline flow | ~5% |
 | **Agent Skills** (Addy Osmani) | YAML frontmatter pattern, Skill Routing, feature-spec, debugging workflows | ~5% |
-| **Taste Skill** (Leonxlnx) + **frontend-design** (Anthropic) | Anti-slop patterns, color consistency, copy rules, output enforcement | ~5% |
-| **Project-specific** | Architecture, Patterns, Security, SEO, Code Style, Testing, Known Issues | ~45% |
+| **Taste Skill** (Leonxlnx) + **frontend-design** (Anthropic) | Anti-slop patterns, color consistency, copy rules, output enforcement | ~3% |
+| **Impeccable** (Paul Bakaus) | 12 absolute bans, Brand/Product register, color/typo/layout/motion rules, AI-slop 2-step test | ~7% |
+| **Project-specific** | Architecture, Patterns, Security, SEO, Code Style, Testing, Known Issues | ~40% |
 
 **Nguyên tắc thiết kế:** 1 file, đủ sâu, dễ maintain, không overengineer.
 

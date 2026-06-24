@@ -305,6 +305,22 @@ const MealPlan = () => {
           foodDatabase={foodDatabase}
         />
       </main>
+
+      {/* Internal Links */}
+      <div className="max-w-2xl mx-auto py-6 px-4">
+        <div className="flex flex-wrap justify-center gap-4 text-sm">
+          <Link to="/tdee-calculator" className="text-gray-400 hover:text-primary transition-colors underline underline-offset-4">
+            📊 Tính TDEE
+          </Link>
+          <Link to="/exercises" className="text-gray-400 hover:text-primary transition-colors underline underline-offset-4">
+            📚 Thư viện bài tập
+          </Link>
+          <Link to="/ket-qua-khach-hang" className="text-gray-400 hover:text-primary transition-colors underline underline-offset-4">
+            🏆 Kết quả khách hàng
+          </Link>
+        </div>
+      </div>
+
       <ChatIcons />
     </>
   );

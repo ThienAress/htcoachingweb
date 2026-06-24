@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, Save, Plus, Trash2, GripVertical, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Activity, CheckSquare, Send
+  ArrowLeft, Save, Plus, Trash2, GripVertical, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Activity, CheckSquare, Send, Dumbbell, Search, X as XIcon
 } from "lucide-react";
 import { toast } from "react-toastify";
 import SEO from "../../components/SEO";
@@ -27,23 +27,12 @@ const ExerciseNameInput = ({ value, onChange, readOnly, isLocked }) => {
   const handleSearch = async (text) => {
     if (readOnly || isLocked) return;
     onChange(text);
-    if (text.length < 2) { setSuggestions([]); return; }
+    if (text.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
     try {
       const res = await getExercises(1, 10, text);
       setSuggestions(res.data || []);
       setShowSuggestions(true);
     } catch { setSuggestions([]); }
-  };
-
-  const handleFocus = async () => {
-    if (readOnly || isLocked) return;
-    if (suggestions.length === 0 && !value) {
-      try {
-        const res = await getExercises(1, 100, "");
-        setSuggestions(res.data || []);
-      } catch { }
-    }
-    setShowSuggestions(true);
   };
 
   return (
@@ -52,14 +41,13 @@ const ExerciseNameInput = ({ value, onChange, readOnly, isLocked }) => {
         type="text"
         value={value}
         onChange={(e) => handleSearch(e.target.value)}
-        onFocus={handleFocus}
         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
         placeholder="Tên bài tập..."
         className={`${inputClass} h-full ${isLocked ? 'opacity-70 cursor-not-allowed' : ''}`}
         readOnly={readOnly || isLocked}
       />
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl max-h-60 overflow-y-auto">
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl max-h-48 overflow-y-auto">
           {suggestions.map((ex) => (
             <button
               key={ex._id}
@@ -72,6 +60,102 @@ const ExerciseNameInput = ({ value, onChange, readOnly, isLocked }) => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+// ===== EXERCISE BROWSER MODAL =====
+const ExerciseBrowserModal = ({ isOpen, onClose }) => {
+  const [exercises, setExercises] = useState([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState("");
+
+  const muscleGroups = ["Ngực", "Lưng", "Vai", "Tay trước", "Tay sau", "Chân", "Bụng", "Mông", "Cardio"];
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchExercises();
+  }, [isOpen, search, selectedGroup]);
+
+  const fetchExercises = async () => {
+    setLoading(true);
+    try {
+      const res = await getExercises(1, 50, search, selectedGroup);
+      setExercises(res.data || []);
+    } catch { setExercises([]); }
+    setLoading(false);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+      <div className="bg-gray-900 rounded-2xl w-full max-w-3xl max-h-[85vh] shadow-2xl border border-gray-800 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <Dumbbell className="w-5 h-5 text-primary" /> Danh sách bài tập
+          </h3>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
+            <XIcon className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Search & Filter */}
+        <div className="p-4 border-b border-gray-800 space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm bài tập..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary/50"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedGroup("")}
+              className={`px-3 py-1 text-xs rounded-full transition-colors ${!selectedGroup ? 'bg-primary text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+            >
+              Tất cả
+            </button>
+            {muscleGroups.map(g => (
+              <button
+                key={g}
+                onClick={() => setSelectedGroup(g === selectedGroup ? "" : g)}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${selectedGroup === g ? 'bg-primary text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Exercise List */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">Đang tải...</div>
+          ) : exercises.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">Không tìm thấy bài tập nào</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {exercises.map((ex) => (
+                <div key={ex._id} className="flex items-center gap-3 p-3 bg-gray-800/50 border border-gray-700/50 rounded-xl hover:border-primary/30 transition-colors">
+                  {ex.image && (
+                    <img src={ex.image} alt={ex.name} className="w-14 h-14 rounded-lg object-cover shrink-0" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{ex.name}</p>
+                    <p className="text-xs text-gray-500">{ex.muscleGroup}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -149,7 +233,7 @@ const ExerciseTable = ({ exercises, onChange, mode, isLocked }) => {
   const showCoaching = !isAssessment && (hasData("coachingTips") || true);
 
   return (
-    <div className="overflow-x-auto pb-32 min-h-[250px]">
+    <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-primary border-b border-gray-700">
@@ -330,6 +414,7 @@ const WorkoutPlanDetail = () => {
   const [openSections, setOpenSections] = useState(new Set([0, 1, 2, 3, 4, 5]));
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showExerciseBrowser, setShowExerciseBrowser] = useState(false);
 
   // Navigation for dates
   const [targetDate, setTargetDate] = useState(null);
@@ -558,7 +643,7 @@ const WorkoutPlanDetail = () => {
 
         <div className="container-custom mt-6">
           {/* Tabs */}
-          <div className="flex space-x-1 border-b border-gray-800 mb-6">
+          <div className="flex items-center border-b border-gray-800 mb-6">
             <button
               onClick={() => setActiveTab("training")}
               className={`flex items-center gap-2 px-6 py-3 font-medium text-sm transition-colors border-b-2 ${activeTab === "training"
@@ -577,7 +662,18 @@ const WorkoutPlanDetail = () => {
             >
               <CheckSquare className="w-4 h-4" /> ĐÁNH GIÁ SAU TẬP
             </button>
+            {activeTab === "training" && !isTrainingLocked && (
+              <button
+                onClick={() => setShowExerciseBrowser(true)}
+                className="flex items-center gap-1.5 px-4 py-2 ml-auto text-xs uppercase font-semibold text-gray-400 hover:text-primary border border-gray-700 hover:border-primary/50 rounded-lg transition-colors bg-gray-800/50 hover:bg-primary/5"
+              >
+                <Dumbbell className="w-3.5 h-3.5" /> XEM DANH SÁCH BÀI TẬP
+              </button>
+            )}
           </div>
+
+          {/* Exercise Browser Modal */}
+          <ExerciseBrowserModal isOpen={showExerciseBrowser} onClose={() => setShowExerciseBrowser(false)} />
 
           {/* Sections List */}
           <div className="space-y-4">

@@ -53,7 +53,7 @@ const Hero = ({ images, onAnimationComplete }) => {
       // Reset visibility so children can animate
       gsap.set([titleRef.current, featuresRef.current, ctaRef.current], { opacity: 1 });
       
-      mm.add("(min-width: 768px)", () => {
+      mm.add("(min-width: 768px) and (prefers-reduced-motion: no-preference)", () => {
         // 1. Text Animation (Chars sliding & fading)
         if (titleRef.current) {
           split = new SplitType(titleRef.current, { types: 'chars, words' });
@@ -74,7 +74,7 @@ const Hero = ({ images, onAnimationComplete }) => {
               scale: 1,
               rotationX: 0,
               duration: 0.8,
-              ease: "back.out(2)", // Tạo độ nảy (bounce) rất mạnh mẽ
+              ease: "power3.out",
               stagger: 0.03,
               delay: 0.2,
               transformOrigin: "bottom center"
@@ -215,7 +215,7 @@ const Hero = ({ images, onAnimationComplete }) => {
       </div>
 
       {/* CONTENT */}
-      <div className="absolute top-0 left-0 w-full h-full flex items-center lg:items-start justify-start pt-24 lg:pt-[166px] 2xl:pt-[187px] pb-6 pl-4 sm:pl-8 lg:pl-16 xl:pl-20 2xl:pl-24 z-10 pointer-events-none overflow-y-auto">
+      <div className="absolute top-0 left-0 w-full h-full flex items-center lg:items-start justify-start pt-20 lg:pt-[96px] 2xl:pt-[140px] pb-6 pl-4 sm:pl-8 lg:pl-16 xl:pl-20 2xl:pl-24 z-10 pointer-events-none">
         <div className="max-w-2xl lg:max-w-lg xl:max-w-2xl 2xl:max-w-3xl mx-auto sm:mx-0 text-left pointer-events-auto px-4 sm:px-0">
           <h1 ref={titleRef} className="hero-title font-display font-extrabold uppercase leading-tight mb-3 lg:mb-4" style={{ perspective: "1000px" }}>
             <span className="gradient-text">TĂNG CƠ - GIẢM MỠ</span>, <span className="gradient-text">LỘT XÁC NGOẠN MỤC</span> TRONG 90 NGÀY? BẠN ĐÃ SẴN SÀNG CÙNG TÔI <span className="gradient-text">CHINH PHỤC MỤC TIÊU</span> NÀY CHƯA!

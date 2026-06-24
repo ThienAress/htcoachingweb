@@ -39,7 +39,7 @@ const ScrollToTopButton = () => {
         <button
           onClick={handleClick}
           title="Lên đầu trang"
-          className="fixed bottom-[20px] sm:bottom-[30px] right-[14px] sm:right-[24px] z-[9998] border-none outline-none bg-gray-500/80 hover:bg-primary text-white cursor-pointer p-[10px] sm:p-[15px] 
+          className="fixed bottom-[20px] sm:bottom-[30px] right-[14px] sm:right-[24px] z-40 border-none outline-none bg-gray-500/80 hover:bg-primary text-white cursor-pointer p-[10px] sm:p-[15px] 
           rounded-full shadow-md transition-all duration-300 backdrop-blur-sm hover:-translate-y-1 flex items-center justify-center"
         >
           <ArrowUp size={20} />

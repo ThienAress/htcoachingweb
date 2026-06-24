@@ -38,6 +38,7 @@ const SiteSettings = lazy(() => import("./pages/admin/SiteSettings"));
 const DepositManagement = lazy(() => import("./pages/admin/DepositManagement"));
 const F1AiRuleManagement = lazy(() => import("./pages/admin/F1AiRuleManagement"));
 const TrainerSubscriberManagement = lazy(() => import("./pages/admin/TrainerSubscriberManagement"));
+const GymManagement = lazy(() => import("./pages/admin/GymManagement"));
 const TrainerCheckinHistory = lazy(() => import("./pages/trainer/TrainerCheckinHistory"));
 const TrainingSchedule = lazy(() => import("./pages/trainer/TrainingSchedule"));
 const WorkoutPlan = lazy(() => import("./pages/trainer/WorkoutPlan"));
@@ -192,6 +193,7 @@ function AppContent() {
           <Route path="trainers/:id/profile" element={<TrainerProfileEditor />} />
           <Route path="customer-stories" element={<CustomerStoryManagement />} />
           <Route path="site-settings" element={<SiteSettings />} />
+          <Route path="gyms" element={<GymManagement />} />
           <Route path="deposits" element={<DepositManagement />} />
           <Route
             path="exercise-suggestions"

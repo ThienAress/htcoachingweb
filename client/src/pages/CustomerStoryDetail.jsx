@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import gsap from "gsap";
-import { ArrowLeft, CalendarDays, CheckCircle2, Dumbbell, Hourglass } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, Dumbbell, Flame, Hourglass } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   getPublicCustomerStories,
@@ -16,12 +16,15 @@ const ContinuingBanner = ({ name }) => {
   const dot3Ref = useRef(null);
 
   useEffect(() => {
+    // Skip animations if user prefers reduced motion
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
     let ctx = gsap.context(() => {
       const tl = gsap.timeline({ repeat: -1 });
       tl.to(iconRef.current, {
         rotation: "+=180",
         duration: 1,
-        ease: "back.inOut(1.5)",
+        ease: "power2.inOut",
       })
       .to(dot1Ref.current, { opacity: 1, duration: 0.2 })
       .to(dot2Ref.current, { opacity: 1, duration: 0.2 })
@@ -181,7 +184,9 @@ const CustomerStoryDetail = ({ previewData }) => {
         "url": "https://htcoachingweb.io.vn/logo.png"
       }
     },
-    "description": `Khám phá hành trình ${story.duration} thay đổi vóc dáng của ${story.name} (${story.age} tuổi, ${story.job}). Kết quả: ${story.result}.`
+    "description": `Khám phá hành trình ${story.duration} thay đổi vóc dáng của ${story.name} (${story.age} tuổi, ${story.job}). Kết quả: ${story.result}.`,
+    ...(story.createdAt && { "datePublished": new Date(story.createdAt).toISOString().split("T")[0] }),
+    ...(story.updatedAt && { "dateModified": new Date(story.updatedAt).toISOString().split("T")[0] })
   };
 
   return (
@@ -268,6 +273,12 @@ const CustomerStoryDetail = ({ previewData }) => {
                 </div>
               ))}
             </div>
+              {story.updatedAt && (
+                <p className="mt-4 text-xs text-gray flex items-center gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Cập nhật: {new Date(story.updatedAt).toLocaleDateString("vi-VN")}
+                </p>
+              )}
           </aside>
 
           <div className="min-w-0">
@@ -394,6 +405,54 @@ const CustomerStoryDetail = ({ previewData }) => {
                 </div>
               </section>
             )}
+
+            {/* Internal Linking — SEO Hub */}
+            <section className="mt-10 border-t border-gray-200 pt-10">
+              <h2 className="h3 text-center text-2xl text-primary uppercase">
+                Khám phá thêm
+              </h2>
+              <p className="text-center text-sm text-gray mt-2">
+                Bắt đầu hành trình thay đổi vóc dáng của bạn ngay hôm nay
+              </p>
+              <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                <Link
+                  to="/tdee-calculator"
+                  className="group border border-gray-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+                >
+                  <Flame className="h-6 w-6 text-primary mb-3" />
+                  <h3 className="font-bold text-dark group-hover:text-primary transition">
+                    Tính TDEE & Macro
+                  </h3>
+                  <p className="mt-2 text-sm text-gray leading-relaxed">
+                    Xác định lượng calo cần nạp mỗi ngày để đạt mục tiêu giảm mỡ hoặc tăng cơ.
+                  </p>
+                </Link>
+                <Link
+                  to="/exercises"
+                  className="group border border-gray-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+                >
+                  <Dumbbell className="h-6 w-6 text-primary mb-3" />
+                  <h3 className="font-bold text-dark group-hover:text-primary transition">
+                    Thư viện bài tập
+                  </h3>
+                  <p className="mt-2 text-sm text-gray leading-relaxed">
+                    Tạo lịch tập cá nhân hóa với hệ thống bài tập chuyên nghiệp và xuất PDF miễn phí.
+                  </p>
+                </Link>
+                <Link
+                  to="/ket-qua-khach-hang"
+                  className="group border border-gray-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+                >
+                  <CheckCircle2 className="h-6 w-6 text-primary mb-3" />
+                  <h3 className="font-bold text-dark group-hover:text-primary transition">
+                    Tất cả kết quả
+                  </h3>
+                  <p className="mt-2 text-sm text-gray leading-relaxed">
+                    Xem toàn bộ hành trình thay đổi vóc dáng của các học viên HTCOACHING.
+                  </p>
+                </Link>
+              </div>
+            </section>
           </div>
         </div>
       </section>

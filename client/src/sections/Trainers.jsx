@@ -55,7 +55,7 @@ const Trainers = ({ previewData }) => {
     if (!sectionRef.current || trainersList.length === 0) return;
 
     let mm = gsap.matchMedia(sectionRef);
-    mm.add("(min-width: 768px)", () => {
+    mm.add("(min-width: 768px) and (prefers-reduced-motion: no-preference)", () => {
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: sectionRef.current,

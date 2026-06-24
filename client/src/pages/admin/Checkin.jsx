@@ -28,6 +28,7 @@ import {
 import { getOrders } from "../../services/order.service";
 import { getCheckins, createCheckin } from "../../services/checkin.service";
 import { useAuth } from "../../context/AuthContext";
+import SEO from "../../components/SEO";
 
 const muscles = [
   "Ngực",
@@ -209,6 +210,7 @@ const Checkin = () => {
 
   return (
     <>
+      <SEO title="Check-in khách hàng" noindex />
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <phantom-ui loading={isLoading || undefined}>
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white py-12 px-4 md:px-6">

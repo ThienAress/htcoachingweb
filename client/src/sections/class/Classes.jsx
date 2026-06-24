@@ -64,8 +64,11 @@ const Classes = ({ images }) => {
 
   // 1. Chỉ chạy 1 lần khi load trang để animate Header, set vị trí ban đầu và gắn Draggable
   useEffect(() => {
+    // Skip scroll-triggered animations if user prefers reduced motion
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
     let ctx = gsap.context(() => {
-      if (headerRef.current) {
+      if (headerRef.current && !prefersReduced) {
         gsap.from(headerRef.current.children, {
           y: -20, opacity: 0, duration: 0.7, stagger: 0.15, ease: "power2.out",
           scrollTrigger: { trigger: headerRef.current, start: "top 85%", once: true },
@@ -147,7 +150,7 @@ const Classes = ({ images }) => {
         tl.set(card, { zIndex: 0 })
           .to(card, {
             xPercent: 0, scale: 0.4, opacity: 0, filter: "blur(10px)",
-            duration: 0.35, ease: "power2.in"
+            duration: 0.35, ease: "power2.in", overwrite: true
           })
           .to(card, {
             xPercent: xPercent, scale: scale, opacity: opacity, filter: filter,
@@ -157,16 +160,10 @@ const Classes = ({ images }) => {
         // Các thẻ còn lại: Trượt mượt mà
         gsap.to(card, {
           xPercent: xPercent, scale: scale, opacity: opacity, zIndex: zIndex, filter: filter,
-          duration: 0.75, ease: "power2.inOut",
+          duration: 0.75, ease: "power2.inOut", overwrite: true,
         });
       }
     });
-
-    // Cực kỳ quan trọng: CHỈ kill tweens đang chạy của thẻ, 
-    // KHÔNG dùng ctx.revert() ở đây để tránh bị xóa sạch CSS Transforms làm thẻ bị giật ngược về vị trí gốc!
-    return () => {
-      gsap.killTweensOf(cards);
-    };
   }, [currentIndex, prevIndex, classes.length]);
 
   const handleNext = () => {

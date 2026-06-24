@@ -4,6 +4,14 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Reduced-motion media query — dùng chung cho mọi GSAP animation
+const MOTION_OK = "(min-width: 768px) and (prefers-reduced-motion: no-preference)";
+
+/** Check xem user có bật reduced-motion không */
+export const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 /**
  * Hook animate một element khi scroll tới.
  * @param {object} options - { from, trigger, start, markers }
@@ -25,7 +33,7 @@ export const useGsapReveal = (options = {}) => {
     } = options;
 
     let mm = gsap.matchMedia();
-    mm.add("(min-width: 768px)", () => {
+    mm.add(MOTION_OK, () => {
       gsap.from(ref.current, {
         ...from,
         duration,
@@ -68,7 +76,7 @@ export const useGsapStagger = (childSelector, options = {}) => {
     if (!children.length) return;
 
     let mm = gsap.matchMedia();
-    mm.add("(min-width: 768px)", () => {
+    mm.add(MOTION_OK, () => {
       gsap.from(children, {
         ...from,
         duration,
@@ -102,7 +110,7 @@ export const useGsapTimeline = (options = {}) => {
     const { start = "top 85%", ease = "power2.out" } = options;
 
     let mm = gsap.matchMedia();
-    mm.add("(min-width: 768px)", () => {
+    mm.add(MOTION_OK, () => {
       tlRef.current = gsap.timeline({
         scrollTrigger: {
           trigger: triggerRef.current,

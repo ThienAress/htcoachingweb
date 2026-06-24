@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { pdf } from "@react-pdf/renderer";
 import { saveAs } from "file-saver";
 import { toast, ToastContainer } from "react-toastify";
@@ -129,6 +130,25 @@ const ExercisesPage = () => {
         title="Hệ thống bài tập & Lịch tập cá nhân"
         description="Tạo lịch tập cá nhân hóa với hệ thống bài tập chuyên nghiệp từ HTCOACHING. Có đầy đủ hướng dẫn, video và xuất file PDF miễn phí."
         canonical="/exercises"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          "name": "Hệ thống bài tập & Lịch tập cá nhân - HTCOACHING",
+          "description": "Tạo lịch tập cá nhân hóa với hệ thống bài tập chuyên nghiệp. Xuất file PDF miễn phí.",
+          "url": "https://htcoachingweb.io.vn/exercises",
+          "applicationCategory": "HealthApplication",
+          "operatingSystem": "Web",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "VND"
+          },
+          "provider": {
+            "@type": "Organization",
+            "name": "HTCOACHING",
+            "url": "https://htcoachingweb.io.vn"
+          }
+        }}
       />
       <Header />
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
@@ -278,6 +298,57 @@ const ExercisesPage = () => {
           )}
         </div>
       </main>
+
+      {/* Internal Linking — SEO Hub */}
+      <section className="bg-gray-900 py-12 border-t border-gray-800">
+        <div className="container-custom">
+          <h2 className="text-center text-2xl font-bold text-white uppercase mb-2">
+            Công cụ <span className="text-primary">hỗ trợ</span> luyện tập
+          </h2>
+          <p className="text-center text-sm text-gray-400 mb-8">
+            Kết hợp bài tập với dinh dưỡng để đạt kết quả tốt nhất
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Link
+              to="/tdee-calculator"
+              className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <Flame className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-white group-hover:text-primary transition">
+                Tính TDEE & Macro
+              </h3>
+              <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+                Xác định lượng calo và macro cần nạp mỗi ngày phù hợp mục tiêu.
+              </p>
+            </Link>
+            <Link
+              to="/mealplan"
+              className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <Calendar className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-white group-hover:text-primary transition">
+                Gợi ý thực đơn
+              </h3>
+              <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+                Nhận thực đơn dinh dưỡng phù hợp mục tiêu giảm mỡ hoặc tăng cơ.
+              </p>
+            </Link>
+            <Link
+              to="/ket-qua-khach-hang"
+              className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <Dumbbell className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-white group-hover:text-primary transition">
+                Kết quả khách hàng
+              </h3>
+              <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+                Xem hành trình thay đổi vóc dáng thực tế từ các học viên HTCOACHING.
+              </p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <Contact />
       <ChatIcons />
       <Footer />

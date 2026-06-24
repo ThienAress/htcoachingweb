@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Dumbbell,
   CheckCircle2,
+  Flame,
   Play,
   MessageCircle,
   Brain,
@@ -227,13 +228,8 @@ const TrainerProfile = ({ previewData }) => {
 
   return (
     <main className="bg-slate-100 min-h-screen font-sans">
-      <SEO
-        title={`${trainer.name} - ${trainer.title || 'Huấn luyện viên'} | HTCOACHING`}
-        description={trainer.headline || trainer.bio || `Huấn luyện viên ${trainer.name} tại HTCOACHING.`}
-        image={trainerImages[0]}
-        canonical={`/huan-luyen-vien/${trainer.slug}`}
-        jsonLd={{
-          "@context": "https://schema.org",
+      {(() => {
+        const personSchema = {
           "@type": "Person",
           "name": trainer.name,
           "jobTitle": trainer.title || "Huấn Luyện Viên Cá Nhân",
@@ -241,8 +237,28 @@ const TrainerProfile = ({ previewData }) => {
           "image": trainerImages[0] || "",
           "url": `https://htcoachingweb.io.vn/huan-luyen-vien/${trainer.slug}`,
           "worksFor": { "@type": "Organization", "name": "HTCOACHING" }
-        }}
-      />
+        };
+        const graph = [personSchema];
+        if (trainer.faqs?.length > 0) {
+          graph.push({
+            "@type": "FAQPage",
+            "mainEntity": trainer.faqs.map(faq => ({
+              "@type": "Question",
+              "name": faq.question,
+              "acceptedAnswer": { "@type": "Answer", "text": faq.answer }
+            }))
+          });
+        }
+        return (
+          <SEO
+            title={`${trainer.name} - ${trainer.title || 'Huấn luyện viên'} | HTCOACHING`}
+            description={trainer.headline || trainer.bio || `Huấn luyện viên ${trainer.name} tại HTCOACHING.`}
+            image={trainerImages[0]}
+            canonical={`/huan-luyen-vien/${trainer.slug}`}
+            jsonLd={{ "@context": "https://schema.org", "@graph": graph }}
+          />
+        );
+      })()}
 
       {/* =============================================
           1. HERO SECTION — Nền tối, Gallery ảnh
@@ -530,6 +546,56 @@ const TrainerProfile = ({ previewData }) => {
           </div>
         </section>
       )}
+
+      {/* Internal Linking — SEO Hub */}
+      <section className="py-14 bg-slate-100 border-t border-slate-200">
+        <div className="container-custom">
+          <h2 className="text-center text-3xl font-black uppercase text-slate-900 mb-2">
+            Khám phá <span className="text-primary">thêm</span>
+          </h2>
+          <p className="text-center text-sm text-slate-500 mb-8">
+            Bắt đầu hành trình thay đổi vóc dáng ngay hôm nay
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3 max-w-4xl mx-auto">
+            <Link
+              to="/tdee-calculator"
+              className="group border border-slate-200 bg-white p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <Flame className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
+                Tính TDEE & Macro
+              </h3>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                Xác định lượng calo cần nạp mỗi ngày để đạt mục tiêu.
+              </p>
+            </Link>
+            <Link
+              to="/exercises"
+              className="group border border-slate-200 bg-white p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <Dumbbell className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
+                Thư viện bài tập
+              </h3>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                Tạo lịch tập cá nhân hóa và xuất PDF miễn phí.
+              </p>
+            </Link>
+            <Link
+              to="/ket-qua-khach-hang"
+              className="group border border-slate-200 bg-white p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <CheckCircle2 className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
+                Kết quả khách hàng
+              </h3>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                Xem hành trình thay đổi vóc dáng từ các học viên HTCOACHING.
+              </p>
+            </Link>
+          </div>
+        </div>
+      </section>
 
     </main>
   );
