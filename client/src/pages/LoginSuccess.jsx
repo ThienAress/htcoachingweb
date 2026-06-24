@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
+import SEO from "../components/SEO";
 
 const LoginSuccess = () => {
   const navigate = useNavigate();
@@ -34,7 +35,12 @@ const LoginSuccess = () => {
     updateUser();
   }, [refetch, navigate]);
 
-  return <div className="p-4 text-center">Đang đăng nhập...</div>;
+  return (
+    <>
+      <SEO title="Đang đăng nhập" noindex />
+      <div className="p-4 text-center">Đang đăng nhập...</div>
+    </>
+  );
 };
 
 export default LoginSuccess;

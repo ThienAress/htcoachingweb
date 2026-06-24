@@ -286,6 +286,10 @@ const ChatIcons = () => {
   }, []);
 
   useEffect(() => {
+    // Skip GSAP animations if user prefers reduced motion
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) return;
+
     const ctx = gsap.context(() => {
       tl.current = gsap.timeline({ paused: true });
 
@@ -296,7 +300,7 @@ const ChatIcons = () => {
         opacity: 1,
         duration: 0.5,
         stagger: 0.08,
-        ease: "back.out(1.5)",
+        ease: "power3.out",
       });
     }, wrapperRef);
 
@@ -316,7 +320,7 @@ const ChatIcons = () => {
   return (
     <div
       ref={wrapperRef}
-      className="fixed z-[9999]"
+      className="fixed z-50"
       style={{
         right: `${ui.right}px`,
         bottom: `calc(${ui.bottom}px + env(safe-area-inset-bottom, 0px))`,

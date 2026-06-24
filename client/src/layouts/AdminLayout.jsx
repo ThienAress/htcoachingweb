@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
 import {
   Package,
   FileText,
@@ -44,6 +45,7 @@ const SidebarContent = ({ onItemClick }) => {
       items: [
         { path: "/admin/exercises", label: "Bài tập", icon: Dumbbell },
         { path: "/admin/foods", label: "Thực phẩm", icon: Apple },
+        { path: "/admin/gyms", label: "Phòng tập (CLB)", icon: Home },
       ],
     },
     {
@@ -243,6 +245,7 @@ const AdminLayout = () => {
           <Outlet />
         </div>
       </div>
+      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 };

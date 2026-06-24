@@ -241,11 +241,11 @@ function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden lg:flex flex-1 justify-center ml-2" aria-label="Menu chính">
-          <ul className="flex gap-0.5 xl:gap-1.5 2xl:gap-3 list-none m-0 p-0">
+          <ul className="flex items-center gap-5 xl:gap-6 2xl:gap-8 list-none m-0 p-0">
             <li>
               <Link
                 to="/"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
               >
                 Trang chủ
               </Link>
@@ -253,56 +253,48 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("about")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
               >
                 Giới thiệu
               </button>
             </li>
-            <li>
+            <li className="relative group">
               <button
-                onClick={() => handleScrollToSection("trainers")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
               >
-                Huấn luyện viên
+                Dịch vụ <ChevronDown size={14} className="transition-transform duration-200 group-hover:rotate-180" />
               </button>
+              {/* Dropdown — invisible bridge padding prevents hover loss */}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 w-52 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <div className="bg-white rounded-xl shadow-2xl py-2 border border-gray-100">
+                  <button onClick={() => handleScrollToSection("pricing")} className="w-full text-left px-5 py-3 text-sm text-gray-800 hover:bg-orange-50 hover:text-primary font-semibold transition-colors">
+                    {["admin", "trainer"].includes(user?.role) ? "Gói dịch vụ" : "Gói tập"}
+                  </button>
+                  <button onClick={() => handleScrollToSection("classes")} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">Chương trình tập</button>
+                  <button onClick={() => handleScrollToSection("trainers")} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">Huấn luyện viên</button>
+                </div>
+              </div>
             </li>
             <li>
               <button
                 onClick={() => handleScrollToSection("customer")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
               >
                 Feedback
               </button>
             </li>
             <li>
               <button
-                onClick={() => handleScrollToSection("classes")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
-              >
-                Chương trình
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => handleScrollToSection("pricing")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
-              >
-                {["admin", "trainer"].includes(user?.role) ? "Gói dịch vụ" : "Gói tập"}
-              </button>
-            </li>
-            <li>
-              <button
                 onClick={() => handleScrollToSection("contact")}
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
               >
                 Liên hệ
               </button>
             </li>
-
             <li>
               <Link
                 to="/club"
-                className="nav-link-hover text-white font-medium relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
               >
                 CLB
               </Link>
@@ -311,7 +303,7 @@ function Header() {
               <li>
                 <Link
                   to="/admin"
-                  className="nav-link-hover text-white font-medium relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
+                  className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
                 >
                   Quản trị
                 </Link>
@@ -321,7 +313,7 @@ function Header() {
               <li>
                 <Link
                   to="/trainer"
-                  className="nav-link-hover text-white font-medium relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
+                  className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
                 >
                   Quản lý
                 </Link>
@@ -487,6 +479,39 @@ function Header() {
               <li className="w-full">
                 <button
                   onClick={() => {
+                    handleScrollToSection("pricing");
+                    setMenuOpen(false);
+                  }}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
+                >
+                  {["admin", "trainer"].includes(user?.role) ? "Gói dịch vụ" : "Gói tập"}
+                </button>
+              </li>
+              <li className="w-full">
+                <button
+                  onClick={() => {
+                    handleScrollToSection("classes");
+                    setMenuOpen(false);
+                  }}
+                  className="block text-center text-white/80 text-base py-2 px-4 rounded-lg hover:bg-white/10 w-full"
+                >
+                  Chương trình đào tạo
+                </button>
+              </li>
+              <li className="w-full">
+                <button
+                  onClick={() => {
+                    handleScrollToSection("trainers");
+                    setMenuOpen(false);
+                  }}
+                  className="block text-center text-white/80 text-base py-2 px-4 rounded-lg hover:bg-white/10 w-full"
+                >
+                  Huấn luyện viên
+                </button>
+              </li>
+              <li className="w-full">
+                <button
+                  onClick={() => {
                     handleScrollToSection("about");
                     setMenuOpen(false);
                   }}
@@ -498,45 +523,12 @@ function Header() {
               <li className="w-full">
                 <button
                   onClick={() => {
-                    handleScrollToSection("trainers");
-                    setMenuOpen(false);
-                  }}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
-                >
-                  Huấn luyện viên
-                </button>
-              </li>
-              <li className="w-full">
-                <button
-                  onClick={() => {
                     handleScrollToSection("customer");
                     setMenuOpen(false);
                   }}
                   className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
                 >
                   Feedback
-                </button>
-              </li>
-              <li className="w-full">
-                <button
-                  onClick={() => {
-                    handleScrollToSection("classes");
-                    setMenuOpen(false);
-                  }}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
-                >
-                  Chương trình đào tạo
-                </button>
-              </li>
-              <li className="w-full">
-                <button
-                  onClick={() => {
-                    handleScrollToSection("pricing");
-                    setMenuOpen(false);
-                  }}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
-                >
-                  {["admin", "trainer"].includes(user?.role) ? "Gói dịch vụ" : "Gói tập"}
                 </button>
               </li>
               <li className="w-full">

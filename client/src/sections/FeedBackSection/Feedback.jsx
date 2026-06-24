@@ -81,7 +81,7 @@ const Feedback = () => {
 
   useEffect(() => {
     let mm = gsap.matchMedia();
-    mm.add("(min-width: 768px)", () => {
+    mm.add("(min-width: 768px) and (prefers-reduced-motion: no-preference)", () => {
       if (headerRef.current) {
         gsap.from(headerRef.current, {
           y: -20, opacity: 0, duration: 0.7, ease: "power2.out",

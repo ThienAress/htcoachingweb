@@ -30,6 +30,7 @@ import {
   getMyTransactions
 } from "../../services/user.service";
 import { toast } from "react-toastify";
+import SEO from "../../components/SEO";
 
 function AccountPage() {
   const navigate = useNavigate();
@@ -326,6 +327,7 @@ function AccountPage() {
           animation: tabFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
       `}</style>
+      <SEO title="Cài đặt tài khoản" noindex />
       <Header />
 
       {/* Background matches ExercisesPage: bg-gradient-to-br from-gray-900 via-gray-800 to-black */}

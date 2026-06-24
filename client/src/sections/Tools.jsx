@@ -13,6 +13,9 @@ const Tools = ({ image }) => {
   const contentRef = useRef(null);
 
   useEffect(() => {
+    // Skip animations if user prefers reduced motion
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
     const ctx = gsap.context(() => {
       // Parallax background
       if (bgRef.current) {

@@ -167,20 +167,42 @@ export const approveOrder = async (req, res) => {
 };
 
 export const updateOrder = async (req, res) => {
-  const order = await Order.findByIdAndUpdate(req.params.id, req.body, {
-    returnDocument: 'after',
-  });
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn" });
+    }
 
-  res.json({
-    success: true,
-    data: order,
-    message: "Cập nhật thành công",
-  });
+    // Whitelist fields cho phép update — ngăn inject field bất ngờ
+    const allowed = ["name", "email", "phone", "package", "sessions", "totalSessions", "trainerId", "status", "notes"];
+    const updateData = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updateData[key] = req.body[key];
+    }
+
+    const updated = await Order.findByIdAndUpdate(req.params.id, updateData, {
+      returnDocument: "after",
+    });
+
+    res.json({
+      success: true,
+      data: updated,
+      message: "Cập nhật thành công",
+    });
+  } catch (err) {
+    console.error("UPDATE ORDER ERROR:", err);
+    res.status(500).json({ success: false, message: "Lỗi cập nhật đơn" });
+  }
 };
 
 export const deleteOrder = async (req, res) => {
   try {
     const orderId = req.params.id;
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đơn" });
+    }
 
     // 👉 xoá order
     await Order.findByIdAndDelete(orderId);
@@ -193,7 +215,7 @@ export const deleteOrder = async (req, res) => {
       message: "Đã xóa đơn",
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Lỗi xóa đơn" });
+    console.error("DELETE ORDER ERROR:", err);
+    res.status(500).json({ success: false, message: "Lỗi xóa đơn" });
   }
 };

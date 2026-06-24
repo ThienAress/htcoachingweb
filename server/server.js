@@ -13,6 +13,8 @@ import cors from "cors";
 import passport from "passport";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
+// import mongoSanitize from "express-mongo-sanitize"; // Không tương thích Express 5
+import morgan from "morgan";
 
 import connectDB from "./src/config/db.js";
 import "./src/config/passport.js";
@@ -109,8 +111,30 @@ app.use(
 
 // ================= BODY / COOKIE / PASSPORT =================
 app.use(express.json());
+// express-mongo-sanitize v2.x không tương thích Express 5 (req.query read-only)
+// Custom sanitize middleware: chỉ sanitize body và params
+const sanitizeMongo = (obj) => {
+  if (!obj || typeof obj !== "object") return obj;
+  const keys = Object.keys(obj);
+  for (const key of keys) {
+    if (key.startsWith("$") || key.includes(".")) {
+      delete obj[key];
+    } else if (typeof obj[key] === "object") {
+      sanitizeMongo(obj[key]);
+    }
+  }
+  return obj;
+};
+app.use((req, res, next) => {
+  if (req.body) sanitizeMongo(req.body);
+  if (req.params) sanitizeMongo(req.params);
+  next();
+});
 app.use(cookieParser());
 app.use(passport.initialize());
+
+// ================= LOGGING =================
+app.use(morgan(isProd ? "combined" : "dev"));
 
 // ================= RATE LIMIT =================
 if (isProd) {
@@ -183,6 +207,9 @@ app.use("/api/site-settings", siteSettingRoutes);
 
 import workoutPlanRoutes from "./src/routes/workoutPlan.routes.js";
 app.use("/api/workout-plans", workoutPlanRoutes);
+
+import gymRoutes from "./src/routes/gym.routes.js";
+app.use("/api/gyms", gymRoutes);
 
 import { protect } from "./src/middlewares/auth.middleware.js";
 app.get("/api/me/wallet", protect, getMyWallet);

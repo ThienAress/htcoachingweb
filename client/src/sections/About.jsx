@@ -21,7 +21,7 @@ const About = ({ images }) => {
   // GSAP Animations cho Text và Số (Chạy 1 lần khi scroll tới)
   useEffect(() => {
     let mm = gsap.matchMedia();
-    mm.add("(min-width: 768px)", () => {
+    mm.add("(min-width: 768px) and (prefers-reduced-motion: no-preference)", () => {
       // Left side: stagger reveal from left
       if (leftRef.current) {
         const elements = leftRef.current.querySelectorAll("[data-gsap-reveal]");
