@@ -33,7 +33,7 @@ const Login = () => {
           {/* Logo */}
           <img src={logo} alt="HT Coaching" className="h-16 mx-auto mb-6" />
 
-          {/* Tiêu đề với font Bebas Neue */}
+          {/* Tiêu đề với font Oswald */}
           <h2 className="text-4xl md:text-5xl font-black mb-2 tracking-wider uppercase">
             <span className="text-primary font-bebas-neue">
               HTCOACHING
