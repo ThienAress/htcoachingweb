@@ -32,16 +32,17 @@ import { useDebounce } from "../../hooks/useDebounce";
 
 const getPreviewData = (form, API_ORIGIN) => {
   const getUrl = (url) => (url && url.startsWith("/uploads/") ? `${API_ORIGIN}${url}` : url);
+  const getUrls = (arr) => (Array.isArray(arr) ? arr.map(getUrl).filter(Boolean) : []);
   return {
     ...form,
     heroImage: getUrl(form.heroImage),
-    beforeImg: getUrl(form.beforeImg),
-    afterImg: getUrl(form.afterImg),
+    beforeImg: getUrls(form.beforeImg),
+    afterImg: getUrls(form.afterImg),
     milestones: Array.isArray(form.milestones)
       ? form.milestones.map((m) => ({
         ...m,
-        beforeImg: getUrl(m.beforeImg),
-        afterImg: getUrl(m.afterImg),
+        beforeImg: getUrls(m.beforeImg),
+        afterImg: getUrls(m.afterImg),
         bullets: Array.isArray(m.bullets)
           ? m.bullets
           : String(m.bullets || "").split("\n").filter(Boolean),
@@ -68,9 +69,10 @@ const emptyForm = {
   problem: "",
   solution: "",
   quote: "",
-  beforeImg: "",
-  afterImg: "",
+  beforeImg: [],
+  afterImg: [],
   heroImage: "",
+  heroPosition: 50,
   milestones: [],
   status: "draft",
   featured: false,
@@ -80,9 +82,15 @@ const emptyForm = {
 
 const toLines = (value) => (Array.isArray(value) ? value.join("\n") : "");
 
+const extractId = (value) => {
+  if (!value) return "";
+  if (typeof value === "object" && value._id) return value._id;
+  return String(value);
+};
+
 const storyToForm = (story) => ({
-  orderId: story.orderId || "",
-  trainerId: story.trainerId || "",
+  orderId: extractId(story.orderId),
+  trainerId: extractId(story.trainerId),
   slug: story.slug || "",
   name: story.name || "",
   age: story.age || "",
@@ -98,12 +106,15 @@ const storyToForm = (story) => ({
   problem: story.problem || "",
   solution: story.solution || "",
   quote: story.quote || "",
-  beforeImg: story.beforeImg || "",
-  afterImg: story.afterImg || "",
+  beforeImg: Array.isArray(story.beforeImg) ? story.beforeImg : (story.beforeImg ? [story.beforeImg] : []),
+  afterImg: Array.isArray(story.afterImg) ? story.afterImg : (story.afterImg ? [story.afterImg] : []),
   heroImage: story.heroImage || "",
+  heroPosition: Number(story.heroPosition) || 50,
   milestones: Array.isArray(story.milestones) ? story.milestones.map(m => ({
     ...m,
     _id: m._id || Math.random().toString(36).substr(2, 9),
+    beforeImg: Array.isArray(m.beforeImg) ? m.beforeImg : (m.beforeImg ? [m.beforeImg] : []),
+    afterImg: Array.isArray(m.afterImg) ? m.afterImg : (m.afterImg ? [m.afterImg] : []),
     bullets: toLines(m.bullets)
   })) : [],
   status: story.status || "draft",
@@ -118,8 +129,8 @@ const buildPayload = (form) => {
       title: milestone.title || "",
       subtitle: milestone.subtitle || "",
       content: milestone.content || "",
-      beforeImg: milestone.beforeImg || "",
-      afterImg: milestone.afterImg || "",
+      beforeImg: Array.isArray(milestone.beforeImg) ? milestone.beforeImg.filter(Boolean) : [],
+      afterImg: Array.isArray(milestone.afterImg) ? milestone.afterImg.filter(Boolean) : [],
       bullets: String(milestone.bullets || "")
         .split("\n")
         .map((item) => item.trim())
@@ -149,9 +160,10 @@ const buildPayload = (form) => {
     problem: form.problem,
     solution: form.solution,
     quote: form.quote,
-    beforeImg: form.beforeImg,
-    afterImg: form.afterImg,
+    beforeImg: Array.isArray(form.beforeImg) ? form.beforeImg.filter(Boolean) : [],
+    afterImg: Array.isArray(form.afterImg) ? form.afterImg.filter(Boolean) : [],
     heroImage: form.heroImage,
+    heroPosition: Number(form.heroPosition) || 50,
     milestones,
     status: form.status,
     featured: form.featured,
@@ -373,8 +385,8 @@ const CustomerStoryManagement = () => {
           title: "",
           subtitle: "",
           content: "",
-          beforeImg: "",
-          afterImg: "",
+          beforeImg: [],
+          afterImg: [],
           bullets: [],
           sortOrder: current.milestones.length,
         },
@@ -460,20 +472,12 @@ const CustomerStoryManagement = () => {
 
       // Validation
       if (!payload.name?.trim()) return toast.error("Vui lòng nhập Tên khách hàng");
-      if (!payload.age || isNaN(Number(payload.age))) return toast.error("Vui lòng nhập Tuổi hợp lệ (phải là số)");
-      if (!payload.job?.trim()) return toast.error("Vui lòng nhập Nghề nghiệp");
       if (!payload.goal?.trim()) return toast.error("Vui lòng nhập Mục tiêu");
       if (!payload.packageName?.trim()) return toast.error("Vui lòng nhập Gói tập");
-      if (!payload.schedule?.trim()) return toast.error("Vui lòng nhập Lịch tập");
-      if (!payload.startWeight || isNaN(Number(payload.startWeight))) return toast.error("Vui lòng nhập Cân nặng bắt đầu hợp lệ (phải là số)");
-      if (!payload.endWeight || isNaN(Number(payload.endWeight))) return toast.error("Vui lòng nhập Cân nặng hiện tại hợp lệ (phải là số)");
-      if (!payload.result?.trim()) return toast.error("Vui lòng nhập Kết quả");
-      if (!payload.duration?.trim()) return toast.error("Vui lòng nhập Thời gian");
+      if (!payload.startWeight?.trim()) return toast.error("Vui lòng nhập Cân nặng bắt đầu");
 
       // Chuyển kiểu dữ liệu chuẩn trước khi gửi
       payload.age = Number(payload.age);
-      payload.startWeight = Number(payload.startWeight);
-      payload.endWeight = Number(payload.endWeight);
 
       if (editingStory?._id) {
         updateMutation.mutate({ id: editingStory._id, payload });
@@ -547,39 +551,169 @@ const CustomerStoryManagement = () => {
     </Field>
   );
 
-  const renderMilestoneImageInput = (index, label, field) => {
+  const renderImageArrayInput = (label, field) => {
+    const images = Array.isArray(form[field]) ? form[field] : [];
+    return (
+      <Field label={`${label} (tối đa 3 ảnh)`}>
+        <div className="flex flex-col gap-2">
+          {images.map((url, idx) => (
+            <div key={idx} className="flex items-start gap-2">
+              <input
+                className={`${inputClass} flex-1`}
+                value={url}
+                onChange={(event) => {
+                  const next = [...images];
+                  next[idx] = event.target.value;
+                  updateForm(field, next);
+                }}
+                placeholder="URL ảnh"
+              />
+              <button
+                type="button"
+                onClick={() => updateForm(field, images.filter((_, i) => i !== idx))}
+                className="shrink-0 rounded-lg border border-red-200 p-2 text-red-500 hover:bg-red-50"
+                title="Xóa ảnh"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          {images.length < 3 && (
+            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary">
+              <Upload className="h-4 w-4" />
+              {uploadingField === field ? "Đang upload..." : `Thêm ảnh (${images.length}/3)`}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                disabled={Boolean(uploadingField)}
+                onChange={async (event) => {
+                  const files = Array.from(event.target.files || []);
+                  event.target.value = "";
+                  if (!files.length) return;
+                  const slots = 3 - images.length;
+                  const toUpload = files.slice(0, slots);
+                  if (files.length > slots) toast.error(`Chỉ còn ${slots} chỗ trống, đã bỏ ${files.length - slots} ảnh thừa`);
+                  setUploadingField(field);
+                  const uploaded = [];
+                  for (const file of toUpload) {
+                    try {
+                      const fd = new FormData();
+                      fd.append("file", file);
+                      const res = await uploadCustomerStoryImage(fd);
+                      const imageUrl = res.data?.data?.url;
+                      if (imageUrl) uploaded.push(imageUrl);
+                    } catch (err) {
+                      toast.error(`Lỗi upload ${file.name}: ${err.response?.data?.message || "Lỗi không xác định"}`);
+                    }
+                  }
+                  if (uploaded.length) {
+                    updateForm(field, [...images, ...uploaded]);
+                    toast.success(`Upload thành công ${uploaded.length} ảnh`);
+                  }
+                  setUploadingField("");
+                }}
+              />
+            </label>
+          )}
+          {images.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {images.map((url, idx) => (
+                <img
+                  key={idx}
+                  src={getPreviewImageUrl(url)}
+                  alt={`${label} ${idx + 1}`}
+                  className="h-24 w-full rounded-lg border border-slate-200 object-cover"
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </Field>
+    );
+  };
+
+  const renderMilestoneImageArrayInput = (index, label, field) => {
     const milestone = form.milestones[index] || {};
+    const images = Array.isArray(milestone[field]) ? milestone[field] : [];
     const uploadKey = `milestone-${index}-${field}`;
 
     return (
-      <Field label={label}>
+      <Field label={`${label} (tối đa 3 ảnh)`}>
         <div className="flex flex-col gap-2">
-          <input
-            className={inputClass}
-            value={milestone[field] || ""}
-            onChange={(event) => updateMilestone(index, field, event.target.value)}
-            placeholder="/uploads/customer-stories/example.webp"
-          />
-          <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary">
-            <Upload className="h-4 w-4" />
-            {uploadingField === uploadKey ? "Đang upload..." : "Chọn ảnh"}
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              disabled={Boolean(uploadingField)}
-              onChange={(event) => {
-                handleMilestoneImageUpload(index, field, event.target.files?.[0]);
-                event.target.value = "";
-              }}
-            />
-          </label>
-          {milestone[field] && (
-            <img
-              src={getPreviewImageUrl(milestone[field])}
-              alt={label}
-              className="h-28 w-full rounded-lg border border-slate-200 object-cover"
-            />
+          {images.map((url, idx) => (
+            <div key={idx} className="flex items-start gap-2">
+              <input
+                className={`${inputClass} flex-1`}
+                value={url}
+                onChange={(event) => {
+                  const next = [...images];
+                  next[idx] = event.target.value;
+                  updateMilestone(index, field, next);
+                }}
+                placeholder="URL ảnh"
+              />
+              <button
+                type="button"
+                onClick={() => updateMilestone(index, field, images.filter((_, i) => i !== idx))}
+                className="shrink-0 rounded-lg border border-red-200 p-2 text-red-500 hover:bg-red-50"
+                title="Xóa ảnh"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          {images.length < 3 && (
+            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary">
+              <Upload className="h-4 w-4" />
+              {uploadingField === uploadKey ? "Đang upload..." : `Thêm ảnh (${images.length}/3)`}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="hidden"
+                disabled={Boolean(uploadingField)}
+                onChange={async (event) => {
+                  const files = Array.from(event.target.files || []);
+                  event.target.value = "";
+                  if (!files.length) return;
+                  const slots = 3 - images.length;
+                  const toUpload = files.slice(0, slots);
+                  if (files.length > slots) toast.error(`Chỉ còn ${slots} chỗ trống, đã bỏ ${files.length - slots} ảnh thừa`);
+                  setUploadingField(uploadKey);
+                  const uploaded = [];
+                  for (const file of toUpload) {
+                    try {
+                      const fd = new FormData();
+                      fd.append("file", file);
+                      const res = await uploadCustomerStoryImage(fd);
+                      const imageUrl = res.data?.data?.url;
+                      if (imageUrl) uploaded.push(imageUrl);
+                    } catch (err) {
+                      toast.error(`Lỗi upload ${file.name}: ${err.response?.data?.message || "Lỗi không xác định"}`);
+                    }
+                  }
+                  if (uploaded.length) {
+                    updateMilestone(index, field, [...images, ...uploaded]);
+                    toast.success(`Upload thành công ${uploaded.length} ảnh`);
+                  }
+                  setUploadingField("");
+                }}
+              />
+            </label>
+          )}
+          {images.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {images.map((url, idx) => (
+                <img
+                  key={idx}
+                  src={getPreviewImageUrl(url)}
+                  alt={`${label} ${idx + 1}`}
+                  className="h-24 w-full rounded-lg border border-slate-200 object-cover"
+                />
+              ))}
+            </div>
           )}
         </div>
       </Field>
@@ -678,7 +812,7 @@ const CustomerStoryManagement = () => {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <img
-                          src={getPreviewImageUrl(story.beforeImg || story.heroImage)}
+                          src={getPreviewImageUrl((Array.isArray(story.beforeImg) ? story.beforeImg[0] : story.beforeImg) || story.heroImage)}
                           alt={story.name}
                           className="h-14 w-14 rounded-lg object-cover"
                         />
@@ -995,9 +1129,65 @@ const CustomerStoryManagement = () => {
                   description="Hero dùng cho đầu trang; before/after dùng cho block ảnh chính."
                 />
                 {renderImageInput("Hero image (Ảnh nền)", "heroImage")}
+                {form.heroImage && (
+                  <Field label="Kéo ảnh để chọn vị trí hiển thị">
+                    <div
+                      className="group relative h-44 w-full cursor-grab overflow-hidden rounded-lg border border-slate-200 bg-slate-100 active:cursor-grabbing"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        const container = e.currentTarget;
+                        const startY = e.clientY;
+                        const startPos = Number(form.heroPosition) || 50;
+                        const onMove = (moveEvent) => {
+                          const delta = moveEvent.clientY - startY;
+                          const pct = Math.max(0, Math.min(100, startPos + (delta / container.offsetHeight) * 100));
+                          updateForm("heroPosition", Math.round(pct));
+                        };
+                        const onUp = () => {
+                          document.removeEventListener("mousemove", onMove);
+                          document.removeEventListener("mouseup", onUp);
+                        };
+                        document.addEventListener("mousemove", onMove);
+                        document.addEventListener("mouseup", onUp);
+                      }}
+                      onTouchStart={(e) => {
+                        const container = e.currentTarget;
+                        const startY = e.touches[0].clientY;
+                        const startPos = Number(form.heroPosition) || 50;
+                        const onMove = (moveEvent) => {
+                          const delta = moveEvent.touches[0].clientY - startY;
+                          const pct = Math.max(0, Math.min(100, startPos + (delta / container.offsetHeight) * 100));
+                          updateForm("heroPosition", Math.round(pct));
+                        };
+                        const onEnd = () => {
+                          container.removeEventListener("touchmove", onMove);
+                          container.removeEventListener("touchend", onEnd);
+                        };
+                        container.addEventListener("touchmove", onMove, { passive: true });
+                        container.addEventListener("touchend", onEnd);
+                      }}
+                    >
+                      <img
+                        src={getPreviewImageUrl(form.heroImage)}
+                        alt="Hero preview"
+                        className="pointer-events-none absolute inset-x-0 h-[200%] w-full object-cover"
+                        style={{ top: `${-((Number(form.heroPosition) || 50) / 100) * 100}%` }}
+                        draggable={false}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100">
+                        <span className="rounded-full bg-black/60 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+                          ↕ Kéo để điều chỉnh vị trí
+                        </span>
+                      </div>
+                      <span className="absolute bottom-2 right-2 rounded bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-white">
+                        {form.heroPosition ?? 50}%
+                      </span>
+                    </div>
+                  </Field>
+                )}
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {renderImageInput("Ảnh Before của khách hàng", "beforeImg")}
-                  {renderImageInput("Ảnh After của khách hàng", "afterImg")}
+                  {renderImageArrayInput("Ảnh Before", "beforeImg")}
+                  {renderImageArrayInput("Ảnh After", "afterImg")}
                 </div>
                 <FormSectionTitle
                   number="03"
@@ -1158,14 +1348,14 @@ const CustomerStoryManagement = () => {
                                 />
                               </Field>
                             </div>
-                            {renderMilestoneImageInput(
+                            {renderMilestoneImageArrayInput(
                               index,
-                              "Ảnh Before của khách hàng",
+                              "Ảnh Before",
                               "beforeImg",
                             )}
-                            {renderMilestoneImageInput(
+                            {renderMilestoneImageArrayInput(
                               index,
-                              "Ảnh After của khách hàng",
+                              "Ảnh After",
                               "afterImg",
                             )}
                           </div>

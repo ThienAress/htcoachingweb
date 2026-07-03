@@ -15,6 +15,8 @@ import {
   User,
   Utensils,
   FileText,
+  Star,
+  LayoutDashboard,
 } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
@@ -43,6 +45,7 @@ function Header() {
   const headerRef = useRef(null);
   const [openDropdown, setOpenDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const [openGroups, setOpenGroups] = useState({});
   const [walletBalance, setWalletBalance] = useState(null);
   const [activeSubscription, setActiveSubscription] = useState(null);
   const [hasOrders, setHasOrders] = useState(false);
@@ -53,6 +56,13 @@ function Header() {
     "Tiêu chuẩn": "\uD83D\uDD25",
     "Chuyên nghiệp": "\uD83D\uDC8E",
     "Cao cấp": "\uD83D\uDC51",
+  };
+
+  const toggleGroup = (groupName) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [groupName]: !prev[groupName],
+    }));
   };
 
   // Fetch số dư ví + gói dịch vụ + đơn hàng
@@ -175,44 +185,63 @@ function Header() {
 
   const dropdownItems = isAdmin
     ? [
+      {
+        group: "Quản lý hệ thống",
+        children: [
+          { label: "Bảng điều khiển", icon: LayoutDashboard, path: "/admin" },
+          { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
+          { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+        ]
+      },
+      { isDivider: true },
+      {
+        group: "Nghiệp vụ huấn luyện",
+        children: [
+          { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
+          { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
+          { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },
+          { label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" },
+        ]
+      },
+      { isDivider: true },
       { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
-      { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
-      { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
-      { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
-      { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
-      { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },
-      { label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" },
       { label: "Tài khoản", icon: User, path: "/account" },
       { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
     ]
     : hasTrainerAccess
       ? [
+        {
+          group: "Nghiệp vụ huấn luyện",
+          children: [
+            { label: "Bảng điều khiển", icon: LayoutDashboard, path: "/trainer" },
+            { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
+            { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
+            { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },
+            { label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" },
+            { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
+            { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+          ]
+        },
+        { isDivider: true },
         { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
-        { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
-        { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
-        { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
-        { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
-        { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },
-        { label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" },
         { label: "Tài khoản", icon: User, path: "/account" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ]
       : [
+        {
+          group: "Công cụ tập luyện",
+          children: [
+            ...(hasOrders ? [{ label: "Lịch sử checkin", icon: History, path: "/my-history" }] : []),
+            ...(hasOrders ? [{ label: "Đăng ký giờ tập", icon: CalendarDays, path: "/book-training" }] : []),
+            ...(hasOrders ? [{ label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" }] : []),
+            ...(hasOnlinePackage ? [{ label: "Giáo án online", icon: Sparkles, path: "/online-coaching" }] : []),
+            { label: "Gợi ý meal plan", icon: Utensils, path: "/tdee-calculator" },
+            { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+          ]
+        },
+        { isDivider: true },
+        ...(user?.customerStorySlug ? [{ label: "Profile của tôi", icon: Star, path: `/ket-qua-khach-hang/${user.customerStorySlug}` }] : []),
         { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
-        ...(hasOrders ? [
-          { label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" },
-        ] : []),
-        ...(hasOnlinePackage ? [
-          { label: "Giáo án online", icon: Sparkles, path: "/online-coaching" }
-        ] : []),
-        { label: "Gợi ý meal plan", icon: Utensils, path: "/tdee-calculator" },
-        ...(hasOrders ? [
-          { label: "Đăng ký giờ tập luyện", icon: CalendarDays, path: "/book-training" },
-        ] : []),
-        { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
-        ...(hasOrders ? [
-          { label: "Lịch sử checkin", icon: History, path: "/my-history" },
-        ] : []),
         { label: "Tài khoản", icon: User, path: "/account" },
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ];
@@ -275,6 +304,7 @@ function Header() {
                 </div>
               </div>
             </li>
+
             <li>
               <button
                 onClick={() => handleScrollToSection("customer")}
@@ -282,6 +312,14 @@ function Header() {
               >
                 Feedback
               </button>
+            </li>
+            <li>
+              <Link
+                to="/blog"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
+              >
+                Blog
+              </Link>
             </li>
             <li>
               <button
@@ -299,26 +337,6 @@ function Header() {
                 CLB
               </Link>
             </li>
-            {isAdmin && (
-              <li>
-                <Link
-                  to="/admin"
-                  className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
-                >
-                  Quản trị
-                </Link>
-              </li>
-            )}
-            {!isAdmin && hasTrainerAccess && (
-              <li>
-                <Link
-                  to="/trainer"
-                  className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
-                >
-                  Quản lý
-                </Link>
-              </li>
-            )}
           </ul>
         </nav>
 
@@ -366,21 +384,59 @@ function Header() {
                   </div>
                   <div className="py-2">
                     {dropdownItems.map((item, idx) => {
+                      if (item.isDivider) {
+                        return <div key={idx} className="h-px bg-gray-200 my-1"></div>;
+                      }
+                      if (item.children) {
+                        const isOpen = openGroups[item.group];
+                        return (
+                          <div key={idx} className="w-full">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleGroup(item.group);
+                              }}
+                              className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition"
+                            >
+                              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{item.group}</span>
+                              <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}>
+                              <div className="bg-gray-50/50 py-1">
+                                {item.children.map((child, cIdx) => {
+                                  const ChildIcon = child.icon;
+                                  return (
+                                    <button
+                                      key={cIdx}
+                                      onClick={() => {
+                                        if (child.onClick) child.onClick();
+                                        else if (child.path) navigate(child.path);
+                                        setOpenDropdown(false);
+                                      }}
+                                      className="w-full flex items-center gap-3 pl-6 pr-4 py-2 text-sm text-gray-700 hover:bg-gray-200"
+                                    >
+                                      <ChildIcon size={16} className="text-gray-500" />
+                                      <span>{child.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
                       const Icon = item.icon;
                       return (
                         <button
                           key={idx}
                           onClick={() => {
-                            if (item.onClick) {
-                              item.onClick();
-                            } else if (item.path) {
-                              navigate(item.path);
-                            }
+                            if (item.onClick) item.onClick();
+                            else if (item.path) navigate(item.path);
                             setOpenDropdown(false);
                           }}
                           className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                         >
-                          <Icon size={18} />
+                          <Icon size={18} className="text-gray-500" />
                           <span>{item.label}</span>
                         </button>
                       );
@@ -434,21 +490,59 @@ function Header() {
                 </div>
                 <div className="py-2">
                   {dropdownItems.map((item, idx) => {
+                    if (item.isDivider) {
+                      return <div key={idx} className="h-px bg-white/20 my-2 mx-5"></div>;
+                    }
+                    if (item.children) {
+                      const isOpen = openGroups[item.group];
+                      return (
+                        <div key={idx} className="w-full">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleGroup(item.group);
+                            }}
+                            className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/5 transition"
+                          >
+                            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{item.group}</span>
+                            <ChevronDown size={14} className={`text-white/50 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                          <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}>
+                            <div className="bg-black/20 py-1">
+                              {item.children.map((child, cIdx) => {
+                                const ChildIcon = child.icon;
+                                return (
+                                  <button
+                                    key={cIdx}
+                                    onClick={() => {
+                                      if (child.onClick) child.onClick();
+                                      else if (child.path) navigate(child.path);
+                                      setMenuOpen(false);
+                                    }}
+                                    className="w-full flex items-center gap-3 pl-8 pr-5 py-3 text-white hover:bg-white/10"
+                                  >
+                                    <ChildIcon size={18} className="text-white/70" />
+                                    <span>{child.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
                     const Icon = item.icon;
                     return (
                       <button
                         key={idx}
                         onClick={() => {
-                          if (item.onClick) {
-                            item.onClick();
-                          } else if (item.path) {
-                            navigate(item.path);
-                          }
+                          if (item.onClick) item.onClick();
+                          else if (item.path) navigate(item.path);
                           setMenuOpen(false);
                         }}
                         className="w-full flex items-center gap-3 px-5 py-3 text-white hover:bg-white/10"
                       >
-                        <Icon size={20} />
+                        <Icon size={20} className="text-white/70" />
                         <span>{item.label}</span>
                       </button>
                     );
@@ -498,17 +592,7 @@ function Header() {
                   Chương trình đào tạo
                 </button>
               </li>
-              <li className="w-full">
-                <button
-                  onClick={() => {
-                    handleScrollToSection("trainers");
-                    setMenuOpen(false);
-                  }}
-                  className="block text-center text-white/80 text-base py-2 px-4 rounded-lg hover:bg-white/10 w-full"
-                >
-                  Huấn luyện viên
-                </button>
-              </li>
+
               <li className="w-full">
                 <button
                   onClick={() => {
@@ -530,6 +614,15 @@ function Header() {
                 >
                   Feedback
                 </button>
+              </li>
+              <li className="w-full">
+                <Link
+                  to="/blog"
+                  onClick={() => setMenuOpen(false)}
+                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
+                >
+                  Blog
+                </Link>
               </li>
               <li className="w-full">
                 <button

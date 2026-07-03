@@ -733,6 +733,7 @@ Agent phải tham chiếu quy tắc chi tiết trong `.agents/`:
 
 **reference/** — Tham khảo:
 - [Known Issues](.agents/skills/reference/known_issues.md) — Vấn đề đã biết, AI đọc nhưng ĐỪNG tự ý sửa
+- [PDF Generation](.agents/skills/reference/pdf-generation.md) — Hướng dẫn dùng `pdf-lib` tạo/sửa PDF trên Node.js (font Việt, GridFS, hash SHA-256)
 
 ### Workflows (Slash Commands — Kích hoạt bằng lệnh)
 
@@ -766,6 +767,8 @@ Agent phải tham chiếu quy tắc chi tiết trong `.agents/`:
 | Quét chất lượng UI toàn bộ hoặc 1 surface | `/ui-check` workflow |
 | Quét UI chỉ Brand surfaces (landing, public) | `/ui-check public` workflow |
 | Quét UI chỉ Product surfaces (admin, trainer) | `/ui-check admin` workflow |
+| Làm việc với **e-contract** (hợp đồng, ký, contract) | `pdf-generation` skill → đọc trước khi code |
+| Tạo/sinh/xuất **file PDF** (hợp đồng, báo cáo, hóa đơn) | `pdf-generation` skill |
 | **Full pipeline trước push/deploy** | **`/pre-deploy` workflow** |
 | Full pipeline nhưng bỏ qua audit | `/pre-deploy skip-audit` workflow |
 | Full pipeline nhưng bỏ qua UI (chỉ sửa BE) | `/pre-deploy skip-ui` workflow |

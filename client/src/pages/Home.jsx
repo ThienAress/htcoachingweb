@@ -33,11 +33,26 @@ const Home = () => {
         "@type": "Organization",
         "name": "HTCOACHING",
         "url": "https://htcoachingweb.io.vn",
-        "logo": "https://htcoachingweb.io.vn/logo.png",
-        "description": "Chương trình luyện tập cá nhân hóa cùng HLV chuyên nghiệp tại HTCOACHING. Boxing, Gym & cardio giúp tăng cơ giảm mỡ hiệu quả. Đăng ký tập ngay hôm nay!",
+        "logo": "https://htcoachingweb.io.vn/og-image.png",
+        "description": "Nền tảng huấn luyện cá nhân dành cho HLV freelance và học viên. Cung cấp công cụ tính TDEE, gợi ý meal plan, quản lý giáo án và theo dõi tiến độ tập luyện.",
         "sameAs": [
           "https://www.facebook.com/thienvo123456"
         ]
+      },
+      {
+        "@type": "ProfessionalService",
+        "name": "HTCOACHING - Huấn Luyện Viên Cá Nhân",
+        "url": "https://htcoachingweb.io.vn",
+        "description": "Dịch vụ huấn luyện cá nhân 1 kèm 1 (Personal Training): Gym, Boxing, Cardio. Hỗ trợ online coaching, tư vấn dinh dưỡng và theo dõi tiến độ qua nền tảng web.",
+        "serviceType": ["Personal Training", "Online Coaching", "Tư vấn dinh dưỡng"],
+        "areaServed": {
+          "@type": "City",
+          "name": "TP. Hồ Chí Minh"
+        },
+        "provider": {
+          "@type": "Organization",
+          "name": "HTCOACHING"
+        }
       },
       {
         "@type": "FAQPage",

@@ -12,6 +12,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import TrainerLayout from "./layouts/TrainerLayout";
 import AdminRoute from "./routes/AdminRoute";
 import GlobalLoading from "./components/GlobalLoading";
+import ChatWidget from "./components/ChatWidget/ChatWidget";
 
 // Lazy-loaded pages (Code Splitting)
 const Home = lazy(() => import("./pages/Home"));
@@ -57,6 +58,11 @@ const MyWallet = lazy(() => import("./pages/wallet/MyWallet"));
 const OnlineCoaching = lazy(() => import("./pages/customer/OnlineCoaching"));
 const TrainerCoaching = lazy(() => import("./pages/trainer/TrainerCoaching"));
 const AccountPage = lazy(() => import("./pages/account/AccountPage"));
+const ContractManagement = lazy(() => import("./pages/admin/ContractManagement"));
+const ContractSign = lazy(() => import("./pages/ContractSign"));
+const Blog = lazy(() => import("./pages/Blog"));
+const BlogDetail = lazy(() => import("./pages/BlogDetail"));
+const BlogManagement = lazy(() => import("./pages/admin/BlogManagement"));
 
 import "./index.css";
 import "./App.css";
@@ -122,6 +128,8 @@ function AppContent() {
         <Route path="/checkin" element={<Checkin />} />
         <Route path="/my-history" element={<MyHistory />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:slug" element={<BlogDetail />} />
         <Route path="/club" element={<Club />} />
         <Route path="/exercises" element={<ExercisesPage />} />
         <Route path="/f1-customers" element={<F1Customers />} />
@@ -131,6 +139,7 @@ function AppContent() {
         <Route path="/workout-plans/:id" element={<WorkoutPlanDetail />} />
         <Route path="/online-coaching" element={<OnlineCoaching />} />
         <Route path="/account" element={<AccountPage />} />
+        <Route path="/contracts/:id" element={<ContractSign />} />
 
         {/* TDEE Calculator */}
         <Route path="/tdee-calculator" element={<TdeeCalculator />} />
@@ -195,6 +204,8 @@ function AppContent() {
           <Route path="site-settings" element={<SiteSettings />} />
           <Route path="gyms" element={<GymManagement />} />
           <Route path="deposits" element={<DepositManagement />} />
+          <Route path="contracts" element={<ContractManagement />} />
+          <Route path="blog" element={<BlogManagement />} />
           <Route
             path="exercise-suggestions"
             element={<ExerciseSuggestionsManagement />}
@@ -204,6 +215,7 @@ function AppContent() {
       </Suspense>
       )}
       <ToastContainer position="top-right" autoClose={2500} />
+      <ChatWidget />
     </>
   );
 }

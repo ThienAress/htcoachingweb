@@ -23,14 +23,26 @@ const normalizeStringArray = (value) => {
     .filter(Boolean);
 };
 
+const normalizeImageArray = (value) => {
+  if (!value) return [];
+  if (typeof value === "string") return value.trim() ? [value.trim()] : [];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+      .slice(0, 3);
+  }
+  return [];
+};
+
 const normalizeMilestones = (value) => {
   if (!Array.isArray(value)) return [];
   return value.map((milestone, index) => ({
     title: String(milestone?.title || "").trim(),
     subtitle: String(milestone?.subtitle || "").trim(),
     content: String(milestone?.content || "").trim(),
-    beforeImg: String(milestone?.beforeImg || "").trim(),
-    afterImg: String(milestone?.afterImg || "").trim(),
+    beforeImg: normalizeImageArray(milestone?.beforeImg),
+    afterImg: normalizeImageArray(milestone?.afterImg),
     bullets: normalizeStringArray(milestone?.bullets),
     sortOrder: Number.isFinite(Number(milestone?.sortOrder))
       ? Number(milestone.sortOrder)
@@ -61,9 +73,10 @@ const getStoryPayload = (body = {}, existingStory = null) => {
     problem: String(body.problem || "").trim(),
     solution: String(body.solution || "").trim(),
     quote: String(body.quote || "").trim(),
-    beforeImg: String(body.beforeImg || "").trim(),
-    afterImg: String(body.afterImg || "").trim(),
+    beforeImg: normalizeImageArray(body.beforeImg),
+    afterImg: normalizeImageArray(body.afterImg),
     heroImage: String(body.heroImage || "").trim(),
+    heroPosition: Math.max(0, Math.min(100, Number(body.heroPosition) || 50)),
     highlights: normalizeStringArray(body.highlights),
     milestones: normalizeMilestones(body.milestones),
     status,
@@ -122,7 +135,8 @@ export const getCustomerStories = async (req, res) => {
     }
 
     const stories = await CustomerStory.find(query)
-      .sort({ sortOrder: 1, publishedAt: -1, createdAt: -1 })
+      .sort({ sortOrder: -1, publishedAt: -1, createdAt: -1 })
+      .populate("trainerId", "name slug")
       .limit(limit)
       .lean();
 
@@ -169,7 +183,8 @@ export const getAdminCustomerStories = async (req, res) => {
     const [total, stories] = await Promise.all([
       CustomerStory.countDocuments(query),
       CustomerStory.find(query)
-        .sort({ sortOrder: 1, createdAt: -1 })
+        .sort({ sortOrder: -1, createdAt: -1 })
+        .populate("trainerId", "name slug")
         .skip(skip)
         .limit(limit)
         .lean(),

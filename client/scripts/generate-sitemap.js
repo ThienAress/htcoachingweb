@@ -8,14 +8,16 @@ const __dirname = path.dirname(__filename);
 
 const API_URL = "https://htcoachingweb.onrender.com/api";
 const SITE_URL = "https://htcoachingweb.io.vn";
+const today = new Date().toISOString().split('T')[0];
 
 const staticRoutes = [
-  { url: "/", priority: 1.0, changefreq: "weekly" },
-  { url: "/ket-qua-khach-hang", priority: 0.9, changefreq: "weekly" },
-  { url: "/club", priority: 0.8, changefreq: "monthly" },
-  { url: "/exercises", priority: 0.8, changefreq: "monthly" },
-  { url: "/tdee-calculator", priority: 0.7, changefreq: "yearly" },
-  { url: "/mealplan", priority: 0.7, changefreq: "yearly" },
+  { url: "/", priority: 1.0, changefreq: "weekly", lastmod: today },
+  { url: "/ket-qua-khach-hang", priority: 0.9, changefreq: "weekly", lastmod: today },
+  { url: "/blog", priority: 0.9, changefreq: "weekly", lastmod: today },
+  { url: "/club", priority: 0.8, changefreq: "monthly", lastmod: today },
+  { url: "/exercises", priority: 0.8, changefreq: "monthly", lastmod: today },
+  { url: "/tdee-calculator", priority: 0.7, changefreq: "yearly", lastmod: today },
+  { url: "/mealplan", priority: 0.7, changefreq: "yearly", lastmod: today },
 ];
 
 async function generateSitemap() {
@@ -32,6 +34,7 @@ async function generateSitemap() {
         url: `/ket-qua-khach-hang/${story.slug}`,
         priority: 0.8,
         changefreq: "monthly",
+        lastmod: story.updatedAt ? new Date(story.updatedAt).toISOString().split('T')[0] : today,
       }));
       console.log(`Fetched ${dynamicRoutes.length} customer stories for sitemap.`);
     } catch (err) {
@@ -50,13 +53,31 @@ async function generateSitemap() {
           url: `/huan-luyen-vien/${trainer.slug}`,
           priority: 0.8,
           changefreq: "monthly",
+          lastmod: trainer.updatedAt ? new Date(trainer.updatedAt).toISOString().split('T')[0] : today,
         }));
       console.log(`Fetched ${trainerRoutes.length} trainer profiles for sitemap.`);
     } catch (err) {
       console.error("Failed to fetch trainers for sitemap:", err.message);
     }
 
-    const allRoutes = [...staticRoutes, ...dynamicRoutes, ...trainerRoutes];
+    // Fetch blog posts
+    let blogRoutes = [];
+    try {
+      const res = await axios.get(`${API_URL}/blog?limit=50`);
+      const posts = res.data?.data || [];
+      
+      blogRoutes = posts.map(post => ({
+        url: `/blog/${post.slug}`,
+        priority: 0.7,
+        changefreq: "monthly",
+        lastmod: post.updatedAt ? new Date(post.updatedAt).toISOString().split('T')[0] : today,
+      }));
+      console.log(`Fetched ${blogRoutes.length} blog posts for sitemap.`);
+    } catch (err) {
+      console.error("Failed to fetch blog posts for sitemap:", err.message);
+    }
+
+    const allRoutes = [...staticRoutes, ...dynamicRoutes, ...trainerRoutes, ...blogRoutes];
 
     const sitemapContent = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -64,6 +85,7 @@ ${allRoutes
   .map(
     (route) => `  <url>
     <loc>${SITE_URL}${route.url}</loc>
+    <lastmod>${route.lastmod || today}</lastmod>
     <changefreq>${route.changefreq}</changefreq>
     <priority>${route.priority}</priority>
   </url>`
