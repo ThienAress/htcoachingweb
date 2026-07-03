@@ -432,7 +432,7 @@ const OnlineCoaching = () => {
           </div>
         ) : plans.length === 0 ? (
           <div className="max-w-xl mx-auto mt-20 text-center px-4 bg-gray-900/40 border border-gray-800 rounded-2xl p-8 backdrop-blur-sm">
-            <Dumbbell className="w-16 h-16 text-primary mx-auto mb-4 animate-bounce" />
+            <Dumbbell className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
             <h2 className="text-2xl font-bold uppercase">Hệ Thống Coach Online</h2>
             <p className="text-gray-400 mt-3 text-sm leading-relaxed">
               Bạn chưa có giáo án tập luyện online được gán. Vui lòng đăng ký gói tập online và liên hệ Huấn luyện viên của bạn để kích hoạt giáo án luyện tập hàng ngày nhé!
@@ -442,6 +442,12 @@ const OnlineCoaching = () => {
           <div className="max-w-7xl mx-auto px-4 md:px-6">
             {/* Tiêu đề trang */}
             <div className="text-center mb-10">
+              <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
+                <Dumbbell className="text-primary w-6 h-6" />
+                <span className="font-semibold text-primary tracking-wide">
+                  HỆ THỐNG COACH ONLINE
+                </span>
+              </div>
               <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-black uppercase text-white tracking-normal">
                 GIÁO ÁN <span className="text-primary">LUYỆN TẬP CÁ NHÂN</span>
               </h1>

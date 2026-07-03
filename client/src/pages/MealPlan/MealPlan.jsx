@@ -11,6 +11,7 @@ import MealSummary from "./MealSummary";
 import NutritionLegend from "./NutritionLegend";
 import FoodNutritionTable from "./FoodNutritionTable";
 import FoodSelectorModal from "./FoodSelectorModal";
+import CustomMealBuilder from "./CustomMealBuilder";
 
 import { useMacroSet } from "../../hooks/useMacroSet";
 import { useFoodDatabase } from "../../hooks/useFoodDatabase";
@@ -236,12 +237,22 @@ const MealPlan = () => {
             <div className="flex justify-center sm:justify-start gap-4 sm:gap-6">
               <button
                 onClick={() => setActiveTab("menu")}
-                className={`py-2 px-1 font-semibold text-sm transition-all ${activeTab === "menu"
+                className={`py-2 px-1 font-semibold text-sm transition-all flex items-center gap-1 ${activeTab === "menu"
                     ? "border-b-2 border-primary text-primary"
                     : "text-gray-400 hover:text-gray-200"
                   }`}
               >
                 📋 Thực đơn
+              </button>
+
+              <button
+                onClick={() => setActiveTab("custom")}
+                className={`py-2 px-1 font-semibold text-sm transition-all flex items-center gap-1 ${activeTab === "custom"
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-gray-400 hover:text-gray-200"
+                  }`}
+              >
+                ✏️ Tự Lên Thực Đơn
               </button>
 
               <button
@@ -273,6 +284,13 @@ const MealPlan = () => {
                   </>
                 )}
               </>
+            ) : activeTab === "custom" ? (
+              <CustomMealBuilder 
+                foodDatabase={foodDatabase}
+                targetMacros={activeMacroTarget}
+                targetLabel={selectedMacroPlan}
+                selectedPlan={selectedPlan}
+              />
             ) : (
               <FoodNutritionTable foodDatabase={foodDatabase} canViewFull={accessLevel === "unlimited" || canGenerate} />
             )}
@@ -287,6 +305,22 @@ const MealPlan = () => {
           foodDatabase={foodDatabase}
         />
       </main>
+
+      {/* Internal Links */}
+      <div className="max-w-2xl mx-auto py-6 px-4">
+        <div className="flex flex-wrap justify-center gap-4 text-sm">
+          <Link to="/tdee-calculator" className="text-gray-400 hover:text-primary transition-colors underline underline-offset-4">
+            📊 Tính TDEE
+          </Link>
+          <Link to="/exercises" className="text-gray-400 hover:text-primary transition-colors underline underline-offset-4">
+            📚 Thư viện bài tập
+          </Link>
+          <Link to="/ket-qua-khach-hang" className="text-gray-400 hover:text-primary transition-colors underline underline-offset-4">
+            🏆 Kết quả khách hàng
+          </Link>
+        </div>
+      </div>
+
       <ChatIcons />
     </>
   );

@@ -167,7 +167,7 @@ const MyWallet = () => {
   return (
     <phantom-ui loading={loading || undefined}>
     <div className="min-h-screen bg-[#1a1a1a] text-white">
-      <SEO title="Ví của tôi | HT Coaching" description="Quản lý số dư và nạp tiền vào ví nội bộ" />
+      <SEO title="Ví của tôi" noindex />
 
       {/* Header */}
       <div className="bg-gradient-to-r from-[#1a1a1a] to-[#2a2a2a] border-b border-gray-800">
@@ -367,7 +367,7 @@ const MyWallet = () => {
                   <div>
                     <p className="font-semibold text-white">{formatVND(d.amount)}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {new Date(d.createdAt).toLocaleString("vi-VN")}
+                      {new Date(d.createdAt).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
                       {d.depositCode && <span className="ml-2 text-gray-600">• {d.depositCode}</span>}
                     </p>
                   </div>

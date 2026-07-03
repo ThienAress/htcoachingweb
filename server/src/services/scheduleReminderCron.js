@@ -72,7 +72,7 @@ async function checkAndSendReminders() {
     // Group theo trainerId để batch query user
     const trainerIds = [...new Set(schedules.map((s) => s.trainerId.toString()))];
     const trainers = await User.find({ _id: { $in: trainerIds } })
-      .select("_id name email")
+      .select("_id name email role")
       .lean();
 
     const trainerMap = {};
@@ -91,7 +91,12 @@ async function checkAndSendReminders() {
         continue;
       }
 
-      await sendScheduleReminderMail(trainer.email, {
+      // Admin dùng email thật thay vì email OAuth ảo
+      const recipientEmail = trainer.role === "admin"
+        ? (process.env.ADMIN_REAL_EMAIL || trainer.email)
+        : trainer.email;
+
+      await sendScheduleReminderMail(recipientEmail, {
         trainerName: trainer.name || "Trainer",
         clientName: schedule.clientName,
         dayOfWeek: schedule.dayOfWeek,

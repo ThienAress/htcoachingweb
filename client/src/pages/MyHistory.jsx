@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SEO from "../components/SEO";
 import { useQuery } from "@tanstack/react-query";
 import {
   User,
@@ -57,6 +58,7 @@ const MyHistory = () => {
 
   return (
     <phantom-ui loading={isLoading || undefined}>
+    <SEO title="Lịch sử tập luyện" noindex />
     <div className="p-4 md:p-6 space-y-6">
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
         <div className="flex items-start gap-3">
@@ -170,6 +172,11 @@ const MyHistory = () => {
                     <td className="px-4 py-3 text-slate-600 flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-slate-400" />
                       {new Date(c.time).toLocaleString("vi-VN", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
                         hour12: false,
                       })}
                     </td>

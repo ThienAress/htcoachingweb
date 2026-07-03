@@ -35,7 +35,7 @@ const Login = () => {
 
           {/* Tiêu đề với font Bebas Neue */}
           <h2 className="text-4xl md:text-5xl font-black mb-2 tracking-wider uppercase">
-            <span className="bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text text-transparent font-bebas-neue">
+            <span className="text-primary font-bebas-neue">
               HTCOACHING
             </span>
           </h2>

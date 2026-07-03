@@ -7,7 +7,7 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
-const MAX_FREE_GENERATIONS = 3;
+const MAX_FREE_GENERATIONS = 1;
 
 // ===== CHECK QUYỀN TRUY CẬP =====
 router.get("/check", protect, async (req, res) => {
@@ -57,7 +57,7 @@ router.get("/check", protect, async (req, res) => {
 });
 
 // ===== GHI NHẬN 1 LƯỢT GENERATE =====
-router.post("/record", protect, async (req, res) => {
+router.post("/record", protect, csrfProtection, async (req, res) => {
   try {
     const { id } = req.user;
 

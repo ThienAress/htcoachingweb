@@ -3,7 +3,11 @@ import { Zap, Bed, Target } from "lucide-react";
 
 const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
   const goalText =
-    goal === "gain" ? "tăng cân" : goal === "lose" ? "giảm mỡ" : "duy trì";
+    goal === "gain_muscle" ? "tăng cơ" 
+    : goal === "gain_weight" ? "tăng cân"
+    : goal === "lose_fat" ? "giảm mỡ" 
+    : goal === "lose_weight" ? "giảm cân"
+    : "duy trì";
 
   return (
     <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

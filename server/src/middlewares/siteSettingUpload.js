@@ -34,23 +34,27 @@ const createSiteSettingStorage = (folderName, maxWidth) => {
   });
 };
 
+const allowedExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+
+const imageFileFilter = (_req, file, cb) => {
+  const ext = path.extname(file.originalname || "").toLowerCase();
+
+  if (!file.mimetype?.startsWith("image/") || !allowedExtensions.has(ext)) {
+    return cb(new Error("Chỉ chấp nhận ảnh jpg, jpeg, png hoặc webp"));
+  }
+
+  cb(null, true);
+};
+
+const multerOptions = (folderName, maxWidth) => ({
+  storage: createSiteSettingStorage(folderName, maxWidth),
+  fileFilter: imageFileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+});
+
 // Khởi tạo các middleware riêng biệt với mức nén khác nhau theo yêu cầu
-export const uploadHeroImage = multer({ 
-  storage: createSiteSettingStorage("hero", 1920) 
-});
-
-export const uploadAboutImage = multer({ 
-  storage: createSiteSettingStorage("about", 1200) 
-});
-
-export const uploadTrainerImage = multer({ 
-  storage: createSiteSettingStorage("trainer", 800) 
-});
-
-export const uploadClassesImage = multer({ 
-  storage: createSiteSettingStorage("classes", 800) 
-});
-
-export const uploadToolsImage = multer({ 
-  storage: createSiteSettingStorage("tools", 1920) 
-});
+export const uploadHeroImage = multer(multerOptions("hero", 1920));
+export const uploadAboutImage = multer(multerOptions("about", 1200));
+export const uploadTrainerImage = multer(multerOptions("trainer", 800));
+export const uploadClassesImage = multer(multerOptions("classes", 800));
+export const uploadToolsImage = multer(multerOptions("tools", 1920));

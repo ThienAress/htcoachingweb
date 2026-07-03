@@ -10,5 +10,45 @@ Disallow: /trainer-login
 Disallow: /register
 Disallow: /checkin
 
-# Khai báo sitemap
+# === AI Search Bots — Cho phép crawl để được trích dẫn ===
+# OpenAI (ChatGPT search)
+User-agent: GPTBot
+Allow: /
+Disallow: /admin/
+Disallow: /trainer/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin/
+Disallow: /trainer/
+
+# Anthropic (Claude search)
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin/
+Disallow: /trainer/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /admin/
+Disallow: /trainer/
+
+# Perplexity
+User-agent: PerplexityBot
+Allow: /
+Disallow: /admin/
+Disallow: /trainer/
+
+# Google AI (Gemini, AI Overviews)
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin/
+Disallow: /trainer/
+
+# === Chặn bot chỉ dùng để training (không phải search) ===
+User-agent: CCBot
+Disallow: /
+
+# Khai báo sitemap & llms.txt
 Sitemap: https://htcoachingweb.io.vn/sitemap.xml
+llms-txt: https://htcoachingweb.io.vn/llms.txt

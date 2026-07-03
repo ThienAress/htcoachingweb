@@ -22,6 +22,7 @@ import Footer from "../../sections/Footer/Footer";
 import ChatIcons from "../../components/ChatIcons";
 import {
   getMySchedules,
+  getMyClients,
   createSchedule,
   updateSchedule,
   deleteSchedule,
@@ -54,6 +55,7 @@ const DEFAULT_COLORS = {
 };
 
 const INITIAL_FORM = {
+  clientId: "",
   clientName: "",
   dayOfWeek: 0,
   startTime: "08:00",
@@ -151,7 +153,7 @@ const ConfirmDialog = ({ title, message, onConfirm, onCancel }) => (
 );
 
 // ===== SCHEDULE MODAL =====
-const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEditing, isPending, defaultFormValues }) => {
+const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEditing, isPending, defaultFormValues, clients }) => {
   const [form, setForm] = useState(INITIAL_FORM);
   const [useCustomType, setUseCustomType] = useState(false);
 
@@ -159,7 +161,8 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
     if (initialData) {
       const isCustom = !EXERCISE_TYPES.some((t) => t.label === initialData.exerciseType);
       setForm({
-        clientName: initialData.clientName || "",
+        clientId: initialData.clientId?._id || initialData.clientId || "",
+        clientName: initialData.clientId?.name || initialData.clientName || "",
         dayOfWeek: initialData.dayOfWeek ?? 0,
         startTime: initialData.startTime || "08:00",
         endTime: initialData.endTime || "09:00",
@@ -199,11 +202,11 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
     e.preventDefault();
     const finalType = useCustomType ? form.customExerciseType.trim() : form.exerciseType;
     if (!finalType) return toast.error("Vui lòng nhập loại bài tập");
-    if (!form.clientName.trim()) return toast.error("Vui lòng nhập tên khách hàng");
+    if (!form.clientId) return toast.error("Vui lòng chọn khách hàng");
     if (form.endTime !== "00:00" && form.startTime >= form.endTime) return toast.error("Giờ bắt đầu phải nhỏ hơn giờ kết thúc");
 
     onSubmit({
-      clientName: form.clientName.trim(),
+      clientId: form.clientId,
       dayOfWeek: Number(form.dayOfWeek),
       startTime: form.startTime,
       endTime: form.endTime,
@@ -227,7 +230,7 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2 uppercase">
             <CalendarDays className="w-5 h-5 text-primary" />
             {isEditing ? "Chỉnh sửa lịch tập" : "Tạo lịch tập mới"}
           </h3>
@@ -245,7 +248,20 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
               <User className="w-3.5 h-3.5 inline mr-1" /> Tên khách hàng *
             </label>
-            <input type="text" value={form.clientName} onChange={(e) => setForm((f) => ({ ...f, clientName: e.target.value }))} placeholder="Nhập tên khách hàng..." className={inputClass} maxLength={100} required />
+            <select 
+              value={form.clientId} 
+              onChange={(e) => {
+                const c = clients.find(x => x._id === e.target.value);
+                setForm((f) => ({ ...f, clientId: e.target.value, clientName: c ? c.name : "" }));
+              }} 
+              className={inputClass} 
+              required
+            >
+              <option value="">-- Chọn khách hàng --</option>
+              {clients.map(c => (
+                <option key={c._id} value={c._id}>{c.name} ({c.email})</option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -356,6 +372,11 @@ const TrainingSchedule = () => {
     queryFn: () => getMySchedules().then((res) => res.data.data || []),
   });
 
+  const { data: clients = [] } = useQuery({
+    queryKey: ["my-clients"],
+    queryFn: () => getMyClients().then(res => res.data.data || []),
+  });
+
   const createMut = useMutation({
     mutationFn: (data) => createSchedule(data),
     onSuccess: () => { toast.success("Đã tạo lịch tập thành công!"); queryClient.invalidateQueries({ queryKey: ["training-schedules"] }); setIsModalOpen(false); },
@@ -389,10 +410,10 @@ const TrainingSchedule = () => {
   }, [schedules]);
 
   const stats = useMemo(() => {
-    const clients = new Set(schedules.map((s) => s.clientName.toLowerCase()));
+    const clientsSet = new Set(schedules.map((s) => s.clientId?._id || s.clientName.toLowerCase()));
     const types = {};
     schedules.forEach((s) => { types[s.exerciseType] = (types[s.exerciseType] || 0) + 1; });
-    return { totalSlots: schedules.length, uniqueClients: clients.size, typeCounts: types };
+    return { totalSlots: schedules.length, uniqueClients: clientsSet.size, typeCounts: types };
   }, [schedules]);
 
   const earliestExpiry = useMemo(() => {
@@ -436,7 +457,7 @@ const TrainingSchedule = () => {
   const handleDelete = useCallback((s) => {
     setConfirmAction({
       title: "Xóa lịch tập",
-      message: `Bạn có chắc muốn xóa lịch tập của "${s.clientName}"?`,
+      message: `Bạn có chắc muốn xóa lịch tập của "${s.clientId?.name || s.clientName}"?`,
       onConfirm: () => { deleteMut.mutate(s._id); setConfirmAction(null); },
     });
   }, [deleteMut]);
@@ -535,7 +556,7 @@ const TrainingSchedule = () => {
                 {schedules.length > 0 && (
                   <div className="hidden lg:flex flex-col gap-4 w-56 flex-shrink-0">
                     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4">
-                      <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-1.5">
+                      <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-1.5 uppercase">
                         <Dumbbell className="w-4 h-4 text-gray-400" /> Danh mục
                       </h4>
                       <div className="space-y-2">
@@ -552,7 +573,7 @@ const TrainingSchedule = () => {
                       </div>
                     </div>
                     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4">
-                      <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-1.5">
+                      <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-1.5 uppercase">
                         <BarChart3 className="w-4 h-4 text-gray-400" /> Tổng quan
                       </h4>
                       <div className="space-y-2">
@@ -616,9 +637,9 @@ const TrainingSchedule = () => {
                                         color: s.color,
                                       }}
                                       onClick={(e) => { e.stopPropagation(); handleEdit(s); }}
-                                      title={`${s.clientName}\n${s.startTime} - ${s.endTime}\n${s.exerciseType}${s.notes ? "\n" + s.notes : ""}`}
+                                      title={`${s.clientId?.name || s.clientName}\n${s.startTime} - ${s.endTime}\n${s.exerciseType}${s.notes ? "\n" + s.notes : ""}`}
                                     >
-                                      <p className="text-[0.7rem] font-semibold leading-tight truncate">{s.clientName}</p>
+                                      <p className="text-[0.7rem] font-semibold leading-tight truncate">{s.clientId?.name || s.clientName}</p>
                                       {height >= 36 && <p className="text-[0.6rem] opacity-80 mt-0.5">{s.startTime} - {s.endTime}</p>}
                                       {height >= 52 && <p className="text-[0.6rem] opacity-70 truncate">{s.exerciseType}</p>}
                                     </div>
@@ -655,8 +676,13 @@ const TrainingSchedule = () => {
                                 <div key={s._id} className="px-4 py-3 border-b border-gray-700/50 last:border-b-0 flex gap-3 items-start cursor-pointer hover:bg-white/[0.03] transition-colors" onClick={() => handleEdit(s)}>
                                   <div className="w-1 min-h-[36px] rounded-full flex-shrink-0" style={{ background: s.color }} />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-white truncate">{s.clientName}</p>
-                                    <p className="text-xs text-gray-400 mt-0.5">{s.startTime} - {s.endTime} · {s.exerciseType}</p>
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <p className="text-sm font-bold text-gray-200 truncate">{s.clientId?.name || s.clientName}</p>
+                                      <span className="text-[0.65rem] px-1.5 py-0.5 rounded font-medium border" style={{ color: s.color, borderColor: hexToRgba(s.color, 0.3), backgroundColor: hexToRgba(s.color, 0.1) }}>
+                                        {s.exerciseType}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-400">{s.startTime} - {s.endTime}</p>
                                     {s.notes && <p className="text-xs text-gray-500 mt-0.5 truncate">{s.notes}</p>}
                                   </div>
                                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -693,6 +719,7 @@ const TrainingSchedule = () => {
         isEditing={!!editingSchedule}
         isPending={createMut.isPending || updateMut.isPending}
         defaultFormValues={defaultFormValues}
+        clients={clients}
       />
 
       {/* Confirm */}

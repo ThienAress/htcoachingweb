@@ -36,10 +36,27 @@ async function generateSitemap() {
       console.log(`Fetched ${dynamicRoutes.length} customer stories for sitemap.`);
     } catch (err) {
       console.error("Failed to fetch customer stories for sitemap:", err.message);
-      // Tiếp tục sinh sitemap với các route tĩnh nếu lỗi API
     }
 
-    const allRoutes = [...staticRoutes, ...dynamicRoutes];
+    // Fetch trainer profiles
+    let trainerRoutes = [];
+    try {
+      const res = await axios.get(`${API_URL}/trainers`);
+      const trainers = res.data?.data || res.data || [];
+      
+      trainerRoutes = trainers
+        .filter(t => t.slug)
+        .map(trainer => ({
+          url: `/huan-luyen-vien/${trainer.slug}`,
+          priority: 0.8,
+          changefreq: "monthly",
+        }));
+      console.log(`Fetched ${trainerRoutes.length} trainer profiles for sitemap.`);
+    } catch (err) {
+      console.error("Failed to fetch trainers for sitemap:", err.message);
+    }
+
+    const allRoutes = [...staticRoutes, ...dynamicRoutes, ...trainerRoutes];
 
     const sitemapContent = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

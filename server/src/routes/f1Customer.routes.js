@@ -1,5 +1,6 @@
 import express from "express";
 import { protect, requireRoles, requireTrainerAccess } from "../middlewares/auth.middleware.js";
+import { csrfProtection } from "../middlewares/csrf.js";
 import {
   approveAiReport,
   createAssessment,
@@ -64,6 +65,7 @@ router.get(
 router.post(
   "/",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateCreateF1Customer,
   createF1Customer,
@@ -82,6 +84,7 @@ router.get(
 router.patch(
   "/:id",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateUpdateF1Customer,
   updateF1Customer,
@@ -90,6 +93,7 @@ router.patch(
 router.patch(
   "/:id/status",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateUpdateF1Status,
   updateF1CustomerStatus,
@@ -98,6 +102,7 @@ router.patch(
 router.delete(
   "/:id",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateF1CustomerId,
   deleteF1Customer,
@@ -117,6 +122,7 @@ router.get(
 router.post(
   "/:id/intake/draft",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateSaveIntakeDraft,
   saveIntakeDraft,
@@ -125,6 +131,7 @@ router.post(
 router.post(
   "/:id/intake/submit",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateSubmitIntake,
   submitIntake,
@@ -133,6 +140,7 @@ router.post(
 router.patch(
   "/:id/test-permission-review",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateReviewTestPermission,
   reviewTestPermission,
@@ -144,6 +152,7 @@ router.patch(
 router.post(
   "/:id/media",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   uploadF1Media.single("file"),
   validateCreateF1Media,
@@ -161,6 +170,7 @@ router.get(
 router.delete(
   "/:id/media/:mediaId",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateDeleteF1Media,
   deleteF1Media,
@@ -172,6 +182,7 @@ router.delete(
 router.post(
   "/:id/assessments",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateCreateAssessment,
   createAssessment,
@@ -188,6 +199,7 @@ router.get(
 router.patch(
   "/:id/assessments/:assessmentId",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateUpdateAssessment,
   updateAssessment,
@@ -207,6 +219,7 @@ router.get(
 router.post(
   "/:id/ai-reports/generate",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateGenerateAiReport,
   generateAiReport,
@@ -223,6 +236,7 @@ router.get(
 router.patch(
   "/:id/ai-reports/:reportId/approve",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateApproveAiReport,
   approveAiReport,
@@ -234,6 +248,7 @@ router.patch(
 router.post(
   "/:id/forecasts/generate",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateGenerateOutcomeForecast,
   generateOutcomeForecast,
@@ -253,6 +268,7 @@ router.get(
 router.post(
   "/:id/result-predictions/generate",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateGenerateResultPrediction,
   generateResultPrediction,
@@ -269,6 +285,7 @@ router.get(
 router.post(
   "/:id/result-predictions/:predictionId/visual-stages/:phaseKey/generate-images",
   protect,
+  csrfProtection,
   requireTrainerAccess,
   validateGenerateResultPredictionStageImages,
   generateResultPredictionStageImages,
