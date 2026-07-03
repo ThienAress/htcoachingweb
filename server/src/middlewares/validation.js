@@ -798,3 +798,54 @@ export const validateGenerateResultPredictionStageImages = [
 
   handleValidationErrors,
 ];
+
+// ============================================================================
+// CONTRACT VALIDATIONS
+// ============================================================================
+
+export const validateCreateContract = [
+  body("orderId")
+    .notEmpty()
+    .withMessage("orderId là bắt buộc")
+    .isMongoId()
+    .withMessage("orderId không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateSignContract = [
+  param("id").isMongoId().withMessage("ID hợp đồng không hợp lệ"),
+  body("signatureImage")
+    .notEmpty()
+    .withMessage("Chữ ký không được để trống")
+    .isString()
+    .withMessage("Chữ ký phải là chuỗi base64"),
+  handleValidationErrors,
+];
+
+export const validateUpdateContract = [
+  param("id").isMongoId().withMessage("ID hợp đồng không hợp lệ"),
+  body("trainerInfo").optional().isObject().withMessage("trainerInfo phải là object"),
+  body("trainerInfo.name").optional().isString().withMessage("Tên HLV không hợp lệ"),
+  body("trainerInfo.birthYear").optional().isString().withMessage("Năm sinh không hợp lệ"),
+  body("trainerInfo.address").optional().isString().withMessage("Địa chỉ không hợp lệ"),
+  body("trainerInfo.phone").optional().isString().withMessage("SĐT HLV không hợp lệ"),
+  body("trainerInfo.email").optional().isString().withMessage("Email HLV không hợp lệ"),
+  body("clientInfo").optional().isObject().withMessage("clientInfo phải là object"),
+  body("clientInfo.name").optional().isString().withMessage("Tên không hợp lệ"),
+  body("clientInfo.phone").optional().isString().withMessage("SĐT không hợp lệ"),
+  body("clientInfo.email").optional().isString().withMessage("Email không hợp lệ"),
+  body("packageDetails").optional().isObject().withMessage("packageDetails phải là object"),
+  body("packageDetails.sessions")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Số buổi phải lớn hơn 0"),
+  body("packageDetails.pricePerSession")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Giá mỗi buổi phải >= 0"),
+  body("packageDetails.totalAmount")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Tổng tiền phải >= 0"),
+  handleValidationErrors,
+];

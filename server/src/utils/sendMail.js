@@ -394,3 +394,76 @@ export const sendScheduleReminderMail = async (to, data) => {
     console.error("❌ SCHEDULE REMINDER MAIL ERROR:", err);
   }
 };
+
+// CONTRACT MAIL — Gửi HĐ cho khách hàng ký
+export const sendContractMail = async (to, data) => {
+  try {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Hợp đồng huấn luyện cá nhân</title>
+      </head>
+      <body style="margin:0; padding:0; background-color:#f4f4f4; font-family:'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4; padding:20px 0;">
+          <tr>
+            <td align="center">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px; background:#ffffff; border-radius:24px; box-shadow:0 8px 20px rgba(0,0,0,0.05); overflow:hidden;">
+                <tr>
+                  <td style="background:linear-gradient(135deg, #047857 0%, #065f46 100%); padding:32px 24px; text-align:center;">
+                    <div style="font-size:48px; margin-bottom:8px;">📋✍️</div>
+                    <h1 style="margin:0; color:#fff; font-size:28px; letter-spacing:-0.5px;">HỢP ĐỒNG HUẤN LUYỆN</h1>
+                    <p style="margin:8px 0 0; color:#a7f3d0; font-size:16px;">Vui lòng ký xác nhận hợp đồng</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:32px 28px;">
+                    <p style="font-size:18px; margin:0 0 12px; color:#1e2a3a;">Chào <strong style="color:#e67e22;">${safe(data.clientName)}</strong>,</p>
+                    <p style="font-size:16px; line-height:1.5; color:#2c3e50; margin:0 0 24px;">HLV <strong>${safe(data.trainerName)}</strong> đã tạo hợp đồng huấn luyện cá nhân cho bạn. Vui lòng xem và ký xác nhận.</p>
+                    
+                    <table width="100%" cellpadding="12" cellspacing="0" border="0" style="background:#f9fafc; border-radius:16px; margin-bottom:24px;">
+                      <tr><td style="border-bottom:1px solid #e9ecef; font-weight:600; color:#1e2a3a;">Gói tập</td><td style="color:#2c3e50;">${safe(data.packageName)}</td></tr>
+                      <tr><td style="font-weight:600; color:#1e2a3a;">Số buổi</td><td style="color:#2c3e50;">${data.sessions} buổi</td></tr>
+                    </table>
+                    
+                    <div style="text-align:center; margin:24px 0;">
+                      <a href="${safe(data.contractLink)}" target="_blank" style="display:inline-block; background:linear-gradient(135deg, #059669, #047857); color:#ffffff; font-weight:bold; font-size:16px; padding:14px 32px; border-radius:14px; text-decoration:none; letter-spacing:0.5px;">
+                        📝 Xem & Ký Hợp Đồng
+                      </a>
+                    </div>
+                    
+                    <p style="font-size:13px; color:#6c757d; line-height:1.4; margin:16px 0 0; text-align:center;">Hợp đồng sẽ hết hạn sau 7 ngày nếu chưa được ký.</p>
+                    
+                    <p style="font-size:12px; color:#6c757d; line-height:1.4; margin:24px 0 0; border-top:1px solid #e9ecef; padding-top:16px; text-align:center;">
+                      📧 <strong>Đây là tin nhắn tự động, bạn không cần trả lời email này.</strong>
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background:#f8f9fa; padding:20px 28px; text-align:center; border-top:1px solid #e9ecef;">
+                    <p style="margin:0; font-size:12px; color:#6c757d;">© 2026 HT Coaching – Nâng tầm sức mạnh</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    await resend.emails.send({
+      from: "HT Coaching <noreply@htcoachingweb.io.vn>",
+      to,
+      subject: "📋 Hợp đồng huấn luyện cá nhân — Vui lòng ký xác nhận",
+      html,
+      headers: { "X-Entity-Ref-ID": Date.now().toString() },
+    });
+
+    console.log(`📧 Contract email sent to ${to}`);
+  } catch (err) {
+    console.error("❌ CONTRACT MAIL ERROR:", err);
+  }
+};

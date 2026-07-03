@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import UpdatingText from "../components/UpdatingText";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -13,8 +14,6 @@ import {
 } from "lucide-react";
 import { getPublicCustomerStories } from "../services/customerStory.service";
 import Contact from "../sections/Contact";
-import hero1 from "../assets/images/hero/hero1.jpg";
-import hero2 from "../assets/images/hero/hero2.jpg";
 import hero3 from "../assets/images/hero/hero3.jpg";
 import SEO from "../components/SEO";
 
@@ -75,17 +74,16 @@ const matchesDuration = (story, durationFilter) => {
 };
 
 const getSummary = (value = "", maxLength = 96) => {
-  if (!value) return "Chưa cập nhật";
+  if (!value) return "Đang cập nhật";
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength).trim()}...`;
 };
 
-const getStoryImage = (story, key, fallback) =>
-  story?.[key] ||
-  story?.heroImage ||
-  story?.beforeImg ||
-  story?.afterImg ||
-  fallback;
+const getStoryImage = (story, key, fallback) => {
+  const value = story?.[key];
+  const resolved = Array.isArray(value) ? value[0] : value;
+  return resolved || fallback;
+};
 
 const stats = [
   { value: "1-1", label: "Theo sát từng buổi" },
@@ -127,9 +125,84 @@ const FilterSelect = ({ value, onChange, children, label }) => (
   </label>
 );
 
+const TrainerFilter = ({ trainers, selected, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleToggle = (id) => {
+    if (selected.includes(id)) {
+      onChange(selected.filter((x) => x !== id));
+    } else {
+      onChange([...selected, id]);
+    }
+  };
+
+  const selectedNames = trainers
+    .filter((t) => selected.includes(t._id))
+    .map((t) => t.name)
+    .join(", ");
+
+  return (
+    <div className="relative block" ref={dropdownRef}>
+      <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+        Huấn luyện viên
+      </span>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="h-12 w-full border border-slate-200 bg-white px-4 pr-10 text-left text-sm font-bold text-slate-800 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 flex items-center justify-between"
+      >
+        <span className="truncate">
+          {selected.length === 0 ? "HLV" : selectedNames}
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 z-30 mt-1 max-h-60 w-full overflow-y-auto border border-slate-200 bg-white p-2 shadow-lg rounded-sm">
+          {trainers.length === 0 ? (
+            <div className="p-2 text-xs italic text-slate-400">Không có dữ liệu HLV</div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {trainers.map((t) => {
+                const isChecked = selected.includes(t._id);
+                return (
+                  <label
+                    key={t._id}
+                    className="flex items-center gap-2.5 px-2 py-1.5 hover:bg-slate-50 cursor-pointer select-none rounded transition"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleToggle(t._id)}
+                      className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                    />
+                    <span className="text-sm font-bold text-slate-700">{t.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const StoryGridCard = ({ story }) => {
-  const beforeImage = getStoryImage(story, "beforeImg", hero1);
-  const afterImage = getStoryImage(story, "afterImg", hero2);
+  const beforeImage = getStoryImage(story, "beforeImg", null);
+  const afterImage = getStoryImage(story, "afterImg", null);
+  const trainerName = story.trainerId?.name;
 
   return (
     <Link
@@ -139,10 +212,10 @@ const StoryGridCard = ({ story }) => {
       <div className="flex min-h-[70px] items-center justify-between gap-4 bg-primary px-4 py-3 text-white">
         <div className="min-w-0">
           <p className="font-display text-3xl font-bold uppercase leading-none">
-            {story.duration || "Hành trình"}
+            {story.duration || "Đang cập nhật"}
           </p>
           <p className="mt-1 truncate text-[11px] font-bold uppercase leading-4 text-white/90">
-            {story.age || "--"} tuổi - {story.job || "Khách hàng"}
+            {story.age || "--"} tuổi - {story.job || "Đang cập nhật"}
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -155,21 +228,33 @@ const StoryGridCard = ({ story }) => {
 
       <div className="grid grid-cols-2 gap-2 bg-neutral-100 p-2">
         <div className="relative overflow-hidden bg-neutral-200">
-          <img
-            src={beforeImage}
-            alt={`${story.name} before`}
-            className="aspect-[4/5] w-full object-cover object-center transition duration-500 group-hover:scale-105"
-          />
+          {beforeImage ? (
+            <img
+              src={beforeImage}
+              alt={`${story.name} before`}
+              className="aspect-[4/5] w-full object-cover object-center transition duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="aspect-[4/5] w-full flex items-center justify-center bg-neutral-100">
+              <UpdatingText className="text-[10px] text-slate-400" />
+            </div>
+          )}
           <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-[10px] font-black uppercase text-white shadow">
             Before
           </span>
         </div>
         <div className="relative overflow-hidden bg-neutral-200">
-          <img
-            src={afterImage}
-            alt={`${story.name} after`}
-            className="aspect-[4/5] w-full object-cover object-center transition duration-500 group-hover:scale-105"
-          />
+          {afterImage ? (
+            <img
+              src={afterImage}
+              alt={`${story.name} after`}
+              className="aspect-[4/5] w-full object-cover object-center transition duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="aspect-[4/5] w-full flex items-center justify-center bg-neutral-100">
+              <UpdatingText className="text-[10px] text-slate-400" />
+            </div>
+          )}
           <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-[10px] font-black uppercase text-white shadow">
             After
           </span>
@@ -183,8 +268,20 @@ const StoryGridCard = ({ story }) => {
               {story.name || "Khách hàng HT"}
             </h3>
             <p className="mt-1 text-xs font-semibold uppercase text-primary">
-              {story.result || "Thay đổi vóc dáng"}
+              {story.result || "Đang cập nhật"}
             </p>
+            {trainerName && (
+              <div className="mt-2">
+                <Link
+                  to={`/huan-luyen-vien/${story.trainerId?.slug}`}
+                  className="inline-flex items-center gap-1 rounded bg-slate-100 px-2.5 py-1 text-[11px] font-black uppercase text-slate-700 transition duration-200 hover:bg-primary/10 hover:text-primary"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span>HLV: {trainerName}</span>
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+                </Link>
+              </div>
+            )}
           </div>
           {story.packageName && (
             <span className="shrink-0 border border-primary/25 bg-primary/10 px-2 py-1 text-[10px] font-black uppercase text-primary">
@@ -218,6 +315,7 @@ const CustomerStories = () => {
   const [ageFilter, setAgeFilter] = useState("");
   const [goalFilter, setGoalFilter] = useState("");
   const [durationFilter, setDurationFilter] = useState("");
+  const [selectedTrainers, setSelectedTrainers] = useState([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["public-customer-stories", "all"],
@@ -227,27 +325,52 @@ const CustomerStories = () => {
   const stories = useMemo(() => data?.data || [], [data?.data]);
   const featuredStory = stories[0];
   const heroImage = getStoryImage(featuredStory, "heroImage", hero3);
-  const collageBefore = getStoryImage(featuredStory, "beforeImg", hero1);
-  const collageAfter = getStoryImage(featuredStory, "afterImg", hero2);
+  const collageBefore = getStoryImage(featuredStory, "beforeImg", null);
+  const collageAfter = getStoryImage(featuredStory, "afterImg", null);
+
+  const trainersList = useMemo(() => {
+    const map = new Map();
+    stories.forEach((story) => {
+      if (story.trainerId && story.trainerId._id && story.trainerId.name) {
+        map.set(story.trainerId._id, {
+          _id: story.trainerId._id,
+          name: story.trainerId.name,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [stories]);
 
   const filteredStories = useMemo(() => {
     const keyword = normalizeText(search.trim());
 
-    return stories.filter((story) => {
+    let result = stories.filter((story) => {
       const searchText = normalizeText(
-        `${story.name || ""} ${story.job || ""} ${story.goal || ""} ${
-          story.result || ""
+        `${story.name || ""} ${story.job || ""} ${story.goal || ""} ${story.result || ""
         }`,
       );
+
+      const matchesTrainer =
+        selectedTrainers.length === 0 ||
+        (story.trainerId && selectedTrainers.includes(story.trainerId._id));
 
       return (
         (!keyword || searchText.includes(keyword)) &&
         matchesAge(story, ageFilter) &&
         matchesGoal(story, goalFilter) &&
-        matchesDuration(story, durationFilter)
+        matchesDuration(story, durationFilter) &&
+        matchesTrainer
       );
     });
-  }, [stories, search, ageFilter, goalFilter, durationFilter]);
+
+    result.sort((a, b) => {
+      const dateA = a.publishedAt ? new Date(a.publishedAt) : new Date(a.createdAt);
+      const dateB = b.publishedAt ? new Date(b.publishedAt) : new Date(b.createdAt);
+      return dateB - dateA;
+    });
+
+    return result;
+  }, [stories, search, ageFilter, goalFilter, durationFilter, selectedTrainers]);
 
   return (
     <main className="bg-white">
@@ -260,9 +383,9 @@ const CustomerStories = () => {
         <img
           src={heroImage}
           alt="Kết quả khách hàng HT Coaching"
-          className="absolute inset-0 h-full w-full object-cover object-center opacity-55"
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-75"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.88),rgba(0,0,0,0.64),rgba(0,0,0,0.24))]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 h-28 bg-linear-to-t from-white to-transparent" />
 
         <div className="container-custom relative z-10 flex min-h-[520px] flex-col justify-end pb-16 pt-28">
@@ -378,21 +501,33 @@ const CustomerStories = () => {
             <div className="absolute bottom-0 left-0 w-[70%] border-8 border-white bg-white shadow-xl sm:w-[58%]">
               <div className="grid grid-cols-2 gap-2 bg-slate-100 p-2">
                 <div className="relative overflow-hidden">
-                  <img
-                    src={collageBefore}
-                    alt="Before"
-                    className="aspect-[4/5] w-full object-cover"
-                  />
+                  {collageBefore ? (
+                    <img
+                      src={collageBefore}
+                      alt="Before"
+                      className="aspect-[4/5] w-full object-cover"
+                    />
+                  ) : (
+                    <div className="aspect-[4/5] w-full flex items-center justify-center bg-neutral-100 min-h-[120px]">
+                      <UpdatingText className="text-[10px] text-slate-400" />
+                    </div>
+                  )}
                   <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-[10px] font-black uppercase text-white">
                     Before
                   </span>
                 </div>
                 <div className="relative overflow-hidden">
-                  <img
-                    src={collageAfter}
-                    alt="After"
-                    className="aspect-[4/5] w-full object-cover"
-                  />
+                  {collageAfter ? (
+                    <img
+                      src={collageAfter}
+                      alt="After"
+                      className="aspect-[4/5] w-full object-cover"
+                    />
+                  ) : (
+                    <div className="aspect-[4/5] w-full flex items-center justify-center bg-neutral-100 min-h-[120px]">
+                      <UpdatingText className="text-[10px] text-slate-400" />
+                    </div>
+                  )}
                   <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-[10px] font-black uppercase text-white">
                     After
                   </span>
@@ -427,7 +562,7 @@ const CustomerStories = () => {
             </p>
           </div>
 
-          <div className="mt-9 grid gap-4 border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-4">
+          <div className="mt-9 grid gap-4 border border-slate-200 bg-white p-4 shadow-sm grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
             <label className="relative block">
               <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
                 Tìm kiếm
@@ -446,7 +581,7 @@ const CustomerStories = () => {
               value={ageFilter}
               onChange={(event) => setAgeFilter(event.target.value)}
             >
-              <option value="">Tất cả độ tuổi</option>
+              <option value="">Độ tuổi</option>
               <option value="under_20">Dưới 20 tuổi</option>
               <option value="20_29">20-29 tuổi</option>
               <option value="30_39">30-39 tuổi</option>
@@ -458,7 +593,7 @@ const CustomerStories = () => {
               value={goalFilter}
               onChange={(event) => setGoalFilter(event.target.value)}
             >
-              <option value="">Tất cả mục tiêu</option>
+              <option value="">Mục tiêu</option>
               <option value="fat_loss">Giảm mỡ</option>
               <option value="muscle_gain">Tăng cơ</option>
               <option value="fitness">Sức khỏe/vóc dáng</option>
@@ -469,12 +604,18 @@ const CustomerStories = () => {
               value={durationFilter}
               onChange={(event) => setDurationFilter(event.target.value)}
             >
-              <option value="">Tất cả thời gian</option>
+              <option value="">Thời gian</option>
               <option value="under_12">Đến 12 tuần</option>
               <option value="12_16">12-16 tuần</option>
               <option value="17_24">17-24 tuần</option>
               <option value="over_24">Trên 24 tuần</option>
             </FilterSelect>
+
+            <TrainerFilter
+              trainers={trainersList}
+              selected={selectedTrainers}
+              onChange={setSelectedTrainers}
+            />
           </div>
 
           <div className="mt-9 flex items-center justify-between gap-4 border-b border-slate-200 pb-4">
@@ -492,23 +633,23 @@ const CustomerStories = () => {
 
           <div className="mt-8">
             <phantom-ui loading={isLoading || undefined}>
-            {filteredStories.length === 0 ? (
-              <div className="border border-dashed border-slate-300 bg-white py-16 text-center">
-                <p className="text-lg font-bold text-slate-800">
-                  Chưa có câu chuyện phù hợp
-                </p>
-                <p className="mt-2 text-sm text-slate-500">
-                  Hãy thử đổi bộ lọc hoặc quay lại sau khi admin publish thêm
-                  kết quả mới.
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-x-6 gap-y-8 md:grid-cols-2 xl:grid-cols-3">
-                {filteredStories.map((story) => (
-                  <StoryGridCard key={story.slug || story._id} story={story} />
-                ))}
-              </div>
-            )}
+              {filteredStories.length === 0 ? (
+                <div className="border border-dashed border-slate-300 bg-white py-16 text-center">
+                  <p className="text-lg font-bold text-slate-800">
+                    Chưa có câu chuyện phù hợp
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Hãy thử đổi bộ lọc hoặc quay lại sau khi admin publish thêm
+                    kết quả mới.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-x-6 gap-y-8 md:grid-cols-2 xl:grid-cols-3">
+                  {filteredStories.map((story) => (
+                    <StoryGridCard key={story.slug || story._id} story={story} />
+                  ))}
+                </div>
+              )}
             </phantom-ui>
           </div>
         </div>

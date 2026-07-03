@@ -14,6 +14,7 @@ const DIST_DIR = path.resolve(__dirname, '../dist');
 const routesToPrerender = [
   '/',
   '/ket-qua-khach-hang',
+  '/blog',
   '/club',
   '/exercises',
   '/tdee-calculator',

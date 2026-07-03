@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
+import UpdatingText from "../components/UpdatingText";
 import { useQuery } from "@tanstack/react-query";
 import { getPublicTrainerBySlug } from "../services/trainer.service";
 import { getPublicCustomerStories } from "../services/customerStory.service";
@@ -102,68 +103,95 @@ const AccordionItem = ({ question, answer, isOpen, onClick }) => (
 /* ==========================================
    Component: Customer Grid Card (UI theo mẫu)
    ========================================== */
-const CustomerCard = ({ story }) => (
-  <div className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-200">
-    {/* Ảnh Before / After cạnh nhau */}
-    <div className="flex">
-      {/* Before */}
-      <div className="flex-1 relative">
-        <div className="aspect-[3/4] overflow-hidden">
-          <img
-            src={story.beforeImg || story.heroImage}
-            alt="Before"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
+const CustomerCard = ({ story }) => {
+  const beforeSrc = Array.isArray(story.beforeImg) ? story.beforeImg[0] : story.beforeImg;
+  const afterSrc = Array.isArray(story.afterImg) ? story.afterImg[0] : story.afterImg;
+
+  return (
+    <div className="group relative bg-neutral-900 border border-white/10 rounded-2xl overflow-hidden hover:border-primary/60 transition-all duration-300 shadow-xl hover:shadow-primary/5 flex flex-col justify-between">
+      <div>
+        {/* Ảnh Before / After cạnh nhau */}
+        <div className="flex relative overflow-hidden aspect-[4/3]">
+          {/* Before */}
+          <div className="flex-1 relative overflow-hidden bg-neutral-950">
+            {beforeSrc ? (
+              <img
+                src={beforeSrc}
+                alt="Before"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-neutral-950 min-h-[120px]">
+                <UpdatingText className="text-[10px] text-slate-500" />
+              </div>
+            )}
+            <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-[9px] font-black px-2.5 py-1 rounded border border-white/10 uppercase tracking-wider z-20">
+              Before
+            </div>
+          </div>
+
+          {/* Divider mỏng */}
+          <div className="w-[1px] bg-white/10 shrink-0 relative z-10"></div>
+
+          {/* After */}
+          <div className="flex-1 relative overflow-hidden bg-neutral-950">
+            {afterSrc ? (
+              <img
+                src={afterSrc}
+                alt="After"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-neutral-950 min-h-[120px]">
+                <UpdatingText className="text-[10px] text-slate-500" />
+              </div>
+            )}
+            <div className="absolute bottom-3 right-3 bg-primary text-white text-[9px] font-black px-2.5 py-1 rounded border border-primary/20 uppercase tracking-wider z-20">
+              After
+            </div>
+          </div>
+
+          {/* Hover Overlay */}
+          <Link
+            to={`/ket-qua-khach-hang/${story.slug}`}
+            className="absolute inset-0 flex items-center justify-center bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30"
+          >
+            <span className="flex items-center gap-2 bg-primary text-white font-black text-xs px-5 py-2.5 rounded-lg shadow-lg transform scale-90 group-hover:scale-100 transition-all duration-300 uppercase tracking-wider border border-primary-dark">
+              <Eye size={14} /> Xem chi tiết
+            </span>
+          </Link>
         </div>
-        <div className="absolute bottom-4 left-0 bg-primary text-white text-[10px] font-black px-3 py-1.5 rounded-r-lg uppercase tracking-widest shadow-lg z-20">
-          BEFORE
+
+        {/* Nội dung thông tin học viên */}
+        <div className="p-4 flex flex-col justify-between">
+          <div>
+            <h4 className="font-black text-white text-base truncate group-hover:text-primary transition-colors uppercase">
+              {story.name}
+            </h4>
+            {story.age && (
+              <p className="text-slate-400 text-sm font-medium mt-0.5">
+                {story.age} tuổi
+              </p>
+            )}
+            {story.result && (
+              <p className="mt-1.5 text-xs font-black uppercase text-primary tracking-wide">
+                🔥 {story.result}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Divider */}
-      <div className="w-[2px] bg-slate-100 shrink-0 relative z-10"></div>
-
-      {/* After */}
-      <div className="flex-1 relative">
-        <div className="aspect-[3/4] overflow-hidden">
-          <img
-            src={story.afterImg || story.heroImage}
-            alt="After"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        </div>
-        <div className="absolute bottom-4 right-0 bg-primary text-white text-[10px] font-black px-3 py-1.5 rounded-l-lg uppercase tracking-widest shadow-lg z-20">
-          AFTER
-        </div>
-      </div>
-    </div>
-
-    {/* Overlay nút Xem chi tiết — hiện khi hover */}
-    <Link
-      to={`/ket-qua-khach-hang/${story.slug}`}
-      className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30"
-    >
-      <span className="flex items-center gap-2 bg-white text-slate-900 font-black px-6 py-3 rounded-xl shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-300">
-        <Eye size={18} /> XEM CHI TIẾT
-      </span>
-    </Link>
-
-    {/* Footer: Thiết kế Vát chéo giống Image 2 */}
-    <div className="flex bg-white h-12 relative border-t border-slate-100 overflow-hidden">
-      <div className="flex-1 flex items-center px-4 font-bold text-slate-800 text-sm z-10 whitespace-nowrap overflow-hidden text-ellipsis">
-        {story.name}{story.age ? `, ${story.age} tuổi` : ''}
-      </div>
+      {/* Footer chứa thời gian */}
       {story.duration && (
-        <div
-          className="flex items-center justify-end px-5 bg-primary text-white text-xs font-bold z-20 shrink-0"
-          style={{ clipPath: 'polygon(20px 0, 100% 0, 100% 100%, 0 100%)', paddingLeft: '28px' }}
-        >
-          Thời gian: {story.duration}
+        <div className="border-t border-white/5 bg-neutral-950/60 px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-slate-400">
+          <span>Thời gian tập luyện</span>
+          <span className="text-white font-bold">{story.duration}</span>
         </div>
       )}
     </div>
-  </div>
-);
+  );
+};
 
 /* ==========================================
    Icon map cho specialties
@@ -249,6 +277,14 @@ const TrainerProfile = ({ previewData }) => {
             }))
           });
         }
+        graph.push({
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Trang chủ", "item": "https://htcoachingweb.io.vn/" },
+            { "@type": "ListItem", "position": 2, "name": "Huấn Luyện Viên", "item": "https://htcoachingweb.io.vn/#trainers" },
+            { "@type": "ListItem", "position": 3, "name": trainer.name }
+          ]
+        });
         return (
           <SEO
             title={`${trainer.name} - ${trainer.title || 'Huấn luyện viên'} | HTCOACHING`}
@@ -460,23 +496,47 @@ const TrainerProfile = ({ previewData }) => {
           2. PHƯƠNG PHÁP CỦA TÔI (DYNAMIC)
           ============================================= */}
       {trainer.methodologies?.length > 0 && (
-        <section className="py-20 bg-white">
-          <div className="container-custom">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-black text-slate-900 uppercase">Phương pháp tập luyện</h2>
-              <p className="text-lg text-slate-500 font-medium mt-4">Các trụ cột giúp bạn đạt kết quả bền vững.</p>
+        <section className="py-24 bg-white relative overflow-hidden text-slate-900 border-t border-slate-200">
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#000000 2px, transparent 2px)', backgroundSize: '32px 32px' }}></div>
+          
+          <div className="container-custom relative z-10">
+            <div className="text-center mb-20">
+              <span className="text-xs font-black uppercase tracking-[0.25em] text-primary bg-primary/10 px-4 py-2 rounded-full border border-primary/20 shadow-sm">
+                PHƯƠNG PHÁP HUẤN LUYỆN
+              </span>
+              <h2 className="text-4xl md:text-6xl font-black uppercase text-slate-900 mt-6 tracking-tight drop-shadow-sm">
+                TRỤ CỘT <span className="text-primary">MÁU LỬA</span>
+              </h2>
+              <div className="h-1.5 w-24 bg-primary mx-auto mt-6 rounded-full opacity-80"></div>
+              <p className="text-slate-500 font-bold mt-6 max-w-xl mx-auto text-base sm:text-lg">
+                Không có chỗ cho sự hời hợt. Lộ trình nghiêm túc mang lại thay đổi vượt trội.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {trainer.methodologies.map((method, index) => (
-                <div key={index} className="bg-slate-50 border border-slate-200 rounded-2xl p-8 hover:border-primary/50 transition-colors group relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full transition-all group-hover:bg-primary/10"></div>
-                  <div className="relative z-10">
-                    <div className="w-16 h-16 bg-white border-2 border-slate-200 text-slate-400 font-black text-2xl rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:border-primary group-hover:text-primary transition-all shadow-sm">
-                      {String(index + 1).padStart(2, '0')}
+                <div 
+                  key={index} 
+                  className="bg-white border border-slate-200 rounded-2xl p-8 hover:border-primary/50 transition-all duration-300 group relative overflow-hidden hover:-translate-y-2 shadow-xl hover:shadow-primary/10"
+                >
+                  {/* Số thứ tự lớn chìm phía sau */}
+                  <div className="absolute -right-4 -bottom-6 text-[140px] leading-none font-black text-slate-100 select-none pointer-events-none group-hover:text-primary/10 transition-colors duration-500">
+                    {String(index + 1).padStart(2, '0')}
+                  </div>
+                  
+                  <div className="relative z-10 flex flex-col h-full justify-between">
+                    <div>
+                      {/* Icon hoặc Số thứ tự góc cạnh */}
+                      <div className="w-14 h-14 bg-primary/10 backdrop-blur-sm border border-primary/20 text-primary font-black text-xl rounded-xl flex items-center justify-center mb-8 group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-500">
+                        {index + 1}
+                      </div>
+                      <h3 className="text-2xl font-black uppercase text-slate-900 mb-4 tracking-wide group-hover:text-primary transition-colors">
+                        {method.title}
+                      </h3>
+                      <p className="text-slate-600 leading-relaxed font-semibold text-sm">
+                        {method.description}
+                      </p>
                     </div>
-                    <h3 className="text-xl font-black uppercase text-slate-900 mb-4 tracking-wide">{method.title}</h3>
-                    <p className="text-slate-600 leading-relaxed font-medium">{method.description}</p>
                   </div>
                 </div>
               ))}

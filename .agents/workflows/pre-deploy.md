@@ -1,13 +1,13 @@
 ---
 name: pre-deploy
 trigger: /pre-deploy
-description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 4 gates (audit quick → ui-check → seo-check → ship). Gom TẤT CẢ findings, yêu cầu fix hết, re-check cho đến khi ALL PASS → mới được push. Mỗi workflow con vẫn chạy riêng lẻ được bằng lệnh riêng.
+description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 5 gates (audit quick → ai-check → ui-check → seo-check → ship). Gom TẤT CẢ findings, yêu cầu fix hết, re-check cho đến khi ALL PASS → mới được push. Mỗi workflow con vẫn chạy riêng lẻ được bằng lệnh riêng.
 ---
 
 # /pre-deploy — Full Pipeline Trước Khi Push Code
 
-> **Nguyên tắc:** Chạy 4 gates tuần tự. Gom tất cả findings. Fix hết. Re-check. Chỉ khi ALL PASS → mới được push/deploy.
-> **Mỗi gate vẫn chạy riêng lẻ được:** `/audit quick`, `/ui-check`, `/seo-check`, `/ship`.
+> **Nguyên tắc:** Chạy 5 gates tuần tự. Gom tất cả findings. Fix hết. Re-check. Chỉ khi ALL PASS → mới được push/deploy.
+> **Mỗi gate vẫn chạy riêng lẻ được:** `/audit quick`, `/ai-check`, `/ui-check`, `/seo-check`, `/ship`.
 
 ---
 
@@ -15,8 +15,9 @@ description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 4 
 
 | Lệnh | Mô tả |
 |-------|--------|
-| `/pre-deploy` | Full pipeline — 4 gates tuần tự |
+| `/pre-deploy` | Full pipeline — 5 gates tuần tự |
 | `/pre-deploy skip-audit` | Bỏ qua audit (khi vừa chạy `/audit` xong gần đây) |
+| `/pre-deploy skip-ai` | Bỏ qua ai-check (khi không sửa file AI nào) |
 | `/pre-deploy skip-ui` | Bỏ qua ui-check (khi chỉ sửa backend) |
 
 ---
@@ -24,28 +25,28 @@ description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 4 
 ## Pipeline Flow
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                    /pre-deploy PIPELINE                          │
-│                                                                  │
-│  Gate 1          Gate 2          Gate 3          Gate 4          │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐    │
-│  │/audit    │──▶│/ui-check │──▶│/seo-check│──▶│ /ship    │    │
-│  │ quick    │   │          │   │          │   │          │    │
-│  └──────────┘   └──────────┘   └──────────┘   └──────────┘    │
-│       │              │              │              │             │
-│       ▼              ▼              ▼              ▼             │
-│   findings       findings       findings      GO/NO-GO         │
-│                                                                  │
-│  ═══════════════════════════════════════════════════════════     │
-│                    GOM TẤT CẢ FINDINGS                          │
-│                    ↓                                             │
-│              FIX → RE-CHECK → ALL PASS?                         │
-│                    ↓               ↓                             │
-│                   NO              YES                            │
-│                    ↓               ↓                             │
-│              FIX TIẾP        ✅ READY TO PUSH                   │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         /pre-deploy PIPELINE                                │
+│                                                                              │
+│  Gate 1        Gate 2        Gate 3        Gate 4        Gate 5              │
+│  ┌────────┐   ┌────────┐   ┌────────┐   ┌──────────┐   ┌────────┐         │
+│  │/audit  │──▶│/ai-    │──▶│/ui-    │──▶│/seo-     │──▶│ /ship  │         │
+│  │ quick  │   │ check  │   │ check  │   │ check    │   │        │         │
+│  └────────┘   └────────┘   └────────┘   └──────────┘   └────────┘         │
+│       │            │            │              │              │              │
+│       ▼            ▼            ▼              ▼              ▼              │
+│   findings     findings     findings       findings      GO/NO-GO          │
+│                                                                              │
+│  ════════════════════════════════════════════════════════════════            │
+│                    GOM TẤT CẢ FINDINGS                                      │
+│                    ↓                                                         │
+│              FIX → RE-CHECK → ALL PASS?                                     │
+│                    ↓               ↓                                         │
+│                   NO              YES                                        │
+│                    ↓               ↓                                         │
+│              FIX TIẾP        ✅ READY TO PUSH                               │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -67,7 +68,26 @@ Chạy `/audit quick` — quét hotspots, top findings, HIGH confidence only.
 
 ---
 
-## Gate 2: UI Check 🎨 (Design Quality)
+## Gate 2: AI Check 🤖 (AI Chat System)
+
+Chạy `/ai-check` — kiểm tra hệ thống HT Assistant.
+
+**Focus:** System prompt chính xác, links đúng, content moderation, tool schemas.
+
+**Hành vi:**
+- Verify system prompt: dịch vụ, bộ môn, links, liên hệ, quy tắc theo chủ đề
+- Verify KHÔNG gửi link `/online-coaching` (chỉ cho người đã mua gói)
+- Verify `/club` mô tả đúng (tìm phòng tập, không phải bảng giá)
+- Verify content moderation rules
+- Verify tool schemas đầy đủ
+
+**Output gate:** Findings table hoặc "Clean ✓"
+
+**SKIP khi:** Không có thay đổi nào trong `server/src/services/ai/`, `client/src/components/ChatWidget/`, `client/src/hooks/useAiChat.js`.
+
+---
+
+## Gate 3: UI Check 🎨 (Design Quality)
 
 Chạy `/ui-check` — quét toàn bộ UI theo 8 dimensions.
 
@@ -85,7 +105,7 @@ Chạy `/ui-check` — quét toàn bộ UI theo 8 dimensions.
 
 ---
 
-## Gate 3: SEO Check 🔎 (SEO Compliance)
+## Gate 4: SEO Check 🔎 (SEO Compliance)
 
 Chạy `/seo-check` — quét tất cả trang public.
 
@@ -102,7 +122,7 @@ Chạy `/seo-check` — quét tất cả trang public.
 
 ---
 
-## Gate 4: Ship 🚢 (Deploy Gate)
+## Gate 5: Ship 🚢 (Deploy Gate)
 
 Chạy `/ship` — pre-deploy checklist cứng.
 
@@ -123,16 +143,17 @@ Chạy `/ship` — pre-deploy checklist cứng.
 
 ## Tổng Hợp & Report
 
-Sau khi chạy xong 4 gates, tổng hợp:
+Sau khi chạy xong 5 gates, tổng hợp:
 
 ```
 🚀 PRE-DEPLOY PIPELINE — HTCoachingWeb
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[Gate 1/4] Audit Quick      ✅ Clean / ⚠️ X findings / ⏭️ SKIP
-[Gate 2/4] UI Check (?/40)  ✅ Pass / ⚠️ X findings / ⏭️ SKIP
-[Gate 3/4] SEO Check        ✅ Pass / ⚠️ X findings / ⏭️ SKIP
-[Gate 4/4] Ship             ✅ GO / ❌ NO-GO
+[Gate 1/5] Audit Quick      ✅ Clean / ⚠️ X findings / ⏭️ SKIP
+[Gate 2/5] AI Check         ✅ Pass / ⚠️ X findings / ⏭️ SKIP
+[Gate 3/5] UI Check (?/40)  ✅ Pass / ⚠️ X findings / ⏭️ SKIP
+[Gate 4/5] SEO Check        ✅ Pass / ⚠️ X findings / ⏭️ SKIP
+[Gate 5/5] Ship             ✅ GO / ❌ NO-GO
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -142,9 +163,10 @@ Sau khi chạy xong 4 gates, tổng hợp:
 |---|------|---------|------|:--------:|----------|
 | 1 | Ship | Build failed | - | 🔴 BLOCK | Build |
 | 2 | Audit | Missing CSRF on route | file:line | 🔴 HIGH | Security |
-| 3 | UI | Bounce easing in Hero | file:line | 🔴 HIGH | Slop |
-| 4 | SEO | Missing JSON-LD | file | 🟡 MED | SEO |
-| 5 | UI | Gray text on color bg | file:line | 🟡 MED | Color |
+| 3 | AI | Prompt links to /online-coaching | systemPrompt.js | 🔴 HIGH | AI |
+| 4 | UI | Bounce easing in Hero | file:line | 🔴 HIGH | Slop |
+| 5 | SEO | Missing JSON-LD | file | 🟡 MED | SEO |
+| 6 | UI | Gray text on color bg | file:line | 🟡 MED | Color |
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

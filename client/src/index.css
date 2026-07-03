@@ -4,7 +4,7 @@
 @theme {
   /* Font */
   --font-sans: "Poppins", system-ui, sans-serif;
-  --font-display: "Bebas Neue", sans-serif;
+  --font-display: "Oswald", sans-serif;
 
   /* Màu sắc */
   --color-primary: #ff5500;
@@ -20,6 +20,7 @@
 
 /* ================= BASE – HỆ THỐNG HEADING ================= */
 @layer base {
+
   html,
   body,
   #root {
@@ -27,6 +28,7 @@
     max-width: 100%;
     overflow-x: hidden;
   }
+
   html {
     scroll-behavior: smooth;
   }
@@ -36,25 +38,31 @@
     font-family: var(--font-display);
     font-weight: 700;
     line-height: 1.2;
-    font-size: 2.25rem; /* 36px */
+    font-size: 2.25rem;
+    /* 36px */
     text-transform: uppercase;
   }
+
   h2,
   .h2 {
     font-family: var(--font-display);
     font-weight: 700;
     line-height: 1.2;
-    font-size: 1.875rem; /* 30px */
+    font-size: 1.875rem;
+    /* 30px */
     text-transform: uppercase;
   }
+
   h3,
   .h3 {
     font-family: var(--font-display);
     font-weight: 600;
     line-height: 1.3;
-    font-size: 1.5rem; /* 24px */
+    font-size: 1.5rem;
+    /* 24px */
     text-transform: uppercase;
   }
+
   body {
     font-family: var(--font-sans);
     background-color: var(--color-white);
@@ -64,46 +72,69 @@
 
 /* Responsive heading sizes dùng media queries hoặc tailwind utilities */
 @media (min-width: 640px) {
+
   h1,
   .h1 {
     font-size: 3rem;
-  } /* 48px */
+  }
+
+  /* 48px */
   h2,
   .h2 {
     font-size: 2.25rem;
-  } /* 36px */
+  }
+
+  /* 36px */
   h3,
   .h3 {
     font-size: 1.875rem;
-  } /* 30px */
+  }
+
+  /* 30px */
 }
+
 @media (min-width: 768px) {
+
   h1,
   .h1 {
     font-size: 3.75rem;
-  } /* 60px */
+  }
+
+  /* 60px */
   h2,
   .h2 {
     font-size: 3rem;
-  } /* 48px */
+  }
+
+  /* 48px */
   h3,
   .h3 {
     font-size: 2.25rem;
-  } /* 36px */
+  }
+
+  /* 36px */
 }
+
 @media (min-width: 1024px) {
+
   h1,
   .h1 {
     font-size: 4.5rem;
-  } /* 72px */
+  }
+
+  /* 72px */
   h2,
   .h2 {
     font-size: 3.75rem;
-  } /* 60px */
+  }
+
+  /* 60px */
   h3,
   .h3 {
     font-size: 3rem;
-  } /* 48px */
+  }
+
+  /* 48px */
 }
 
 /* ================= LAPTOP TEXT SIZE BOOST (1024px - 1439px) ================= */
@@ -111,17 +142,21 @@
 /* Heading giữ nguyên kích thước pixel gốc, chỉ body text được boost */
 @media (min-width: 1024px) and (max-width: 1439px) {
   html {
-    font-size: 18px; /* 16px → 18px */
+    font-size: 18px;
+    /* 16px → 18px */
   }
+
   /* Pin heading sizes = px cố định (giữ nguyên như root 16px) */
   h1,
   .h1 {
     font-size: 72px;
   }
+
   h2,
   .h2 {
     font-size: 60px;
   }
+
   h3,
   .h3 {
     font-size: 48px;
@@ -133,28 +168,84 @@
   scroll-margin-top: 5.5rem;
 }
 
+/* ================= BLOG CONTENT — Override heading font ================= */
+/* Blog headings dùng font-sans (Poppins) thay vì font-display (Oswald) */
+/* vì Oswald uppercase không phù hợp cho nội dung bài viết dạng article */
+.blog-content h1,
+.blog-content h2,
+.blog-content h3,
+.blog-content h4 {
+  font-family: var(--font-sans) !important;
+  text-transform: none !important;
+}
+
+/* ================= TIPTAP EDITOR STYLES ================= */
+.tiptap {
+  outline: none;
+}
+
+.tiptap ul {
+  list-style-type: disc !important;
+  padding-left: 1.5em !important;
+}
+
+.tiptap ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5em !important;
+}
+
+.tiptap li {
+  margin: 0.25em 0;
+}
+
+.tiptap blockquote {
+  border-left: 4px solid var(--color-primary, #f97316) !important;
+  background: rgba(249, 115, 22, 0.05);
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0.75rem 0.75rem 0;
+  margin: 1rem 0;
+  font-style: normal;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94a3b8;
+  pointer-events: none;
+  height: 0;
+}
+
 /* ================= HERO TITLE RESPONSIVE ================= */
 .hero-title {
-  font-size: 2.4375rem; /* ~39px — mobile default (+30%) */
+  font-size: 2.18rem;
+  /* ~35px — mobile (-15% từ 2.57rem) */
 }
+
 @media (min-width: 640px) {
   .hero-title {
-    font-size: 2.925rem; /* ~47px (+30%) */
+    font-size: 2.64rem;
+    /* ~42px (-15% từ 3.10rem) */
   }
 }
+
 @media (min-width: 1024px) {
   .hero-title {
-    font-size: clamp(36px, 5.85vh, 62px) !important; /* +30% */
+    font-size: clamp(31px, 5.0vh, 54px) !important;
+    /* -15% từ hiện tại */
   }
 }
+
 @media (min-width: 1024px) and (max-width: 1439px) {
   .hero-title {
-    font-size: clamp(57px, 9.4vh, 91px) !important; /* Laptop: +30% */
+    font-size: clamp(49px, 8.1vh, 78px) !important;
+    /* Laptop — -15% từ hiện tại */
   }
 }
+
 @media (min-width: 1440px) {
   .hero-title {
-    font-size: clamp(68px, 7.15vh, 104px) !important; /* Desktop lớn: +30% */
+    font-size: clamp(58px, 6.2vh, 90px) !important;
+    /* Desktop — -15% từ hiện tại */
   }
 }
 
@@ -167,12 +258,14 @@
   padding-left: 1rem;
   padding-right: 1rem;
 }
+
 @media (min-width: 640px) {
   .container-custom {
     padding-left: 1.5rem;
     padding-right: 1.5rem;
   }
 }
+
 @media (min-width: 1024px) {
   .container-custom {
     padding-left: 2rem;
@@ -200,6 +293,7 @@
   color: white;
   border-color: var(--color-primary);
 }
+
 .btn-primary:hover {
   background-color: transparent;
   border-color: var(--color-primary);
@@ -211,6 +305,7 @@
   color: var(--color-primary);
   border: 2px solid var(--color-primary);
 }
+
 .btn-outline:hover {
   background-color: var(--color-primary);
   color: white;
@@ -221,6 +316,7 @@
   color: white;
   background-color: transparent;
 }
+
 .btn-white:hover {
   background-color: white;
   color: var(--color-primary);
@@ -228,12 +324,10 @@
 
 .gradient-text,
 .gradient-text .char {
-  background: linear-gradient(
-    to right,
-    var(--color-primary),
-    var(--color-primary-light),
-    var(--color-primary)
-  );
+  background: linear-gradient(to right,
+      var(--color-primary),
+      var(--color-primary-light),
+      var(--color-primary));
   background-size: 200% auto;
   background-clip: text;
   -webkit-background-clip: text;
@@ -246,6 +340,7 @@
   0% {
     background-position: 0% center;
   }
+
   100% {
     background-position: 200% center;
   }
@@ -254,12 +349,15 @@
 .cursor {
   animation: blink 1s infinite;
 }
+
 @keyframes blink {
+
   0%,
   50%,
   100% {
     opacity: 1;
   }
+
   25%,
   75% {
     opacity: 0;

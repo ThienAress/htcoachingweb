@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import gsap from "gsap";
-import { ArrowLeft, CalendarDays, CheckCircle2, Dumbbell, Flame, Hourglass } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Flame, Hourglass } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   getPublicCustomerStories,
@@ -26,11 +26,11 @@ const ContinuingBanner = ({ name }) => {
         duration: 1,
         ease: "power2.inOut",
       })
-      .to(dot1Ref.current, { opacity: 1, duration: 0.2 })
-      .to(dot2Ref.current, { opacity: 1, duration: 0.2 })
-      .to(dot3Ref.current, { opacity: 1, duration: 0.2 })
-      .to({}, { duration: 0.5 })
-      .to([dot1Ref.current, dot2Ref.current, dot3Ref.current], { opacity: 0, duration: 0.2 });
+        .to(dot1Ref.current, { opacity: 1, duration: 0.2 })
+        .to(dot2Ref.current, { opacity: 1, duration: 0.2 })
+        .to(dot3Ref.current, { opacity: 1, duration: 0.2 })
+        .to({}, { duration: 0.5 })
+        .to([dot1Ref.current, dot2Ref.current, dot3Ref.current], { opacity: 0, duration: 0.2 });
     });
     return () => ctx.revert();
   }, []);
@@ -42,7 +42,7 @@ const ContinuingBanner = ({ name }) => {
           <Hourglass className="h-8 w-8 text-primary sm:h-10 sm:w-10" />
         </div>
         <p className="max-w-2xl text-sm leading-relaxed text-gray sm:text-base">
-          Khách hàng đang tiếp tục bước vào giai đoạn tập luyện nâng cao. Hãy cùng chờ đón sự lột xác bùng nổ tiếp theo của <strong>{name}</strong> cùng HTCOACHING nhé
+          Hãy cùng chờ đón sự lột xác thật bùng nổ của <strong>{name}</strong> cùng HTCOACHING nhé
           <span ref={dot1Ref} className="opacity-0 inline-block">.</span>
           <span ref={dot2Ref} className="opacity-0 inline-block">.</span>
           <span ref={dot3Ref} className="opacity-0 inline-block">.</span>
@@ -52,73 +52,179 @@ const ContinuingBanner = ({ name }) => {
   );
 };
 
-const BeforeAfterBlock = ({ title, subtitle, beforeImg, afterImg }) => (
-  <figure className="overflow-hidden border border-gray-200 bg-white">
-    <div className="flex items-center justify-between gap-4 bg-primary px-4 py-3 text-white sm:px-5">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.16em] sm:text-sm">
-          {title}
-        </p>
-        <p className="mt-1 text-[11px] font-semibold uppercase sm:text-xs">
-          {subtitle}
-        </p>
-      </div>
-      <div className="text-right font-display text-2xl font-bold leading-none sm:text-3xl">
-        HT
-      </div>
-    </div>
-    <div className="grid grid-cols-2 gap-2 bg-neutral-100 p-2 sm:gap-3 sm:p-3">
-      <div className="relative min-h-0 overflow-hidden bg-neutral-200">
-        <img
-          src={beforeImg}
-          alt={`${title} before`}
-          className="aspect-[4/5] w-full object-cover object-center"
-        />
-        <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-[10px] font-bold uppercase text-white sm:text-xs">
-          Before
-        </span>
-      </div>
-      <div className="relative min-h-0 overflow-hidden bg-neutral-200">
-        <img
-          src={afterImg}
-          alt={`${title} after`}
-          className="aspect-[4/5] w-full object-cover object-center"
-        />
-        <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-[10px] font-bold uppercase text-white sm:text-xs">
-          After
-        </span>
-      </div>
-    </div>
-  </figure>
-);
+const UpdatingLabel = ({ className = "" }) => {
+  const containerRef = useRef(null);
 
-const RelatedStoryCard = ({ story }) => (
-  <Link
-    to={`/ket-qua-khach-hang/${story.slug}`}
-    className="group block overflow-hidden border border-gray-200 bg-white transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
-  >
-    <div className="grid grid-cols-2 gap-1 bg-neutral-100 p-1">
-      <img
-        src={story.beforeImg}
-        alt={`${story.name} before`}
-        className="aspect-[4/5] w-full object-cover"
-      />
-      <img
-        src={story.afterImg}
-        alt={`${story.name} after`}
-        className="aspect-[4/5] w-full object-cover"
-      />
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    let ctx = gsap.context(() => {
+      const chars = el.querySelectorAll(".updating-char");
+      const dots = el.querySelectorAll(".updating-dot");
+      const tl = gsap.timeline();
+      tl.set(chars, { opacity: 0, y: 4 });
+      tl.set(dots, { opacity: 0 });
+      tl.to(chars, {
+        opacity: 1, y: 0, duration: 0.04, stagger: 0.04, ease: "power2.out",
+      });
+      const dotTl = gsap.timeline({ repeat: -1, delay: 0.3 });
+      dotTl
+        .to(dots[0], { opacity: 1, duration: 0.2 })
+        .to(dots[1], { opacity: 1, duration: 0.2 })
+        .to(dots[2], { opacity: 1, duration: 0.2 })
+        .to({}, { duration: 0.4 })
+        .to(dots, { opacity: 0, duration: 0.2 });
+    }, el);
+    return () => ctx.revert();
+  }, []);
+
+  const text = "Đang cập nhật";
+
+  return (
+    <span ref={containerRef} className={`inline-flex items-baseline text-[11px] italic text-gray/70 ${className}`}>
+      {text.split("").map((char, i) => (
+        <span key={i} className="updating-char inline-block" style={{ whiteSpace: char === " " ? "pre" : undefined }}>
+          {char}
+        </span>
+      ))}
+      <span className="updating-dot inline-block">.</span>
+      <span className="updating-dot inline-block">.</span>
+      <span className="updating-dot inline-block">.</span>
+    </span>
+  );
+};
+
+const ImageCarousel = ({ images, label }) => {
+  const [idx, setIdx] = useState(0);
+  const hasMultiple = images.length > 1;
+
+  if (!images.length) return (
+    <div className="relative flex flex-col items-center justify-center bg-neutral-100 aspect-[4/5] gap-2">
+      <UpdatingLabel />
+      <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-[10px] font-bold uppercase text-white sm:text-xs">
+        {label}
+      </span>
     </div>
-    <div className="p-3">
-      <p className="text-sm font-bold text-dark transition group-hover:text-primary">
-        {story.name}
-      </p>
-      <p className="mt-1 text-xs text-gray">
-        {story.result} trong {story.duration}
-      </p>
+  );
+
+  return (
+    <div className="relative min-h-0 overflow-hidden bg-neutral-200">
+      <img
+        src={images[idx]}
+        alt={`${label} ${idx + 1}`}
+        className="aspect-[4/5] w-full object-cover object-center transition-opacity duration-300"
+      />
+      <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-[10px] font-bold uppercase text-white sm:text-xs">
+        {label}
+      </span>
+      {hasMultiple && (
+        <>
+          <button
+            type="button"
+            onClick={() => setIdx((prev) => (prev - 1 + images.length) % images.length)}
+            className="absolute left-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/70 sm:h-8 sm:w-8"
+            aria-label="Ảnh trước"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setIdx((prev) => (prev + 1) % images.length)}
+            className="absolute right-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/70 sm:h-8 sm:w-8"
+            aria-label="Ảnh tiếp"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <div className="absolute bottom-2 right-2 flex gap-1">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIdx(i)}
+                className={`h-1.5 rounded-full transition-all ${i === idx ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
+                aria-label={`Ảnh ${i + 1}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
-  </Link>
-);
+  );
+};
+
+const BeforeAfterBlock = ({ title, subtitle, beforeImg, afterImg }) => {
+  const beforeImages = Array.isArray(beforeImg) ? beforeImg.filter(Boolean) : (beforeImg ? [beforeImg] : []);
+  const afterImages = Array.isArray(afterImg) ? afterImg.filter(Boolean) : (afterImg ? [afterImg] : []);
+
+  return (
+    <figure className="overflow-hidden border border-gray-200 bg-white">
+      <div className="flex items-center justify-between gap-4 bg-primary px-4 py-3 text-white sm:px-5">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] sm:text-sm">
+            {title}
+          </p>
+          <p className="mt-1 text-[11px] font-semibold uppercase sm:text-xs">
+            {subtitle}
+          </p>
+        </div>
+        <div className="text-right font-display text-2xl font-bold leading-none sm:text-3xl">
+          HT
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 bg-neutral-100 p-2 sm:gap-3 sm:p-3">
+        <ImageCarousel images={beforeImages} label="Before" />
+        <ImageCarousel images={afterImages} label="After" />
+      </div>
+    </figure>
+  );
+};
+
+const RelatedStoryCard = ({ story }) => {
+  const beforeImages = Array.isArray(story.beforeImg) ? story.beforeImg.filter(Boolean) : (story.beforeImg ? [story.beforeImg] : []);
+  const afterImages = Array.isArray(story.afterImg) ? story.afterImg.filter(Boolean) : (story.afterImg ? [story.afterImg] : []);
+
+  return (
+    <Link
+      to={`/ket-qua-khach-hang/${story.slug}`}
+      className="group block overflow-hidden border border-gray-200 bg-white transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+    >
+      <div className="grid grid-cols-2 gap-1 bg-neutral-100 p-1">
+        {beforeImages[0] ? (
+          <img
+            src={beforeImages[0]}
+            alt={`${story.name} before`}
+            className="aspect-[4/5] w-full object-cover"
+          />
+        ) : (
+          <div className="aspect-[4/5] w-full flex items-center justify-center bg-neutral-50">
+            <UpdatingLabel />
+          </div>
+        )}
+        {afterImages[0] ? (
+          <img
+            src={afterImages[0]}
+            alt={`${story.name} after`}
+            className="aspect-[4/5] w-full object-cover"
+          />
+        ) : (
+          <div className="aspect-[4/5] w-full flex items-center justify-center bg-neutral-50">
+            <UpdatingLabel />
+          </div>
+        )}
+      </div>
+      <div className="p-3">
+        <p className="text-sm font-bold text-dark transition group-hover:text-primary">
+          {story.name}{story.age ? `, ${story.age} tuổi` : ""}
+        </p>
+        <p className="mt-1 text-xs text-gray">
+          {story.result || "Đang cập nhật"} {story.duration ? `trong ${story.duration}` : ""}
+        </p>
+      </div>
+    </Link>
+  );
+};
 
 const CustomerStoryDetail = ({ previewData }) => {
   const { slug } = useParams();
@@ -167,70 +273,84 @@ const CustomerStoryDetail = ({ previewData }) => {
 
   const articleSchema = {
     "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": `Hành trình ${story.duration} của ${story.name}`,
-    "image": [
-      story.heroImage || story.afterImg
-    ],
-    "author": {
-      "@type": "Organization",
-      "name": "HTCOACHING"
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "HTCOACHING",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://htcoachingweb.io.vn/logo.png"
+    "@graph": [
+      {
+        "@type": "Article",
+        "headline": `Hành trình ${story.duration} của ${story.name}`,
+        "image": [
+          story.heroImage || (Array.isArray(story.afterImg) ? story.afterImg[0] : story.afterImg)
+        ],
+        "author": {
+          "@type": "Organization",
+          "name": "HTCOACHING"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "HTCOACHING",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://htcoachingweb.io.vn/og-image.png"
+          }
+        },
+        "description": `Khám phá hành trình ${story.duration || ""} thay đổi vóc dáng của ${story.name}${story.age ? ` (${story.age} tuổi` : ""}${story.job ? `, ${story.job})` : story.age ? ")" : ""}. ${story.result ? `Kết quả: ${story.result}.` : ""}`,
+        ...(story.createdAt && { "datePublished": new Date(story.createdAt).toISOString().split("T")[0] }),
+        ...(story.updatedAt && { "dateModified": new Date(story.updatedAt).toISOString().split("T")[0] })
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Trang chủ", "item": "https://htcoachingweb.io.vn/" },
+          { "@type": "ListItem", "position": 2, "name": "Kết Quả Khách Hàng", "item": "https://htcoachingweb.io.vn/ket-qua-khach-hang" },
+          { "@type": "ListItem", "position": 3, "name": story.name }
+        ]
       }
-    },
-    "description": `Khám phá hành trình ${story.duration} thay đổi vóc dáng của ${story.name} (${story.age} tuổi, ${story.job}). Kết quả: ${story.result}.`,
-    ...(story.createdAt && { "datePublished": new Date(story.createdAt).toISOString().split("T")[0] }),
-    ...(story.updatedAt && { "dateModified": new Date(story.updatedAt).toISOString().split("T")[0] })
+    ]
   };
 
   return (
     <main className="bg-white">
       {!previewData && (
         <SEO
-          title={`Hành trình ${story.duration} của ${story.name}`}
-          description={`Khám phá hành trình ${story.duration} thay đổi vóc dáng của ${story.name} (${story.age} tuổi, ${story.job}). Kết quả: ${story.result}.`}
+          title={story.duration ? `Hành trình ${story.duration} của ${story.name}` : `Hành trình của ${story.name}`}
+          description={`Khám phá hành trình ${story.duration || ""} thay đổi vóc dáng của ${story.name}${story.age ? ` (${story.age} tuổi` : ""}${story.job ? `, ${story.job})` : story.age ? ")" : ""}. ${story.result ? `Kết quả: ${story.result}.` : ""}`}
           canonical={`/ket-qua-khach-hang/${story.slug}`}
-          image={story.heroImage || story.afterImg}
+          image={story.heroImage || (Array.isArray(story.afterImg) ? story.afterImg[0] : story.afterImg)}
           type="article"
           jsonLd={articleSchema}
         />
       )}
-      <section className="relative min-h-[420px] overflow-hidden bg-black text-white sm:min-h-[500px]">
+      <section className="relative min-h-[400px] overflow-hidden bg-black text-white sm:min-h-[480px]">
         <img
           src={story.heroImage}
           alt={story.name}
-          className="absolute inset-0 h-full w-full object-cover opacity-45"
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ objectPosition: `center ${Number(story.heroPosition) || 50}%` }}
         />
-        <div className="absolute inset-0 bg-black/55" />
-        <div className="container-custom relative z-10 flex min-h-[420px] flex-col justify-end pb-10 pt-28 sm:min-h-[500px] sm:pb-14">
+        <div className="container-custom relative z-10 flex min-h-[400px] flex-col justify-end pb-10 pt-28 sm:min-h-[480px] sm:pb-14"
+          style={{ textShadow: "0 2px 12px rgba(0,0,0,0.7), 0 1px 4px rgba(0,0,0,0.5)" }}
+        >
           <Link
             to="/"
-            className="mb-8 inline-flex w-fit items-center gap-2 text-sm font-semibold text-white/80 transition hover:text-primary"
+            className="mb-8 inline-flex w-fit items-center gap-2 text-sm font-semibold text-white/90 transition hover:text-primary drop-shadow-md"
           >
             <ArrowLeft className="h-4 w-4" />
             Trang chủ
           </Link>
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-primary">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-primary drop-shadow-md">
             Kết quả thay đổi
           </p>
-          <h1 className="max-w-4xl text-white uppercase">
-            Hành trình {story.duration} của {story.name}
+          <h1 className="max-w-4xl text-white uppercase drop-shadow-lg">
+            {story.duration ? `Hành trình ${story.duration} của ${story.name}` : `Hành trình của ${story.name}`}
           </h1>
           <div className="mt-5 flex flex-wrap gap-3 text-sm font-semibold text-white/90">
-            <span className="border border-white/30 px-3 py-2">
-              {story.job}
+            <span className="border border-white/30 bg-black/30 backdrop-blur-sm px-3 py-2">
+              {story.job || "Đang cập nhật"}
             </span>
-            <span className="border border-white/30 px-3 py-2">
-              {story.age} tuổi
+            <span className="border border-white/30 bg-black/30 backdrop-blur-sm px-3 py-2">
+              {story.age ? `${story.age} tuổi` : "Đang cập nhật"}
             </span>
-            <span className="border border-white/30 px-3 py-2">
-              {story.packageName}
+            <span className="border border-white/30 bg-black/30 backdrop-blur-sm px-3 py-2">
+              {story.packageName || "Đang cập nhật"}
             </span>
           </div>
         </div>
@@ -245,6 +365,7 @@ const CustomerStoryDetail = ({ previewData }) => {
             <dl className="mt-5 space-y-4 text-sm">
               {[
                 ["Khách hàng", story.name],
+                ["Tuổi", story.age ? `${story.age} tuổi` : null],
                 ["Nghề nghiệp", story.job],
                 ["Mục tiêu", story.goal],
                 ["Gói tập", story.packageName],
@@ -254,7 +375,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                   <dt className="text-xs font-semibold uppercase text-gray">
                     {label}
                   </dt>
-                  <dd className="mt-1 font-semibold text-dark">{value}</dd>
+                  <dd className="mt-1 font-semibold text-dark">{value || <UpdatingLabel />}</dd>
                 </div>
               ))}
             </dl>
@@ -269,16 +390,16 @@ const CustomerStoryDetail = ({ previewData }) => {
                   <p className="text-[11px] font-bold uppercase text-gray">
                     {label}
                   </p>
-                  <p className="mt-1 text-lg font-bold text-primary">{value}</p>
+                  <p className="mt-1 text-lg font-bold text-primary">{value || <UpdatingLabel />}</p>
                 </div>
               ))}
             </div>
-              {story.updatedAt && (
-                <p className="mt-4 text-xs text-gray flex items-center gap-1.5">
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  Cập nhật: {new Date(story.updatedAt).toLocaleDateString("vi-VN")}
-                </p>
-              )}
+            {story.updatedAt && (
+              <p className="mt-4 text-xs text-gray flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Cập nhật: {new Date(story.updatedAt).toLocaleDateString("vi-VN")}
+              </p>
+            )}
           </aside>
 
           <div className="min-w-0">
@@ -286,13 +407,13 @@ const CustomerStoryDetail = ({ previewData }) => {
               <article className="border-l-4 border-primary bg-light p-5">
                 <h2 className="h3 mb-3 text-2xl uppercase">Vấn đề của khách hàng</h2>
                 <p className="text-sm leading-7 text-gray sm:text-base">
-                  {story.problem}
+                  {story.problem || <UpdatingLabel />}
                 </p>
               </article>
               <article className="border-l-4 border-black bg-light p-5">
                 <h2 className="h3 mb-3 text-2xl uppercase">Giải pháp của Huấn Luyện Viên</h2>
                 <p className="text-sm leading-7 text-gray sm:text-base">
-                  {story.solution}
+                  {story.solution || <UpdatingLabel />}
                 </p>
               </article>
             </div>
@@ -316,7 +437,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                   {story.milestones.map((milestone, index) => (
                     <article
                       key={milestone.title || index}
-                      className="grid gap-5 border-t border-gray-200 pt-6 md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_420px]"
+                      className="grid gap-5 border-t border-gray-200 pt-6 md:grid-cols-[minmax(0,1fr)_384px] xl:grid-cols-[minmax(0,1fr)_504px]"
                     >
                       <div>
                         <p className="text-sm font-bold uppercase tracking-[0.14em] text-primary">
@@ -402,6 +523,14 @@ const CustomerStoryDetail = ({ previewData }) => {
                       story={relatedStory}
                     />
                   ))}
+                </div>
+                <div className="mt-8 text-center">
+                  <Link
+                    to="/ket-qua-khach-hang"
+                    className="inline-flex items-center justify-center gap-2 bg-primary px-6 py-3 text-sm font-bold uppercase text-white transition hover:bg-orange-600 rounded-lg shadow-md shadow-primary/20"
+                  >
+                    Xem tất cả
+                  </Link>
                 </div>
               </section>
             )}

@@ -15,6 +15,7 @@ import {
   Dumbbell,
   MessageSquareText,
   BookOpenText,
+  BookOpen,
   X,
   Wallet,
   ChevronDown,
@@ -33,6 +34,7 @@ const SidebarContent = ({ onItemClick }) => {
         { path: "/admin/users", label: "Người dùng", icon: Users },
         { path: "/admin/trainer-subscribers", label: "Huấn luyện viên", icon: Sparkles },
         { path: "/admin/orders", label: "Đơn hàng", icon: Package },
+        { path: "/admin/contracts", label: "Hợp đồng HLV", icon: FileText },
         { path: "/admin/bookings", label: "Đặt lịch", icon: ClipboardList },
         { path: "/admin/deposits", label: "Nạp tiền", icon: Wallet },
         { path: "/admin/f1-ai-rules", label: "Quy tắc AI", icon: BrainCircuit },
@@ -54,6 +56,7 @@ const SidebarContent = ({ onItemClick }) => {
       items: [
         { path: "/admin/trainers", label: "Đội ngũ HLV", icon: Users2 },
         { path: "/admin/customer-stories", label: "Câu chuyện khách hàng", icon: BookOpenText },
+        { path: "/admin/blog", label: "Blog", icon: BookOpen },
         { path: "/admin/exercise-suggestions", label: "Góp ý bài tập", icon: MessageSquareText },
       ],
     },

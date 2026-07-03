@@ -6,6 +6,7 @@ import User from "../models/User.js";
 import Order from "../models/Order.js";
 import WalletTransaction from "../models/WalletTransaction.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
+import CustomerStory from "../models/CustomerStory.js";
 import { uploadAvatar } from "../middlewares/avatarUpload.js";
 import {
   getUsers,
@@ -19,8 +20,24 @@ const router = express.Router();
 
 // ===== GET CURRENT USER =====
 router.get("/me", protect, async (req, res) => {
-  const user = await User.findById(req.user.id).select("-password");
-  res.json(user);
+  try {
+    const user = await User.findById(req.user.id).select("-password").lean();
+    if (!user) return res.status(404).json({ message: "Không tìm thấy user" });
+
+    // Tìm orders của user để lấy customer story
+    const orders = await Order.find({ userId: req.user.id }).select("_id");
+    const orderIds = orders.map(o => o._id);
+
+    const story = await CustomerStory.findOne({ orderId: { $in: orderIds } }).select("slug");
+    if (story) {
+      user.customerStorySlug = story.slug;
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi lấy thông tin cá nhân" });
+  }
 });
 
 // ===== UPDATE PROFILE =====

@@ -21,17 +21,24 @@ const resolveImageUrl = (url) => {
   return `${API_ORIGIN}/${url}`;
 };
 
+const resolveImageArray = (value) => {
+  if (!value) return [];
+  if (typeof value === "string") return value.trim() ? [resolveImageUrl(value)] : [];
+  if (Array.isArray(value)) return value.filter(Boolean).map(resolveImageUrl);
+  return [];
+};
+
 const normalizeMilestone = (milestone = {}) => ({
   ...milestone,
-  beforeImg: resolveImageUrl(milestone.beforeImg || ""),
-  afterImg: resolveImageUrl(milestone.afterImg || ""),
+  beforeImg: resolveImageArray(milestone.beforeImg),
+  afterImg: resolveImageArray(milestone.afterImg),
   bullets: Array.isArray(milestone.bullets) ? milestone.bullets : [],
 });
 
 const normalizeStory = (story = {}) => ({
   ...story,
-  beforeImg: resolveImageUrl(story.beforeImg || ""),
-  afterImg: resolveImageUrl(story.afterImg || ""),
+  beforeImg: resolveImageArray(story.beforeImg),
+  afterImg: resolveImageArray(story.afterImg),
   heroImage: resolveImageUrl(story.heroImage || ""),
   highlights: Array.isArray(story.highlights) ? story.highlights : [],
   milestones: Array.isArray(story.milestones)
