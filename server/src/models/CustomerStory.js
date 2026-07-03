@@ -46,6 +46,16 @@ const customerStorySchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      default: null,
+    },
+    trainerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Trainer",
+      default: null,
+    },
     name: {
       type: String,
       required: true,
@@ -133,6 +143,10 @@ const customerStorySchema = new mongoose.Schema(
       default: "draft",
     },
     featured: {
+      type: Boolean,
+      default: false,
+    },
+    isContinuing: {
       type: Boolean,
       default: false,
     },

@@ -177,7 +177,14 @@ const TrainerCheckinHistory = () => {
                   <td className="px-4 py-3 text-slate-600">{c.package}</td>
                   <td className="px-4 py-3 text-slate-600 flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    {new Date(c.time).toLocaleString("vi-VN")}
+                    {new Date(c.time).toLocaleString("vi-VN", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    })}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     <span className="inline-flex items-center gap-1">
@@ -242,7 +249,14 @@ const TrainerCheckinHistory = () => {
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2 text-slate-600">
                 <Calendar className="w-4 h-4 text-slate-400" />
-                <span>{new Date(c.time).toLocaleString("vi-VN")}</span>
+                <span>{new Date(c.time).toLocaleString("vi-VN", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                })}</span>
               </div>
               <div className="flex items-center gap-2 text-slate-600">
                 <Dumbbell className="w-4 h-4 text-slate-400" />
@@ -322,7 +336,6 @@ const TrainerCheckinHistory = () => {
                   onChange={(e) =>
                     setEditing({ ...editing, timeLocal: e.target.value })
                   }
-                  max={currentDateTimeLocal}
                   min={currentYearStart}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2"
                 />

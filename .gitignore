@@ -10,3 +10,8 @@ node_modules/
 # build
 dist/
 build/
+
+# test artifacts
+test-results/
+playwright-report/
+blob-report/

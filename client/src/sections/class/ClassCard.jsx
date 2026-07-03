@@ -3,12 +3,12 @@ import { Check, ArrowRight } from "lucide-react";
 
 const ClassCard = ({ image, title, desc, benefits }) => {
   return (
-    <div className="group flex flex-col h-full bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] 
+    <div className="group flex flex-col bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] 
     hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)] transition-all duration-500 
     hover:-translate-y-2 border border-slate-100 overflow-hidden">
 
       {/* Image Section */}
-      <div className="relative h-64 sm:h-72 w-full overflow-hidden">
+      <div className="relative h-56 sm:h-72 w-full overflow-hidden shrink-0">
         <img
           src={image}
           alt={title}
@@ -20,16 +20,16 @@ const ClassCard = ({ image, title, desc, benefits }) => {
       </div>
 
       {/* Content Section */}
-      <div className="flex flex-col flex-1 p-6 sm:p-8">
-        <h3 className="text-2xl sm:text-[1.75rem] font-bold text-slate-800 mb-3 tracking-tight">
+      <div className="flex flex-col flex-1 p-5 sm:p-8">
+        <h3 className="text-xl sm:text-[1.75rem] font-bold text-slate-800 mb-2 sm:mb-3 tracking-tight">
           {title}
         </h3>
 
-        <p className="text-slate-500 text-sm sm:text-base leading-relaxed mb-6">
+        <p className="text-slate-500 text-[13px] sm:text-base leading-relaxed mb-4 sm:mb-6">
           {desc}
         </p>
 
-        <ul className="space-y-3.5 mb-8">
+        <ul className="space-y-2.5 sm:space-y-3.5 mb-6 sm:mb-8">
           {benefits.map((b, i) => (
             <li key={i} className="flex items-start gap-3">
               <div className="mt-0.5 rounded-full bg-[#ff5500]/10 p-1">

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircleMore, X } from "lucide-react";
+import { gsap } from "gsap";
 
 // ======================= CÁC ICON MẠNG XÃ HỘI =======================
 const ZaloIcon = () => (
@@ -225,6 +226,7 @@ const getUiConfig = (width) => {
 const ChatIcons = () => {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
+  const tl = useRef(null);
   const [viewportWidth, setViewportWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1440,
   );
@@ -248,7 +250,6 @@ const ChatIcons = () => {
         ...item,
         x,
         y,
-        delay: index * 60,
       };
     });
   }, [ui]);
@@ -284,10 +285,42 @@ const ChatIcons = () => {
     };
   }, []);
 
+  useEffect(() => {
+    // Skip GSAP animations if user prefers reduced motion
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) return;
+
+    const ctx = gsap.context(() => {
+      tl.current = gsap.timeline({ paused: true });
+
+      tl.current.to(".chat-icon-item", {
+        x: (index) => fanItems[index].x,
+        y: (index) => fanItems[index].y,
+        scale: 1,
+        opacity: 1,
+        duration: 0.5,
+        stagger: 0.08,
+        ease: "power3.out",
+      });
+    }, wrapperRef);
+
+    return () => ctx.revert();
+  }, [fanItems]);
+
+  useEffect(() => {
+    if (tl.current) {
+      if (open) {
+        tl.current.play();
+      } else {
+        tl.current.reverse();
+      }
+    }
+  }, [open]);
+
   return (
     <div
       ref={wrapperRef}
-      className="fixed z-[9999]"
+      className="fixed z-50"
       style={{
         right: `${ui.right}px`,
         bottom: `calc(${ui.bottom}px + env(safe-area-inset-bottom, 0px))`,
@@ -312,16 +345,15 @@ const ChatIcons = () => {
             rel="noopener noreferrer"
             aria-label={item.label}
             title={item.label}
-            className="absolute right-0 bottom-0 flex items-center rounded-full bg-black/80 backdrop-blur-md border-2 transition-all duration-500 ease-[cubic-bezier(0.34,1.2,0.64,1)] hover:border-opacity-100 overflow-hidden group h-[var(--item-size)] w-[var(--item-size)] hover:w-[var(--expanded-width)]"
+            className="chat-icon-item absolute right-0 bottom-0 flex items-center rounded-full bg-black/80 backdrop-blur-md border-2 hover:border-opacity-100 overflow-hidden group h-[var(--item-size)] w-[var(--item-size)] hover:w-[var(--expanded-width)]"
             style={{
               borderColor: item.color,
               boxShadow: open ? `0 0 12px ${item.color}` : "none",
-              transform: open
-                ? `translate(${item.x}px, ${item.y}px) scale(1)`
-                : "translate(0px, 0px) scale(0)",
-              opacity: open ? 1 : 0,
+              transform: "translate(0px, 0px) scale(0)",
+              opacity: 0,
               pointerEvents: open ? "auto" : "none",
-              transitionDelay: open ? `${item.delay}ms` : "0ms",
+              // GSAP lo việc di chuyển (transform), CSS chỉ lo việc mở rộng (width) khi hover
+              transition: "width 0.4s cubic-bezier(0.34,1.2,0.64,1), box-shadow 0.4s ease",
             }}
           >
             <div className="flex h-[var(--item-size)] w-[var(--item-size)] shrink-0 items-center justify-center rounded-full transition-transform duration-300 group-hover:scale-110">

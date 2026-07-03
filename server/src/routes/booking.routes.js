@@ -18,6 +18,7 @@ const router = express.Router();
 router.post(
   "/",
   bookingLimiter,
+  csrfProtection,
   validateCreateBooking,
   optionalAuth,
   createBooking,

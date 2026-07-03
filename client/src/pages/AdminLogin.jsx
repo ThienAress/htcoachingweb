@@ -32,10 +32,7 @@ const AdminLogin = () => {
     setIsLoading(true);
 
     try {
-      console.log("🔑 [Admin Login] Attempting login...");
-
       const res = await api.post("/auth/admin/login", data);
-      console.log("✅ [Admin Login] Success:", res.data);
 
       // QUAN TRỌNG: login xong phải fetch lại user từ cookie session hiện tại
       await refetch();

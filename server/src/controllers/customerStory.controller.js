@@ -1,4 +1,5 @@
 import CustomerStory from "../models/CustomerStory.js";
+import Trainer from "../models/Trainer.js";
 
 const getPublicStoryQuery = () => ({
   status: "published",
@@ -44,7 +45,7 @@ const getStoryPayload = (body = {}, existingStory = null) => {
   const status = body.status === "published" ? "published" : "draft";
   const wasPublished = existingStory?.status === "published";
 
-  return {
+  const payload = {
     slug: slugify(rawSlug || fallbackSlug),
     name,
     age: String(body.age || "").trim(),
@@ -67,6 +68,7 @@ const getStoryPayload = (body = {}, existingStory = null) => {
     milestones: normalizeMilestones(body.milestones),
     status,
     featured: Boolean(body.featured),
+    isContinuing: Boolean(body.isContinuing),
     sortOrder: Number.isFinite(Number(body.sortOrder))
       ? Number(body.sortOrder)
       : 0,
@@ -77,6 +79,14 @@ const getStoryPayload = (body = {}, existingStory = null) => {
           ? null
           : existingStory?.publishedAt || null,
   };
+
+  if (body.orderId) payload.orderId = body.orderId;
+  else payload.orderId = null;
+  
+  if (body.trainerId) payload.trainerId = body.trainerId;
+  else payload.trainerId = null;
+
+  return payload;
 };
 
 export const getCustomerStories = async (req, res) => {
@@ -87,9 +97,28 @@ export const getCustomerStories = async (req, res) => {
       ? Math.min(Math.max(requestedLimit, 1), 50)
       : 12;
 
+    const trainerId = req.query.trainerId;
+
     const query = getPublicStoryQuery();
     if (featured === "true") {
       query.featured = true;
+    }
+    
+    if (trainerId) {
+      try {
+        const trainer = await Trainer.findById(trainerId).lean();
+        if (trainer && trainer.isHeadCoach) {
+          query.$or = [
+            { trainerId: trainerId },
+            { trainerId: null },
+            { trainerId: { $exists: false } }
+          ];
+        } else {
+          query.trainerId = trainerId;
+        }
+      } catch (err) {
+        query.trainerId = trainerId;
+      }
     }
 
     const stories = await CustomerStory.find(query)
@@ -120,10 +149,14 @@ export const getAdminCustomerStories = async (req, res) => {
     const skip = (page - 1) * limit;
     const status = String(req.query.status || "").trim();
     const search = String(req.query.search || "").trim();
+    const trainerId = req.query.trainerId;
 
     const query = {};
     if (["draft", "published"].includes(status)) {
       query.status = status;
+    }
+    if (trainerId) {
+      query.trainerId = trainerId;
     }
     if (search) {
       query.$or = [
@@ -191,6 +224,15 @@ export const createCustomerStory = async (req, res) => {
       });
     }
 
+    const existing = await CustomerStory.findOne({ slug: payload.slug });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: "Khách hàng này đã có câu chuyện rồi.",
+        existingStoryId: existing._id,
+      });
+    }
+
     const story = await CustomerStory.create(payload);
     res.status(201).json({ success: true, data: story });
   } catch (err) {
@@ -223,6 +265,14 @@ export const updateCustomerStory = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Tên khách hàng và slug là bắt buộc",
+      });
+    }
+
+    const existingSlug = await CustomerStory.findOne({ slug: payload.slug, _id: { $ne: req.params.id } });
+    if (existingSlug) {
+      return res.status(409).json({
+        success: false,
+        message: "Đường dẫn (slug) đã bị trùng với một câu chuyện khác.",
       });
     }
 

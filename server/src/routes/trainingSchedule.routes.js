@@ -4,6 +4,7 @@ import { csrfProtection } from "../middlewares/csrf.js";
 
 import {
   getMySchedules,
+  getMyClients,
   createSchedule,
   updateSchedule,
   deleteSchedule,
@@ -18,6 +19,9 @@ router.get("/exercise-types", protect, requireTrainerAccess, getExerciseTypes);
 
 // 📅 Lấy tất cả lịch tập của trainer hiện tại
 router.get("/", protect, requireTrainerAccess, getMySchedules);
+
+// 👥 Lấy danh sách khách hàng của trainer hiện tại
+router.get("/my-clients", protect, requireTrainerAccess, getMyClients);
 
 // ➕ Tạo 1 slot lịch tập
 router.post("/", protect, requireTrainerAccess, csrfProtection, createSchedule);

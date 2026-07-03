@@ -340,19 +340,15 @@ const CustomerStories = () => {
                 return (
                   <article
                     key={item.title}
-                    className="grid grid-cols-[44px_minmax(0,1fr)] gap-4 border-l-4 border-primary bg-slate-50 p-4"
+                    className="border-l-4 border-primary bg-slate-50 p-4"
                   >
-                    <div className="flex h-11 w-11 items-center justify-center bg-slate-950 text-primary">
-                      <Icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black uppercase text-slate-950">
-                        {item.title}
-                      </h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">
-                        {item.text}
-                      </p>
-                    </div>
+                    <h3 className="flex items-center gap-3 text-lg font-black uppercase text-slate-950">
+                      <Icon className="h-6 w-6 shrink-0 text-primary" />
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 pl-9 text-sm leading-6 text-slate-600">
+                      {item.text}
+                    </p>
                   </article>
                 );
               })}
@@ -514,6 +510,56 @@ const CustomerStories = () => {
               </div>
             )}
             </phantom-ui>
+          </div>
+        </div>
+      </section>
+
+      {/* Internal Linking — SEO Hub */}
+      <section className="bg-white py-14 border-t border-slate-200">
+        <div className="container-custom">
+          <h2 className="text-center font-display text-3xl font-bold uppercase text-slate-950 mb-2">
+            Công cụ <span className="text-primary">hỗ trợ</span>
+          </h2>
+          <p className="text-center text-sm text-slate-500 mb-8">
+            Bắt đầu hành trình thay đổi vóc dáng ngay hôm nay
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3 max-w-4xl mx-auto">
+            <Link
+              to="/tdee-calculator"
+              className="group border border-slate-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <Sparkles className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
+                Tính TDEE & Macro
+              </h3>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                Xác định lượng calo cần nạp mỗi ngày để đạt mục tiêu.
+              </p>
+            </Link>
+            <Link
+              to="/exercises"
+              className="group border border-slate-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <Dumbbell className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
+                Thư viện bài tập
+              </h3>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                Tạo lịch tập cá nhân hóa và xuất PDF miễn phí.
+              </p>
+            </Link>
+            <Link
+              to="/huan-luyen-vien"
+              className="group border border-slate-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <Trophy className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
+                Huấn luyện viên
+              </h3>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                Xem profile và chọn HLV phù hợp với mục tiêu của bạn.
+              </p>
+            </Link>
           </div>
         </div>
       </section>

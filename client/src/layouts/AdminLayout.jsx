@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { ToastContainer } from "react-toastify";
 import {
   Package,
   FileText,
   Sparkles,
   Home,
   Users,
+  Users2,
   Menu,
   MessageSquare,
   Apple,
@@ -43,12 +45,14 @@ const SidebarContent = ({ onItemClick }) => {
       items: [
         { path: "/admin/exercises", label: "Bài tập", icon: Dumbbell },
         { path: "/admin/foods", label: "Thực phẩm", icon: Apple },
+        { path: "/admin/gyms", label: "Phòng tập (CLB)", icon: Home },
       ],
     },
     {
       key: "content",
       label: "Nội dung",
       items: [
+        { path: "/admin/trainers", label: "Đội ngũ HLV", icon: Users2 },
         { path: "/admin/customer-stories", label: "Câu chuyện khách hàng", icon: BookOpenText },
         { path: "/admin/exercise-suggestions", label: "Góp ý bài tập", icon: MessageSquareText },
       ],
@@ -241,6 +245,7 @@ const AdminLayout = () => {
           <Outlet />
         </div>
       </div>
+      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 };

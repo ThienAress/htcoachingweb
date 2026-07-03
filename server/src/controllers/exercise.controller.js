@@ -7,10 +7,14 @@ export const getExercises = async (req, res) => {
     const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
     const search = req.query.search || "";
+    const muscleGroup = req.query.muscleGroup || "";
 
     let query = {};
     if (search) {
       query.name = { $regex: search, $options: "i" };
+    }
+    if (muscleGroup) {
+      query.muscleGroup = muscleGroup;
     }
 
     const total = await Exercise.countDocuments(query);
@@ -126,7 +130,13 @@ export const createManyExercises = async (req, res) => {
 // Cập nhật bài tập (chỉ admin)
 export const updateExercise = async (req, res) => {
   try {
-    const exercise = await Exercise.findByIdAndUpdate(req.params.id, req.body, {
+    const allowed = ["name", "muscleGroup", "description", "videoUrl", "imageUrl"];
+    const updateData = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updateData[key] = req.body[key];
+    }
+
+    const exercise = await Exercise.findByIdAndUpdate(req.params.id, updateData, {
       returnDocument: 'after',
     });
     if (!exercise) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Flame, BarChart3, Utensils, Calendar } from "lucide-react";
+import { Flame, BarChart3, Utensils, Calendar, Dumbbell } from "lucide-react";
 import TdeeForm from "./TdeeForm";
 import TdeeResultBox from "./TdeeResultBox";
 import MacroTable from "./MacroTable";
@@ -21,6 +21,7 @@ const TdeeCalculator = () => {
     formula: "",
     bodyfat: "",
     goal: "",
+    customCalorieAdjustment: "",
   });
 
   const [calcMode, setCalcMode] = useState("auto"); // "auto" | "manual"
@@ -54,10 +55,24 @@ const TdeeCalculator = () => {
     if (!name) return;
     if (["height", "weight", "age", "bodyfat"].includes(name) && value < 0)
       return;
-    if (name === "goal" && form.goal && form.goal !== value) {
-      setGoalNotice(true);
-    }
-    setForm((prev) => ({ ...prev, [name]: value }));
+    
+    setForm((prev) => {
+      if (name === "goal") {
+        if (prev.goal && prev.goal !== value) {
+          setGoalNotice(true);
+        }
+        
+        let newCalorieAdjustment = prev.customCalorieAdjustment;
+        if (value === "gain_muscle") newCalorieAdjustment = "300";
+        else if (value === "gain_weight") newCalorieAdjustment = "500";
+        else if (value === "lose_fat") newCalorieAdjustment = "-300";
+        else if (value === "lose_weight") newCalorieAdjustment = "-500";
+        else if (value === "maintain") newCalorieAdjustment = "0";
+
+        return { ...prev, [name]: value, customCalorieAdjustment: newCalorieAdjustment };
+      }
+      return { ...prev, [name]: value };
+    });
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
@@ -99,8 +114,10 @@ const TdeeCalculator = () => {
     const roundedBmr = Math.round(calculatedBmr);
     const roundedTdee = Math.round(tdeeBase);
     let adjusted = tdeeBase;
-    if (goal === "gain") adjusted += 300;
-    else if (goal === "lose") adjusted -= 300;
+    const adjustmentVal = parseFloat(form.customCalorieAdjustment);
+    if (!isNaN(adjustmentVal)) {
+      adjusted += adjustmentVal;
+    }
     const roundedAdjusted = Math.round(adjusted);
     setBmr(roundedBmr);
     setTdee(roundedTdee);
@@ -128,6 +145,7 @@ const TdeeCalculator = () => {
       formula: "",
       bodyfat: "",
       goal: "",
+      customCalorieAdjustment: "",
     });
     setTdee(null);
     setBmr(null);
@@ -162,13 +180,54 @@ const TdeeCalculator = () => {
     localStorage.setItem("macroSet", JSON.stringify(results));
   };
 
-  const webAppSchema = {
+  const tdeeSchema = {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "Công cụ tính TDEE & Macro HTCOACHING",
-    "url": "https://htcoachingweb.io.vn/tdee-calculator",
-    "applicationCategory": "HealthApplication",
-    "description": "Công cụ tính TDEE chuẩn khoa học, xác định lượng calo cần thiết để giảm mỡ hoặc tăng cơ, kèm theo phân bổ Macro chi tiết."
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "name": "Công cụ tính TDEE & Macro HTCOACHING",
+        "url": "https://htcoachingweb.io.vn/tdee-calculator",
+        "applicationCategory": "HealthApplication",
+        "description": "Công cụ tính TDEE chuẩn khoa học, xác định lượng calo cần thiết để giảm mỡ hoặc tăng cơ, kèm theo phân bổ Macro chi tiết."
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "TDEE là gì?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "TDEE (Total Daily Energy Expenditure) là tổng năng lượng bạn tiêu hao trong một ngày, bao gồm hoạt động sống cơ bản (BMR), vận động thể chất và tiêu hao do tiêu hóa thức ăn. Biết TDEE giúp bạn điều chỉnh chế độ ăn để giảm mỡ hoặc tăng cơ hiệu quả."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "BMR khác TDEE như thế nào?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "BMR (Basal Metabolic Rate) là năng lượng cơ thể tiêu hao khi nghỉ ngơi hoàn toàn. TDEE = BMR × hệ số hoạt động. Ví dụ: nếu BMR là 1500 kcal và bạn tập gym 3-5 ngày/tuần (hệ số 1.55), thì TDEE = 1500 × 1.55 = 2325 kcal/ngày."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Macro là gì và tại sao cần tính Macro?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Macro (Macronutrients) gồm 3 chất dinh dưỡng chính: Protein (Đạm), Carbohydrate (Tinh bột) và Fat (Chất béo). Tính Macro giúp bạn biết cần ăn bao nhiêu gram mỗi loại mỗi ngày để đạt mục tiêu giảm mỡ, tăng cơ hoặc duy trì cân nặng."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Muốn giảm mỡ thì cần ăn bao nhiêu calo?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Để giảm mỡ an toàn, bạn nên ăn ít hơn TDEE khoảng 300-500 kcal/ngày. Ví dụ: TDEE là 2000 kcal thì nên ăn 1500-1700 kcal/ngày. Không nên giảm quá nhanh vì có thể mất cơ và ảnh hưởng sức khỏe."
+            }
+          }
+        ]
+      }
+    ]
   };
 
   const handleMealPlanClick = (e) => {
@@ -186,7 +245,7 @@ const TdeeCalculator = () => {
         title="Công cụ tính TDEE & Macro chuẩn khoa học"
         description="Tính TDEE (Tổng lượng calo tiêu thụ mỗi ngày) và Macro (Đạm, Tinh bột, Béo) chuẩn khoa học giúp giảm mỡ, tăng cơ hiệu quả."
         canonical="/tdee-calculator"
-        jsonLd={webAppSchema}
+        jsonLd={tdeeSchema}
       />
       <Header />
       <div className="container-custom mt-10">
@@ -351,6 +410,53 @@ const TdeeCalculator = () => {
           </>
         )}
       </div>
+
+      {/* Internal Links */}
+      <section className="max-w-4xl mx-auto mt-16 mb-8 px-4">
+        <h2 className="text-center text-xl font-bold text-white mb-2 uppercase">Công cụ khác</h2>
+        <p className="text-center text-sm text-gray-400 mb-6">
+          Kết hợp dinh dưỡng với bài tập để đạt kết quả tốt nhất
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Link
+            to="/exercises"
+            className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+          >
+            <Dumbbell className="h-6 w-6 text-primary mb-3" />
+            <h3 className="font-bold text-white group-hover:text-primary transition">
+              Thư viện bài tập
+            </h3>
+            <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+              Tạo lịch tập cá nhân hóa theo từng nhóm cơ và xuất PDF.
+            </p>
+          </Link>
+          <Link
+            to="/mealplan"
+            className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+          >
+            <Calendar className="h-6 w-6 text-primary mb-3" />
+            <h3 className="font-bold text-white group-hover:text-primary transition">
+              Gợi ý thực đơn
+            </h3>
+            <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+              Nhận thực đơn dinh dưỡng phù hợp mục tiêu giảm mỡ hoặc tăng cơ.
+            </p>
+          </Link>
+          <Link
+            to="/ket-qua-khach-hang"
+            className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+          >
+            <Flame className="h-6 w-6 text-primary mb-3" />
+            <h3 className="font-bold text-white group-hover:text-primary transition">
+              Kết quả khách hàng
+            </h3>
+            <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+              Xem hành trình thay đổi vóc dáng thực tế từ các học viên.
+            </p>
+          </Link>
+        </div>
+      </section>
+
       <ChatIcons />
       <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </main>
