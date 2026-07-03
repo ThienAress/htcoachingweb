@@ -483,154 +483,9 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                 </div>
               </div>
 
-              {/* METHODOLOGIES */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <FormSectionTitle number="05" title="Phương pháp huấn luyện" description="Các trụ cột/phương pháp bạn áp dụng cho học viên." />
-                <div className="mt-6 space-y-4">
-                  {form.methodologies.map((item, index) => (
-                    <div key={item._id} className="relative rounded-xl border border-slate-200 bg-slate-50 p-4 pt-8">
-                      <button
-                        type="button"
-                        onClick={() => setForm({ ...form, methodologies: form.methodologies.filter((_, i) => i !== index) })}
-                        className="absolute right-3 top-3 text-red-500 hover:text-red-600 transition-colors bg-white rounded-lg p-1.5 shadow-sm border border-slate-200"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                      <div className="space-y-3">
-                        <input
-                          type="text"
-                          required
-                          value={item.title}
-                          onChange={(e) => {
-                            const newArr = [...form.methodologies];
-                            newArr[index].title = e.target.value;
-                            setForm({ ...form, methodologies: newArr });
-                          }}
-                          placeholder="Tiêu đề phương pháp (VD: Dinh dưỡng linh hoạt)"
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                        <textarea
-                          required
-                          rows={2}
-                          value={item.description}
-                          onChange={(e) => {
-                            const newArr = [...form.methodologies];
-                            newArr[index].description = e.target.value;
-                            setForm({ ...form, methodologies: newArr });
-                          }}
-                          placeholder="Mô tả ngắn gọn về phương pháp này..."
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, methodologies: [...form.methodologies, { _id: Math.random().toString(), title: "", description: "" }] })}
-                    className="mt-2 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-                  >
-                    <Plus size={16} /> Thêm phương pháp
-                  </button>
-                </div>
-              </div>
-
-              {/* FAQS */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <FormSectionTitle number="06" title="Câu hỏi thường gặp (FAQ)" description="Giải đáp nhanh các thắc mắc phổ biến của học viên." />
-                <div className="mt-6 space-y-4">
-                  {form.faqs.map((item, index) => (
-                    <div key={item._id} className="relative rounded-xl border border-slate-200 bg-slate-50 p-4 pt-8">
-                      <button
-                        type="button"
-                        onClick={() => setForm({ ...form, faqs: form.faqs.filter((_, i) => i !== index) })}
-                        className="absolute right-3 top-3 text-red-500 hover:text-red-600 transition-colors bg-white rounded-lg p-1.5 shadow-sm border border-slate-200"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                      <div className="space-y-3">
-                        <input
-                          type="text"
-                          required
-                          value={item.question}
-                          onChange={(e) => {
-                            const newArr = [...form.faqs];
-                            newArr[index].question = e.target.value;
-                            setForm({ ...form, faqs: newArr });
-                          }}
-                          placeholder="Câu hỏi (VD: Tôi bận đi làm có tập được không?)"
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                        <textarea
-                          required
-                          rows={2}
-                          value={item.answer}
-                          onChange={(e) => {
-                            const newArr = [...form.faqs];
-                            newArr[index].answer = e.target.value;
-                            setForm({ ...form, faqs: newArr });
-                          }}
-                          placeholder="Câu trả lời của bạn..."
-                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, faqs: [...form.faqs, { _id: Math.random().toString(), question: "", answer: "" }] })}
-                    className="mt-2 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-                  >
-                    <Plus size={16} /> Thêm câu hỏi FAQ
-                  </button>
-                </div>
-              </div>
-
-              {/* SOCIAL LINKS */}
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <FormSectionTitle number="07" title="Mạng xã hội (Social Links)" description="Thêm liên kết mạng xã hội hiển thị trên Profile." />
-                <div className="mt-6 space-y-3">
-                  {[
-                    { key: "facebook", label: "Facebook", placeholder: "https://facebook.com/..." },
-                    { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/..." },
-                    { key: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@..." },
-                    { key: "zalo", label: "Zalo", placeholder: "0901234567 hoặc https://zalo.me/..." },
-                    { key: "lemon8", label: "Lemon8", placeholder: "https://www.lemon8-app.com/@..." },
-                    { key: "threads", label: "Threads", placeholder: "https://threads.net/@..." },
-                  ].filter(item => form.socialLinks[item.key]).map(item => (
-                    <div key={item.key} className="flex items-center gap-2">
-                      <span className="w-24 text-xs font-semibold uppercase text-slate-500 shrink-0">{item.label}</span>
-                      <input
-                        type={item.key === "zalo" ? "text" : "url"}
-                        value={form.socialLinks[item.key]}
-                        onChange={(e) => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: e.target.value } })}
-                        placeholder={item.placeholder}
-                        className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                      <button type="button" onClick={() => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: "" } })} className="rounded-xl bg-red-50 p-2.5 text-red-500 hover:bg-red-100 transition-colors">
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))}
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {[
-                      { key: "facebook", label: "Facebook" },
-                      { key: "instagram", label: "Instagram" },
-                      { key: "tiktok", label: "TikTok" },
-                      { key: "zalo", label: "Zalo" },
-                      { key: "lemon8", label: "Lemon8" },
-                      { key: "threads", label: "Threads" },
-                    ].filter(item => !form.socialLinks[item.key]).map(item => (
-                      <button key={item.key} type="button" onClick={() => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: " " } })} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
-                        <Plus size={14} /> {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
               {/* VIDEO INTRO */}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <FormSectionTitle number="08" title="Video giới thiệu" description="Upload file video hoặc dán link YouTube. Nếu để trống sẽ không hiển thị trên Profile." />
+                <FormSectionTitle number="05" title="Video giới thiệu" description="Upload file video hoặc dán link YouTube. Nếu để trống sẽ không hiển thị trên Profile." />
                 <div className="mt-6 space-y-4">
                   {/* Upload hoặc nhập URL */}
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -707,6 +562,153 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
                   )}
                 </div>
               </div>
+
+              {/* METHODOLOGIES */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <FormSectionTitle number="06" title="Phương pháp huấn luyện" description="Các trụ cột/phương pháp bạn áp dụng cho học viên." />
+                <div className="mt-6 space-y-4">
+                  {form.methodologies.map((item, index) => (
+                    <div key={item._id} className="relative rounded-xl border border-slate-200 bg-slate-50 p-4 pt-8">
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, methodologies: form.methodologies.filter((_, i) => i !== index) })}
+                        className="absolute right-3 top-3 text-red-500 hover:text-red-600 transition-colors bg-white rounded-lg p-1.5 shadow-sm border border-slate-200"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          required
+                          value={item.title}
+                          onChange={(e) => {
+                            const newArr = [...form.methodologies];
+                            newArr[index].title = e.target.value;
+                            setForm({ ...form, methodologies: newArr });
+                          }}
+                          placeholder="Tiêu đề phương pháp (VD: Dinh dưỡng linh hoạt)"
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <textarea
+                          required
+                          rows={2}
+                          value={item.description}
+                          onChange={(e) => {
+                            const newArr = [...form.methodologies];
+                            newArr[index].description = e.target.value;
+                            setForm({ ...form, methodologies: newArr });
+                          }}
+                          placeholder="Mô tả ngắn gọn về phương pháp này..."
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, methodologies: [...form.methodologies, { _id: Math.random().toString(), title: "", description: "" }] })}
+                    className="mt-2 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    <Plus size={16} /> Thêm phương pháp
+                  </button>
+                </div>
+              </div>
+
+              {/* FAQS */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <FormSectionTitle number="07" title="Câu hỏi thường gặp (FAQ)" description="Giải đáp nhanh các thắc mắc phổ biến của học viên." />
+                <div className="mt-6 space-y-4">
+                  {form.faqs.map((item, index) => (
+                    <div key={item._id} className="relative rounded-xl border border-slate-200 bg-slate-50 p-4 pt-8">
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, faqs: form.faqs.filter((_, i) => i !== index) })}
+                        className="absolute right-3 top-3 text-red-500 hover:text-red-600 transition-colors bg-white rounded-lg p-1.5 shadow-sm border border-slate-200"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          required
+                          value={item.question}
+                          onChange={(e) => {
+                            const newArr = [...form.faqs];
+                            newArr[index].question = e.target.value;
+                            setForm({ ...form, faqs: newArr });
+                          }}
+                          placeholder="Câu hỏi (VD: Tôi bận đi làm có tập được không?)"
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        <textarea
+                          required
+                          rows={2}
+                          value={item.answer}
+                          onChange={(e) => {
+                            const newArr = [...form.faqs];
+                            newArr[index].answer = e.target.value;
+                            setForm({ ...form, faqs: newArr });
+                          }}
+                          placeholder="Câu trả lời của bạn..."
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, faqs: [...form.faqs, { _id: Math.random().toString(), question: "", answer: "" }] })}
+                    className="mt-2 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    <Plus size={16} /> Thêm câu hỏi FAQ
+                  </button>
+                </div>
+              </div>
+
+              {/* SOCIAL LINKS */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <FormSectionTitle number="08" title="Mạng xã hội (Social Links)" description="Thêm liên kết mạng xã hội hiển thị trên Profile." />
+                <div className="mt-6 space-y-3">
+                  {[
+                    { key: "facebook", label: "Facebook", placeholder: "https://facebook.com/..." },
+                    { key: "instagram", label: "Instagram", placeholder: "https://instagram.com/..." },
+                    { key: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@..." },
+                    { key: "zalo", label: "Zalo", placeholder: "0901234567 hoặc https://zalo.me/..." },
+                    { key: "lemon8", label: "Lemon8", placeholder: "https://www.lemon8-app.com/@..." },
+                    { key: "threads", label: "Threads", placeholder: "https://threads.net/@..." },
+                  ].filter(item => form.socialLinks[item.key]).map(item => (
+                    <div key={item.key} className="flex items-center gap-2">
+                      <span className="w-24 text-xs font-semibold uppercase text-slate-500 shrink-0">{item.label}</span>
+                      <input
+                        type={item.key === "zalo" ? "text" : "url"}
+                        value={form.socialLinks[item.key]}
+                        onChange={(e) => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: e.target.value } })}
+                        placeholder={item.placeholder}
+                        className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium focus:border-primary focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <button type="button" onClick={() => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: "" } })} className="rounded-xl bg-red-50 p-2.5 text-red-500 hover:bg-red-100 transition-colors">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {[
+                      { key: "facebook", label: "Facebook" },
+                      { key: "instagram", label: "Instagram" },
+                      { key: "tiktok", label: "TikTok" },
+                      { key: "zalo", label: "Zalo" },
+                      { key: "lemon8", label: "Lemon8" },
+                      { key: "threads", label: "Threads" },
+                    ].filter(item => !form.socialLinks[item.key]).map(item => (
+                      <button key={item.key} type="button" onClick={() => setForm({ ...form, socialLinks: { ...form.socialLinks, [item.key]: " " } })} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
+                        <Plus size={14} /> {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+
 
             </form>
           )}

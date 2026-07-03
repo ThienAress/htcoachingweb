@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,6 +33,7 @@ import {
   deleteOrder,
   approveOrder,
 } from "../../services/order.service";
+import { createContract } from "../../services/contract.service";
 import { getTrainers } from "../../services/user.service";
 import { useAuth } from "../../context/AuthContext";
 
@@ -51,6 +52,7 @@ const orderSchema = z.object({
 const Orders = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -58,6 +60,8 @@ const Orders = () => {
   const [editingId, setEditingId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [createdContractOrderIds, setCreatedContractOrderIds] = useState(new Set());
+  const [contractOrderTarget, setContractOrderTarget] = useState(null);
 
   const {
     data: ordersData,
@@ -164,6 +168,16 @@ const Orders = () => {
       toast.success("Đã xóa đơn hàng");
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+  });
+
+  const createContractMutation = useMutation({
+    mutationFn: (orderId) => createContract(orderId),
+    onSuccess: (_, orderId) => {
+      setCreatedContractOrderIds((prev) => new Set(prev).add(orderId));
+      toast.success("Tạo hợp đồng thành công!");
+      navigate("/admin/contracts");
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi tạo hợp đồng"),
   });
 
   const onSubmit = useCallback(
@@ -380,6 +394,16 @@ const Orders = () => {
                           <Edit size={18} />
                         </button>
                       )}
+                      {user?.role === "admin" && order.status === "approved" && (
+                        <button
+                          onClick={() => setContractOrderTarget(order)}
+                          disabled={createContractMutation.isPending || createdContractOrderIds.has(order._id)}
+                          className={`p-1.5 rounded-lg transition ${createdContractOrderIds.has(order._id) ? "text-gray-300 cursor-not-allowed" : "text-emerald-600 hover:bg-emerald-50"}`}
+                          title={createdContractOrderIds.has(order._id) ? "Đã tạo HĐ" : "Tạo hợp đồng"}
+                        >
+                          <FileText size={18} />
+                        </button>
+                      )}
                       {user?.role === "admin" && (
                         <button
                           onClick={() => handleDelete(order._id)}
@@ -516,7 +540,20 @@ const Orders = () => {
                   </div>
                 </div>
               </div>
-              <div className="border-t px-6 py-4 flex justify-end">
+              <div className="border-t px-6 py-4 flex justify-end gap-3">
+                {user?.role === "admin" && selectedOrder.status === "approved" && (
+                  <button
+                    onClick={() => {
+                      setContractOrderTarget(selectedOrder);
+                      setShowDetail(false);
+                    }}
+                    disabled={createContractMutation.isPending || createdContractOrderIds.has(selectedOrder._id)}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <FileText className="w-4 h-4" />
+                    {createdContractOrderIds.has(selectedOrder._id) ? "Đã tạo HĐ" : "Tạo Hợp Đồng"}
+                  </button>
+                )}
                 <button
                   onClick={() => setShowDetail(false)}
                   className="px-4 py-2 bg-gray-200 rounded-lg"
@@ -741,6 +778,43 @@ const Orders = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal xác nhận tạo hợp đồng */}
+        {contractOrderTarget && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+              <div className="p-6 text-center">
+                <FileText className="w-12 h-12 text-emerald-600 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-slate-800 mb-2">Tạo Hợp Đồng</h3>
+                <p className="text-sm text-slate-500 mb-1">Bạn muốn tạo hợp đồng cho đơn hàng này?</p>
+                <div className="bg-slate-50 rounded-xl p-3 mt-3 text-left text-sm">
+                  <p><strong>Khách hàng:</strong> {contractOrderTarget.name}</p>
+                  <p><strong>Gói:</strong> {contractOrderTarget.package}</p>
+                  <p><strong>Số buổi:</strong> {contractOrderTarget.sessions || contractOrderTarget.totalSessions}</p>
+                </div>
+              </div>
+              <div className="border-t px-6 py-4 flex justify-end gap-3">
+                <button
+                  onClick={() => setContractOrderTarget(null)}
+                  className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={() => {
+                    createContractMutation.mutate(contractOrderTarget._id);
+                    setContractOrderTarget(null);
+                  }}
+                  disabled={createContractMutation.isPending}
+                  className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  Xác nhận tạo
+                </button>
+              </div>
             </div>
           </div>
         )}

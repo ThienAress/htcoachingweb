@@ -43,6 +43,8 @@ import { getMyWallet } from "./src/routes/deposit.routes.js";
 import { startDepositCronJobs } from "./src/services/depositCron.js";
 import { startSubscriptionCronJobs } from "./src/services/subscriptionCron.js";
 import { startScheduleReminderCron } from "./src/services/scheduleReminderCron.js";
+import { startContractCronJobs } from "./src/services/contractCron.js";
+import { startCleanupCronJobs } from "./src/services/cleanupCron.js";
 
 import { generateCsrfToken } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
@@ -211,6 +213,15 @@ app.use("/api/workout-plans", workoutPlanRoutes);
 import gymRoutes from "./src/routes/gym.routes.js";
 app.use("/api/gyms", gymRoutes);
 
+import aiRoutes from "./src/routes/ai.routes.js";
+app.use("/api/ai", aiRoutes);
+
+import contractRoutes from "./src/routes/contract.routes.js";
+app.use("/api/contracts", contractRoutes);
+
+import blogRoutes from "./src/routes/blog.routes.js";
+app.use("/api/blog", blogRoutes);
+
 import { protect } from "./src/middlewares/auth.middleware.js";
 app.get("/api/me/wallet", protect, getMyWallet);
 
@@ -236,4 +247,6 @@ app.listen(PORT, () => {
   startDepositCronJobs();
   startSubscriptionCronJobs();
   startScheduleReminderCron();
+  startContractCronJobs();
+  startCleanupCronJobs();
 });

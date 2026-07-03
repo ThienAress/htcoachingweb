@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Facebook, Instagram, Youtube, Send } from "lucide-react";
+import { Facebook, Instagram, Youtube, Award, ShieldCheck } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
 import LoginModal from "../../pages/MealPlan/LoginModal";
@@ -150,29 +150,31 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Newsletter */}
+          {/* Cam kết chất lượng */}
           <div>
             <h3 className="text-lg font-semibold mb-4 pb-2 relative after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-primary">
-              ĐĂNG KÝ NHẬN TIN
+              CAM KẾT CHẤT LƯỢNG
             </h3>
-            <p className="text-gray-300 text-sm mb-4">
-              Nhận ưu đãi và thông tin mới nhất từ chúng tôi
-            </p>
-            <form className="flex">
-              <input
-                type="email"
-                placeholder="Email của bạn"
-                required
-                className="flex-1 px-3 py-2 rounded-l-md bg-white/10 text-white border-none focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <button
-                type="submit"
-                className="px-4 bg-primary text-white rounded-r-md hover:bg-white hover:text-primary transition-colors"
-                aria-label="Gửi"
-              >
-                <Send size={18} />
-              </button>
-            </form>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <Award className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-white font-semibold text-sm">Cam Kết Hiệu Quả</p>
+                  <p className="text-gray-400 text-xs leading-relaxed mt-0.5">
+                    Hoàn tiền hoặc training lại nếu tuân thủ lộ trình mà không đạt kết quả.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-white font-semibold text-sm">Private & Secure</p>
+                  <p className="text-gray-400 text-xs leading-relaxed mt-0.5">
+                    Bảo mật thông tin & hình ảnh khách hàng tuyệt đối.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

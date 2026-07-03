@@ -1,9 +1,12 @@
 import mongoose from "mongoose";
 
-const storyImageSchema = {
-  type: String,
-  default: "",
-  trim: true,
+const storyImagesSchema = {
+  type: [String],
+  default: [],
+  validate: {
+    validator: (arr) => arr.length <= 3,
+    message: "Tối đa 3 ảnh cho mỗi mục before/after",
+  },
 };
 
 const milestoneSchema = new mongoose.Schema(
@@ -23,8 +26,8 @@ const milestoneSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
-    beforeImg: storyImageSchema,
-    afterImg: storyImageSchema,
+    beforeImg: storyImagesSchema,
+    afterImg: storyImagesSchema,
     bullets: {
       type: [String],
       default: [],
@@ -126,9 +129,19 @@ const customerStorySchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
-    beforeImg: storyImageSchema,
-    afterImg: storyImageSchema,
-    heroImage: storyImageSchema,
+    beforeImg: storyImagesSchema,
+    afterImg: storyImagesSchema,
+    heroImage: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    heroPosition: {
+      type: Number,
+      default: 50,
+      min: 0,
+      max: 100,
+    },
     highlights: {
       type: [String],
       default: [],
