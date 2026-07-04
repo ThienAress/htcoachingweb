@@ -1,5 +1,7 @@
+import path from "path";
 import CustomerStory from "../models/CustomerStory.js";
 import Trainer from "../models/Trainer.js";
+import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 
 const getPublicStoryQuery = () => ({
   status: "published",
@@ -377,11 +379,28 @@ export const uploadCustomerStoryImageFile = async (req, res) => {
       });
     }
 
+    const ext = path.extname(req.file.originalname || "").toLowerCase();
+    const safeBaseName = path
+      .basename(req.file.originalname || "customer-story", ext)
+      .replace(/[^a-zA-Z0-9-_]/g, "_")
+      .slice(0, 80);
+    const publicId = `${Date.now()}-${safeBaseName}`;
+
+    const result = await uploadBufferToCloudinary(req.file.buffer, {
+      folder: "htcoaching/customer-stories",
+      public_id: publicId,
+      allowed_formats: ["jpg", "jpeg", "png", "webp"],
+      transformation: [
+        { width: 1000, crop: "limit" },
+        { quality: "auto", fetch_format: "auto" },
+      ],
+    });
+
     res.status(201).json({
       success: true,
       data: {
-        url: req.file.path,
-        filename: req.file.filename,
+        url: result.url,
+        filename: result.public_id,
       },
     });
   } catch (err) {

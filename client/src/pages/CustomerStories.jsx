@@ -372,12 +372,22 @@ const CustomerStories = () => {
     return result;
   }, [stories, search, ageFilter, goalFilter, durationFilter, selectedTrainers]);
 
+  const customerStoriesSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Kết Quả Khách Hàng HTCOACHING",
+    "url": "https://htcoachingweb.io.vn/ket-qua-khach-hang",
+    "description": "Tổng hợp câu chuyện thay đổi vóc dáng thực tế của học viên tại HTCOACHING — giảm mỡ, tăng cơ với giáo án PT 1 kèm 1 cá nhân hóa.",
+    "provider": { "@type": "Organization", "name": "HTCOACHING", "url": "https://htcoachingweb.io.vn" }
+  };
+
   return (
     <main className="bg-white">
       <SEO
         title="Kết quả khách hàng thực tế"
         description="Xem ngay hành trình thay đổi vóc dáng ngoạn mục của các học viên tại HTCOACHING. Khám phá các câu chuyện giảm mỡ, tăng cơ và thay đổi hình thể với giáo án 1 kèm 1."
         canonical="/ket-qua-khach-hang"
+        jsonLd={customerStoriesSchema}
       />
       <section className="relative min-h-[520px] overflow-hidden bg-black text-white">
         <img
