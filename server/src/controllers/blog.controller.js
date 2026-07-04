@@ -1,5 +1,7 @@
+import path from "path";
 import BlogPost from "../models/BlogPost.js";
 import sanitizeHtml from "sanitize-html";
+import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 
 // Cấu hình sanitize — Tầng 1 bảo mật chống XSS
 const sanitizeOptions = {
@@ -279,9 +281,26 @@ export const uploadBlogImage = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "Vui lòng chọn ảnh" });
     }
+
+    const ext = path.extname(req.file.originalname || "").toLowerCase();
+    const safeBaseName = path
+      .basename(req.file.originalname || "blog-image", ext)
+      .replace(/[^a-zA-Z0-9-_]/g, "_")
+      .slice(0, 80);
+
+    const result = await uploadBufferToCloudinary(req.file.buffer, {
+      folder: "htcoaching/blog",
+      public_id: `${Date.now()}-${safeBaseName}`,
+      allowed_formats: ["jpg", "jpeg", "png", "webp"],
+      transformation: [
+        { width: 1200, crop: "limit" },
+        { quality: "auto", fetch_format: "auto" },
+      ],
+    });
+
     res.status(201).json({
       success: true,
-      data: { url: req.file.path, filename: req.file.filename },
+      data: { url: result.url, filename: result.public_id },
     });
   } catch (err) {
     console.error("UPLOAD BLOG IMAGE ERROR:", err);

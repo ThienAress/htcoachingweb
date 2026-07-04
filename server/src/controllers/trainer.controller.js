@@ -1,4 +1,6 @@
+import path from "path";
 import Trainer from "../models/Trainer.js";
+import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 
 const getPublicTrainerQuery = () => ({
   status: "published",
@@ -282,11 +284,27 @@ export const uploadTrainerImageFile = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Vui lòng chọn một file" });
     }
 
+    const ext = path.extname(req.file.originalname || "").toLowerCase();
+    const safeBaseName = path
+      .basename(req.file.originalname || "trainer", ext)
+      .replace(/[^a-zA-Z0-9-_]/g, "_")
+      .slice(0, 80);
+
+    const result = await uploadBufferToCloudinary(req.file.buffer, {
+      folder: "htcoaching/trainers",
+      public_id: `${Date.now()}-${safeBaseName}`,
+      allowed_formats: ["jpg", "jpeg", "png", "webp"],
+      transformation: [
+        { width: 1000, crop: "limit" },
+        { quality: "auto", fetch_format: "auto" },
+      ],
+    });
+
     res.status(200).json({
       success: true,
       data: {
-        url: req.file.path,
-        filename: req.file.filename,
+        url: result.url,
+        filename: result.public_id,
       },
     });
   } catch (error) {
@@ -300,11 +318,24 @@ export const uploadTrainerVideoFile = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Vui lòng chọn một file video" });
     }
 
+    const ext = path.extname(req.file.originalname || "").toLowerCase();
+    const safeBaseName = path
+      .basename(req.file.originalname || "video", ext)
+      .replace(/[^a-zA-Z0-9-_]/g, "_")
+      .slice(0, 80);
+
+    const result = await uploadBufferToCloudinary(req.file.buffer, {
+      folder: "htcoaching/trainers/videos",
+      public_id: `${Date.now()}-${safeBaseName}`,
+      resource_type: "video",
+      allowed_formats: ["mp4", "mov", "webm", "avi"],
+    });
+
     res.status(200).json({
       success: true,
       data: {
-        url: req.file.path,
-        filename: req.file.filename,
+        url: result.url,
+        filename: result.public_id,
       },
     });
   } catch (error) {
