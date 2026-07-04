@@ -17,6 +17,6 @@ export const uploadCustomerStoryImage = multer({
   storage: multer.memoryStorage(),
   fileFilter: imageFileFilter,
   limits: {
-    fileSize: 8 * 1024 * 1024,
+    fileSize: 15 * 1024 * 1024,
   },
 });
