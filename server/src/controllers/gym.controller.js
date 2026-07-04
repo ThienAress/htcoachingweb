@@ -1,4 +1,6 @@
+import path from "path";
 import Gym from "../models/Gym.js";
+import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 
 // GET /api/gyms — Public: lấy danh sách phòng tập active
 export const getGyms = async (req, res) => {
@@ -42,7 +44,20 @@ export const createGym = async (req, res) => {
     if (!name || !address || !district) {
       return res.status(400).json({ success: false, message: "Thiếu tên, địa chỉ hoặc quận" });
     }
-    const image = req.file ? req.file.path : "";
+
+    let image = "";
+    if (req.file) {
+      const ext = path.extname(req.file.originalname || "").toLowerCase();
+      const safeBaseName = path.basename(req.file.originalname || "gym", ext).replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 80);
+      const result = await uploadBufferToCloudinary(req.file.buffer, {
+        folder: "htcoaching/gyms",
+        public_id: `${Date.now()}-${safeBaseName}`,
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+        transformation: [{ width: 800, crop: "limit" }, { quality: "auto", fetch_format: "auto" }],
+      });
+      image = result.url;
+    }
+
     const gym = await Gym.create({
       name, address, district, image, openingHours, googleMapsUrl, note,
       hasKickfit: hasKickfit === "true" || hasKickfit === true,
@@ -59,7 +74,17 @@ export const createGym = async (req, res) => {
 export const updateGym = async (req, res) => {
   try {
     const updates = { ...req.body };
-    if (req.file) updates.image = req.file.path;
+    if (req.file) {
+      const ext = path.extname(req.file.originalname || "").toLowerCase();
+      const safeBaseName = path.basename(req.file.originalname || "gym", ext).replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 80);
+      const result = await uploadBufferToCloudinary(req.file.buffer, {
+        folder: "htcoaching/gyms",
+        public_id: `${Date.now()}-${safeBaseName}`,
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+        transformation: [{ width: 800, crop: "limit" }, { quality: "auto", fetch_format: "auto" }],
+      });
+      updates.image = result.url;
+    }
     if (updates.hasKickfit !== undefined) {
       updates.hasKickfit = updates.hasKickfit === "true" || updates.hasKickfit === true;
     }

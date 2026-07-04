@@ -130,12 +130,25 @@ const MealPlan = () => {
     return <Navigate to="/login" replace />;
   }
 
+  const mealplanSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Công cụ gợi ý thực đơn cá nhân hóa HTCOACHING",
+    "url": "https://htcoachingweb.io.vn/mealplan",
+    "description": "Thực đơn giảm mỡ, tăng cơ tự động dựa trên TDEE và Macros cá nhân. Xây dựng chế độ ăn chuẩn khoa học.",
+    "applicationCategory": "HealthApplication",
+    "operatingSystem": "Web",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "VND" },
+    "provider": { "@type": "Organization", "name": "HTCOACHING", "url": "https://htcoachingweb.io.vn" }
+  };
+
   return (
     <>
       <SEO
         title="Gợi ý thực đơn cá nhân hóa"
         description="Thực đơn giảm mỡ, tăng cơ tự động dựa trên TDEE và Macros của bạn. Xây dựng chế độ ăn chuẩn khoa học cùng HTCOACHING."
         canonical="/mealplan"
+        jsonLd={mealplanSchema}
       />
       <Header />
       <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">

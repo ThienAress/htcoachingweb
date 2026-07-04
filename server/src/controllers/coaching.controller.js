@@ -1,6 +1,8 @@
+import path from "path";
 import CoachingDay from "../models/CoachingDay.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
+import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 
 // ================= KHÁCH HÀNG (CLIENT) =================
 
@@ -84,7 +86,15 @@ export const submitFeedback = async (req, res) => {
 
     // Nếu có file video tải lên
     if (req.file) {
-      plan.clientFeedbackVideo = req.file.path;
+      const ext = path.extname(req.file.originalname || "").toLowerCase();
+      const safeBaseName = path.basename(req.file.originalname || "video", ext).replace(/[^a-zA-Z0-9-_]/g, "_");
+      const result = await uploadBufferToCloudinary(req.file.buffer, {
+        folder: "htcoaching/coaching-videos",
+        public_id: `${Date.now()}-${safeBaseName}`,
+        resource_type: "video",
+        allowed_formats: ["mp4", "mov", "avi", "webm", "mkv", "m4v", "3gp"],
+      });
+      plan.clientFeedbackVideo = result.url;
     }
 
     // Tự động kiểm tra trạng thái hoàn thành ngày tập
@@ -274,9 +284,19 @@ export const uploadCoachingDemoVideo = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "Không tìm thấy file tải lên" });
     }
+
+    const ext = path.extname(req.file.originalname || "").toLowerCase();
+    const safeBaseName = path.basename(req.file.originalname || "demo-video", ext).replace(/[^a-zA-Z0-9-_]/g, "_");
+    const result = await uploadBufferToCloudinary(req.file.buffer, {
+      folder: "htcoaching/coaching-videos",
+      public_id: `${Date.now()}-${safeBaseName}`,
+      resource_type: "video",
+      allowed_formats: ["mp4", "mov", "avi", "webm", "mkv", "m4v", "3gp"],
+    });
+
     res.json({
       success: true,
-      url: req.file.path,
+      url: result.url,
       message: "Tải lên video demo thành công",
     });
   } catch (err) {
@@ -291,9 +311,19 @@ export const uploadClientFeedbackVideo = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "Không tìm thấy file tải lên" });
     }
+
+    const ext = path.extname(req.file.originalname || "").toLowerCase();
+    const safeBaseName = path.basename(req.file.originalname || "feedback-video", ext).replace(/[^a-zA-Z0-9-_]/g, "_");
+    const result = await uploadBufferToCloudinary(req.file.buffer, {
+      folder: "htcoaching/coaching-videos",
+      public_id: `${Date.now()}-${safeBaseName}`,
+      resource_type: "video",
+      allowed_formats: ["mp4", "mov", "avi", "webm", "mkv", "m4v", "3gp"],
+    });
+
     res.json({
       success: true,
-      url: req.file.path,
+      url: result.url,
       message: "Tải lên video phản hồi thành công",
     });
   } catch (err) {

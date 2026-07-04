@@ -169,8 +169,8 @@
 }
 
 /* ================= BLOG CONTENT — Override heading font ================= */
-/* Blog headings dùng font-sans (Poppins) thay vì font-display (Oswald) */
-/* vì Oswald uppercase không phù hợp cho nội dung bài viết dạng article */
+/* Blog headings dùng Poppins thay vì Oswald, và cancel text-transform: uppercase */
+/* vì base CSS apply uppercase cho h1-h3 — không phù hợp cho nội dung article dạng văn bản */
 .blog-content h1,
 .blog-content h2,
 .blog-content h3,
