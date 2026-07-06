@@ -59,10 +59,16 @@ export const chatStream = async (req, res) => {
       conversation.context = { ...existing, ...context };
     }
 
-    // Thêm user message
+    // Auto-set title từ tin nhắn đầu tiên của user
+    if (!conversation.title && message) {
+      conversation.title = message.trim().slice(0, 60);
+    }
+
+    // Thêm user message (kèm ảnh nếu có)
     conversation.messages.push({
       role: "user",
       content: message.trim(),
+      image: context?.image || null,
       timestamp: new Date(),
     });
 
@@ -73,14 +79,23 @@ export const chatStream = async (req, res) => {
       userMetrics: conversation.context?.userMetrics,
     });
 
-    // Chuẩn bị messages cho LLM
     const llmMessages = [
       { role: "system", content: systemPrompt },
-      ...conversation.messages.slice(-MAX_HISTORY_MESSAGES).map((m) => ({
-        role: m.role,
-        content: m.content,
-        ...(m.toolName && { name: m.toolName }),
-      })),
+      ...conversation.messages.slice(-MAX_HISTORY_MESSAGES).map((m) => {
+        const mapped = { role: m.role, content: m.content || "" };
+        if (m.image) mapped.image = m.image;
+        
+        // Giữ lại tool_calls trong history để LLM không "quên" đã gọi tool gì
+        if (m.role === "assistant" && m.toolCalls?.length > 0) {
+          mapped.tool_calls = m.toolCalls;
+        }
+        // Giữ tên tool cho role "tool"
+        if (m.role === "tool" && m.toolName) {
+          mapped.name = m.toolName;
+          if (m.toolCallId) mapped.id = m.toolCallId;
+        }
+        return mapped;
+      }),
     ];
 
     const tools = getToolSchemas();
@@ -103,6 +118,10 @@ export const chatStream = async (req, res) => {
 
           case "tool_call":
             needsToolCall = true;
+            
+            // XÓA BỎ VĂN BẢN RÁC: Khi LLM gọi tool, nó sẽ bắt đầu lại từ đầu ở Turn sau,
+            // nên mọi văn bản đã sinh ra ở Turn hiện tại chỉ là nháp và phải bị vứt bỏ.
+            fullResponse = "";
 
             for (const call of chunk.toolCalls) {
               // Gửi tool_start cho FE loading
@@ -134,6 +153,7 @@ export const chatStream = async (req, res) => {
                 role: "tool",
                 content: toolResult.text,
                 toolName: call.name,
+                toolCallId: call.id,
                 uiCard: toolResult.uiCard,
                 timestamp: new Date(),
               });
@@ -170,7 +190,75 @@ export const chatStream = async (req, res) => {
   }
 };
 
-// GET /api/ai/history — Lấy conversation hiện tại
+// GET /api/ai/conversations — Danh sách tất cả conversations của user
+export const getConversations = async (req, res) => {
+  try {
+    const conversations = await ChatConversation.find({ userId: req.user.id })
+      .sort({ updatedAt: -1 })
+      .limit(30)
+      .select("_id title updatedAt messages")
+      .lean();
+
+    const list = conversations.map((c) => ({
+      _id: c._id,
+      title: c.title || "Cuộc trò chuyện",
+      updatedAt: c.updatedAt,
+      preview: c.messages
+        .filter((m) => m.role === "user")
+        .slice(-1)[0]?.content?.slice(0, 80) || "",
+      messageCount: c.messages.filter((m) => m.role === "user" || m.role === "assistant").length,
+    }));
+
+    res.json({ success: true, data: list });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /api/ai/conversations/:id — Load 1 conversation cụ thể
+export const getConversationById = async (req, res) => {
+  try {
+    const conversation = await ChatConversation.findOne({
+      _id: req.params.id,
+      userId: req.user.id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy cuộc trò chuyện" });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        conversationId: conversation._id,
+        title: conversation.title || "Cuộc trò chuyện",
+        messages: conversation.messages,
+        context: conversation.context,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// DELETE /api/ai/conversations/:id — Xóa 1 conversation cụ thể
+export const deleteConversation = async (req, res) => {
+  try {
+    const result = await ChatConversation.deleteOne({
+      _id: req.params.id,
+      userId: req.user.id,
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy cuộc trò chuyện" });
+    }
+
+    res.json({ success: true, message: "Đã xóa cuộc trò chuyện" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+// GET /api/ai/history — Lấy conversation gần nhất (backward compat)
 export const getHistory = async (req, res) => {
   try {
     const conversation = await ChatConversation.findOne({ userId: req.user.id }).sort({ updatedAt: -1 });
@@ -183,6 +271,7 @@ export const getHistory = async (req, res) => {
       success: true,
       data: {
         conversationId: conversation._id,
+        title: conversation.title || "",
         messages: conversation.messages,
         context: conversation.context,
       },
@@ -192,7 +281,7 @@ export const getHistory = async (req, res) => {
   }
 };
 
-// DELETE /api/ai/history — Xóa conversation
+// DELETE /api/ai/history — Xóa tất cả conversations
 export const clearHistory = async (req, res) => {
   try {
     await ChatConversation.deleteMany({ userId: req.user.id });

@@ -235,6 +235,9 @@ const ExerciseManagement = () => {
                     <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700">
                       Tên bài tập
                     </th>
+                    <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700 w-20">
+                      Hình ảnh
+                    </th>
                     <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700">
                       Nhóm cơ
                     </th>
@@ -251,6 +254,19 @@ const ExerciseManagement = () => {
                     <tr key={ex._id} className="hover:bg-gray-50 transition">
                       <td className="px-5 py-3 text-sm font-medium text-gray-800">
                         {ex.name}
+                      </td>
+                      <td className="px-5 py-3 text-sm">
+                        {ex.imageUrl ? (
+                          <img
+                            src={ex.imageUrl}
+                            alt={ex.name}
+                            className="w-12 h-12 object-cover rounded-lg border border-gray-200 hover:scale-[2.5] hover:z-20 hover:shadow-lg relative transition-transform duration-200 cursor-pointer bg-white"
+                            onClick={() => window.open(ex.imageUrl, "_blank")}
+                            onError={(e) => { e.target.src = "/assets/default-exercise.png"; }}
+                          />
+                        ) : (
+                          <span className="text-gray-400 text-xs">Không có</span>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-sm">
                         <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
@@ -283,7 +299,7 @@ const ExerciseManagement = () => {
                   {exercises.length === 0 && (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         className="px-5 py-12 text-center text-gray-400"
                       >
                         <FileWarning className="w-10 h-10 mx-auto mb-2 opacity-50" />

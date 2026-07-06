@@ -354,71 +354,126 @@ const TrainerCoaching = () => {
           {/* BỐ CỤC 2 CỘT TỰ DO: TRÁI CHỌN KHÁCH HÀNG, PHẢI SETUP GIÁO ÁN */}
           <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start">
 
-            {/* CỘT TRÁI: DANH SÁCH KHÁCH HÀNG */}
-            <div className="bg-gradient-to-b from-gray-900/70 to-gray-950/50 backdrop-blur-md rounded-2xl border border-gray-700/40 p-5 space-y-4 shadow-xl">
-              <div className="border-b border-gray-700/30 pb-3">
-                <h3 className="font-bold text-white uppercase tracking-wider text-sm">
-                  Danh sách học viên
-                </h3>
-              </div>
-
-              {/* Tìm kiếm */}
-              <div className="relative">
-                <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  placeholder="Tìm học viên..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-gray-950/60 border border-gray-700/40 rounded-xl py-2.5 pl-9 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-300 placeholder-gray-600 transition-all duration-200"
-                />
-              </div>
-
-              {/* List */}
-              {isLoadingClients ? (
-                <div className="space-y-2 py-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-14 bg-gray-800/40 rounded-xl animate-pulse"></div>
-                  ))}
+            {/* CỘT TRÁI: DANH SÁCH KHÁCH HÀNG & GIÁO ÁN ĐÃ LÊN */}
+            <div className="space-y-6">
+              {/* DANH SÁCH KHÁCH HÀNG */}
+              <div className="bg-gradient-to-b from-gray-900/70 to-gray-950/50 backdrop-blur-md rounded-2xl border border-gray-700/40 p-5 space-y-4 shadow-xl">
+                <div className="border-b border-gray-700/30 pb-3">
+                  <h3 className="font-bold text-white uppercase tracking-wider text-sm">
+                    Danh sách học viên
+                  </h3>
                 </div>
-              ) : filteredClients.length === 0 ? (
-                <p className="text-gray-500 text-xs text-center py-6">Không tìm thấy khách hàng nào</p>
-              ) : (
-                <div className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
-                  {filteredClients.map((client) => {
-                    const isSelected = selectedClient?._id === client._id;
-                    return (
-                      <div
-                        key={client._id}
-                        onClick={() => handleSelectClient(client)}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${isSelected
-                            ? "bg-primary/15 border-primary/40 shadow-lg shadow-primary/5"
-                            : "bg-gray-950/30 border-gray-700/30 hover:bg-gray-900/50 hover:border-gray-600/40"
-                          }`}
-                      >
-                        {(() => {
-                          const { initial, colorClass } = getInitialAvatar(client.name);
-                          return (
-                            <div
-                              className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold border-2 transition-colors ${colorClass} ${isSelected ? "border-primary/40" : "border-gray-700/40"
-                                }`}
-                            >
-                              {initial}
-                            </div>
-                          );
-                        })()}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-white truncate">
-                            {client.name}
-                          </p>
-                          <p className="text-[10px] text-gray-500 truncate">
-                            {client.package}
-                          </p>
+
+                {/* Tìm kiếm */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-gray-500 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    placeholder="Tìm học viên..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-gray-950/60 border border-gray-700/40 rounded-xl py-2.5 pl-9 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-primary/50 text-gray-300 placeholder-gray-600 transition-all duration-200"
+                  />
+                </div>
+
+                {/* List */}
+                {isLoadingClients ? (
+                  <div className="space-y-2 py-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-14 bg-gray-800/40 rounded-xl animate-pulse"></div>
+                    ))}
+                  </div>
+                ) : filteredClients.length === 0 ? (
+                  <p className="text-gray-500 text-xs text-center py-6">Không tìm thấy khách hàng nào</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+                    {filteredClients.map((client) => {
+                      const isSelected = selectedClient?._id === client._id;
+                      return (
+                        <div
+                          key={client._id}
+                          onClick={() => handleSelectClient(client)}
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${isSelected
+                              ? "bg-primary/15 border-primary/40 shadow-lg shadow-primary/5"
+                              : "bg-gray-950/30 border-gray-700/30 hover:bg-gray-900/50 hover:border-gray-600/40"
+                            }`}
+                        >
+                          {(() => {
+                            const { initial, colorClass } = getInitialAvatar(client.name);
+                            return (
+                              <div
+                                className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold border-2 transition-colors ${colorClass} ${isSelected ? "border-primary/40" : "border-gray-700/40"
+                                  }`}
+                              >
+                                {initial}
+                              </div>
+                            );
+                          })()}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-white truncate">
+                              {client.name}
+                            </p>
+                            <p className="text-[10px] text-gray-500 truncate">
+                              {client.package}
+                            </p>
+                          </div>
+                          <ArrowRight className={`w-3.5 h-3.5 shrink-0 transition-all duration-200 ${isSelected ? "translate-x-0.5 text-primary" : "text-gray-600"}`} />
                         </div>
-                        <ArrowRight className={`w-3.5 h-3.5 shrink-0 transition-all duration-200 ${isSelected ? "translate-x-0.5 text-primary" : "text-gray-600"}`} />
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* GIÁO ÁN ĐÃ LÊN */}
+              {selectedClient && (
+                <div className="bg-gradient-to-b from-gray-900/70 to-gray-950/50 backdrop-blur-md rounded-2xl border border-gray-700/40 p-5 space-y-4 shadow-xl">
+                  <div className="border-b border-gray-700/30 pb-3 flex items-center justify-between">
+                    <h3 className="font-bold text-white uppercase tracking-wider text-sm">
+                      Giáo án đã lên
+                    </h3>
+                    <span className="text-[10px] bg-primary/20 text-primary px-2.5 py-0.5 rounded-full font-bold">
+                      {timeline.length} ngày
+                    </span>
+                  </div>
+
+                  {isLoadingTimeline ? (
+                    <div className="space-y-2 py-2">
+                      <div className="h-10 bg-gray-800/40 rounded-xl animate-pulse"></div>
+                    </div>
+                  ) : timeline.length === 0 ? (
+                    <p className="text-gray-500 text-xs text-center py-6">Chưa có giáo án nào được soạn</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-[30vh] overflow-y-auto pr-1 custom-scrollbar">
+                      {timeline.map((plan) => {
+                        const isCurrent = plan.dateString === selectedDate;
+                        const displayDate = new Date(plan.dateString).toLocaleDateString("vi-VN");
+                        return (
+                          <div
+                            key={plan._id}
+                            onClick={() => handleDateChange(plan.dateString)}
+                            className={`p-3 rounded-xl border text-xs transition-all duration-200 cursor-pointer ${isCurrent
+                                ? "bg-primary/15 border-primary/40 text-primary font-semibold"
+                                : "bg-gray-950/30 border-gray-700/30 text-gray-300 hover:bg-gray-900/50 hover:border-gray-600/40"
+                              }`}
+                          >
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="font-bold text-gray-400">{displayDate}</span>
+                              <span
+                                className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${plan.clientStatus === "completed"
+                                    ? "bg-emerald-500/10 text-emerald-400"
+                                    : "bg-amber-500/10 text-amber-400"
+                                  }`}
+                              >
+                                {plan.clientStatus === "completed" ? "Xong" : "Chờ"}
+                              </span>
+                            </div>
+                            <p className="truncate font-semibold text-white">{plan.title}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -488,14 +543,7 @@ const TrainerCoaching = () => {
                           type="text"
                           required
                           value={planTitle}
-                          onCompositionStart={() => (isComposing.current = true)}
-                          onCompositionEnd={(e) => {
-                            isComposing.current = false;
-                            setPlanTitle(e.target.value);
-                          }}
-                          onChange={(e) => {
-                            if (!isComposing.current) setPlanTitle(e.target.value);
-                          }}
+                          onChange={(e) => setPlanTitle(e.target.value)}
                           placeholder="Ví dụ: Chest Day - Tập ngực dày và rộng"
                           className="w-full bg-gray-950/80 border border-gray-700/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary/40 text-white placeholder-gray-600 transition-all duration-200"
                         />
@@ -508,14 +556,7 @@ const TrainerCoaching = () => {
                         <textarea
                           rows={2}
                           value={planNote}
-                          onCompositionStart={() => (isComposing.current = true)}
-                          onCompositionEnd={(e) => {
-                            isComposing.current = false;
-                            setPlanNote(e.target.value);
-                          }}
-                          onChange={(e) => {
-                            if (!isComposing.current) setPlanNote(e.target.value);
-                          }}
+                          onChange={(e) => setPlanNote(e.target.value)}
                           placeholder="Dặn học viên khởi động vai kỹ, nhịp nghỉ 60s giữa hiệp, ăn nhẹ trước tập 1 tiếng..."
                           className="w-full bg-gray-950/80 border border-gray-700/50 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-primary/40 text-sm text-white placeholder-gray-600 transition-all duration-200 resize-none"
                         ></textarea>
@@ -578,14 +619,7 @@ const TrainerCoaching = () => {
                                   required
                                   list="exercise-database-options"
                                   value={ex.name}
-                                  onCompositionStart={() => (isComposing.current = true)}
-                                  onCompositionEnd={(e) => {
-                                    isComposing.current = false;
-                                    handleExerciseChange(idx, "name", e.target.value);
-                                  }}
-                                  onChange={(e) => {
-                                    if (!isComposing.current) handleExerciseChange(idx, "name", e.target.value);
-                                  }}
+                                  onChange={(e) => handleExerciseChange(idx, "name", e.target.value)}
                                   placeholder="Gõ tên bài tập (ví dụ: Bench Press)"
                                   className="w-full bg-gray-950/60 border border-gray-700/40 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-600 transition-all duration-200"
                                 />
@@ -838,7 +872,7 @@ const TrainerCoaching = () => {
                         Tiến độ hoàn thành:
                       </h4>
 
-                      <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                      <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
                         {exercises.map((ex, idx) => {
                           const isActive = activeReviewExerciseIndex === idx;
                           return (

@@ -188,7 +188,7 @@ function Header() {
       {
         group: "Quản lý hệ thống",
         children: [
-          { label: "Bảng điều khiển", icon: LayoutDashboard, path: "/admin" },
+          { label: "Quản trị", icon: LayoutDashboard, path: "/admin" },
           { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
           { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
         ]
@@ -213,7 +213,7 @@ function Header() {
         {
           group: "Nghiệp vụ huấn luyện",
           children: [
-            { label: "Bảng điều khiển", icon: LayoutDashboard, path: "/trainer" },
+            { label: "Tổng quan", icon: LayoutDashboard, path: "/trainer" },
             { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
             { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
             { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },

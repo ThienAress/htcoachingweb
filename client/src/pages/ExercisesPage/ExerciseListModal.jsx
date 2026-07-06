@@ -121,6 +121,9 @@ export default function ExerciseListModal({
                   <th className="p-3 text-left text-sm font-semibold text-gray-300">
                     Tên bài tập
                   </th>
+                  <th className="p-3 text-left text-sm font-semibold text-gray-300 w-20">
+                    Hình ảnh
+                  </th>
                   <th className="p-3 text-left text-sm font-semibold text-gray-300">
                     Nhóm cơ chính
                   </th>
@@ -133,6 +136,19 @@ export default function ExerciseListModal({
                 {exercises.map((ex) => (
                   <tr key={ex._id} className="hover:bg-gray-700/30 transition">
                     <td className="p-3 text-sm text-white">{ex.name}</td>
+                    <td className="p-3 text-sm">
+                      {ex.imageUrl ? (
+                        <img
+                          src={ex.imageUrl}
+                          alt={ex.name}
+                          className="w-12 h-12 object-cover rounded-lg border border-gray-700 hover:scale-[2.5] hover:z-20 hover:shadow-lg relative transition-transform duration-200 cursor-pointer bg-gray-900"
+                          onClick={() => window.open(ex.imageUrl, "_blank")}
+                          onError={(e) => { e.target.src = "/assets/default-exercise.png"; }}
+                        />
+                      ) : (
+                        <span className="text-gray-500 text-xs">Không có</span>
+                      )}
+                    </td>
                     <td className="p-3 text-sm">
                       {ex.muscleGroup ? (
                         <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/20 text-primary">
@@ -151,7 +167,7 @@ export default function ExerciseListModal({
                 ))}
                 {exercises.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="p-6 text-center text-gray-400">
+                    <td colSpan={4} className="p-6 text-center text-gray-400">
                       <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                       Không tìm thấy bài tập
                     </td>

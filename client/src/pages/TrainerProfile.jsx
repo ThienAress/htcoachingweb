@@ -23,6 +23,7 @@ import {
   Eye
 } from "lucide-react";
 import SEO from "../components/SEO";
+import ScrollToTop from "../components/ScrollToTop";
 
 /* ==========================================
    Component: Gallery ảnh HLV (tối đa 3 ảnh)
@@ -657,6 +658,7 @@ const TrainerProfile = ({ previewData }) => {
         </div>
       </section>
 
+      <ScrollToTop />
     </main>
   );
 };

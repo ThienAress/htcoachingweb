@@ -10,7 +10,7 @@ export const useFoodDatabase = () => {
     const fetchFoods = async () => {
       setIsLoadingFoods(true);
       try {
-        const response = await api.get("/foods");
+        const response = await api.get("/foods?all=true");
 
         if (response.data?.success && Array.isArray(response.data.data)) {
           const enrichedFoods = enrichFoodDatabase(response.data.data);
