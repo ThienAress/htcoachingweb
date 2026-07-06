@@ -281,3 +281,67 @@
 .chat-scrollbar:hover {
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
+
+/* Kalodata Slide Up & Down */
+@keyframes chatSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 40px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes chatSlideDown {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, 40px) scale(0.98);
+  }
+}
+
+/* Pill Bar Soft Transition & Slide Effect (Premium Style) */
+.pill-bar-wrapper {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 59;
+  width: calc(100vw - 2rem);
+  max-width: 500px;
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.15),
+    0 12px 30px -4px rgba(0, 0, 0, 0.3),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.pill-bar-wrapper.hidden-state {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 35px) scale(0.96);
+}
+
+.pill-bar-wrapper.visible-state {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.pill-bar-wrapper.visible-state:hover {
+  transform: translate(-50%, -4px) scale(1.015);
+  border-color: rgba(52, 211, 153, 0.25);
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.15),
+    0 20px 40px -10px rgba(0, 0, 0, 0.4),
+    0 0 20px 2px rgba(16, 185, 129, 0.12),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.pill-bar-wrapper.visible-state:active {
+  transform: translate(-50%, 1px) scale(0.99);
+}

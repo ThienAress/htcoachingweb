@@ -62,6 +62,8 @@ export default function useAiChat() {
   const [activeTool, setActiveTool] = useState(null);
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
+  const sendingRef = useRef(false);
+
 
   // Typewriter Buffer Refs — Cơ chế tuyệt đối (Absolute State) để chống Race Condition
   const pendingTextRef = useRef("");
@@ -177,7 +179,8 @@ export default function useAiChat() {
   // Gửi tin nhắn + nhận SSE stream
   const sendMessage = useCallback(
     async (text, context = {}) => {
-      if (!text.trim() || isLoading) return;
+      if (!text.trim() || isLoading || sendingRef.current) return;
+      sendingRef.current = true;
 
       const userMsg = { 
         role: "user", 
@@ -194,6 +197,9 @@ export default function useAiChat() {
       setMessages((prev) => [...prev, assistantMsg]);
 
       try {
+        if (abortRef.current) {
+          abortRef.current.abort();
+        }
         const controller = new AbortController();
         abortRef.current = controller;
         pendingTextRef.current = "";
@@ -326,6 +332,7 @@ export default function useAiChat() {
         }
       } finally {
         setIsLoading(false);
+        sendingRef.current = false;
         setActiveTool(null);
         abortRef.current = null;
         stopTypewriter();
@@ -336,7 +343,9 @@ export default function useAiChat() {
 
   const cancelRequest = useCallback(() => {
     abortRef.current?.abort();
+    abortRef.current = null;
     setIsLoading(false);
+    sendingRef.current = false;
     setActiveTool(null);
     stopTypewriter();
   }, [stopTypewriter]);

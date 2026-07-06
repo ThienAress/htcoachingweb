@@ -40,6 +40,11 @@ export const chatStream = async (req, res) => {
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
+  let isAborted = false;
+  req.on("close", () => {
+    isAborted = true;
+  });
+
   try {
     // Load user info cho system prompt
     const user = await User.findById(userId).select("name").lean();
@@ -105,11 +110,12 @@ export const chatStream = async (req, res) => {
     let iteration = 0;
     let needsToolCall = true;
 
-    while (needsToolCall && iteration < MAX_ITERATIONS) {
+    while (needsToolCall && iteration < MAX_ITERATIONS && !isAborted) {
       needsToolCall = false;
       iteration++;
 
       for await (const chunk of llmStream(llmMessages, tools)) {
+        if (isAborted) break;
         switch (chunk.type) {
           case "text":
             fullResponse += chunk.content;
@@ -165,6 +171,11 @@ export const chatStream = async (req, res) => {
             break;
         }
       }
+    }
+
+    if (isAborted) {
+      res.end();
+      return;
     }
 
     // Lưu final response
