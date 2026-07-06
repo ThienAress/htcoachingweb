@@ -5,6 +5,7 @@ import { calculateTdee } from "./calculateTdee.tool.js";
 import { searchExercises } from "./searchExercises.tool.js";
 import { suggestMeal } from "./suggestMeal.tool.js";
 import { getTrainerInfo } from "./getTrainerInfo.tool.js";
+import { searchKnowledge } from "./searchKnowledge.tool.js";
 
 export const toolRegistry = {
   calculate_tdee: {
@@ -97,6 +98,31 @@ export const toolRegistry = {
       },
     },
     execute: getTrainerInfo,
+    requiresAuth: false,
+    requiresConfirmation: false,
+  },
+
+  search_knowledge: {
+    name: "search_knowledge",
+    description:
+      "Tra cứu thông tin thực tế từ internet bằng Google Search. " +
+      "GỌI KHI: user hỏi về VĐV, influencer fitness (Việt Nam hoặc quốc tế), kết quả thi đấu, " +
+      "thành tích cụ thể, tin tức mới nhất trong ngành gym/thể hình, " +
+      "hoặc bất kỳ thông tin cần tính chính xác cao mà mình không chắc chắn. " +
+      "VÍ DỤ: 'Đăng béo là ai', 'CBum có bao nhiêu danh hiệu', 'Mr. Olympia 2024 ai thắng', " +
+      "'Nguyễn Hải Đăng thành tích', 'bài nghiên cứu mới về creatine'. " +
+      "KHÔNG GỌI KHI: user hỏi kiến thức gym phổ thông (tập ngực, TDEE, protein...) — dùng kiến thức sẵn có.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Câu truy vấn tìm kiếm. Viết rõ ràng, đầy đủ ngữ cảnh. VD: 'Chris Bumstead Mr Olympia thành tích các năm', 'Đăng béo influencer fitness Việt Nam là ai'",
+        },
+      },
+      required: ["query"],
+    },
+    execute: searchKnowledge,
     requiresAuth: false,
     requiresConfirmation: false,
   },

@@ -8,6 +8,7 @@ import WalletTransaction from "../models/WalletTransaction.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
 import CustomerStory from "../models/CustomerStory.js";
 import { uploadAvatar } from "../middlewares/avatarUpload.js";
+import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import {
   getUsers,
   deleteUser,
@@ -35,7 +36,7 @@ router.get("/me", protect, async (req, res) => {
 
     res.json(user);
   } catch (err) {
-    console.error(err);
+    console.error("getMe error:", err.message);
     res.status(500).json({ message: "Lỗi lấy thông tin cá nhân" });
   }
 });
@@ -64,7 +65,7 @@ router.put("/me/profile", protect, csrfProtection, async (req, res) => {
 
     res.json({ success: true, message: "Cập nhật thông tin thành công", user: updatedUser });
   } catch (err) {
-    console.error(err);
+    console.error("updateProfile error:", err.message);
     res.status(500).json({ success: false, message: "Lỗi cập nhật thông tin cá nhân" });
   }
 });
@@ -76,20 +77,27 @@ router.put("/me/avatar", protect, csrfProtection, uploadAvatar.single("avatar"),
       return res.status(400).json({ success: false, message: "Không tìm thấy file tải lên" });
     }
 
-    const avatarUrl = req.file.path;
-    
+    const result = await uploadBufferToCloudinary(req.file.buffer, {
+      folder: "htcoaching/avatars",
+      transformation: [
+        { width: 200, height: 200, crop: "fill", gravity: "face" },
+        { quality: "auto", fetch_format: "auto" },
+      ],
+    });
+
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
-      { $set: { avatar: avatarUrl } },
+      { $set: { avatar: result.url } },
       { returnDocument: 'after' }
     ).select("-password");
 
-    res.json({ success: true, message: "Cập nhật ảnh đại diện thành công", avatar: avatarUrl, user: updatedUser });
+    res.json({ success: true, message: "Cập nhật ảnh đại diện thành công", avatar: result.url, user: updatedUser });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: err.message || "Lỗi cập nhật ảnh đại diện" });
+    console.error("updateAvatar error:", err.message);
+    res.status(500).json({ success: false, message: "Lỗi cập nhật ảnh đại diện" });
   }
 });
+
 
 // ===== GET USER ORDERS =====
 router.get("/me/orders", protect, async (req, res) => {

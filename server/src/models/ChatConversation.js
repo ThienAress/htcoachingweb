@@ -8,8 +8,10 @@ const chatMessageSchema = new mongoose.Schema(
       required: true,
     },
     content: { type: String, default: "" },
+    image: { type: String, default: null },
     toolCalls: { type: mongoose.Schema.Types.Mixed, default: null },
     toolName: { type: String, default: null },
+    toolCallId: { type: String, default: null },
     uiCard: {
       type: {
         cardType: String,
@@ -28,6 +30,11 @@ const chatConversationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+    },
+    title: {
+      type: String,
+      default: "",
+      maxlength: 80,
     },
     messages: {
       type: [chatMessageSchema],

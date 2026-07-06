@@ -112,7 +112,8 @@ app.use(
 );
 
 // ================= BODY / COOKIE / PASSPORT =================
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 // express-mongo-sanitize v2.x không tương thích Express 5 (req.query read-only)
 // Custom sanitize middleware: chỉ sanitize body và params
 const sanitizeMongo = (obj) => {

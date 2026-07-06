@@ -8,6 +8,7 @@ import {
   getPublicCustomerStoryBySlug,
 } from "../services/customerStory.service";
 import SEO from "../components/SEO";
+import ScrollToTop from "../components/ScrollToTop";
 
 const ContinuingBanner = ({ name }) => {
   const iconRef = useRef(null);
@@ -585,6 +586,7 @@ const CustomerStoryDetail = ({ previewData }) => {
           </div>
         </div>
       </section>
+      <ScrollToTop />
     </main>
   );
 };
