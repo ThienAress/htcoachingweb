@@ -59,8 +59,11 @@ export async function calculateTdee(params) {
   // Text cho LLM tiếp tục trả lời
   const text =
     `TDEE: ${tdee} kcal/ngày (BMR: ${Math.round(bmr)} kcal). ` +
-    `Mục tiêu "${goalLabel}" → Calo mục tiêu: ${targetCalories} kcal/ngày (${adjustment > 0 ? "+" : ""}${adjustment} kcal). ` +
-    `Macro gợi ý (Moderate-carb): Protein ${macros["Moderate-carb"].protein}g, Carb ${macros["Moderate-carb"].carb}g, Fat ${macros["Moderate-carb"].fat}g.`;
+    `Mục tiêu "${goalLabel}" → Calo mục tiêu: ${targetCalories} kcal/ngày (${adjustment > 0 ? "+" : ""}${adjustment} kcal).\n` +
+    `Các chế độ ăn phân bổ Macro tương ứng:\n` +
+    `- Low-carb: Protein ${macros["Low-carb"].protein}g, Carb ${macros["Low-carb"].carb}g, Fat ${macros["Low-carb"].fat}g.\n` +
+    `- Moderate-carb: Protein ${macros["Moderate-carb"].protein}g, Carb ${macros["Moderate-carb"].carb}g, Fat ${macros["Moderate-carb"].fat}g.\n` +
+    `- High-carb: Protein ${macros["High-carb"].protein}g, Carb ${macros["High-carb"].carb}g, Fat ${macros["High-carb"].fat}g.`;
 
   // Structured data cho FE render card
   const uiCard = {
