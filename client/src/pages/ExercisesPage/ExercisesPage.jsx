@@ -23,6 +23,7 @@ import { workoutExplanations, workoutSections } from "./constants";
 import Header from "../../sections/Header/Header";
 import Footer from "../../sections/Footer/Footer";
 import ChatIcons from "../../components/ChatIcons";
+import ScrollToTop from "../../components/ScrollToTop";
 import Contact from "../../sections/Contact";
 import { usePrompt } from "../../hooks/usePrompt";
 import SEO from "../../components/SEO";
@@ -350,6 +351,7 @@ const ExercisesPage = () => {
       </section>
 
       <Contact />
+      <ScrollToTop />
       <ChatIcons />
       <Footer />
     </>

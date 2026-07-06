@@ -12,6 +12,7 @@ import SEO from "../components/SEO";
 import Header from "../sections/Header/Header";
 import Footer from "../sections/Footer/Footer";
 import ChatIcons from "../components/ChatIcons";
+import ScrollToTop from "../components/ScrollToTop";
 
 const CATEGORY_LABELS = {
   "kien-thuc-nen": "Kiến thức nền",
@@ -520,6 +521,7 @@ const BlogDetail = () => {
       </main>
 
       {/* Vấn đề 3: Bỏ Contact */}
+      <ScrollToTop />
       <ChatIcons />
       <Footer />
     </div>

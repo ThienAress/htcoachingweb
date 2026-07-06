@@ -217,34 +217,34 @@
 
 /* ================= HERO TITLE RESPONSIVE ================= */
 .hero-title {
-  font-size: 2.18rem;
+  font-size: 2.07rem;
   /* ~35px — mobile (-15% từ 2.57rem) */
 }
 
 @media (min-width: 640px) {
   .hero-title {
-    font-size: 2.64rem;
+    font-size: 2.5rem;
     /* ~42px (-15% từ 3.10rem) */
   }
 }
 
 @media (min-width: 1024px) {
   .hero-title {
-    font-size: clamp(31px, 5.0vh, 54px) !important;
+    font-size: clamp(29px, 4.7vh, 51px) !important;
     /* -15% từ hiện tại */
   }
 }
 
 @media (min-width: 1024px) and (max-width: 1439px) {
   .hero-title {
-    font-size: clamp(49px, 8.1vh, 78px) !important;
+    font-size: clamp(46px, 7.7vh, 74px) !important;
     /* Laptop — -15% từ hiện tại */
   }
 }
 
 @media (min-width: 1440px) {
   .hero-title {
-    font-size: clamp(58px, 6.2vh, 90px) !important;
+    font-size: clamp(55px, 5.9vh, 85px) !important;
     /* Desktop — -15% từ hiện tại */
   }
 }
@@ -384,4 +384,20 @@ input:-webkit-autofill:focus {
   -webkit-text-fill-color: #fff;
   -webkit-box-shadow: 0 0 0px 1000px #0a0a0f inset;
   transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ================= GEMINI-STYLE SCROLLBAR ================= */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }

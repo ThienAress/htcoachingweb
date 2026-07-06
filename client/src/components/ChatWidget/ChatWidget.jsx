@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import {
   Bot, X, Trash2, Send, Loader2, Square,
-  PanelRight, MessageSquare, ChevronRight,
+  PanelRight, MessageSquare, ChevronRight, Plus, Image as ImageIcon
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
@@ -14,6 +14,7 @@ const TOOL_LABELS = {
   search_exercises: "Đang tìm bài tập...",
   suggest_meal: "Đang lên thực đơn...",
   get_trainer_info: "Đang tìm HLV...",
+  search_knowledge: "Đang tìm kiếm trên Google...",
 };
 
 const QUICK_ACTIONS = [
@@ -35,6 +36,8 @@ export default function ChatWidget() {
   const textareaRef = useRef(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [showTdeeForm, setShowTdeeForm] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null); // Base64 image
+  const fileInputRef = useRef(null);
 
   const {
     messages,
@@ -78,8 +81,15 @@ export default function ChatWidget() {
     const handleEsc = (e) => {
       if (e.key === "Escape" && isOpen) handleClose();
     };
+    const handleCustomClose = () => {
+      if (isOpen) handleClose();
+    };
     document.addEventListener("keydown", handleEsc);
-    return () => document.removeEventListener("keydown", handleEsc);
+    window.addEventListener("close-ai-chat", handleCustomClose);
+    return () => {
+      document.removeEventListener("keydown", handleEsc);
+      window.removeEventListener("close-ai-chat", handleCustomClose);
+    };
   }, [isOpen, handleClose]);
 
   // Auto-resize textarea
@@ -96,11 +106,28 @@ export default function ChatWidget() {
   }, [adjustTextarea]);
 
   const handleSend = useCallback(() => {
-    if (!input.trim() || isLoading) return;
-    sendMessage(input, { lastPage: location.pathname });
+    if ((!input.trim() && !selectedImage) || isLoading) return;
+    sendMessage(input, { lastPage: location.pathname, image: selectedImage });
     setInput("");
+    setSelectedImage(null);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-  }, [input, isLoading, sendMessage, location.pathname]);
+  }, [input, selectedImage, isLoading, sendMessage, location.pathname]);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Chỉ hỗ trợ tải lên hình ảnh!");
+      return;
+    }
+
+    // Nén và chuyển thành base64 (Tạm thời chỉ đọc raw)
+    const reader = new FileReader();
+    reader.onload = (e) => setSelectedImage(e.target.result);
+    reader.readAsDataURL(file);
+    e.target.value = ""; // reset
+  };
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -189,40 +216,42 @@ export default function ChatWidget() {
           aria-label="HT Assistant Chat"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 border-b border-white/10 shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
-                <Bot size={14} className="text-white" />
-              </div>
-              <div>
-                <h3 className="text-[13px] font-bold text-white leading-tight">HT Assistant</h3>
-                <p className="text-[10px] text-emerald-400/80 flex items-center gap-1">
-                  <span className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse" />
-                  Online
-                </p>
+          <div className="bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 border-b border-white/10 shrink-0">
+            {/* Row 1: Online status + action icons */}
+            <div className="flex items-center justify-between px-4 pt-2.5 pb-1">
+              <p className="text-[10px] text-emerald-400/80 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                Online
+              </p>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => setMode(mode === "floating" ? "sidebar" : "floating")}
+                  title={mode === "floating" ? "Sidebar mode" : "Floating mode"}
+                  className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  {mode === "floating" ? <PanelRight size={14} /> : <MessageSquare size={14} />}
+                </button>
+                <button
+                  onClick={handleClear}
+                  title="Chat mới"
+                  className="p-1.5 rounded-md text-gray-400 hover:text-red-400 hover:bg-white/5 transition-colors"
+                >
+                  <Trash2 size={14} />
+                </button>
+                <button
+                  onClick={handleClose}
+                  className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  {mode === "sidebar" ? <ChevronRight size={14} /> : <X size={14} />}
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-0.5">
-              <button
-                onClick={() => setMode(mode === "floating" ? "sidebar" : "floating")}
-                title={mode === "floating" ? "Sidebar mode" : "Floating mode"}
-                className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                {mode === "floating" ? <PanelRight size={15} /> : <MessageSquare size={15} />}
-              </button>
-              <button
-                onClick={handleClear}
-                title="Chat mới"
-                className="p-1.5 rounded-md text-gray-400 hover:text-red-400 hover:bg-white/5 transition-colors"
-              >
-                <Trash2 size={15} />
-              </button>
-              <button
-                onClick={handleClose}
-                className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                {mode === "sidebar" ? <ChevronRight size={15} /> : <X size={15} />}
-              </button>
+            {/* Row 2: Bot icon + title */}
+            <div className="flex items-center gap-2.5 px-4 pb-2.5">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
+                <Bot size={14} className="text-white" />
+              </div>
+              <h3 className="text-[14px] font-bold text-white leading-tight tracking-wide">HT Assistant</h3>
             </div>
           </div>
 
@@ -231,10 +260,7 @@ export default function ChatWidget() {
             {/* Empty state */}
             {messages.length === 0 && !isLoading && (
               <div className="flex flex-col items-start pt-6 px-1 chat-card-enter">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-600/20 flex items-center justify-center mb-4">
-                  <Bot size={28} className="text-emerald-400" />
-                </div>
-                <h2 className="text-lg font-semibold text-white mb-1">
+                <h2 className="text-base font-semibold text-white mb-1">
                   Xin chào{user?.name ? ` ${user.name.split(" ").pop()}` : ""}! 👋
                 </h2>
                 <p className="text-sm text-gray-400 mb-5">Tôi có thể giúp gì cho bạn?</p>
@@ -293,9 +319,38 @@ export default function ChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
+          {/* Input Area */}
           <div className="px-3 py-3 border-t border-white/10 bg-gray-900/80 shrink-0">
-            <div className="flex items-end gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 focus-within:border-emerald-500/40 focus-within:ring-1 focus-within:ring-emerald-500/10 transition-all">
+            {/* Image Preview */}
+            {selectedImage && (
+              <div className="mb-2 relative w-16 h-16 rounded-lg overflow-hidden border border-white/20 group">
+                <img src={selectedImage} alt="Upload preview" className="w-full h-full object-cover" />
+                <button
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute top-1 right-1 p-0.5 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
+            
+            <div className="flex items-end gap-2 bg-white/5 border border-white/10 rounded-xl px-2 py-2 focus-within:border-emerald-500/40 focus-within:ring-1 focus-within:ring-emerald-500/10 transition-all">
+              <input 
+                type="file" 
+                accept="image/*" 
+                ref={fileInputRef} 
+                onChange={handleImageUpload} 
+                className="hidden" 
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                title="Đính kèm ảnh"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-400 hover:bg-white/5 disabled:opacity-40 transition-colors shrink-0"
+              >
+                <Plus size={20} />
+              </button>
+              
               <textarea
                 ref={(el) => { inputRef.current = el; textareaRef.current = el; }}
                 value={input}
@@ -304,7 +359,7 @@ export default function ChatWidget() {
                 placeholder="Hỏi bất kỳ điều gì..."
                 rows={1}
                 disabled={isLoading}
-                className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 resize-none focus:outline-none disabled:opacity-40"
+                className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 resize-none focus:outline-none disabled:opacity-40 py-1"
                 style={{ maxHeight: "100px" }}
               />
               {isLoading ? (
@@ -317,7 +372,7 @@ export default function ChatWidget() {
               ) : (
                 <button
                   onClick={handleSend}
-                  disabled={!input.trim()}
+                  disabled={!input.trim() && !selectedImage}
                   className="p-1.5 rounded-lg text-emerald-400 hover:bg-emerald-500/10 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors shrink-0"
                 >
                   <Send size={16} />

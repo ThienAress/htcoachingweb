@@ -459,39 +459,10 @@ const OnlineCoaching = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
 
-              {/* CỘT TRÁI: VIDEO PLAYER & BÀI TẬP CHI TIẾT */}
+              {/* CỘT TRÁI: TIÊU ĐỀ, VIDEO HƯỚNG DẪN & BÀI TẬP CHI TIẾT */}
               <div className="space-y-6">
 
-                {/* 1. Trình phát Video hướng dẫn */}
-                {isLoadingDetails ? (
-                  <div className="aspect-video w-full bg-gray-900 rounded-2xl animate-pulse flex items-center justify-center">
-                    <p className="text-gray-500">Đang tải video hướng dẫn...</p>
-                  </div>
-                ) : getActiveVideoUrl() ? (
-                  <div className="space-y-4">
-                    {/* Video 1 */}
-                    <div>
-                      {getActiveVideoUrl2() && (
-                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">Video hướng dẫn 1</span>
-                      )}
-                      {renderVideoPlayer(getActiveVideoUrl(), activePlan?.title || "Coaching Video")}
-                    </div>
-                    {/* Video 2 (nếu có) */}
-                    {getActiveVideoUrl2() && (
-                      <div>
-                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">Video hướng dẫn 2</span>
-                        {renderVideoPlayer(getActiveVideoUrl2(), `${activePlan?.title} - Video 2`)}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="aspect-video w-full bg-gray-900/60 rounded-2xl border border-gray-800 border-dashed flex flex-col items-center justify-center gap-3 text-gray-500">
-                    <Video className="w-12 h-12" />
-                    <p className="text-sm">Không có video hướng dẫn cụ thể</p>
-                  </div>
-                )}
-
-                {/* 2. Tiêu đề & Thông tin buổi tập */}
+                {/* 1. Tiêu đề & Thông tin buổi tập (ĐẦU TIÊN) */}
                 {activePlan && (
                   <div className="bg-gray-900/50 backdrop-blur-md rounded-2xl border border-gray-800 p-6 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -545,9 +516,11 @@ const OnlineCoaching = () => {
                   </div>
                 )}
 
-                {/* 2.5 Khu vực tập luyện bài hiện tại & Nộp Video Feedback */}
+                {/* 2. Khu vực tập luyện bài hiện tại & Video hướng dẫn */}
                 {activePlan && activePlan.exercises && activePlan.exercises[activeExerciseIndex] && (
-                  <div className="bg-gray-900/50 backdrop-blur-md rounded-2xl border border-gray-800 p-6 space-y-4 shadow-xl">
+                  <div className="bg-gray-900/50 backdrop-blur-md rounded-2xl border border-gray-800 p-6 space-y-6 shadow-xl">
+                    
+                    {/* A. Cụm chữ: Tên bài và sets/reps/nghỉ */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-850 pb-3">
                       <div>
                         <span className="text-[10px] text-primary font-bold uppercase tracking-wider">Bài đang tập</span>
@@ -560,8 +533,43 @@ const OnlineCoaching = () => {
                       </div>
                     </div>
 
-                    {/* Hướng dẫn upload video feedback cho riêng bài này */}
+                    {/* B. Trình phát Video hướng dẫn (của Coach) nằm ngay dưới cụm chữ */}
                     <div className="space-y-3">
+                      <span className="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
+                        <Play className="w-3.5 h-3.5 text-primary" />
+                        Video hướng dẫn thực hiện động tác từ Coach
+                      </span>
+                      {isLoadingDetails ? (
+                        <div className="aspect-video w-full bg-gray-900 rounded-2xl animate-pulse flex items-center justify-center">
+                          <p className="text-gray-500">Đang tải video hướng dẫn...</p>
+                        </div>
+                      ) : getActiveVideoUrl() ? (
+                        <div className="space-y-4">
+                          {/* Video 1 */}
+                          <div>
+                            {getActiveVideoUrl2() && (
+                              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">Video hướng dẫn 1</span>
+                            )}
+                            {renderVideoPlayer(getActiveVideoUrl(), activePlan?.title || "Coaching Video")}
+                          </div>
+                          {/* Video 2 (nếu có) */}
+                          {getActiveVideoUrl2() && (
+                            <div>
+                              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">Video hướng dẫn 2</span>
+                              {renderVideoPlayer(getActiveVideoUrl2(), `${activePlan?.title} - Video 2`)}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="aspect-video w-full bg-gray-900/60 rounded-2xl border border-gray-800 border-dashed flex flex-col items-center justify-center gap-3 text-gray-500">
+                          <Video className="w-12 h-12" />
+                          <p className="text-sm">Không có video hướng dẫn cụ thể</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* C. Hướng dẫn upload video feedback cho riêng bài này (Bắt buộc) */}
+                    <div className="space-y-3 pt-4 border-t border-gray-850">
                       <div className="flex items-center justify-between text-xs text-gray-400 font-semibold uppercase tracking-wide">
                         <span className="flex items-center gap-1.5">
                           <UploadCloud className="w-4 h-4 text-primary" />
@@ -612,7 +620,7 @@ const OnlineCoaching = () => {
                       )}
                     </div>
 
-                    {/* Cảm nhận riêng cho bài tập này */}
+                    {/* D. Cảm nhận riêng cho bài tập này */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
                         <MessageSquare className="w-3.5 h-3.5 text-primary" />
