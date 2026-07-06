@@ -6,11 +6,11 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
 /**
- * Convert OpenAI-style messages → Gemini format
+ * Convert OpenAI-style messages → Gemini format (With strict sanitization to prevent 400 Bad Request)
  */
 function convertMessages(messages) {
   let systemInstruction = null;
-  const contents = [];
+  const rawContents = [];
 
   for (const msg of messages) {
     if (msg.role === "system") {
@@ -19,30 +19,52 @@ function convertMessages(messages) {
     }
 
     if (msg.role === "user") {
-      contents.push({ role: "user", parts: [{ text: msg.content }] });
+      const userParts = [];
+      if (msg.content) userParts.push({ text: msg.content });
+      
+      // Hỗ trợ đọc ảnh (Multimodal)
+      if (msg.image) {
+        const match = msg.image.match(/^data:(image\/[a-zA-Z0-9.-]+);base64,(.+)$/);
+        if (match) {
+          userParts.push({
+            inlineData: {
+              mimeType: match[1],
+              data: match[2],
+            },
+          });
+        }
+      }
+      
+      if (userParts.length === 0) userParts.push({ text: " " });
+      rawContents.push({ role: "user", parts: userParts });
     } else if (msg.role === "assistant") {
       const parts = [];
       if (msg.content) parts.push({ text: msg.content });
-      if (msg.tool_calls) {
+      if (msg.tool_calls && msg.tool_calls.length > 0) {
         for (const tc of msg.tool_calls) {
-          parts.push({ functionCall: { name: tc.name, args: tc.args } });
+          const fnCall = { name: tc.name, args: tc.args || {} };
+          if (tc.id) fnCall.id = tc.id;
+          parts.push({ functionCall: fnCall });
         }
       }
-      if (parts.length > 0) contents.push({ role: "model", parts });
+      if (parts.length > 0) rawContents.push({ role: "model", parts });
     } else if (msg.role === "tool") {
-      // Gemini API cần response là object, không phải string
       let responseData;
       try {
         responseData = typeof msg.content === "string" ? JSON.parse(msg.content) : msg.content;
       } catch {
         responseData = { result: msg.content };
       }
+      if (typeof responseData !== "object" || responseData === null) {
+         responseData = { result: String(responseData) };
+      }
 
-      contents.push({
+      rawContents.push({
         role: "function",
         parts: [{
           functionResponse: {
-            name: msg.name,
+            id: msg.id || msg.name,
+            name: msg.name || "unknown_tool",
             response: responseData,
           },
         }],
@@ -50,7 +72,53 @@ function convertMessages(messages) {
     }
   }
 
-  return { systemInstruction, contents };
+  // 1. Gộp các block giống role liên tiếp nhau (User-User, Model-Model, Function-Function)
+  const mergedContents = [];
+  for (const current of rawContents) {
+    const prev = mergedContents[mergedContents.length - 1];
+    if (prev && prev.role === current.role) {
+      prev.parts.push(...current.parts);
+    } else {
+      mergedContents.push({ ...current, parts: [...current.parts] });
+    }
+  }
+
+  // 2. Sanitize Xen Kẽ: Đảm bảo luồng hợp lệ: user -> model -> function -> model -> user ...
+  const finalContents = [];
+  for (const current of mergedContents) {
+    const prev = finalContents[finalContents.length - 1];
+
+    if (current.role === "user") {
+      if (prev && prev.role === "function") {
+        finalContents.push({ role: "model", parts: [{ text: "Đã xử lý xong kết quả." }] });
+      }
+      finalContents.push(current);
+    } else if (current.role === "model") {
+      if (!prev) {
+        finalContents.push({ role: "user", parts: [{ text: "Bắt đầu trò chuyện." }] });
+      }
+      finalContents.push(current);
+    } else if (current.role === "function") {
+      if (prev && prev.role === "model") {
+        finalContents.push(current);
+      } else {
+        // Bỏ qua function mồ côi (trước nó không phải model có call)
+        continue;
+      }
+    }
+  }
+  
+  // 3. Đảm bảo block Model cuối cùng (nếu có) không chứa functionCall chờ (vì LLM expect user ask)
+  const lastItem = finalContents[finalContents.length - 1];
+  if (lastItem && lastItem.role === "model") {
+     const hasFunctionCall = lastItem.parts.some(p => p.functionCall);
+     if (hasFunctionCall) {
+        lastItem.parts = lastItem.parts.filter(p => !p.functionCall);
+        if (lastItem.parts.length === 0) lastItem.parts.push({ text: "Tiếp tục." });
+     }
+  }
+
+  return { systemInstruction, contents: finalContents };
 }
 
 /**
@@ -91,9 +159,9 @@ export async function* geminiLLMStream(messages, tools) {
     ...(systemInstruction && { systemInstruction }),
     ...(geminiTools && { tools: geminiTools }),
     generationConfig: {
-      temperature: 0.7,
+      temperature: 0.4,
       topP: 0.9,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 2048,
     },
   };
 
@@ -122,7 +190,6 @@ export async function* geminiLLMStream(messages, tools) {
       return;
     }
     if (response.status === 400) {
-      console.error("Gemini 400 request body:", JSON.stringify(body, null, 2).slice(0, 1000));
       yield { type: "text", content: "⚠️ Lỗi xử lý. Vui lòng thử lại hoặc bắt đầu cuộc trò chuyện mới." };
       return;
     }
@@ -167,7 +234,7 @@ export async function* geminiLLMStream(messages, tools) {
             yield {
               type: "tool_call",
               toolCalls: [{
-                id: `gemini_${Date.now()}`,
+                id: part.functionCall.id || part.id || `gemini_${Date.now()}`,
                 name: part.functionCall.name,
                 args: part.functionCall.args || {},
               }],

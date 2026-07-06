@@ -7,6 +7,7 @@ import SEO from "../components/SEO";
 import Header from "../sections/Header/Header";
 import Footer from "../sections/Footer/Footer";
 import ChatIcons from "../components/ChatIcons";
+import ScrollToTop from "../components/ScrollToTop";
 
 
 const CATEGORIES = [
@@ -284,29 +285,64 @@ const Blog = () => {
         </div>
       </main>
 
-      {/* Công cụ hỗ trợ — thay vị trí Contact */}
-      <section className="bg-gray-50 border-t border-gray-100 py-12">
+      {/* Công cụ hỗ trợ — thiết kế mới Premium & Dynamic */}
+      <section className="bg-gray-50 border-t border-gray-100 py-16">
         <div className="container-custom">
-          <h2 className="text-xl font-bold text-dark uppercase tracking-wider mb-6">Công cụ hỗ trợ</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Link to="/tdee-calculator" className="group bg-white border border-gray-100 p-6 rounded-2xl hover:-translate-y-1 hover:border-primary hover:shadow-lg transition">
-              <Flame className="w-[27px] h-[27px] text-primary mb-3" />
-              <h3 className="text-[48px] font-black text-dark group-hover:text-primary transition leading-tight">Tính TDEE</h3>
-              <p className="text-sm text-gray mt-2">Tính calo cần nạp mỗi ngày</p>
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight">
+              Công cụ hỗ trợ
+            </h2>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-3">
+            {/* Card 1 */}
+            <Link to="/tdee-calculator" className="group relative bg-white/80 backdrop-blur-md border border-slate-100 p-6 sm:p-8 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:-translate-y-1.5 hover:border-primary/20 hover:shadow-[0_20px_40px_rgba(255,85,0,0.06)] transition-all duration-300 flex flex-col justify-between overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary to-primary-light transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                    <Flame className="w-6 h-6" />
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-800 group-hover:text-primary transition duration-300 mt-6 tracking-tight">Tính TDEE</h3>
+                <p className="text-sm text-slate-500 mt-2 leading-relaxed">Tính toán lượng calo tiêu thụ và đề xuất dinh dưỡng cần nạp mỗi ngày</p>
+              </div>
             </Link>
-            <Link to="/exercises" className="group bg-white border border-gray-100 p-6 rounded-2xl hover:-translate-y-1 hover:border-primary hover:shadow-lg transition">
-              <Dumbbell className="w-[27px] h-[27px] text-primary mb-3" />
-              <h3 className="text-[48px] font-black text-dark group-hover:text-primary transition leading-tight">Thư viện bài tập</h3>
-              <p className="text-sm text-gray mt-2">500+ bài tập chi tiết có hướng dẫn</p>
+
+            {/* Card 2 */}
+            <Link to="/exercises" className="group relative bg-white/80 backdrop-blur-md border border-slate-100 p-6 sm:p-8 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:-translate-y-1.5 hover:border-primary/20 hover:shadow-[0_20px_40px_rgba(255,85,0,0.06)] transition-all duration-300 flex flex-col justify-between overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary to-primary-light transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                    <Dumbbell className="w-6 h-6" />
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-800 group-hover:text-primary transition duration-300 mt-6 tracking-tight">Thư viện bài tập</h3>
+                <p className="text-sm text-slate-500 mt-2 leading-relaxed">500+ bài tập chi tiết có video hướng dẫn kỹ thuật chuẩn xác</p>
+              </div>
             </Link>
-            <Link to="/ket-qua-khach-hang" className="group bg-white border border-gray-100 p-6 rounded-2xl hover:-translate-y-1 hover:border-primary hover:shadow-lg transition">
-              <CheckCircle2 className="w-[27px] h-[27px] text-primary mb-3" />
-              <h3 className="text-[48px] font-black text-dark group-hover:text-primary transition leading-tight">Kết quả KH</h3>
-              <p className="text-sm text-gray mt-2">Hành trình lột xác thực tế</p>
+
+            {/* Card 3 */}
+            <Link to="/ket-qua-khach-hang" className="group relative bg-white/80 backdrop-blur-md border border-slate-100 p-6 sm:p-8 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:-translate-y-1.5 hover:border-primary/20 hover:shadow-[0_20px_40px_rgba(255,85,0,0.06)] transition-all duration-300 flex flex-col justify-between overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary to-primary-light transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-slate-800 group-hover:text-primary transition duration-300 mt-6 tracking-tight">Kết quả KH</h3>
+                <p className="text-sm text-slate-500 mt-2 leading-relaxed">Xem hình ảnh thực tế và hành trình thay đổi vóc dáng của học viên</p>
+              </div>
             </Link>
           </div>
         </div>
       </section>
+      <ScrollToTop />
       <ChatIcons />
       <Footer />
     </div>

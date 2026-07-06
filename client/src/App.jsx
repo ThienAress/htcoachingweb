@@ -12,7 +12,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import TrainerLayout from "./layouts/TrainerLayout";
 import AdminRoute from "./routes/AdminRoute";
 import GlobalLoading from "./components/GlobalLoading";
-import ChatWidget from "./components/ChatWidget/ChatWidget";
+import ChatPanel from "./components/ChatWidget/ChatPanel";
 
 // Lazy-loaded pages (Code Splitting)
 const Home = lazy(() => import("./pages/Home"));
@@ -215,7 +215,7 @@ function AppContent() {
       </Suspense>
       )}
       <ToastContainer position="top-right" autoClose={2500} />
-      <ChatWidget />
+      <ChatPanel />
     </>
   );
 }

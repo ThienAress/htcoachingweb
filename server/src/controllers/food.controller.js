@@ -4,9 +4,6 @@ import Food from "../models/Food.js";
 // Lấy danh sách thực phẩm (có phân trang, tìm kiếm) – ai cũng xem được
 export const getFoods = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const skip = (page - 1) * limit;
     const search = req.query.search || "";
 
     let query = {};
@@ -15,21 +12,41 @@ export const getFoods = async (req, res) => {
     }
 
     const total = await Food.countDocuments(query);
-    const foods = await Food.find(query)
-      .sort({ label: 1 })
-      .skip(skip)
-      .limit(limit);
 
-    res.json({
-      success: true,
-      data: foods,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+    let foods;
+    if (req.query.all === "true" || req.query.limit === "all") {
+      foods = await Food.find(query).sort({ label: 1 });
+      res.json({
+        success: true,
+        data: foods,
+        pagination: {
+          total,
+          page: 1,
+          limit: total,
+          totalPages: 1,
+        },
+      });
+    } else {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 50;
+      const skip = (page - 1) * limit;
+
+      foods = await Food.find(query)
+        .sort({ label: 1 })
+        .skip(skip)
+        .limit(limit);
+
+      res.json({
+        success: true,
+        data: foods,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    }
   } catch (err) {
     console.error("GET FOODS ERROR:", err);
     res.status(500).json({ success: false, message: err.message });

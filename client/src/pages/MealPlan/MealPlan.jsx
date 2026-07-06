@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { toast } from "react-toastify";
-import { Utensils, Heart, Database, RefreshCw } from "lucide-react";
+import { Utensils, Heart, Database, RefreshCw, BarChart3, Dumbbell, Trophy } from "lucide-react";
 
 import MealSelector from "./MealSelector";
 import MealButton from "./MealButton";
@@ -319,20 +319,55 @@ const MealPlan = () => {
         />
       </main>
 
-      {/* Internal Links */}
-      <div className="max-w-2xl mx-auto py-6 px-4">
-        <div className="flex flex-wrap justify-center gap-4 text-sm">
-          <Link to="/tdee-calculator" className="text-gray-400 hover:text-primary transition-colors underline underline-offset-4">
-            📊 Tính TDEE
-          </Link>
-          <Link to="/exercises" className="text-gray-400 hover:text-primary transition-colors underline underline-offset-4">
-            📚 Thư viện bài tập
-          </Link>
-          <Link to="/ket-qua-khach-hang" className="text-gray-400 hover:text-primary transition-colors underline underline-offset-4">
-            🏆 Kết quả khách hàng
-          </Link>
+      {/* Internal Linking — SEO Hub */}
+      <section className="bg-gray-900 py-12 border-t border-gray-800">
+        <div className="container-custom">
+          <h2 className="text-center text-2xl font-bold text-white uppercase mb-2">
+            Công cụ <span className="text-primary">hỗ trợ</span> luyện tập
+          </h2>
+          <p className="text-center text-sm text-gray-400 mb-8">
+            Kết hợp dinh dưỡng với bài tập để đạt kết quả tốt nhất
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Link
+              to="/tdee-calculator"
+              className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <BarChart3 className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-white group-hover:text-primary transition">
+                Tính TDEE & Macro
+              </h3>
+              <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+                Xác định lượng calo và macro cần nạp mỗi ngày phù hợp mục tiêu.
+              </p>
+            </Link>
+            <Link
+              to="/exercises"
+              className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <Dumbbell className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-white group-hover:text-primary transition">
+                Thư viện bài tập
+              </h3>
+              <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+                Tạo lịch tập cá nhân hóa theo từng nhóm cơ và xuất PDF.
+              </p>
+            </Link>
+            <Link
+              to="/ket-qua-khach-hang"
+              className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+            >
+              <Trophy className="h-6 w-6 text-primary mb-3" />
+              <h3 className="font-bold text-white group-hover:text-primary transition">
+                Kết quả khách hàng
+              </h3>
+              <p className="mt-2 text-sm text-gray-400 leading-relaxed">
+                Xem hành trình thay đổi vóc dáng thực tế từ các học viên HTCOACHING.
+              </p>
+            </Link>
+          </div>
         </div>
-      </div>
+      </section>
 
       <ChatIcons />
     </>

@@ -16,6 +16,7 @@ import { getPublicCustomerStories } from "../services/customerStory.service";
 import Contact from "../sections/Contact";
 import hero3 from "../assets/images/hero/hero3.jpg";
 import SEO from "../components/SEO";
+import ScrollToTop from "../components/ScrollToTop";
 
 const normalizeText = (value = "") =>
   String(value)
@@ -716,6 +717,7 @@ const CustomerStories = () => {
       </section>
 
       <Contact />
+      <ScrollToTop />
     </main>
   );
 };
