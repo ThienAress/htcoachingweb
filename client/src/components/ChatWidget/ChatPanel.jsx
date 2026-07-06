@@ -2,7 +2,7 @@
 // Thay thế ChatWidget: right-side panel với sidebar + main, không có backdrop
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
-import { Bot, Send, X, Square, PanelLeftOpen, Plus } from "lucide-react";
+import { Bot, Send, X, Square, PanelLeftOpen, Plus, ArrowUp, Maximize2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
@@ -132,20 +132,34 @@ export default function ChatPanel() {
 
   return (
     <>
-      {/* Floating trigger button — luôn hiện Bot icon, không đổi thành X */}
-      <button
-        onClick={() => setIsOpen((prev) => !prev)}
+      {/* Pill Bar - Kalodata style trigger */}
+      <div
+        onClick={() => setIsOpen(true)}
         aria-label="Mở HT Assistant"
-        className={`fixed z-[61] right-6 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 bg-gradient-to-br from-emerald-500 to-cyan-600 ${
-          isOpen ? "opacity-0 pointer-events-none translate-x-10" : "opacity-100 translate-x-0"
+        className={`pill-bar-wrapper bg-[#0f1118]/85 backdrop-blur-xl border border-white/8 rounded-full pl-3.5 pr-2.5 py-2.5 shadow-2xl flex items-center justify-between gap-3 cursor-pointer ${
+          isOpen ? "hidden-state" : "visible-state"
         }`}
-        style={{ bottom: "180px" }}
       >
-        <Bot size={24} className="text-white" />
-        {!isOpen && (
-          <span className="absolute inset-0 rounded-full border-2 border-emerald-400/50 animate-ping opacity-70 pointer-events-none" />
-        )}
-      </button>
+        <div className="flex items-center gap-3.5 flex-1 min-w-0">
+          <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 via-emerald-400 to-cyan-400 flex items-center justify-center shadow-md shadow-emerald-500/10 shrink-0">
+            <Bot size={15} className="text-white relative z-10 animate-pulse" />
+            <span className="absolute inset-0 rounded-full bg-emerald-400/20 blur-[3px]" />
+          </div>
+          <span className="text-[13px] text-gray-300/80 select-none truncate font-medium tracking-wide">
+            Hỏi bất kỳ điều gì về tập luyện & dinh dưỡng...
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Nút gửi tròn xanh dương */}
+          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-cyan-400 transition-all duration-300">
+            <ArrowUp size={15} strokeWidth={2.5} />
+          </div>
+          {/* Nút mở rộng */}
+          <div className="w-8 h-8 rounded-full bg-white/[0.04] border border-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+            <Maximize2 size={12} />
+          </div>
+        </div>
+      </div>
 
       {/* Panel — z-[60] đè lên tất cả, 840px (+20%) */}
       <div
