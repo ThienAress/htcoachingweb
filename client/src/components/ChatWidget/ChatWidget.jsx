@@ -171,32 +171,42 @@ export default function ChatWidget() {
     if (mode === "sidebar") {
       return isClosing ? "chatSidebarOut 0.3s ease-in forwards" : "chatSlideIn 0.3s ease-out";
     }
-    return isClosing ? "chatSlideOut 0.2s ease-in forwards" : "chatSlideRight 0.25s ease-out";
+    return isClosing ? "chatSlideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards" : "chatSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards";
   };
 
   const panelClass = mode === "sidebar"
     ? "fixed top-0 right-0 z-50 w-[420px] h-screen border-l border-white/10"
-    : "fixed z-50 bottom-4 right-4 sm:right-6 w-[calc(100vw-2rem)] sm:w-[400px] rounded-2xl border border-white/10";
+    : "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-2rem)] sm:w-[550px] md:w-[650px] rounded-2xl border border-white/10";
 
-  // Floating mode: auto height dựa trên content, max 80vh
+  // Floating mode: chiều cao cố định vững chãi, responsive trên mobile
   const floatingHeight = mode === "floating"
-    ? { maxHeight: "min(80vh, calc(100vh - 2rem))", height: "auto" }
+    ? { height: "min(600px, calc(100vh - 4rem))" }
     : {};
 
   return (
     <>
-      {/* Floating Button */}
+      {/* Pill Bar - Kalodata style */}
       {!isOpen && (
-        <button
+        <div
           onClick={handleOpen}
           aria-label="Mở HT Assistant"
           id="ai-chat-toggle"
-          className="fixed z-40 flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-110 active:scale-95 transition-all duration-300 group"
-          style={{ right: "30px", bottom: "190px" }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100vw-2rem)] sm:w-[500px] bg-gray-900/80 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2.5 shadow-2xl flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-500/30 hover:shadow-emerald-500/10 active:scale-[0.98] transition-all duration-300 group"
         >
-          <Bot size={22} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform duration-300" />
-          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-400 rounded-full border-2 border-gray-900 animate-pulse" />
-        </button>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0 group-hover:rotate-12 transition-transform duration-300">
+              <Bot size={16} className="text-white" />
+            </div>
+            <span className="text-sm text-gray-400 select-none truncate">
+              Hỏi bất kỳ điều gì về tập luyện & dinh dưỡng...
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="p-2 rounded-full text-gray-400 bg-white/5 group-hover:text-emerald-400 group-hover:bg-white/10 transition-colors">
+              <Send size={14} />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Sidebar overlay */}
