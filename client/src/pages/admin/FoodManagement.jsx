@@ -197,7 +197,7 @@ const FoodManagement = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <h1 className="text-fluid-xl font-bold text-slate-800 flex items-center gap-2">
               <Apple className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
               QUẢN LÝ THỰC PHẨM
             </h1>
@@ -208,14 +208,14 @@ const FoodManagement = () => {
           <div className="flex gap-2">
             <button
               onClick={openCreateModal}
-              className="inline-flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm md:text-base"
+              className="inline-flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-fluid-sm"
             >
               <Plus className="w-4 h-4" />
               <span>Thêm thực phẩm</span>
             </button>
             <button
               onClick={() => setShowBatchModal(true)}
-              className="inline-flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm md:text-base"
+              className="inline-flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-fluid-sm"
             >
               <Upload className="w-4 h-4" />
               <span>Import nhiều</span>
@@ -230,7 +230,7 @@ const FoodManagement = () => {
             placeholder="Tìm kiếm theo tên thực phẩm..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm md:text-base"
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-fluid-sm"
           />
         </div>
 
@@ -343,7 +343,7 @@ const FoodManagement = () => {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
-                <h2 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2 uppercase">
+                <h2 className="text-fluid-lg font-bold text-slate-800 flex items-center gap-2 uppercase">
                   <Apple className="w-5 h-5 text-indigo-600" />
                   {editingFood ? "Cập nhật thực phẩm" : "Thêm thực phẩm mới"}
                 </h2>
@@ -464,7 +464,7 @@ const FoodManagement = () => {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
-                <h2 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2 uppercase">
+                <h2 className="text-fluid-lg font-bold text-slate-800 flex items-center gap-2 uppercase">
                   <Upload className="w-5 h-5 text-green-600" />
                   Nhập nhiều thực phẩm (JSON)
                 </h2>

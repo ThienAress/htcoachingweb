@@ -18,7 +18,7 @@ const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
         <h4 className="font-bold text-gray-300 text-lg uppercase tracking-wide mb-2">
           TDEE của bạn
         </h4>
-        <div className="text-4xl md:text-5xl font-black text-primary">
+        <div className="text-fluid-5xl font-black text-primary">
           {tdee} <span className="text-base text-gray-400">kcal/ngày</span>
         </div>
       </div>
@@ -30,7 +30,7 @@ const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
         <h4 className="font-bold text-gray-300 text-lg uppercase tracking-wide mb-2">
           BMR của bạn
         </h4>
-        <div className="text-4xl md:text-5xl font-black text-primary">
+        <div className="text-fluid-5xl font-black text-primary">
           {bmr} <span className="text-base text-gray-400">kcal/ngày</span>
         </div>
       </div>
@@ -42,7 +42,7 @@ const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
         <h4 className="font-bold text-gray-300 text-lg uppercase tracking-wide mb-2">
           Lượng calories cần thiết ({goalText})
         </h4>
-        <div className="text-4xl md:text-5xl font-black text-primary">
+        <div className="text-fluid-5xl font-black text-primary">
           {adjustedCalories}{" "}
           <span className="text-base text-gray-400">kcal/ngày</span>
         </div>

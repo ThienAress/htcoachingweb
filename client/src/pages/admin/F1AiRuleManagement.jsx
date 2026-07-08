@@ -135,7 +135,7 @@ const F1AiRuleManagement = () => {
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 uppercase">
+          <h1 className="text-fluid-2xl font-bold text-gray-800 flex items-center gap-2 uppercase">
             <BrainCircuit className="w-7 h-7 text-indigo-600" />
             AI Rule Engine (F1)
           </h1>

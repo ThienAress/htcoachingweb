@@ -221,11 +221,11 @@ const Trainers = ({ previewData }) => {
         <div>
           <h3 className="text-2xl font-bold uppercase text-slate-800">{trainer.name}</h3>
           {(trainer.title || trainer.experience) && (
-            <h4 className="text-base sm:text-lg text-black font-semibold mt-2">
+            <h4 className="text-fluid-base text-black font-semibold mt-2">
               {trainer.title} {trainer.title && trainer.experience && " | "} {trainer.experience}
             </h4>
           )}
-          <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-5 mt-2 whitespace-pre-line">
+          <p className="text-fluid-sm text-gray-700 leading-relaxed mb-5 mt-2 whitespace-pre-line">
             {trainer.bio}
           </p>
         </div>
@@ -239,7 +239,7 @@ const Trainers = ({ previewData }) => {
                   <div className="bg-white p-2 rounded-lg text-primary shadow-sm">
                     <IconComp size={20} />
                   </div>
-                  <span className="font-bold text-slate-700 text-sm md:text-base">
+                  <span className="font-bold text-slate-700 text-fluid-sm">
                     {spec.label}
                   </span>
                 </div>

@@ -70,13 +70,13 @@ const Tools = ({ image }) => {
                 <h3 className="text-center">
                   ĐO LƯỢNG MỨC TIÊU THỤ NĂNG LƯỢNG MỖI NGÀY (TDEE)
                 </h3>
-                <p className="text-sm sm:text-base text-[#dddddd] mb-5 md:mb-6 leading-relaxed">
+                <p className="text-fluid-sm text-[#dddddd] mb-5 md:mb-6 leading-relaxed">
                   Khám phá lượng calo cơ thể bạn đốt mỗi ngày để tối ưu hóa việc
                   tăng/giảm cân một cách khoa học.
                 </p>
                 <Link
                   to="/tdee-calculator"
-                  className="btn  bg-primary text-white border-primary hover:bg-transparent hover:text-primary inline-block text-sm sm:text-base px-5 py-2 sm:px-6 sm:py-3"
+                  className="btn  bg-primary text-white border-primary hover:bg-transparent hover:text-primary inline-block text-fluid-sm px-5 py-2 sm:px-6 sm:py-3"
                 >
                   Khám phá ngay
                 </Link>

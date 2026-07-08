@@ -254,7 +254,7 @@ const Orders = () => {
 
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 uppercase">
+          <h1 className="text-fluid-2xl font-bold text-gray-800 flex items-center gap-2 uppercase">
             <Package className="w-6 h-6 text-red-500" />
             Quản lý đơn hàng
           </h1>

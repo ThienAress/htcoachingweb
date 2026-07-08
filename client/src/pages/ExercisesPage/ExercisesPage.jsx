@@ -163,7 +163,7 @@ const ExercisesPage = () => {
                 HỆ THỐNG BÀI TẬP
               </span>
             </div>
-            <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-normal">
+            <h1 className="font-display text-fluid-6xl font-black uppercase tracking-normal">
               TẠO LỊCH TẬP <span className="text-primary">CÁ NHÂN HÓA</span>
             </h1>
             <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>

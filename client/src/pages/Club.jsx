@@ -107,7 +107,7 @@ const Club = () => {
                 HỆ THỐNG PHÒNG TẬP
               </span>
             </div>
-            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-normal">
+            <h1 className="font-display text-fluid-5xl font-black uppercase tracking-normal">
               CÂU LẠC BỘ <span className="text-primary">PT CÓ THỂ VÀO DẠY</span>
             </h1>
             <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>

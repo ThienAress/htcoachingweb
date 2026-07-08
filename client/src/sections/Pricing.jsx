@@ -541,14 +541,14 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                   )}
 
                   <div className="mb-6">
-                    <h3 className="text-2xl 2xl:text-3xl font-bold text-white text-center whitespace-nowrap">
+                    <h3 className="text-fluid-2xl font-bold text-white text-center whitespace-nowrap">
                       {plan.title}
                     </h3>
-                    <p className="text-gray-400 text-sm 2xl:text-base mt-1 text-center">{plan.subtitle}</p>
+                    <p className="text-gray-400 text-fluid-sm mt-1 text-center">{plan.subtitle}</p>
 
                     <div className="mt-6">
                       <div className="flex items-end gap-2">
-                        <span className="text-4xl 2xl:text-5xl font-bold text-white">{formattedPrice}</span>
+                        <span className="text-fluid-4xl font-bold text-white">{formattedPrice}</span>
                         <span className="text-gray-400 mb-1">/{billingCycle === "year" ? "Năm" : "Tháng"}</span>
                       </div>
                       {billingCycle === "year" && (
@@ -567,7 +567,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                         </h4>
                         <ul className="space-y-2.5">
                           {category.features.map((feature, fIdx) => (
-                            <li key={fIdx} className="flex items-start gap-2 text-sm 2xl:text-base text-gray-300">
+                            <li key={fIdx} className="flex items-start gap-2 text-fluid-sm text-gray-300">
                               <span className="text-green-500 mt-0.5">{"\u2713"}</span>
                               <span className="leading-relaxed">{feature}</span>
                             </li>
@@ -624,16 +624,16 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                   </div>
                 )}
                 <div className="text-center mb-4">
-                  <h3 className="text-2xl 2xl:text-3xl font-bold text-white uppercase">
+                  <h3 className="text-fluid-2xl font-bold text-white uppercase">
                     {plan.title}
                   </h3>
                   <div className="mt-1">
-                    <span className="text-base 2xl:text-lg text-gray-400">
+                    <span className="text-fluid-base text-gray-400">
                       {plan.durationText}
                     </span>
                   </div>
                 </div>
-                <ul className="space-y-2 mb-4 text-gray-200 text-base 2xl:text-lg">
+                <ul className="space-y-2 mb-4 text-gray-200 text-fluid-base">
                   {plan.features.map((feature, i) => (
                     <li
                       key={i}
@@ -651,7 +651,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     </h4>
                     <ul className="space-y-1.5">
                       {plan.systemFeatures.map((sf, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm 2xl:text-base text-gray-300">
+                        <li key={i} className="flex items-start gap-2 text-fluid-sm text-gray-300">
                           <span className="text-blue-400 mt-0.5">{"\u2713"}</span>
                           <span>{sf}</span>
                         </li>
@@ -667,7 +667,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     <Gift className="w-5 h-5" /> QUÀ TẶNG ĐẶC BIỆT
                   </div>
                 )}
-                <div className="mt-4 pt-3 border-t border-dashed border-gray-700 text-base 2xl:text-lg text-gray-400 text-center">
+                <div className="mt-4 pt-3 border-t border-dashed border-gray-700 text-fluid-base text-gray-400 text-center">
                   Tổng số buổi: {plan.totalSessions}
                 </div>
                 <Link
@@ -676,7 +676,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     e.preventDefault();
                     handleRegister(plan, mode === "trial" ? "trial" : mode);
                   }}
-                  className="relative flex items-center justify-center w-full mt-5 py-3 2xl:py-4 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-base 2xl:text-lg"
+                  className="relative flex items-center justify-center w-full mt-5 py-3 2xl:py-4 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-fluid-base"
                 >
                   <span className="relative z-10">Đăng ký ngay</span>
                   <span className="absolute inset-0 bg-primary transform -translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></span>

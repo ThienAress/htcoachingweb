@@ -98,7 +98,7 @@ const BookingManagement = () => {
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 uppercase">
+        <h1 className="text-fluid-2xl font-bold text-gray-800 uppercase">
           Quản lý đặt hàng
         </h1>
         <p className="text-gray-500 mt-1">

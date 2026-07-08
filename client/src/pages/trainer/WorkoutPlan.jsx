@@ -147,7 +147,7 @@ const WorkoutPlan = () => {
               <Flame className="text-primary w-6 h-6" />
               <span className="font-semibold text-primary tracking-wide">GIÁO ÁN TẬP LUYỆN</span>
             </div>
-            <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-normal">
+            <h1 className="font-display text-fluid-6xl font-black uppercase tracking-normal">
               {isTrainerOrAdmin ? "QUẢN LÝ" : "LỊCH"} <span className="text-primary">GIÁO ÁN</span>
             </h1>
             <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full" />

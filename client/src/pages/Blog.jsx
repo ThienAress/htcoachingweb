@@ -107,7 +107,7 @@ const BlogCard = ({ post, featured = false }) => (
       </div>
 
       <h2 className={`font-black text-dark leading-snug group-hover:text-primary transition-colors duration-300 line-clamp-2 ${
-        featured ? "text-xl md:text-2xl" : "text-base"
+        featured ? "text-fluid-xl" : "text-base"
       }`}>
         {post.title}
       </h2>
@@ -215,7 +215,7 @@ const Blog = () => {
             <BookOpen className="w-4 h-4 text-primary" />
             <span className="text-sm font-bold text-white/80 tracking-wide uppercase">Blog HTCOACHING</span>
           </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-white uppercase leading-[1.1]">
+          <h1 className="text-fluid-6xl font-black text-white uppercase leading-[1.1]">
             Kiến thức <span className="text-primary">Fitness</span>
           </h1>
           <div className="w-16 h-1 bg-primary mx-auto mt-5 rounded-full" />
@@ -239,7 +239,7 @@ const Blog = () => {
                       setSubCategory("");
                       setPage(1);
                     }}
-                    className={`px-5 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-1.5 ${
+                    className={`px-5 py-2 rounded-full text-fluid-xs font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-1.5 ${
                       category === cat.value && !subCategory
                         ? "bg-slate-900 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] scale-102"
                         : category === cat.value && subCategory
@@ -396,7 +396,7 @@ const Blog = () => {
       <section className="bg-gray-50 border-t border-gray-100 py-16">
         <div className="container-custom">
           <div className="text-center mb-10">
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-800 uppercase tracking-tight">
+            <h2 className="text-fluid-2xl font-black text-slate-800 uppercase tracking-tight">
               Công cụ hỗ trợ
             </h2>
           </div>
@@ -412,7 +412,7 @@ const Blog = () => {
                   </div>
                   <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-slate-800 group-hover:text-primary transition duration-300 mt-6 tracking-tight">Tính TDEE</h3>
+                <h3 className="text-fluid-xl font-bold text-slate-800 group-hover:text-primary transition duration-300 mt-6 tracking-tight">Tính TDEE</h3>
                 <p className="text-sm text-slate-500 mt-2 leading-relaxed">Tính toán lượng calo tiêu thụ và đề xuất dinh dưỡng cần nạp mỗi ngày</p>
               </div>
             </Link>
@@ -427,7 +427,7 @@ const Blog = () => {
                   </div>
                   <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-slate-800 group-hover:text-primary transition duration-300 mt-6 tracking-tight">Thư viện bài tập</h3>
+                <h3 className="text-fluid-xl font-bold text-slate-800 group-hover:text-primary transition duration-300 mt-6 tracking-tight">Thư viện bài tập</h3>
                 <p className="text-sm text-slate-500 mt-2 leading-relaxed">500+ bài tập chi tiết có video hướng dẫn kỹ thuật chuẩn xác</p>
               </div>
             </Link>
@@ -442,7 +442,7 @@ const Blog = () => {
                   </div>
                   <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
                 </div>
-                <h3 className="text-xl sm:text-2xl font-bold text-slate-800 group-hover:text-primary transition duration-300 mt-6 tracking-tight">Kết quả KH</h3>
+                <h3 className="text-fluid-xl font-bold text-slate-800 group-hover:text-primary transition duration-300 mt-6 tracking-tight">Kết quả KH</h3>
                 <p className="text-sm text-slate-500 mt-2 leading-relaxed">Xem hình ảnh thực tế và hành trình thay đổi vóc dáng của học viên</p>
               </div>
             </Link>
