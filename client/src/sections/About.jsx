@@ -121,21 +121,21 @@ const About = ({ images }) => {
   }, [displayImages.length]);
 
   return (
-    <section id="about" className="py-16 sm:py-20 md:py-24 lg:py-25 bg-light">
+    <section id="about" className="py-(--spacing-fluid-section) bg-light">
       <div className="container-custom flex flex-col md:flex-row items-center gap-8 md:gap-12">
         {/* LEFT */}
         <div ref={leftRef} className="w-full md:w-1/2 lg:flex-1 min-w-0">
           <h2 data-gsap-reveal>NGƯỜI ĐỒNG HÀNH THAY ĐỔI CỦA BẠN</h2>
 
           <p
-            className="italic text-primary font-semibold text-base sm:text-lg md:text-xl mt-4"
+            className="italic text-primary font-semibold text-fluid-lg mt-4"
             data-gsap-reveal
           >
             "Không có body đỉnh trong vùng an toàn. Hoặc là thay đổi – hoặc là
             mãi như cũ."
           </p>
 
-          <p className="desc text-sm sm:text-base" data-gsap-reveal>
+          <p className="desc text-fluid-sm" data-gsap-reveal>
             Mình là <strong>Thiện</strong> – huấn luyện viên cá nhân chuyên
             nghiệp với hơn <strong>4 năm kinh nghiệm thực chiến</strong>, người
             đã trực tiếp thay đổi hình thể cho hơn <strong>50 học viên</strong>{" "}
@@ -147,21 +147,21 @@ const About = ({ images }) => {
             <h3 data-gsap-reveal>PHONG CÁCH HUẤN LUYỆN</h3>
 
             <ul className="mt-3 sm:mt-4 space-y-3" data-gsap-reveal>
-              <li className="flex items-center gap-3 font-semibold text-sm sm:text-base">
+              <li className="flex items-center gap-3 font-semibold text-fluid-sm">
                 <Flame className="text-primary shrink-0" size={18} />
                 Máu lửa, kỷ luật, thân thiện, sát cánh trong từng buổi tập
               </li>
-              <li className="flex items-center gap-3 font-semibold text-sm sm:text-base">
+              <li className="flex items-center gap-3 font-semibold text-fluid-sm">
                 <Zap className="text-primary shrink-0" size={18} />
                 Động lực thực chất – Không tâng bốc, chỉ thẳng vào vấn đề bạn
                 cần sửa
               </li>
-              <li className="flex items-center gap-3 font-semibold text-sm sm:text-base">
+              <li className="flex items-center gap-3 font-semibold text-fluid-sm">
                 <Target className="text-primary shrink-0" size={18} />
                 Lộ trình cá nhân hóa – Tập đúng kỹ thuật, ăn đúng cách, đánh
                 trúng mục tiêu
               </li>
-              <li className="flex items-center gap-3 font-semibold text-sm sm:text-base">
+              <li className="flex items-center gap-3 font-semibold text-fluid-sm">
                 <Dumbbell className="text-primary shrink-0" size={18} />
                 Với slogan NO PAIN NO GAIN, mình sẽ đưa bạn vượt qua mọi giới
                 hạn.
@@ -174,13 +174,13 @@ const About = ({ images }) => {
             {[50, 3, 4].map((value, index) => (
               <div key={index} className="text-center">
                 <span
-                  className="block text-2xl sm:text-3xl md:text-4xl font-bold text-primary"
+                  className="block text-fluid-3xl font-bold text-primary"
                   data-count={value}
                   ref={(el) => (statRef.current[index] = el)}
                 >
                   0
                 </span>
-                <span className="text-xs sm:text-sm text-gray whitespace-pre-line">
+                <span className="text-fluid-xs text-gray whitespace-pre-line">
                   {index === 0
                     ? "Học viên thay đổi\nngoạn mục"
                     : index === 1

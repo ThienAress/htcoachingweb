@@ -342,7 +342,7 @@ const TrainerCoaching = () => {
 
           {/* Header Tiêu Đề */}
           <div className="text-center mb-10">
-            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-black uppercase text-white tracking-normal">
+            <h1 className="font-display text-fluid-5xl font-black uppercase text-white tracking-normal">
               SETUP BÀI TẬP <span className="text-primary">COACH ONLINE</span>
             </h1>
             <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
@@ -526,7 +526,7 @@ const TrainerCoaching = () => {
                       <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/25 to-primary/5 flex items-center justify-center border border-primary/20">
                         <Sparkles className="w-4 h-4 text-primary" />
                       </div>
-                      <h3 className="font-bold text-white uppercase tracking-wider text-sm sm:text-base">
+                      <h3 className="font-bold text-white uppercase tracking-wider text-fluid-sm">
                         Thiết lập giáo án: {new Date(selectedDate).toLocaleDateString("vi-VN")}
                       </h3>
                     </div>
@@ -849,7 +849,7 @@ const TrainerCoaching = () => {
                       <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/25 to-primary/5 flex items-center justify-center border border-primary/20">
                         <MessageSquare className="w-4 h-4 text-primary" />
                       </div>
-                      <h3 className="font-bold text-white uppercase tracking-wider text-sm sm:text-base">
+                      <h3 className="font-bold text-white uppercase tracking-wider text-fluid-sm">
                         Kết quả & Video phản hồi
                       </h3>
                     </div>

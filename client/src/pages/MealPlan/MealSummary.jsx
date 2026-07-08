@@ -46,20 +46,20 @@ const MealSummary = ({
 
   return (
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6 mt-8 shadow-xl">
-      <h3 className="text-xl sm:text-2xl font-bold text-center mb-6 flex items-center justify-center gap-2">
+      <h3 className="text-fluid-xl font-bold text-center mb-6 flex items-center justify-center gap-2">
         <Target className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
         Tổng dinh dưỡng cả ngày
       </h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 text-center">
         <div className="bg-gray-900/60 rounded-xl p-4 border border-gray-700">
-          <div className="text-red-400 text-lg sm:text-xl font-bold mb-1">
+          <div className="text-red-400 text-fluid-lg font-bold mb-1">
             Đạm
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-white">
+          <div className="text-fluid-2xl font-black text-white">
             {totalMacros.protein}g
           </div>
-          <div className="text-xs sm:text-sm text-gray-400 mt-1">
+          <div className="text-fluid-xs text-gray-400 mt-1">
             {totalCalories > 0
               ? Math.round((totalMacros.protein * 4 * 100) / totalCalories)
               : 0}
@@ -76,13 +76,13 @@ const MealSummary = ({
         </div>
 
         <div className="bg-gray-900/60 rounded-xl p-4 border border-gray-700">
-          <div className="text-green-400 text-lg sm:text-xl font-bold mb-1">
+          <div className="text-green-400 text-fluid-lg font-bold mb-1">
             Tinh bột
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-white">
+          <div className="text-fluid-2xl font-black text-white">
             {totalMacros.carb}g
           </div>
-          <div className="text-xs sm:text-sm text-gray-400 mt-1">
+          <div className="text-fluid-xs text-gray-400 mt-1">
             {totalCalories > 0
               ? Math.round((totalMacros.carb * 4 * 100) / totalCalories)
               : 0}
@@ -99,13 +99,13 @@ const MealSummary = ({
         </div>
 
         <div className="bg-gray-900/60 rounded-xl p-4 border border-gray-700">
-          <div className="text-yellow-400 text-lg sm:text-xl font-bold mb-1">
+          <div className="text-yellow-400 text-fluid-lg font-bold mb-1">
             Chất béo
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-white">
+          <div className="text-fluid-2xl font-black text-white">
             {totalMacros.fat}g
           </div>
-          <div className="text-xs sm:text-sm text-gray-400 mt-1">
+          <div className="text-fluid-xs text-gray-400 mt-1">
             {totalCalories > 0
               ? Math.round((totalMacros.fat * 9 * 100) / totalCalories)
               : 0}
@@ -123,14 +123,14 @@ const MealSummary = ({
       </div>
 
       <div className="text-center mt-6 pt-4 border-t border-gray-700">
-        <div className="text-3xl sm:text-4xl font-black text-primary">
+        <div className="text-fluid-3xl font-black text-primary">
           {totalCalories.toLocaleString()}{" "}
-          <span className="text-base sm:text-lg">kcal</span>
+          <span className="text-fluid-base">kcal</span>
         </div>
 
         {targetCalories > 0 && (
           <div
-            className={`mt-3 text-sm sm:text-base font-semibold ${statusColor}`}
+            className={`mt-3 text-fluid-sm font-semibold ${statusColor}`}
           >
             <div className="flex items-center justify-center gap-2">
               {statusIcon}
@@ -140,7 +140,7 @@ const MealSummary = ({
               </span>
             </div>
 
-            <div className="mt-2 text-xs sm:text-sm text-gray-300">
+            <div className="mt-2 text-fluid-xs text-gray-300">
               Thực tế đang{" "}
               <span className={statusColor}>
                 {diffCalories === 0

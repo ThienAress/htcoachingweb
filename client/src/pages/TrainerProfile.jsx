@@ -58,7 +58,7 @@ const TrainerGallery = ({ images, name }) => {
         ))}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-8 z-20 pointer-events-none">
           <div>
-            <h2 className="text-3xl md:text-4xl font-black text-white uppercase">{name}</h2>
+            <h2 className="text-fluid-3xl font-black text-white uppercase">{name}</h2>
           </div>
         </div>
 
@@ -312,7 +312,7 @@ const TrainerProfile = ({ previewData }) => {
                 🥇 {trainer.title || "Huấn Luyện Viên Chuyên Nghiệp"}
               </div>
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] uppercase">
+              <h1 className="text-fluid-6xl font-black text-white leading-[1.1] uppercase">
                 {trainer.headline || trainer.name}
               </h1>
 
@@ -505,11 +505,11 @@ const TrainerProfile = ({ previewData }) => {
               <span className="text-xs font-black uppercase tracking-[0.25em] text-primary bg-primary/10 px-4 py-2 rounded-full border border-primary/20 shadow-sm">
                 PHƯƠNG PHÁP HUẤN LUYỆN
               </span>
-              <h2 className="text-4xl md:text-6xl font-black uppercase text-slate-900 mt-6 tracking-tight drop-shadow-sm">
+              <h2 className="text-fluid-6xl font-black uppercase text-slate-900 mt-6 tracking-tight drop-shadow-sm">
                 TRỤ CỘT <span className="text-primary">MÁU LỬA</span>
               </h2>
               <div className="h-1.5 w-24 bg-primary mx-auto mt-6 rounded-full opacity-80"></div>
-              <p className="text-slate-500 font-bold mt-6 max-w-xl mx-auto text-base sm:text-lg">
+              <p className="text-slate-500 font-bold mt-6 max-w-xl mx-auto text-fluid-base">
                 Không có chỗ cho sự hời hợt. Lộ trình nghiêm túc mang lại thay đổi vượt trội.
               </p>
             </div>

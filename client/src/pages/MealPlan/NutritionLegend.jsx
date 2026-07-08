@@ -3,7 +3,7 @@ import { Info, Wheat, Drumstick, Fish, Scale } from "lucide-react";
 
 const NutritionLegend = () => (
   <div className="my-6 p-4 sm:p-5 bg-gray-800/40 rounded-2xl border border-gray-700">
-    <h4 className="font-bold mb-4 text-primary flex items-center gap-2 text-base sm:text-lg">
+    <h4 className="font-bold mb-4 text-primary flex items-center gap-2 text-fluid-base">
       <Scale className="w-5 h-5" /> Chú thích dinh dưỡng
     </h4>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -34,7 +34,7 @@ const NutritionLegend = () => (
     </div>
     <div className="mt-5 p-3 sm:p-4 bg-blue-900/30 rounded-xl border-l-4 border-blue-500 flex items-start gap-3">
       <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-      <span className="text-xs sm:text-sm text-gray-200">
+      <span className="text-fluid-xs text-gray-200">
         <strong className="text-blue-300">Lưu ý:</strong> Trong carb hoặc fat
         vẫn có protein nên bạn có thể giảm 1 ít protein đi để đúng macro hơn.
         Tất cả thực phẩm đều được tính ở dạng sống.

@@ -276,7 +276,7 @@ const BlogDetail = () => {
             {post.subCategory && ` / ${getSubCategoryLabel(post.category, post.subCategory)}`}
           </span>
 
-          <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] font-black text-white leading-[1.15]">
+          <h1 className="text-fluid-4xl font-black text-white leading-[1.15]">
             {post.title}
           </h1>
 

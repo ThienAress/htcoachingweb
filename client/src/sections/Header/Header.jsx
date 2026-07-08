@@ -274,7 +274,7 @@ function Header() {
             <li>
               <Link
                 to="/"
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-fluid-sm"
               >
                 Trang chủ
               </Link>
@@ -282,14 +282,14 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("about")}
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-fluid-sm"
               >
                 Giới thiệu
               </button>
             </li>
             <li className="relative group">
               <button
-                className="nav-link-hover text-white font-semibold relative flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-fluid-sm"
               >
                 Dịch vụ <ChevronDown size={14} className="transition-transform duration-200 group-hover:rotate-180" />
               </button>
@@ -308,7 +308,7 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("customer")}
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-fluid-sm"
               >
                 Feedback
               </button>
@@ -316,7 +316,7 @@ function Header() {
             <li>
               <Link
                 to="/blog"
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-fluid-sm"
               >
                 Blog
               </Link>
@@ -324,7 +324,7 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("contact")}
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-fluid-sm"
               >
                 Liên hệ
               </button>
@@ -332,7 +332,7 @@ function Header() {
             <li>
               <Link
                 to="/club"
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-sm xl:text-base 2xl:text-lg"
+                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-fluid-sm"
               >
                 CLB
               </Link>
@@ -361,11 +361,11 @@ function Header() {
                   )}
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="text-white text-xs 2xl:text-sm font-medium leading-tight max-w-[100px] 2xl:max-w-[140px] truncate">
+                  <span className="text-white text-fluid-xs font-medium leading-tight max-w-[100px] 2xl:max-w-[140px] truncate">
                     {user.name}
                   </span>
                   {walletBalance !== null && (
-                    <span className="text-[11px] 2xl:text-xs text-yellow-400 font-semibold leading-tight">
+                    <span className="text-fluid-xs text-yellow-400 font-semibold leading-tight">
                       Số dư ví: {new Intl.NumberFormat("vi-VN").format(walletBalance)}đ
                     </span>
                   )}

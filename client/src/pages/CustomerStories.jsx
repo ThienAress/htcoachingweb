@@ -401,11 +401,11 @@ const CustomerStories = () => {
 
         <div className="container-custom relative z-10 flex min-h-[520px] flex-col justify-end pb-16 pt-28">
           <div className="max-w-4xl">
-            <h1 className="font-display text-5xl font-bold uppercase leading-tight text-white sm:text-6xl lg:text-7xl">
+            <h1 className="font-display text-fluid-6xl font-bold uppercase leading-tight text-white">
               Kết quả khách hàng
               <span className="block text-primary">HT Coaching</span>
             </h1>
-            <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-white/80 sm:text-lg">
+            <p className="mt-5 max-w-2xl text-fluid-base font-medium leading-8 text-white/80">
               Những thay đổi thật từ khách hàng thật: có mục tiêu rõ ràng, có
               lộ trình tập luyện cá nhân hóa và có dữ liệu tiến bộ theo từng
               tuần.
@@ -460,7 +460,7 @@ const CustomerStories = () => {
             <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Kiến thức của chúng tôi
             </p>
-            <h2 className="mt-3 max-w-2xl font-display text-4xl font-bold uppercase leading-tight text-slate-950 sm:text-5xl">
+            <h2 className="mt-3 max-w-2xl font-display text-fluid-5xl font-bold uppercase leading-tight text-slate-950">
               Kết quả của bạn là thứ chúng tôi theo đuổi
             </h2>
             <p className="mt-5 text-base leading-8 text-slate-600">
@@ -564,10 +564,10 @@ const CustomerStories = () => {
             <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
               Transformation library
             </p>
-            <h2 className="mt-3 font-display text-4xl font-bold uppercase leading-tight text-slate-950 sm:text-5xl">
+            <h2 className="mt-3 font-display text-fluid-5xl font-bold uppercase leading-tight text-slate-950">
               Kết quả <span className="text-primary">khách hàng</span>
             </h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+            <p className="mt-4 text-fluid-sm leading-7 text-slate-600">
               Lọc theo độ tuổi, mục tiêu và thời gian để tìm câu chuyện gần với
               tình trạng hiện tại của bạn nhất.
             </p>

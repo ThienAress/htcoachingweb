@@ -95,7 +95,7 @@ const ExerciseSuggestionsManagement = () => {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 uppercase">
+        <h1 className="text-fluid-2xl font-bold text-gray-800 flex items-center gap-2 uppercase">
           <MessageSquare className="w-7 h-7 text-indigo-600" />
           Quản lý góp ý bài tập
         </h1>
