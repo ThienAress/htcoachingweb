@@ -2,7 +2,7 @@
 @plugin "@tailwindcss/typography";
 
 
-/* ================= ĐỊNH NGHĨA MÀU SẮC TRONG THEME (Tailwind v4) ================= */
+/* ================= ĐỊNH NGHĨA THEME (Tailwind v4) ================= */
 @theme {
   /* Font */
   --font-sans: "Poppins", system-ui, sans-serif;
@@ -18,9 +18,29 @@
   --color-dark: #212529;
   --color-white: #ffffff;
   --color-black: #000000;
+
+  /* Fluid Typography — tự scale mượt mà từ 320px → 1440px viewport */
+  --text-fluid-xs: clamp(0.75rem, 0.71rem + 0.2vw, 0.88rem);
+  --text-fluid-sm: clamp(0.88rem, 0.82rem + 0.28vw, 1.05rem);
+  --text-fluid-base: clamp(1rem, 0.93rem + 0.38vw, 1.25rem);
+  --text-fluid-lg: clamp(1.13rem, 1.03rem + 0.51vw, 1.46rem);
+  --text-fluid-xl: clamp(1.27rem, 1.13rem + 0.68vw, 1.71rem);
+  --text-fluid-2xl: clamp(1.42rem, 1.24rem + 0.91vw, 2.02rem);
+  --text-fluid-3xl: clamp(1.6rem, 1.35rem + 1.22vw, 2.39rem);
+  --text-fluid-4xl: clamp(1.8rem, 1.48rem + 1.6vw, 2.83rem);
+  --text-fluid-5xl: clamp(2.03rem, 1.6rem + 2.14vw, 3.38rem);
+  --text-fluid-6xl: clamp(2.28rem, 1.71rem + 2.86vw, 4.05rem);
+
+  /* Fluid Spacing — padding/gap/margin tự co giãn theo viewport */
+  --spacing-fluid-xs: clamp(0.25rem, 0.2rem + 0.25vw, 0.5rem);
+  --spacing-fluid-sm: clamp(0.5rem, 0.38rem + 0.63vw, 0.88rem);
+  --spacing-fluid-md: clamp(0.75rem, 0.56rem + 0.94vw, 1.38rem);
+  --spacing-fluid-lg: clamp(1.5rem, 1rem + 2.5vw, 3rem);
+  --spacing-fluid-container: clamp(1rem, 0.5rem + 2.5vw, 2.5rem);
+  --spacing-fluid-section: clamp(3rem, 1.5rem + 5vw, 6rem);
 }
 
-/* ================= BASE – HỆ THỐNG HEADING ================= */
+/* ================= BASE – HỆ THỐNG HEADING (Fluid Typography) ================= */
 @layer base {
 
   html,
@@ -39,9 +59,8 @@
   .h1 {
     font-family: var(--font-display);
     font-weight: 700;
-    line-height: 1.2;
-    font-size: 2.25rem;
-    /* 36px */
+    line-height: 1.1;
+    font-size: clamp(2.25rem, 1.71rem + 2.68vw, 4.5rem); /* 36px → 72px */
     text-transform: uppercase;
   }
 
@@ -50,8 +69,7 @@
     font-family: var(--font-display);
     font-weight: 700;
     line-height: 1.2;
-    font-size: 1.875rem;
-    /* 30px */
+    font-size: clamp(1.875rem, 1.34rem + 2.68vw, 3.75rem); /* 30px → 60px */
     text-transform: uppercase;
   }
 
@@ -60,8 +78,7 @@
     font-family: var(--font-display);
     font-weight: 600;
     line-height: 1.3;
-    font-size: 1.5rem;
-    /* 24px */
+    font-size: clamp(1.5rem, 1.14rem + 1.79vw, 2.75rem); /* 24px → 44px */
     text-transform: uppercase;
   }
 
@@ -69,99 +86,6 @@
     font-family: var(--font-sans);
     background-color: var(--color-white);
     color: var(--color-dark);
-  }
-}
-
-/* Responsive heading sizes dùng media queries hoặc tailwind utilities */
-@media (min-width: 640px) {
-
-  h1,
-  .h1 {
-    font-size: 3rem;
-  }
-
-  /* 48px */
-  h2,
-  .h2 {
-    font-size: 2.25rem;
-  }
-
-  /* 36px */
-  h3,
-  .h3 {
-    font-size: 1.875rem;
-  }
-
-  /* 30px */
-}
-
-@media (min-width: 768px) {
-
-  h1,
-  .h1 {
-    font-size: 3.75rem;
-  }
-
-  /* 60px */
-  h2,
-  .h2 {
-    font-size: 3rem;
-  }
-
-  /* 48px */
-  h3,
-  .h3 {
-    font-size: 2.25rem;
-  }
-
-  /* 36px */
-}
-
-@media (min-width: 1024px) {
-
-  h1,
-  .h1 {
-    font-size: 4.5rem;
-  }
-
-  /* 72px */
-  h2,
-  .h2 {
-    font-size: 3.75rem;
-  }
-
-  /* 60px */
-  h3,
-  .h3 {
-    font-size: 3rem;
-  }
-
-  /* 48px */
-}
-
-/* ================= LAPTOP TEXT SIZE BOOST (1024px - 1439px) ================= */
-/* Tăng root font-size cho laptop → tất cả rem-based text tự động lớn hơn ~12.5% */
-/* Heading giữ nguyên kích thước pixel gốc, chỉ body text được boost */
-@media (min-width: 1024px) and (max-width: 1439px) {
-  html {
-    font-size: 18px;
-    /* 16px → 18px */
-  }
-
-  /* Pin heading sizes = px cố định (giữ nguyên như root 16px) */
-  h1,
-  .h1 {
-    font-size: 72px;
-  }
-
-  h2,
-  .h2 {
-    font-size: 60px;
-  }
-
-  h3,
-  .h3 {
-    font-size: 48px;
   }
 }
 
@@ -270,38 +194,9 @@
   height: 0;
 }
 
-/* ================= HERO TITLE RESPONSIVE ================= */
+/* ================= HERO TITLE RESPONSIVE (Fluid) ================= */
 .hero-title {
-  font-size: 2.07rem;
-  /* ~35px — mobile (-15% từ 2.57rem) */
-}
-
-@media (min-width: 640px) {
-  .hero-title {
-    font-size: 2.5rem;
-    /* ~42px (-15% từ 3.10rem) */
-  }
-}
-
-@media (min-width: 1024px) {
-  .hero-title {
-    font-size: clamp(29px, 4.7vh, 51px) !important;
-    /* -15% từ hiện tại */
-  }
-}
-
-@media (min-width: 1024px) and (max-width: 1439px) {
-  .hero-title {
-    font-size: clamp(46px, 7.7vh, 74px) !important;
-    /* Laptop — -15% từ hiện tại */
-  }
-}
-
-@media (min-width: 1440px) {
-  .hero-title {
-    font-size: clamp(55px, 5.9vh, 85px) !important;
-    /* Desktop — -15% từ hiện tại */
-  }
+  font-size: clamp(2.07rem, 1.24rem + 4.14vw, 4.88rem); /* 33px → 78px */
 }
 
 /* ================= UTILITY CLASS BỔ SUNG ================= */
@@ -310,22 +205,12 @@
   max-width: 1400px;
   margin-left: auto;
   margin-right: auto;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding-inline: var(--spacing-fluid-container); /* 16px → 40px fluid */
 }
 
-@media (min-width: 640px) {
-  .container-custom {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .container-custom {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
+/* ================= INTRINSIC GRID — Auto-fit (RAM Pattern) ================= */
+@utility grid-auto-fit {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--grid-min, 300px)), 1fr));
 }
 
 .btn {

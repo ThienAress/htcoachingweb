@@ -222,7 +222,7 @@ const Checkin = () => {
                   <CheckCircle className="text-primary w-6 h-6 animate-pulse" />
                   <span className="font-semibold text-primary tracking-wide">QUẢN LÝ CHECK-IN</span>
                 </div>
-                <h1 className="font-display text-3xl sm:text-4xl font-black uppercase text-white tracking-normal">
+                <h1 className="font-display text-fluid-4xl font-black uppercase text-white tracking-normal">
                   CHECK-IN <span className="text-primary">KHÁCH HÀNG</span>
                 </h1>
                 <p className="text-sm text-gray-400 mt-1">
@@ -410,7 +410,7 @@ const Checkin = () => {
                     <input
                       {...register("note")}
                       placeholder="Ghi chú thêm (nếu có)"
-                      className="w-full border border-gray-700 bg-gray-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary placeholder-gray-500 hover:bg-gray-750 transition"
+                      className="w-full border border-gray-700 bg-gray-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-fluid-sm placeholder-gray-500 hover:bg-gray-750 transition"
                     />
                   </div>
                 </div>

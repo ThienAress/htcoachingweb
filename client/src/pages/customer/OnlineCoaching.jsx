@@ -448,7 +448,7 @@ const OnlineCoaching = () => {
                   HỆ THỐNG COACH ONLINE
                 </span>
               </div>
-              <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-black uppercase text-white tracking-normal">
+              <h1 className="font-display text-fluid-5xl font-black uppercase text-white tracking-normal">
                 GIÁO ÁN <span className="text-primary">LUYỆN TẬP CÁ NHÂN</span>
               </h1>
               <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
@@ -524,7 +524,7 @@ const OnlineCoaching = () => {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-850 pb-3">
                       <div>
                         <span className="text-[10px] text-primary font-bold uppercase tracking-wider">Bài đang tập</span>
-                        <h3 className="font-extrabold text-white text-base sm:text-lg uppercase mt-0.5">
+                        <h3 className="font-extrabold text-white text-fluid-base uppercase mt-0.5">
                           {activeExerciseIndex + 1}. {activePlan.exercises[activeExerciseIndex].name}
                         </h3>
                       </div>
@@ -603,7 +603,7 @@ const OnlineCoaching = () => {
                           ) : (
                             <UploadCloud className="w-10 h-10 text-gray-500 group-hover:text-primary transition-colors animate-pulse mb-2" />
                           )}
-                          <span className="text-xs sm:text-sm font-semibold text-gray-300 mt-1">
+                          <span className="text-fluid-xs font-semibold text-gray-300 mt-1">
                             {isUploadingVideo ? "Đang tải video lên..." : "Tải lên video thực hiện động tác"}
                           </span>
                           <span className="text-[10px] text-gray-500 mt-1 text-center">

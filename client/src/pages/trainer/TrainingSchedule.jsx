@@ -508,7 +508,7 @@ const TrainingSchedule = () => {
                   <Flame className="text-primary w-6 h-6" />
                   <span className="font-semibold text-primary tracking-wide">LỊCH TẬP KHÁCH HÀNG</span>
                 </div>
-                <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-black uppercase tracking-normal">
+                <h1 className="font-display text-fluid-6xl font-black uppercase tracking-normal">
                   QUẢN LÝ <span className="text-primary">LỊCH TẬP</span>
                 </h1>
                 <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full" />

@@ -225,10 +225,11 @@ const Hero = ({ images, onAnimationComplete }) => {
             {features.map((feature, idx) => (
               <li
                 key={idx}
-                className="flex items-center text-sm sm:text-base lg:text-sm xl:text-base 2xl:text-lg font-medium opacity-95"
+                className="flex items-center text-fluid-sm font-medium opacity-95"
               >
                 <feature.icon
-                  className="w-5 h-5 sm:w-6 sm:h-6 text-primary mr-3 shrink-0"
+                  className="text-primary mr-3 shrink-0"
+                  style={{ width: "1.2em", height: "1.2em" }}
                   strokeWidth={1.5}
                 />
                 <span>{feature.text}</span>

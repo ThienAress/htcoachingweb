@@ -256,7 +256,7 @@ const TdeeCalculator = () => {
               TDEE CALCULATOR
             </span>
           </div>
-          <h1 className="text-3xl md:text-5xl font-black uppercase">
+          <h1 className="text-fluid-5xl font-black uppercase">
             ĐO LƯỢNG <span className="text-primary">CALO ĐỐT CHÁY</span> TRONG 1
             NGÀY
           </h1>
@@ -325,7 +325,7 @@ const TdeeCalculator = () => {
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                   <Flame className="text-primary w-5 h-5" />
                 </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-primary">
+                <h3 className="text-fluid-2xl font-bold text-primary">
                   1. TDEE là gì?
                 </h3>
               </div>
@@ -345,7 +345,7 @@ const TdeeCalculator = () => {
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                   <BarChart3 className="text-primary w-5 h-5" />
                 </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-primary">
+                <h3 className="text-fluid-2xl font-bold text-primary">
                   2. Tính toán macros
                 </h3>
               </div>
@@ -379,7 +379,7 @@ const TdeeCalculator = () => {
                       <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                         <Utensils className="text-primary w-5 h-5" />
                       </div>
-                      <h3 className="text-2xl md:text-3xl font-bold text-primary">
+                      <h3 className="text-fluid-2xl font-bold text-primary">
                         3. Lịch ăn cụ thể sẽ như thế nào?
                       </h3>
                     </div>

@@ -43,7 +43,7 @@ const MealTable = ({ meals = [] }) => {
         <table className="w-full bg-gray-800/40 rounded-2xl border border-gray-700 shadow-lg">
           <thead className="bg-gray-700/60">
             <tr>
-              <th className="px-3 sm:px-5 py-3 text-left text-primary font-bold border-b border-gray-600 text-sm sm:text-base">
+              <th className="px-3 sm:px-5 py-3 text-left text-primary font-bold border-b border-gray-600 text-fluid-sm">
                 Bữa ăn
               </th>
               <th className="px-3 sm:px-5 py-3 text-left text-green-300 font-bold border-b border-gray-600">
@@ -76,19 +76,19 @@ const MealTable = ({ meals = [] }) => {
                   key={idx}
                   className="border-b border-gray-700 hover:bg-gray-700/30 transition"
                 >
-                  <td className="px-3 sm:px-5 py-3 sm:py-4 font-semibold text-white text-sm sm:text-base">
+                  <td className="px-3 sm:px-5 py-3 sm:py-4 font-semibold text-white text-fluid-sm">
                     {meal.mealName}
                   </td>
-                  <td className="px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm">
+                  <td className="px-3 sm:px-5 py-3 sm:py-4 text-fluid-xs">
                     <FoodCell food={meal.carbFood} colorClass="text-green-300" />
                   </td>
-                  <td className="px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm">
+                  <td className="px-3 sm:px-5 py-3 sm:py-4 text-fluid-xs">
                     <FoodCell food={meal.proteinFood} colorClass="text-red-300" />
                   </td>
-                  <td className="px-3 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm">
+                  <td className="px-3 sm:px-5 py-3 sm:py-4 text-fluid-xs">
                     <FoodCell food={meal.fatFood} colorClass="text-yellow-300" />
                   </td>
-                  <td className="px-3 sm:px-5 py-3 sm:py-4 font-bold text-primary text-sm sm:text-base">
+                  <td className="px-3 sm:px-5 py-3 sm:py-4 font-bold text-primary text-fluid-sm">
                     {mealCal} kcal
                   </td>
                 </tr>

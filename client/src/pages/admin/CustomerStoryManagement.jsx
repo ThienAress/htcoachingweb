@@ -726,7 +726,7 @@ const CustomerStoryManagement = () => {
 
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 md:text-3xl uppercase">
+          <h1 className="flex items-center gap-2 text-fluid-2xl font-bold text-slate-800 uppercase">
             <BookOpenText className="h-7 w-7 text-primary" />
             Quản lý câu chuyện khách hàng
           </h1>

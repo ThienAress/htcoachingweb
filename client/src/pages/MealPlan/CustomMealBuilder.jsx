@@ -286,7 +286,7 @@ export default function CustomMealBuilder({
           <table className="w-full bg-gray-800/40 rounded-2xl border border-gray-700 shadow-lg table-fixed">
             <thead className="bg-gray-700/60">
               <tr>
-                <th className="w-[12%] px-3 sm:px-5 py-4 text-left text-primary font-bold border-b border-gray-600 text-sm sm:text-base rounded-tl-2xl">
+                <th className="w-[12%] px-3 sm:px-5 py-4 text-left text-primary font-bold border-b border-gray-600 text-fluid-sm rounded-tl-2xl">
                   Bữa ăn
                 </th>
                 <th className="w-[26%] px-3 sm:px-5 py-4 text-left text-green-300 font-bold border-b border-gray-600">
@@ -314,7 +314,7 @@ export default function CustomMealBuilder({
 
                 return (
                   <tr key={meal.id} className="border-b border-gray-700/50 hover:bg-gray-700/20 transition group">
-                    <td className="px-3 sm:px-5 py-4 font-semibold text-white text-sm sm:text-base align-middle">
+                    <td className="px-3 sm:px-5 py-4 font-semibold text-white text-fluid-sm align-middle">
                       {meal.mealName}
                     </td>
                     <td className="px-2 sm:px-3 py-3 align-top">
@@ -326,7 +326,7 @@ export default function CustomMealBuilder({
                     <td className="px-2 sm:px-3 py-3 align-top">
                       {renderCell(idx, 'fatFood', Fish, 'text-yellow-300', 'border-yellow-500/30', 'bg-yellow-500/5', 'Chất béo')}
                     </td>
-                    <td className="px-3 sm:px-5 py-4 font-bold text-primary text-sm sm:text-base text-center align-middle">
+                    <td className="px-3 sm:px-5 py-4 font-bold text-primary text-fluid-sm text-center align-middle">
                       {mealCal} <span className="text-xs text-gray-400 font-normal block">kcal</span>
                     </td>
                   </tr>

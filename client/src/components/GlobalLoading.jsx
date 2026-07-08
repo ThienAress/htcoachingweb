@@ -181,7 +181,7 @@ const GlobalLoading = ({ onComplete }) => {
           />
           <h1
             ref={textRef}
-            className="font-display text-4xl md:text-6xl font-bold tracking-[0.3em] uppercase select-none italic"
+            className="font-display text-fluid-5xl font-bold tracking-[0.3em] uppercase select-none italic"
             style={{ color: "#F87E1A" }}
           >
             HTCOACHING
@@ -246,7 +246,7 @@ const GlobalLoading = ({ onComplete }) => {
           {/* Brand text — cam, nghiêng */}
           <h1
             ref={textRef}
-            className="font-display text-4xl md:text-6xl font-bold tracking-[0.3em] uppercase select-none italic"
+            className="font-display text-fluid-5xl font-bold tracking-[0.3em] uppercase select-none italic"
             style={{ color: "#F87E1A" }}
           >
             HTCOACHING

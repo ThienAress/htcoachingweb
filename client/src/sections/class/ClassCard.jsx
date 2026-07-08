@@ -21,11 +21,11 @@ const ClassCard = ({ image, title, desc, benefits }) => {
 
       {/* Content Section */}
       <div className="flex flex-col flex-1 p-5 sm:p-8">
-        <h3 className="text-xl sm:text-[1.75rem] font-bold text-slate-800 mb-2 sm:mb-3 tracking-tight">
+        <h3 className="text-fluid-xl font-bold text-slate-800 mb-2 sm:mb-3 tracking-tight">
           {title}
         </h3>
 
-        <p className="text-slate-500 text-[13px] sm:text-base leading-relaxed mb-4 sm:mb-6">
+        <p className="text-slate-500 text-fluid-sm leading-relaxed mb-4 sm:mb-6">
           {desc}
         </p>
 
@@ -35,7 +35,7 @@ const ClassCard = ({ image, title, desc, benefits }) => {
               <div className="mt-0.5 rounded-full bg-[#ff5500]/10 p-1">
                 <Check className="h-3.5 w-3.5 text-primary stroke-[3]" />
               </div>
-              <span className="text-slate-600 text-sm sm:text-[15px] font-medium leading-relaxed">
+              <span className="text-slate-600 text-fluid-sm font-medium leading-relaxed">
                 {b}
               </span>
             </li>

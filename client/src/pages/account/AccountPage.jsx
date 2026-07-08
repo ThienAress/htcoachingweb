@@ -349,10 +349,10 @@ function AccountPage() {
             {/* 1. LEFT SIDEBAR */}
             <div className="lg:col-span-1">
               <div className="mb-6 lg:mb-8">
-                <h1 className="text-2xl sm:text-3xl font-black uppercase text-white tracking-wide">
+                <h1 className="text-fluid-2xl font-black uppercase text-white tracking-wide">
                   Cài đặt tài khoản
                 </h1>
-                <p className="text-gray-400 text-xs sm:text-sm mt-1 leading-relaxed">
+                <p className="text-gray-400 text-fluid-xs mt-1 leading-relaxed">
                   Quản lý hồ sơ, bảo mật, đơn hàng và lịch sử giao dịch của bạn.
                 </p>
               </div>
@@ -461,7 +461,7 @@ function AccountPage() {
                       {/* Section Header */}
                       <div className="mb-6 pb-4 border-b border-white/10">
                         <h2 className="text-xl font-bold text-white uppercase">Thông tin cá nhân</h2>
-                        <p className="text-gray-400 text-xs sm:text-sm mt-0.5">Quản lý thông tin cá nhân của bạn.</p>
+                        <p className="text-gray-400 text-fluid-xs mt-0.5">Quản lý thông tin cá nhân của bạn.</p>
                       </div>
 
                       {/* Main F8 layout block */}
@@ -815,7 +815,7 @@ function AccountPage() {
                     <div className="animate-tab-fade">
                       <div className="mb-6 pb-4 border-b border-white/10">
                         <h2 className="text-xl font-bold text-white uppercase">Lịch sử thanh toán</h2>
-                        <p className="text-gray-400 text-xs sm:text-sm mt-0.5">Theo dõi lịch sử thay đổi số dư ví nạp tiền và các giao dịch thanh toán.</p>
+                        <p className="text-gray-400 text-fluid-xs mt-0.5">Theo dõi lịch sử thay đổi số dư ví nạp tiền và các giao dịch thanh toán.</p>
                       </div>
 
                       {transactions.length === 0 ? (
@@ -826,7 +826,7 @@ function AccountPage() {
                       ) : (
                         <div className="bg-gray-800/20 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
                           <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs sm:text-sm text-gray-300">
+                            <table className="w-full text-left text-fluid-xs text-gray-300">
                               <thead>
                                 <tr className="border-b border-white/5 bg-white/5 text-gray-400 uppercase font-bold text-[10px] tracking-wider">
                                   <th className="py-4 px-4">Mã GD</th>
@@ -860,7 +860,7 @@ function AccountPage() {
                                           currency: "VND"
                                         }).format(tx.balanceAfter)}
                                       </td>
-                                      <td className="py-4 px-4 text-gray-500 text-[10px] sm:text-xs">
+                                      <td className="py-4 px-4 text-gray-500 text-fluid-xs">
                                         {tx.createdAt ? new Date(tx.createdAt).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "N/A"}
                                       </td>
                                       <td className="py-4 px-4 text-right">
@@ -884,7 +884,7 @@ function AccountPage() {
                     <div className="animate-tab-fade">
                       <div className="mb-6 pb-4 border-b border-white/10">
                         <h2 className="text-xl font-bold text-white uppercase">Hợp đồng của tôi</h2>
-                        <p className="text-gray-400 text-xs sm:text-sm mt-0.5">Xem và ký hợp đồng huấn luyện cá nhân.</p>
+                        <p className="text-gray-400 text-fluid-xs mt-0.5">Xem và ký hợp đồng huấn luyện cá nhân.</p>
                       </div>
 
                       {myContracts.length === 0 ? (

@@ -77,7 +77,7 @@ const TrainerSubscriberManagement = () => {
       <div className="space-y-4 md:space-y-6 h-full">
         <div className="flex items-center gap-2">
           <Award className="w-5 h-5 md:w-6 md:h-6 text-orange-500" />
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800">
+          <h1 className="text-fluid-xl font-bold text-slate-800">
             QUẢN LÝ HUẤN LUYỆN VIÊN
           </h1>
         </div>
@@ -92,7 +92,7 @@ const TrainerSubscriberManagement = () => {
             placeholder="Tìm kiếm theo tên hoặc email..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-sm md:text-base"
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-fluid-sm"
           />
         </div>
 
