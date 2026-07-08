@@ -223,6 +223,9 @@ app.use("/api/contracts", contractRoutes);
 import blogRoutes from "./src/routes/blog.routes.js";
 app.use("/api/blog", blogRoutes);
 
+import knowledgeBaseRoutes from "./src/routes/knowledgeBase.routes.js";
+app.use("/api/knowledge-base", knowledgeBaseRoutes);
+
 import { protect } from "./src/middlewares/auth.middleware.js";
 app.get("/api/me/wallet", protect, getMyWallet);
 

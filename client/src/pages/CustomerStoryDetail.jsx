@@ -438,7 +438,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                   {story.milestones.map((milestone, index) => (
                     <article
                       key={milestone.title || index}
-                      className="grid gap-5 border-t border-gray-200 pt-6 md:grid-cols-[minmax(0,1fr)_384px] xl:grid-cols-[minmax(0,1fr)_504px]"
+                      className="border-t border-gray-200 pt-8"
                     >
                       <div>
                         <p className="text-sm font-bold uppercase tracking-[0.14em] text-primary">
@@ -450,8 +450,11 @@ const CustomerStoryDetail = ({ previewData }) => {
                         <p className="mt-3 text-sm leading-7 text-gray sm:text-base">
                           {milestone.content}
                         </p>
+                      </div>
+                      
+                      <div className={`mt-6 grid gap-6 ${milestone.bullets.length > 0 ? "md:grid-cols-2" : "grid-cols-1 max-w-[504px]"}`}>
                         {milestone.bullets.length > 0 && (
-                          <div className="mt-6 rounded-xl bg-slate-50 p-5 border border-slate-100">
+                          <div className="rounded-xl bg-slate-50 p-5 border border-slate-100 h-fit">
                             <p className="mb-3 font-semibold text-primary">
                               Kết quả giai đoạn {index + 1}:
                             </p>
@@ -468,14 +471,14 @@ const CustomerStoryDetail = ({ previewData }) => {
                             </ul>
                           </div>
                         )}
-                      </div>
-                      <div className="self-start">
-                        <BeforeAfterBlock
-                          title={milestone.title}
-                          subtitle={milestone.subtitle}
-                          beforeImg={milestone.beforeImg}
-                          afterImg={milestone.afterImg}
-                        />
+                        <div className="self-start">
+                          <BeforeAfterBlock
+                            title={milestone.title}
+                            subtitle={milestone.subtitle}
+                            beforeImg={milestone.beforeImg}
+                            afterImg={milestone.afterImg}
+                          />
+                        </div>
                       </div>
                     </article>
                   ))}
