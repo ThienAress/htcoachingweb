@@ -180,10 +180,10 @@ const Classes = ({ images }) => {
     <section id="classes" className="py-12 sm:py-16 lg:py-12 xl:py-20 overflow-hidden bg-[#fafafa]">
       <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 relative">
         <div ref={headerRef} className="max-w-[1650px] mx-auto z-10 relative">
-          <h2 className="text-center text-primary text-2xl sm:text-3xl md:text-4xl lg:text-[40px] xl:text-5xl uppercase">
+          <h2 className="text-center text-primary uppercase">
             CHƯƠNG TRÌNH TẬP LUYỆN TRỰC TIẾP
           </h2>
-          <p className="text-center text-gray-800 font-medium text-base sm:text-lg max-w-2xl mx-auto mb-8 px-4 mt-2">
+          <p className="text-center text-gray-800 font-medium text-fluid-base max-w-2xl mx-auto mb-8 px-4 mt-2">
             Cùng mình chinh phục mục tiêu thể chất với 3 bộ môn đặc trưng
           </p>
         </div>

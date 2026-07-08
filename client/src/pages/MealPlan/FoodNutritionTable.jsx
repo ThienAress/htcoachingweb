@@ -53,7 +53,7 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
           <button
             onClick={() => canViewFull && setSortOrder(sortOrder === "asc" ? null : "asc")}
             disabled={!canViewFull}
-            className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-all text-sm sm:text-base ${
+            className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-all text-fluid-sm ${
               !canViewFull
                 ? "bg-gray-700/50 text-gray-500 cursor-not-allowed opacity-60"
                 : sortOrder === "asc"
@@ -67,7 +67,7 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
           <button
             onClick={() => canViewFull && setSortOrder(sortOrder === "desc" ? null : "desc")}
             disabled={!canViewFull}
-            className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-all text-sm sm:text-base ${
+            className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-all text-fluid-sm ${
               !canViewFull
                 ? "bg-gray-700/50 text-gray-500 cursor-not-allowed opacity-60"
                 : sortOrder === "desc"

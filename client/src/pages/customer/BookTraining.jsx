@@ -251,7 +251,7 @@ const BookTraining = () => {
               <Dumbbell className="text-primary w-6 h-6" />
               <span className="font-semibold text-primary tracking-wide">ĐĂNG KÝ GIỜ TẬP LUYỆN</span>
             </div>
-            <h1 className="font-display text-3xl md:text-5xl font-black uppercase tracking-normal">
+            <h1 className="font-display text-fluid-5xl font-black uppercase tracking-normal">
               LỊCH TẬP <span className="text-primary">CỦA TÔI</span>
             </h1>
             <p className="text-gray-400 mt-4">

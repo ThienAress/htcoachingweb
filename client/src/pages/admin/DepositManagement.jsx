@@ -128,7 +128,7 @@ const DepositManagement = () => {
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 uppercase">
+        <h1 className="text-fluid-2xl font-bold text-gray-800 flex items-center gap-2 uppercase">
           <Wallet className="w-6 h-6 text-red-500" />
           Quản lý nạp tiền
         </h1>

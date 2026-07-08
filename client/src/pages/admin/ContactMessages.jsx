@@ -147,7 +147,7 @@ const ContactMessages = () => {
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 uppercase">
+        <h1 className="text-fluid-2xl font-bold text-gray-800 flex items-center gap-2 uppercase">
           <Mail className="w-6 h-6 text-red-500" />
           Quản lý liên hệ
         </h1>

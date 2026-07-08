@@ -245,7 +245,7 @@ const BlogManagement = () => {
             {CATEGORY_MAP[form.category] || form.category}
             {form.subCategory && ` / ${getSubCategoryLabel(form.category, form.subCategory)}`}
           </span>
-          <h1 className="mt-4 text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
+          <h1 className="mt-4 text-fluid-4xl font-black text-slate-900 leading-tight">
             {form.title || "Tiêu đề bài viết"}
           </h1>
           {form.coverImage && (
@@ -515,7 +515,7 @@ const BlogManagement = () => {
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800 md:text-3xl uppercase">
+          <h1 className="flex items-center gap-2 text-fluid-2xl font-bold text-slate-800 uppercase">
             <BookOpen className="h-7 w-7 text-primary" /> Quản lý Blog
           </h1>
           <p className="mt-1 text-sm text-slate-500">Tạo, chỉnh sửa và xuất bản bài viết.</p>

@@ -162,7 +162,7 @@ const CheckinHistory = () => {
       <ToastContainer position="top-right" autoClose={3000} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2 uppercase">
+          <h2 className="text-fluid-xl font-bold text-slate-800 flex items-center gap-2 uppercase">
             <History className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
             Lịch sử check-in
           </h2>
@@ -183,7 +183,7 @@ const CheckinHistory = () => {
             placeholder="Tìm theo tên khách hàng..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm md:text-base"
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-fluid-sm"
           />
         </div>
         <div className="flex flex-wrap gap-2">
@@ -192,7 +192,7 @@ const CheckinHistory = () => {
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none text-sm md:text-base w-full sm:w-auto"
+              className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none text-fluid-sm w-full sm:w-auto"
             >
               <option value="">Tháng</option>
               {Array.from({ length: 12 }, (_, i) =>
@@ -209,7 +209,7 @@ const CheckinHistory = () => {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none text-sm md:text-base w-full sm:w-auto"
+              className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none text-fluid-sm w-full sm:w-auto"
             >
               <option value="">Năm</option>
               {availableYears.map((year) => (
@@ -366,7 +366,7 @@ const CheckinHistory = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
-              <h2 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2 uppercase">
+              <h2 className="text-fluid-lg font-bold text-slate-800 flex items-center gap-2 uppercase">
                 <Edit className="w-5 h-5 text-indigo-600" />
                 Sửa thông tin check-in
               </h2>
@@ -389,7 +389,7 @@ const CheckinHistory = () => {
                     setEditing({ ...editing, timeLocal: e.target.value })
                   }
                   min={currentYearStart}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 text-sm md:text-base"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 text-fluid-sm"
                 />
               </div>
               <div className="space-y-1">
@@ -402,7 +402,7 @@ const CheckinHistory = () => {
                   onChange={(e) =>
                     setEditing({ ...editing, muscle: e.target.value })
                   }
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-fluid-sm"
                 />
               </div>
               <div className="space-y-1">
@@ -415,14 +415,14 @@ const CheckinHistory = () => {
                     setEditing({ ...editing, note: e.target.value })
                   }
                   rows={3}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm md:text-base"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-fluid-sm"
                 />
               </div>
             </div>
             <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-end gap-3">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-3 py-2 md:px-4 md:py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 text-sm md:text-base"
+                className="px-3 py-2 md:px-4 md:py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 text-fluid-sm"
               >
                 Hủy
               </button>

@@ -356,7 +356,7 @@ const SectionBlock = ({ section, onUpdate, onRemove, isOpen, onToggle, mode, isL
           onChange={(e) => updateField("name", e.target.value)}
           onClick={(e) => e.stopPropagation()}
           readOnly={mode === "assessment" || isLocked}
-          className={`flex-1 bg-transparent text-white font-bold text-sm sm:text-base focus:outline-none focus:ring-1 focus:ring-primary/50 rounded px-1 uppercase tracking-wide ${isLocked ? 'cursor-not-allowed opacity-80' : ''}`}
+          className={`flex-1 bg-transparent text-white font-bold text-fluid-sm focus:outline-none focus:ring-1 focus:ring-primary/50 rounded px-1 uppercase tracking-wide ${isLocked ? 'cursor-not-allowed opacity-80' : ''}`}
         />
         {mode === "training" && !isLocked && (
           <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }} className="p-1.5 text-gray-500 hover:text-red-400 bg-gray-900/50 rounded-md transition-colors">

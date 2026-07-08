@@ -58,7 +58,7 @@ const UserManagement = () => {
       <div className="space-y-4 md:space-y-6 h-full">
         <div className="flex items-center gap-2">
           <User className="w-5 h-5 md:w-6 md:h-6 text-indigo-600" />
-          <h1 className="text-xl md:text-2xl font-bold text-slate-800">
+          <h1 className="text-fluid-xl font-bold text-slate-800">
             QUẢN LÝ NGƯỜI DÙNG
           </h1>
         </div>
@@ -73,7 +73,7 @@ const UserManagement = () => {
             placeholder="Tìm kiếm theo tên hoặc email..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm md:text-base"
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-fluid-sm"
           />
         </div>
 

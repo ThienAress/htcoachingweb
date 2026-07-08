@@ -42,7 +42,7 @@ const ContinuingBanner = ({ name }) => {
         <div ref={iconRef} className="mb-3">
           <Hourglass className="h-8 w-8 text-primary sm:h-10 sm:w-10" />
         </div>
-        <p className="max-w-2xl text-sm leading-relaxed text-gray sm:text-base">
+        <p className="max-w-2xl text-fluid-sm leading-relaxed text-gray">
           Hãy cùng chờ đón sự lột xác thật bùng nổ của <strong>{name}</strong> cùng HTCOACHING nhé
           <span ref={dot1Ref} className="opacity-0 inline-block">.</span>
           <span ref={dot2Ref} className="opacity-0 inline-block">.</span>
@@ -104,7 +104,7 @@ const ImageCarousel = ({ images, label }) => {
   if (!images.length) return (
     <div className="relative flex flex-col items-center justify-center bg-neutral-100 aspect-[4/5] gap-2">
       <UpdatingLabel />
-      <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-[10px] font-bold uppercase text-white sm:text-xs">
+      <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-fluid-xs font-bold uppercase text-white">
         {label}
       </span>
     </div>
@@ -117,7 +117,7 @@ const ImageCarousel = ({ images, label }) => {
         alt={`${label} ${idx + 1}`}
         className="aspect-[4/5] w-full object-cover object-center transition-opacity duration-300"
       />
-      <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-[10px] font-bold uppercase text-white sm:text-xs">
+      <span className="absolute bottom-2 left-2 bg-primary px-2 py-1 text-fluid-xs font-bold uppercase text-white">
         {label}
       </span>
       {hasMultiple && (
@@ -163,14 +163,14 @@ const BeforeAfterBlock = ({ title, subtitle, beforeImg, afterImg }) => {
     <figure className="overflow-hidden border border-gray-200 bg-white">
       <div className="flex items-center justify-between gap-4 bg-primary px-4 py-3 text-white sm:px-5">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] sm:text-sm">
+          <p className="text-fluid-xs font-bold uppercase tracking-[0.16em]">
             {title}
           </p>
-          <p className="mt-1 text-[11px] font-semibold uppercase sm:text-xs">
+          <p className="mt-1 text-fluid-xs font-semibold uppercase">
             {subtitle}
           </p>
         </div>
-        <div className="text-right font-display text-2xl font-bold leading-none sm:text-3xl">
+        <div className="text-right font-display text-fluid-2xl font-bold leading-none">
           HT
         </div>
       </div>
@@ -407,13 +407,13 @@ const CustomerStoryDetail = ({ previewData }) => {
             <div className="grid gap-5 md:grid-cols-2">
               <article className="border-l-4 border-primary bg-light p-5">
                 <h2 className="h3 mb-3 text-2xl uppercase">Vấn đề của khách hàng</h2>
-                <p className="text-sm leading-7 text-gray sm:text-base">
+                <p className="text-fluid-sm leading-7 text-gray">
                   {story.problem || <UpdatingLabel />}
                 </p>
               </article>
               <article className="border-l-4 border-black bg-light p-5">
                 <h2 className="h3 mb-3 text-2xl uppercase">Giải pháp của Huấn Luyện Viên</h2>
-                <p className="text-sm leading-7 text-gray sm:text-base">
+                <p className="text-fluid-sm leading-7 text-gray">
                   {story.solution || <UpdatingLabel />}
                 </p>
               </article>
@@ -447,7 +447,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                         <h3 className="mt-2 text-2xl font-bold text-dark">
                           {milestone.subtitle}
                         </h3>
-                        <p className="mt-3 text-sm leading-7 text-gray sm:text-base">
+                        <p className="mt-3 text-fluid-sm leading-7 text-gray">
                           {milestone.content}
                         </p>
                       </div>
@@ -462,7 +462,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                               {milestone.bullets.map((bullet) => (
                                 <li
                                   key={bullet}
-                                  className="flex gap-2 text-sm text-dark sm:text-base"
+                                  className="flex gap-2 text-fluid-sm text-dark"
                                 >
                                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                                   <span>{bullet}</span>
@@ -498,7 +498,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                       <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
                     </svg>
                   </div>
-                  <p className="text-lg italic leading-relaxed text-slate-700 sm:text-xl">
+                  <p className="text-fluid-lg italic leading-relaxed text-slate-700">
                     “{story.quote}”
                   </p>
                   <footer className="mt-6 flex items-center gap-3">
