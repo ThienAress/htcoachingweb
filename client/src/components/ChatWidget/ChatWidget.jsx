@@ -18,10 +18,10 @@ const TOOL_LABELS = {
 };
 
 const QUICK_ACTIONS = [
-  { icon: "🔥", label: "Tính TDEE" },
-  { icon: "🏋️", label: "Bài tập ngực" },
-  { icon: "🥗", label: "Gợi ý thực đơn" },
-  { icon: "👨‍🏫", label: "Tìm HLV" },
+  { icon: "🌐", label: "Khám phá HTCOACHING", value: "Giới thiệu cho tôi trang web HTCOACHING có những gì, tính năng và dịch vụ" },
+  { icon: "🔥", label: "Tính TDEE", value: "Tính TDEE cho tôi" },
+  { icon: "🥗", label: "Gợi ý thực đơn", value: "Gợi ý thực đơn giảm mỡ tăng cơ" },
+  { icon: "👨‍🏫", label: "Tìm HLV", value: "Cho tôi xem thông tin các HLV tại HTCOACHING" },
 ];
 
 export default function ChatWidget() {
@@ -140,12 +140,12 @@ export default function ChatWidget() {
   );
 
   const handleQuickAction = useCallback(
-    (q) => {
-      if (q === "Tính TDEE") {
+    (action) => {
+      if (action.label === "Tính TDEE") {
         setShowTdeeForm(true);
         return;
       }
-      sendMessage(q, { lastPage: location.pathname });
+      sendMessage(action.value, { lastPage: location.pathname });
     },
     [sendMessage, location.pathname]
   );
@@ -275,10 +275,10 @@ export default function ChatWidget() {
                 </h2>
                 <p className="text-sm text-gray-400 mb-5">Tôi có thể giúp gì cho bạn?</p>
                 <div className="space-y-1 w-full">
-                  {QUICK_ACTIONS.map(({ icon, label }, i) => (
+                  {QUICK_ACTIONS.map(({ icon, label, value }, i) => (
                     <button
                       key={label}
-                      onClick={() => handleQuickAction(label)}
+                      onClick={() => handleQuickAction({ label, value })}
                       className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-200 text-left group"
                       style={{ animationDelay: `${i * 60}ms` }}
                     >

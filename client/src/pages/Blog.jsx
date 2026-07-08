@@ -1,28 +1,62 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Clock, Eye, ChevronRight, Flame, Dumbbell, CheckCircle2 } from "lucide-react";
+import { BookOpen, Clock, Eye, ChevronRight, ChevronDown, Flame, Dumbbell, CheckCircle2 } from "lucide-react";
 import { getPublicBlogPosts } from "../services/blog.service";
 import SEO from "../components/SEO";
 import Header from "../sections/Header/Header";
 import Footer from "../sections/Footer/Footer";
 import ChatIcons from "../components/ChatIcons";
 import ScrollToTop from "../components/ScrollToTop";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 
 const CATEGORIES = [
   { value: "", label: "Tất cả" },
-  { value: "kien-thuc-nen", label: "Kiến thức nền" },
-  { value: "giao-an-opt", label: "Giáo án OPT" },
-  { value: "danh-gia-f1", label: "Đánh giá F1" },
-  { value: "dinh-duong", label: "Dinh dưỡng" },
+  { value: "tap-luyen", label: "Tập Luyện" },
+  { value: "dinh-duong", label: "Dinh Dưỡng" },
+  { value: "hieu-co-the", label: "Hiểu Về Cơ Thể" },
+  { value: "tu-duy-loi-song", label: "Tư Duy & Lối Sống" },
 ];
 
 const CATEGORY_LABELS = {
-  "kien-thuc-nen": "Kiến thức nền",
-  "giao-an-opt": "Giáo án OPT",
-  "danh-gia-f1": "Đánh giá F1",
-  "dinh-duong": "Dinh dưỡng",
+  "tap-luyen": "Tập Luyện",
+  "dinh-duong": "Dinh Dưỡng",
+  "hieu-co-the": "Hiểu Về Cơ Thể",
+  "tu-duy-loi-song": "Tư Duy & Lối Sống",
+};
+
+const SUB_CATEGORIES = {
+  "tap-luyen": [
+    { value: "form-ky-thuat", label: "Kỹ thuật & Form tập" },
+    { value: "giao-an-mau", label: "Chương trình tập mẫu" },
+    { value: "sua-loi-sai", label: "Sửa lỗi sai thường gặp" },
+    { value: "theo-muc-tieu", label: "Tập theo mục tiêu" },
+  ],
+  "dinh-duong": [
+    { value: "macro-calo", label: "Hiểu về Macro & Calo" },
+    { value: "thuc-pham-cho", label: "Thực phẩm & Đi chợ" },
+    { value: "goi-y-thuc-don", label: "Gợi ý Thực đơn" },
+    { value: "thuc-pham-bo-sung", label: "Thực phẩm bổ sung" },
+  ],
+  "hieu-co-the": [
+    { value: "voc-dang-tu-the", label: "Giải mã Vóc dáng & Tư thế" },
+    { value: "dot-mo-xay-co", label: "Cơ chế Đốt mỡ & Xây cơ" },
+    { value: "phuc-hoi-chan-thuong", label: "Phục hồi & Chấn thương" },
+  ],
+  "tu-duy-loi-song": [
+    { value: "phuong-phap-coaching", label: "Phương pháp của chúng tôi" },
+    { value: "cau-chuyen-thanh-cong", label: "Câu chuyện thay đổi (Success Stories)" },
+    { value: "tu-duy-ky-luat", label: "Tư duy kỷ luật (Mindset)" },
+  ],
+};
+
+const getSubCategoryLabel = (category, subValue) => {
+  if (!category || !subValue) return "";
+  const list = SUB_CATEGORIES[category] || [];
+  const found = list.find((s) => s.value === subValue);
+  return found ? found.label : subValue;
 };
 
 const formatDate = (date) => {
@@ -58,6 +92,7 @@ const BlogCard = ({ post, featured = false }) => (
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
       <span className="absolute top-4 left-4 bg-primary text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full backdrop-blur-sm">
         {CATEGORY_LABELS[post.category] || post.category}
+        {post.subCategory && ` / ${getSubCategoryLabel(post.category, post.subCategory)}`}
       </span>
     </div>
 
@@ -78,9 +113,9 @@ const BlogCard = ({ post, featured = false }) => (
       </h2>
 
       {post.excerpt && (
-        <p className={`mt-2 text-sm text-gray leading-relaxed ${featured ? "line-clamp-3" : "line-clamp-2"}`}>
-          {post.excerpt}
-        </p>
+        <div className={`mt-2 text-sm text-gray leading-relaxed ${featured ? "line-clamp-3" : "line-clamp-2"}`}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.excerpt}</ReactMarkdown>
+        </div>
       )}
 
       <div className="mt-auto pt-4 flex items-center justify-between">
@@ -129,11 +164,18 @@ const SidebarCard = ({ post }) => (
 
 const Blog = () => {
   const [category, setCategory] = useState("");
+  const [subCategory, setSubCategory] = useState("");
   const [page, setPage] = useState(1);
 
   const { data: response, isLoading } = useQuery({
-    queryKey: ["public-blog-posts", category, page],
-    queryFn: () => getPublicBlogPosts({ category: category || undefined, page, limit: 12 }),
+    queryKey: ["public-blog-posts", category, subCategory, page],
+    queryFn: () =>
+      getPublicBlogPosts({
+        category: category || undefined,
+        subCategory: subCategory || undefined,
+        page,
+        limit: 12,
+      }),
   });
 
   // Fetch popular posts for sidebar
@@ -184,25 +226,90 @@ const Blog = () => {
       </section>
 
       {/* ===== CATEGORY TABS ===== */}
-      <div className="sticky top-0 z-30 bg-white/90 backdrop-blur-lg border-b border-gray-200 shadow-sm">
-        <div className="container-custom">
-          <div className="flex items-center gap-1 overflow-x-auto py-3 scrollbar-hide">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.value}
-                onClick={() => { setCategory(cat.value); setPage(1); }}
-                className={`px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-200 ${
-                  category === cat.value
-                    ? "bg-slate-900 text-white shadow-lg"
-                    : "text-gray hover:bg-gray-100 hover:text-dark"
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-lg border-b border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] md:overflow-visible">
+        <div className="container-custom md:overflow-visible">
+          <div className="flex items-center gap-1 overflow-x-auto md:overflow-visible py-2.5 scrollbar-hide">
+            {CATEGORIES.map((cat) => {
+              const hasSubs = cat.value && SUB_CATEGORIES[cat.value];
+              return (
+                <div key={cat.value} className="relative group py-1.5 shrink-0">
+                  <button
+                    onClick={() => {
+                      setCategory(cat.value);
+                      setSubCategory("");
+                      setPage(1);
+                    }}
+                    className={`px-5 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-1.5 ${
+                      category === cat.value && !subCategory
+                        ? "bg-slate-900 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] scale-102"
+                        : category === cat.value && subCategory
+                        ? "bg-slate-200 text-slate-800 font-bold"
+                        : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                    }`}
+                  >
+                    <span>{cat.label}</span>
+                    {hasSubs && (
+                      <ChevronDown className="w-3.5 h-3.5 opacity-60 group-hover:rotate-180 transition-transform duration-300" />
+                    )}
+                  </button>
+
+                  {/* Dropdown menu con mượt mà khi hover */}
+                  {hasSubs && (
+                    <div className="absolute left-0 mt-2 w-56 rounded-xl border border-slate-100 bg-white p-2 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 z-50">
+                      <div className="flex flex-col gap-0.5">
+                        {SUB_CATEGORIES[cat.value].map((sub) => (
+                          <button
+                            key={sub.value}
+                            onClick={() => {
+                              setCategory(cat.value);
+                              setSubCategory(sub.value);
+                              setPage(1);
+                            }}
+                            className={`w-full text-left px-3.5 py-2 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                              category === cat.value && subCategory === sub.value
+                                ? "bg-primary/10 text-primary"
+                                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                            }`}
+                          >
+                            {sub.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
+
+      {/* Active Sub-category filter bar */}
+      {subCategory && (
+        <div className="bg-slate-50 border-b border-slate-100 py-2 animate-fadeIn">
+          <div className="container-custom flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+              <span>Đang lọc:</span>
+              <span className="bg-slate-900 text-white px-2.5 py-1 rounded-full font-bold text-[10px] uppercase tracking-wider">
+                {CATEGORY_LABELS[category]}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+              <span className="bg-primary/10 text-primary px-2.5 py-1 rounded-full font-bold text-[10px] uppercase tracking-wider">
+                {getSubCategoryLabel(category, subCategory)}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setSubCategory("");
+                setPage(1);
+              }}
+              className="text-xs font-bold text-slate-400 hover:text-primary transition-colors py-1 px-2.5 rounded-lg hover:bg-slate-100"
+            >
+              Hủy lọc ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ===== MAIN CONTENT ===== */}
       <main className="bg-gray-50 py-10">

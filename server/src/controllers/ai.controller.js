@@ -1,10 +1,12 @@
 import ChatConversation from "../models/ChatConversation.js";
+import KnowledgeEntry from "../models/KnowledgeEntry.js";
 import User from "../models/User.js";
 import { llmStream } from "../services/ai/providers/index.js";
 import { executeTool } from "../services/ai/tools/toolEngine.js";
 import { getToolSchemas } from "../services/ai/tools/toolRegistry.js";
 import { buildSystemPrompt } from "../services/ai/systemPrompt.js";
 import { isUserLocked, moderateContent } from "../services/ai/contentModeration.js";
+import { searchKnowledgeBase } from "../services/ai/embedding.service.js";
 
 const MAX_ITERATIONS = 5;
 const MAX_HISTORY_MESSAGES = 20;
@@ -78,11 +80,33 @@ export const chatStream = async (req, res) => {
     });
 
     // Build system prompt với context
-    const systemPrompt = buildSystemPrompt({
+    let systemPrompt = buildSystemPrompt({
       userName: user?.name,
       currentPage: conversation.context?.lastPage,
       userMetrics: conversation.context?.userMetrics,
     });
+
+    // === KNOWLEDGE BASE SEARCH ===
+    // Tìm kiến thức đã verified trước khi gọi LLM
+    let kbEntryIds = [];
+    try {
+      const kbResults = await searchKnowledgeBase(message, { limit: 3, threshold: 0.75 });
+      if (kbResults.length > 0) {
+        kbEntryIds = kbResults.map((r) => r._id);
+        systemPrompt += `\n\n## Kiến thức đã verified (ưu tiên dùng làm tham khảo chính):\n`;
+        kbResults.forEach((r, i) => {
+          const matchLabel = r.matchedQuestion && r.matchedQuestion !== r.question 
+            ? `Q: ${r.question} (Biến thể trùng khớp: "${r.matchedQuestion}")` 
+            : `Q: ${r.question}`;
+          systemPrompt += `\n### KB #${i + 1} (${(r.similarity * 100).toFixed(0)}% match):\n`;
+          systemPrompt += `${matchLabel}\nA: ${r.answer}\n`;
+        });
+        systemPrompt += `\nHãy dùng kiến thức trên làm tham khảo CHÍNH. Có thể diễn đạt lại cho tự nhiên, nhưng KHÔNG đi ngược lại nội dung verified.`;
+      }
+    } catch (err) {
+      // KB search lỗi không ảnh hưởng chat flow chính
+      console.error("KB search error (non-blocking):", err.message);
+    }
 
     const llmMessages = [
       { role: "system", content: systemPrompt },
@@ -190,6 +214,14 @@ export const chatStream = async (req, res) => {
     // Reset TTL 30 ngày
     conversation.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await conversation.save();
+
+    // Tăng usageCount cho KB entries đã dùng (non-blocking)
+    if (kbEntryIds.length > 0) {
+      KnowledgeEntry.updateMany(
+        { _id: { $in: kbEntryIds } },
+        { $inc: { usageCount: 1 }, $set: { lastUsedAt: new Date() } }
+      ).catch((err) => console.error("KB usage update error:", err.message));
+    }
 
     // Done event
     res.write(`data: ${JSON.stringify({ type: "done", conversationId: conversation._id })}\n\n`);

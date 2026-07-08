@@ -9,8 +9,8 @@ import ChatBubble from "./ChatBubble";
 import ChatPanelSidebar from "./ChatPanelSidebar";
 
 const QUICK_ACTIONS = [
+  { emoji: "🌐", label: "Khám phá HTCOACHING", value: "Giới thiệu cho tôi trang web HTCOACHING có những gì, tính năng và dịch vụ" },
   { emoji: "🔥", label: "Tính TDEE", value: "Tính TDEE cho tôi" },
-  { emoji: "💪", label: "Bài tập ngực", value: "Gợi ý bài tập ngực hiệu quả" },
   { emoji: "🥗", label: "Gợi ý thực đơn", value: "Gợi ý thực đơn giảm mỡ tăng cơ" },
   { emoji: "👨‍🏫", label: "Tìm HLV", value: "Cho tôi xem thông tin các HLV tại HTCOACHING" },
 ];
@@ -32,9 +32,14 @@ export default function ChatPanel() {
   const [selectedImage, setSelectedImage] = useState(null);
   const panelRef = useRef(null);
   const inputRef = useRef(null);
+  const pillInputRef = useRef(null);
+  const pillRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const [pillInput, setPillInput] = useState("");
+  const [pillExpanded, setPillExpanded] = useState(false);
   const noAuthPaths = ["/login", "/register", "/admin-login", "/login-success"];
+  const hidePillPaths = ["/admin", "/trainer"];
 
   const {
     messages, isLoading, activeTool, error, conversationId,
@@ -62,6 +67,18 @@ export default function ChatPanel() {
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen]);
+
+  // Click outside pill → thu lại
+  useEffect(() => {
+    if (!pillExpanded) return;
+    const handleOutside = (e) => {
+      if (pillRef.current && !pillRef.current.contains(e.target)) {
+        setPillExpanded(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [pillExpanded]);
 
   // Click outside đóng panel + lock scroll
   useEffect(() => {
@@ -129,37 +146,86 @@ export default function ChatPanel() {
 
   // Ẩn trigger với các trang không cần
   if (!user || noAuthPaths.includes(location.pathname)) return null;
+  const showPill = !hidePillPaths.some((p) => location.pathname.startsWith(p));
+
+  // Gửi từ pill bar → mở panel + gửi luôn
+  const handlePillSend = () => {
+    if (!pillInput.trim()) return;
+    const text = pillInput.trim();
+    setPillInput("");
+    setPillExpanded(false);
+    setIsOpen(true);
+    // Chờ panel render xong rồi gửi
+    setTimeout(() => {
+      sendMessage(text, { page: location.pathname });
+    }, 200);
+  };
 
   return (
     <>
-      {/* Pill Bar - Kalodata style trigger */}
+      {/* Pill Bar — collapsed/expanded, ẩn trên admin/trainer */}
+      {showPill && (
       <div
-        onClick={() => setIsOpen(true)}
-        aria-label="Mở HT Assistant"
-        className={`pill-bar-wrapper bg-[#0f1118]/85 backdrop-blur-xl border border-white/8 rounded-full pl-3.5 pr-2.5 py-2.5 shadow-2xl flex items-center justify-between gap-3 cursor-pointer ${
+        ref={pillRef}
+        onClick={() => {
+          if (!pillExpanded) {
+            setPillExpanded(true);
+            setTimeout(() => pillInputRef.current?.focus(), 250);
+          }
+        }}
+        className={`pill-bar-wrapper ${
           isOpen ? "hidden-state" : "visible-state"
-        }`}
+        } ${pillExpanded ? "pill-expanded" : "pill-collapsed"}`}
       >
-        <div className="flex items-center gap-3.5 flex-1 min-w-0">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 via-emerald-400 to-cyan-400 flex items-center justify-center shadow-md shadow-emerald-500/10 shrink-0">
-            <Bot size={15} className="text-white relative z-10 animate-pulse" />
+            <Bot size={15} className="text-white relative z-10" />
             <span className="absolute inset-0 rounded-full bg-emerald-400/20 blur-[3px]" />
           </div>
-          <span className="text-[13px] text-gray-300/80 select-none truncate font-medium tracking-wide">
-            Hỏi bất kỳ điều gì về tập luyện & dinh dưỡng...
+          {/* Collapsed text — ẩn khi expanded */}
+          <span className={`pill-collapsed-text text-[13.5px] text-gray-400/70 select-none truncate font-medium tracking-wide ${pillExpanded ? "pill-hide" : ""}`}>
+            Hỏi bất kỳ điều gì...
           </span>
+          {/* Input — ẩn khi collapsed */}
+          <input
+            ref={pillInputRef}
+            type="text"
+            value={pillInput}
+            onChange={(e) => setPillInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handlePillSend();
+              }
+            }}
+            placeholder="Hỏi bất kỳ điều gì về tập luyện & dinh dưỡng..."
+            className={`pill-input-field flex-1 bg-transparent text-[13.5px] text-gray-200 placeholder-gray-400/60 outline-none font-medium tracking-wide min-w-0 ${pillExpanded ? "" : "pill-hide"}`}
+            tabIndex={pillExpanded ? 0 : -1}
+          />
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Nút gửi tròn xanh dương */}
-          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-cyan-400 transition-all duration-300">
+        {/* Buttons — fade in/out */}
+        <div className={`pill-actions flex items-center gap-1.5 shrink-0 ${pillExpanded ? "" : "pill-hide"}`}>
+          <button
+            onClick={(e) => { e.stopPropagation(); handlePillSend(); }}
+            disabled={!pillInput.trim()}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+              pillInput.trim()
+                ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-cyan-400"
+                : "bg-white/[0.06] text-gray-500 cursor-default"
+            }`}
+          >
             <ArrowUp size={15} strokeWidth={2.5} />
-          </div>
-          {/* Nút mở rộng */}
-          <div className="w-8 h-8 rounded-full bg-white/[0.04] border border-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors">
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsOpen(true); setPillExpanded(false); }}
+            className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+            title="Mở rộng"
+          >
             <Maximize2 size={12} />
-          </div>
+          </button>
         </div>
       </div>
+      )}
 
       {/* Panel — z-[60] đè lên tất cả, 840px (+20%) */}
       <div

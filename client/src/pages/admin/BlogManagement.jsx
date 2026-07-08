@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import DOMPurify from "dompurify";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   BookOpen, Plus, Edit, Trash2, Search, Save, X,
   Eye, Upload, ChevronLeft, ChevronRight, ChevronDown,
@@ -19,16 +21,48 @@ import { useDebounce } from "../../hooks/useDebounce";
 import TipTapEditor from "../../components/TipTapEditor";
 
 const CATEGORIES = [
-  { value: "kien-thuc-nen", label: "Kiến thức nền" },
-  { value: "giao-an-opt", label: "Giáo án OPT" },
-  { value: "danh-gia-f1", label: "Đánh giá F1" },
-  { value: "dinh-duong", label: "Dinh dưỡng" },
+  { value: "tap-luyen", label: "Tập Luyện" },
+  { value: "dinh-duong", label: "Dinh Dưỡng" },
+  { value: "hieu-co-the", label: "Hiểu Về Cơ Thể" },
+  { value: "tu-duy-loi-song", label: "Tư Duy & Lối Sống" },
 ];
 const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map((c) => [c.value, c.label]));
 
+const SUB_CATEGORIES = {
+  "tap-luyen": [
+    { value: "form-ky-thuat", label: "Kỹ thuật & Form tập" },
+    { value: "giao-an-mau", label: "Chương trình tập mẫu" },
+    { value: "sua-loi-sai", label: "Sửa lỗi sai thường gặp" },
+    { value: "theo-muc-tieu", label: "Tập theo mục tiêu" },
+  ],
+  "dinh-duong": [
+    { value: "macro-calo", label: "Hiểu về Macro & Calo" },
+    { value: "thuc-pham-cho", label: "Thực phẩm & Đi chợ" },
+    { value: "goi-y-thuc-don", label: "Gợi ý Thực đơn" },
+    { value: "thuc-pham-bo-sung", label: "Thực phẩm bổ sung" },
+  ],
+  "hieu-co-the": [
+    { value: "voc-dang-tu-the", label: "Giải mã Vóc dáng & Tư thế" },
+    { value: "dot-mo-xay-co", label: "Cơ chế Đốt mỡ & Xây cơ" },
+    { value: "phuc-hoi-chan-thuong", label: "Phục hồi & Chấn thương" },
+  ],
+  "tu-duy-loi-song": [
+    { value: "phuong-phap-coaching", label: "Phương pháp của chúng tôi" },
+    { value: "cau-chuyen-thanh-cong", label: "Câu chuyện thay đổi (Success Stories)" },
+    { value: "tu-duy-ky-luat", label: "Tư duy kỷ luật (Mindset)" },
+  ],
+};
+
+const getSubCategoryLabel = (category, subValue) => {
+  if (!category || !subValue) return "";
+  const list = SUB_CATEGORIES[category] || [];
+  const found = list.find((s) => s.value === subValue);
+  return found ? found.label : subValue;
+};
+
 const emptyForm = {
   title: "", slug: "", content: "", excerpt: "",
-  category: "kien-thuc-nen", tags: "", coverImage: "",
+  category: "tap-luyen", subCategory: "", tags: "", coverImage: "",
   author: "", metaTitle: "", metaDescription: "",
   focusKeyword: "", status: "draft", featured: false,
 };
@@ -36,7 +70,8 @@ const emptyForm = {
 const postToForm = (post) => ({
   title: post.title || "", slug: post.slug || "",
   content: post.content || "", excerpt: post.excerpt || "",
-  category: post.category || "kien-thuc-nen",
+  category: post.category || "tap-luyen",
+  subCategory: post.subCategory || "",
   tags: Array.isArray(post.tags) ? post.tags.join(", ") : "",
   coverImage: post.coverImage || "",
   author: post.author?._id || post.author || "",
@@ -64,6 +99,11 @@ const Field = ({ label, hint, children }) => (
   </label>
 );
 
+const hasMarkdown = (text) => {
+  if (!text) return false;
+  return /[*_#`\[\]\n]/.test(text);
+};
+
 // ==================== MAIN COMPONENT ====================
 const BlogManagement = () => {
   const queryClient = useQueryClient();
@@ -77,6 +117,7 @@ const BlogManagement = () => {
   const [form, setForm] = useState(emptyForm);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [seoOpen, setSeoOpen] = useState(false);
+  const [excerptMode, setExcerptMode] = useState("plain");
   const limit = 10;
 
   const queryKey = useMemo(
@@ -107,19 +148,22 @@ const BlogManagement = () => {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin-blog-posts"] });
 
-  const goList = () => { setMode("list"); setEditingPost(null); setForm(emptyForm); };
+  const goList = () => { setMode("list"); setEditingPost(null); setForm(emptyForm); setExcerptMode("plain"); };
 
-  const openCreate = () => { setEditingPost(null); setForm(emptyForm); setMode("editor"); };
+  const openCreate = () => { setEditingPost(null); setForm(emptyForm); setExcerptMode("plain"); setMode("editor"); };
 
   const openEdit = async (post) => {
     try {
       const { getAdminBlogPostById } = await import("../../services/blog.service");
       const res = await getAdminBlogPostById(post._id);
-      setEditingPost(res.data);
-      setForm(postToForm(res.data));
+      const postData = res.data;
+      setEditingPost(postData);
+      setForm(postToForm(postData));
+      setExcerptMode(hasMarkdown(postData.excerpt) ? "markdown" : "plain");
     } catch {
       setEditingPost(post);
       setForm(postToForm(post));
+      setExcerptMode(hasMarkdown(post.excerpt) ? "markdown" : "plain");
     }
     setMode("editor");
   };
@@ -199,6 +243,7 @@ const BlogManagement = () => {
         <div className="max-w-3xl mx-auto py-10 px-4">
           <span className="bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">
             {CATEGORY_MAP[form.category] || form.category}
+            {form.subCategory && ` / ${getSubCategoryLabel(form.category, form.subCategory)}`}
           </span>
           <h1 className="mt-4 text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
             {form.title || "Tiêu đề bài viết"}
@@ -207,7 +252,18 @@ const BlogManagement = () => {
             <img src={form.coverImage} alt="" className="mt-6 w-full rounded-2xl object-cover" />
           )}
           <div
-            className="mt-8 prose prose-lg max-w-none prose-headings:font-black prose-p:text-slate-600 prose-p:leading-relaxed prose-a:text-primary prose-strong:text-slate-900 prose-img:rounded-xl prose-blockquote:border-primary prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-xl"
+            className="mt-8 prose prose-lg max-w-none
+              prose-headings:font-black prose-headings:text-slate-900 prose-headings:tracking-tight
+              prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-slate-100
+              prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-3
+              prose-p:text-slate-600 prose-p:leading-[1.85] prose-p:text-[15px]
+              prose-a:text-primary prose-a:font-semibold prose-a:no-underline hover:prose-a:underline
+              prose-strong:text-slate-900 prose-strong:font-bold
+              prose-img:rounded-xl prose-img:shadow-md
+              prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-xl prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:not-italic prose-blockquote:text-slate-800
+              prose-li:text-slate-600 prose-li:text-[15px] prose-li:leading-[1.85]
+              prose-ul:space-y-1
+              prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono"
             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(form.content || "<p><em>Chưa có nội dung...</em></p>") }}
           />
           {form.tags && (
@@ -290,16 +346,51 @@ const BlogManagement = () => {
             />
 
             {/* Excerpt */}
-            <textarea
-              className={`${inputClass} h-16 resize-none`}
-              value={form.excerpt}
-              onChange={(e) => {
-                updateForm("excerpt", e.target.value);
-                // Auto-fill SEO description nếu chưa điền (Vấn đề 4)
-                if (!form.metaDescription) updateForm("metaDescription", e.target.value.slice(0, 160));
-              }}
-              placeholder="Mô tả ngắn — hiển thị trên card blog..."
-            />
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold uppercase text-slate-500">Mô tả ngắn</span>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1 cursor-pointer text-xs text-slate-600 font-semibold">
+                    <input
+                      type="radio"
+                      name="excerptMode"
+                      checked={excerptMode === "plain"}
+                      onChange={() => setExcerptMode("plain")}
+                      className="h-3.5 w-3.5 text-primary focus:ring-primary"
+                    />
+                    Viết thường
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer text-xs text-slate-600 font-semibold">
+                    <input
+                      type="radio"
+                      name="excerptMode"
+                      checked={excerptMode === "markdown"}
+                      onChange={() => setExcerptMode("markdown")}
+                      className="h-3.5 w-3.5 text-primary focus:ring-primary"
+                    />
+                    Kiểu Markdown
+                  </label>
+                </div>
+              </div>
+              <textarea
+                className={`${inputClass} h-16 resize-none`}
+                value={form.excerpt}
+                onChange={(e) => {
+                  updateForm("excerpt", e.target.value);
+                  // Auto-fill SEO description nếu chưa điền (Vấn đề 4)
+                  if (!form.metaDescription) updateForm("metaDescription", e.target.value.slice(0, 160));
+                }}
+                placeholder={excerptMode === "plain" ? "Mô tả ngắn — hiển thị trên card blog..." : "Nhập mô tả ngắn bằng Markdown (VD: **chữ đậm**, *nghiêng*...)"}
+              />
+              {excerptMode === "markdown" && (
+                <div className="mt-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3">
+                  <p className="text-[10px] font-bold uppercase text-slate-400 mb-1.5 tracking-wider">Xem trước mô tả ngắn (Markdown):</p>
+                  <div className="prose prose-sm max-w-none text-slate-700 text-xs">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{form.excerpt || "*Chưa có nội dung...*"}</ReactMarkdown>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* TipTap WYSIWYG Editor */}
             <TipTapEditor
@@ -328,8 +419,29 @@ const BlogManagement = () => {
             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Phân loại</p>
               <Field label="Chủ đề">
-                <select className={inputClass} value={form.category} onChange={(e) => updateForm("category", e.target.value)}>
+                <select
+                  className={inputClass}
+                  value={form.category}
+                  onChange={(e) => {
+                    const newCat = e.target.value;
+                    updateForm("category", newCat);
+                    const subs = SUB_CATEGORIES[newCat] || [];
+                    updateForm("subCategory", subs[0]?.value || "");
+                  }}
+                >
                   {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
+                </select>
+              </Field>
+              <Field label="Danh mục con">
+                <select
+                  className={inputClass}
+                  value={form.subCategory}
+                  onChange={(e) => updateForm("subCategory", e.target.value)}
+                >
+                  <option value="">— Không chọn —</option>
+                  {(SUB_CATEGORIES[form.category] || []).map((sub) => (
+                    <option key={sub.value} value={sub.value}>{sub.label}</option>
+                  ))}
                 </select>
               </Field>
               <Field label="Tác giả">
@@ -467,9 +579,16 @@ const BlogManagement = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                        {CATEGORY_MAP[post.category] || post.category}
-                      </span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full w-fit">
+                          {CATEGORY_MAP[post.category] || post.category}
+                        </span>
+                        {post.subCategory && (
+                          <span className="text-[10px] text-slate-400 pl-2">
+                            ↳ {getSubCategoryLabel(post.category, post.subCategory)}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${post.status === "published" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
