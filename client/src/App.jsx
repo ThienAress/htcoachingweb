@@ -63,6 +63,7 @@ const ContractSign = lazy(() => import("./pages/ContractSign"));
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogDetail = lazy(() => import("./pages/BlogDetail"));
 const BlogManagement = lazy(() => import("./pages/admin/BlogManagement"));
+const KnowledgeBase = lazy(() => import("./pages/admin/KnowledgeBase"));
 
 import "./index.css";
 import "./App.css";
@@ -206,6 +207,7 @@ function AppContent() {
           <Route path="deposits" element={<DepositManagement />} />
           <Route path="contracts" element={<ContractManagement />} />
           <Route path="blog" element={<BlogManagement />} />
+          <Route path="knowledge-base" element={<KnowledgeBase />} />
           <Route
             path="exercise-suggestions"
             element={<ExerciseSuggestionsManagement />}

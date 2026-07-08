@@ -15,10 +15,42 @@ import ChatIcons from "../components/ChatIcons";
 import ScrollToTop from "../components/ScrollToTop";
 
 const CATEGORY_LABELS = {
-  "kien-thuc-nen": "Kiến thức nền",
-  "giao-an-opt": "Giáo án OPT",
-  "danh-gia-f1": "Đánh giá F1",
-  "dinh-duong": "Dinh dưỡng",
+  "tap-luyen": "Tập Luyện",
+  "dinh-duong": "Dinh Dưỡng",
+  "hieu-co-the": "Hiểu Về Cơ Thể",
+  "tu-duy-loi-song": "Tư Duy & Lối Sống",
+};
+
+const SUB_CATEGORIES = {
+  "tap-luyen": [
+    { value: "form-ky-thuat", label: "Kỹ thuật & Form tập" },
+    { value: "giao-an-mau", label: "Chương trình tập mẫu" },
+    { value: "sua-loi-sai", label: "Sửa lỗi sai thường gặp" },
+    { value: "theo-muc-tieu", label: "Tập theo mục tiêu" },
+  ],
+  "dinh-duong": [
+    { value: "macro-calo", label: "Hiểu về Macro & Calo" },
+    { value: "thuc-pham-cho", label: "Thực phẩm & Đi chợ" },
+    { value: "goi-y-thuc-don", label: "Gợi ý Thực đơn" },
+    { value: "thuc-pham-bo-sung", label: "Thực phẩm bổ sung" },
+  ],
+  "hieu-co-the": [
+    { value: "voc-dang-tu-the", label: "Giải mã Vóc dáng & Tư thế" },
+    { value: "dot-mo-xay-co", label: "Cơ chế Đốt mỡ & Xây cơ" },
+    { value: "phuc-hoi-chan-thuong", label: "Phục hồi & Chấn thương" },
+  ],
+  "tu-duy-loi-song": [
+    { value: "phuong-phap-coaching", label: "Phương pháp của chúng tôi" },
+    { value: "cau-chuyen-thanh-cong", label: "Câu chuyện thay đổi (Success Stories)" },
+    { value: "tu-duy-ky-luat", label: "Tư duy kỷ luật (Mindset)" },
+  ],
+};
+
+const getSubCategoryLabel = (category, subValue) => {
+  if (!category || !subValue) return "";
+  const list = SUB_CATEGORIES[category] || [];
+  const found = list.find((s) => s.value === subValue);
+  return found ? found.label : subValue;
 };
 
 const slugifyText = (text) =>
@@ -28,6 +60,14 @@ const slugifyText = (text) =>
 
 // Loại bỏ HTML tags, chỉ giữ text thuần
 const stripTags = (html) => html.replace(/<[^>]*>/g, "");
+
+const stripMarkdown = (text) => {
+  if (!text) return "";
+  return text
+    .replace(/[*_#`\[\]()]/g, "")
+    .replace(/\n+/g, " ")
+    .trim();
+};
 
 // Parse TOC từ HTML content (h2, h3) — hỗ trợ heading có nested tags (bold, italic...)
 const extractTOC = (html) => {
@@ -100,6 +140,7 @@ const RelatedCard = ({ post }) => (
     <div className="min-w-0 flex-1">
       <span className="text-[10px] font-bold uppercase text-primary tracking-wider">
         {CATEGORY_LABELS[post.category] || post.category}
+        {post.subCategory && ` / ${getSubCategoryLabel(post.category, post.subCategory)}`}
       </span>
       <h3 className="mt-1 text-sm font-bold text-dark group-hover:text-primary transition line-clamp-2 leading-snug">
         {post.title}
@@ -184,7 +225,7 @@ const BlogDetail = () => {
           "name": "HTCOACHING",
           "logo": { "@type": "ImageObject", "url": "https://htcoachingweb.io.vn/og-image.png" },
         },
-        "description": post.metaDescription || post.excerpt || "",
+        "description": post.metaDescription || stripMarkdown(post.excerpt) || "",
         ...(post.publishedAt && { datePublished: new Date(post.publishedAt).toISOString().split("T")[0] }),
         ...(post.updatedAt && { dateModified: new Date(post.updatedAt).toISOString().split("T")[0] }),
       },
@@ -203,7 +244,7 @@ const BlogDetail = () => {
     <div className="blog-content">
       <SEO
         title={post.metaTitle || post.title}
-        description={post.metaDescription || post.excerpt || `Đọc bài viết ${post.title} từ HTCOACHING`}
+        description={post.metaDescription || stripMarkdown(post.excerpt) || `Đọc bài viết ${post.title} từ HTCOACHING`}
         canonical={`/blog/${post.slug}`}
         image={post.coverImage}
         type="article"
@@ -232,6 +273,7 @@ const BlogDetail = () => {
 
           <span className="inline-block bg-primary text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full mb-5">
             {CATEGORY_LABELS[post.category] || post.category}
+            {post.subCategory && ` / ${getSubCategoryLabel(post.category, post.subCategory)}`}
           </span>
 
           <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] font-black text-white leading-[1.15]">

@@ -25,8 +25,13 @@ const blogPostSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["kien-thuc-nen", "giao-an-opt", "danh-gia-f1", "dinh-duong"],
+      enum: ["tap-luyen", "dinh-duong", "hieu-co-the", "tu-duy-loi-song"],
       required: true,
+    },
+    subCategory: {
+      type: String,
+      default: "",
+      trim: true,
     },
     tags: {
       type: [String],
