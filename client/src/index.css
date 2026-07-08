@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
 
 /* ================= ĐỊNH NGHĨA MÀU SẮC TRONG THEME (Tailwind v4) ================= */
 @theme {
@@ -179,32 +181,85 @@
   text-transform: none !important;
 }
 
-/* ================= TIPTAP EDITOR STYLES ================= */
-.tiptap {
+/* ================= TIPTAP & PROSE EDITOR/CONTENT STYLES ================= */
+.tiptap, .prose {
   outline: none;
 }
 
-.tiptap ul {
+.tiptap p, .prose p {
+  margin-top: 0.75rem !important;
+  margin-bottom: 0.75rem !important;
+  line-height: 1.75 !important;
+}
+
+.tiptap h2, .prose h2 {
+  margin-top: 1.5rem !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.tiptap h3, .prose h3 {
+  margin-top: 1.25rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Custom Font Fallbacks for Editor and Content */
+[style*="font-family: Google Sans"], [style*="font-family: 'Google Sans'"] {
+  font-family: "Google Sans", "Product Sans", "Be Vietnam Pro", sans-serif !important;
+}
+[style*="font-family: Be Vietnam Pro"], [style*="font-family: 'Be Vietnam Pro'"] {
+  font-family: "Be Vietnam Pro", sans-serif !important;
+}
+[style*="font-family: Inter"], [style*="font-family: 'Inter'"] {
+  font-family: "Inter", sans-serif !important;
+}
+[style*="font-family: Lora"], [style*="font-family: 'Lora'"] {
+  font-family: "Lora", serif !important;
+}
+[style*="font-family: Roboto"], [style*="font-family: 'Roboto'"] {
+  font-family: "Roboto", sans-serif !important;
+}
+[style*="font-family: Montserrat"], [style*="font-family: 'Montserrat'"] {
+  font-family: "Montserrat", sans-serif !important;
+}
+[style*="font-family: Poppins"], [style*="font-family: 'Poppins'"] {
+  font-family: "Poppins", sans-serif !important;
+}
+[style*="font-family: Oswald"], [style*="font-family: 'Oswald'"] {
+  font-family: "Oswald", sans-serif !important;
+}
+[style*="font-family: Playfair Display"], [style*="font-family: 'Playfair Display'"] {
+  font-family: "Playfair Display", serif !important;
+}
+[style*="font-family: Merriweather"], [style*="font-family: 'Merriweather'"] {
+  font-family: "Merriweather", serif !important;
+}
+
+/* Fullscreen Editor Mode overrides */
+.tiptap-fullscreen .tiptap {
+  min-height: calc(100vh - 160px) !important;
+}
+
+.tiptap ul, .prose ul {
   list-style-type: disc !important;
   padding-left: 1.5em !important;
 }
 
-.tiptap ol {
+.tiptap ol, .prose ol {
   list-style-type: decimal !important;
   padding-left: 1.5em !important;
 }
 
-.tiptap li {
-  margin: 0.25em 0;
+.tiptap li, .prose li {
+  margin: 0.25em 0 !important;
 }
 
-.tiptap blockquote {
+.tiptap blockquote, .prose blockquote {
   border-left: 4px solid var(--color-primary, #f97316) !important;
-  background: rgba(249, 115, 22, 0.05);
-  padding: 0.75rem 1.25rem;
-  border-radius: 0 0.75rem 0.75rem 0;
-  margin: 1rem 0;
-  font-style: normal;
+  background: rgba(249, 115, 22, 0.05) !important;
+  padding: 0.75rem 1.25rem !important;
+  border-radius: 0 0.75rem 0.75rem 0 !important;
+  margin: 1rem 0 !important;
+  font-style: normal !important;
 }
 
 .tiptap p.is-editor-empty:first-child::before {

@@ -56,7 +56,8 @@ const getBlogPayload = (body = {}, existingPost = null) => {
     slug: slugify(rawSlug || title),
     content: sanitizeContent(String(body.content || "")),
     excerpt: String(body.excerpt || "").trim(),
-    category: body.category || "kien-thuc-nen",
+    category: body.category || "tap-luyen",
+    subCategory: String(body.subCategory || "").trim(),
     tags,
     coverImage: String(body.coverImage || "").trim(),
     author: body.author || null,
@@ -79,13 +80,17 @@ const getBlogPayload = (body = {}, existingPost = null) => {
 export const getPublicBlogPosts = async (req, res) => {
   try {
     const category = String(req.query.category || "").trim();
+    const subCategory = String(req.query.subCategory || "").trim();
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 12, 1), 50);
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
     const skip = (page - 1) * limit;
 
     const query = { status: "published" };
-    if (["kien-thuc-nen", "giao-an-opt", "danh-gia-f1", "dinh-duong"].includes(category)) {
+    if (["tap-luyen", "dinh-duong", "hieu-co-the", "tu-duy-loi-song"].includes(category)) {
       query.category = category;
+    }
+    if (subCategory) {
+      query.subCategory = subCategory;
     }
 
     const [total, posts] = await Promise.all([
@@ -146,12 +151,16 @@ export const getAdminBlogPosts = async (req, res) => {
     const skip = (page - 1) * limit;
     const status = String(req.query.status || "").trim();
     const category = String(req.query.category || "").trim();
+    const subCategory = String(req.query.subCategory || "").trim();
     const search = String(req.query.search || "").trim();
 
     const query = {};
     if (["draft", "published"].includes(status)) query.status = status;
-    if (["kien-thuc-nen", "giao-an-opt", "danh-gia-f1", "dinh-duong"].includes(category)) {
+    if (["tap-luyen", "dinh-duong", "hieu-co-the", "tu-duy-loi-song"].includes(category)) {
       query.category = category;
+    }
+    if (subCategory) {
+      query.subCategory = subCategory;
     }
     if (search) {
       query.$or = [

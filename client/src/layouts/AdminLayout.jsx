@@ -20,6 +20,7 @@ import {
   Wallet,
   ChevronDown,
   BrainCircuit,
+  Brain,
   LayoutTemplate,
 } from "lucide-react";
 
@@ -38,6 +39,7 @@ const SidebarContent = ({ onItemClick }) => {
         { path: "/admin/bookings", label: "Đặt lịch", icon: ClipboardList },
         { path: "/admin/deposits", label: "Nạp tiền", icon: Wallet },
         { path: "/admin/f1-ai-rules", label: "Quy tắc AI", icon: BrainCircuit },
+        { path: "/admin/knowledge-base", label: "Kiến thức AI", icon: Brain },
         { path: "/admin/contact-messages", label: "Liên hệ", icon: MessageSquare },
       ],
     },
