@@ -155,9 +155,9 @@ const getUiConfig = (width) => {
   if (width < 420) {
     return {
       right: 25,
-      bottom: 100,
+      bottom: 220,
       containerSize: 60,
-      mainSize: 65,
+      mainSize: 56,
       mainIconSize: 24,
       itemSize: 44,
       itemIconSize: 22,
@@ -173,7 +173,7 @@ const getUiConfig = (width) => {
   if (width < 640) {
     return {
       right: 14,
-      bottom: 84,
+      bottom: 220,
       containerSize: 64,
       mainSize: 56,
       mainIconSize: 25,
@@ -225,6 +225,8 @@ const getUiConfig = (width) => {
 
 const ChatIcons = () => {
   const [open, setOpen] = useState(false);
+  const [chatWidgetOpen, setChatWidgetOpen] = useState(false);
+  const [hiddenByScroll, setHiddenByScroll] = useState(false);
   const wrapperRef = useRef(null);
   const tl = useRef(null);
   const [viewportWidth, setViewportWidth] = useState(
@@ -264,6 +266,35 @@ const ChatIcons = () => {
 
     return () => window.removeEventListener("resize", updateViewportWidth);
   }, []);
+
+  // Ẩn ChatIcons trên mobile khi chat widget mở để tránh xung đột
+  useEffect(() => {
+    if (viewportWidth >= 640) return;
+    const onOpen = () => setChatWidgetOpen(true);
+    const onClose = () => setChatWidgetOpen(false);
+    window.addEventListener("ht-chat-opened", onOpen);
+    window.addEventListener("ht-chat-closed", onClose);
+    return () => {
+      window.removeEventListener("ht-chat-opened", onOpen);
+      window.removeEventListener("ht-chat-closed", onClose);
+    };
+  }, [viewportWidth]);
+
+  // Ẩn khi cuộn qua 40% trang (chỉ mobile)
+  useEffect(() => {
+    if (viewportWidth >= 640) {
+      setHiddenByScroll(false);
+      return;
+    }
+    const handleScroll = () => {
+      const scrolled = window.scrollY;
+      const total = document.documentElement.scrollHeight - window.innerHeight;
+      if (total <= 0) return;
+      setHiddenByScroll(scrolled / total > 0.4);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [viewportWidth]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -317,6 +348,8 @@ const ChatIcons = () => {
     }
   }, [open]);
 
+  const isHidden = chatWidgetOpen || hiddenByScroll;
+
   return (
     <div
       ref={wrapperRef}
@@ -324,6 +357,9 @@ const ChatIcons = () => {
       style={{
         right: `${ui.right}px`,
         bottom: `calc(${ui.bottom}px + env(safe-area-inset-bottom, 0px))`,
+        opacity: isHidden ? 0 : 1,
+        pointerEvents: isHidden ? "none" : "auto",
+        transition: "opacity 0.3s ease",
       }}
     >
       <div

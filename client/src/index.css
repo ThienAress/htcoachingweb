@@ -196,7 +196,21 @@
 
 /* ================= HERO TITLE RESPONSIVE (Fluid) ================= */
 .hero-title {
-  font-size: clamp(2.07rem, 1.24rem + 4.14vw, 4.88rem); /* 33px → 78px */
+  font-size: clamp(2.07rem, 1.57rem + 2.0vw, 4rem); /* 33px → 64px, đạt max tại ~1920px */
+}
+
+/* Large phone: 390px–639px (iPhone 14 Pro Max, Plus...) */
+@media (min-width: 390px) and (max-width: 639px) {
+  .hero-title {
+    font-size: clamp(2.5rem, 3vw + 1.2rem, 2.875rem); /* 40px → 46px */
+  }
+}
+
+/* Tablet: 640px–1023px (iPad, iPad Pro portrait) */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .hero-title {
+    font-size: clamp(3.25rem, 2.41rem + 2.09vw, 3.75rem); /* 52px → 60px */
+  }
 }
 
 /* ================= UTILITY CLASS BỔ SUNG ================= */
