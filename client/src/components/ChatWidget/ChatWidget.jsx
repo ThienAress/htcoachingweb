@@ -53,6 +53,7 @@ export default function ChatWidget() {
   const handleOpen = useCallback(() => {
     setIsOpen(true);
     setIsClosing(false);
+    window.dispatchEvent(new Event("ht-chat-opened"));
     if (!historyLoaded) {
       loadHistory();
       setHistoryLoaded(true);
@@ -66,6 +67,7 @@ export default function ChatWidget() {
     setTimeout(() => {
       setIsOpen(false);
       setIsClosing(false);
+      window.dispatchEvent(new Event("ht-chat-closed"));
     }, duration);
   }, [mode]);
 

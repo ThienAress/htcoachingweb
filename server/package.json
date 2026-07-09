@@ -9,7 +9,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "doppler run -- nodemon server.js"
   },
   "keywords": [],
   "author": "",

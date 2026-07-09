@@ -215,13 +215,13 @@ const Hero = ({ images, onAnimationComplete }) => {
       </div>
 
       {/* CONTENT */}
-      <div className="absolute top-0 left-0 w-full h-full flex items-center lg:items-start justify-start pt-20 lg:pt-[96px] 2xl:pt-[140px] pb-6 pl-4 sm:pl-8 lg:pl-16 xl:pl-20 2xl:pl-24 z-10 pointer-events-none">
+      <div className="absolute top-0 left-0 w-full h-full flex items-center lg:items-start justify-start pt-20 lg:pt-[80px] xl:pt-[155px] 2xl:pt-[140px] pb-6 pl-4 sm:pl-8 lg:pl-16 xl:pl-20 2xl:pl-24 z-10 pointer-events-none">
         <div className="max-w-2xl lg:max-w-lg xl:max-w-2xl 2xl:max-w-3xl mx-auto sm:mx-0 text-left pointer-events-auto px-4 sm:px-0">
-          <h1 ref={titleRef} className="hero-title font-display font-extrabold uppercase leading-tight mb-3 lg:mb-4" style={{ perspective: "1000px" }}>
+          <h1 ref={titleRef} className="hero-title font-display font-extrabold uppercase leading-tight mb-2 lg:mb-2" style={{ perspective: "1000px" }}>
             <span className="gradient-text">TĂNG CƠ - GIẢM MỠ</span>, <span className="gradient-text">LỘT XÁC NGOẠN MỤC</span> TRONG 90 NGÀY? BẠN ĐÃ SẴN SÀNG CÙNG TÔI <span className="gradient-text">CHINH PHỤC MỤC TIÊU</span> NÀY CHƯA!
           </h1>
 
-          <ul ref={featuresRef} className="space-y-1.5 lg:space-y-2 mb-3 lg:mb-4">
+          <ul ref={featuresRef} className="space-y-1 lg:space-y-1 mb-2 lg:mb-2">
             {features.map((feature, idx) => (
               <li
                 key={idx}
@@ -237,7 +237,7 @@ const Hero = ({ images, onAnimationComplete }) => {
             ))}
           </ul>
 
-          <div ref={ctaRef} className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-3 lg:mt-4">
+          <div ref={ctaRef} className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-2 lg:mt-2">
             <a
               href="#classes"
               className="btn btn-primary flex items-center justify-center gap-2 whitespace-nowrap"
