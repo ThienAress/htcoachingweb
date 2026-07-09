@@ -6,13 +6,13 @@
   "scripts": {
     "dev": "doppler run -- vite",
     "prebuild": "node scripts/generate-sitemap.js",
-    "build": "doppler run -- vite build",
+    "build": "vite build",
     "postbuild": "node scripts/prerender.js",
     "lint": "eslint .",
-    "preview": "doppler run -- vite preview",
-    "test": "doppler run -- vitest run",
-    "test:watch": "doppler run -- vitest",
-    "test:coverage": "doppler run -- vitest run --coverage"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@aejkatappaja/phantom-ui": "^0.10.1",
