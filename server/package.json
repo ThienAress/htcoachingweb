@@ -5,10 +5,10 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "test": "doppler run -- vitest run",
-    "test:watch": "doppler run -- vitest",
-    "test:coverage": "doppler run -- vitest run --coverage",
-    "start": "doppler run -- node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "start": "node server.js",
     "dev": "doppler run -- nodemon server.js"
   },
   "keywords": [],
