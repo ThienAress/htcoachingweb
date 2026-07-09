@@ -3,6 +3,9 @@
 server/.env
 server/.env.development
 client/.env
+client/.env.development
+client/.env.production
+.env-backup/
 
 # node
 node_modules/
