@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
-
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ================= ĐỊNH NGHĨA THEME (Tailwind v4) ================= */
 @theme {
