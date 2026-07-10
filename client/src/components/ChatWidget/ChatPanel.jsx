@@ -27,7 +27,8 @@ export default function ChatPanel() {
   const { user } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [input, setInput] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const panelRef = useRef(null);
@@ -38,7 +39,7 @@ export default function ChatPanel() {
   const messagesEndRef = useRef(null);
   const [pillInput, setPillInput] = useState("");
   const [pillExpanded, setPillExpanded] = useState(false);
-  const noAuthPaths = ["/login", "/register", "/admin-login", "/login-success"];
+  const noAuthPaths = ["/login", "/register", "/login-success"];
   const hidePillPaths = ["/admin", "/trainer"];
 
   const {
@@ -47,6 +48,17 @@ export default function ChatPanel() {
     clearHistory, switchConversation, removeConversation, cancelRequest,
     retryLastMessage,
   } = useAiChat();
+
+  // Resize detect
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    setSidebarOpen(!isMobile);
+  }, [isMobile]);
 
   // Load dữ liệu khi mở panel
   useEffect(() => {
@@ -136,12 +148,14 @@ export default function ChatPanel() {
 
   const handleNewConversation = () => {
     clearHistory();
+    if (isMobile) setSidebarOpen(false);
     inputRef.current?.focus();
   };
 
   const handleSwitchConversation = async (id) => {
     if (id === conversationId) return;
     await switchConversation(id);
+    if (isMobile) setSidebarOpen(false);
   };
 
   // Ẩn trigger với các trang không cần
@@ -168,6 +182,10 @@ export default function ChatPanel() {
       <div
         ref={pillRef}
         onClick={() => {
+          if (isMobile) {
+            setIsOpen(true);
+            return;
+          }
           if (!pillExpanded) {
             setPillExpanded(true);
             setTimeout(() => pillInputRef.current?.focus(), 250);
@@ -242,8 +260,8 @@ export default function ChatPanel() {
 
           {/* Sidebar — animate width mượt mà */}
           <div
-            className={`transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${
-              sidebarOpen ? "w-[210px] opacity-100" : "w-0 opacity-0"
+            className={`transition-all duration-300 ease-in-out overflow-hidden shrink-0 absolute md:relative z-20 h-full ${
+              sidebarOpen ? "w-full md:w-[210px] opacity-100" : "w-0 opacity-0"
             }`}
           >
             <ChatPanelSidebar

@@ -18,7 +18,7 @@ import ChatPanel from "./components/ChatWidget/ChatPanel";
 const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
 const LoginSuccess = lazy(() => import("./pages/LoginSuccess"));
-const AdminLogin = lazy(() => import("./pages/AdminLogin"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Checkin = lazy(() => import("./pages/admin/Checkin"));
@@ -176,8 +176,6 @@ function AppContent() {
           <Route path="checkin-history" element={<TrainerCheckinHistory />} />
         </Route>
 
-        {/* ADMIN LOGIN */}
-        <Route path="/admin-login" element={<AdminLogin />} />
 
         {/* ADMIN PANEL */}
         <Route
@@ -213,6 +211,9 @@ function AppContent() {
             element={<ExerciseSuggestionsManagement />}
           />
         </Route>
+
+        {/* 404 CATCH-ALL */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
       </Suspense>
       )}
