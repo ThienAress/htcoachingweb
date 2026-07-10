@@ -443,3 +443,42 @@
   opacity: 1;
   visibility: visible;
 }
+
+/* =====================================================
+   AI Thinking Animation — Neural Pulse Wave
+   ===================================================== */
+@keyframes thinkingPulse {
+  0%, 100% {
+    transform: scale(0.6);
+    opacity: 0.3;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.thinking-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #06b6d4);
+  animation: thinkingPulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+}
+
+@keyframes thinkingBubbleEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.thinking-bubble-enter {
+  animation: thinkingBubbleEnter 0.25s ease-out both;
+}
