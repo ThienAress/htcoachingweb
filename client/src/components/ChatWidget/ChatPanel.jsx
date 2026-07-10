@@ -304,9 +304,22 @@ export default function ChatPanel() {
               ) : (
                 /* Chat messages */
                 <div className="flex flex-col gap-4">
-                  {messages.map((msg, i) => (
-                    <ChatBubble key={i} message={msg} onRetry={retryLastMessage} />
-                  ))}
+                  {messages.map((msg, i) => {
+                    // Bubble cuối cùng của assistant + đang loading → hiện thinking animation
+                    const isLastAssistant =
+                      msg.role === "assistant" &&
+                      i === messages.length - 1 &&
+                      isLoading;
+                    return (
+                      <ChatBubble
+                        key={i}
+                        message={msg}
+                        onRetry={retryLastMessage}
+                        isThinking={isLastAssistant}
+                      />
+                    );
+                  })}
+
                   {activeTool && (
                     <div className="flex items-center gap-2 text-xs text-emerald-400/80">
                       <div className="flex gap-1">

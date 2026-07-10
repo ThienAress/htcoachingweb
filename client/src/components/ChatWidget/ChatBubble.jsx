@@ -15,7 +15,19 @@ const CARD_COMPONENTS = {
   trainer: TrainerInfoCard,
 };
 
-const ChatBubble = memo(function ChatBubble({ message, onRetry }) {
+const ThinkingDots = () => (
+  <div className="flex items-center gap-1.5 h-5" aria-label="HT Assistant đang suy nghĩ">
+    {[0, 1, 2].map((i) => (
+      <span
+        key={i}
+        className="thinking-dot"
+        style={{ animationDelay: `${i * 160}ms` }}
+      />
+    ))}
+  </div>
+);
+
+const ChatBubble = memo(function ChatBubble({ message, onRetry, isThinking }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isUser = message.role === "user";
@@ -40,7 +52,20 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry }) {
   }, [navigate, location.pathname]);
 
   if (message.role === "tool") return null;
-  if (!isUser && !message.content && !message.uiCards?.length) return null;
+  // Khi AI đang thinking (chưa có content, chưa có uiCards) → hiện thinking bubble
+  if (!isUser && !message.content && !message.uiCards?.length) {
+    if (!isThinking) return null;
+    return (
+      <div className="flex gap-2.5 thinking-bubble-enter">
+        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 bg-gradient-to-br from-emerald-500 to-cyan-600">
+          <Bot size={14} className="text-white" />
+        </div>
+        <div className="flex items-center px-3 py-2.5 rounded-2xl rounded-tl-md bg-white/5 border border-white/8">
+          <ThinkingDots />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex gap-2.5 ${isUser ? "flex-row-reverse" : ""}`}>
