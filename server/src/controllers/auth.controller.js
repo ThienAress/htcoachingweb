@@ -100,18 +100,14 @@ const handleRoleLogin = async (req, res, role) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message:
-          role === "admin" ? "Không tìm thấy admin" : "Không tìm thấy trainer",
+        message: "Không tìm thấy trainer",
       });
     }
 
     if (!user.password) {
       return res.status(400).json({
         success: false,
-        message:
-          role === "admin"
-            ? "Admin chưa có mật khẩu"
-            : "Tài khoản chưa có mật khẩu",
+        message: "Tài khoản chưa có mật khẩu",
       });
     }
 
@@ -142,10 +138,6 @@ const handleRoleLogin = async (req, res, role) => {
       message: "Lỗi server",
     });
   }
-};
-
-export const loginAdmin = async (req, res) => {
-  return handleRoleLogin(req, res, "admin");
 };
 
 export const loginTrainer = async (req, res) => {
