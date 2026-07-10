@@ -32,7 +32,7 @@ export default function ChatPanelSidebar({
   const roleInfo = ROLE_LABEL[user?.role] ?? ROLE_LABEL.user;
 
   return (
-    <div className="flex flex-col h-full w-[210px] min-w-[210px] shrink-0 border-r border-white/8 bg-black/20">
+    <div className="flex flex-col h-full w-full md:w-[210px] md:min-w-[210px] shrink-0 border-r border-white/8 bg-[#0f1117] md:bg-black/20">
       {/* Logo */}
       <div className="px-3 pt-4 pb-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">

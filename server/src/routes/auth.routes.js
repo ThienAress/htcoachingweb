@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
 import {
-  loginAdmin,
   loginTrainer,
   refreshTokenController,
   logout,
@@ -141,8 +140,7 @@ router.get(
   },
 );
 
-// ===== ADMIN / TRAINER LOGIN =====
-router.post("/admin/login", validateLogin, loginAdmin);
+// ===== TRAINER LOGIN =====
 router.post("/trainer/login", validateLogin, loginTrainer);
 
 // ===== REFRESH / LOGOUT =====
