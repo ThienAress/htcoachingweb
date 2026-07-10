@@ -15,7 +15,15 @@ const LoginSuccess = () => {
 
         if (res.data?.email) {
           await refetch();
-          // Redirect về trang trước đó (nếu có) hoặc trang chủ
+
+          // Admin → luôn redirect về /admin
+          const userData = res.data;
+          if (userData.role === "admin") {
+            navigate("/admin", { replace: true });
+            return;
+          }
+
+          // User thường → redirect về trang trước đó (nếu có) hoặc trang chủ
           const redirectTo = localStorage.getItem("redirectAfterLogin") || "/";
           localStorage.removeItem("redirectAfterLogin");
           navigate(redirectTo, { replace: true });
