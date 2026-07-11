@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { generateCsrfToken } from "../middlewares/csrf.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -132,7 +133,7 @@ const handleRoleLogin = async (req, res, role) => {
       },
     });
   } catch (err) {
-    console.error(`[${role.toUpperCase()} LOGIN ERROR]:`, err);
+    safeLog.error(`${role.toUpperCase()} LOGIN`, err);
     return res.status(500).json({
       success: false,
       message: "Lỗi server",
@@ -212,7 +213,7 @@ export const logout = async (req, res) => {
       message: "Logged out",
     });
   } catch (err) {
-    console.error("[LOGOUT ERROR]:", err);
+    safeLog.error("LOGOUT", err);
 
     clearAuthCookies(res);
 

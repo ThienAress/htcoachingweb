@@ -59,7 +59,8 @@ Chạy `/audit quick` — quét hotspots, top findings, HIGH confidence only.
 
 **Hành vi:**
 - Quét files có churn cao (git log)
-- Quét critical paths (auth, payment, wallet)
+- Quét critical paths (auth, payment, wallet, contract)
+- **Security focus:** IDOR patterns (`findById` không kèm ownership check), timing-safe CSRF, CSP headers, PII trong logs
 - Chỉ báo findings có confidence HIGH
 
 **Output gate:** Findings table hoặc "Clean ✓"
@@ -131,7 +132,7 @@ Chạy `/ship` — pre-deploy checklist cứng.
 **Hành vi:**
 - `npm run build` → phải pass
 - `vitest run` (client + server) → phải pass
-- Security scan → phải pass
+- Security scan (IDOR, CSRF timing-safe, CSP, safeLog, `npm run security:audit`, security.txt) → phải pass
 - SEO basics (nếu có route changes) → phải pass
 - Cleanup check → phải pass
 

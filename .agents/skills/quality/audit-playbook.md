@@ -23,6 +23,9 @@ description: Hướng dẫn quét proactive codebase theo 7 danh mục. Use khi 
 | `validation.js` (25K, 1 file all validations) | Pattern có chủ đích |
 | `GA_MEASUREMENT_ID` placeholder | Đợi user cung cấp mã thật |
 | `"test": "echo Error..."` trong server package.json | Chưa setup test — đã biết |
+| CSP `'unsafe-inline'` cho scriptSrc/styleSrc | Cần cho GA4 inline script + Tailwind CSS |
+| `crossOriginResourcePolicy: false` | Cho phép Cloudinary images load cross-origin |
+| `frameSrc` chứa `www.youtube.com` | Cần cho YouTube embeds trong Coaching pages. KHÔNG revert về `['none']` |
 
 ---
 
@@ -54,16 +57,25 @@ Tìm kiếm:
 - **Credential hygiene**: Hardcoded keys/tokens, credentials trong committed files, credentials logged
 - **Injection**: Request data đi vào Mongoose queries không qua validation, HTML from user content (XSS)
 - **Access control**: Routes thiếu `protect` middleware, authorization chỉ check ở FE, IDOR (object access by ID without ownership check)
+- **IDOR cụ thể**: `findById(req.params.id)` không kèm ownership check (VD: `findOne({ _id: id, userId: req.user.id })` hoặc `assertCustomerAccess()`). Exceptions: admin-only endpoints đã có `requireRoles("admin")`
 - **Input contracts**: API endpoints nhận request body không qua `express-validator`, file uploads không validate type/size
-- **Dependency posture**: `npm audit` — chỉ report critical/high reachable advisories
+- **Dependency posture**: `npm audit --audit-level=high` — chạy cả client + server, chỉ report critical/high reachable advisories
 - **Production config**: CORS config, cookies missing `HttpOnly`/`Secure`/`SameSite`, debug mode trong production
 - **Data minimization**: PII trong logs, stack traces trả về client, internal errors exposed
+- **Timing attacks**: So sánh secrets (CSRF token, API keys) phải dùng `crypto.timingSafeEqual()`, KHÔNG dùng `===` hoặc `!==`
+- **Security headers (CSP)**: Helmet CSP phải whitelist đúng domains (Cloudinary, GA4, Google Fonts), chặn `frameSrc`, `objectSrc`
+- **Safe logging**: `console.error(err)` trong production có thể leak stack traces. Dùng `safeLog` (PII redaction) thay thế, đặc biệt trong auth/payment controllers
+- **Security.txt**: Kiểm tra tồn tại `client/public/.well-known/security.txt` (RFC 9116)
 
 **Đặc biệt cho htcoachingweb:**
 - Check tất cả routes trong `server.js` có `protect` middleware cho routes cần auth
 - Check `CORS` config — `credentials: true` chỉ cho đúng domains
 - Check rate limiting — có route nào bypass `rateLimit.js` không
 - Check upload middlewares — file type + size validation đầy đủ
+- **IDOR patterns đã fix:** Contract controller đã có ownership check. F1Customer dùng `assertCustomerAccess()`. Deposit dùng `findOne({ _id, userId })`. Kiểm tra nếu có endpoint mới dùng `findById(req.params.id)` mà user có thể truy cập
+- **CSRF timing-safe:** `csrf.js` đã dùng `crypto.timingSafeEqual()` — KHÔNG revert về `!==`
+- **CSP config:** `server.js` Helmet CSP chỉ active trong production (`isProd ? {...} : false`)
+- **Safe logger:** `safeLogger.js` đã áp dụng cho `errorHandler.js`, `auth.controller.js`, `auth.middleware.js`
 
 ### 3. Performance ⚡
 
@@ -121,9 +133,11 @@ Tìm kiếm:
 
 **Cách chạy:**
 ```bash
-cd client && npm audit --audit-level=high
-cd server && npm audit --audit-level=high
+cd client && npm run security:audit
+cd server && npm run security:audit
 ```
+
+> ℹ️ `security:audit` script đã được thêm vào cả `client/package.json` và `server/package.json`, chạy `npm audit --audit-level=high`.
 
 ### 7. DX & Tooling 🛠️
 
