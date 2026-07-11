@@ -1,5 +1,7 @@
+import { safeLog } from "../utils/safeLogger.js";
+
 export const errorHandler = (err, req, res, next) => {
-  console.error("🔥 [GLOBAL ERROR]:", err);
+  safeLog.error("GLOBAL ERROR", err);
 
   const isProd = process.env.NODE_ENV === "production";
 

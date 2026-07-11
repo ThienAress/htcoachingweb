@@ -331,12 +331,17 @@ pages/NewPage/
 | Rule | Chi tiết |
 |------|---------|
 | **CSRF** | Mọi request mutating (POST/PUT/DELETE) PHẢI có `X-CSRF-Token` header. Đã handle trong `utils/api.js` — KHÔNG SỬA file này trừ khi có lý do rõ ràng |
+| **CSRF timing-safe** | `csrf.js` dùng `crypto.timingSafeEqual()` để so sánh token. KHÔNG revert về `===` hay `!==` |
 | **JWT cookies** | `accessToken` và `refreshToken` là **httpOnly** — frontend KHÔNG đọc/xóa được. Chỉ server quản lý |
 | **Environment** | `.env` files KHÔNG được commit. KHÔNG in nội dung `.env` ra chat. KHÔNG hardcode credentials |
 | **Rate Limiting** | Production có rate limit (`rateLimit.js`). KHÔNG xóa hoặc tăng limit quá mức |
 | **Role check** | Backend PHẢI check role bằng middleware trước khi xử lý. KHÔNG trust role từ frontend |
+| **IDOR Protection** | Endpoint user-accessible dùng `findById(req.params.id)` PHẢI có ownership check. Pattern: `findOne({ _id, userId })` hoặc check `clientId`/`trainerId` match `req.user.id`, hoặc `assertCustomerAccess()`. Admin-only endpoints (đã có `requireRoles("admin")`) được miễn |
 | **Validation** | Input PHẢI validate ở cả client (Zod) VÀ server (express-validator). KHÔNG bỏ 1 trong 2 |
 | **Upload** | PHẢI validate file type, size trong upload middleware. KHÔNG cho upload file tùy ý |
+| **CSP Headers** | Helmet CSP đã config trong `server.js` (production-only). Khi thêm domain mới → cập nhật CSP whitelist. Xem bảng domains chi tiết trong `skills/reference/known_issues.md` → section "CSP Domains Đã Whitelist" |
+| **Safe Logging** | Security-critical controllers (auth, payment, contract) PHẢI dùng `safeLog` từ `utils/safeLogger.js`. KHÔNG `console.error(err)` log raw errors chứa PII |
+| **Security.txt** | File `client/public/.well-known/security.txt` tồn tại theo RFC 9116. KHÔNG xóa |
 
 ### Lệnh CẤM
 
@@ -346,8 +351,12 @@ pages/NewPage/
 | `rm -rf`, xóa thư mục quan trọng | Phá hủy project |
 | In API keys, JWT secrets ra chat | Lộ credentials |
 | Disable CSRF protection | Mở lỗ hổng bảo mật |
+| Revert CSRF `timingSafeEqual` về `!==` | Mở lỗ hổng timing attack |
+| Xóa IDOR ownership checks trong controllers | Mở lỗ hổng IDOR |
 | Disable rate limiting trong production | Mở cho DDoS |
 | Hardcode production URLs trong code | Dùng env variables |
+| Xóa CSP config trong Helmet | Mở lỗ hổng XSS/injection |
+| `console.error` log PII (password, phone, token) | Lộ dữ liệu nhạy cảm |
 
 ---
 
