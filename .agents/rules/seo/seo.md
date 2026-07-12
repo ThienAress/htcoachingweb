@@ -1,3 +1,8 @@
+---
+name: seo-rules
+description: Quy tắc SEO chi tiết — SEO component, JSON-LD, sitemap, prerender, canonical URL, breadcrumbs. Use khi tạo/sửa page public.
+---
+
 # SEO Rules — HTCoachingWeb
 
 > Quy tắc SEO chi tiết cho dự án HTCOACHING. Áp dụng khi tạo/sửa page public.

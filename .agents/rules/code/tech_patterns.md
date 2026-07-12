@@ -1,3 +1,8 @@
+---
+name: tech-patterns
+description: Luật cứng về coding patterns và conventions — lazy loading, service layer, MVC, upload middleware, validation, naming. AI PHẢI tuân thủ khi viết code.
+---
+
 # Tech Patterns & Code Style — HTCoachingWeb
 
 > Luật cứng về coding patterns và conventions. AI PHẢI tuân thủ khi viết code cho dự án này.

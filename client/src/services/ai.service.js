@@ -32,5 +32,11 @@ export const deleteAiConversation = async (id) => {
   return res.data;
 };
 
+// Gửi feedback 👍/👎 cho message
+export const submitAiFeedback = async (conversationId, messageId, feedback) => {
+  const res = await api.post(`/ai/conversations/${conversationId}/feedback`, { messageId, feedback });
+  return res.data;
+};
+
 // Tạo SSE URL cho chat (dùng fetch thay vì EventSource vì cần POST + cookies)
 export const getAiChatUrl = () => `${API_URL}/ai/chat`;

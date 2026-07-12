@@ -24,6 +24,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+
+  isAiChatBanned: {
+    type: Boolean,
+    default: false,
+  },
 });
 // ✅ Indexes
 userSchema.index({ email: 1 }, { unique: true });

@@ -24,21 +24,33 @@ server/src/services/ai/providers/gemini.provider.js
 server/src/services/ai/providers/mock.provider.js
 server/src/services/ai/systemPrompt.js
 server/src/services/ai/contentModeration.js
+server/src/services/ai/aiLogger.js
 server/src/services/ai/tools/toolRegistry.js
 server/src/services/ai/tools/toolEngine.js
 server/src/services/ai/tools/calculateTdee.tool.js
 server/src/services/ai/tools/searchExercises.tool.js
 server/src/services/ai/tools/suggestMeal.tool.js
 server/src/services/ai/tools/getTrainerInfo.tool.js
+server/src/services/ai/tools/searchKnowledge.tool.js
+server/src/services/ai/tools/checkWallet.tool.js
+server/src/services/ai/tools/getWorkoutPlan.tool.js
+server/src/services/ai/tools/searchBlog.tool.js
+server/src/services/ai/tools/getCheckinHistory.tool.js
+server/src/services/ai/tools/getTrainingSchedule.tool.js
+server/src/services/ai/tools/getGymInfo.tool.js
 server/src/models/ChatConversation.js
 server/src/routes/ai.routes.js
 client/src/components/ChatWidget/ChatWidget.jsx
+client/src/components/ChatWidget/ChatPanel.jsx
 client/src/components/ChatWidget/ChatBubble.jsx
 client/src/components/ChatWidget/cards/TdeeResultCard.jsx
 client/src/components/ChatWidget/cards/TdeeFormCard.jsx
 client/src/components/ChatWidget/cards/ExerciseListCard.jsx
 client/src/components/ChatWidget/cards/MealSuggestionCard.jsx
 client/src/components/ChatWidget/cards/TrainerInfoCard.jsx
+client/src/components/ChatWidget/cards/WalletSummaryCard.jsx
+client/src/components/ChatWidget/cards/WorkoutPlanCard.jsx
+client/src/components/ChatWidget/cards/BlogListCard.jsx
 client/src/hooks/useAiChat.js
 client/src/services/ai.service.js
 ```
@@ -91,6 +103,24 @@ client/src/services/ai.service.js
 
 ---
 
+## Bước 4.5: Validate Tools Script 🛠️
+
+Chạy script tự động kiểm tra tất cả tools:
+
+```bash
+node .agents/scripts/validate-tools.js
+```
+
+Script kiểm tra:
+- [ ] Mỗi tool có đủ required fields (name, description, parameters, execute)
+- [ ] File `.tool.js` tương ứng tồn tại
+- [ ] Không có orphan files (file tồn tại nhưng chưa registered)
+- [ ] `getToolSchemas()` trả về đủ số lượng
+
+→ Verify: Script exit 0 (ALL PASS)
+
+---
+
 ## Bước 5: Build Check
 
 ```bash
@@ -123,12 +153,13 @@ Format:
 ```
 AI Chat System Check — [DATE]
 ========================
-Files:       ✅/❌
-Prompt:      ✅/❌
-Moderation:  ✅/❌
-Tools:       ✅/❌
-Build:       ✅/❌
-UI:          ✅/❌
+Files:          ✅/❌
+Prompt:         ✅/❌
+Moderation:     ✅/❌
+Tools:          ✅/❌
+Tool Validate:  ✅/❌
+Build:          ✅/❌
+UI:             ✅/❌
 ========================
-Overall:     PASS/FAIL
+Overall:        PASS/FAIL
 ```

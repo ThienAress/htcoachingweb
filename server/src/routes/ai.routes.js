@@ -9,6 +9,7 @@ import {
   getConversations,
   getConversationById,
   deleteConversation,
+  submitFeedback,
 } from "../controllers/ai.controller.js";
 
 const router = express.Router();
@@ -22,5 +23,8 @@ router.delete("/history", protect, csrfProtection, clearHistory);
 router.get("/conversations", protect, getConversations);
 router.get("/conversations/:id", protect, getConversationById);
 router.delete("/conversations/:id", protect, csrfProtection, deleteConversation);
+
+// Feedback
+router.post("/conversations/:id/feedback", protect, csrfProtection, submitFeedback);
 
 export default router;
