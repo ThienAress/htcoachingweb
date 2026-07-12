@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen, Calendar, Clock, Eye,
@@ -94,6 +94,49 @@ const injectHeadingIds = (html) => {
   });
 };
 
+// Fix lỗi link nội bộ bị TipTap tự thêm https:// (VD: https:///mealplan hoặc https://mealplan)
+// Fix các lỗi link nội bộ bị Google Search bọc ngoài hoặc bị TipTap tự thêm http(s)://
+const fixBrokenLinks = (html) => {
+  if (!html) return "";
+  return html.replace(/href="([^"]+)"/g, (match, url) => {
+    // 1. Fix link Google Search chứa path nội bộ (VD: https://www.google.com/search?q=/mealplan)
+    if (url.includes("google.com/search?q=")) {
+      try {
+        const urlObj = new URL(url);
+        const q = urlObj.searchParams.get("q");
+        if (q && q.startsWith("/")) {
+          return `href="${q}"`;
+        }
+      } catch (err) {
+        console.error("Error parsing Google Search URL:", err);
+      }
+    }
+    
+    // 2. Fix link bị TipTap tự thêm http(s):// (VD: https:///mealplan hoặc https://mealplan)
+    if (url.startsWith("http")) {
+      try {
+        const urlObj = new URL(url);
+        // Nếu host rỗng (https:///mealplan) hoặc host không có dấu chấm (https://mealplan)
+        if (urlObj.host === "" || !urlObj.host.includes(".")) {
+          return `href="${urlObj.pathname}"`;
+        }
+      } catch (err) {
+        // Cú pháp dự phòng (fallback regex) nếu URL parser lỗi với URL không hợp lệ
+        const matchProtocol = url.match(/^https?:\/\/([^/]+)(.*)/);
+        if (matchProtocol) {
+          const domain = matchProtocol[1];
+          const path = matchProtocol[2] || "";
+          if (!domain.includes(".")) {
+            return `href="${path.startsWith("/") ? path : "/" + path}"`;
+          }
+        }
+      }
+    }
+    
+    return match;
+  });
+};
+
 const formatDate = (date) => {
   if (!date) return "";
   return new Date(date).toLocaleDateString("vi-VN", {
@@ -154,6 +197,7 @@ const RelatedCard = ({ post }) => (
 
 const BlogDetail = () => {
   const { slug } = useParams();
+  const navigate = useNavigate();
 
   const { data: postResponse, isLoading } = useQuery({
     queryKey: ["public-blog-post", slug],
@@ -354,16 +398,27 @@ const BlogDetail = () => {
                   prose-headings:font-black prose-headings:text-dark prose-headings:tracking-tight
                   prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h2:pb-2 prose-h2:border-b prose-h2:border-gray-100
                   prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-3
-                  prose-p:text-gray prose-p:leading-[1.85] prose-p:text-[15px]
+                  prose-p:text-slate-800 prose-p:leading-[1.85] prose-p:text-[15px]
                   prose-a:text-primary prose-a:font-semibold prose-a:no-underline hover:prose-a:underline
-                  prose-strong:text-dark prose-strong:font-bold
+                  prose-strong:text-black prose-strong:font-bold
                   prose-img:rounded-xl prose-img:shadow-md
-                  prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-xl prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:not-italic prose-blockquote:text-dark/80
-                  prose-li:text-gray prose-li:text-[15px] prose-li:leading-[1.85]
+                  prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-xl prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:not-italic prose-blockquote:text-slate-800
+                  prose-li:text-slate-800 prose-li:text-[15px] prose-li:leading-[1.85]
                   prose-ul:space-y-1
                   prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono
                 "
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(injectHeadingIds(post.content)) }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(fixBrokenLinks(injectHeadingIds(post.content))) }}
+                onClick={(e) => {
+                  const a = e.target.closest("a");
+                  if (a) {
+                    let href = a.getAttribute("href");
+                    // Xử lý navigate mượt mà cho client-side routing
+                    if (href && href.startsWith("/")) {
+                      e.preventDefault();
+                      navigate(href);
+                    }
+                  }
+                }}
               />
 
               {/* Tags */}
