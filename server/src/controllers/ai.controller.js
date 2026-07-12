@@ -7,6 +7,7 @@ import { getToolSchemas } from "../services/ai/tools/toolRegistry.js";
 import { buildSystemPrompt } from "../services/ai/systemPrompt.js";
 import { isUserLocked, moderateContent } from "../services/ai/contentModeration.js";
 import { searchKnowledgeBase } from "../services/ai/embedding.service.js";
+import { aiLogger } from "../services/ai/aiLogger.js";
 
 const MAX_ITERATIONS = 5;
 const MAX_HISTORY_MESSAGES = 20;
@@ -20,18 +21,35 @@ export const chatStream = async (req, res) => {
     return res.status(400).json({ success: false, message: "Tin nhắn không được để trống" });
   }
 
-  // Kiểm tra user bị khóa
+  // Load user info sớm để check ban và dùng cho system prompt
+  let user;
+  try {
+    user = await User.findById(userId).select("name isAiChatBanned").lean();
+    if (user?.isAiChatBanned) {
+      aiLogger.userLocked(userId, "permanent");
+      return res.status(403).json({
+        success: false,
+        message: "🚫 Tài khoản của bạn đã bị cấm sử dụng Chat AI vĩnh viễn do vi phạm quy tắc cộng đồng nhiều lần.",
+      });
+    }
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Lỗi hệ thống khi kiểm tra người dùng" });
+  }
+
+  // Kiểm tra user bị khóa tạm thời (1h)
   const lockStatus = isUserLocked(userId);
   if (lockStatus.blocked) {
+    aiLogger.userLocked(userId, lockStatus.remainingMinutes);
     return res.status(403).json({
       success: false,
-      message: `🚫 Chat AI đang bị khóa. Còn ${lockStatus.remainingMinutes} phút.`,
+      message: `🚫 Chat AI đang bị khóa tạm thời. Còn ${lockStatus.remainingMinutes} phút.`,
     });
   }
 
-  // Kiểm tra nội dung
-  const moderation = moderateContent(userId, message);
+  // Kiểm tra nội dung tin nhắn hiện tại
+  const moderation = await moderateContent(userId, message);
   if (!moderation.safe) {
+    aiLogger.moderationTrigger(userId, moderation.action || "blocked");
     return res.status(400).json({ success: false, message: moderation.message });
   }
 
@@ -48,8 +66,8 @@ export const chatStream = async (req, res) => {
   });
 
   try {
-    // Load user info cho system prompt
-    const user = await User.findById(userId).select("name").lean();
+    const chatStartTime = Date.now();
+    let toolCallCount = 0;
 
     // Load hoặc tạo conversation
     let conversation;
@@ -93,6 +111,7 @@ export const chatStream = async (req, res) => {
       const kbResults = await searchKnowledgeBase(message, { limit: 3, threshold: 0.75 });
       if (kbResults.length > 0) {
         kbEntryIds = kbResults.map((r) => r._id);
+        aiLogger.kbMatch(userId, kbResults.length, kbResults[0]?.similarity);
         systemPrompt += `\n\n## Kiến thức đã verified (ưu tiên dùng làm tham khảo chính):\n`;
         kbResults.forEach((r, i) => {
           const matchLabel = r.matchedQuestion && r.matchedQuestion !== r.question 
@@ -101,7 +120,7 @@ export const chatStream = async (req, res) => {
           systemPrompt += `\n### KB #${i + 1} (${(r.similarity * 100).toFixed(0)}% match):\n`;
           systemPrompt += `${matchLabel}\nA: ${r.answer}\n`;
         });
-        systemPrompt += `\nHãy dùng kiến thức trên làm tham khảo CHÍNH. Có thể diễn đạt lại cho tự nhiên, nhưng KHÔNG đi ngược lại nội dung verified.`;
+        systemPrompt += `\nHãy dùng kiến thức trên làm tham khảo CHÍNH. Có thể diễn đạt lại cho tự nhiên, nhưng KHÔNG đi ngược lại nội dung verified. QUAN TRỌNG: Khi đã có kiến thức verified ở trên, KHÔNG được gọi search_knowledge — trả lời trực tiếp từ kiến thức này.`;
       }
     } catch (err) {
       // KB search lỗi không ảnh hưởng chat flow chính
@@ -129,10 +148,12 @@ export const chatStream = async (req, res) => {
 
     const tools = getToolSchemas();
     let fullResponse = "";
+    let lastToolResultText = ""; // Backup: dùng khi Gemini im luôn sau tool call
 
     // === AGENT LOOP (Pattern từ Dify fc_agent_runner.py) ===
     let iteration = 0;
     let needsToolCall = true;
+    aiLogger.chatStart(userId, conversation._id);
 
     while (needsToolCall && iteration < MAX_ITERATIONS && !isAborted) {
       needsToolCall = false;
@@ -142,6 +163,13 @@ export const chatStream = async (req, res) => {
         if (isAborted) break;
         switch (chunk.type) {
           case "text":
+            // Lọc error text từ Gemini (trả 200 nhưng body chứa lỗi kỹ thuật)
+            if (chunk.content.includes("thought_signature") || 
+                chunk.content.includes("Lỗi AI") ||
+                chunk.content.startsWith("⚠️ Lỗi")) {
+              console.error("[AI] Filtered error text from LLM:", chunk.content.substring(0, 100));
+              break;
+            }
             fullResponse += chunk.content;
             res.write(`data: ${JSON.stringify({ type: "text", content: chunk.content })}\n\n`);
             break;
@@ -158,7 +186,11 @@ export const chatStream = async (req, res) => {
               res.write(`data: ${JSON.stringify({ type: "tool_start", tool: call.name })}\n\n`);
 
               // Thực thi tool
+              const toolStartTime = Date.now();
               const toolResult = await executeTool(call.name, call.args, { userId });
+              const toolDuration = Date.now() - toolStartTime;
+              toolCallCount++;
+              aiLogger.toolCall(userId, call.name, toolDuration, !toolResult.error);
 
               // Gửi tool_result cho FE
               res.write(`data: ${JSON.stringify({ type: "tool_result", tool: call.name, text: toolResult.text })}\n\n`);
@@ -169,8 +201,15 @@ export const chatStream = async (req, res) => {
               }
 
               // Thêm assistant tool_call + tool result vào messages cho LLM iteration tiếp
-              llmMessages.push({ role: "assistant", content: "", tool_calls: [call] });
+              // Kèm thoughtParts để Gemini nhận diện đúng thinking context
+              llmMessages.push({ 
+                role: "assistant", 
+                content: "", 
+                tool_calls: [call],
+                _thoughtParts: chunk.thoughtParts || [],
+              });
               llmMessages.push({ role: "tool", content: toolResult.text, name: call.name });
+              lastToolResultText = toolResult.text; // Lưu backup
 
               // Lưu tool call vào conversation
               conversation.messages.push({
@@ -203,6 +242,12 @@ export const chatStream = async (req, res) => {
     }
 
     // Lưu final response
+    // Fallback: nếu Gemini không trả text sau tool call → dùng tool result text
+    if (!fullResponse && toolCallCount > 0 && lastToolResultText) {
+      console.error("[AI] Gemini silent after tool call — using tool result as fallback");
+      fullResponse = lastToolResultText;
+      res.write(`data: ${JSON.stringify({ type: "text", content: fullResponse })}\n\n`);
+    }
     if (fullResponse) {
       conversation.messages.push({
         role: "assistant",
@@ -224,10 +269,16 @@ export const chatStream = async (req, res) => {
     }
 
     // Done event
+    aiLogger.chatEnd(userId, conversation._id, {
+      iterations: iteration,
+      toolCalls: toolCallCount,
+      durationMs: Date.now() - chatStartTime,
+      kbHits: kbEntryIds.length,
+    });
     res.write(`data: ${JSON.stringify({ type: "done", conversationId: conversation._id })}\n\n`);
     res.end();
   } catch (err) {
-    console.error("AI Chat Error:", err);
+    aiLogger.chatError(userId, err, "chatStream");
     res.write(`data: ${JSON.stringify({ type: "error", message: "Có lỗi xảy ra, vui lòng thử lại" })}\n\n`);
     res.end();
   }
@@ -329,6 +380,38 @@ export const clearHistory = async (req, res) => {
   try {
     await ChatConversation.deleteMany({ userId: req.user.id });
     res.json({ success: true, message: "Đã xóa lịch sử chat" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/ai/conversations/:id/feedback — Gửi feedback 👍/👎 cho message
+export const submitFeedback = async (req, res) => {
+  try {
+    const { messageId, feedback } = req.body;
+
+    if (!messageId || !["up", "down", null].includes(feedback)) {
+      return res.status(400).json({ success: false, message: "Thiếu messageId hoặc feedback không hợp lệ" });
+    }
+
+    const conversation = await ChatConversation.findOne({
+      _id: req.params.id,
+      userId: req.user.id,
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy cuộc trò chuyện" });
+    }
+
+    const message = conversation.messages.id(messageId);
+    if (!message || message.role !== "assistant") {
+      return res.status(400).json({ success: false, message: "Message không hợp lệ" });
+    }
+
+    message.feedback = feedback;
+    await conversation.save();
+
+    res.json({ success: true, message: "Đã lưu feedback" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

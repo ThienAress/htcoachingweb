@@ -1,5 +1,4 @@
-// Content Moderation — Kiểm tra nội dung chat AI
-// Cảnh báo 1 lần → Khóa chat 1h nếu vi phạm lại
+import User from "../../models/User.js";
 
 // Danh sách pattern cấm
 const BLOCKED_URL_PATTERNS = [
@@ -28,7 +27,7 @@ setInterval(() => {
 }, 30 * 60 * 1000);
 
 /**
- * Kiểm tra user có bị khóa không
+ * Kiểm tra user có bị khóa không (tạm thời)
  * @returns {{ blocked: boolean, remainingMinutes?: number }}
  */
 export function isUserLocked(userId) {
@@ -41,8 +40,8 @@ export function isUserLocked(userId) {
     return { blocked: true, remainingMinutes: remaining };
   }
 
-  // Hết hạn → xóa
-  userModerationState.delete(userId);
+  // Hết hạn → xóa khóa tạm, nhưng GIỮ LẠI warnings để cộng dồn
+  state.lockedUntil = null;
   return { blocked: false };
 }
 
@@ -50,7 +49,7 @@ export function isUserLocked(userId) {
  * Kiểm tra nội dung tin nhắn
  * @returns {{ safe: boolean, warning?: boolean, message?: string }}
  */
-export function moderateContent(userId, text) {
+export async function moderateContent(userId, text) {
   const lower = text.toLowerCase().trim();
 
   // Check blocked URLs
@@ -75,8 +74,20 @@ export function moderateContent(userId, text) {
 
   state.warnings++;
 
-  if (state.warnings >= 2) {
-    // Khóa 1 giờ
+  if (state.warnings >= 3) {
+    // Vi phạm lần 3 → Cấm vĩnh viễn (Lưu vào Database)
+    await User.findByIdAndUpdate(userId, { isAiChatBanned: true });
+    // Dọn dẹp bộ nhớ tạm
+    userModerationState.delete(userId);
+    
+    return {
+      safe: false,
+      message: "🚫 Bạn đã vi phạm quy tắc cộng đồng nhiều lần. Tài khoản của bạn đã bị cấm sử dụng Chat AI vĩnh viễn.",
+    };
+  }
+
+  if (state.warnings === 2) {
+    // Lần 2: Khóa 1 giờ
     state.lockedUntil = Date.now() + 60 * 60 * 1000;
     return {
       safe: false,

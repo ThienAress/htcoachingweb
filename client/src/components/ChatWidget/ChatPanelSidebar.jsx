@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Settings, Trash2, MessageSquare, Clock, PanelLeftClose } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -28,6 +29,7 @@ export default function ChatPanelSidebar({
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const roleInfo = ROLE_LABEL[user?.role] ?? ROLE_LABEL.user;
 
   return (
@@ -87,7 +89,7 @@ export default function ChatPanelSidebar({
                 </p>
               </div>
               <button
-                onClick={(e) => { e.stopPropagation(); onDelete(conv._id); }}
+                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(conv._id); }}
                 className="absolute right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all shrink-0"
                 title="Xóa cuộc trò chuyện"
               >
@@ -131,6 +133,37 @@ export default function ChatPanelSidebar({
           </button>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#16181d] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl w-full max-w-[320px] p-5 animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white mb-2">
+              Xóa cuộc trò chuyện?
+            </h3>
+            <p className="text-[13px] text-gray-600 dark:text-gray-400 mb-5 leading-relaxed">
+              Bạn có chắc chắn muốn xóa cuộc trò chuyện này không? Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 rounded-lg text-[13px] font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  onDelete(deleteConfirmId);
+                  setDeleteConfirmId(null);
+                }}
+                className="px-4 py-2 rounded-lg text-[13px] font-medium text-white bg-red-500 hover:bg-red-600 shadow-sm transition-colors"
+              >
+                Xóa ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

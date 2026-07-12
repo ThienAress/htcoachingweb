@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import ChatPanelSidebar from "./ChatPanelSidebar";
+import { submitAiFeedback } from "../../services/ai.service";
 
 const QUICK_ACTIONS = [
   { emoji: "🌐", label: "Khám phá", value: "Giới thiệu cho tôi trang web HTCOACHING có những gì, tính năng và dịch vụ" },
@@ -49,7 +50,7 @@ export default function ChatPanel() {
     messages, isLoading, activeTool, error, conversationId,
     conversations, sendMessage, loadHistory, loadConversations,
     clearHistory, switchConversation, removeConversation, cancelRequest,
-    retryLastMessage,
+    retryLastMessage, editMessage,
   } = useAiChat();
 
   useEffect(() => {
@@ -115,9 +116,12 @@ export default function ChatPanel() {
     }
     if (!isOpen) return;
     const handleKey = (e) => { if (e.key === "Escape") setIsOpen(false); };
+    const handleClose = () => setIsOpen(false);
     document.addEventListener("keydown", handleKey);
+    window.addEventListener("close-ai-chat", handleClose);
     return () => {
       document.removeEventListener("keydown", handleKey);
+      window.removeEventListener("close-ai-chat", handleClose);
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
     };
@@ -161,6 +165,20 @@ export default function ChatPanel() {
     await switchConversation(id);
     if (isMobile) setSidebarOpen(false);
   };
+
+  const handleFeedback = useCallback(async (messageId, feedback) => {
+    if (!conversationId || !messageId) return;
+    try {
+      await submitAiFeedback(conversationId, messageId, feedback);
+    } catch (err) {
+      // Silent fail — feedback là non-critical
+    }
+  }, [conversationId]);
+
+  const handleEditMessage = useCallback((msgIndex, newText) => {
+    if (!newText?.trim()) return;
+    editMessage(msgIndex, newText);
+  }, [editMessage]);
 
   if (!user || noAuthPaths.includes(location.pathname)) return null;
   const showPill = !hidePillPaths.some((p) => location.pathname.startsWith(p));
@@ -413,7 +431,9 @@ export default function ChatPanel() {
                             key={i}
                             message={msg}
                             onRetry={retryLastMessage}
+                            onEdit={(newText) => handleEditMessage(i, newText)}
                             isThinking={isLastAssistant}
+                            onFeedback={handleFeedback}
                           />
                         );
                       })}
