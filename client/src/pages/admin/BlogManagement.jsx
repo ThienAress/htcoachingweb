@@ -328,22 +328,33 @@ const BlogManagement = () => {
         <div className="max-w-[1400px] mx-auto p-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
           {/* LEFT — Content */}
           <div className="space-y-5">
-            {/* Title — slug ẩn, tự sinh từ server */}
-            <input
-              className="w-full text-3xl font-black text-slate-900 placeholder:text-slate-300 outline-none bg-transparent py-2 border-b-2 border-slate-100 focus:border-primary transition"
-              value={form.title}
-              onChange={(e) => {
-                updateForm("title", e.target.value);
-                // Auto-fill SEO nếu chưa điền (Vấn đề 4)
-                if (!form.metaTitle) updateForm("metaTitle", e.target.value.slice(0, 70));
-                // Auto-fill Focus Keyword — lấy 3 từ đầu (Vấn đề 1)
-                if (!form.focusKeyword) {
-                  const kw = e.target.value.split(/[\s–—\-,]+/).filter(Boolean).slice(0, 3).join(" ").toLowerCase();
-                  updateForm("focusKeyword", kw);
-                }
-              }}
-              placeholder="Tiêu đề bài viết..."
-            />
+            {/* Title & Slug */}
+            <div className="space-y-2">
+              <input
+                className="w-full text-3xl font-black text-slate-900 placeholder:text-slate-300 outline-none bg-transparent py-2 border-b-2 border-slate-100 focus:border-primary transition"
+                value={form.title}
+                onChange={(e) => {
+                  updateForm("title", e.target.value);
+                  // Auto-fill SEO nếu chưa điền (Vấn đề 4)
+                  if (!form.metaTitle) updateForm("metaTitle", e.target.value.slice(0, 70));
+                  // Auto-fill Focus Keyword — lấy 3 từ đầu (Vấn đề 1)
+                  if (!form.focusKeyword) {
+                    const kw = e.target.value.split(/[\s–—\-,]+/).filter(Boolean).slice(0, 3).join(" ").toLowerCase();
+                    updateForm("focusKeyword", kw);
+                  }
+                }}
+                placeholder="Tiêu đề bài viết..."
+              />
+              <div className="flex items-center gap-1.5 text-[13px] bg-white border border-slate-200 rounded-lg px-3 py-1.5 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20 transition-all w-full lg:w-3/4">
+                <span className="font-bold text-slate-400 select-none">/</span>
+                <input
+                  className="flex-1 bg-transparent outline-none text-slate-600 font-medium placeholder:text-slate-400"
+                  value={form.slug}
+                  onChange={(e) => updateForm("slug", e.target.value)}
+                  placeholder="duong-dan-tinh-bai-viet (để trống hệ thống sẽ tự tạo từ tiêu đề)"
+                />
+              </div>
+            </div>
 
             {/* Excerpt */}
             <div>
