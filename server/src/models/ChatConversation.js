@@ -19,9 +19,13 @@ const chatMessageSchema = new mongoose.Schema(
       },
       default: null,
     },
+    feedback: {
+      type: String,
+      enum: ["up", "down", null],
+      default: null,
+    },
     timestamp: { type: Date, default: Date.now },
   },
-  { _id: false }
 );
 
 const chatConversationSchema = new mongoose.Schema(

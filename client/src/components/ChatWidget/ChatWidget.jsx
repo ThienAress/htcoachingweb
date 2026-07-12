@@ -8,6 +8,7 @@ import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import TdeeFormCard from "./cards/TdeeFormCard";
+import { submitAiFeedback } from "../../services/ai.service";
 
 const TOOL_LABELS = {
   calculate_tdee: "Đang tính TDEE...",
@@ -44,6 +45,7 @@ export default function ChatWidget() {
     isLoading,
     activeTool,
     error,
+    conversationId,
     sendMessage,
     loadHistory,
     clearHistory,
@@ -165,6 +167,15 @@ export default function ChatWidget() {
     setHistoryLoaded(false);
     setShowTdeeForm(false);
   }, [clearHistory]);
+
+  const handleFeedback = useCallback(async (messageId, feedback) => {
+    if (!conversationId || !messageId) return;
+    try {
+      await submitAiFeedback(conversationId, messageId, feedback);
+    } catch (err) {
+      // Silent fail
+    }
+  }, [conversationId]);
 
   if (!user) return null;
 
@@ -294,7 +305,7 @@ export default function ChatWidget() {
 
             {messages.map((msg, i) => (
               <div key={`${msg.role}-${i}`} className="chat-card-enter" style={{ animationDelay: `${i * 30}ms` }}>
-                <ChatBubble message={msg} />
+                <ChatBubble message={msg} onFeedback={handleFeedback} />
               </div>
             ))}
 

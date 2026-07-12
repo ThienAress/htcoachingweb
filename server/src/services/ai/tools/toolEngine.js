@@ -55,11 +55,26 @@ export async function executeTool(toolName, parameters, context) {
       meta: { toolName, timeCost },
     };
   } catch (err) {
+    // Trả message thân thiện thay vì lỗi kỹ thuật
+    const friendlyMessages = {
+      search_blog: "Hiện tại chưa có bài viết nào trong hệ thống. Bạn có thể hỏi tôi trực tiếp về chủ đề này nhé!",
+      search_exercises: "Không thể tìm bài tập lúc này. Bạn thử mô tả nhóm cơ muốn tập, tôi sẽ tư vấn cho bạn!",
+      check_wallet: "Không thể kiểm tra ví lúc này. Bạn có thể xem trực tiếp tại [Ví của tôi](/wallet).",
+      get_workout_plan: "Không thể tải giáo án lúc này. Bạn có thể xem tại [Lịch sử tập](/my-history).",
+      suggest_meal: "Không thể tạo thực đơn lúc này. Bạn thử hỏi lại hoặc cho tôi biết mục tiêu calo nhé!",
+      get_trainer_info: "Không thể tải thông tin HLV lúc này. Bạn có thể xem tại [Đội ngũ HLV](/huan-luyen-vien).",
+      search_knowledge: "Không thể tìm kiếm lúc này. Bạn thử đặt câu hỏi khác nhé!",
+      calculate_tdee: "Không thể tính TDEE lúc này. Bạn thử cung cấp lại thông tin cân nặng, chiều cao nhé!",
+      get_checkin_history: "Không thể tải lịch sử check-in lúc này. Bạn có thể xem tại [Lịch sử tập](/my-history).",
+      get_training_schedule: "Không thể tải lịch tập lúc này. Bạn có thể liên hệ HLV để biết lịch tập nhé!",
+      get_gym_info: "Không thể tải thông tin phòng tập lúc này. Bạn có thể xem tại [CLB](/club).",
+    };
+
     return {
-      text: `Lỗi khi thực thi ${toolName}: ${err.message}`,
+      text: friendlyMessages[toolName] || "Tôi chưa thể xử lý yêu cầu này lúc này. Bạn thử hỏi cách khác nhé!",
       uiCard: null,
-      error: err.message,
-      meta: { toolName, timeCost: Date.now() - startTime },
+      error: null, // Không set error → FE không hiện banner lỗi đỏ
+      meta: { toolName, timeCost: Date.now() - startTime, internalError: err.message },
     };
   }
 }

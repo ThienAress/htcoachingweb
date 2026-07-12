@@ -6,6 +6,12 @@ import { searchExercises } from "./searchExercises.tool.js";
 import { suggestMeal } from "./suggestMeal.tool.js";
 import { getTrainerInfo } from "./getTrainerInfo.tool.js";
 import { searchKnowledge } from "./searchKnowledge.tool.js";
+import { checkWallet } from "./checkWallet.tool.js";
+import { getWorkoutPlan } from "./getWorkoutPlan.tool.js";
+import { searchBlog } from "./searchBlog.tool.js";
+import { getCheckinHistory } from "./getCheckinHistory.tool.js";
+import { getTrainingSchedule } from "./getTrainingSchedule.tool.js";
+import { getGymInfo } from "./getGymInfo.tool.js";
 
 export const toolRegistry = {
   calculate_tdee: {
@@ -106,12 +112,12 @@ export const toolRegistry = {
     name: "search_knowledge",
     description:
       "Tra cứu thông tin thực tế từ internet bằng Google Search. " +
-      "GỌI KHI: user hỏi về VĐV, influencer fitness (Việt Nam hoặc quốc tế), kết quả thi đấu, " +
-      "thành tích cụ thể, tin tức mới nhất trong ngành gym/thể hình, " +
-      "hoặc bất kỳ thông tin cần tính chính xác cao mà mình không chắc chắn. " +
-      "VÍ DỤ: 'Đăng béo là ai', 'CBum có bao nhiêu danh hiệu', 'Mr. Olympia 2024 ai thắng', " +
-      "'Nguyễn Hải Đăng thành tích', 'bài nghiên cứu mới về creatine'. " +
-      "KHÔNG GỌI KHI: user hỏi kiến thức gym phổ thông (tập ngực, TDEE, protein...) — dùng kiến thức sẵn có.",
+      "⚠️ CHỈ GỌI KHI: thông tin KHÔNG có trong phần 'Kiến thức đã verified' ở system prompt. " +
+      "Nếu system prompt đã có câu trả lời → DÙNG NGAY, KHÔNG gọi tool này. " +
+      "GỌI KHI: user hỏi về VĐV, influencer, kết quả thi đấu, tin tức mới " +
+      "mà KHÔNG tìm thấy trong kiến thức đã verified. " +
+      "VÍ DỤ nên gọi: 'Mr. Olympia 2024 ai thắng', 'bài nghiên cứu mới về creatine'. " +
+      "KHÔNG GỌI KHI: câu hỏi đã được trả lời bởi KB, hoặc là kiến thức gym phổ thông.",
     parameters: {
       type: "object",
       properties: {
@@ -123,6 +129,145 @@ export const toolRegistry = {
       required: ["query"],
     },
     execute: searchKnowledge,
+    requiresAuth: false,
+    requiresConfirmation: false,
+  },
+
+  check_wallet: {
+    name: "check_wallet",
+    description:
+      "Kiểm tra số dư ví và lịch sử giao dịch gần nhất của user. " +
+      "GỌI KHI: user hỏi về ví tiền, số dư, lịch sử nạp tiền, hoặc hỏi 'ví tôi còn bao nhiêu'. " +
+      "KHÔNG GỌI KHI: user chưa đăng nhập.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Số giao dịch gần nhất muốn xem (mặc định 5, tối đa 10)",
+        },
+      },
+    },
+    execute: checkWallet,
+    requiresAuth: true,
+    requiresConfirmation: false,
+  },
+
+  get_workout_plan: {
+    name: "get_workout_plan",
+    description:
+      "Lấy giáo án tập luyện (workout plan) của user. " +
+      "GỌI KHI: user hỏi về lịch tập, giáo án, bài tập hôm nay, hoặc muốn xem chương trình tập. " +
+      "Có thể lọc theo ngày cụ thể hoặc lấy giáo án gần nhất. " +
+      "KHÔNG GỌI KHI: user chưa đăng nhập.",
+    parameters: {
+      type: "object",
+      properties: {
+        date: {
+          type: "string",
+          description: "Ngày cụ thể muốn xem giáo án (ISO format: YYYY-MM-DD). Nếu không có, lấy giáo án gần nhất.",
+        },
+        limit: {
+          type: "number",
+          description: "Số giáo án muốn xem (mặc định 3, tối đa 5)",
+        },
+      },
+    },
+    execute: getWorkoutPlan,
+    requiresAuth: true,
+    requiresConfirmation: false,
+  },
+
+  search_blog: {
+    name: "search_blog",
+    description:
+      "Tìm bài viết blog trên trang HTCOACHING theo từ khóa hoặc danh mục. " +
+      "GỌI KHI: user hỏi về kiến thức tập luyện, dinh dưỡng, lối sống, hoặc muốn đọc bài viết. " +
+      "VÍ dụ: 'có bài nào về giảm mỡ bụng không?', 'bài viết về protein'. " +
+      "Danh mục: Tập luyện, Dinh dưỡng, Hiểu cơ thể, Tư duy & Lối sống.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Từ khóa tìm kiếm. VD: 'giảm mỡ', 'protein', 'cardio'",
+        },
+        category: {
+          type: "string",
+          description: "Danh mục lọc: tap-luyen, dinh-duong, hieu-co-the, tu-duy-loi-song",
+        },
+        limit: {
+          type: "number",
+          description: "Số bài viết tối đa (mặc định 5, tối đa 10)",
+        },
+      },
+    },
+    execute: searchBlog,
+    requiresAuth: false,
+    requiresConfirmation: false,
+  },
+
+  get_checkin_history: {
+    name: "get_checkin_history",
+    description:
+      "Xem lịch sử check-in và thông tin gói tập của user. " +
+      "GỌI KHI: user hỏi về lịch sử tập, số buổi đã tập, gói tập còn bao nhiêu buổi, " +
+      "hoặc hỏi 'tôi tập được mấy buổi rồi', 'gói tập còn bao nhiêu'. " +
+      "KHÔNG GỌI KHI: user chưa đăng nhập.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Số buổi check-in gần nhất muốn xem (mặc định 10, tối đa 20)",
+        },
+      },
+    },
+    execute: getCheckinHistory,
+    requiresAuth: true,
+    requiresConfirmation: false,
+  },
+
+  get_training_schedule: {
+    name: "get_training_schedule",
+    description:
+      "Lấy lịch tập + giáo án coaching hôm nay và cả tuần. " +
+      "GỌI KHI: user hỏi 'hôm nay tập mấy giờ', 'lịch tập tuần này', 'hôm nay tập gì', " +
+      "'giáo án hôm nay', hoặc hỏi về lịch trình tập luyện cá nhân. " +
+      "Tự động kèm giáo án chi tiết (bài tập, sets, reps) nếu có. " +
+      "KHÔNG GỌI KHI: user chưa đăng nhập.",
+    parameters: {
+      type: "object",
+      properties: {
+        includeWorkout: {
+          type: "boolean",
+          description: "Có lấy giáo án coaching chi tiết hôm nay không (mặc định true)",
+        },
+      },
+    },
+    execute: getTrainingSchedule,
+    requiresAuth: true,
+    requiresConfirmation: false,
+  },
+
+  get_gym_info: {
+    name: "get_gym_info",
+    description:
+      "Lấy thông tin các phòng tập mà HLV HTCOACHING đang dạy (địa chỉ, giờ mở cửa, Google Maps). " +
+      "Đây là phòng tập hợp tác, KHÔNG phải phòng tập của HTCOACHING. " +
+      "GỌI KHI: user hỏi về phòng tập, địa chỉ, giờ mở cửa, hoặc muốn tìm phòng tập gần. " +
+      "VD: 'phòng tập ở đâu', 'tập ở quận 7 chỗ nào', 'giờ mở cửa'. " +
+      "KHÔNG cần đăng nhập.",
+    parameters: {
+      type: "object",
+      properties: {
+        district: {
+          type: "string",
+          description: "Lọc theo quận/huyện. VD: Quận 7, Bình Thạnh, Thủ Đức",
+        },
+      },
+    },
+    execute: getGymInfo,
     requiresAuth: false,
     requiresConfirmation: false,
   },

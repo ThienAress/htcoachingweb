@@ -41,9 +41,16 @@ function convertMessages(messages) {
       const parts = [];
       if (msg.content) parts.push({ text: msg.content });
       if (msg.tool_calls && msg.tool_calls.length > 0) {
+        // Include thought parts TRƯỚC functionCall (Gemini yêu cầu khi thinking mode bật)
+        if (msg._thoughtParts && msg._thoughtParts.length > 0) {
+          for (const tp of msg._thoughtParts) {
+            parts.push({ thought: true, text: tp.text });
+          }
+        }
         for (const tc of msg.tool_calls) {
           const fnCall = { name: tc.name, args: tc.args || {} };
           if (tc.id) fnCall.id = tc.id;
+          if (tc.thought_signature) fnCall.thought_signature = tc.thought_signature;
           parts.push({ functionCall: fnCall });
         }
       }
@@ -190,8 +197,40 @@ export async function* geminiLLMStream(messages, tools) {
       return;
     }
     if (response.status === 400) {
-      yield { type: "text", content: "⚠️ Lỗi xử lý. Vui lòng thử lại hoặc bắt đầu cuộc trò chuyện mới." };
-      return;
+      console.error("Gemini 400 — auto-retry with minimal context");
+
+      // Retry với chỉ system prompt + message cuối (bỏ history bị lỗi format)
+      const minimalMessages = messages.filter(m => m.role === "system");
+      const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+      if (lastUserMsg) minimalMessages.push(lastUserMsg);
+
+      const { systemInstruction: retrySystem, contents: retryContents } = convertMessages(minimalMessages);
+      const retryBody = {
+        contents: retryContents,
+        ...(retrySystem && { systemInstruction: retrySystem }),
+        ...(geminiTools && { tools: geminiTools }),
+        generationConfig: body.generationConfig,
+      };
+
+      let retryResponse;
+      try {
+        retryResponse = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(retryBody),
+        });
+      } catch {
+        yield { type: "text", content: "Xin lỗi, tôi không thể xử lý lúc này. Bạn thử lại nhé! 😊" };
+        return;
+      }
+
+      if (!retryResponse.ok) {
+        yield { type: "text", content: "Xin lỗi, tôi không xử lý được yêu cầu này. Bạn thử bắt đầu cuộc trò chuyện mới nhé! 😊" };
+        return;
+      }
+
+      // Dùng retryResponse thay cho response ban đầu
+      response = retryResponse;
     }
     if (response.status === 403) {
       yield { type: "text", content: "⚠️ API Key không hợp lệ hoặc chưa kích hoạt. Kiểm tra lại GEMINI_API_KEY." };
@@ -206,6 +245,7 @@ export async function* geminiLLMStream(messages, tools) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let thoughtBuffer = []; // Buffer thought parts để gửi kèm tool_call
 
   while (true) {
     const { done, value } = await reader.read();
@@ -222,10 +262,23 @@ export async function* geminiLLMStream(messages, tools) {
 
       try {
         const data = JSON.parse(jsonStr);
+
+        // Gemini trả error trong stream body (HTTP 200 nhưng có lỗi)
+        if (data.error) {
+          console.error("Gemini stream error:", data.error.message);
+          continue;
+        }
+
         const candidate = data.candidates?.[0];
         if (!candidate?.content?.parts) continue;
 
         for (const part of candidate.content.parts) {
+          // Buffer thought parts — KHÔNG gửi ra UI nhưng CẦN echo lại cho Gemini
+          if (part.thought) {
+            thoughtBuffer.push({ thought: true, text: part.text });
+            continue;
+          }
+
           if (part.text) {
             yield { type: "text", content: part.text };
           }
@@ -237,8 +290,12 @@ export async function* geminiLLMStream(messages, tools) {
                 id: part.functionCall.id || part.id || `gemini_${Date.now()}`,
                 name: part.functionCall.name,
                 args: part.functionCall.args || {},
+                ...(part.functionCall.thought_signature && { thought_signature: part.functionCall.thought_signature }),
               }],
+              // Gửi kèm thought parts cho controller echo lại Gemini
+              thoughtParts: thoughtBuffer.length > 0 ? [...thoughtBuffer] : undefined,
             };
+            thoughtBuffer = []; // Reset sau mỗi tool call
           }
         }
       } catch {

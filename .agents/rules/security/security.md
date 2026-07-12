@@ -1,3 +1,8 @@
+---
+name: security-rules
+description: Quy tắc bảo mật bắt buộc — Auth flow, CSRF, JWT, rate limiting, file nhạy cảm. KHÔNG ĐƯỢC vi phạm dưới bất kỳ hình thức nào.
+---
+
 # Security Rules — HTCoachingWeb
 
 > Quy tắc bảo mật bắt buộc. KHÔNG ĐƯỢC vi phạm dưới bất kỳ hình thức nào.

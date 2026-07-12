@@ -1,3 +1,8 @@
+---
+name: pdf-generation
+description: Hướng dẫn tạo/sửa/xử lý file PDF bằng pdf-lib. Use khi code tính năng liên quan đến PDF — hợp đồng, giáo án, báo cáo. Bao gồm xử lý font tiếng Việt và patterns cho htcoachingweb.
+---
+
 # PDF Generation — Skill Guide
 
 > Skill này dành cho AI agent khi cần tạo, chỉnh sửa, hoặc xử lý file PDF trong htcoachingweb.

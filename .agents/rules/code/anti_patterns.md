@@ -1,3 +1,8 @@
+---
+name: anti-patterns
+description: Danh sách anti-patterns bắt buộc tránh khi code. Áp dụng mọi lúc — cả frontend (React, Tailwind) lẫn backend (Express, Mongoose).
+---
+
 # Anti-Patterns — HTCoachingWeb
 
 > Bảng những gì KHÔNG ĐƯỢC LÀM. AI phải tránh tất cả anti-patterns dưới đây.

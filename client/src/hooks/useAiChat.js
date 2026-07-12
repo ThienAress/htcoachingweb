@@ -246,16 +246,6 @@ export default function useAiChat() {
 
               switch (event.type) {
                 case "text":
-                  if (event.content.includes("⚠️ Lỗi xử lý")) {
-                    setMessages((prev) => {
-                      const updated = [...prev];
-                      const last = updated[updated.length - 1];
-                      if (last?.role === "assistant") {
-                        updated[updated.length - 1] = { ...last, isError: true };
-                      }
-                      return updated;
-                    });
-                  }
                   // Ném vào buffer để gõ từ từ
                   pendingTextRef.current += event.content;
                   break;
@@ -368,6 +358,20 @@ export default function useAiChat() {
     });
   }, [sendMessage]);
 
+  // Chỉnh sửa message tại index, cắt bỏ tất cả messages sau đó và gửi lại
+  const editMessage = useCallback((msgIndex, newText) => {
+    setMessages((prev) => {
+      // Cắt đến trước message được edit (xóa message đó và tất cả phía sau)
+      const newMessages = prev.slice(0, msgIndex);
+      // Async trigger để nhường React render
+      setTimeout(() => {
+        sendMessage(newText.trim());
+      }, 10);
+      return newMessages;
+    });
+    setError(null);
+  }, [sendMessage]);
+
   return {
     messages,
     isLoading,
@@ -383,6 +387,7 @@ export default function useAiChat() {
     removeConversation,
     cancelRequest,
     retryLastMessage,
+    editMessage,
   };
 }
 
