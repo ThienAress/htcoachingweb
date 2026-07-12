@@ -1,3 +1,8 @@
+---
+name: ai-chat-system
+description: Kiến trúc hệ thống AI Chat (HT Assistant). Use khi sửa bất kỳ file nào liên quan đến AI assistant — tools, providers, SSE, UI cards, system prompt, content moderation.
+---
+
 # HT Assistant — AI Chat Skill Guide
 
 > Skill này dành cho Gemini AI agent khi làm việc với hệ thống AI Chat của htcoachingweb.
@@ -48,12 +53,17 @@ Frontend (React)                         Backend (Express)
 | `services/ai/providers/mock.provider.js` | Mock provider cho testing offline |
 | `services/ai/systemPrompt.js` | System prompt builder (page context + HTCOACHING knowledge) |
 | `services/ai/contentModeration.js` | Validate nội dung, warn + khóa 1h |
+| `services/ai/aiLogger.js` | Structured JSON logging cho AI system |
 | `services/ai/tools/toolRegistry.js` | Tool schemas (OpenAI format) |
 | `services/ai/tools/toolEngine.js` | Tool executor |
 | `services/ai/tools/calculateTdee.tool.js` | Tính TDEE + macros |
 | `services/ai/tools/searchExercises.tool.js` | Tìm bài tập trong DB |
 | `services/ai/tools/suggestMeal.tool.js` | Gợi ý thực đơn |
 | `services/ai/tools/getTrainerInfo.tool.js` | Lấy thông tin HLV |
+| `services/ai/tools/checkWallet.tool.js` | Kiểm tra số dư ví + lịch sử giao dịch (requiresAuth) |
+| `services/ai/tools/getWorkoutPlan.tool.js` | Lấy giáo án tập luyện của khách (requiresAuth) |
+| `services/ai/tools/searchKnowledge.tool.js` | Tra cứu thông tin từ Google Search |
+| `services/ai/tools/searchBlog.tool.js` | Tìm bài viết blog theo từ khóa/danh mục |
 | `models/ChatConversation.js` | Mongoose model (TTL 30 ngày) |
 | `routes/ai.routes.js` | Routes + auth + CSRF + rate limit |
 
@@ -117,6 +127,8 @@ User gửi message
 - [ ] Gửi message → nhận streaming response
 - [ ] Tool call (TDEE) → UI card hiển thị
 - [ ] TDEE form card → submit → tính
+- [ ] Tool call (Wallet) → WalletSummaryCard hiển thị số dư + giao dịch
+- [ ] Tool call (WorkoutPlan) → WorkoutPlanCard hiển thị giáo án collapsible
 - [ ] Follow-up (đổi -300 → -500)
 - [ ] AI trả link → click được → navigate
 - [ ] Nội dung xấu → cảnh báo → khóa 1h

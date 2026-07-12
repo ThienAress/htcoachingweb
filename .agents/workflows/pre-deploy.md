@@ -1,13 +1,13 @@
 ---
 name: pre-deploy
 trigger: /pre-deploy
-description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 5 gates (audit quick → ai-check → ui-check → seo-check → ship). Gom TẤT CẢ findings, yêu cầu fix hết, re-check cho đến khi ALL PASS → mới được push. Mỗi workflow con vẫn chạy riêng lẻ được bằng lệnh riêng.
+description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 6 gates (audit quick → ai-check → qa → ui-check → seo-check → ship). Gom TẤT CẢ findings, yêu cầu fix hết, re-check cho đến khi ALL PASS → mới được push. Mỗi workflow con vẫn chạy riêng lẻ được bằng lệnh riêng.
 ---
 
 # /pre-deploy — Full Pipeline Trước Khi Push Code
 
-> **Nguyên tắc:** Chạy 5 gates tuần tự. Gom tất cả findings. Fix hết. Re-check. Chỉ khi ALL PASS → mới được push/deploy.
-> **Mỗi gate vẫn chạy riêng lẻ được:** `/audit quick`, `/ai-check`, `/ui-check`, `/seo-check`, `/ship`.
+> **Nguyên tắc:** Chạy 6 gates tuần tự. Gom tất cả findings. Fix hết. Re-check. Chỉ khi ALL PASS → mới được push/deploy.
+> **Mỗi gate vẫn chạy riêng lẻ được:** `/audit quick`, `/ai-check`, `/qa`, `/ui-check`, `/seo-check`, `/ship`.
 
 ---
 
@@ -15,9 +15,10 @@ description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 5 
 
 | Lệnh | Mô tả |
 |-------|--------|
-| `/pre-deploy` | Full pipeline — 5 gates tuần tự |
+| `/pre-deploy` | Full pipeline — 6 gates tuần tự |
 | `/pre-deploy skip-audit` | Bỏ qua audit (khi vừa chạy `/audit` xong gần đây) |
 | `/pre-deploy skip-ai` | Bỏ qua ai-check (khi không sửa file AI nào) |
+| `/pre-deploy skip-qa` | Bỏ qua QA (khi vừa chạy `/qa` xong gần đây) |
 | `/pre-deploy skip-ui` | Bỏ qua ui-check (khi chỉ sửa backend) |
 
 ---
@@ -25,28 +26,28 @@ description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 5 
 ## Pipeline Flow
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                         /pre-deploy PIPELINE                                │
-│                                                                              │
-│  Gate 1        Gate 2        Gate 3        Gate 4        Gate 5              │
-│  ┌────────┐   ┌────────┐   ┌────────┐   ┌──────────┐   ┌────────┐         │
-│  │/audit  │──▶│/ai-    │──▶│/ui-    │──▶│/seo-     │──▶│ /ship  │         │
-│  │ quick  │   │ check  │   │ check  │   │ check    │   │        │         │
-│  └────────┘   └────────┘   └────────┘   └──────────┘   └────────┘         │
-│       │            │            │              │              │              │
-│       ▼            ▼            ▼              ▼              ▼              │
-│   findings     findings     findings       findings      GO/NO-GO          │
-│                                                                              │
-│  ════════════════════════════════════════════════════════════════            │
-│                    GOM TẤT CẢ FINDINGS                                      │
-│                    ↓                                                         │
-│              FIX → RE-CHECK → ALL PASS?                                     │
-│                    ↓               ↓                                         │
-│                   NO              YES                                        │
-│                    ↓               ↓                                         │
-│              FIX TIẾP        ✅ READY TO PUSH                               │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                           /pre-deploy PIPELINE                                  │
+│                                                                                  │
+│  Gate 1       Gate 2       Gate 3      Gate 4       Gate 5       Gate 6         │
+│  ┌────────┐  ┌────────┐  ┌───────┐  ┌────────┐  ┌──────────┐  ┌────────┐      │
+│  │/audit  │─▶│/ai-    │─▶│ /qa   │─▶│/ui-    │─▶│/seo-     │─▶│ /ship  │      │
+│  │ quick  │  │ check  │  │       │  │ check  │  │ check    │  │        │      │
+│  └────────┘  └────────┘  └───────┘  └────────┘  └──────────┘  └────────┘      │
+│       │           │           │          │            │             │            │
+│       ▼           ▼           ▼          ▼            ▼             ▼            │
+│   findings    findings    test results findings    findings      GO/NO-GO       │
+│                                                                                  │
+│  ════════════════════════════════════════════════════════════════════            │
+│                    GOM TẤT CẢ FINDINGS                                          │
+│                    ↓                                                             │
+│              FIX → RE-CHECK → ALL PASS?                                         │
+│                    ↓               ↓                                             │
+│                   NO              YES                                            │
+│                    ↓               ↓                                             │
+│              FIX TIẾP        ✅ READY TO PUSH                                   │
+│                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -88,7 +89,26 @@ Chạy `/ai-check` — kiểm tra hệ thống HT Assistant.
 
 ---
 
-## Gate 3: UI Check 🎨 (Design Quality)
+## Gate 3: QA Check 🧪 (Tests)
+
+Chạy `/qa quick` — build + unit tests + integration tests.
+
+**Focus:** Verify code không broken, tests pass.
+
+**Hành vi:**
+- `cd client && npm run build` → phải exit 0
+- `cd client && npx vitest run` → client unit tests
+- `cd server && npx vitest run` → server unit + integration tests
+
+**Output gate:** Test results (X passed, Y failed) hoặc "All pass ✓"
+
+**SKIP khi:** Không có thay đổi logic code (chỉ sửa docs, configs, styling).
+
+> ⚠️ E2E tests KHÔNG chạy trong pre-deploy pipeline (cần dev servers). Chạy riêng bằng `/qa e2e`.
+
+---
+
+## Gate 4: UI Check 🎨 (Design Quality)
 
 Chạy `/ui-check` — quét toàn bộ UI theo 8 dimensions.
 
@@ -106,7 +126,7 @@ Chạy `/ui-check` — quét toàn bộ UI theo 8 dimensions.
 
 ---
 
-## Gate 4: SEO Check 🔎 (SEO Compliance)
+## Gate 5: SEO Check 🔎 (SEO Compliance)
 
 Chạy `/seo-check` — quét tất cả trang public.
 
@@ -123,7 +143,7 @@ Chạy `/seo-check` — quét tất cả trang public.
 
 ---
 
-## Gate 5: Ship 🚢 (Deploy Gate)
+## Gate 6: Ship 🚢 (Deploy Gate)
 
 Chạy `/ship` — pre-deploy checklist cứng.
 
@@ -144,17 +164,18 @@ Chạy `/ship` — pre-deploy checklist cứng.
 
 ## Tổng Hợp & Report
 
-Sau khi chạy xong 5 gates, tổng hợp:
+Sau khi chạy xong 6 gates, tổng hợp:
 
 ```
 🚀 PRE-DEPLOY PIPELINE — HTCoachingWeb
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[Gate 1/5] Audit Quick      ✅ Clean / ⚠️ X findings / ⏭️ SKIP
-[Gate 2/5] AI Check         ✅ Pass / ⚠️ X findings / ⏭️ SKIP
-[Gate 3/5] UI Check (?/40)  ✅ Pass / ⚠️ X findings / ⏭️ SKIP
-[Gate 4/5] SEO Check        ✅ Pass / ⚠️ X findings / ⏭️ SKIP
-[Gate 5/5] Ship             ✅ GO / ❌ NO-GO
+[Gate 1/6] Audit Quick      ✅ Clean / ⚠️ X findings / ⏭️ SKIP
+[Gate 2/6] AI Check         ✅ Pass / ⚠️ X findings / ⏭️ SKIP
+[Gate 3/6] QA Check         ✅ All pass (X tests) / ❌ Y failed / ⏭️ SKIP
+[Gate 4/6] UI Check (?/40)  ✅ Pass / ⚠️ X findings / ⏭️ SKIP
+[Gate 5/6] SEO Check        ✅ Pass / ⚠️ X findings / ⏭️ SKIP
+[Gate 6/6] Ship             ✅ GO / ❌ NO-GO
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

@@ -3,8 +3,8 @@
 // Dùng generateContent (non-streaming) vì kết quả được inject vào conversation
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-// Dùng model hỗ trợ grounding — ưu tiên gemini-2.0-flash, fallback theo env
-const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || process.env.GEMINI_MODEL || "gemini-2.0-flash";
+// Ưu tiên GEMINI_SEARCH_MODEL từ Doppler, fallback gemini-2.5-flash (hỗ trợ Google Search grounding)
+const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash";
 
 /**
  * Tra cứu thông tin thực tế bằng Google Search Grounding
@@ -47,7 +47,13 @@ export async function searchKnowledge({ query }) {
       if (response.status === 400) {
         return { text: "Tìm kiếm không khả dụng với model hiện tại. Mình trả lời dựa trên kiến thức có sẵn.", uiCard: null };
       }
-      return { text: `Không thể tìm kiếm lúc này (${errMsg}). Vui lòng thử lại.`, uiCard: null };
+      // Quota exceeded / rate limit
+      if (response.status === 429) {
+        console.error(`[searchKnowledge] Error 429:`, errMsg);
+        return { text: "Chức năng tìm kiếm đang tạm giới hạn. Bạn cứ hỏi trực tiếp — mình sẽ trả lời dựa trên kiến thức có sẵn nhé!", uiCard: null };
+      }
+      console.error(`[searchKnowledge] Error ${response.status}:`, errMsg);
+      return { text: "Không thể tìm kiếm lúc này. Bạn hỏi trực tiếp, mình trả lời dựa trên kiến thức có sẵn nhé!", uiCard: null };
     }
 
     const data = await response.json();
@@ -67,7 +73,7 @@ export async function searchKnowledge({ query }) {
 
     let result = text;
     if (sources.length === 0) {
-      result = "HT_SYSTEM_ERROR: Không tìm thấy nguồn thông tin đáng tin cậy. BẮT BUỘC trả lời ngắn gọn: 'Xin lỗi, mình chưa có thông tin chính xác về người/vấn đề này' và bẻ lái sang chủ đề tập luyện/dinh dưỡng. KHÔNG ĐƯỢC BỊA ĐẶT THÔNG TIN.";
+      result = "Xin lỗi, hiện tại mình chưa tìm thấy thông tin chính xác về vấn đề này. Bạn có câu hỏi nào khác về tập luyện hay dinh dưỡng không?";
     } else {
       const sourceLinks = sources
         .map((s) => `[${s.title || s.uri}](${s.uri})`)
