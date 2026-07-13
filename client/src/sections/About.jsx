@@ -12,7 +12,6 @@ gsap.registerPlugin(ScrollTrigger);
 const About = ({ images }) => {
   const defaultImages = [hero1, hero2, hero3];
   const displayImages = images && images.length > 0 ? images : defaultImages;
-  const statRef = useRef([]);
   const leftRef = useRef(null);
   const rightRef = useRef(null);
   const slidesRef = useRef([]);
@@ -53,40 +52,6 @@ const About = ({ images }) => {
           },
         });
       }
-    });
-
-    // Counter animation
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const stat = entry.target;
-          const targetValue = +stat.dataset.count;
-          const duration = 2000;
-          const startTime = performance.now();
-
-          const animate = (currentTime) => {
-            const progress = Math.min((currentTime - startTime) / duration, 1);
-            const currentValue = Math.floor(progress * targetValue);
-            stat.textContent = new Intl.NumberFormat().format(currentValue);
-            if (progress < 1) {
-              requestAnimationFrame(animate);
-            } else {
-              const index = statRef.current.indexOf(stat);
-              const isFirstOrLast =
-                index === 0 || index === statRef.current.length - 1;
-              stat.textContent =
-                new Intl.NumberFormat().format(targetValue) +
-                (isFirstOrLast ? "+" : "");
-            }
-          };
-          requestAnimationFrame(animate);
-          observer.unobserve(stat);
-        }
-      });
-    });
-
-    statRef.current.forEach((stat) => {
-      if (stat) observer.observe(stat);
     });
 
     return () => mm.revert();
@@ -167,28 +132,6 @@ const About = ({ images }) => {
                 hạn.
               </li>
             </ul>
-          </div>
-
-          {/* STATS */}
-          <div className="grid grid-cols-3 gap-4 mt-8 sm:mt-10">
-            {[50, 3, 4].map((value, index) => (
-              <div key={index} className="text-center">
-                <span
-                  className="block text-fluid-3xl font-bold text-primary"
-                  data-count={value}
-                  ref={(el) => (statRef.current[index] = el)}
-                >
-                  0
-                </span>
-                <span className="text-fluid-xs text-gray whitespace-pre-line">
-                  {index === 0
-                    ? "Học viên thay đổi\nngoạn mục"
-                    : index === 1
-                      ? "Số lượng\nchuyên môn"
-                      : "4 Năm kinh nghiệm\nđúc kết"}
-                </span>
-              </div>
-            ))}
           </div>
         </div>
 

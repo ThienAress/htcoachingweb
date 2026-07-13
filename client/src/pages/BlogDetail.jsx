@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, Navigate, useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -518,7 +518,7 @@ const BlogDetail = () => {
 
             {/* Sidebar — luôn hiển thị dù có TOC hay không */}
             <aside className="hidden lg:block">
-              <div className="sticky top-20 space-y-6">
+              <div className="space-y-6">
                 {/* Khối 1: MỤC LỤC (chỉ hiển khi có heading) */}
                 {toc.length > 0 && (
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">

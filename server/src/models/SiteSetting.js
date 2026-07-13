@@ -12,6 +12,10 @@ const SiteSettingSchema = new mongoose.Schema(
       type: [String],
       default: [], // Mảng URL ảnh của slider Hero
     },
+    heroAvatars: {
+      type: [String],
+      default: [], // Mảng URL avatar học viên xuất hiện ở box CountUp
+    },
     aboutImages: {
       type: [String],
       default: [], // Mảng URL ảnh slider About

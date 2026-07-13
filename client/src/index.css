@@ -44,11 +44,15 @@
 @layer base {
 
   html,
-  body,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   #root {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
   }
 
   html {
@@ -274,6 +278,10 @@
 .btn-white:hover {
   background-color: white;
   color: var(--color-primary);
+}
+
+.gradient-text {
+  display: inline-block;
 }
 
 .gradient-text,

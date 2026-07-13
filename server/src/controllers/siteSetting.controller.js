@@ -30,7 +30,7 @@ export const uploadSettingImage = async (req, res) => {
       return res.status(400).json({ success: false, message: "Không có file nào được tải lên" });
     }
 
-    const folderMap = { hero: 1920, about: 1200, trainer: 800, classes: 800, tools: 1920 };
+    const folderMap = { hero: 1920, heroAvatars: 200, about: 1200, trainer: 800, classes: 800, tools: 1920 };
     const maxWidth = folderMap[fieldName] || 1200;
 
     const settings = await getSettings();
@@ -58,6 +58,8 @@ export const uploadSettingImage = async (req, res) => {
 
     if (fieldName === "hero") {
       settings.heroImages = [...settings.heroImages, ...uploadedUrls];
+    } else if (fieldName === "heroAvatars") {
+      settings.heroAvatars = [...settings.heroAvatars, ...uploadedUrls];
     } else if (fieldName === "about") {
       settings.aboutImages = [...settings.aboutImages, ...uploadedUrls];
     } else if (fieldName === "trainer") {
@@ -84,6 +86,8 @@ export const removeSettingImage = async (req, res) => {
     
     if (fieldName === 'hero') {
       settings.heroImages = settings.heroImages.filter(url => url !== imageUrl);
+    } else if (fieldName === 'heroAvatars') {
+      settings.heroAvatars = settings.heroAvatars.filter(url => url !== imageUrl);
     } else if (fieldName === 'about') {
       settings.aboutImages = settings.aboutImages.filter(url => url !== imageUrl);
     } else if (fieldName === 'classes') {

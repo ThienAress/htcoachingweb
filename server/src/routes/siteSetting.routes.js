@@ -8,6 +8,7 @@ import {
 } from "../controllers/siteSetting.controller.js";
 import {
   uploadHeroImage,
+  uploadHeroAvatar,
   uploadAboutImage,
   uploadTrainerImage,
   uploadClassesImage,
@@ -24,6 +25,7 @@ router.use(protect, requireRoles("admin"), csrfProtection);
 
 // POST upload ảnh cho từng phần
 router.post("/upload/hero", uploadHeroImage.array("images", 5), (req, res, next) => { req.body.fieldName = 'hero'; next(); }, uploadSettingImage);
+router.post("/upload/hero-avatars", uploadHeroAvatar.array("images", 3), (req, res, next) => { req.body.fieldName = 'heroAvatars'; next(); }, uploadSettingImage);
 router.post("/upload/about", uploadAboutImage.array("images", 5), (req, res, next) => { req.body.fieldName = 'about'; next(); }, uploadSettingImage);
 router.post("/upload/trainer", uploadTrainerImage.single("image"), (req, res, next) => { req.body.fieldName = 'trainer'; next(); }, uploadSettingImage);
 router.post("/upload/classes", uploadClassesImage.array("images", 5), (req, res, next) => { req.body.fieldName = 'classes'; next(); }, uploadSettingImage);
