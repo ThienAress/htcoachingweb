@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { safeLog } from './safeLogger.js';
 
 /**
@@ -12,7 +11,7 @@ export const triggerNetlifyBuild = async () => {
   }
 
   try {
-    await axios.post(buildHookUrl, {});
+    await fetch(buildHookUrl, { method: 'POST' });
     console.log('[Webhook] Netlify build triggered successfully.');
   } catch (error) {
     safeLog.error('Webhook Error', error);
