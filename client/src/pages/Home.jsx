@@ -103,7 +103,7 @@ const Home = () => {
         canonical="/" 
         jsonLd={homeSchema}
       />
-      <Hero images={settings.heroImages} onAnimationComplete={() => setHeroAnimDone(true)} />
+      <Hero images={settings.heroImages} avatars={settings.heroAvatars} onAnimationComplete={() => setHeroAnimDone(true)} />
       <About images={settings.aboutImages} />
       <Trainers />
       <Feedback />
