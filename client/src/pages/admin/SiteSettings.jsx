@@ -8,7 +8,7 @@ import {
   removeSettingImage,
 } from "../../services/siteSetting.service";
 
-const SettingSection = ({ title, fieldName, images, isMultiple, maxCount, onUpload, onRemove, isLoading, onPreview }) => {
+const SettingSection = ({ title, fieldName, apiPath, images, isMultiple, maxCount, onUpload, onRemove, isLoading, onPreview }) => {
   const [selectedFiles, setSelectedFiles] = useState(null);
   const [previewUrls, setPreviewUrls] = useState([]);
 
@@ -42,7 +42,7 @@ const SettingSection = ({ title, fieldName, images, isMultiple, maxCount, onUplo
       formData.append("image", selectedFiles[0]);
     }
     
-    await onUpload({ fieldName, formData });
+    await onUpload({ apiPath, fieldName, formData });
     setSelectedFiles(null);
     setPreviewUrls([]);
   };
@@ -146,7 +146,7 @@ const SiteSettings = () => {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: ({ fieldName, formData }) => uploadSettingImage(fieldName, formData),
+    mutationFn: ({ apiPath, fieldName, formData }) => uploadSettingImage(apiPath || fieldName, formData),
     onSuccess: () => {
       toast.success("Tải ảnh lên thành công!");
       queryClient.invalidateQueries(["site-settings"]);
@@ -198,6 +198,19 @@ const SiteSettings = () => {
         images={settings.heroImages}
         isMultiple={true}
         maxCount={5}
+        onUpload={uploadMutation.mutate}
+        onRemove={removeMutation.mutate}
+        isLoading={uploadMutation.isPending}
+        onPreview={setPreviewImage}
+      />
+
+      <SettingSection
+        title="Hero Section (Avatar Học Viên Lột Xác)"
+        fieldName="heroAvatars"
+        apiPath="hero-avatars"
+        images={settings.heroAvatars || []}
+        isMultiple={true}
+        maxCount={3}
         onUpload={uploadMutation.mutate}
         onRemove={removeMutation.mutate}
         isLoading={uploadMutation.isPending}
