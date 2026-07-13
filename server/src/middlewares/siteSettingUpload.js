@@ -20,6 +20,7 @@ const multerOptions = (maxSizeMB = 10) => ({
 });
 
 export const uploadHeroImage = multer(multerOptions(20));
+export const uploadHeroAvatar = multer(multerOptions(5));
 export const uploadAboutImage = multer(multerOptions(20));
 export const uploadTrainerImage = multer(multerOptions(10));
 export const uploadClassesImage = multer(multerOptions(10));

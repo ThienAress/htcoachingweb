@@ -53,9 +53,9 @@ function Header() {
 
   // Map tên gói -> icon
   const planIconMap = {
-    "Tiêu chuẩn": "\uD83D\uDD25",
-    "Chuyên nghiệp": "\uD83D\uDC8E",
-    "Cao cấp": "\uD83D\uDC51",
+    "Tiêu chuẩn": "🔥",
+    "Chuyên nghiệp": "💎",
+    "Cao cấp": "👑",
   };
 
   const toggleGroup = (groupName) => {
@@ -183,6 +183,9 @@ function Header() {
   const isAdmin = user?.role === "admin";
   const hasTrainerAccess = user?.role === "trainer" || activeSubscription;
 
+  const isHomePage = location.pathname === "/";
+  const isSolidHeader = isScrolled || !isHomePage;
+
   const dropdownItems = isAdmin
     ? [
       {
@@ -246,15 +249,18 @@ function Header() {
         { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
       ];
 
+  const textColorClass = isSolidHeader ? "text-white" : "text-dark";
+  const textMutedClass = isSolidHeader ? "text-white/80 hover:text-white" : "text-dark/70 hover:text-dark";
+
   return (
     <header
       ref={headerRef}
-      className={`fixed top-0 w-full z-50 h-20 2xl:h-24 transition-all duration-300 ${isScrolled
-        ? "bg-linear-to-r from-[#f39c12] to-[#1a1a1a]"
-        : "bg-transparent"
+      className={`fixed top-0 w-full z-50 h-[73px] 2xl:h-20 transition-all duration-300 ${isSolidHeader
+        ? "bg-gradient-to-r from-[#f39c12] to-[#1a1a1a] shadow-md border-transparent"
+        : "bg-transparent border-b border-black/10"
         }`}
     >
-      <div className="relative h-full flex items-center justify-between px-5 max-w-7xl 2xl:max-w-[1536px] mx-auto max-lg:bg-linear-to-r max-lg:from-[#f39c12] max-lg:to-[#1a1a1a]">
+      <div className="relative h-full flex items-center justify-between px-5 max-w-[1536px] mx-auto bg-transparent">
         {/* Logo */}
         <Link
           to="/"
@@ -264,7 +270,7 @@ function Header() {
           <img
             src={logo}
             alt="HT Coaching"
-            className="h-12.5 lg:h-15 2xl:h-18 max-w-full object-contain"
+            className={`h-12 lg:h-14 2xl:h-16 max-w-full object-contain transition-all duration-300`}
           />
         </Link>
 
@@ -274,7 +280,7 @@ function Header() {
             <li>
               <Link
                 to="/"
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-fluid-sm"
+                className={`nav-link-hover ${textColorClass} font-semibold relative whitespace-nowrap text-[15px] transition-colors`}
               >
                 Trang chủ
               </Link>
@@ -282,18 +288,18 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("about")}
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-fluid-sm"
+                className={`nav-link-hover ${textMutedClass} font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-[15px] transition-colors`}
               >
                 Giới thiệu
               </button>
             </li>
             <li className="relative group">
               <button
-                className="nav-link-hover text-white font-semibold relative flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-fluid-sm"
+                className={`nav-link-hover ${textMutedClass} font-semibold relative flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-[15px] transition-colors`}
               >
                 Dịch vụ <ChevronDown size={14} className="transition-transform duration-200 group-hover:rotate-180" />
               </button>
-              {/* Dropdown — invisible bridge padding prevents hover loss */}
+              {/* Dropdown */}
               <div className="absolute top-full left-1/2 -translate-x-1/2 w-52 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                 <div className="bg-white rounded-xl shadow-2xl py-2 border border-gray-100">
                   <button onClick={() => handleScrollToSection("pricing")} className="w-full text-left px-5 py-3 text-sm text-gray-800 hover:bg-orange-50 hover:text-primary font-semibold transition-colors">
@@ -308,7 +314,7 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("customer")}
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-fluid-sm"
+                className={`nav-link-hover ${textMutedClass} font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-[15px] transition-colors`}
               >
                 Feedback
               </button>
@@ -316,7 +322,7 @@ function Header() {
             <li>
               <Link
                 to="/blog"
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-fluid-sm"
+                className={`nav-link-hover ${textMutedClass} font-semibold relative whitespace-nowrap text-[15px] transition-colors`}
               >
                 Blog
               </Link>
@@ -324,7 +330,7 @@ function Header() {
             <li>
               <button
                 onClick={() => handleScrollToSection("contact")}
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-fluid-sm"
+                className={`nav-link-hover ${textMutedClass} font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-[15px] transition-colors`}
               >
                 Liên hệ
               </button>
@@ -332,7 +338,7 @@ function Header() {
             <li>
               <Link
                 to="/club"
-                className="nav-link-hover text-white font-semibold relative whitespace-nowrap text-fluid-sm"
+                className={`nav-link-hover ${textMutedClass} font-semibold relative whitespace-nowrap text-[15px] transition-colors`}
               >
                 CLB
               </Link>
@@ -346,12 +352,14 @@ function Header() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setOpenDropdown(!openDropdown)}
-                className="flex items-center gap-1.5 2xl:gap-2.5 bg-white/10 hover:bg-white/20 rounded-full px-2.5 2xl:px-4 py-1 2xl:py-1.5"
+                className={`flex items-center gap-1.5 2xl:gap-2.5 rounded-full px-2.5 2xl:px-4 py-1.5 transition-colors border ${
+                  isSolidHeader ? "bg-white/10 hover:bg-white/20 border-transparent" : "bg-gray-100 hover:bg-gray-200 border-gray-200"
+                }`}
               >
                 <div className="relative">
                   <img
                     src={getAvatarUrl(user.avatar)}
-                    className="w-8 h-8 2xl:w-10 2xl:h-10 rounded-full"
+                    className="w-8 h-8 2xl:w-9 2xl:h-9 rounded-full"
                     alt="avatar"
                   />
                   {activeSubscription && (
@@ -361,31 +369,31 @@ function Header() {
                   )}
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="text-white text-fluid-xs font-medium leading-tight max-w-[100px] 2xl:max-w-[140px] truncate">
+                  <span className={`${textColorClass} text-xs font-bold leading-tight max-w-[100px] 2xl:max-w-[140px] truncate`}>
                     {user.name}
                   </span>
                   {walletBalance !== null && (
-                    <span className="text-fluid-xs text-yellow-400 font-semibold leading-tight">
-                      Số dư ví: {new Intl.NumberFormat("vi-VN").format(walletBalance)}đ
+                    <span className={`text-[10px] font-semibold leading-tight mt-0.5 ${isSolidHeader ? "text-yellow-400" : "text-gray-500"}`}>
+                      {new Intl.NumberFormat("vi-VN").format(walletBalance)}đ
                     </span>
                   )}
                 </div>
-                <ChevronDown size={16} className="text-white" />
+                <ChevronDown size={16} className={`${textColorClass} ml-1`} />
               </button>
               {openDropdown && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg overflow-hidden z-50 border border-gray-100">
-                  <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden z-50 border border-gray-100">
+                  <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                     <p className="font-semibold text-gray-800 truncate">
                       {user.name}{activeSubscription ? ` - ${activeSubscription.planTitle}` : ""}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
                       {user.email || "user@example.com"}
                     </p>
                   </div>
                   <div className="py-2">
                     {dropdownItems.map((item, idx) => {
                       if (item.isDivider) {
-                        return <div key={idx} className="h-px bg-gray-200 my-1"></div>;
+                        return <div key={idx} className="h-px bg-gray-100 my-1"></div>;
                       }
                       if (item.children) {
                         const isOpen = openGroups[item.group];
@@ -396,13 +404,13 @@ function Header() {
                                 e.stopPropagation();
                                 toggleGroup(item.group);
                               }}
-                              className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition"
+                              className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition"
                             >
                               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{item.group}</span>
                               <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
                             </button>
                             <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}>
-                              <div className="bg-gray-50/50 py-1">
+                              <div className="bg-gray-50/30 py-1">
                                 {item.children.map((child, cIdx) => {
                                   const ChildIcon = child.icon;
                                   return (
@@ -413,10 +421,10 @@ function Header() {
                                         else if (child.path) navigate(child.path);
                                         setOpenDropdown(false);
                                       }}
-                                      className="w-full flex items-center gap-3 pl-6 pr-4 py-2 text-sm text-gray-700 hover:bg-gray-200"
+                                      className="w-full flex items-center gap-3 pl-6 pr-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary transition-colors"
                                     >
-                                      <ChildIcon size={16} className="text-gray-500" />
-                                      <span>{child.label}</span>
+                                      <ChildIcon size={16} className="text-gray-400" />
+                                      <span className="font-medium">{child.label}</span>
                                     </button>
                                   );
                                 })}
@@ -434,10 +442,10 @@ function Header() {
                             else if (item.path) navigate(item.path);
                             setOpenDropdown(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
                         >
-                          <Icon size={18} className="text-gray-500" />
-                          <span>{item.label}</span>
+                          <Icon size={18} className="text-gray-400" />
+                          <span className="font-medium">{item.label}</span>
                         </button>
                       );
                     })}
@@ -448,40 +456,42 @@ function Header() {
           ) : (
             <Link
               to="/login"
-              className="bg-orange-500 text-white px-4 py-2 rounded"
+              className={`px-5 py-2.5 rounded-sm font-semibold transition-colors text-sm shadow-md ${
+                isSolidHeader ? "bg-orange-500 hover:bg-orange-600 text-white" : "bg-dark hover:bg-black text-white"
+              }`}
             >
               Đăng nhập
             </Link>
           )}
         </div>
 
-        {/* MOBILE BUTTON - Thêm màu trắng cho icon */}
+        {/* MOBILE BUTTON */}
         <div className="absolute right-5 lg:hidden flex items-center gap-3 z-20">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="text-white"
+            className={`${isSolidHeader ? "text-white" : "text-dark bg-white shadow-sm p-1.5 rounded-md border border-gray-200"}`}
             aria-label={menuOpen ? "Đóng menu" : "Mở menu"}
             aria-expanded={menuOpen}
           >
-            {menuOpen ? <X size={28} /> : <Menu size={28} />}
+            {menuOpen ? <X size={isSolidHeader ? 28 : 22} /> : <Menu size={isSolidHeader ? 28 : 22} />}
           </button>
         </div>
 
         {/* MOBILE MENU */}
         <div
-          className={`fixed inset-0 top-20 bg-linear-to-b from-[#f39c12] to-[#1a1a1a] z-10 transform transition-transform duration-300 ${menuOpen ? "translate-x-0" : "translate-x-full"
+          className={`fixed inset-0 top-[73px] bg-gradient-to-b from-[#e8810c] via-[#75440c] to-[#1a1a1a] z-10 transform transition-transform duration-300 ${menuOpen ? "translate-x-0" : "translate-x-full"
             } lg:hidden overflow-y-auto`}
         >
           <div className="flex flex-col items-center justify-start min-h-full py-8 px-5">
             {user ? (
-              <div className="w-full mb-8 bg-white/10 backdrop-blur-sm rounded-2xl overflow-hidden">
-                <div className="p-5 flex flex-col items-center border-b border-white/20">
+              <div className="w-full mb-8 bg-black/20 backdrop-blur-md rounded-2xl overflow-hidden border border-white/10">
+                <div className="p-5 flex flex-col items-center border-b border-white/10 bg-black/20">
                   <img
                     src={getAvatarUrl(user.avatar)}
-                    className="w-20 h-20 rounded-full border-2 border-white mb-3"
+                    className="w-20 h-20 rounded-full shadow-sm mb-3 border border-white/20"
                     alt="avatar"
                   />
-                  <span className="text-white text-lg font-semibold">
+                  <span className="text-white text-lg font-bold">
                     {user.name}{activeSubscription ? ` - ${activeSubscription.planTitle}` : ""}
                   </span>
                   <span className="text-white/70 text-sm mt-1 text-center break-all">
@@ -491,7 +501,7 @@ function Header() {
                 <div className="py-2">
                   {dropdownItems.map((item, idx) => {
                     if (item.isDivider) {
-                      return <div key={idx} className="h-px bg-white/20 my-2 mx-5"></div>;
+                      return <div key={idx} className="h-px bg-white/10 my-2 mx-5"></div>;
                     }
                     if (item.children) {
                       const isOpen = openGroups[item.group];
@@ -504,11 +514,11 @@ function Header() {
                             }}
                             className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/5 transition"
                           >
-                            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider">{item.group}</span>
-                            <ChevronDown size={14} className={`text-white/50 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                            <span className="text-[11px] font-bold text-white/60 uppercase tracking-wider">{item.group}</span>
+                            <ChevronDown size={14} className={`text-white/60 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
                           </button>
                           <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}>
-                            <div className="bg-black/20 py-1">
+                            <div className="bg-black/20 py-1 border-y border-white/5">
                               {item.children.map((child, cIdx) => {
                                 const ChildIcon = child.icon;
                                 return (
@@ -519,10 +529,10 @@ function Header() {
                                       else if (child.path) navigate(child.path);
                                       setMenuOpen(false);
                                     }}
-                                    className="w-full flex items-center gap-3 pl-8 pr-5 py-3 text-white hover:bg-white/10"
+                                    className="w-full flex items-center gap-3 pl-8 pr-5 py-3 text-white/90 hover:bg-white/10 hover:text-white transition-colors"
                                   >
-                                    <ChildIcon size={18} className="text-white/70" />
-                                    <span>{child.label}</span>
+                                    <ChildIcon size={18} className="text-white/60" />
+                                    <span className="font-medium">{child.label}</span>
                                   </button>
                                 );
                               })}
@@ -540,10 +550,10 @@ function Header() {
                           else if (item.path) navigate(item.path);
                           setMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-3 px-5 py-3 text-white hover:bg-white/10"
+                        className="w-full flex items-center gap-3 px-5 py-3 text-white/90 hover:bg-white/5 hover:text-white transition-colors"
                       >
-                        <Icon size={20} className="text-white/70" />
-                        <span>{item.label}</span>
+                        <Icon size={20} className="text-white/60" />
+                        <span className="font-medium">{item.label}</span>
                       </button>
                     );
                   })}
@@ -554,116 +564,55 @@ function Header() {
                 <Link
                   to="/login"
                   onClick={() => setMenuOpen(false)}
-                  className="block w-full text-center bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-3 rounded-full"
+                  className="block w-full text-center bg-[#FF5A1F] hover:bg-[#C4400F] text-white font-bold text-[16px] px-4 py-3.5 rounded-full shadow-md transition-colors"
                 >
                   Đăng nhập
                 </Link>
               </div>
             )}
-            <ul className="w-full flex flex-col items-center gap-3">
-              <li className="w-full">
-                <Link
-                  to="/"
-                  onClick={() => setMenuOpen(false)}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10"
-                >
-                  Trang chủ
-                </Link>
-              </li>
-              <li className="w-full">
-                <button
-                  onClick={() => {
-                    handleScrollToSection("pricing");
-                    setMenuOpen(false);
-                  }}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
-                >
-                  {["admin", "trainer"].includes(user?.role) ? "Gói dịch vụ" : "Gói tập"}
-                </button>
-              </li>
-              <li className="w-full">
-                <button
-                  onClick={() => {
-                    handleScrollToSection("classes");
-                    setMenuOpen(false);
-                  }}
-                  className="block text-center text-white/80 text-base py-2 px-4 rounded-lg hover:bg-white/10 w-full"
-                >
-                  Chương trình đào tạo
-                </button>
-              </li>
-
-              <li className="w-full">
-                <button
-                  onClick={() => {
-                    handleScrollToSection("about");
-                    setMenuOpen(false);
-                  }}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
-                >
-                  Giới thiệu
-                </button>
-              </li>
-              <li className="w-full">
-                <button
-                  onClick={() => {
-                    handleScrollToSection("customer");
-                    setMenuOpen(false);
-                  }}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
-                >
-                  Feedback
-                </button>
-              </li>
-              <li className="w-full">
-                <Link
-                  to="/blog"
-                  onClick={() => setMenuOpen(false)}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
-                >
-                  Blog
-                </Link>
-              </li>
-              <li className="w-full">
-                <button
-                  onClick={() => {
-                    handleScrollToSection("contact");
-                    setMenuOpen(false);
-                  }}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10 w-full"
-                >
-                  Liên hệ
-                </button>
-              </li>
-
-              <li className="w-full">
-                <Link
-                  to="/club"
-                  onClick={() => setMenuOpen(false)}
-                  className="block text-center text-white text-lg py-3 px-4 rounded-lg hover:bg-white/10"
-                >
-                  CLB
-                </Link>
-              </li>
+            
+            <ul className="w-full flex flex-col items-center gap-2">
+              {[
+                { label: "Trang chủ", action: () => navigate("/") },
+                { label: "Giới thiệu", action: () => handleScrollToSection("about") },
+                { label: "Dịch vụ", action: () => handleScrollToSection("pricing") },
+                { label: "Feedback", action: () => handleScrollToSection("customer") },
+                { label: "Blog", action: () => navigate("/blog") },
+                { label: "Liên hệ", action: () => handleScrollToSection("contact") },
+                { label: "CLB", action: () => navigate("/club") }
+              ].map((link, index) => (
+                <li key={index} className="w-full">
+                  <button
+                    onClick={() => {
+                      link.action();
+                      setMenuOpen(false);
+                    }}
+                    className="block text-center text-white/90 font-medium text-[17px] py-3.5 px-4 rounded-lg hover:bg-white/10 w-full transition-colors"
+                  >
+                    {link.label}
+                  </button>
+                </li>
+              ))}
+              
               {isAdmin && (
-                <li className="w-full">
+                <li className="w-full mt-2">
                   <Link
                     to="/admin"
                     onClick={() => setMenuOpen(false)}
-                    className="block text-center text-orange-300 font-semibold text-lg py-3 px-4 rounded-lg hover:bg-white/10"
+                    className="block text-center text-[#FF5A1F] font-bold text-[17px] py-3.5 px-4 rounded-lg hover:bg-white/10 transition-colors bg-white/5"
                   >
-                    Quản trị
+                    Quản trị Hệ thống
                   </Link>
                 </li>
               )}
               {!isAdmin && hasTrainerAccess && (
-                <li className="w-full">
+                <li className="w-full mt-2">
                   <Link
                     to="/trainer"
                     onClick={() => setMenuOpen(false)}
-                    className="block text-center text-orange-300 font-semibold text-lg py-3 px-4 rounded-lg hover:bg-white/10"
+                    className="block text-center text-[#FF5A1F] font-bold text-[17px] py-3.5 px-4 rounded-lg hover:bg-white/10 transition-colors bg-white/5"
                   >
-                    Quản lý
+                    Quản lý Huấn Luyện
                   </Link>
                 </li>
               )}
