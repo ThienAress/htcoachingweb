@@ -1,6 +1,7 @@
 import path from "path";
 import Trainer from "../models/Trainer.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
 
 const getPublicTrainerQuery = () => ({
   status: "published",
@@ -204,6 +205,11 @@ export const createTrainer = async (req, res, next) => {
     }
 
     const trainer = await Trainer.create(payload);
+    
+    if (trainer.status === "published") {
+      triggerNetlifyBuild();
+    }
+    
     res.status(201).json({ success: true, data: trainer });
   } catch (error) {
     if (error.code === 11000) {
@@ -234,6 +240,8 @@ export const updateTrainer = async (req, res, next) => {
       runValidators: true,
     }).lean();
 
+    triggerNetlifyBuild();
+
     res.status(200).json({ success: true, data: updatedTrainer });
   } catch (error) {
     next(error);
@@ -260,6 +268,9 @@ export const updateTrainerStatus = async (req, res, next) => {
     }
 
     await trainer.save();
+    
+    triggerNetlifyBuild();
+    
     res.status(200).json({ success: true, data: trainer });
   } catch (error) {
     next(error);
@@ -272,6 +283,11 @@ export const deleteTrainer = async (req, res, next) => {
     if (!trainer) {
       return res.status(404).json({ success: false, message: "Không tìm thấy trainer" });
     }
+    
+    if (trainer.status === "published") {
+      triggerNetlifyBuild();
+    }
+    
     res.status(200).json({ success: true, data: {} });
   } catch (error) {
     next(error);

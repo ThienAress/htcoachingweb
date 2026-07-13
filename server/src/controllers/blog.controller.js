@@ -2,6 +2,7 @@ import path from "path";
 import BlogPost from "../models/BlogPost.js";
 import sanitizeHtml from "sanitize-html";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
 
 // Cấu hình sanitize — Tầng 1 bảo mật chống XSS
 const sanitizeOptions = {
@@ -229,6 +230,12 @@ export const createBlogPost = async (req, res) => {
     }
 
     const post = await BlogPost.create(payload);
+    
+    // Trigger Netlify rebuild if published
+    if (post.status === "published") {
+      triggerNetlifyBuild();
+    }
+    
     res.status(201).json({ success: true, data: post });
   } catch (err) {
     console.error("CREATE BLOG POST ERROR:", err);
@@ -262,6 +269,9 @@ export const updateBlogPost = async (req, res) => {
     Object.assign(existingPost, payload);
     await existingPost.save();
 
+    // Trigger Netlify rebuild (whether it changed to/from published)
+    triggerNetlifyBuild();
+
     res.json({ success: true, data: existingPost });
   } catch (err) {
     console.error("UPDATE BLOG POST ERROR:", err);
@@ -278,6 +288,12 @@ export const deleteBlogPost = async (req, res) => {
     if (!post) {
       return res.status(404).json({ success: false, message: "Không tìm thấy bài viết" });
     }
+
+    // Trigger Netlify rebuild if it was published
+    if (post.status === "published") {
+      triggerNetlifyBuild();
+    }
+
     res.json({ success: true, message: "Xóa bài viết thành công" });
   } catch (err) {
     console.error("DELETE BLOG POST ERROR:", err);
