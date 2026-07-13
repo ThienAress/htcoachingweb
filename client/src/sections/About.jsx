@@ -87,9 +87,9 @@ const About = ({ images }) => {
 
   return (
     <section id="about" className="py-(--spacing-fluid-section) bg-light">
-      <div className="container-custom flex flex-col md:flex-row items-center gap-8 md:gap-12">
+      <div className="container-custom flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
         {/* LEFT */}
-        <div ref={leftRef} className="w-full md:w-1/2 lg:flex-1 min-w-0">
+        <div ref={leftRef} className="w-full lg:w-1/2 lg:flex-1 min-w-0">
           <h2 data-gsap-reveal>NGƯỜI ĐỒNG HÀNH THAY ĐỔI CỦA BẠN</h2>
 
           <p
@@ -136,7 +136,7 @@ const About = ({ images }) => {
         </div>
 
         {/* RIGHT (GSAP Slider thay thế Swiper) */}
-        <div ref={rightRef} className="w-full md:w-1/2 lg:flex-1 overflow-hidden rounded-xl shadow-lg aspect-video relative group">
+        <div ref={rightRef} className="w-full lg:w-1/2 lg:flex-1 overflow-hidden rounded-xl shadow-lg aspect-video relative group">
           <div className="w-full h-full relative">
             {displayImages.map((img, index) => (
               <div 
