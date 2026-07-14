@@ -4,12 +4,10 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
 import {
-  loginTrainer,
   refreshTokenController,
   logout,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
-import { validateLogin } from "../middlewares/validation.js";
 import { csrfProtection, generateCsrfToken } from "../middlewares/csrf.js";
 
 const router = express.Router();
@@ -139,9 +137,6 @@ router.get(
     }
   },
 );
-
-// ===== TRAINER LOGIN =====
-router.post("/trainer/login", validateLogin, loginTrainer);
 
 // ===== REFRESH / LOGOUT =====
 router.post("/refresh", csrfProtection, refreshTokenController);

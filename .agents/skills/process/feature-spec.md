@@ -96,6 +96,7 @@ Sau đó viết **Spec Document** gồm 6 phần:
 | **Mongoose schema** | Liệt kê controllers/services/routes bị ảnh hưởng |
 | **Route public mới** | Kiểm tra cần update `generate-sitemap.js` và `prerender.js` không |
 | **Lazy-loaded page mới** | Đảm bảo route được thêm vào `App.jsx` đúng cách |
+| **AI Chat (tools, prompts)** | Nêu rõ impact đến tool registry, system prompt, content moderation |
 
 ---
 
