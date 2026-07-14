@@ -7,7 +7,7 @@ import {
   Phone, MessageCircle, ArrowRight,
 } from "lucide-react";
 import DOMPurify from "dompurify";
-import { getPublicBlogPostBySlug, getPublicBlogPosts } from "../services/blog.service";
+import { getPublicBlogPostBySlug } from "../services/blog.service";
 import SEO from "../components/SEO";
 import Header from "../sections/Header/Header";
 import Footer from "../sections/Footer/Footer";
@@ -205,30 +205,9 @@ const BlogDetail = () => {
     retry: false,
   });
 
-  const { data: allPostsRes } = useQuery({
-    queryKey: ["public-blog-posts-all"],
-    queryFn: () => getPublicBlogPosts({ limit: 20 }),
-  });
-
   const post = postResponse?.data;
+  const relatedPosts = postResponse?.relatedPosts || [];
   const toc = useMemo(() => extractTOC(post?.content), [post?.content]);
-  const allPosts = allPostsRes?.data || [];
-
-  // Bài viết liên quan = cùng category
-  const relatedPosts = useMemo(() => {
-    if (!post) return [];
-    return allPosts
-      .filter((p) => p.slug !== post.slug && p.category === post.category)
-      .slice(0, 4);
-  }, [post, allPosts]);
-
-  // Bài viết khác = khác category
-  const otherPosts = useMemo(() => {
-    if (!post) return [];
-    return allPosts
-      .filter((p) => p.slug !== post.slug && p.category !== post.category)
-      .slice(0, 5);
-  }, [post, allPosts]);
 
   if (isLoading) {
     return (
@@ -543,19 +522,7 @@ const BlogDetail = () => {
                   </div>
                 )}
 
-                {/* Khối 2: BÀI VIẾT KHÁC */}
-                {otherPosts.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                    <h3 className="text-sm font-bold tracking-wider text-dark mb-3">
-                      BÀI VIẾT KHÁC
-                    </h3>
-                    <div>
-                      {otherPosts.map((p) => (
-                        <SidebarPostCard key={p._id} post={p} />
-                      ))}
-                    </div>
-                  </div>
-                )}
+
 
                 {/* Khối 3: Bạn cần tư vấn? */}
                 <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 text-white shadow-lg">

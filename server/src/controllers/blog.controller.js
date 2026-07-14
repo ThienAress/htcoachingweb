@@ -132,10 +132,22 @@ export const getPublicBlogPostBySlug = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy bài viết" });
     }
 
+    // Lấy 4 bài viết liên quan (Semantic Silo: cùng category, trừ bài hiện tại)
+    const relatedPosts = await BlogPost.find({
+      status: "published",
+      category: post.category,
+      _id: { $ne: post._id }
+    })
+      .select("-content")
+      .populate("author", "name slug image")
+      .sort({ publishedAt: -1 })
+      .limit(4)
+      .lean();
+
     // Tăng views (fire-and-forget)
     BlogPost.updateOne({ _id: post._id }, { $inc: { views: 1 } }).catch(() => {});
 
-    res.json({ success: true, data: post });
+    res.json({ success: true, data: post, relatedPosts });
   } catch (err) {
     console.error("GET PUBLIC BLOG POST DETAIL ERROR:", err);
     res.status(500).json({ success: false, message: "Lỗi lấy chi tiết bài viết" });
