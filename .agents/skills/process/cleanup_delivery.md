@@ -23,13 +23,13 @@ description: Checklist dọn dẹp và bàn giao code. Use before marking any ta
 - [ ] Code FE mới nằm đúng folder: `pages/`, `components/`, `hooks/`, `services/`
 - [ ] Code BE mới theo đúng MVC: `routes → controllers → services → models`
 - [ ] File mới ≤300 dòng (trừ trường hợp đặc biệt có lý do)
-- [ ] Naming theo convention (xem `rules/tech_patterns.md`)
+- [ ] Naming theo convention (xem `rules/code/tech_patterns.md`)
 
 ### ✔️ Chất Lượng
 
 - [ ] Build thành công: `cd client && npm run build` không lỗi
 - [ ] Không tạo breaking changes cho routes/API hiện tại
-- [ ] SEO: Page public mới có `<SEO>` component (xem `rules/seo.md`)
+- [ ] SEO: Page public mới có `<SEO>` component (xem `rules/seo/seo.md`)
 - [ ] Security: Không expose credentials, không disable CSRF/rate-limit
 
 ### 📋 Báo Cáo

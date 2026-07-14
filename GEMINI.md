@@ -414,7 +414,7 @@ function CustomerStories() {
 <SEO title="Quản Lý" noindex={true} />
 ```
 
-Danh sách trang `noindex`: `/login`, `/admin-login`, `/login-success`, `/admin/*`, `/trainer/*`, `/account`, `/wallet`, `/my-history`, `/checkin`, `/register`
+Danh sách trang `noindex`: `/login`, `/login-success`, `/admin/*`, `/trainer/*`, `/account`, `/wallet`, `/my-history`, `/checkin`, `/register`
 
 ### Rule 4: URL Slug Tiếng Việt
 
@@ -646,7 +646,6 @@ server/src/
 
 e2e/                                    ← Playwright E2E (root level)
 ├── homepage.spec.js
-├── admin-login.spec.js
 └── public-pages.spec.js
 ```
 
