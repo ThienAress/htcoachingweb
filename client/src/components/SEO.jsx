@@ -12,6 +12,12 @@ export default function SEO({ title, description, canonical, type = 'website', i
   const seoDescription = description || defaultDescription;
   const seoImage = image || defaultImage;
   
+  // Bảo vệ Canonical Tag: Bắt buộc xóa sạch query parameters (?...) và hash (#...)
+  const cleanCanonical = canonical ? canonical.split('?')[0].split('#')[0] : '';
+
+  // An toàn JSON-LD chống XSS (escape ký tự nhạy cảm)
+  const safeJsonLd = jsonLd ? JSON.stringify(jsonLd).replace(/</g, '\\u003c') : null;
+  
   return (
     <Helmet>
       {/* Chặn index nếu là trang hệ thống (noindex=true) */}
@@ -25,7 +31,7 @@ export default function SEO({ title, description, canonical, type = 'website', i
       <meta name="description" content={seoDescription} />
       
       {/* URL Chuẩn (Canonical) - chỉ thêm khi không phải noindex */}
-      {!noindex && canonical && <link rel="canonical" href={`${domain}${canonical}`} />}
+      {!noindex && cleanCanonical && <link rel="canonical" href={`${domain}${cleanCanonical}`} />}
       
       {/* Open Graph (Facebook, Zalo) */}
       <meta property="og:type" content={type} />
@@ -35,7 +41,7 @@ export default function SEO({ title, description, canonical, type = 'website', i
       <meta property="og:image" content={seoImage} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
-      {!noindex && canonical && <meta property="og:url" content={`${domain}${canonical}`} />}
+      {!noindex && cleanCanonical && <meta property="og:url" content={`${domain}${cleanCanonical}`} />}
       
       {/* Twitter Card */}
       <meta name="twitter:card" content="summary_large_image" />
@@ -44,9 +50,9 @@ export default function SEO({ title, description, canonical, type = 'website', i
       <meta name="twitter:image" content={seoImage} />
 
       {/* JSON-LD Structured Data */}
-      {jsonLd && (
+      {safeJsonLd && (
         <script type="application/ld+json">
-          {JSON.stringify(jsonLd)}
+          {safeJsonLd}
         </script>
       )}
     </Helmet>
