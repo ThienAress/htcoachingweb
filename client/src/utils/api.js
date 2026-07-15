@@ -72,9 +72,6 @@ api.interceptors.response.use(
 
     const isUserMeRequest = requestUrl === "/user/me";
     const isRefreshRequest = requestUrl === "/auth/refresh";
-    const isLoginRequest =
-      requestUrl === "/auth/admin/login" ||
-      requestUrl === "/auth/trainer/login";
     const isLogoutRequest = requestUrl === "/auth/logout";
 
     // /user/me bị 401 thì để AuthContext tự xử lý
@@ -82,9 +79,9 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Không refresh cho login / logout / refresh itself
+    // Không refresh cho logout / refresh itself
     if (status === 401 && !originalRequest._retry) {
-      if (isRefreshRequest || isLoginRequest || isLogoutRequest) {
+      if (isRefreshRequest || isLogoutRequest) {
         return Promise.reject(error);
       }
 

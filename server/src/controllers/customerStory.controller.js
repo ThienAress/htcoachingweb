@@ -2,6 +2,7 @@ import path from "path";
 import CustomerStory from "../models/CustomerStory.js";
 import Trainer from "../models/Trainer.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
 
 const getPublicStoryQuery = () => ({
   status: "published",
@@ -251,6 +252,11 @@ export const createCustomerStory = async (req, res) => {
     }
 
     const story = await CustomerStory.create(payload);
+    
+    if (story.status === "published") {
+      triggerNetlifyBuild();
+    }
+    
     res.status(201).json({ success: true, data: story });
   } catch (err) {
     console.error("CREATE CUSTOMER STORY ERROR:", err);
@@ -296,6 +302,8 @@ export const updateCustomerStory = async (req, res) => {
     Object.assign(existingStory, payload);
     await existingStory.save();
 
+    triggerNetlifyBuild();
+
     res.json({ success: true, data: existingStory });
   } catch (err) {
     console.error("UPDATE CUSTOMER STORY ERROR:", err);
@@ -338,6 +346,8 @@ export const updateCustomerStoryStatus = async (req, res) => {
       status === "published" ? story.publishedAt || new Date() : null;
     await story.save();
 
+    triggerNetlifyBuild();
+
     res.json({ success: true, data: story });
   } catch (err) {
     console.error("UPDATE CUSTOMER STORY STATUS ERROR:", err);
@@ -357,6 +367,11 @@ export const deleteCustomerStory = async (req, res) => {
         message: "Không tìm thấy câu chuyện khách hàng",
       });
     }
+
+    if (story.status === "published") {
+      triggerNetlifyBuild();
+    }
+
     res.json({
       success: true,
       message: "Xóa câu chuyện khách hàng thành công",

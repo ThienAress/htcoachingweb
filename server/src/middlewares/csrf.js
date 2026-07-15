@@ -20,7 +20,14 @@ export const csrfProtection = (req, res, next) => {
     });
   }
 
-  if (csrfTokenFromCookie !== csrfTokenFromHeader) {
+  // Timing-safe comparison: ngăn attacker đoán token từ thời gian response
+  const cookieBuf = Buffer.from(csrfTokenFromCookie);
+  const headerBuf = Buffer.from(csrfTokenFromHeader);
+
+  if (
+    cookieBuf.length !== headerBuf.length ||
+    !crypto.timingSafeEqual(cookieBuf, headerBuf)
+  ) {
     return res.status(403).json({
       success: false,
       message: "Invalid CSRF token",

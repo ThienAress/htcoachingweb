@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { generateCsrfToken } from "../middlewares/csrf.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -84,65 +85,6 @@ const sanitizeUserResponse = (user) => ({
   role: user.role,
 });
 
-const handleRoleLogin = async (req, res, role) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Thiếu thông tin" });
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail, role });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy trainer",
-      });
-    }
-
-    if (!user.password) {
-      return res.status(400).json({
-        success: false,
-        message: "Tài khoản chưa có mật khẩu",
-      });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ success: false, message: "Sai mật khẩu" });
-    }
-
-    const accessToken = signAccessToken(user);
-    const refreshToken = signRefreshToken(user);
-
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    user.refreshToken = hashedRefreshToken;
-    await user.save();
-
-    setAuthCookies(res, accessToken, refreshToken);
-
-    return res.json({
-      success: true,
-      data: {
-        user: sanitizeUserResponse(user),
-      },
-    });
-  } catch (err) {
-    console.error(`[${role.toUpperCase()} LOGIN ERROR]:`, err);
-    return res.status(500).json({
-      success: false,
-      message: "Lỗi server",
-    });
-  }
-};
-
-export const loginTrainer = async (req, res) => {
-  return handleRoleLogin(req, res, "trainer");
-};
 
 export const refreshTokenController = async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
@@ -212,7 +154,7 @@ export const logout = async (req, res) => {
       message: "Logged out",
     });
   } catch (err) {
-    console.error("[LOGOUT ERROR]:", err);
+    safeLog.error("LOGOUT", err);
 
     clearAuthCookies(res);
 

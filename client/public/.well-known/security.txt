@@ -1,0 +1,9 @@
+# HTCOACHING Security Policy
+# Nếu bạn phát hiện lỗ hổng bảo mật, vui lòng liên hệ chúng tôi.
+# If you discover a security vulnerability, please contact us.
+
+Contact: mailto:htcoaching.contact@gmail.com
+Preferred-Languages: vi, en
+Canonical: https://htcoachingweb.io.vn/.well-known/security.txt
+Policy: https://htcoachingweb.io.vn/chinh-sach-bao-mat
+Expires: 2027-07-11T00:00:00.000Z

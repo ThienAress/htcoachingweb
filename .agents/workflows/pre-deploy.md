@@ -1,12 +1,12 @@
 ---
 name: pre-deploy
 trigger: /pre-deploy
-description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 6 gates (audit quick → ai-check → qa → ui-check → seo-check → ship). Gom TẤT CẢ findings, yêu cầu fix hết, re-check cho đến khi ALL PASS → mới được push. Mỗi workflow con vẫn chạy riêng lẻ được bằng lệnh riêng.
+description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 7 gates (audit quick → ai-check → qa → ui-check → seo-check → skill-drift → ship). Gom TẤT CẢ findings, yêu cầu fix hết, re-check cho đến khi ALL PASS → mới được push. Mỗi workflow con vẫn chạy riêng lẻ được bằng lệnh riêng.
 ---
 
 # /pre-deploy — Full Pipeline Trước Khi Push Code
 
-> **Nguyên tắc:** Chạy 6 gates tuần tự. Gom tất cả findings. Fix hết. Re-check. Chỉ khi ALL PASS → mới được push/deploy.
+> **Nguyên tắc:** Chạy 7 gates tuần tự. Gom tất cả findings. Fix hết. Re-check. Chỉ khi ALL PASS → mới được push/deploy.
 > **Mỗi gate vẫn chạy riêng lẻ được:** `/audit quick`, `/ai-check`, `/qa`, `/ui-check`, `/seo-check`, `/ship`.
 
 ---
@@ -15,39 +15,40 @@ description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 6 
 
 | Lệnh | Mô tả |
 |-------|--------|
-| `/pre-deploy` | Full pipeline — 6 gates tuần tự |
+| `/pre-deploy` | Full pipeline — 7 gates tuần tự |
 | `/pre-deploy skip-audit` | Bỏ qua audit (khi vừa chạy `/audit` xong gần đây) |
 | `/pre-deploy skip-ai` | Bỏ qua ai-check (khi không sửa file AI nào) |
 | `/pre-deploy skip-qa` | Bỏ qua QA (khi vừa chạy `/qa` xong gần đây) |
 | `/pre-deploy skip-ui` | Bỏ qua ui-check (khi chỉ sửa backend) |
+| `/pre-deploy skip-drift` | Bỏ qua skill-drift (khi chỉ fix bug nhỏ) |
 
 ---
 
 ## Pipeline Flow
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                           /pre-deploy PIPELINE                                  │
-│                                                                                  │
-│  Gate 1       Gate 2       Gate 3      Gate 4       Gate 5       Gate 6         │
-│  ┌────────┐  ┌────────┐  ┌───────┐  ┌────────┐  ┌──────────┐  ┌────────┐      │
-│  │/audit  │─▶│/ai-    │─▶│ /qa   │─▶│/ui-    │─▶│/seo-     │─▶│ /ship  │      │
-│  │ quick  │  │ check  │  │       │  │ check  │  │ check    │  │        │      │
-│  └────────┘  └────────┘  └───────┘  └────────┘  └──────────┘  └────────┘      │
-│       │           │           │          │            │             │            │
-│       ▼           ▼           ▼          ▼            ▼             ▼            │
-│   findings    findings    test results findings    findings      GO/NO-GO       │
-│                                                                                  │
-│  ════════════════════════════════════════════════════════════════════            │
-│                    GOM TẤT CẢ FINDINGS                                          │
-│                    ↓                                                             │
-│              FIX → RE-CHECK → ALL PASS?                                         │
-│                    ↓               ↓                                             │
-│                   NO              YES                                            │
-│                    ↓               ↓                                             │
-│              FIX TIẾP        ✅ READY TO PUSH                                   │
-│                                                                                  │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              /pre-deploy PIPELINE                                       │
+│                                                                                         │
+│  Gate 1       Gate 2       Gate 3      Gate 4       Gate 5       Gate 6      Gate 7     │
+│  ┌────────┐  ┌────────┐  ┌───────┐  ┌────────┐  ┌──────────┐  ┌───────┐  ┌────────┐   │
+│  │/audit  │─▶│/ai-    │─▶│ /qa   │─▶│/ui-    │─▶│/seo-     │─▶│skill- │─▶│ /ship  │   │
+│  │ quick  │  │ check  │  │       │  │ check  │  │ check    │  │ drift │  │        │   │
+│  └────────┘  └────────┘  └───────┘  └────────┘  └──────────┘  └───────┘  └────────┘   │
+│       │           │           │          │            │            │           │         │
+│       ▼           ▼           ▼          ▼            ▼            ▼           ▼         │
+│   findings    findings    test results findings    findings    warnings     GO/NO-GO    │
+│                                                                                         │
+│  ════════════════════════════════════════════════════════════════════════════            │
+│                    GOM TẤT CẢ FINDINGS                                                  │
+│                    ↓                                                                     │
+│              FIX → RE-CHECK → ALL PASS?                                                 │
+│                    ↓               ↓                                                     │
+│                   NO              YES                                                    │
+│                    ↓               ↓                                                     │
+│              FIX TIẾP        ✅ READY TO PUSH                                           │
+│                                                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -60,7 +61,8 @@ Chạy `/audit quick` — quét hotspots, top findings, HIGH confidence only.
 
 **Hành vi:**
 - Quét files có churn cao (git log)
-- Quét critical paths (auth, payment, wallet)
+- Quét critical paths (auth, payment, wallet, contract)
+- **Security focus:** IDOR patterns (`findById` không kèm ownership check), timing-safe CSRF, CSP headers, PII trong logs
 - Chỉ báo findings có confidence HIGH
 
 **Output gate:** Findings table hoặc "Clean ✓"
@@ -142,7 +144,34 @@ Chạy `/seo-check` — quét tất cả trang public.
 
 ---
 
-## Gate 6: Ship 🚢 (Deploy Gate)
+## Gate 6: Skill Drift 📡 (AI Knowledge Freshness)
+
+Detect-only — kiểm tra skill files có bị lỗi thời không. **KHÔNG tự rewrite, KHÔNG block deploy.**
+
+**Focus:** Phát hiện drift giữa codebase thực tế và nội dung skill files.
+
+**Hành vi — 4 checks nhanh:**
+
+1. **AI Tools drift**: So sánh files trong `server/src/services/ai/tools/*.tool.js` vs danh sách trong `ai-chat-system.md` → báo nếu có tool mới chưa documented
+2. **Test count drift**: Đếm test files trong `client/src/**/__tests__/` + `server/src/**/__tests__/` + `e2e/` → so với số ghi trong `tdd.md` → báo nếu lệch >2 files
+3. **Known issues drift**: Check nhanh các issues trong `known_issues.md` còn đúng không (file tồn tại? pattern vẫn còn?)
+4. **By-design sync**: Verify by-design list trong `audit-playbook.md` khớp với `known_issues.md`
+
+**Output gate:** Warnings hoặc "No drift ✓"
+
+**KHÔNG block deploy** — chỉ output warnings dạng:
+```
+⚠️ SKILL DRIFT DETECTED:
+- ai-chat-system.md: 1 new tool file not documented (newTool.tool.js)
+- tdd.md: test count changed (10 → 12 files)
+→ Recommend: run /goad on affected files after deploy
+```
+
+**SKIP khi:** Không có thay đổi nào trong `server/src/services/ai/tools/`, `server/src/**/__tests__/`, `client/src/**/__tests__/`, `e2e/`.
+
+---
+
+## Gate 7: Ship 🚢 (Deploy Gate)
 
 Chạy `/ship` — pre-deploy checklist cứng.
 
@@ -151,7 +180,7 @@ Chạy `/ship` — pre-deploy checklist cứng.
 **Hành vi:**
 - `npm run build` → phải pass
 - `vitest run` (client + server) → phải pass
-- Security scan → phải pass
+- Security scan (IDOR, CSRF timing-safe, CSP, safeLog, `npm run security:audit`, security.txt) → phải pass
 - SEO basics (nếu có route changes) → phải pass
 - Cleanup check → phải pass
 
@@ -163,18 +192,19 @@ Chạy `/ship` — pre-deploy checklist cứng.
 
 ## Tổng Hợp & Report
 
-Sau khi chạy xong 6 gates, tổng hợp:
+Sau khi chạy xong 7 gates, tổng hợp:
 
 ```
 🚀 PRE-DEPLOY PIPELINE — HTCoachingWeb
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[Gate 1/6] Audit Quick      ✅ Clean / ⚠️ X findings / ⏭️ SKIP
-[Gate 2/6] AI Check         ✅ Pass / ⚠️ X findings / ⏭️ SKIP
-[Gate 3/6] QA Check         ✅ All pass (X tests) / ❌ Y failed / ⏭️ SKIP
-[Gate 4/6] UI Check (?/40)  ✅ Pass / ⚠️ X findings / ⏭️ SKIP
-[Gate 5/6] SEO Check        ✅ Pass / ⚠️ X findings / ⏭️ SKIP
-[Gate 6/6] Ship             ✅ GO / ❌ NO-GO
+[Gate 1/7] Audit Quick      ✅ Clean / ⚠️ X findings / ⏭️ SKIP
+[Gate 2/7] AI Check         ✅ Pass / ⚠️ X findings / ⏭️ SKIP
+[Gate 3/7] QA Check         ✅ All pass (X tests) / ❌ Y failed / ⏭️ SKIP
+[Gate 4/7] UI Check (?/40)  ✅ Pass / ⚠️ X findings / ⏭️ SKIP
+[Gate 5/7] SEO Check        ✅ Pass / ⚠️ X findings / ⏭️ SKIP
+[Gate 6/7] Skill Drift      ✅ No drift / ⚠️ X warnings / ⏭️ SKIP
+[Gate 7/7] Ship             ✅ GO / ❌ NO-GO
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
