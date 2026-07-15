@@ -1,12 +1,20 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "react-toastify";
+
 import { useAuth } from "../../context/AuthContext";
-import { X, Gift, Tag, Calendar, MapPin, Clock, Sparkles } from "lucide-react";
+import { X, Clock } from "lucide-react";
 import {
   createBooking,
   checkUserHasBookings,
 } from "../../services/booking.service.js";
 import SEO from "../../components/SEO";
+
+import { registerSchema } from "./registerSchema";
+import OrderSummary from "./components/OrderSummary";
+import FirstTimeModal from "./components/FirstTimeModal";
 
 function RegisterPage() {
   const { state } = useLocation();
@@ -17,48 +25,75 @@ function RegisterPage() {
   const { user } = useAuth();
   const isLoggedIn = !!user;
 
-  const [isNoteFocused, setIsNoteFocused] = useState(false);
-  const [isNoteHintHovered, setIsNoteHintHovered] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [newSchedule, setNewSchedule] = useState({ day: "", time: "" });
+  // State tạm cho picker ngày/giờ trước khi bấm "+ Thêm"
+  const [tempDay, setTempDay] = useState("");
+  const [tempTime, setTempTime] = useState("");
+
+  // Booking & discount states
   const [discountCode, setDiscountCode] = useState("");
-  const [toast, setToast] = useState({
-    show: false,
-    message: "",
-    type: "success",
-  });
   const [hasExistingBooking, setHasExistingBooking] = useState(false);
   const [loadingCheck, setLoadingCheck] = useState(true);
   const [showFirstTimeModal, setShowFirstTimeModal] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    email: user?.email || "",
-    note: "",
-    location: "WAYSTATION DÂN CHỦ",
-    schedule: [],
+
+  // Note hint UX states
+  const [isNoteFocused, setIsNoteFocused] = useState(false);
+  const [isNoteHintHovered, setIsNoteHintHovered] = useState(false);
+
+  // react-hook-form + zod
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      name: "",
+      phone: "",
+      email: user?.email || "",
+      note: "",
+      location: "WAYSTATION DÂN CHỦ",
+      schedules: [],
+    },
   });
 
-  const fetchUserBookings = async () => {
+  // useFieldArray: quản lý mảng lịch tập trong RHF
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "schedules",
+  });
+
+  // Time options
+  const timeOptions = useMemo(
+    () =>
+      Array.from({ length: 17 }, (_, i) => {
+        const hour = 7 + i;
+        return `${hour.toString().padStart(2, "0")}:00`;
+      }),
+    [],
+  );
+
+  // Fetch booking status
+  const fetchUserBookings = useCallback(async () => {
     if (isLoggedIn) {
       try {
         const res = await checkUserHasBookings();
         setHasExistingBooking(res.data.hasBookings);
-      } catch (err) {
-        console.error("Check booking error:", err);
+      } catch {
         setHasExistingBooking(false);
       }
     } else {
       setHasExistingBooking(false);
     }
     setLoadingCheck(false);
-  };
+  }, [isLoggedIn]);
 
   useEffect(() => {
     fetchUserBookings();
-  }, [isLoggedIn]);
+  }, [fetchUserBookings]);
 
+  // Generate discount code
   useEffect(() => {
     if (isLoggedIn && !hasExistingBooking && !loadingCheck) {
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
@@ -72,263 +107,102 @@ function RegisterPage() {
     }
   }, [isLoggedIn, hasExistingBooking, loadingCheck]);
 
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(
-      () => setToast({ show: false, message: "", type: "success" }),
-      2500,
-    );
-  };
-
-  const containsProhibitedContent = (text) => {
-    const badWords = [
-      "địt",
-      "dit",
-      "đụ",
-      "du",
-      "đụ má",
-      "đụ mẹ",
-      "đm",
-      "dm",
-      "dmm",
-      "dcm",
-      "cặc",
-      "cak",
-      "cac",
-      "cạc",
-      "lồn",
-      "lon",
-      "loz",
-      "l",
-      "buồi",
-      "buoi",
-      "bùi",
-      "bui",
-      "chim",
-      "bướm",
-      "buom",
-      "bú",
-      "bu",
-      "bú lol",
-      "bú l",
-      "ăn cặc",
-      "ăn l",
-      "ăn buồi",
-      "đéo",
-      "deo",
-      "đếch",
-      "dek",
-      "vl",
-      "vkl",
-      "cl",
-      "vcl",
-      "cc",
-      "shit",
-      "fuck",
-      "fml",
-      "diss",
-      "bitch",
-      "bóp vú",
-      "nứng",
-      "nứng lồn",
-      "nứng vl",
-      "chịch",
-      "chich",
-      "xoạc",
-      "xoc",
-      "rape",
-      "hiếp",
-      "hiếp dâm",
-      "gạ tình",
-      "gạ gẫm",
-      "sex",
-      "sexy",
-      "69",
-      "xxx",
-      "jav",
-      "phim sex",
-      "phim jav",
-      "trai gọi",
-      "gái gọi",
-      "gái mại dâm",
-      "bán dâm",
-      "đi khách",
-      "bong",
-      "casino",
-      "bet",
-      "ku",
-      "cmd368",
-      "w88",
-      "fun88",
-      "fifa",
-      "letou",
-      "cacuoc",
-      "1xbet",
-      "dafabet",
-      "188bet",
-      "m88",
-      "baccarat",
-      "xoso",
-      "xổ số",
-      "danh bai",
-      "game bai",
-      "rakhoi",
-      "choi casino",
-      "vn88",
-      "bong88",
-      "new88",
-      "nhacaionline",
-      "nhà cái",
-      "fck",
-      "f u",
-      "dmml",
-      "dmvl",
-      "ml",
-      "ccmm",
-      "đkm",
-      "bố mày",
-      "mẹ mày",
-      "con đĩ",
-      "con chó",
-      "thằng chó",
-      "clgt",
-      "clmm",
-      "sv",
-      "óc chó",
-      "súc vật",
-      "não chó",
-    ];
-    const scriptRegex = /<script.*?>.*?<\/script>/gis;
-    const domainRegex =
-      /(https?:\/\/)?[a-z0-9.-]*(rakhoi|sv388|win88|cmd368|fun88|go88|f8bet|esball|ae888|123win|789win|hi88|okvip|new88|w88|m88|b52|uw88|nổhũ|bàiđổithưởng|cáđộ|cá cược)[^\s]*/gi;
-    const lowered = text.toLowerCase();
-    return (
-      badWords.some((word) => lowered.includes(word)) ||
-      domainRegex.test(lowered) ||
-      scriptRegex.test(text)
-    );
-  };
-
+  // Redirect if no package selected
   useEffect(() => {
     if (!selectedPackage || !planMode) {
       navigate("/", { replace: true });
     }
   }, [selectedPackage, planMode, navigate]);
 
-  if (!selectedPackage || !planMode) return null;
+  // Schedule handler: thêm lịch tập vào useFieldArray
+  const handleAddSchedule = useCallback(() => {
+    if (!tempDay || !tempTime) return;
+    append({ day: tempDay, time: tempTime });
+    setTempDay("");
+    setTempTime("");
+  }, [tempDay, tempTime, append]);
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.name.trim() || formData.name.length < 8) {
-      newErrors.name = "Họ và tên phải có ít nhất 8 ký tự";
-    }
-    if (!formData.phone.match(/^[0-9]{10}$/)) {
-      newErrors.phone = "Số điện thoại phải đúng 10 chữ số";
-    }
-    if (!formData.email.match(/^[a-zA-Z0-9._%+-]+@gmail\.com$/)) {
-      newErrors.email = "Email phải đúng định dạng @gmail.com";
-    }
-    if (formData.note.trim() && formData.note.length < 8) {
-      newErrors.note =
-        "Nếu nhập thông tin bổ sung, vui lòng nhập ít nhất 8 ký tự";
-    } else if (
-      formData.note.trim() &&
-      containsProhibitedContent(formData.note)
-    ) {
-      newErrors.note = "Thông tin chứa từ ngữ hoặc nội dung không phù hợp!";
-    }
-    if (formData.schedule.length === 0) {
-      newErrors.schedule = "Vui lòng thêm ít nhất 1 thời gian tập luyện.";
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  // Submit logic
+  const performSubmit = useCallback(
+    async (formValues) => {
+      // Chuyển đổi array từ useFieldArray thành string cho backend
+      const scheduleString = formValues.schedules
+        .map((s) => `${s.day} ${s.time}`)
+        .join(", ");
 
-  const handleAddSchedule = () => {
-    if (!newSchedule.day || !newSchedule.time) return;
-    setFormData({
-      ...formData,
-      schedule: [...formData.schedule, newSchedule],
-    });
-    setNewSchedule({ day: "", time: "" });
-  };
+      const bookingData = {
+        name: formValues.name,
+        phone: formValues.phone,
+        email: formValues.email,
+        gym: formValues.location,
+        schedule: scheduleString,
+        note: formValues.note || "",
+        package: `${planMode === "trial" ? "Trải nghiệm" : planMode === "1-1" ? "1-1" : "Online"} - ${selectedPackage.title}`,
+        sessions: selectedPackage.totalSessions,
+        discountCode: isLoggedIn && !hasExistingBooking ? discountCode : null,
+        gifts: gifts,
+      };
 
-  const handleRemoveSchedule = (index) => {
-    const updated = [...formData.schedule];
-    updated.splice(index, 1);
-    setFormData({ ...formData, schedule: updated });
-  };
-
-  const performSubmit = async () => {
-    const scheduleString = formData.schedule
-      .map((s) => `${s.day} ${s.time}`)
-      .join(", ");
-    const bookingData = {
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      gym: formData.location,
-      schedule: scheduleString,
-      note: formData.note,
-      package: `${planMode === "trial" ? "Trải nghiệm" : planMode === "1-1" ? "1-1" : "Online"} - ${selectedPackage.title}`,
-      sessions: selectedPackage.totalSessions,
-      discountCode: isLoggedIn && !hasExistingBooking ? discountCode : null,
-      gifts: gifts,
-    };
-
-    try {
-      await createBooking(bookingData);
-      await fetchUserBookings();
-      showToast(
-        "Đăng ký thành công! Chúng tôi sẽ liên hệ tư vấn sớm nhất.",
-        "success",
-      );
-      setTimeout(() => navigate("/"), 1500);
-    } catch (error) {
-      console.error(error);
-      if (error.response?.data?.errors) {
-        const errorMessages = error.response.data.errors
-          .map((e) => e.msg)
-          .join("\n");
-        showToast(errorMessages, "error");
-      } else if (error.response?.data?.message) {
-        showToast(error.response.data.message, "error");
-      } else {
-        showToast("Có lỗi xảy ra, vui lòng thử lại.", "error");
+      try {
+        await createBooking(bookingData);
+        await fetchUserBookings();
+        toast.success("Đăng ký thành công! Chúng tôi sẽ liên hệ tư vấn sớm nhất.");
+        setTimeout(() => navigate("/"), 1500);
+      } catch (error) {
+        if (error.response?.data?.errors) {
+          const errorMessages = error.response.data.errors
+            .map((e) => e.msg)
+            .join("\n");
+          toast.error(errorMessages);
+        } else if (error.response?.data?.message) {
+          toast.error(error.response.data.message);
+        } else {
+          toast.error("Có lỗi xảy ra, vui lòng thử lại.");
+        }
       }
-    }
-  };
+    },
+    [
+      planMode,
+      selectedPackage,
+      isLoggedIn,
+      hasExistingBooking,
+      discountCode,
+      gifts,
+      fetchUserBookings,
+      navigate,
+    ],
+  );
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  // Ref for pending form data (giữ giá trị form khi hiện modal)
+  const [pendingFormData, setPendingFormData] = useState(null);
 
-    if (isLoggedIn && !hasExistingBooking && !loadingCheck) {
-      setShowFirstTimeModal(true);
-      return;
-    }
-    await performSubmit();
-  };
+  const onFormSubmit = useCallback(
+    (data) => {
+      // schedules đã được Zod validate tự động qua useFieldArray
+      if (isLoggedIn && !hasExistingBooking && !loadingCheck) {
+        setPendingFormData(data);
+        setShowFirstTimeModal(true);
+        return;
+      }
+      performSubmit(data);
+    },
+    [isLoggedIn, hasExistingBooking, loadingCheck, performSubmit],
+  );
 
-  const confirmFirstTimeSubmit = async () => {
+  const confirmFirstTimeSubmit = useCallback(() => {
     setShowFirstTimeModal(false);
-    await performSubmit();
-  };
+    if (pendingFormData) {
+      performSubmit(pendingFormData);
+      setPendingFormData(null);
+    }
+  }, [pendingFormData, performSubmit]);
 
-  const timeOptions = Array.from({ length: 17 }, (_, i) => {
-    const hour = 7 + i;
-    return `${hour.toString().padStart(2, "0")}:00`;
-  });
+  const handleCopyCode = useCallback((code) => {
+    navigator.clipboard.writeText(code);
+    toast.success("Đã sao chép mã: " + code);
+  }, []);
 
-  const getPlanDisplay = () => {
-    const modeText =
-      planMode === "trial"
-        ? "Trải nghiệm"
-        : planMode === "1-1"
-          ? "1 Kèm 1"
-          : "Online";
-    return `${modeText} - ${selectedPackage.title}`;
-  };
+  if (!selectedPackage || !planMode) return null;
 
   if (loadingCheck) {
     return (
@@ -356,21 +230,23 @@ function RegisterPage() {
               <div className="flex items-center gap-2 border-b border-gray-200 pb-4 mb-6">
                 <h2 className="text-gray-800 uppercase">THÔNG TIN ĐĂNG KÝ</h2>
               </div>
-              <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+              <form
+                className="flex flex-col gap-5"
+                onSubmit={handleSubmit(onFormSubmit)}
+              >
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">
                     Họ và tên *
                   </label>
                   <input
                     type="text"
+                    {...register("name")}
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary transition"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
                   />
                   {errors.name && (
-                    <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.name.message}
+                    </p>
                   )}
                 </div>
 
@@ -380,17 +256,14 @@ function RegisterPage() {
                   </label>
                   <input
                     type="tel"
-                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
-                    value={formData.phone}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (/^[0-9]*$/.test(val))
-                        setFormData({ ...formData, phone: val });
-                    }}
                     maxLength={10}
+                    {...register("phone")}
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
                   />
                   {errors.phone && (
-                    <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.phone.message}
+                    </p>
                   )}
                 </div>
 
@@ -400,14 +273,13 @@ function RegisterPage() {
                   </label>
                   <input
                     type="email"
+                    {...register("email")}
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
                   />
                   {errors.email && (
-                    <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.email.message}
+                    </p>
                   )}
                 </div>
 
@@ -416,11 +288,8 @@ function RegisterPage() {
                     Phòng tập mong muốn *
                   </label>
                   <select
+                    {...register("location")}
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
-                    value={formData.location}
-                    onChange={(e) =>
-                      setFormData({ ...formData, location: e.target.value })
-                    }
                   >
                     <option value="">-- Chọn phòng tập --</option>
                     <option>WAYSTATION DÂN CHỦ</option>
@@ -429,6 +298,11 @@ function RegisterPage() {
                     <option>WAYSTATION QL13</option>
                     <option>Chung Cư Flora Novia</option>
                   </select>
+                  {errors.location && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.location.message}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -438,13 +312,8 @@ function RegisterPage() {
                   <div className="flex flex-col sm:flex-row gap-3 mb-3">
                     <select
                       className="flex-1 p-3 border rounded-lg"
-                      value={newSchedule.day}
-                      onChange={(e) =>
-                        setNewSchedule((prev) => ({
-                          ...prev,
-                          day: e.target.value,
-                        }))
-                      }
+                      value={tempDay}
+                      onChange={(e) => setTempDay(e.target.value)}
                     >
                       <option value="">-- Chọn ngày --</option>
                       <option>Thứ 2</option>
@@ -457,13 +326,8 @@ function RegisterPage() {
                     </select>
                     <select
                       className="flex-1 p-3 border rounded-lg"
-                      value={newSchedule.time}
-                      onChange={(e) =>
-                        setNewSchedule((prev) => ({
-                          ...prev,
-                          time: e.target.value,
-                        }))
-                      }
+                      value={tempTime}
+                      onChange={(e) => setTempTime(e.target.value)}
                     >
                       <option value="">-- Chọn giờ --</option>
                       {timeOptions.map((t) => (
@@ -480,27 +344,27 @@ function RegisterPage() {
                       + Thêm
                     </button>
                   </div>
-                  {formData.schedule.map((item, i) => (
+                  {fields.map((field, index) => (
                     <div
-                      key={i}
+                      key={field.id}
                       className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg mb-2"
                     >
                       <Clock size={16} className="text-gray-500" />
                       <span className="text-gray-700">
-                        {item.day} lúc {item.time}
+                        {field.day} lúc {field.time}
                       </span>
                       <button
                         type="button"
-                        onClick={() => handleRemoveSchedule(i)}
+                        onClick={() => remove(index)}
                         className="ml-auto text-red-500 hover:text-red-700"
                       >
                         <X size={18} />
                       </button>
                     </div>
                   ))}
-                  {errors.schedule && (
+                  {errors.schedules && (
                     <p className="text-red-500 text-sm mt-1">
-                      {errors.schedule}
+                      {errors.schedules.message}
                     </p>
                   )}
                 </div>
@@ -511,12 +375,9 @@ function RegisterPage() {
                   </label>
                   <textarea
                     rows={4}
+                    {...register("note")}
                     className="w-full p-3 border rounded-lg resize-none focus:ring-2 focus:ring-primary"
                     placeholder="VD: link Facebook, Zalo, địa chỉ cụ thể, mong muốn khác..."
-                    value={formData.note}
-                    onChange={(e) =>
-                      setFormData({ ...formData, note: e.target.value })
-                    }
                     onFocus={() => setIsNoteFocused(true)}
                     onBlur={() => {
                       setTimeout(() => {
@@ -525,7 +386,9 @@ function RegisterPage() {
                     }}
                   />
                   {errors.note && (
-                    <p className="text-red-500 text-sm mt-1">{errors.note}</p>
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.note.message}
+                    </p>
                   )}
                   {(isNoteFocused || isNoteHintHovered) && (
                     <small
@@ -547,192 +410,37 @@ function RegisterPage() {
 
                 <button
                   type="submit"
-                  className="order-button w-full py-4 text-lg font-bold text-white bg-gradient-to-r from-primary to-primary-dark rounded-xl shadow-md hover:shadow-lg transition-all mt-4"
+                  disabled={isSubmitting}
+                  className="order-button w-full py-4 text-lg font-bold text-white bg-gradient-to-r from-primary to-primary-dark rounded-xl shadow-md hover:shadow-lg transition-all mt-4 disabled:opacity-60"
                 >
-                  GỬI ĐĂNG KÝ
+                  {isSubmitting ? "ĐANG GỬI..." : "GỬI ĐĂNG KÝ"}
                 </button>
               </form>
             </div>
 
-            {/* Cột phải - Đơn hàng của bạn */}
-            <div className="lg:w-96">
-              <div className="sticky top-8 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-white/30">
-                <div className="bg-gradient-to-r from-primary to-primary-dark px-6 py-4">
-                  <h3 className="text-white text-xl font-bold flex items-center gap-2">
-                    ĐƠN HÀNG CỦA BẠN
-                  </h3>
-                </div>
-
-                <div className="p-6 space-y-5">
-                  <div className="border-b border-gray-100 pb-4">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-primary/10 p-2 rounded-lg">
-                        <Sparkles size={20} className="text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 uppercase tracking-wide">
-                          Gói đã chọn
-                        </p>
-                        <p className="font-bold text-gray-800 text-lg">
-                          {getPlanDisplay()}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {selectedPackage.durationText} ·{" "}
-                          {selectedPackage.totalSessions} buổi
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {isLoggedIn && !hasExistingBooking && (
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-green-500 rounded-full p-1.5">
-                          <Tag size={16} className="text-white" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-green-700">
-                            🎉 Giảm 15% cho lần đầu
-                          </p>
-                          <p className="text-xs text-green-600">
-                            Áp dụng khi đăng nhập
-                          </p>
-                        </div>
-                      </div>
-                      <div className="bg-white rounded-lg p-2 flex items-center justify-between border border-green-200">
-                        <span className="text-xs text-gray-500">
-                          Mã ưu đãi của bạn:
-                        </span>
-                        <span className="font-mono font-bold text-green-700 tracking-wider">
-                          {discountCode}
-                        </span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(discountCode);
-                            showToast(
-                              "Đã sao chép mã: " + discountCode,
-                              "success",
-                            );
-                          }}
-                          className="text-xs bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded transition"
-                        >
-                          Sao chép
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        * Xuất trình mã này khi liên hệ để được giảm giá
-                      </p>
-                    </div>
-                  )}
-
-                  {isLoggedIn && hasExistingBooking && (
-                    <div className="bg-gray-100 rounded-xl p-4 border border-gray-300 text-center">
-                      <p className="text-gray-600 text-sm">
-                        ⚠️ Tài khoản của bạn đã sử dụng ưu đãi 15% cho lần đăng
-                        ký trước.
-                      </p>
-                      <p className="text-gray-500 text-xs mt-1">
-                        Mỗi tài khoản chỉ áp dụng giảm giá 15% một lần duy nhất.
-                      </p>
-                    </div>
-                  )}
-
-                  {gifts.length > 0 && (
-                    <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Gift size={18} className="text-amber-600" />
-                        <span className="font-semibold text-amber-800">
-                          Quà tặng kèm theo
-                        </span>
-                      </div>
-                      <ul className="space-y-1.5">
-                        {gifts.map((gift, idx) => (
-                          <li
-                            key={idx}
-                            className="flex items-start gap-2 text-sm text-amber-800"
-                          >
-                            <span className="text-amber-500">•</span>
-                            <span>{gift}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} />
-                      <span>Chúng tôi sẽ liên hệ trong 24h</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin size={16} />
-                      <span>Hỗ trợ tập tại tất cả các chi nhánh</span>
-                    </div>
-                  </div>
-
-                  <div className="text-center pt-2">
-                    <p className="text-xs text-gray-400">
-                      * Thông tin của bạn được bảo mật tuyệt đối
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Cột phải - Đơn hàng */}
+            <OrderSummary
+              planMode={planMode}
+              selectedPackage={selectedPackage}
+              isLoggedIn={isLoggedIn}
+              hasExistingBooking={hasExistingBooking}
+              discountCode={discountCode}
+              gifts={gifts}
+              onCopyCode={handleCopyCode}
+            />
           </div>
         </div>
       </div>
 
-      {/* Toast */}
-      {toast.show && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
-          <div
-            className={`px-6 py-4 rounded-xl shadow-xl text-white font-medium text-center max-w-sm ${
-              toast.type === "success" ? "bg-green-500" : "bg-red-500"
-            } animate-fade-in`}
-          >
-            {toast.message}
-          </div>
-        </div>
-      )}
+      {/* Toast đã dùng react-toastify (global) — không cần toast state riêng */}
 
       {/* Modal xác nhận lần đầu */}
       {showFirstTimeModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/60">
-          <div className="bg-white rounded-2xl max-w-md w-full mx-4 p-6 shadow-2xl animate-fade-in">
-            <div className="text-center">
-              <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <Tag className="text-green-600" size={24} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">
-                Ưu đãi lần đầu
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Mỗi tài khoản chỉ được nhận{" "}
-                <strong className="text-green-600">mã giảm giá 15%</strong> cho{" "}
-                <strong>lần đăng ký đầu tiên</strong>.<br />
-                Bạn có muốn sử dụng ưu đãi này cho đơn hàng hiện tại?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={confirmFirstTimeSubmit}
-                  className="flex-1 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition"
-                >
-                  Đồng ý, sử dụng
-                </button>
-                <button
-                  onClick={() => setShowFirstTimeModal(false)}
-                  className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition"
-                >
-                  Để sau
-                </button>
-              </div>
-              <p className="text-xs text-gray-400 mt-4">
-                * Nếu chọn "Để sau", bạn vẫn có thể đăng ký nhưng không được
-                giảm giá.
-              </p>
-            </div>
-          </div>
-        </div>
+        <FirstTimeModal
+          discountCode={discountCode}
+          onConfirm={confirmFirstTimeSubmit}
+          onCancel={() => setShowFirstTimeModal(false)}
+        />
       )}
     </>
   );

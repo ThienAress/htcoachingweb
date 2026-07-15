@@ -33,8 +33,19 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// ===== RESPONSE INTERCEPTOR =====
-// Tự refresh khi accessToken hết hạn
+// ===== REFRESH TOKEN MUTEX =====
+// Ngăn nhiều request gọi /auth/refresh đồng thời (Race Condition fix)
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) reject(error);
+    else resolve();
+  });
+  failedQueue = [];
+};
+
 // ===== RESPONSE INTERCEPTOR =====
 // Tự refresh khi accessToken hết hạn và lưu CSRF token từ header
 api.interceptors.response.use(
@@ -74,15 +85,27 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      // Nếu đang có request khác refresh rồi → đóng băng, chờ trong queue
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(() => api(originalRequest));
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
 
       try {
         // QUAN TRỌNG: phải dùng api instance để đi đúng baseURL backend
         await api.post("/auth/refresh", {});
+        processQueue(null);
         return api(originalRequest);
       } catch (refreshError) {
+        processQueue(refreshError);
         window.location.href = "/login";
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 

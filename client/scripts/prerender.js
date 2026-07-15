@@ -84,11 +84,18 @@ async function prerender() {
         console.log(`Prerendering route: ${route}`);
         const page = await browser.newPage();
         
+        // Skip intro animation — Puppeteer không cần xem intro
+        await page.evaluateOnNewDocument(() => {
+          sessionStorage.setItem("introDone", "true");
+          window.isIntroDone = true;
+        });
+
         // Tối ưu Network Interception: Chặn tải tài nguyên không cần thiết cho SEO
         await page.setRequestInterception(true);
         page.on('request', (req) => {
           const resourceType = req.resourceType();
-          if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+          // Giữ stylesheet để React render đúng — chỉ chặn image/font/media
+          if (['image', 'font', 'media'].includes(resourceType)) {
             req.abort();
           } else {
             req.continue();
@@ -96,20 +103,37 @@ async function prerender() {
         });
         
         try {
-          // Chờ đến khi network idle 2 và đảm bảo React mount xong (id root)
           await page.goto(`http://localhost:${PORT}${route}`, { waitUntil: 'networkidle2', timeout: 30000 });
-          await page.waitForSelector('#root', { timeout: 10000 });
+
+          // Chờ React render nội dung thật bên trong #root (không chỉ div trống)
+          await page.waitForFunction(
+            () => {
+              const root = document.querySelector('#root');
+              return root && root.innerHTML.trim().length > 100;
+            },
+            { timeout: 15000 }
+          );
           
-          // Chờ thêm 1 chút xíu để đảm bảo component con bên trong render data xong
-          await new Promise(r => setTimeout(r, 1000));
+          // Chờ thêm để API data arrive và component con render xong
+          await new Promise(r => setTimeout(r, 3000));
         } catch (e) {
-          console.warn(`Timeout/Warning rendering ${route}: ${e.message}`);
+          console.warn(`⚠️ Warning rendering ${route}: ${e.message}`);
         }
 
         // Lấy nội dung HTML đã được render
         const html = await page.content();
 
-        // Tạo thư mục nếu route có depth > 1 (ví dụ /ket-qua-khach-hang -> dist/ket-qua-khach-hang)
+        // Validate: chỉ ghi file nếu prerender thành công (có nội dung thật)
+        const rootMatch = html.match(/<div id="root">([\s\S]*?)<\/div>/);
+        const hasContent = rootMatch && rootMatch[1].trim().length > 100;
+
+        if (!hasContent) {
+          console.warn(`⚠️ Skip ${route} — prerender không có nội dung (root trống)`);
+          await page.close();
+          continue;
+        }
+
+        // Tạo thư mục nếu route có depth > 1
         const routePath = route === '/' ? DIST_DIR : path.join(DIST_DIR, route);
         if (route !== '/') {
           if (!fs.existsSync(routePath)) {
@@ -119,6 +143,7 @@ async function prerender() {
 
         const filePath = path.join(routePath, 'index.html');
         fs.writeFileSync(filePath, html, 'utf8');
+        console.log(`  ✅ ${route} — ${(html.length / 1024).toFixed(1)}KB`);
         
         await page.close();
       }

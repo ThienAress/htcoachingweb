@@ -287,7 +287,7 @@ app.get("/", (req, res) => {
 app.use(errorHandler);
 
 // ================= START SERVER =================
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server chạy tại port ${PORT}`);
   console.log("🌐 Allowed origins:", allowedOrigins);
 
@@ -298,3 +298,31 @@ app.listen(PORT, () => {
   startContractCronJobs();
   startCleanupCronJobs();
 });
+
+// ================= GRACEFUL SHUTDOWN =================
+const gracefulShutdown = async (signal) => {
+  console.log(`\n⏳ Nhận ${signal} — đang shutdown gracefully...`);
+
+  // Ngừng nhận request mới, đợi request đang xử lý hoàn thành (timeout 10s)
+  server.close(async () => {
+    console.log("✅ HTTP server đã đóng");
+    try {
+      const mongoose = (await import("mongoose")).default;
+      await mongoose.connection.close();
+      console.log("✅ MongoDB connection đã đóng");
+    } catch (err) {
+      console.error("❌ Lỗi đóng MongoDB:", err.message);
+    }
+    process.exit(0);
+  });
+
+  // Safety timeout: nếu sau 15s vẫn chưa xong → force exit
+  setTimeout(() => {
+    console.error("❌ Shutdown timeout — force exit");
+    process.exit(1);
+  }, 15000);
+};
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+

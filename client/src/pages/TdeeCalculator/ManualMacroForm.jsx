@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calculator, ArrowRight, Activity, Flame } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { calculateCaloriesFromMacros } from "./tdee.helpers";
 
 const ManualMacroForm = ({ setShowLoginModal }) => {
   const [macros, setMacros] = useState({
@@ -26,7 +27,7 @@ const ManualMacroForm = ({ setShowLoginModal }) => {
   const p = parseFloat(macros.protein) || 0;
   const c = parseFloat(macros.carb) || 0;
   const f = parseFloat(macros.fat) || 0;
-  const computedCalories = Math.round(p * 4 + c * 4 + f * 9);
+  const computedCalories = calculateCaloriesFromMacros(p, c, f);
 
   const handleSubmit = (e) => {
     e.preventDefault();
