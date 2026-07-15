@@ -481,4 +481,22 @@
 
 .thinking-bubble-enter {
   animation: thinkingBubbleEnter 0.25s ease-out both;
-}
+}
+
+/* AccountPage — Tab fade animation */
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-tab-fade {
+  animation: tabFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+

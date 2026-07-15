@@ -51,4 +51,4 @@ const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
   );
 };
 
-export default TdeeResultBox;
+export default React.memo(TdeeResultBox);

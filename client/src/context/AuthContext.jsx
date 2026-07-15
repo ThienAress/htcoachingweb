@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import Cookies from "js-cookie";
@@ -63,15 +64,13 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, [fetchUser]);
 
+  const contextValue = useMemo(
+    () => ({ user, loading, logout, refetch: fetchUser }),
+    [user, loading, logout, fetchUser],
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        logout,
-        refetch: fetchUser,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

@@ -94,4 +94,4 @@ const MacroTable = ({ macroSet, tdee, adjustedCalories, goal }) => {
   );
 };
 
-export default MacroTable;
+export default React.memo(MacroTable);

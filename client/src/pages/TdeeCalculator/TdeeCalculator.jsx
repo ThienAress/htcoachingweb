@@ -10,6 +10,13 @@ import ChatIcons from "../../components/ChatIcons";
 import SEO from "../../components/SEO";
 import { useAuth } from "../../context/AuthContext";
 import LoginModal from "../MealPlan/LoginModal";
+import {
+  calculateBmr,
+  calculateTdee,
+  calculateAdjustedCalories,
+  calculateMacroSet,
+  getDefaultCalorieAdjustment,
+} from "./tdee.helpers";
 
 const TdeeCalculator = () => {
   const [form, setForm] = useState({
@@ -61,14 +68,7 @@ const TdeeCalculator = () => {
         if (prev.goal && prev.goal !== value) {
           setGoalNotice(true);
         }
-        
-        let newCalorieAdjustment = prev.customCalorieAdjustment;
-        if (value === "gain_muscle") newCalorieAdjustment = "300";
-        else if (value === "gain_weight") newCalorieAdjustment = "500";
-        else if (value === "lose_fat") newCalorieAdjustment = "-300";
-        else if (value === "lose_weight") newCalorieAdjustment = "-500";
-        else if (value === "maintain") newCalorieAdjustment = "0";
-
+        const newCalorieAdjustment = getDefaultCalorieAdjustment(value) || prev.customCalorieAdjustment;
         return { ...prev, [name]: value, customCalorieAdjustment: newCalorieAdjustment };
       }
       return { ...prev, [name]: value };
@@ -98,27 +98,14 @@ const TdeeCalculator = () => {
       setAdjustedCalories(null);
       return;
     }
-    const h = parseFloat(height);
-    const w = parseFloat(weight);
-    const a = parseInt(age);
-    const act = parseFloat(activity);
-    let calculatedBmr = 0;
-    if (formula === "Mifflin-St Jeor") {
-      calculatedBmr = 10 * w + 6.25 * h - 5 * a + (gender === "Nam" ? 5 : -161);
-    } else {
-      const bf = parseFloat(bodyfat) / 100;
-      const leanMass = w * (1 - bf);
-      calculatedBmr = 370 + 21.6 * leanMass;
-    }
-    const tdeeBase = calculatedBmr * act;
-    const roundedBmr = Math.round(calculatedBmr);
-    const roundedTdee = Math.round(tdeeBase);
-    let adjusted = tdeeBase;
-    const adjustmentVal = parseFloat(form.customCalorieAdjustment);
-    if (!isNaN(adjustmentVal)) {
-      adjusted += adjustmentVal;
-    }
-    const roundedAdjusted = Math.round(adjusted);
+    const rawBmr = calculateBmr({ formula, weight, height, age, gender, bodyfat });
+    const rawTdee = calculateTdee(rawBmr, activity);
+    const rawAdjusted = calculateAdjustedCalories(rawTdee, form.customCalorieAdjustment);
+
+    const roundedBmr = Math.round(rawBmr);
+    const roundedTdee = Math.round(rawTdee);
+    const roundedAdjusted = Math.round(rawAdjusted);
+
     setBmr(roundedBmr);
     setTdee(roundedTdee);
     setAdjustedCalories(roundedAdjusted);
@@ -160,22 +147,7 @@ const TdeeCalculator = () => {
 
   const calculateMacro = () => {
     if (!adjustedCalories) return;
-    const plans = {
-      "Low-carb": { protein: 0.4, fat: 0.4, carb: 0.2 },
-      "Moderate-carb": { protein: 0.3, fat: 0.35, carb: 0.35 },
-      "High-carb": { protein: 0.3, fat: 0.2, carb: 0.5 },
-    };
-    const results = {};
-    for (const [goalName, ratio] of Object.entries(plans)) {
-      const pCal = adjustedCalories * ratio.protein;
-      const cCal = adjustedCalories * ratio.carb;
-      const fCal = adjustedCalories * ratio.fat;
-      results[goalName] = {
-        protein: Math.round(pCal / 4),
-        carb: Math.round(cCal / 4),
-        fat: Math.round(fCal / 9),
-      };
-    }
+    const results = calculateMacroSet(adjustedCalories);
     setMacroSet(results);
     localStorage.setItem("macroSet", JSON.stringify(results));
   };
