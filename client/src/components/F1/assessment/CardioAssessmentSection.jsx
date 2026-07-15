@@ -1,6 +1,7 @@
 // CardioAssessmentSection.jsx
 import React, { useCallback, useEffect } from "react";
 import { Heart, Activity, Clock } from "lucide-react";
+import { scoreToLevel, round1, clamp } from "../../../utils/assessment.helpers";
 
 const levelOptions = [
   { label: "Chọn mức", value: "" },
@@ -10,16 +11,6 @@ const levelOptions = [
   { label: "Tốt", value: "good" },
 ];
 
-const scoreToLevel = (score) => {
-  const value = Number(score || 0);
-  if (value < 4) return "low";
-  if (value < 6) return "below_average";
-  if (value < 8) return "average";
-  return "good";
-};
-
-const round1 = (value) => Math.round(Number(value || 0) * 10) / 10;
-const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
 
 const computeCardioCapacityScore = (resultMinutes) => {
   const value = Number(resultMinutes || 0);

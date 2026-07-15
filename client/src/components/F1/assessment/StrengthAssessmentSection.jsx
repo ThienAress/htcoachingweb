@@ -1,6 +1,14 @@
 // StrengthAssessmentSection.jsx
 import React, { useCallback, useEffect } from "react";
 import { Dumbbell, Armchair, Battery } from "lucide-react";
+import {
+  scoreToLevel,
+  round1,
+  clamp,
+  parseRange,
+  extractProtocolOptions,
+  scoreAgainstProtocol,
+} from "../../../utils/assessment.helpers";
 
 const levelOptions = [
   { label: "Chọn mức", value: "" },
@@ -10,110 +18,6 @@ const levelOptions = [
   { label: "Tốt", value: "good" },
 ];
 
-const scoreToLevel = (score) => {
-  const value = Number(score || 0);
-  if (value < 4) return "low";
-  if (value < 6) return "below_average";
-  if (value < 8) return "average";
-  return "good";
-};
-
-const round1 = (value) => Math.round(Number(value || 0) * 10) / 10;
-const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
-
-const parseRange = (value = "") => {
-  const cleaned = String(value).trim();
-  if (!cleaned) return { min: null, max: null };
-  const parts = cleaned.split("-").map((item) => Number(item.trim()));
-  if (parts.length === 2 && parts.every(Number.isFinite))
-    return { min: parts[0], max: parts[1] };
-  const single = Number(cleaned);
-  if (Number.isFinite(single)) return { min: single, max: single };
-  return { min: null, max: null };
-};
-
-const extractProtocolOptions = (suggestion) => {
-  if (!suggestion) return [];
-  if (
-    Array.isArray(suggestion.protocolOptions) &&
-    suggestion.protocolOptions.length
-  )
-    return suggestion.protocolOptions;
-  const dosage = String(suggestion.dosage || "");
-  if (!dosage) return [];
-  const options = [];
-  const repsMatch = dosage.match(
-    /(\d+(?:-\d+)?)\s*(?:hiệp|set|sets)\s*x\s*(\d+(?:-\d+)?)\s*reps/i,
-  );
-  if (repsMatch) {
-    const sets = parseRange(repsMatch[1]);
-    const reps = parseRange(repsMatch[2]);
-    options.push({
-      label: `${repsMatch[1]} hiệp × ${repsMatch[2]} reps`,
-      mode: "reps",
-      setsMin: sets.min,
-      setsMax: sets.max,
-      valueMin: reps.min,
-      valueMax: reps.max,
-      unit: "reps",
-    });
-  }
-  const timeMatch = dosage.match(
-    /(\d+(?:-\d+)?)\s*(?:hiệp|vòng|set|sets)\s*x\s*(\d+(?:-\d+)?)\s*(?:giây|s)\b/i,
-  );
-  if (timeMatch) {
-    const sets = parseRange(timeMatch[1]);
-    const seconds = parseRange(timeMatch[2]);
-    options.push({
-      label: `${timeMatch[1]} hiệp × ${timeMatch[2]} giây`,
-      mode: "time",
-      setsMin: sets.min,
-      setsMax: sets.max,
-      valueMin: seconds.min,
-      valueMax: seconds.max,
-      unit: "seconds",
-    });
-  }
-  return options;
-};
-
-const scoreAgainstProtocol = ({
-  selectedProtocol,
-  sets,
-  reps,
-  durationSec,
-}) => {
-  if (!selectedProtocol || !selectedProtocol.mode) return "";
-  const setsMin = Number(selectedProtocol.setsMin || 0);
-  const setsMax = Number(selectedProtocol.setsMax || setsMin || 0);
-  const valueMin = Number(selectedProtocol.valueMin || 0);
-  const valueMax = Number(selectedProtocol.valueMax || valueMin || 0);
-  const actualSets = Number(sets || 0);
-  const actualValue =
-    selectedProtocol.mode === "reps"
-      ? Number(reps || 0)
-      : Number(durationSec || 0);
-  if (!setsMin || !valueMin || !actualSets || !actualValue) return "";
-  const baselineSetRatio = clamp(actualSets / setsMin, 0, 1);
-  const baselineValueRatio = clamp(actualValue / valueMin, 0, 1);
-  const setBonusRange = Math.max(setsMax - setsMin, 0);
-  const valueBonusRange = Math.max(valueMax - valueMin, 0);
-  const setBonusRatio =
-    actualSets <= setsMin
-      ? 0
-      : setBonusRange === 0
-        ? 1
-        : clamp((actualSets - setsMin) / setBonusRange, 0, 1);
-  const valueBonusRatio =
-    actualValue <= valueMin
-      ? 0
-      : valueBonusRange === 0
-        ? 1
-        : clamp((actualValue - valueMin) / valueBonusRange, 0, 1);
-  const setAxisScore = 0.7 * baselineSetRatio + 0.3 * setBonusRatio;
-  const valueAxisScore = 0.7 * baselineValueRatio + 0.3 * valueBonusRatio;
-  return String(round1(10 * (0.4 * setAxisScore + 0.6 * valueAxisScore)));
-};
 
 const SuggestionBlock = ({
   suggestion,
