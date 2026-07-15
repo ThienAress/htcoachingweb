@@ -52,13 +52,34 @@ cd server && npx vitest run
 
 Đọc code thay đổi và kiểm tra:
 
+**Hardening cơ bản:**
 - [ ] Không có credentials, API keys, secrets bị hardcode
 - [ ] `X-CSRF-Token` vẫn được gửi trong mọi request mutating (không bị disabled)
-- [ ] Route mới có auth middleware phù hợp (`requireAuth`, role check)
+- [ ] Route mới có auth middleware phù hợp (`protect`, `requireRoles`, `requireTrainerAccess`)
 - [ ] Input validation có ở cả FE (Zod) VÀ BE (express-validator)
 - [ ] Không có `console.log()` in ra sensitive data (token, password, user info)
 
-**PASS khi:** Tất cả items trên ✅.  
+**IDOR Protection:**
+- [ ] Endpoint user-accessible có `findById(req.params.id)` → PHẢI có ownership check (`userId: req.user.id`, `assertCustomerAccess()`, hoặc nằm sau `requireRoles("admin")`)
+- [ ] Pattern đúng: `findOne({ _id: id, userId: req.user.id })` hoặc check `clientId`/`trainerId` match `req.user.id`
+
+**Timing-safe & Headers:**
+- [ ] CSRF token comparison dùng `crypto.timingSafeEqual()` (KHÔNG revert về `!==`)
+- [ ] Helmet CSP config vẫn intact trong `server.js` (production-only, whitelist đúng domains)
+- [ ] `security.txt` tồn tại tại `client/public/.well-known/security.txt`
+
+**Logging:**
+- [ ] Error handlers trong security-critical paths (auth, payment, contract) dùng `safeLog` thay vì `console.error`
+- [ ] Không log PII (password, phone, signatureImage, tokens) ra production logs
+
+**Dependency scan:**
+```bash
+cd client && npm run security:audit
+cd server && npm run security:audit
+```
+- [ ] Không có lỗ hổng mức `high` hoặc `critical`
+
+**PASS khi:** Tất cả items trên ✅.
 **FAIL khi:** Bất kỳ item nào ❌ — liệt kê rõ item nào và lý do.
 
 ---

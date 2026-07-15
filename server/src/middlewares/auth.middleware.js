@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 // ✅ Dùng 1 middleware duy nhất (bỏ verifyToken)
 export const protect = async (req, res, next) => {
@@ -76,7 +77,7 @@ export const requireTrainerAccess = async (req, res, next) => {
 
     return res.status(403).json({ success: false, message: "Không có quyền truy cập Trainer" });
   } catch (err) {
-    console.error("requireTrainerAccess Error:", err);
+    safeLog.error("requireTrainerAccess", err);
     return res.status(500).json({ success: false, message: "Lỗi kiểm tra quyền" });
   }
 };

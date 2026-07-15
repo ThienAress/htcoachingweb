@@ -196,8 +196,8 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
   ), []);
 
   return (
-    <section id="home" className="relative min-h-screen pt-[73px] bg-[#FAF8F3] text-dark overflow-hidden flex flex-col">
-      <div className="flex flex-col lg:flex-row flex-1 min-h-[calc(100vh-73px)]">
+    <section id="home" className="relative min-h-screen pt-[73px] 2xl:pt-20 bg-[#FAF8F3] text-dark overflow-hidden flex flex-col">
+      <div className="flex flex-col lg:flex-row flex-1 min-h-[calc(100vh-73px)] 2xl:min-h-[calc(100vh-80px)]">
 
         {/* LEFT: TEXT CONTENT */}
         <div ref={leftRef} className="w-full lg:w-1/2 flex flex-col justify-center pt-[5vh] lg:pt-[12vh] relative z-20 px-5 sm:px-10 lg:pl-[calc((100vw-1024px)/2+20px)] xl:pl-[calc((100vw-1280px)/2+20px)] 2xl:pl-[calc((100vw-1536px)/2+20px)] lg:pr-16 xl:pr-24 py-12 lg:py-0">

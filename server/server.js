@@ -108,6 +108,50 @@ app.use(cors(corsOptions));
 app.use(
   helmet({
     crossOriginResourcePolicy: false,
+    // CSP: chỉ cho phép resources từ trusted domains
+    contentSecurityPolicy: isProd
+      ? {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: [
+              "'self'",
+              "https://www.googletagmanager.com",
+              "https://www.google-analytics.com",
+              "'unsafe-inline'", // cần cho GA4 inline script
+            ],
+            styleSrc: [
+              "'self'",
+              "https://fonts.googleapis.com",
+              "'unsafe-inline'", // Tailwind + inline styles
+            ],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: [
+              "'self'",
+              "data:",
+              "blob:",
+              "https://res.cloudinary.com",
+              "https://www.googletagmanager.com",
+              "https://lh3.googleusercontent.com", // Google OAuth avatars
+              "https://i.pravatar.cc", // Default avatar fallback
+              "https://images.unsplash.com", // Login page background
+              "https://img.vietqr.io", // QR Code nạp tiền
+              "https://placehold.co", // Placeholder images
+            ],
+            mediaSrc: ["'self'", "https://res.cloudinary.com", "blob:"],
+            connectSrc: [
+              "'self'",
+              "https://www.google-analytics.com",
+              "https://www.googletagmanager.com",
+              ...allowedOrigins, // API server
+            ],
+            frameSrc: ["'self'", "https://www.youtube.com"], // YouTube embeds
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"],
+            formAction: ["'self'"],
+            upgradeInsecureRequests: [],
+          },
+        }
+      : false, // Tắt CSP trong dev (React dev server cần nhiều inline)
   }),
 );
 

@@ -9,6 +9,39 @@ description: Workflow debug có hệ thống. Use khi gặp bug — đặc biệ
 
 ---
 
+## 🛑 KHI NÀO DÙNG / KHÔNG DÙNG
+
+**Dùng khi:**
+- Bug không rõ root cause
+- Production errors cần trace
+- Auth/CORS/Upload failures
+- AI Chat system issues (SSE, tools, cards)
+
+**KHÔNG dùng khi:**
+- Lỗi syntax/typo rõ ràng → fix trực tiếp
+- Build errors → xem Vite checklist bên dưới là đủ
+- UI styling issues → không cần debug workflow
+
+---
+
+## 🛠️ MODES
+
+### Mode 1: Quick Triage
+Khi bug có error message rõ → đọc message → LOCALIZE → FIX. Dùng checklists bên dưới.
+
+### Mode 2: Deep Investigation
+Khi không biết lỗi ở đâu → dùng Binary Search Debugging hoặc 5 bước debug đầy đủ.
+
+---
+
+## 🚨 PROACTIVE TRIGGERS
+
+- **Thấy `catch (e) {}` trống** → BÁO ĐỘNG: "Silent error swallowing detected"
+- **Thấy `.findById()` không check null** → BÁO ĐỘNG: "Potential null reference"
+- **Thấy SSE endpoint không có `res.flushHeaders()`** → BÁO ĐỘNG: "SSE stream blocked"
+
+---
+
 ## 5 Bước Debug
 
 ```
