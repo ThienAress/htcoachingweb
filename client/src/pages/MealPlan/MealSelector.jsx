@@ -47,7 +47,7 @@ const MealSelector = ({
               <option value="" disabled>
                 Chọn chế độ
               </option>
-              {Object.keys(macroSet).map((plan) => (
+              {macroSet && Object.keys(macroSet).map((plan) => (
                 <option key={plan} value={plan}>
                   {plan}
                 </option>

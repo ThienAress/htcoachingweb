@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Draggable } from "gsap/Draggable";
@@ -10,6 +11,7 @@ import class3 from "../../assets/images/classes/class3.jpg";
 gsap.registerPlugin(ScrollTrigger, Draggable);
 
 const Classes = ({ images }) => {
+  const { t } = useTranslation("home");
   const headerRef = useRef(null);
   const carouselRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -17,24 +19,25 @@ const Classes = ({ images }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
+  const classItems = t("classes.items", { returnObjects: true });
   const classes = [
     {
       image: images?.[0] || class1,
-      title: "PERSONAL TRAINING",
-      desc: "Huấn luyện 1:1 giúp bạn theo sát tiến độ, tập đúng kỹ thuật và đạt mục tiêu nhanh hơn bao giờ hết.",
-      benefits: ["Lộ trình cá nhân hóa", "Tập trung vào mục tiêu", "An toàn - Hiệu quả"],
+      title: classItems[0].title,
+      desc: classItems[0].desc,
+      benefits: classItems[0].benefits,
     },
     {
       image: images?.[1] || class2,
-      title: "CARDIO & HIIT",
-      desc: "Đốt cháy mỡ thừa hiệu quả, tăng nhịp tim và cải thiện sức bền chỉ trong vài phút mỗi buổi tập.",
-      benefits: ["Bài tập ngắn - Hiệu quả vượt trội", "Cải thiện sức khỏe tim mạch", "Phù hợp với người bận rộn"],
+      title: classItems[1].title,
+      desc: classItems[1].desc,
+      benefits: classItems[1].benefits,
     },
     {
       image: images?.[2] || class3,
-      title: "BOXING",
-      desc: "Tăng sức bền, cải thiện phản xạ, giải phóng căng thẳng với những bài tập đầy năng lượng và linh hoạt.",
-      benefits: ["Đốt mỡ, săn chắc toàn thân", "Nâng cao phản xạ", "Giải phóng năng lượng"],
+      title: classItems[2].title,
+      desc: classItems[2].desc,
+      benefits: classItems[2].benefits,
     },
   ];
 
@@ -181,10 +184,10 @@ const Classes = ({ images }) => {
       <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 relative">
         <div ref={headerRef} className="max-w-[1650px] mx-auto z-10 relative">
           <h2 className="text-center text-primary uppercase">
-            CHƯƠNG TRÌNH TẬP LUYỆN TRỰC TIẾP
+            {t("classes.title")}
           </h2>
           <p className="text-center text-gray-800 font-medium text-fluid-base max-w-2xl mx-auto mb-8 px-4 mt-2">
-            Cùng mình chinh phục mục tiêu thể chất với 3 bộ môn đặc trưng
+            {t("classes.subtitle")}
           </p>
         </div>
 

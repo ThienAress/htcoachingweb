@@ -17,6 +17,7 @@ const staticRoutes = [
   '/',
   '/ket-qua-khach-hang',
   '/blog',
+  '/cong-thuc-nau-an',
   '/club',
   '/exercises',
   '/tdee-calculator',
@@ -42,6 +43,11 @@ async function fetchDynamicRoutes() {
     const blogRes = await axios.get(`${API_URL}/blog?limit=100`);
     const posts = blogRes.data?.data || [];
     posts.forEach(p => dynamicRoutes.push(`/blog/${p.slug}`));
+
+    // 4. Recipes
+    const recipesRes = await axios.get(`${API_URL}/recipes?limit=500`);
+    const recipes = recipesRes.data?.data || [];
+    recipes.forEach(r => dynamicRoutes.push(`/cong-thuc-nau-an/${r.slug}`));
 
     console.log(`Fetched ${dynamicRoutes.length} dynamic routes.`);
   } catch (err) {

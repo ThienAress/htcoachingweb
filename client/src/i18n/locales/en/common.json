@@ -1,0 +1,64 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "services": "Services",
+    "feedback": "Feedback",
+    "blog": "Blog",
+    "tools": "Tools",
+    "club": "Club",
+    "login": "Login",
+    "logout": "Logout"
+  },
+  "nav_dropdown": {
+    "packages": "Plans",
+    "packages_admin": "Service Plans",
+    "programs": "Training Programs",
+    "trainers": "Trainers",
+    "tdee": "TDEE Calculator",
+    "recipes": "Recipes",
+    "mealplan": "Meal Plan"
+  },
+  "nav_user": {
+    "system_management": "System Management",
+    "admin_panel": "Admin Panel",
+    "f1_system": "F1 Customer System",
+    "exercise_system": "Exercise Library",
+    "training_ops": "Training Operations",
+    "customer_checkin": "Customer Check-in",
+    "online_coaching": "Online Coaching System",
+    "training_schedule": "Training Schedule",
+    "workout_plan": "Workout Plans",
+    "training_tools": "Training Tools",
+    "checkin_history": "Check-in History",
+    "book_training": "Book Training",
+    "online_plan": "Online Plan",
+    "meal_suggestion": "Meal Plan",
+    "my_profile": "My Profile",
+    "my_wallet": "My Wallet",
+    "account": "Account",
+    "overview": "Overview",
+    "admin_system": "System Admin",
+    "trainer_management": "Training Management"
+  },
+  "footer": {
+    "slogan": "HTCOACHING – Build strength, elevate your style, where physique and spirit shine together.",
+    "quick_links": "QUICK LINKS",
+    "home": "Home",
+    "customer_results": "Transformations",
+    "exercise_system": "Exercise Library",
+    "tdee": "TDEE Calculator",
+    "meal_suggestion": "Meal Plan",
+    "club": "Club",
+    "training_programs": "TRAINING PROGRAMS",
+    "quality_commitment": "QUALITY COMMITMENT",
+    "effectiveness_title": "Results Guaranteed",
+    "effectiveness_desc": "Full refund or re-training if you follow the program and don't see results.",
+    "privacy_title": "Private & Secure",
+    "privacy_desc": "Your information and photos are kept completely confidential."
+  },
+  "language": {
+    "vi": "Tiếng Việt",
+    "en": "English"
+  }
+}

@@ -18,3 +18,6 @@ build/
 test-results/
 playwright-report/
 blob-report/
+
+# data backup & temp scripts
+server/scripts/

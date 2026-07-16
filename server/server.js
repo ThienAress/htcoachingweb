@@ -270,6 +270,9 @@ app.use("/api/blog", blogRoutes);
 import knowledgeBaseRoutes from "./src/routes/knowledgeBase.routes.js";
 app.use("/api/knowledge-base", knowledgeBaseRoutes);
 
+import recipeRoutes from "./src/routes/recipe.routes.js";
+app.use("/api/recipes", recipeRoutes);
+
 import { protect } from "./src/middlewares/auth.middleware.js";
 app.get("/api/me/wallet", protect, getMyWallet);
 

@@ -3,6 +3,7 @@ import CustomerStory from "../models/CustomerStory.js";
 import Trainer from "../models/Trainer.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
+import { createI18nResolver } from "../utils/i18n.js";
 
 const getPublicStoryQuery = () => ({
   status: "published",
@@ -102,12 +103,17 @@ const getStoryPayload = (body = {}, existingStory = null) => {
   if (body.trainerId) payload.trainerId = body.trainerId;
   else payload.trainerId = null;
 
+  // i18n: Nếu body có i18n, merge vào
+  if (body.i18n !== undefined) payload.i18n = body.i18n;
+
   return payload;
 };
 
 export const getCustomerStories = async (req, res) => {
   try {
     const featured = req.query.featured;
+    const lang = req.query.lang;
+    const { resolveField, resolveArray } = createI18nResolver(lang);
     const requestedLimit = Number.parseInt(req.query.limit, 10);
     const limit = Number.isFinite(requestedLimit)
       ? Math.min(Math.max(requestedLimit, 1), 50)
@@ -143,9 +149,20 @@ export const getCustomerStories = async (req, res) => {
       .limit(limit)
       .lean();
 
+    // Resolve i18n fields cho response
+    const localizedStories = stories.map((s) => ({
+      ...s,
+      message: resolveField(s, "message"),
+      result: resolveField(s, "result"),
+      duration: resolveField(s, "duration"),
+      goal: resolveField(s, "goal"),
+      job: resolveField(s, "job"),
+      highlights: resolveArray(s, "highlights"),
+    }));
+
     res.json({
       success: true,
-      data: stories,
+      data: localizedStories,
     });
   } catch (err) {
     console.error("GET CUSTOMER STORIES ERROR:", err);
@@ -430,6 +447,8 @@ export const uploadCustomerStoryImageFile = async (req, res) => {
 export const getCustomerStoryBySlug = async (req, res) => {
   try {
     const slug = String(req.params.slug || "").toLowerCase().trim();
+    const lang = req.query.lang;
+    const { resolveField, resolveArray } = createI18nResolver(lang);
 
     const story = await CustomerStory.findOne({
       ...getPublicStoryQuery(),
@@ -443,9 +462,23 @@ export const getCustomerStoryBySlug = async (req, res) => {
       });
     }
 
+    // Resolve i18n fields
+    const localized = {
+      ...story,
+      message: resolveField(story, "message"),
+      result: resolveField(story, "result"),
+      duration: resolveField(story, "duration"),
+      goal: resolveField(story, "goal"),
+      job: resolveField(story, "job"),
+      problem: resolveField(story, "problem"),
+      solution: resolveField(story, "solution"),
+      quote: resolveField(story, "quote"),
+      highlights: resolveArray(story, "highlights"),
+    };
+
     res.json({
       success: true,
-      data: story,
+      data: localized,
     });
   } catch (err) {
     console.error("GET CUSTOMER STORY DETAIL ERROR:", err);

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import gsap from "gsap";
 import UpdatingText from "../../components/UpdatingText";
 
@@ -46,6 +47,7 @@ const FeedbackCard = ({
   duration,
   message,
 }) => {
+  const { t } = useTranslation("home");
   const firstBefore = Array.isArray(beforeImg) ? beforeImg[0] : beforeImg;
   const firstAfter = Array.isArray(afterImg) ? afterImg[0] : afterImg;
 
@@ -60,23 +62,23 @@ const FeedbackCard = ({
         <ImageOrPlaceholder src={firstAfter} alt={`${name} after`} label="After" />
 
         <span className="absolute left-1/2 top-1/2 z-20 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-full border border-white/70 bg-black/75 px-2.5 py-1 text-[8px] font-bold uppercase tracking-[0.1em] text-white shadow-lg backdrop-blur-sm transition-all duration-300 group-hover:bg-primary group-hover:border-primary sm:px-3 sm:py-1.5 sm:text-[10px]">
-          Xem chi tiết
+          {t("feedback.view_detail")}
         </span>
       </div>
 
       <div className="p-5 flex-grow flex flex-col justify-between text-white">
         <h4 className="text-xl font-medium mb-2">
-          {name}{age ? `, ${age} tuổi` : ""}
+          {name}{age ? `, ${age} ${t("feedback.age_suffix")}` : ""}
         </h4>
         <p className="text-base leading-relaxed mb-2">{message || <UpdatingText className="text-white/60" />}</p>
         <div className="info-wrapper mt-4 text-left">
           <div className="info-left">{job || <UpdatingText className="text-gray-500" />}</div>
           <div className="info-right">
             <span>
-              Kết quả: <strong>{result || <UpdatingText className="text-white/70" />}</strong>
+              {t("feedback.result_label")} <strong>{result || <UpdatingText className="text-white/70" />}</strong>
             </span>
             <span>
-              Thời gian: <strong>{duration || <UpdatingText className="text-white/70" />}</strong>
+              {t("feedback.duration_label")} <strong>{duration || <UpdatingText className="text-white/70" />}</strong>
             </span>
           </div>
         </div>

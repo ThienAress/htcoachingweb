@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useLayoutEffect } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Flip } from "gsap/Flip";
@@ -11,6 +12,7 @@ import { getPublicCustomerStories } from "../../services/customerStory.service";
 gsap.registerPlugin(ScrollTrigger, Flip);
 
 const Feedback = () => {
+  const { t } = useTranslation("home");
   const headerRef = useRef(null);
   const sliderRef = useRef(null);
   
@@ -171,12 +173,12 @@ const Feedback = () => {
           ref={headerRef}
           className="mb-8 flex flex-col items-center justify-center gap-4 text-center"
         >
-          <h2 className="uppercase">CÂU CHUYỆN THAY ĐỔI CỦA KHÁCH HÀNG</h2>
+          <h2 className="uppercase">{t("feedback.title")}</h2>
           <Link
             to="/ket-qua-khach-hang"
             className="inline-flex items-center justify-center rounded-full border border-primary px-5 py-2 text-sm font-bold uppercase tracking-[0.12em] text-primary transition hover:bg-primary hover:text-white"
           >
-            Xem tất cả
+            {t("feedback.view_all")}
           </Link>
         </div>
 

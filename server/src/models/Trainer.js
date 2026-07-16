@@ -138,6 +138,18 @@ const trainerSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // i18n: Bản dịch tiếng Anh cho các field text (fallback về field gốc nếu trống)
+    i18n: {
+      en: {
+        title: { type: String, default: "" },
+        bio: { type: String, default: "" },
+        motto: { type: String, default: "" },
+        trainingStyle: { type: String, default: "" },
+        philosophy: { type: String, default: "" },
+        headline: { type: String, default: "" },
+        achievements: { type: [String], default: [] },
+      },
+    },
   },
   {
     timestamps: true,

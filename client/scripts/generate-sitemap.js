@@ -14,6 +14,7 @@ const staticRoutes = [
   { url: "/", priority: 1.0, changefreq: "weekly", lastmod: today },
   { url: "/ket-qua-khach-hang", priority: 0.9, changefreq: "weekly", lastmod: today },
   { url: "/blog", priority: 0.9, changefreq: "weekly", lastmod: today },
+  { url: "/cong-thuc-nau-an", priority: 0.8, changefreq: "weekly", lastmod: today },
   { url: "/club", priority: 0.8, changefreq: "monthly", lastmod: today },
   { url: "/exercises", priority: 0.8, changefreq: "monthly", lastmod: today },
   { url: "/tdee-calculator", priority: 0.7, changefreq: "yearly", lastmod: today },
@@ -77,7 +78,24 @@ async function generateSitemap() {
       console.error("Failed to fetch blog posts for sitemap:", err.message);
     }
 
-    const allRoutes = [...staticRoutes, ...dynamicRoutes, ...trainerRoutes, ...blogRoutes];
+    // Fetch recipes
+    let recipeRoutes = [];
+    try {
+      const res = await axios.get(`${API_URL}/recipes?limit=500`);
+      const recipes = res.data?.data || [];
+
+      recipeRoutes = recipes.map(recipe => ({
+        url: `/cong-thuc-nau-an/${recipe.slug}`,
+        priority: 0.7,
+        changefreq: "monthly",
+        lastmod: recipe.updatedAt ? new Date(recipe.updatedAt).toISOString().split('T')[0] : today,
+      }));
+      console.log(`Fetched ${recipeRoutes.length} recipes for sitemap.`);
+    } catch (err) {
+      console.error("Failed to fetch recipes for sitemap:", err.message);
+    }
+
+    const allRoutes = [...staticRoutes, ...dynamicRoutes, ...trainerRoutes, ...blogRoutes, ...recipeRoutes];
 
     const sitemapContent = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

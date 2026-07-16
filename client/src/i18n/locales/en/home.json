@@ -1,0 +1,141 @@
+{
+  "seo": {
+    "title": "Home",
+    "description": "HTCOACHING - Personalized training programs with professional coaches. Boxing, Gym & Cardio for effective muscle gain and fat loss in Ho Chi Minh City. Sign up now!"
+  },
+  "hero": {
+    "badge": "90-Day Program · Personal Coach",
+    "title_line1": "Transform",
+    "title_prefix": "in",
+    "title_line2": "90 Days",
+    "title_line3": "No Excuses.",
+    "subtitle": "Training & nutrition plans personalized to your body, with daily progress tracking on Notion.",
+    "subtitle_bold": "No results — money back.",
+    "cta_primary": "Get Free Plan",
+    "cta_secondary": "See real transformations",
+    "checklist": [
+      "Personalized training plan",
+      "Smart meal planning",
+      "Easy progress tracking on Notion",
+      "100% goal achievement guarantee"
+    ],
+    "stats_students": "students transformed",
+    "stats_rating": "Average rating 4.9/5"
+  },
+  "about": {
+    "title": "YOUR TRANSFORMATION PARTNER",
+    "quote": "\"There's no great body in the comfort zone. Either change — or stay the same forever.\"",
+    "bio": "I'm <strong>Thien</strong> — a professional personal trainer with over <strong>4 years of hands-on experience</strong>, who has personally transformed the physiques of more than <strong>50 clients</strong> with all different body types. Muscle gain, fat loss, and greater discipline every day are what you'll achieve training with me.",
+    "training_style": "TRAINING STYLE",
+    "style_items": [
+      "Passionate, disciplined, friendly — right by your side every session",
+      "Real motivation – No sugarcoating, straight to what you need to fix",
+      "Personalized roadmap – Right technique, right nutrition, hitting your goals",
+      "With the motto NO PAIN NO GAIN, I'll push you beyond your limits."
+    ]
+  },
+  "tools": {
+    "title": "FREE TOOLS",
+    "subtitle": "Experience our smart nutrition calculation and meal suggestion ecosystem, completely free from HTCoaching.",
+    "tdee_title": "TOTAL DAILY ENERGY EXPENDITURE (TDEE)",
+    "tdee_desc": "Discover how many calories your body burns daily to optimize your weight gain/loss scientifically.",
+    "tdee_cta": "Try it now",
+    "recipe_title": "RECIPES",
+    "recipe_desc": "Explore 700+ healthy international recipes.",
+    "recipe_cta": "Browse library",
+    "mealplan_title": "MEAL PLAN",
+    "mealplan_desc": "Create the perfect meal plan that fits your target calorie intake.",
+    "mealplan_cta": "Create meal plan"
+  },
+  "contact": {
+    "title": "CONTACT US",
+    "subtitle": "Leave your info and we'll reach out for a free consultation",
+    "name_placeholder": "Full name",
+    "email_placeholder": "Email",
+    "phone_placeholder": "Phone number",
+    "social_placeholder": "Facebook or Zalo profile",
+    "social_hint": "Example: Zalo link:",
+    "social_hint_detail": "https://zalo.me/YourNumber, replace with your real number",
+    "package_placeholder": "Select a plan",
+    "submit": "Submit",
+    "submitting": "Sending...",
+    "success_title": "✔ Submitted successfully!",
+    "success_message": "Our consultant will contact you shortly.",
+    "success_countdown": "This popup will close in:",
+    "success_seconds": "seconds",
+    "location": "Depends on your chosen gym",
+    "hours": "Mon - Sun: 6:00 AM - 10:00 PM",
+    "errors": {
+      "name": "Full name must be at least 8 characters",
+      "email": "Email must be a valid @gmail.com address",
+      "phone": "Phone number must be exactly 10 digits",
+      "social_required": "Please enter your Facebook/Zalo",
+      "social_max": "Maximum 50 characters",
+      "social_invalid": "Invalid information",
+      "social_forbidden": "Contains inappropriate language!",
+      "social_gambling": "Gambling links not accepted!",
+      "social_format": "Only valid Facebook or Zalo links accepted!",
+      "package": "Please select a plan"
+    }
+  },
+  "trainers": {
+    "title": "HTCOACHING TRAINERS",
+    "view_detail": "View profile",
+    "contact_cta": "Contact trainer for free consultation"
+  },
+  "feedback": {
+    "title": "CLIENT TRANSFORMATION STORIES",
+    "view_all": "View all",
+    "view_detail": "View detail",
+    "age_suffix": "years old",
+    "result_label": "Result:",
+    "duration_label": "Duration:"
+  },
+  "classes": {
+    "title": "IN-PERSON TRAINING PROGRAMS",
+    "subtitle": "Conquer your fitness goals with our 3 signature disciplines",
+    "items": [
+      {
+        "title": "PERSONAL TRAINING",
+        "desc": "1-on-1 training to help you stay on track, nail proper form, and reach your goals faster than ever.",
+        "benefits": ["Personalized roadmap", "Goal-focused", "Safe & Effective"]
+      },
+      {
+        "title": "CARDIO & HIIT",
+        "desc": "Burn fat efficiently, increase heart rate and build endurance in just minutes per session.",
+        "benefits": ["Short workouts - Superior results", "Improved cardiovascular health", "Perfect for busy people"]
+      },
+      {
+        "title": "BOXING",
+        "desc": "Build endurance, sharpen reflexes, and release stress with energizing and dynamic workouts.",
+        "benefits": ["Burn fat, tone whole body", "Enhanced reflexes", "Release energy"]
+      }
+    ],
+    "cta": "GET FREE CONSULTATION"
+  },
+  "pricing": {
+    "title_customer": "OUR TRAINING PLANS",
+    "title_trainer": "OUR SERVICE PLANS",
+    "trial": "Trial",
+    "popular": "POPULAR",
+    "system_benefits": "✨ System Benefits",
+    "special_gifts": "SPECIAL GIFTS",
+    "total_sessions": "Total sessions",
+    "register_now": "Register now",
+    "buy": "BUY",
+    "month": "Month",
+    "year": "Year",
+    "avg_per_month": "Average",
+    "switch_to_customer": "Are you a client?",
+    "view_personal_plans": "View personal plans",
+    "switch_to_trainer": "Are you a trainer?",
+    "view_trainer_plans": "View trainer plans",
+    "login_promo_title": "SPECIAL OFFER",
+    "login_promo_text": "Login now to get",
+    "login_promo_discount": "15% OFF",
+    "login_promo_suffix": "on your first plan!",
+    "login_now": "Login now",
+    "continue_register": "Continue registration",
+    "login_promo_note": "* Offer valid for first-time registration with an account only"
+  }
+}

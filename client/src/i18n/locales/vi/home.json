@@ -1,0 +1,141 @@
+{
+  "seo": {
+    "title": "Trang chủ",
+    "description": "HTCOACHING - Chương trình luyện tập cá nhân hóa cùng HLV chuyên nghiệp. Boxing, Gym & Cardio giúp tăng cơ giảm mỡ hiệu quả tại TP.HCM. Đăng ký tập ngay!"
+  },
+  "hero": {
+    "badge": "Chương trình 90 ngày · HLV riêng",
+    "title_line1": "Lột xác",
+    "title_prefix": "trong",
+    "title_line2": "90 ngày",
+    "title_line3": "Không viện cớ.",
+    "subtitle": "Lộ trình tập & ăn được cá nhân hoá theo cơ địa của bạn, theo dõi tiến độ mỗi ngày trên Notion.",
+    "subtitle_bold": "Không đạt mục tiêu — hoàn tiền.",
+    "cta_primary": "Nhận lộ trình miễn phí",
+    "cta_secondary": "Xem hành trình học viên đã lột xác",
+    "checklist": [
+      "Lộ trình riêng biệt",
+      "Thực đơn thông minh",
+      "Theo dõi tiến độ dễ dàng trên Notion",
+      "Cam kết đạt mục tiêu 100%"
+    ],
+    "stats_students": "học viên đã lột xác",
+    "stats_rating": "Đánh giá trung bình 4.9/5"
+  },
+  "about": {
+    "title": "NGƯỜI ĐỒNG HÀNH THAY ĐỔI CỦA BẠN",
+    "quote": "\"Không có body đỉnh trong vùng an toàn. Hoặc là thay đổi – hoặc là mãi như cũ.\"",
+    "bio": "Mình là <strong>Thiện</strong> – huấn luyện viên cá nhân chuyên nghiệp với hơn <strong>4 năm kinh nghiệm thực chiến</strong>, người đã trực tiếp thay đổi hình thể cho hơn <strong>50 học viên</strong> với đủ mọi thể trạng khác nhau. Tăng cơ – đốt mỡ – kỷ luật hơn mỗi ngày là những thứ bạn sẽ đạt được khi đồng hành cùng mình.",
+    "training_style": "PHONG CÁCH HUẤN LUYỆN",
+    "style_items": [
+      "Máu lửa, kỷ luật, thân thiện, sát cánh trong từng buổi tập",
+      "Động lực thực chất – Không tâng bốc, chỉ thẳng vào vấn đề bạn cần sửa",
+      "Lộ trình cá nhân hóa – Tập đúng kỹ thuật, ăn đúng cách, đánh trúng mục tiêu",
+      "Với slogan NO PAIN NO GAIN, mình sẽ đưa bạn vượt qua mọi giới hạn."
+    ]
+  },
+  "tools": {
+    "title": "CÔNG CỤ MIỄN PHÍ",
+    "subtitle": "Trải nghiệm hệ sinh thái công cụ tính toán và gợi ý dinh dưỡng thông minh, hoàn toàn miễn phí từ HTCoaching.",
+    "tdee_title": "ĐO LƯỢNG MỨC TIÊU THỤ NĂNG LƯỢNG (TDEE)",
+    "tdee_desc": "Khám phá lượng calo cơ thể bạn đốt mỗi ngày để tối ưu hóa việc tăng/giảm cân một cách khoa học nhất.",
+    "tdee_cta": "Khám phá ngay",
+    "recipe_title": "CÔNG THỨC NẤU ĂN",
+    "recipe_desc": "Khám phá hơn 700+ công thức nấu ăn đa quốc gia cực kỳ healthy.",
+    "recipe_cta": "Xem thư viện",
+    "mealplan_title": "GỢI Ý THỰC ĐƠN",
+    "mealplan_desc": "Lên thực đơn hoàn hảo phù hợp với lượng Calories mục tiêu của bạn.",
+    "mealplan_cta": "Tạo thực đơn"
+  },
+  "contact": {
+    "title": "LIÊN HỆ VỚI CHÚNG TÔI",
+    "subtitle": "Để lại thông tin, chúng tôi sẽ liên hệ tư vấn miễn phí cho bạn",
+    "name_placeholder": "Họ và tên",
+    "email_placeholder": "Email",
+    "phone_placeholder": "Số điện thoại",
+    "social_placeholder": "Trang cá nhân FB or ZALO",
+    "social_hint": "VD: Link Zalo:",
+    "social_hint_detail": "https://zalo.me/SĐT, thay bằng SĐT thật của bạn vào",
+    "package_placeholder": "Chọn gói tập quan tâm",
+    "submit": "Gửi thông tin",
+    "submitting": "Đang gửi...",
+    "success_title": "✔ Gửi thông tin thành công!",
+    "success_message": "Tư vấn viên sẽ liên hệ với bạn trong thời gian sớm nhất.",
+    "success_countdown": "Popup sẽ tự động đóng sau:",
+    "success_seconds": "giây",
+    "location": "Tùy vào phòng tập bạn chọn",
+    "hours": "Thứ 2 - Chủ nhật: 6:00 - 22:00",
+    "errors": {
+      "name": "Họ tên phải có ít nhất 8 ký tự",
+      "email": "Email phải đúng định dạng @gmail.com",
+      "phone": "Số điện thoại phải đúng 10 số",
+      "social_required": "Vui lòng nhập Facebook/Zalo",
+      "social_max": "Tối đa 50 ký tự",
+      "social_invalid": "Thông tin không hợp lệ",
+      "social_forbidden": "Thông tin chứa ngôn từ không phù hợp!",
+      "social_gambling": "Không chấp nhận link cá cược/bài bạc!",
+      "social_format": "Chỉ cho phép link Facebook hoặc Zalo hợp lệ!",
+      "package": "Vui lòng chọn gói tập quan tâm"
+    }
+  },
+  "trainers": {
+    "title": "HUẤN LUYỆN VIÊN HTCOACHING",
+    "view_detail": "Xem chi tiết",
+    "contact_cta": "Liên hệ huấn luyện viên tư vấn miễn phí"
+  },
+  "feedback": {
+    "title": "CÂU CHUYỆN THAY ĐỔI CỦA KHÁCH HÀNG",
+    "view_all": "Xem tất cả",
+    "view_detail": "Xem chi tiết",
+    "age_suffix": "tuổi",
+    "result_label": "Kết quả:",
+    "duration_label": "Thời gian:"
+  },
+  "classes": {
+    "title": "CHƯƠNG TRÌNH TẬP LUYỆN TRỰC TIẾP",
+    "subtitle": "Cùng mình chinh phục mục tiêu thể chất với 3 bộ môn đặc trưng",
+    "items": [
+      {
+        "title": "PERSONAL TRAINING",
+        "desc": "Huấn luyện 1:1 giúp bạn theo sát tiến độ, tập đúng kỹ thuật và đạt mục tiêu nhanh hơn bao giờ hết.",
+        "benefits": ["Lộ trình cá nhân hóa", "Tập trung vào mục tiêu", "An toàn - Hiệu quả"]
+      },
+      {
+        "title": "CARDIO & HIIT",
+        "desc": "Đốt cháy mỡ thừa hiệu quả, tăng nhịp tim và cải thiện sức bền chỉ trong vài phút mỗi buổi tập.",
+        "benefits": ["Bài tập ngắn - Hiệu quả vượt trội", "Cải thiện sức khỏe tim mạch", "Phù hợp với người bận rộn"]
+      },
+      {
+        "title": "BOXING",
+        "desc": "Tăng sức bền, cải thiện phản xạ, giải phóng căng thẳng với những bài tập đầy năng lượng và linh hoạt.",
+        "benefits": ["Đốt mỡ, săn chắc toàn thân", "Nâng cao phản xạ", "Giải phóng năng lượng"]
+      }
+    ],
+    "cta": "NHẬN TƯ VẤN MIỄN PHÍ"
+  },
+  "pricing": {
+    "title_customer": "GÓI TẬP CỦA CHÚNG TÔI",
+    "title_trainer": "GÓI DỊCH VỤ CỦA CHÚNG TÔI",
+    "trial": "Trải nghiệm",
+    "popular": "PHỔ BIẾN",
+    "system_benefits": "✨ Quyền lợi hệ thống",
+    "special_gifts": "QUÀ TẶNG ĐẶC BIỆT",
+    "total_sessions": "Tổng số buổi",
+    "register_now": "Đăng ký ngay",
+    "buy": "MUA",
+    "month": "Tháng",
+    "year": "Năm",
+    "avg_per_month": "Bình quân",
+    "switch_to_customer": "Bạn là khách hàng?",
+    "view_personal_plans": "Xem gói tập cá nhân",
+    "switch_to_trainer": "Bạn là huấn luyện viên?",
+    "view_trainer_plans": "Xem gói dành cho HLV",
+    "login_promo_title": "ƯU ĐÃI ĐẶC BIỆT",
+    "login_promo_text": "Đăng nhập ngay để nhận",
+    "login_promo_discount": "GIẢM 15%",
+    "login_promo_suffix": "cho gói tập đầu tiên!",
+    "login_now": "Đăng nhập ngay",
+    "continue_register": "Tiếp tục đăng ký",
+    "login_promo_note": "* Ưu đãi chỉ áp dụng cho lần đăng ký đầu tiên khi có tài khoản"
+  }
+}

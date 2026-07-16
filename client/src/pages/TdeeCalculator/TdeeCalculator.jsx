@@ -385,8 +385,10 @@ const TdeeCalculator = () => {
 
       {/* Internal Links */}
       <section className="max-w-4xl mx-auto mt-16 mb-8 px-4">
-        <h2 className="text-center text-xl font-bold text-white mb-2 uppercase">Công cụ khác</h2>
-        <p className="text-center text-sm text-gray-400 mb-6">
+        <h2 className="text-center text-2xl font-bold text-white mb-2 uppercase">
+          Công cụ <span className="text-primary">hỗ trợ</span> luyện tập
+        </h2>
+        <p className="text-center text-sm text-gray-400 mb-8">
           Kết hợp dinh dưỡng với bài tập để đạt kết quả tốt nhất
         </p>
         <div className="grid gap-4 sm:grid-cols-3">

@@ -104,12 +104,12 @@ const Home = () => {
         jsonLd={homeSchema}
       />
       <Hero images={settings.heroImages} avatars={settings.heroAvatars} onAnimationComplete={() => setHeroAnimDone(true)} />
+      <Feedback />
       <About images={settings.aboutImages} />
       <Trainers />
-      <Feedback />
       <Classes images={settings.classesImages} />
-      <Tools image={settings.toolsImage} />
       <Pricing isHeroAnimDone={heroAnimDone} />
+      <Tools image={settings.toolsImage} />
       <Contact />
       <ScrollToTop />
       <ChatIcons />

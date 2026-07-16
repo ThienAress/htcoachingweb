@@ -1,7 +1,9 @@
 import React from "react";
 import { Check, ArrowRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const ClassCard = ({ image, title, desc, benefits }) => {
+  const { t } = useTranslation("home");
   return (
     <div className="group flex flex-col bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] 
     hover:shadow-[0_20px_40px_rgb(0,0,0,0.12)] transition-all duration-500 
@@ -48,7 +50,7 @@ const ClassCard = ({ image, title, desc, benefits }) => {
             href="#contact"
             className="group/btn flex items-center justify-center gap-2 w-full py-3.5 px-4 bg-slate-50 hover:bg-primary text-slate-700 hover:text-white rounded-xl font-semibold transition-all duration-300 border border-slate-200 hover:border-transparent"
           >
-            <span>NHẬN TƯ VẤN MIỄN PHÍ</span>
+            <span>{t("classes.cta")}</span>
             <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
           </a>
         </div>

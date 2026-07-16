@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Facebook, Instagram, Youtube, Award, ShieldCheck } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
@@ -8,6 +9,7 @@ import LoginModal from "../../pages/MealPlan/LoginModal";
 const Footer = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const handleMealPlanClick = (e) => {
@@ -31,8 +33,7 @@ const Footer = () => {
               className="h-20 md:h-24 mb-4 object-contain"
             />
             <p className="text-gray-300 text-sm leading-relaxed mb-4">
-              HTCOACHING – Rèn luyện bản lĩnh, nâng tầm phong cách, nơi hình thể
-              và tinh thần cùng toả sáng.
+              {t("footer.slogan")}
             </p>
             <div className="flex gap-3">
               <a
@@ -81,37 +82,37 @@ const Footer = () => {
           {/* Quick Links */}
           <div>
             <h3 className="text-lg font-semibold mb-4 pb-2 relative after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-primary">
-              LIÊN KẾT NHANH
+              {t("footer.quick_links")}
             </h3>
             <ul className="space-y-2 text-gray-300">
               <li>
                 <Link to="/" className="hover:text-primary hover:pl-1 transition-all">
-                  Trang chủ
+                  {t("footer.home")}
                 </Link>
               </li>
               <li>
                 <Link to="/ket-qua-khach-hang" className="hover:text-primary hover:pl-1 transition-all">
-                  Kết quả khách hàng
+                  {t("footer.customer_results")}
                 </Link>
               </li>
               <li>
                 <Link to="/exercises" className="hover:text-primary hover:pl-1 transition-all">
-                  Hệ thống bài tập
+                  {t("footer.exercise_system")}
                 </Link>
               </li>
               <li>
                 <Link to="/tdee-calculator" className="hover:text-primary hover:pl-1 transition-all">
-                  Tính TDEE
+                  {t("footer.tdee")}
                 </Link>
               </li>
               <li>
                 <button onClick={handleMealPlanClick} className="hover:text-primary hover:pl-1 transition-all bg-transparent border-none text-gray-300 p-0 text-left font-inherit cursor-pointer inline-block">
-                  Gợi ý thực đơn
+                  {t("footer.meal_suggestion")}
                 </button>
               </li>
               <li>
                 <Link to="/club" className="hover:text-primary hover:pl-1 transition-all">
-                  CLB
+                  {t("footer.club")}
                 </Link>
               </li>
             </ul>
@@ -120,7 +121,7 @@ const Footer = () => {
           {/* Training Programs */}
           <div>
             <h3 className="text-lg font-semibold mb-4 pb-2 relative after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-primary">
-              CHƯƠNG TRÌNH TẬP LUYỆN
+              {t("footer.training_programs")}
             </h3>
             <ul className="space-y-2 text-gray-300">
               <li>
@@ -153,24 +154,24 @@ const Footer = () => {
           {/* Cam kết chất lượng */}
           <div>
             <h3 className="text-lg font-semibold mb-4 pb-2 relative after:absolute after:bottom-0 after:left-0 after:w-12 after:h-0.5 after:bg-primary">
-              CAM KẾT CHẤT LƯỢNG
+              {t("footer.quality_commitment")}
             </h3>
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <Award className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-white font-semibold text-sm">Cam Kết Hiệu Quả</p>
+                  <p className="text-white font-semibold text-sm">{t("footer.effectiveness_title")}</p>
                   <p className="text-gray-400 text-xs leading-relaxed mt-0.5">
-                    Hoàn tiền hoặc training lại nếu tuân thủ lộ trình mà không đạt kết quả.
+                    {t("footer.effectiveness_desc")}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-white font-semibold text-sm">Private & Secure</p>
+                  <p className="text-white font-semibold text-sm">{t("footer.privacy_title")}</p>
                   <p className="text-gray-400 text-xs leading-relaxed mt-0.5">
-                    Bảo mật thông tin & hình ảnh khách hàng tuyệt đối.
+                    {t("footer.privacy_desc")}
                   </p>
                 </div>
               </div>

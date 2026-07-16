@@ -669,7 +669,7 @@ const CustomerStories = () => {
       {/* Internal Linking — SEO Hub */}
       <section className="bg-white py-14 border-t border-slate-200">
         <div className="container-custom">
-          <h2 className="text-center font-display text-3xl font-bold uppercase text-slate-950 mb-2">
+          <h2 className="text-center text-2xl font-bold uppercase text-slate-950 mb-2">
             Công cụ <span className="text-primary">hỗ trợ</span>
           </h2>
           <p className="text-center text-sm text-slate-500 mb-8">

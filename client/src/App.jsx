@@ -64,6 +64,8 @@ const Blog = lazy(() => import("./pages/Blog"));
 const BlogDetail = lazy(() => import("./pages/BlogDetail"));
 const BlogManagement = lazy(() => import("./pages/admin/BlogManagement"));
 const KnowledgeBase = lazy(() => import("./pages/admin/KnowledgeBase"));
+const RecipeExplorer = lazy(() => import("./pages/RecipeExplorer/RecipeExplorer"));
+const RecipeDetail = lazy(() => import("./pages/RecipeExplorer/RecipeDetail"));
 
 import "./index.css";
 import "./App.css";
@@ -147,6 +149,10 @@ function AppContent() {
 
         {/* Suggested Mealplan */}
         <Route path="/mealplan" element={<MealPlan />} />
+
+        {/* Recipe Explorer */}
+        <Route path="/cong-thuc-nau-an" element={<RecipeExplorer />} />
+        <Route path="/cong-thuc-nau-an/:slug" element={<RecipeDetail />} />
 
         {/* Customer Booking */}
         <Route path="/book-training" element={<BookTraining />} />

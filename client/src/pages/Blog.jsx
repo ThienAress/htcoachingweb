@@ -396,9 +396,12 @@ const Blog = () => {
       <section className="bg-gray-50 border-t border-gray-100 py-16">
         <div className="container-custom">
           <div className="text-center mb-10">
-            <h2 className="text-fluid-2xl font-black text-slate-800 uppercase tracking-tight">
-              Công cụ hỗ trợ
+            <h2 className="text-2xl font-display font-bold text-slate-800 uppercase tracking-tight mb-2">
+              Công cụ <span className="text-primary">hỗ trợ</span>
             </h2>
+            <p className="text-sm text-slate-500">
+              Kết hợp kiến thức với công cụ thực hành để đạt kết quả tốt nhất
+            </p>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-3">

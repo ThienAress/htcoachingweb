@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { X, Gift, Sparkles, LogIn, ArrowRight, Wallet, CheckCircle, AlertTriangle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { getMyWallet } from "../services/wallet.service";
 import { purchaseTrainerPlan } from "../services/trainerSubscription.service";
 
 const Pricing = ({ isHeroAnimDone = false }) => {
+  const { t } = useTranslation("home");
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -436,7 +438,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     <section id="pricing" className="py-16 bg-[#262626]">
       <div className="container-custom mx-auto px-4">
         <h2 className="text-center text-primary uppercase">
-          {isTrainer ? "GÓI DỊCH VỤ CỦA CHÚNG TÔI" : "GÓI TẬP CỦA CHÚNG TÔI"}
+          {isTrainer ? t("pricing.title_trainer") : t("pricing.title_customer")}
         </h2>
 
 
@@ -487,7 +489,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 : "bg-[#222] text-white hover:-translate-y-0.5 hover:shadow-lg"
                 }`}
             >
-              Trải nghiệm
+              {t("pricing.trial")}
             </button>
           </div>
         )}
@@ -501,14 +503,14 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     }`}
                   onClick={() => setBillingCycle("month")}
                 >
-                  Tháng
+                  {t("pricing.month")}
                 </button>
                 <button
                   className={`relative z-10 w-1/2 h-full rounded-full font-semibold text-base transition-colors duration-300 ${billingCycle === "year" ? "text-white" : "text-gray-400"
                     }`}
                   onClick={() => setBillingCycle("year")}
                 >
-                  Năm
+                  {t("pricing.year")}
                 </button>
                 <div
                   className={`absolute top-0 w-1/2 h-full bg-gradient-to-r from-primary to-primary-dark rounded-full transition-all duration-500 ease-out ${billingCycle === "month" ? "left-0" : "left-1/2"
@@ -536,7 +538,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 >
                   {plan.featured && (
                     <div className="absolute -top-3 -right-3 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                      PHỔ BIẾN
+                      {t("pricing.popular")}
                     </div>
                   )}
 
@@ -549,11 +551,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     <div className="mt-6">
                       <div className="flex items-end gap-2">
                         <span className="text-fluid-4xl font-bold text-white">{formattedPrice}</span>
-                        <span className="text-gray-400 mb-1">/{billingCycle === "year" ? "Năm" : "Tháng"}</span>
+                        <span className="text-gray-400 mb-1">/{billingCycle === "year" ? t("pricing.year") : t("pricing.month")}</span>
                       </div>
                       {billingCycle === "year" && (
                         <p className="text-sm text-gray-500 mt-1">
-                          Bình quân {averageMonthPrice}/Tháng
+                          {t("pricing.avg_per_month")} {averageMonthPrice}/{t("pricing.month")}
                         </p>
                       )}
                     </div>
@@ -603,7 +605,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                       }}
                       className="w-full py-3 font-bold rounded-lg transition-all duration-300 bg-primary text-white hover:bg-orange-500 shadow-lg shadow-orange-500/20"
                     >
-                      MUA
+                      {t("pricing.buy")}
                     </button>
                   </div>
                 </div>
@@ -647,7 +649,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 {plan.systemFeatures && plan.systemFeatures.length > 0 && (
                   <div className="mt-4 mb-4">
                     <h4 className="text-sm font-semibold text-primary mb-2 uppercase tracking-wide">
-                      ✨ Quyền lợi hệ thống
+                      {t("pricing.system_benefits")}
                     </h4>
                     <ul className="space-y-1.5">
                       {plan.systemFeatures.map((sf, i) => (
@@ -664,11 +666,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     onClick={() => showGiftModal(plan.gifts)}
                     className="mt-4 p-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg border border-yellow-500/30 text-yellow-400 font-semibold cursor-pointer flex items-center justify-center gap-2 hover:scale-105 transition text-base"
                   >
-                    <Gift className="w-5 h-5" /> QUÀ TẶNG ĐẶC BIỆT
+                    <Gift className="w-5 h-5" /> {t("pricing.special_gifts")}
                   </div>
                 )}
                 <div className="mt-4 pt-3 border-t border-dashed border-gray-700 text-fluid-base text-gray-400 text-center">
-                  Tổng số buổi: {plan.totalSessions}
+                  {t("pricing.total_sessions")}: {plan.totalSessions}
                 </div>
                 <Link
                   to="/register"
@@ -678,7 +680,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                   }}
                   className="relative flex items-center justify-center w-full mt-5 py-3 2xl:py-4 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-fluid-base"
                 >
-                  <span className="relative z-10">Đăng ký ngay</span>
+                  <span className="relative z-10">{t("pricing.register_now")}</span>
                   <span className="absolute inset-0 bg-primary transform -translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></span>
                 </Link>
               </div>
@@ -711,7 +713,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             >
               <div className="flex justify-between items-center p-4 border-b border-yellow-500/30">
                 <h3 className="text-xl font-bold text-yellow-400 flex items-center gap-2">
-                  <Sparkles className="w-6 h-6" /> QUÀ TẶNG ĐẶC BIỆT
+                  <Sparkles className="w-6 h-6" /> {t("pricing.special_gifts")}
                 </h3>
                 <button
                   onClick={() => setGiftModalVisible(false)}
@@ -746,7 +748,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             >
               <div className="flex justify-between items-center p-4 border-b border-primary/30">
                 <h3 className="text-xl font-bold text-primary flex items-center gap-2">
-                  <Sparkles className="w-6 h-6" /> ƯU ĐÃI ĐẶC BIỆT
+                  <Sparkles className="w-6 h-6" /> {t("pricing.login_promo_title")}
                 </h3>
                 <button
                   onClick={() => setShowLoginPrompt(false)}
@@ -757,26 +759,25 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               </div>
               <div className="p-6 space-y-4">
                 <p className="text-gray-300 text-center text-lg">
-                  Đăng nhập ngay để nhận{" "}
-                  <strong className="text-primary">GIẢM 15%</strong> cho gói tập
-                  đầu tiên!
+                  {t("pricing.login_promo_text")}{" "}
+                  <strong className="text-primary">{t("pricing.login_promo_discount")}</strong> {t("pricing.login_promo_suffix")}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
                   <button
                     onClick={handleLoginRedirect}
                     className="flex-1 py-3 bg-gradient-to-r from-primary to-primary-dark text-white font-bold rounded-lg flex items-center justify-center gap-2 hover:scale-105 transition"
                   >
-                    <LogIn size={18} /> Đăng nhập ngay
+                    <LogIn size={18} /> {t("pricing.login_now")}
                   </button>
                   <button
                     onClick={handleContinueWithoutLogin}
                     className="flex-1 py-3 bg-gray-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 hover:bg-gray-600 transition"
                   >
-                    Tiếp tục đăng ký <ArrowRight size={18} />
+                    {t("pricing.continue_register")} <ArrowRight size={18} />
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 text-center mt-2">
-                  * Ưu đãi chỉ áp dụng cho lần đăng ký đầu tiên khi có tài khoản
+                  {t("pricing.login_promo_note")}
                 </p>
               </div>
             </div>
