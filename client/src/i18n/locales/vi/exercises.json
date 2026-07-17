@@ -1,0 +1,99 @@
+{
+  "seo_title": "Hệ thống bài tập & Lịch tập cá nhân",
+  "seo_desc": "Tạo lịch tập cá nhân hóa với hệ thống bài tập chuyên nghiệp từ HTCOACHING. Có đầy đủ hướng dẫn, video và xuất file PDF miễn phí.",
+  "badge": "HỆ THỐNG BÀI TẬP",
+  "title": "TẠO LỊCH TẬP <0>CÁ NHÂN HÓA</0>",
+  "desc": "Chọn nhóm cơ, thêm bài tập và xuất lịch tập PDF chuyên nghiệp",
+  "alert_beforeunload": "Bạn chưa xuất file PDF, có thể mất dữ liệu khi load lại trang.",
+  "alert_leave": "Bạn chưa xuất file PDF, có thể mất dữ liệu khi rời trang.",
+  "toast_not_ready": "Dữ liệu chưa sẵn sàng!",
+  "toast_structure_error": "Lỗi cấu trúc bài tập!",
+  "toast_no_plan": "Bạn chưa tạo lịch tập nào!",
+  "toast_pdf_success": "Xuất PDF thành công!",
+  "toast_pdf_error": "Có lỗi xảy ra khi xuất PDF.",
+  "toast_suggestion_empty": "Vui lòng nhập góp ý",
+  "toast_suggestion_success": "Cảm ơn bạn đã góp ý!",
+  "toast_suggestion_error": "Gửi thất bại, thử lại sau.",
+  "card_title": "CHỌN NHÓM CƠ",
+  "btn_view_list": "Xem danh sách bài tập",
+  "pdf": {
+    "no_data": "Không có dữ liệu lịch tập.",
+    "created_date": "NGÀY TẠO",
+    "muscle_group": "NHÓM CƠ",
+    "session_date": "NGÀY TẬP",
+    "pdf_desc": "Kế hoạch tập luyện cá nhân hóa, rõ ràng, trực quan và dễ theo dõi trong từng buổi tập.",
+    "page": "Trang {{pageNumber}} / {{totalPages}}"
+  },
+  "table": {
+    "col_exercises": "Bài tập",
+    "col_sets": "Sets",
+    "col_reps": "Reps",
+    "col_tempo": "Tempo",
+    "col_duration": "Duration",
+    "col_tips": "Tips",
+    "action_col": "Hành động",
+    "add_exercise": "Thêm bài tập",
+    "select_exercise": "Chọn bài tập",
+    "no_exercises": "Chưa có bài tập nào",
+    "placeholder_sets": "Số hiệp",
+    "placeholder_reps": "Số cái",
+    "placeholder_tempo": "Nhịp độ",
+    "placeholder_duration": "Thời gian",
+    "placeholder_tips": "Hướng dẫn của Coach"
+  },
+  "explanation": {
+    "title": "GIẢI THÍCH LỊCH TẬP",
+    "footer_1": "Chúc bạn luyện tập thật hiệu quả và đạt được mục tiêu thể hình của mình!",
+    "footer_2": "Lưu ý: Dữ liệu sẽ bị xóa khi load lại trang. Bạn có thể tải lịch tập về file PDF trước khi thoát trang nha!",
+    "warmUp": "Làm nóng toàn bộ cơ thể, tăng tuần hoàn (5–10 phút)",
+    "strength": "Kích hoạt các nhóm cơ và hệ thần kinh sẽ sử dụng trong phần tập chính",
+    "compound": "Tập trung vào các bài tập sử dụng nhiều nhóm cơ và nhiều khớp cùng lúc",
+    "isolation": "Chỉ tập trung vào 1 nhóm cơ riêng biệt",
+    "cooldown": "Kéo giãn cơ bắp, giảm đau mỏi sau tập"
+  },
+  "modal": {
+    "title": "DANH SÁCH BÀI TẬP",
+    "search_by_name": "Tên bài tập",
+    "search_by_muscle": "Nhóm cơ",
+    "placeholder_name": "Tìm theo tên bài tập",
+    "placeholder_muscle": "Tìm theo nhóm cơ",
+    "col_name": "Tên bài tập",
+    "col_image": "Hình ảnh",
+    "col_muscle": "Nhóm cơ chính",
+    "col_desc": "Mô tả tóm tắt",
+    "no_image": "Không có",
+    "no_muscle": "Chưa có",
+    "no_desc": "Không có mô tả",
+    "no_found": "Không tìm thấy bài tập"
+  },
+  "muscle_selector": {
+    "title": "CHỌN NHÓM CƠ",
+    "custom_name_label": "Nhập tên nhóm cơ tùy chỉnh",
+    "custom_name_placeholder": "VD: Abs, Forearm, Glute...",
+    "custom_name_help": "Để trống nếu chỉ muốn chọn từ danh sách bên dưới",
+    "available_list_label": "Hoặc chọn từ danh sách có sẵn:",
+    "cancel_btn": "Hủy",
+    "create_btn": "Tạo nhóm",
+    "custom_btn_label": "CHỌN NHÓM CƠ"
+  },
+  "suggestion": {
+    "title": "Góp ý bài tập",
+    "placeholder": "Bạn muốn mình thêm bài tập nào thì góp ý nha...",
+    "sending": "Đang gửi...",
+    "send": "Gửi góp ý",
+    "send_short": "Gửi"
+  },
+  "btn_export_pdf": "Tải lịch tập về PDF",
+  "explorer": {
+    "tools_title": "Công cụ hỗ trợ luyện tập",
+    "tools_desc": "Kết hợp bài tập với dinh dưỡng để đạt kết quả tốt nhất"
+  },
+  "links": {
+    "tdee_title": "Tính TDEE & Macro",
+    "tdee_desc": "Xác định lượng calo và macro cần nạp mỗi ngày phù hợp mục tiêu.",
+    "mealplan_title": "Gợi ý thực đơn",
+    "mealplan_desc": "Nhận thực đơn dinh dưỡng phù hợp mục tiêu giảm mỡ hoặc tăng cơ.",
+    "stories_title": "Kết quả khách hàng",
+    "stories_desc": "Xem hành trình thay đổi vóc dáng thực tế từ các học viên HTCOACHING."
+  }
+}

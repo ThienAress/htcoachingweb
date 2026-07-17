@@ -1,0 +1,29 @@
+{
+  "seo": {
+    "title": "Danh sách phòng tập - HTCOACHING",
+    "description": "Tìm phòng tập Gym, Boxing gần bạn tại TP.HCM. HTCOACHING hiện đang huấn luyện tại nhiều câu lạc bộ ở Quận 9, Thủ Đức — xem địa chỉ chi tiết ngay!",
+    "schema_name": "Hệ thống phòng tập HTCOACHING",
+    "schema_desc": "Danh sách phòng tập Gym, Boxing tại TP.HCM nơi HTCOACHING đang huấn luyện."
+  },
+  "header": {
+    "tag": "HỆ THỐNG PHÒNG TẬP",
+    "title": "CÂU LẠC BỘ <1>PT CÓ THỂ VÀO DẠY</1>",
+    "subtitle": "Tìm phòng tập gần bạn — xem giờ mở cửa, địa chỉ và chỉ đường Google Maps"
+  },
+  "filters": {
+    "search_placeholder": "Tìm phòng tập...",
+    "all_areas": "Tất cả khu vực",
+    "gyms_count": "{{count}} phòng tập"
+  },
+  "card": {
+    "has_kickfit": "Có KickFit / Boxing",
+    "view_on_map": "Xem trên bản đồ",
+    "no_results": "Không tìm thấy phòng tập nào trong khu vực này."
+  },
+  "explore": {
+    "title": "Khám phá thêm",
+    "customer_results": "Kết quả khách hàng",
+    "exercises": "Thư viện bài tập",
+    "tdee": "Tính TDEE"
+  }
+}

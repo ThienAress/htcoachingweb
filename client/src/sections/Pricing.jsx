@@ -111,68 +111,68 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   // Gói ONLINE
   const onlinePlans = [
     {
-      title: "CƠ BẢN",
-      durationText: "8 tuần",
+      title: t("pricing.names.basic"),
+      durationText: t("pricing.weeks", { count: 8 }),
       features: [
-        "Online Coaching — Nhận bài tập & feedback từ HLV",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.online"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
       gifts: [],
       totalSessions: 24,
     },
     {
-      title: "NÂNG CAO",
-      durationText: "16 tuần",
+      title: t("pricing.names.advanced"),
+      durationText: t("pricing.weeks", { count: 16 }),
       features: [
-        "Online Coaching — Nhận bài tập & feedback từ HLV",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.online"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
       gifts: [],
       featured: true,
       totalSessions: 48,
     },
     {
-      title: "VIP",
-      durationText: "24 tuần",
+      title: t("pricing.names.vip"),
+      durationText: t("pricing.weeks", { count: 24 }),
       features: [
-        "Online Coaching — Nhận bài tập & feedback từ HLV",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.online"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
       gifts: [],
       totalSessions: 72,
@@ -182,96 +182,96 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   // Gói 1-1
   const oneOnOnePlans = [
     {
-      title: "CƠ BẢN",
-      durationText: "8 tuần",
+      title: t("pricing.names.basic"),
+      durationText: t("pricing.weeks", { count: 8 }),
       features: [
-        "Tập 1 kèm 1",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.one_on_one"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
-      gifts: ["Shaker Bình Lắc Cao Cấp 600ml"],
+      gifts: [t("pricing.gifts.shaker")],
       totalSessions: 24,
     },
     {
-      title: "NÂNG CAO",
-      durationText: "16 tuần",
+      title: t("pricing.names.advanced"),
+      durationText: t("pricing.weeks", { count: 16 }),
       features: [
-        "Tập 1 kèm 1",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.one_on_one"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
-      gifts: ["Shaker Bình Lắc Cao Cấp 600ml", "2 bánh Biscotti 300g"],
+      gifts: [t("pricing.gifts.shaker"), t("pricing.gifts.biscotti")],
       featured: true,
       totalSessions: 48,
     },
     {
-      title: "VIP",
-      durationText: "24 tuần",
+      title: t("pricing.names.vip"),
+      durationText: t("pricing.weeks", { count: 24 }),
       features: [
-        "Tập 1 kèm 1",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.one_on_one"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
       gifts: [
-        "Balo cao cấp Degrey",
-        "Shaker Bình Lắc Cao Cấp 600ml",
-        "2 bánh Biscotti 300g",
+        t("pricing.gifts.backpack"),
+        t("pricing.gifts.shaker"),
+        t("pricing.gifts.biscotti"),
       ],
       totalSessions: 72,
     },
   ];
 
   const trialPlan = {
-    title: "Trải nghiệm",
-    durationText: "4 tuần",
+    title: t("pricing.names.trial"),
+    durationText: t("pricing.weeks", { count: 4 }),
     features: [
-      "Tập 1 kèm 1",
-      "Giáo án cá nhân hóa",
-      "Tư vấn dinh dưỡng riêng",
-      "Theo dõi tiến độ theo tuần",
-      "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-      "Hỗ trợ căng cơ phục hồi sau tập",
-      "Cam kết kết quả 100%",
+      t("pricing.features.one_on_one"),
+      t("pricing.features.personalized_plan"),
+      t("pricing.features.diet_consultation"),
+      t("pricing.features.weekly_progress"),
+      t("pricing.features.notion_tracking"),
+      t("pricing.features.stretching_recovery"),
+      t("pricing.features.commitment"),
     ],
     systemFeatures: [
-      "Truy cập hệ thống bài tập đa dạng",
-      "Gợi ý thực đơn AI không giới hạn",
-      "Đặt lịch tập trực tuyến",
-      "Xem lịch trình tập luyện cá nhân",
-      "Xem lịch sử checkin cá nhân",
+      t("pricing.system_features.exercise_library"),
+      t("pricing.system_features.ai_mealplan"),
+      t("pricing.system_features.online_booking"),
+      t("pricing.system_features.personal_schedule"),
+      t("pricing.system_features.checkin_history"),
     ],
     gifts: [],
     totalSessions: 12,
@@ -280,107 +280,107 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   // ===== GÓI DỊCH VỤ DÀNH CHO TRAINER =====
   const trainerPlans = [
     {
-      title: "Tiêu chuẩn",
+      title: t("pricing.trainer_plans.basic"),
       icon: "\uD83D\uDD25",
-      subtitle: "Dành cho HLV mới bắt đầu",
+      subtitle: t("pricing.trainer_plans.basic_sub"),
       priceMonth: 200000,
       priceYear: 2000000,
       categories: [
         {
-          name: "Quản lý học viên",
+          name: t("pricing.trainer_plans.categories.student_management"),
           features: [
-            "Quản lý tối đa 5 học viên",
-            "Tạo hồ sơ tập luyện cho học viên",
-            "Checkin/Checkout học viên qua hệ thống",
-            "Xem lịch sử checkin tất cả học viên",
-            "Trainer Dashboard — Thống kê tổng quan",
+            t("pricing.trainer_plans.features.max_5_students"),
+            t("pricing.trainer_plans.features.create_profile"),
+            t("pricing.trainer_plans.features.checkin_checkout"),
+            t("pricing.trainer_plans.features.checkin_history"),
+            t("pricing.trainer_plans.features.dashboard"),
           ]
         },
         {
-          name: "Coaching & Lịch tập",
+          name: t("pricing.trainer_plans.categories.coaching_schedule"),
           features: [
-            "Online Coaching — Gửi bài tập & feedback cho học viên",
-            "Tạo và quản lý lịch tập cho học viên",
+            t("pricing.trainer_plans.features.coaching_feedback"),
+            t("pricing.trainer_plans.features.manage_schedule"),
           ]
         }
       ]
     },
     {
-      title: "Chuyên nghiệp",
+      title: t("pricing.trainer_plans.advanced"),
       icon: "\uD83D\uDC8E",
-      subtitle: "Dành cho PT muốn phát triển",
+      subtitle: t("pricing.trainer_plans.advanced_sub"),
       priceMonth: 250000,
       priceYear: 2500000,
       featured: true,
       categories: [
         {
-          name: "Quản lý học viên",
+          name: t("pricing.trainer_plans.categories.student_management"),
           features: [
-            "Quản lý tối đa 20 học viên",
-            "Tạo hồ sơ tập luyện cho học viên",
-            "Checkin/Checkout học viên qua hệ thống",
-            "Xem lịch sử checkin tất cả học viên",
-            "Trainer Dashboard — Thống kê tổng quan",
+            t("pricing.trainer_plans.features.max_20_students"),
+            t("pricing.trainer_plans.features.create_profile"),
+            t("pricing.trainer_plans.features.checkin_checkout"),
+            t("pricing.trainer_plans.features.checkin_history"),
+            t("pricing.trainer_plans.features.dashboard"),
           ]
         },
         {
-          name: "Coaching & Lịch tập",
+          name: t("pricing.trainer_plans.categories.coaching_schedule"),
           features: [
-            "Online Coaching — Gửi bài tập & feedback cho học viên",
-            "Tạo và quản lý lịch tập cho học viên",
+            t("pricing.trainer_plans.features.coaching_feedback"),
+            t("pricing.trainer_plans.features.manage_schedule"),
           ]
         },
         {
-          name: "F1 CRM & AI",
+          name: t("pricing.trainer_plans.categories.crm_ai"),
           icon: "\u2728",
           features: [
-            "Hệ thống CRM quản lý khách hàng tiềm năng (F1)",
-            "AI phân tích & đánh giá khách hàng F1",
-            "Dự đoán kết quả tập luyện bằng AI",
-            "Báo cáo AI chi tiết cho từng khách hàng",
+            t("pricing.trainer_plans.features.crm_leads"),
+            t("pricing.trainer_plans.features.crm_ai_analysis"),
+            t("pricing.trainer_plans.features.crm_ai_prediction"),
+            t("pricing.trainer_plans.features.crm_ai_report"),
           ]
         }
       ]
     },
     {
-      title: "Cao cấp",
+      title: t("pricing.trainer_plans.vip"),
       icon: "\uD83D\uDC51",
-      subtitle: "Dành cho PT chuyên nghiệp",
+      subtitle: t("pricing.trainer_plans.vip_sub"),
       priceMonth: 300000,
       priceYear: 3000000,
       categories: [
         {
-          name: "Quản lý học viên",
+          name: t("pricing.trainer_plans.categories.student_management"),
           features: [
-            "Quản lý tối đa 50 học viên",
-            "Tạo hồ sơ tập luyện cho học viên",
-            "Checkin/Checkout học viên qua hệ thống",
-            "Xem lịch sử checkin tất cả học viên",
-            "Trainer Dashboard — Thống kê tổng quan",
+            t("pricing.trainer_plans.features.max_50_students"),
+            t("pricing.trainer_plans.features.create_profile"),
+            t("pricing.trainer_plans.features.checkin_checkout"),
+            t("pricing.trainer_plans.features.checkin_history"),
+            t("pricing.trainer_plans.features.dashboard"),
           ]
         },
         {
-          name: "Coaching & Lịch tập",
+          name: t("pricing.trainer_plans.categories.coaching_schedule"),
           features: [
-            "Online Coaching — Gửi bài tập & feedback cho học viên",
-            "Tạo và quản lý lịch tập cho học viên",
+            t("pricing.trainer_plans.features.coaching_feedback"),
+            t("pricing.trainer_plans.features.manage_schedule"),
           ]
         },
         {
-          name: "F1 CRM & AI",
+          name: t("pricing.trainer_plans.categories.crm_ai"),
           icon: "\u2728",
           features: [
-            "Hệ thống CRM quản lý khách hàng tiềm năng (F1)",
-            "AI phân tích & đánh giá khách hàng F1",
-            "Dự đoán kết quả tập luyện bằng AI",
-            "Báo cáo AI chi tiết cho từng khách hàng",
+            t("pricing.trainer_plans.features.crm_leads"),
+            t("pricing.trainer_plans.features.crm_ai_analysis"),
+            t("pricing.trainer_plans.features.crm_ai_prediction"),
+            t("pricing.trainer_plans.features.crm_ai_report"),
           ]
         },
         {
-          name: "Đặc quyền",
+          name: t("pricing.trainer_plans.categories.privilege"),
           icon: "\uD83D\uDC51",
           features: [
-            "Cập nhật tính năng mới miễn phí",
+            t("pricing.trainer_plans.features.free_updates"),
           ]
         }
       ]
@@ -622,7 +622,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               >
                 {plan.featured && (
                   <div className="absolute -top-3 -right-3 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                    PHỔ BIẾN
+                    {t("pricing.popular")}
                   </div>
                 )}
                 <div className="text-center mb-4">
@@ -695,9 +695,9 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary transition-colors group"
           >
             {isTrainer ? (
-              <>Bạn là khách hàng? <span className="underline underline-offset-2 group-hover:text-primary">Xem gói tập cá nhân</span> <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /></>
+              <>{t("pricing.switch_to_customer")} <span className="underline underline-offset-2 group-hover:text-primary">{t("pricing.view_personal_plans")}</span> <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /></>
             ) : (
-              <>Bạn là huấn luyện viên? <span className="underline underline-offset-2 group-hover:text-primary">Xem gói dành cho HLV</span> <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /></>
+              <>{t("pricing.switch_to_trainer")} <span className="underline underline-offset-2 group-hover:text-primary">{t("pricing.view_trainer_plans")}</span> <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /></>
             )}
           </button>
         </div>

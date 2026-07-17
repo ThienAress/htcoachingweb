@@ -136,6 +136,65 @@
     "login_promo_suffix": "on your first plan!",
     "login_now": "Login now",
     "continue_register": "Continue registration",
-    "login_promo_note": "* Offer valid for first-time registration with an account only"
+    "login_promo_note": "* Offer valid for first-time registration with an account only",
+    "weeks": "{{count}} weeks",
+    "names": {
+      "trial": "Trial",
+      "basic": "BASIC",
+      "advanced": "ADVANCED",
+      "vip": "VIP"
+    },
+    "features": {
+      "online": "Online Coaching — Receive plans & feedback from coach",
+      "one_on_one": "1-on-1 PT Coaching",
+      "personalized_plan": "Personalized training plans",
+      "diet_consultation": "Customized nutrition consulting",
+      "weekly_progress": "Weekly progress tracking",
+      "notion_tracking": "Notion-based exercise and tracking library",
+      "stretching_recovery": "Post-workout stretching & recovery support",
+      "commitment": "100% money-back result commitment"
+    },
+    "system_features": {
+      "exercise_library": "Access to diverse exercise library",
+      "ai_mealplan": "Unlimited AI meal plan suggestions",
+      "online_booking": "Book personal training sessions online",
+      "personal_schedule": "View personalized training calendar",
+      "checkin_history": "View check-in history"
+    },
+    "gifts": {
+      "shaker": "Premium 600ml Shaker Bottle",
+      "biscotti": "2 packs of healthy Biscotti 300g",
+      "backpack": "Premium Degrey Backpack"
+    },
+    "trainer_plans": {
+      "basic": "Basic",
+      "basic_sub": "For HLV just starting out",
+      "advanced": "Professional",
+      "advanced_sub": "For PT wanting to scale",
+      "vip": "Premium",
+      "vip_sub": "For professional PT",
+      "categories": {
+        "student_management": "Client Management",
+        "coaching_schedule": "Coaching & Schedules",
+        "crm_ai": "F1 CRM & AI",
+        "privilege": "Privileges"
+      },
+      "features": {
+        "max_5_students": "Manage up to 5 clients",
+        "max_20_students": "Manage up to 20 clients",
+        "max_50_students": "Manage up to 50 clients",
+        "create_profile": "Create client training profiles",
+        "checkin_checkout": "Checkin/Checkout clients via system",
+        "checkin_history": "View check-in history of all clients",
+        "dashboard": "Trainer Dashboard — General statistics",
+        "coaching_feedback": "Online Coaching — Send plans & feedback to clients",
+        "manage_schedule": "Create and manage schedules for clients",
+        "crm_leads": "Lead CRM management system (F1)",
+        "crm_ai_analysis": "AI analysis & evaluation of F1 leads",
+        "crm_ai_prediction": "AI-powered client training result predictions",
+        "crm_ai_report": "Detailed AI report for each client",
+        "free_updates": "Free lifetime feature updates"
+      }
+    }
   }
 }

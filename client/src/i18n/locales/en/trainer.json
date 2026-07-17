@@ -1,0 +1,47 @@
+{
+  "seo": {
+    "default_title": "Trainer",
+    "default_description": "Trainer at HTCOACHING."
+  },
+  "loading": "Loading trainer profile...",
+  "status": {
+    "professional_trainer": "Professional Personal Trainer"
+  },
+  "sections": {
+    "training_style": "Training Style",
+    "achievements": "Key Achievements",
+    "specialties": "Specialties & Services",
+    "certifications": "Certifications & Education",
+    "video_intro": "Intro Video",
+    "video_desc": "Watch the video to understand the coaching style.",
+    "methodology": "COACHING METHODOLOGY",
+    "methodology_title": "HARDCORE <1>PILLARS</1>",
+    "methodology_desc": "No room for half-measures. A serious roadmap brings outstanding changes.",
+    "customer_results": "Client Results",
+    "customer_results_desc": "Members who trusted and transformed with <1>{{name}}</1>",
+    "view_all_stories": "View all stories",
+    "faqs": "Frequently Asked Questions",
+    "faqs_desc": "Still have questions? Here are the most common ones."
+  },
+  "actions": {
+    "free_consultation": "Get free consultation",
+    "view_results": "See transformation results",
+    "detail_view": "View detail"
+  },
+  "customer_card": {
+    "before": "Before",
+    "after": "After",
+    "age_suffix": "yo",
+    "duration_label": "Coaching duration"
+  },
+  "explore": {
+    "title": "Explore <1>more</1>",
+    "subtitle": "Start your body transformation journey today",
+    "tdee_title": "Calculate TDEE & Macro",
+    "tdee_desc": "Determine the amount of calories you need daily to reach your goal.",
+    "exercises_title": "Exercise Library",
+    "exercises_desc": "Create personalized workout plans and export PDF for free.",
+    "results_title": "Customer Results",
+    "results_desc": "See body transformation journeys from HTCOACHING members."
+  }
+}

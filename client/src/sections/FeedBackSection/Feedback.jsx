@@ -8,11 +8,12 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import FeedbackCard from "./FeedbackCard";
 import { getPublicCustomerStories } from "../../services/customerStory.service";
+import { translateData } from "../../utils/localDataTranslator";
 
 gsap.registerPlugin(ScrollTrigger, Flip);
 
 const Feedback = () => {
-  const { t } = useTranslation("home");
+  const { t, i18n } = useTranslation("home");
   const headerRef = useRef(null);
   const sliderRef = useRef(null);
   
@@ -26,11 +27,12 @@ const Feedback = () => {
   const [isPaused, setIsPaused] = useState(false);
 
   const { data: storiesResponse } = useQuery({
-    queryKey: ["public-customer-stories", "featured"],
-    queryFn: () => getPublicCustomerStories({ featured: true, limit: 8 }),
+    queryKey: ["public-customer-stories", "featured", i18n.language],
+    queryFn: () => getPublicCustomerStories({ featured: true, limit: 8, lang: i18n.language }),
   });
 
-  const stories = storiesResponse?.data || [];
+  const rawStories = storiesResponse?.data || [];
+  const stories = translateData(rawStories, "story", i18n.language);
 
   // Khởi tạo items lần đầu tiên khi tải xong data
   useEffect(() => {

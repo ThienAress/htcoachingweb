@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { Link, Navigate, useParams } from "react-router-dom";
 import gsap from "gsap";
 import { ArrowLeft, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Flame, Hourglass } from "lucide-react";
@@ -9,8 +10,10 @@ import {
 } from "../services/customerStory.service";
 import SEO from "../components/SEO";
 import ScrollToTop from "../components/ScrollToTop";
+import { translateData } from "../utils/localDataTranslator";
 
 const ContinuingBanner = ({ name }) => {
+  const { t } = useTranslation("stories");
   const iconRef = useRef(null);
   const dot1Ref = useRef(null);
   const dot2Ref = useRef(null);
@@ -43,7 +46,9 @@ const ContinuingBanner = ({ name }) => {
           <Hourglass className="h-8 w-8 text-primary sm:h-10 sm:w-10" />
         </div>
         <p className="max-w-2xl text-fluid-sm leading-relaxed text-gray">
-          Hãy cùng chờ đón sự lột xác thật bùng nổ của <strong>{name}</strong> cùng HTCOACHING nhé
+          <Trans t={t} i18nKey="detail.waiting_banner" values={{ name }}>
+            Hãy cùng chờ đón sự lột xác thật bùng nổ của <strong>{name}</strong> cùng HTCOACHING nhé
+          </Trans>
           <span ref={dot1Ref} className="opacity-0 inline-block">.</span>
           <span ref={dot2Ref} className="opacity-0 inline-block">.</span>
           <span ref={dot3Ref} className="opacity-0 inline-block">.</span>
@@ -54,6 +59,7 @@ const ContinuingBanner = ({ name }) => {
 };
 
 const UpdatingLabel = ({ className = "" }) => {
+  const { t } = useTranslation("stories");
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -81,7 +87,7 @@ const UpdatingLabel = ({ className = "" }) => {
     return () => ctx.revert();
   }, []);
 
-  const text = "Đang cập nhật";
+  const text = t("detail.updating");
 
   return (
     <span ref={containerRef} className={`inline-flex items-baseline text-[11px] italic text-gray/70 ${className}`}>
@@ -98,6 +104,7 @@ const UpdatingLabel = ({ className = "" }) => {
 };
 
 const ImageCarousel = ({ images, label }) => {
+  const { t } = useTranslation("stories");
   const [idx, setIdx] = useState(0);
   const hasMultiple = images.length > 1;
 
@@ -126,7 +133,7 @@ const ImageCarousel = ({ images, label }) => {
             type="button"
             onClick={() => setIdx((prev) => (prev - 1 + images.length) % images.length)}
             className="absolute left-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/70 sm:h-8 sm:w-8"
-            aria-label="Ảnh trước"
+            aria-label={t("detail.aria_prev_image")}
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -134,7 +141,7 @@ const ImageCarousel = ({ images, label }) => {
             type="button"
             onClick={() => setIdx((prev) => (prev + 1) % images.length)}
             className="absolute right-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/70 sm:h-8 sm:w-8"
-            aria-label="Ảnh tiếp"
+            aria-label={t("detail.aria_next_image")}
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -145,7 +152,7 @@ const ImageCarousel = ({ images, label }) => {
                 type="button"
                 onClick={() => setIdx(i)}
                 className={`h-1.5 rounded-full transition-all ${i === idx ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
-                aria-label={`Ảnh ${i + 1}`}
+                aria-label={`Image ${i + 1}`}
               />
             ))}
           </div>
@@ -183,6 +190,7 @@ const BeforeAfterBlock = ({ title, subtitle, beforeImg, afterImg }) => {
 };
 
 const RelatedStoryCard = ({ story }) => {
+  const { t } = useTranslation("stories");
   const beforeImages = Array.isArray(story.beforeImg) ? story.beforeImg.filter(Boolean) : (story.beforeImg ? [story.beforeImg] : []);
   const afterImages = Array.isArray(story.afterImg) ? story.afterImg.filter(Boolean) : (story.afterImg ? [story.afterImg] : []);
 
@@ -217,10 +225,10 @@ const RelatedStoryCard = ({ story }) => {
       </div>
       <div className="p-3">
         <p className="text-sm font-bold text-dark transition group-hover:text-primary">
-          {story.name}{story.age ? `, ${story.age} tuổi` : ""}
+          {story.name}{story.age ? `, ${story.age} ${t("stories_list.age_suffix")}` : ""}
         </p>
         <p className="mt-1 text-xs text-gray">
-          {story.result || "Đang cập nhật"} {story.duration ? `trong ${story.duration}` : ""}
+          {story.result || t("detail.updating")} {story.duration ? t("detail.weeks_duration_text", { duration: story.duration }) : ""}
         </p>
       </div>
     </Link>
@@ -228,22 +236,24 @@ const RelatedStoryCard = ({ story }) => {
 };
 
 const CustomerStoryDetail = ({ previewData }) => {
+  const { t, i18n } = useTranslation("stories");
   const { slug } = useParams();
 
   const { data: storyResponse, isLoading: isLoadingStory } = useQuery({
-    queryKey: ["public-customer-story", slug],
-    queryFn: () => getPublicCustomerStoryBySlug(slug),
+    queryKey: ["public-customer-story", slug, i18n.language],
+    queryFn: () => getPublicCustomerStoryBySlug(slug, { lang: i18n.language }),
     retry: false,
     enabled: !previewData,
   });
 
   const { data: storiesResponse } = useQuery({
-    queryKey: ["public-customer-stories", "related"],
-    queryFn: () => getPublicCustomerStories({ limit: 20 }),
+    queryKey: ["public-customer-stories", "related", i18n.language],
+    queryFn: () => getPublicCustomerStories({ limit: 20, lang: i18n.language }),
     enabled: !previewData,
   });
 
-  const story = previewData || (storyResponse?.data?.slug ? storyResponse.data : null);
+  const storyRaw = previewData || (storyResponse?.data?.slug ? storyResponse.data : null);
+  const story = translateData(storyRaw, "story", i18n.language);
 
   if (!previewData && isLoadingStory) {
     return (
@@ -268,9 +278,10 @@ const CustomerStoryDetail = ({ previewData }) => {
     return <Navigate to="/" replace />;
   }
 
-  const relatedStories = (storiesResponse?.data || [])
+  const rawRelatedStories = (storiesResponse?.data || [])
     .filter((relatedStory) => relatedStory.slug !== story.slug)
     .slice(0, 6);
+  const relatedStories = translateData(rawRelatedStories, "story", i18n.language);
 
   const articleSchema = {
     "@context": "https://schema.org",
@@ -312,8 +323,8 @@ const CustomerStoryDetail = ({ previewData }) => {
     <main className="bg-white">
       {!previewData && (
         <SEO
-          title={story.duration ? `Hành trình ${story.duration} của ${story.name}` : `Hành trình của ${story.name}`}
-          description={`Khám phá hành trình ${story.duration || ""} thay đổi vóc dáng của ${story.name}${story.age ? ` (${story.age} tuổi` : ""}${story.job ? `, ${story.job})` : story.age ? ")" : ""}. ${story.result ? `Kết quả: ${story.result}.` : ""}`}
+          title={story.duration ? t("detail.journey_of_name", { duration: story.duration, name: story.name }) : t("detail.journey_of_name_simple", { name: story.name })}
+          description={story.duration ? t("detail.journey_description", { duration: story.duration, name: story.name, age: story.age || "--", result: story.result || t("detail.updating") }) : t("detail.journey_description_simple", { name: story.name, result: story.result || t("detail.updating") })}
           canonical={`/ket-qua-khach-hang/${story.slug}`}
           image={story.heroImage || (Array.isArray(story.afterImg) ? story.afterImg[0] : story.afterImg)}
           type="article"
@@ -335,23 +346,23 @@ const CustomerStoryDetail = ({ previewData }) => {
             className="mb-8 inline-flex w-fit items-center gap-2 text-sm font-semibold text-white/90 transition hover:text-primary drop-shadow-md"
           >
             <ArrowLeft className="h-4 w-4" />
-            Trang chủ
+            {t("detail.back_to_list")}
           </Link>
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-primary drop-shadow-md">
-            Kết quả thay đổi
+            {t("detail.before_after_title")}
           </p>
           <h1 className="max-w-4xl text-white uppercase drop-shadow-lg">
-            {story.duration ? `Hành trình ${story.duration} của ${story.name}` : `Hành trình của ${story.name}`}
+            {story.duration ? t("detail.journey_of_name", { duration: story.duration, name: story.name }) : t("detail.journey_of_name_simple", { name: story.name })}
           </h1>
           <div className="mt-5 flex flex-wrap gap-3 text-sm font-semibold text-white/90">
             <span className="border border-white/30 bg-black/30 backdrop-blur-sm px-3 py-2">
-              {story.job || "Đang cập nhật"}
+              {story.job || t("detail.updating")}
             </span>
             <span className="border border-white/30 bg-black/30 backdrop-blur-sm px-3 py-2">
-              {story.age ? `${story.age} tuổi` : "Đang cập nhật"}
+              {story.age ? `${story.age} ${t("stories_list.age_suffix")}` : t("detail.updating")}
             </span>
             <span className="border border-white/30 bg-black/30 backdrop-blur-sm px-3 py-2">
-              {story.packageName || "Đang cập nhật"}
+              {story.packageName || t("detail.updating")}
             </span>
           </div>
         </div>
@@ -361,16 +372,16 @@ const CustomerStoryDetail = ({ previewData }) => {
         <div className="grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
           <aside className="border border-gray-200 bg-white p-5 shadow-sm lg:sticky lg:top-24">
             <p className="text-sm font-bold uppercase text-primary">
-              Thông tin chung
+              {t("detail.info")}
             </p>
             <dl className="mt-5 space-y-4 text-sm">
               {[
-                ["Khách hàng", story.name],
-                ["Tuổi", story.age ? `${story.age} tuổi` : null],
-                ["Nghề nghiệp", story.job],
-                ["Mục tiêu", story.goal],
-                ["Gói tập", story.packageName],
-                ["Lịch tập", story.schedule],
+                [t("detail.customer_label"), story.name],
+                [t("filters.age"), story.age ? `${story.age} ${t("stories_list.age_suffix")}` : null],
+                [t("detail.job_label"), story.job],
+                [t("filters.goal"), story.goal],
+                [t("detail.program"), story.packageName],
+                [t("detail.schedule_label"), story.schedule],
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt className="text-xs font-semibold uppercase text-gray">
@@ -382,10 +393,10 @@ const CustomerStoryDetail = ({ previewData }) => {
             </dl>
             <div className="mt-6 grid grid-cols-2 gap-3">
               {[
-                ["Bắt đầu", story.startWeight],
-                ["Hiện tại", story.endWeight],
-                ["Kết quả", story.result],
-                ["Thời gian", story.duration],
+                [t("detail.start_weight"), story.startWeight],
+                [t("detail.current_weight"), story.endWeight],
+                [t("detail.loss_gain"), story.result],
+                [t("detail.weeks_duration"), story.duration],
               ].map(([label, value]) => (
                 <div key={label} className="border border-gray-200 p-3">
                   <p className="text-[11px] font-bold uppercase text-gray">
@@ -398,7 +409,7 @@ const CustomerStoryDetail = ({ previewData }) => {
             {story.updatedAt && (
               <p className="mt-4 text-xs text-gray flex items-center gap-1.5">
                 <CalendarDays className="h-3.5 w-3.5" />
-                Cập nhật: {new Date(story.updatedAt).toLocaleDateString("vi-VN")}
+                {t("detail.updated_at_label")}: {new Date(story.updatedAt).toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US")}
               </p>
             )}
           </aside>
@@ -406,13 +417,13 @@ const CustomerStoryDetail = ({ previewData }) => {
           <div className="min-w-0">
             <div className="grid gap-5 md:grid-cols-2">
               <article className="border-l-4 border-primary bg-light p-5">
-                <h2 className="h3 mb-3 text-2xl uppercase">Vấn đề của khách hàng</h2>
+                <h2 className="h3 mb-3 text-2xl uppercase">{t("detail.client_problem")}</h2>
                 <p className="text-fluid-sm leading-7 text-gray">
                   {story.problem || <UpdatingLabel />}
                 </p>
               </article>
               <article className="border-l-4 border-black bg-light p-5">
-                <h2 className="h3 mb-3 text-2xl uppercase">Giải pháp của Huấn Luyện Viên</h2>
+                <h2 className="h3 mb-3 text-2xl uppercase">{t("detail.trainer_solution")}</h2>
                 <p className="text-fluid-sm leading-7 text-gray">
                   {story.solution || <UpdatingLabel />}
                 </p>
@@ -422,7 +433,7 @@ const CustomerStoryDetail = ({ previewData }) => {
             <div className="mt-8">
               <BeforeAfterBlock
                 title={story.duration}
-                subtitle={`${story.age} tuổi - ${story.job}`}
+                subtitle={`${story.age || "--"} ${t("stories_list.age_suffix")} - ${story.job || t("detail.updating")}`}
                 beforeImg={story.beforeImg}
                 afterImg={story.afterImg}
               />
@@ -432,7 +443,7 @@ const CustomerStoryDetail = ({ previewData }) => {
               <section className="mt-10">
                 <div className="mb-5 flex items-center gap-3">
                   <CalendarDays className="h-5 w-5 text-primary" />
-                  <h2 className="h3 text-2xl uppercase">Timeline hành trình</h2>
+                  <h2 className="h3 text-2xl uppercase">{t("detail.journey_title")}</h2>
                 </div>
                 <div className="space-y-8">
                   {story.milestones.map((milestone, index) => (
@@ -456,7 +467,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                         {milestone.bullets.length > 0 && (
                           <div className="rounded-xl bg-slate-50 p-5 border border-slate-100 h-fit">
                             <p className="mb-3 font-semibold text-primary">
-                              Kết quả giai đoạn {index + 1}:
+                              {t("detail.phase_result_label", { phase: index + 1 })}
                             </p>
                             <ul className="space-y-2">
                               {milestone.bullets.map((bullet) => (
@@ -518,7 +529,7 @@ const CustomerStoryDetail = ({ previewData }) => {
             {relatedStories.length > 0 && (
               <section className="mt-10">
                 <h2 className="h3 text-center text-2xl text-primary uppercase">
-                  Các câu chuyện tương tự
+                  {t("detail.related_stories")}
                 </h2>
                 <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {relatedStories.map((relatedStory) => (
@@ -533,7 +544,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                     to="/ket-qua-khach-hang"
                     className="inline-flex items-center justify-center gap-2 bg-primary px-6 py-3 text-sm font-bold uppercase text-white transition hover:bg-orange-600 rounded-lg shadow-md shadow-primary/20"
                   >
-                    Xem tất cả
+                    {t("detail.view_all")}
                   </Link>
                 </div>
               </section>
@@ -542,10 +553,10 @@ const CustomerStoryDetail = ({ previewData }) => {
             {/* Internal Linking — SEO Hub */}
             <section className="mt-10 border-t border-gray-200 pt-10">
               <h2 className="h3 text-center text-2xl text-primary uppercase">
-                Khám phá thêm
+                {t("explore.title_more", "Khám phá thêm")}
               </h2>
               <p className="text-center text-sm text-gray mt-2">
-                Bắt đầu hành trình thay đổi vóc dáng của bạn ngay hôm nay
+                {t("explore.subtitle_more", "Bắt đầu hành trình thay đổi vóc dáng của bạn ngay hôm nay")}
               </p>
               <div className="mt-6 grid gap-4 sm:grid-cols-3">
                 <Link
@@ -554,10 +565,10 @@ const CustomerStoryDetail = ({ previewData }) => {
                 >
                   <Flame className="h-6 w-6 text-primary mb-3" />
                   <h3 className="font-bold text-dark group-hover:text-primary transition">
-                    Tính TDEE & Macro
+                    {t("explore.tdee_title")}
                   </h3>
                   <p className="mt-2 text-sm text-gray leading-relaxed">
-                    Xác định lượng calo cần nạp mỗi ngày để đạt mục tiêu giảm mỡ hoặc tăng cơ.
+                    {t("explore.tdee_desc")}
                   </p>
                 </Link>
                 <Link
@@ -566,10 +577,10 @@ const CustomerStoryDetail = ({ previewData }) => {
                 >
                   <Dumbbell className="h-6 w-6 text-primary mb-3" />
                   <h3 className="font-bold text-dark group-hover:text-primary transition">
-                    Thư viện bài tập
+                    {t("explore.exercises_title")}
                   </h3>
                   <p className="mt-2 text-sm text-gray leading-relaxed">
-                    Tạo lịch tập cá nhân hóa với hệ thống bài tập chuyên nghiệp và xuất PDF miễn phí.
+                    {t("explore.exercises_desc")}
                   </p>
                 </Link>
                 <Link
@@ -578,10 +589,10 @@ const CustomerStoryDetail = ({ previewData }) => {
                 >
                   <CheckCircle2 className="h-6 w-6 text-primary mb-3" />
                   <h3 className="font-bold text-dark group-hover:text-primary transition">
-                    Tất cả kết quả
+                    {t("explore.results_title")}
                   </h3>
                   <p className="mt-2 text-sm text-gray leading-relaxed">
-                    Xem toàn bộ hành trình thay đổi vóc dáng của các học viên HTCOACHING.
+                    {t("explore.results_desc")}
                   </p>
                 </Link>
               </div>

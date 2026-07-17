@@ -358,7 +358,7 @@ function Header() {
 
         {/* Language Switcher + LOGIN / USER - Desktop */}
         <div className="hidden lg:flex items-center gap-2">
-          <LanguageSwitcher variant="header" />
+          <LanguageSwitcher isSolidHeader={isSolidHeader} />
           {user ? (
             <div className="relative" ref={dropdownRef}>
               <button

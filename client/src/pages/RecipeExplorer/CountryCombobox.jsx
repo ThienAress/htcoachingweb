@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 
 const CountryCombobox = ({ value, onChange, areas }) => {
+  const { t } = useTranslation("recipe");
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const dropdownRef = useRef(null);
@@ -28,13 +30,13 @@ const CountryCombobox = ({ value, onChange, areas }) => {
         className="px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white flex items-center justify-between cursor-pointer focus-within:ring-2 focus-within:ring-primary h-[50px]"
         onClick={() => setIsOpen(true)}
       >
-        {!isOpen && !value && <span className="text-white">Quốc gia</span>}
+        {!isOpen && !value && <span className="text-white">{t("combobox.country")}</span>}
         {!isOpen && value && <span>{value}</span>}
         {isOpen && (
           <input
             type="text"
             className="bg-transparent border-none outline-none w-full text-white placeholder-zinc-500"
-            placeholder="Tìm quốc gia..."
+            placeholder={t("combobox.search")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             autoFocus
@@ -53,10 +55,10 @@ const CountryCombobox = ({ value, onChange, areas }) => {
               setSearchTerm("");
             }}
           >
-            Tất cả quốc gia
+            {t("combobox.all")}
           </div>
           {filteredAreas.length === 0 ? (
-            <div className="px-4 py-3 text-zinc-500 text-sm italic">Không tìm thấy quốc gia</div>
+            <div className="px-4 py-3 text-zinc-500 text-sm italic">{t("combobox.no_found")}</div>
           ) : (
             filteredAreas.map(a => (
               <div 

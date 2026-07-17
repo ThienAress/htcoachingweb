@@ -1,4 +1,5 @@
 import { useParams, Link } from "react-router-dom";
+import { useTranslation, Trans } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -24,13 +25,14 @@ import SEO from "../../components/SEO";
 import { getFlagUrl } from "./constants";
 
 const RecipeDetail = () => {
+  const { t, i18n } = useTranslation("recipe");
   const { slug } = useParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["recipe", slug],
+    queryKey: ["recipe", slug, i18n.language],
     queryFn: () => getRecipeBySlug(slug),
     enabled: !!slug,
   });
@@ -43,7 +45,7 @@ const RecipeDetail = () => {
   });
 
   const recipe = data?.data;
-  const displayArea = recipe?.area === "Vietnamese" ? "Việt Nam" : recipe?.area;
+  const displayArea = recipe?.area ? t(`areas.${recipe.area}`, { defaultValue: recipe.area }) : "";
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -99,16 +101,16 @@ const RecipeDetail = () => {
           <div className="container-custom text-center py-20">
             <ChefHat className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
             <h1 className="text-2xl font-bold mb-2">
-              Không tìm thấy công thức
+              {t("detail.error_title")}
             </h1>
             <p className="text-zinc-400 mb-6">
-              Công thức này có thể đã bị xóa hoặc đường dẫn không đúng.
+              {t("detail.error_desc")}
             </p>
             <Link
               to="/cong-thuc-nau-an"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary/80 rounded-full transition"
             >
-              <ArrowLeft className="w-4 h-4" /> Quay lại danh sách
+              <ArrowLeft className="w-4 h-4" /> {t("detail.error_btn")}
             </Link>
           </div>
         </main>
@@ -123,7 +125,7 @@ const RecipeDetail = () => {
     <>
       <SEO
         title={recipe.name}
-        description={`Công thức nấu ${recipe.name} — ${recipe.ingredients?.length || 0} nguyên liệu, hướng dẫn chi tiết từng bước tại HTCOACHING.`}
+        description={t("detail.recipe_seo_desc", { name: recipe.name, count: recipe.ingredients?.length || 0 })}
         canonical={`/cong-thuc-nau-an/${slug}`}
         image={recipe.thumbnail}
         type="article"
@@ -132,7 +134,7 @@ const RecipeDetail = () => {
           "@type": "Recipe",
           "name": recipe.name,
           "image": recipe.thumbnail,
-          "description": `Công thức nấu ${recipe.name} với ${recipe.ingredients?.length || 0} nguyên liệu.`,
+          "description": t("detail.recipe_seo_json_desc", { name: recipe.name, count: recipe.ingredients?.length || 0 }),
           "prepTime": recipe.prepTime ? `PT${parseInt(recipe.prepTime)}M` : undefined,
           "recipeIngredient": recipe.ingredients?.map(
             (i) => `${i.measure} ${i.name}`,
@@ -158,7 +160,7 @@ const RecipeDetail = () => {
             to="/cong-thuc-nau-an"
             className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition mb-6"
           >
-            <ArrowLeft className="w-4 h-4" /> Quay lại
+            <ArrowLeft className="w-4 h-4" /> {t("detail.btn_back")}
           </Link>
 
           {/* Top Section: Image (Left) + Title/Meta/Ingredients (Right) */}
@@ -184,7 +186,7 @@ const RecipeDetail = () => {
                     className="flex items-center justify-center flex-1 gap-2 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-sm font-medium hover:border-primary hover:text-primary transition disabled:opacity-50"
                   >
                     <Heart className="w-4 h-4" />
-                    Lưu yêu thích
+                    {t("detail.btn_favorite")}
                   </button>
                 )}
                 <button
@@ -194,12 +196,12 @@ const RecipeDetail = () => {
                   {copied ? (
                     <>
                       <Check className="w-4 h-4 text-green-400" />
-                      <span className="text-green-400">Đã sao chép</span>
+                      <span className="text-green-400">{t("detail.toast_copied")}</span>
                     </>
                   ) : (
                     <>
                       <Copy className="w-4 h-4" />
-                      Sao chép link
+                      {t("detail.btn_copy_link")}
                     </>
                   )}
                 </button>
@@ -211,11 +213,11 @@ const RecipeDetail = () => {
               {/* Title + Meta */}
               <div className="mb-8">
             <h1 className="text-3xl md:text-4xl font-black text-white leading-tight">
-              {recipe.name}
+              {i18n.language === "en" && recipe.nameEn ? recipe.nameEn : recipe.name}
             </h1>
             {recipe.nameEn && recipe.nameEn !== recipe.name && (
               <p className="text-zinc-500 text-sm mt-1 italic">
-                {recipe.nameEn}
+                {i18n.language === "en" ? recipe.name : recipe.nameEn}
               </p>
             )}
 
@@ -266,7 +268,7 @@ const RecipeDetail = () => {
                   <span className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center text-xl">
                     📝
                   </span>
-                  Nguyên liệu
+                  {t("detail.section_ingredients")}
                 </h2>
               <ul className="space-y-2.5">
                 {recipe.ingredients?.map((ing, idx) => (
@@ -293,7 +295,7 @@ const RecipeDetail = () => {
                 <span className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center text-xl">
                   👨‍🍳
                 </span>
-                Cách chế biến
+                {t("detail.section_instructions")}
               </h2>
               <div className="space-y-4">
                 {recipe.instructions?.map((step, idx) => (
@@ -319,12 +321,12 @@ const RecipeDetail = () => {
                   <span className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
                     <Youtube className="w-5 h-5 text-red-500" />
                   </span>
-                  Video hướng dẫn
+                  {t("detail.section_video")}
                 </h2>
               <div className="aspect-video rounded-xl overflow-hidden bg-zinc-800">
                 <iframe
                   src={embedUrl}
-                  title={`Hướng dẫn nấu ${recipe.name}`}
+                  title={t("detail.embed_title", { name: recipe.name })}
                   className="w-full h-full"
                   allowFullScreen
                   loading="lazy"
@@ -340,10 +342,10 @@ const RecipeDetail = () => {
       <section className="bg-zinc-900 py-12 border-t border-zinc-800">
         <div className="container-custom">
           <h2 className="text-center text-2xl font-bold text-white uppercase mb-2">
-            Khám phá <span className="text-primary">thêm</span>
+            <Trans i18nKey="detail.explore_more" ns="recipe" components={[<span className="text-primary" key="0" />]} />
           </h2>
           <p className="text-center text-sm text-zinc-400 mb-8">
-            Kết hợp công thức với dinh dưỡng và tập luyện khoa học
+            {t("detail.explore_more_desc")}
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             <Link
@@ -352,10 +354,10 @@ const RecipeDetail = () => {
             >
               <ChefHat className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-white group-hover:text-primary transition">
-                Công thức nấu ăn
+                {t("links.recipe_title")}
               </h3>
               <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-                Khám phá thêm công thức nấu ăn từ Việt Nam và thế giới.
+                {t("links.recipe_desc")}
               </p>
             </Link>
             <Link
@@ -364,10 +366,10 @@ const RecipeDetail = () => {
             >
               <Flame className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-white group-hover:text-primary transition">
-                Tính TDEE & Macro
+                {t("links.tdee_title")}
               </h3>
               <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-                Xác định lượng calo cần nạp mỗi ngày phù hợp mục tiêu.
+                {t("links.tdee_desc_short")}
               </p>
             </Link>
             <Link
@@ -376,10 +378,10 @@ const RecipeDetail = () => {
             >
               <Dumbbell className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-white group-hover:text-primary transition">
-                Hệ thống bài tập
+                {t("links.exercises_title")}
               </h3>
               <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-                Tạo lịch tập cá nhân hóa với hệ thống bài tập chuyên nghiệp.
+                {t("links.exercises_desc")}
               </p>
             </Link>
           </div>

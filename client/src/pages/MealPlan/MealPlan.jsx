@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { toast } from "react-toastify";
@@ -25,6 +26,7 @@ import { Navigate, Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 
 const MealPlan = () => {
+  const { t } = useTranslation("mealplan");
   const [selectedPlan, setSelectedPlan] = useState(3);
   const { macroSet, selectedMacroPlan, setSelectedMacroPlan } = useMacroSet();
   const { foodDatabase, isLoadingFoods } = useFoodDatabase();
@@ -75,13 +77,13 @@ const MealPlan = () => {
     setSelectedFoods(selected);
     localStorage.setItem("selectedFoods", JSON.stringify(selected));
     setIsFoodModalOpen(false);
-    toast.success("✅ Đã lưu danh sách thực phẩm yêu thích");
+    toast.success(t("toast.save_success"));
   };
 
   const handleResetSelectedFoods = () => {
     setSelectedFoods(null);
     localStorage.removeItem("selectedFoods");
-    toast.info("🔄 Đã reset danh sách thực phẩm");
+    toast.info(t("toast.reset_info"));
   };
 
   // Xử lý tạo thực đơn (gợi ý)
@@ -89,7 +91,7 @@ const MealPlan = () => {
     // Kiểm tra giới hạn lượt cho trial users
     if (!canGenerate) {
       toast.error(
-        `❌ Bạn đã sử dụng hết ${maxGenerations} lượt gợi ý miễn phí. Vui lòng đăng ký gói dịch vụ để tiếp tục sử dụng không giới hạn.`,
+        t("toast.no_remaining", { max: maxGenerations }),
         { autoClose: 5000 }
       );
       return;
@@ -99,21 +101,21 @@ const MealPlan = () => {
       // Ghi nhận lượt lên server trước
       const recorded = await recordGeneration();
       if ((!recorded) && accessLevel === "trial") {
-        toast.error("❌ Đã hết lượt gợi ý miễn phí.");
+        toast.error(t("toast.no_remaining_simple"));
         return;
       }
       generateMeals(macroSet[selectedMacroPlan]);
       return;
     }
     if (!macroSet || !isMacroReady) {
-      toast.info("⏳ Đang tải dữ liệu macro, vui lòng chờ...");
+      toast.info(t("toast.loading_macros"));
       return;
     }
-    toast.error("❌ Vui lòng chọn chế độ dinh dưỡng trước");
+    toast.error(t("toast.select_plan_first"));
   };
 
   const hasMeals = meals.length > 0;
-  const buttonLabel = hasMeals ? "Đổi thực đơn khác" : "Gợi ý thực đơn mẫu";
+  const buttonLabel = hasMeals ? t("btn_regenerate") : t("btn_generate");
 
   // Loading states
   if (authLoading || isChecking) {
@@ -133,9 +135,9 @@ const MealPlan = () => {
   const mealplanSchema = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "Công cụ gợi ý thực đơn cá nhân hóa HTCOACHING",
+    "name": t("seo_title"),
     "url": "https://htcoachingweb.io.vn/mealplan",
-    "description": "Thực đơn giảm mỡ, tăng cơ tự động dựa trên TDEE và Macros cá nhân. Xây dựng chế độ ăn chuẩn khoa học.",
+    "description": t("seo_desc"),
     "applicationCategory": "HealthApplication",
     "operatingSystem": "Web",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "VND" },
@@ -145,8 +147,8 @@ const MealPlan = () => {
   return (
     <>
       <SEO
-        title="Gợi ý thực đơn cá nhân hóa"
-        description="Thực đơn giảm mỡ, tăng cơ tự động dựa trên TDEE và Macros của bạn. Xây dựng chế độ ăn chuẩn khoa học cùng HTCOACHING."
+        title={t("seo_title")}
+        description={t("seo_desc")}
         canonical="/mealplan"
         jsonLd={mealplanSchema}
       />
@@ -164,7 +166,7 @@ const MealPlan = () => {
             </div>
 
             <h1 className="text-fluid-3xl font-black uppercase tracking-normal">
-              THỰC ĐƠN <span className="text-primary">CỦA BẠN</span>
+              <Trans i18nKey="title" ns="mealplan" components={[<span className="text-primary" key="0" />]} />
             </h1>
 
             <div className="w-20 sm:w-24 h-1 bg-primary mx-auto mt-3 sm:mt-4 rounded-full"></div>
@@ -180,7 +182,7 @@ const MealPlan = () => {
 
           {activeMacroTarget && (
             <div className="mb-6 text-center text-sm text-gray-300">
-              Target đang dùng:{" "}
+              {t("active_target")}{" "}
               <span className="text-red-400 font-semibold">
                 P {activeMacroTarget.protein}g
               </span>{" "}
@@ -211,7 +213,7 @@ const MealPlan = () => {
               onClick={() => setIsFoodModalOpen(true)}
               className="w-full sm:w-auto px-5 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium transition flex items-center justify-center gap-2"
             >
-              <Heart className="w-4 h-4" /> Chọn món yêu thích
+              <Heart className="w-4 h-4" /> {t("btn_select_favorites")}
             </button>
 
             {selectedFoods && (
@@ -219,7 +221,7 @@ const MealPlan = () => {
                 onClick={handleResetSelectedFoods}
                 className="w-full sm:w-auto px-5 py-2.5 bg-red-900/50 hover:bg-red-800/50 rounded-full text-red-300 font-medium transition flex items-center justify-center gap-2"
               >
-                <RefreshCw className="w-4 h-4" /> Reset
+                <RefreshCw className="w-4 h-4" /> {t("btn_reset")}
               </button>
             )}
           </div>
@@ -233,15 +235,20 @@ const MealPlan = () => {
             }`}>
               <ShieldAlert className="w-4 h-4 flex-shrink-0" />
               {canGenerate ? (
-                <span>Bạn còn <strong>{remainingGenerations}/{maxGenerations}</strong> lượt gợi ý miễn phí</span>
+                <Trans 
+                  i18nKey="trial_remaining" 
+                  ns="mealplan"
+                  values={{ remaining: remainingGenerations, max: maxGenerations }} 
+                  components={[<strong key="0" />]} 
+                />
               ) : (
-                <span>
-                  Đã hết lượt miễn phí.{" "}
-                  <Link to="/" className="underline font-semibold hover:text-red-300">
-                    Đăng ký gói dịch vụ
-                  </Link>{" "}
-                  để sử dụng không giới hạn.
-                </span>
+                <Trans 
+                  i18nKey="trial_expired" 
+                  ns="mealplan"
+                  components={[
+                    <Link to="/" className="underline font-semibold hover:text-red-300" key="0" />
+                  ]} 
+                />
               )}
             </div>
           )}
@@ -255,7 +262,7 @@ const MealPlan = () => {
                     : "text-gray-400 hover:text-gray-200"
                   }`}
               >
-                📋 Thực đơn
+                {t("tab_menu")}
               </button>
 
               <button
@@ -265,7 +272,7 @@ const MealPlan = () => {
                     : "text-gray-400 hover:text-gray-200"
                   }`}
               >
-                ✏️ Tự Lên Thực Đơn
+                {t("tab_custom")}
               </button>
 
               <button
@@ -275,7 +282,7 @@ const MealPlan = () => {
                     : "text-gray-400 hover:text-gray-200"
                   }`}
               >
-                <Database className="w-4 h-4" /> Bảng Dinh dưỡng Thực Phẩm
+                <Database className="w-4 h-4" /> {t("tab_nutrition")}
               </button>
             </div>
           </div>
@@ -323,10 +330,10 @@ const MealPlan = () => {
       <section className="bg-gray-900 py-12 border-t border-gray-800">
         <div className="container-custom">
           <h2 className="text-center text-2xl font-bold text-white uppercase mb-2">
-            Công cụ <span className="text-primary">hỗ trợ</span> luyện tập
+            <Trans i18nKey="explorer.tools_title" ns="mealplan" components={[<span className="text-primary" key="0" />]} />
           </h2>
           <p className="text-center text-sm text-gray-400 mb-8">
-            Kết hợp dinh dưỡng với bài tập để đạt kết quả tốt nhất
+            {t("explorer.tools_desc")}
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             <Link
@@ -335,10 +342,10 @@ const MealPlan = () => {
             >
               <BarChart3 className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-white group-hover:text-primary transition">
-                Tính TDEE & Macro
+                {t("links.tdee_title")}
               </h3>
               <p className="mt-2 text-sm text-gray-400 leading-relaxed">
-                Xác định lượng calo và macro cần nạp mỗi ngày phù hợp mục tiêu.
+                {t("links.tdee_desc")}
               </p>
             </Link>
             <Link
@@ -347,10 +354,10 @@ const MealPlan = () => {
             >
               <Dumbbell className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-white group-hover:text-primary transition">
-                Thư viện bài tập
+                {t("links.exercises_title")}
               </h3>
               <p className="mt-2 text-sm text-gray-400 leading-relaxed">
-                Tạo lịch tập cá nhân hóa theo từng nhóm cơ và xuất PDF.
+                {t("links.exercises_desc")}
               </p>
             </Link>
             <Link
@@ -359,10 +366,10 @@ const MealPlan = () => {
             >
               <Trophy className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-white group-hover:text-primary transition">
-                Kết quả khách hàng
+                {t("links.stories_title")}
               </h3>
               <p className="mt-2 text-sm text-gray-400 leading-relaxed">
-                Xem hành trình thay đổi vóc dáng thực tế từ các học viên HTCOACHING.
+                {t("links.stories_desc")}
               </p>
             </Link>
           </div>

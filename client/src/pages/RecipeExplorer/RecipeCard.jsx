@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Clock } from "lucide-react";
 
 import { getFlagUrl } from "./constants";
 
 const RecipeCard = ({ recipe }) => {
+  const { t, i18n } = useTranslation("recipe");
   const { name, slug, category, thumbnail, prepTime, tags } = recipe;
-  const area = recipe.area === "Vietnamese" ? "Việt Nam" : recipe.area;
+  const area = recipe.area ? t(`areas.${recipe.area}`, { defaultValue: recipe.area }) : "";
 
   return (
     <Link
@@ -45,7 +47,7 @@ const RecipeCard = ({ recipe }) => {
       {/* Content */}
       <div className="p-4">
         <h3 className="font-bold text-white text-base leading-tight line-clamp-2 group-hover:text-primary transition">
-          {name}
+          {i18n.language === "en" && recipe.nameEn ? recipe.nameEn : name}
         </h3>
 
         <div className="flex items-center gap-3 mt-2.5 text-xs text-zinc-400">

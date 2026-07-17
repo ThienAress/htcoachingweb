@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Search, X, Dumbbell, AlertTriangle } from "lucide-react";
 
 export default function ExerciseListModal({
@@ -8,6 +9,7 @@ export default function ExerciseListModal({
   allExercises,
   setFilteredExercises,
 }) {
+  const { t } = useTranslation("exercises");
   const [isMobile, setIsMobile] = useState(false);
   const [searchType, setSearchType] = useState("name");
   const [searchValue, setSearchValue] = useState("");
@@ -77,7 +79,7 @@ export default function ExerciseListModal({
         <div className="flex justify-between items-center p-5 border-b border-gray-700">
           <h2 className="text-xl font-bold text-white flex items-center gap-2 uppercase">
             <Dumbbell className="w-6 h-6 text-primary" />
-            DANH SÁCH BÀI TẬP
+            {t("modal.title")}
           </h2>
           <button
             onClick={onClose}
@@ -98,14 +100,14 @@ export default function ExerciseListModal({
               onChange={(e) => setSearchType(e.target.value)}
               className="border border-gray-600 rounded-xl px-4 py-2.5 bg-gray-700 text-white focus:ring-2 focus:ring-primary"
             >
-              <option value="name">Tên bài tập</option>
-              <option value="muscle">Nhóm cơ</option>
+              <option value="name">{t("modal.search_by_name")}</option>
+              <option value="muscle">{t("modal.search_by_muscle")}</option>
             </select>
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder={`Tìm theo ${searchType === "name" ? "tên bài tập" : "nhóm cơ"}`}
+                placeholder={searchType === "name" ? t("modal.placeholder_name") : t("modal.placeholder_muscle")}
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-700 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-primary"
@@ -119,16 +121,16 @@ export default function ExerciseListModal({
               <thead className="bg-gray-700/60">
                 <tr>
                   <th className="p-3 text-left text-sm font-semibold text-gray-300">
-                    Tên bài tập
+                    {t("modal.col_name")}
                   </th>
                   <th className="p-3 text-left text-sm font-semibold text-gray-300 w-20">
-                    Hình ảnh
+                    {t("modal.col_image")}
                   </th>
                   <th className="p-3 text-left text-sm font-semibold text-gray-300">
-                    Nhóm cơ chính
+                    {t("modal.col_muscle")}
                   </th>
                   <th className="p-3 text-left text-sm font-semibold text-gray-300">
-                    Mô tả tóm tắt
+                    {t("modal.col_desc")}
                   </th>
                 </tr>
               </thead>
@@ -146,7 +148,7 @@ export default function ExerciseListModal({
                           onError={(e) => { e.target.src = "/assets/default-exercise.png"; }}
                         />
                       ) : (
-                        <span className="text-gray-500 text-xs">Không có</span>
+                        <span className="text-gray-500 text-xs">{t("modal.no_image")}</span>
                       )}
                     </td>
                     <td className="p-3 text-sm">
@@ -155,12 +157,12 @@ export default function ExerciseListModal({
                           {ex.muscleGroup}
                         </span>
                       ) : (
-                        <span className="text-gray-400">Chưa có</span>
+                        <span className="text-gray-400">{t("modal.no_muscle")}</span>
                       )}
                     </td>
                     <td className="p-3 text-sm text-gray-300">
                       {ex.description || (
-                        <span className="text-gray-500">Không có mô tả</span>
+                        <span className="text-gray-500">{t("modal.no_desc")}</span>
                       )}
                     </td>
                   </tr>
@@ -169,7 +171,7 @@ export default function ExerciseListModal({
                   <tr>
                     <td colSpan={4} className="p-6 text-center text-gray-400">
                       <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      Không tìm thấy bài tập
+                      {t("modal.no_found")}
                     </td>
                   </tr>
                 )}

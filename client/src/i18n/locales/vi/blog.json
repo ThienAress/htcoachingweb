@@ -1,0 +1,74 @@
+{
+  "seo": {
+    "title": "Blog - Kiến thức Fitness & Sức khỏe",
+    "description": "Chia sẻ kiến thức tập luyện, dinh dưỡng, giáo án OPT và đánh giá thể lực từ đội ngũ HLV chuyên nghiệp tại HTCOACHING."
+  },
+  "categories": {
+    "all": "Tất cả",
+    "tap-luyen": "Tập Luyện",
+    "dinh-duong": "Dinh Dưỡng",
+    "hieu-co-the": "Hiểu Về Cơ Thể",
+    "tu-duy-loi-song": "Tư Duy & Lối Sống"
+  },
+  "sub_categories": {
+    "form-ky-thuat": "Kỹ thuật & Form tập",
+    "giao-an-mau": "Chương trình tập mẫu",
+    "sua-loi-sai": "Sửa lỗi sai thường gặp",
+    "theo-muc-tieu": "Tập theo mục tiêu",
+    "macro-calo": "Hiểu về Macro & Calo",
+    "thuc-pham-cho": "Thực phẩm & Đi chợ",
+    "goi-y-thuc-don": "Gợi ý Thực đơn",
+    "thuc-pham-bo-sung": "Thực phẩm bổ sung",
+    "voc-dang-tu-the": "Giải mã Vóc dáng & Tư thế",
+    "dot-mo-xay-co": "Cơ chế Đốt mỡ & Xây cơ",
+    "phuc-hoi-chan-thuong": "Phục hồi & Chấn thương",
+    "phuong-phap-coaching": "Phương pháp của chúng tôi",
+    "cau-chuyen-thanh-cong": "Câu chuyện thay đổi (Success Stories)",
+    "tu-duy-ky-luat": "Tư duy kỷ luật (Mindset)"
+  },
+  "header": {
+    "tag": "Blog HTCOACHING",
+    "title": "Kiến thức <1>Fitness</1>",
+    "subtitle": "Chia sẻ từ đội ngũ HLV — giúp bạn tập đúng, ăn đúng, đạt kết quả nhanh hơn"
+  },
+  "filters": {
+    "filtering": "Đang lọc:",
+    "cancel_filter": "Hủy lọc ×"
+  },
+  "card": {
+    "read_time": "{{count}} phút đọc",
+    "views": "lượt xem",
+    "no_posts_title": "Chưa có bài viết nào",
+    "no_posts_desc": "Hãy quay lại sau nhé!"
+  },
+  "sidebar": {
+    "featured": "Bài viết nổi bật",
+    "toc": "MỤC LỤC",
+    "need_consulting": "Bạn cần tư vấn?",
+    "consulting_desc": "Liên hệ HLV để được tư vấn lộ trình phù hợp.",
+    "contact_btn": "Liên hệ ngay"
+  },
+  "detail": {
+    "home": "Trang chủ",
+    "blog": "Blog",
+    "toc_mobile": "📖 Mục lục bài viết",
+    "author_title": "Bài viết được tư vấn bởi",
+    "experience": "Kinh nghiệm:",
+    "philosophy": "Quan điểm:",
+    "cta_title": "Đăng ký tập thử với PT {{name}}",
+    "cta_desc": "Đánh giá thể lực & tư vấn lộ trình tập luyện miễn phí.",
+    "contact_info": "Thông tin liên hệ:",
+    "view_profile": "Xem profile HLV {{name}}",
+    "related_posts": "Bài viết <1>liên quan</1>",
+    "explore_more": {
+      "title": "Khám phá <1>thêm</1>",
+      "subtitle": "Bắt đầu hành trình thay đổi vóc dáng ngay hôm nay",
+      "tdee": "Tính TDEE & Macro",
+      "tdee_desc": "Xác định lượng calo cần nạp mỗi ngày.",
+      "exercises": "Thư viện bài tập",
+      "exercises_desc": "Tạo lịch tập cá nhân hóa và xuất PDF.",
+      "results": "Kết quả khách hàng",
+      "results_desc": "Xem hành trình thay đổi vóc dáng từ học viên."
+    }
+  }
+}

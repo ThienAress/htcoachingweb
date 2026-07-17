@@ -1,0 +1,64 @@
+{
+  "seo": {
+    "title": "Book Training Session",
+    "description": "Book and manage your training sessions."
+  },
+  "days": {
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
+    "sun": "Sun"
+  },
+  "dialog": {
+    "cancel": "Cancel",
+    "confirm": "Continue",
+    "confirm_register": "Confirm Booking"
+  },
+  "modal": {
+    "edit_title": "Edit Schedule",
+    "create_title": "Book a Session",
+    "day_of_week": "Day of the Week",
+    "start_time": "Start Time",
+    "end_time": "End Time",
+    "trainer": "Trainer in Charge",
+    "no_trainer": "No trainer assigned",
+    "notes": "Notes for Trainer",
+    "notes_placeholder": "E.g. Focus on core training...",
+    "cancel": "Cancel",
+    "submit_create": "Book Now",
+    "submit_edit": "Save Changes",
+    "processing": "Processing...",
+    "time_error": "Start time must be earlier than end time",
+    "busy_times": "⏳ Trainer is busy at these times:",
+    "free_times": "✅ Trainer is free on this day"
+  },
+  "page": {
+    "tag": "BOOK TRAINING SESSION",
+    "title_main": "MY WORKOUT",
+    "title_sub": "SCHEDULE",
+    "desc": "Proactively manage your training time. The schedule will automatically sync with your Personal Trainer.",
+    "registered_list": "Registered Sessions",
+    "add_new": "Add New Schedule",
+    "loading": "Loading data...",
+    "no_bookings_title": "You haven't booked any sessions yet",
+    "no_bookings_desc": "Click \"Add New Schedule\" to set up your training times.",
+    "no_trainer_error": "You have not been assigned a Personal Trainer yet.",
+    "trainer_message": "This schedule was created by your Trainer. Please contact them directly if you need changes.",
+    "edit_limit_error": "You have run out of edit attempts for this schedule today.",
+    "confirm_edit_msg": "Note: You can only edit each schedule once per day. Your schedule cannot be deleted. Are you sure you want to change it now?",
+    "confirm_register_msg": "Your training schedule will be sent directly to your Trainer. Note: You can edit but CANNOT DELETE this schedule. Are you sure you want to book?",
+    "notes_label": "Notes:",
+    "trainer_label": "Trainer:",
+    "session_label": "Today's Session:",
+    "last_edit": "Last Edited:",
+    "success_create": "Successfully booked training session!",
+    "success_update": "Schedule updated!",
+    "error_create": "Error booking training session",
+    "error_update": "Error updating schedule",
+    "edit_btn_title": "Edit schedule",
+    "edit_limit_title": "Out of edit attempts today"
+  }
+}

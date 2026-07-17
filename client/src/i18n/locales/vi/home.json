@@ -136,6 +136,65 @@
     "login_promo_suffix": "cho gói tập đầu tiên!",
     "login_now": "Đăng nhập ngay",
     "continue_register": "Tiếp tục đăng ký",
-    "login_promo_note": "* Ưu đãi chỉ áp dụng cho lần đăng ký đầu tiên khi có tài khoản"
+    "login_promo_note": "* Ưu đãi chỉ áp dụng cho lần đăng ký đầu tiên khi có tài khoản",
+    "weeks": "{{count}} tuần",
+    "names": {
+      "trial": "Trải nghiệm",
+      "basic": "CƠ BẢN",
+      "advanced": "NÂNG CAO",
+      "vip": "VIP"
+    },
+    "features": {
+      "online": "Online Coaching — Nhận bài tập & feedback từ HLV",
+      "one_on_one": "Tập 1 kèm 1",
+      "personalized_plan": "Giáo án cá nhân hóa",
+      "diet_consultation": "Tư vấn dinh dưỡng riêng",
+      "weekly_progress": "Theo dõi tiến độ theo tuần",
+      "notion_tracking": "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
+      "stretching_recovery": "Hỗ trợ căng cơ phục hồi sau tập",
+      "commitment": "Cam kết kết quả 100%"
+    },
+    "system_features": {
+      "exercise_library": "Truy cập hệ thống bài tập đa dạng",
+      "ai_mealplan": "Gợi ý thực đơn AI không giới hạn",
+      "online_booking": "Đặt lịch tập trực tuyến",
+      "personal_schedule": "Xem lịch trình tập luyện cá nhân",
+      "checkin_history": "Xem lịch sử checkin cá nhân"
+    },
+    "gifts": {
+      "shaker": "Shaker Bình Lắc Cao Cấp 600ml",
+      "biscotti": "2 bánh Biscotti 300g",
+      "backpack": "Balo cao cấp Degrey"
+    },
+    "trainer_plans": {
+      "basic": "Tiêu chuẩn",
+      "basic_sub": "Dành cho HLV mới bắt đầu",
+      "advanced": "Chuyên nghiệp",
+      "advanced_sub": "Dành cho PT muốn phát triển",
+      "vip": "Cao cấp",
+      "vip_sub": "Dành cho PT chuyên nghiệp",
+      "categories": {
+        "student_management": "Quản lý học viên",
+        "coaching_schedule": "Coaching & Lịch tập",
+        "crm_ai": "F1 CRM & AI",
+        "privilege": "Đặc quyền"
+      },
+      "features": {
+        "max_5_students": "Quản lý tối đa 5 học viên",
+        "max_20_students": "Quản lý tối đa 20 học viên",
+        "max_50_students": "Quản lý tối đa 50 học viên",
+        "create_profile": "Tạo hồ sơ tập luyện cho học viên",
+        "checkin_checkout": "Checkin/Checkout học viên qua hệ thống",
+        "checkin_history": "Xem lịch sử checkin tất cả học viên",
+        "dashboard": "Trainer Dashboard — Thống kê tổng quan",
+        "coaching_feedback": "Online Coaching — Gửi bài tập & feedback cho học viên",
+        "manage_schedule": "Tạo và quản lý lịch tập cho học viên",
+        "crm_leads": "Hệ thống CRM quản lý khách hàng tiềm năng (F1)",
+        "crm_ai_analysis": "AI phân tích & đánh giá khách hàng F1",
+        "crm_ai_prediction": "Dự đoán kết quả tập luyện bằng AI",
+        "crm_ai_report": "Báo cáo AI chi tiết cho từng khách hàng",
+        "free_updates": "Cập nhật tính năng mới miễn phí"
+      }
+    }
   }
 }

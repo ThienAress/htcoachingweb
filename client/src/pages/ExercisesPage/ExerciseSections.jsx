@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Trash2, X, Dumbbell, Activity } from "lucide-react";
 import { workoutSections } from "./constants";
 
@@ -14,6 +15,7 @@ export default function ExerciseSections({
   isMobile,
   getMuscleGroupById,
 }) {
+  const { t } = useTranslation("exercises");
   const renderWorkoutSection = (section, muscleGroupId) => {
     const sectionExercises = workoutData.filter(
       (item) =>
@@ -40,7 +42,7 @@ export default function ExerciseSections({
         }
         className="w-full px-2 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-primary"
       >
-        <option value="">Chọn bài tập</option>
+        <option value="">{t("table.select_exercise")}</option>
         {exerciseOptions.map((ex) => (
           <option key={ex._id} value={ex.name}>
             {ex.name}
@@ -69,7 +71,7 @@ export default function ExerciseSections({
             onClick={() => handleAddExercise(section.id, muscleGroupId)}
             className="flex items-center gap-1 px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-full shadow-lg shadow-primary/30 transition flex-shrink-0"
           >
-            <Plus size={16} /> Thêm bài tập
+            <Plus size={16} /> {t("table.add_exercise")}
           </button>
         </div>
 
@@ -82,13 +84,11 @@ export default function ExerciseSections({
                     key={col}
                     className="p-2 text-left text-sm font-semibold text-gray-300 border-b border-gray-600 whitespace-nowrap"
                   >
-                    {col === "exercises"
-                      ? "Bài tập"
-                      : col.charAt(0).toUpperCase() + col.slice(1)}
+                    {t(`table.col_${col}`)}
                   </th>
                 ))}
                 <th className="p-2 text-center text-sm font-semibold text-gray-300 whitespace-nowrap">
-                  Hành động
+                  {t("table.action_col")}
                 </th>
               </tr>
             </thead>
@@ -103,15 +103,15 @@ export default function ExerciseSections({
                           record,
                           col,
                           col === "sets"
-                            ? "Số hiệp"
+                            ? t("table.placeholder_sets")
                             : col === "reps"
-                              ? "Số cái"
+                              ? t("table.placeholder_reps")
                               : col === "tempo"
-                                ? "Nhịp độ"
-                                : "Thời gian",
+                                ? t("table.placeholder_tempo")
+                                : t("table.placeholder_duration"),
                         )}
                       {col === "tips" &&
-                        renderInput(record, "tips", "Hướng dẫn của Coach")}
+                        renderInput(record, "tips", t("table.placeholder_tips"))}
                     </td>
                   ))}
                   <td className="p-2 text-center">
@@ -130,7 +130,7 @@ export default function ExerciseSections({
                     colSpan={section.columns.length + 1}
                     className="p-4 text-center text-gray-400"
                   >
-                    Chưa có bài tập nào
+                    {t("table.no_exercises")}
                   </td>
                 </tr>
               )}
@@ -157,7 +157,7 @@ export default function ExerciseSections({
                 <h2 className="text-2xl font-bold whitespace-nowrap uppercase"
                   style={{ color: group.color }}
                 >
-                  {group.name}
+                  {group.id === "custom" ? t("muscle_selector.custom_btn_label") : group.name}
                 </h2>
                 <span className="text-sm text-gray-400 font-normal whitespace-nowrap">
                   ({formatDate(new Date())})

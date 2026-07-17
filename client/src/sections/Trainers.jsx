@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { getPublicTrainers } from "../services/trainer.service";
 import { useNavigate } from "react-router-dom";
+import { translateData } from "../utils/localDataTranslator";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -25,19 +26,19 @@ const iconMap = {
 };
 
 const Trainers = ({ previewData }) => {
-  const { t } = useTranslation("home");
+  const { t, i18n } = useTranslation("home");
   const navigate = useNavigate();
   const { data: queryData, isLoading } = useQuery({
-    queryKey: ["public-trainers"],
+    queryKey: ["public-trainers", i18n.language],
     queryFn: async () => {
-      const res = await getPublicTrainers();
+      const res = await getPublicTrainers({ lang: i18n.language });
       return res.data;
     },
     enabled: !previewData,
     staleTime: 5 * 60 * 1000,
   });
 
-  const trainersList = previewData || queryData || [];
+  const trainersList = translateData(previewData || queryData || [], "trainer", i18n.language);
   const sectionRef = useRef(null);
   const containerRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);

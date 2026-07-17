@@ -6,6 +6,7 @@ import {
   Flame, Dumbbell, CheckCircle2, ChevronRight,
   Phone, MessageCircle, ArrowRight,
 } from "lucide-react";
+import { useTranslation, Trans } from "react-i18next";
 import DOMPurify from "dompurify";
 import { getPublicBlogPostBySlug } from "../services/blog.service";
 import SEO from "../components/SEO";
@@ -13,44 +14,16 @@ import Header from "../sections/Header/Header";
 import Footer from "../sections/Footer/Footer";
 import ChatIcons from "../components/ChatIcons";
 import ScrollToTop from "../components/ScrollToTop";
+import { translateData } from "../utils/localDataTranslator";
 
-const CATEGORY_LABELS = {
-  "tap-luyen": "Tập Luyện",
-  "dinh-duong": "Dinh Dưỡng",
-  "hieu-co-the": "Hiểu Về Cơ Thể",
-  "tu-duy-loi-song": "Tư Duy & Lối Sống",
-};
-
-const SUB_CATEGORIES = {
-  "tap-luyen": [
-    { value: "form-ky-thuat", label: "Kỹ thuật & Form tập" },
-    { value: "giao-an-mau", label: "Chương trình tập mẫu" },
-    { value: "sua-loi-sai", label: "Sửa lỗi sai thường gặp" },
-    { value: "theo-muc-tieu", label: "Tập theo mục tiêu" },
-  ],
-  "dinh-duong": [
-    { value: "macro-calo", label: "Hiểu về Macro & Calo" },
-    { value: "thuc-pham-cho", label: "Thực phẩm & Đi chợ" },
-    { value: "goi-y-thuc-don", label: "Gợi ý Thực đơn" },
-    { value: "thuc-pham-bo-sung", label: "Thực phẩm bổ sung" },
-  ],
-  "hieu-co-the": [
-    { value: "voc-dang-tu-the", label: "Giải mã Vóc dáng & Tư thế" },
-    { value: "dot-mo-xay-co", label: "Cơ chế Đốt mỡ & Xây cơ" },
-    { value: "phuc-hoi-chan-thuong", label: "Phục hồi & Chấn thương" },
-  ],
-  "tu-duy-loi-song": [
-    { value: "phuong-phap-coaching", label: "Phương pháp của chúng tôi" },
-    { value: "cau-chuyen-thanh-cong", label: "Câu chuyện thay đổi (Success Stories)" },
-    { value: "tu-duy-ky-luat", label: "Tư duy kỷ luật (Mindset)" },
-  ],
-};
-
-const getSubCategoryLabel = (category, subValue) => {
+const getSubCategoryLabel = (t, category, subValue) => {
   if (!category || !subValue) return "";
-  const list = SUB_CATEGORIES[category] || [];
-  const found = list.find((s) => s.value === subValue);
-  return found ? found.label : subValue;
+  return t(`sub_categories.${subValue}`, { defaultValue: subValue });
+};
+
+const getCategoryLabel = (t, catValue) => {
+  if (!catValue) return "";
+  return t(`categories.${catValue}`, { defaultValue: catValue });
 };
 
 const slugifyText = (text) =>
@@ -137,76 +110,87 @@ const fixBrokenLinks = (html) => {
   });
 };
 
-const formatDate = (date) => {
+const formatDate = (date, language) => {
   if (!date) return "";
-  return new Date(date).toLocaleDateString("vi-VN", {
+  return new Date(date).toLocaleDateString(language === "vi" ? "vi-VN" : "en-US", {
     day: "2-digit", month: "long", year: "numeric",
   });
 };
 
-const SidebarPostCard = ({ post }) => (
-  <Link to={`/blog/${post.slug}`} className="group flex gap-3 items-start py-3 border-b border-gray-100 last:border-0">
-    <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-100">
-      {post.coverImage ? (
-        <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-slate-800">
-          <BookOpen className="w-4 h-4 text-slate-600" />
-        </div>
-      )}
-    </div>
-    <div className="min-w-0 flex-1">
-      <h4 className="text-xs font-bold text-dark leading-snug group-hover:text-primary transition line-clamp-2">
-        {post.title}
-      </h4>
-      <p className="mt-1 text-[10px] text-gray flex items-center gap-1">
-        <Clock className="w-3 h-3" /> {post.readTime || 1} phút đọc
-      </p>
-    </div>
-  </Link>
-);
+const SidebarPostCard = ({ post }) => {
+  const { t } = useTranslation("blog");
+  return (
+    <Link to={`/blog/${post.slug}`} className="group flex gap-3 items-start py-3 border-b border-gray-100 last:border-0">
+      <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-100">
+        {post.coverImage ? (
+          <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-slate-800">
+            <BookOpen className="w-4 h-4 text-slate-600" />
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <h4 className="text-xs font-bold text-dark leading-snug group-hover:text-primary transition line-clamp-2">
+          {post.title}
+        </h4>
+        <p className="mt-1 text-[10px] text-gray flex items-center gap-1">
+          <Clock className="w-3 h-3" /> {t("card.read_time", { count: post.readTime || 1 })}
+        </p>
+      </div>
+    </Link>
+  );
+};
 
-const RelatedCard = ({ post }) => (
-  <Link
-    to={`/blog/${post.slug}`}
-    className="group flex gap-4 items-start p-4 rounded-xl bg-white border border-gray-100 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/30"
-  >
-    <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
-      {post.coverImage ? (
-        <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-slate-800">
-          <BookOpen className="w-5 h-5 text-slate-600" />
-        </div>
-      )}
-    </div>
-    <div className="min-w-0 flex-1">
-      <span className="text-[10px] font-bold uppercase text-primary tracking-wider">
-        {CATEGORY_LABELS[post.category] || post.category}
-        {post.subCategory && ` / ${getSubCategoryLabel(post.category, post.subCategory)}`}
-      </span>
-      <h3 className="mt-1 text-sm font-bold text-dark group-hover:text-primary transition line-clamp-2 leading-snug">
-        {post.title}
-      </h3>
-      <p className="mt-1 text-xs text-gray flex items-center gap-1">
-        <Clock className="w-3 h-3" /> {post.readTime || 1} phút đọc
-      </p>
-    </div>
-  </Link>
-);
+const RelatedCard = ({ post }) => {
+  const { t } = useTranslation("blog");
+  return (
+    <Link
+      to={`/blog/${post.slug}`}
+      className="group flex gap-4 items-start p-4 rounded-xl bg-white border border-gray-100 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/30"
+    >
+      <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
+        {post.coverImage ? (
+          <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-slate-800">
+            <BookOpen className="w-5 h-5 text-slate-600" />
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <span className="text-[10px] font-bold uppercase text-primary tracking-wider">
+          {getCategoryLabel(t, post.category)}
+          {post.subCategory && ` / ${getSubCategoryLabel(t, post.category, post.subCategory)}`}
+        </span>
+        <h3 className="mt-1 text-sm font-bold text-dark group-hover:text-primary transition line-clamp-2 leading-snug">
+          {post.title}
+        </h3>
+        <p className="mt-1 text-xs text-gray flex items-center gap-1">
+          <Clock className="w-3 h-3" /> {t("card.read_time", { count: post.readTime || 1 })}
+        </p>
+      </div>
+    </Link>
+  );
+};
 
 const BlogDetail = () => {
+  const { t, i18n } = useTranslation("blog");
   const { slug } = useParams();
   const navigate = useNavigate();
 
   const { data: postResponse, isLoading } = useQuery({
-    queryKey: ["public-blog-post", slug],
+    queryKey: ["public-blog-post", slug, i18n.language],
     queryFn: () => getPublicBlogPostBySlug(slug),
     retry: false,
   });
 
-  const post = postResponse?.data;
-  const relatedPosts = postResponse?.relatedPosts || [];
+  const postRaw = postResponse?.data;
+  const post = useMemo(() => translateData(postRaw, "blog", i18n.language), [postRaw, i18n.language]);
+
+  const relatedPostsRaw = postResponse?.relatedPosts || [];
+  const relatedPosts = useMemo(() => translateData(relatedPostsRaw, "blog", i18n.language), [relatedPostsRaw, i18n.language]);
+
   const toc = useMemo(() => extractTOC(post?.content), [post?.content]);
 
   if (isLoading) {
@@ -267,7 +251,7 @@ const BlogDetail = () => {
     <div className="blog-content">
       <SEO
         title={post.metaTitle || post.title}
-        description={post.metaDescription || stripMarkdown(post.excerpt) || `Đọc bài viết ${post.title} từ HTCOACHING`}
+        description={post.metaDescription || stripMarkdown(post.excerpt) || t("seo.description")}
         canonical={`/blog/${post.slug}`}
         image={post.coverImage}
         type="article"
@@ -287,16 +271,16 @@ const BlogDetail = () => {
 
         <div className="container-custom relative z-10 max-w-4xl">
           <nav className="flex items-center gap-2 text-sm text-white/50 mb-8">
-            <Link to="/" className="hover:text-white transition">Trang chủ</Link>
+            <Link to="/" className="hover:text-white transition">{t("detail.home")}</Link>
             <ChevronRight className="w-3 h-3" />
-            <Link to="/blog" className="hover:text-white transition">Blog</Link>
+            <Link to="/blog" className="hover:text-white transition">{t("detail.blog")}</Link>
             <ChevronRight className="w-3 h-3" />
             <span className="text-white/70 truncate max-w-[200px]">{post.title}</span>
           </nav>
 
           <span className="inline-block bg-primary text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full mb-5">
-            {CATEGORY_LABELS[post.category] || post.category}
-            {post.subCategory && ` / ${getSubCategoryLabel(post.category, post.subCategory)}`}
+            {getCategoryLabel(t, post.category)}
+            {post.subCategory && ` / ${getSubCategoryLabel(t, post.category, post.subCategory)}`}
           </span>
 
           <h1 className="text-fluid-4xl font-black text-white leading-[1.15]">
@@ -318,13 +302,13 @@ const BlogDetail = () => {
             )}
             <span className="flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5" />
-              {formatDate(post.publishedAt || post.createdAt)}
+              {formatDate(post.publishedAt || post.createdAt, i18n.language)}
             </span>
             <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" /> {post.readTime || 1} phút đọc
+              <Clock className="w-3.5 h-3.5" /> {t("card.read_time", { count: post.readTime || 1 })}
             </span>
             <span className="flex items-center gap-1">
-              <Eye className="w-3.5 h-3.5" /> {post.views || 0} lượt xem
+              <Eye className="w-3.5 h-3.5" /> {post.views || 0} {t("card.views")}
             </span>
           </div>
         </div>
@@ -356,7 +340,7 @@ const BlogDetail = () => {
               {/* Mobile TOC */}
               {toc.length > 0 && (
                 <details className="lg:hidden bg-gray-50 border border-gray-200 rounded-xl p-4 mb-8">
-                  <summary className="font-bold text-dark cursor-pointer text-sm">📖 Mục lục bài viết</summary>
+                  <summary className="font-bold text-dark cursor-pointer text-sm">{t("detail.toc_mobile")}</summary>
                   <nav className="mt-3 space-y-1.5">
                     {toc.map((item) => (
                       <a
@@ -424,7 +408,7 @@ const BlogDetail = () => {
                       />
                     )}
                     <div>
-                      <p className="text-xs font-bold uppercase text-primary tracking-widest">Bài viết được tư vấn bởi</p>
+                      <p className="text-xs font-bold uppercase text-primary tracking-widest">{t("detail.author_title")}</p>
                       <Link
                         to={`/huan-luyen-vien/${post.author.slug}`}
                         className="text-xl font-black text-dark hover:text-primary transition"
@@ -438,13 +422,13 @@ const BlogDetail = () => {
                   <div className="space-y-3 mb-6">
                     {post.author.experience && (
                       <div className="flex items-start gap-2">
-                        <span className="font-bold text-dark text-sm shrink-0">• Kinh nghiệm:</span>
+                        <span className="font-bold text-dark text-sm shrink-0">• {t("detail.experience")}</span>
                         <p className="text-sm text-gray leading-relaxed">{post.author.experience}</p>
                       </div>
                     )}
                     {post.author.philosophy && (
                       <div className="flex items-start gap-2">
-                        <span className="font-bold text-dark text-sm shrink-0">• Quan điểm:</span>
+                        <span className="font-bold text-dark text-sm shrink-0">• {t("detail.philosophy")}</span>
                         <p className="text-sm text-gray leading-relaxed italic">"{post.author.philosophy}"</p>
                       </div>
                     )}
@@ -453,29 +437,29 @@ const BlogDetail = () => {
                   {/* CTA: Liên hệ */}
                   <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 mb-5">
                     <p className="text-white font-black text-lg uppercase">
-                      Đăng ký tập thử với PT {post.author.name}
+                      {t("detail.cta_title", { name: post.author.name })}
                     </p>
                     <p className="text-white/60 text-sm mt-1">
-                      Đánh giá thể lực & tư vấn lộ trình tập luyện miễn phí.
+                      {t("detail.cta_desc")}
                     </p>
                     <Link
                       to="/#contact"
                       className="mt-4 inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-primary-dark transition"
                     >
-                      Liên hệ ngay <ArrowRight className="w-4 h-4" />
+                      {t("sidebar.contact_btn")} <ArrowRight className="w-4 h-4" />
                     </Link>
                   </div>
 
                   {/* Thông tin liên hệ — dùng socialLinks từ trainer model */}
                   <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
-                    <p className="text-sm font-bold text-dark mb-3">Thông tin liên hệ:</p>
+                    <p className="text-sm font-bold text-dark mb-3">{t("detail.contact_info")}</p>
                     <div className="space-y-2 text-sm text-gray">
                       <Link
                         to={`/huan-luyen-vien/${post.author.slug}`}
                         className="flex items-center gap-2 hover:text-primary transition"
                       >
                         <BookOpen className="w-4 h-4 text-primary" />
-                        Xem profile HLV {post.author.name}
+                        {t("detail.view_profile", { name: post.author.name })}
                       </Link>
                       {post.author.socialLinks?.zalo && (
                         <a href={`https://zalo.me/${post.author.socialLinks.zalo}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-primary transition">
@@ -502,7 +486,7 @@ const BlogDetail = () => {
                 {toc.length > 0 && (
                   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                     <h3 className="text-sm font-bold tracking-wider text-dark mb-4">
-                      MỤC LỤC
+                      {t("sidebar.toc")}
                     </h3>
                     <nav className="space-y-1.5">
                       {toc.map((item) => (
@@ -526,15 +510,15 @@ const BlogDetail = () => {
 
                 {/* Khối 3: Bạn cần tư vấn? */}
                 <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 text-white shadow-lg">
-                  <p className="font-bold text-sm">Bạn cần tư vấn?</p>
+                  <p className="font-bold text-sm">{t("sidebar.need_consulting")}</p>
                   <p className="text-xs text-white/60 mt-1.5 leading-relaxed">
-                    Liên hệ HLV để được tư vấn lộ trình phù hợp.
+                    {t("sidebar.consulting_desc")}
                   </p>
                   <Link
                     to="/#contact"
                     className="mt-3 inline-flex items-center gap-1.5 bg-primary text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/90 transition"
                   >
-                    Liên hệ ngay <ArrowRight className="w-3 h-3" />
+                    {t("sidebar.contact_btn")} <ArrowRight className="w-3 h-3" />
                   </Link>
                 </div>
               </div>
@@ -545,7 +529,7 @@ const BlogDetail = () => {
           {relatedPosts.length > 0 && (
             <section className="max-w-6xl mx-auto mt-12">
               <h2 className="text-2xl font-black text-dark uppercase mb-6">
-                Bài viết <span className="text-primary">liên quan</span>
+                <Trans t={t} i18nKey="detail.related_posts">Bài viết <span className="text-primary">liên quan</span></Trans>
               </h2>
               <div className="grid gap-4 sm:grid-cols-2">
                 {relatedPosts.map((p) => (
@@ -558,26 +542,26 @@ const BlogDetail = () => {
           {/* Khám phá thêm — Internal Links */}
           <section className="max-w-6xl mx-auto mt-12 bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
             <h2 className="text-center text-2xl font-black text-dark uppercase mb-2">
-              Khám phá <span className="text-primary">thêm</span>
+              <Trans t={t} i18nKey="detail.explore_more.title">Khám phá <span className="text-primary">thêm</span></Trans>
             </h2>
             <p className="text-center text-sm text-gray mb-8">
-              Bắt đầu hành trình thay đổi vóc dáng ngay hôm nay
+              {t("detail.explore_more.subtitle")}
             </p>
             <div className="grid gap-4 sm:grid-cols-3">
               <Link to="/tdee-calculator" className="group border border-gray-100 bg-gray-50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg hover:bg-white">
                 <Flame className="h-6 w-6 text-primary mb-3" />
-                <h3 className="font-bold text-dark group-hover:text-primary transition">Tính TDEE & Macro</h3>
-                <p className="mt-2 text-sm text-gray leading-relaxed">Xác định lượng calo cần nạp mỗi ngày.</p>
+                <h3 className="font-bold text-dark group-hover:text-primary transition">{t("detail.explore_more.tdee")}</h3>
+                <p className="mt-2 text-sm text-gray leading-relaxed">{t("detail.explore_more.tdee_desc")}</p>
               </Link>
               <Link to="/exercises" className="group border border-gray-100 bg-gray-50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg hover:bg-white">
                 <Dumbbell className="h-6 w-6 text-primary mb-3" />
-                <h3 className="font-bold text-dark group-hover:text-primary transition">Thư viện bài tập</h3>
-                <p className="mt-2 text-sm text-gray leading-relaxed">Tạo lịch tập cá nhân hóa và xuất PDF.</p>
+                <h3 className="font-bold text-dark group-hover:text-primary transition">{t("detail.explore_more.exercises")}</h3>
+                <p className="mt-2 text-sm text-gray leading-relaxed">{t("detail.explore_more.exercises_desc")}</p>
               </Link>
               <Link to="/ket-qua-khach-hang" className="group border border-gray-100 bg-gray-50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg hover:bg-white">
                 <CheckCircle2 className="h-6 w-6 text-primary mb-3" />
-                <h3 className="font-bold text-dark group-hover:text-primary transition">Kết quả khách hàng</h3>
-                <p className="mt-2 text-sm text-gray leading-relaxed">Xem hành trình thay đổi vóc dáng từ học viên.</p>
+                <h3 className="font-bold text-dark group-hover:text-primary transition">{t("detail.explore_more.results")}</h3>
+                <p className="mt-2 text-sm text-gray leading-relaxed">{t("detail.explore_more.results_desc")}</p>
               </Link>
             </div>
           </section>

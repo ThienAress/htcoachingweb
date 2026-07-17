@@ -1,0 +1,47 @@
+{
+  "seo": {
+    "default_title": "Huấn luyện viên",
+    "default_description": "Huấn luyện viên tại HTCOACHING."
+  },
+  "loading": "Đang tải thông tin huấn luyện viên...",
+  "status": {
+    "professional_trainer": "Huấn Luyện Viên Chuyên Nghiệp"
+  },
+  "sections": {
+    "training_style": "Phong cách huấn luyện",
+    "achievements": "Thành tích nổi bật",
+    "specialties": "Chuyên môn & Dịch vụ",
+    "certifications": "Chứng chỉ & Đào tạo",
+    "video_intro": "Giới thiệu",
+    "video_desc": "Xem video để hiểu thêm về phong cách huấn luyện.",
+    "methodology": "PHƯƠNG PHÁP HUẤN LUYỆN",
+    "methodology_title": "TRỤ CỘT <1>MÁU LỬA</1>",
+    "methodology_desc": "Không có chỗ cho sự hời hợt. Lộ trình nghiêm túc mang lại thay đổi vượt trội.",
+    "customer_results": "Kết quả khách hàng",
+    "customer_results_desc": "Những học viên đã tin tưởng và lột xác cùng <1>{{name}}</1>",
+    "view_all_stories": "Xem tất cả câu chuyện",
+    "faqs": "Câu hỏi thường gặp",
+    "faqs_desc": "Bạn vẫn còn thắc mắc? Dưới đây là những câu hỏi phổ biến nhất."
+  },
+  "actions": {
+    "free_consultation": "Đăng ký tư vấn miễn phí",
+    "view_results": "Xem kết quả lột xác",
+    "detail_view": "Xem chi tiết"
+  },
+  "customer_card": {
+    "before": "Before",
+    "after": "After",
+    "age_suffix": "tuổi",
+    "duration_label": "Thời gian tập luyện"
+  },
+  "explore": {
+    "title": "Khám phá <1>thêm</1>",
+    "subtitle": "Bắt đầu hành trình thay đổi vóc dáng ngay hôm nay",
+    "tdee_title": "Tính TDEE & Macro",
+    "tdee_desc": "Xác định lượng calo cần nạp mỗi ngày để đạt mục tiêu.",
+    "exercises_title": "Thư viện bài tập",
+    "exercises_desc": "Tạo lịch tập cá nhân hóa và xuất PDF miễn phí.",
+    "results_title": "Kết quả khách hàng",
+    "results_desc": "Xem hành trình thay đổi vóc dáng từ các học viên HTCOACHING."
+  }
+}

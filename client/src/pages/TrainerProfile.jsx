@@ -1,9 +1,11 @@
 import { useEffect, useState, useRef, useMemo } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { Link, Navigate, useParams } from "react-router-dom";
 import UpdatingText from "../components/UpdatingText";
 import { useQuery } from "@tanstack/react-query";
 import { getPublicTrainerBySlug } from "../services/trainer.service";
 import { getPublicCustomerStories } from "../services/customerStory.service";
+import { translateData } from "../utils/localDataTranslator";
 import lemon8Logo from "../assets/images/lemon8/lemon8.svg";
 import {
   ArrowRight,
@@ -105,6 +107,7 @@ const AccordionItem = ({ question, answer, isOpen, onClick }) => (
    Component: Customer Grid Card (UI theo mẫu)
    ========================================== */
 const CustomerCard = ({ story }) => {
+  const { t } = useTranslation("trainer");
   const beforeSrc = Array.isArray(story.beforeImg) ? story.beforeImg[0] : story.beforeImg;
   const afterSrc = Array.isArray(story.afterImg) ? story.afterImg[0] : story.afterImg;
 
@@ -127,7 +130,7 @@ const CustomerCard = ({ story }) => {
               </div>
             )}
             <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-[9px] font-black px-2.5 py-1 rounded border border-white/10 uppercase tracking-wider z-20">
-              Before
+              {t("customer_card.before")}
             </div>
           </div>
 
@@ -148,7 +151,7 @@ const CustomerCard = ({ story }) => {
               </div>
             )}
             <div className="absolute bottom-3 right-3 bg-primary text-white text-[9px] font-black px-2.5 py-1 rounded border border-primary/20 uppercase tracking-wider z-20">
-              After
+              {t("customer_card.after")}
             </div>
           </div>
 
@@ -158,7 +161,7 @@ const CustomerCard = ({ story }) => {
             className="absolute inset-0 flex items-center justify-center bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30"
           >
             <span className="flex items-center gap-2 bg-primary text-white font-black text-xs px-5 py-2.5 rounded-lg shadow-lg transform scale-90 group-hover:scale-100 transition-all duration-300 uppercase tracking-wider border border-primary-dark">
-              <Eye size={14} /> Xem chi tiết
+              <Eye size={14} /> {t("actions.detail_view")}
             </span>
           </Link>
         </div>
@@ -171,7 +174,7 @@ const CustomerCard = ({ story }) => {
             </h4>
             {story.age && (
               <p className="text-slate-400 text-sm font-medium mt-0.5">
-                {story.age} tuổi
+                {story.age} {t("customer_card.age_suffix")}
               </p>
             )}
             {story.result && (
@@ -186,7 +189,7 @@ const CustomerCard = ({ story }) => {
       {/* Footer chứa thời gian */}
       {story.duration && (
         <div className="border-t border-white/5 bg-neutral-950/60 px-4 py-2.5 flex items-center justify-between text-xs font-semibold text-slate-400">
-          <span>Thời gian tập luyện</span>
+          <span>{t("customer_card.duration_label")}</span>
           <span className="text-white font-bold">{story.duration}</span>
         </div>
       )}
@@ -208,25 +211,28 @@ const iconMap = {
    TRANG CHÍNH: Trainer Profile
    ========================================== */
 const TrainerProfile = ({ previewData }) => {
+  const { t, i18n } = useTranslation("trainer");
   const { slug } = useParams();
   const [openFaqIndex, setOpenFaqIndex] = useState(0);
 
   const { data: trainerResponse, isLoading: isLoadingTrainer } = useQuery({
-    queryKey: ["public-trainer-detail", slug],
-    queryFn: () => getPublicTrainerBySlug(slug),
+    queryKey: ["public-trainer-detail", slug, i18n.language],
+    queryFn: () => getPublicTrainerBySlug(slug, { lang: i18n.language }),
     retry: false,
     enabled: !previewData,
   });
 
-  const trainer = previewData || trainerResponse?.data;
+  const trainerRaw = previewData || trainerResponse?.data;
+  const trainer = useMemo(() => translateData(trainerRaw, "trainer", i18n.language), [trainerRaw, i18n.language]);
 
   const { data: storiesResponse } = useQuery({
-    queryKey: ["public-customer-stories", { trainerId: trainer?._id }],
-    queryFn: () => getPublicCustomerStories({ trainerId: trainer?._id, limit: 50 }),
+    queryKey: ["public-customer-stories", { trainerId: trainer?._id }, i18n.language],
+    queryFn: () => getPublicCustomerStories({ trainerId: trainer?._id, limit: 50, lang: i18n.language }),
     enabled: !!trainer?._id && !previewData,
   });
 
-  const stories = previewData ? [] : (storiesResponse?.data || []);
+  const storiesRaw = previewData ? [] : (storiesResponse?.data || []);
+  const stories = useMemo(() => translateData(storiesRaw, "story", i18n.language), [storiesRaw, i18n.language]);
 
   // Backward compatible: dùng images[] nếu có, fallback image cũ
   const trainerImages = trainer?.images?.length > 0
@@ -288,8 +294,8 @@ const TrainerProfile = ({ previewData }) => {
         });
         return (
           <SEO
-            title={`${trainer.name} - ${trainer.title || 'Huấn luyện viên'} | HTCOACHING`}
-            description={trainer.headline || trainer.bio || `Huấn luyện viên ${trainer.name} tại HTCOACHING.`}
+            title={`${trainer.name} - ${trainer.title || t("seo.default_title")} | HTCOACHING`}
+            description={trainer.headline || trainer.bio || t("seo.default_description")}
             image={trainerImages[0]}
             canonical={`/huan-luyen-vien/${trainer.slug}`}
             jsonLd={{ "@context": "https://schema.org", "@graph": graph }}
@@ -309,7 +315,7 @@ const TrainerProfile = ({ previewData }) => {
             {/* Cột thông tin */}
             <div className="order-2 lg:order-1 space-y-6">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/15 text-primary font-bold text-sm tracking-wide border border-primary/30 rounded-full">
-                🥇 {trainer.title || "Huấn Luyện Viên Chuyên Nghiệp"}
+                🥇 {trainer.title || t("status.professional_trainer")}
               </div>
 
               <h1 className="text-fluid-6xl font-black text-white leading-[1.1] uppercase">
@@ -327,7 +333,7 @@ const TrainerProfile = ({ previewData }) => {
               {/* Phong cách huấn luyện */}
               {trainer.trainingStyle && (
                 <div className="space-y-3">
-                  <h3 className="text-sm font-bold text-primary tracking-[0.15em] uppercase">Phong cách huấn luyện</h3>
+                  <h3 className="text-sm font-bold text-primary tracking-[0.15em] uppercase">{t("sections.training_style")}</h3>
                   <p className="text-slate-300 leading-relaxed border-l-2 border-primary/50 pl-4 py-1">{trainer.trainingStyle}</p>
                 </div>
               )}
@@ -352,7 +358,7 @@ const TrainerProfile = ({ previewData }) => {
               {trainer.achievements?.length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-400 tracking-[0.15em] uppercase">
-                    Thành tích nổi bật
+                    {t("sections.achievements")}
                   </h3>
                   <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {trainer.achievements.map((ach, i) => (
@@ -370,7 +376,7 @@ const TrainerProfile = ({ previewData }) => {
               {/* Chuyên môn */}
               {trainer.specialties?.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-400 tracking-[0.15em] uppercase">Chuyên môn & Dịch vụ</h3>
+                  <h3 className="text-sm font-bold text-slate-400 tracking-[0.15em] uppercase">{t("sections.specialties")}</h3>
                   <div className="flex flex-wrap gap-2">
                     {trainer.specialties.map((spec, i) => {
                       const IconComp = iconMap[spec.icon] || Dumbbell;
@@ -390,7 +396,7 @@ const TrainerProfile = ({ previewData }) => {
               {/* Chứng chỉ */}
               {trainer.certifications?.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-400 tracking-[0.15em] uppercase">Chứng chỉ & Đào tạo</h3>
+                  <h3 className="text-sm font-bold text-slate-400 tracking-[0.15em] uppercase">{t("sections.certifications")}</h3>
                   <div className="space-y-2">
                     {trainer.certifications.map((cert, i) => (
                       <div key={i} className="flex items-start gap-3">
@@ -408,14 +414,14 @@ const TrainerProfile = ({ previewData }) => {
                   to="/#contact"
                   className="inline-flex items-center justify-center bg-primary text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-primary-dark transition-colors shadow-xl shadow-primary/30 gap-2"
                 >
-                  <Dumbbell size={20} /> Đăng ký tư vấn miễn phí
+                  <Dumbbell size={20} /> {t("actions.free_consultation")}
                 </Link>
                 {stories.length > 0 && (
                   <a
                     href="#customer-results"
                     className="inline-flex items-center justify-center bg-white/10 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/20 transition-colors gap-2 border border-white/10"
                   >
-                    Xem kết quả lột xác <Play size={18} className="fill-white" />
+                    {t("actions.view_results")} <Play size={18} className="fill-white" />
                   </a>
                 )}
               </div>
@@ -473,8 +479,8 @@ const TrainerProfile = ({ previewData }) => {
         <section className="py-20 bg-white">
           <div className="container-custom max-w-4xl mx-auto">
             <div className="text-center mb-12">
-              <h2 className="text-4xl font-black text-slate-900 uppercase">Giới thiệu</h2>
-              <p className="text-lg text-slate-500 font-medium mt-4">Xem video để hiểu thêm về phong cách huấn luyện.</p>
+              <h2 className="text-4xl font-black text-slate-900 uppercase">{t("sections.video_intro")}</h2>
+              <p className="text-lg text-slate-500 font-medium mt-4">{t("sections.video_desc")}</p>
             </div>
             <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl border border-slate-200">
               {trainer.videoIntro.includes("youtube.com") || trainer.videoIntro.includes("youtu.be") ? (
@@ -483,7 +489,7 @@ const TrainerProfile = ({ previewData }) => {
                   className="w-full h-full"
                   allowFullScreen
                   loading="lazy"
-                  title={`Video giới thiệu ${trainer.name}`}
+                  title={`${t("sections.video_intro")} ${trainer.name}`}
                 />
               ) : (
                 <video src={trainer.videoIntro} controls className="w-full h-full object-contain bg-black" />
@@ -503,14 +509,14 @@ const TrainerProfile = ({ previewData }) => {
           <div className="container-custom relative z-10">
             <div className="text-center mb-20">
               <span className="text-xs font-black uppercase tracking-[0.25em] text-primary bg-primary/10 px-4 py-2 rounded-full border border-primary/20 shadow-sm">
-                PHƯƠNG PHÁP HUẤN LUYỆN
+                {t("sections.methodology")}
               </span>
               <h2 className="text-fluid-6xl font-black uppercase text-slate-900 mt-6 tracking-tight drop-shadow-sm">
-                TRỤ CỘT <span className="text-primary">MÁU LỬA</span>
+                <Trans t={t} i18nKey="sections.methodology_title">TRỤ CỘT <span className="text-primary">MÁU LỬA</span></Trans>
               </h2>
               <div className="h-1.5 w-24 bg-primary mx-auto mt-6 rounded-full opacity-80"></div>
               <p className="text-slate-500 font-bold mt-6 max-w-xl mx-auto text-fluid-base">
-                Không có chỗ cho sự hời hợt. Lộ trình nghiêm túc mang lại thay đổi vượt trội.
+                {t("sections.methodology_desc")}
               </p>
             </div>
 
@@ -556,9 +562,11 @@ const TrainerProfile = ({ previewData }) => {
 
           <div className="container-custom relative z-10">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-black uppercase text-white tracking-wider">Kết quả khách hàng</h2>
+              <h2 className="text-4xl font-black uppercase text-white tracking-wider">{t("sections.customer_results")}</h2>
               <p className="text-lg text-slate-400 mt-4">
-                Những học viên đã tin tưởng và lột xác cùng <span className="text-primary font-bold">{trainer.name}</span>
+                <Trans t={t} i18nKey="sections.customer_results_desc" values={{ name: trainer.name }}>
+                  Những học viên đã tin tưởng và lột xác cùng <span className="text-primary font-bold">{trainer.name}</span>
+                </Trans>
               </p>
             </div>
 
@@ -575,7 +583,7 @@ const TrainerProfile = ({ previewData }) => {
                 to="/ket-qua-khach-hang"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border-2 border-primary text-white font-bold hover:bg-primary transition-colors uppercase tracking-widest"
               >
-                Xem tất cả câu chuyện <ArrowRight size={18} />
+                {t("sections.view_all_stories")} <ArrowRight size={18} />
               </Link>
             </div>
           </div>
@@ -589,8 +597,8 @@ const TrainerProfile = ({ previewData }) => {
         <section className="py-20 bg-white">
           <div className="container-custom max-w-4xl mx-auto">
             <div className="text-center mb-12">
-              <h2 className="text-4xl font-black uppercase text-slate-900">Câu hỏi thường gặp</h2>
-              <p className="text-lg text-slate-500 mt-4 font-medium">Bạn vẫn còn thắc mắc? Dưới đây là những câu hỏi phổ biến nhất.</p>
+              <h2 className="text-4xl font-black uppercase text-slate-900">{t("sections.faqs")}</h2>
+              <p className="text-lg text-slate-500 mt-4 font-medium">{t("sections.faqs_desc")}</p>
             </div>
 
             <div className="space-y-2">
@@ -612,10 +620,10 @@ const TrainerProfile = ({ previewData }) => {
       <section className="py-14 bg-slate-100 border-t border-slate-200">
         <div className="container-custom">
           <h2 className="text-center text-3xl font-black uppercase text-slate-900 mb-2">
-            Khám phá <span className="text-primary">thêm</span>
+            <Trans t={t} i18nKey="explore.title">Khám phá <span className="text-primary">thêm</span></Trans>
           </h2>
           <p className="text-center text-sm text-slate-500 mb-8">
-            Bắt đầu hành trình thay đổi vóc dáng ngay hôm nay
+            {t("explore.subtitle")}
           </p>
           <div className="grid gap-4 sm:grid-cols-3 max-w-4xl mx-auto">
             <Link
@@ -624,10 +632,10 @@ const TrainerProfile = ({ previewData }) => {
             >
               <Flame className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
-                Tính TDEE & Macro
+                {t("explore.tdee_title")}
               </h3>
               <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                Xác định lượng calo cần nạp mỗi ngày để đạt mục tiêu.
+                {t("explore.tdee_desc")}
               </p>
             </Link>
             <Link
@@ -636,10 +644,10 @@ const TrainerProfile = ({ previewData }) => {
             >
               <Dumbbell className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
-                Thư viện bài tập
+                {t("explore.exercises_title")}
               </h3>
               <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                Tạo lịch tập cá nhân hóa và xuất PDF miễn phí.
+                {t("explore.exercises_desc")}
               </p>
             </Link>
             <Link
@@ -648,10 +656,10 @@ const TrainerProfile = ({ previewData }) => {
             >
               <CheckCircle2 className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
-                Kết quả khách hàng
+                {t("explore.results_title")}
               </h3>
               <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                Xem hành trình thay đổi vóc dáng từ các học viên HTCOACHING.
+                {t("explore.results_desc")}
               </p>
             </Link>
           </div>

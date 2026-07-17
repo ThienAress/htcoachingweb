@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft, Save, Plus, Trash2, GripVertical, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Activity, CheckSquare, Send, Dumbbell, Search, X as XIcon
 } from "lucide-react";
@@ -237,14 +238,14 @@ const ExerciseTable = ({ exercises, onChange, mode, isLocked }) => {
       <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-primary border-b border-gray-700">
-            <th className="text-left py-2 px-1 min-w-[200px]">Exercises</th>
-            <th className="text-left py-2 px-1 w-24">Sets</th>
-            <th className="text-left py-2 px-1 w-24">Reps</th>
-            {showTempo && <th className="text-left py-2 px-1 w-24">Tempo</th>}
-            {!isAssessment && showDuration && <th className="text-left py-2 px-1 w-24">Duration</th>}
-            {!isAssessment && showCoaching && <th className="text-left py-2 px-1 min-w-[200px]">Coaching Tips</th>}
-            {isAssessment && <th className="text-left py-2 px-1 w-24">Max Weight</th>}
-            {isAssessment && <th className="text-left py-2 px-1 min-w-[150px]">Lý do không đạt</th>}
+            <th className="text-left py-2 px-1 min-w-[200px]">{i18n.language === "vi" ? "Bài tập" : "Exercises"}</th>
+            <th className="text-left py-2 px-1 w-24">{t("coaching.sets")}</th>
+            <th className="text-left py-2 px-1 w-24">{t("coaching.reps")}</th>
+            {showTempo && <th className="text-left py-2 px-1 w-24">{t("coaching.tempo")}</th>}
+            {!isAssessment && showDuration && <th className="text-left py-2 px-1 w-24">{i18n.language === "vi" ? "Thời gian" : "Duration"}</th>}
+            {!isAssessment && showCoaching && <th className="text-left py-2 px-1 min-w-[200px]">{t("coaching.tips")}</th>}
+            {isAssessment && <th className="text-left py-2 px-1 w-24">{i18n.language === "vi" ? "Tạ lớn nhất" : "Max Weight"}</th>}
+            {isAssessment && <th className="text-left py-2 px-1 min-w-[150px]">{i18n.language === "vi" ? "Lý do không đạt" : "Failure Reason"}</th>}
             {!isAssessment && !isLocked && <th className="w-8" />}
           </tr>
         </thead>
@@ -312,7 +313,7 @@ const ExerciseTable = ({ exercises, onChange, mode, isLocked }) => {
                       rows={2}
                       value={ex.failReason}
                       onChange={(e) => updateExercise(idx, "failReason", e.target.value)}
-                      placeholder={needsReason ? "Bắt buộc nhập lý do..." : "Ghi chú thêm..."}
+                      placeholder={needsReason ? (i18n.language === "vi" ? "Bắt buộc nhập lý do..." : "Reason required...") : (i18n.language === "vi" ? "Ghi chú thêm..." : "Additional notes...")}
                       className={`${inputClass} resize-none h-full ${isLocked ? 'opacity-70 cursor-not-allowed' : ''} ${!isLocked && isReasonMissing ? 'border-red-500 ring-1 ring-red-500/50' : ''}`}
                       readOnly={isLocked}
                     />
@@ -333,7 +334,7 @@ const ExerciseTable = ({ exercises, onChange, mode, isLocked }) => {
       </table>
       {!isAssessment && !isLocked && (
         <button type="button" onClick={addExercise} className="flex items-center gap-1 mt-2 px-3 py-1.5 text-xs text-primary hover:bg-primary/10 rounded-lg transition-colors border border-primary/20">
-          <Plus className="w-3.5 h-3.5" /> Thêm bài tập
+          <Plus className="w-3.5 h-3.5" /> {i18n.language === "vi" ? "Thêm bài tập" : "Add Exercise"}
         </button>
       )}
     </div>
@@ -398,6 +399,7 @@ const SectionBlock = ({ section, onUpdate, onRemove, isOpen, onToggle, mode, isL
 
 // ===== MAIN COMPONENT =====
 const WorkoutPlanDetail = () => {
+  const { t, i18n } = useTranslation("coaching");
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -455,13 +457,13 @@ const WorkoutPlanDetail = () => {
       } else {
         setTargetDate(dateStr);
         if (isUserOnly) {
-          toast.info("Chưa có giáo án cho ngày này");
+          toast.info(t("plans.toasts.no_plan_date"));
         } else {
           setShowCreateMissingModal(true);
         }
       }
     } catch (err) {
-      toast.error("Lỗi khi chuyển ngày");
+      toast.error(t("plans.toasts.error_date_change"));
     }
   };
 
@@ -475,12 +477,12 @@ const WorkoutPlanDetail = () => {
   const updateMut = useMutation({
     mutationFn: (data) => updateWorkoutPlan(id, data),
     onSuccess: () => {
-      toast.success("Đã lưu thành công!");
+      toast.success(t("plans.toasts.save_success"));
       queryClient.invalidateQueries({ queryKey: ["workout-plan", id] });
       setShowConfirmModal(false);
       setShowCompleteModal(false);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi lưu dữ liệu"),
+    onError: (err) => toast.error(err.response?.data?.message || t("plans.toasts.save_failed")),
   });
 
   const handleSave = () => {
@@ -558,7 +560,7 @@ const WorkoutPlanDetail = () => {
 
   return (
     <>
-      <SEO title={`Giáo án: ${form.title}`} noindex />
+      <SEO title={`${t("plans.detail_title")}: ${form.title}`} noindex />
       <Header />
 
       <main className="min-h-screen bg-gray-950 text-white pt-24 pb-20">
@@ -579,8 +581,8 @@ const WorkoutPlanDetail = () => {
                 />
                 <div className="text-sm text-gray-400 mt-1">
                   {form.clientName}
-                  {isPublished && <span className="ml-2 text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">Đã gửi khách</span>}
-                  {isCompleted && <span className="ml-2 text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">Đã hoàn thành</span>}
+                  {isPublished && <span className="ml-2 text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">{t("plans.status_published")}</span>}
+                  {isCompleted && <span className="ml-2 text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">{t("plans.status_completed")}</span>}
                 </div>
               </div>
             </div>
@@ -592,7 +594,7 @@ const WorkoutPlanDetail = () => {
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <div className="text-sm text-center px-4 font-medium min-w-[120px]">
-                  {form.planDate}
+                  {formatDate(form.planDate, i18n.language === "vi" ? "vi-VN" : "en-US")}
                 </div>
                 <button onClick={() => handleDateChange(1)} className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors">
                   <ChevronRight className="w-4 h-4" />
@@ -607,14 +609,14 @@ const WorkoutPlanDetail = () => {
                     disabled={updateMut.isPending}
                     className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50"
                   >
-                    <Save className="w-4 h-4" /> Lưu nháp
+                    <Save className="w-4 h-4" /> {i18n.language === "vi" ? "Lưu nháp" : "Save Draft"}
                   </button>
                   <button
                     onClick={() => setShowConfirmModal(true)}
                     disabled={updateMut.isPending}
                     className="flex items-center gap-2 bg-primary hover:bg-orange-500 text-white px-5 py-2 rounded-lg font-medium transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
                   >
-                    <Send className="w-4 h-4" /> Gửi giáo án
+                    <Send className="w-4 h-4" /> {i18n.language === "vi" ? "Gửi giáo án" : "Send Plan"}
                   </button>
                 </>
               )}
@@ -626,14 +628,14 @@ const WorkoutPlanDetail = () => {
                     disabled={updateMut.isPending}
                     className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-all disabled:opacity-50"
                   >
-                    <Save className="w-4 h-4" /> Lưu đánh giá
+                    <Save className="w-4 h-4" /> {i18n.language === "vi" ? "Lưu đánh giá" : "Save Assessment"}
                   </button>
                   <button
                     onClick={() => setShowCompleteModal(true)}
                     disabled={updateMut.isPending}
                     className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-5 py-2 rounded-lg font-medium transition-all shadow-lg shadow-green-500/20 disabled:opacity-50"
                   >
-                    <CheckSquare className="w-4 h-4" /> Gửi đánh giá (Hoàn thành)
+                    <CheckSquare className="w-4 h-4" /> {i18n.language === "vi" ? "Gửi đánh giá (Hoàn thành)" : "Submit Assessment (Complete)"}
                   </button>
                 </>
               )}
@@ -651,7 +653,7 @@ const WorkoutPlanDetail = () => {
                   : "border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50"
                 }`}
             >
-              <Activity className="w-4 h-4" /> GIÁO ÁN TẬP LUYỆN
+              <Activity className="w-4 h-4" /> {t("plans.detail_title")}
             </button>
             <button
               onClick={() => setActiveTab("assessment")}
@@ -660,14 +662,14 @@ const WorkoutPlanDetail = () => {
                   : "border-transparent text-gray-400 hover:text-gray-200 hover:bg-gray-800/50"
                 }`}
             >
-              <CheckSquare className="w-4 h-4" /> ĐÁNH GIÁ SAU TẬP
+              <CheckSquare className="w-4 h-4" /> {i18n.language === "vi" ? "ĐÁNH GIÁ SAU TẬP" : "POST-WORKOUT ASSESSMENT"}
             </button>
             {activeTab === "training" && !isTrainingLocked && (
               <button
                 onClick={() => setShowExerciseBrowser(true)}
                 className="flex items-center gap-1.5 px-4 py-2 ml-auto text-xs uppercase font-semibold text-gray-400 hover:text-primary border border-gray-700 hover:border-primary/50 rounded-lg transition-colors bg-gray-800/50 hover:bg-primary/5"
               >
-                <Dumbbell className="w-3.5 h-3.5" /> XEM DANH SÁCH BÀI TẬP
+                <Dumbbell className="w-3.5 h-3.5" /> {i18n.language === "vi" ? "XEM DANH SÁCH BÀI TẬP" : "BROWSE EXERCISES"}
               </button>
             )}
           </div>
@@ -696,7 +698,7 @@ const WorkoutPlanDetail = () => {
               onClick={addSection}
               className="mt-6 flex items-center justify-center gap-2 w-full py-4 border-2 border-dashed border-gray-700 hover:border-primary/50 text-gray-400 hover:text-primary rounded-xl transition-all font-medium bg-gray-800/20 hover:bg-primary/5"
             >
-              <Plus className="w-5 h-5" /> THÊM SECTION MỚI
+              <Plus className="w-5 h-5" /> {i18n.language === "vi" ? "THÊM SECTION MỚI" : "ADD NEW SECTION"}
             </button>
           )}
 
@@ -704,24 +706,31 @@ const WorkoutPlanDetail = () => {
           {activeTab === "assessment" && (
             <div className="mt-8 bg-gray-900 border border-gray-800 rounded-xl p-6">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2 uppercase">
-                <span className="text-2xl">⭐</span> Đánh giá tổng thể buổi tập
+                <span className="text-2xl">⭐</span> {i18n.language === "vi" ? "Đánh giá tổng thể buổi tập" : "Overall Workout Assessment"}
               </h3>
               <div className="flex gap-4">
-                {["ĐẠT YÊU CẦU", "CẦN CẢI THIỆN", "XUẤT SẮC"].map(status => (
-                  <button
-                    key={status}
-                    onClick={() => {
-                      if (isAssessmentLocked) return;
-                      setForm(f => ({ ...f, overallAssessment: f.overallAssessment === status ? "" : status }));
-                    }}
-                    className={`px-5 py-2.5 rounded-lg font-medium transition-all ${form.overallAssessment === status
-                        ? "bg-amber-500 text-gray-900 shadow-lg shadow-amber-500/20"
-                        : "bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700"
-                      } ${isAssessmentLocked ? 'opacity-80 cursor-not-allowed' : ''}`}
-                  >
-                    {status}
-                  </button>
-                ))}
+                {["ĐẠT YÊU CẦU", "CẦN CẢI THIỆN", "XUẤT SẮC"].map(status => {
+                  const statusLabel = i18n.language === "vi" ? status : {
+                    "ĐẠT YÊU CẦU": "PASSED",
+                    "CẦN CẢI THIỆN": "NEED IMPROVEMENT",
+                    "XUẤT SẮC": "EXCELLENT"
+                  }[status];
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => {
+                        if (isAssessmentLocked) return;
+                        setForm(f => ({ ...f, overallAssessment: f.overallAssessment === status ? "" : status }));
+                      }}
+                      className={`px-5 py-2.5 rounded-lg font-medium transition-all ${form.overallAssessment === status
+                          ? "bg-amber-500 text-gray-900 shadow-lg shadow-amber-500/20"
+                          : "bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700"
+                        } ${isAssessmentLocked ? 'opacity-80 cursor-not-allowed' : ''}`}
+                    >
+                      {statusLabel}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -736,12 +745,18 @@ const WorkoutPlanDetail = () => {
             <div className="w-16 h-16 bg-blue-500/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <Send className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Gửi giáo án cho khách hàng?</h3>
-            <p className="text-gray-400 mb-6 text-sm">Giáo án này sẽ được gửi trực tiếp đến khách hàng để bắt đầu buổi tập. <strong>Khi đã gửi, tab Giáo án tập luyện sẽ bị khóa và bạn không thể sửa bài tập nữa.</strong></p>
+            <h3 className="text-xl font-bold text-white mb-2">{i18n.language === "vi" ? "Gửi giáo án cho khách hàng?" : "Send workout plan to client?"}</h3>
+            <p className="text-gray-400 mb-6 text-sm">
+              {i18n.language === "vi"
+                ? "Giáo án này sẽ được gửi trực tiếp đến khách hàng để bắt đầu buổi tập. Khi đã gửi, tab Giáo án tập luyện sẽ bị khóa và bạn không thể sửa bài tập nữa."
+                : "This plan will be sent directly to the client. Once sent, the Workout Plan tab will be locked and you cannot edit exercises anymore."}
+            </p>
             <div className="flex gap-3 justify-center">
-              <button onClick={() => setShowConfirmModal(false)} className="px-5 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium">Hủy</button>
+              <button onClick={() => setShowConfirmModal(false)} className="px-5 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium">
+                {t("coaching.confirm_modal.cancel")}
+              </button>
               <button onClick={handleSendPlan} disabled={updateMut.isPending} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white transition-colors font-medium shadow-lg shadow-blue-500/30">
-                {updateMut.isPending ? "Đang xử lý..." : "Đồng ý gửi"}
+                {updateMut.isPending ? (i18n.language === "vi" ? "Đang xử lý..." : "Processing...") : (i18n.language === "vi" ? "Đồng ý gửi" : "Agree and Send")}
               </button>
             </div>
           </div>
@@ -755,12 +770,18 @@ const WorkoutPlanDetail = () => {
             <div className="w-16 h-16 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckSquare className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Hoàn thành & Gửi đánh giá?</h3>
-            <p className="text-gray-400 mb-6 text-sm">Kết quả đánh giá sẽ được lưu lại và gửi cho khách hàng xem. <strong>Toàn bộ giáo án sẽ bị khóa và không thể chỉnh sửa thêm nữa.</strong></p>
+            <h3 className="text-xl font-bold text-white mb-2">{i18n.language === "vi" ? "Hoàn thành & Gửi đánh giá?" : "Complete & Send Assessment?"}</h3>
+            <p className="text-gray-400 mb-6 text-sm">
+              {i18n.language === "vi"
+                ? "Kết quả đánh giá sẽ được lưu lại và gửi cho khách hàng xem. Toàn bộ giáo án sẽ bị khóa và không thể chỉnh sửa thêm nữa."
+                : "The assessment result will be saved and sent to the client. The entire workout plan will be locked and cannot be edited anymore."}
+            </p>
             <div className="flex gap-3 justify-center">
-              <button onClick={() => setShowCompleteModal(false)} className="px-5 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium">Hủy</button>
+              <button onClick={() => setShowCompleteModal(false)} className="px-5 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium">
+                {t("coaching.confirm_modal.cancel")}
+              </button>
               <button onClick={handleCompletePlan} disabled={updateMut.isPending} className="px-5 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white transition-colors font-medium shadow-lg shadow-green-500/30">
-                {updateMut.isPending ? "Đang xử lý..." : "Đồng ý hoàn thành"}
+                {updateMut.isPending ? (i18n.language === "vi" ? "Đang xử lý..." : "Processing...") : (i18n.language === "vi" ? "Đồng ý hoàn thành" : "Agree and Complete")}
               </button>
             </div>
           </div>
@@ -771,10 +792,16 @@ const WorkoutPlanDetail = () => {
       {showCreateMissingModal && (
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
           <div className="bg-gray-900 rounded-2xl w-full max-w-md shadow-2xl border border-gray-800 p-6 text-center">
-            <h3 className="text-xl font-bold text-white mb-2">Chưa có giáo án</h3>
-            <p className="text-gray-400 mb-6">Khách hàng <strong>{form.clientName}</strong> chưa có giáo án nào vào ngày <strong>{targetDate}</strong>. Bạn có muốn tạo giáo án mới cho ngày này không?</p>
+            <h3 className="text-xl font-bold text-white mb-2">{i18n.language === "vi" ? "Chưa có giáo án" : "No Workout Plan"}</h3>
+            <p className="text-gray-400 mb-6">
+              {i18n.language === "vi"
+                ? `Khách hàng ${form.clientName} chưa có giáo án nào vào ngày ${targetDate}. Bạn có muốn tạo giáo án mới cho ngày này không?`
+                : `Client ${form.clientName} does not have any workout plans on ${targetDate}. Do you want to create a new one?`}
+            </p>
             <div className="flex gap-3 justify-center">
-              <button onClick={() => setShowCreateMissingModal(false)} className="px-5 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium">Đóng</button>
+              <button onClick={() => setShowCreateMissingModal(false)} className="px-5 py-2.5 rounded-xl border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors font-medium">
+                {i18n.language === "vi" ? "Đóng" : "Close"}
+              </button>
               <button
                 onClick={() => {
                   setShowCreateMissingModal(false);
@@ -782,7 +809,7 @@ const WorkoutPlanDetail = () => {
                 }}
                 className="px-5 py-2.5 rounded-xl bg-primary hover:bg-orange-500 text-white transition-colors font-medium"
               >
-                Tạo giáo án mới
+                {i18n.language === "vi" ? "Tạo giáo án mới" : "Create New Plan"}
               </button>
             </div>
           </div>

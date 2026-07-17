@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export const useMacroSet = () => {
+  const { t } = useTranslation("tdee");
   const [macroSet, setMacroSet] = useState(null);
   const [selectedMacroPlan, setSelectedMacroPlan] = useState(null);
   const navigate = useNavigate();
@@ -24,18 +26,18 @@ export const useMacroSet = () => {
             setSelectedMacroPlan(keys[0]);
           }
         } else {
-          toast.warning("Dữ liệu TDEE không hợp lệ, vui lòng tính lại", { toastId: "invalid-tdee" });
+          toast.warning(t("warnings.invalid_data"), { toastId: "invalid-tdee" });
           navigate("/tdee-calculator");
         }
       } catch (error) {
-        toast.warning("Dữ liệu TDEE bị lỗi, vui lòng tính lại", { toastId: "error-tdee" });
+        toast.warning(t("warnings.error_data"), { toastId: "error-tdee" });
         navigate("/tdee-calculator");
       }
     } else {
-      toast.warning("Vui lòng tính TDEE trước khi sử dụng tính năng này", { toastId: "missing-tdee" });
+      toast.warning(t("warnings.missing_tdee"), { toastId: "missing-tdee" });
       navigate("/tdee-calculator");
     }
-  }, [navigate]);
+  }, [navigate, t]);
 
   return { macroSet, selectedMacroPlan, setSelectedMacroPlan };
 };

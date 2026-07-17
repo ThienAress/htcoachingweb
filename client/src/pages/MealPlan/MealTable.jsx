@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Wheat, Drumstick, Fish } from "lucide-react";
 
 const round1 = (num) => Math.round(num * 10) / 10;
@@ -29,10 +30,12 @@ const FoodCell = ({ food, colorClass }) => {
 };
 
 const MealTable = ({ meals = [] }) => {
+  const { t } = useTranslation("mealplan");
+
   if (!meals.length) {
     return (
       <div className="text-center py-12 text-gray-400 bg-gray-800/30 rounded-2xl border border-gray-700">
-        🍽️ Chưa có thực đơn. Hãy chọn chế độ và nhấn "Gợi ý thực đơn mẫu".
+        {t("table.no_menu_yet")}
       </div>
     );
   }
@@ -44,19 +47,19 @@ const MealTable = ({ meals = [] }) => {
           <thead className="bg-gray-700/60">
             <tr>
               <th className="px-3 sm:px-5 py-3 text-left text-primary font-bold border-b border-gray-600 text-fluid-sm">
-                Bữa ăn
+                {t("builder.meal_header")}
               </th>
               <th className="px-3 sm:px-5 py-3 text-left text-green-300 font-bold border-b border-gray-600">
-                <Wheat className="w-4 h-4 inline mr-1" /> Tinh bột
+                <Wheat className="w-4 h-4 inline mr-1" /> {t("builder.carb")}
               </th>
               <th className="px-3 sm:px-5 py-3 text-left text-red-300 font-bold border-b border-gray-600">
-                <Drumstick className="w-4 h-4 inline mr-1" /> Đạm
+                <Drumstick className="w-4 h-4 inline mr-1" /> {t("builder.protein")}
               </th>
               <th className="px-3 sm:px-5 py-3 text-left text-yellow-300 font-bold border-b border-gray-600">
-                <Fish className="w-4 h-4 inline mr-1" /> Chất béo
+                <Fish className="w-4 h-4 inline mr-1" /> {t("builder.fat")}
               </th>
               <th className="px-3 sm:px-5 py-3 text-left text-primary font-bold border-b border-gray-600">
-                Calo
+                {t("builder.calories")}
               </th>
             </tr>
           </thead>

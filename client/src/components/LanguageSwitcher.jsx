@@ -1,69 +1,41 @@
 import { useTranslation } from "react-i18next";
-import { Globe } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
 
-const LANGUAGES = [
-  { code: "vi", label: "VN", flag: "🇻🇳" },
-  { code: "en", label: "EN", flag: "🇺🇸" },
-];
-
-export default function LanguageSwitcher({ variant = "default" }) {
+export default function LanguageSwitcher({ isSolidHeader = false }) {
   const { i18n } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  
+  const currentLang = i18n.language === "en" ? "en" : "vi";
 
-  const currentLang = LANGUAGES.find((l) => l.code === i18n.language) || LANGUAGES[0];
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleChange = (code) => {
-    i18n.changeLanguage(code);
-    setOpen(false);
+  const toggleLanguage = () => {
+    i18n.changeLanguage(currentLang === "vi" ? "en" : "vi");
   };
 
-  const isHeader = variant === "header";
+  // Adjust colors based on whether the header has a solid background (dark) or transparent (light)
+  const bgClass = isSolidHeader 
+    ? "bg-white/20 hover:bg-white/30" // Dark background header
+    : "bg-black/10 hover:bg-black/20"; // Light background header (unscrolled)
+
+  const activeTextClass = isSolidHeader ? "text-orange-600" : "text-black";
+  const inactiveTextClass = isSolidHeader ? "text-white/70" : "text-black/50";
 
   return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[13px] font-semibold transition-all duration-200 ${
-          isHeader
-            ? "text-white/80 hover:text-white hover:bg-white/10"
-            : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+    <button
+      onClick={toggleLanguage}
+      className={`relative flex items-center w-14 h-[28px] rounded-full transition-colors shadow-inner cursor-pointer ${bgClass}`}
+      aria-label="Toggle language"
+    >
+      <div 
+        className={`absolute flex items-center justify-center w-[22px] h-[22px] rounded-full bg-white shadow-sm transform transition-transform duration-300 ${
+          currentLang === "en" ? "translate-x-[31px]" : "translate-x-[3px]"
         }`}
-        aria-label="Chuyển ngôn ngữ"
       >
-        <Globe size={15} />
-        <span>{currentLang.flag} {currentLang.label}</span>
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-          {LANGUAGES.map((lang) => (
-            <button
-              key={lang.code}
-              onClick={() => handleChange(lang.code)}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
-                lang.code === currentLang.code
-                  ? "bg-orange-50 text-orange-600 font-semibold"
-                  : "text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              <span className="text-base">{lang.flag}</span>
-              <span>{lang.code === "vi" ? "Tiếng Việt" : "English"}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+        <span className={`text-[10px] font-bold ${activeTextClass}`}>
+          {currentLang === "vi" ? "VN" : "EN"}
+        </span>
+      </div>
+      <div className="w-full flex justify-between px-1.5 text-[9px] font-bold">
+        <span className={`${inactiveTextClass} ${currentLang === "vi" ? 'opacity-0' : 'opacity-100'}`}>VN</span>
+        <span className={`${inactiveTextClass} ${currentLang === "en" ? 'opacity-0' : 'opacity-100'}`}>EN</span>
+      </div>
+    </button>
   );
 }

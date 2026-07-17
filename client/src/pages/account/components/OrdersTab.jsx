@@ -4,17 +4,19 @@ import {
   X,
 } from "lucide-react";
 import { getStatusBadge } from "./StatusBadges";
+import { useTranslation } from "react-i18next";
 
 function OrdersTab({ filteredOrders, orderFilter, setOrderFilter, orderSearch, setOrderSearch }) {
+  const { t, i18n } = useTranslation("account");
   return (
     <div className="animate-tab-fade bg-gray-800/20 backdrop-blur-md rounded-2xl border border-white/10 p-6 sm:p-8 shadow-2xl space-y-6">
 
       {/* Top Header stats */}
       <div className="pb-4 border-b border-white/5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
         <div>
-          <span className="text-xs text-gray-400 font-semibold block uppercase tracking-wider">Đang hiển thị</span>
+          <span className="text-xs text-gray-400 font-semibold block uppercase tracking-wider">{t("orders.showing")}</span>
           <span className="text-2xl font-black text-white block mt-1">
-            {filteredOrders.length} đơn hàng
+            {t("orders.orders_count", { count: filteredOrders.length })}
           </span>
         </div>
       </div>
@@ -24,7 +26,7 @@ function OrdersTab({ filteredOrders, orderFilter, setOrderFilter, orderSearch, s
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
         <input
           type="text"
-          placeholder="Tìm theo mã đơn hoặc gói tập..."
+          placeholder={t("orders.search_placeholder")}
           value={orderSearch}
           onChange={(e) => setOrderSearch(e.target.value)}
           className="w-full bg-black/50 border border-white/10 rounded-full py-2.5 pl-11 pr-4 text-sm text-white placeholder-gray-600 outline-none focus:border-orange-500 transition-all"
@@ -45,7 +47,7 @@ function OrdersTab({ filteredOrders, orderFilter, setOrderFilter, orderSearch, s
             : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10"
             }`}
         >
-          Tất cả
+          {t("orders.all")}
         </button>
 
         <button
@@ -55,7 +57,7 @@ function OrdersTab({ filteredOrders, orderFilter, setOrderFilter, orderSearch, s
             : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10"
             }`}
         >
-          Đơn hàng Huấn luyện viên
+          {t("orders.orders_hlv_pill")}
         </button>
 
         <button
@@ -65,7 +67,7 @@ function OrdersTab({ filteredOrders, orderFilter, setOrderFilter, orderSearch, s
             : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10"
             }`}
         >
-          Đơn hàng Khách PT
+          {t("orders.orders_pt_pill")}
         </button>
       </div>
 
@@ -73,7 +75,7 @@ function OrdersTab({ filteredOrders, orderFilter, setOrderFilter, orderSearch, s
       {filteredOrders.length === 0 ? (
         <div className="py-12 text-center text-gray-500">
           <ShoppingBag className="mx-auto mb-3 opacity-30 text-gray-400" size={40} />
-          <p className="text-sm">Không tìm thấy đơn hàng nào phù hợp.</p>
+          <p className="text-sm">{t("orders.no_orders_found")}</p>
         </div>
       ) : (
         <div className="divide-y divide-white/5 border-t border-white/5">
@@ -93,7 +95,7 @@ function OrdersTab({ filteredOrders, orderFilter, setOrderFilter, orderSearch, s
                   </span>
                 </div>
                 <span className="text-[11px] text-gray-500 block">
-                  {order.createdAt ? new Date(order.createdAt).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "N/A"}
+                  {order.createdAt ? new Date(order.createdAt).toLocaleString(i18n.language === "vi" ? "vi-VN" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "N/A"}
                 </span>
                 <span className="text-xs text-gray-300 block font-semibold pt-0.5">
                   {order.title}
@@ -105,7 +107,7 @@ function OrdersTab({ filteredOrders, orderFilter, setOrderFilter, orderSearch, s
 
               {/* Right column: Status */}
               <div className="text-right">
-                {getStatusBadge(order.status)}
+                {getStatusBadge(order.status, t)}
               </div>
             </div>
           ))}

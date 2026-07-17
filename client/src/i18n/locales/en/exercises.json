@@ -1,0 +1,99 @@
+{
+  "seo_title": "Exercise System & Personalized Workout Plan",
+  "seo_desc": "Create personalized workout plans with the professional exercise system from HTCOACHING. Complete with instructions, videos, and free PDF exports.",
+  "badge": "EXERCISE SYSTEM",
+  "title": "CREATE A <0>PERSONALIZED</0> WORKOUT PLAN",
+  "desc": "Select muscle groups, add exercises, and export your training plan to a professional PDF",
+  "alert_beforeunload": "You have not exported the PDF file yet, you may lose data when reloading the page.",
+  "alert_leave": "You have not exported the PDF file yet, you may lose data when leaving the page.",
+  "toast_not_ready": "Data not ready yet!",
+  "toast_structure_error": "Exercise structure error!",
+  "toast_no_plan": "You have not created any workout plan yet!",
+  "toast_pdf_success": "PDF exported successfully!",
+  "toast_pdf_error": "An error occurred while exporting PDF.",
+  "toast_suggestion_empty": "Please enter feedback",
+  "toast_suggestion_success": "Thank you for your feedback!",
+  "toast_suggestion_error": "Failed to send, try again later.",
+  "card_title": "SELECT MUSCLE GROUPS",
+  "btn_view_list": "View exercise list",
+  "pdf": {
+    "no_data": "No workout plan data available.",
+    "created_date": "DATE CREATED",
+    "muscle_group": "MUSCLE GROUP",
+    "session_date": "SESSION DATE",
+    "pdf_desc": "Personalized, clear, visual, and easy-to-follow workout plan for each training session.",
+    "page": "Page {{pageNumber}} / {{totalPages}}"
+  },
+  "table": {
+    "col_exercises": "Exercises",
+    "col_sets": "Sets",
+    "col_reps": "Reps",
+    "col_tempo": "Tempo",
+    "col_duration": "Duration",
+    "col_tips": "Tips",
+    "action_col": "Actions",
+    "add_exercise": "Add exercise",
+    "select_exercise": "Select exercise",
+    "no_exercises": "No exercises added yet",
+    "placeholder_sets": "Sets count",
+    "placeholder_reps": "Reps count",
+    "placeholder_tempo": "Tempo rhythm",
+    "placeholder_duration": "Duration time",
+    "placeholder_tips": "Coach's tips"
+  },
+  "explanation": {
+    "title": "WORKOUT EXPLANATION",
+    "footer_1": "Wish you a very productive training and reach your body goals!",
+    "footer_2": "Note: Data will be cleared upon reloading the page. You can download the workout plan to a PDF file before leaving!",
+    "warmUp": "Warm up the entire body, increase blood circulation (5–10 minutes)",
+    "strength": "Activate target muscle groups and the nervous system for the main workout",
+    "compound": "Focus on compound exercises that use multiple muscle groups and joints simultaneously",
+    "isolation": "Focus on a single specific isolated muscle group",
+    "cooldown": "Stretch the muscles, reduce soreness and fatigue after working out"
+  },
+  "modal": {
+    "title": "EXERCISE LIST",
+    "search_by_name": "Exercise Name",
+    "search_by_muscle": "Muscle Group",
+    "placeholder_name": "Search by exercise name",
+    "placeholder_muscle": "Search by muscle group",
+    "col_name": "Exercise Name",
+    "col_image": "Image",
+    "col_muscle": "Primary Muscle",
+    "col_desc": "Brief Description",
+    "no_image": "None",
+    "no_muscle": "None",
+    "no_desc": "No description",
+    "no_found": "No exercises found"
+  },
+  "muscle_selector": {
+    "title": "SELECT MUSCLE GROUPS",
+    "custom_name_label": "Enter custom muscle group name",
+    "custom_name_placeholder": "E.g.: Abs, Forearm, Glutes...",
+    "custom_name_help": "Leave blank to only select from the list below",
+    "available_list_label": "Or select from the available list:",
+    "cancel_btn": "Cancel",
+    "create_btn": "Create Group",
+    "custom_btn_label": "SELECT MUSCLE GROUPS"
+  },
+  "suggestion": {
+    "title": "Exercise Feedback",
+    "placeholder": "Let me know if you want me to add any exercises...",
+    "sending": "Sending...",
+    "send": "Send Feedback",
+    "send_short": "Send"
+  },
+  "btn_export_pdf": "Download workout plan PDF",
+  "explorer": {
+    "tools_title": "Training Tools",
+    "tools_desc": "Combine workouts with nutrition to achieve the best results"
+  },
+  "links": {
+    "tdee_title": "Calculate TDEE & Macro",
+    "tdee_desc": "Determine daily calorie and macronutrient requirements for your goal.",
+    "mealplan_title": "Nutrition Suggestions",
+    "mealplan_desc": "Get custom meal plans that align with your fat loss or muscle building goals.",
+    "stories_title": "Customer Results",
+    "stories_desc": "View real physique transformation journeys from HTCOACHING students."
+  }
+}

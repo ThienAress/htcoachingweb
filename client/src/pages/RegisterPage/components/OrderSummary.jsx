@@ -1,4 +1,5 @@
 import { Gift, Tag, Calendar, MapPin, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 function OrderSummary({
   planMode,
@@ -9,13 +10,15 @@ function OrderSummary({
   gifts,
   onCopyCode,
 }) {
+  const { t } = useTranslation("auth");
+
   const getPlanDisplay = () => {
     const modeText =
       planMode === "trial"
-        ? "Trải nghiệm"
+        ? t("order.trial")
         : planMode === "1-1"
-          ? "1 Kèm 1"
-          : "Online";
+          ? t("order.one_on_one")
+          : t("order.online");
     return `${modeText} - ${selectedPackage.title}`;
   };
 
@@ -24,7 +27,7 @@ function OrderSummary({
       <div className="sticky top-8 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-white/30">
         <div className="bg-gradient-to-r from-primary to-primary-dark px-6 py-4">
           <h3 className="text-white text-xl font-bold flex items-center gap-2">
-            ĐƠN HÀNG CỦA BẠN
+            {t("order.title")}
           </h3>
         </div>
 
@@ -36,14 +39,14 @@ function OrderSummary({
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wide">
-                  Gói đã chọn
+                  {t("order.package_selected")}
                 </p>
                 <p className="font-bold text-gray-800 text-lg">
                   {getPlanDisplay()}
                 </p>
                 <p className="text-sm text-gray-500">
                   {selectedPackage.durationText} ·{" "}
-                  {selectedPackage.totalSessions} buổi
+                  {t("order.sessions", { count: selectedPackage.totalSessions })}
                 </p>
               </div>
             </div>
@@ -57,16 +60,16 @@ function OrderSummary({
                 </div>
                 <div>
                   <p className="font-bold text-green-700">
-                    🎉 Giảm 15% cho lần đầu
+                    {t("order.first_time_discount")}
                   </p>
                   <p className="text-xs text-green-600">
-                    Áp dụng khi đăng nhập
+                    {t("order.logged_in_apply")}
                   </p>
                 </div>
               </div>
               <div className="bg-white rounded-lg p-2 flex items-center justify-between border border-green-200">
                 <span className="text-xs text-gray-500">
-                  Mã ưu đãi của bạn:
+                  {t("order.your_code")}
                 </span>
                 <span className="font-mono font-bold text-green-700 tracking-wider">
                   {discountCode}
@@ -75,11 +78,11 @@ function OrderSummary({
                   onClick={() => onCopyCode(discountCode)}
                   className="text-xs bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded transition"
                 >
-                  Sao chép
+                  {t("order.copy")}
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                * Xuất trình mã này khi liên hệ để được giảm giá
+                {t("order.discount_note")}
               </p>
             </div>
           )}
@@ -87,11 +90,10 @@ function OrderSummary({
           {isLoggedIn && hasExistingBooking && (
             <div className="bg-gray-100 rounded-xl p-4 border border-gray-300 text-center">
               <p className="text-gray-600 text-sm">
-                ⚠️ Tài khoản của bạn đã sử dụng ưu đãi 15% cho lần đăng
-                ký trước.
+                {t("order.existing_discount")}
               </p>
               <p className="text-gray-500 text-xs mt-1">
-                Mỗi tài khoản chỉ áp dụng giảm giá 15% một lần duy nhất.
+                {t("order.existing_discount_desc")}
               </p>
             </div>
           )}
@@ -101,7 +103,7 @@ function OrderSummary({
               <div className="flex items-center gap-2 mb-2">
                 <Gift size={18} className="text-amber-600" />
                 <span className="font-semibold text-amber-800">
-                  Quà tặng kèm theo
+                  {t("order.gifts")}
                 </span>
               </div>
               <ul className="space-y-1.5">
@@ -121,17 +123,17 @@ function OrderSummary({
           <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 space-y-2">
             <div className="flex items-center gap-2">
               <Calendar size={16} />
-              <span>Chúng tôi sẽ liên hệ trong 24h</span>
+              <span>{t("order.contact_24h")}</span>
             </div>
             <div className="flex items-center gap-2">
               <MapPin size={16} />
-              <span>Hỗ trợ tập tại tất cả các chi nhánh</span>
+              <span>{t("order.support_branches")}</span>
             </div>
           </div>
 
           <div className="text-center pt-2">
             <p className="text-xs text-gray-400">
-              * Thông tin của bạn được bảo mật tuyệt đối
+              {t("order.secure_info")}
             </p>
           </div>
         </div>

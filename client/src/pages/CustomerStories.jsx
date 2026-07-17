@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import UpdatingText from "../components/UpdatingText";
@@ -17,6 +18,7 @@ import Contact from "../sections/Contact";
 import hero3 from "../assets/images/hero/hero3.jpg";
 import SEO from "../components/SEO";
 import ScrollToTop from "../components/ScrollToTop";
+import { translateData } from "../utils/localDataTranslator";
 
 const normalizeText = (value = "") =>
   String(value)
@@ -86,29 +88,7 @@ const getStoryImage = (story, key, fallback) => {
   return resolved || fallback;
 };
 
-const stats = [
-  { value: "1-1", label: "Theo sát từng buổi" },
-  { value: "90+", label: "Ngày xây thói quen" },
-  { value: "100%", label: "Lộ trình cá nhân hóa" },
-];
 
-const principles = [
-  {
-    icon: ShieldCheck,
-    title: "Đánh giá thật",
-    text: "Mỗi hồ sơ bắt đầu từ thể trạng, lịch sinh hoạt và vấn đề riêng của khách hàng.",
-  },
-  {
-    icon: Dumbbell,
-    title: "Tập luyện có kiểm soát",
-    text: "Giáo án được điều chỉnh theo tiến độ, kỹ thuật và khả năng phục hồi từng tuần.",
-  },
-  {
-    icon: Trophy,
-    title: "Kết quả nhìn thấy được",
-    text: "Before-after, số đo và câu chuyện đều được lưu lại để bạn thấy hành trình rõ ràng.",
-  },
-];
 
 const FilterSelect = ({ value, onChange, children, label }) => (
   <label className="relative block">
@@ -127,6 +107,7 @@ const FilterSelect = ({ value, onChange, children, label }) => (
 );
 
 const TrainerFilter = ({ trainers, selected, onChange }) => {
+  const { t } = useTranslation("stories");
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -156,7 +137,7 @@ const TrainerFilter = ({ trainers, selected, onChange }) => {
   return (
     <div className="relative block" ref={dropdownRef}>
       <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
-        Huấn luyện viên
+        {t("filters.trainer")}
       </span>
       <button
         type="button"
@@ -164,7 +145,7 @@ const TrainerFilter = ({ trainers, selected, onChange }) => {
         className="h-12 w-full border border-slate-200 bg-white px-4 pr-10 text-left text-sm font-bold text-slate-800 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 flex items-center justify-between"
       >
         <span className="truncate">
-          {selected.length === 0 ? "HLV" : selectedNames}
+          {selected.length === 0 ? t("filters.trainer") : selectedNames}
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
       </button>
@@ -172,7 +153,7 @@ const TrainerFilter = ({ trainers, selected, onChange }) => {
       {isOpen && (
         <div className="absolute left-0 z-30 mt-1 max-h-60 w-full overflow-y-auto border border-slate-200 bg-white p-2 shadow-lg rounded-sm">
           {trainers.length === 0 ? (
-            <div className="p-2 text-xs italic text-slate-400">Không có dữ liệu HLV</div>
+            <div className="p-2 text-xs italic text-slate-400">{t("filters.no_trainer_data")}</div>
           ) : (
             <div className="flex flex-col gap-2">
               {trainers.map((t) => {
@@ -201,6 +182,7 @@ const TrainerFilter = ({ trainers, selected, onChange }) => {
 };
 
 const StoryGridCard = ({ story }) => {
+  const { t } = useTranslation("stories");
   const beforeImage = getStoryImage(story, "beforeImg", null);
   const afterImage = getStoryImage(story, "afterImg", null);
   const trainerName = story.trainerId?.name;
@@ -213,10 +195,10 @@ const StoryGridCard = ({ story }) => {
       <div className="flex min-h-[70px] items-center justify-between gap-4 bg-primary px-4 py-3 text-white">
         <div className="min-w-0">
           <p className="font-display text-3xl font-bold uppercase leading-none">
-            {story.duration || "Đang cập nhật"}
+            {story.duration || t("detail.updating")}
           </p>
           <p className="mt-1 truncate text-[11px] font-bold uppercase leading-4 text-white/90">
-            {story.age || "--"} tuổi - {story.job || "Đang cập nhật"}
+            {story.age || "--"} {t("stories_list.age_suffix")} - {story.job || t("detail.updating")}
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -266,10 +248,10 @@ const StoryGridCard = ({ story }) => {
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-lg font-black uppercase text-slate-900">
-              {story.name || "Khách hàng HT"}
+              {story.name || t("stories_list.default_customer_name")}
             </h3>
             <p className="mt-1 text-xs font-semibold uppercase text-primary">
-              {story.result || "Đang cập nhật"}
+              {story.result || t("detail.updating")}
             </p>
             {trainerName && (
               <div className="mt-2">
@@ -278,7 +260,7 @@ const StoryGridCard = ({ story }) => {
                   className="inline-flex items-center gap-1 rounded bg-slate-100 px-2.5 py-1 text-[11px] font-black uppercase text-slate-700 transition duration-200 hover:bg-primary/10 hover:text-primary"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <span>HLV: {trainerName}</span>
+                  <span>{t("stories_list.trainer_label")}: {trainerName}</span>
                   <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
                 </Link>
               </div>
@@ -291,19 +273,19 @@ const StoryGridCard = ({ story }) => {
           )}
         </div>
         <p className="text-sm leading-6 text-slate-600">
-          <strong className="font-black text-slate-800">Mục tiêu:</strong>{" "}
+          <strong className="font-black text-slate-800">{t("stories_list.goal")}:</strong>{" "}
           {getSummary(story.goal, 82)}
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          <strong className="font-black text-slate-800">Vấn đề:</strong>{" "}
+          <strong className="font-black text-slate-800">{t("stories_list.problem")}:</strong>{" "}
           {getSummary(story.problem)}
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          <strong className="font-black text-slate-800">Giải pháp:</strong>{" "}
+          <strong className="font-black text-slate-800">{t("stories_list.solution")}:</strong>{" "}
           {getSummary(story.solution)}
         </p>
         <span className="mt-4 inline-flex items-center gap-2 text-sm font-black uppercase text-primary">
-          Xem chi tiết
+          {t("stories_list.view_detail")}
           <ArrowUpRight className="h-4 w-4" />
         </span>
       </div>
@@ -312,18 +294,43 @@ const StoryGridCard = ({ story }) => {
 };
 
 const CustomerStories = () => {
+  const { t, i18n } = useTranslation("stories");
   const [search, setSearch] = useState("");
   const [ageFilter, setAgeFilter] = useState("");
   const [goalFilter, setGoalFilter] = useState("");
   const [durationFilter, setDurationFilter] = useState("");
   const [selectedTrainers, setSelectedTrainers] = useState([]);
 
+  const stats = useMemo(() => [
+    { value: "1-1", label: t("stats.one_on_one") },
+    { value: "90+", label: t("stats.habit_days") },
+    { value: "100%", label: t("stats.personalized") },
+  ], [t]);
+
+  const principles = useMemo(() => [
+    {
+      icon: ShieldCheck,
+      title: t("principles.title1"),
+      text: t("principles.text1"),
+    },
+    {
+      icon: Dumbbell,
+      title: t("principles.title2"),
+      text: t("principles.text2"),
+    },
+    {
+      icon: Trophy,
+      title: t("principles.title3"),
+      text: t("principles.text3"),
+    },
+  ], [t]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["public-customer-stories", "all"],
-    queryFn: () => getPublicCustomerStories({ limit: 50 }),
+    queryKey: ["public-customer-stories", "all", i18n.language],
+    queryFn: () => getPublicCustomerStories({ limit: 50, lang: i18n.language }),
   });
 
-  const stories = useMemo(() => data?.data || [], [data?.data]);
+  const stories = useMemo(() => translateData(data?.data || [], "story", i18n.language), [data?.data, i18n.language]);
   const featuredStory = stories[0];
   const heroImage = getStoryImage(featuredStory, "heroImage", hero3);
   const collageBefore = getStoryImage(featuredStory, "beforeImg", null);
@@ -385,8 +392,8 @@ const CustomerStories = () => {
   return (
     <main className="bg-white">
       <SEO
-        title="Kết quả khách hàng thực tế"
-        description="Xem ngay hành trình thay đổi vóc dáng ngoạn mục của các học viên tại HTCOACHING. Khám phá các câu chuyện giảm mỡ, tăng cơ và thay đổi hình thể với giáo án 1 kèm 1."
+        title={t("seo.title")}
+        description={t("seo.description")}
         canonical="/ket-qua-khach-hang"
         jsonLd={customerStoriesSchema}
       />
@@ -402,13 +409,11 @@ const CustomerStories = () => {
         <div className="container-custom relative z-10 flex min-h-[520px] flex-col justify-end pb-16 pt-28">
           <div className="max-w-4xl">
             <h1 className="font-display text-fluid-6xl font-bold uppercase leading-tight text-white">
-              Kết quả khách hàng
-              <span className="block text-primary">HT Coaching</span>
+              {t("header.real_results")}
+              <span className="block text-primary">{t("header.transformation_stories")}</span>
             </h1>
             <p className="mt-5 max-w-2xl text-fluid-base font-medium leading-8 text-white/80">
-              Những thay đổi thật từ khách hàng thật: có mục tiêu rõ ràng, có
-              lộ trình tập luyện cá nhân hóa và có dữ liệu tiến bộ theo từng
-              tuần.
+              {t("header.subtitle")}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
@@ -419,7 +424,7 @@ const CustomerStories = () => {
                 }}
                 className="inline-flex h-12 items-center justify-center gap-2 bg-primary px-5 text-sm font-black uppercase text-white transition hover:bg-primary-dark"
               >
-                Xem kết quả
+                {t("header.view_results")}
                 <ArrowRight className="h-4 w-4" />
               </a>
               <a
@@ -430,7 +435,7 @@ const CustomerStories = () => {
                 }}
                 className="inline-flex h-12 items-center justify-center gap-2 border border-white/35 px-5 text-sm font-black uppercase text-white transition hover:border-primary hover:text-primary"
               >
-                Bắt đầu hành trình
+                {t("header.start_journey")}
                 <Sparkles className="h-4 w-4" />
               </a>
             </div>
@@ -458,15 +463,13 @@ const CustomerStories = () => {
         <div className="grid gap-10 lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,1fr)] lg:items-center">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-500">
-              Kiến thức của chúng tôi
+              {t("principles.our_philosophy")}
             </p>
             <h2 className="mt-3 max-w-2xl font-display text-fluid-5xl font-bold uppercase leading-tight text-slate-950">
-              Kết quả của bạn là thứ chúng tôi theo đuổi
+              {t("principles.philosophy_title")}
             </h2>
             <p className="mt-5 text-base leading-8 text-slate-600">
-              HT Coaching không bán một tấm ảnh “after” đẹp mắt. Chúng tôi xây
-              một quá trình đủ rõ: hiểu vấn đề, đặt mục tiêu, tập đúng kỹ thuật,
-              ăn uống hợp lý và theo dõi tiến độ liên tục.
+              {t("principles.philosophy_text")}
             </p>
             <div className="mt-7 grid gap-4">
               {principles.map((item) => {
@@ -495,7 +498,7 @@ const CustomerStories = () => {
               }}
               className="mt-8 inline-flex h-12 items-center justify-center gap-2 bg-primary px-5 text-sm font-black uppercase text-white transition hover:bg-primary-dark"
             >
-              Đăng ký tư vấn
+              {t("header.register_consultation")}
               <ArrowRight className="h-4 w-4" />
             </a>
           </div>
@@ -546,11 +549,11 @@ const CustomerStories = () => {
               </div>
               <div className="border-t-4 border-primary bg-white px-4 py-3">
                 <p className="text-xs font-black uppercase text-slate-500">
-                  Case nổi bật
+                  {t("principles.featured_case")}
                 </p>
                 <p className="mt-1 text-sm font-black uppercase text-slate-950">
-                  {featuredStory?.name || "Khách hàng HT Coaching"} -{" "}
-                  {featuredStory?.duration || "hành trình thay đổi"}
+                  {featuredStory?.name || t("principles.default_client_name")} -{" "}
+                  {featuredStory?.duration || t("principles.default_journey")}
                 </p>
               </div>
             </div>
@@ -565,61 +568,60 @@ const CustomerStories = () => {
               Transformation library
             </p>
             <h2 className="mt-3 font-display text-fluid-5xl font-bold uppercase leading-tight text-slate-950">
-              Kết quả <span className="text-primary">khách hàng</span>
+              {t("header.real_results")} <span className="text-primary">{t("stories_list.weeks")}</span> {/* Keep styling similar */}
             </h2>
             <p className="mt-4 text-fluid-sm leading-7 text-slate-600">
-              Lọc theo độ tuổi, mục tiêu và thời gian để tìm câu chuyện gần với
-              tình trạng hiện tại của bạn nhất.
+              {t("stories_list.no_results_desc", "Lọc theo độ tuổi, mục tiêu và thời gian để tìm câu chuyện gần với tình trạng hiện tại của bạn nhất.")}
             </p>
           </div>
 
           <div className="mt-9 grid gap-4 border border-slate-200 bg-white p-4 shadow-sm grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
             <label className="relative block">
               <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
-                Tìm kiếm
+                {t("filters.search_placeholder", "Tìm kiếm")}
               </span>
               <Search className="pointer-events-none absolute bottom-4 left-4 h-4 w-4 text-slate-400" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 className="h-12 w-full border border-slate-200 py-3 pl-10 pr-3 text-sm font-bold text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/15"
-                placeholder="Tên, nghề, mục tiêu..."
+                placeholder={t("filters.search_placeholder")}
               />
             </label>
 
             <FilterSelect
-              label="Độ tuổi"
+              label={t("filters.age")}
               value={ageFilter}
               onChange={(event) => setAgeFilter(event.target.value)}
             >
-              <option value="">Độ tuổi</option>
-              <option value="under_20">Dưới 20 tuổi</option>
-              <option value="20_29">20-29 tuổi</option>
-              <option value="30_39">30-39 tuổi</option>
-              <option value="40_plus">Từ 40 tuổi</option>
+              <option value="">{t("filters.age")}</option>
+              <option value="under_20">{t("filters.under_20")}</option>
+              <option value="20_29">{t("filters.age_20_29")}</option>
+              <option value="30_39">{t("filters.age_30_39")}</option>
+              <option value="40_plus">{t("filters.age_40_plus")}</option>
             </FilterSelect>
 
             <FilterSelect
-              label="Mục tiêu"
+              label={t("filters.goal")}
               value={goalFilter}
               onChange={(event) => setGoalFilter(event.target.value)}
             >
-              <option value="">Mục tiêu</option>
-              <option value="fat_loss">Giảm mỡ</option>
-              <option value="muscle_gain">Tăng cơ</option>
-              <option value="fitness">Sức khỏe/vóc dáng</option>
+              <option value="">{t("filters.goal")}</option>
+              <option value="fat_loss">{t("filters.fat_loss")}</option>
+              <option value="muscle_gain">{t("filters.muscle_gain")}</option>
+              <option value="fitness">{t("filters.fitness")}</option>
             </FilterSelect>
 
             <FilterSelect
-              label="Thời gian"
+              label={t("filters.duration")}
               value={durationFilter}
               onChange={(event) => setDurationFilter(event.target.value)}
             >
-              <option value="">Thời gian</option>
-              <option value="under_12">Đến 12 tuần</option>
-              <option value="12_16">12-16 tuần</option>
-              <option value="17_24">17-24 tuần</option>
-              <option value="over_24">Trên 24 tuần</option>
+              <option value="">{t("filters.duration")}</option>
+              <option value="under_12">{t("filters.under_12")}</option>
+              <option value="12_16">{t("filters.duration_12_16")}</option>
+              <option value="17_24">{t("filters.duration_17_24")}</option>
+              <option value="over_24">{t("filters.over_24")}</option>
             </FilterSelect>
 
             <TrainerFilter
@@ -631,11 +633,7 @@ const CustomerStories = () => {
 
           <div className="mt-9 flex items-center justify-between gap-4 border-b border-slate-200 pb-4">
             <p className="text-sm font-semibold text-slate-500">
-              Hiển thị{" "}
-              <span className="font-black text-slate-950">
-                {filteredStories.length}
-              </span>{" "}
-              câu chuyện
+              {t("stories_list.showing_count", "Hiển thị")} <span className="font-black text-slate-950">{filteredStories.length}</span> {t("stories_list.showing_suffix", "câu chuyện")}
             </p>
             <p className="hidden text-xs font-black uppercase tracking-[0.16em] text-primary sm:block">
               Before / After
@@ -647,11 +645,10 @@ const CustomerStories = () => {
               {filteredStories.length === 0 ? (
                 <div className="border border-dashed border-slate-300 bg-white py-16 text-center">
                   <p className="text-lg font-bold text-slate-800">
-                    Chưa có câu chuyện phù hợp
+                    {t("stories_list.no_results")}
                   </p>
                   <p className="mt-2 text-sm text-slate-500">
-                    Hãy thử đổi bộ lọc hoặc quay lại sau khi admin publish thêm
-                    kết quả mới.
+                    {t("stories_list.no_results_desc", "Hãy thử đổi bộ lọc hoặc quay lại sau khi admin publish thêm kết quả mới.")}
                   </p>
                 </div>
               ) : (
@@ -670,10 +667,10 @@ const CustomerStories = () => {
       <section className="bg-white py-14 border-t border-slate-200">
         <div className="container-custom">
           <h2 className="text-center text-2xl font-bold uppercase text-slate-950 mb-2">
-            Công cụ <span className="text-primary">hỗ trợ</span>
+            {t("explore.title", "Công cụ hỗ trợ")}
           </h2>
           <p className="text-center text-sm text-slate-500 mb-8">
-            Bắt đầu hành trình thay đổi vóc dáng ngay hôm nay
+            {t("explore.subtitle", "Bắt đầu hành trình thay đổi vóc dáng ngay hôm nay")}
           </p>
           <div className="grid gap-4 sm:grid-cols-3 max-w-4xl mx-auto">
             <Link
@@ -682,10 +679,10 @@ const CustomerStories = () => {
             >
               <Sparkles className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
-                Tính TDEE & Macro
+                {t("explore.tdee_title")}
               </h3>
               <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                Xác định lượng calo cần nạp mỗi ngày để đạt mục tiêu.
+                {t("explore.tdee_desc")}
               </p>
             </Link>
             <Link
@@ -694,10 +691,10 @@ const CustomerStories = () => {
             >
               <Dumbbell className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
-                Thư viện bài tập
+                {t("explore.exercises_title")}
               </h3>
               <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                Tạo lịch tập cá nhân hóa và xuất PDF miễn phí.
+                {t("explore.exercises_desc")}
               </p>
             </Link>
             <Link
@@ -706,10 +703,10 @@ const CustomerStories = () => {
             >
               <Trophy className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-slate-900 group-hover:text-primary transition">
-                Huấn luyện viên
+                {t("explore.trainer_title")}
               </h3>
               <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-                Xem profile và chọn HLV phù hợp với mục tiêu của bạn.
+                {t("explore.trainer_desc")}
               </p>
             </Link>
           </div>

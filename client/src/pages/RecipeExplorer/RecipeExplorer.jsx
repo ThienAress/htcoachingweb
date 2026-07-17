@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -24,6 +25,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 import CountryCombobox from "./CountryCombobox";
 
 const RecipeExplorer = () => {
+  const { t } = useTranslation("recipe");
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const debouncedSearch = useDebounce(search, 500);
@@ -97,15 +99,14 @@ const RecipeExplorer = () => {
   return (
     <>
       <SEO
-        title="Công Thức Nấu Ăn"
-        description="Khám phá hàng trăm công thức nấu ăn từ Việt Nam và thế giới. Nguyên liệu chi tiết, hướng dẫn từng bước — hoàn toàn miễn phí tại HTCOACHING."
+        title={t("seo_title")}
+        description={t("seo_desc")}
         canonical="/cong-thuc-nau-an"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "CollectionPage",
-          "name": "Công Thức Nấu Ăn - HTCOACHING",
-          "description":
-            "Khám phá hàng trăm công thức nấu ăn từ Việt Nam và thế giới.",
+          "name": `${t("seo_title")} - HTCOACHING`,
+          "description": t("seo_desc"),
           "url": "https://htcoachingweb.io.vn/cong-thuc-nau-an",
           "provider": {
             "@type": "Organization",
@@ -122,16 +123,15 @@ const RecipeExplorer = () => {
             <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
               <ChefHat className="text-primary w-6 h-6" />
               <span className="font-semibold text-primary tracking-wide">
-                CÔNG THỨC NẤU ĂN
+                {t("badge")}
               </span>
             </div>
             <h1 className="font-display text-4xl md:text-5xl font-black uppercase tracking-normal">
-              Khám Phá <span className="text-primary">Món Ngon</span>
+              <Trans i18nKey="title" ns="recipe" components={[<span className="text-primary" key="0" />]} />
             </h1>
             <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full" />
             <p className="text-zinc-400 mt-4 max-w-xl mx-auto">
-              Công thức nấu ăn từ Việt Nam và thế giới — nguyên liệu chi tiết,
-              hướng dẫn từng bước
+              {t("desc")}
             </p>
           </div>
 
@@ -145,7 +145,7 @@ const RecipeExplorer = () => {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Tìm kiếm món ăn..."
+                  placeholder={t("search_placeholder")}
                   className="w-full pl-12 pr-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                 />
               </div>
@@ -155,7 +155,7 @@ const RecipeExplorer = () => {
                 onChange={(e) => updateParams({ category: e.target.value || null })}
                 className="px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
               >
-                <option value="">Phân loại</option>
+                <option value="">{t("category_select")}</option>
                 {categories.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -175,7 +175,7 @@ const RecipeExplorer = () => {
                 onClick={clearFilters}
                 className="mt-3 flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition"
               >
-                <X className="w-4 h-4" /> Xóa bộ lọc
+                <X className="w-4 h-4" /> {t("clear_filters")}
               </button>
             )}
           </form>
@@ -184,8 +184,8 @@ const RecipeExplorer = () => {
           {pagination.total !== undefined && (
             <p className="text-sm text-zinc-500 mb-6">
               {pagination.total === 0
-                ? "Không tìm thấy công thức nào"
-                : `Hiển thị ${recipes.length} / ${pagination.total} công thức`}
+                ? t("no_recipes_found")
+                : t("showing_recipes", { count: recipes.length, total: pagination.total })}
             </p>
           )}
 
@@ -215,13 +215,13 @@ const RecipeExplorer = () => {
             <div className="text-center py-20">
               <ChefHat className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
               <p className="text-zinc-400 text-lg">
-                Chưa có công thức nào phù hợp
+                {t("empty_title")}
               </p>
               <button
                 onClick={clearFilters}
                 className="mt-4 text-primary hover:underline"
               >
-                Xóa bộ lọc và thử lại
+                {t("empty_btn")}
               </button>
             </div>
           )}
@@ -277,10 +277,10 @@ const RecipeExplorer = () => {
       <section className="bg-zinc-900 py-12 border-t border-zinc-800">
         <div className="container-custom">
           <h2 className="text-center text-2xl font-bold text-white uppercase mb-2">
-            Công cụ <span className="text-primary">hỗ trợ</span> dinh dưỡng
+            <Trans i18nKey="explorer.tools_title" ns="recipe" components={[<span className="text-primary" key="0" />]} />
           </h2>
           <p className="text-center text-sm text-zinc-400 mb-8">
-            Kết hợp công thức nấu ăn với dinh dưỡng khoa học
+            {t("explorer.tools_desc")}
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             <Link
@@ -289,10 +289,10 @@ const RecipeExplorer = () => {
             >
               <Flame className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-white group-hover:text-primary transition">
-                Tính TDEE & Macro
+                {t("links.tdee_title")}
               </h3>
               <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-                Xác định lượng calo và macro cần nạp mỗi ngày phù hợp mục tiêu.
+                {t("links.tdee_desc")}
               </p>
             </Link>
             <Link
@@ -301,10 +301,10 @@ const RecipeExplorer = () => {
             >
               <Dumbbell className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-white group-hover:text-primary transition">
-                Hệ thống bài tập
+                {t("links.exercises_title")}
               </h3>
               <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-                Tạo lịch tập cá nhân hóa với hệ thống bài tập chuyên nghiệp.
+                {t("links.exercises_desc")}
               </p>
             </Link>
             <Link
@@ -313,10 +313,10 @@ const RecipeExplorer = () => {
             >
               <Calendar className="h-6 w-6 text-primary mb-3" />
               <h3 className="font-bold text-white group-hover:text-primary transition">
-                Kết quả khách hàng
+                {t("links.stories_title")}
               </h3>
               <p className="mt-2 text-sm text-zinc-400 leading-relaxed">
-                Xem hành trình thay đổi vóc dáng thực tế từ các học viên.
+                {t("links.stories_desc")}
               </p>
             </Link>
           </div>

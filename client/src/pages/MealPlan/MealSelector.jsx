@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 const MealSelector = ({
   selectedPlan,
@@ -7,6 +8,7 @@ const MealSelector = ({
   selectedMacroPlan,
   setSelectedMacroPlan,
 }) => {
+  const { t } = useTranslation("mealplan");
   const isLoadingMacro = !macroSet;
 
   const currentPlanData = selectedMacroPlan
@@ -35,7 +37,7 @@ const MealSelector = ({
         {/* Card chế độ dinh dưỡng */}
         <div className={cardClass}>
           <div className={headerClass}>
-            <h3 className={titleClass}>CHẾ ĐỘ DINH DƯỠNG</h3>
+            <h3 className={titleClass}>{t("selector.nutrition_title")}</h3>
           </div>
 
           <div className="p-5 sm:p-6 h-full flex flex-col">
@@ -45,11 +47,11 @@ const MealSelector = ({
               className={selectClass}
             >
               <option value="" disabled>
-                Chọn chế độ
+                {t("selector.select_mode")}
               </option>
               {macroSet && Object.keys(macroSet).map((plan) => (
                 <option key={plan} value={plan}>
-                  {plan}
+                  {plan === "Tự nhập (Custom)" ? t("selector.custom_plan") : plan}
                 </option>
               ))}
             </select>
@@ -57,18 +59,18 @@ const MealSelector = ({
             {selectedMacroPlan && currentPlanData && (
               <div className={infoBoxClass}>
                 <p className="flex justify-between items-center gap-4">
-                  <span className="text-red-400 font-semibold">Đạm</span>
+                  <span className="text-red-400 font-semibold">{t("selector.protein")}</span>
                   <span className="shrink-0">{currentPlanData.protein}g</span>
                 </p>
 
                 <p className="flex justify-between items-center gap-4">
-                  <span className="text-green-400 font-semibold">Tinh bột</span>
+                  <span className="text-green-400 font-semibold">{t("selector.carb")}</span>
                   <span className="shrink-0">{currentPlanData.carb}g</span>
                 </p>
 
                 <p className="flex justify-between items-center gap-4">
                   <span className="text-yellow-400 font-semibold">
-                    Chất béo
+                    {t("selector.fat")}
                   </span>
                   <span className="shrink-0">{currentPlanData.fat}g</span>
                 </p>
@@ -87,7 +89,7 @@ const MealSelector = ({
         {/* Card số bữa */}
         <div className={cardClass}>
           <div className={headerClass}>
-            <h3 className={titleClass}>SỐ BỮA/NGÀY</h3>
+            <h3 className={titleClass}>{t("selector.meals_title")}</h3>
           </div>
 
           <div className="p-5 sm:p-6 h-full flex flex-col">
@@ -98,7 +100,7 @@ const MealSelector = ({
             >
               {[3, 4, 5, 6].map((num) => (
                 <option key={num} value={num}>
-                  {num} bữa
+                  {t("selector.meals_unit", { num })}
                 </option>
               ))}
             </select>
@@ -106,7 +108,7 @@ const MealSelector = ({
             {selectedMacroPlan && currentPlanData && (
               <div className={infoBoxClass}>
                 <p className="flex justify-between items-center gap-4">
-                  <span className="text-red-400 font-semibold">Đạm/bữa</span>
+                  <span className="text-red-400 font-semibold">{t("selector.protein_per_meal")}</span>
                   <span className="shrink-0">
                     {Math.round(currentPlanData.protein / selectedPlan)}g
                   </span>
@@ -114,7 +116,7 @@ const MealSelector = ({
 
                 <p className="flex justify-between items-center gap-4">
                   <span className="text-green-400 font-semibold">
-                    Tinh bột/bữa
+                    {t("selector.carb_per_meal")}
                   </span>
                   <span className="shrink-0">
                     {Math.round(currentPlanData.carb / selectedPlan)}g
@@ -123,7 +125,7 @@ const MealSelector = ({
 
                 <p className="flex justify-between items-center gap-4">
                   <span className="text-yellow-400 font-semibold">
-                    Chất béo/bữa
+                    {t("selector.fat_per_meal")}
                   </span>
                   <span className="shrink-0">
                     {Math.round(currentPlanData.fat / selectedPlan)}g
@@ -131,7 +133,7 @@ const MealSelector = ({
                 </p>
 
                 <p className="flex justify-between items-center gap-4 border-t border-gray-700 pt-2 mt-2">
-                  <span className="text-primary font-bold">Calo/bữa</span>
+                  <span className="text-primary font-bold">{t("selector.calories_per_meal")}</span>
                   <span className="text-primary font-bold shrink-0">
                     {Math.round(currentPlanData.calories / selectedPlan)} kcal
                   </span>

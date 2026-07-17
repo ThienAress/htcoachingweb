@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { FileText, CheckCircle, ArrowLeft, Loader2 } from "lucide-react";
 
@@ -13,6 +14,7 @@ const ContractSign = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, i18n } = useTranslation("coaching");
   const [signatureData, setSignatureData] = useState("");
   const [agreed, setAgreed] = useState(false);
 
@@ -31,25 +33,25 @@ const ContractSign = () => {
 
   const signMutation = useMutation({
     mutationFn: () => signContract(id, signatureData),
-    onSuccess: () => { toast.success("Ký hợp đồng thành công! 🎉"); navigate("/account"); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi ký hợp đồng"),
+    onSuccess: () => { toast.success(t("contract.toasts.success")); navigate("/account"); },
+    onError: (err) => toast.error(err.response?.data?.message || t("contract.toasts.error")),
   });
 
   const handleSign = useCallback(() => {
-    if (!agreed) return toast.warn("Vui lòng đọc và đồng ý điều khoản");
-    if (!signatureData) return toast.warn("Vui lòng ký tên");
+    if (!agreed) return toast.warn(t("contract.toasts.agree_warning"));
+    if (!signatureData) return toast.warn(t("contract.toasts.signature_warning"));
     signMutation.mutate();
-  }, [agreed, signatureData, signMutation]);
+  }, [agreed, signatureData, signMutation, t]);
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "...";
-  const formatCurrency = (n) => n ? n.toLocaleString("vi-VN") + " VNĐ" : "...";
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US") : "...";
+  const formatCurrency = (n) => n ? n.toLocaleString(i18n.language === "vi" ? "vi-VN" : "en-US") + " " + (i18n.language === "vi" ? "VNĐ" : "VND") : "...";
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-white"><Loader2 className="w-8 h-8 animate-spin text-slate-600" /></div>;
   if (error || !contract) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4">
       <FileText className="w-12 h-12 text-slate-300 mb-4" />
-      <p className="text-slate-500 text-center">Hợp đồng không tồn tại hoặc bạn không có quyền xem.</p>
-      <button onClick={() => navigate(-1)} className="mt-4 text-slate-600 hover:underline text-sm">← Quay lại</button>
+      <p className="text-slate-500 text-center">{t("contract.not_exist")}</p>
+      <button onClick={() => navigate(-1)} className="mt-4 text-slate-600 hover:underline text-sm">← {t("common.back")}</button>
     </div>
   );
 
@@ -60,53 +62,53 @@ const ContractSign = () => {
 
   return (
     <div className="min-h-screen bg-white py-8 px-4 print:py-0">
-      <SEO title="Ký Hợp Đồng" noindex={true} />
+      <SEO title={t("seo_contract")} noindex={true} />
       <div className="max-w-2xl mx-auto">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-6 transition-colors print:hidden">
-          <ArrowLeft className="w-4 h-4" /> Quay lại
+          <ArrowLeft className="w-4 h-4" /> {t("common.back")}
         </button>
 
         <div className="border border-slate-200 rounded-lg overflow-hidden">
           {/* Header — đen trắng chỉnh chu */}
           <div className="bg-white px-8 py-6 text-center border-b border-slate-200">
             <p className="text-xs tracking-[0.2em] text-slate-500 mb-1">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
-            <p className="text-xs text-slate-400 mb-4">Độc lập – Tự do – Hạnh phúc</p>
+            <p className="text-xs text-slate-400 mb-4">{t("contract.sub_header")}</p>
             <div className="w-16 h-px bg-slate-300 mx-auto mb-4" />
-            <h1 className="text-lg font-bold text-black tracking-wide uppercase">Hợp Đồng Dịch Vụ Huấn Luyện Cá Nhân</h1>
+            <h1 className="text-lg font-bold text-black tracking-wide uppercase">{t("contract.title")}</h1>
           </div>
 
           <div className="px-8 py-6 space-y-6">
             {/* Bên A */}
             <div className="space-y-2">
-              <h3 className="font-bold text-black text-sm uppercase">Bên cung cấp dịch vụ (Bên A):</h3>
+              <h3 className="font-bold text-black text-sm uppercase">{t("contract.party_a")}</h3>
               <div className="pl-4 space-y-1 text-sm text-slate-700">
-                <p>● Họ và tên: <strong className="text-black">{contract.trainerInfo?.name || "..."}</strong></p>
-                <p>● Năm sinh: {contract.trainerInfo?.birthYear || "..."}</p>
-                <p>● Địa chỉ: {contract.trainerInfo?.address || "..."}</p>
-                <p>● Số điện thoại: {contract.trainerInfo?.phone || "..."}</p>
+                <p>● {t("contract.fullname")} <strong className="text-black">{contract.trainerInfo?.name || "..."}</strong></p>
+                <p>● {t("contract.birthyear")} {contract.trainerInfo?.birthYear || "..."}</p>
+                <p>● {t("contract.address")} {contract.trainerInfo?.address || "..."}</p>
+                <p>● {t("contract.phone")} {contract.trainerInfo?.phone || "..."}</p>
                 <p>● Email: {contract.trainerInfo?.email || "..."}</p>
               </div>
             </div>
 
             {/* Bên B */}
             <div className="space-y-2">
-              <h3 className="font-bold text-black text-sm uppercase">Bên sử dụng dịch vụ (Bên B):</h3>
+              <h3 className="font-bold text-black text-sm uppercase">{t("contract.party_b")}</h3>
               <div className="pl-4 space-y-1 text-sm text-slate-700">
-                <p>● Họ và tên: <strong className="text-black">{contract.clientInfo?.name || "..."}</strong></p>
-                <p>● Số điện thoại: {contract.clientInfo?.phone || "..."}</p>
+                <p>● {t("contract.fullname")} <strong className="text-black">{contract.clientInfo?.name || "..."}</strong></p>
+                <p>● {t("contract.phone")} {contract.clientInfo?.phone || "..."}</p>
                 <p>● Email: {contract.clientInfo?.email || "..."}</p>
               </div>
             </div>
 
             {/* Gói DV */}
             <div className="space-y-2">
-              <h3 className="font-bold text-black text-sm uppercase">Thông tin gói dịch vụ</h3>
+              <h3 className="font-bold text-black text-sm uppercase">{t("contract.package_info")}</h3>
               <div className="border border-slate-200 rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
                   <thead><tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="text-left py-2.5 px-4 text-slate-600 font-medium">Số buổi</th>
-                    <th className="text-left py-2.5 px-4 text-slate-600 font-medium">Giá/buổi</th>
-                    <th className="text-right py-2.5 px-4 text-slate-600 font-medium">Tổng</th>
+                    <th className="text-left py-2.5 px-4 text-slate-600 font-medium">{t("contract.col_sessions")}</th>
+                    <th className="text-left py-2.5 px-4 text-slate-600 font-medium">{t("contract.col_price")}</th>
+                    <th className="text-right py-2.5 px-4 text-slate-600 font-medium">{t("contract.col_total")}</th>
                   </tr></thead>
                   <tbody><tr>
                     <td className="py-2.5 px-4 font-semibold text-black">{contract.packageDetails?.sessions || "..."}</td>
@@ -116,15 +118,15 @@ const ContractSign = () => {
                 </table>
               </div>
               <div className="text-sm text-slate-600 space-y-1 pl-4">
-                <p>● Ngày bắt đầu: {formatDate(contract.packageDetails?.startDate)}</p>
-                <p>● Ngày kết thúc: {formatDate(contract.packageDetails?.endDate)}</p>
+                <p>● {t("contract.start_date")} {formatDate(contract.packageDetails?.startDate)}</p>
+                <p>● {t("contract.end_date")} {formatDate(contract.packageDetails?.endDate)}</p>
               </div>
             </div>
 
             {/* Nội quy — từ customSections */}
             {sections.length > 0 && (
               <div className="space-y-4">
-                <h3 className="font-bold text-black text-sm uppercase">Chính sách và nội quy</h3>
+                <h3 className="font-bold text-black text-sm uppercase">{t("contract.policies")}</h3>
                 {sections.map((s, i) => (
                   <div key={i} className="space-y-1.5">
                     <h4 className="font-semibold text-sm text-black">{s.title}</h4>
@@ -141,35 +143,35 @@ const ContractSign = () => {
 
             {(isExpired || isCancelled) && (
               <div className="border border-red-200 rounded-lg p-4 text-center">
-                <p className="font-semibold text-red-600">{isExpired ? "Hợp đồng đã hết hạn" : "Hợp đồng đã bị hủy"}</p>
+                <p className="font-semibold text-red-600">{isExpired ? t("contract.status_expired") : t("contract.status_cancelled")}</p>
               </div>
             )}
 
             {/* Signing — 2 cột */}
             {canSign && (
               <div className="space-y-4 pt-4 border-t border-slate-200">
-                <h3 className="font-bold text-black text-sm text-center uppercase">Ký tên xác nhận</h3>
+                <h3 className="font-bold text-black text-sm text-center uppercase">{t("contract.sign_title")}</h3>
                 <label className="flex items-start gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer">
                   <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 accent-black" />
-                  <span className="text-sm text-slate-700">Tôi đã đọc, hiểu rõ và <strong>đồng ý</strong> với toàn bộ các điều khoản trong hợp đồng này.</span>
+                  <span className="text-sm text-slate-700">{t("contract.agree_terms")}</span>
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="text-center space-y-2">
-                    <p className="text-sm font-semibold text-black">BÊN A — Huấn luyện viên</p>
+                    <p className="text-sm font-semibold text-black">{t("contract.signature_a")}</p>
                     <div className="border border-slate-200 rounded-lg p-4 bg-slate-50 min-h-[120px] flex items-center justify-center">
-                      {contract.trainerSignature ? <img src={contract.trainerSignature} alt="Chữ ký HLV" className="max-h-[80px]" /> : <p className="text-sm text-slate-400 italic">Đã xác nhận</p>}
+                      {contract.trainerSignature ? <img src={contract.trainerSignature} alt="Chữ ký HLV" className="max-h-[80px]" /> : <p className="text-sm text-slate-400 italic">{t("contract.trainer_signed")}</p>}
                     </div>
                     <p className="text-sm font-medium text-black">{contract.trainerInfo?.name || "..."}</p>
                   </div>
                   <div className="text-center space-y-2">
-                    <p className="text-sm font-semibold text-black">BÊN B — Khách hàng</p>
+                    <p className="text-sm font-semibold text-black">{t("contract.signature_b")}</p>
                     <SignatureCanvas onSignatureChange={setSignatureData} disabled={!agreed} />
                     <p className="text-sm font-medium text-black">{contract.clientInfo?.name || "..."}</p>
                   </div>
                 </div>
                 <button onClick={handleSign} disabled={!agreed || !signatureData || signMutation.isPending}
                   className="w-full py-3 bg-black hover:bg-slate-800 text-white font-bold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                  {signMutation.isPending ? (<><Loader2 className="w-4 h-4 animate-spin" />Đang xử lý...</>) : (<><CheckCircle className="w-5 h-5" />Xác Nhận Ký Hợp Đồng</>)}
+                  {signMutation.isPending ? (<><Loader2 className="w-4 h-4 animate-spin" />{t("coaching.auto_saving")}</>) : (<><CheckCircle className="w-5 h-5" />{t("contract.confirm_btn")}</>)}
                 </button>
               </div>
             )}
@@ -178,27 +180,27 @@ const ContractSign = () => {
             {isSigned && (
               <div className="pt-4 border-t border-slate-200 space-y-4">
                 <div className="border border-slate-200 rounded-lg p-3 text-center">
-                  <p className="font-semibold text-black text-sm">✓ Hợp đồng đã được ký · {formatDate(contract.signedAt)}</p>
+                  <p className="font-semibold text-black text-sm">{t("contract.status_signed", { date: formatDate(contract.signedAt) })}</p>
                 </div>
-                <h3 className="font-bold text-black text-sm text-center uppercase">Chữ ký các bên</h3>
+                <h3 className="font-bold text-black text-sm text-center uppercase">{t("contract.signed_signatures")}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="text-center space-y-2">
-                    <p className="text-sm font-semibold text-black">BÊN A — Huấn luyện viên</p>
+                    <p className="text-sm font-semibold text-black">{t("contract.signature_a")}</p>
                     <div className="border border-slate-200 rounded-lg p-4 bg-white min-h-[100px] flex items-center justify-center">
-                      {contract.trainerSignature ? <img src={contract.trainerSignature} alt="Chữ ký HLV" className="max-h-[80px]" /> : <p className="text-sm text-slate-500">✓ Đã xác nhận</p>}
+                      {contract.trainerSignature ? <img src={contract.trainerSignature} alt="Chữ ký HLV" className="max-h-[80px]" /> : <p className="text-sm text-slate-500">✓ {t("contract.trainer_signed")}</p>}
                     </div>
                     <p className="text-sm font-medium text-black">{contract.trainerInfo?.name || "..."}</p>
                   </div>
                   <div className="text-center space-y-2">
-                    <p className="text-sm font-semibold text-black">BÊN B — Khách hàng</p>
+                    <p className="text-sm font-semibold text-black">{t("contract.signature_b")}</p>
                     <div className="border border-slate-200 rounded-lg p-4 bg-white min-h-[100px] flex items-center justify-center">
-                      {contract.signatureImage ? <img src={contract.signatureImage} alt="Chữ ký" className="max-h-[80px]" /> : <p className="text-sm text-slate-500">✓ Đã ký</p>}
+                      {contract.signatureImage ? <img src={contract.signatureImage} alt="Chữ ký" className="max-h-[80px]" /> : <p className="text-sm text-slate-500">✓ {t("contract.trainer_signed")}</p>}
                     </div>
                     <p className="text-sm font-medium text-black">{contract.clientInfo?.name || "..."}</p>
                   </div>
                 </div>
                 <button disabled className="w-full py-3 bg-slate-200 text-slate-500 font-bold rounded-lg cursor-not-allowed flex items-center justify-center gap-2">
-                  <CheckCircle className="w-5 h-5" /> Đã ký hợp đồng
+                  <CheckCircle className="w-5 h-5" /> {t("contract.signed_btn")}
                 </button>
               </div>
             )}

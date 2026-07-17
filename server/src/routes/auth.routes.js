@@ -138,6 +138,33 @@ router.get(
   },
 );
 
+// ===== DEV BYPASS LOGIN =====
+if (process.env.NODE_ENV !== "production") {
+  router.get("/dev-login", async (req, res) => {
+    try {
+      const { email } = req.query;
+      const User = (await import("../models/User.js")).default;
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+
+      const accessToken = signAccessToken(user);
+      const refreshToken = signRefreshToken(user);
+
+      const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+      user.refreshToken = hashedRefreshToken;
+      await user.save();
+
+      setAuthCookies(res, accessToken, refreshToken);
+      return res.redirect(`${process.env.CLIENT_URL || "http://localhost:5173"}/login-success`);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ success: false, message: "Dev login failed" });
+    }
+  });
+}
+
 // ===== REFRESH / LOGOUT =====
 router.post("/refresh", csrfProtection, refreshTokenController);
 router.post("/logout", protect, csrfProtection, logout);

@@ -1,0 +1,29 @@
+{
+  "seo": {
+    "title": "Gym List - HTCOACHING",
+    "description": "Find Gyms and Boxing facilities near you in HCMC. HTCOACHING is currently coaching in many clubs in District 9, Thu Duc — see details!",
+    "schema_name": "HTCOACHING Gym System",
+    "schema_desc": "List of Gyms and Boxing facilities in HCMC where HTCOACHING is coaching."
+  },
+  "header": {
+    "tag": "GYM NETWORK",
+    "title": "CLUBS <1>PT CAN ENTER TO COACH</1>",
+    "subtitle": "Find a gym near you — check opening hours, address, and Google Maps directions"
+  },
+  "filters": {
+    "search_placeholder": "Search gym...",
+    "all_areas": "All Areas",
+    "gyms_count": "{{count}} gyms"
+  },
+  "card": {
+    "has_kickfit": "KickFit / Boxing available",
+    "view_on_map": "View on Map",
+    "no_results": "No gyms found in this area."
+  },
+  "explore": {
+    "title": "Explore More",
+    "customer_results": "Customer Results",
+    "exercises": "Exercise Library",
+    "tdee": "Calculate TDEE"
+  }
+}
