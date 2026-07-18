@@ -3,10 +3,11 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Calculator, Utensils, CalendarDays, ArrowRight } from "lucide-react";
+import { Calculator, Utensils, CalendarDays, ArrowRight, Dumbbell } from "lucide-react";
 import toolImg1 from "../assets/images/hero/hero1.jpg";
 import toolImg2 from "../assets/images/hero/hero2.jpg";
 import toolImg3 from "../assets/images/hero/hero3.jpg";
+import toolImg4 from "../assets/images/classes/class1.jpg";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -16,6 +17,7 @@ const Tools = ({ image }) => {
   const sectionRef = useRef(null);
   const tdeeRef = useRef(null);
   const sideCardsRef = useRef(null);
+  const exerciseRef = useRef(null);
   const recipeRef = useRef(null);
   const mealplanRef = useRef(null);
 
@@ -38,16 +40,17 @@ const Tools = ({ image }) => {
           }
         });
 
-        // Bung thẻ TDEE nhỏ lại và hiện thẻ phụ
-        tl.to(tdeeRef.current, { width: "calc(66.666% - 12px)", duration: 1.2, ease: "power3.inOut" }, 0)
-          .set(sideCardsRef.current, { display: "flex" }, 0)
-          .to(sideCardsRef.current, { width: "calc(33.333% - 12px)", opacity: 1, duration: 1.2, ease: "power3.inOut" }, 0)
-          // Nhảy 2 thẻ con lên
+        // Bung thẻ TDEE nhỏ lại 50% và hiện grid phụ
+        tl.to(tdeeRef.current, { width: "calc(50% - 12px)", duration: 1.2, ease: "power3.inOut" }, 0)
+          .set(sideCardsRef.current, { display: "grid" }, 0)
+          .to(sideCardsRef.current, { width: "calc(50% - 12px)", opacity: 1, duration: 1.2, ease: "power3.inOut" }, 0)
+          // Nhảy 3 thẻ con lên
+          .fromTo(exerciseRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "back.out(1.5)" }, 0.4)
           .fromTo(recipeRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "back.out(1.5)" }, 0.6)
           .fromTo(mealplanRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "back.out(1.5)" }, 0.8);
       } else {
         // Mobile Animation
-        gsap.set(sideCardsRef.current, { display: "flex", width: "100%", opacity: 1 });
+        gsap.set(sideCardsRef.current, { display: "grid", width: "100%", opacity: 1 });
         
         const tl = gsap.timeline({
           scrollTrigger: {
@@ -58,6 +61,7 @@ const Tools = ({ image }) => {
         });
 
         tl.fromTo(tdeeRef.current, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" })
+          .fromTo(exerciseRef.current, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" }, "-=0.4")
           .fromTo(recipeRef.current, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" }, "-=0.4")
           .fromTo(mealplanRef.current, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" }, "-=0.4");
       }
@@ -106,10 +110,32 @@ const Tools = ({ image }) => {
           </div>
 
           {/* Side Cards Container (Thẻ nhỏ hiện ra) */}
-          <div ref={sideCardsRef} className="flex flex-col gap-5 md:gap-6 w-full md:w-[0%] h-auto md:h-full opacity-0">
+          <div ref={sideCardsRef} className="grid grid-cols-2 grid-rows-2 gap-5 md:gap-6 w-full md:w-[0%] h-auto md:h-full opacity-0">
             
+            {/* Exercise Card */}
+            <div ref={exerciseRef} className="relative rounded-3xl overflow-hidden col-span-2 group shadow-xl h-[250px] md:h-auto">
+              <img src={toolImg4} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Exercises" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-colors duration-300" />
+              
+              <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
+                <div className="bg-white/10 w-12 h-12 rounded-xl flex items-center justify-center mb-4 backdrop-blur-md border border-white/20">
+                  <Dumbbell className="text-white w-6 h-6" />
+                </div>
+                <h3 className="text-white text-xl font-bold mb-2 uppercase">{t("tools.exercise_title")}</h3>
+                <p className="text-gray-300 text-sm mb-5 line-clamp-2">{t("tools.exercise_desc")}</p>
+                <div>
+                  <Link
+                    to="/exercises"
+                    className="inline-flex items-center gap-2 text-white font-semibold hover:text-primary transition-colors text-sm"
+                  >
+                    {t("tools.exercise_cta")} <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+
             {/* Recipe Card */}
-            <div ref={recipeRef} className="relative rounded-3xl overflow-hidden flex-1 h-[250px] md:h-auto group shadow-xl">
+            <div ref={recipeRef} className="relative rounded-3xl overflow-hidden col-span-2 md:col-span-1 group shadow-xl h-[250px] md:h-auto">
               <img src={toolImg2} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Recipe" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-colors duration-300" />
               
@@ -131,7 +157,7 @@ const Tools = ({ image }) => {
             </div>
 
             {/* Meal Plan Card */}
-            <div ref={mealplanRef} className="relative rounded-3xl overflow-hidden flex-1 h-[250px] md:h-auto group shadow-xl">
+            <div ref={mealplanRef} className="relative rounded-3xl overflow-hidden col-span-2 md:col-span-1 group shadow-xl h-[250px] md:h-auto">
               <img src={toolImg3} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Meal Plan" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-colors duration-300" />
               
