@@ -22,6 +22,7 @@ import {
   BrainCircuit,
   Brain,
   LayoutTemplate,
+  Utensils,
 } from "lucide-react";
 
 const SidebarContent = ({ onItemClick }) => {
@@ -57,6 +58,7 @@ const SidebarContent = ({ onItemClick }) => {
       label: "Nội dung",
       items: [
         { path: "/admin/trainers", label: "Đội ngũ HLV", icon: Users2 },
+        { path: "/admin/recipes", label: "Công thức nấu ăn", icon: Utensils },
         { path: "/admin/customer-stories", label: "Câu chuyện khách hàng", icon: BookOpenText },
         { path: "/admin/blog", label: "Blog", icon: BookOpen },
         { path: "/admin/exercise-suggestions", label: "Góp ý bài tập", icon: MessageSquareText },

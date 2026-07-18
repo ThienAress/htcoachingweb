@@ -22,8 +22,9 @@ import ChatIcons from "../../components/ChatIcons";
 import SEO from "../../components/SEO";
 import { useMealPlanAccess } from "../../hooks/useMealPlanAccess";
 import { useAuth } from "../../context/AuthContext";
-import { Navigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
+import LoginModal from "./LoginModal";
 
 const MealPlan = () => {
   const { t } = useTranslation("mealplan");
@@ -34,6 +35,7 @@ const MealPlan = () => {
   const [activeTab, setActiveTab] = useState("menu");
   const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
   const [selectedFoods, setSelectedFoods] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const { user, loading: authLoading } = useAuth();
   const { accessLevel, isChecking, canGenerate, remainingGenerations, recordGeneration, maxGenerations } = useMealPlanAccess();
@@ -88,6 +90,12 @@ const MealPlan = () => {
 
   // Xử lý tạo thực đơn (gợi ý)
   const handleGenerateMeal = async () => {
+    // Guest chưa login → hiện LoginModal
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+
     // Kiểm tra giới hạn lượt cho trial users
     if (!canGenerate) {
       toast.error(
@@ -117,19 +125,13 @@ const MealPlan = () => {
   const hasMeals = meals.length > 0;
   const buttonLabel = hasMeals ? t("btn_regenerate") : t("btn_generate");
 
-  // Loading states
-  if (authLoading || isChecking) {
+  // Loading states (chỉ chờ auth, không block nếu chưa login)
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
-  }
-
-  // Not logged in → lưu redirect path và chuyển đến login
-  if (!user) {
-    localStorage.setItem("redirectAfterLogin", "/mealplan");
-    return <Navigate to="/login" replace />;
   }
 
   const mealplanSchema = {
@@ -377,6 +379,7 @@ const MealPlan = () => {
       </section>
 
       <ChatIcons />
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </>
   );
 };

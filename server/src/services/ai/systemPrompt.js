@@ -2,6 +2,8 @@
 // Context-aware: biết user đang xem trang nào, đã có data gì
 
 // Map URL path → mô tả trang + gợi ý hành động
+// Exact paths: match chính xác
+// Prefix paths (endsWith /): match các sub-routes (ví dụ: /cong-thuc-nau-an/*)
 const PAGE_CONTEXT_MAP = {
   "/tdee-calculator": {
     name: "Trang tính TDEE",
@@ -19,25 +21,90 @@ const PAGE_CONTEXT_MAP = {
     name: "Danh sách phòng tập",
     hint: "User đang tìm phòng tập gần nhà. Gợi ý chọn phòng tập phù hợp vị trí, hoặc tư vấn đăng ký gói tập tại /#pricing.",
   },
+  "/cong-thuc-nau-an": {
+    name: "Trang Công thức nấu ăn",
+    hint: "User đang xem công thức nấu ăn. Có thể gợi ý món ăn healthy, cách nấu, hoặc thực đơn phù hợp mục tiêu.",
+  },
+  "/blog": {
+    name: "Trang Blog",
+    hint: "User đang đọc blog. Có thể gợi ý bài viết liên quan hoặc tư vấn thêm.",
+  },
+  "/workout-plans": {
+    name: "Trang Giáo án tập luyện",
+    hint: "User đang xem giáo án tập. Có thể gợi ý giáo án theo mục tiêu hoặc level.",
+  },
+  "/huan-luyen-vien": {
+    name: "Trang Huấn luyện viên",
+    hint: "User đang xem thông tin HLV. Có thể giới thiệu HLV phù hợp hoặc tư vấn đăng ký PT.",
+  },
+  "/ket-qua-khach-hang": {
+    name: "Trang Kết quả khách hàng",
+    hint: "User đang xem kết quả học viên thực tế. Có thể giới thiệu thêm thành tích khách hàng hoặc tư vấn gói tập.",
+  },
 };
 
 export function buildSystemPrompt(context = {}) {
-  const { userName, currentPage, userMetrics } = context;
+  const { userName, currentPage, userMetrics, pageData, pageType } = context;
 
   let contextBlock = "";
   if (userName) contextBlock += `- User: ${userName} (đã đăng nhập)\n`;
 
   if (currentPage) {
-    const pageInfo = PAGE_CONTEXT_MAP[currentPage];
+    // Tìm page info: exact match trước, rồi prefix match
+    let pageInfo = PAGE_CONTEXT_MAP[currentPage];
+    if (!pageInfo) {
+      // Prefix match: /cong-thuc-nau-an/ga-xao → match /cong-thuc-nau-an
+      for (const [path, info] of Object.entries(PAGE_CONTEXT_MAP)) {
+        if (currentPage.startsWith(path + '/')) {
+          pageInfo = info;
+          break;
+        }
+      }
+    }
+
     if (pageInfo) {
       contextBlock += `- Đang xem: ${pageInfo.name}\n`;
       contextBlock += `- Gợi ý: ${pageInfo.hint}\n`;
-    } else if (currentPage.startsWith("/huan-luyen-vien")) {
-      contextBlock += `- Đang xem trang Huấn luyện viên\n`;
-    } else if (currentPage.startsWith("/ket-qua-khach-hang")) {
-      contextBlock += `- Đang xem Kết quả khách hàng\n`;
     } else {
       contextBlock += `- Đang xem trang: ${currentPage}\n`;
+    }
+
+    if (pageData) {
+      contextBlock += `\n### 📝 Dữ liệu chi tiết về trang đang xem (RẤT QUAN TRỌNG — dùng thông tin này để trả lời câu hỏi của user):\n`;
+      if (pageType === 'recipe') {
+        contextBlock += `- Công thức: ${pageData.name}\n`;
+        if (pageData.category) contextBlock += `- Phân loại: ${pageData.category}\n`;
+        if (pageData.area) contextBlock += `- Ẩm thực: ${pageData.area}\n`;
+        if (pageData.prepTime) contextBlock += `- Thời gian chuẩn bị: ${pageData.prepTime}\n`;
+        if (pageData.ingredients) contextBlock += `- Nguyên liệu: ${pageData.ingredients}\n`;
+        if (pageData.instructions) contextBlock += `- Cách làm (tóm tắt): ${pageData.instructions}\n`;
+        if (pageData.tags) contextBlock += `- Tags: ${pageData.tags}\n`;
+      } else if (pageType === 'trainer_profile') {
+        contextBlock += `- HLV: ${pageData.name}\n`;
+        if (pageData.specialties) contextBlock += `- Chuyên môn: ${pageData.specialties}\n`;
+        if (pageData.achievements) contextBlock += `- Thành tích: ${pageData.achievements}\n`;
+        if (pageData.philosophy) contextBlock += `- Triết lý: ${pageData.philosophy}\n`;
+      } else if (pageType === 'customer_story') {
+        contextBlock += `- Học viên: ${pageData.name}\n`;
+        if (pageData.age) contextBlock += `- Tuổi: ${pageData.age}\n`;
+        if (pageData.goal) contextBlock += `- Mục tiêu: ${pageData.goal}\n`;
+        if (pageData.startWeight && pageData.endWeight) {
+          contextBlock += `- Cân nặng ban đầu: ${pageData.startWeight} → Cân nặng sau: ${pageData.endWeight}\n`;
+        }
+        if (pageData.duration) contextBlock += `- Thời gian tập: ${pageData.duration}\n`;
+        if (pageData.result) contextBlock += `- Kết quả tóm tắt: ${pageData.result}\n`;
+        if (pageData.problem) contextBlock += `- Vấn đề ban đầu: ${pageData.problem}\n`;
+        if (pageData.solution) contextBlock += `- Giải pháp: ${pageData.solution}\n`;
+        if (pageData.message) contextBlock += `- Chia sẻ của học viên: ${pageData.message}\n`;
+        if (pageData.quote) contextBlock += `- Câu nói hay: "${pageData.quote}"\n`;
+      } else if (pageType === 'blog') {
+        contextBlock += `- Bài viết: ${pageData.title}\n`;
+        if (pageData.category) contextBlock += `- Chuyên mục: ${pageData.category}\n`;
+        if (pageData.tags) contextBlock += `- Tags: ${pageData.tags}\n`;
+        if (pageData.readTime) contextBlock += `- Thời gian đọc: ${pageData.readTime} phút\n`;
+        if (pageData.excerpt) contextBlock += `- Tóm tắt: ${pageData.excerpt}\n`;
+        if (pageData.content) contextBlock += `- Nội dung bài viết (trích):\n${pageData.content}\n`;
+      }
     }
   }
 
@@ -194,8 +261,9 @@ Mình: Mình chuyên về fitness và sức khỏe thôi, không hỗ trợ lĩn
 - Kèm link trang liên quan khi phù hợp.
 
 ## Page context:
-- Biết user đang ở trang nào → tận dụng để tư vấn phù hợp.
-- KHÔNG lặp lại context, chỉ dùng để cá nhân hóa.
+- Bạn ĐÃ BIẾT user đang ở trang nào và dữ liệu trang đó từ hệ thống (phần "Context hiện tại" bên dưới). KHÔNG nói "mình vừa kiểm tra", "mình xin lỗi", hay "mình không biết bạn đang ở đâu". Hãy trả lời TRỰC TIẾP và tự nhiên như bạn đã biết sẵn.
+- Tận dụng context để cá nhân hóa câu trả lời. KHÔNG lặp lại nguyên văn context.
+- Với customer_story: "startWeight" là cân nặng BAN ĐẦU, "endWeight" là cân nặng SAU KHI tập. Số kg giảm = startWeight - endWeight. KHÔNG nhầm endWeight với số kg đã giảm.
 
 ${contextBlock ? `## Context hiện tại:\n${contextBlock}` : ""}`;
 }

@@ -168,11 +168,11 @@
     },
     "trainer_plans": {
       "basic": "Basic",
-      "basic_sub": "For HLV just starting out",
+      "basic_sub": "For trainers just starting out",
       "advanced": "Professional",
-      "advanced_sub": "For PT wanting to scale",
+      "advanced_sub": "For trainers wanting to scale",
       "vip": "Premium",
-      "vip_sub": "For professional PT",
+      "vip_sub": "For professional trainers",
       "categories": {
         "student_management": "Client Management",
         "coaching_schedule": "Coaching & Schedules",

@@ -45,8 +45,12 @@ const chatConversationSchema = new mongoose.Schema(
       default: [],
     },
     context: {
+      page: { type: String, default: "" },
+      pageType: { type: String, default: "general" },
+      pageTitle: { type: String, default: "" },
       lastPage: { type: String, default: "" },
       userMetrics: { type: mongoose.Schema.Types.Mixed, default: null },
+      image: { type: String, default: null },
     },
     tokenUsage: {
       totalInputTokens: { type: Number, default: 0 },

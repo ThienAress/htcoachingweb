@@ -62,6 +62,10 @@ const recipeSchema = new mongoose.Schema(
       default: null,
     },
     tags: [String],
+    isPublished: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true },
 );

@@ -1,5 +1,21 @@
 // controllers/recipe.controller.js
 import Recipe from "../models/Recipe.js";
+import { v2 as cloudinary } from "cloudinary";
+
+// Whitelist fields cho admin update/create
+const ALLOWED_RECIPE_FIELDS = [
+  "name", "nameEn", "slug", "category", "area", "prepTime",
+  "tags", "isPublished", "ingredients", "instructions",
+  "youtubeUrl", "sourceUrl", "source", "thumbnail",
+];
+
+const pickAllowedFields = (body) => {
+  const result = {};
+  for (const key of ALLOWED_RECIPE_FIELDS) {
+    if (body[key] !== undefined) result[key] = body[key];
+  }
+  return result;
+};
 
 // Lấy danh sách recipes (phân trang, filter, search) – public
 export const getRecipes = async (req, res) => {
@@ -14,7 +30,7 @@ export const getRecipes = async (req, res) => {
       limit: rawLimit,
     } = req.query;
 
-    const query = {};
+    const query = { isPublished: { $ne: false } };
 
     if (search) {
       query.name = { $regex: search, $options: "i" };
@@ -191,7 +207,8 @@ export const getBookmarkedRecipes = async (req, res) => {
 // Admin: Tạo recipe mới
 export const createRecipe = async (req, res) => {
   try {
-    const recipe = await Recipe.create(req.body);
+    const data = pickAllowedFields(req.body);
+    const recipe = await Recipe.create(data);
     res.status(201).json({ success: true, data: recipe });
   } catch (err) {
     if (err.code === 11000) {
@@ -206,7 +223,8 @@ export const createRecipe = async (req, res) => {
 // Admin: Cập nhật recipe
 export const updateRecipe = async (req, res) => {
   try {
-    const recipe = await Recipe.findByIdAndUpdate(req.params.id, req.body, {
+    const updates = pickAllowedFields(req.body);
+    const recipe = await Recipe.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true,
     });
@@ -230,7 +248,97 @@ export const deleteRecipe = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Không tìm thấy công thức" });
     }
+
+    // Cleanup ảnh trên Cloudinary nếu có
+    if (recipe.thumbnail) {
+      try {
+        // Extract public_id từ URL Cloudinary
+        // URL format: https://res.cloudinary.com/.../htcoaching/recipes/abc123.jpg
+        const parts = recipe.thumbnail.split("/");
+        const folderIdx = parts.indexOf("htcoaching");
+        if (folderIdx !== -1) {
+          const publicId = parts
+            .slice(folderIdx)
+            .join("/")
+            .replace(/\.[^.]+$/, ""); // bỏ extension
+          await cloudinary.uploader.destroy(publicId);
+        }
+      } catch {
+        // Không block response nếu xóa ảnh thất bại
+      }
+    }
+
     res.json({ success: true, message: "Xóa công thức thành công" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Admin: Lấy tất cả danh sách (kể cả chưa duyệt)
+export const getAdminRecipes = async (req, res) => {
+  try {
+    const { search = "", page = 1, limit = 20, isPublished } = req.query;
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { nameEn: { $regex: search, $options: "i" } },
+      ];
+    }
+    
+    if (isPublished !== undefined && isPublished !== "") {
+      query.isPublished = isPublished === "true";
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const [recipes, total] = await Promise.all([
+      Recipe.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Recipe.countDocuments(query),
+    ]);
+
+    res.json({
+      success: true,
+      data: recipes,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Admin: Upload hình ảnh thumbnail cho Recipe
+export const uploadThumbnail = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Vui lòng chọn ảnh" });
+    }
+
+    const recipe = await Recipe.findByIdAndUpdate(
+      req.params.id,
+      { thumbnail: req.file.path },
+      { new: true, runValidators: true }
+    );
+
+    if (!recipe) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy công thức" });
+    }
+
+    res.json({
+      success: true,
+      message: "Tải ảnh lên thành công",
+      data: recipe,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

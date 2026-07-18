@@ -66,6 +66,7 @@ const BlogManagement = lazy(() => import("./pages/admin/BlogManagement"));
 const KnowledgeBase = lazy(() => import("./pages/admin/KnowledgeBase"));
 const RecipeExplorer = lazy(() => import("./pages/RecipeExplorer/RecipeExplorer"));
 const RecipeDetail = lazy(() => import("./pages/RecipeExplorer/RecipeDetail"));
+const RecipeManagement = lazy(() => import("./pages/admin/RecipeManagement"));
 
 import "./index.css";
 import "./App.css";
@@ -212,6 +213,7 @@ function AppContent() {
           <Route path="contracts" element={<ContractManagement />} />
           <Route path="blog" element={<BlogManagement />} />
           <Route path="knowledge-base" element={<KnowledgeBase />} />
+          <Route path="recipes" element={<RecipeManagement />} />
           <Route
             path="exercise-suggestions"
             element={<ExerciseSuggestionsManagement />}

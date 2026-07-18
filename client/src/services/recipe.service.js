@@ -19,3 +19,20 @@ export const getBookmarkedRecipes = () =>
 
 export const toggleBookmark = (recipeId) =>
   api.post(`/recipes/bookmarks/${recipeId}`).then((r) => r.data);
+
+// Admin
+export const getAdminRecipes = (params = {}) =>
+  api.get("/recipes/admin/list", { params }).then((r) => r.data);
+
+export const updateRecipe = (id, data) =>
+  api.put(`/recipes/${id}`, data).then((r) => r.data);
+
+export const uploadRecipeThumbnail = (id, formData) =>
+  api
+    .post(`/recipes/${id}/thumbnail`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((r) => r.data);
+
+export const deleteRecipe = (id) =>
+  api.delete(`/recipes/${id}`).then((r) => r.data);

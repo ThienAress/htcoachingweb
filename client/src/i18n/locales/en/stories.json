@@ -91,7 +91,7 @@
     "coaching_duration": "Coaching Duration",
     "journey_of_name": "{{duration}} journey of {{name}}",
     "journey_of_name_simple": "Journey of {{name}}",
-    "journey_description": "Explore the {{duration}} body transformation journey of {{name}} ({{age}} yo). Result: {{result}}.",
+    "journey_description": "Explore the {{duration}} body transformation journey of {{name}} ({{age}} years old). Result: {{result}}.",
     "journey_description_simple": "Explore the body transformation journey of {{name}}. Result: {{result}}.",
     "weeks_duration_text": "in {{duration}}",
     "customer_label": "Client",

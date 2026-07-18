@@ -8,6 +8,7 @@ import { buildSystemPrompt } from "../services/ai/systemPrompt.js";
 import { isUserLocked, moderateContent } from "../services/ai/contentModeration.js";
 import { searchKnowledgeBase } from "../services/ai/embedding.service.js";
 import { aiLogger } from "../services/ai/aiLogger.js";
+import { enrichContextWithDbData } from "../services/ai/contextEnricher.js";
 
 const MAX_ITERATIONS = 5;
 const MAX_HISTORY_MESSAGES = 20;
@@ -97,10 +98,20 @@ export const chatStream = async (req, res) => {
       timestamp: new Date(),
     });
 
+    // Enrich Context from DB
+    let pageData = null;
+    let pageType = null;
+    if (conversation.context?.page) {
+      pageType = conversation.context.pageType || 'general';
+      pageData = await enrichContextWithDbData(conversation.context);
+    }
+
     // Build system prompt với context
     let systemPrompt = buildSystemPrompt({
       userName: user?.name,
-      currentPage: conversation.context?.lastPage,
+      currentPage: conversation.context?.page || conversation.context?.lastPage,
+      pageType,
+      pageData,
       userMetrics: conversation.context?.userMetrics,
     });
 

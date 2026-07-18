@@ -339,6 +339,7 @@ function Header() {
               {/* Dropdown */}
               <div className="absolute top-full left-1/2 -translate-x-1/2 w-[220px] pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                 <div className="bg-white rounded-xl shadow-2xl py-2 border border-gray-100">
+                  <Link to="/exercises" className="block w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_user.exercise_system")}</Link>
                   <Link to="/tdee-calculator" className="block w-full text-left px-5 py-3 text-sm text-gray-800 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_dropdown.tdee")}</Link>
                   <Link to="/cong-thuc-nau-an" className="block w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_dropdown.recipes")}</Link>
                   <Link to="/mealplan" className="block w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_dropdown.mealplan")}</Link>

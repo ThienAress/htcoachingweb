@@ -2,6 +2,7 @@ import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import { validateId } from "../middlewares/validation.js";
+import upload from "../middlewares/recipeUpload.js";
 import {
   getRecipes,
   getRecipeBySlug,
@@ -12,6 +13,8 @@ import {
   createRecipe,
   updateRecipe,
   deleteRecipe,
+  getAdminRecipes,
+  uploadThumbnail,
 } from "../controllers/recipe.controller.js";
 
 const router = express.Router();
@@ -32,6 +35,13 @@ router.post(
 );
 
 // Admin routes
+router.get(
+  "/admin/list",
+  protect,
+  requireRoles("admin"),
+  getAdminRecipes
+);
+
 router.post(
   "/",
   protect,
@@ -54,6 +64,16 @@ router.delete(
   requireRoles("admin"),
   validateId,
   deleteRecipe,
+);
+
+router.post(
+  "/:id/thumbnail",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  validateId,
+  upload.single("image"),
+  uploadThumbnail
 );
 
 export default router;

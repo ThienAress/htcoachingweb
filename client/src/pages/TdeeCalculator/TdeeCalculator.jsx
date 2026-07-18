@@ -9,8 +9,6 @@ import ManualMacroForm from "./ManualMacroForm";
 import Header from "../../sections/Header/Header";
 import ChatIcons from "../../components/ChatIcons";
 import SEO from "../../components/SEO";
-import { useAuth } from "../../context/AuthContext";
-import LoginModal from "../MealPlan/LoginModal";
 import {
   calculateBmr,
   calculateTdee,
@@ -40,9 +38,7 @@ const TdeeCalculator = () => {
   const [adjustedCalories, setAdjustedCalories] = useState(null);
   const [macroSet, setMacroSet] = useState(null);
   const [goalNotice, setGoalNotice] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   useEffect(() => {
     const savedForm = localStorage.getItem("tdeeForm");
@@ -206,11 +202,7 @@ const TdeeCalculator = () => {
 
   const handleMealPlanClick = (e) => {
     e.preventDefault();
-    if (user) {
-      navigate("/mealplan");
-    } else {
-      setShowLoginModal(true);
-    }
+    navigate("/mealplan");
   };
 
   return (
@@ -266,7 +258,7 @@ const TdeeCalculator = () => {
         </div>
 
         {calcMode === "manual" ? (
-          <ManualMacroForm setShowLoginModal={setShowLoginModal} />
+          <ManualMacroForm />
         ) : (
           <>
             <TdeeForm
@@ -417,7 +409,6 @@ const TdeeCalculator = () => {
       </section>
 
       <ChatIcons />
-      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </main>
   );
 };

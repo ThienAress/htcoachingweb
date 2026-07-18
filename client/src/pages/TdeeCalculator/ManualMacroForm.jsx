@@ -2,10 +2,9 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Calculator, ArrowRight, Activity, Flame } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
 import { calculateCaloriesFromMacros } from "./tdee.helpers";
 
-const ManualMacroForm = ({ setShowLoginModal }) => {
+const ManualMacroForm = () => {
   const { t } = useTranslation("tdee");
   const [macros, setMacros] = useState({
     protein: "",
@@ -15,7 +14,6 @@ const ManualMacroForm = ({ setShowLoginModal }) => {
 
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -51,12 +49,6 @@ const ManualMacroForm = ({ setShowLoginModal }) => {
     // Clear out TDEE data so we don't mix manual and auto
     localStorage.removeItem("tdeeForm");
     localStorage.removeItem("tdeeData");
-
-    if (!user) {
-      localStorage.setItem("redirectAfterLogin", "/mealplan");
-      setShowLoginModal(true);
-      return;
-    }
 
     navigate("/mealplan");
   };

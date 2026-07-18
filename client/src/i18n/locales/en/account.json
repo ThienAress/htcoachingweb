@@ -95,7 +95,7 @@
     "download_already": "You have already downloaded this contract. Each contract can only be downloaded once.",
     "download_success": "Contract downloaded successfully! Note: You can only download it once.",
     "download_failed": "Error downloading contract",
-    "default_name": "HLV Contract",
+    "default_name": "Trainer Contract",
     "sessions_unit": "sessions",
     "created_date": "Created date: {{date}}",
     "signed_date_label": "Signed: {{date}}",
