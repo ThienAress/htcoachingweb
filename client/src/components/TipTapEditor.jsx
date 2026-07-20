@@ -14,7 +14,7 @@ import {
   Heading2, Heading3, List, ListOrdered,
   Quote, Minus, Image as ImageIcon, Link as LinkIcon,
   AlignLeft, AlignCenter, Undo2, Redo2, Unlink, FileText,
-  Maximize2, Minimize2,
+  Maximize2, Minimize2, ImagePlus
 } from "lucide-react";
 
 const FontSize = Extension.create({
@@ -214,7 +214,7 @@ const parseMarkdownToHtml = (markdown) => {
   return html;
 };
 
-const TipTapEditor = ({ content, onChange, onImageUpload }) => {
+const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
   const extensions = useMemo(() => [
     StarterKit.configure({
       heading: { levels: [2, 3] },
@@ -270,7 +270,7 @@ const TipTapEditor = ({ content, onChange, onImageUpload }) => {
           "prose-headings:font-black prose-headings:text-slate-900 " +
           "prose-p:text-slate-600 prose-p:leading-relaxed " +
           "prose-a:text-primary prose-strong:text-slate-900 " +
-          "prose-img:rounded-xl prose-img:shadow-md prose-img:mx-auto " +
+          "prose-img:rounded-xl prose-img:shadow-md prose-img:mx-auto prose-img:!mb-3 [&_img+p]:!mt-2 " +
           "prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-xl " +
           "prose-blockquote:py-3 prose-blockquote:px-5 prose-blockquote:not-italic " +
           "prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm",
@@ -595,8 +595,16 @@ const TipTapEditor = ({ content, onChange, onImageUpload }) => {
         <MenuButton onClick={addImage} title="Chèn hình ảnh">
           <ImageIcon className="w-4 h-4" />
         </MenuButton>
+        {coverImage && (
+          <MenuButton 
+            onClick={() => editor.chain().focus().setImage({ src: coverImage }).run()} 
+            title="Chèn ảnh bìa vào bài viết"
+          >
+            <ImagePlus className="w-4 h-4 text-emerald-600" />
+          </MenuButton>
+        )}
         <MenuButton onClick={importMarkdownFile} title="Nhập từ file Markdown (.md)">
-          <FileText className="w-4 h-4 text-emerald-600" />
+          <FileText className="w-4 h-4 text-primary" />
         </MenuButton>
 
         <Divider />

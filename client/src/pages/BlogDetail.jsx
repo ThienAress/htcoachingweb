@@ -314,16 +314,7 @@ const BlogDetail = () => {
         </div>
       </section>
 
-      {/* Cover image full-width — Vấn đề 6 */}
-      {post.coverImage && (
-        <div className="container-custom max-w-6xl -mt-8 relative z-10 mb-8">
-          <img
-            src={post.coverImage}
-            alt={post.title}
-            className="w-full rounded-2xl shadow-2xl object-cover max-h-[480px]"
-          />
-        </div>
-      )}
+
 
       {/* ===== MAIN CONTENT ===== */}
       <main className="bg-gray-50 py-12">
@@ -331,7 +322,7 @@ const BlogDetail = () => {
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_260px] max-w-6xl mx-auto">
             {/* Article */}
             <article className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-10 -mt-16 relative z-10">
-              {post.coverImage && (
+              {post.coverImage && !post.content?.includes(post.coverImage) && (
                 <div className="rounded-xl overflow-hidden mb-8 -mx-2 sm:-mx-4">
                   <img src={post.coverImage} alt={post.title} className="w-full object-cover max-h-[400px]" />
                 </div>
@@ -364,7 +355,7 @@ const BlogDetail = () => {
                   prose-p:text-slate-800 prose-p:leading-[1.85] prose-p:text-[15px]
                   prose-a:text-primary prose-a:font-semibold prose-a:no-underline hover:prose-a:underline
                   prose-strong:text-black prose-strong:font-bold
-                  prose-img:rounded-xl prose-img:shadow-md
+                  prose-img:rounded-xl prose-img:shadow-md prose-img:mx-auto prose-img:!mb-3 [&_img+p]:!mt-2
                   prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-xl prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:not-italic prose-blockquote:text-slate-800
                   prose-li:text-slate-800 prose-li:text-[15px] prose-li:leading-[1.85]
                   prose-ul:space-y-1
