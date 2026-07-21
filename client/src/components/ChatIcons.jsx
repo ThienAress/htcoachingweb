@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Phone, Send } from "lucide-react";
+import { X } from "lucide-react";
 
 // ======================= CÁC ICON MẠNG XÃ HỘI =======================
 const ZaloIcon = () => (
@@ -29,6 +29,30 @@ const MessengerIcon = () => (
   </svg>
 );
 
+const TikTokIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-full h-full">
+    <g transform="translate(5.5, 1.5)">
+      <path fill="#111111" d="M24 4c0 5.8 3.4 10.4 8.7 11.8v5.4c-2.3-.1-4.5-.7-6.5-1.8v10.1c0 6.4-5.2 11.5-11.5 11.5S3.2 35.9 3.2 29.5 8.4 18 14.7 18c.7 0 1.4.1 2.1.2v5.8c-.7-.2-1.4-.4-2.1-.4-3.2 0-5.8 2.6-5.8 5.9s2.6 5.9 5.8 5.9 5.8-2.6 5.8-5.9V4H24z" />
+      <path fill="#25F4EE" d="M26.5 8.2c1.6 2.8 4.2 4.9 7.2 5.8v3c-2.7-.5-5.2-1.8-7.2-3.7V8.2z" />
+      <path fill="#FE2C55" d="M20.5 23.7v5.8c-.8-.3-1.7-.5-2.6-.5-3.2 0-5.8 2.6-5.8 5.9 0 1.2.4 2.3 1 3.3-2.6-1-4.4-3.5-4.4-6.4 0-3.8 3-6.9 6.8-6.9 1.8 0 3.5.7 5 1.8z" />
+    </g>
+  </svg>
+);
+
+const InstagramIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-full h-full">
+    <radialGradient id="ig-a" cx="19.38" cy="42.04" r="44.9" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stopColor="#fd5" />
+      <stop offset=".33" stopColor="#ff543f" />
+      <stop offset=".64" stopColor="#c837ab" />
+      <stop offset="1" stopColor="#4168c9" />
+    </radialGradient>
+    <path fill="url(#ig-a)" d="M34.017,41H13.983C10.134,41,7,37.866,7,34.017V13.983C7,10.134,10.134,7,13.983,7h20.034C37.866,7,41,10.134,41,13.983v20.034C41,37.866,37.866,41,34.017,41z" />
+    <path fill="#fff" d="M24 14.5A9.5 9.5 0 1 0 24 33.5 9.5 9.5 0 1 0 24 14.5zm0 15.5A6 6 0 1 1 24 18a6 6 0 0 1 0 12z" />
+    <circle cx="34" cy="14" r="2.2" fill="#fff" />
+  </svg>
+);
+
 const socialItems = [
   {
     id: "messenger",
@@ -37,30 +61,22 @@ const socialItems = [
     icon: <MessengerIcon />,
   },
   {
-    id: "telegram",
-    label: "Telegram",
-    href: "https://t.me/thienvo", // Cập nhật đúng link Telegram nếu cần
-    icon: (
-      <div className="w-full h-full bg-[#0088cc] rounded-full flex items-center justify-center text-white">
-        <Send size={18} className="-ml-[2px] mt-[2px]" />
-      </div>
-    ),
-  },
-  {
-    id: "phone",
-    label: "Gọi hotline",
-    href: "tel:0934215227",
-    icon: (
-      <div className="w-full h-full bg-[#28a745] rounded-full flex items-center justify-center text-white">
-        <Phone size={18} />
-      </div>
-    ),
-  },
-  {
     id: "zalo",
     label: "Tư vấn Zalo",
     href: "https://zalo.me/0934215227",
     icon: <ZaloIcon />,
+  },
+  {
+    id: "tiktok",
+    label: "TikTok",
+    href: "https://www.tiktok.com/",
+    icon: <TikTokIcon />,
+  },
+  {
+    id: "instagram",
+    label: "Instagram",
+    href: "https://www.instagram.com/",
+    icon: <InstagramIcon />,
   },
 ];
 
@@ -187,55 +203,66 @@ const ChatIcons = () => {
                 <div className="w-8 h-8 shrink-0 flex items-center justify-center transition-transform group-hover:scale-110">
                   {item.icon}
                 </div>
-                <span className="text-[15px] font-semibold text-slate-700 group-hover:text-primary transition-colors">
+                <span className="text-[15px] font-semibold text-slate-700 group-hover:text-[#00A3FF] transition-colors">
                   {item.label}
                 </span>
               </a>
             ))}
-            {/* Arrow */}
-            <div className="absolute -bottom-2 right-5 w-4 h-4 bg-white border-b border-r border-gray-100 transform rotate-45 shadow-[3px_3px_5px_-3px_rgba(0,0,0,0.05)]"></div>
+            {/* Arrow pointing down to the button */}
+            <div className="absolute -bottom-2 right-[22px] w-4 h-4 bg-white border-b border-r border-gray-100 transform rotate-45 shadow-[3px_3px_5px_-3px_rgba(0,0,0,0.05)]"></div>
           </div>
         </div>
 
-        {/* Main Button */}
+        {/* Main Button (Styled like Image 1) */}
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
           aria-label={open ? "Đóng liên hệ" : "Mở liên hệ nhanh"}
           aria-expanded={open}
-          className="relative flex items-center justify-center rounded-full bg-white shadow-[0_8px_30px_-5px_rgba(0,0,0,0.2)] transition-all duration-300 hover:scale-105 active:scale-95 group"
+          className="relative flex items-center justify-center rounded-full bg-[#00A3FF] shadow-[0_8px_25px_-5px_rgba(0,163,255,0.5)] transition-all duration-300 hover:scale-105 active:scale-95 group"
           style={{
             width: `${ui.mainSize}px`,
             height: `${ui.mainSize}px`,
           }}
         >
-          {/* Rotating Icons */}
-          {socialItems.map((item, idx) => (
-            <div
-              key={item.id}
-              className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${
-                !open && idx === currentIconIdx
-                  ? "opacity-100 scale-100 rotate-0"
-                  : "opacity-0 scale-50 -rotate-45"
-              }`}
-              style={{ padding: `${ui.mainSize * 0.22}px` }}
-            >
-              {item.icon}
-            </div>
-          ))}
-
-          {/* Close Icon */}
-          <div
-            className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${
-              open ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-50 rotate-45"
-            }`}
+          {/* Container holding the colored icons (white background to make them pop) */}
+          <div 
+            className="relative bg-white rounded-full flex items-center justify-center overflow-hidden transition-all duration-300 shadow-sm"
+            style={{ 
+              width: `${ui.mainSize * 0.65}px`, 
+              height: `${ui.mainSize * 0.65}px`
+            }}
           >
-            <X size={ui.mainSize * 0.45} strokeWidth={3} className="text-slate-700" />
+            {/* Rotating Icons */}
+            {socialItems.map((item, idx) => (
+              <div
+                key={item.id}
+                className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${
+                  !open && idx === currentIconIdx
+                    ? "opacity-100 scale-100 rotate-0"
+                    : "opacity-0 scale-50 -rotate-45"
+                }`}
+                style={{ padding: `${ui.mainSize * 0.12}px` }}
+              >
+                <div className="w-full h-full drop-shadow-sm">
+                  {item.icon}
+                </div>
+              </div>
+            ))}
+
+            {/* Close Icon (Shows when open) */}
+            <div
+              className={`absolute inset-0 flex items-center justify-center bg-[#00A3FF] transition-all duration-500 ${
+                open ? "opacity-100 scale-100 rotate-0" : "opacity-0 scale-50 rotate-45"
+              }`}
+            >
+              <X size={ui.mainSize * 0.35} strokeWidth={3} className="text-white" />
+            </div>
           </div>
 
-          {/* Ping Effect */}
+          {/* Ping Effect Ring (Like Image 1) */}
           {!open && (
-            <span className="absolute inset-0 rounded-full pointer-events-none chat-icons-ping-slow shadow-[0_0_0_0_rgba(0,0,0,0.1)] border border-primary/20" />
+            <span className="absolute inset-0 rounded-full bg-[#00A3FF] chat-icons-ping-slow pointer-events-none -z-10" />
           )}
         </button>
       </div>

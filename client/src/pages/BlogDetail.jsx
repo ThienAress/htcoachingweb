@@ -355,7 +355,7 @@ const BlogDetail = () => {
                   prose-p:text-slate-800 prose-p:leading-[1.85] prose-p:text-[15px]
                   prose-a:text-primary prose-a:font-semibold prose-a:no-underline hover:prose-a:underline
                   prose-strong:text-black prose-strong:font-bold
-                  prose-img:rounded-xl prose-img:shadow-md prose-img:mx-auto prose-img:!mb-3 [&_img+p]:!mt-2
+                  prose-img:rounded-xl prose-img:shadow-md prose-img:mx-auto prose-img:!mb-1 [&_img+p]:!mt-0 [&_img+p]:!text-[14px] [&_img+p]:text-center [&_img+p]:!text-gray-500
                   prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-xl prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:not-italic prose-blockquote:text-slate-800
                   prose-li:text-slate-800 prose-li:text-[15px] prose-li:leading-[1.85]
                   prose-ul:space-y-1
