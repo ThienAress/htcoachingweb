@@ -28,7 +28,13 @@
     "load:smoke": "node src/scripts/loadSmoke.js",
     "start": "node server.js",
     "dev": "doppler run -- nodemon server.js",
-    "security:audit": "npm audit --audit-level=high"
+    "security:audit": "npm audit --audit-level=high",
+    "seed:staging": "node src/scripts/stagingSeed.js",
+    "cleanup:staging": "node src/scripts/stagingSeed.js --cleanup",
+    "acceptance:staging": "node src/scripts/stagingAcceptance.js",
+    "integrations:staging": "node src/scripts/stagingIntegrations.js",
+    "recovery:staging": "node src/scripts/stagingRecoveryDrill.js",
+    "acceptance:staging:extended": "node src/scripts/stagingExtendedAcceptance.js"
   },
   "keywords": [],
   "author": "",
