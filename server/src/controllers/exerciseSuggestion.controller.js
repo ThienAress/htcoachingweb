@@ -1,4 +1,5 @@
 import ExerciseSuggestion from "../models/ExerciseSuggestion.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 // Gửi góp ý (public, có thể có user)
 export const createSuggestion = async (req, res) => {
@@ -21,7 +22,7 @@ export const createSuggestion = async (req, res) => {
       message: "Cảm ơn bạn đã góp ý!",
     });
   } catch (err) {
-    console.error(err);
+    safeLog.error("exercise_suggestion.create_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

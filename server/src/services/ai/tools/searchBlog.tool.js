@@ -1,6 +1,7 @@
 // Search Blog Tool — Query BlogPost model (read-only)
 
 import BlogPost from "../../../models/BlogPost.js";
+import { escapeRegex } from "../../../utils/escapeRegex.js";
 
 const CATEGORY_LABELS = {
   "tap-luyen": "Tập luyện",
@@ -31,7 +32,12 @@ export async function searchBlog(params) {
 
     if (query) {
       // Text search theo title, excerpt, tags
-      const regex = new RegExp(query.split(/\s+/).join("|"), "i");
+      const terms = query
+        .split(/\s+/)
+        .map((term) => escapeRegex(term, 50))
+        .filter(Boolean)
+        .slice(0, 10);
+      const regex = new RegExp(terms.join("|"), "i");
       posts = await BlogPost.find({
         ...filter,
         $or: [

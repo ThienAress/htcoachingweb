@@ -1,6 +1,23 @@
 import crypto from "crypto";
 import DepositRequest from "../models/DepositRequest.js";
 import Wallet from "../models/Wallet.js";
+import { safeLog } from "../utils/safeLogger.js";
+
+const getBankTransferConfig = () => {
+  const config = {
+    bankName: String(process.env.BANK_NAME || "").trim(),
+    bankCode: String(process.env.BANK_CODE || "").trim(),
+    accountNumber: String(process.env.BANK_ACCOUNT || "").trim(),
+    accountHolder: String(process.env.BANK_HOLDER || "").trim(),
+  };
+  if (Object.values(config).some((value) => !value)) {
+    const error = new Error("Bank transfer configuration is unavailable");
+    error.status = 503;
+    error.code = "BANK_TRANSFER_CONFIG_UNAVAILABLE";
+    throw error;
+  }
+  return config;
+};
 
 // ===== Sinh mã nạp tiền ngẫu nhiên (entropy cao, khó đoán) =====
 function generateDepositCode() {
@@ -15,8 +32,14 @@ export const createDeposit = async (req, res) => {
     const userId = req.user.id;
     const { amount } = req.body;
 
-    // Validate số tiền
-    if (!amount || amount < 5000) {
+    if (!Number.isSafeInteger(amount)) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_DEPOSIT_AMOUNT",
+        message: "Số tiền nạp phải là số nguyên VND",
+      });
+    }
+    if (amount < 5000) {
       return res.status(400).json({
         success: false,
         message: "Số tiền nạp tối thiểu là 5.000đ",
@@ -30,44 +53,52 @@ export const createDeposit = async (req, res) => {
       });
     }
 
-    // Kiểm tra user đã có giao dịch đang chờ duyệt (needs_review) chưa
-    const existingNeedsReview = await DepositRequest.findOne({
+    const now = new Date();
+    await DepositRequest.updateMany(
+      {
+        userId,
+        status: "pending",
+        expiresAt: { $lte: now },
+      },
+      {
+        $set: {
+          status: "expired",
+          isOpen: false,
+        },
+      },
+    );
+
+    const existingOpen = await DepositRequest.findOne({
       userId,
-      status: "needs_review",
+      isOpen: true,
     });
 
-    if (existingNeedsReview) {
-      return res.status(400).json({
-        success: false,
-        message: "Bạn đang có giao dịch chờ admin duyệt. Vui lòng đợi giao dịch hiện tại được xử lý trước khi tạo yêu cầu mới.",
-      });
-    }
-
-    // Kiểm tra user đã có QR pending chưa
-    // (Partial Unique Index ở DB cũng chặn, nhưng check trước cho UX tốt hơn)
-    const existingPending = await DepositRequest.findOne({
-      userId,
-      status: "pending",
-      expiresAt: { $gt: new Date() },
-    });
-
-    if (existingPending) {
-      // Trả lại QR cũ thay vì tạo mới
+    if (existingOpen?.status === "pending") {
       return res.status(200).json({
         success: true,
         message: "Bạn đang có mã nạp tiền chưa hết hạn",
         data: {
-          depositRequestId: existingPending._id,
-          amount: existingPending.amount,
-          depositCode: existingPending.depositCode,
-          qrPayload: existingPending.qrPayload,
-          expiresAt: existingPending.expiresAt,
-          status: existingPending.status,
+          depositRequestId: existingOpen._id,
+          amount: existingOpen.amount,
+          depositCode: existingOpen.depositCode,
+          qrPayload: existingOpen.qrPayload,
+          expiresAt: existingOpen.expiresAt,
+          status: existingOpen.status,
         },
+      });
+    }
+    if (existingOpen) {
+      return res.status(409).json({
+        success: false,
+        code: "OPEN_DEPOSIT_EXISTS",
+        message:
+          "Bạn đang có giao dịch chờ admin duyệt. Vui lòng đợi giao dịch hiện tại được xử lý trước khi tạo yêu cầu mới.",
       });
     }
 
     // Đảm bảo user đã có wallet (tự tạo nếu chưa có)
+    const bankTransfer = getBankTransferConfig();
+
     await Wallet.findOneAndUpdate(
       { userId },
       { $setOnInsert: { userId, balance: 0, currency: "VND", version: 0 } },
@@ -83,10 +114,7 @@ export const createDeposit = async (req, res) => {
     // Tạo QR payload (chuỗi JSON chứa thông tin chuyển khoản)
     // Frontend sẽ dùng thông tin này để render mã QR
     const qrPayload = JSON.stringify({
-      bankName: process.env.BANK_NAME || "TPBank",
-      bankCode: process.env.BANK_CODE || "TPB",
-      accountNumber: process.env.BANK_ACCOUNT || "10001167831",
-      accountHolder: process.env.BANK_HOLDER || "VO HOANG THIEN",
+      ...bankTransfer,
       amount,
       content: depositCode,
     });
@@ -97,6 +125,7 @@ export const createDeposit = async (req, res) => {
       depositCode,
       qrPayload,
       status: "pending",
+      isOpen: true,
       expiresAt,
     });
 
@@ -113,6 +142,14 @@ export const createDeposit = async (req, res) => {
       },
     });
   } catch (err) {
+    if (err.code === "BANK_TRANSFER_CONFIG_UNAVAILABLE") {
+      safeLog.error("financial.deposit_config_unavailable", err);
+      return res.status(503).json({
+        success: false,
+        code: err.code,
+        message: "Cáº¥u hÃ¬nh chuyá»ƒn khoáº£n chÆ°a sáºµn sÃ ng",
+      });
+    }
     // Bắt lỗi Duplicate Key (Partial Unique Index chặn spam)
     if (err.code === 11000) {
       return res.status(409).json({
@@ -120,7 +157,7 @@ export const createDeposit = async (req, res) => {
         message: "Bạn đang có mã nạp tiền chưa xử lý xong. Vui lòng chờ.",
       });
     }
-    console.error("createDeposit error:", err);
+    safeLog.error("financial.deposit_create_failed", err);
     return res.status(500).json({
       success: false,
       message: "Lỗi hệ thống khi tạo yêu cầu nạp tiền",
@@ -153,11 +190,13 @@ export const getDepositById = async (req, res) => {
         expiresAt: deposit.expiresAt,
         status: deposit.status,
         paidAt: deposit.paidAt,
+        reversedAt: deposit.reversedAt,
+        reverseReason: deposit.reverseReason,
         createdAt: deposit.createdAt,
       },
     });
   } catch (err) {
-    console.error("getDepositById error:", err);
+    safeLog.error("financial.deposit_detail_failed", err);
     return res.status(500).json({
       success: false,
       message: "Lỗi hệ thống",
@@ -173,14 +212,16 @@ export const getMyDeposits = async (req, res) => {
     const deposits = await DepositRequest.find({ userId })
       .sort({ createdAt: -1 })
       .limit(20)
-      .select("amount depositCode qrPayload status expiresAt paidAt createdAt");
+      .select(
+        "amount depositCode qrPayload status expiresAt paidAt reversedAt reverseReason createdAt",
+      );
 
     return res.status(200).json({
       success: true,
       data: deposits,
     });
   } catch (err) {
-    console.error("getMyDeposits error:", err);
+    safeLog.error("financial.deposit_history_failed", err);
     return res.status(500).json({
       success: false,
       message: "Lỗi hệ thống",
@@ -208,7 +249,7 @@ export const getMyWallet = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("getMyWallet error:", err);
+    safeLog.error("financial.wallet_read_failed", err);
     return res.status(500).json({
       success: false,
       message: "Lỗi hệ thống",
@@ -222,35 +263,69 @@ export const confirmDeposit = async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
 
-    const deposit = await DepositRequest.findOne({ _id: id, userId });
+    const deposit = await DepositRequest.findOneAndUpdate(
+      {
+        _id: id,
+        userId,
+        status: "pending",
+        expiresAt: { $gt: new Date() },
+      },
+      {
+        $set: {
+          status: "needs_review",
+          isOpen: true,
+        },
+      },
+      { returnDocument: "after", runValidators: true },
+    );
 
-    if (!deposit) {
+    if (deposit) {
+      return res.status(200).json({
+        success: true,
+        message: "Đã ghi nhận thanh toán. Vui lòng chờ admin xác nhận.",
+        data: {
+          depositRequestId: deposit._id,
+          status: deposit.status,
+        },
+      });
+    }
+
+    const existing = await DepositRequest.findOne({ _id: id, userId });
+    if (!existing) {
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy yêu cầu nạp tiền",
       });
     }
 
-    if (deposit.status !== "pending") {
-      return res.status(400).json({
+    if (existing.status === "pending" && existing.expiresAt <= new Date()) {
+      await DepositRequest.updateOne(
+        { _id: existing._id, status: "pending" },
+        { $set: { status: "expired", isOpen: false } },
+      );
+      return res.status(409).json({
         success: false,
-        message: `Không thể xác nhận yêu cầu ở trạng thái "${deposit.status}"`,
+        code: "DEPOSIT_EXPIRED",
+        message: "Mã nạp tiền đã hết hạn",
       });
     }
 
-    deposit.status = "needs_review";
-    await deposit.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Đã ghi nhận thanh toán. Vui lòng chờ admin xác nhận.",
-      data: {
-        depositRequestId: deposit._id,
-        status: deposit.status,
-      },
+    if (existing.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Không thể xác nhận yêu cầu ở trạng thái \"" +
+          existing.status +
+          "\"",
+      });
+    }
+    return res.status(409).json({
+      success: false,
+      code: "DEPOSIT_STATE_CONFLICT",
+      message: "Trạng thái deposit vừa thay đổi, vui lòng tải lại",
     });
   } catch (err) {
-    console.error("confirmDeposit error:", err);
+    safeLog.error("financial.deposit_confirm_failed", err);
     return res.status(500).json({
       success: false,
       message: "Lỗi hệ thống",

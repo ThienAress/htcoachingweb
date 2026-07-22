@@ -73,7 +73,8 @@ const f1AiRuleSchema = new mongoose.Schema(
 );
 
 // Indexes for faster lookup
-f1AiRuleSchema.index({ category: 1, isActive: 1 });
+f1AiRuleSchema.index({ isActive: 1, priority: -1 });
+f1AiRuleSchema.index({ category: 1, isActive: 1, priority: -1 });
 
 const F1AiRule = mongoose.model("F1AiRule", f1AiRuleSchema);
 export default F1AiRule;

@@ -1,4 +1,5 @@
 import express from "express";
+import { safeLog } from "../utils/safeLogger.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
@@ -24,7 +25,7 @@ router.get("/check", protect, async (req, res) => {
     // 2. Check TrainerSubscription (đã mua gói HLV)
     const activeSub = await TrainerSubscription.findOne({
       userId: id,
-      status: "active",
+      isActive: true,
       endDate: { $gt: new Date() },
     });
     if (activeSub) {
@@ -51,7 +52,7 @@ router.get("/check", protect, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error("Check MealPlan access error:", err);
+    safeLog.error("mealplan.access_check_failed", err);
     res.status(500).json({ success: false, message: "Lỗi server" });
   }
 });
@@ -88,7 +89,7 @@ router.post("/record", protect, csrfProtection, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error("Record MealPlan generation error:", err);
+    safeLog.error("mealplan.generation_record_failed", err);
     res.status(500).json({ success: false, message: "Lỗi server" });
   }
 });

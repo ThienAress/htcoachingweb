@@ -6,7 +6,7 @@ import {
   purchaseTrainerPlan,
   getMySubscription,
   getAllSubscribers,
-  deleteSubscription,
+  cancelSubscription,
 } from "../controllers/trainerSubscription.controller.js";
 
 const router = express.Router();
@@ -20,7 +20,12 @@ router.get("/my", protect, getMySubscription);
 // 👑 Admin: Lấy tất cả HLV có gói active
 router.get("/all", protect, requireRoles("admin"), getAllSubscribers);
 
-// ❌ Admin: Xóa gói HLV
-router.delete("/:id", protect, csrfProtection, requireRoles("admin"), deleteSubscription);
+router.post(
+  "/:id/cancel",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  cancelSubscription,
+);
 
 export default router;

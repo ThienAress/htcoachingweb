@@ -5,6 +5,7 @@
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 // Ưu tiên GEMINI_SEARCH_MODEL từ Doppler, fallback gemini-2.5-flash (hỗ trợ Google Search grounding)
 const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash";
+import { safeLog } from "../../../utils/safeLogger.js";
 
 /**
  * Tra cứu thông tin thực tế bằng Google Search Grounding
@@ -41,18 +42,19 @@ export async function searchKnowledge({ query }) {
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      const errMsg = err?.error?.message || `HTTP ${response.status}`;
+      await response.json().catch(() => ({}));
       // Nếu model không hỗ trợ grounding → fallback message
       if (response.status === 400) {
         return { text: "Tìm kiếm không khả dụng với model hiện tại. Mình trả lời dựa trên kiến thức có sẵn.", uiCard: null };
       }
       // Quota exceeded / rate limit
       if (response.status === 429) {
-        console.error(`[searchKnowledge] Error 429:`, errMsg);
+        safeLog.warn("ai.search_rate_limited", "Search provider rate limited");
         return { text: "Chức năng tìm kiếm đang tạm giới hạn. Bạn cứ hỏi trực tiếp — mình sẽ trả lời dựa trên kiến thức có sẵn nhé!", uiCard: null };
       }
-      console.error(`[searchKnowledge] Error ${response.status}:`, errMsg);
+      safeLog.warn("ai.search_provider_error", "Search provider returned error", {
+        status: response.status,
+      });
       return { text: "Không thể tìm kiếm lúc này. Bạn hỏi trực tiếp, mình trả lời dựa trên kiến thức có sẵn nhé!", uiCard: null };
     }
 

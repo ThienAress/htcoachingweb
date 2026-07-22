@@ -65,7 +65,7 @@ export const requireTrainerAccess = async (req, res, next) => {
   try {
     const activeSub = await TrainerSubscription.findOne({
       userId: id,
-      status: "active",
+      isActive: true,
       endDate: { $gt: new Date() },
     });
 

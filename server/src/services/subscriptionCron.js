@@ -1,4 +1,5 @@
 import TrainerSubscription from "../models/TrainerSubscription.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 /**
  * Cron Job: Quét các gói HLV đang "active" nhưng đã quá endDate
@@ -19,22 +20,22 @@ async function expireTrainerSubscriptions() {
         endDate: { $lte: now },
       },
       {
-        $set: { status: "expired" },
+        $set: { status: "expired", isActive: false },
       }
     );
 
     if (result.modifiedCount > 0) {
-      console.log(
-        `⏰ [Cron] Đã hết hạn ${result.modifiedCount} gói HLV`
-      );
+      safeLog.info("subscription_cron.expired", {
+        count: result.modifiedCount,
+      });
     }
   } catch (err) {
-    console.error("❌ [Cron] Lỗi khi expire trainer subscriptions:", err.message);
+    safeLog.error("subscription_cron.failed", err);
   }
 }
 
 export function startSubscriptionCronJobs() {
-  console.log("⏰ [Cron] Khởi động cron job: expire trainer subscriptions (mỗi 1 phút)");
+  safeLog.info("subscription_cron.started", { intervalMs: INTERVAL_MS });
 
   // Chạy ngay lần đầu khi server khởi động
   expireTrainerSubscriptions();

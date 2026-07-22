@@ -59,12 +59,14 @@ const coachingDaySchema = new mongoose.Schema(
       default: "pending",
     },
   },
-  { timestamps: true }
+  { timestamps: true, optimisticConcurrency: true }
 );
 
 // ✅ Thiết lập indexes tối ưu truy vấn
 coachingDaySchema.index({ userId: 1, dateString: 1 }, { unique: true }); // Duy nhất 1 giáo án mỗi ngày của khách
 coachingDaySchema.index({ trainerId: 1, userId: 1 });
 coachingDaySchema.index({ date: -1 });
+coachingDaySchema.index({ userId: 1, date: -1 });
+coachingDaySchema.index({ trainerId: 1, userId: 1, date: -1 });
 
 export default mongoose.model("CoachingDay", coachingDaySchema);

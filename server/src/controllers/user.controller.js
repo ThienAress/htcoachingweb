@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import Checkin from "../models/Checkin.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 export const getUsers = async (req, res) => {
   try {
@@ -34,7 +35,7 @@ export const getUsers = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(err);
+    safeLog.error("user.list_failed", err);
     res.status(500).json({ success: false, message: "Lỗi server" });
   }
 };
@@ -71,7 +72,7 @@ export const deleteUser = async (req, res) => {
       message: "Xóa người dùng và dữ liệu liên quan thành công",
     });
   } catch (err) {
-    console.error("DELETE USER ERROR:", err);
+    safeLog.error("user.delete_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

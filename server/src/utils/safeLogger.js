@@ -1,72 +1,116 @@
-/**
- * Safe Logger — Log errors mà không leak PII trong production.
- *
- * Trong production: chỉ log error message + stack trace (không log request body/params).
- * Trong dev: log đầy đủ để debug.
- *
- * Sử dụng: import { safeLog } from "../utils/safeLogger.js";
- *          safeLog.error("LABEL", err);
- */
+import { getRequestContext } from "./requestContext.js";
 
-const isProd = process.env.NODE_ENV === "production";
-
-// Danh sách fields PII không bao giờ được log
-const PII_FIELDS = new Set([
+const REDACTED_FIELDS = new Set([
   "password",
-  "newPassword",
-  "currentPassword",
-  "signatureImage",
-  "refreshToken",
-  "accessToken",
-  "csrfToken",
+  "newpassword",
+  "currentpassword",
+  "signatureimage",
+  "refreshtoken",
+  "accesstoken",
+  "csrftoken",
+  "authorization",
+  "cookie",
   "phone",
   "cccd",
-  "idNumber",
+  "idnumber",
+  "email",
+  "address",
+  "clientname",
+  "recipient",
+  "to",
+  "oauthstate",
+  "prompt",
+  "messagecontent",
+  "messages",
+  "healthscreening",
+  "intake",
+  "assessment",
+  "signedurl",
+  "storagekey",
+  "publicid",
 ]);
 
-/**
- * Sanitize object: loại bỏ PII fields trước khi log.
- */
-const sanitizeForLog = (obj) => {
-  if (!obj || typeof obj !== "object") return obj;
+const sanitizeString = (value) => {
+  const redacted = value
+    .replace(
+      /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
+      "[REDACTED_EMAIL]",
+    )
+    .replace(/\b(?:\+?84|0)\d{9,10}\b/g, "[REDACTED_PHONE]")
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [REDACTED]")
+    .replace(
+      /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+      "[REDACTED_JWT]",
+    )
+    .replace(/(https?:\/\/[^\s?]+)\?[^\s]*/gi, "$1?[REDACTED_QUERY]");
+  return redacted.length > 1000
+    ? `${redacted.slice(0, 1000)}...[truncated]`
+    : redacted;
+};
+
+const sanitizeForLog = (value, seen = new WeakSet()) => {
+  if (value === null || value === undefined) return value;
+  if (typeof value !== "object") {
+    return typeof value === "string" ? sanitizeString(value) : value;
+  }
+  if (seen.has(value)) return "[Circular]";
+  seen.add(value);
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map((item) => sanitizeForLog(item, seen));
+  }
 
   const sanitized = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (PII_FIELDS.has(key)) {
-      sanitized[key] = "[REDACTED]";
-    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      sanitized[key] = sanitizeForLog(value);
-    } else {
-      sanitized[key] = value;
-    }
+  for (const [key, child] of Object.entries(value)) {
+    sanitized[key] = REDACTED_FIELDS.has(key.toLowerCase())
+      ? "[REDACTED]"
+      : sanitizeForLog(child, seen);
   }
   return sanitized;
 };
 
+const write = (level, event, details = {}) => {
+  const context = getRequestContext();
+  const entry = {
+    timestamp: new Date().toISOString(),
+    level,
+    service: "htcoaching-api",
+    event,
+    ...(context.requestId ? { requestId: context.requestId } : {}),
+    ...(context.traceId ? { traceId: context.traceId } : {}),
+    ...sanitizeForLog(details),
+  };
+  const line = JSON.stringify(entry);
+  if (level === "error") console.error(line);
+  else if (level === "warn") console.warn(line);
+  else console.log(line);
+};
+
 export const safeLog = {
-  error(label, error, context = null) {
-    if (isProd) {
-      // Production: chỉ log message + tên error, không log full object
-      console.error(`[ERROR] ${label}:`, error?.message || error);
-    } else {
-      // Dev: log đầy đủ để debug
-      console.error(`[ERROR] ${label}:`, error);
-      if (context) {
-        console.error(`[CONTEXT]`, sanitizeForLog(context));
-      }
-    }
+  info(event, details = {}) {
+    write("info", event, details);
   },
 
-  warn(label, message) {
-    console.warn(`[WARN] ${label}:`, message);
+  error(event, error, context = null) {
+    write("error", event, {
+      errorName: error?.name || "Error",
+      errorMessage: error?.message || String(error),
+      ...(process.env.NODE_ENV !== "production" && error?.stack
+        ? { stack: error.stack }
+        : {}),
+      ...(context ? { context } : {}),
+    });
   },
 
-  /**
-   * Log security events (login failures, CSRF failures, etc.)
-   * Luôn log ở mọi môi trường — nhưng KHÔNG log PII.
-   */
+  warn(event, message, context = null) {
+    write("warn", event, {
+      message,
+      ...(context ? { context } : {}),
+    });
+  },
+
   security(event, details = {}) {
-    const safeDetails = sanitizeForLog(details);
-    console.warn(`[SECURITY] ${event}:`, JSON.stringify(safeDetails));
+    write("warn", `security.${event}`, details);
   },
 };
+
+export { sanitizeForLog };

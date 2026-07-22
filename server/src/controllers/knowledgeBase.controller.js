@@ -1,7 +1,21 @@
-// Knowledge Base Controller — CRUD + Search + Stats
-import KnowledgeEntry from "../models/KnowledgeEntry.js";
+import Ajv from "ajv";
+import mongoose from "mongoose";
+
 import ChatConversation from "../models/ChatConversation.js";
-import { generateEmbedding, searchKnowledgeBase } from "../services/ai/embedding.service.js";
+import KnowledgeEntry from "../models/KnowledgeEntry.js";
+import {
+  EMBEDDING_VERSION,
+  generateEmbedding,
+  searchKnowledgeBase,
+} from "../services/ai/embedding.service.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
+import { trackDbQuery } from "../observability/queryTelemetry.js";
+import { safeLog } from "../utils/safeLogger.js";
+import {
+  KNOWLEDGE_CATEGORIES,
+  normalizeKnowledgeQuestion,
+  parseKnowledgeEntryPayload,
+} from "../utils/knowledgeBase.js";
 
 const CATEGORY_LABELS = {
   service: "Dịch vụ",
@@ -16,620 +30,717 @@ const CATEGORY_LABELS = {
   general: "Chung",
 };
 
-// GET /api/knowledge-base — Danh sách entries (paginated)
+const suggestionValidator = new Ajv({ allErrors: true }).compile({
+  type: "array",
+  maxItems: 10,
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["index", "score", "category", "reason"],
+    properties: {
+      index: { type: "integer", minimum: 0, maximum: 29 },
+      score: { type: "integer", minimum: 1, maximum: 10 },
+      category: { type: "string", enum: KNOWLEDGE_CATEGORIES },
+      reason: { type: "string", minLength: 1, maxLength: 300 },
+    },
+  },
+});
+
+const validId = (value) => mongoose.isValidObjectId(value);
+const clampInteger = (value, fallback, min, max) => {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) ? Math.min(Math.max(parsed, min), max) : fallback;
+};
+const publicEntry = (entry) => {
+  const result = entry?.toObject ? entry.toObject() : { ...entry };
+  delete result.embedding;
+  delete result.variants;
+  delete result.normalizedQuestion;
+  delete result.embeddingError;
+  return result;
+};
+const embeddingFailure = (error) =>
+  String(error?.message || "Embedding generation failed").slice(0, 500);
+
+async function generateEntryEmbeddings(question, variantTexts) {
+  const embedding = await generateEmbedding(question);
+  const variants = [];
+  for (const text of variantTexts) {
+    variants.push({ text, embedding: await generateEmbedding(text) });
+  }
+  return { embedding, variants };
+}
+
+async function createKnowledgeRecord({ payload, userId, source }) {
+  const normalizedQuestion = normalizeKnowledgeQuestion(payload.question);
+  const exactDuplicate = await KnowledgeEntry.findOne({ normalizedQuestion })
+    .select("question answer category variantCount")
+    .lean();
+  if (exactDuplicate) return { exactDuplicate };
+
+  const variantTexts = payload.variants || [];
+  let vectorData;
+  let vectorError = null;
+  try {
+    vectorData = await generateEntryEmbeddings(payload.question, variantTexts);
+  } catch (error) {
+    vectorError = embeddingFailure(error);
+    vectorData = {
+      embedding: [],
+      variants: variantTexts.map((text) => ({ text, embedding: [] })),
+    };
+  }
+
+  if (!payload.skipDuplicateCheck && !vectorError) {
+    const similar = await searchKnowledgeBase(payload.question, {
+      limit: 3,
+      threshold: 0.8,
+    });
+    if (similar.length > 0) return { similar };
+  }
+
+  const embeddingStatus = vectorError ? "failed" : "ready";
+  const desiredStatus = payload.status || "draft";
+  const entry = await KnowledgeEntry.create({
+    question: payload.question,
+    normalizedQuestion,
+    answer: payload.answer,
+    category: payload.category || "general",
+    tags: payload.tags || [],
+    status:
+      desiredStatus === "published" && embeddingStatus !== "ready"
+        ? "draft"
+        : desiredStatus,
+    ...vectorData,
+    variantCount: vectorData.variants.length,
+    embeddingStatus,
+    embeddingVersion: EMBEDDING_VERSION,
+    embeddingError: vectorError,
+    embeddingUpdatedAt: vectorError ? null : new Date(),
+    source,
+    createdBy: userId,
+  });
+  return { entry, vectorError };
+}
+
+const duplicateResponse = (res, result, payload) => {
+  if (result.exactDuplicate) {
+    return res.status(409).json({
+      success: false,
+      code: "KNOWLEDGE_DUPLICATE",
+      message: "Câu hỏi này đã tồn tại trong Knowledge Base",
+      duplicate: publicEntry(result.exactDuplicate),
+    });
+  }
+  if (result.similar) {
+    return res.status(200).json({
+      success: true,
+      duplicate: true,
+      message: `Tìm thấy ${result.similar.length} entry tương tự`,
+      similar: result.similar.map((entry) => ({
+        _id: entry._id,
+        question: entry.question,
+        answer: `${entry.answer?.slice(0, 200) || ""}${entry.answer?.length > 200 ? "..." : ""}`,
+        category: entry.category,
+        similarity: Math.round(entry.similarity * 100),
+        variantCount: entry.variantCount || 0,
+      })),
+      pendingData: {
+        question: payload.question,
+        answer: payload.answer,
+        category: payload.category,
+        tags: payload.tags,
+        variants: payload.variants,
+        status: payload.status,
+      },
+    });
+  }
+  return null;
+};
+
 export const getEntries = async (req, res) => {
   try {
-    const { page = 1, limit = 20, category, status, search } = req.query;
+    const page = clampInteger(req.query.page, 1, 1, 100000);
+    const limit = clampInteger(req.query.limit, 20, 1, 100);
     const filter = {};
-
-    if (category) filter.category = category;
-    if (status) filter.status = status;
+    if (req.query.category) {
+      if (!KNOWLEDGE_CATEGORIES.includes(req.query.category)) {
+        return res.status(400).json({ success: false, message: "Danh mục không hợp lệ" });
+      }
+      filter.category = req.query.category;
+    }
+    if (req.query.status) {
+      if (!["draft", "published", "archived"].includes(req.query.status)) {
+        return res.status(400).json({ success: false, message: "Trạng thái không hợp lệ" });
+      }
+      filter.status = req.query.status;
+    }
+    const search = String(req.query.search || "").trim().slice(0, 100);
     if (search) {
-      filter.$or = [
-        { question: { $regex: search, $options: "i" } },
-        { answer: { $regex: search, $options: "i" } },
-        { tags: { $regex: search, $options: "i" } },
-      ];
+      const regex = new RegExp(escapeRegex(search), "i");
+      filter.$or = [{ question: regex }, { answer: regex }, { tags: regex }];
     }
 
-    const skip = (Number(page) - 1) * Number(limit);
-    const [entries, total] = await Promise.all([
-      KnowledgeEntry.find(filter)
-        .select("+variants")
-        .sort({ usageCount: -1, updatedAt: -1 })
-        .skip(skip)
-        .limit(Number(limit))
-        .populate("createdBy", "name")
-        .lean(),
-      KnowledgeEntry.countDocuments(filter),
-    ]);
-
-    const enrichedEntries = entries.map((e) => {
-      const variantCount = e.variants?.length || 0;
-      delete e.variants; // Tránh gửi vector embedding nặng về client
-      return {
-        ...e,
-        variantCount,
-      };
-    });
-
-    res.json({
+    const [entries, total] = await trackDbQuery("knowledge.admin.list", () =>
+      Promise.all([
+        KnowledgeEntry.find(filter)
+          .sort({ usageCount: -1, updatedAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .populate("createdBy", "name")
+          .lean(),
+        KnowledgeEntry.countDocuments(filter),
+      ]),
+    );
+    return res.json({
       success: true,
-      data: enrichedEntries,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        totalPages: Math.ceil(total / Number(limit)),
-      },
+      data: entries,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  } catch {
+    return res.status(500).json({ success: false, message: "Không thể tải Knowledge Base" });
   }
 };
 
-// POST /api/knowledge-base — Tạo entry mới (có detect duplicate)
 export const createEntry = async (req, res) => {
+  const parsed = parseKnowledgeEntryPayload(req.body);
+  if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
   try {
-    const { question, answer, category, tags, status, skipDuplicateCheck, variants } = req.body;
-
-    if (!question?.trim() || !answer?.trim()) {
-      return res.status(400).json({ success: false, message: "Câu hỏi và câu trả lời không được để trống" });
-    }
-
-    // Tạo embedding từ câu hỏi
-    let embedding = [];
-    try {
-      embedding = await generateEmbedding(question);
-    } catch (err) {
-      console.error("Embedding generation failed:", err.message);
-    }
-
-    // Tạo variants với embedding
-    let parsedVariants = [];
-    if (variants && Array.isArray(variants)) {
-      for (const vText of variants) {
-        if (vText && vText.trim()) {
-          let vEmbedding = [];
-          try {
-            vEmbedding = await generateEmbedding(vText.trim());
-          } catch (err) {
-            console.error(`Embedding variant failed: ${vText}`, err.message);
-          }
-          parsedVariants.push({ text: vText.trim(), embedding: vEmbedding });
-        }
-      }
-    }
-
-    // Detect duplicate — check similarity với entries hiện có (threshold 0.80)
-    if (!skipDuplicateCheck && embedding.length > 0) {
-      const similar = await searchKnowledgeBase(question, { limit: 3, threshold: 0.80 });
-      if (similar.length > 0) {
-        return res.status(200).json({
-          success: true,
-          duplicate: true,
-          message: `Tìm thấy ${similar.length} entry tương tự`,
-          similar: similar.map((s) => ({
-            _id: s._id,
-            question: s.question,
-            answer: s.answer?.slice(0, 200) + (s.answer?.length > 200 ? "..." : ""),
-            category: s.category,
-            similarity: Math.round(s.similarity * 100),
-            variantCount: s.variantCount || 0,
-          })),
-          pendingData: { question: question.trim(), answer: answer.trim(), category, tags, embedding, variants },
-        });
-      }
-    }
-
-    const entry = await KnowledgeEntry.create({
-      question: question.trim(),
-      answer: answer.trim(),
-      category: category || "general",
-      tags: tags || [],
-      embedding,
-      variants: parsedVariants,
-      status: status || "published",
-      createdBy: req.user.id,
+    const result = await createKnowledgeRecord({ payload: parsed.value, userId: req.user.id });
+    const duplicate = duplicateResponse(res, result, parsed.value);
+    if (duplicate) return duplicate;
+    return res.status(201).json({
+      success: true,
+      data: publicEntry(result.entry),
+      ...(result.vectorError && { warning: "Entry đã lưu ở draft vì chưa tạo được embedding" }),
     });
-
-    res.status(201).json({ success: true, data: entry });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  } catch (error) {
+    if (error?.code === 11000) return res.status(409).json({ success: false, message: "Câu hỏi này đã tồn tại" });
+    return res.status(500).json({ success: false, message: "Không thể tạo knowledge entry" });
   }
 };
 
-// PUT /api/knowledge-base/:id — Sửa entry
 export const updateEntry = async (req, res) => {
+  if (!validId(req.params.id)) {
+    return res.status(400).json({ success: false, message: "Mã entry không hợp lệ" });
+  }
+  const parsed = parseKnowledgeEntryPayload(req.body, { partial: true });
+  if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
+  const payload = parsed.value;
+  delete payload.skipDuplicateCheck;
+  if (!Object.keys(payload).length) {
+    return res.status(400).json({ success: false, message: "Không có dữ liệu để cập nhật" });
+  }
+
   try {
-    const { question, answer, category, tags, status, variants } = req.body;
-    const entry = await KnowledgeEntry.findById(req.params.id).select("+variants");
+    const entry = await KnowledgeEntry.findById(req.params.id).select(
+      "+embedding +variants +embeddingError +normalizedQuestion",
+    );
+    if (!entry) return res.status(404).json({ success: false, message: "Không tìm thấy knowledge entry" });
 
-    if (!entry) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy knowledge entry" });
+    const nextQuestion = payload.question || entry.question;
+    const nextNormalized = normalizeKnowledgeQuestion(nextQuestion);
+    const nextVariants = payload.variants || (entry.variants || []).map((item) => item.text);
+    const embeddingChanged =
+      nextNormalized !== entry.normalizedQuestion || payload.variants !== undefined;
+    if (nextNormalized !== entry.normalizedQuestion) {
+      const duplicate = await KnowledgeEntry.exists({
+        _id: { $ne: entry._id },
+        normalizedQuestion: nextNormalized,
+      });
+      if (duplicate) return res.status(409).json({ success: false, message: "Câu hỏi này đã tồn tại" });
     }
 
-    // Nếu question thay đổi → regenerate embedding
-    const questionChanged = question && question.trim() !== entry.question;
-
-    if (question) entry.question = question.trim();
-    if (answer) entry.answer = answer.trim();
-    if (category) entry.category = category;
-    if (tags !== undefined) entry.tags = tags;
-    if (status) entry.status = status;
-
-    if (questionChanged) {
-      try {
-        entry.embedding = await generateEmbedding(entry.question);
-      } catch (err) {
-        console.error("Re-embedding failed:", err.message);
+    for (const key of ["question", "answer", "category", "tags"]) {
+      if (payload[key] !== undefined) entry[key] = payload[key];
+    }
+    const desiredStatus = payload.status || entry.status;
+    if (!embeddingChanged) {
+      if (desiredStatus === "published" && entry.embeddingStatus !== "ready") {
+        return res.status(409).json({ success: false, message: "Hãy tạo embedding thành công trước khi publish" });
       }
+      entry.status = desiredStatus;
+      await entry.save();
+      return res.json({ success: true, data: publicEntry(entry) });
     }
 
-    // Cập nhật variants
-    if (variants !== undefined && Array.isArray(variants)) {
-      const existingVariants = entry.variants || [];
-      let newVariants = [];
-      for (const vText of variants) {
-        const trimmedText = vText?.trim();
-        if (!trimmedText) continue;
-
-        const matched = existingVariants.find((ev) => ev.text === trimmedText);
-        if (matched) {
-          newVariants.push({ text: trimmedText, embedding: matched.embedding });
-        } else {
-          let vEmbedding = [];
-          try {
-            vEmbedding = await generateEmbedding(trimmedText);
-          } catch (err) {
-            console.error(`Re-embedding variant failed: ${trimmedText}`, err.message);
-          }
-          newVariants.push({ text: trimmedText, embedding: vEmbedding });
-        }
-      }
-      entry.variants = newVariants;
-    }
-
+    entry.status = "draft";
+    entry.embeddingStatus = "pending";
+    entry.embeddingError = null;
+    entry.embedding = [];
+    entry.variants = nextVariants.map((text) => ({ text, embedding: [] }));
+    entry.embeddingVersion = EMBEDDING_VERSION;
     await entry.save();
-    res.json({ success: true, data: entry });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
 
-// DELETE /api/knowledge-base/:id — Xóa entry
-export const deleteEntry = async (req, res) => {
-  try {
-    const result = await KnowledgeEntry.deleteOne({ _id: req.params.id });
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy knowledge entry" });
-    }
-    res.json({ success: true, message: "Đã xóa knowledge entry" });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
-// POST /api/knowledge-base/from-conversation — Tạo entry từ conversation Q&A
-export const createFromConversation = async (req, res) => {
-  try {
-    const { conversationId, questionIndex, answerIndex, question, answer, category, tags } = req.body;
-
-    if (!question?.trim() || !answer?.trim()) {
-      return res.status(400).json({ success: false, message: "Câu hỏi và câu trả lời không được để trống" });
-    }
-
-    let embedding = [];
     try {
-      embedding = await generateEmbedding(question);
-    } catch (err) {
-      console.error("Embedding generation failed:", err.message);
+      const vectorData = await generateEntryEmbeddings(nextQuestion, nextVariants);
+      entry.embedding = vectorData.embedding;
+      entry.variants = vectorData.variants;
+      entry.embeddingStatus = "ready";
+      entry.embeddingError = null;
+      entry.embeddingUpdatedAt = new Date();
+      entry.status = desiredStatus;
+    } catch (error) {
+      entry.embedding = [];
+      entry.variants = nextVariants.map((text) => ({ text, embedding: [] }));
+      entry.embeddingStatus = "failed";
+      entry.embeddingError = embeddingFailure(error);
+      entry.embeddingUpdatedAt = null;
+      entry.status = "draft";
     }
-
-    const entry = await KnowledgeEntry.create({
-      question: question.trim(),
-      answer: answer.trim(),
-      category: category || "general",
-      tags: tags || [],
-      embedding,
-      source: {
-        conversationId: conversationId || null,
-        messageIndex: questionIndex ?? null,
-      },
-      status: "published",
-      createdBy: req.user.id,
+    await entry.save();
+    return res.json({
+      success: true,
+      data: publicEntry(entry),
+      ...(entry.embeddingStatus === "failed" && {
+        warning: "Entry đã chuyển về draft vì chưa tạo được embedding",
+      }),
     });
-
-    res.status(201).json({ success: true, data: entry });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  } catch (error) {
+    if (error?.code === 11000) return res.status(409).json({ success: false, message: "Câu hỏi này đã tồn tại" });
+    if (error?.name === "VersionError") return res.status(409).json({ success: false, message: "Entry vừa được cập nhật ở nơi khác, hãy tải lại" });
+    return res.status(500).json({ success: false, message: "Không thể cập nhật knowledge entry" });
   }
 };
 
-// GET /api/knowledge-base/search — Test search (admin debug)
+export const deleteEntry = async (req, res) => {
+  if (!validId(req.params.id)) return res.status(400).json({ success: false, message: "Mã entry không hợp lệ" });
+  const result = await KnowledgeEntry.deleteOne({ _id: req.params.id });
+  if (!result.deletedCount) return res.status(404).json({ success: false, message: "Không tìm thấy knowledge entry" });
+  return res.json({ success: true, message: "Đã xóa knowledge entry" });
+};
+
+export const createFromConversation = async (req, res) => {
+  const { conversationId, questionIndex, answerIndex } = req.body || {};
+  if (!validId(conversationId) || !Number.isInteger(questionIndex) || !Number.isInteger(answerIndex)) {
+    return res.status(400).json({ success: false, message: "Nguồn conversation không hợp lệ" });
+  }
+  const conversation = await ChatConversation.findById(conversationId).select("messages").lean();
+  if (!conversation) return res.status(404).json({ success: false, message: "Không tìm thấy conversation nguồn" });
+  const sourceQuestion = conversation.messages[questionIndex];
+  const sourceAnswer = conversation.messages[answerIndex];
+  if (sourceQuestion?.role !== "user" || sourceAnswer?.role !== "assistant") {
+    return res.status(400).json({ success: false, message: "Cặp Q&A nguồn không hợp lệ" });
+  }
+
+  const parsed = parseKnowledgeEntryPayload({
+    question: req.body.question || sourceQuestion.content,
+    answer: req.body.answer || sourceAnswer.content,
+    category: req.body.category,
+    tags: req.body.tags,
+    status: req.body.status || "draft",
+    variants: req.body.variants,
+    skipDuplicateCheck: req.body.skipDuplicateCheck,
+  });
+  if (parsed.error) return res.status(400).json({ success: false, message: parsed.error });
+  try {
+    const result = await createKnowledgeRecord({
+      payload: parsed.value,
+      userId: req.user.id,
+      source: { conversationId, messageIndex: questionIndex },
+    });
+    const duplicate = duplicateResponse(res, result, parsed.value);
+    if (duplicate) return duplicate;
+    return res.status(201).json({
+      success: true,
+      data: publicEntry(result.entry),
+      ...(result.vectorError && { warning: "Entry đã lưu ở draft vì chưa tạo được embedding" }),
+    });
+  } catch (error) {
+    if (error?.code === 11000) return res.status(409).json({ success: false, message: "Câu hỏi này đã tồn tại" });
+    return res.status(500).json({ success: false, message: "Không thể tạo entry từ conversation" });
+  }
+};
+
 export const searchEntries = async (req, res) => {
-  try {
-    const { q, limit = 5, threshold = 0.7 } = req.query;
-
-    if (!q?.trim()) {
-      return res.status(400).json({ success: false, message: "Query không được để trống" });
-    }
-
-    const results = await searchKnowledgeBase(q, {
-      limit: Number(limit),
-      threshold: Number(threshold),
-    });
-
-    res.json({ success: true, data: results });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  const query = String(req.query.q || "").trim();
+  if (!query || query.length > 500) return res.status(400).json({ success: false, message: "Query không hợp lệ" });
+  const limit = clampInteger(req.query.limit, 5, 1, 10);
+  const threshold = Number(req.query.threshold ?? 0.7);
+  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+    return res.status(400).json({ success: false, message: "Threshold không hợp lệ" });
   }
+  const results = await searchKnowledgeBase(query, { limit, threshold });
+  return res.json({ success: true, data: results });
 };
 
-// GET /api/knowledge-base/stats — Thống kê
-export const getStats = async (req, res) => {
+export const getStats = async (_req, res) => {
   try {
-    const [total, byCategory, byStatus, topUsed] = await Promise.all([
+    const [total, byCategory, byStatus, byEmbeddingStatus, topUsed] = await Promise.all([
       KnowledgeEntry.countDocuments(),
-      KnowledgeEntry.aggregate([
-        { $group: { _id: "$category", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-      ]),
-      KnowledgeEntry.aggregate([
-        { $group: { _id: "$status", count: { $sum: 1 } } },
-      ]),
+      KnowledgeEntry.aggregate([{ $group: { _id: "$category", count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
+      KnowledgeEntry.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]),
+      KnowledgeEntry.aggregate([{ $group: { _id: "$embeddingStatus", count: { $sum: 1 } } }]),
       KnowledgeEntry.find({ usageCount: { $gt: 0 } })
         .sort({ usageCount: -1 })
         .limit(10)
         .select("question category usageCount lastUsedAt")
         .lean(),
     ]);
-
-    res.json({
+    return res.json({
       success: true,
       data: {
         total,
-        byCategory: byCategory.map((c) => ({
-          category: c._id,
-          label: CATEGORY_LABELS[c._id] || c._id,
-          count: c.count,
+        byCategory: byCategory.map((item) => ({
+          category: item._id,
+          label: CATEGORY_LABELS[item._id] || item._id,
+          count: item.count,
         })),
         byStatus,
+        byEmbeddingStatus,
         topUsed,
       },
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  } catch {
+    return res.status(500).json({ success: false, message: "Không thể tải thống kê" });
   }
 };
 
-// POST /api/knowledge-base/:id/regenerate-embedding — Regenerate embedding
 export const regenerateEmbedding = async (req, res) => {
+  if (!validId(req.params.id)) return res.status(400).json({ success: false, message: "Mã entry không hợp lệ" });
+  const entry = await KnowledgeEntry.findById(req.params.id).select(
+    "+embedding +variants +embeddingError",
+  );
+  if (!entry) return res.status(404).json({ success: false, message: "Không tìm thấy knowledge entry" });
+  const desiredStatus = entry.status;
+  const variantTexts = (entry.variants || []).map((variant) => variant.text);
+  entry.status = "draft";
+  entry.embeddingStatus = "pending";
+  entry.embeddingError = null;
+  await entry.save();
+
   try {
-    const entry = await KnowledgeEntry.findById(req.params.id).select("+embedding");
-    if (!entry) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy knowledge entry" });
-    }
-
-    entry.embedding = await generateEmbedding(entry.question);
+    const vectorData = await generateEntryEmbeddings(entry.question, variantTexts);
+    entry.embedding = vectorData.embedding;
+    entry.variants = vectorData.variants;
+    entry.embeddingStatus = "ready";
+    entry.embeddingVersion = EMBEDDING_VERSION;
+    entry.embeddingUpdatedAt = new Date();
+    entry.status = desiredStatus;
     await entry.save();
-
-    res.json({ success: true, message: "Đã tạo lại embedding" });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return res.json({ success: true, message: "Đã tạo lại embedding", data: publicEntry(entry) });
+  } catch (error) {
+    entry.embedding = [];
+    entry.variants = variantTexts.map((text) => ({ text, embedding: [] }));
+    entry.embeddingStatus = "failed";
+    entry.embeddingError = embeddingFailure(error);
+    entry.embeddingUpdatedAt = null;
+    entry.status = "draft";
+    await entry.save();
+    return res.status(503).json({
+      success: false,
+      message: "Không thể tạo embedding; entry đã được giữ ở draft",
+    });
   }
 };
 
-// POST /api/knowledge-base/:id/merge — Merge câu hỏi mới làm variant của entry gốc
 export const mergeVariant = async (req, res) => {
-  try {
-    const { question, embedding } = req.body;
-    if (!question?.trim()) {
-      return res.status(400).json({ success: false, message: "Câu hỏi variant không được để trống" });
-    }
-
-    const entry = await KnowledgeEntry.findById(req.params.id).select("+variants");
-    if (!entry) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy entry gốc" });
-    }
-
-    // Tạo embedding cho variant nếu chưa có
-    let variantEmbedding = embedding || [];
-    if (variantEmbedding.length === 0) {
-      try {
-        variantEmbedding = await generateEmbedding(question);
-      } catch (err) {
-        console.error("Variant embedding failed:", err.message);
-      }
-    }
-
-    entry.variants.push({ text: question.trim(), embedding: variantEmbedding });
-    await entry.save();
-
-    res.json({
-      success: true,
-      message: `Đã merge "${question.trim().slice(0, 50)}..." vào entry gốc`,
-      variantCount: entry.variants.length,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  if (!validId(req.params.id)) return res.status(400).json({ success: false, message: "Mã entry không hợp lệ" });
+  if (!req.body || Object.keys(req.body).some((key) => key !== "question")) {
+    return res.status(400).json({ success: false, message: "Chỉ chấp nhận nội dung câu hỏi variant" });
   }
+  const question = typeof req.body.question === "string" ? req.body.question.trim() : "";
+  if (!question || question.length > 500) {
+    return res.status(400).json({ success: false, message: "Câu hỏi variant không hợp lệ" });
+  }
+
+  const entry = await KnowledgeEntry.findById(req.params.id).select(
+    "+embedding +variants +embeddingError",
+  );
+  if (!entry) return res.status(404).json({ success: false, message: "Không tìm thấy entry gốc" });
+  const normalized = normalizeKnowledgeQuestion(question);
+  const alreadyExists =
+    normalizeKnowledgeQuestion(entry.question) === normalized ||
+    (entry.variants || []).some(
+      (variant) => normalizeKnowledgeQuestion(variant.text) === normalized,
+    );
+  if (alreadyExists) return res.status(409).json({ success: false, message: "Variant này đã tồn tại" });
+
+  let embedding;
+  try {
+    embedding = await generateEmbedding(question);
+  } catch {
+    return res.status(503).json({ success: false, message: "Không thể tạo embedding cho variant" });
+  }
+  entry.variants.push({ text: question, embedding });
+  await entry.save();
+  return res.json({ success: true, message: "Đã merge variant", variantCount: entry.variantCount });
 };
 
-// GET /api/knowledge-base/:id/variants — Xem variants của 1 entry
 export const getVariants = async (req, res) => {
-  try {
-    const entry = await KnowledgeEntry.findById(req.params.id)
-      .select("+variants question category")
-      .lean();
-
-    if (!entry) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy entry" });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        _id: entry._id,
-        question: entry.question,
-        category: entry.category,
-        variants: (entry.variants || []).map((v) => ({
-          _id: v._id,
-          text: v.text,
-          hasEmbedding: v.embedding?.length > 0,
-        })),
-      },
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  if (!validId(req.params.id)) return res.status(400).json({ success: false, message: "Mã entry không hợp lệ" });
+  const entry = await KnowledgeEntry.findById(req.params.id)
+    .select("+variants question category")
+    .lean();
+  if (!entry) return res.status(404).json({ success: false, message: "Không tìm thấy entry" });
+  return res.json({
+    success: true,
+    data: {
+      _id: entry._id,
+      question: entry.question,
+      category: entry.category,
+      variants: (entry.variants || []).map((variant) => ({
+        _id: variant._id,
+        text: variant.text,
+        hasEmbedding: variant.embedding?.length > 0,
+      })),
+    },
+  });
 };
 
-// DELETE /api/knowledge-base/:id/variants/:variantId — Xóa 1 variant
 export const deleteVariant = async (req, res) => {
-  try {
-    const entry = await KnowledgeEntry.findById(req.params.id).select("+variants");
-    if (!entry) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy entry" });
-    }
-
-    entry.variants = entry.variants.filter((v) => v._id.toString() !== req.params.variantId);
-    await entry.save();
-
-    res.json({ success: true, message: "Đã xóa variant" });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  if (!validId(req.params.id) || !validId(req.params.variantId)) {
+    return res.status(400).json({ success: false, message: "Mã variant không hợp lệ" });
   }
+  const entry = await KnowledgeEntry.findById(req.params.id).select(
+    "+embedding +variants +embeddingError",
+  );
+  if (!entry) return res.status(404).json({ success: false, message: "Không tìm thấy entry" });
+  const before = entry.variants.length;
+  entry.variants = entry.variants.filter(
+    (variant) => variant._id.toString() !== req.params.variantId,
+  );
+  if (entry.variants.length === before) {
+    return res.status(404).json({ success: false, message: "Không tìm thấy variant" });
+  }
+  await entry.save();
+  return res.json({ success: true, message: "Đã xóa variant" });
 };
 
-// GET /api/ai/conversations/all — Admin xem TẤT CẢ conversations
 export const getAllConversations = async (req, res) => {
-  try {
-    const { page = 1, limit = 20, search } = req.query;
-    const filter = {};
-
-    if (search) {
-      filter.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { "messages.content": { $regex: search, $options: "i" } },
-      ];
-    }
-
-    const skip = (Number(page) - 1) * Number(limit);
-    const [conversations, total] = await Promise.all([
-      ChatConversation.find(filter)
-        .sort({ updatedAt: -1 })
-        .skip(skip)
-        .limit(Number(limit))
-        .populate("userId", "name email")
-        .select("_id title userId updatedAt messages tokenUsage")
-        .lean(),
-      ChatConversation.countDocuments(filter),
-    ]);
-
-    // Trả summary thay vì full messages
-    const list = conversations.map((c) => {
-      const userMessages = c.messages.filter((m) => m.role === "user");
-      const assistantMessages = c.messages.filter((m) => m.role === "assistant");
-      return {
-        _id: c._id,
-        title: c.title || "Cuộc trò chuyện",
-        user: c.userId,
-        updatedAt: c.updatedAt,
-        messageCount: userMessages.length + assistantMessages.length,
-        preview: userMessages[0]?.content?.slice(0, 100) || "",
-        tokenUsage: c.tokenUsage,
-      };
-    });
-
-    res.json({
-      success: true,
-      data: list,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        totalPages: Math.ceil(total / Number(limit)),
-      },
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+  const page = clampInteger(req.query.page, 1, 1, 100000);
+  const limit = clampInteger(req.query.limit, 20, 1, 100);
+  const filter = {};
+  const search = String(req.query.search || "").trim().slice(0, 100);
+  if (search) {
+    const regex = new RegExp(escapeRegex(search), "i");
+    filter.$or = [{ title: regex }, { lastMessagePreview: regex }];
   }
+  const [conversations, total] = await Promise.all([
+    ChatConversation.find(filter)
+      .sort({ updatedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate("userId", "name email")
+      .select("_id title userId updatedAt messageCount lastMessagePreview tokenUsage")
+      .lean(),
+    ChatConversation.countDocuments(filter),
+  ]);
+  return res.json({
+    success: true,
+    data: conversations.map((item) => ({
+      _id: item._id,
+      title: item.title || "Cuộc trò chuyện",
+      user: item.userId,
+      updatedAt: item.updatedAt,
+      messageCount: item.messageCount || 0,
+      preview: item.lastMessagePreview || "",
+      tokenUsage: item.tokenUsage,
+    })),
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  });
 };
 
-// GET /api/ai/conversations/:id/full — Admin xem full conversation
 export const getFullConversation = async (req, res) => {
-  try {
-    const conversation = await ChatConversation.findById(req.params.id)
-      .populate("userId", "name email")
-      .lean();
+  if (!validId(req.params.id)) return res.status(400).json({ success: false, message: "Mã conversation không hợp lệ" });
+  const conversation = await ChatConversation.findById(req.params.id)
+    .populate("userId", "name email")
+    .lean();
+  if (!conversation) return res.status(404).json({ success: false, message: "Không tìm thấy cuộc trò chuyện" });
 
-    if (!conversation) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy cuộc trò chuyện" });
-    }
-
-    // Nhóm messages thành Q&A pairs
-    const qaPairs = [];
-    const msgs = conversation.messages;
-    for (let i = 0; i < msgs.length; i++) {
-      if (msgs[i].role === "user") {
-        // Tìm assistant response kế tiếp (bỏ qua tool messages)
-        let answerMsg = null;
-        for (let j = i + 1; j < msgs.length; j++) {
-          if (msgs[j].role === "assistant" && msgs[j].content) {
-            answerMsg = msgs[j];
-            break;
-          }
-          if (msgs[j].role === "user") break; // User mới hỏi tiếp
-        }
-
-        qaPairs.push({
-          questionIndex: i,
-          question: msgs[i].content,
-          answerIndex: answerMsg ? msgs.indexOf(answerMsg) : null,
-          answer: answerMsg?.content || null,
-          timestamp: msgs[i].timestamp,
-        });
+  const qaPairs = [];
+  for (let index = 0; index < conversation.messages.length; index += 1) {
+    const current = conversation.messages[index];
+    if (current.role !== "user") continue;
+    let answerIndex = null;
+    for (let next = index + 1; next < conversation.messages.length; next += 1) {
+      if (conversation.messages[next].role === "user") break;
+      if (
+        conversation.messages[next].role === "assistant" &&
+        conversation.messages[next].content
+      ) {
+        answerIndex = next;
+        break;
       }
     }
-
-    res.json({
-      success: true,
-      data: {
-        ...conversation,
-        qaPairs,
-      },
+    qaPairs.push({
+      questionIndex: index,
+      question: current.content,
+      answerIndex,
+      answer: answerIndex === null ? null : conversation.messages[answerIndex].content,
+      timestamp: current.timestamp,
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
   }
+  return res.json({ success: true, data: { ...conversation, qaPairs } });
 };
 
-// GET /api/knowledge-base/categories — Danh sách categories
-export const getCategories = async (req, res) => {
+export const getCategories = async (_req, res) =>
   res.json({
     success: true,
     data: Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label })),
   });
-};
 
-// POST /api/knowledge-base/ai-suggest — AI tự lọc Q&A hay từ conversations
 export const suggestFromConversations = async (req, res) => {
   try {
-    const { days = 7 } = req.body;
+    const days = clampInteger(req.body?.days, 7, 1, 90);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
-    // Lấy conversations gần đây
-    const conversations = await ChatConversation.find({ updatedAt: { $gte: since } })
+    const conversations = await ChatConversation.find({
+      updatedAt: { $gte: since },
+    })
+      .sort({ updatedAt: -1 })
+      .limit(200)
       .select("messages title")
       .lean();
-
-    if (conversations.length === 0) {
-      return res.json({ success: true, data: [], message: `Không có cuộc trò chuyện nào trong ${days} ngày qua` });
+    if (!conversations.length) {
+      return res.json({
+        success: true,
+        data: [],
+        message: `Không có cuộc trò chuyện nào trong ${days} ngày qua`,
+      });
     }
 
-    // Trích xuất tất cả Q&A pairs
     const allPairs = [];
-    for (const conv of conversations) {
-      const msgs = conv.messages;
-      for (let i = 0; i < msgs.length; i++) {
-        if (msgs[i].role !== "user" || !msgs[i].content?.trim()) continue;
-        // Tìm answer
+    for (const conversation of conversations) {
+      for (let index = 0; index < conversation.messages.length; index += 1) {
+        const question = conversation.messages[index];
+        if (question.role !== "user" || question.content?.trim().length <= 10) continue;
         let answer = null;
-        for (let j = i + 1; j < msgs.length; j++) {
-          if (msgs[j].role === "assistant" && msgs[j].content?.trim()) {
-            answer = msgs[j].content;
+        for (let next = index + 1; next < conversation.messages.length; next += 1) {
+          if (conversation.messages[next].role === "user") break;
+          if (
+            conversation.messages[next].role === "assistant" &&
+            conversation.messages[next].content?.trim()
+          ) {
+            answer = conversation.messages[next];
             break;
           }
-          if (msgs[j].role === "user") break;
         }
-        if (answer && msgs[i].content.length > 10 && answer.length > 30) {
-          allPairs.push({ question: msgs[i].content, answer, convTitle: conv.title });
+        if (answer?.content.length > 30) {
+          allPairs.push({
+            question: question.content.slice(0, 500),
+            answer: answer.content.slice(0, 5000),
+            convTitle: conversation.title,
+          });
         }
       }
     }
 
-    if (allPairs.length === 0) {
-      return res.json({ success: true, data: [], message: "Không tìm thấy Q&A phù hợp" });
+    const existing = await KnowledgeEntry.find({})
+      .select("+normalizedQuestion")
+      .lean();
+    const existingSet = new Set(existing.map((item) => item.normalizedQuestion));
+    const sample = allPairs
+      .filter(
+        (pair) =>
+          !existingSet.has(normalizeKnowledgeQuestion(pair.question)),
+      )
+      .slice(0, 30);
+    if (!sample.length) {
+      return res.json({
+        success: true,
+        data: [],
+        message: "Không tìm thấy Q&A mới phù hợp",
+      });
     }
 
-    // Lọc bỏ những câu đã có trong KB (duplicate check bằng text)
-    const existingQuestions = await KnowledgeEntry.find({}).select("question").lean();
-    const existingSet = new Set(existingQuestions.map((e) => e.question.toLowerCase().trim()));
-    const newPairs = allPairs.filter((p) => !existingSet.has(p.question.toLowerCase().trim()));
-
-    if (newPairs.length === 0) {
-      return res.json({ success: true, data: [], message: "Tất cả Q&A đã có trong KB" });
-    }
-
-    // Gọi LLM chấm điểm (lấy tối đa 30 pairs để tránh prompt quá dài)
-    const sample = newPairs.slice(0, 30);
-    const prompt = `Bạn là chuyên gia đánh giá chất lượng Q&A cho hệ thống Knowledge Base của HTCOACHING (nền tảng huấn luyện thể hình).
-
-Dưới đây là ${sample.length} cặp Q&A từ các cuộc trò chuyện gần đây. Hãy chọn ra TỐI ĐA 10 cặp Q&A CHẤT LƯỢNG NHẤT — là những câu hỏi mà khách hàng khác cũng sẽ hỏi lại, và câu trả lời chính xác, hữu ích.
-
-TIÊU CHÍ CHỌN:
-- Câu hỏi phổ biến, nhiều người quan tâm
-- Câu trả lời chính xác, đầy đủ, hữu ích
-- Liên quan đến: dịch vụ, dinh dưỡng, tập luyện, sức khỏe, HLV
-- KHÔNG chọn: câu chào hỏi, câu quá cá nhân, câu test hệ thống
-
-DANH SÁCH Q&A:
-${sample.map((p, i) => `[${i}] Q: ${p.question.slice(0, 200)}\nA: ${p.answer.slice(0, 300)}`).join("\n\n")}
-
-TRẢ LỜI BẰNG JSON ARRAY, mỗi item gồm:
-- index: số thứ tự [0-${sample.length - 1}]
-- score: điểm 1-10
-- category: một trong [service, nutrition, training, athlete, equipment, supplement, health, hlv, platform, general]
-- reason: lý do ngắn gọn (tiếng Việt)
-
-CHỈ TRẢ JSON, KHÔNG giải thích thêm. VD: [{"index":0,"score":9,"category":"nutrition","reason":"Câu hỏi phổ biến về protein"}]`;
-
-    const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-lite";
     const apiKey = process.env.GEMINI_API_KEY;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-
-    const llmRes = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 2048 },
-      }),
-    });
-
-    if (!llmRes.ok) {
-      return res.status(500).json({ success: false, message: "Lỗi gọi AI để đánh giá" });
+    if (!apiKey) {
+      return res.status(503).json({
+        success: false,
+        message: "AI suggestion chưa được cấu hình",
+      });
+    }
+    const prompt = `Đánh giá các cặp Q&A fitness sau. Chọn tối đa 10 mục dùng chung tốt nhất. Trả JSON array với index, score 1-10, category và reason ngắn. Category chỉ thuộc: ${KNOWLEDGE_CATEGORIES.join(", ")}.\n\n${sample
+      .map(
+        (pair, index) =>
+          `[${index}] Q: ${pair.question.slice(0, 200)}\nA: ${pair.answer.slice(0, 300)}`,
+      )
+      .join("\n\n")}`;
+    const model = process.env.GEMINI_MODEL || "gemini-2.0-flash-lite";
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 2048,
+            responseMimeType: "application/json",
+          },
+        }),
+        signal: AbortSignal.timeout(20000),
+      },
+    );
+    if (!response.ok) {
+      safeLog.warn("kb.ai_suggestion_provider_error", "Provider returned error", {
+        status: response.status,
+      });
+      return res.status(503).json({
+        success: false,
+        message: "AI suggestion tạm thời không khả dụng",
+      });
     }
 
-    const llmData = await llmRes.json();
-    const rawText = llmData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-    // Parse JSON từ response (LLM có thể wrap trong markdown code block)
-    let suggestions = [];
+    const data = await response.json();
+    const raw =
+      data?.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || "")
+        .join("") || "";
+    let suggestions;
     try {
-      const jsonMatch = rawText.match(/\[[\s\S]*\]/);
-      if (jsonMatch) suggestions = JSON.parse(jsonMatch[0]);
+      suggestions = JSON.parse(
+        raw
+          .replace(/^```json\s*/i, "")
+          .replace(/```\s*$/, "")
+          .trim(),
+      );
     } catch {
-      return res.status(500).json({ success: false, message: "AI trả kết quả không hợp lệ" });
+      return res.status(502).json({
+        success: false,
+        message: "AI trả kết quả không hợp lệ",
+      });
+    }
+    if (!suggestionValidator(suggestions)) {
+      return res.status(502).json({
+        success: false,
+        message: "AI trả dữ liệu không đúng schema",
+      });
     }
 
-    // Map lại với Q&A gốc, sắp xếp theo score
+    const usedIndexes = new Set();
     const results = suggestions
-      .filter((s) => s.index >= 0 && s.index < sample.length && s.score >= 6)
-      .sort((a, b) => b.score - a.score)
-      .map((s) => ({
-        question: sample[s.index].question,
-        answer: sample[s.index].answer,
-        category: s.category || "general",
-        score: s.score,
-        reason: s.reason,
-        convTitle: sample[s.index].convTitle,
+      .filter((item) => {
+        if (
+          item.index >= sample.length ||
+          item.score < 6 ||
+          usedIndexes.has(item.index)
+        ) {
+          return false;
+        }
+        usedIndexes.add(item.index);
+        return true;
+      })
+      .sort((left, right) => right.score - left.score)
+      .map((item) => ({
+        question: sample[item.index].question,
+        answer: sample[item.index].answer,
+        category: item.category,
+        score: item.score,
+        reason: item.reason,
+        convTitle: sample[item.index].convTitle,
       }));
-
-    res.json({ success: true, data: results, totalScanned: allPairs.length });
-  } catch (err) {
-    console.error("AI suggest error:", err);
-    res.status(500).json({ success: false, message: err.message });
+    return res.json({
+      success: true,
+      data: results,
+      totalScanned: allPairs.length,
+    });
+  } catch (error) {
+    safeLog.error("kb.ai_suggestion_failed", error);
+    return res.status(500).json({
+      success: false,
+      message: "Không thể tạo AI suggestion",
+    });
   }
 };

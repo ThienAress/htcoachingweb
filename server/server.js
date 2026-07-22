@@ -12,9 +12,12 @@ import express from "express";
 import cors from "cors";
 import passport from "passport";
 import cookieParser from "cookie-parser";
-import helmet from "helmet";
 // import mongoSanitize from "express-mongo-sanitize"; // Không tương thích Express 5
-import morgan from "morgan";
+import { requestTelemetry } from "./src/middlewares/requestTelemetry.js";
+import { createSecurityHeaders } from "./src/middlewares/securityHeaders.js";
+import { rejectUnsafeMongoInput } from "./src/middlewares/requestSanitization.js";
+import { safeLog } from "./src/utils/safeLogger.js";
+import { markRuntimeDraining } from "./src/operations/runtimeState.js";
 
 import connectDB from "./src/config/db.js";
 import "./src/config/passport.js";
@@ -45,6 +48,7 @@ import { startSubscriptionCronJobs } from "./src/services/subscriptionCron.js";
 import { startScheduleReminderCron } from "./src/services/scheduleReminderCron.js";
 import { startContractCronJobs } from "./src/services/contractCron.js";
 import { startCleanupCronJobs } from "./src/services/cleanupCron.js";
+import { startF1LifecycleCron } from "./src/services/f1PrivacyLifecycle.service.js";
 
 import { generateCsrfToken } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
@@ -59,12 +63,15 @@ if (process.env.NODE_ENV !== "production") {
 const app = express();
 const isProd = process.env.NODE_ENV === "production";
 const PORT = process.env.PORT || 5000;
+app.disable("x-powered-by");
+
+app.use(requestTelemetry);
 
 // ================= TRUST PROXY =================
-app.set("trust proxy", 1);
-
-// ================= CONNECT DB =================
-connectDB();
+const trustProxyHops = isProd
+  ? Number(process.env.TRUST_PROXY_HOPS || 1)
+  : false;
+app.set("trust proxy", trustProxyHops);
 
 // ================= CORS =================
 const fallbackOrigins = [
@@ -75,7 +82,14 @@ const fallbackOrigins = [
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
-    : fallbackOrigins
+    : isProd
+      ? []
+      : fallbackOrigins
+).filter(Boolean);
+const previewOrigins = (
+  process.env.PREVIEW_ORIGINS
+    ? process.env.PREVIEW_ORIGINS.split(",").map((origin) => origin.trim())
+    : []
 ).filter(Boolean);
 
 const corsOptions = {
@@ -89,99 +103,39 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // Allow Netlify preview/staging domains dynamically
-    if (origin.startsWith("https://") && origin.endsWith(".netlify.app")) {
+    // Preview deploys: chỉ cho phép origins được khai báo rõ trong env
+    if (previewOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    return callback(new Error(`Not allowed by CORS: ${origin}`));
+    const error = new Error("Origin denied by CORS policy");
+    error.status = 403;
+    error.code = "CORS_ORIGIN_DENIED";
+    return callback(error);
   },
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
-  exposedHeaders: ["X-CSRF-Token"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-CSRF-Token",
+    "X-Request-Id",
+    "Traceparent",
+  ],
+  exposedHeaders: ["X-CSRF-Token", "X-Request-Id", "X-Trace-Id"],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 };
 
 app.use(cors(corsOptions));
 
 // ================= SECURITY =================
-app.use(
-  helmet({
-    crossOriginResourcePolicy: false,
-    // CSP: chỉ cho phép resources từ trusted domains
-    contentSecurityPolicy: isProd
-      ? {
-          directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: [
-              "'self'",
-              "https://www.googletagmanager.com",
-              "https://www.google-analytics.com",
-              "'unsafe-inline'", // cần cho GA4 inline script
-            ],
-            styleSrc: [
-              "'self'",
-              "https://fonts.googleapis.com",
-              "'unsafe-inline'", // Tailwind + inline styles
-            ],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: [
-              "'self'",
-              "data:",
-              "blob:",
-              "https://res.cloudinary.com",
-              "https://www.googletagmanager.com",
-              "https://lh3.googleusercontent.com", // Google OAuth avatars
-              "https://i.pravatar.cc", // Default avatar fallback
-              "https://images.unsplash.com", // Login page background
-              "https://img.vietqr.io", // QR Code nạp tiền
-              "https://placehold.co", // Placeholder images
-            ],
-            mediaSrc: ["'self'", "https://res.cloudinary.com", "blob:"],
-            connectSrc: [
-              "'self'",
-              "https://www.google-analytics.com",
-              "https://www.googletagmanager.com",
-              ...allowedOrigins, // API server
-            ],
-            frameSrc: ["'self'", "https://www.youtube.com"], // YouTube embeds
-            objectSrc: ["'none'"],
-            baseUri: ["'self'"],
-            formAction: ["'self'"],
-            upgradeInsecureRequests: [],
-          },
-        }
-      : false, // Tắt CSP trong dev (React dev server cần nhiều inline)
-  }),
-);
+app.use(...createSecurityHeaders({ isProduction: isProd, allowedOrigins }));
 
 // ================= BODY / COOKIE / PASSPORT =================
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
-// express-mongo-sanitize v2.x không tương thích Express 5 (req.query read-only)
-// Custom sanitize middleware: chỉ sanitize body và params
-const sanitizeMongo = (obj) => {
-  if (!obj || typeof obj !== "object") return obj;
-  const keys = Object.keys(obj);
-  for (const key of keys) {
-    if (key.startsWith("$") || key.includes(".")) {
-      delete obj[key];
-    } else if (typeof obj[key] === "object") {
-      sanitizeMongo(obj[key]);
-    }
-  }
-  return obj;
-};
-app.use((req, res, next) => {
-  if (req.body) sanitizeMongo(req.body);
-  if (req.params) sanitizeMongo(req.params);
-  next();
-});
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+app.use(rejectUnsafeMongoInput);
 app.use(cookieParser());
 app.use(passport.initialize());
-
-// ================= LOGGING =================
-app.use(morgan(isProd ? "combined" : "dev"));
 
 // ================= RATE LIMIT =================
 if (isProd) {
@@ -273,10 +227,27 @@ app.use("/api/knowledge-base", knowledgeBaseRoutes);
 import recipeRoutes from "./src/routes/recipe.routes.js";
 app.use("/api/recipes", recipeRoutes);
 
+import opsRoutes from "./src/routes/ops.routes.js";
+app.use("/api/ops", opsRoutes);
+
 import { protect } from "./src/middlewares/auth.middleware.js";
 app.get("/api/me/wallet", protect, getMyWallet);
 
-app.use("/uploads", express.static(path.resolve("uploads")));
+app.use("/uploads/f1-media", (_req, res) => {
+  res.status(404).json({ success: false, message: "Not found" });
+});
+app.use(
+  "/uploads",
+  express.static(path.resolve(__dirname, "uploads"), {
+    dotfiles: "deny",
+    index: false,
+    fallthrough: true,
+    maxAge: isProd ? "1d" : 0,
+    setHeaders: (res) => {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    },
+  }),
+);
 
 // ================= HEALTH CHECK =================
 app.get("/", (req, res) => {
@@ -286,13 +257,37 @@ app.get("/", (req, res) => {
   });
 });
 
+app.use("/api", (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Not found",
+    requestId: req.id,
+  });
+});
+
 // ================= ERROR HANDLER =================
 app.use(errorHandler);
 
 // ================= START SERVER =================
+try {
+  await connectDB();
+} catch (error) {
+  safeLog.error("server.start_failed", error);
+  process.exit(1);
+}
+
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server chạy tại port ${PORT}`);
-  console.log("🌐 Allowed origins:", allowedOrigins);
+  safeLog.info("server.started", {
+    port: Number(PORT),
+    allowedOriginCount: allowedOrigins.length,
+    previewOriginCount: previewOrigins.length,
+    trustProxyHops: trustProxyHops === false ? 0 : trustProxyHops,
+  });
+
+  if (process.env.BACKGROUND_JOBS_ENABLED === "false") {
+    safeLog.warn("background_jobs.disabled", "Disabled by configuration");
+    return;
+  }
 
   // Khởi động Cron Jobs
   startDepositCronJobs();
@@ -300,32 +295,60 @@ const server = app.listen(PORT, () => {
   startScheduleReminderCron();
   startContractCronJobs();
   startCleanupCronJobs();
+  startF1LifecycleCron();
 });
 
+server.headersTimeout = Number(
+  process.env.SERVER_HEADERS_TIMEOUT_MS || 15_000,
+);
+server.requestTimeout = Number(
+  process.env.SERVER_REQUEST_TIMEOUT_MS || 120_000,
+);
+server.keepAliveTimeout = Number(
+  process.env.SERVER_KEEP_ALIVE_TIMEOUT_MS || 65_000,
+);
+server.maxHeadersCount = 100;
+
 // ================= GRACEFUL SHUTDOWN =================
+let shuttingDown = false;
 const gracefulShutdown = async (signal) => {
-  console.log(`\n⏳ Nhận ${signal} — đang shutdown gracefully...`);
+  if (shuttingDown) return;
+  shuttingDown = true;
+  markRuntimeDraining(signal);
+  safeLog.info("server.shutdown_started", { signal });
+  const shutdownTimeoutMs = Number(
+    process.env.SERVER_SHUTDOWN_TIMEOUT_MS || 15_000,
+  );
 
   // Ngừng nhận request mới, đợi request đang xử lý hoàn thành (timeout 10s)
   server.close(async () => {
-    console.log("✅ HTTP server đã đóng");
+    safeLog.info("server.http_closed");
     try {
       const mongoose = (await import("mongoose")).default;
       await mongoose.connection.close();
-      console.log("✅ MongoDB connection đã đóng");
+      safeLog.info("server.database_closed");
     } catch (err) {
-      console.error("❌ Lỗi đóng MongoDB:", err.message);
+      safeLog.error("server.database_close_failed", err);
     }
     process.exit(0);
   });
+  server.closeIdleConnections?.();
 
   // Safety timeout: nếu sau 15s vẫn chưa xong → force exit
   setTimeout(() => {
-    console.error("❌ Shutdown timeout — force exit");
+    safeLog.error("server.shutdown_timeout", new Error("Shutdown timeout"));
+    server.closeAllConnections?.();
     process.exit(1);
-  }, 15000);
+  }, shutdownTimeoutMs).unref();
 };
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-
+process.on("unhandledRejection", (reason) => {
+  safeLog.error("server.unhandled_rejection", reason);
+  gracefulShutdown("unhandledRejection");
+});
+process.on("uncaughtException", (error) => {
+  safeLog.error("server.uncaught_exception", error);
+  gracefulShutdown("uncaughtException");
+});

@@ -22,8 +22,13 @@ export async function getTrainingSchedule(params, context) {
     }
 
     // Lấy lịch tập theo clientId
-    const schedules = await TrainingSchedule.find({ clientId: context.userId })
-      .sort({ dayOfWeek: 1, startTime: 1 })
+    const schedules = await TrainingSchedule.find({
+      clientId: context.userId,
+      status: "scheduled",
+      isActive: true,
+      startAt: { $gt: new Date() },
+    })
+      .sort({ startAt: 1 })
       .lean();
 
     // Lấy ngày hôm nay (Vietnam timezone)
@@ -37,7 +42,11 @@ export async function getTrainingSchedule(params, context) {
     const todayStr = vnTime.toISOString().split("T")[0]; // YYYY-MM-DD
 
     // Lọc lịch hôm nay
-    const todaySchedules = schedules.filter((s) => s.dayOfWeek === todayIndex);
+    const todaySchedules = schedules.filter(
+      (schedule) =>
+        schedule.occurrenceDateKey === todayStr ||
+        (!schedule.occurrenceDateKey && schedule.dayOfWeek === todayIndex),
+    );
 
     // Lấy coaching day (giáo án online coaching) hôm nay nếu cần
     let todayCoaching = null;
@@ -98,17 +107,14 @@ export async function getTrainingSchedule(params, context) {
       text += "\n\n💡 Chưa có giáo án chi tiết hôm nay. HLV sẽ cập nhật sớm!";
     }
 
-    // --- Lịch cả tuần (tóm tắt) ---
+    // --- Các lịch cụ thể sắp tới ---
     if (schedules.length > 0) {
-      text += "\n\n📆 **Lịch tập cả tuần:**";
-      for (let d = 0; d < 7; d++) {
-        const daySchedules = schedules.filter((s) => s.dayOfWeek === d);
-        if (daySchedules.length > 0) {
-          const isToday = d === todayIndex;
-          const label = isToday ? `**${DAY_LABELS[d]} (hôm nay)**` : DAY_LABELS[d];
-          const times = daySchedules.map((s) => `${s.startTime} ${s.exerciseType}`).join(", ");
-          text += `\n• ${label}: ${times}`;
-        }
+      text += "\n\n📆 **Các lịch tập sắp tới:**";
+      for (const schedule of schedules.slice(0, 14)) {
+        const dateLabel =
+          schedule.occurrenceDateKey || DAY_LABELS[schedule.dayOfWeek];
+        text +=
+          `\n• ${dateLabel}: ${schedule.startTime} ${schedule.exerciseType}`;
       }
     }
 
@@ -140,6 +146,7 @@ export async function getTrainingSchedule(params, context) {
             }
           : null,
         weekSchedule: schedules.map((s) => ({
+          occurrenceDateKey: s.occurrenceDateKey,
           dayOfWeek: s.dayOfWeek,
           dayLabel: DAY_LABELS[s.dayOfWeek],
           startTime: s.startTime,

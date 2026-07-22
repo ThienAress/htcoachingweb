@@ -14,6 +14,7 @@ import {
   getF1Customers,
   getF1DashboardSummary,
   getF1Media,
+  readF1MediaContent,
   getLatestAiReport,
   getAssessmentStarterSuggestions,
   getLatestAssessment,
@@ -49,6 +50,7 @@ import {
 } from "../middlewares/validation.js";
 
 import { uploadF1Media } from "../middlewares/f1MediaUpload.js";
+import { f1GenerationLimiter } from "../middlewares/rateLimit.js";
 
 const router = express.Router();
 
@@ -167,6 +169,14 @@ router.get(
   getF1Media,
 );
 
+router.get(
+  "/:id/media/:mediaId/content",
+  protect,
+  requireTrainerAccess,
+  validateDeleteF1Media,
+  readF1MediaContent,
+);
+
 router.delete(
   "/:id/media/:mediaId",
   protect,
@@ -219,6 +229,7 @@ router.get(
 router.post(
   "/:id/ai-reports/generate",
   protect,
+  f1GenerationLimiter,
   csrfProtection,
   requireTrainerAccess,
   validateGenerateAiReport,
@@ -248,6 +259,7 @@ router.patch(
 router.post(
   "/:id/forecasts/generate",
   protect,
+  f1GenerationLimiter,
   csrfProtection,
   requireTrainerAccess,
   validateGenerateOutcomeForecast,
@@ -268,6 +280,7 @@ router.get(
 router.post(
   "/:id/result-predictions/generate",
   protect,
+  f1GenerationLimiter,
   csrfProtection,
   requireTrainerAccess,
   validateGenerateResultPrediction,
@@ -285,6 +298,7 @@ router.get(
 router.post(
   "/:id/result-predictions/:predictionId/visual-stages/:phaseKey/generate-images",
   protect,
+  f1GenerationLimiter,
   csrfProtection,
   requireTrainerAccess,
   validateGenerateResultPredictionStageImages,
@@ -292,4 +306,3 @@ router.post(
 );
 
 export default router;
-

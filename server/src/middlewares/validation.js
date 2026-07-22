@@ -39,6 +39,11 @@ export const validateId = [
   handleValidationErrors,
 ];
 
+export const validateRecipeId = [
+  param("recipeId").isMongoId().withMessage("ID công thức không hợp lệ"),
+  handleValidationErrors,
+];
+
 // ============================================================================
 // F1 CUSTOMER VALIDATIONS
 // ============================================================================
@@ -504,6 +509,13 @@ export const validateUpdateAssessment = [
 
 export const validateGenerateAiReport = [
   param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  body("requestId")
+    .isUUID(4)
+    .withMessage("requestId phải là UUID v4"),
+  body("regenerate")
+    .optional()
+    .isBoolean()
+    .withMessage("regenerate phải là boolean"),
   handleValidationErrors,
 ];
 
@@ -527,14 +539,29 @@ export const validateCheckin = [
     .withMessage("orderId là bắt buộc")
     .isMongoId()
     .withMessage("orderId không hợp lệ"),
+  body("clientRequestId")
+    .notEmpty()
+    .withMessage("clientRequestId là bắt buộc")
+    .isUUID(4)
+    .withMessage("clientRequestId phải là UUID v4"),
   body("time")
     .optional()
     .isISO8601()
     .withMessage("time phải là định dạng ISO 8601")
     .custom(isValidDate)
     .withMessage("time không phải là thời gian hợp lệ"),
-  body("muscle").notEmpty().withMessage("Vui lòng chọn nhóm cơ").isString(),
-  body("note").optional().isString().withMessage("note phải là chuỗi"),
+  body("muscle")
+    .notEmpty()
+    .withMessage("Vui lòng chọn nhóm cơ")
+    .isString()
+    .isLength({ max: 200 })
+    .withMessage("muscle tối đa 200 ký tự"),
+  body("note")
+    .optional()
+    .isString()
+    .withMessage("note phải là chuỗi")
+    .isLength({ max: 2000 })
+    .withMessage("note tối đa 2000 ký tự"),
   handleValidationErrors,
 ];
 
@@ -546,13 +573,30 @@ export const validateUpdateCheckin = [
     .withMessage("time phải là định dạng ISO 8601")
     .custom(isValidDate)
     .withMessage("time không phải là thời gian hợp lệ"),
-  body("muscle").optional().isString().withMessage("muscle phải là chuỗi"),
-  body("note").optional().isString().withMessage("note phải là chuỗi"),
+  body("muscle")
+    .optional()
+    .isString()
+    .withMessage("muscle phải là chuỗi")
+    .isLength({ max: 200 })
+    .withMessage("muscle tối đa 200 ký tự"),
+  body("note")
+    .optional()
+    .isString()
+    .withMessage("note phải là chuỗi")
+    .isLength({ max: 2000 })
+    .withMessage("note tối đa 2000 ký tự"),
   handleValidationErrors,
 ];
 
 export const validateGenerateOutcomeForecast = [
   param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  body("requestId")
+    .isUUID(4)
+    .withMessage("requestId phải là UUID v4"),
+  body("regenerate")
+    .optional()
+    .isBoolean()
+    .withMessage("regenerate phải là boolean"),
   handleValidationErrors,
 ];
 
@@ -583,7 +627,7 @@ export const validateCreateOrder = [
     .withMessage("Gói tập không được để trống")
     .isString(),
   body("sessions")
-    .isInt({ min: 1 })
+    .isInt({ min: 1, max: 10000 })
     .withMessage("Số buổi phải là số nguyên lớn hơn 0"),
   body("gym")
     .notEmpty()
@@ -610,7 +654,12 @@ export const validateUpdateOrder = [
   body("email").optional().isEmail(),
   body("phone").optional().isString(),
   body("package").optional().isString(),
-  body("sessions").optional().isInt({ min: 1 }),
+  body("sessions").optional().isInt({ min: 0, max: 10000 }),
+  body("totalSessions").optional().isInt({ min: 1, max: 10000 }),
+  body("status")
+    .optional()
+    .isIn(["pending", "approved", "completed", "cancelled"])
+    .withMessage("Trạng thái đơn không hợp lệ"),
   body("gym").optional().isString(),
   body("schedule").optional().isString(),
   body("note").optional().isString(),
@@ -652,8 +701,8 @@ export const validateContactMessage = [
   body("name")
     .notEmpty()
     .withMessage("Họ tên không được để trống")
-    .isLength({ min: 8 })
-    .withMessage("Họ tên phải có ít nhất 8 ký tự")
+    .isLength({ min: 8, max: 100 })
+    .withMessage("Họ tên phải có từ 8 đến 100 ký tự")
     .trim(),
   body("email")
     .notEmpty()
@@ -688,8 +737,8 @@ export const validateCreateBooking = [
   body("name")
     .notEmpty()
     .withMessage("Họ tên không được để trống")
-    .isLength({ min: 8 })
-    .withMessage("Họ tên phải có ít nhất 8 ký tự")
+    .isLength({ min: 8, max: 100 })
+    .withMessage("Họ tên phải có từ 8 đến 100 ký tự")
     .trim()
     .escape(),
   body("phone")
@@ -710,12 +759,16 @@ export const validateCreateBooking = [
     .withMessage("Phòng tập không được để trống")
     .isString()
     .withMessage("Phòng tập không hợp lệ")
+    .isLength({ max: 120 })
+    .withMessage("Phòng tập tối đa 120 ký tự")
     .trim(),
   body("schedule")
     .notEmpty()
     .withMessage("Lịch tập không được để trống")
     .isString()
     .withMessage("Lịch tập không hợp lệ")
+    .isLength({ max: 500 })
+    .withMessage("Lịch tập tối đa 500 ký tự")
     .trim(),
   body("note")
     .optional()
@@ -730,6 +783,8 @@ export const validateCreateBooking = [
     .withMessage("Gói tập không được để trống")
     .isString()
     .withMessage("Gói tập không hợp lệ")
+    .isLength({ max: 150 })
+    .withMessage("Gói tập tối đa 150 ký tự")
     .trim(),
   body("sessions")
     .notEmpty()
@@ -741,7 +796,19 @@ export const validateCreateBooking = [
     .isString()
     .withMessage("Mã giảm giá không hợp lệ")
     .isLength({ max: 20 }),
-  body("gifts").optional().isArray().withMessage("Quà tặng phải là mảng"),
+  body("gifts")
+    .optional()
+    .isArray({ max: 10 })
+    .withMessage("Quà tặng phải là mảng tối đa 10 phần tử"),
+  body("gifts.*")
+    .optional()
+    .isString()
+    .withMessage("Quà tặng phải là chuỗi")
+    .isLength({ max: 100 })
+    .withMessage("Tên quà tặng tối đa 100 ký tự"),
+  body("clientRequestId")
+    .isUUID()
+    .withMessage("clientRequestId không hợp lệ"),
   handleValidationErrors,
 ];
 
@@ -779,6 +846,13 @@ export const validateReviewTestPermission = [
 
 export const validateGenerateResultPrediction = [
   param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
+  body("requestId")
+    .isUUID(4)
+    .withMessage("requestId phải là UUID v4"),
+  body("regenerate")
+    .optional()
+    .isBoolean()
+    .withMessage("regenerate phải là boolean"),
   handleValidationErrors,
 ];
 
@@ -795,6 +869,10 @@ export const validateGenerateResultPredictionStageImages = [
     .optional()
     .isBoolean()
     .withMessage("forceRegenerate phải là boolean"),
+
+  body("requestId")
+    .isUUID(4)
+    .withMessage("requestId phải là UUID v4"),
 
   handleValidationErrors,
 ];

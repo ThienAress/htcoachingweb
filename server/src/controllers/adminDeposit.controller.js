@@ -1,10 +1,66 @@
 import mongoose from "mongoose";
 import DepositRequest from "../models/DepositRequest.js";
-import Wallet from "../models/Wallet.js";
 import WalletTransaction from "../models/WalletTransaction.js";
 import AuditLog from "../models/AuditLog.js";
+import {
+  applyWalletEntry,
+  WalletLedgerError,
+} from "../services/walletLedger.service.js";
+import { incrementMetric } from "../observability/metrics.js";
+import { safeLog } from "../utils/safeLogger.js";
 
-// ===== GET /api/admin/deposits — Danh sách tất cả yêu cầu nạp tiền =====
+const MUTABLE_DEPOSIT_STATUSES = ["pending", "needs_review", "expired"];
+const DELETABLE_DEPOSIT_STATUSES = ["expired", "rejected"];
+
+const httpError = (status, code, message) =>
+  Object.assign(new Error(message), { status, code });
+
+const normalizeReason = (value, { required = false } = {}) => {
+  const reason = String(value || "").trim();
+  if (required && reason.length < 8) {
+    throw httpError(
+      400,
+      "FINANCIAL_REASON_REQUIRED",
+      "Lý do phải có ít nhất 8 ký tự",
+    );
+  }
+  if (reason.length > 500) {
+    throw httpError(
+      400,
+      "FINANCIAL_REASON_TOO_LONG",
+      "Lý do không được vượt quá 500 ký tự",
+    );
+  }
+  return reason;
+};
+
+const auditContext = (req) => ({
+  actorId: req.user.id,
+  actorRole: req.user.role,
+  ipAddress: req.ip,
+  userAgent: req.get("User-Agent"),
+});
+
+const sendMutationError = (res, error, event) => {
+  safeLog.error(event, error);
+  const status =
+    error instanceof WalletLedgerError
+      ? error.status
+      : error.status || (error.code === 11000 ? 409 : 500);
+  return res.status(status).json({
+    success: false,
+    code:
+      error instanceof WalletLedgerError
+        ? error.code
+        : error.code || "FINANCIAL_OPERATION_FAILED",
+    message:
+      status >= 500
+        ? "Lỗi hệ thống khi xử lý giao dịch"
+        : error.message,
+  });
+};
+
+// GET /api/admin/deposits
 export const getAllDeposits = async (req, res) => {
   try {
     const { status } = req.query;
@@ -15,235 +71,449 @@ export const getAllDeposits = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(100)
       .populate("userId", "name email phone")
-      .populate("approvedBy", "name email");
+      .populate("approvedBy", "name email")
+      .populate("reversedBy", "name email")
+      .lean();
 
-    return res.status(200).json({
-      success: true,
-      data: deposits,
-    });
-  } catch (err) {
-    console.error("getAllDeposits error:", err);
+    return res.status(200).json({ success: true, data: deposits });
+  } catch (error) {
+    safeLog.error("financial.deposit_list_failed", error);
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   }
 };
 
-// ===== POST /api/admin/deposits/:id/approve — Duyệt nạp tiền =====
+// POST /api/admin/deposits/:id/approve
 export const approveDeposit = async (req, res) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
+  let outcome;
 
   try {
-    const { id } = req.params;
-    const adminId = req.user.id;
-    const adminRole = req.user.role;
+    await session.withTransaction(async () => {
+      const deposit = await DepositRequest.findById(req.params.id).session(
+        session,
+      );
+      if (!deposit) {
+        throw httpError(
+          404,
+          "DEPOSIT_NOT_FOUND",
+          "Không tìm thấy yêu cầu nạp tiền",
+        );
+      }
 
-    // 1. Lấy deposit request
-    const deposit = await DepositRequest.findById(id).session(session);
-    if (!deposit) {
-      await session.abortTransaction();
-      return res.status(404).json({ success: false, message: "Không tìm thấy yêu cầu nạp tiền" });
-    }
-
-    // Nếu đã success -> bỏ qua (idempotent)
-    if (deposit.status === "success") {
-      await session.abortTransaction();
-      return res.status(200).json({ success: true, message: "Yêu cầu này đã được duyệt trước đó", skipped: true });
-    }
-
-    // Chỉ duyệt được pending, needs_review, expired
-    if (!["pending", "needs_review", "expired"].includes(deposit.status)) {
-      await session.abortTransaction();
-      return res.status(400).json({ success: false, message: `Không thể duyệt yêu cầu ở trạng thái "${deposit.status}"` });
-    }
-
-    // 2. Lấy wallet (Optimistic Locking)
-    const wallet = await Wallet.findOne({ userId: deposit.userId }).session(session);
-    if (!wallet) {
-      await session.abortTransaction();
-      return res.status(404).json({ success: false, message: "Không tìm thấy ví của người dùng" });
-    }
-
-    const balanceBefore = wallet.balance;
-    const balanceAfter = balanceBefore + deposit.amount;
-    const currentVersion = wallet.version;
-    const idempotencyKey = `deposit:${deposit._id}`;
-
-    // 3. Kiểm tra idempotency (chống cộng trùng)
-    const existed = await WalletTransaction.findOne({ idempotencyKey }).session(session);
-    if (existed) {
-      await session.abortTransaction();
-      return res.status(200).json({ success: true, message: "Giao dịch này đã được xử lý", skipped: true });
-    }
-
-    // 4. Tạo wallet transaction
-    await WalletTransaction.create(
-      [
-        {
-          userId: deposit.userId,
-          walletId: wallet._id,
-          type: "deposit",
+      if (deposit.status === "success") {
+        const ledgerEntry = await WalletTransaction.findOne({
+          idempotencyKey: `deposit:${deposit._id}`,
+        })
+          .session(session)
+          .lean();
+        if (!ledgerEntry) {
+          throw httpError(
+            409,
+            "DEPOSIT_LEDGER_MISSING",
+            "Deposit đã duyệt nhưng thiếu ledger entry; cần đối soát",
+          );
+        }
+        incrementMetric("financial.idempotency_hits");
+        outcome = {
+          skipped: true,
+          balanceAfter: ledgerEntry.balanceAfter,
           amount: deposit.amount,
-          balanceBefore,
-          balanceAfter,
-          status: "success",
-          referenceType: "deposit_request",
-          referenceId: deposit._id,
-          idempotencyKey,
-        },
-      ],
-      { session }
-    );
+        };
+        return;
+      }
+      if (!MUTABLE_DEPOSIT_STATUSES.includes(deposit.status)) {
+        throw httpError(
+          409,
+          "INVALID_DEPOSIT_TRANSITION",
+          `Không thể duyệt yêu cầu ở trạng thái "${deposit.status}"`,
+        );
+      }
 
-    // 5. Cập nhật wallet (Optimistic Locking)
-    const updateResult = await Wallet.updateOne(
-      { _id: wallet._id, version: currentVersion },
-      { $set: { balance: balanceAfter, version: currentVersion + 1 } },
-      { session }
-    );
+      const ledger = await applyWalletEntry({
+        session,
+        userId: deposit.userId,
+        amount: deposit.amount,
+        type: "deposit",
+        referenceType: "deposit_request",
+        referenceId: deposit._id,
+        idempotencyKey: `deposit:${deposit._id}`,
+      });
+      if (ledger.skipped) {
+        throw httpError(
+          409,
+          "DEPOSIT_STATE_LEDGER_MISMATCH",
+          "Ledger đã tồn tại nhưng deposit chưa ở trạng thái success",
+        );
+      }
 
-    if (updateResult.modifiedCount === 0) {
-      await session.abortTransaction();
-      return res.status(409).json({ success: false, message: "Có giao dịch đồng thời. Vui lòng thử lại." });
-    }
-
-    // 6. Cập nhật deposit request
-    deposit.status = "success";
-    deposit.paidAt = new Date();
-    deposit.approvedBy = adminId;
-    await deposit.save({ session });
-
-    // 7. Ghi audit log
-    await AuditLog.create(
-      [
+      const transitioned = await DepositRequest.updateOne(
+        { _id: deposit._id, status: deposit.status },
         {
-          actorId: adminId,
-          actorRole: adminRole,
-          action: "approve_deposit",
-          targetType: "deposit_request",
-          targetId: deposit._id,
-          metadata: {
-            amount: deposit.amount,
-            depositCode: deposit.depositCode,
-            balanceBefore,
-            balanceAfter,
-            userId: deposit.userId,
+          $set: {
+            status: "success",
+            isOpen: false,
+            paidAt: new Date(),
+            approvedBy: req.user.id,
+            rejectReason: null,
           },
-          ipAddress: req.ip,
-          userAgent: req.get("User-Agent"),
         },
-      ],
-      { session }
-    );
+        { session, runValidators: true },
+      );
+      if (transitioned.modifiedCount !== 1) {
+        incrementMetric("financial.conflicts");
+        throw httpError(
+          409,
+          "DEPOSIT_STATE_CONFLICT",
+          "Trạng thái deposit đã thay đổi bởi yêu cầu khác",
+        );
+      }
 
-    await session.commitTransaction();
+      await AuditLog.create(
+        [
+          {
+            ...auditContext(req),
+            action: "approve_deposit",
+            targetType: "deposit_request",
+            targetId: deposit._id,
+            metadata: {
+              amount: deposit.amount,
+              depositCode: deposit.depositCode,
+              balanceBefore: ledger.balanceBefore,
+              balanceAfter: ledger.balanceAfter,
+              userId: deposit.userId,
+            },
+          },
+        ],
+        { session },
+      );
+
+      outcome = {
+        skipped: false,
+        balanceAfter: ledger.balanceAfter,
+        amount: deposit.amount,
+      };
+    });
 
     return res.status(200).json({
       success: true,
-      message: `Đã duyệt nạp ${deposit.amount.toLocaleString("vi-VN")}đ thành công`,
+      skipped: outcome.skipped,
+      message: outcome.skipped
+        ? "Yêu cầu này đã được duyệt trước đó"
+        : `Đã duyệt nạp ${outcome.amount.toLocaleString("vi-VN")}đ thành công`,
+      data: { balanceAfter: outcome.balanceAfter },
     });
-  } catch (err) {
-    await session.abortTransaction();
-    console.error("approveDeposit error:", err);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống khi duyệt nạp tiền" });
+  } catch (error) {
+    return sendMutationError(res, error, "financial.deposit_approve_failed");
   } finally {
-    session.endSession();
+    await session.endSession();
   }
 };
 
-// ===== POST /api/admin/deposits/:id/reject — Từ chối nạp tiền =====
+// POST /api/admin/deposits/:id/reject
 export const rejectDeposit = async (req, res) => {
+  const session = await mongoose.startSession();
+  let skipped = false;
+
   try {
-    const { id } = req.params;
-    const adminId = req.user.id;
-    const adminRole = req.user.role;
-    const { reason } = req.body;
+    const reason =
+      normalizeReason(req.body?.reason) || "Không đủ điều kiện";
+    await session.withTransaction(async () => {
+      const deposit = await DepositRequest.findById(req.params.id).session(
+        session,
+      );
+      if (!deposit) {
+        throw httpError(
+          404,
+          "DEPOSIT_NOT_FOUND",
+          "Không tìm thấy yêu cầu nạp tiền",
+        );
+      }
+      if (deposit.status === "rejected") {
+        skipped = true;
+        return;
+      }
+      if (!MUTABLE_DEPOSIT_STATUSES.includes(deposit.status)) {
+        throw httpError(
+          409,
+          "INVALID_DEPOSIT_TRANSITION",
+          `Không thể từ chối yêu cầu ở trạng thái "${deposit.status}"`,
+        );
+      }
 
-    const deposit = await DepositRequest.findById(id);
-    if (!deposit) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy yêu cầu nạp tiền" });
-    }
+      const transitioned = await DepositRequest.updateOne(
+        { _id: deposit._id, status: deposit.status },
+        {
+          $set: {
+            status: "rejected",
+            isOpen: false,
+            rejectReason: reason,
+          },
+        },
+        { session, runValidators: true },
+      );
+      if (transitioned.modifiedCount !== 1) {
+        incrementMetric("financial.conflicts");
+        throw httpError(
+          409,
+          "DEPOSIT_STATE_CONFLICT",
+          "Trạng thái deposit đã thay đổi bởi yêu cầu khác",
+        );
+      }
 
-    if (deposit.status === "success") {
-      return res.status(400).json({ success: false, message: "Không thể từ chối yêu cầu đã duyệt thành công" });
-    }
-
-    if (deposit.status === "rejected") {
-      return res.status(200).json({ success: true, message: "Yêu cầu này đã bị từ chối trước đó" });
-    }
-
-    deposit.status = "rejected";
-    deposit.rejectReason = reason || "Không đủ điều kiện";
-    await deposit.save();
-
-    // Ghi audit log
-    await AuditLog.create({
-      actorId: adminId,
-      actorRole: adminRole,
-      action: "reject_deposit",
-      targetType: "deposit_request",
-      targetId: deposit._id,
-      metadata: {
-        amount: deposit.amount,
-        depositCode: deposit.depositCode,
-        reason: deposit.rejectReason,
-        userId: deposit.userId,
-      },
-      ipAddress: req.ip,
-      userAgent: req.get("User-Agent"),
+      await AuditLog.create(
+        [
+          {
+            ...auditContext(req),
+            action: "reject_deposit",
+            targetType: "deposit_request",
+            targetId: deposit._id,
+            metadata: {
+              amount: deposit.amount,
+              depositCode: deposit.depositCode,
+              reason,
+              userId: deposit.userId,
+            },
+          },
+        ],
+        { session },
+      );
     });
 
     return res.status(200).json({
       success: true,
-      message: "Đã từ chối yêu cầu nạp tiền",
+      skipped,
+      message: skipped
+        ? "Yêu cầu này đã bị từ chối trước đó"
+        : "Đã từ chối yêu cầu nạp tiền",
     });
-  } catch (err) {
-    console.error("rejectDeposit error:", err);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+  } catch (error) {
+    return sendMutationError(res, error, "financial.deposit_reject_failed");
+  } finally {
+    await session.endSession();
   }
 };
 
-// ===== DELETE /api/admin/deposits/:id — Xóa yêu cầu nạp tiền =====
-export const deleteDeposit = async (req, res) => {
+// POST /api/admin/deposits/:id/reverse
+export const reverseDeposit = async (req, res) => {
+  const session = await mongoose.startSession();
+  let outcome;
+
   try {
-    const { id } = req.params;
-    const adminId = req.user.id;
-    const adminRole = req.user.role;
+    const reason = normalizeReason(req.body?.reason, { required: true });
+    await session.withTransaction(async () => {
+      const deposit = await DepositRequest.findById(req.params.id).session(
+        session,
+      );
+      if (!deposit) {
+        throw httpError(
+          404,
+          "DEPOSIT_NOT_FOUND",
+          "Không tìm thấy yêu cầu nạp tiền",
+        );
+      }
+      if (deposit.status === "reversed") {
+        const reversal = await WalletTransaction.findOne({
+          idempotencyKey: `deposit-reversal:${deposit._id}`,
+        })
+          .session(session)
+          .lean();
+        if (!reversal) {
+          throw httpError(
+            409,
+            "DEPOSIT_REVERSAL_LEDGER_MISSING",
+            "Deposit đã reversed nhưng thiếu reversal entry; cần đối soát",
+          );
+        }
+        incrementMetric("financial.idempotency_hits");
+        outcome = {
+          skipped: true,
+          balanceAfter: reversal.balanceAfter,
+          amount: deposit.amount,
+        };
+        return;
+      }
+      if (deposit.status !== "success") {
+        throw httpError(
+          409,
+          "INVALID_DEPOSIT_TRANSITION",
+          "Chỉ deposit đã duyệt mới có thể hoàn tác",
+        );
+      }
 
-    const deposit = await DepositRequest.findById(id);
-    if (!deposit) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy yêu cầu nạp tiền" });
-    }
-
-    // Bỏ chặn xóa để Admin có thể dọn dẹp các yêu cầu nạp tiền cũ (lưu ý: không tự động trừ tiền trong ví)
-    // if (deposit.status === "success") {
-    //   return res.status(400).json({ success: false, message: "Không thể xóa yêu cầu đã duyệt thành công" });
-    // }
-
-    await DepositRequest.findByIdAndDelete(id);
-
-    // Ghi audit log
-    await AuditLog.create({
-      actorId: adminId,
-      actorRole: adminRole,
-      action: "delete_deposit",
-      targetType: "deposit_request",
-      targetId: deposit._id,
-      metadata: {
+      const original = await WalletTransaction.findOne({
+        idempotencyKey: `deposit:${deposit._id}`,
+        type: "deposit",
         amount: deposit.amount,
-        depositCode: deposit.depositCode,
-        status: deposit.status,
+      }).session(session);
+      if (!original) {
+        throw httpError(
+          409,
+          "DEPOSIT_LEDGER_MISSING",
+          "Không tìm thấy ledger entry gốc; cần đối soát trước khi hoàn tác",
+        );
+      }
+
+      const ledger = await applyWalletEntry({
+        session,
         userId: deposit.userId,
-      },
-      ipAddress: req.ip,
-      userAgent: req.get("User-Agent"),
+        amount: -deposit.amount,
+        type: "reversal",
+        referenceType: "deposit_request",
+        referenceId: deposit._id,
+        idempotencyKey: `deposit-reversal:${deposit._id}`,
+        reversalOf: original._id,
+        metadata: {
+          reason,
+          reversedBy: req.user.id,
+        },
+      });
+      if (ledger.skipped) {
+        throw httpError(
+          409,
+          "DEPOSIT_STATE_LEDGER_MISMATCH",
+          "Reversal ledger đã tồn tại nhưng deposit chưa ở trạng thái reversed",
+        );
+      }
+
+      const transitioned = await DepositRequest.updateOne(
+        { _id: deposit._id, status: "success" },
+        {
+          $set: {
+            status: "reversed",
+            isOpen: false,
+            reversedAt: new Date(),
+            reversedBy: req.user.id,
+            reverseReason: reason,
+          },
+        },
+        { session, runValidators: true },
+      );
+      if (transitioned.modifiedCount !== 1) {
+        incrementMetric("financial.conflicts");
+        throw httpError(
+          409,
+          "DEPOSIT_STATE_CONFLICT",
+          "Trạng thái deposit đã thay đổi bởi yêu cầu khác",
+        );
+      }
+
+      await AuditLog.create(
+        [
+          {
+            ...auditContext(req),
+            action: "reverse_deposit",
+            targetType: "deposit_request",
+            targetId: deposit._id,
+            metadata: {
+              amount: deposit.amount,
+              depositCode: deposit.depositCode,
+              reason,
+              balanceBefore: ledger.balanceBefore,
+              balanceAfter: ledger.balanceAfter,
+              originalTransactionId: original._id,
+              reversalTransactionId: ledger.transaction._id,
+              userId: deposit.userId,
+            },
+          },
+        ],
+        { session },
+      );
+
+      outcome = {
+        skipped: false,
+        balanceAfter: ledger.balanceAfter,
+        amount: deposit.amount,
+      };
+    });
+
+    if (!outcome.skipped) incrementMetric("financial.reversals");
+    return res.status(200).json({
+      success: true,
+      skipped: outcome.skipped,
+      message: outcome.skipped
+        ? "Deposit này đã được hoàn tác trước đó"
+        : `Đã hoàn tác ${outcome.amount.toLocaleString("vi-VN")}đ`,
+      data: { balanceAfter: outcome.balanceAfter },
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      const deposit = await DepositRequest.findById(req.params.id).lean();
+      if (deposit?.status === "reversed") {
+        return res.status(200).json({
+          success: true,
+          skipped: true,
+          message: "Deposit này đã được hoàn tác trước đó",
+        });
+      }
+    }
+    return sendMutationError(res, error, "financial.deposit_reverse_failed");
+  } finally {
+    await session.endSession();
+  }
+};
+
+// DELETE /api/admin/deposits/:id
+export const deleteDeposit = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    await session.withTransaction(async () => {
+      const deposit = await DepositRequest.findById(req.params.id).session(
+        session,
+      );
+      if (!deposit) {
+        throw httpError(
+          404,
+          "DEPOSIT_NOT_FOUND",
+          "Không tìm thấy yêu cầu nạp tiền",
+        );
+      }
+      if (!DELETABLE_DEPOSIT_STATUSES.includes(deposit.status)) {
+        const message =
+          deposit.status === "success"
+            ? "Deposit đã duyệt phải dùng Hoàn tác, không được xóa"
+            : "Chỉ được xóa deposit expired hoặc rejected";
+        throw httpError(409, "DEPOSIT_DELETE_BLOCKED", message);
+      }
+
+      await AuditLog.create(
+        [
+          {
+            ...auditContext(req),
+            action: "delete_deposit",
+            targetType: "deposit_request",
+            targetId: deposit._id,
+            metadata: {
+              amount: deposit.amount,
+              depositCode: deposit.depositCode,
+              status: deposit.status,
+              userId: deposit.userId,
+            },
+          },
+        ],
+        { session },
+      );
+      const deleted = await DepositRequest.deleteOne(
+        { _id: deposit._id, status: deposit.status },
+        { session },
+      );
+      if (deleted.deletedCount !== 1) {
+        incrementMetric("financial.conflicts");
+        throw httpError(
+          409,
+          "DEPOSIT_STATE_CONFLICT",
+          "Deposit đã thay đổi bởi yêu cầu khác",
+        );
+      }
     });
 
     return res.status(200).json({
       success: true,
-      message: "Đã xóa yêu cầu nạp tiền",
+      message: "Đã xóa yêu cầu nạp tiền chưa phát sinh ledger",
     });
-  } catch (err) {
-    console.error("deleteDeposit error:", err);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+  } catch (error) {
+    return sendMutationError(res, error, "financial.deposit_delete_failed");
+  } finally {
+    await session.endSession();
   }
 };

@@ -23,11 +23,12 @@ export const toolRegistry = {
       "KHÔNG GỌI KHI: chưa có đủ thông tin cơ bản — hỏi tất cả trong 1 lần.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
         gender: { type: "string", enum: ["male", "female"], description: "Giới tính" },
-        age: { type: "number", description: "Tuổi" },
-        heightCm: { type: "number", description: "Chiều cao tính bằng cm" },
-        weightKg: { type: "number", description: "Cân nặng tính bằng kg" },
+        age: { type: "integer", minimum: 13, maximum: 100, description: "Tuổi" },
+        heightCm: { type: "number", minimum: 100, maximum: 250, description: "Chiều cao tính bằng cm" },
+        weightKg: { type: "number", minimum: 20, maximum: 350, description: "Cân nặng tính bằng kg" },
         activityLevel: {
           type: "string",
           enum: ["sedentary", "light", "moderate", "active", "very_active"],
@@ -41,6 +42,8 @@ export const toolRegistry = {
         },
         calorieAdjustment: {
           type: "number",
+          minimum: -1500,
+          maximum: 1500,
           description: "Mức điều chỉnh calo tùy chỉnh (VD: -500 để giảm 500 calo, +300 để tăng 300 calo). Nếu không có, dùng mặc định theo goal.",
         },
       },
@@ -59,10 +62,11 @@ export const toolRegistry = {
       "Các nhóm cơ có: Ngực, Lưng, Chân, Vai, Tay, Bụng.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
-        muscleGroup: { type: "string", description: "Nhóm cơ muốn tìm. VD: Ngực, Lưng, Chân, Vai, Tay, Bụng" },
-        searchQuery: { type: "string", description: "Tên bài tập muốn tìm. VD: plank, squat, bench press" },
-        limit: { type: "number", description: "Số lượng kết quả tối đa (mặc định 5)" },
+        muscleGroup: { type: "string", minLength: 1, maxLength: 50, description: "Nhóm cơ muốn tìm. VD: Ngực, Lưng, Chân, Vai, Tay, Bụng" },
+        searchQuery: { type: "string", minLength: 1, maxLength: 100, description: "Tên bài tập muốn tìm. VD: plank, squat, bench press" },
+        limit: { type: "integer", minimum: 1, maximum: 10, description: "Số lượng kết quả tối đa (mặc định 5)" },
       },
     },
     execute: searchExercises,
@@ -78,12 +82,13 @@ export const toolRegistry = {
       "KHÔNG GỌI KHI: chưa tính TDEE — hãy tính TDEE trước bằng tool calculate_tdee.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
-        targetCalories: { type: "number", description: "Tổng calo mục tiêu mỗi ngày" },
-        proteinGrams: { type: "number", description: "Gram protein mục tiêu" },
-        carbGrams: { type: "number", description: "Gram carb mục tiêu" },
-        fatGrams: { type: "number", description: "Gram fat mục tiêu" },
-        mealsPerDay: { type: "number", description: "Số bữa ăn mỗi ngày (3-6, mặc định 3)" },
+        targetCalories: { type: "number", minimum: 800, maximum: 6000, description: "Tổng calo mục tiêu mỗi ngày" },
+        proteinGrams: { type: "number", minimum: 0, maximum: 500, description: "Gram protein mục tiêu" },
+        carbGrams: { type: "number", minimum: 0, maximum: 1000, description: "Gram carb mục tiêu" },
+        fatGrams: { type: "number", minimum: 0, maximum: 300, description: "Gram fat mục tiêu" },
+        mealsPerDay: { type: "integer", minimum: 1, maximum: 6, description: "Số bữa ăn mỗi ngày (1-6, mặc định 3)" },
       },
       required: ["targetCalories", "proteinGrams", "carbGrams", "fatGrams"],
     },
@@ -99,8 +104,9 @@ export const toolRegistry = {
       "GỌI KHI: user hỏi về HLV, muốn tìm PT, hỏi ai kèm tập, hoặc muốn biết đội ngũ HTCOACHING.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
-        specialty: { type: "string", description: "Chuyên môn tìm kiếm. VD: giảm mỡ, tăng cơ" },
+        specialty: { type: "string", minLength: 1, maxLength: 100, description: "Chuyên môn tìm kiếm. VD: giảm mỡ, tăng cơ" },
       },
     },
     execute: getTrainerInfo,
@@ -120,9 +126,12 @@ export const toolRegistry = {
       "KHÔNG GỌI KHI: câu hỏi đã được trả lời bởi KB, hoặc là kiến thức gym phổ thông.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
         query: {
           type: "string",
+          minLength: 2,
+          maxLength: 300,
           description: "Câu truy vấn tìm kiếm. Viết rõ ràng, đầy đủ ngữ cảnh. VD: 'Chris Bumstead Mr Olympia thành tích các năm', 'Đăng béo influencer fitness Việt Nam là ai'",
         },
       },
@@ -141,9 +150,12 @@ export const toolRegistry = {
       "KHÔNG GỌI KHI: user chưa đăng nhập.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
         limit: {
-          type: "number",
+          type: "integer",
+          minimum: 1,
+          maximum: 10,
           description: "Số giao dịch gần nhất muốn xem (mặc định 5, tối đa 10)",
         },
       },
@@ -162,13 +174,17 @@ export const toolRegistry = {
       "KHÔNG GỌI KHI: user chưa đăng nhập.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
         date: {
           type: "string",
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$",
           description: "Ngày cụ thể muốn xem giáo án (ISO format: YYYY-MM-DD). Nếu không có, lấy giáo án gần nhất.",
         },
         limit: {
-          type: "number",
+          type: "integer",
+          minimum: 1,
+          maximum: 5,
           description: "Số giáo án muốn xem (mặc định 3, tối đa 5)",
         },
       },
@@ -187,17 +203,23 @@ export const toolRegistry = {
       "Danh mục: Tập luyện, Dinh dưỡng, Hiểu cơ thể, Tư duy & Lối sống.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
         query: {
           type: "string",
+          minLength: 1,
+          maxLength: 100,
           description: "Từ khóa tìm kiếm. VD: 'giảm mỡ', 'protein', 'cardio'",
         },
         category: {
           type: "string",
+          maxLength: 50,
           description: "Danh mục lọc: tap-luyen, dinh-duong, hieu-co-the, tu-duy-loi-song",
         },
         limit: {
-          type: "number",
+          type: "integer",
+          minimum: 1,
+          maximum: 10,
           description: "Số bài viết tối đa (mặc định 5, tối đa 10)",
         },
       },
@@ -216,9 +238,12 @@ export const toolRegistry = {
       "KHÔNG GỌI KHI: user chưa đăng nhập.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
         limit: {
-          type: "number",
+          type: "integer",
+          minimum: 1,
+          maximum: 20,
           description: "Số buổi check-in gần nhất muốn xem (mặc định 10, tối đa 20)",
         },
       },
@@ -238,6 +263,7 @@ export const toolRegistry = {
       "KHÔNG GỌI KHI: user chưa đăng nhập.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
         includeWorkout: {
           type: "boolean",
@@ -260,9 +286,12 @@ export const toolRegistry = {
       "KHÔNG cần đăng nhập.",
     parameters: {
       type: "object",
+      additionalProperties: false,
       properties: {
         district: {
           type: "string",
+          minLength: 1,
+          maxLength: 100,
           description: "Lọc theo quận/huyện. VD: Quận 7, Bình Thạnh, Thủ Đức",
         },
       },

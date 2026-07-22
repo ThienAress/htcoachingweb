@@ -1,9 +1,34 @@
 // Gemini LLM Provider — Google AI Free Tier
 // Model: gemini-3.1-flash-lite (Free: 15 RPM, 250K TPM, 500 RPD)
 // Hỗ trợ: Function Calling + Streaming
+import { safeLog } from "../../../utils/safeLogger.js";
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 45000;
+
+function createLinkedSignal(externalSignal, timeoutMs) {
+  const controller = new AbortController();
+  const abortFromExternal = () => controller.abort(externalSignal?.reason);
+  const timeout = setTimeout(
+    () => controller.abort(new Error("Gemini request timed out")),
+    timeoutMs,
+  );
+
+  if (externalSignal?.aborted) {
+    abortFromExternal();
+  } else {
+    externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeout);
+      externalSignal?.removeEventListener("abort", abortFromExternal);
+    },
+  };
+}
 
 /**
  * Convert OpenAI-style messages → Gemini format (With strict sanitization to prevent 400 Bad Request)
@@ -149,7 +174,7 @@ export function formatToolsForProvider(tools) {
  * @param {Array} tools - Tool schemas (OpenAI format)
  * @yields {{ type: "text"|"tool_call", content?: string, toolCalls?: Array }}
  */
-export async function* geminiLLMStream(messages, tools) {
+async function* streamGemini(messages, tools, signal) {
   // Đọc API key tại runtime (không phải lúc import) để đảm bảo .env đã load
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -180,24 +205,30 @@ export async function* geminiLLMStream(messages, tools) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal,
     });
   } catch (err) {
-    console.error("Gemini fetch error:", err.message);
+    if (signal.aborted) throw err;
+    safeLog.error("ai.gemini_fetch_failed", err);
     yield { type: "text", content: "⚠️ Không thể kết nối tới Gemini API. Kiểm tra kết nối mạng." };
     return;
   }
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const errorMsg = errorData?.error?.message || `HTTP ${response.status}`;
-    console.error(`Gemini API Error [${response.status}]:`, errorMsg);
+    await response.json().catch(() => ({}));
+    safeLog.warn("ai.gemini_http_error", "Provider returned an error", {
+      status: response.status,
+    });
 
     if (response.status === 429) {
       yield { type: "text", content: "⚠️ HT Assistant đang bận (rate limit). Vui lòng thử lại sau 1 phút." };
       return;
     }
     if (response.status === 400) {
-      console.error("Gemini 400 — auto-retry with minimal context");
+      safeLog.warn(
+        "ai.gemini_minimal_retry",
+        "Retrying provider with minimal context",
+      );
 
       // Retry với chỉ system prompt + message cuối (bỏ history bị lỗi format)
       const minimalMessages = messages.filter(m => m.role === "system");
@@ -218,8 +249,10 @@ export async function* geminiLLMStream(messages, tools) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(retryBody),
+          signal,
         });
-      } catch {
+      } catch (err) {
+        if (signal.aborted) throw err;
         yield { type: "text", content: "Xin lỗi, tôi không thể xử lý lúc này. Bạn thử lại nhé! 😊" };
         return;
       }
@@ -231,14 +264,16 @@ export async function* geminiLLMStream(messages, tools) {
 
       // Dùng retryResponse thay cho response ban đầu
       response = retryResponse;
-    }
-    if (response.status === 403) {
+    } else if (response.status === 403) {
       yield { type: "text", content: "⚠️ API Key không hợp lệ hoặc chưa kích hoạt. Kiểm tra lại GEMINI_API_KEY." };
       return;
+    } else {
+      yield {
+        type: "text",
+        content: "HT Assistant đang gặp lỗi từ nhà cung cấp. Vui lòng thử lại sau.",
+      };
+      return;
     }
-
-    yield { type: "text", content: `⚠️ Lỗi AI (${response.status}): ${errorMsg}` };
-    return;
   }
 
   // Parse SSE stream
@@ -265,7 +300,7 @@ export async function* geminiLLMStream(messages, tools) {
 
         // Gemini trả error trong stream body (HTTP 200 nhưng có lỗi)
         if (data.error) {
-          console.error("Gemini stream error:", data.error.message);
+          safeLog.warn("ai.gemini_stream_error", "Provider stream error");
           continue;
         }
 
@@ -302,5 +337,31 @@ export async function* geminiLLMStream(messages, tools) {
         // JSON parse error — skip malformed chunk
       }
     }
+  }
+}
+
+/**
+ * Gemini stream có cancellation và deadline dùng chung cho cả fetch lẫn body stream.
+ */
+export async function* geminiLLMStream(messages, tools, options = {}) {
+  const timeoutMs = Math.min(
+    Math.max(Number(options.timeoutMs) || GEMINI_TIMEOUT_MS, 5000),
+    120000,
+  );
+  const linked = createLinkedSignal(options.signal, timeoutMs);
+
+  try {
+    yield* streamGemini(messages, tools, linked.signal);
+  } catch (error) {
+    if (!linked.signal.aborted) throw error;
+    if (!options.signal?.aborted) {
+      safeLog.warn("ai.gemini_timeout", "Provider request timed out");
+      yield {
+        type: "text",
+        content: "HT Assistant phản hồi quá lâu. Bạn thử lại sau ít phút nhé.",
+      };
+    }
+  } finally {
+    linked.cleanup();
   }
 }

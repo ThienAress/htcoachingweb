@@ -1,5 +1,6 @@
 import DepositRequest from "../models/DepositRequest.js";
 import ContactMessage from "../models/ContactMessage.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 giờ
 
@@ -16,10 +17,12 @@ async function cleanupOldDepositRequests() {
       createdAt: { $lt: cutoff },
     });
     if (result.deletedCount > 0) {
-      console.log(`🧹 [Cron] Đã xóa ${result.deletedCount} DepositRequest cũ (expired/rejected > 90 ngày)`);
+      safeLog.info("cleanup_cron.deposit_deleted", {
+        count: result.deletedCount,
+      });
     }
   } catch (err) {
-    console.error("❌ [Cron] Lỗi khi cleanup DepositRequest:", err.message);
+    safeLog.error("cleanup_cron.deposit_failed", err);
   }
 }
 
@@ -35,15 +38,17 @@ async function cleanupOldContactMessages() {
       processedAt: { $lt: cutoff },
     });
     if (result.deletedCount > 0) {
-      console.log(`🧹 [Cron] Đã xóa ${result.deletedCount} ContactMessage cũ (processed > 180 ngày)`);
+      safeLog.info("cleanup_cron.contact_deleted", {
+        count: result.deletedCount,
+      });
     }
   } catch (err) {
-    console.error("❌ [Cron] Lỗi khi cleanup ContactMessage:", err.message);
+    safeLog.error("cleanup_cron.contact_failed", err);
   }
 }
 
 export function startCleanupCronJobs() {
-  console.log("🧹 [Cron] Khởi động cron job: cleanup DB (mỗi 24 giờ)");
+  safeLog.info("cleanup_cron.started", { intervalMs: INTERVAL_MS });
 
   // Chạy ngay lần đầu khi server khởi động
   cleanupOldDepositRequests();

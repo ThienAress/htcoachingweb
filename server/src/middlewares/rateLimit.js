@@ -63,3 +63,51 @@ export const exerciseSuggestionLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const f1GenerationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Đã đạt giới hạn tạo artifact F1. Vui lòng thử lại sau.",
+  },
+});
+
+export const scheduleMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều thay đổi lịch tập. Vui lòng thử lại sau.",
+  },
+});
+
+export const financialCommandLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều lệnh tài chính. Vui lòng thử lại sau.",
+  },
+});
+
+export const rumLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Rate limit exceeded" },
+});
+
+export const cspReportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: false,
+  legacyHeaders: false,
+});

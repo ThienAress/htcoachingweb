@@ -90,7 +90,10 @@ const f1AssessmentSchema = new mongoose.Schema(
 );
 
 f1AssessmentSchema.index({ customerId: 1, createdAt: -1 });
-f1AssessmentSchema.index({ intakeId: 1 });
+f1AssessmentSchema.index(
+  { intakeId: 1 },
+  { name: "uniq_f1_assessment_per_intake", unique: true },
+);
 f1AssessmentSchema.index({ overallPhysicalLevel: 1 });
 
 export default mongoose.model("F1Assessment", f1AssessmentSchema);

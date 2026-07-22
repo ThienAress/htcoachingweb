@@ -1,6 +1,7 @@
 import path from "path";
 import SiteSetting from "../models/SiteSetting.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 // Lấy hoặc tạo cấu hình mặc định
 const getSettings = async () => {
@@ -73,7 +74,7 @@ export const uploadSettingImage = async (req, res) => {
     await settings.save();
     res.json({ success: true, data: settings, message: "Cập nhật ảnh thành công!" });
   } catch (error) {
-    console.error("Upload Image Error:", error);
+    safeLog.error("site_setting.image_upload_failed", error);
     res.status(500).json({ success: false, message: "Lỗi upload ảnh" });
   }
 };

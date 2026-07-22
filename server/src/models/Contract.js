@@ -73,11 +73,16 @@ const contractSchema = new mongoose.Schema(
     // Chữ ký HLV (base64)
     trainerSignature: String,
 
-    // State Machine: draft → sent → viewed → signed → expired/cancelled
+    // State Machine: draft → sent → viewed → signing → signed → expired/cancelled
     status: {
       type: String,
-      enum: ["draft", "sent", "viewed", "signed", "expired", "cancelled"],
+      enum: ["draft", "sent", "viewed", "signing", "signed", "expired", "cancelled"],
       default: "draft",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      required: true,
     },
 
     // Chữ ký khách hàng
@@ -97,8 +102,19 @@ const contractSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+contractSchema.pre("validate", function syncActiveFlag() {
+  this.isActive = !["cancelled", "expired"].includes(this.status);
+});
+
 // Indexes
-contractSchema.index({ orderId: 1 });
+contractSchema.index(
+  { orderId: 1 },
+  {
+    name: "uniq_active_contract_per_order",
+    unique: true,
+    partialFilterExpression: { isActive: true },
+  },
+);
 contractSchema.index({ clientId: 1 });
 contractSchema.index({ trainerId: 1 });
 contractSchema.index({ status: 1, createdAt: -1 });

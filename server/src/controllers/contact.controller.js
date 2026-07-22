@@ -1,5 +1,6 @@
 import ContactMessage from "../models/ContactMessage.js";
 import { sendContactNotificationToAdmin } from "../utils/sendMail.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 // Tạo mới liên hệ (không cần đăng nhập)
 export const createContactMessage = async (req, res) => {
@@ -17,7 +18,7 @@ export const createContactMessage = async (req, res) => {
 
     // Gửi email thông báo cho admin (bất đồng bộ, không chờ)
     sendContactNotificationToAdmin(message).catch((err) =>
-      console.error("Failed to send admin notification:", err),
+      safeLog.error("contact.notification_failed", err),
     );
 
     res.status(201).json({
@@ -26,7 +27,7 @@ export const createContactMessage = async (req, res) => {
       message: "Gửi thông tin thành công.",
     });
   } catch (err) {
-    console.error("CREATE CONTACT ERROR:", err);
+    safeLog.error("contact.create_failed", err);
     res.status(500).json({
       success: false,
       message: "Lỗi server, vui lòng thử lại sau.",
@@ -68,7 +69,7 @@ export const getContactMessages = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("GET CONTACT MESSAGES ERROR:", err);
+    safeLog.error("contact.list_failed", err);
     res.status(500).json({ success: false, message: "Lỗi tải dữ liệu." });
   }
 };
@@ -108,7 +109,7 @@ export const updateContactStatus = async (req, res) => {
       message: "Cập nhật trạng thái thành công.",
     });
   } catch (err) {
-    console.error("UPDATE CONTACT STATUS ERROR:", err);
+    safeLog.error("contact.status_update_failed", err);
     res.status(500).json({
       success: false,
       message: "Lỗi cập nhật.",
@@ -134,7 +135,7 @@ export const deleteContactMessage = async (req, res) => {
       message: "Xóa liên hệ thành công.",
     });
   } catch (err) {
-    console.error("DELETE CONTACT ERROR:", err);
+    safeLog.error("contact.delete_failed", err);
     res.status(500).json({
       success: false,
       message: "Lỗi xóa.",

@@ -133,6 +133,31 @@ const f1AiReportSchema = new mongoose.Schema(
       default: "nasm-rule-engine-v3",
       trim: true,
     },
+    sourceFingerprint: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    generationKey: {
+      type: String,
+      default: "canonical",
+      trim: true,
+    },
+    requestId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    version: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
+    regeneratedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "F1AiReport",
+      default: null,
+    },
     generatedAt: {
       type: Date,
       default: Date.now,
@@ -154,5 +179,36 @@ f1AiReportSchema.index({ customerId: 1, createdAt: -1 });
 f1AiReportSchema.index({ intakeId: 1 });
 f1AiReportSchema.index({ assessmentId: 1 });
 f1AiReportSchema.index({ approvedByCoach: 1 });
+f1AiReportSchema.index(
+  { requestId: 1 },
+  {
+    name: "uniq_f1_ai_report_request",
+    unique: true,
+    partialFilterExpression: { requestId: { $type: "string" } },
+  },
+);
+f1AiReportSchema.index(
+  {
+    customerId: 1,
+    intakeId: 1,
+    assessmentId: 1,
+    engineVersion: 1,
+    sourceFingerprint: 1,
+    generationKey: 1,
+  },
+  {
+    name: "uniq_f1_ai_report_source",
+    unique: true,
+    partialFilterExpression: { sourceFingerprint: { $type: "string" } },
+  },
+);
+f1AiReportSchema.index(
+  { customerId: 1, version: 1 },
+  {
+    name: "uniq_f1_ai_report_version",
+    unique: true,
+    partialFilterExpression: { version: { $type: "number" } },
+  },
+);
 
 export default mongoose.model("F1AiReport", f1AiReportSchema);

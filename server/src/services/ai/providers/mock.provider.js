@@ -82,7 +82,8 @@ function extractExerciseParams(message) {
  * @param {Array} tools - Available tool schemas
  * @returns {AsyncGenerator} Stream of response chunks
  */
-export async function* mockLLMStream(messages, tools) {
+export async function* mockLLMStream(messages, tools, options = {}) {
+  if (options.signal?.aborted) return;
   // Lấy message cuối cùng của user
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
   if (!lastUserMsg) {

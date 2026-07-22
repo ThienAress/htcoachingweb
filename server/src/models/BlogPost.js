@@ -91,6 +91,9 @@ const blogPostSchema = new mongoose.Schema(
 
 blogPostSchema.index({ status: 1, publishedAt: -1 });
 blogPostSchema.index({ status: 1, category: 1 });
+blogPostSchema.index({ status: 1, views: -1, publishedAt: -1 });
+blogPostSchema.index({ status: 1, category: 1, views: -1, publishedAt: -1 });
+blogPostSchema.index({ status: 1, category: 1, publishedAt: -1 });
 
 // Tự tính readTime trước khi save
 blogPostSchema.pre("save", function () {

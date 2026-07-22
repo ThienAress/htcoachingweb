@@ -1,18 +1,38 @@
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { safeLog } from "../utils/safeLogger.js";
+import {
+  assertProductionEnvironment,
+  validateProductionEnvironment,
+} from "./productionReadiness.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "../..");
 
-// Load .env.development trước (nếu có), sau đó .env làm fallback
-// dotenv không ghi đè biến đã tồn tại → dev values được ưu tiên
-dotenv.config({ path: path.resolve(root, ".env.development") });
+// Hosting variables win; local files are profile-specific fallbacks only.
+const profileFile =
+  process.env.NODE_ENV === "production"
+    ? ".env.production"
+    : ".env.development";
+
+dotenv.config({ path: path.resolve(root, profileFile) });
 dotenv.config({ path: path.resolve(root, ".env") });
 
-console.log("🔧 ENV loaded →", {
+if (process.env.NODE_ENV === "production") {
+  const readiness = validateProductionEnvironment(process.env, {
+    strict: false,
+  });
+  for (const finding of readiness.warnings) {
+    safeLog.warn("environment.production_warning", finding.code);
+  }
+  assertProductionEnvironment(process.env, { strict: false });
+}
+
+safeLog.info("environment.loaded", {
   NODE_ENV: process.env.NODE_ENV,
-  CLIENT_URL: process.env.CLIENT_URL,
-  GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL,
+  hasClientUrl: Boolean(process.env.CLIENT_URL),
+  hasGoogleCallbackUrl: Boolean(process.env.GOOGLE_CALLBACK_URL),
+  profileFile,
 });

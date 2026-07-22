@@ -2,14 +2,16 @@ import mongoose from "mongoose";
 
 const trainingScheduleSchema = new mongoose.Schema(
   {
-    // HLV tạo lịch
     trainerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-
-    // Tên khách hàng
+    clientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     clientName: {
       type: String,
       required: true,
@@ -17,83 +19,169 @@ const trainingScheduleSchema = new mongoose.Schema(
       maxlength: 100,
     },
 
-    // Ngày trong tuần: 0=Thứ 2, 1=Thứ 3, ..., 6=Chủ nhật
+    // Concrete occurrence fields. Legacy weekday/time fields are dual-written
+    // during rollout because the calendar and AI tool still consume them.
+    occurrenceDateKey: {
+      type: String,
+      match: /^\d{4}-\d{2}-\d{2}$/,
+    },
+    startAt: Date,
+    endAt: Date,
+    timeZone: {
+      type: String,
+      default: "Asia/Ho_Chi_Minh",
+      enum: ["Asia/Ho_Chi_Minh"],
+    },
     dayOfWeek: {
       type: Number,
       required: true,
       min: 0,
       max: 6,
     },
-
-    // Giờ bắt đầu (HH:mm)
     startTime: {
       type: String,
       required: true,
       match: /^([01]\d|2[0-3]):([0-5]\d)$/,
     },
-
-    // Giờ kết thúc (HH:mm)
     endTime: {
       type: String,
       required: true,
       match: /^([01]\d|2[0-3]):([0-5]\d)$/,
     },
 
-    // Loại bài tập
     exerciseType: {
       type: String,
       required: true,
       trim: true,
       maxlength: 50,
     },
-
-    // Ghi chú
     notes: {
       type: String,
       default: "",
       trim: true,
       maxlength: 200,
     },
-
-    // Màu hiển thị (hex)
     color: {
       type: String,
       default: "#ff5500",
       match: /^#([0-9A-Fa-f]{6})$/,
     },
 
-    // Đã gửi email nhắc chưa
-    reminderSent: {
-      type: Boolean,
-      default: false,
+    status: {
+      type: String,
+      enum: ["scheduled", "cancelled", "completed"],
+      default: "scheduled",
     },
-
-    // Khách hàng tự đăng ký (dành cho client booking)
-    clientId: {
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    revision: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    createdByType: {
+      type: String,
+      enum: ["client", "trainer", "admin", "migration"],
+      default: "trainer",
+    },
+    requestedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null,
+    },
+    requestId: {
+      type: String,
+      maxlength: 64,
     },
 
-    // Lần cuối khách hàng cập nhật lịch này
     lastClientEdit: {
       type: Date,
       default: null,
     },
+    lastClientEditAt: {
+      type: Date,
+      default: null,
+    },
+    cancelledAt: Date,
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    cancellationReason: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+      default: "",
+    },
+    completedAt: Date,
+    completedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
 
-    // Thời điểm hết hạn — MongoDB TTL sẽ tự xóa khi quá thời điểm này
+    reminderSent: {
+      type: Boolean,
+      default: false,
+    },
+    lastReminderOccurrenceKey: {
+      type: String,
+      default: "",
+      maxlength: 64,
+    },
+    lastReminderSentAt: {
+      type: Date,
+      default: null,
+    },
+    reminderClaimedOccurrenceKey: {
+      type: String,
+      default: "",
+      maxlength: 64,
+    },
+    reminderClaimedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Kept as a compatibility cutoff. It is no longer a TTL field.
     expiresAt: {
       type: Date,
       required: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-// ✅ TTL Index — MongoDB tự động xóa document khi expiresAt <= now
-trainingScheduleSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+trainingScheduleSchema.pre("validate", function validateOccurrence() {
+  if (this.startAt && this.endAt && this.endAt <= this.startAt) {
+    this.invalidate("endAt", "Thời gian kết thúc phải sau thời gian bắt đầu");
+  }
+  this.isActive = this.status === "scheduled";
+});
 
-// ✅ Compound index cho query nhanh theo trainer + ngày
-trainingScheduleSchema.index({ trainerId: 1, dayOfWeek: 1 });
+trainingScheduleSchema.index(
+  { clientId: 1, occurrenceDateKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      isActive: true,
+      occurrenceDateKey: { $type: "string" },
+    },
+    name: "uniq_active_client_occurrence_date",
+  },
+);
+trainingScheduleSchema.index(
+  { requestedBy: 1, requestId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { requestId: { $type: "string" } },
+    name: "uniq_schedule_request",
+  },
+);
+trainingScheduleSchema.index({ trainerId: 1, status: 1, startAt: 1 });
+trainingScheduleSchema.index({ clientId: 1, status: 1, startAt: 1 });
+trainingScheduleSchema.index({ status: 1, startAt: 1 });
+trainingScheduleSchema.index({ trainerId: 1, dayOfWeek: 1, startTime: 1 });
+trainingScheduleSchema.index({ expiresAt: 1, status: 1 });
 
 export default mongoose.model("TrainingSchedule", trainingScheduleSchema);

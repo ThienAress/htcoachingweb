@@ -1,8 +1,11 @@
 import path from "path";
 import BlogPost from "../models/BlogPost.js";
+import "../models/Trainer.js";
 import sanitizeHtml from "sanitize-html";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
+import { trackDbQuery } from "../observability/queryTelemetry.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 // Cấu hình sanitize — Tầng 1 bảo mật chống XSS
 const sanitizeOptions = {
@@ -41,6 +44,9 @@ const slugify = (value = "") =>
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+
+const escapeRegex = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const getBlogPayload = (body = {}, existingPost = null) => {
   const title = String(body.title || "").trim();
@@ -82,6 +88,9 @@ export const getPublicBlogPosts = async (req, res) => {
   try {
     const category = String(req.query.category || "").trim();
     const subCategory = String(req.query.subCategory || "").trim();
+    const sort = req.query.sort === "popular"
+      ? { views: -1, publishedAt: -1 }
+      : { publishedAt: -1 };
     const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 12, 1), 50);
     const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
     const skip = (page - 1) * limit;
@@ -91,19 +100,21 @@ export const getPublicBlogPosts = async (req, res) => {
       query.category = category;
     }
     if (subCategory) {
-      query.subCategory = subCategory;
+      query.subCategory = subCategory.slice(0, 100);
     }
 
-    const [total, posts] = await Promise.all([
-      BlogPost.countDocuments(query),
-      BlogPost.find(query)
-        .select("-content")
-        .populate("author", "name slug image")
-        .sort({ publishedAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-    ]);
+    const [total, posts] = await trackDbQuery("blog.public.list", () =>
+      Promise.all([
+        BlogPost.countDocuments(query),
+        BlogPost.find(query)
+          .select("-content")
+          .populate("author", "name slug image")
+          .sort(sort)
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+      ]),
+    );
 
     res.json({
       success: true,
@@ -116,14 +127,14 @@ export const getPublicBlogPosts = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("GET PUBLIC BLOG POSTS ERROR:", err);
+    safeLog.error("blog.public_list_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy danh sách bài viết" });
   }
 };
 
 export const getPublicBlogPostBySlug = async (req, res) => {
   try {
-    const slug = String(req.params.slug || "").toLowerCase().trim();
+    const slug = String(req.params.slug || "").toLowerCase().trim().slice(0, 180);
 
     const post = await BlogPost.findOne({ status: "published", slug })
       .populate("author", "name slug image title experience philosophy socialLinks")
@@ -133,24 +144,40 @@ export const getPublicBlogPostBySlug = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy bài viết" });
     }
 
-    // Lấy 4 bài viết liên quan (Semantic Silo: cùng category, trừ bài hiện tại)
-    const relatedPosts = await BlogPost.find({
-      status: "published",
-      category: post.category,
-      _id: { $ne: post._id }
-    })
-      .select("-content")
-      .populate("author", "name slug image")
-      .sort({ publishedAt: -1 })
-      .limit(4)
-      .lean();
+    const relatedByTags = post.tags?.length
+      ? await BlogPost.find({
+          status: "published",
+          category: post.category,
+          tags: { $in: post.tags.slice(0, 20) },
+          _id: { $ne: post._id },
+        })
+          .select("-content")
+          .populate("author", "name slug image")
+          .sort({ featured: -1, views: -1, publishedAt: -1 })
+          .limit(4)
+          .lean()
+      : [];
 
-    // Tăng views (fire-and-forget)
-    BlogPost.updateOne({ _id: post._id }, { $inc: { views: 1 } }).catch(() => {});
+    const excludedIds = [post._id, ...relatedByTags.map((item) => item._id)];
+    const relatedFallback = relatedByTags.length < 4
+      ? await BlogPost.find({
+          status: "published",
+          category: post.category,
+          _id: { $nin: excludedIds },
+        })
+          .select("-content")
+          .populate("author", "name slug image")
+          .sort({ views: -1, publishedAt: -1 })
+          .limit(4 - relatedByTags.length)
+          .lean()
+      : [];
+    const relatedPosts = [...relatedByTags, ...relatedFallback];
+
+    await BlogPost.updateOne({ _id: post._id }, { $inc: { views: 1 } });
 
     res.json({ success: true, data: post, relatedPosts });
   } catch (err) {
-    console.error("GET PUBLIC BLOG POST DETAIL ERROR:", err);
+    safeLog.error("blog.public_detail_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy chi tiết bài viết" });
   }
 };
@@ -165,7 +192,7 @@ export const getAdminBlogPosts = async (req, res) => {
     const status = String(req.query.status || "").trim();
     const category = String(req.query.category || "").trim();
     const subCategory = String(req.query.subCategory || "").trim();
-    const search = String(req.query.search || "").trim();
+    const search = String(req.query.search || "").trim().slice(0, 100);
 
     const query = {};
     if (["draft", "published"].includes(status)) query.status = status;
@@ -176,10 +203,11 @@ export const getAdminBlogPosts = async (req, res) => {
       query.subCategory = subCategory;
     }
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { slug: { $regex: search, $options: "i" } },
-        { tags: { $regex: search, $options: "i" } },
+        { title: { $regex: safeSearch, $options: "i" } },
+        { slug: { $regex: safeSearch, $options: "i" } },
+        { tags: { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -205,7 +233,7 @@ export const getAdminBlogPosts = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("GET ADMIN BLOG POSTS ERROR:", err);
+    safeLog.error("blog.admin_list_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy danh sách bài viết" });
   }
 };
@@ -220,7 +248,7 @@ export const getAdminBlogPostById = async (req, res) => {
     }
     res.json({ success: true, data: post });
   } catch (err) {
-    console.error("GET ADMIN BLOG POST DETAIL ERROR:", err);
+    safeLog.error("blog.admin_detail_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy chi tiết bài viết" });
   }
 };
@@ -250,7 +278,7 @@ export const createBlogPost = async (req, res) => {
     
     res.status(201).json({ success: true, data: post });
   } catch (err) {
-    console.error("CREATE BLOG POST ERROR:", err);
+    safeLog.error("blog.create_failed", err);
     if (err.code === 11000) {
       return res.status(409).json({ success: false, message: "Slug đã tồn tại" });
     }
@@ -286,7 +314,7 @@ export const updateBlogPost = async (req, res) => {
 
     res.json({ success: true, data: existingPost });
   } catch (err) {
-    console.error("UPDATE BLOG POST ERROR:", err);
+    safeLog.error("blog.update_failed", err);
     if (err.code === 11000) {
       return res.status(409).json({ success: false, message: "Slug đã tồn tại" });
     }
@@ -308,7 +336,7 @@ export const deleteBlogPost = async (req, res) => {
 
     res.json({ success: true, message: "Xóa bài viết thành công" });
   } catch (err) {
-    console.error("DELETE BLOG POST ERROR:", err);
+    safeLog.error("blog.delete_failed", err);
     res.status(500).json({ success: false, message: "Lỗi xóa bài viết" });
   }
 };
@@ -340,7 +368,7 @@ export const uploadBlogImage = async (req, res) => {
       data: { url: result.url, filename: result.public_id },
     });
   } catch (err) {
-    console.error("UPLOAD BLOG IMAGE ERROR:", err);
+    safeLog.error("blog.image_upload_failed", err);
     res.status(500).json({ success: false, message: "Lỗi upload ảnh bài viết" });
   }
 };

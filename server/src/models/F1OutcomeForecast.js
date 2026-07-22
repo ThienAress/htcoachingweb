@@ -77,6 +77,31 @@ const f1OutcomeForecastSchema = new mongoose.Schema(
       default: "forecast-engine-v1",
       trim: true,
     },
+    sourceFingerprint: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    generationKey: {
+      type: String,
+      default: "canonical",
+      trim: true,
+    },
+    requestId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    version: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
+    regeneratedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "F1OutcomeForecast",
+      default: null,
+    },
 
     coachNote: {
       type: String,
@@ -89,5 +114,37 @@ const f1OutcomeForecastSchema = new mongoose.Schema(
 
 f1OutcomeForecastSchema.index({ customerId: 1, createdAt: -1 });
 f1OutcomeForecastSchema.index({ aiReportId: 1 });
+f1OutcomeForecastSchema.index(
+  { requestId: 1 },
+  {
+    name: "uniq_f1_forecast_request",
+    unique: true,
+    partialFilterExpression: { requestId: { $type: "string" } },
+  },
+);
+f1OutcomeForecastSchema.index(
+  {
+    customerId: 1,
+    intakeId: 1,
+    assessmentId: 1,
+    aiReportId: 1,
+    engineVersion: 1,
+    sourceFingerprint: 1,
+    generationKey: 1,
+  },
+  {
+    name: "uniq_f1_forecast_source",
+    unique: true,
+    partialFilterExpression: { sourceFingerprint: { $type: "string" } },
+  },
+);
+f1OutcomeForecastSchema.index(
+  { customerId: 1, version: 1 },
+  {
+    name: "uniq_f1_forecast_version",
+    unique: true,
+    partialFilterExpression: { version: { $type: "number" } },
+  },
+);
 
 export default mongoose.model("F1OutcomeForecast", f1OutcomeForecastSchema);

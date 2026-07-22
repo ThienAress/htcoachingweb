@@ -21,3 +21,21 @@ export const uploadBufferToCloudinary = (buffer, options = {}) => {
     uploadStream.end(buffer);
   });
 };
+
+export const getCloudinaryPublicIdFromUrl = (url) => {
+  if (!url) return "";
+  const parts = url.split("/");
+  const folderIndex = parts.indexOf("htcoaching");
+  if (folderIndex === -1) return "";
+  return parts.slice(folderIndex).join("/").replace(/\.[^.]+$/, "");
+};
+
+export const destroyCloudinaryAsset = async (
+  publicId,
+  resourceType = "image",
+) => {
+  if (!publicId) return;
+  await cloudinary.uploader.destroy(publicId, {
+    resource_type: resourceType,
+  });
+};

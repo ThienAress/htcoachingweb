@@ -1,12 +1,16 @@
 import mongoose from "mongoose";
+import { safeLog } from "../utils/safeLogger.js";
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ MongoDB connected");
+    await mongoose.connect(process.env.MONGO_URI, {
+      autoIndex: process.env.NODE_ENV !== "production",
+    });
+    safeLog.info("database.connected");
+    return mongoose.connection;
   } catch (error) {
-    console.error("❌ MongoDB error:", error.message);
-    process.exit(1);
+    safeLog.error("database.connection_failed", error);
+    throw error;
   }
 };
 

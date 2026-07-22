@@ -2,6 +2,7 @@ import Recipe from "../../models/Recipe.js";
 import Trainer from "../../models/Trainer.js";
 import CustomerStory from "../../models/CustomerStory.js";
 import BlogPost from "../../models/BlogPost.js";
+import { safeLog } from "../../utils/safeLogger.js";
 
 /**
  * Trích xuất slug từ pathname
@@ -110,7 +111,9 @@ export async function enrichContextWithDbData(context) {
       }
     }
   } catch (error) {
-    console.error(`[ContextEnricher] Lỗi khi query data cho page ${context.page}:`, error.message);
+    safeLog.error("ai.context_enrichment_failed", error, {
+      page: context.page,
+    });
   }
 
   return enrichedData;

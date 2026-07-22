@@ -1,5 +1,9 @@
 import express from "express";
-import { protect, requireTrainerAccess } from "../middlewares/auth.middleware.js";
+import {
+  protect,
+  requireRoles,
+  requireTrainerAccess,
+} from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import { uploadCoachingVideo } from "../middlewares/coachingUpload.js";
 import {
@@ -58,7 +62,7 @@ router.delete("/trainer/clients/:userId/:dateString", protect, requireTrainerAcc
 router.post(
   "/trainer/upload-demo",
   protect,
-  requireTrainerAccess,
+  requireRoles("admin", "trainer"),
   csrfProtection,
   uploadCoachingVideo.single("video"),
   uploadCoachingDemoVideo

@@ -1,13 +1,154 @@
 // controllers/recipe.controller.js
 import Recipe from "../models/Recipe.js";
 import { v2 as cloudinary } from "cloudinary";
+import { trackDbQuery } from "../observability/queryTelemetry.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 // Whitelist fields cho admin update/create
 const ALLOWED_RECIPE_FIELDS = [
   "name", "nameEn", "slug", "category", "area", "prepTime",
   "tags", "isPublished", "ingredients", "instructions",
-  "youtubeUrl", "sourceUrl", "source", "thumbnail",
+  "youtubeUrl", "sourceUrl", "source",
 ];
+
+const normalizeSlug = (value) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const RECIPE_STRING_FIELDS = [
+  "name",
+  "nameEn",
+  "category",
+  "area",
+  "prepTime",
+  "youtubeUrl",
+  "sourceUrl",
+];
+
+const normalizeRecipeData = (rawData, { forCreate = false } = {}) => {
+  const data = { ...rawData };
+
+  for (const field of RECIPE_STRING_FIELDS) {
+    if (data[field] === undefined) continue;
+    if (typeof data[field] !== "string") {
+      throw new TypeError(`${field} must be a string`);
+    }
+    data[field] = data[field].trim();
+  }
+
+  if (data.slug !== undefined) {
+    if (typeof data.slug !== "string") {
+      throw new TypeError("slug must be a string");
+    }
+    data.slug = normalizeSlug(data.slug);
+  } else if (forCreate && data.name) {
+    data.slug = normalizeSlug(data.name);
+  }
+
+  if (
+    data.isPublished !== undefined &&
+    typeof data.isPublished !== "boolean"
+  ) {
+    throw new TypeError("isPublished must be a boolean");
+  }
+
+  if (data.tags !== undefined) {
+    if (!Array.isArray(data.tags)) {
+      throw new TypeError("tags must be an array");
+    }
+    data.tags = data.tags
+      .map((tag) => {
+        if (typeof tag !== "string") {
+          throw new TypeError("each tag must be a string");
+        }
+        return tag.trim();
+      })
+      .filter(Boolean);
+  }
+
+  if (data.ingredients !== undefined) {
+    if (!Array.isArray(data.ingredients)) {
+      throw new TypeError("ingredients must be an array");
+    }
+    data.ingredients = data.ingredients.map((ingredient) => {
+      if (
+        !ingredient ||
+        typeof ingredient !== "object" ||
+        typeof ingredient.name !== "string" ||
+        (ingredient.measure !== undefined &&
+          typeof ingredient.measure !== "string")
+      ) {
+        throw new TypeError("ingredient payload is invalid");
+      }
+      return {
+        name: ingredient.name.trim(),
+        measure: String(ingredient.measure || "").trim(),
+      };
+    });
+  }
+
+  if (data.instructions !== undefined) {
+    if (
+      !Array.isArray(data.instructions) ||
+      data.instructions.some((step) => typeof step !== "string")
+    ) {
+      throw new TypeError("instructions must be an array of strings");
+    }
+    data.instructions = data.instructions
+      .map((step) => step.trim())
+      .filter(Boolean);
+  }
+
+  if (
+    data.source !== undefined &&
+    !["mealdb", "ai", "manual"].includes(data.source)
+  ) {
+    throw new TypeError("source is invalid");
+  }
+
+  return data;
+};
+
+const sendRecipeWriteError = (res, error) => {
+  if (error.code === 11000) {
+    return res
+      .status(409)
+      .json({ success: false, message: "Slug already exists" });
+  }
+  if (
+    error instanceof TypeError ||
+    error.name === "ValidationError" ||
+    error.name === "CastError"
+  ) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+  return res.status(500).json({ success: false, message: error.message });
+};
+
+const getCloudinaryPublicId = (recipe) => {
+  if (recipe.thumbnailPublicId) return recipe.thumbnailPublicId;
+  if (!recipe.thumbnail) return "";
+  const parts = recipe.thumbnail.split("/");
+  const folderIndex = parts.indexOf("htcoaching");
+  if (folderIndex === -1) return "";
+  return parts.slice(folderIndex).join("/").replace(/\.[^.]+$/, "");
+};
+
+const destroyCloudinaryAsset = async (publicId) => {
+  if (!publicId) return;
+  try {
+    await cloudinary.uploader.destroy(publicId);
+  } catch (error) {
+    safeLog.error("recipe.cloudinary_cleanup_failed", error);
+  }
+};
 
 const pickAllowedFields = (body) => {
   const result = {};
@@ -30,24 +171,35 @@ export const getRecipes = async (req, res) => {
       limit: rawLimit,
     } = req.query;
 
-    const query = { isPublished: { $ne: false } };
+    const query = { isPublished: true };
 
     if (search) {
-      query.name = { $regex: search, $options: "i" };
+      const safeSearch = search
+        .trim()
+        .slice(0, 100)
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      query.$or = [
+        { name: { $regex: safeSearch, $options: "i" } },
+        { nameEn: { $regex: safeSearch, $options: "i" } },
+      ];
     }
-    if (category) query.category = category;
+    if (category) query.category = String(category).trim().slice(0, 100);
     // Gộp "Việt Nam" và "Vietnamese" khi filter
     if (area) {
+      const normalizedArea = String(area).trim().slice(0, 100);
       query.area =
-        area === "Việt Nam"
+        normalizedArea === "Việt Nam"
           ? { $in: ["Việt Nam", "Vietnamese"] }
-          : area;
+          : normalizedArea;
     }
-    if (tag) query.tags = tag;
-    if (source) query.source = source;
+    if (tag) query.tags = String(tag).trim().slice(0, 100);
+    if (["mealdb", "ai", "manual"].includes(source)) query.source = source;
 
-    const page = parseInt(rawPage) || 1;
-    const limit = parseInt(rawLimit) || 12;
+    const page = Math.max(parseInt(rawPage, 10) || 1, 1);
+    const limit = Math.min(
+      Math.max(parseInt(rawLimit, 10) || 12, 1),
+      50,
+    );
     const skip = (page - 1) * limit;
 
     // Aggregate: sort Việt Nam lên đầu
@@ -75,10 +227,12 @@ export const getRecipes = async (req, res) => {
       },
     ];
 
-    const [recipes, total] = await Promise.all([
-      Recipe.aggregate(pipeline),
-      Recipe.countDocuments(query),
-    ]);
+    const [recipes, total] = await trackDbQuery("recipe.public.list", () =>
+      Promise.all([
+        Recipe.aggregate(pipeline),
+        Recipe.countDocuments(query),
+      ]),
+    );
 
     res.json({
       success: true,
@@ -98,7 +252,10 @@ export const getRecipes = async (req, res) => {
 // Lấy chi tiết recipe theo slug – public
 export const getRecipeBySlug = async (req, res) => {
   try {
-    const recipe = await Recipe.findOne({ slug: req.params.slug }).lean();
+    const recipe = await Recipe.findOne({
+      slug: String(req.params.slug || "").toLowerCase().trim().slice(0, 180),
+      isPublished: true,
+    }).lean();
     if (!recipe) {
       return res
         .status(404)
@@ -113,7 +270,9 @@ export const getRecipeBySlug = async (req, res) => {
 // Lấy danh sách categories (cho filter UI) – public
 export const getRecipeCategories = async (req, res) => {
   try {
-    const categories = await Recipe.distinct("category");
+    const categories = await Recipe.distinct("category", {
+      isPublished: true,
+    });
     res.json({
       success: true,
       data: categories.filter(Boolean).sort(),
@@ -126,7 +285,7 @@ export const getRecipeCategories = async (req, res) => {
 // Lấy danh sách areas/quốc gia (cho filter UI) – public
 export const getRecipeAreas = async (req, res) => {
   try {
-    let areas = await Recipe.distinct("area");
+    let areas = await Recipe.distinct("area", { isPublished: true });
     // Normalize: gộp "Vietnamese" → "Việt Nam"
     areas = [...new Set(areas.map((a) => (a === "Vietnamese" ? "Việt Nam" : a)))]
       .filter(Boolean);
@@ -148,7 +307,10 @@ export const toggleBookmark = async (req, res) => {
     const userId = req.user.id;
     const { recipeId } = req.params;
 
-    const recipe = await Recipe.findById(recipeId);
+    const recipe = await Recipe.findOne({
+      _id: recipeId,
+      isPublished: true,
+    });
     if (!recipe) {
       return res
         .status(404)
@@ -183,6 +345,50 @@ export const toggleBookmark = async (req, res) => {
   }
 };
 
+export const addBookmark = async (req, res) => {
+  try {
+    const recipe = await Recipe.findOne({
+      _id: req.params.recipeId,
+      isPublished: true,
+    }).select("_id");
+    if (!recipe) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy công thức" });
+    }
+
+    const User = (await import("../models/User.js")).default;
+    await User.updateOne(
+      { _id: req.user.id },
+      { $addToSet: { savedRecipes: recipe._id } },
+    );
+    return res.json({
+      success: true,
+      saved: true,
+      message: "Đã lưu công thức",
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const removeBookmark = async (req, res) => {
+  try {
+    const User = (await import("../models/User.js")).default;
+    await User.updateOne(
+      { _id: req.user.id },
+      { $pull: { savedRecipes: req.params.recipeId } },
+    );
+    return res.json({
+      success: true,
+      saved: false,
+      message: "Đã bỏ lưu công thức",
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // Lấy danh sách recipes đã bookmark – cần đăng nhập
 export const getBookmarkedRecipes = async (req, res) => {
   try {
@@ -194,7 +400,10 @@ export const getBookmarkedRecipes = async (req, res) => {
       return res.json({ success: true, data: [] });
     }
 
-    const recipes = await Recipe.find({ _id: { $in: savedIds } })
+    const recipes = await Recipe.find({
+      _id: { $in: savedIds },
+      isPublished: true,
+    })
       .select("name slug category area thumbnail prepTime tags")
       .lean();
 
@@ -207,23 +416,20 @@ export const getBookmarkedRecipes = async (req, res) => {
 // Admin: Tạo recipe mới
 export const createRecipe = async (req, res) => {
   try {
-    const data = pickAllowedFields(req.body);
+    const data = normalizeRecipeData(pickAllowedFields(req.body), {
+      forCreate: true,
+    });
     const recipe = await Recipe.create(data);
     res.status(201).json({ success: true, data: recipe });
   } catch (err) {
-    if (err.code === 11000) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Slug đã tồn tại" });
-    }
-    res.status(500).json({ success: false, message: err.message });
+    return sendRecipeWriteError(res, err);
   }
 };
 
 // Admin: Cập nhật recipe
 export const updateRecipe = async (req, res) => {
   try {
-    const updates = pickAllowedFields(req.body);
+    const updates = normalizeRecipeData(pickAllowedFields(req.body));
     const recipe = await Recipe.findByIdAndUpdate(req.params.id, updates, {
       new: true,
       runValidators: true,
@@ -235,38 +441,23 @@ export const updateRecipe = async (req, res) => {
     }
     res.json({ success: true, data: recipe });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    return sendRecipeWriteError(res, err);
   }
 };
 
 // Admin: Xóa recipe
 export const deleteRecipe = async (req, res) => {
   try {
-    const recipe = await Recipe.findByIdAndDelete(req.params.id);
+    const recipe = await Recipe.findById(req.params.id)
+      .select("+thumbnailPublicId");
     if (!recipe) {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy công thức" });
     }
 
-    // Cleanup ảnh trên Cloudinary nếu có
-    if (recipe.thumbnail) {
-      try {
-        // Extract public_id từ URL Cloudinary
-        // URL format: https://res.cloudinary.com/.../htcoaching/recipes/abc123.jpg
-        const parts = recipe.thumbnail.split("/");
-        const folderIdx = parts.indexOf("htcoaching");
-        if (folderIdx !== -1) {
-          const publicId = parts
-            .slice(folderIdx)
-            .join("/")
-            .replace(/\.[^.]+$/, ""); // bỏ extension
-          await cloudinary.uploader.destroy(publicId);
-        }
-      } catch {
-        // Không block response nếu xóa ảnh thất bại
-      }
-    }
+    await Recipe.deleteOne({ _id: recipe._id });
+    await destroyCloudinaryAsset(getCloudinaryPublicId(recipe));
 
     res.json({ success: true, message: "Xóa công thức thành công" });
   } catch (err) {
@@ -277,13 +468,22 @@ export const deleteRecipe = async (req, res) => {
 // Admin: Lấy tất cả danh sách (kể cả chưa duyệt)
 export const getAdminRecipes = async (req, res) => {
   try {
-    const { search = "", page = 1, limit = 20, isPublished } = req.query;
+    const { search = "", isPublished } = req.query;
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit, 10) || 20, 1),
+      100,
+    );
     const query = {};
 
     if (search) {
+      const safeSearch = search
+        .trim()
+        .slice(0, 100)
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { nameEn: { $regex: search, $options: "i" } },
+        { name: { $regex: safeSearch, $options: "i" } },
+        { nameEn: { $regex: safeSearch, $options: "i" } },
       ];
     }
     
@@ -291,13 +491,13 @@ export const getAdminRecipes = async (req, res) => {
       query.isPublished = isPublished === "true";
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const skip = (page - 1) * limit;
     
     const [recipes, total] = await Promise.all([
       Recipe.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(limit)
         .lean(),
       Recipe.countDocuments(query),
     ]);
@@ -307,9 +507,9 @@ export const getAdminRecipes = async (req, res) => {
       data: recipes,
       pagination: {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(total / parseInt(limit)),
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (err) {
@@ -319,19 +519,19 @@ export const getAdminRecipes = async (req, res) => {
 
 // Admin: Upload hình ảnh thumbnail cho Recipe
 export const uploadThumbnail = async (req, res) => {
+  const uploadedPublicId = req.file?.filename || "";
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "Vui lòng chọn ảnh" });
     }
 
-    const recipe = await Recipe.findByIdAndUpdate(
-      req.params.id,
-      { thumbnail: req.file.path },
-      { new: true, runValidators: true }
-    );
-
-    if (!recipe) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy công thức" });
+    const recipe = req.recipe;
+    const previousPublicId = getCloudinaryPublicId(recipe);
+    recipe.thumbnail = req.file.path;
+    recipe.thumbnailPublicId = uploadedPublicId;
+    await recipe.save();
+    if (previousPublicId && previousPublicId !== uploadedPublicId) {
+      await destroyCloudinaryAsset(previousPublicId);
     }
 
     res.json({
@@ -340,6 +540,23 @@ export const uploadThumbnail = async (req, res) => {
       data: recipe,
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    await destroyCloudinaryAsset(uploadedPublicId);
+    return sendRecipeWriteError(res, err);
+  }
+};
+
+export const loadRecipeForUpload = async (req, res, next) => {
+  try {
+    const recipe = await Recipe.findById(req.params.id)
+      .select("+thumbnailPublicId");
+    if (!recipe) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy công thức" });
+    }
+    req.recipe = recipe;
+    return next();
+  } catch (err) {
+    return next(err);
   }
 };

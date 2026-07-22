@@ -1,7 +1,10 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
-import { validateId } from "../middlewares/validation.js";
+import {
+  validateId,
+  validateRecipeId,
+} from "../middlewares/validation.js";
 import upload from "../middlewares/recipeUpload.js";
 import {
   getRecipes,
@@ -9,12 +12,15 @@ import {
   getRecipeCategories,
   getRecipeAreas,
   toggleBookmark,
+  addBookmark,
+  removeBookmark,
   getBookmarkedRecipes,
   createRecipe,
   updateRecipe,
   deleteRecipe,
   getAdminRecipes,
   uploadThumbnail,
+  loadRecipeForUpload,
 } from "../controllers/recipe.controller.js";
 
 const router = express.Router();
@@ -31,7 +37,22 @@ router.post(
   "/bookmarks/:recipeId",
   protect,
   csrfProtection,
+  validateRecipeId,
   toggleBookmark,
+);
+router.put(
+  "/bookmarks/:recipeId",
+  protect,
+  csrfProtection,
+  validateRecipeId,
+  addBookmark,
+);
+router.delete(
+  "/bookmarks/:recipeId",
+  protect,
+  csrfProtection,
+  validateRecipeId,
+  removeBookmark,
 );
 
 // Admin routes
@@ -72,6 +93,7 @@ router.post(
   csrfProtection,
   requireRoles("admin"),
   validateId,
+  loadRecipeForUpload,
   upload.single("image"),
   uploadThumbnail
 );

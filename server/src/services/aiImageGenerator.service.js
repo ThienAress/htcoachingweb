@@ -19,7 +19,8 @@ const isSupportedImageRef = (value = "") =>
 
 const getProviderConfig = () => {
   const provider = safeText(
-    process.env.AI_IMAGE_PROVIDER || "mock",
+    process.env.AI_IMAGE_PROVIDER ||
+      (process.env.NODE_ENV === "production" ? "" : "mock"),
   ).toLowerCase();
 
   const model = safeText(process.env.AI_IMAGE_MODEL || "gpt-image-1");
@@ -33,6 +34,15 @@ const getProviderConfig = () => {
       )}`,
     );
     error.status = 500;
+    throw error;
+  }
+
+  if (process.env.NODE_ENV === "production" && provider === "mock") {
+    const error = new Error(
+      "AI_IMAGE_PROVIDER=mock is forbidden in production",
+    );
+    error.code = "AI_IMAGE_PROVIDER_NOT_CONFIGURED";
+    error.status = 503;
     throw error;
   }
 
@@ -81,7 +91,7 @@ const generateMockStageImages = async ({
   const frontUrl = safeText(beforeImages?.frontUrl);
   const sideUrl = safeText(beforeImages?.sideUrl);
 
-  if (!isValidHttpUrl(frontUrl) || !isValidHttpUrl(sideUrl)) {
+  if (!isSupportedImageRef(frontUrl) || !isSupportedImageRef(sideUrl)) {
     const error = new Error(
       "Mock AI generator cần beforeImages.frontUrl và beforeImages.sideUrl hợp lệ",
     );
