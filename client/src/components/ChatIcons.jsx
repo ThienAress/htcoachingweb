@@ -131,10 +131,7 @@ const ChatIcons = () => {
 
   // Ẩn khi cuộn qua 40% trang (chỉ mobile)
   useEffect(() => {
-    if (viewportWidth >= 640) {
-      setHiddenByScroll(false);
-      return;
-    }
+    if (viewportWidth >= 640) return;
     const handleScroll = () => {
       const scrolled = window.scrollY;
       const total = document.documentElement.scrollHeight - window.innerHeight;
@@ -163,7 +160,7 @@ const ChatIcons = () => {
     };
   }, []);
 
-  const isHidden = chatWidgetOpen || hiddenByScroll;
+  const isHidden = chatWidgetOpen || (viewportWidth < 640 && hiddenByScroll);
 
   return (
     <div

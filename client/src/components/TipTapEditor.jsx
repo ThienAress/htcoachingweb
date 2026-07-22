@@ -312,7 +312,7 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
           trashTags.forEach((el) => el.remove());
 
           return doc.body.innerHTML;
-        } catch (e) {
+        } catch {
           return html;
         }
       },

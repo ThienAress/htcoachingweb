@@ -101,7 +101,7 @@ const Field = ({ label, hint, children }) => (
 
 const hasMarkdown = (text) => {
   if (!text) return false;
-  return /[*_#`\[\]\n]/.test(text);
+  return ["*", "_", "#", "`", "[", "]", "\n"].some((marker) => text.includes(marker));
 };
 
 // ==================== MAIN COMPONENT ====================

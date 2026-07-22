@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { Link, Navigate, useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -37,7 +37,9 @@ const stripTags = (html) => html.replace(/<[^>]*>/g, "");
 const stripMarkdown = (text) => {
   if (!text) return "";
   return text
-    .replace(/[*_#`\[\]()]/g, "")
+    .replace(/[*_#`()]/g, "")
+    .replaceAll("[", "")
+    .replaceAll("]", "")
     .replace(/\n+/g, " ")
     .trim();
 };
@@ -80,8 +82,8 @@ const fixBrokenLinks = (html) => {
         if (q && q.startsWith("/")) {
           return `href="${q}"`;
         }
-      } catch (err) {
-        console.error("Error parsing Google Search URL:", err);
+      } catch {
+        return match;
       }
     }
     
@@ -93,7 +95,7 @@ const fixBrokenLinks = (html) => {
         if (urlObj.host === "" || !urlObj.host.includes(".")) {
           return `href="${urlObj.pathname}"`;
         }
-      } catch (err) {
+      } catch {
         // Cú pháp dự phòng (fallback regex) nếu URL parser lỗi với URL không hợp lệ
         const matchProtocol = url.match(/^https?:\/\/([^/]+)(.*)/);
         if (matchProtocol) {
@@ -188,8 +190,11 @@ const BlogDetail = () => {
   const postRaw = postResponse?.data;
   const post = useMemo(() => translateData(postRaw, "blog", i18n.language), [postRaw, i18n.language]);
 
-  const relatedPostsRaw = postResponse?.relatedPosts || [];
-  const relatedPosts = useMemo(() => translateData(relatedPostsRaw, "blog", i18n.language), [relatedPostsRaw, i18n.language]);
+  const relatedPostsRaw = postResponse?.relatedPosts;
+  const relatedPosts = useMemo(
+    () => translateData(relatedPostsRaw || [], "blog", i18n.language),
+    [relatedPostsRaw, i18n.language]
+  );
 
   const toc = useMemo(() => extractTOC(post?.content), [post?.content]);
 
