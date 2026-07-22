@@ -1,5 +1,6 @@
 import * as contractService from "../services/contract.service.js";
 import { sendContractMail } from "../utils/sendMail.js";
+import { referencesSameDocument } from "../utils/mongooseReference.js";
 
 /**
  * POST /api/contracts — Tạo hợp đồng từ Order đã approved.
@@ -58,8 +59,8 @@ export const getContractById = async (req, res) => {
     // IDOR check: chỉ admin, client hoặc trainer liên quan
     if (
       req.user.role !== "admin" &&
-      contract.clientId?.toString() !== req.user.id.toString() &&
-      contract.trainerId?.toString() !== req.user.id.toString()
+      !referencesSameDocument(contract.clientId, req.user.id) &&
+      !referencesSameDocument(contract.trainerId, req.user.id)
     ) {
       return res.status(403).json({ success: false, message: "Không có quyền truy cập hợp đồng này" });
     }
@@ -126,7 +127,7 @@ export const signContract = async (req, res) => {
     if (!existing) {
       return res.status(404).json({ success: false, message: "Không tìm thấy hợp đồng" });
     }
-    if (existing.clientId?.toString() !== req.user.id.toString()) {
+    if (!referencesSameDocument(existing.clientId, req.user.id)) {
       return res.status(403).json({ success: false, message: "Không có quyền ký hợp đồng này" });
     }
 
@@ -158,8 +159,8 @@ export const downloadContract = async (req, res) => {
     // IDOR check
     if (
       req.user.role !== "admin" &&
-      contract.clientId?.toString() !== req.user.id.toString() &&
-      contract.trainerId?.toString() !== req.user.id.toString()
+      !referencesSameDocument(contract.clientId, req.user.id) &&
+      !referencesSameDocument(contract.trainerId, req.user.id)
     ) {
       return res.status(403).json({ success: false, message: "Không có quyền tải hợp đồng này" });
     }
@@ -203,7 +204,7 @@ export const markAsViewed = async (req, res) => {
     }
     if (
       req.user.role !== "admin" &&
-      existing.clientId?.toString() !== req.user.id.toString()
+      !referencesSameDocument(existing.clientId, req.user.id)
     ) {
       return res.status(403).json({ success: false, message: "Không có quyền" });
     }
@@ -254,7 +255,7 @@ export const clientDownloadContract = async (req, res) => {
     if (!contract) return res.status(404).json({ success: false, message: "Không tìm thấy" });
 
     // IDOR check: chỉ client liên quan
-    if (contract.clientId?.toString() !== req.user.id.toString()) {
+    if (!referencesSameDocument(contract.clientId, req.user.id)) {
       return res.status(403).json({ success: false, message: "Không có quyền tải hợp đồng này" });
     }
 
