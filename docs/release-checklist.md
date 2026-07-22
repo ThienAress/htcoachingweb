@@ -1,5 +1,7 @@
 # Release Checklist
 
+Current staging evidence: [staging-deployment-report-2026-07-23.md](./staging-deployment-report-2026-07-23.md).
+
 ## Repository incident closure - updated 2026-07-22
 
 - [ ] **Revoke suspected credential:** account owner removes the suspected Google
@@ -17,46 +19,46 @@
 
 ## Before staging
 
-- [ ] CI is green: client lint/tests/build, server tests, Chromium E2E.
+- [x] CI is green: client lint/tests/build, server tests, Chromium E2E.
 - [ ] Revoke and replace any credential reported by npm run security:secrets.
 - [x] Require npm run security:secrets and npm run security:data-boundaries to
       report zero findings.
-- [ ] Run npm run check:production-readiness inside the server deployment
+- [x] Run npm run check:production-readiness inside the server deployment
       environment and review every warning.
 - [x] Confirm no runtime upload, private media, env file, database export or
       private key is tracked by Git.
-- [ ] Review the Git diff for secrets, generated files, and unrelated changes.
-- [ ] Confirm required environment variables and allowed origins.
+- [x] Review the Git diff for secrets, generated files, and unrelated changes.
+- [x] Confirm required environment variables and allowed origins.
 - [ ] Create a database backup and record its snapshot identifier.
 - [ ] Confirm rollback owner, deployment owner, and observation window.
 
 ## Staging database
 
-- [ ] Run Phase 1-3 migrations in order if the environment has not applied them.
-- [ ] Set CONFIRM_PHASE4_INDEX_MIGRATION=yes, then run npm run migrate:phase4.
-- [ ] Run npm run verify:phase4-indexes.
+- [x] Run Phase 1-3 migrations in order if the environment has not applied them.
+- [x] Set CONFIRM_PHASE4_INDEX_MIGRATION=yes, then run npm run migrate:phase4.
+- [x] Run npm run verify:phase4-indexes.
 - [ ] Set ALLOW_PHASE4_EXPLAIN=true, then run npm run explain:phase4.
-- [ ] Run wallet reconciliation with ALLOW_LEGACY_TRAINER_REFERENCE=true before
+- [x] Run wallet reconciliation with ALLOW_LEGACY_TRAINER_REFERENCE=true before
       Phase 6 migration; stop if totalIssues is not zero.
-- [ ] Set CONFIRM_PHASE6_FINANCIAL_MIGRATION=yes, then run
+- [x] Set CONFIRM_PHASE6_FINANCIAL_MIGRATION=yes, then run
       npm run migrate:phase6.
-- [ ] Run strict npm run reconcile:wallets after Phase 6 migration and require
+- [x] Run strict npm run reconcile:wallets after Phase 6 migration and require
       totalIssues = 0.
 - [ ] Assign every approved order to a trainer, or set DEFAULT_ADMIN_TRAINER_ID
       to a valid admin ObjectId for legacy unassigned orders.
-- [ ] Back up training schedules and bookings, then set
+- [x] Back up training schedules and bookings, then set
       CONFIRM_PHASE7_SCHEDULE_MIGRATION=yes and run npm run migrate:phase7.
-- [ ] Stop the rollout if Phase 7 preflight reports an invalid occurrence,
+- [x] Stop the rollout if Phase 7 preflight reports an invalid occurrence,
       duplicate client/date, or overlapping trainer slot.
-- [ ] Run npm run verify:phase7 and require totalIssues = 0 after migration.
-- [ ] Confirm Cloudinary private/authenticated credentials in staging and back up
+- [x] Run npm run verify:phase7 and require totalIssues = 0 after migration.
+- [x] Confirm Cloudinary private/authenticated credentials in staging and back up
       F1 collections before Phase 8.
-- [ ] Set CONFIRM_PHASE8_F1_MIGRATION=yes, then run npm run migrate:phase8.
-- [ ] Run npm run verify:phase8 and require totalIssues = 0. Resolve every
+- [x] Set CONFIRM_PHASE8_F1_MIGRATION=yes, then run npm run migrate:phase8.
+- [x] Run npm run verify:phase8 and require totalIssues = 0. Resolve every
       legacy-media failure or orphan before production.
-- [ ] Set an owner-approved F1_RETENTION_DAYS, set
+- [x] Set an owner-approved F1_RETENTION_DAYS, set
       CONFIRM_PHASE9_PRIVACY_MIGRATION=yes, then run npm run migrate:phase9.
-- [ ] Run npm run verify:phase9 and require totalIssues = 0. Confirm the Web
+- [x] Run npm run verify:phase9 and require totalIssues = 0. Confirm the Web
       Vital TTL and F1 lifecycle indexes exist.
 - [ ] Check DB CPU, write latency, index size, and replication lag during index creation.
 - [ ] Resolve any query with docs-examined/returned above 20 before production.
@@ -66,15 +68,17 @@ change approval, and an identified rollback path.
 
 ## Staging application
 
-- [ ] Verify /api/ops/health returns 200.
+- [x] Verify /api/ops/health returns 200.
 - [ ] Configure platform liveness as /api/ops/health/live and readiness as
       /api/ops/health/ready; verify readiness becomes 503 during drain.
-- [ ] Set TRUST_PROXY_HOPS from the verified proxy topology.
-- [ ] Set BACKGROUND_JOBS_ENABLED=false on web replicas and true only on the
+- [x] Set TRUST_PROXY_HOPS from the verified proxy topology.
+- [x] Set BACKGROUND_JOBS_ENABLED=false on web replicas and true only on the
       designated worker.
+- [x] Run the security smoke directly against the deployed staging URLs and
+      record the evidence in the staging deployment report.
 - [ ] Run the manual Staging Security Smoke workflow with the staging GitHub
       Environment reviewer.
-- [ ] Verify /api/ops/metrics is 401/403 for non-admin and 200 for admin.
+- [x] Verify /api/ops/metrics is 401/403 for non-admin and 200 for admin.
 - [ ] Run npm run load:smoke in server against staging only after setting
       ALLOW_REMOTE_LOAD_SMOKE=true and an approved LOAD_BASE_URL.
 - [ ] Run critical auth, check-in, coaching, content, AI/KB, contract, and wallet E2E.
@@ -83,7 +87,7 @@ change approval, and an identified rollback path.
 - [ ] Verify client/trainer create, reschedule, cancel, complete, reminder retry,
       lead transition, and lead archive flows in staging.
 - [ ] Confirm AI and embedding providers use test-safe quotas.
-- [ ] Confirm logs redact email, phone, credentials, tokens, and message content.
+- [x] Confirm logs redact email, phone, credentials, tokens, and message content.
 - [ ] Verify bank transfer values come from the secret manager and missing
       configuration fails deposit creation before database writes.
 - [ ] Verify production AI endpoints cannot use mock providers.
@@ -92,12 +96,12 @@ change approval, and an identified rollback path.
 - [ ] Run the F1 lifecycle browser flow: create, intake, two media uploads,
       assessment and AI report.
 - [ ] Run an F1 retention dry-run and obtain owner approval for the candidate count.
-- [ ] Keep F1_RETENTION_ENFORCE=false until deletion/provider cleanup is observed.
-- [ ] Configure OPS_METRICS_TOKEN (minimum 24 characters) and verify the Prometheus
+- [x] Keep F1_RETENTION_ENFORCE=false until deletion/provider cleanup is observed.
+- [x] Configure OPS_METRICS_TOKEN (minimum 24 characters) and verify the Prometheus
       endpoint rejects missing/incorrect tokens.
 - [ ] Wire Prometheus scrape and external alert delivery; send one test alert to
       the named owner.
-- [ ] Keep CSP_ENFORCE=false, review report-only violations, and test public,
+- [x] Enforce CSP in staging after reviewing violations and testing public,
       auth, admin, schedule and F1 pages.
 - [ ] Record a seven-day RUM baseline by route/device before performance claims.
 - [ ] Run axe critical smoke and the full Chromium/Firefox/WebKit matrix.
