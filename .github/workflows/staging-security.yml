@@ -1,0 +1,28 @@
+name: Staging Security Smoke
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: staging-security
+  cancel-in-progress: false
+
+jobs:
+  read-only-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run read-only staging security checks
+        working-directory: server
+        run: npm run security:smoke
+        env:
+          ALLOW_REMOTE_SECURITY_SMOKE: "true"
+          SECURITY_SMOKE_BASE_URL: ${{ secrets.STAGING_API_URL }}
+          SECURITY_SMOKE_ALLOWED_ORIGIN: ${{ vars.STAGING_CLIENT_ORIGIN }}

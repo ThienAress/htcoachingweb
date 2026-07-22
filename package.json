@@ -8,6 +8,8 @@
     "test:unit:server": "cd server && npx vitest run",
     "test:unit": "cd client && npx vitest run && cd ../server && npx vitest run",
     "test:e2e": "npx playwright test",
+    "security:secrets": "node scripts/check-secrets.mjs",
+    "security:data-boundaries": "node scripts/check-repository-boundaries.mjs",
     "test": "cd client && npx vitest run && cd ../server && npx vitest run && cd .. && npx playwright test"
   },
   "repository": {
@@ -23,6 +25,7 @@
   },
   "homepage": "https://github.com/ThienAress/htcoachingweb#readme",
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.0"
   }
 }
