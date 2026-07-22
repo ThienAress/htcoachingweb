@@ -9,33 +9,34 @@ import { test, expect } from "@playwright/test";
 test.describe("Homepage — Trang chủ", () => {
   test("trang chủ load thành công + hiển thị hero section", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
 
-    // Hero heading phải hiển thị
-    const heroText = page.locator("text=TĂNG CƠ - GIẢM MỠ");
-    await expect(heroText).toBeVisible({ timeout: 10000 });
+    const heroHeading = page.locator("main h1, section h1").first();
+    await expect(heroHeading).toBeVisible({ timeout: 10000 });
+    await expect(heroHeading).toContainText("90");
 
-    // Bullet points trong hero
-    await expect(page.locator("text=Lộ trình riêng biệt")).toBeVisible();
-    await expect(page.locator("text=Cam kết đạt mục tiêu 100%")).toBeVisible();
+    await expect(
+      page.getByText(/Lộ trình riêng biệt|Personalized training plan/i).first(),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByText(/Cam kết đạt mục tiêu 100%|100% goal achievement guarantee/i)
+        .first(),
+    ).toBeVisible();
   });
 
   test("navigation bar chứa các menu items chính", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
 
     // Kiểm tra nav element tồn tại và có links
     const nav = page.locator("nav, header");
     await expect(nav.first()).toBeVisible();
 
-    // Kiểm tra nút đăng nhập luôn hiển thị trên nav
-    const loginLink = page.locator("text=Đăng nhập").first();
+    const loginLink = page.locator("header a[href='/login']:visible").first();
     await expect(loginLink).toBeVisible();
   });
 
   test("click vào logo/link CLB chuyển đến /club", async ({ page }) => {
     await page.goto("/club");
-    await page.waitForLoadState("networkidle");
 
     // Verify URL đúng
     expect(page.url()).toContain("/club");
@@ -47,7 +48,6 @@ test.describe("Homepage — Trang chủ", () => {
 
   test("trang login accessible từ navigation", async ({ page }) => {
     await page.goto("/login");
-    await page.waitForLoadState("networkidle");
 
     expect(page.url()).toContain("/login");
 
@@ -58,11 +58,7 @@ test.describe("Homepage — Trang chủ", () => {
 
   test("page title chứa HTCOACHING", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000);
-
-    const title = await page.title();
-    expect(title.toUpperCase()).toContain("HTCOACHING");
+    await expect(page).toHaveTitle(/HTCOACHING/i);
   });
 
   test("trang không có lỗi console nghiêm trọng", async ({ page }) => {
@@ -75,17 +71,7 @@ test.describe("Homepage — Trang chủ", () => {
     });
 
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    // Filter bỏ lỗi thường gặp trong dev
-    const criticalErrors = errors.filter(
-      (e) =>
-        !e.includes("favicon") &&
-        !e.includes("CORS") &&
-        !e.includes("ERR_CONNECTION_REFUSED") &&
-        !e.includes("Failed to load resource") &&
-        !e.includes("net::ERR_")
-    );
+    const criticalErrors = errors.filter((error) => !error.includes("favicon"));
 
     expect(criticalErrors).toHaveLength(0);
   });

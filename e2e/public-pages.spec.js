@@ -22,33 +22,25 @@ test.describe("Public Pages — Kiểm tra routing & SEO", () => {
 
       // Response phải là 200 (SPA luôn trả 200)
       expect(response?.status()).toBeLessThan(400);
-      await page.waitForLoadState("networkidle");
     });
 
     test(`${pg.path} — title chứa "${pg.expectedTitle}"`, async ({ page }) => {
       await page.goto(pg.path);
-      await page.waitForLoadState("networkidle");
-      await page.waitForTimeout(2000);
-
-      const title = await page.title();
-      expect(title.toUpperCase()).toContain(pg.expectedTitle.toUpperCase());
+      await expect(page).toHaveTitle(
+        new RegExp(pg.expectedTitle, "i"),
+      );
     });
   }
 
   test("trang không tồn tại hiển thị fallback", async ({ page }) => {
     await page.goto("/trang-khong-ton-tai-xyz123");
-    await page.waitForLoadState("networkidle");
-
-    const content = await page.content();
-    expect(content.length).toBeGreaterThan(100);
+    await expect(page.getByText("Không tìm thấy trang", { exact: true })).toBeVisible();
   });
 });
 
 test.describe("SEO Meta Tags — Kiểm tra meta tags cơ bản", () => {
   test("homepage có meta description", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
 
     // Dùng .first() để tránh strict mode violation khi có duplicate
     const metaDesc = await page
@@ -61,8 +53,6 @@ test.describe("SEO Meta Tags — Kiểm tra meta tags cơ bản", () => {
 
   test("homepage có Open Graph title", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
 
     // .first() vì react-helmet-async + index.html có thể tạo duplicate
     const ogTitle = await page
@@ -75,8 +65,6 @@ test.describe("SEO Meta Tags — Kiểm tra meta tags cơ bản", () => {
 
   test("homepage có canonical URL", async ({ page }) => {
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(2000);
 
     // .first() vì có thể duplicate
     const canonical = await page
