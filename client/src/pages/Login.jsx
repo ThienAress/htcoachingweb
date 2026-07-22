@@ -3,13 +3,16 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import logo from "../assets/images/logo/logo.svg";
 import SEO from "../components/SEO";
+import { getServerBaseUrl } from "../utils/mediaUrl";
 
 const Login = () => {
   const { t } = useTranslation("auth");
   const handleGoogleLogin = () => {
-    const baseUrl = import.meta.env.DEV
-      ? "http://localhost:5000"
-      : "https://htcoachingweb.onrender.com";
+    const apiUrl =
+      import.meta.env.VITE_API_URL ||
+      (import.meta.env.DEV ? "http://localhost:5000/api" : "");
+    const baseUrl = getServerBaseUrl(apiUrl);
+    if (!baseUrl) throw new Error("Missing VITE_API_URL");
     window.location.href = `${baseUrl}/api/auth/google?client_url=${encodeURIComponent(window.location.origin)}`;
   };
 

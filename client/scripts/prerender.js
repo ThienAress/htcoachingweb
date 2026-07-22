@@ -12,6 +12,7 @@ const PORT = 5174; // Port tạm thời để prerender
 const DIST_DIR = path.resolve(__dirname, '../dist');
 const API_URL =
   process.env.PRERENDER_API_URL ||
+  process.env.VITE_API_URL ||
   "https://htcoachingweb.onrender.com/api";
 const SKIP_DYNAMIC_ROUTES = process.env.SKIP_DYNAMIC_ROUTES === "true";
 const fetchApi = (pathName) =>

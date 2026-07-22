@@ -8,6 +8,7 @@ const __dirname = path.dirname(__filename);
 
 const API_URL =
   process.env.SITEMAP_API_URL ||
+  process.env.VITE_API_URL ||
   "https://htcoachingweb.onrender.com/api";
 const SKIP_DYNAMIC_ROUTES = process.env.SKIP_DYNAMIC_ROUTES === "true";
 const REQUIRE_DYNAMIC_ROUTES =
