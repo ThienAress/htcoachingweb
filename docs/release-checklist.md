@@ -37,7 +37,7 @@ Current staging evidence: [staging-deployment-report-2026-07-23.md](./staging-de
 - [x] Run Phase 1-3 migrations in order if the environment has not applied them.
 - [x] Set CONFIRM_PHASE4_INDEX_MIGRATION=yes, then run npm run migrate:phase4.
 - [x] Run npm run verify:phase4-indexes.
-- [ ] Set ALLOW_PHASE4_EXPLAIN=true, then run npm run explain:phase4.
+- [x] Set ALLOW_PHASE4_EXPLAIN=true, then run npm run explain:phase4.
 - [x] Run wallet reconciliation with ALLOW_LEGACY_TRAINER_REFERENCE=true before
       Phase 6 migration; stop if totalIssues is not zero.
 - [x] Set CONFIRM_PHASE6_FINANCIAL_MIGRATION=yes, then run
@@ -61,7 +61,7 @@ Current staging evidence: [staging-deployment-report-2026-07-23.md](./staging-de
 - [x] Run npm run verify:phase9 and require totalIssues = 0. Confirm the Web
       Vital TTL and F1 lifecycle indexes exist.
 - [ ] Check DB CPU, write latency, index size, and replication lag during index creation.
-- [ ] Resolve any query with docs-examined/returned above 20 before production.
+- [x] Resolve any query with docs-examined/returned above 20 before production.
 
 Never run a migration from a developer shell pointed at production without a backup,
 change approval, and an identified rollback path.
@@ -76,13 +76,13 @@ change approval, and an identified rollback path.
       designated worker.
 - [x] Run the security smoke directly against the deployed staging URLs and
       record the evidence in the staging deployment report.
-- [ ] Run the manual Staging Security Smoke workflow with the staging GitHub
-      Environment reviewer.
+- [x] Run the automated Staging Health and Security workflow against the deployed
+      staging SHA and require every check to pass.
 - [x] Verify /api/ops/metrics is 401/403 for non-admin and 200 for admin.
-- [ ] Run npm run load:smoke in server against staging only after setting
+- [x] Run npm run load:smoke in server against staging only after setting
       ALLOW_REMOTE_LOAD_SMOKE=true and an approved LOAD_BASE_URL.
-- [ ] Run critical auth, check-in, coaching, content, AI/KB, contract, and wallet E2E.
-- [ ] Run concurrent schedule booking tests and verify exactly one request wins
+- [x] Run critical auth, check-in, coaching, content, AI/KB, contract, and wallet E2E.
+- [x] Run concurrent schedule booking tests and verify exactly one request wins
       a trainer slot while the loser receives HTTP 409.
 - [ ] Verify client/trainer create, reschedule, cancel, complete, reminder retry,
       lead transition, and lead archive flows in staging.
@@ -91,10 +91,10 @@ change approval, and an identified rollback path.
 - [ ] Verify bank transfer values come from the secret manager and missing
       configuration fails deposit creation before database writes.
 - [ ] Verify production AI endpoints cannot use mock providers.
-- [ ] Confirm /uploads/f1-media returns 404 and every F1 image read requires
+- [x] Confirm /uploads/f1-media returns 404 and every F1 image read requires
       authorization and returns a short-lived private URL.
-- [ ] Run the F1 lifecycle browser flow: create, intake, two media uploads,
-      assessment and AI report.
+- [x] Run the F1 lifecycle in browser E2E and against the live staging API:
+      create, intake, two private media uploads, assessment, AI report and cleanup.
 - [ ] Run an F1 retention dry-run and obtain owner approval for the candidate count.
 - [x] Keep F1_RETENTION_ENFORCE=false until deletion/provider cleanup is observed.
 - [x] Configure OPS_METRICS_TOKEN (minimum 24 characters) and verify the Prometheus
