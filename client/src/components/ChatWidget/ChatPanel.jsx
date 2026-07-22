@@ -6,6 +6,7 @@ import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import ChatPanelSidebar from "./ChatPanelSidebar";
 import { submitAiFeedback } from "../../services/ai.service";
+import { compressChatImage } from "../../utils/compressChatImage";
 
 const PAGE_TYPE_MAP = {
   "/tdee-calculator": "tdee_calculator",
@@ -20,6 +21,7 @@ const PAGE_TYPE_MAP = {
   "/workout-plans": "workout_plan",
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getPageType(pathname) {
   for (const [prefix, type] of Object.entries(PAGE_TYPE_MAP)) {
     if (pathname.startsWith(prefix)) return type;
@@ -92,10 +94,10 @@ const TOOL_LABELS = {
   search_knowledge: "Đang tìm kiếm trên Google...",
 };
 
-export default function ChatPanel() {
+export default function ChatPanel({ initiallyOpen = false }) {
   const { user } = useAuth();
   const location = useLocation();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [chatTheme, setChatTheme] = useState(() => localStorage.getItem("ht_chat_theme") || "dark");
@@ -128,14 +130,14 @@ export default function ChatPanel() {
   }, [chatTheme]);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setSidebarOpen(!mobile);
+    };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  useEffect(() => {
-    setSidebarOpen(!isMobile);
-  }, [isMobile]);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -143,7 +145,14 @@ export default function ChatPanel() {
       // Luôn tạo cuộc hội thoại mới khi mở chat → hiện suggestions context-aware
       if (messages.length === 0 && !conversationId) loadHistory();
     }
-  }, [isOpen, user]);
+  }, [
+    conversationId,
+    isOpen,
+    loadConversations,
+    loadHistory,
+    messages.length,
+    user,
+  ]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -151,7 +160,8 @@ export default function ChatPanel() {
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 150);
+      const timer = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -213,16 +223,14 @@ export default function ChatPanel() {
     setSelectedImage(null);
   }, [input, selectedImage, isLoading, sendMessage, location.pathname]);
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      alert("Chỉ hỗ trợ tải lên hình ảnh!");
-      return;
+    try {
+      setSelectedImage(await compressChatImage(file));
+    } catch (imageError) {
+      alert(imageError.message);
     }
-    const reader = new FileReader();
-    reader.onload = (e) => setSelectedImage(e.target.result);
-    reader.readAsDataURL(file);
     e.target.value = "";
   };
 
@@ -264,14 +272,15 @@ export default function ChatPanel() {
     if (!conversationId || !messageId) return;
     try {
       await submitAiFeedback(conversationId, messageId, feedback);
+    // eslint-disable-next-line no-unused-vars
     } catch (err) {
       // Silent fail — feedback là non-critical
     }
   }, [conversationId]);
 
-  const handleEditMessage = useCallback((msgIndex, newText) => {
+  const handleEditMessage = useCallback((messageId, newText) => {
     if (!newText?.trim()) return;
-    editMessage(msgIndex, newText);
+    editMessage(messageId, newText);
   }, [editMessage]);
 
   if (!user || noAuthPaths.includes(location.pathname)) return null;
@@ -314,7 +323,7 @@ export default function ChatPanel() {
       <div className="flex items-end gap-2 bg-gray-100 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10 px-4 py-3 focus-within:border-emerald-500/40 focus-within:bg-white dark:focus-within:bg-white/10 transition-all shadow-sm">
         <input 
           type="file" 
-          accept="image/*" 
+          accept="image/jpeg,image/png,image/webp"
           ref={fileInputRef} 
           onChange={handleImageUpload} 
           className="hidden" 
@@ -532,10 +541,10 @@ export default function ChatPanel() {
                           isLoading;
                         return (
                           <ChatBubble
-                            key={i}
+                            key={msg._id || msg.localId || i}
                             message={msg}
                             onRetry={retryLastMessage}
-                            onEdit={(newText) => handleEditMessage(i, newText)}
+                            onEdit={handleEditMessage}
                             isThinking={isLastAssistant}
                             onFeedback={handleFeedback}
                           />

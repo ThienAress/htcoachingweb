@@ -9,9 +9,10 @@ export const getBookings = (page = 1, limit = 20, status = "", search = "") => {
   return api.get(url);
 };
 
-export const updateBookingStatus = (id, status, noteAdmin) =>
-  api.patch(`/bookings/${id}/status`, { status, noteAdmin });
+export const updateBookingStatus = (id, status, revision, noteAdmin) =>
+  api.patch(`/bookings/${id}/status`, { status, revision, noteAdmin });
 
-export const deleteBooking = (id) => api.delete(`/bookings/${id}`);
+export const archiveBooking = (id, revision) =>
+  api.patch(`/bookings/${id}/archive`, { revision });
 
 export const checkUserHasBookings = () => api.get("/bookings/check-user");

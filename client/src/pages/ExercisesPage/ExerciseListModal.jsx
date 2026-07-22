@@ -17,6 +17,7 @@ export default function ExerciseListModal({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/immutability
       checkIsMobile();
       window.addEventListener("resize", checkIsMobile);
       setSearchValue("");
@@ -58,10 +59,6 @@ export default function ExerciseListModal({
     const handler = setTimeout(() => performSearch(searchValue), 300);
     return () => clearTimeout(handler);
   }, [searchValue, performSearch]);
-
-  useEffect(() => {
-    performSearch(searchValue);
-  }, [searchType]);
 
   if (!open) return null;
 

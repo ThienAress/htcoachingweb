@@ -792,7 +792,6 @@ export const useMealGenerator = ({
       setTotalCalories(calcCalories(finalProtein, finalCarb, finalFat));
       toast.success("Tạo thực đơn thành công!");
     } catch (err) {
-      console.error(err);
       toast.error("Lỗi tạo thực đơn: " + err.message);
     } finally {
       setIsGenerating(false);

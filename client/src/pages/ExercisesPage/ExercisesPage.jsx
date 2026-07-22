@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { Link } from "react-router-dom";
-import { pdf } from "@react-pdf/renderer";
-import { saveAs } from "file-saver";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -19,7 +17,6 @@ import useExercisesLogic from "../../hooks/useExercisesLogic";
 import MuscleGroupSelector from "./MuscleGroupSelector";
 import ExerciseSections from "./ExerciseSections";
 import ExerciseListModal from "./ExerciseListModal";
-import WorkoutPlanPDF from "./WorkoutPlanPDF";
 import { workoutExplanations, workoutSections } from "./constants";
 import Header from "../../sections/Header/Header";
 import Footer from "../../sections/Footer/Footer";
@@ -38,11 +35,11 @@ const ExercisesPage = () => {
   const translatedAllExercises = translateData(logic.exerciseOptions, "exercise", i18n.language);
 
   const hasWorkoutData = logic.workoutData && logic.workoutData.length > 0;
-  const exportedFileRef = useRef(false);
+  const [hasExported, setHasExported] = useState(false);
 
   useEffect(() => {
     const handleBeforeUnload = (event) => {
-      if (hasWorkoutData && !exportedFileRef.current) {
+      if (hasWorkoutData && !hasExported) {
         event.preventDefault();
         event.returnValue = t("alert_beforeunload");
         return event.returnValue;
@@ -50,10 +47,10 @@ const ExercisesPage = () => {
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasWorkoutData]);
+  }, [hasExported, hasWorkoutData, t]);
 
   usePrompt(
-    hasWorkoutData && !exportedFileRef.current,
+    hasWorkoutData && !hasExported,
     t("alert_leave"),
   );
 
@@ -98,6 +95,12 @@ const ExercisesPage = () => {
         return;
       }
 
+      const [{ pdf }, { saveAs }, { default: WorkoutPlanPDF }] =
+        await Promise.all([
+          import("@react-pdf/renderer"),
+          import("file-saver"),
+          import("./WorkoutPlanPDF"),
+        ]);
       const blob = await pdf(
         <WorkoutPlanPDF
           planData={planData}
@@ -106,10 +109,9 @@ const ExercisesPage = () => {
         />,
       ).toBlob();
       saveAs(blob, `Lich_Tap_${new Date().toISOString().slice(0, 10)}.pdf`);
-      exportedFileRef.current = true;
+      setHasExported(true);
       toast.success(t("toast_pdf_success"));
-    } catch (error) {
-      console.error("Lỗi xuất PDF:", error);
+    } catch {
       toast.error(t("toast_pdf_error"));
     }
   };

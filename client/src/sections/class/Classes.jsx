@@ -80,7 +80,7 @@ const Classes = ({ images }) => {
 
       if (carouselRef.current) {
         const cards = carouselRef.current.children;
-        const total = classes.length;
+        const total = cards.length;
 
         // Set vị trí tức thời lúc mới load để tránh bị giật từ tâm ra
         Array.from(cards).forEach((card, i) => {
@@ -235,4 +235,3 @@ const Classes = ({ images }) => {
 };
 
 export default Classes;
-

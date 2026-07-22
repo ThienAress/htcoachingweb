@@ -34,13 +34,13 @@ const RecipeManagement = () => {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["adminRecipes", page, debouncedSearch, filterPublished],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       getAdminRecipes({
         page,
         limit: 10,
         search: debouncedSearch,
         isPublished: filterPublished,
-      }),
+      }, signal),
     placeholderData: keepPreviousData,
   });
 
@@ -100,6 +100,14 @@ const RecipeManagement = () => {
             </p>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => setEditingRecipe({})}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition"
+        >
+          <Plus size={18} />
+          Thêm công thức
+        </button>
       </div>
 
       {/* Filters & Actions */}
@@ -111,7 +119,10 @@ const RecipeManagement = () => {
               placeholder="Tìm kiếm công thức..."
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
             />
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"

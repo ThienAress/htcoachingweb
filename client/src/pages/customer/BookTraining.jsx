@@ -7,10 +7,43 @@ import SEO from "../../components/SEO";
 import Header from "../../sections/Header/Header";
 import Footer from "../../sections/Footer/Footer";
 import ChatIcons from "../../components/ChatIcons";
-import { getMyBookings, getMyTrainer, getBusyTimes, createBooking, updateBooking } from "../../services/trainingBooking.service";
-import { deleteSchedule } from "../../services/trainingSchedule.service"; // Dùng chung API xoá lịch nếu cần
+import {
+  getMyBookings,
+  getMyTrainer,
+  getBusyTimes,
+  createBooking,
+  updateBooking,
+  cancelBooking,
+} from "../../services/trainingBooking.service";
 
 const DAY_KEYS = ["days.mon", "days.tue", "days.wed", "days.thu", "days.fri", "days.sat", "days.sun"];
+
+const getVietnamDateKey = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]),
+  );
+  return values.year + "-" + values.month + "-" + values.day;
+};
+
+const addDays = (dateKey, days) => {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return (
+    date.getUTCFullYear() +
+    "-" +
+    String(date.getUTCMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(date.getUTCDate()).padStart(2, "0")
+  );
+};
+
+const newRequestId = () => window.crypto.randomUUID();
 
 const ConfirmDialog = ({ title, message, onConfirm, onCancel }) => {
   const { t } = useTranslation("booking");
@@ -38,15 +71,16 @@ const ConfirmDialog = ({ title, message, onConfirm, onCancel }) => {
 const BookingModal = ({ isOpen, onClose, onSubmit, initialData, isPending, trainer }) => {
   const { t } = useTranslation("booking");
   const [form, setForm] = useState({
-    dayOfWeek: initialData?.dayOfWeek ?? 0,
+    occurrenceDateKey:
+      initialData?.occurrenceDateKey || addDays(getVietnamDateKey(), 1),
     startTime: initialData?.startTime || "18:00",
     endTime: initialData?.endTime || "19:00",
     notes: initialData?.notes || "",
   });
 
   const { data: busyTimes = [] } = useQuery({
-    queryKey: ["busy-times", trainer?._id, form.dayOfWeek],
-    queryFn: () => getBusyTimes(trainer._id, form.dayOfWeek).then((res) => res.data.data),
+    queryKey: ["busy-times", trainer?._id, form.occurrenceDateKey],
+    queryFn: () => getBusyTimes(trainer._id, form.occurrenceDateKey).then((res) => res.data.data),
     enabled: !!trainer?._id,
   });
 
@@ -78,13 +112,17 @@ const BookingModal = ({ isOpen, onClose, onSubmit, initialData, isPending, train
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
-              <CalendarDays className="w-3.5 h-3.5 inline mr-1" /> {t("modal.day_of_week")}
+              <CalendarDays className="w-3.5 h-3.5 inline mr-1" /> Ngày tập
             </label>
-            <select value={form.dayOfWeek} onChange={(e) => setForm((f) => ({ ...f, dayOfWeek: Number(e.target.value) }))} className={inputClass}>
-              {DAY_KEYS.map((key, idx) => (
-                <option key={idx} value={idx}>{t(key)}</option>
-              ))}
-            </select>
+            <input
+              type="date"
+              value={form.occurrenceDateKey}
+              min={getVietnamDateKey()}
+              max={addDays(getVietnamDateKey(), 56)}
+              onChange={(e) => setForm((f) => ({ ...f, occurrenceDateKey: e.target.value }))}
+              className={inputClass}
+              required
+            />
             {trainer?._id && (
               <div className="mt-3 text-xs">
                 {busyTimes.length > 0 ? (
@@ -166,7 +204,7 @@ const BookTraining = () => {
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [confirmEditAction, setConfirmEditAction] = useState(null);
 
-  const { data: bookings = [], isLoading, refetch } = useQuery({
+  const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["my-bookings"],
     queryFn: () => getMyBookings().then((res) => res.data.data || []),
   });
@@ -179,9 +217,10 @@ const BookTraining = () => {
   const isEditable = useCallback((schedule) => {
     if (schedule.exerciseType !== "Tự do (Khách đăng ký)") return false;
 
-    if (!schedule.lastClientEdit) return true;
+    const editTimestamp = schedule.lastClientEditAt || schedule.lastClientEdit;
+    if (!editTimestamp) return true;
     const now = new Date();
-    const lastEdit = new Date(schedule.lastClientEdit);
+    const lastEdit = new Date(editTimestamp);
     const diffMs = now - lastEdit;
     return diffMs >= 24 * 60 * 60 * 1000;
   }, []);
@@ -193,7 +232,12 @@ const BookTraining = () => {
       queryClient.invalidateQueries({ queryKey: ["my-bookings"] }); 
       setIsModalOpen(false); 
     },
-    onError: (err) => toast.error(err.response?.data?.message || t("page.error_create")),
+    onError: (err) => {
+      if (err.response?.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      }
+      toast.error(err.response?.data?.message || t("page.error_create"));
+    },
   });
 
   const updateMut = useMutation({
@@ -204,10 +248,29 @@ const BookTraining = () => {
       setIsModalOpen(false); 
       setEditingSchedule(null); 
     },
-    onError: (err) => toast.error(err.response?.data?.message || t("page.error_update")),
+    onError: (err) => {
+      if (err.response?.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      }
+      toast.error(err.response?.data?.message || t("page.error_update"));
+    },
   });
 
-  const today = useMemo(() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; }, []);
+  const cancelMut = useMutation({
+    mutationFn: ({ id, data }) => cancelBooking(id, data),
+    onSuccess: () => {
+      toast.success("Đã hủy lịch tập");
+      queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+    },
+    onError: (err) => {
+      if (err.response?.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      }
+      toast.error(err.response?.data?.message || "Không thể hủy lịch tập");
+    },
+  });
+
+  const todayKey = useMemo(() => getVietnamDateKey(), []);
 
   const handleEditClick = (s) => {
     if (s.exerciseType !== "Tự do (Khách đăng ký)") {
@@ -232,17 +295,42 @@ const BookTraining = () => {
 
   const handleSubmit = (data) => {
     if (editingSchedule) {
-      updateMut.mutate({ id: editingSchedule._id, data });
+      updateMut.mutate({
+        id: editingSchedule._id,
+        data: {
+          ...data,
+          revision: editingSchedule.revision,
+          requestId: newRequestId(),
+        },
+      });
     } else {
       setConfirmEditAction({
         title: t("dialog.confirm_register"),
         message: t("page.confirm_register_msg"),
         onConfirm: () => {
           setConfirmEditAction(null);
-          createMut.mutate(data);
+          createMut.mutate({ ...data, requestId: newRequestId() });
         }
       });
     }
+  };
+
+  const handleCancel = (booking) => {
+    setConfirmEditAction({
+      title: "Hủy lịch tập",
+      message: "Lịch sẽ được lưu trong lịch sử và khung giờ sẽ được giải phóng.",
+      onConfirm: () => {
+        setConfirmEditAction(null);
+        cancelMut.mutate({
+          id: booking._id,
+          data: {
+            revision: booking.revision,
+            requestId: newRequestId(),
+            reason: "Khách hàng hủy lịch",
+          },
+        });
+      },
+    });
   };
 
   return (
@@ -294,8 +382,8 @@ const BookTraining = () => {
                 <div key={booking._id} className="bg-gray-800/80 rounded-2xl border border-gray-700 p-5 hover:border-primary/50 transition-colors">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${booking.dayOfWeek === today ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300'}`}>
-                        {t(DAY_KEYS[booking.dayOfWeek])}
+                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${booking.occurrenceDateKey === todayKey ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300'}`}>
+                        {booking.occurrenceDateKey || t(DAY_KEYS[booking.dayOfWeek])}
                       </span>
                       <span className="text-sm text-gray-400">
                         {booking.startTime} - {booking.endTime}
@@ -315,6 +403,14 @@ const BookTraining = () => {
                         title={isEditable(booking) ? t("page.edit_btn_title") : t("page.edit_limit_title")}
                       >
                         <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleCancel(booking)}
+                        disabled={cancelMut.isPending}
+                        className="p-1.5 rounded-lg text-gray-400 hover:bg-red-500/20 hover:text-red-400 transition-colors disabled:opacity-50"
+                        title="Hủy lịch tập"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -348,11 +444,12 @@ const BookTraining = () => {
       <Footer />
 
       <BookingModal
+        key={editingSchedule?._id || "create"}
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditingSchedule(null); }}
         onSubmit={handleSubmit}
         initialData={editingSchedule}
-        isPending={createMut.isPending || updateMut.isPending}
+        isPending={createMut.isPending || updateMut.isPending || cancelMut.isPending}
         trainer={trainer}
       />
 

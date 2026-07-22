@@ -142,6 +142,7 @@ const BlogCard = ({ post, featured = false }) => {
 };
 
 const SidebarCard = ({ post }) => {
+  // eslint-disable-next-line no-unused-vars
   const { t } = useTranslation("blog");
   return (
     <Link to={`/blog/${post.slug}`} className="group flex gap-3 items-start py-3 border-b border-gray-100 last:border-0">
@@ -175,20 +176,25 @@ const Blog = () => {
 
   const { data: response, isLoading } = useQuery({
     queryKey: ["public-blog-posts", category, subCategory, page, i18n.language],
-    queryFn: () =>
+    queryFn: ({ signal }) =>
       getPublicBlogPosts({
         category: category || undefined,
         subCategory: subCategory || undefined,
         page,
         limit: 12,
         lang: i18n.language,
-      }),
+      }, signal),
   });
 
   // Fetch popular posts for sidebar
   const { data: popularRes } = useQuery({
     queryKey: ["public-blog-posts-popular", i18n.language],
-    queryFn: () => getPublicBlogPosts({ limit: 5, lang: i18n.language }),
+    queryFn: ({ signal }) =>
+      getPublicBlogPosts(
+        { limit: 5, lang: i18n.language, sort: "popular" },
+        signal,
+      ),
+    staleTime: 60 * 1000,
   });
 
   const postsRaw = response?.data || [];

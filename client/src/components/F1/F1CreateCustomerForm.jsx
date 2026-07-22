@@ -174,6 +174,7 @@ const F1CreateCustomerForm = ({
         <form onSubmit={handleSubmit} className="space-y-6 px-6 py-8 md:px-8">
           <div className="grid gap-5 md:grid-cols-2">
             <Input
+              name="fullName"
               label="Họ và tên"
               value={createForm.fullName}
               onChange={(e) => updateField("fullName", e.target.value)}
@@ -183,6 +184,7 @@ const F1CreateCustomerForm = ({
             />
 
             <Input
+              name="age"
               label="Tuổi"
               type="text"
               inputMode="numeric"
@@ -195,6 +197,7 @@ const F1CreateCustomerForm = ({
             />
 
             <Select
+              name="gender"
               label="Giới tính"
               value={createForm.gender}
               onChange={(e) => updateField("gender", e.target.value)}
@@ -209,6 +212,7 @@ const F1CreateCustomerForm = ({
             />
 
             <Input
+              name="occupation"
               label="Nghề nghiệp"
               value={createForm.occupation}
               onChange={(e) => updateField("occupation", e.target.value)}
@@ -218,6 +222,7 @@ const F1CreateCustomerForm = ({
             />
 
             <Input
+              name="phone"
               label="Số điện thoại"
               type="text"
               inputMode="numeric"
@@ -234,6 +239,7 @@ const F1CreateCustomerForm = ({
             />
 
             <Input
+              name="email"
               label="Gmail"
               type="email"
               value={createForm.email}
@@ -253,6 +259,7 @@ const F1CreateCustomerForm = ({
             </button>
 
             <button
+              data-testid="f1-create-submit"
               type="submit"
               disabled={submittingCreate}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-6 py-3 font-bold text-white shadow-md transition-all hover:shadow-lg hover:brightness-105 disabled:opacity-60"

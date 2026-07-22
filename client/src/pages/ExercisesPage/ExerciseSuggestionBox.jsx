@@ -20,7 +20,6 @@ const ExerciseSuggestionBox = () => {
       toast.success(t("toast_suggestion_success"));
       setSuggestion("");
     } catch (err) {
-      console.error(err);
       toast.error(err.response?.data?.message || t("toast_suggestion_error"));
     }
     setSending(false);

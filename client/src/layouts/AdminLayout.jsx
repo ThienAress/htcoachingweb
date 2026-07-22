@@ -174,7 +174,6 @@ const SidebarContent = ({ onItemClick }) => {
 };
 
 const AdminLayout = () => {
-  const location = useLocation();
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -187,10 +186,6 @@ const AdminLayout = () => {
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
-
-  useEffect(() => {
-    if (isMobile) setIsSidebarOpen(false);
-  }, [location, isMobile]);
 
   // Desktop layout
   if (!isMobile) {

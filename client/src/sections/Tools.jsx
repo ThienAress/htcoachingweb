@@ -4,9 +4,9 @@ import { useTranslation } from "react-i18next";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Calculator, Utensils, CalendarDays, ArrowRight, Dumbbell } from "lucide-react";
-import toolImg1 from "../assets/images/hero/hero1.jpg";
-import toolImg2 from "../assets/images/hero/hero2.jpg";
-import toolImg3 from "../assets/images/hero/hero3.jpg";
+import toolImg1 from "../assets/images/hero/hero1.webp";
+import toolImg2 from "../assets/images/hero/hero2.webp";
+import toolImg3 from "../assets/images/hero/hero3.webp";
 import toolImg4 from "../assets/images/classes/class1.jpg";
 
 gsap.registerPlugin(ScrollTrigger);

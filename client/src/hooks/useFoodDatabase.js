@@ -16,11 +16,9 @@ export const useFoodDatabase = () => {
           const enrichedFoods = enrichFoodDatabase(response.data.data);
           setFoodDatabase(enrichedFoods);
         } else {
-          console.error("Response structure invalid:", response.data);
           setFoodDatabase([]);
         }
-      } catch (error) {
-        console.error("Lỗi khi tải danh sách thực phẩm:", error);
+      } catch {
         setFoodDatabase([]);
       } finally {
         setIsLoadingFoods(false);

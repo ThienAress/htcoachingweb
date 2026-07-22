@@ -15,7 +15,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { getRecipeBySlug, toggleBookmark } from "../../services/recipe.service";
+import {
+  addBookmark,
+  getBookmarkedRecipes,
+  getRecipeBySlug,
+  removeBookmark,
+} from "../../services/recipe.service";
 import { useAuth } from "../../context/AuthContext";
 import Header from "../../sections/Header/Header";
 import Footer from "../../sections/Footer/Footer";
@@ -33,18 +38,42 @@ const RecipeDetail = () => {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["recipe", slug, i18n.language],
-    queryFn: () => getRecipeBySlug(slug),
+    queryFn: ({ signal }) => getRecipeBySlug(slug, signal),
     enabled: !!slug,
   });
 
+  const recipe = data?.data;
+  const bookmarkQueryKey = ["recipe-bookmarks", user?._id || "anonymous"];
+  const { data: bookmarkData } = useQuery({
+    queryKey: bookmarkQueryKey,
+    queryFn: ({ signal }) => getBookmarkedRecipes(signal),
+    enabled: Boolean(user),
+    staleTime: 60 * 1000,
+  });
+  const isSaved = Boolean(
+    recipe?._id &&
+      bookmarkData?.data?.some((item) => item._id === recipe._id),
+  );
+
   const bookmarkMutation = useMutation({
-    mutationFn: (recipeId) => toggleBookmark(recipeId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["recipe-bookmarks"] });
+    mutationFn: () =>
+      isSaved ? removeBookmark(recipe._id) : addBookmark(recipe._id),
+    onSuccess: (result) => {
+      queryClient.setQueryData(bookmarkQueryKey, (current) => {
+        const currentItems = current?.data || [];
+        return {
+          ...(current || { success: true }),
+          data: result.saved
+            ? [
+                ...currentItems.filter((item) => item._id !== recipe._id),
+                recipe,
+              ]
+            : currentItems.filter((item) => item._id !== recipe._id),
+        };
+      });
     },
   });
 
-  const recipe = data?.data;
   const displayArea = recipe?.area ? t(`areas.${recipe.area}`, { defaultValue: recipe.area }) : "";
 
   const handleShare = async () => {
@@ -181,11 +210,14 @@ const RecipeDetail = () => {
               <div className="flex items-center gap-3 mt-5">
                 {user && (
                   <button
-                    onClick={() => bookmarkMutation.mutate(recipe._id)}
+                    onClick={() => bookmarkMutation.mutate()}
                     disabled={bookmarkMutation.isPending}
                     className="flex items-center justify-center flex-1 gap-2 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-sm font-medium hover:border-primary hover:text-primary transition disabled:opacity-50"
                   >
-                    <Heart className="w-4 h-4" />
+                    <Heart
+                      className="w-4 h-4"
+                      fill={isSaved ? "currentColor" : "none"}
+                    />
                     {t("detail.btn_favorite")}
                   </button>
                 )}

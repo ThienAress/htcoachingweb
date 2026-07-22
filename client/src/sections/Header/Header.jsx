@@ -25,6 +25,7 @@ import { getMyWallet } from "../../services/wallet.service";
 import { getMySubscription } from "../../services/trainerSubscription.service";
 import { getMyCheckins } from "../../services/checkin.service";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
+import { useQuery } from "@tanstack/react-query";
 
 function Header() {
   const navigate = useNavigate();
@@ -49,10 +50,42 @@ function Header() {
   const [openDropdown, setOpenDropdown] = useState(false);
   const dropdownRef = useRef(null);
   const [openGroups, setOpenGroups] = useState({});
-  const [walletBalance, setWalletBalance] = useState(null);
-  const [activeSubscription, setActiveSubscription] = useState(null);
-  const [hasOrders, setHasOrders] = useState(false);
-  const [hasOnlinePackage, setHasOnlinePackage] = useState(false);
+  const { data: accountSummary } = useQuery({
+    queryKey: ["header-account-summary", user?._id],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const [walletResult, subscriptionResult, checkinsResult] =
+        await Promise.allSettled([
+          getMyWallet(),
+          getMySubscription(),
+          getMyCheckins(),
+        ]);
+      const orders =
+        checkinsResult.status === "fulfilled"
+          ? (checkinsResult.value.data.data?.orders || [])
+          : [];
+
+      return {
+        walletBalance:
+          walletResult.status === "fulfilled"
+            ? walletResult.value.data.data.balance
+            : null,
+        activeSubscription:
+          subscriptionResult.status === "fulfilled"
+            ? subscriptionResult.value.data.data
+            : null,
+        hasOrders: orders.length > 0,
+        hasOnlinePackage: orders.some(
+          (order) => order.package?.toLowerCase().includes("online"),
+        ),
+      };
+    },
+    staleTime: 60_000,
+  });
+  const walletBalance = user ? (accountSummary?.walletBalance ?? null) : null;
+  const activeSubscription = user ? (accountSummary?.activeSubscription ?? null) : null;
+  const hasOrders = Boolean(user && accountSummary?.hasOrders);
+  const hasOnlinePackage = Boolean(user && accountSummary?.hasOnlinePackage);
 
   // Map tên gói -> icon
   const planIconMap = {
@@ -69,35 +102,6 @@ function Header() {
   };
 
   // Fetch số dư ví + gói dịch vụ + đơn hàng
-  useEffect(() => {
-    if (user) {
-      getMyWallet()
-        .then((res) => setWalletBalance(res.data.data.balance))
-        .catch(() => setWalletBalance(null));
-      getMySubscription()
-        .then((res) => setActiveSubscription(res.data.data))
-        .catch(() => setActiveSubscription(null));
-      getMyCheckins()
-        .then((res) => {
-          const orders = res.data.data?.orders || [];
-          setHasOrders(orders.length > 0);
-          const isOnline = orders.some(
-            (o) => o.package && o.package.toLowerCase().includes("online")
-          );
-          setHasOnlinePackage(isOnline);
-        })
-        .catch(() => {
-          setHasOrders(false);
-          setHasOnlinePackage(false);
-        });
-    } else {
-      setWalletBalance(null);
-      setActiveSubscription(null);
-      setHasOrders(false);
-      setHasOnlinePackage(false);
-    }
-  }, [user]);
-
   // Hàm scroll đến section
   const handleScrollToSection = (sectionId) => {
     if (location.pathname !== "/") {

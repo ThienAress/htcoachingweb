@@ -76,6 +76,12 @@ export const getTxTypeBadge = (type, t) => {
           {trans("status.adjustment")}
         </span>
       );
+    case "reversal":
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          {trans("status.reversal", { defaultValue: "Hoàn tác" })}
+        </span>
+      );
     default:
       return (
         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-500/10 text-gray-400 border border-gray-500/20">

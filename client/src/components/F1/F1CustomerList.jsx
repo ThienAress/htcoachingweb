@@ -1,4 +1,4 @@
-import { Search, UserPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, UserPlus } from "lucide-react";
 
 const StatusBadge = ({ value }) => {
   const map = {
@@ -49,6 +49,8 @@ const F1CustomerList = ({
   search,
   setSearch,
   customers,
+  pagination,
+  onPageChange,
   onOpenCreate,
   onSelectCustomer,
 }) => {
@@ -65,6 +67,7 @@ const F1CustomerList = ({
         </div>
 
         <button
+          data-testid="f1-open-create"
           onClick={onOpenCreate}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1C2D42] px-4 py-3 text-white font-semibold hover:opacity-90"
         >
@@ -77,9 +80,11 @@ const F1CustomerList = ({
         <div className="relative">
           <Search
             size={18}
+            aria-hidden="true"
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <input
+            aria-label="Tìm khách hàng F1"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Tìm theo tên, mã F1, số điện thoại, email..."
@@ -89,7 +94,7 @@ const F1CustomerList = ({
       </div>
 
       <div className="rounded-2xl bg-white shadow-sm border border-slate-200 overflow-hidden">
-        <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-slate-50 text-xs font-bold uppercase text-slate-500 border-b border-slate-200">
+        <div className="hidden grid-cols-12 gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold uppercase text-slate-500 md:grid">
           <div className="col-span-3">Khách hàng</div>
           <div className="col-span-2">Mã F1</div>
           <div className="col-span-2">SĐT</div>
@@ -99,16 +104,18 @@ const F1CustomerList = ({
         </div>
 
         {loading ? (
-          <div className="p-6 text-slate-500">Đang tải dữ liệu...</div>
+          <div className="p-6 text-slate-500" role="status">
+            Đang tải dữ liệu...
+          </div>
         ) : customers.length === 0 ? (
           <div className="p-6 text-slate-500">Chưa có khách hàng F1.</div>
         ) : (
           customers.map((customer) => (
             <div
               key={customer._id}
-              className="grid grid-cols-12 gap-4 px-4 py-4 border-b border-slate-100 items-center"
+              className="grid grid-cols-2 items-center gap-4 border-b border-slate-100 px-4 py-4 md:grid-cols-12"
             >
-              <div className="col-span-3">
+              <div className="col-span-2 md:col-span-3">
                 <p className="font-semibold text-slate-900">
                   {customer.fullName}
                 </p>
@@ -117,24 +124,31 @@ const F1CustomerList = ({
                 </p>
               </div>
 
-              <div className="col-span-2 text-sm text-slate-700">
+              <div className="col-span-1 text-sm text-slate-700 md:col-span-2">
+                <span className="block text-xs text-slate-400 md:hidden">
+                  Mã F1
+                </span>
                 {customer.code || "--"}
               </div>
 
-              <div className="col-span-2 text-sm text-slate-700">
+              <div className="col-span-1 text-sm text-slate-700 md:col-span-2">
+                <span className="block text-xs text-slate-400 md:hidden">
+                  SĐT
+                </span>
                 {customer.phone || "--"}
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-1 md:col-span-2">
                 <StatusBadge value={customer.status || "new"} />
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-1 md:col-span-2">
                 <ReadinessBadge value={customer.readinessStatus || "pending"} />
               </div>
 
-              <div className="col-span-1 text-right">
+              <div className="col-span-2 text-right md:col-span-1">
                 <button
+                  data-testid="f1-open-customer"
                   onClick={() => onSelectCustomer(customer)}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50"
                 >
@@ -143,6 +157,36 @@ const F1CustomerList = ({
               </div>
             </div>
           ))
+        )}
+        {!loading && pagination?.totalPages > 1 && (
+          <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
+            <p className="text-sm text-slate-500" aria-live="polite">
+              Trang {pagination.page}/{pagination.totalPages} ·{" "}
+              {pagination.total} khách hàng
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                title="Trang trước"
+                aria-label="Trang trước"
+                disabled={pagination.page <= 1}
+                onClick={() => onPageChange(pagination.page - 1)}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 disabled:opacity-40"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                type="button"
+                title="Trang sau"
+                aria-label="Trang sau"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => onPageChange(pagination.page + 1)}
+                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 disabled:opacity-40"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </section>

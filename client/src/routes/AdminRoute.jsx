@@ -1,27 +1,24 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getMySubscription } from "../services/trainerSubscription.service";
 
 const AdminRoute = ({ children }) => {
   const location = useLocation();
   const { user, loading } = useAuth();
-  const [subscription, setSubscription] = useState(null);
-  const [subLoading, setSubLoading] = useState(true);
+  const requiresSubscription = user?.role === "user";
+  const { data: subscription, isLoading: subLoading } = useQuery({
+    queryKey: ["route-subscription", user?._id],
+    enabled: requiresSubscription,
+    queryFn: () =>
+      getMySubscription()
+        .then((res) => res.data.data)
+        .catch(() => null),
+    staleTime: 60_000,
+  });
 
   // Fetch subscription cho user thường
-  useEffect(() => {
-    if (user && user.role === "user") {
-      getMySubscription()
-        .then((res) => setSubscription(res.data.data))
-        .catch(() => setSubscription(null))
-        .finally(() => setSubLoading(false));
-    } else {
-      setSubLoading(false);
-    }
-  }, [user]);
-
-  if (loading || subLoading) {
+  if (loading || (requiresSubscription && subLoading)) {
     return (
       <div className="flex items-center justify-center h-screen text-gray-500">
         Đang kiểm tra quyền truy cập...

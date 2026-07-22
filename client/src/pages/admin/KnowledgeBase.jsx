@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import {
   Brain, Plus, Search, Trash2, Edit3, MessageSquare,
@@ -7,9 +8,19 @@ import {
 import {
   getKBEntries, createKBEntry, updateKBEntry, deleteKBEntry,
   getKBStats, getKBCategories, searchKB, aiSuggestKB, mergeKBVariant,
-  getKBVariants, deleteKBVariant,
+  getKBVariants, deleteKBVariant, regenerateKBEmbedding,
   getAllConversations, getFullConversation, createKBFromConversation,
 } from "../../services/knowledgeBase.service";
+import { useDebounce } from "../../hooks/useDebounce";
+
+const emptyForm = (variants = []) => ({
+  question: "",
+  answer: "",
+  category: "general",
+  tags: "",
+  variants,
+  status: "draft",
+});
 
 const CATEGORY_COLORS = {
   service: "bg-blue-100 text-blue-700",
@@ -25,22 +36,22 @@ const CATEGORY_COLORS = {
 };
 
 export default function KnowledgeBase() {
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState("entries"); // entries | conversations | search
-  const [entries, setEntries] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [entryPage, setEntryPage] = useState(1);
+  const [conversationPage, setConversationPage] = useState(1);
   const [filter, setFilter] = useState({ category: "", status: "", search: "" });
+  const debouncedSearch = useDebounce(filter.search, 300);
 
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
-  const [form, setForm] = useState({ question: "", answer: "", category: "general", tags: "", variants: [] });
+  const [form, setForm] = useState(() => emptyForm());
+  const [sourcePair, setSourcePair] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState(null);
 
   // Conversations
-  const [conversations, setConversations] = useState([]);
-  const [convPagination, setConvPagination] = useState({ page: 1, totalPages: 1 });
   const [selectedConv, setSelectedConv] = useState(null);
   const [convDetail, setConvDetail] = useState(null);
 
@@ -55,35 +66,93 @@ export default function KnowledgeBase() {
   const [suggestDays, setSuggestDays] = useState(7);
   const [suggestInfo, setSuggestInfo] = useState(null);
 
-  const loadEntries = useCallback(async (page = 1) => {
-    setLoading(true);
-    try {
-      const params = { page, limit: 15 };
-      if (filter.category) params.category = filter.category;
-      if (filter.status) params.status = filter.status;
-      if (filter.search) params.search = filter.search;
-      const res = await getKBEntries(params);
-      setEntries(res.data.data);
-      setPagination(res.data.pagination);
-    } catch { toast.error("Lỗi tải dữ liệu"); }
-    setLoading(false);
-  }, [filter]);
+  const entriesQuery = useQuery({
+    queryKey: [
+      "admin",
+      "knowledge-base",
+      "entries",
+      {
+        page: entryPage,
+        category: filter.category,
+        status: filter.status,
+        search: debouncedSearch,
+      },
+    ],
+    queryFn: ({ signal }) =>
+      getKBEntries(
+        {
+          page: entryPage,
+          limit: 15,
+          ...(filter.category && { category: filter.category }),
+          ...(filter.status && { status: filter.status }),
+          ...(debouncedSearch && { search: debouncedSearch }),
+        },
+        signal,
+      ).then((response) => response.data),
+    placeholderData: keepPreviousData,
+  });
+  const statsQuery = useQuery({
+    queryKey: ["admin", "knowledge-base", "stats"],
+    queryFn: ({ signal }) => getKBStats(signal).then((response) => response.data.data),
+  });
+  const categoriesQuery = useQuery({
+    queryKey: ["admin", "knowledge-base", "categories"],
+    queryFn: ({ signal }) =>
+      getKBCategories(signal).then((response) => response.data.data),
+    staleTime: 30 * 60 * 1000,
+  });
+  const conversationsQuery = useQuery({
+    queryKey: [
+      "admin",
+      "knowledge-base",
+      "conversations",
+      conversationPage,
+    ],
+    queryFn: ({ signal }) =>
+      getAllConversations({ page: conversationPage, limit: 15 }, signal).then(
+        (response) => response.data,
+      ),
+    enabled: tab === "conversations",
+    placeholderData: keepPreviousData,
+  });
 
-  const loadStats = async () => {
-    try {
-      const res = await getKBStats();
-      setStats(res.data.data);
-    } catch {}
+  const entries = entriesQuery.data?.data || [];
+  const pagination = entriesQuery.data?.pagination || {
+    page: entryPage,
+    totalPages: 1,
+    total: 0,
   };
-
-  const loadCategories = async () => {
-    try {
-      const res = await getKBCategories();
-      setCategories(res.data.data);
-    } catch {}
+  const stats = statsQuery.data || null;
+  const categories = categoriesQuery.data || [];
+  const conversations = conversationsQuery.data?.data || [];
+  const convPagination = conversationsQuery.data?.pagination || {
+    page: conversationPage,
+    totalPages: 1,
   };
+  const loading =
+    tab === "conversations"
+      ? conversationsQuery.isLoading
+      : entriesQuery.isLoading;
 
-  useEffect(() => { loadEntries(); loadStats(); loadCategories(); }, [loadEntries]);
+  const loadEntries = useCallback(
+    (page = entryPage) => {
+      if (page !== entryPage) setEntryPage(page);
+      else entriesQuery.refetch();
+    },
+    [entriesQuery, entryPage],
+  );
+  const refreshKnowledge = useCallback(
+    () =>
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "knowledge-base", "entries"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "knowledge-base", "stats"],
+        }),
+      ]),
+    [queryClient],
+  );
 
   // Duplicate warning
   const [duplicateWarning, setDuplicateWarning] = useState(null); // { similar, pendingData }
@@ -93,9 +162,11 @@ export default function KnowledgeBase() {
 
   // CRUD
   const handleSave = async () => {
+    if (saving) return;
     if (!form.question.trim() || !form.answer.trim()) {
       return toast.error("Câu hỏi và câu trả lời không được để trống");
     }
+    setSaving(true);
     try {
       const data = {
         ...form,
@@ -103,10 +174,18 @@ export default function KnowledgeBase() {
         variants: (form.variants || []).map((v) => v.trim()).filter(Boolean),
       };
       if (editingEntry) {
-        await updateKBEntry(editingEntry._id, data);
+        const response = await updateKBEntry(editingEntry._id, data);
+        if (response.data.warning) toast.warning(response.data.warning);
         toast.success("Đã cập nhật");
       } else {
-        const res = await createKBEntry(data);
+        const res = sourcePair
+          ? await createKBFromConversation({
+              ...data,
+              conversationId: sourcePair.conversationId,
+              questionIndex: sourcePair.questionIndex,
+              answerIndex: sourcePair.answerIndex,
+            })
+          : await createKBEntry(data);
         // Check duplicate warning
         if (res.data.duplicate) {
           setDuplicateWarning({
@@ -116,41 +195,70 @@ export default function KnowledgeBase() {
           setShowModal(false);
           return; // Không đóng, hiện warning
         }
+        if (res.data.warning) toast.warning(res.data.warning);
         toast.success("Đã tạo mới");
       }
       setShowModal(false);
       setEditingEntry(null);
-      setForm({ question: "", answer: "", category: "general", tags: "", variants: [] });
-      loadEntries(pagination.page);
-      loadStats();
-    } catch (err) { toast.error(err.response?.data?.message || "Lỗi"); }
+      setSourcePair(null);
+      setForm(emptyForm());
+      await refreshKnowledge();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Force create (bỏ qua duplicate check)
   const handleForceCreate = async () => {
-    if (!duplicateWarning?.pendingData) return;
+    if (!duplicateWarning?.pendingData || saving) return;
+    setSaving(true);
     try {
-      await createKBEntry({ ...duplicateWarning.pendingData, skipDuplicateCheck: true });
+      const payload = {
+        ...duplicateWarning.pendingData,
+        skipDuplicateCheck: true,
+      };
+      if (sourcePair) {
+        await createKBFromConversation({
+          ...payload,
+          conversationId: sourcePair.conversationId,
+          questionIndex: sourcePair.questionIndex,
+          answerIndex: sourcePair.answerIndex,
+        });
+      } else {
+        await createKBEntry(payload);
+      }
       toast.success("Đã tạo mới (bỏ qua trùng)");
       setDuplicateWarning(null);
-      setForm({ question: "", answer: "", category: "general", tags: "", variants: [] });
-      loadEntries(pagination.page);
-      loadStats();
-    } catch (err) { toast.error(err.response?.data?.message || "Lỗi"); }
+      setSourcePair(null);
+      setForm(emptyForm());
+      await refreshKnowledge();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Merge vào entry gốc
   const handleMerge = async (targetId) => {
-    if (!duplicateWarning?.pendingData) return;
+    if (!duplicateWarning?.pendingData || saving) return;
+    setSaving(true);
     try {
       await mergeKBVariant(targetId, {
         question: duplicateWarning.pendingData.question,
-        embedding: duplicateWarning.pendingData.embedding,
       });
       toast.success("Đã merge thành variant");
       setDuplicateWarning(null);
-      setForm({ question: "", answer: "", category: "general", tags: "", variants: [] });
-    } catch (err) { toast.error(err.response?.data?.message || "Lỗi merge"); }
+      setSourcePair(null);
+      setForm(emptyForm());
+      await refreshKnowledge();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Lỗi merge");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const loadVariants = async (entry) => {
@@ -174,7 +282,7 @@ export default function KnowledgeBase() {
       const res = await getKBVariants(viewingVariantsEntry._id);
       setVariantsList(res.data.data.variants || []);
       // Reload entries ngoài bảng để update variant count
-      loadEntries(pagination.page);
+      await refreshKnowledge();
     } catch {
       toast.error("Lỗi xóa biến thể");
     }
@@ -186,8 +294,8 @@ export default function KnowledgeBase() {
     try {
       const res = await getKBVariants(entry._id);
       entryVariants = (res.data?.data?.variants || []).map((v) => v.text);
-    } catch (err) {
-      console.error("Lỗi khi tải các biến thể:", err);
+    } catch {
+      // Variants are optional when opening the edit form.
     }
     setForm({
       question: entry.question,
@@ -195,7 +303,9 @@ export default function KnowledgeBase() {
       category: entry.category,
       tags: entry.tags?.join(", ") || "",
       variants: entryVariants.length > 0 ? entryVariants : [""],
+      status: entry.status || "draft",
     });
+    setSourcePair(null);
     setShowModal(true);
   };
 
@@ -204,20 +314,23 @@ export default function KnowledgeBase() {
     try {
       await deleteKBEntry(id);
       toast.success("Đã xóa");
-      loadEntries(pagination.page);
-      loadStats();
+      await refreshKnowledge();
     } catch { toast.error("Lỗi xóa"); }
   };
 
-  // Conversations
-  const loadConversations = async (page = 1) => {
-    setLoading(true);
+  const handleRegenerate = async (id) => {
+    if (regeneratingId) return;
+    setRegeneratingId(id);
     try {
-      const res = await getAllConversations({ page, limit: 15 });
-      setConversations(res.data.data);
-      setConvPagination(res.data.pagination);
-    } catch { toast.error("Lỗi tải conversations"); }
-    setLoading(false);
+      await regenerateKBEmbedding(id);
+      toast.success("Đã tạo lại embedding");
+      await refreshKnowledge();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Không thể tạo lại embedding");
+      await refreshKnowledge();
+    } finally {
+      setRegeneratingId(null);
+    }
   };
 
   const viewConversation = async (id) => {
@@ -235,8 +348,14 @@ export default function KnowledgeBase() {
       category: "general",
       tags: "",
       variants: [""],
+      status: "draft",
     });
     setEditingEntry(null);
+    setSourcePair({
+      conversationId: selectedConv,
+      questionIndex: pair.questionIndex,
+      answerIndex: pair.answerIndex,
+    });
     setShowModal(true);
   };
 
@@ -250,10 +369,6 @@ export default function KnowledgeBase() {
     } catch { toast.error("Lỗi search"); }
     setSearching(false);
   };
-
-  useEffect(() => {
-    if (tab === "conversations" && conversations.length === 0) loadConversations();
-  }, [tab]);
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -271,7 +386,8 @@ export default function KnowledgeBase() {
         <button
           onClick={() => {
             setEditingEntry(null);
-            setForm({ question: "", answer: "", category: "general", tags: "", variants: [""] });
+            setForm(emptyForm([""]));
+            setSourcePair(null);
             setShowModal(true);
           }}
           className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
@@ -319,7 +435,10 @@ export default function KnowledgeBase() {
           <div className="flex gap-3 mb-4">
             <select
               value={filter.category}
-              onChange={(e) => setFilter((p) => ({ ...p, category: e.target.value }))}
+              onChange={(e) => {
+                setEntryPage(1);
+                setFilter((p) => ({ ...p, category: e.target.value }));
+              }}
               className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
             >
               <option value="">Tất cả danh mục</option>
@@ -327,7 +446,10 @@ export default function KnowledgeBase() {
             </select>
             <select
               value={filter.status}
-              onChange={(e) => setFilter((p) => ({ ...p, status: e.target.value }))}
+              onChange={(e) => {
+                setEntryPage(1);
+                setFilter((p) => ({ ...p, status: e.target.value }));
+              }}
               className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
             >
               <option value="">Tất cả trạng thái</option>
@@ -339,8 +461,10 @@ export default function KnowledgeBase() {
               type="text"
               placeholder="Tìm kiếm..."
               value={filter.search}
-              onChange={(e) => setFilter((p) => ({ ...p, search: e.target.value }))}
-              onKeyDown={(e) => e.key === "Enter" && loadEntries(1)}
+              onChange={(e) => {
+                setEntryPage(1);
+                setFilter((p) => ({ ...p, search: e.target.value }));
+              }}
               className="px-3 py-2 border border-slate-300 rounded-lg text-sm flex-1"
             />
           </div>
@@ -387,9 +511,30 @@ export default function KnowledgeBase() {
                         e.status === "published" ? "bg-green-100 text-green-700" :
                         e.status === "draft" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-500"
                       }`}>{e.status}</span>
+                      <p className={`mt-1 text-[10px] ${
+                        e.embeddingStatus === "ready" ? "text-emerald-600" :
+                        e.embeddingStatus === "failed" ? "text-red-500" : "text-amber-600"
+                      }`}>
+                        vector: {e.embeddingStatus || "pending"}
+                      </p>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center gap-1 justify-center">
+                        {e.embeddingStatus !== "ready" && (
+                          <button
+                            disabled={regeneratingId === e._id}
+                            onClick={() => handleRegenerate(e._id)}
+                            className="p-1.5 hover:bg-emerald-50 rounded-md disabled:opacity-40"
+                            title="Tạo lại embedding"
+                          >
+                            <RefreshCw
+                              size={14}
+                              className={`text-emerald-600 ${
+                                regeneratingId === e._id ? "animate-spin" : ""
+                              }`}
+                            />
+                          </button>
+                        )}
                         <button onClick={() => handleEdit(e)} className="p-1.5 hover:bg-slate-100 rounded-md" title="Sửa">
                           <Edit3 size={14} className="text-slate-500" />
                         </button>
@@ -488,7 +633,15 @@ export default function KnowledgeBase() {
                   <p className="text-sm text-slate-600 line-clamp-3 mb-3">A: {s.answer}</p>
                   <button
                     onClick={() => {
-                      setForm({ question: s.question, answer: s.answer, category: s.category || "general", tags: "" });
+                      setForm({
+                        question: s.question,
+                        answer: s.answer,
+                        category: s.category || "general",
+                        tags: "",
+                        variants: [""],
+                        status: "draft",
+                      });
+                      setSourcePair(null);
                       setEditingEntry(null);
                       setShowModal(true);
                     }}
@@ -527,9 +680,38 @@ export default function KnowledgeBase() {
                 </button>
               ))}
               {conversations.length === 0 && (
-                <p className="px-4 py-8 text-center text-slate-400 text-sm">Chưa có cuộc trò chuyện</p>
+                <p className="px-4 py-8 text-center text-slate-400 text-sm">
+                  {loading ? "Đang tải..." : "Chưa có cuộc trò chuyện"}
+                </p>
               )}
             </div>
+            {convPagination.totalPages > 1 && (
+              <div className="flex items-center justify-between gap-2 border-t border-slate-200 p-2">
+                <button
+                  type="button"
+                  disabled={conversationPage <= 1}
+                  onClick={() => setConversationPage((page) => Math.max(1, page - 1))}
+                  className="px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
+                >
+                  Trước
+                </button>
+                <span className="text-xs text-slate-400">
+                  {conversationPage}/{convPagination.totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={conversationPage >= convPagination.totalPages}
+                  onClick={() =>
+                    setConversationPage((page) =>
+                      Math.min(convPagination.totalPages, page + 1),
+                    )
+                  }
+                  className="px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
+                >
+                  Sau
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Detail */}
@@ -701,7 +883,7 @@ export default function KnowledgeBase() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Danh mục</label>
                   <select
@@ -710,6 +892,18 @@ export default function KnowledgeBase() {
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                   >
                     {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Trạng thái</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                    <option value="archived">Archived</option>
                   </select>
                 </div>
                 <div>
@@ -725,9 +919,9 @@ export default function KnowledgeBase() {
               </div>
             </div>
             <div className="flex justify-end gap-3 p-5 border-t border-slate-200">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
-              <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">
-                {editingEntry ? "Cập nhật" : "Tạo mới"}
+              <button disabled={saving} onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg disabled:opacity-50">Hủy</button>
+              <button disabled={saving} onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                {saving ? "Đang lưu..." : editingEntry ? "Cập nhật" : "Tạo mới"}
               </button>
             </div>
           </div>
@@ -773,6 +967,7 @@ export default function KnowledgeBase() {
                       <p className="text-xs text-slate-500 line-clamp-2">A: {s.answer}</p>
                     </div>
                     <button
+                      disabled={saving}
                       onClick={() => handleMerge(s._id)}
                       className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg flex items-center gap-1.5 shrink-0 self-center transition-colors"
                     >
@@ -785,6 +980,7 @@ export default function KnowledgeBase() {
             </div>
             <div className="flex justify-between gap-3 p-5 border-t border-slate-200">
               <button
+                disabled={saving}
                 onClick={() => handleForceCreate()}
                 className="px-4 py-2 text-sm text-amber-700 border border-amber-200 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
               >

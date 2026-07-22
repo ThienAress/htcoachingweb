@@ -331,6 +331,7 @@ const Contact = () => {
 
             <div>
               <select
+                aria-label="Gói tập quan tâm"
                 className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white  "
                 value={formData.package}
                 onChange={(e) =>

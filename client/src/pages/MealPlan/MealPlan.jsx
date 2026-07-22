@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -26,6 +26,16 @@ import { Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import LoginModal from "./LoginModal";
 
+const loadSelectedFoods = () => {
+  const saved = localStorage.getItem("selectedFoods");
+  if (!saved) return null;
+  try {
+    return JSON.parse(saved);
+  } catch {
+    return null;
+  }
+};
+
 const MealPlan = () => {
   const { t } = useTranslation("mealplan");
   const [selectedPlan, setSelectedPlan] = useState(3);
@@ -34,36 +44,21 @@ const MealPlan = () => {
 
   const [activeTab, setActiveTab] = useState("menu");
   const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
-  const [selectedFoods, setSelectedFoods] = useState(null);
+  const [selectedFoods, setSelectedFoods] = useState(loadSelectedFoods);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const { user, loading: authLoading } = useAuth();
+  // eslint-disable-next-line no-unused-vars
   const { accessLevel, isChecking, canGenerate, remainingGenerations, recordGeneration, maxGenerations } = useMealPlanAccess();
 
   // Đợi macroSet load xong
-  const [isMacroReady, setIsMacroReady] = useState(false);
-  useEffect(() => {
-    if (macroSet !== null && !isMacroReady) {
-      setIsMacroReady(true);
-    }
-  }, [macroSet, isMacroReady]);
+  const isMacroReady = macroSet !== null;
 
   // Xác định macro đang active từ chế độ đã chọn
   const activeMacroTarget =
     selectedMacroPlan && macroSet ? macroSet[selectedMacroPlan] : null;
 
   // Khôi phục danh sách thực phẩm yêu thích từ localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("selectedFoods");
-    if (saved) {
-      try {
-        setSelectedFoods(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse selectedFoods", e);
-      }
-    }
-  }, []);
-
   const { generateMeals, meals, totalMacros, totalCalories, isGenerating } =
     useMealGenerator({
       selectedPlan,
@@ -307,7 +302,8 @@ const MealPlan = () => {
                 )}
               </>
             ) : activeTab === "custom" ? (
-              <CustomMealBuilder 
+              <CustomMealBuilder
+                key={`${user?._id || "guest"}:${selectedPlan}`}
                 foodDatabase={foodDatabase}
                 targetMacros={activeMacroTarget}
                 targetLabel={selectedMacroPlan}

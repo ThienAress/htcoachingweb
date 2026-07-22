@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ChevronLeft, ChevronRight, Save, ClipboardList } from "lucide-react";
 
@@ -26,6 +26,9 @@ const isBrowserFile = (value) => typeof File !== "undefined" && value instanceof
 
 const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const uploadControllerRef = useRef(null);
+  const uploadProgressRef = useRef(new Map());
 
   // TanStack Query Hooks
   const { data: latestIntake, isLoading: loadingLatest } = useLatestIntake(customer?._id);
@@ -36,6 +39,8 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
   // React Hook Form
   const {
     register,
+    control,
+    getValues,
     watch,
     setValue,
     handleSubmit,
@@ -143,15 +148,21 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
         postureMedia: { frontImage: null, backImage: null, sideImage: null } // We do not have files from backend
       };
       reset(merged);
+      // Hydrate the wizard position together with the server-side draft snapshot.
       setCurrentStep(latestIntake.draftStep || 1);
     }
   }, [latestIntake, customer, reset]);
 
   // Derived values for BMI
-  const heightCm = watch("bodyMetrics.heightCm");
-  const weightKg = watch("bodyMetrics.weightKg");
-  const waistCm = watch("bodyMetrics.waistCm");
-  const hipCm = watch("bodyMetrics.hipCm");
+  const [heightCm, weightKg, waistCm, hipCm] = useWatch({
+    control,
+    name: [
+      "bodyMetrics.heightCm",
+      "bodyMetrics.weightKg",
+      "bodyMetrics.waistCm",
+      "bodyMetrics.hipCm",
+    ],
+  });
   
   const bmi = useMemo(() => {
     const h = Number(heightCm);
@@ -190,7 +201,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
 
   const handleSaveDraft = () => {
     if (!customer?._id) return;
-    const values = watch();
+    const values = getValues();
     let stepData = {};
     if (currentStep === 1) stepData = { customerInfo: values.customerInfo };
     if (currentStep === 2) stepData = { healthScreening: values.healthScreening };
@@ -234,32 +245,80 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
       }
     };
 
+    let intakeSubmitted = false;
     try {
-      // 1. Upload files first if they are new File objects
-      let intakeId = customer?.lastIntakeId || (latestIntake?._id) || null;
-      
-      const uploadTasks = [];
+      const filesToUpload = [];
       if (isBrowserFile(data.postureMedia.frontImage)) {
-        uploadTasks.push(uploadMediaMutation.mutateAsync({ customerId: customer._id, file: data.postureMedia.frontImage, type: "posture_front", intakeId }));
-        uploadTasks.push(uploadMediaMutation.mutateAsync({ customerId: customer._id, file: data.postureMedia.frontImage, type: "before_front", intakeId }));
+        filesToUpload.push(
+          { file: data.postureMedia.frontImage, type: "posture_front" },
+          { file: data.postureMedia.frontImage, type: "before_front" },
+        );
       }
       if (isBrowserFile(data.postureMedia.backImage)) {
-        uploadTasks.push(uploadMediaMutation.mutateAsync({ customerId: customer._id, file: data.postureMedia.backImage, type: "posture_back", intakeId }));
+        filesToUpload.push({
+          file: data.postureMedia.backImage,
+          type: "posture_back",
+        });
       }
       if (isBrowserFile(data.postureMedia.sideImage)) {
-        uploadTasks.push(uploadMediaMutation.mutateAsync({ customerId: customer._id, file: data.postureMedia.sideImage, type: "posture_side", intakeId }));
-        uploadTasks.push(uploadMediaMutation.mutateAsync({ customerId: customer._id, file: data.postureMedia.sideImage, type: "before_side", intakeId }));
+        filesToUpload.push(
+          { file: data.postureMedia.sideImage, type: "posture_side" },
+          { file: data.postureMedia.sideImage, type: "before_side" },
+        );
       }
-      if (uploadTasks.length > 0) await Promise.all(uploadTasks);
 
-      // 2. Submit the intake form
       delete normalizedData.postureMedia;
-      await submitMutation.mutateAsync({ customerId: customer._id, data: normalizedData });
+      const submitResult = await submitMutation.mutateAsync({
+        customerId: customer._id,
+        data: normalizedData,
+      });
+      intakeSubmitted = true;
+      const intakeId = submitResult?.data?._id;
+
+      if (filesToUpload.length > 0) {
+        const controller = new AbortController();
+        uploadControllerRef.current = controller;
+        uploadProgressRef.current.clear();
+        setUploadProgress(0);
+        const updateProgress = (key, event) => {
+          const total = Number(event.total || 0);
+          const value = total ? Math.round((event.loaded / total) * 100) : 0;
+          uploadProgressRef.current.set(key, value);
+          const sum = [...uploadProgressRef.current.values()].reduce(
+            (current, item) => current + item,
+            0,
+          );
+          setUploadProgress(Math.round(sum / filesToUpload.length));
+        };
+        await Promise.all(
+          filesToUpload.map(({ file, type }) =>
+            uploadMediaMutation.mutateAsync({
+              customerId: customer._id,
+              file,
+              type,
+              intakeId,
+              signal: controller.signal,
+              onUploadProgress: (event) => updateProgress(type, event),
+            }),
+          ),
+        );
+        uploadControllerRef.current = null;
+        setUploadProgress(100);
+      }
+
       alert("Hoàn tất intake thành công");
-      onSubmitted?.({ customerId: customer._id });
+      onSubmitted?.(submitResult?.data || { customerId: customer._id });
     } catch (error) {
-      console.error(error);
-      alert(error?.response?.data?.message || "Submit intake thất bại");
+      alert(
+        error?.code === "ERR_CANCELED"
+          ? "Đã hủy tải ảnh. Intake vẫn được lưu và có thể tải ảnh lại."
+          : intakeSubmitted
+            ? error?.response?.data?.message ||
+              "Intake đã lưu nhưng tải ảnh thất bại. Bạn có thể thử lại."
+            : error?.response?.data?.message || "Submit intake thất bại",
+      );
+    } finally {
+      uploadControllerRef.current = null;
     }
   };
 
@@ -349,7 +408,10 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
               Đang tải dữ liệu intake...
             </div>
           ) : (
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form
+              data-testid="f1-intake-form"
+              onSubmit={handleSubmit(onSubmit)}
+            >
               {renderStep()}
 
               <div className="mt-8 flex flex-wrap justify-between gap-3">
@@ -364,6 +426,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
                 </button>
                 {currentStep < intakeSteps.length ? (
                   <button
+                    data-testid="f1-intake-next"
                     type="button"
                     onClick={handleNextStep}
                     disabled={loadingLatest}
@@ -374,6 +437,7 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
                   </button>
                 ) : (
                   <button
+                    data-testid="f1-intake-submit"
                     type="submit"
                     disabled={submitMutation.isPending || uploadMediaMutation.isPending || loadingLatest}
                     className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-6 py-3 font-bold text-white shadow-md transition hover:shadow-lg"
@@ -382,6 +446,30 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
                   </button>
                 )}
               </div>
+              {uploadMediaMutation.isPending && (
+                <div
+                  className="mt-4 flex items-center gap-3"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div className="h-2 flex-1 overflow-hidden rounded bg-slate-200">
+                    <div
+                      className="h-full bg-orange-500 transition-[width]"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <span className="w-12 text-right text-sm text-slate-600">
+                    {uploadProgress}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => uploadControllerRef.current?.abort()}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              )}
             </form>
           )}
         </div>

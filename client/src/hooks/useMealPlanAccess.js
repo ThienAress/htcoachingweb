@@ -22,8 +22,7 @@ export const useMealPlanAccess = () => {
       setAccessLevel(access);
       setGenerationCount(count);
       setMaxGenerations(max);
-    } catch (err) {
-      console.error("Lỗi kiểm tra quyền truy cập:", err);
+    } catch {
       setAccessLevel("trial");
     } finally {
       setIsChecking(false);
@@ -50,7 +49,6 @@ export const useMealPlanAccess = () => {
       setGenerationCount(newCount);
       return true;
     } catch (err) {
-      console.error("Lỗi ghi nhận lượt generate:", err);
       // Nếu server trả 403 = hết lượt
       if (err.response?.status === 403) {
         const data = err.response.data?.data;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -67,26 +67,19 @@ const ExerciseNameInput = ({ value, onChange, readOnly, isLocked }) => {
 
 // ===== EXERCISE BROWSER MODAL =====
 const ExerciseBrowserModal = ({ isOpen, onClose }) => {
-  const [exercises, setExercises] = useState([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState("");
 
   const muscleGroups = ["Ngực", "Lưng", "Vai", "Tay trước", "Tay sau", "Chân", "Bụng", "Mông", "Cardio"];
 
-  useEffect(() => {
-    if (!isOpen) return;
-    fetchExercises();
-  }, [isOpen, search, selectedGroup]);
-
-  const fetchExercises = async () => {
-    setLoading(true);
-    try {
-      const res = await getExercises(1, 50, search, selectedGroup);
-      setExercises(res.data || []);
-    } catch { setExercises([]); }
-    setLoading(false);
-  };
+  const { data: exercises = [], isLoading: loading } = useQuery({
+    queryKey: ["exercise-browser", search, selectedGroup],
+    enabled: isOpen,
+    queryFn: () =>
+      getExercises(1, 50, search, selectedGroup)
+        .then((res) => res.data || [])
+        .catch(() => []),
+  });
 
   if (!isOpen) return null;
 
@@ -200,6 +193,7 @@ const AssessmentCell = ({ value, assessmentValue, onChangeAssessment, isLocked }
 
 // ===== EXERCISE TABLE =====
 const ExerciseTable = ({ exercises, onChange, mode, isLocked }) => {
+  const { t, i18n } = useTranslation();
   const isAssessment = mode === "assessment";
 
   const updateExercise = (idx, field, val) => {
@@ -424,6 +418,8 @@ const WorkoutPlanDetail = () => {
 
   useEffect(() => {
     if (planData) {
+      // The mutable editor starts from the latest server-side plan snapshot.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm({
         ...planData,
         planDate: new Date(planData.planDate).toISOString().split("T")[0]
@@ -462,7 +458,7 @@ const WorkoutPlanDetail = () => {
           setShowCreateMissingModal(true);
         }
       }
-    } catch (err) {
+    } catch {
       toast.error(t("plans.toasts.error_date_change"));
     }
   };
@@ -594,7 +590,7 @@ const WorkoutPlanDetail = () => {
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <div className="text-sm text-center px-4 font-medium min-w-[120px]">
-                  {formatDate(form.planDate, i18n.language === "vi" ? "vi-VN" : "en-US")}
+                  {new Date(form.planDate).toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric" })}
                 </div>
                 <button onClick={() => handleDateChange(1)} className="p-1.5 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors">
                   <ChevronRight className="w-4 h-4" />

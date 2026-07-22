@@ -10,7 +10,14 @@ const __dirname = path.dirname(__filename);
 
 const PORT = 5174; // Port tạm thời để prerender
 const DIST_DIR = path.resolve(__dirname, '../dist');
-const API_URL = "https://htcoachingweb.onrender.com/api";
+const API_URL =
+  process.env.PRERENDER_API_URL ||
+  "https://htcoachingweb.onrender.com/api";
+const SKIP_DYNAMIC_ROUTES = process.env.SKIP_DYNAMIC_ROUTES === "true";
+const fetchApi = (pathName) =>
+  SKIP_DYNAMIC_ROUTES
+    ? Promise.resolve({ data: { data: [] } })
+    : axios.get(`${API_URL}${pathName}`, { timeout: 10000 });
 
 // Danh sách các route tĩnh cơ bản
 const staticRoutes = [
@@ -30,22 +37,22 @@ async function fetchDynamicRoutes() {
     console.log('Fetching dynamic routes from API...');
     
     // 1. Customer Stories
-    const storiesRes = await axios.get(`${API_URL}/customer-stories?limit=100`);
+    const storiesRes = await fetchApi("/customer-stories?limit=100");
     const stories = storiesRes.data?.data || [];
     stories.forEach(s => dynamicRoutes.push(`/ket-qua-khach-hang/${s.slug}`));
     
     // 2. Trainers
-    const trainersRes = await axios.get(`${API_URL}/trainers`);
+    const trainersRes = await fetchApi("/trainers");
     const trainers = trainersRes.data?.data || trainersRes.data || [];
     trainers.filter(t => t.slug).forEach(t => dynamicRoutes.push(`/huan-luyen-vien/${t.slug}`));
     
     // 3. Blogs
-    const blogRes = await axios.get(`${API_URL}/blog?limit=100`);
+    const blogRes = await fetchApi("/blog?limit=100");
     const posts = blogRes.data?.data || [];
     posts.forEach(p => dynamicRoutes.push(`/blog/${p.slug}`));
 
     // 4. Recipes
-    const recipesRes = await axios.get(`${API_URL}/recipes?limit=500`);
+    const recipesRes = await fetchApi("/recipes?limit=500");
     const recipes = recipesRes.data?.data || [];
     recipes.forEach(r => dynamicRoutes.push(`/cong-thuc-nau-an/${r.slug}`));
 

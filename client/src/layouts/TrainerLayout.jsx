@@ -22,10 +22,6 @@ const TrainerLayout = () => {
   }, [isSidebarOpen]);
 
   useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [location]);
-
-  useEffect(() => {
     if (isSidebarOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
     return () => {

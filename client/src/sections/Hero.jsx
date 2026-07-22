@@ -5,9 +5,9 @@ import { gsap } from "gsap";
 import SplitType from "split-type";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 
-import hero1 from "../assets/images/hero/hero1.jpg";
-import hero2 from "../assets/images/hero/hero2.jpg";
-import hero3 from "../assets/images/hero/hero3.jpg";
+import hero1 from "../assets/images/hero/hero1.webp";
+import hero2 from "../assets/images/hero/hero2.webp";
+import hero3 from "../assets/images/hero/hero3.webp";
 
 const Hero = ({ images, avatars, onAnimationComplete }) => {
   const { t, i18n } = useTranslation("home");
@@ -18,6 +18,11 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
   const checklistRef = useRef(null);
   const slidesRef = useRef([]);
   const statRef = useRef([]);
+  const onAnimationCompleteRef = useRef(onAnimationComplete);
+
+  useEffect(() => {
+    onAnimationCompleteRef.current = onAnimationComplete;
+  }, [onAnimationComplete]);
 
   const slides = images && images.length > 0
     ? images.map(img => ({ bgImage: `url(${img})` }))
@@ -95,14 +100,14 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
             { x: -20, opacity: 0 },
             {
               x: 0, opacity: 1, duration: 0.5, stagger: 0.12, ease: "power2.out", delay: 1.5,
-              onComplete: () => onAnimationComplete?.()
+              onComplete: () => onAnimationCompleteRef.current?.()
             }
           );
         }
       });
 
       if (window.innerWidth < 768) {
-        mobileTimer = setTimeout(() => onAnimationComplete?.(), 1000);
+        mobileTimer = setTimeout(() => onAnimationCompleteRef.current?.(), 1000);
       }
     };
 
@@ -186,7 +191,7 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [currentIndex, slides.length]);
+  }, [slides.length]);
 
   const handleNext = () => setCurrentIndex((prev) => (prev + 1) % slides.length);
   const handlePrev = () => setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
@@ -266,16 +271,26 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
           {/* CUSTOM NAV BUTTONS INSIDE IMAGE */}
           <div className="absolute inset-0 flex items-center justify-between px-3 lg:px-6 z-20 pointer-events-none">
             <button
+              type="button"
+              aria-label="Ảnh trước"
               onClick={handlePrev}
               className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white hover:bg-black/80 transition-all flex items-center justify-center pointer-events-auto"
             >
-              <ChevronLeft className="w-6 h-6 lg:w-7 lg:h-7" />
+              <ChevronLeft
+                aria-hidden="true"
+                className="w-6 h-6 lg:w-7 lg:h-7"
+              />
             </button>
             <button
+              type="button"
+              aria-label="Ảnh tiếp theo"
               onClick={handleNext}
               className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white hover:bg-black/80 transition-all flex items-center justify-center pointer-events-auto"
             >
-              <ChevronRight className="w-6 h-6 lg:w-7 lg:h-7" />
+              <ChevronRight
+                aria-hidden="true"
+                className="w-6 h-6 lg:w-7 lg:h-7"
+              />
             </button>
           </div>
 

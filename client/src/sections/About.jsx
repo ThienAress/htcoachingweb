@@ -4,9 +4,9 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import { Flame, Zap, Target, Dumbbell } from "lucide-react";
-import hero1 from "../assets/images/hero/hero1.jpg";
-import hero2 from "../assets/images/hero/hero2.jpg";
-import hero3 from "../assets/images/hero/hero3.jpg";
+import hero1 from "../assets/images/hero/hero1.webp";
+import hero2 from "../assets/images/hero/hero2.webp";
+import hero3 from "../assets/images/hero/hero3.webp";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -168,4 +168,3 @@ const About = ({ images }) => {
 };
 
 export default About;
-

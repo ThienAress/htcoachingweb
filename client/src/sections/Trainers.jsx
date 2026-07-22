@@ -102,6 +102,8 @@ const Trainers = ({ previewData }) => {
   useEffect(() => {
     startAutoplay();
     return () => stopAutoplay();
+  // Autoplay restarts after each slide and needs the current carousel closure.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile, trainersList.length, currentIndex]);
 
   const handleTouchStart = (e) => {

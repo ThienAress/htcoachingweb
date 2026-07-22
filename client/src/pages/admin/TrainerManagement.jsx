@@ -38,6 +38,7 @@ import SetupProfileModal from "./SetupProfileModal";
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "");
 const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
 
+// eslint-disable-next-line no-unused-vars
 const availableIcons = [
   { value: "dumbbell", label: "Tạ (Dumbbell)" },
   { value: "utensils", label: "Dinh dưỡng (Utensils)" },
@@ -182,6 +183,7 @@ const TableSkeleton = () => (
 
 export default function TrainerManagement() {
   const queryClient = useQueryClient();
+  // eslint-disable-next-line no-unused-vars
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -210,6 +212,8 @@ export default function TrainerManagement() {
 
   useEffect(() => {
     if (detailData?.data && selectedId) {
+      // The editable form intentionally mirrors the newly fetched trainer record.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(trainerToForm(detailData.data));
     }
   }, [detailData, selectedId]);

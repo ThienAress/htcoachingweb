@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search, ChevronUp, ChevronDown, Flame, Lock, Crown } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -10,7 +10,10 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
   const [searchText, setSearchText] = useState("");
   const [sortOrder, setSortOrder] = useState(null);
 
-  const getFoodDisplayName = (food) => food?.label || food?.name || t("table.no_name");
+  const getFoodDisplayName = useCallback(
+    (food) => food?.label || food?.name || t("table.no_name"),
+    [t],
+  );
 
   const getCalories = (item) =>
     Math.round(item.protein * 4 + item.carb * 4 + item.fat * 9);
@@ -30,7 +33,7 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
         if (sortOrder === "desc") return calB - calA;
         return 0;
       });
-  }, [foodDatabase, searchText, sortOrder]);
+  }, [foodDatabase, getFoodDisplayName, searchText, sortOrder]);
 
   // Nếu hết lượt miễn phí → chỉ hiển thị 10 dòng đầu
   const visibleData = canViewFull ? filteredData : filteredData.slice(0, FREE_VISIBLE_ROWS);

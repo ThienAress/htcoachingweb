@@ -11,14 +11,15 @@ import {
   AlertTriangle,
   Wallet,
   User,
-  Filter,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
 
 import {
   getAdminDeposits,
   approveDeposit,
   rejectDeposit,
+  reverseDeposit,
   deleteAdminDeposit,
 } from "../../services/adminDeposit.service";
 
@@ -34,6 +35,7 @@ const statusConfig = {
   expired: { label: "Hết hạn", color: "bg-gray-100 text-gray-600", icon: XCircle },
   rejected: { label: "Từ chối", color: "bg-red-100 text-red-600", icon: XCircle },
   needs_review: { label: "Cần xem", color: "bg-orange-100 text-orange-700", icon: AlertTriangle },
+  reversed: { label: "Đã hoàn tác", color: "bg-blue-100 text-blue-700", icon: RotateCcw },
 };
 
 const DepositManagement = () => {
@@ -42,15 +44,16 @@ const DepositManagement = () => {
   const [search, setSearch] = useState("");
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [reverseModal, setReverseModal] = useState(null);
+  const [reverseReason, setReverseReason] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-deposits", statusFilter],
     queryFn: () => getAdminDeposits(statusFilter).then((r) => r.data.data),
   });
 
-  const deposits = data || [];
-
   const filteredDeposits = useMemo(() => {
+    const deposits = data || [];
     if (!search) return deposits;
     return deposits.filter(
       (d) =>
@@ -58,7 +61,7 @@ const DepositManagement = () => {
         d.userId?.email?.toLowerCase().includes(search.toLowerCase()) ||
         d.depositCode?.toLowerCase().includes(search.toLowerCase())
     );
-  }, [deposits, search]);
+  }, [data, search]);
 
   const approveMutation = useMutation({
     mutationFn: (id) => approveDeposit(id),
@@ -95,6 +98,26 @@ const DepositManagement = () => {
     rejectMutation.mutate({ id: rejectModal._id, reason: rejectReason });
   };
 
+  const reverseMutation = useMutation({
+    mutationFn: ({ id, reason }) => reverseDeposit(id, reason),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-deposits"] });
+      toast.success(res.data.message);
+      setReverseModal(null);
+      setReverseReason("");
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "Lỗi hoàn tác giao dịch"),
+  });
+
+  const handleReverseSubmit = () => {
+    if (!reverseModal || reverseReason.trim().length < 8) return;
+    reverseMutation.mutate({
+      id: reverseModal._id,
+      reason: reverseReason.trim(),
+    });
+  };
+
   const deleteMutation = useMutation({
     mutationFn: (id) => deleteAdminDeposit(id),
     onSuccess: (res) => {
@@ -121,6 +144,7 @@ const DepositManagement = () => {
     { value: "success", label: "Đã duyệt" },
     { value: "expired", label: "Hết hạn" },
     { value: "rejected", label: "Từ chối" },
+    { value: "reversed", label: "Đã hoàn tác" },
   ];
 
   return (
@@ -245,6 +269,15 @@ const DepositManagement = () => {
                       Lý do: {deposit.rejectReason}
                     </div>
                   )}
+                  {deposit.reverseReason && (
+                    <div className="mt-2 p-2 bg-blue-50 rounded text-blue-700 text-xs space-y-1">
+                      <p>Lý do hoàn tác: {deposit.reverseReason}</p>
+                      <p>
+                        {formatDateTime(deposit.reversedAt)} bởi{" "}
+                        {deposit.reversedBy?.name || "Admin"}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Card actions */}
@@ -269,13 +302,27 @@ const DepositManagement = () => {
                       </button>
                     </>
                   )}
-                  <button
-                    onClick={() => handleDelete(deposit)}
-                    disabled={deleteMutation.isPending}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
-                  >
-                    <Trash2 className="w-4 h-4" /> Xóa
-                  </button>
+                  {deposit.status === "success" && (
+                    <button
+                      onClick={() => {
+                        setReverseModal(deposit);
+                        setReverseReason("");
+                      }}
+                      disabled={reverseMutation.isPending}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                    >
+                      <RotateCcw className="w-4 h-4" /> Hoàn tác
+                    </button>
+                  )}
+                  {["expired", "rejected"].includes(deposit.status) && (
+                    <button
+                      onClick={() => handleDelete(deposit)}
+                      disabled={deleteMutation.isPending}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                    >
+                      <Trash2 className="w-4 h-4" /> Xóa
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -315,6 +362,50 @@ const DepositManagement = () => {
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
               >
                 {rejectMutation.isPending ? "Đang xử lý..." : "Xác nhận từ chối"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {reverseModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h3 className="text-lg font-bold text-gray-800">
+              Hoàn tác giao dịch nạp tiền
+            </h3>
+            <p className="text-sm text-gray-600">
+              Ví sẽ bị trừ{" "}
+              <strong className="text-red-500">
+                {formatVND(reverseModal.amount)}
+              </strong>
+              . Ledger gốc vẫn được giữ để đối soát.
+            </p>
+            <textarea
+              value={reverseReason}
+              onChange={(event) => setReverseReason(event.target.value)}
+              placeholder="Lý do hoàn tác (ít nhất 8 ký tự)"
+              maxLength={500}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              rows={4}
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setReverseModal(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleReverseSubmit}
+                disabled={
+                  reverseMutation.isPending ||
+                  reverseReason.trim().length < 8
+                }
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {reverseMutation.isPending
+                  ? "Đang xử lý..."
+                  : "Xác nhận hoàn tác"}
               </button>
             </div>
           </div>

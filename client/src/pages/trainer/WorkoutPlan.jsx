@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -43,14 +43,16 @@ const WorkoutPlan = () => {
 
   const isTrainerOrAdmin = user?.role === "admin" || user?.role === "trainer";
 
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(
+    () => searchParams.get("create") === "true",
+  );
   const [filterClient, setFilterClient] = useState("");
   const [searchText, setSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const limit = 12;
 
   // Fetch clients (chỉ trainer/admin)
-  const { data: clients = [] } = useQuery({
+  const { data: clients = [], isLoading: clientsLoading } = useQuery({
     queryKey: ["my-clients"],
     queryFn: () => getMyClients().then((res) => res.data.data || []),
     enabled: isTrainerOrAdmin,
@@ -70,11 +72,11 @@ const WorkoutPlan = () => {
       : () => getMyWorkoutPlans().then((res) => ({ data: res.data.data || [], pagination: { total: res.data.data?.length || 0, totalPages: 1 } })),
   });
 
-  const plans = plansData?.data || [];
   const pagination = plansData?.pagination || { total: 0, totalPages: 0 };
 
   // Filtered by search text (client-side)
   const filteredPlans = useMemo(() => {
+    const plans = plansData?.data || [];
     if (!searchText.trim()) return plans;
     const s = searchText.toLowerCase();
     return plans.filter(
@@ -82,13 +84,7 @@ const WorkoutPlan = () => {
         p.title.toLowerCase().includes(s) ||
         p.clientName.toLowerCase().includes(s)
     );
-  }, [plans, searchText]);
-
-  useEffect(() => {
-    if (searchParams.get("create") === "true") {
-      setModalOpen(true);
-    }
-  }, [searchParams]);
+  }, [plansData?.data, searchText]);
 
   // Mutations
   const deleteMut = useMutation({
@@ -336,7 +332,7 @@ const WorkoutPlan = () => {
       <Footer />
 
       {/* Modal */}
-      {modalOpen && (
+      {modalOpen && !clientsLoading && (
         <PlanModal
           clients={clients}
           initialClientId={searchParams.get("client") || ""}

@@ -9,6 +9,7 @@ import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import TdeeFormCard from "./cards/TdeeFormCard";
 import { submitAiFeedback } from "../../services/ai.service";
+import { compressChatImage } from "../../utils/compressChatImage";
 
 const TOOL_LABELS = {
   calculate_tdee: "Đang tính TDEE...",
@@ -117,19 +118,14 @@ export default function ChatWidget() {
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   }, [input, selectedImage, isLoading, sendMessage, location.pathname]);
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      alert("Chỉ hỗ trợ tải lên hình ảnh!");
-      return;
+    try {
+      setSelectedImage(await compressChatImage(file));
+    } catch (imageError) {
+      alert(imageError.message);
     }
-
-    // Nén và chuyển thành base64 (Tạm thời chỉ đọc raw)
-    const reader = new FileReader();
-    reader.onload = (e) => setSelectedImage(e.target.result);
-    reader.readAsDataURL(file);
     e.target.value = ""; // reset
   };
 
@@ -172,6 +168,7 @@ export default function ChatWidget() {
     if (!conversationId || !messageId) return;
     try {
       await submitAiFeedback(conversationId, messageId, feedback);
+    // eslint-disable-next-line no-unused-vars
     } catch (err) {
       // Silent fail
     }
@@ -304,7 +301,7 @@ export default function ChatWidget() {
             )}
 
             {messages.map((msg, i) => (
-              <div key={`${msg.role}-${i}`} className="chat-card-enter" style={{ animationDelay: `${i * 30}ms` }}>
+              <div key={msg._id || msg.localId || `${msg.role}-${i}`} className="chat-card-enter" style={{ animationDelay: `${i * 30}ms` }}>
                 <ChatBubble message={msg} onFeedback={handleFeedback} />
               </div>
             ))}
@@ -360,7 +357,7 @@ export default function ChatWidget() {
             <div className="flex items-end gap-2 bg-white/5 border border-white/10 rounded-xl px-2 py-2 focus-within:border-emerald-500/40 focus-within:ring-1 focus-within:ring-emerald-500/10 transition-all">
               <input 
                 type="file" 
-                accept="image/*" 
+                accept="image/jpeg,image/png,image/webp"
                 ref={fileInputRef} 
                 onChange={handleImageUpload} 
                 className="hidden" 

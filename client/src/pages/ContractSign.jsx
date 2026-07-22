@@ -13,6 +13,7 @@ import SEO from "../components/SEO";
 const ContractSign = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  // eslint-disable-next-line no-unused-vars
   const { user } = useAuth();
   const { t, i18n } = useTranslation("coaching");
   const [signatureData, setSignatureData] = useState("");
@@ -25,11 +26,11 @@ const ContractSign = () => {
   const contract = contractData?.data?.data;
   const sections = contract?.customSections || [];
 
-  const viewMutation = useMutation({ mutationFn: () => markAsViewed(id) });
+  const { mutate: markViewed } = useMutation({ mutationFn: () => markAsViewed(id) });
 
   useEffect(() => {
-    if (contract && contract.status === "sent") viewMutation.mutate();
-  }, [contract?.status]);
+    if (contract?.status === "sent") markViewed();
+  }, [contract?.status, markViewed]);
 
   const signMutation = useMutation({
     mutationFn: () => signContract(id, signatureData),

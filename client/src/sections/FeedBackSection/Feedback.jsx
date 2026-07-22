@@ -54,6 +54,7 @@ const Feedback = () => {
 
   const handleNextRef = useRef();
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     handleNextRef.current = handleNext;
   });
 
@@ -161,7 +162,7 @@ const Feedback = () => {
     });
 
     setFlipState(null);
-  }, [items, flipState]);
+  }, [items, flipState, isMobile]);
 
   if (!stories.length) return null;
 
@@ -240,4 +241,3 @@ const Feedback = () => {
 };
 
 export default Feedback;
-

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   Search,
   ChefHat,
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 import { getRecipes, getRecipeCategories, getRecipeAreas } from "../../services/recipe.service";
-import { getFlagEmoji, getPageNumbers } from "./constants";
+import { getPageNumbers } from "./constants";
 import Header from "../../sections/Header/Header";
 import Footer from "../../sections/Footer/Footer";
 import ChatIcons from "../../components/ChatIcons";
@@ -32,42 +32,51 @@ const RecipeExplorer = () => {
 
   const category = searchParams.get("category") || "";
   const area = searchParams.get("area") || "";
-  const page = parseInt(searchParams.get("page")) || 1;
+  const page = Math.max(parseInt(searchParams.get("page"), 10) || 1, 1);
+  const urlSearch = searchParams.get("search") || "";
 
-  const updateParams = (updates) => {
-    const params = new URLSearchParams(searchParams);
-    Object.entries(updates).forEach(([key, val]) => {
-      if (val) params.set(key, val);
-      else params.delete(key);
-    });
-    if (updates.category !== undefined || updates.area !== undefined || updates.search !== undefined) {
-      params.delete("page");
-    }
-    setSearchParams(params);
-  };
+  const updateParams = useCallback(
+    (updates) => {
+      const params = new URLSearchParams(searchParams);
+      Object.entries(updates).forEach(([key, val]) => {
+        if (val) params.set(key, val);
+        else params.delete(key);
+      });
+      if (
+        updates.category !== undefined ||
+        updates.area !== undefined ||
+        updates.search !== undefined
+      ) {
+        params.delete("page");
+      }
+      setSearchParams(params);
+    },
+    [searchParams, setSearchParams],
+  );
 
   // Queries
   const { data: recipesData, isLoading } = useQuery({
-    queryKey: ["recipes", { search: searchParams.get("search"), category, area, page }],
-    queryFn: () =>
+    queryKey: ["recipes", { search: urlSearch, category, area, page }],
+    queryFn: ({ signal }) =>
       getRecipes({
-        search: searchParams.get("search") || "",
+        search: urlSearch,
         category,
         area,
         page,
         limit: 12,
-      }),
+      }, signal),
+    placeholderData: keepPreviousData,
   });
 
   const { data: categoriesData } = useQuery({
     queryKey: ["recipe-categories"],
-    queryFn: getRecipeCategories,
+    queryFn: ({ signal }) => getRecipeCategories(signal),
     staleTime: 5 * 60 * 1000,
   });
 
   const { data: areasData } = useQuery({
     queryKey: ["recipe-areas"],
-    queryFn: getRecipeAreas,
+    queryFn: ({ signal }) => getRecipeAreas(signal),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -83,17 +92,21 @@ const RecipeExplorer = () => {
 
   useEffect(() => {
     // Only update if it's different from current param
-    if (debouncedSearch.trim() !== (searchParams.get("search") || "")) {
+    if (debouncedSearch.trim() !== urlSearch) {
       updateParams({ search: debouncedSearch.trim() || null });
     }
-  }, [debouncedSearch]);
+  }, [debouncedSearch, updateParams, urlSearch]);
+
+  useEffect(() => {
+    setSearch(urlSearch);
+  }, [urlSearch]);
 
   const clearFilters = () => {
     setSearch("");
     setSearchParams({});
   };
 
-  const hasActiveFilters = category || area || searchParams.get("search");
+  const hasActiveFilters = category || area || urlSearch;
   const pageNumbers = getPageNumbers(page, pagination.totalPages || 1);
 
   return (

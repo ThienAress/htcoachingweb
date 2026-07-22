@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getBookings,
   updateBookingStatus,
-  deleteBooking,
+  archiveBooking,
 } from "../../services/booking.service";
 import {
   PhoneCall,
   CheckCircle,
   XCircle,
-  Trash2,
+  Archive,
   Search,
   Eye,
   Package,
@@ -32,41 +32,47 @@ const BookingManagement = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getBookings(page, 9, filterStatus, search);
       setBookings(res.data.data);
       setTotalPages(res.data.pagination.totalPages);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      // Keep the existing empty state when the booking list cannot be loaded.
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus, page, search]);
 
   useEffect(() => {
     fetchBookings();
-  }, [page, filterStatus, search]);
+  }, [fetchBookings]);
 
-  const handleStatusUpdate = async (id, status) => {
+  const handleStatusUpdate = async (booking, status) => {
     if (!window.confirm(`Xác nhận chuyển trạng thái thành "${status}"?`))
       return;
     try {
-      await updateBookingStatus(id, status);
+      await updateBookingStatus(
+        booking._id,
+        status,
+        booking.revision,
+      );
       fetchBookings();
     } catch (err) {
-      alert("Lỗi cập nhật");
+      alert(err.response?.data?.message || "Lỗi cập nhật");
+      if (err.response?.status === 409) fetchBookings();
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Xóa booking này?")) return;
+  const handleArchive = async (booking) => {
+    if (!window.confirm("Lưu trữ booking này?")) return;
     try {
-      await deleteBooking(id);
+      await archiveBooking(booking._id, booking.revision);
       fetchBookings();
     } catch (err) {
-      alert("Lỗi xóa");
+      alert(err.response?.data?.message || "Lỗi lưu trữ");
+      if (err.response?.status === 409) fetchBookings();
     }
   };
 
@@ -224,37 +230,40 @@ const BookingManagement = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() =>
-                        handleStatusUpdate(booking._id, "contacted")
+                        handleStatusUpdate(booking, "contacted")
                       }
-                      className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition"
+                      disabled={booking.status !== "pending"}
+                      className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Đã liên hệ"
                     >
                       <PhoneCall size={18} />
                     </button>
                     <button
                       onClick={() =>
-                        handleStatusUpdate(booking._id, "completed")
+                        handleStatusUpdate(booking, "completed")
                       }
-                      className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg transition"
+                      disabled={booking.status !== "contacted"}
+                      className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Hoàn thành"
                     >
                       <CheckCircle size={18} />
                     </button>
                     <button
                       onClick={() =>
-                        handleStatusUpdate(booking._id, "cancelled")
+                        handleStatusUpdate(booking, "cancelled")
                       }
-                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition"
+                      disabled={!["pending", "contacted"].includes(booking.status)}
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Hủy"
                     >
                       <XCircle size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(booking._id)}
+                      onClick={() => handleArchive(booking)}
                       className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition"
-                      title="Xóa"
+                      title="Lưu trữ"
                     >
-                      <Trash2 size={18} />
+                      <Archive size={18} />
                     </button>
                   </div>
                 </div>

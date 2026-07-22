@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { Wheat, Drumstick, Fish, Plus, X, Search, Crown, Save, PlusCircle } from "lucide-react";
@@ -9,6 +10,35 @@ import { useAuth } from "../../context/AuthContext";
 
 const round1 = (num) => Math.round(num * 10) / 10;
 const calcCalories = (p, c, f) => round1(p * 4 + c * 4 + f * 9);
+const emptyMeal = (index) => ({
+  id: `meal-${Date.now()}-${index}`,
+  mealName: `Bữa ${index + 1}`,
+  carbFood: [],
+  proteinFood: [],
+  fatFood: [],
+});
+
+const loadMeals = (storageKey, selectedPlan) => {
+  let meals = [];
+  const saved = localStorage.getItem(storageKey);
+  if (saved) {
+    try {
+      meals = JSON.parse(saved).map((meal) => ({
+        ...meal,
+        carbFood: Array.isArray(meal.carbFood) ? meal.carbFood : (meal.carbFood ? [meal.carbFood] : []),
+        proteinFood: Array.isArray(meal.proteinFood) ? meal.proteinFood : (meal.proteinFood ? [meal.proteinFood] : []),
+        fatFood: Array.isArray(meal.fatFood) ? meal.fatFood : (meal.fatFood ? [meal.fatFood] : []),
+      }));
+    } catch {
+      meals = [];
+    }
+  }
+
+  return Array.from(
+    { length: selectedPlan },
+    (_, index) => meals[index] || emptyMeal(index),
+  );
+};
 
 export default function CustomMealBuilder({
   foodDatabase,
@@ -23,47 +53,10 @@ export default function CustomMealBuilder({
   const storageKey = `customMealBuilder_${user ? user._id : "guest"}`;
   
   // State for meals
-  const [meals, setMeals] = useState([]);
+  const [meals, setMeals] = useState(() => loadMeals(storageKey, selectedPlan));
   const [hasRecorded, setHasRecorded] = useState(false);
 
   // Initialize or adjust meals based on selectedPlan
-  useEffect(() => {
-    setMeals((prev) => {
-      const saved = localStorage.getItem(storageKey);
-      if (saved && prev.length === 0) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (parsed.length > 0) {
-            return parsed.map(meal => ({
-              ...meal,
-              carbFood: Array.isArray(meal.carbFood) ? meal.carbFood : (meal.carbFood ? [meal.carbFood] : []),
-              proteinFood: Array.isArray(meal.proteinFood) ? meal.proteinFood : (meal.proteinFood ? [meal.proteinFood] : []),
-              fatFood: Array.isArray(meal.fatFood) ? meal.fatFood : (meal.fatFood ? [meal.fatFood] : []),
-            }));
-          }
-        } catch (e) {}
-      }
-
-      if (prev.length === selectedPlan) return prev;
-      
-      const newMeals = [...prev];
-      if (newMeals.length < selectedPlan) {
-        for (let i = newMeals.length; i < selectedPlan; i++) {
-          newMeals.push({
-            id: `meal-${Date.now()}-${i}`,
-            mealName: `Bữa ${i + 1}`,
-            carbFood: [],
-            proteinFood: [],
-            fatFood: [],
-          });
-        }
-      } else {
-        return newMeals.slice(0, selectedPlan);
-      }
-      return newMeals;
-    });
-  }, [selectedPlan]);
-
   // Save to localStorage
   useEffect(() => {
     if (meals.length > 0) {

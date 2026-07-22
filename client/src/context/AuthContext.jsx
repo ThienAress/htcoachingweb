@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import Cookies from "js-cookie";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "../utils/api";
 
 const AuthContext = createContext(null);
@@ -21,6 +22,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +36,8 @@ export const AuthProvider = ({ children }) => {
       } else {
         setUser(null);
       }
-    } catch (err) {
+    } catch {
+      // Local auth state is cleared even if the server session already expired.
       setUser(null);
     } finally {
       setLoading(false);
@@ -44,8 +47,8 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(async () => {
     try {
       await api.post("/auth/logout");
-    } catch (err) {
-      console.error("Logout API error:", err?.response?.data || err.message);
+    } catch {
+      // Continue with local logout if the server session is already gone.
     } finally {
       // accessToken / refreshToken là httpOnly -> frontend không nên cố remove
       // Chỉ xóa csrfToken nếu muốn dọn client-side
@@ -56,9 +59,10 @@ export const AuthProvider = ({ children }) => {
       });
 
       setUser(null);
+      queryClient.clear();
       window.location.href = "/";
     }
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     fetchUser();

@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { Link, Navigate, useParams } from "react-router-dom";
@@ -49,7 +50,6 @@ const TrainerGallery = ({ images, name }) => {
       {/* Ảnh chính lớn */}
       <div className="relative aspect-[4/5] md:aspect-square lg:aspect-[4/5] bg-slate-800 shadow-2xl rounded-2xl overflow-hidden group">
         {allImages.map((img, idx) => (
-          /* eslint-disable-next-line */
           <img
             key={idx}
             src={img}
@@ -231,8 +231,15 @@ const TrainerProfile = ({ previewData }) => {
     enabled: !!trainer?._id && !previewData,
   });
 
-  const storiesRaw = previewData ? [] : (storiesResponse?.data || []);
-  const stories = useMemo(() => translateData(storiesRaw, "story", i18n.language), [storiesRaw, i18n.language]);
+  const stories = useMemo(
+    () =>
+      translateData(
+        previewData ? [] : (storiesResponse?.data || []),
+        "story",
+        i18n.language,
+      ),
+    [i18n.language, previewData, storiesResponse?.data],
+  );
 
   // Backward compatible: dùng images[] nếu có, fallback image cũ
   const trainerImages = trainer?.images?.length > 0

@@ -110,6 +110,7 @@ function AccountPage() {
         try {
           const contractRes = await getMyContracts();
           setMyContracts(contractRes.data?.data || []);
+        // eslint-disable-next-line no-empty
         } catch {}
       } catch {
         toast.error(t("profile.errors.fetch_failed"));
@@ -119,7 +120,7 @@ function AccountPage() {
     };
 
     fetchData();
-  }, [user, navigate]);
+  }, [user, navigate, t]);
 
   // Handle single field save — Optimistic UI
   const handleSaveField = async (field) => {
@@ -247,7 +248,7 @@ function AccountPage() {
     }
 
     return combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }, [orders, orderFilter, orderSearch]);
+  }, [orders, orderFilter, orderSearch, t]);
 
   if (!user) return null;
 

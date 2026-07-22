@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { getMyWallet, createDeposit, getMyDeposits, confirmDeposit } from "../../services/wallet.service";
 import { Wallet, Plus, Clock, CheckCircle, XCircle, AlertTriangle, Copy, ArrowLeft } from "lucide-react";
@@ -20,6 +20,7 @@ const StatusBadge = ({ status, t }) => {
     expired: { label: trans("status.expired"), color: "text-gray-400 bg-gray-400/10", icon: XCircle },
     rejected: { label: trans("status.rejected"), color: "text-red-400 bg-red-400/10", icon: XCircle },
     needs_review: { label: trans("status.needs_review"), color: "text-orange-400 bg-orange-400/10", icon: Clock },
+    reversed: { label: trans("status.reversal", { defaultValue: "Đã hoàn tác" }), color: "text-blue-400 bg-blue-400/10", icon: XCircle },
   };
   const info = map[status] || map.pending;
   const Icon = info.icon;
@@ -87,8 +88,8 @@ const MyWallet = () => {
       const [walletRes, depositsRes] = await Promise.all([getMyWallet(), getMyDeposits()]);
       setBalance(walletRes.data.data.balance);
       setDeposits(depositsRes.data.data);
-    } catch (err) {
-      console.error("Fetch wallet error:", err);
+    } catch {
+      // Keep the zero balance and empty history fallback.
     } finally {
       setLoading(false);
     }
@@ -113,7 +114,7 @@ const MyWallet = () => {
         });
       }
     }
-  }, [deposits]);
+  }, [activeDeposit, deposits]);
 
   // Tạo yêu cầu nạp tiền
   const handleCreateDeposit = async () => {
@@ -352,7 +353,7 @@ const MyWallet = () => {
               {deposits.map((d) => (
                 <div
                   key={d._id}
-                  className="flex items-center justify-between bg-[#222] border border-gray-800 rounded-lg p-4 hover:border-gray-600 transition cursor-pointer"
+                  className="flex items-center justify-between gap-4 bg-[#222] border border-gray-800 rounded-lg p-4 hover:border-gray-600 transition cursor-pointer"
                   onClick={() => {
                     if (d.status === "pending") {
                       setActiveDeposit({
@@ -372,6 +373,11 @@ const MyWallet = () => {
                       {new Date(d.createdAt).toLocaleString(i18n.language === "vi" ? "vi-VN" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
                       {d.depositCode && <span className="ml-2 text-gray-600">• {d.depositCode}</span>}
                     </p>
+                    {d.reverseReason && (
+                      <p className="text-xs text-blue-400 mt-1">
+                        {d.reverseReason}
+                      </p>
+                    )}
                   </div>
                   <StatusBadge status={d.status} t={t} />
                 </div>

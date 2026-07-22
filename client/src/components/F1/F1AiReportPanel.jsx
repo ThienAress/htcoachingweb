@@ -1,5 +1,5 @@
 // F1AiReportPanel.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Sparkles,
@@ -351,6 +351,7 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
   const [report, setReport] = useState(null);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const requestIdRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
     const loadLatest = async () => {
@@ -359,8 +360,7 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
         setLoadingLatest(true);
         const res = await getLatestAiReport(customer._id);
         setReport(res?.data || null);
-      } catch (error) {
-        console.error(error);
+      } catch {
         setReport(null);
       } finally {
         setLoadingLatest(false);
@@ -373,12 +373,15 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
     if (!customer?._id) return;
     try {
       setGenerating(true);
-      const res = await generateAiReport(customer._id);
+      const res = await generateAiReport(customer._id, {
+        requestId: requestIdRef.current,
+        regenerate: Boolean(report),
+      });
+      requestIdRef.current = crypto.randomUUID();
       setReport(res?.data || null);
       toast.success("Tạo AI Report thành công");
       onGenerated?.(res?.data);
     } catch (error) {
-      console.error(error);
       toast.error(error?.response?.data?.message || "Tạo AI Report thất bại");
     } finally {
       setGenerating(false);
@@ -456,6 +459,7 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
               </p>
             </div>
             <button
+              data-testid="f1-generate-ai-report"
               onClick={handleGenerate}
               disabled={generating || loadingLatest}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg disabled:opacity-60"
@@ -487,7 +491,7 @@ const F1AiReportPanel = ({ customer, onBack, onGenerated, onOpenResultPrediction
               </p>
             </div>
           ) : (
-            <div className="space-y-8">
+            <div data-testid="f1-ai-report-content" className="space-y-8">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <InfoCard
                   label="Mức sẵn sàng tập luyện"

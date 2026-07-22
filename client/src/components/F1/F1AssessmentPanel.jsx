@@ -171,8 +171,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
             }
           });
         }
-      } catch (error) {
-        console.error(error);
+      } catch {
         setLatestAssessmentId(null);
         setFormData(createInitialAssessmentForm());
       } finally {
@@ -189,8 +188,7 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
         setLoadingSuggestions(true);
         const res = await getAssessmentStarterSuggestions(customer._id);
         setStarterSuggestions(res?.data || null);
-      } catch (error) {
-        console.error(error);
+      } catch {
         setStarterSuggestions(null);
       } finally {
         setLoadingSuggestions(false);
@@ -321,7 +319,6 @@ const F1AssessmentPanel = ({ customer, onBack, onSubmitted }) => {
       }
       onSubmitted?.(saved);
     } catch (error) {
-      console.error(error);
       toast.error(error?.response?.data?.message || "Lưu đánh giá thể chất thất bại");
     } finally {
       setSubmitting(false);

@@ -3,41 +3,43 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
+const loadStoredMacroSet = () => {
+  const data = localStorage.getItem("macroSet");
+  if (!data) return { data: null, warning: "warnings.missing_tdee" };
+
+  try {
+    const parsedData = JSON.parse(data);
+    if (!parsedData || typeof parsedData !== "object" || Object.keys(parsedData).length === 0) {
+      return { data: null, warning: "warnings.invalid_data" };
+    }
+
+    Object.keys(parsedData).forEach((plan) => {
+      const { protein, carb, fat } = parsedData[plan];
+      parsedData[plan].calories = protein * 4 + carb * 4 + fat * 9;
+    });
+    return { data: parsedData, warning: null };
+  } catch {
+    return { data: null, warning: "warnings.error_data" };
+  }
+};
+
 export const useMacroSet = () => {
   const { t } = useTranslation("tdee");
-  const [macroSet, setMacroSet] = useState(null);
-  const [selectedMacroPlan, setSelectedMacroPlan] = useState(null);
+  const [storedMacroSet] = useState(loadStoredMacroSet);
+  const [selectedMacroPlan, setSelectedMacroPlan] = useState(
+    () => Object.keys(storedMacroSet.data || {})[0] || null,
+  );
   const navigate = useNavigate();
 
   useEffect(() => {
-    const data = localStorage.getItem("macroSet");
-    if (data) {
-      try {
-        const parsedData = JSON.parse(data);
-        if (parsedData && typeof parsedData === 'object' && Object.keys(parsedData).length > 0) {
-          Object.keys(parsedData).forEach((plan) => {
-            const { protein, carb, fat } = parsedData[plan];
-            parsedData[plan].calories = protein * 4 + carb * 4 + fat * 9;
-          });
-          setMacroSet(parsedData);
-          
-          const keys = Object.keys(parsedData);
-          if (keys.length > 0) {
-            setSelectedMacroPlan(keys[0]);
-          }
-        } else {
-          toast.warning(t("warnings.invalid_data"), { toastId: "invalid-tdee" });
-          navigate("/tdee-calculator");
-        }
-      } catch (error) {
-        toast.warning(t("warnings.error_data"), { toastId: "error-tdee" });
-        navigate("/tdee-calculator");
-      }
-    } else {
-      toast.warning(t("warnings.missing_tdee"), { toastId: "missing-tdee" });
-      navigate("/tdee-calculator");
-    }
-  }, [navigate, t]);
+    if (!storedMacroSet.warning) return;
+    toast.warning(t(storedMacroSet.warning), { toastId: storedMacroSet.warning });
+    navigate("/tdee-calculator");
+  }, [navigate, storedMacroSet, t]);
 
-  return { macroSet, selectedMacroPlan, setSelectedMacroPlan };
+  return {
+    macroSet: storedMacroSet.data,
+    selectedMacroPlan,
+    setSelectedMacroPlan,
+  };
 };

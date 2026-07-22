@@ -32,6 +32,13 @@ export const deleteAiConversation = async (id) => {
   return res.data;
 };
 
+export const forkAiConversation = async (conversationId, messageId) => {
+  const res = await api.post(`/ai/conversations/${conversationId}/fork`, {
+    messageId,
+  });
+  return res.data;
+};
+
 // Gửi feedback 👍/👎 cho message
 export const submitAiFeedback = async (conversationId, messageId, feedback) => {
   const res = await api.post(`/ai/conversations/${conversationId}/feedback`, { messageId, feedback });

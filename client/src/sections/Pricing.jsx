@@ -50,6 +50,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   const [countdown, setCountdown] = useState(null);
   const [activeSubscription, setActiveSubscription] = useState(null);
   const [showAlreadySubscribed, setShowAlreadySubscribed] = useState(false);
+  const purchaseRequestIdRef = useRef(null);
 
   // Fetch gói đang dùng khi đăng nhập
   useEffect(() => {
@@ -591,6 +592,8 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           setShowAlreadySubscribed(true);
                           return;
                         }
+                        purchaseRequestIdRef.current =
+                          globalThis.crypto.randomUUID();
                         setCheckoutPlan(plan);
                         setCheckoutResult(null);
                         setWalletLoading(true);
@@ -868,7 +871,15 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           const handlePurchase = async () => {
             setCheckoutLoading(true);
             try {
-              const res = await purchaseTrainerPlan(checkoutPlan.title, billingCycle);
+              if (!purchaseRequestIdRef.current) {
+                purchaseRequestIdRef.current =
+                  globalThis.crypto.randomUUID();
+              }
+              const res = await purchaseTrainerPlan(
+                checkoutPlan.title,
+                billingCycle,
+                purchaseRequestIdRef.current,
+              );
               setCheckoutResult({
                 success: true,
                 message: res.data.message,
@@ -889,6 +900,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             if (!checkoutLoading) {
               setCheckoutPlan(null);
               setCheckoutResult(null);
+              purchaseRequestIdRef.current = null;
             }
           };
 
@@ -974,12 +986,21 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                         </div>
                       </div>
                     ) : (
-                      <button
-                        onClick={handleClose}
-                        className="w-full py-3 bg-gray-700 text-white font-semibold rounded-xl hover:bg-gray-600 transition"
-                      >
-                        Đóng
-                      </button>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={handleClose}
+                          className="py-3 bg-gray-700 text-white font-semibold rounded-xl hover:bg-gray-600 transition"
+                        >
+                          Đóng
+                        </button>
+                        <button
+                          onClick={handlePurchase}
+                          disabled={checkoutLoading}
+                          className="py-3 bg-primary text-white font-semibold rounded-xl hover:bg-orange-500 transition disabled:opacity-50"
+                        >
+                          {checkoutLoading ? "Đang thử lại..." : "Thử lại"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -1030,7 +1051,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           ⚠️ Số dư không đủ (thiếu {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(shortage)})
                         </p>
                         <button
-                          onClick={() => { setCheckoutPlan(null); navigate('/wallet'); }}
+                          onClick={() => {
+                            purchaseRequestIdRef.current = null;
+                            setCheckoutPlan(null);
+                            navigate('/wallet');
+                          }}
                           className="text-primary text-sm font-semibold hover:underline flex items-center justify-center gap-1 mx-auto"
                         >
                           Nạp tiền vào ví <ArrowRight className="w-3.5 h-3.5" />

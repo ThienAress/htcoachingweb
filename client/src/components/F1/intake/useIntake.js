@@ -41,12 +41,19 @@ export const useSubmitIntake = () => {
 
 export const useUploadF1Media = () => {
   return useMutation({
-    mutationFn: ({ customerId, file, type, intakeId }) => {
+    mutationFn: ({
+      customerId,
+      file,
+      type,
+      intakeId,
+      signal,
+      onUploadProgress,
+    }) => {
       const form = new FormData();
       form.append("file", file);
       form.append("type", type);
       if (intakeId) form.append("intakeId", intakeId);
-      return createF1Media(customerId, form);
+      return createF1Media(customerId, form, { signal, onUploadProgress });
     },
   });
 };

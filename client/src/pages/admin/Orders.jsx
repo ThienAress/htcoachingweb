@@ -75,7 +75,6 @@ const Orders = () => {
     keepPreviousData: true,
   });
 
-  const orders = ordersData?.orders || [];
   const totalPages = ordersData?.totalPages || 1;
 
   const { data: trainersData } = useQuery({
@@ -86,11 +85,12 @@ const Orders = () => {
   const trainers = trainersData || [];
 
   const filteredOrders = useMemo(() => {
+    const orders = ordersData?.orders || [];
     if (!search) return orders;
     return orders.filter((o) =>
       o.name?.toLowerCase().includes(search.toLowerCase()),
     );
-  }, [orders, search]);
+  }, [ordersData?.orders, search]);
 
   const {
     register,

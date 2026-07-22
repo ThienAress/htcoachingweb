@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation, Trans } from "react-i18next";
 import { Flame, BarChart3, Utensils, Calendar, Dumbbell } from "lucide-react";
@@ -17,43 +17,69 @@ import {
   getDefaultCalorieAdjustment,
 } from "./tdee.helpers";
 
+const DEFAULT_FORM = {
+  gender: "",
+  height: "",
+  weight: "",
+  age: "",
+  activity: "",
+  formula: "",
+  bodyfat: "",
+  goal: "",
+  customCalorieAdjustment: "",
+};
+
+const loadStoredTdee = () => {
+  const result = {
+    form: DEFAULT_FORM,
+    tdee: null,
+    bmr: null,
+    adjustedCalories: null,
+    macroSet: null,
+  };
+
+  try {
+    const savedForm = localStorage.getItem("tdeeForm");
+    if (savedForm) result.form = { ...DEFAULT_FORM, ...JSON.parse(savedForm) };
+  } catch {
+    localStorage.removeItem("tdeeForm");
+  }
+
+  try {
+    const savedData = localStorage.getItem("tdeeData");
+    if (savedData) {
+      const data = JSON.parse(savedData);
+      result.bmr = data.bmr ?? null;
+      result.tdee = data.tdee ?? null;
+      result.adjustedCalories = data.adjustedCalories ?? null;
+    }
+  } catch {
+    localStorage.removeItem("tdeeData");
+  }
+
+  try {
+    const savedMacros = localStorage.getItem("macroSet");
+    if (savedMacros) result.macroSet = JSON.parse(savedMacros);
+  } catch {
+    localStorage.removeItem("macroSet");
+  }
+
+  return result;
+};
+
 const TdeeCalculator = () => {
   const { t } = useTranslation("tdee");
-  const [form, setForm] = useState({
-    gender: "",
-    height: "",
-    weight: "",
-    age: "",
-    activity: "",
-    formula: "",
-    bodyfat: "",
-    goal: "",
-    customCalorieAdjustment: "",
-  });
+  const [storedTdee] = useState(loadStoredTdee);
+  const [form, setForm] = useState(storedTdee.form);
 
   const [calcMode, setCalcMode] = useState("auto"); // "auto" | "manual"
   const [errors, setErrors] = useState({});
-  const [tdee, setTdee] = useState(null);
-  const [bmr, setBmr] = useState(null);
-  const [adjustedCalories, setAdjustedCalories] = useState(null);
-  const [macroSet, setMacroSet] = useState(null);
+  const [tdee, setTdee] = useState(storedTdee.tdee);
+  const [bmr, setBmr] = useState(storedTdee.bmr);
+  const [adjustedCalories, setAdjustedCalories] = useState(storedTdee.adjustedCalories);
+  const [macroSet, setMacroSet] = useState(storedTdee.macroSet);
   const [goalNotice, setGoalNotice] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const savedForm = localStorage.getItem("tdeeForm");
-    const savedData = localStorage.getItem("tdeeData");
-    const savedMacros = localStorage.getItem("macroSet");
-
-    if (savedForm) setForm(JSON.parse(savedForm));
-    if (savedData) {
-      const { bmr, tdee, adjustedCalories } = JSON.parse(savedData);
-      setBmr(bmr);
-      setTdee(tdee);
-      setAdjustedCalories(adjustedCalories);
-    }
-    if (savedMacros) setMacroSet(JSON.parse(savedMacros));
-  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

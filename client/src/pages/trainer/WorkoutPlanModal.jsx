@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { X, Plus, Trash2, GripVertical } from "lucide-react";
 import { toast } from "react-toastify";
@@ -49,24 +49,17 @@ const SectionBlock = ({ section, onUpdate, onRemove }) => {
 };
 
 const PlanModal = ({ clients, initialClientId, initialDate, onClose, onSaved }) => {
-  const [form, setForm] = useState({
-    title: "",
-    planDate: initialDate || new Date().toISOString().split("T")[0],
-    clientId: initialClientId || "",
-    clientName: "",
-    clientEmail: "",
-    trainerNote: "",
+  const [form, setForm] = useState(() => {
+    const initialClient = clients.find((client) => client._id === initialClientId);
+    return {
+      title: "",
+      planDate: initialDate || new Date().toISOString().split("T")[0],
+      clientId: initialClientId || "",
+      clientName: initialClient?.name || "",
+      clientEmail: initialClient?.email || "",
+      trainerNote: "",
+    };
   });
-
-  // Effect to set initial client details if passed
-  useEffect(() => {
-    if (initialClientId && clients.length > 0) {
-      const c = clients.find((x) => x._id === initialClientId);
-      if (c) {
-        setForm(f => ({ ...f, clientName: c.name, clientEmail: c.email }));
-      }
-    }
-  }, [initialClientId, clients]);
 
   const [sections, setSections] = useState([...DEFAULT_SECTIONS]);
 

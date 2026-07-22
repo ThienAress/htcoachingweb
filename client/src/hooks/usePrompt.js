@@ -25,6 +25,7 @@ export function usePrompt(when, message) {
         // nếu cancel thì không điều hướng
       };
 
+    // eslint-disable-next-line react-hooks/immutability
     navigator.push = blocker(push);
     navigator.replace = blocker(replace);
 

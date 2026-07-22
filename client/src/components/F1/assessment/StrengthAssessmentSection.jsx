@@ -3,9 +3,6 @@ import React, { useCallback, useEffect } from "react";
 import { Dumbbell, Armchair, Battery } from "lucide-react";
 import {
   scoreToLevel,
-  round1,
-  clamp,
-  parseRange,
   extractProtocolOptions,
   scoreAgainstProtocol,
 } from "../../../utils/assessment.helpers";

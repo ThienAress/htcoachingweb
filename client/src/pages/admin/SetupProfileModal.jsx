@@ -244,8 +244,8 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
           images: [...prev.images, ...validUrls]
         }));
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Individual upload errors are surfaced by the upload controls.
     } finally {
       setIsUploadingMultiple(false);
       e.target.value = "";

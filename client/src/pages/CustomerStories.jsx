@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { getPublicCustomerStories } from "../services/customerStory.service";
 import Contact from "../sections/Contact";
-import hero3 from "../assets/images/hero/hero3.jpg";
+import hero3 from "../assets/images/hero/hero3.webp";
 import SEO from "../components/SEO";
 import ScrollToTop from "../components/ScrollToTop";
 import { translateData } from "../utils/localDataTranslator";

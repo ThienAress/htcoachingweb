@@ -4,6 +4,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
 import { useTranslation, Trans } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "../../context/AuthContext";
 import { X, Clock } from "lucide-react";
@@ -17,13 +18,22 @@ import { registerSchema } from "./registerSchema";
 import OrderSummary from "./components/OrderSummary";
 import FirstTimeModal from "./components/FirstTimeModal";
 
+const createDiscountCode = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
+  let code = "HT";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+};
+
 function RegisterPage() {
   const { t } = useTranslation("auth");
   const { state } = useLocation();
   const navigate = useNavigate();
   const selectedPackage = state?.selectedPackage;
   const planMode = state?.planMode;
-  const gifts = state?.gifts || [];
+  const gifts = useMemo(() => state?.gifts || [], [state?.gifts]);
   const { user } = useAuth();
   const isLoggedIn = !!user;
 
@@ -32,10 +42,8 @@ function RegisterPage() {
   const [tempTime, setTempTime] = useState("");
 
   // Booking & discount states
-  const [discountCode, setDiscountCode] = useState("");
-  const [hasExistingBooking, setHasExistingBooking] = useState(false);
-  const [loadingCheck, setLoadingCheck] = useState(true);
   const [showFirstTimeModal, setShowFirstTimeModal] = useState(false);
+  const [bookingRequestId, setBookingRequestId] = useState(null);
 
   // Helper dịch thứ trong tuần hiển thị cho UX
   const getDayTranslation = useCallback((dayStr) => {
@@ -90,37 +98,30 @@ function RegisterPage() {
   );
 
   // Fetch booking status
-  const fetchUserBookings = useCallback(async () => {
-    if (isLoggedIn) {
+  const {
+    data: bookingStatus,
+    isLoading: loadingBookingStatus,
+    refetch: fetchUserBookings,
+  } = useQuery({
+    queryKey: ["booking-status", user?._id],
+    enabled: isLoggedIn,
+    queryFn: async () => {
       try {
         const res = await checkUserHasBookings();
-        setHasExistingBooking(res.data.hasBookings);
+        const hasBookings = Boolean(res.data.hasBookings);
+        return {
+          hasBookings,
+          discountCode: hasBookings ? "" : createDiscountCode(),
+        };
       } catch {
-        setHasExistingBooking(false);
+        return { hasBookings: false, discountCode: createDiscountCode() };
       }
-    } else {
-      setHasExistingBooking(false);
-    }
-    setLoadingCheck(false);
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    fetchUserBookings();
-  }, [fetchUserBookings]);
-
-  // Generate discount code
-  useEffect(() => {
-    if (isLoggedIn && !hasExistingBooking && !loadingCheck) {
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
-      let code = "HT";
-      for (let i = 0; i < 6; i++) {
-        code += chars[Math.floor(Math.random() * chars.length)];
-      }
-      setDiscountCode(code);
-    } else {
-      setDiscountCode("");
-    }
-  }, [isLoggedIn, hasExistingBooking, loadingCheck]);
+    },
+    staleTime: 60_000,
+  });
+  const hasExistingBooking = bookingStatus?.hasBookings || false;
+  const discountCode = bookingStatus?.discountCode || "";
+  const loadingCheck = isLoggedIn && loadingBookingStatus;
 
   // Redirect if no package selected
   useEffect(() => {
@@ -156,14 +157,19 @@ function RegisterPage() {
         sessions: selectedPackage.totalSessions,
         discountCode: isLoggedIn && !hasExistingBooking ? discountCode : null,
         gifts: gifts,
+        clientRequestId:
+          bookingRequestId || window.crypto.randomUUID(),
       };
+      setBookingRequestId(bookingData.clientRequestId);
 
       try {
         await createBooking(bookingData);
+        setBookingRequestId(null);
         await fetchUserBookings();
         toast.success(t("register.success_msg"));
         setTimeout(() => navigate("/"), 1500);
       } catch (error) {
+        if (error.response) setBookingRequestId(null);
         if (error.response?.data?.errors) {
           const errorMessages = error.response.data.errors
             .map((e) => e.msg)
@@ -183,6 +189,7 @@ function RegisterPage() {
       hasExistingBooking,
       discountCode,
       gifts,
+      bookingRequestId,
       fetchUserBookings,
       navigate,
       t,
