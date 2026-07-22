@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
+import { resolveCloudinaryFolder } from "./cloudinaryPath.js";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -13,11 +14,17 @@ cloudinary.config({
  * @returns {Promise<{url: string, public_id: string}>}
  */
 export const uploadBufferToCloudinary = (buffer, options = {}) => {
+  const isolatedOptions = options.folder
+    ? { ...options, folder: resolveCloudinaryFolder(options.folder) }
+    : options;
   return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(options, (error, result) => {
-      if (error) return reject(error);
-      resolve({ url: result.secure_url, public_id: result.public_id });
-    });
+    const uploadStream = cloudinary.uploader.upload_stream(
+      isolatedOptions,
+      (error, result) => {
+        if (error) return reject(error);
+        resolve({ url: result.secure_url, public_id: result.public_id });
+      },
+    );
     uploadStream.end(buffer);
   });
 };

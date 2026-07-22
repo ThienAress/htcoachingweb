@@ -2,6 +2,7 @@ import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import { v2 as cloudinary } from "cloudinary";
 import dotenv from "dotenv";
+import { resolveCloudinaryFolder } from "../utils/cloudinaryPath.js";
 
 dotenv.config();
 
@@ -14,7 +15,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "htcoaching/recipes",
+    folder: resolveCloudinaryFolder("htcoaching/recipes"),
     allowed_formats: ["jpg", "jpeg", "png", "webp"],
     transformation: [{ width: 1200, height: 800, crop: "fill", quality: "auto" }],
   },

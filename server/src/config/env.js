@@ -6,6 +6,7 @@ import {
   assertProductionEnvironment,
   validateProductionEnvironment,
 } from "./productionReadiness.js";
+import { assertStagingEnvironment } from "./stagingSafety.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +30,8 @@ if (process.env.NODE_ENV === "production") {
   }
   assertProductionEnvironment(process.env, { strict: false });
 }
+
+assertStagingEnvironment(process.env);
 
 safeLog.info("environment.loaded", {
   NODE_ENV: process.env.NODE_ENV,

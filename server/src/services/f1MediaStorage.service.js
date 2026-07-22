@@ -2,6 +2,7 @@ import fs from "fs";
 import fsPromises from "fs/promises";
 import path from "path";
 import { v2 as cloudinary } from "cloudinary";
+import { resolveCloudinaryFolder } from "../utils/cloudinaryPath.js";
 
 const LOCAL_ROOT = path.resolve(
   process.env.F1_PRIVATE_MEDIA_DIR || ".private/f1-media",
@@ -58,7 +59,7 @@ const putCloudinary = (buffer, options) => {
         resource_type: "image",
         type: "authenticated",
         access_mode: "authenticated",
-        folder: "htcoaching/f1-private",
+        folder: resolveCloudinaryFolder("htcoaching/f1-private"),
         public_id: `${options.customerId}-${options.mediaId}`,
         overwrite: true,
         unique_filename: false,

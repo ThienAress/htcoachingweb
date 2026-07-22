@@ -4,6 +4,18 @@ import { safeLog } from "./safeLogger.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const deliverEmail = async (message) => {
+  if (
+    String(process.env.EMAIL_DELIVERY_MODE || "").toLowerCase() === "disabled"
+  ) {
+    safeLog.warn("mail.delivery_disabled", "Outbound email is disabled", {
+      template: "staging",
+    });
+    return { data: { id: "" } };
+  }
+  return resend.emails.send(message);
+};
+
 const formatDate = (t) => {
   if (!t) return "Chưa xác nhận";
   return new Date(t).toLocaleString("vi-VN", {
@@ -84,7 +96,7 @@ export const sendMail = async (to, subject, order) => {
       </html>
     `;
 
-    const response = await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to,
       subject,
@@ -157,7 +169,7 @@ export const sendCheckinMail = async (to, data) => {
       </html>
     `;
 
-    const response = await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to,
       subject: "💪 Xác nhận buổi tập",
@@ -238,7 +250,7 @@ export const sendContactNotificationToAdmin = async (contact) => {
       </html>
     `;
 
-    const response = await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to: adminEmail,
       subject: "📬 Liên hệ mới từ khách hàng",
@@ -320,7 +332,7 @@ export const sendBookingNotificationToAdmin = async (booking) => {
       </html>
     `;
 
-    const response = await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to: adminEmail,
       subject: "📋 Đăng ký mới từ khách hàng",
@@ -398,7 +410,7 @@ export const sendScheduleReminderMail = async (to, data) => {
       </html>
     `;
 
-    const response = await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to,
       subject: `⏰ Nhắc lịch tập — ${data.clientName} lúc ${data.startTime}`,
@@ -474,7 +486,7 @@ export const sendContractMail = async (to, data) => {
       </html>
     `;
 
-    const response = await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to,
       subject: "📋 Hợp đồng huấn luyện cá nhân — Vui lòng ký xác nhận",
