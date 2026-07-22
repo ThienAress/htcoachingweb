@@ -1,17 +1,20 @@
-name: Staging Security Smoke
+name: Staging Health and Security
 
 on:
+  push:
+    branches: [staging]
+  schedule:
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 concurrency:
-  group: staging-security
+  group: staging-health-security
   cancel-in-progress: false
 
 jobs:
-  read-only-smoke:
+  read-only-monitor:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: staging
     permissions:
       contents: read
     steps:
@@ -19,10 +22,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Check staging frontend and public APIs
+        run: node scripts/staging-health.mjs
+        env:
+          ALLOW_REMOTE_STAGING_HEALTH: "true"
+          STAGING_API_URL: https://htcoachingweb-staging.onrender.com
+          STAGING_CLIENT_URL: https://staging--htcoachingweb.netlify.app
       - name: Run read-only staging security checks
         working-directory: server
         run: npm run security:smoke
         env:
           ALLOW_REMOTE_SECURITY_SMOKE: "true"
-          SECURITY_SMOKE_BASE_URL: ${{ secrets.STAGING_API_URL }}
-          SECURITY_SMOKE_ALLOWED_ORIGIN: ${{ vars.STAGING_CLIENT_ORIGIN }}
+          SECURITY_SMOKE_BASE_URL: https://htcoachingweb-staging.onrender.com
+          SECURITY_SMOKE_ALLOWED_ORIGIN: https://staging--htcoachingweb.netlify.app
