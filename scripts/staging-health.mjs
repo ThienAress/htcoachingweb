@@ -87,11 +87,23 @@ const main = async () => {
     return { httpStatus: response.status, durationMs };
   });
 
-  for (const [name, path] of [
+  for (const [name, path, validateBody] of [
     ["api liveness", "/api/ops/health/live"],
     ["api readiness", "/api/ops/health/ready"],
     ["blog public API", "/api/blog?limit=1"],
-    ["recipe public API", "/api/recipes?limit=1"],
+    [
+      "recipe public API",
+      "/api/recipes?limit=1",
+      (body) =>
+        Array.isArray(body.data) &&
+        Number.isInteger(body.pagination?.total) &&
+        body.pagination?.limit === 1,
+    ],
+    [
+      "recipe taxonomy API",
+      "/api/recipes/categories",
+      (body) => Array.isArray(body.data),
+    ],
   ]) {
     await check(name, async () => {
       const { response, durationMs } = await fetchTimed(
@@ -104,7 +116,11 @@ const main = async () => {
         `${name} did not return JSON`,
       );
       const body = await response.json();
-      assert(body?.success === true, `${name} returned an unsuccessful payload`);
+      assert(body?.success === true, name + " returned an unsuccessful payload");
+      assert(
+        !validateBody || validateBody(body),
+        name + " returned an invalid response contract",
+      );
       return { httpStatus: response.status, durationMs };
     });
   }
