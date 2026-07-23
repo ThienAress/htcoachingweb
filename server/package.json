@@ -25,6 +25,7 @@
     "verify:phase8": "node src/scripts/verifyPhase8F1Integrity.js",
     "verify:phase9": "node src/scripts/verifyPhase9PrivacyOperations.js",
     "dry-run:f1-local": "node src/scripts/localF1RetentionDryRun.js",
+    "preflight:phase8-local": "node src/scripts/localPhase8MigrationPreflight.js",
     "check:production-readiness": "node src/scripts/checkProductionReadiness.js",
     "security:smoke": "node src/scripts/securitySmoke.js",
     "check:runtime-logging": "node src/scripts/checkRuntimeLogging.js",

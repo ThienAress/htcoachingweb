@@ -83,6 +83,7 @@ const duplicateAssessments = () =>
 
 const findMissingLocalMedia = async () => {
   const legacy = await F1Media.find({
+    status: { $nin: ["failed", "deleted"] },
     $or: [
       { storageKey: { $exists: false } },
       { storageKey: "" },
@@ -108,6 +109,31 @@ const findMissingLocalMedia = async () => {
     }
   }
   return { legacy, missing };
+};
+
+const markMissingLegacyMediaFailed = async (mediaIds) => {
+  if (mediaIds.length === 0) return 0;
+  const result = await F1Media.updateMany(
+    {
+      _id: { $in: mediaIds },
+      status: { $nin: ["failed", "deleted"] },
+      $or: [{ storageKey: { $exists: false } }, { storageKey: "" }],
+    },
+    {
+      $set: {
+        status: "failed",
+        provider: "legacy_local",
+        storageKey: "",
+        url: "",
+        publicId: "",
+        failureCode: "PHASE8_MEDIA_SOURCE_MISSING",
+        readyAt: null,
+      },
+      $inc: { revision: 1 },
+    },
+    { runValidators: true },
+  );
+  return result.modifiedCount;
 };
 
 export const preflightPhase8 = async () => {
@@ -409,13 +435,30 @@ export const verifyPhase8Integrity = async ({
 export const runPhase8Migration = async ({
   migrateMedia = true,
   verifyProviderObjects = false,
+  missingMediaStrategy = "block",
 } = {}) => {
+  if (!["block", "mark_failed"].includes(missingMediaStrategy)) {
+    throw new Error("Unsupported Phase 8 missing-media strategy");
+  }
   const preflight = await preflightPhase8();
-  if (preflight.blockingIssues > 0) {
+  const missingMediaBlocked =
+    preflight.missingLegacyMediaIds.length > 0 &&
+    missingMediaStrategy === "block";
+  if (preflight.assessmentConflicts.length > 0 || missingMediaBlocked) {
     const error = new Error(
       "Phase 8 preflight failed. Resolve duplicate assessments and missing legacy media first.",
     );
     error.preflight = preflight;
+    throw error;
+  }
+  const failedMissingMedia =
+    missingMediaStrategy === "mark_failed"
+      ? await markMissingLegacyMediaFailed(preflight.missingLegacyMediaIds)
+      : 0;
+  const postResolutionPreflight = await preflightPhase8();
+  if (postResolutionPreflight.blockingIssues > 0) {
+    const error = new Error("Phase 8 missing-media resolution did not clear preflight");
+    error.preflight = postResolutionPreflight;
     throw error;
   }
   const seededCounter = await seedCounter();
@@ -450,6 +493,7 @@ export const runPhase8Migration = async ({
     preflight,
     migrated: {
       seededCounter,
+      failedMissingMedia,
       media,
       reports,
       forecasts,
@@ -474,6 +518,8 @@ if (isDirectRun) {
     const result = await runPhase8Migration({
       migrateMedia: true,
       verifyProviderObjects: true,
+      missingMediaStrategy:
+        process.env.PHASE8_MISSING_MEDIA_STRATEGY || "block",
     });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     if (result.verification.totalIssues > 0) process.exitCode = 1;

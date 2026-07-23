@@ -438,4 +438,58 @@ describe("Phase 8 F1 integrity and privacy", () => {
     expect(second.verification.totalIssues).toBe(0);
     expect((await Counter.findOne({ key: "f1_customer" })).value).toBe(42);
   });
+
+  it("fails closed on missing media unless explicitly marked failed", async () => {
+    const trainer = await createTestUser({
+      email: "phase8-missing-media@example.com",
+      role: "trainer",
+    });
+    const { customer, intake } = await createCustomerFixture(
+      trainer.user._id,
+      "missing-media",
+    );
+    const media = await F1Media.create({
+      customerId: customer._id,
+      intakeId: intake._id,
+      type: "before_front",
+      url: "http://localhost:5000/uploads/f1-media/missing.jpg",
+      publicId: "missing.jpg",
+      uploadedBy: trainer.user._id,
+    });
+
+    await expect(
+      runPhase8Migration({ migrateMedia: false }),
+    ).rejects.toThrow("Phase 8 preflight failed");
+    await expect(
+      runPhase8Migration({
+        migrateMedia: false,
+        missingMediaStrategy: "delete",
+      }),
+    ).rejects.toThrow("Unsupported Phase 8 missing-media strategy");
+
+    const first = await runPhase8Migration({
+      migrateMedia: false,
+      missingMediaStrategy: "mark_failed",
+    });
+    const updated = await F1Media.findById(media._id).lean();
+    expect(first.preflight.missingLegacyMediaIds).toHaveLength(1);
+    expect(first.migrated.failedMissingMedia).toBe(1);
+    expect(first.verification.totalIssues).toBe(0);
+    expect(updated).toMatchObject({
+      status: "failed",
+      provider: "legacy_local",
+      storageKey: "",
+      url: "",
+      publicId: "",
+      failureCode: "PHASE8_MEDIA_SOURCE_MISSING",
+      revision: 1,
+    });
+
+    const second = await runPhase8Migration({
+      migrateMedia: false,
+      missingMediaStrategy: "mark_failed",
+    });
+    expect(second.migrated.failedMissingMedia).toBe(0);
+    expect(second.verification.totalIssues).toBe(0);
+  });
 });
