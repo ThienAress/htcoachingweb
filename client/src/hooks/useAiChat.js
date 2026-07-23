@@ -276,6 +276,7 @@ export default function useAiChat() {
       if (!normalizedText || sendingRef.current) return;
 
       cancelRequest(false);
+      navigationSequenceRef.current += 1;
       sendingRef.current = true;
       const sessionId = crypto.randomUUID();
       const requestId = crypto.randomUUID();
