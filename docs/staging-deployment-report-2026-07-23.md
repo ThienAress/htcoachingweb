@@ -225,7 +225,7 @@ These items are intentionally not marked complete:
 - Establish a retained Render rollback candidate and record the rollback owner.
 - Merge the validated Recipe API implementation into `main` and deploy it only
   after explicit production approval; production remains 404 until then.
-- Wire external alert delivery and send a test alert to the owner.
+- Wire the retained external Prometheus scrape for production metrics.
 - Record the planned seven-day RUM baseline.
 - Perform a separate final diff review and explicit merge decision.
 - After production deployment, observe application, financial, schedule, AI,
@@ -240,11 +240,17 @@ Closed after this report's original staging validation:
   production backup was recorded as
   `production-logical-backup-20260723T080213Z`; see
   `docs/production-backup-record-2026-07-23.md`.
+- External email alert delivery was verified on 2026-07-23. The owner received
+  the GitHub Actions failure email for staging workflow run `29991149545` and
+  the Render email for controlled failed staging deploy
+  `dep-d9gtjg61a83c73bt8ao0`. The staging build command was immediately restored
+  to `npm ci`; live deploy `dep-d9gteu6rnols73enjk10` remained active and the
+  public liveness endpoint returned HTTP 200 after the drill.
 
 ## Final migration and runtime hardening
 
-Candidate `67c4bc1` adds fail-closed controls without running any migration or
-writing staging/production data:
+Candidate `610c576` includes the fail-closed controls without running any
+migration or writing staging/production data:
 
 - Phase 1-9 migration entrypoints require exact `APP_ENV`, database lock, and
   phase confirmation.
@@ -261,7 +267,9 @@ tests, lint, runtime logging, all three dependency audits, secret/data-boundary
 scans, static and strict builds, and 135 Chromium/Firefox/WebKit E2E tests. The
 strict read-only staging build again generated and prerendered 24/24 routes.
 
-GitHub CI run `29982739171` passed all four jobs for `67c4bc1`. A separate
+GitHub CI run `29982739171` passed all four jobs for code candidate `67c4bc1`.
+The current staging candidate `610c576` subsequently passed all four jobs in
+CI run `29991149572`. A separate
 post-deploy direct check at `2026-07-23T05:37:49Z` passed staging health 7/7
 and security smoke 7/7, including live/ready, Blog, Recipe, Recipe taxonomy,
 CORS, operations authentication, private F1 legacy-path denial, and bounded

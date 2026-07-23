@@ -115,8 +115,11 @@ change approval, and an identified rollback path.
       endpoint rejects missing/incorrect tokens.
 - [x] Add read-only production smoke/metrics scripts and the scheduled GitHub
       production monitor workflow.
-- [ ] Wire Prometheus scrape and external alert delivery; send one test alert to
-      the named owner.
+- [x] Confirm external alert delivery to the named owner. A controlled staging
+      build failure produced a Render email, and the failed staging monitor
+      produced a GitHub Actions email, both received on 2026-07-23.
+- [ ] Wire a retained external Prometheus scrape for the protected production
+      metrics endpoint.
 - [x] Enforce CSP in staging after reviewing violations and testing public,
       auth, admin, schedule and F1 pages.
 - [ ] Record a seven-day RUM baseline by route/device before performance claims.

@@ -7,10 +7,10 @@ Target branch: main
 
 ## 1. Release decision
 
-The staging candidate at `67c4bc1` includes the validated Recipe API,
+The staging candidate at `610c576` includes the validated Recipe API,
 monitoring, strict dynamic-route build, migration fail-closed controls,
 DOMPurify patch, and pinned Node runtime. Local browser, build, dependency and
-security gates passed. Final CI run `29982739171` passed all four jobs, and the
+security gates passed. Final CI run `29991149572` passed all four jobs, and the
 post-deploy staging health/security checks passed 7/7 and 7/7. Owner-controlled
 production gates below still block any merge decision.
 
@@ -18,7 +18,8 @@ Do not merge while any of these blockers is unresolved:
 
 - deployment owner, rollback owner and observation window are unnamed;
 - production background-job topology is not explicit;
-- the production monitoring secret and alert delivery test are incomplete;
+- the production monitoring secret and retained external metrics scrape are
+  incomplete; Render and GitHub email alert delivery are verified;
 - required items in release-checklist.md remain open.
 
 No production database migration or retention operation is authorized by this
@@ -80,7 +81,11 @@ the rollback runbook and the production backup evidence. It must also record:
    one designated worker after application health is proven.
 4. Configure the GitHub secret PRODUCTION_OPS_METRICS_TOKEN with the same value
    as the Render OPS_METRICS_TOKEN. Never print either value.
-5. Confirm GitHub Issues and Action failure notifications reach the owner.
+5. Completed: confirm alert delivery reaches the owner. The owner received both
+   the GitHub Actions failure email for staging workflow run `29991149545` and
+   the Render failed-deploy email for controlled staging deploy
+   `dep-d9gtjg61a83c73bt8ao0` on 2026-07-23. GitHub Issues delivery remains part
+   of the first production-monitor failure drill after merge.
 6. Completed: create and verify production logical backup
    `production-logical-backup-20260723T080213Z`. The Free Atlas tier does not support an
    on-demand cloud snapshot. Evidence is in
