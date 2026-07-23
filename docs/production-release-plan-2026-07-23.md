@@ -1,7 +1,7 @@
 # Production Release Plan
 
 Date: 2026-07-23
-Status: prepared, NO-GO until the owner completes the production gates
+Status: prepared, NO-GO until the remaining production data/configuration gates close
 Source branch: staging
 Target branch: main
 
@@ -16,11 +16,23 @@ production gates below still block any merge decision.
 
 Do not merge while any of these blockers is unresolved:
 
-- deployment owner, rollback owner and observation window are unnamed;
-- production background-job topology is not explicit;
-- the production monitoring secret and retained external metrics scrape are
-  incomplete; Render and GitHub email alert delivery are verified;
+- production bank variables and the production monitoring secret are missing;
+- the protected metrics/RUM collector is implemented but not yet deployed and
+  verified against production;
+- F1 retention dry-run, the exact production migration list and owner approval
+  for real database writes are incomplete;
+- the seven-day RUM baseline cannot complete until seven days after deployment;
 - required items in release-checklist.md remain open.
+
+Deployment and rollback owner: `Hoang Thien`, the solo repository
+owner/operator. The initial observation window is 30 minutes after server and
+client smoke, with exact UTC start/end recorded during rollout.
+
+Production has one free Render web instance. Deploy with
+`BACKGROUND_JOBS_ENABLED=false`. After a clean observation window, that same
+single instance is the designated combined web/job runner. Do not scale while
+jobs are enabled; a scaled topology requires one dedicated worker or a
+queue-backed scheduler.
 
 No production database migration or retention operation is authorized by this
 plan.
@@ -77,8 +89,9 @@ the rollback runbook and the production backup evidence. It must also record:
 
 1. Freeze unrelated changes on staging.
 2. Confirm the exact Render and Netlify production targets.
-3. Set BACKGROUND_JOBS_ENABLED=false on every web replica. Enable jobs on only
-   one designated worker after application health is proven.
+3. Set BACKGROUND_JOBS_ENABLED=false on the single production web instance.
+   After application health is proven for 30 minutes, enable jobs on that same
+   instance. Do not add a second instance while jobs are enabled.
 4. Configure the GitHub secret PRODUCTION_OPS_METRICS_TOKEN with the same value
    as the Render OPS_METRICS_TOKEN. Never print either value.
 5. Completed: confirm alert delivery reaches the owner. The owner received both
@@ -117,8 +130,8 @@ the rollback runbook and the production backup evidence. It must also record:
 9. Unlock Netlify publishing only after the dynamic sitemap contains current
    Blog and Recipe routes.
 10. Observe health, logs, 5xx and integrity metrics for at least 30 minutes.
-11. Enable the single background worker only after the observation window is
-    clean.
+11. Enable background jobs on the single combined web/job instance only after
+    the observation window is clean.
 
 ## 6. Production smoke commands
 
@@ -178,9 +191,11 @@ integrity mismatch stops the rollout and starts the rollback runbook.
 ## 8. Monitoring workflow
 
 .github/workflows/production-monitor.yml runs every 15 minutes from main and can
-also be dispatched manually. It runs public smoke, reads protected metrics and
-alerts, then fails on any active operational alert. On failure it opens one
-deduplicated GitHub issue titled [Production monitor] Action required.
+also be dispatched manually. It runs public smoke, reads protected metrics,
+seven-day RUM aggregates and alerts, then fails on any active operational alert.
+Each bounded aggregate snapshot is retained as a GitHub artifact for eight
+days. On failure it opens one deduplicated GitHub issue titled [Production
+monitor] Action required.
 
 The issue is not auto-closed. The owner closes it only after recovery evidence
 and a clean manual workflow run. GitHub monitoring supplements, but does not

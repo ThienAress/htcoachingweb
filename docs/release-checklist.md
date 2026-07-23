@@ -37,7 +37,9 @@ Rollback procedure: [production-rollback-runbook.md](./production-rollback-runbo
 - [x] Create and verify production backup
       `production-logical-backup-20260723T080213Z`; evidence is in
       [production-backup-record-2026-07-23.md](./production-backup-record-2026-07-23.md).
-- [ ] Confirm rollback owner, deployment owner, and observation window.
+- [x] Confirm deployment and rollback owner: `Hoang Thien` (solo repository
+      owner/operator). The production observation window is at least 30 minutes
+      after server and client smoke; record its exact UTC start/end at deploy.
 
 ## Staging database
 
@@ -103,7 +105,8 @@ change approval, and an identified rollback path.
 - [ ] Confirm AI and embedding providers use test-safe quotas.
 - [x] Confirm logs redact email, phone, credentials, tokens, and message content.
 - [ ] Verify bank transfer values come from the secret manager and missing
-      configuration fails deposit creation before database writes.
+      configuration fails deposit creation before database writes. Staging is
+      verified; production Render is still missing all four bank variables.
 - [ ] Verify production AI endpoints cannot use mock providers.
 - [x] Confirm /uploads/f1-media returns 404 and every F1 image read requires
       authorization and returns a short-lived private URL.
@@ -119,10 +122,13 @@ change approval, and an identified rollback path.
       build failure produced a Render email, and the failed staging monitor
       produced a GitHub Actions email, both received on 2026-07-23.
 - [ ] Wire a retained external Prometheus scrape for the protected production
-      metrics endpoint.
+      metrics endpoint. Code now stores protected metrics/RUM snapshots as
+      eight-day GitHub artifacts; production token/deploy verification remains.
 - [x] Enforce CSP in staging after reviewing violations and testing public,
       auth, admin, schedule and F1 pages.
 - [ ] Record a seven-day RUM baseline by route/device before performance claims.
+      The protected aggregator and eight-day snapshot retention are ready; the
+      production clock starts after deployment and requires `baselineReady`.
 - [x] Run axe critical smoke and the full Chromium/Firefox/WebKit matrix.
 - [x] Run the strict dynamic sitemap/prerender build against staging: require all
       four API sources and prerender all 24 discovered routes.
@@ -130,6 +136,10 @@ change approval, and an identified rollback path.
       rejects SKIP_DYNAMIC_ROUTES, and rejects the staging API origin.
 
 ## Production rollout
+
+- [x] Record production topology: one Render free web instance. Deploy with
+      jobs disabled, then enable jobs on that same single instance only after a
+      clean 30-minute observation window. Do not scale while enabled.
 
 - [ ] Record `MIGRATION_BACKUP_SNAPSHOT_ID`, `MIGRATION_APPROVAL_ID`, exact
       `MIGRATION_TARGET_DATABASE`, and the owner-approved phase list.
