@@ -442,11 +442,29 @@ export const runPhase8Migration = async ({
   migrateMedia = true,
   verifyProviderObjects = false,
   missingMediaStrategy = "block",
+  expectedMissingMediaCount = null,
 } = {}) => {
   if (!["block", "mark_failed"].includes(missingMediaStrategy)) {
     throw new Error("Unsupported Phase 8 missing-media strategy");
   }
+  if (
+    missingMediaStrategy === "mark_failed" &&
+    (!Number.isSafeInteger(expectedMissingMediaCount) ||
+      expectedMissingMediaCount < 0)
+  ) {
+    throw new Error("Phase 8 mark_failed requires an approved missing-media count");
+  }
   const preflight = await preflightPhase8();
+  if (
+    missingMediaStrategy === "mark_failed" &&
+    preflight.missingLegacyMediaIds.length !== expectedMissingMediaCount
+  ) {
+    const error = new Error(
+      "Phase 8 missing-media count does not match the approved count",
+    );
+    error.preflight = preflight;
+    throw error;
+  }
   const missingMediaBlocked =
     preflight.missingLegacyMediaIds.length > 0 &&
     missingMediaStrategy === "block";
@@ -521,12 +539,18 @@ if (isDirectRun) {
   });
   await connectDB();
   try {
+    const missingMediaStrategy =
+      process.env.PHASE8_MISSING_MEDIA_STRATEGY || "block";
+    const expectedMissingMediaCount =
+      process.env.PHASE8_EXPECTED_MISSING_MEDIA_COUNT === undefined
+        ? null
+        : Number(process.env.PHASE8_EXPECTED_MISSING_MEDIA_COUNT);
     assertConnectedMigrationTarget(mongoose.connection, authorization);
     const result = await runPhase8Migration({
       migrateMedia: true,
       verifyProviderObjects: true,
-      missingMediaStrategy:
-        process.env.PHASE8_MISSING_MEDIA_STRATEGY || "block",
+      missingMediaStrategy,
+      expectedMissingMediaCount,
     });
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     if (result.verification.totalIssues > 0) process.exitCode = 1;

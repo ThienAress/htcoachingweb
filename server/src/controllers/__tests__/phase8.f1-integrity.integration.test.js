@@ -476,10 +476,24 @@ describe("Phase 8 F1 integrity and privacy", () => {
         missingMediaStrategy: "delete",
       }),
     ).rejects.toThrow("Unsupported Phase 8 missing-media strategy");
+    await expect(
+      runPhase8Migration({
+        migrateMedia: false,
+        missingMediaStrategy: "mark_failed",
+      }),
+    ).rejects.toThrow("requires an approved missing-media count");
+    await expect(
+      runPhase8Migration({
+        migrateMedia: false,
+        missingMediaStrategy: "mark_failed",
+        expectedMissingMediaCount: 2,
+      }),
+    ).rejects.toThrow("does not match the approved count");
 
     const first = await runPhase8Migration({
       migrateMedia: false,
       missingMediaStrategy: "mark_failed",
+      expectedMissingMediaCount: 1,
     });
     const updated = await F1Media.findById(media._id).lean();
     const updatedIntake = await F1Intake.findById(intake._id).lean();
@@ -505,6 +519,7 @@ describe("Phase 8 F1 integrity and privacy", () => {
     const second = await runPhase8Migration({
       migrateMedia: false,
       missingMediaStrategy: "mark_failed",
+      expectedMissingMediaCount: 0,
     });
     expect(second.migrated.failedMissingMedia).toBe(0);
     expect(second.migrated.consents).toBe(0);

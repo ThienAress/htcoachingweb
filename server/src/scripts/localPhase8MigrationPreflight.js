@@ -93,11 +93,13 @@ try {
     migrateMedia: false,
     verifyProviderObjects: false,
     missingMediaStrategy: "mark_failed",
+    expectedMissingMediaCount: expected.missingMedia,
   });
   const second = await runPhase8Migration({
     migrateMedia: false,
     verifyProviderObjects: false,
     missingMediaStrategy: "mark_failed",
+    expectedMissingMediaCount: 0,
   });
   const [afterIdentity, failedMissingMedia, publicLegacyReferences] =
     await Promise.all([
