@@ -71,8 +71,10 @@ values.
 - staging: one free web instance, liveness path configured, bank variables
   configured, CSP enforced, jobs disabled, retention enforcement disabled and
   ops token configured;
-- production: one free web instance, health path not yet configured, bank
-  variables missing, CSP/jobs/retention flags missing and ops token missing.
+- production: one free web instance with 41 prepared variables, bank values and
+  ops token configured, CSP enforced, jobs/retention disabled, explicit trust
+  proxy and private F1 storage. Strict readiness now reports 0 findings. These
+  values are prepared but do not affect runtime until a deploy occurs.
 
 Production topology is therefore:
 
@@ -99,11 +101,14 @@ claims are approved.
 
 ## Remaining owner/data gates
 
-- Copy and verify production bank values in Render secret storage.
-- Configure the production ops token and matching GitHub Actions secret.
+- Completed: copy and verify production bank values in Render secret storage.
+- Completed: configure the production ops token and matching GitHub Actions
+  secret without printing either value.
 - Configure production readiness health check after the new endpoint deploys.
-- Run an F1 retention dry-run against an owner-approved production snapshot or
-  production read-only context.
+- Completed: run the F1 retention dry-run against the isolated production
+  snapshot. It returned 0 candidates and preserved the collection fingerprint.
+- Resolve 3 Phase 8 legacy media records whose source files are absent before
+  any merge or migration.
 - Approve the exact production migration phase list and Recipe publication
   result before any real database write.
 - Merge/deploy server first, run smoke, then deploy the client and observe for
@@ -127,8 +132,10 @@ not a release blocker. No support purge is required.
 - secret scan and repository data-boundary scan: passed;
 - client, server and root dependency audits: zero vulnerabilities;
 - staging strict production-readiness check: zero errors and warnings;
-- current production strict check: 12 errors and 2 warnings, so production
-  remains NO-GO until its env patch is owner-approved and revalidated.
+- current production strict check: 0 errors and 0 warnings after the approved
+  no-deploy env preparation;
+- production remains NO-GO because Phase 8 preflight found 3 missing legacy
+  media sources, not because of environment configuration.
 
 The production build used its documented fallback mode because the old
 production server still times out dynamic sources and returns HTTP 404 for the

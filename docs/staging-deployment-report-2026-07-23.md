@@ -128,13 +128,16 @@ Rollback inventory was reviewed:
   readiness, public blog, recipe list contract, and recipe taxonomy contract.
 - GitHub workflow `Staging Health and Security` runs on staging pushes,
   manually, and every 30 minutes.
-- Workflow run `29949258368` passed.
+- Workflow run `30020317867`, attempt 2, passed after candidate `be5e038` was
+  live. CI run `30020318399` also passed.
 - Prometheus metrics required the operations token.
 - Four reviewed alerts were inactive: financial reconciliation mismatch,
   F1 media cleanup, reminder failure, and HTTP 5xx.
 - The reviewed 60-minute Render window contained zero request 5xx events.
   Error events were expected negative security/transition probes.
-- Live staging health passed 7/7 and security smoke passed 7/7.
+- Live staging health passed 7/7 and security smoke passed 7/7. The protected
+  RUM baseline returned 16 samples in 14 groups with about 22 hours of coverage;
+  `baselineReady=false` is expected until seven days have elapsed.
 
 ## 7. Build, CI, and deployment
 

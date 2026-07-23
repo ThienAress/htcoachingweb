@@ -104,18 +104,23 @@ change approval, and an identified rollback path.
       lead transition, and lead archive flows in staging.
 - [ ] Confirm AI and embedding providers use test-safe quotas.
 - [x] Confirm logs redact email, phone, credentials, tokens, and message content.
-- [ ] Verify bank transfer values come from the secret manager and missing
-      configuration fails deposit creation before database writes. Staging is
-      verified; production Render is still missing all four bank variables.
+- [x] Verify bank transfer values come from the secret manager and missing
+      configuration fails deposit creation before database writes. Production
+      values now match the validated staging values and remain undisclosed.
 - [ ] Verify production AI endpoints cannot use mock providers.
 - [x] Confirm /uploads/f1-media returns 404 and every F1 image read requires
       authorization and returns a short-lived private URL.
 - [x] Run the F1 lifecycle in browser E2E and against the live staging API:
       create, intake, two private media uploads, assessment, AI report and cleanup.
-- [ ] Run an F1 retention dry-run and obtain owner approval for the candidate count.
+- [x] Run an F1 retention dry-run and obtain owner approval for the candidate
+      count. The isolated snapshot returned 0 candidates and 0 queued with an
+      unchanged fingerprint. Phase 8 separately remains blocked by 3 missing
+      legacy media sources.
 - [x] Keep F1_RETENTION_ENFORCE=false until deletion/provider cleanup is observed.
 - [x] Configure OPS_METRICS_TOKEN (minimum 24 characters) and verify the Prometheus
       endpoint rejects missing/incorrect tokens.
+- [x] Synchronize PRODUCTION_OPS_METRICS_TOKEN to GitHub Actions without
+      printing the value and pass strict production readiness with 0 findings.
 - [x] Add read-only production smoke/metrics scripts and the scheduled GitHub
       production monitor workflow.
 - [x] Confirm external alert delivery to the named owner. A controlled staging
@@ -126,6 +131,8 @@ change approval, and an identified rollback path.
       eight-day GitHub artifacts; production token/deploy verification remains.
 - [x] Enforce CSP in staging after reviewing violations and testing public,
       auth, admin, schedule and F1 pages.
+- [x] Prepare CSP enforcement, explicit trust proxy, private F1 storage, safe
+      CORS and disabled jobs/retention in production Render without deploying.
 - [ ] Record a seven-day RUM baseline by route/device before performance claims.
       The protected aggregator and eight-day snapshot retention are ready; the
       production clock starts after deployment and requires `baselineReady`.
@@ -140,6 +147,10 @@ change approval, and an identified rollback path.
 - [x] Record production topology: one Render free web instance. Deploy with
       jobs disabled, then enable jobs on that same single instance only after a
       clean 30-minute observation window. Do not scale while enabled.
+
+- [ ] Resolve the Phase 8 disposition for 3 missing legacy F1 media sources.
+      No merge or migration is allowed until recovery, approved removal, or an
+      approved failed-media migration is selected.
 
 - [ ] Record `MIGRATION_BACKUP_SNAPSHOT_ID`, `MIGRATION_APPROVAL_ID`, exact
       `MIGRATION_TARGET_DATABASE`, and the owner-approved phase list.

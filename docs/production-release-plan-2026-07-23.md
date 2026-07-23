@@ -7,20 +7,24 @@ Target branch: main
 
 ## 1. Release decision
 
-The staging candidate at `610c576` includes the validated Recipe API,
+The staging candidate at `be5e038` includes the validated Recipe API,
 monitoring, strict dynamic-route build, migration fail-closed controls,
 DOMPurify patch, and pinned Node runtime. Local browser, build, dependency and
-security gates passed. Final CI run `29991149572` passed all four jobs, and the
-post-deploy staging health/security checks passed 7/7 and 7/7. Owner-controlled
-production gates below still block any merge decision.
+security gates passed. CI run `30020318399` passed, and post-deploy staging
+health/security run `30020317867` attempt 2 passed after the candidate became
+live. Owner-controlled production data gates below still block any merge
+decision.
 
 Do not merge while any of these blockers is unresolved:
 
-- production bank variables and the production monitoring secret are missing;
+- production environment preparation is complete with 0 readiness errors and
+  warnings, but the prepared values are not active until the server deploys;
 - the protected metrics/RUM collector is implemented but not yet deployed and
   verified against production;
-- F1 retention dry-run, the exact production migration list and owner approval
-  for real database writes are incomplete;
+- the F1 retention dry-run found 0 candidates, but Phase 8 found 3 legacy media
+  records whose source files are missing;
+- the exact production migration list and owner approval for real database
+  writes are incomplete;
 - the seven-day RUM baseline cannot complete until seven days after deployment;
 - required items in release-checklist.md remain open.
 
@@ -36,6 +40,9 @@ queue-backed scheduler.
 
 No production database migration or retention operation is authorized by this
 plan.
+
+Detailed current evidence is in
+`docs/production-preflight-2026-07-23.md`.
 
 ## 2. Current production baseline
 
@@ -89,11 +96,11 @@ the rollback runbook and the production backup evidence. It must also record:
 
 1. Freeze unrelated changes on staging.
 2. Confirm the exact Render and Netlify production targets.
-3. Set BACKGROUND_JOBS_ENABLED=false on the single production web instance.
+3. Completed: set BACKGROUND_JOBS_ENABLED=false on the single production web instance.
    After application health is proven for 30 minutes, enable jobs on that same
    instance. Do not add a second instance while jobs are enabled.
-4. Configure the GitHub secret PRODUCTION_OPS_METRICS_TOKEN with the same value
-   as the Render OPS_METRICS_TOKEN. Never print either value.
+4. Completed: configure the GitHub secret PRODUCTION_OPS_METRICS_TOKEN with the
+   same value as the Render OPS_METRICS_TOKEN. Neither value was printed.
 5. Completed: confirm alert delivery reaches the owner. The owner received both
    the GitHub Actions failure email for staging workflow run `29991149545` and
    the Render failed-deploy email for controlled staging deploy
@@ -106,7 +113,7 @@ the rollback runbook and the production backup evidence. It must also record:
    also requires
    `MIGRATION_TARGET_DATABASE`, `MIGRATION_BACKUP_SNAPSHOT_ID`,
    `MIGRATION_APPROVAL_ID`, and `CONFIRM_PRODUCTION_MIGRATION=production`.
-7. Lock or pause Netlify production publishing so the client cannot publish
+7. Blocked by the Phase 8 data gate: lock or pause Netlify production publishing so the client cannot publish
    before the new server endpoint is healthy.
 8. Confirm the Netlify build reports strict dynamic route mode. Netlify
    production metadata enables this automatically; SKIP_DYNAMIC_ROUTES is
