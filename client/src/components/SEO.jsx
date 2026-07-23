@@ -42,15 +42,6 @@ export default function SEO({ title, description, canonical, type = 'website', i
       {/* URL Chuẩn (Canonical) - chỉ thêm khi không phải noindex */}
       {!noindex && cleanCanonical && <link rel="canonical" href={`${domain}${cleanCanonical}`} />}
 
-      {/* Hreflang — báo Google biết trang có 2 phiên bản ngôn ngữ */}
-      {!noindex && cleanCanonical && (
-        <>
-          <link rel="alternate" hrefLang="vi" href={`${domain}${cleanCanonical}`} />
-          <link rel="alternate" hrefLang="en" href={`${domain}${cleanCanonical}`} />
-          <link rel="alternate" hrefLang="x-default" href={`${domain}${cleanCanonical}`} />
-        </>
-      )}
-
       {/* Open Graph (Facebook, Zalo) */}
       <meta property="og:type" content={type} />
       <meta property="og:title" content={seoTitle} />

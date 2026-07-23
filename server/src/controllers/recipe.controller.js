@@ -3,6 +3,7 @@ import Recipe from "../models/Recipe.js";
 import { v2 as cloudinary } from "cloudinary";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
 
 // Whitelist fields cho admin update/create
 const ALLOWED_RECIPE_FIELDS = [
@@ -420,6 +421,9 @@ export const createRecipe = async (req, res) => {
       forCreate: true,
     });
     const recipe = await Recipe.create(data);
+    if (recipe.isPublished) {
+      void triggerNetlifyBuild();
+    }
     res.status(201).json({ success: true, data: recipe });
   } catch (err) {
     return sendRecipeWriteError(res, err);
@@ -439,6 +443,7 @@ export const updateRecipe = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Không tìm thấy công thức" });
     }
+    void triggerNetlifyBuild();
     res.json({ success: true, data: recipe });
   } catch (err) {
     return sendRecipeWriteError(res, err);
@@ -458,6 +463,9 @@ export const deleteRecipe = async (req, res) => {
 
     await Recipe.deleteOne({ _id: recipe._id });
     await destroyCloudinaryAsset(getCloudinaryPublicId(recipe));
+    if (recipe.isPublished) {
+      void triggerNetlifyBuild();
+    }
 
     res.json({ success: true, message: "Xóa công thức thành công" });
   } catch (err) {

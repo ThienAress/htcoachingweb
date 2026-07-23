@@ -10,11 +10,13 @@ import {
   normalizeDynamicRouteApiUrl,
   resolveDynamicRoutePolicy,
 } from "./dynamic-routes.js";
+import { validatePrerenderSnapshot } from "./prerender-validation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = 5174;
 const DIST_DIR = path.resolve(__dirname, "../dist");
+const SITE_URL = "https://htcoachingweb.io.vn";
 const staticRoutes = [
   "/",
   "/ket-qua-khach-hang",
@@ -70,10 +72,15 @@ const stopServer = (server) =>
 
 const renderRoute = async (browser, route) => {
   const page = await browser.newPage();
+  const expectedCanonical = new URL(route, SITE_URL).href;
   try {
     await page.evaluateOnNewDocument(() => {
       sessionStorage.setItem("introDone", "true");
+      localStorage.setItem("ht_language", "vi");
       window.isIntroDone = true;
+    });
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
     });
 
     await page.setRequestInterception(true);
@@ -91,24 +98,54 @@ const renderRoute = async (browser, route) => {
         timeout: 30_000,
       });
       await page.waitForFunction(
-        () => {
+        (canonical) => {
           const root = document.querySelector("#root");
-          return root && root.innerHTML.trim().length > 100;
+          const canonicals = [
+            ...document.querySelectorAll('link[rel="canonical"]'),
+          ];
+          return (
+            root &&
+            root.innerHTML.trim().length > 100 &&
+            canonicals.length === 1 &&
+            canonicals[0].href === canonical
+          );
         },
-        { timeout: 15_000 },
+        { timeout: 30_000 },
+        expectedCanonical,
       );
-      await new Promise((resolve) => setTimeout(resolve, 3_000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (error) {
       console.warn("Navigation warning for " + route + ": " + error.message);
     }
 
-    const html = await page.content();
-    const rootMatch = html.match(/<div id="root">([\s\S]*?)<\/div>/);
-    const hasContent = rootMatch && rootMatch[1].trim().length > 100;
-    if (!hasContent) {
-      console.warn("Skipping " + route + ": prerendered root is empty");
+    const snapshot = await page.evaluate(() => ({
+      rootLength:
+        document.querySelector("#root")?.innerHTML.trim().length || 0,
+      titles: [...document.querySelectorAll("title")].map((element) =>
+        element.textContent.trim(),
+      ),
+      descriptions: [
+        ...document.querySelectorAll('meta[name="description"]'),
+      ].map((element) => element.content.trim()),
+      canonicals: [
+        ...document.querySelectorAll('link[rel="canonical"]'),
+      ].map((element) => element.href),
+      robots: [...document.querySelectorAll('meta[name="robots"]')].map(
+        (element) => element.content.trim(),
+      ),
+    }));
+    const validationErrors = validatePrerenderSnapshot(
+      snapshot,
+      expectedCanonical,
+    );
+    if (validationErrors.length > 0) {
+      console.warn(
+        "Skipping " + route + ": " + validationErrors.join("; "),
+      );
       return false;
     }
+
+    const html = await page.content();
 
     const segments = route.split("/").filter(Boolean);
     const routePath =
@@ -146,10 +183,21 @@ const prerender = async () => {
   const dynamicRoutes = await discoverDynamicRoutes(policy, apiUrl);
   const routesToPrerender = [...new Set([...staticRoutes, ...dynamicRoutes])];
 
+  // Keep the freshly built SPA shell immutable while routes are rendered.
+  // The root route is written to dist/index.html, so reading that file again
+  // for later routes would leak the homepage canonical and content into every
+  // subsequent prerender.
+  const appShellHtml = fs.readFileSync(
+    path.join(DIST_DIR, "index.html"),
+    "utf8",
+  );
   const app = express();
-  app.use(express.static(DIST_DIR));
+  app.use(express.static(DIST_DIR, { index: false }));
   app.get(/.*/, (_req, res) => {
-    res.sendFile(path.join(DIST_DIR, "index.html"));
+    res
+      .set("Cache-Control", "no-store")
+      .type("html")
+      .send(appShellHtml);
   });
 
   const server = await startServer(app);
@@ -159,7 +207,14 @@ const prerender = async () => {
     console.log("Total routes to prerender: " + routesToPrerender.length);
     browser = await puppeteer.launch({
       headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      // Prerender runs on localhost but reads the public production API.
+      // CORS remains enforced in the deployed application; this flag is only
+      // applied to the isolated build-time browser that creates static HTML.
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-web-security",
+      ],
     });
 
     const failures = [];

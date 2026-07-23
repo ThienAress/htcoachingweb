@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 const loadStoredMacroSet = () => {
@@ -29,13 +28,11 @@ export const useMacroSet = () => {
   const [selectedMacroPlan, setSelectedMacroPlan] = useState(
     () => Object.keys(storedMacroSet.data || {})[0] || null,
   );
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!storedMacroSet.warning) return;
     toast.warning(t(storedMacroSet.warning), { toastId: storedMacroSet.warning });
-    navigate("/tdee-calculator");
-  }, [navigate, storedMacroSet, t]);
+  }, [storedMacroSet, t]);
 
   return {
     macroSet: storedMacroSet.data,
