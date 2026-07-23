@@ -10,10 +10,10 @@ const EXPECTED_HOST = "127.0.0.1";
 const EXPECTED_PORT = "27019";
 const EXPECTED_DATABASE = "htcoaching_f1_migration_preflight";
 
-const parseExpectedMissingMedia = () => {
-  const value = Number(process.env.EXPECTED_PHASE8_MISSING_MEDIA);
+const parseExpectedCount = (name) => {
+  const value = Number(process.env[name]);
   if (!Number.isSafeInteger(value) || value < 0) {
-    throw new Error("Set EXPECTED_PHASE8_MISSING_MEDIA to the approved count");
+    throw new Error(`Set ${name} to the approved count`);
   }
   return value;
 };
@@ -58,7 +58,13 @@ const documentIdentityFingerprint = async () => {
 };
 
 assertLocalTarget();
-const expectedMissingMedia = parseExpectedMissingMedia();
+const expected = {
+  missingMedia: parseExpectedCount("EXPECTED_PHASE8_MISSING_MEDIA"),
+  consents: parseExpectedCount("EXPECTED_PHASE8_CONSENT_BACKFILLS"),
+  reports: parseExpectedCount("EXPECTED_PHASE8_REPORT_BACKFILLS"),
+  forecasts: parseExpectedCount("EXPECTED_PHASE8_FORECAST_BACKFILLS"),
+  predictions: parseExpectedCount("EXPECTED_PHASE8_PREDICTION_BACKFILLS"),
+};
 
 await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
 try {
@@ -77,9 +83,9 @@ try {
   if (preflight.assessmentConflicts.length > 0) {
     throw new Error("Phase 8 preflight found duplicate assessment blockers");
   }
-  if (preflight.missingLegacyMediaIds.length !== expectedMissingMedia) {
+  if (preflight.missingLegacyMediaIds.length !== expected.missingMedia) {
     throw new Error(
-      `Phase 8 expected ${expectedMissingMedia} missing media records but found ${preflight.missingLegacyMediaIds.length}`,
+      `Phase 8 expected ${expected.missingMedia} missing media records but found ${preflight.missingLegacyMediaIds.length}`,
     );
   }
 
@@ -108,11 +114,19 @@ try {
   const identityUnchanged =
     beforeIdentity.fingerprint === afterIdentity.fingerprint;
   const valid =
-    first.migrated.failedMissingMedia === expectedMissingMedia &&
+    first.migrated.failedMissingMedia === expected.missingMedia &&
+    first.migrated.consents === expected.consents &&
+    first.migrated.reports === expected.reports &&
+    first.migrated.forecasts === expected.forecasts &&
+    first.migrated.predictions === expected.predictions &&
     first.verification.totalIssues === 0 &&
     second.migrated.failedMissingMedia === 0 &&
+    second.migrated.consents === 0 &&
+    second.migrated.reports === 0 &&
+    second.migrated.forecasts === 0 &&
+    second.migrated.predictions === 0 &&
     second.verification.totalIssues === 0 &&
-    failedMissingMedia === expectedMissingMedia &&
+    failedMissingMedia === expected.missingMedia &&
     publicLegacyReferences === 0 &&
     identityUnchanged;
 
@@ -132,6 +146,7 @@ try {
         },
         firstRun: {
           failedMissingMedia: first.migrated.failedMissingMedia,
+          consentsBackfilled: first.migrated.consents,
           reportsBackfilled: first.migrated.reports,
           forecastsBackfilled: first.migrated.forecasts,
           predictionsBackfilled: first.migrated.predictions,
@@ -139,6 +154,10 @@ try {
         },
         secondRun: {
           failedMissingMedia: second.migrated.failedMissingMedia,
+          consentsBackfilled: second.migrated.consents,
+          reportsBackfilled: second.migrated.reports,
+          forecastsBackfilled: second.migrated.forecasts,
+          predictionsBackfilled: second.migrated.predictions,
           verificationIssues: second.verification.totalIssues,
         },
         after: { failedMissingMedia, publicLegacyReferences },

@@ -264,6 +264,7 @@ const backfillArtifactModel = async (Model, sourceFields) => {
     latestBySource.set(key, String(artifact._id));
   }
   const versions = new Map();
+  let modified = 0;
   for (const artifact of artifacts) {
     const customerKey = String(artifact.customerId);
     const version = (versions.get(customerKey) || 0) + 1;
@@ -271,22 +272,27 @@ const backfillArtifactModel = async (Model, sourceFields) => {
     const fingerprint = await fingerprintFor(artifact, sourceFields);
     const sourceKey = sourceKeys.get(String(artifact._id));
     const canonical = latestBySource.get(sourceKey) === String(artifact._id);
-    await Model.updateOne(
+    const desired = {
+      sourceFingerprint: fingerprint,
+      generationKey: canonical ? "canonical" : `legacy-${artifact._id}`,
+      requestId: artifact.requestId || `legacy-${artifact._id}`,
+      version,
+    };
+    if (
+      artifact.sourceFingerprint === desired.sourceFingerprint &&
+      artifact.generationKey === desired.generationKey &&
+      artifact.requestId === desired.requestId &&
+      artifact.version === desired.version
+    ) {
+      continue;
+    }
+    const result = await Model.updateOne(
       { _id: artifact._id },
-      {
-        $set: {
-          sourceFingerprint: fingerprint,
-          generationKey: canonical
-            ? "canonical"
-            : `legacy-${artifact._id}`,
-          requestId:
-            artifact.requestId || `legacy-${artifact._id}`,
-          version,
-        },
-      },
+      { $set: desired },
     );
+    modified += result.modifiedCount;
   }
-  return artifacts.length;
+  return modified;
 };
 
 const migrateGeneratedPredictionMedia = async () => {
@@ -465,7 +471,7 @@ export const runPhase8Migration = async ({
   const media = migrateMedia
     ? await migrateLegacyMedia((await findMissingLocalMedia()).legacy)
     : 0;
-  await backfillConsent();
+  const consent = await backfillConsent();
   const reports = await backfillArtifactModel(F1AiReport, [
     ["intakeId", F1Intake],
     ["assessmentId", F1Assessment],
@@ -495,6 +501,7 @@ export const runPhase8Migration = async ({
       seededCounter,
       failedMissingMedia,
       media,
+      consents: consent.modifiedCount,
       reports,
       forecasts,
       predictions,

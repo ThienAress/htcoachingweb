@@ -448,6 +448,16 @@ describe("Phase 8 F1 integrity and privacy", () => {
       trainer.user._id,
       "missing-media",
     );
+    await F1Intake.updateOne(
+      { _id: intake._id },
+      {
+        $set: {
+          "consent.version": "",
+          "consent.collectedAt": null,
+          "consent.collectedBy": null,
+        },
+      },
+    );
     const media = await F1Media.create({
       customerId: customer._id,
       intakeId: intake._id,
@@ -472,8 +482,10 @@ describe("Phase 8 F1 integrity and privacy", () => {
       missingMediaStrategy: "mark_failed",
     });
     const updated = await F1Media.findById(media._id).lean();
+    const updatedIntake = await F1Intake.findById(intake._id).lean();
     expect(first.preflight.missingLegacyMediaIds).toHaveLength(1);
     expect(first.migrated.failedMissingMedia).toBe(1);
+    expect(first.migrated.consents).toBe(1);
     expect(first.verification.totalIssues).toBe(0);
     expect(updated).toMatchObject({
       status: "failed",
@@ -484,12 +496,21 @@ describe("Phase 8 F1 integrity and privacy", () => {
       failureCode: "PHASE8_MEDIA_SOURCE_MISSING",
       revision: 1,
     });
+    expect(updatedIntake.consent.version).toBe("legacy-unversioned");
+    expect(updatedIntake.consent.collectedAt).toBeInstanceOf(Date);
+    expect(String(updatedIntake.consent.collectedBy)).toBe(
+      String(trainer.user._id),
+    );
 
     const second = await runPhase8Migration({
       migrateMedia: false,
       missingMediaStrategy: "mark_failed",
     });
     expect(second.migrated.failedMissingMedia).toBe(0);
+    expect(second.migrated.consents).toBe(0);
+    expect(second.migrated.reports).toBe(0);
+    expect(second.migrated.forecasts).toBe(0);
+    expect(second.migrated.predictions).toBe(0);
     expect(second.verification.totalIssues).toBe(0);
   });
 });
