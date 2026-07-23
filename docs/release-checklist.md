@@ -114,8 +114,10 @@ change approval, and an identified rollback path.
       create, intake, two private media uploads, assessment, AI report and cleanup.
 - [x] Run an F1 retention dry-run and obtain owner approval for the candidate
       count. The isolated snapshot returned 0 candidates and 0 queued with an
-      unchanged fingerprint. Phase 8 separately remains blocked by 3 missing
-      legacy media sources.
+      unchanged fingerprint. The separate Phase 8 clone preflight safely marked
+      the 3 missing media failed, backfilled 1 consent, 4 reports and 3
+      predictions, reached 0 issues, preserved all F1 document identities, and
+      modified 0 records on its second run.
 - [x] Keep F1_RETENTION_ENFORCE=false until deletion/provider cleanup is observed.
 - [x] Configure OPS_METRICS_TOKEN (minimum 24 characters) and verify the Prometheus
       endpoint rejects missing/incorrect tokens.
@@ -148,9 +150,15 @@ change approval, and an identified rollback path.
       jobs disabled, then enable jobs on that same single instance only after a
       clean 30-minute observation window. Do not scale while enabled.
 
-- [ ] Resolve the Phase 8 disposition for 3 missing legacy F1 media sources.
-      No merge or migration is allowed until recovery, approved removal, or an
-      approved failed-media migration is selected.
+- [x] Implement and test a bounded Phase 8 disposition for 3 missing legacy F1
+      media sources. Default execution remains fail-closed; the explicit
+      `mark_failed` strategy preserves records and rejects deletion.
+- [ ] Obtain explicit owner approval to apply `mark_failed` to exactly 3
+      production media records, clear dead URL/public ID values, seed the F1
+      counter, backfill 1 consent, 4 reports and 3 predictions, and create the
+      reviewed Phase 8 indexes. The one-run environment must include
+      `PHASE8_MISSING_MEDIA_STRATEGY=mark_failed` and
+      `PHASE8_EXPECTED_MISSING_MEDIA_COUNT=3`.
 
 - [ ] Record `MIGRATION_BACKUP_SNAPSHOT_ID`, `MIGRATION_APPROVAL_ID`, exact
       `MIGRATION_TARGET_DATABASE`, and the owner-approved phase list.

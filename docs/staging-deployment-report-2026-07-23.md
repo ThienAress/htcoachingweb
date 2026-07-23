@@ -11,7 +11,7 @@ One real contract authorization defect was found by live acceptance, fixed on
 
 ## Scope and topology
 
-- Branch: `staging`. Validated runtime candidate SHA: `7f09200`.
+- Branch: `staging`. Validated runtime candidate SHA: `639755b`.
 - Client: `https://staging--htcoachingweb.netlify.app`.
 - API: `https://htcoachingweb-staging.onrender.com`.
 - Database: exact isolated database `htcoaching_staging`.
@@ -280,3 +280,33 @@ unknown-API behavior.
 
 Full operational details and the production-only gates are recorded in
 `docs/migration-runtime-hardening-report-2026-07-23.md`.
+
+## Phase 8 missing-media resolution candidate
+
+Candidate `639755b` adds a fail-closed, owner-gated strategy for three missing
+legacy F1 media sources found in the production snapshot. The default remains
+`block`; only an explicit `mark_failed` strategy can preserve those records as
+unavailable evidence, clear dead public references, and continue deterministic
+integrity backfills. No delete strategy is supported.
+The strategy additionally requires an approved expected count and stops before
+all writes if the live preflight count differs.
+
+The encrypted production backup was restored to the separate local database
+`htcoaching_f1_migration_preflight`. The guarded migration preflight produced:
+
+- 3 expected missing media and 0 assessment conflicts;
+- exactly 3 media marked failed, 1 legacy consent backfilled, 4 reports
+  backfilled, and 3 predictions backfilled on the first run;
+- 0 verification issues after the first and second runs;
+- 0 media, consent, report, forecast, or prediction changes on the second run;
+- unchanged F1 document identities and 0 remaining public legacy references.
+
+The full local server suite passed 158/158, and the secret, data-boundary, and
+runtime logging checks passed. CI run `30031620632` passed all four jobs. Render
+deploy `dep-d9h5c0mpbkes73e54it0` is live at `639755b`, and staging health and
+security run `30031620921`, attempt 2, passed after deployment.
+
+This closes the code/test portion only. Production remains unchanged and the
+release remains `NO-GO` until the owner separately approves the exact three
+record updates, backup ID, target database, approval ID, and migration phase
+list.

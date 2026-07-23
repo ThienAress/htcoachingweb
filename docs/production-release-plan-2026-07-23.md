@@ -7,13 +7,13 @@ Target branch: main
 
 ## 1. Release decision
 
-The staging candidate at `be5e038` includes the validated Recipe API,
+The staging candidate at `639755b` includes the validated Recipe API,
 monitoring, strict dynamic-route build, migration fail-closed controls,
 DOMPurify patch, and pinned Node runtime. Local browser, build, dependency and
-security gates passed. CI run `30020318399` passed, and post-deploy staging
-health/security run `30020317867` attempt 2 passed after the candidate became
-live. Owner-controlled production data gates below still block any merge
-decision.
+security gates passed. CI run `30031620632` passed, Render staging deploy
+`dep-d9h5c0mpbkes73e54it0` became live at the exact SHA, and post-deploy
+staging health/security run `30031620921` attempt 2 passed. Owner-controlled
+production data gates below still block any merge decision.
 
 Do not merge while any of these blockers is unresolved:
 
@@ -21,10 +21,11 @@ Do not merge while any of these blockers is unresolved:
   warnings, but the prepared values are not active until the server deploys;
 - the protected metrics/RUM collector is implemented but not yet deployed and
   verified against production;
-- the F1 retention dry-run found 0 candidates, but Phase 8 found 3 legacy media
-  records whose source files are missing;
-- the exact production migration list and owner approval for real database
-  writes are incomplete;
+- the F1 retention dry-run found 0 candidates; the bounded Phase 8
+  `mark_failed` strategy passed against the isolated production snapshot, but
+  owner approval for applying it to exactly 3 production records is incomplete;
+- the exact production migration phase list and owner approval for real
+  database writes are incomplete;
 - the seven-day RUM baseline cannot complete until seven days after deployment;
 - required items in release-checklist.md remain open.
 
@@ -113,8 +114,9 @@ the rollback runbook and the production backup evidence. It must also record:
    also requires
    `MIGRATION_TARGET_DATABASE`, `MIGRATION_BACKUP_SNAPSHOT_ID`,
    `MIGRATION_APPROVAL_ID`, and `CONFIRM_PRODUCTION_MIGRATION=production`.
-7. Blocked by the Phase 8 data gate: lock or pause Netlify production publishing so the client cannot publish
-   before the new server endpoint is healthy.
+7. Blocked by the Phase 8 owner-approval gate: lock or pause Netlify production
+   publishing so the client cannot publish before the new server endpoint is
+   healthy.
 8. Confirm the Netlify build reports strict dynamic route mode. Netlify
    production metadata enables this automatically; SKIP_DYNAMIC_ROUTES is
    rejected and the route API is locked to the production Render origin.
