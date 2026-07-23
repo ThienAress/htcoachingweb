@@ -26,6 +26,10 @@ import BlogPost from "../../models/BlogPost.js";
 import Order from "../../models/Order.js";
 import Recipe from "../../models/Recipe.js";
 import {
+  inspectLegacyRecipePublication,
+  runPhase3ContentMigration,
+} from "../../migrations/20260719-phase3-content-performance.js";
+import {
   getPublicBlogPostBySlug,
   getPublicBlogPosts,
 } from "../blog.controller.js";
@@ -153,6 +157,73 @@ describe("Phase 3 content and option queries", () => {
     const publicList = await request(app).get("/api/recipes");
     expect(publicList.status).toBe(200);
     expect(publicList.body.data).toEqual([]);
+  });
+
+  it("publishes only validated legacy MealDB recipes during migration", async () => {
+    const now = new Date();
+    await Recipe.collection.insertMany([
+      {
+        name: "Legacy MealDB Recipe",
+        slug: "legacy-mealdb-recipe",
+        source: "mealdb",
+        ingredients: [{ name: "Chicken", measure: "200g" }],
+        instructions: ["Cook thoroughly"],
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        name: "Legacy AI Recipe",
+        slug: "legacy-ai-recipe",
+        source: "ai",
+        ingredients: [{ name: "Rice", measure: "100g" }],
+        instructions: ["Cook thoroughly"],
+        tags: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    expect(await inspectLegacyRecipePublication()).toEqual({
+      candidates: 1,
+      validCandidates: 1,
+      invalidCandidates: 0,
+      validationErrorFields: {},
+      duplicateSlugGroups: 0,
+    });
+
+    const result = await runPhase3ContentMigration();
+    const mealDbRecipe = await Recipe.collection.findOne({
+      slug: "legacy-mealdb-recipe",
+    });
+    const aiRecipe = await Recipe.collection.findOne({
+      slug: "legacy-ai-recipe",
+    });
+
+    expect(result.recipes.publishedMealDb).toBe(1);
+    expect(result.recipes.draftedOtherSources).toBe(1);
+    expect(mealDbRecipe.isPublished).toBe(true);
+    expect(aiRecipe.isPublished).toBe(false);
+  });
+
+  it("fails the recipe migration before writes when MealDB data is invalid", async () => {
+    await Recipe.collection.insertOne({
+      slug: "invalid-mealdb-recipe",
+      source: "mealdb",
+      ingredients: [],
+      instructions: [],
+      tags: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(runPhase3ContentMigration()).rejects.toMatchObject({
+      code: "PHASE3_RECIPE_PREFLIGHT_FAILED",
+    });
+    const stored = await Recipe.collection.findOne({
+      slug: "invalid-mealdb-recipe",
+    });
+    expect(stored.isPublished).toBeUndefined();
   });
 
   it("returns only eligible trainer-owned check-in options", async () => {
