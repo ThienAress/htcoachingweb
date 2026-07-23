@@ -81,13 +81,73 @@ export const summarizePrometheusMetrics = (source) => {
     httpRequests: value("htcoaching_http_requests"),
     httpErrors: value("htcoaching_http_errors"),
     serverErrors: value("htcoaching_server_errors"),
+    cspReports: value("htcoaching_security_csp_reports"),
+    rumSamples: value("htcoaching_rum_samples"),
     financialReconciliationMismatches: value(
       "htcoaching_financial_reconciliation_mismatches",
     ),
     f1MediaCleanupFailures: value("htcoaching_f1_media_cleanup_failed"),
     scheduleReminderFailures: value("htcoaching_schedule_reminder_failures"),
     httpP95Ms: value('htcoaching_http_duration_ms{quantile="0.95"}'),
+    rumLcpP95Ms: value('htcoaching_rum_lcp_ms{quantile="0.95"}'),
+    rumInpP95Ms: value('htcoaching_rum_inp_ms{quantile="0.95"}'),
+    rumClsP95: value('htcoaching_rum_cls_score{quantile="0.95"}'),
     uptimeSeconds: value("htcoaching_process_uptime_seconds"),
+  };
+};
+
+export const normalizeRumBaseline = (payload) => {
+  assert(payload?.success === true, "RUM baseline returned an unsuccessful payload");
+  const data = payload.data;
+  assert(data && typeof data === "object", "RUM baseline payload is invalid");
+  assert(data.windowDays === 7, "RUM baseline window must be seven days");
+  assert(Number.isInteger(data.samples) && data.samples >= 0, "RUM sample count is invalid");
+  assert(Array.isArray(data.groups) && data.groups.length <= 1000, "RUM groups are invalid");
+
+  const numberField = (value, name) => {
+    const parsed = Number(value);
+    assert(Number.isFinite(parsed) && parsed >= 0, `${name} is invalid`);
+    return parsed;
+  };
+
+  const groups = data.groups.map((group) => {
+    const route = String(group?.route || "");
+    const device = String(group?.device || "");
+    const name = String(group?.name || "");
+    assert(/^\/[a-zA-Z0-9/:_-]{0,119}$/.test(route), "RUM route is invalid");
+    assert(["mobile", "desktop"].includes(device), "RUM device is invalid");
+    assert(["LCP", "INP", "CLS"].includes(name), "RUM metric name is invalid");
+    assert(Number.isInteger(group.samples) && group.samples > 0, "RUM group count is invalid");
+    return {
+      route,
+      device,
+      name,
+      samples: group.samples,
+      average: numberField(group.average, "RUM average"),
+      p75: numberField(group.p75, "RUM p75"),
+      maximum: numberField(group.maximum, "RUM maximum"),
+      ratings: {
+        good: numberField(group.ratings?.good || 0, "RUM good count"),
+        needsImprovement: numberField(
+          group.ratings?.needsImprovement || 0,
+          "RUM needs-improvement count",
+        ),
+        poor: numberField(group.ratings?.poor || 0, "RUM poor count"),
+      },
+    };
+  });
+
+  return {
+    windowDays: data.windowDays,
+    from: String(data.from || ""),
+    to: String(data.to || ""),
+    samples: data.samples,
+    coverageHours: numberField(data.coverageHours || 0, "RUM coverage"),
+    latestAgeHours: numberField(data.latestAgeHours || 0, "RUM latest age"),
+    baselineReady: data.baselineReady === true,
+    firstSampleAt: data.firstSampleAt || null,
+    lastSampleAt: data.lastSampleAt || null,
+    groups,
   };
 };
 

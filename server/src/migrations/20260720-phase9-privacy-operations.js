@@ -37,6 +37,14 @@ const hasWebVitalTtlIndex = async () => {
   );
 };
 
+const hasWebVitalBaselineIndex = async () => {
+  const indexes = await WebVitalSample.collection.indexes().catch(() => []);
+  return indexes.some(
+    (index) =>
+      index.key?.createdAt === -1 && Object.keys(index.key || {}).length === 1,
+  );
+};
+
 export const verifyPhase9PrivacyOperations = async () => {
   const [
     archivedWithoutRetention,
@@ -44,6 +52,7 @@ export const verifyPhase9PrivacyOperations = async () => {
     readyMediaWithoutPrivateKey,
     mediaWithPublicReference,
     hasVitalTtl,
+    hasVitalBaselineIndex,
   ] = await Promise.all([
     F1Customer.countDocuments({
       status: "archived",
@@ -74,6 +83,7 @@ export const verifyPhase9PrivacyOperations = async () => {
       ],
     }),
     hasWebVitalTtlIndex(),
+    hasWebVitalBaselineIndex(),
   ]);
   const issues = {
     archivedWithoutRetention,
@@ -81,6 +91,7 @@ export const verifyPhase9PrivacyOperations = async () => {
     readyMediaWithoutPrivateKey,
     mediaWithPublicReference,
     missingWebVitalTtlIndex: hasVitalTtl ? 0 : 1,
+    missingWebVitalBaselineIndex: hasVitalBaselineIndex ? 0 : 1,
   };
   return {
     issues,

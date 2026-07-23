@@ -18,6 +18,7 @@ import { cspReportLimiter, rumLimiter } from "../middlewares/rateLimit.js";
 import { runF1RetentionSweep } from "../services/f1PrivacyLifecycle.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { getRuntimeState } from "../operations/runtimeState.js";
+import { getRumBaseline } from "../observability/rumBaseline.js";
 
 const router = express.Router();
 
@@ -79,6 +80,16 @@ router.get(
 router.get("/alerts", requireOpsReadAccess, (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json({ success: true, data: getOperationalAlerts() });
+});
+
+router.get("/rum-baseline", requireOpsReadAccess, async (_req, res, next) => {
+  try {
+    const baseline = await getRumBaseline({ days: 7 });
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ success: true, data: baseline });
+  } catch (error) {
+    next(error);
+  }
 });
 
 const normalizeRumRoute = (value) => {

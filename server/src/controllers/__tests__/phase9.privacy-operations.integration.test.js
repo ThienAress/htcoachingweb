@@ -130,6 +130,68 @@ describe("Phase 9 security and telemetry boundaries", () => {
     expect(Array.isArray(alerts.body.data)).toBe(true);
     expect(unauthorizedAlerts.status).toBe(401);
   });
+
+  it("returns a protected seven-day RUM baseline by route and device", async () => {
+    process.env.OPS_METRICS_TOKEN = "phase9-operations-token-123456";
+    const oldSampleAt = new Date(Date.now() - (7 * 24 * 60 - 30) * 60 * 1000);
+    await WebVitalSample.create([
+      {
+        name: "LCP",
+        value: 1800,
+        route: "/cong-thuc-nau-an",
+        device: "mobile",
+        rating: "good",
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        createdAt: oldSampleAt,
+      },
+      {
+        name: "LCP",
+        value: 3200,
+        route: "/cong-thuc-nau-an",
+        device: "mobile",
+        rating: "needs-improvement",
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+      {
+        name: "CLS",
+        value: 0.05,
+        route: "/cong-thuc-nau-an",
+        device: "desktop",
+        rating: "good",
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    ]);
+
+    const response = await request(app)
+      .get("/api/ops/rum-baseline")
+      .set("X-Ops-Token", process.env.OPS_METRICS_TOKEN);
+    const unauthorized = await request(app).get("/api/ops/rum-baseline");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toEqual(
+      expect.objectContaining({
+        windowDays: 7,
+        samples: 3,
+        baselineReady: true,
+      }),
+    );
+    expect(response.body.data.groups).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          route: "/cong-thuc-nau-an",
+          device: "mobile",
+          name: "LCP",
+          samples: 2,
+          ratings: {
+            good: 1,
+            needsImprovement: 1,
+            poor: 0,
+          },
+        }),
+      ]),
+    );
+    expect(unauthorized.status).toBe(401);
+  });
 });
 
 describe("Phase 9 privacy operations", () => {

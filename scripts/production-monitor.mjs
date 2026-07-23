@@ -3,8 +3,11 @@ import {
   assert,
   fetchTimed,
   productionTargets,
+  normalizeRumBaseline,
   summarizePrometheusMetrics,
 } from "./lib/production-monitoring.mjs";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 const main = async () => {
   assert(
@@ -47,18 +50,35 @@ const main = async () => {
   );
   const alertsPayload = await alertsResult.response.json();
   const activeAlerts = activeOperationalAlerts(alertsPayload);
+  const rumResult = await fetchTimed(
+    targets.apiOrigin + "/api/ops/rum-baseline",
+    { headers: { ...headers, Accept: "application/json" } },
+  );
+  assert(
+    rumResult.response.status === 200,
+    "RUM baseline returned " + rumResult.response.status,
+  );
+  const rumBaseline = normalizeRumBaseline(await rumResult.response.json());
 
   const result = {
     success: activeAlerts.length === 0,
     checkedAt: new Date().toISOString(),
     metrics,
+    rumBaseline,
     activeAlerts,
     durationsMs: {
       prometheus: metricsResult.durationMs,
       alerts: alertsResult.durationMs,
+      rumBaseline: rumResult.durationMs,
     },
   };
   const output = JSON.stringify(result, null, 2) + "\n";
+  const outputPath = String(process.env.PRODUCTION_MONITOR_OUTPUT || "").trim();
+  if (outputPath) {
+    const resolved = path.resolve(outputPath);
+    await mkdir(path.dirname(resolved), { recursive: true });
+    await writeFile(resolved, output, { encoding: "utf8", mode: 0o600 });
+  }
   if (activeAlerts.length > 0) {
     process.stderr.write(output);
     process.exitCode = 1;

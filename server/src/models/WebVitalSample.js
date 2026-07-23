@@ -36,6 +36,7 @@ const webVitalSampleSchema = new mongoose.Schema(
 );
 
 webVitalSampleSchema.index({ name: 1, route: 1, device: 1, createdAt: -1 });
+webVitalSampleSchema.index({ createdAt: -1 });
 webVitalSampleSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export default mongoose.model("WebVitalSample", webVitalSampleSchema);
