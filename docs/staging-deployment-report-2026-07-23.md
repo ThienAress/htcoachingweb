@@ -11,7 +11,7 @@ One real contract authorization defect was found by live acceptance, fixed on
 
 ## Scope and topology
 
-- Branch: `staging`. Validated application SHA: `5f9fe35`.
+- Branch: `staging`. Validated runtime candidate SHA: `7f09200`.
 - Client: `https://staging--htcoachingweb.netlify.app`.
 - API: `https://htcoachingweb-staging.onrender.com`.
 - Database: exact isolated database `htcoaching_staging`.
@@ -124,7 +124,7 @@ Rollback inventory was reviewed:
 ## 6. Monitoring and logs
 
 - `scripts/staging-health.mjs` checks client HTML, manifest, liveness,
-  readiness, public blog, and public recipe endpoints.
+  readiness, public blog, recipe list contract, and recipe taxonomy contract.
 - GitHub workflow `Staging Health and Security` runs on staging pushes,
   manually, and every 30 minutes.
 - Workflow run `29949258368` passed.
@@ -133,7 +133,7 @@ Rollback inventory was reviewed:
   F1 media cleanup, reminder failure, and HTTP 5xx.
 - The reviewed 60-minute Render window contained zero request 5xx events.
   Error events were expected negative security/transition probes.
-- Live post-deploy health passed 6/6 and security smoke passed 7/7.
+- Live staging health passed 7/7 and security smoke passed 7/7.
 
 ## 7. Build, CI, and deployment
 
@@ -146,6 +146,8 @@ Local release gates:
 - Prerender passed for 33 routes.
 - Bundle budget passed.
 - Chromium E2E passed 45/45.
+- Firefox E2E passed 45/45.
+- WebKit E2E passed 45/45.
 - Secret and repository-boundary scans passed.
 - `git diff --check` passed.
 
@@ -178,6 +180,25 @@ An earlier staging pass also found relative manifest/favicon URLs failing on
 nested routes. Commit `dade95c` changed them to absolute paths and corrected
 the manifest branding; live MIME, icon, and nested-route checks passed.
 
+## Production recipe 404 analysis
+
+The production Recipe API still returns 404 for both `GET /api/recipes?limit=1`
+and `GET /api/recipes/categories`. The deployed `main` branch does not contain
+the Recipe controller/router or mount `/api/recipes`; this is a deployment
+branch gap, not a recipe-data privacy rule or a failing staging handler.
+
+The implementation already exists on `staging`. Its security/content
+integration tests passed 10/10, the public list and taxonomy contracts passed
+live staging health checks, and `scripts/staging-health.mjs` now guards both
+contracts. Production was only queried with bounded public GET requests and was
+not changed. Enabling Recipe in production requires a later explicit merge and
+production deployment approval.
+
+Cross-browser validation also exposed and fixed two races on staging: stale AI
+history could replace a newly streamed response, and the F1 intake test relied
+on browser-dialog timing. Regression coverage now controls both asynchronous
+boundaries. Firefox and WebKit each passed all 45 E2E tests with three workers.
+
 ## Remaining gates before production
 
 These items are intentionally not marked complete:
@@ -187,11 +208,10 @@ These items are intentionally not marked complete:
 - Create and record a real Atlas backup snapshot immediately before production
   migrations.
 - Establish a retained Render rollback candidate and record the rollback owner.
-- Resolve or intentionally retire the production recipe list API that returns
-  404; staging currently uses a synthetic recipe.
+- Merge the validated Recipe API implementation into `main` and deploy it only
+  after explicit production approval; production remains 404 until then.
 - Wire external alert delivery and send a test alert to the owner.
 - Record the planned seven-day RUM baseline.
-- Run Firefox/WebKit browser coverage in addition to Chromium.
 - Perform a separate final diff review and explicit merge decision.
 - After production deployment, observe application, financial, schedule, AI,
   F1, privacy, CSP, and 5xx metrics for the full release window.

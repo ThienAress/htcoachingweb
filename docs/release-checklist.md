@@ -104,7 +104,7 @@ change approval, and an identified rollback path.
 - [x] Enforce CSP in staging after reviewing violations and testing public,
       auth, admin, schedule and F1 pages.
 - [ ] Record a seven-day RUM baseline by route/device before performance claims.
-- [ ] Run axe critical smoke and the full Chromium/Firefox/WebKit matrix.
+- [x] Run axe critical smoke and the full Chromium/Firefox/WebKit matrix.
 
 ## Production rollout
 
