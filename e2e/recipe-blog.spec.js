@@ -28,4 +28,25 @@ test.describe("admin content lifecycle", () => {
     await expect(page.getByRole("heading", { name: "Quản lý Blog" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Viết bài mới" })).toBeVisible();
   });
+
+  test("distinguishes a recipe API failure from an empty result", async ({ page }) => {
+    let apiHealthy = false;
+    await page.route("**/api/recipes?**", async (route) => {
+      if (apiHealthy) return route.fallback();
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ success: false, message: "Unavailable" }),
+      });
+    });
+
+    await page.goto("/cong-thuc-nau-an");
+    await expect(
+      page.getByRole("heading", { name: "Không thể tải công thức" }),
+    ).toBeVisible();
+
+    apiHealthy = true;
+    await page.getByRole("button", { name: "Thử lại" }).click();
+    await expect(page.getByText("Chưa có công thức nào phù hợp")).toBeVisible();
+  });
 });

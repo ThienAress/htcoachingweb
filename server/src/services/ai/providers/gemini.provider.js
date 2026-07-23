@@ -6,6 +6,26 @@ import { safeLog } from "../../../utils/safeLogger.js";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 45000;
+const GEMINI_UNSUPPORTED_SCHEMA_KEYS = new Set(["additionalProperties"]);
+
+function sanitizeSchemaForGemini(value) {
+  if (Array.isArray(value)) return value.map(sanitizeSchemaForGemini);
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !GEMINI_UNSUPPORTED_SCHEMA_KEYS.has(key))
+      .map(([key, child]) => [key, sanitizeSchemaForGemini(child)]),
+  );
+}
+
+async function readProviderError(response) {
+  const payload = await response.json().catch(() => ({}));
+  return {
+    code: payload?.error?.code || null,
+    providerStatus: payload?.error?.status || null,
+  };
+}
 
 function createLinkedSignal(externalSignal, timeoutMs) {
   const controller = new AbortController();
@@ -163,7 +183,7 @@ export function formatToolsForProvider(tools) {
     functionDeclarations: tools.map((t) => ({
       name: t.function.name,
       description: t.function.description,
-      parameters: t.function.parameters,
+      parameters: sanitizeSchemaForGemini(t.function.parameters),
     })),
   }];
 }
@@ -215,9 +235,10 @@ async function* streamGemini(messages, tools, signal) {
   }
 
   if (!response.ok) {
-    await response.json().catch(() => ({}));
+    const providerError = await readProviderError(response);
     safeLog.warn("ai.gemini_http_error", "Provider returned an error", {
       status: response.status,
+      ...providerError,
     });
 
     if (response.status === 429) {
@@ -239,7 +260,6 @@ async function* streamGemini(messages, tools, signal) {
       const retryBody = {
         contents: retryContents,
         ...(retrySystem && { systemInstruction: retrySystem }),
-        ...(geminiTools && { tools: geminiTools }),
         generationConfig: body.generationConfig,
       };
 
@@ -258,6 +278,11 @@ async function* streamGemini(messages, tools, signal) {
       }
 
       if (!retryResponse.ok) {
+        const retryError = await readProviderError(retryResponse);
+        safeLog.warn("ai.gemini_retry_failed", "Minimal provider retry failed", {
+          status: retryResponse.status,
+          ...retryError,
+        });
         yield { type: "text", content: "Xin lỗi, tôi không xử lý được yêu cầu này. Bạn thử bắt đầu cuộc trò chuyện mới nhé! 😊" };
         return;
       }

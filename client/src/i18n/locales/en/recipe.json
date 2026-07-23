@@ -9,6 +9,9 @@
   "clear_filters": "Clear filters",
   "no_recipes_found": "No recipes found",
   "showing_recipes": "Showing {{count}} / {{total}} recipes",
+  "load_error_title": "Unable to load recipes",
+  "load_error_desc": "The server is not responding. Check your connection and try again.",
+  "retry": "Try again",
   "empty_title": "No matching recipes found",
   "empty_btn": "Clear filters and try again",
   "combobox": {

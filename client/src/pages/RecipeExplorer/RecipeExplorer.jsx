@@ -10,6 +10,8 @@ import {
   Dumbbell,
   ChevronLeft,
   ChevronRight,
+  CircleAlert,
+  RefreshCw,
   X,
 } from "lucide-react";
 
@@ -55,7 +57,13 @@ const RecipeExplorer = () => {
   );
 
   // Queries
-  const { data: recipesData, isLoading } = useQuery({
+  const {
+    data: recipesData,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ["recipes", { search: urlSearch, category, area, page }],
     queryFn: ({ signal }) =>
       getRecipes({
@@ -217,6 +225,32 @@ const RecipeExplorer = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div
+              className="border border-red-500/40 bg-red-500/10 px-6 py-12 text-center"
+              role="alert"
+            >
+              <CircleAlert className="mx-auto mb-4 h-12 w-12 text-red-400" />
+              <h2 className="text-xl font-bold text-white">
+                {t("load_error_title")}
+              </h2>
+              <p className="mx-auto mt-2 max-w-lg text-sm text-zinc-300">
+                {t("load_error_desc")}
+              </p>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                disabled={isFetching}
+                className="mx-auto mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-white transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60"
+              >
+                <RefreshCw
+                  className={
+                    isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"
+                  }
+                />
+                {t("retry")}
+              </button>
             </div>
           ) : recipes.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">

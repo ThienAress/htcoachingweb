@@ -9,6 +9,9 @@
   "clear_filters": "Xóa bộ lọc",
   "no_recipes_found": "Không tìm thấy công thức nào",
   "showing_recipes": "Hiển thị {{count}} / {{total}} công thức",
+  "load_error_title": "Không thể tải công thức",
+  "load_error_desc": "Máy chủ hiện không phản hồi. Vui lòng kiểm tra kết nối và thử lại.",
+  "retry": "Thử lại",
   "empty_title": "Chưa có công thức nào phù hợp",
   "empty_btn": "Xóa bộ lọc và thử lại",
   "combobox": {
