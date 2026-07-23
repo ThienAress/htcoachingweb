@@ -32,6 +32,6 @@
   "homepage": "https://github.com/ThienAress/htcoachingweb#readme",
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
-    "@playwright/test": "^1.61.0"
+    "@playwright/test": "^1.61.1"
   }
 }
