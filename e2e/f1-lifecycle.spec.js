@@ -19,6 +19,7 @@ test("F1 create, intake, private media, assessment command and AI report", async
 }) => {
   test.setTimeout(60_000);
   await useTrainer(page);
+  page.on("dialog", (dialog) => dialog.accept());
   let mediaUploads = 0;
   page.on("response", (response) => {
     if (
@@ -63,15 +64,17 @@ test("F1 create, intake, private media, assessment command and AI report", async
     .first()
     .setInputFiles(path.resolve("client/src/assets/images/hero/hero1.webp"));
 
-  const completedDialog = page.waitForEvent("dialog");
-  await page
-    .getByTestId("f1-intake-form")
-    .evaluate((form) => form.requestSubmit());
-  const dialog = await completedDialog;
-  expect(dialog.message()).toContain("intake");
-  await dialog.accept();
+  const intakeResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response
+        .url()
+        .endsWith("/f1-customers/" + CUSTOMER_ID + "/intake/submit"),
+  );
+  await intakeForm.evaluate((form) => form.requestSubmit());
+  expect((await intakeResponse).status()).toBe(200);
   await expect(page.getByTestId("f1-open-assessment")).toBeEnabled();
-  expect(mediaUploads).toBe(2);
+  await expect.poll(() => mediaUploads).toBe(2);
 
   const assessmentStatus = await page.evaluate(async (customerId) => {
     const response = await fetch(
