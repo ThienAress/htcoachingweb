@@ -5,9 +5,9 @@ import { Zap, Bed, Target } from "lucide-react";
 const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
   const { t } = useTranslation("tdee");
   const goalText =
-    goal === "gain_muscle" ? t("result.goal_gain_muscle") 
+    goal === "gain_muscle" ? t("result.goal_gain_muscle")
     : goal === "gain_weight" ? t("result.goal_gain_weight")
-    : goal === "lose_fat" ? t("result.goal_lose_fat") 
+    : goal === "lose_fat" ? t("result.goal_lose_fat")
     : goal === "lose_weight" ? t("result.goal_lose_weight")
     : t("result.goal_maintain");
 

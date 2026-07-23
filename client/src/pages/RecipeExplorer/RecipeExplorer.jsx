@@ -174,7 +174,7 @@ const RecipeExplorer = () => {
                 ))}
               </select>
               {/* Area */}
-              <CountryCombobox 
+              <CountryCombobox
                 value={area}
                 onChange={(val) => updateParams({ area: val || null })}
                 areas={areas}

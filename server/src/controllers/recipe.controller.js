@@ -486,13 +486,13 @@ export const getAdminRecipes = async (req, res) => {
         { nameEn: { $regex: safeSearch, $options: "i" } },
       ];
     }
-    
+
     if (isPublished !== undefined && isPublished !== "") {
       query.isPublished = isPublished === "true";
     }
 
     const skip = (page - 1) * limit;
-    
+
     const [recipes, total] = await Promise.all([
       Recipe.find(query)
         .sort({ createdAt: -1 })

@@ -31,7 +31,7 @@ const Tools = ({ image }) => {
         // Trạng thái ban đầu: Thẻ TDEE full width, giấu thẻ phụ
         gsap.set(tdeeRef.current, { width: "100%" });
         gsap.set(sideCardsRef.current, { display: "none", width: "0%", opacity: 0 });
-        
+
         const tl = gsap.timeline({
           scrollTrigger: {
             trigger: sectionRef.current,
@@ -51,7 +51,7 @@ const Tools = ({ image }) => {
       } else {
         // Mobile Animation
         gsap.set(sideCardsRef.current, { display: "grid", width: "100%", opacity: 1 });
-        
+
         const tl = gsap.timeline({
           scrollTrigger: {
             trigger: sectionRef.current,
@@ -73,7 +73,7 @@ const Tools = ({ image }) => {
   return (
     <section ref={sectionRef} id="tools" className="py-12 md:py-24 px-4 md:px-5 flex justify-center bg-gray-50/50">
       <div className="container max-w-[1200px]">
-        
+
         {/* Title */}
         <div className="text-center mb-10 md:mb-14">
           <h2 className="text-primary uppercase font-bold text-3xl md:text-4xl mb-4">{t("tools.title")}</h2>
@@ -82,12 +82,12 @@ const Tools = ({ image }) => {
 
         {/* Bento Grid */}
         <div className="flex flex-col md:flex-row gap-5 md:gap-6 h-auto md:h-[550px] w-full">
-          
+
           {/* TDEE Card (Thẻ bự) */}
           <div ref={tdeeRef} className="relative rounded-3xl overflow-hidden w-full h-[400px] md:h-full group shadow-xl">
             <img src={displayImage} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="TDEE Tool" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-colors duration-300" />
-            
+
             <div className="absolute inset-0 p-8 md:p-12 flex flex-col justify-end">
               <div className="bg-primary/20 w-14 h-14 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-md border border-primary/30">
                 <Calculator className="text-primary w-7 h-7" />
@@ -111,12 +111,12 @@ const Tools = ({ image }) => {
 
           {/* Side Cards Container (Thẻ nhỏ hiện ra) */}
           <div ref={sideCardsRef} className="grid grid-cols-2 grid-rows-2 gap-5 md:gap-6 w-full md:w-[0%] h-auto md:h-full opacity-0">
-            
+
             {/* Exercise Card */}
             <div ref={exerciseRef} className="relative rounded-3xl overflow-hidden col-span-2 group shadow-xl h-[250px] md:h-auto">
               <img src={toolImg4} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Exercises" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-colors duration-300" />
-              
+
               <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
                 <div className="bg-white/10 w-12 h-12 rounded-xl flex items-center justify-center mb-4 backdrop-blur-md border border-white/20">
                   <Dumbbell className="text-white w-6 h-6" />
@@ -138,7 +138,7 @@ const Tools = ({ image }) => {
             <div ref={recipeRef} className="relative rounded-3xl overflow-hidden col-span-2 md:col-span-1 group shadow-xl h-[250px] md:h-auto">
               <img src={toolImg2} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Recipe" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-colors duration-300" />
-              
+
               <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
                 <div className="bg-white/10 w-12 h-12 rounded-xl flex items-center justify-center mb-4 backdrop-blur-md border border-white/20">
                   <Utensils className="text-white w-6 h-6" />
@@ -160,7 +160,7 @@ const Tools = ({ image }) => {
             <div ref={mealplanRef} className="relative rounded-3xl overflow-hidden col-span-2 md:col-span-1 group shadow-xl h-[250px] md:h-auto">
               <img src={toolImg3} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Meal Plan" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-colors duration-300" />
-              
+
               <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end">
                 <div className="bg-white/10 w-12 h-12 rounded-xl flex items-center justify-center mb-4 backdrop-blur-md border border-white/20">
                   <CalendarDays className="text-white w-6 h-6" />

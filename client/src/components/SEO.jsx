@@ -8,12 +8,12 @@ export default function SEO({ title, description, canonical, type = 'website', i
   const defaultDescription = "Chương trình luyện tập cá nhân hóa cùng HLV chuyên nghiệp tại HTCOACHING. Boxing, Gym & cardio giúp tăng cơ giảm mỡ hiệu quả. Đăng ký tập ngay hôm nay!";
   const domain = "https://htcoachingweb.io.vn";
   const defaultImage = `${domain}/og-image.png`;
-  
+
   // Tự động thêm brand vào title nếu có title truyền vào
   const seoTitle = title ? `${title} | ${siteName}` : defaultTitle;
   const seoDescription = description || defaultDescription;
   const seoImage = image || defaultImage;
-  
+
   // Bảo vệ Canonical Tag: Bắt buộc xóa sạch query parameters (?...) và hash (#...)
   const cleanCanonical = canonical ? canonical.split('?')[0].split('#')[0] : '';
 
@@ -23,7 +23,7 @@ export default function SEO({ title, description, canonical, type = 'website', i
 
   // An toàn JSON-LD chống XSS (escape ký tự nhạy cảm)
   const safeJsonLd = jsonLd ? JSON.stringify(jsonLd).replace(/</g, '\\u003c') : null;
-  
+
   return (
     <Helmet>
       {/* HTML lang attribute — giúp screen readers và SEO */}
@@ -38,7 +38,7 @@ export default function SEO({ title, description, canonical, type = 'website', i
       {/* Thẻ SEO Cơ bản */}
       <title>{seoTitle}</title>
       <meta name="description" content={seoDescription} />
-      
+
       {/* URL Chuẩn (Canonical) - chỉ thêm khi không phải noindex */}
       {!noindex && cleanCanonical && <link rel="canonical" href={`${domain}${cleanCanonical}`} />}
 
@@ -50,7 +50,7 @@ export default function SEO({ title, description, canonical, type = 'website', i
           <link rel="alternate" hrefLang="x-default" href={`${domain}${cleanCanonical}`} />
         </>
       )}
-      
+
       {/* Open Graph (Facebook, Zalo) */}
       <meta property="og:type" content={type} />
       <meta property="og:title" content={seoTitle} />
@@ -62,7 +62,7 @@ export default function SEO({ title, description, canonical, type = 'website', i
       {!noindex && cleanCanonical && <meta property="og:url" content={`${domain}${cleanCanonical}`} />}
       <meta property="og:locale" content={currentLocale} />
       <meta property="og:locale:alternate" content={alternateLocale} />
-      
+
       {/* Twitter Card */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={seoTitle} />
@@ -78,4 +78,3 @@ export default function SEO({ title, description, canonical, type = 'website', i
     </Helmet>
   );
 }
-

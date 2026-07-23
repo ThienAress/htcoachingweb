@@ -20,13 +20,13 @@ const CountryCombobox = ({ value, onChange, areas }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredAreas = areas.filter(a => 
+  const filteredAreas = areas.filter(a =>
     a.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <div 
+      <div
         className="px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white flex items-center justify-between cursor-pointer focus-within:ring-2 focus-within:ring-primary h-[50px]"
         onClick={() => setIsOpen(true)}
       >
@@ -47,7 +47,7 @@ const CountryCombobox = ({ value, onChange, areas }) => {
 
       {isOpen && (
         <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto z-50 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-600 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-500">
-          <div 
+          <div
             className="px-4 py-2.5 hover:bg-zinc-700 cursor-pointer text-zinc-300 transition-colors border-b border-zinc-700/50"
             onClick={() => {
               onChange("");
@@ -61,7 +61,7 @@ const CountryCombobox = ({ value, onChange, areas }) => {
             <div className="px-4 py-3 text-zinc-500 text-sm italic">{t("combobox.no_found")}</div>
           ) : (
             filteredAreas.map(a => (
-              <div 
+              <div
                 key={a}
                 className={`px-4 py-2.5 hover:bg-zinc-700 cursor-pointer flex items-center gap-2 transition-colors ${value === a ? 'bg-primary/10 text-primary font-medium' : 'text-white'}`}
                 onClick={() => {

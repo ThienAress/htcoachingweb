@@ -260,7 +260,7 @@ export const translateItem = (item, type, currentLang = "en") => {
 
   if (type === "trainer") {
     const defaultData = trainerTranslations[slug] || {};
-    
+
     // 1. Dịch các specialties
     const localizedSpecialties = Array.isArray(item.specialties)
       ? item.specialties.map(spec => ({
@@ -324,7 +324,7 @@ export const translateItem = (item, type, currentLang = "en") => {
     const localizedMilestones = Array.isArray(item.milestones)
       ? item.milestones.map((milestone, idx) => {
           const defaultMilestone = defaultData.milestones?.[idx] || {};
-          
+
           const localizedBullets = Array.isArray(milestone.bullets) && Array.isArray(defaultMilestone.bullets)
             ? milestone.bullets.map((bullet, bIdx) => defaultMilestone.bullets[bIdx] || bullet)
             : milestone.bullets;

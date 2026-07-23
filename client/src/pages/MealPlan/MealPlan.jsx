@@ -232,19 +232,19 @@ const MealPlan = () => {
             }`}>
               <ShieldAlert className="w-4 h-4 flex-shrink-0" />
               {canGenerate ? (
-                <Trans 
-                  i18nKey="trial_remaining" 
+                <Trans
+                  i18nKey="trial_remaining"
                   ns="mealplan"
-                  values={{ remaining: remainingGenerations, max: maxGenerations }} 
-                  components={[<strong key="0" />]} 
+                  values={{ remaining: remainingGenerations, max: maxGenerations }}
+                  components={[<strong key="0" />]}
                 />
               ) : (
-                <Trans 
-                  i18nKey="trial_expired" 
+                <Trans
+                  i18nKey="trial_expired"
                   ns="mealplan"
                   components={[
                     <Link to="/" className="underline font-semibold hover:text-red-300" key="0" />
-                  ]} 
+                  ]}
                 />
               )}
             </div>

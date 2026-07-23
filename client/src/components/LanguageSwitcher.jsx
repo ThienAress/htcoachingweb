@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 
 export default function LanguageSwitcher({ isSolidHeader = false }) {
   const { i18n } = useTranslation();
-  
+
   const currentLang = i18n.language === "en" ? "en" : "vi";
 
   const toggleLanguage = () => {
@@ -10,7 +10,7 @@ export default function LanguageSwitcher({ isSolidHeader = false }) {
   };
 
   // Adjust colors based on whether the header has a solid background (dark) or transparent (light)
-  const bgClass = isSolidHeader 
+  const bgClass = isSolidHeader
     ? "bg-white/20 hover:bg-white/30" // Dark background header
     : "bg-black/10 hover:bg-black/20"; // Light background header (unscrolled)
 
@@ -23,7 +23,7 @@ export default function LanguageSwitcher({ isSolidHeader = false }) {
       className={`relative flex items-center w-14 h-[28px] rounded-full transition-colors shadow-inner cursor-pointer ${bgClass}`}
       aria-label="Toggle language"
     >
-      <div 
+      <div
         className={`absolute flex items-center justify-center w-[22px] h-[22px] rounded-full bg-white shadow-sm transform transition-transform duration-300 ${
           currentLang === "en" ? "translate-x-[31px]" : "translate-x-[3px]"
         }`}

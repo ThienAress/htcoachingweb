@@ -162,11 +162,11 @@ const BookingModal = ({ isOpen, onClose, onSubmit, initialData, isPending, train
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
               <Dumbbell className="w-3.5 h-3.5 inline mr-1" /> {t("modal.trainer")}
             </label>
-            <input 
-              type="text" 
-              value={trainer?.name || t("modal.no_trainer")} 
-              disabled 
-              className={`${inputClass} bg-gray-800/50 text-gray-400 cursor-not-allowed`} 
+            <input
+              type="text"
+              value={trainer?.name || t("modal.no_trainer")}
+              disabled
+              className={`${inputClass} bg-gray-800/50 text-gray-400 cursor-not-allowed`}
             />
           </div>
 
@@ -174,12 +174,12 @@ const BookingModal = ({ isOpen, onClose, onSubmit, initialData, isPending, train
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
               <FileText className="w-3.5 h-3.5 inline mr-1" /> {t("modal.notes")}
             </label>
-            <textarea 
-              value={form.notes} 
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} 
-              placeholder={t("modal.notes_placeholder")} 
-              className={`${inputClass} resize-none h-24`} 
-              maxLength={200} 
+            <textarea
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              placeholder={t("modal.notes_placeholder")}
+              className={`${inputClass} resize-none h-24`}
+              maxLength={200}
             />
           </div>
 
@@ -227,10 +227,10 @@ const BookTraining = () => {
 
   const createMut = useMutation({
     mutationFn: (data) => createBooking(data),
-    onSuccess: () => { 
-      toast.success(t("page.success_create")); 
-      queryClient.invalidateQueries({ queryKey: ["my-bookings"] }); 
-      setIsModalOpen(false); 
+    onSuccess: () => {
+      toast.success(t("page.success_create"));
+      queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      setIsModalOpen(false);
     },
     onError: (err) => {
       if (err.response?.status === 409) {
@@ -242,11 +242,11 @@ const BookTraining = () => {
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }) => updateBooking(id, data),
-    onSuccess: () => { 
-      toast.success(t("page.success_update")); 
-      queryClient.invalidateQueries({ queryKey: ["my-bookings"] }); 
-      setIsModalOpen(false); 
-      setEditingSchedule(null); 
+    onSuccess: () => {
+      toast.success(t("page.success_update"));
+      queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
+      setIsModalOpen(false);
+      setEditingSchedule(null);
     },
     onError: (err) => {
       if (err.response?.status === 409) {
@@ -359,9 +359,9 @@ const BookTraining = () => {
                 <CalendarDays className="w-5 h-5 text-primary" />
                 {t("page.registered_list")}
               </h2>
-              <button onClick={() => { 
+              <button onClick={() => {
                 if (!trainer) return toast.error(t("page.no_trainer_error"));
-                setEditingSchedule(null); setIsModalOpen(true); 
+                setEditingSchedule(null); setIsModalOpen(true);
               }} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-sm font-medium transition-all shadow-lg">
                 <Plus className="w-4 h-4" /> {t("page.add_new")}
               </button>
@@ -390,16 +390,16 @@ const BookTraining = () => {
                       </span>
                     </div>
                     <div className="flex gap-2">
-                      <button 
+                      <button
                         onClick={() => {
                           if (!isEditable(booking)) return toast.error(t("page.edit_limit_error"));
                           handleEditClick(booking);
-                        }} 
+                        }}
                         className={`p-1.5 rounded-lg transition-colors ${
-                          isEditable(booking) 
-                            ? "hover:bg-gray-700 text-gray-400 hover:text-white" 
+                          isEditable(booking)
+                            ? "hover:bg-gray-700 text-gray-400 hover:text-white"
                             : "text-gray-600 bg-gray-800 cursor-not-allowed opacity-50"
-                        }`} 
+                        }`}
                         title={isEditable(booking) ? t("page.edit_btn_title") : t("page.edit_limit_title")}
                       >
                         <Edit3 className="w-4 h-4" />
@@ -429,7 +429,7 @@ const BookTraining = () => {
                   )}
                   {booking.lastClientEdit && (
                     <div className="mt-3 text-[11px] text-gray-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> 
+                      <Clock className="w-3 h-3" />
                       {t("page.last_edit")} {new Date(booking.lastClientEdit).toLocaleString(i18n.language === "vi" ? "vi-VN" : "en-US")}
                     </div>
                   )}

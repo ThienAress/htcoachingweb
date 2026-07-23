@@ -48,11 +48,11 @@ const RecipeEditModal = ({ recipe, onClose }) => {
     source: recipe?.source || "manual",
     isPublished: recipe?.isPublished ?? false,
   });
-  
+
   const [selectedImage, setSelectedImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(recipe?.thumbnail || "");
   const fileInputRef = useRef(null);
-  
+
   const queryClient = useQueryClient();
 
   // Mutation cho thông tin chữ
@@ -150,9 +150,9 @@ const RecipeEditModal = ({ recipe, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
-        onClick={!isSaving ? onClose : undefined} 
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={!isSaving ? onClose : undefined}
       />
 
       {/* Modal */}
@@ -174,12 +174,12 @@ const RecipeEditModal = ({ recipe, onClose }) => {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <form id="recipe-form" onSubmit={handleSubmit} className="space-y-6">
-            
+
             {/* Ảnh đại diện */}
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">Ảnh đại diện</label>
               <div className="flex flex-col sm:flex-row gap-6 items-start">
-                <div 
+                <div
                   className="w-full sm:w-48 h-32 rounded-xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden cursor-pointer hover:bg-gray-100 transition relative group"
                   onClick={() => fileInputRef.current?.click()}
                 >
@@ -201,10 +201,10 @@ const RecipeEditModal = ({ recipe, onClose }) => {
                   <p className="text-sm text-gray-500 mb-3">
                     Ảnh sẽ được lưu tự động trên Cloudinary, tự resize chuẩn và tối ưu hóa dung lượng (Tối đa 5MB).
                   </p>
-                  <input 
-                    type="file" 
+                  <input
+                    type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    className="hidden" 
+                    className="hidden"
                     ref={fileInputRef}
                     onChange={handleImageChange}
                   />
@@ -267,7 +267,7 @@ const RecipeEditModal = ({ recipe, onClose }) => {
                 />
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">

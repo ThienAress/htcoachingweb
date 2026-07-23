@@ -104,7 +104,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const [input, setInput] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
-  
+
   const panelRef = useRef(null);
   const inputRef = useRef(null);
   const pillInputRef = useRef(null);
@@ -112,7 +112,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const attachMenuRef = useRef(null);
-  
+
   const [pillInput, setPillInput] = useState("");
   const [pillExpanded, setPillExpanded] = useState(false);
   const noAuthPaths = ["/login", "/register", "/login-success"];
@@ -210,14 +210,14 @@ export default function ChatPanel({ initiallyOpen = false }) {
 
   const handleSend = useCallback(() => {
     if ((!input.trim() && !selectedImage) || isLoading) return;
-    
+
     const context = {
       page: location.pathname,
       pageType: getPageType(location.pathname),
       pageTitle: document.title,
       image: selectedImage
     };
-    
+
     sendMessage(input.trim(), context);
     setInput("");
     setSelectedImage(null);
@@ -321,14 +321,14 @@ export default function ChatPanel({ initiallyOpen = false }) {
       )}
 
       <div className="flex items-end gap-2 bg-gray-100 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10 px-4 py-3 focus-within:border-emerald-500/40 focus-within:bg-white dark:focus-within:bg-white/10 transition-all shadow-sm">
-        <input 
-          type="file" 
+        <input
+          type="file"
           accept="image/jpeg,image/png,image/webp"
-          ref={fileInputRef} 
-          onChange={handleImageUpload} 
-          className="hidden" 
+          ref={fileInputRef}
+          onChange={handleImageUpload}
+          className="hidden"
         />
-        
+
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isLoading}
@@ -444,7 +444,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
       >
         {/* Main Background */}
         <div className="flex w-full h-full bg-white dark:bg-[#131314] text-gray-900 dark:text-white transition-colors duration-300 overflow-hidden">
-          
+
           {/* Sidebar */}
           <div
             className={`transition-all duration-300 ease-in-out overflow-hidden shrink-0 absolute md:relative z-20 h-full border-r border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e1f22] ${
@@ -505,7 +505,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                   <h1 className="text-2xl md:text-3xl font-semibold mb-8 text-center text-gray-800 dark:text-gray-100">
                     Tôi có thể giúp gì cho bạn, {user?.name}?
                   </h1>
-                  
+
                   {/* Centered Input Area */}
                   <div className="w-full mb-8">
                     {renderInputArea()}
@@ -568,7 +568,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                       {error && (
                         <div className="flex items-center justify-between text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl px-4 py-3">
                           <span>{error}</span>
-                          <button 
+                          <button
                             onClick={retryLastMessage}
                             className="px-3 py-1.5 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/40 rounded-lg transition-colors font-medium flex items-center gap-1.5"
                           >
@@ -579,7 +579,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                       <div ref={messagesEndRef} />
                     </div>
                   </div>
-                  
+
                   {/* Bottom Suggestions + Input Area */}
                   <div className="shrink-0 px-4 md:px-6 pb-6 pt-2 bg-gradient-to-t from-white via-white to-transparent dark:from-[#131314] dark:via-[#131314] z-10">
                     {/* Persistent suggestions */}

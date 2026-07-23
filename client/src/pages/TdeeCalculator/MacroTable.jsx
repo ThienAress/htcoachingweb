@@ -12,15 +12,15 @@ const MacroTable = ({ macroSet, tdee, adjustedCalories, goal }) => {
     <div className="mt-10">
       <div className="mb-8 p-5 bg-gradient-to-r from-primary/30 to-primary/10 border-l-4 border-primary rounded-r-xl backdrop-blur-sm">
         <p className="text-gray-200 leading-relaxed">
-          <Trans 
-            i18nKey="info.macro_note" 
-            ns="tdee" 
+          <Trans
+            i18nKey="info.macro_note"
+            ns="tdee"
             values={{ tdee, goal: goalText, adjusted: adjustedCalories }}
             components={[
               <strong className="text-primary text-lg" key="0" />,
               <strong className="text-yellow-300" key="1" />,
               <strong className="text-primary text-lg" key="2" />
-            ]} 
+            ]}
           />
         </p>
       </div>

@@ -49,9 +49,9 @@ export default function CustomMealBuilder({
   const { t } = useTranslation("mealplan");
   const { accessLevel, canGenerate, recordGeneration, maxGenerations } = useMealPlanAccess();
   const { user } = useAuth();
-  
+
   const storageKey = `customMealBuilder_${user ? user._id : "guest"}`;
-  
+
   // State for meals
   const [meals, setMeals] = useState(() => loadMeals(storageKey, selectedPlan));
   const [hasRecorded, setHasRecorded] = useState(false);
@@ -106,7 +106,7 @@ export default function CustomMealBuilder({
   const handleOpenModal = async (mealIndex, type) => {
     // Check trial limit only when they try to add the very FIRST food if they haven't recorded yet
     const hasAnyFood = meals.some(m => m.carbFood?.length || m.proteinFood?.length || m.fatFood?.length);
-    
+
     if (!hasAnyFood && !hasRecorded) {
       if (!canGenerate) {
         toast.error(t("toast.no_remaining", { max: maxGenerations }), { autoClose: 5000 });
@@ -156,7 +156,7 @@ export default function CustomMealBuilder({
   const searchResults = useMemo(() => {
     const keyword = searchQuery.toLowerCase().trim();
     let filtered = foodDatabase.filter(f => (f.label || f.name || "").toLowerCase().includes(keyword));
-    
+
     // Sort by priority (if needed)
     filtered.sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
@@ -186,7 +186,7 @@ export default function CustomMealBuilder({
 
   const handleAddCustomFood = () => {
     if (!customFood.name) return toast.error(t("toast.enter_name"));
-    
+
     setMeals(prev => {
       const newMeals = [...prev];
       const newMeal = { ...newMeals[activeCell.mealIndex] };
@@ -209,14 +209,14 @@ export default function CustomMealBuilder({
 
   const renderCell = (mealIndex, type, icon, colorClass, borderClass, bgClass, emptyLabel) => {
     const foods = meals[mealIndex][type] || [];
-    
+
     return (
       <div className="flex flex-col gap-2 h-full">
         {foods.map((food, foodIndex) => {
           const m = getFoodDisplayMacros(food);
           return (
             <div key={foodIndex} className={`relative bg-gray-800/80 border border-gray-700 rounded-xl p-3 shadow-inner group ${colorClass}`}>
-              <button 
+              <button
                 onClick={() => handleRemoveFood(mealIndex, type, foodIndex)}
                 className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"
                 title={t("builder.remove_food")}
@@ -229,8 +229,8 @@ export default function CustomMealBuilder({
                   {food.label || food.name}
                 </span>
                 <div className="flex items-center gap-1 shrink-0 bg-gray-900 rounded-lg px-2 py-1 border border-gray-700 focus-within:border-primary transition-colors">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={food.amount}
                     onChange={(e) => handleAmountChange(mealIndex, type, foodIndex, e.target.value)}
                     className="w-12 bg-transparent text-white text-right text-sm font-bold outline-none"
@@ -240,7 +240,7 @@ export default function CustomMealBuilder({
                   <span className="text-xs text-gray-400">g</span>
                 </div>
               </div>
-              
+
               <div className="text-xs text-gray-300 bg-gray-900/50 rounded-lg p-2 flex justify-between">
                 <span title="Protein">P: <strong>{m.p}</strong>g</span>
                 <span title="Carb">C: <strong>{m.c}</strong>g</span>
@@ -249,8 +249,8 @@ export default function CustomMealBuilder({
             </div>
           );
         })}
-        
-        <button 
+
+        <button
           onClick={() => handleOpenModal(mealIndex, type)}
           className={`w-full ${foods.length === 0 ? 'min-h-[80px] h-full' : 'py-2 mt-auto'} border-2 border-dashed ${borderClass} ${bgClass} ${colorClass} hover:opacity-80 rounded-xl flex flex-col items-center justify-center gap-1 transition-all`}
         >
@@ -333,8 +333,8 @@ export default function CustomMealBuilder({
       </div>
 
       <NutritionLegend />
-      
-      <MealSummary 
+
+      <MealSummary
         totalMacros={totalMacros}
         totalCalories={totalCalories}
         targetMacros={targetMacros}
@@ -355,13 +355,13 @@ export default function CustomMealBuilder({
             </div>
 
             <div className="flex border-b border-gray-700">
-              <button 
+              <button
                 onClick={() => setIsCustomMode(false)}
                 className={`flex-1 py-3 text-sm font-semibold transition-colors ${!isCustomMode ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-gray-400 hover:text-gray-200'}`}
               >
                 {t("builder.from_db")}
               </button>
-              <button 
+              <button
                 onClick={() => setIsCustomMode(true)}
                 className={`flex-1 py-3 text-sm font-semibold transition-colors ${isCustomMode ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-gray-400 hover:text-gray-200'}`}
               >
@@ -374,8 +374,8 @@ export default function CustomMealBuilder({
                 <div className="p-4 pb-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder={t("builder.search_placeholder")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -384,7 +384,7 @@ export default function CustomMealBuilder({
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto p-4 pt-2 space-y-2">
                   {searchResults.length === 0 ? (
                     <div className="text-center py-8 text-gray-500 text-sm">
@@ -392,7 +392,7 @@ export default function CustomMealBuilder({
                     </div>
                   ) : (
                     searchResults.map(f => (
-                      <button 
+                      <button
                         key={f._id}
                         onClick={() => handleSelectDbFood(f)}
                         className="w-full text-left p-3 rounded-xl border border-gray-700 hover:border-primary/50 bg-gray-800/50 hover:bg-gray-800 transition-all flex justify-between items-center group"
@@ -409,13 +409,13 @@ export default function CustomMealBuilder({
                       </button>
                     ))
                   )}
-                  
+
                   {accessLevel === "trial" && (
                     <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 text-center">
                       <Crown className="w-6 h-6 text-orange-400 mx-auto mb-2" />
                       <p className="text-sm text-gray-300">
-                        <Trans 
-                          i18nKey="builder.trial_limit_text" 
+                        <Trans
+                          i18nKey="builder.trial_limit_text"
                           ns="mealplan"
                           values={{ remaining: foodDatabase.length - 10 }}
                           components={[<strong className="text-white" key="0" />, <strong className="text-white" key="1" />]}
@@ -433,19 +433,19 @@ export default function CustomMealBuilder({
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm text-gray-400 mb-1.5">{t("builder.food_name")}</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={customFood.name}
                       onChange={e => setCustomFood(p => ({ ...p, name: e.target.value }))}
                       placeholder={t("builder.food_name_placeholder")}
                       className="w-full bg-gray-950 border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-primary"
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm text-red-400 mb-1.5 font-medium">{t("builder.protein")} (g)</label>
-                      <input 
+                      <input
                         type="number" min="0" step="0.1"
                         value={customFood.protein}
                         onChange={e => setCustomFood(p => ({ ...p, protein: e.target.value }))}
@@ -456,7 +456,7 @@ export default function CustomMealBuilder({
                     </div>
                     <div>
                       <label className="block text-sm text-green-400 mb-1.5 font-medium">{t("builder.carb")} (g)</label>
-                      <input 
+                      <input
                         type="number" min="0" step="0.1"
                         value={customFood.carb}
                         onChange={e => setCustomFood(p => ({ ...p, carb: e.target.value }))}
@@ -467,7 +467,7 @@ export default function CustomMealBuilder({
                     </div>
                     <div>
                       <label className="block text-sm text-yellow-400 mb-1.5 font-medium">{t("builder.fat")} (g)</label>
-                      <input 
+                      <input
                         type="number" min="0" step="0.1"
                         value={customFood.fat}
                         onChange={e => setCustomFood(p => ({ ...p, fat: e.target.value }))}
@@ -478,8 +478,8 @@ export default function CustomMealBuilder({
                     </div>
                   </div>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={handleAddCustomFood}
                   className="w-full mt-6 py-3 bg-primary hover:bg-primary-dark text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20"
                 >

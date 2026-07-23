@@ -102,12 +102,12 @@ const parseMarkdownToHtml = (markdown) => {
   const lines = html.split("\n");
   let inTable = false;
   let tableHtml = "";
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.startsWith("|") && line.endsWith("|")) {
       const cells = line.split("|").map(c => c.trim()).filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
-      
+
       // Bỏ qua dòng separator
       if (line.includes("---") || line.includes(":-")) {
         continue;
@@ -141,7 +141,7 @@ const parseMarkdownToHtml = (markdown) => {
     tableHtml += "</tbody></table>";
     lines[lines.length - 1] = tableHtml;
   }
-  
+
   html = lines.filter(line => {
     const trimmed = line.trim();
     if (trimmed.startsWith("|") && (trimmed.includes("---") || trimmed.includes(":-") || (!trimmed.includes("<table") && !trimmed.includes("<tr") && !trimmed.includes("<th") && !trimmed.includes("<td") && !trimmed.includes("</table")))) {
@@ -154,12 +154,12 @@ const parseMarkdownToHtml = (markdown) => {
   const processedLines = html.split("\n");
   let inUl = false;
   let inOl = false;
-  
+
   for (let i = 0; i < processedLines.length; i++) {
     const line = processedLines[i].trim();
     const ulMatch = line.match(/^[*+-]\s+(.*)$/);
     const olMatch = line.match(/^\d+\.\s+(.*)$/);
-    
+
     if (ulMatch) {
       let content = ulMatch[1];
       if (inOl) {
@@ -195,7 +195,7 @@ const parseMarkdownToHtml = (markdown) => {
       }
     }
   }
-  
+
   html = processedLines.join("\n");
 
   // 7. Phân tích Paragraphs (cho các dòng trống hoặc các dòng text thuần không chứa HTML block)
@@ -203,7 +203,7 @@ const parseMarkdownToHtml = (markdown) => {
   for (let i = 0; i < paragraphLines.length; i++) {
     const line = paragraphLines[i].trim();
     if (line === "") continue;
-    
+
     const isBlock = /^(<h[1-6]|<ul|<ol|<li|<blockquote|<table|<tr|<th|<td|<hr|<\/ul|<\/ol|<\/li|<\/blockquote|<\/table|<\/tr|<\/th|<\/td)/i.test(line);
     if (!isBlock) {
       paragraphLines[i] = `<p>${paragraphLines[i]}</p>`;
@@ -279,7 +279,7 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
         try {
           const parser = new DOMParser();
           const doc = parser.parseFromString(html, "text/html");
-          
+
           // 1. Chuyển đổi hoặc loại bỏ thẻ <font> cổ điển thường xuất hiện khi copy từ Word/Excel
           const fontElements = doc.querySelectorAll("font");
           fontElements.forEach((el) => {
@@ -300,7 +300,7 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
               el.removeAttribute("style");
             }
           });
-          
+
           // 3. Loại bỏ class ngoại lai để tránh class rác từ Word/Notion làm hỏng CSS Tailwind của editor
           const classedElements = doc.querySelectorAll("[class]");
           classedElements.forEach((el) => {
@@ -320,10 +320,10 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
         const text = event.clipboardData?.getData("text/plain");
         // Kiểm tra xem có chứa các cú pháp Markdown cơ bản hay không
         const isMarkdown = text && (
-          text.includes("# ") || 
-          text.includes("**") || 
-          text.includes("* ") || 
-          text.includes("---") || 
+          text.includes("# ") ||
+          text.includes("**") ||
+          text.includes("* ") ||
+          text.includes("---") ||
           text.includes("| ") ||
           text.includes("\n> ")
         );
@@ -379,7 +379,7 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
     input.onchange = (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target.result;
@@ -596,8 +596,8 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
           <ImageIcon className="w-4 h-4" />
         </MenuButton>
         {coverImage && (
-          <MenuButton 
-            onClick={() => editor.chain().focus().setImage({ src: coverImage }).run()} 
+          <MenuButton
+            onClick={() => editor.chain().focus().setImage({ src: coverImage }).run()}
             title="Chèn ảnh bìa vào bài viết"
           >
             <ImagePlus className="w-4 h-4 text-emerald-600" />

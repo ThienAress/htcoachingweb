@@ -43,7 +43,7 @@ const Club = () => {
     if (isLoading || !gymsData) return;
     // Skip animations if user prefers reduced motion
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    
+
     const ctx = gsap.context(() => {
       if (titleRef.current) {
         gsap.from(titleRef.current, {
@@ -57,7 +57,7 @@ const Club = () => {
       if (gridRef.current) {
         const cards = gridRef.current.querySelectorAll(".club-card");
         if (cards.length) {
-          gsap.fromTo(cards, 
+          gsap.fromTo(cards,
             { y: 40, opacity: 0 },
             {
               y: 0,
@@ -81,8 +81,8 @@ const Club = () => {
 
   return (
     <>
-      <SEO 
-        title={t("seo.title")} 
+      <SEO
+        title={t("seo.title")}
         description={t("seo.description")}
         canonical="/club"
         jsonLd={{
@@ -214,9 +214,9 @@ const Club = () => {
                     </div>
 
                     {club.googleMapsUrl && (
-                      <a 
-                        href={club.googleMapsUrl} 
-                        target="_blank" 
+                      <a
+                        href={club.googleMapsUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="mt-auto flex justify-center items-center gap-2 w-full py-2.5 bg-gray-700/40 hover:bg-primary/20 text-gray-300 hover:text-primary font-semibold rounded-xl border border-gray-700 hover:border-primary/40 transition-all duration-300 text-sm"
                       >

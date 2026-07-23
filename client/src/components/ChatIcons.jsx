@@ -223,10 +223,10 @@ const ChatIcons = () => {
           }}
         >
           {/* Container holding the colored icons (white background to make them pop) */}
-          <div 
+          <div
             className="relative bg-white rounded-full flex items-center justify-center overflow-hidden transition-all duration-300 shadow-sm"
-            style={{ 
-              width: `${ui.mainSize * 0.65}px`, 
+            style={{
+              width: `${ui.mainSize * 0.65}px`,
               height: `${ui.mainSize * 0.65}px`
             }}
           >
