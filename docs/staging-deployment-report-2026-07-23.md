@@ -199,6 +199,24 @@ history could replace a newly streamed response, and the F1 intake test relied
 on browser-dialog timing. Regression coverage now controls both asynchronous
 boundaries. Firefox and WebKit each passed all 45 E2E tests with three workers.
 
+## Strict production build gate
+
+Sitemap generation and prerender now share one dynamic-route policy for customer
+stories, trainers, Blog and Recipe. Netlify production metadata automatically
+enables strict mode. A production build now fails when:
+
+- SKIP_DYNAMIC_ROUTES is enabled;
+- the route source points to the staging or another unapproved API;
+- any dynamic API returns 404, an invalid contract, or a permanent error;
+- bounded retries cannot recover a timeout, 429, or transient 5xx;
+- any discovered route fails to produce meaningful prerendered content.
+
+The strict release build was exercised read-only against the staging API. It
+generated 24 sitemap routes and prerendered 24/24 routes, including the staging
+Recipe detail. Unit coverage passed 94/94 client tests. The generated staging
+sitemap was restored after validation and was not committed as production
+content.
+
 ## Remaining gates before production
 
 These items are intentionally not marked complete:

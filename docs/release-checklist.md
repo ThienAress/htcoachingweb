@@ -109,6 +109,10 @@ change approval, and an identified rollback path.
       auth, admin, schedule and F1 pages.
 - [ ] Record a seven-day RUM baseline by route/device before performance claims.
 - [x] Run axe critical smoke and the full Chromium/Firefox/WebKit matrix.
+- [x] Run the strict dynamic sitemap/prerender build against staging: require all
+      four API sources and prerender all 24 discovered routes.
+- [x] Verify Netlify production metadata automatically enables strict mode,
+      rejects SKIP_DYNAMIC_ROUTES, and rejects the staging API origin.
 
 ## Production rollout
 
@@ -122,7 +126,8 @@ change approval, and an identified rollback path.
 - [ ] Observe F1 media upload/delete jobs, retention candidates, CSP reports,
       RUM sample ingestion and per-replica Prometheus scrape for 30 minutes.
 - [ ] Confirm dependency audit, secret scan and runtime console scan passed in CI.
-- [ ] Verify sitemap/prerender output includes current blog and recipe routes.
+- [ ] Verify the actual production sitemap/prerender output includes current
+      Blog and Recipe routes after the server-first deployment.
 
 ## Rollback
 

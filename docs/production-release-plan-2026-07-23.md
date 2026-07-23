@@ -83,7 +83,10 @@ the rollback runbook and the Atlas snapshot evidence. It must also record:
 6. Create an Atlas on-demand snapshot and record its identifier.
 7. Lock or pause Netlify production publishing so the client cannot publish
    before the new server endpoint is healthy.
-8. Re-run all required PR checks and require a clean final diff.
+8. Confirm the Netlify build reports strict dynamic route mode. Netlify
+   production metadata enables this automatically; SKIP_DYNAMIC_ROUTES is
+   rejected and the route API is locked to the production Render origin.
+9. Re-run all required PR checks and require a clean final diff.
 
 ## 5. Merge and deploy sequence
 
@@ -95,8 +98,9 @@ the rollback runbook and the Atlas snapshot evidence. It must also record:
    approves the real database operation.
 6. Run the public production smoke command.
 7. Publish the Netlify client at the same SHA only after the API checks pass.
-   Set REQUIRE_DYNAMIC_ROUTES=true for the production build so sitemap API
-   failures stop the build.
+   NETLIFY=true with CONTEXT=production automatically requires all dynamic
+   sources and all prerendered routes. REQUIRE_DYNAMIC_ROUTES=true remains
+   available for strict staging/local release drills.
 8. Run the public smoke again and then the protected production monitor.
 9. Unlock Netlify publishing only after the dynamic sitemap contains current
    Blog and Recipe routes.
@@ -172,3 +176,6 @@ replace, external per-replica Prometheus scraping and Render log retention.
 Render log monitoring remains a platform task: the release owner must use the
 dashboard or configure an approved log drain for structured event, status,
 requestId and traceId fields.
+
+Netlify documents NETLIFY and CONTEXT as read-only build metadata:
+https://docs.netlify.com/configure-builds/environment-variables/#build-metadata
