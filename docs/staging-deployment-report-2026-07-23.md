@@ -118,8 +118,9 @@ Rollback inventory was reviewed:
   server rollback must use a known Git SHA/redeploy until a second retained
   Render deploy exists.
 - Database restore was not performed because no corruption occurred.
-- A real Atlas snapshot identifier is still required before any production
-  migration.
+- A verified production backup identifier is required before any production
+  migration. Backup `production-logical-backup-20260723T080213Z` now provides that
+  recovery evidence, but no production migration is authorized by this report.
 
 ## 6. Monitoring and logs
 
@@ -221,10 +222,6 @@ content.
 
 These items are intentionally not marked complete:
 
-- Revoke the suspected Google App Password and complete the GitHub cached-ref
-  incident tasks owned by the account owner.
-- Create and record a real Atlas backup snapshot immediately before production
-  migrations.
 - Establish a retained Render rollback candidate and record the rollback owner.
 - Merge the validated Recipe API implementation into `main` and deploy it only
   after explicit production approval; production remains 404 until then.
@@ -234,14 +231,24 @@ These items are intentionally not marked complete:
 - After production deployment, observe application, financial, schedule, AI,
   F1, privacy, CSP, and 5xx metrics for the full release window.
 
+Closed after this report's original staging validation:
+
+- `current_kb_entries.txt` was confirmed to contain a Google Search Console
+  verification value, not a credential. No revocation is required, and GitHub
+  cached-ref removal is not available or required for non-sensitive data.
+- The Free Atlas tier has no on-demand snapshot. A verified, encrypted logical
+  production backup was recorded as
+  `production-logical-backup-20260723T080213Z`; see
+  `docs/production-backup-record-2026-07-23.md`.
+
 ## Final migration and runtime hardening
 
-Candidate `aba22a1` adds fail-closed controls without running any migration or
+Candidate `67c4bc1` adds fail-closed controls without running any migration or
 writing staging/production data:
 
 - Phase 1-9 migration entrypoints require exact `APP_ENV`, database lock, and
   phase confirmation.
-- Production migration entrypoints additionally require an Atlas snapshot ID,
+- Production migration entrypoints additionally require a verified backup ID,
   approval ID, and the exact production confirmation phrase.
 - The connected database is rechecked before writes; Phase 7 performs this
   check before its slot-claim rebuild.
@@ -254,7 +261,7 @@ tests, lint, runtime logging, all three dependency audits, secret/data-boundary
 scans, static and strict builds, and 135 Chromium/Firefox/WebKit E2E tests. The
 strict read-only staging build again generated and prerendered 24/24 routes.
 
-GitHub CI run `29982481091` passed all four jobs for `aba22a1`. A separate
+GitHub CI run `29982739171` passed all four jobs for `67c4bc1`. A separate
 post-deploy direct check at `2026-07-23T05:37:49Z` passed staging health 7/7
 and security smoke 7/7, including live/ready, Blog, Recipe, Recipe taxonomy,
 CORS, operations authentication, private F1 legacy-path denial, and bounded

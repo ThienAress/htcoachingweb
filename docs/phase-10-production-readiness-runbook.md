@@ -19,17 +19,18 @@ The following actions require explicit owner approval:
 - enabling retention or CSP enforcement;
 - staging or production deployment.
 
-## 2. Current release blockers
+## 2. Initial findings and corrected classification
 
-Two P0 findings were detected locally:
+Two repository data findings were initially detected locally:
 
 1. Git tracks 51 files under `server/uploads`, including F1 media and other
    runtime uploads.
-2. `current_kb_entries.txt` contains a value matching the Google App Password
-   format.
+2. `current_kb_entries.txt` contains a value that initially matched a generic
+   secret-detection pattern.
 
-The credential must be treated as compromised and revoked in Google Account even
-if the repository is private. Do not paste its value into tickets, logs or chat.
+The owner later confirmed that the value is a Google Search Console verification
+value, not a Google App Password or active credential. No credential revocation
+is required. All 51 upload files were also confirmed to be unused test data.
 
 No files were opened as media, removed, untracked or rewritten by Phase 10.
 
@@ -157,11 +158,10 @@ manager, not source control.
 Do not run these commands until the owner approves and confirms local files have
 an approved storage/backup location.
 
-Immediate containment:
+Initial containment procedure, retained for historical context:
 
-1. Revoke the suspected Google App Password.
-2. Identify which account/integration used it and issue a replacement through
-   the secret manager.
+1. Classify the detected value before making any revocation decision.
+2. Revoke and replace it only if classification confirms an active credential.
 3. Determine repository visibility, collaborators, forks, Actions artifacts and
    access history.
 4. Classify each tracked upload as public marketing material or customer/private
@@ -190,7 +190,8 @@ History cleanup is a separate change:
 7. Record incident timeline and notification decision.
 
 History rewrite cannot guarantee deletion from forks, clones, caches or prior
-downloads. Credential rotation is mandatory regardless of rewrite.
+downloads. Credential rotation is mandatory only when an active credential is
+confirmed.
 
 ### Execution record - 2026-07-22
 
@@ -204,9 +205,9 @@ Completed with explicit owner approval:
    commits discovered during cleanup.
 4. Repointed local branches to clean equivalents without resetting the Phase
    1-10 working tree.
-5. Expired affected reflogs/checkpoints, purged old credential/media blobs and
-   removed tainted temporary mirrors.
-6. Verified zero reachable credential/upload paths, `git fsck`, secret scan and
+5. Expired affected reflogs/checkpoints, purged obsolete verification/test-media
+   blobs and removed temporary mirrors.
+6. Verified zero reachable verification/upload paths, `git fsck`, secret scan and
    repository data-boundary scan.
 7. Confirmed the public repository has zero forks.
 
@@ -215,20 +216,29 @@ Final remote heads:
 - `main`: `cef64e95b4b1cf1ac5ecb80f8701373d16c28046`
 - `staging`: `269c6d6689b75705557482461a11569222bd58fd`
 
-Pending external closure:
+External closure decision - 2026-07-23:
 
-1. Google Account owner revokes the suspected App Password and confirms whether
-   a replacement is needed.
-2. GitHub Support purges cached views and all 18 affected PR refs (`#1` through
-   `#18`). First changed commits:
-   - credential file: `1a008d2013a2ae671afbdaf6e34f9b80c186f46f`;
-   - runtime uploads: `a0da54a9f12660b403725f08c49621a068e5b918`.
-3. Collaborators with an old clone must re-clone or rebase carefully and must
-   not merge or push pre-rewrite history.
+1. No Google credential was present, so revocation is not applicable.
+2. GitHub Support does not purge cached refs for non-sensitive verification/test
+   data. No security ticket is required and cached PR refs are not a release
+   blocker. First changed commits remain recorded for audit:
+   - verification file: `1a008d2013a2ae671afbdaf6e34f9b80c186f46f`;
+   - runtime test uploads: `a0da54a9f12660b403725f08c49621a068e5b918`.
+3. The repository is solo and has zero forks, so there are no external
+   collaborator clones to remediate.
+
+### Production backup record - 2026-07-23
+
+With explicit owner approval, a read-only logical production backup was created
+and verified as `production-logical-backup-20260723T080213Z`. Atlas Cloud
+Backup is unavailable on the Free tier. Private paths, target identifiers,
+checksums and key-recovery details remain in the local manifest outside Git.
+The public evidence summary and limitations are in
+`docs/production-backup-record-2026-07-23.md`.
 
 ## 10. Rollout sequence
 
-1. Resolve the repository data/credential incident.
+1. Resolve and document the repository data cleanup.
 2. Configure staging secrets and run production-readiness checker.
 3. Deploy a staging web instance with background jobs disabled.
 4. Configure one staging worker, then run only approved job smoke.

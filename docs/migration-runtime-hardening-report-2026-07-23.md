@@ -19,8 +19,9 @@ data.
    `production`.
 3. Every migration requires `MIGRATION_TARGET_DATABASE` and rejects a MongoDB
    URI whose database name differs from that exact lock.
-4. Production migrations additionally require a real Atlas snapshot identifier,
-   a release approval identifier, and the exact production confirmation phrase.
+4. Production migrations additionally require a verified production backup
+   identifier, a release approval identifier, and the exact production
+   confirmation phrase.
 5. The Phase 7 connected-database assertion runs before the empty
    `TrainingSlotClaim.deleteMany({})` rebuild can execute.
 6. Background jobs now start only when `BACKGROUND_JOBS_ENABLED=true`.
@@ -55,7 +56,7 @@ Staging is additionally locked to `htcoaching_staging`.
 Production additionally requires all of the following:
 
     CONFIRM_PRODUCTION_MIGRATION=production
-    MIGRATION_BACKUP_SNAPSHOT_ID=<real Atlas snapshot identifier>
+    MIGRATION_BACKUP_SNAPSHOT_ID=<verified production backup identifier>
     MIGRATION_APPROVAL_ID=<owner-approved release/change identifier>
 
 Snapshot and approval values shorter than eight characters or known placeholder
@@ -130,9 +131,6 @@ Commits:
 
 These are intentionally still open:
 
-- owner confirms revocation of the suspected Google App Password and completes
-  the GitHub cached-ref incident actions;
-- owner creates and records the real Atlas on-demand snapshot;
 - owner names deploy/rollback responsibility and approves the exact migration
   list, or explicitly approves a no-migration release;
 - external alert delivery is wired and one test alert reaches the owner;
@@ -140,6 +138,15 @@ These are intentionally still open:
   approved;
 - production health, logs, 5xx, integrity metrics, CSP, and RUM are observed for
   the complete release window.
+
+Closed on 2026-07-23:
+
+- `current_kb_entries.txt` was a Google Search Console verification value, not a
+  credential; no revocation is required and non-sensitive cached refs do not
+  require a GitHub Support incident;
+- Free Atlas has no on-demand snapshot, so the owner-approved production
+  recovery point is the verified encrypted logical backup
+  `production-logical-backup-20260723T080213Z`.
 
 Until these gates are complete, `staging` is the validated candidate and
 `main`/production remain unchanged.

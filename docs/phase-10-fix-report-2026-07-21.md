@@ -1,7 +1,7 @@
 # Phase 10 Fix Report - Production Readiness
 
 Date: 2026-07-21
-Status: code hardening and repository branch remediation complete; release blocked pending Google credential revocation confirmation, GitHub Support purge and staging evidence
+Status: code hardening, repository remediation and staging evidence complete; release remains controlled by the production gates
 
 ## 1. Kết quả
 
@@ -23,12 +23,17 @@ không kết nối dữ liệu thật và không gọi provider mutation:
 
 ## 2. P0 findings cần owner xử lý
 
-### Suspected credential
+### Initial false-positive classification
+
+Correction - 2026-07-23: the owner confirmed that
+`current_kb_entries.txt` held a Google Search Console verification value, not
+a Google App Password or active credential. The revocation instructions below
+are superseded and retained only as the original finding timeline.
 
 `current_kb_entries.txt` chứa một dòng khớp định dạng Google App Password.
 Giá trị không được đưa vào report/log.
 
-Required action:
+Original required action (superseded):
 
 1. Revoke credential trong Google Account.
 2. Xác định integration đã sử dụng nó.
@@ -37,16 +42,15 @@ Required action:
 
 Remediation update - 2026-07-22:
 
-- [ ] **Revoke suspected credential:** the account owner must confirm the
-  suspected Google App Password was removed in Google Account. Git history
-  cleanup does not revoke a credential.
+- [x] Confirm the value classification with the owner: Google Search Console
+  verification value, not an active credential; no revocation required.
 - [x] Delete `current_kb_entries.txt` from the local working tree and Git index.
 - [x] Rewrite the file out of `main` and `staging`, then force-push the verified
   clean histories.
 - [x] Purge the old blob from local `.git`; reachable path count is zero.
 - [x] Confirm the public repository has zero forks.
-- [ ] Ask GitHub Support to purge cached views and read-only PR refs `#7`
-  through `#18`.
+- [x] Review GitHub Support eligibility: non-sensitive verification/test data is
+  not eligible for cached-ref purging, so no security ticket is required.
 
 `npm run security:secrets` now passes.
 

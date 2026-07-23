@@ -7,17 +7,15 @@ Target branch: main
 
 ## 1. Release decision
 
-The staging candidate at `aba22a1` includes the validated Recipe API,
+The staging candidate at `67c4bc1` includes the validated Recipe API,
 monitoring, strict dynamic-route build, migration fail-closed controls,
 DOMPurify patch, and pinned Node runtime. Local browser, build, dependency and
-security gates passed. CI run `29982481091` passed all four jobs, and the
+security gates passed. Final CI run `29982739171` passed all four jobs, and the
 post-deploy staging health/security checks passed 7/7 and 7/7. Owner-controlled
 production gates below still block any merge decision.
 
 Do not merge while any of these blockers is unresolved:
 
-- suspected credential revocation is not owner-confirmed;
-- no production Atlas snapshot identifier is recorded;
 - deployment owner, rollback owner and observation window are unnamed;
 - production background-job topology is not explicit;
 - the production monitoring secret and alert delivery test are incomplete;
@@ -65,7 +63,7 @@ Suggested PR title:
     release: production hardening phases 1-10 and staging validation
 
 The PR description must link the staging deployment report, this release plan,
-the rollback runbook and the Atlas snapshot evidence. It must also record:
+the rollback runbook and the production backup evidence. It must also record:
 
 - candidate Git SHA;
 - previous production server SHA/deploy ID;
@@ -83,8 +81,11 @@ the rollback runbook and the Atlas snapshot evidence. It must also record:
 4. Configure the GitHub secret PRODUCTION_OPS_METRICS_TOKEN with the same value
    as the Render OPS_METRICS_TOKEN. Never print either value.
 5. Confirm GitHub Issues and Action failure notifications reach the owner.
-6. Create an Atlas on-demand snapshot and record its identifier.
-   Production migration execution also requires
+6. Completed: create and verify production logical backup
+   `production-logical-backup-20260723T080213Z`. The Free Atlas tier does not support an
+   on-demand cloud snapshot. Evidence is in
+   `docs/production-backup-record-2026-07-23.md`. Production migration execution
+   also requires
    `MIGRATION_TARGET_DATABASE`, `MIGRATION_BACKUP_SNAPSHOT_ID`,
    `MIGRATION_APPROVAL_ID`, and `CONFIRM_PRODUCTION_MIGRATION=production`.
 7. Lock or pause Netlify production publishing so the client cannot publish

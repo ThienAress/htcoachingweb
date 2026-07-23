@@ -4,25 +4,28 @@ Current staging evidence: [staging-deployment-report-2026-07-23.md](./staging-de
 Production plan: [production-release-plan-2026-07-23.md](./production-release-plan-2026-07-23.md).
 Rollback procedure: [production-rollback-runbook.md](./production-rollback-runbook.md).
 
-## Repository incident closure - updated 2026-07-22
+## Repository incident closure - updated 2026-07-23
 
-- [ ] **Revoke suspected credential:** account owner removes the suspected Google
-      App Password and confirms whether any replacement is required.
+- [x] Correct the initial classification: `current_kb_entries.txt` held a Google
+      Search Console verification value, not a Google App Password or active
+      credential. No credential revocation is required.
 - [x] Delete `current_kb_entries.txt` locally and rewrite it out of `main` and
       `staging` history.
 - [x] **Untrack 51 upload files** and delete the confirmed test data locally.
 - [x] Rewrite `server/uploads` out of `main` and `staging`; purge local media
       blobs and retain only a verified clean recovery mirror.
 - [x] Confirm the public repository has zero forks.
-- [ ] Ask GitHub Support to purge cached views and all 18 affected read-only PR
-      refs. First changed commits are recorded in the Phase 10 runbook.
-- [ ] Notify collaborators with old clones to re-clone or carefully rebase; do
-      not merge or push pre-rewrite history.
+- [x] Review GitHub cached-ref cleanup eligibility. GitHub Support does not purge
+      non-sensitive test/verification data, so no security ticket is required
+      and cached PR refs are not a production blocker.
+- [x] Confirm this is a solo repository with zero forks; there are no external
+      collaborator clones to notify.
 
 ## Before staging
 
 - [x] CI is green: client lint/tests/build, server tests, Chromium E2E.
-- [ ] Revoke and replace any credential reported by npm run security:secrets.
+- [x] Confirm `npm run security:secrets` reports no credential requiring
+      revocation or replacement.
 - [x] Require npm run security:secrets and npm run security:data-boundaries to
       report zero findings.
 - [x] Run npm run check:production-readiness inside the server deployment
@@ -31,7 +34,9 @@ Rollback procedure: [production-rollback-runbook.md](./production-rollback-runbo
       private key is tracked by Git.
 - [x] Review the Git diff for secrets, generated files, and unrelated changes.
 - [x] Confirm required environment variables and allowed origins.
-- [ ] Create a database backup and record its snapshot identifier.
+- [x] Create and verify production backup
+      `production-logical-backup-20260723T080213Z`; evidence is in
+      [production-backup-record-2026-07-23.md](./production-backup-record-2026-07-23.md).
 - [ ] Confirm rollback owner, deployment owner, and observation window.
 
 ## Staging database
