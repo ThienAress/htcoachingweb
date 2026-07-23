@@ -4,6 +4,9 @@
   "description": "",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": "22.23.1"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
