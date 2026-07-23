@@ -3,6 +3,10 @@ import { fileURLToPath } from "url";
 import mongoose from "mongoose";
 import "../config/env.js";
 import connectDB from "../config/db.js";
+import {
+  assertConnectedMigrationTarget,
+  assertMigrationEnvironment,
+} from "../config/migrationSafety.js";
 import F1Customer from "../models/F1Customer.js";
 import F1DataDeletionJob from "../models/F1DataDeletionJob.js";
 import F1Media from "../models/F1Media.js";
@@ -160,13 +164,12 @@ const isDirectRun =
   path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 
 if (isDirectRun) {
-  if (process.env.CONFIRM_PHASE9_PRIVACY_MIGRATION !== "yes") {
-    throw new Error(
-      "Set CONFIRM_PHASE9_PRIVACY_MIGRATION=yes after backup and preflight review.",
-    );
-  }
+  const authorization = assertMigrationEnvironment({
+    confirmationVariable: "CONFIRM_PHASE9_PRIVACY_MIGRATION",
+  });
   await connectDB();
   try {
+    assertConnectedMigrationTarget(mongoose.connection, authorization);
     const result = await runPhase9Migration();
     process.stdout.write(JSON.stringify(result, null, 2) + "\n");
     if (result.verification.totalIssues > 0) process.exitCode = 1;

@@ -102,7 +102,6 @@ describe("production readiness configuration", () => {
     delete env.RESEND_API_KEY;
     delete env.PUBLIC_API_ORIGIN;
     delete env.TRUST_PROXY_HOPS;
-    delete env.BACKGROUND_JOBS_ENABLED;
     env.CSP_ENFORCE = "false";
 
     const result = validateProductionEnvironment(env, { strict: false });
@@ -113,9 +112,19 @@ describe("production readiness configuration", () => {
         "LOG_HASH_SECRET_MISSING",
         "OPS_METRICS_TOKEN_MISSING",
         "TRUST_PROXY_HOPS_NOT_EXPLICIT",
-        "BACKGROUND_JOBS_ENABLED_NOT_EXPLICIT",
         "CSP_REPORT_ONLY",
       ]),
+    );
+  });
+
+  it("rejects production when background jobs mode is not explicit", () => {
+    const env = validEnvironment();
+    delete env.BACKGROUND_JOBS_ENABLED;
+
+    const result = validateProductionEnvironment(env, { strict: false });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "BACKGROUND_JOBS_ENABLED_REQUIRED",
     );
   });
 

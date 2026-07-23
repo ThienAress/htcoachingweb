@@ -1,6 +1,10 @@
 import "../config/env.js";
 import crypto from "node:crypto";
 import mongoose from "mongoose";
+import {
+  assertConnectedMigrationTarget,
+  assertMigrationEnvironment,
+} from "../config/migrationSafety.js";
 
 import Booking from "../models/Booking.js";
 import ReminderDelivery from "../models/ReminderDelivery.js";
@@ -296,14 +300,13 @@ export const runPhase7Migration = async () => {
 };
 
 const runFromCli = async () => {
-  if (!process.env.MONGO_URI) throw new Error("MONGO_URI is required");
-  if (process.env.CONFIRM_PHASE7_SCHEDULE_MIGRATION !== "yes") {
-    throw new Error(
-      "Set CONFIRM_PHASE7_SCHEDULE_MIGRATION=yes after backup and staging verification",
-    );
-  }
+  const authorization = assertMigrationEnvironment({
+    confirmationVariable: "CONFIRM_PHASE7_SCHEDULE_MIGRATION",
+  });
   await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
   try {
+    // This assertion must pass before the slot-claim collection is rebuilt.
+    assertConnectedMigrationTarget(mongoose.connection, authorization);
     const report = await runPhase7Migration();
     console.log(JSON.stringify(report, null, 2));
     console.log("Phase 7 schedule and booking migration completed");

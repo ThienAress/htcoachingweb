@@ -5,6 +5,10 @@ import { fileURLToPath } from "url";
 import mongoose from "mongoose";
 import "../config/env.js";
 import connectDB from "../config/db.js";
+import {
+  assertConnectedMigrationTarget,
+  assertMigrationEnvironment,
+} from "../config/migrationSafety.js";
 import Counter from "../models/Counter.js";
 import F1AiReport from "../models/F1AiReport.js";
 import F1Assessment from "../models/F1Assessment.js";
@@ -461,13 +465,12 @@ const isDirectRun =
   path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
 
 if (isDirectRun) {
-  if (process.env.CONFIRM_PHASE8_F1_MIGRATION !== "yes") {
-    throw new Error(
-      "Set CONFIRM_PHASE8_F1_MIGRATION=yes after backup and preflight review.",
-    );
-  }
+  const authorization = assertMigrationEnvironment({
+    confirmationVariable: "CONFIRM_PHASE8_F1_MIGRATION",
+  });
   await connectDB();
   try {
+    assertConnectedMigrationTarget(mongoose.connection, authorization);
     const result = await runPhase8Migration({
       migrateMedia: true,
       verifyProviderObjects: true,

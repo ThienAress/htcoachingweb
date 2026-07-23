@@ -1,5 +1,9 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import {
+  assertConnectedMigrationTarget,
+  assertMigrationEnvironment,
+} from "../config/migrationSafety.js";
 
 import DepositRequest from "../models/DepositRequest.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
@@ -240,15 +244,13 @@ export const runPhase6Migration = async () => {
 };
 
 const runFromCli = async () => {
-  if (!process.env.MONGO_URI) throw new Error("MONGO_URI is required");
-  if (process.env.CONFIRM_PHASE6_FINANCIAL_MIGRATION !== "yes") {
-    throw new Error(
-      "Set CONFIRM_PHASE6_FINANCIAL_MIGRATION=yes after backup, reconciliation, and staging verification",
-    );
-  }
+  const authorization = assertMigrationEnvironment({
+    confirmationVariable: "CONFIRM_PHASE6_FINANCIAL_MIGRATION",
+  });
 
   await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
   try {
+    assertConnectedMigrationTarget(mongoose.connection, authorization);
     const report = await runPhase6Migration();
     console.log(JSON.stringify(report, null, 2));
     console.log("Phase 6 financial integrity migration completed");

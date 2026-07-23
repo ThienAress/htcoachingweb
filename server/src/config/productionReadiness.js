@@ -235,11 +235,18 @@ const validateBooleanSetting = (
   env,
   findings,
   name,
-  { strictOnly = false } = {},
+  { required = false, strictOnly = false } = {},
 ) => {
   const raw = String(env[name] || "").trim().toLowerCase();
   if (!raw) {
-    if (strictOnly) {
+    if (required) {
+      addFinding(
+        findings,
+        "errors",
+        name + "_REQUIRED",
+        name + " must be explicitly configured as true or false.",
+      );
+    } else if (strictOnly) {
       addFinding(
         findings,
         "warnings",
@@ -421,7 +428,7 @@ export const validateProductionEnvironment = (
     maximum: 60000,
   });
   validateBooleanSetting(env, findings, "BACKGROUND_JOBS_ENABLED", {
-    strictOnly: true,
+    required: true,
   });
   validateBooleanSetting(env, findings, "CSP_ENFORCE");
   validateBooleanSetting(env, findings, "F1_RETENTION_ENFORCE");

@@ -1,5 +1,9 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import {
+  assertConnectedMigrationTarget,
+  assertMigrationEnvironment,
+} from "../config/migrationSafety.js";
 
 import Contract from "../models/Contract.js";
 import F1Intake from "../models/F1Intake.js";
@@ -181,11 +185,12 @@ export const runPhase1IntegrityMigration = async () => {
 };
 
 const runFromCli = async () => {
-  if (!process.env.MONGO_URI) {
-    throw new Error("MONGO_URI is required");
-  }
+  const authorization = assertMigrationEnvironment({
+    confirmationVariable: "CONFIRM_PHASE1_INTEGRITY_MIGRATION",
+  });
   await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
   try {
+    assertConnectedMigrationTarget(mongoose.connection, authorization);
     await runPhase1IntegrityMigration();
     console.log("Phase 1 integrity migration completed");
   } catch (error) {

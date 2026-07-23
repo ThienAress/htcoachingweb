@@ -1,5 +1,9 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import {
+  assertConnectedMigrationTarget,
+  assertMigrationEnvironment,
+} from "../config/migrationSafety.js";
 
 import AiModerationState from "../models/AiModerationState.js";
 import ChatConversation from "../models/ChatConversation.js";
@@ -154,9 +158,12 @@ export const runPhase2IntegrityMigration = async () => {
 };
 
 const runFromCli = async () => {
-  if (!process.env.MONGO_URI) throw new Error("MONGO_URI is required");
+  const authorization = assertMigrationEnvironment({
+    confirmationVariable: "CONFIRM_PHASE2_AI_KB_MIGRATION",
+  });
   await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
   try {
+    assertConnectedMigrationTarget(mongoose.connection, authorization);
     await runPhase2IntegrityMigration();
     console.log("Phase 2 AI/KB integrity migration completed");
   } catch (error) {

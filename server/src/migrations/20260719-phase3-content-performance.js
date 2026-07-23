@@ -1,5 +1,9 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import {
+  assertConnectedMigrationTarget,
+  assertMigrationEnvironment,
+} from "../config/migrationSafety.js";
 
 import BlogPost from "../models/BlogPost.js";
 import Order from "../models/Order.js";
@@ -26,9 +30,12 @@ export const runPhase3ContentMigration = async () => {
 };
 
 const runFromCli = async () => {
-  if (!process.env.MONGO_URI) throw new Error("MONGO_URI is required");
+  const authorization = assertMigrationEnvironment({
+    confirmationVariable: "CONFIRM_PHASE3_CONTENT_MIGRATION",
+  });
   await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
   try {
+    assertConnectedMigrationTarget(mongoose.connection, authorization);
     await runPhase3ContentMigration();
     console.log("Phase 3 content/performance migration completed");
   } catch (error) {

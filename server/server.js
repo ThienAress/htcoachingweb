@@ -20,6 +20,7 @@ import { safeLog } from "./src/utils/safeLogger.js";
 import { markRuntimeDraining } from "./src/operations/runtimeState.js";
 
 import connectDB from "./src/config/db.js";
+import { getBackgroundJobsMode } from "./src/config/backgroundJobs.js";
 import "./src/config/passport.js";
 
 import {
@@ -284,8 +285,14 @@ const server = app.listen(PORT, () => {
     trustProxyHops: trustProxyHops === false ? 0 : trustProxyHops,
   });
 
-  if (process.env.BACKGROUND_JOBS_ENABLED === "false") {
-    safeLog.warn("background_jobs.disabled", "Disabled by configuration");
+  const backgroundJobs = getBackgroundJobsMode(process.env);
+  if (!backgroundJobs.enabled) {
+    safeLog.warn(
+      "background_jobs.disabled",
+      backgroundJobs.explicit
+        ? "Disabled by configuration"
+        : "Explicit BACKGROUND_JOBS_ENABLED=true is required",
+    );
     return;
   }
 

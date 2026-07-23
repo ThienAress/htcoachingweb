@@ -1,5 +1,9 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import {
+  assertConnectedMigrationTarget,
+  assertMigrationEnvironment,
+} from "../config/migrationSafety.js";
 
 export const PHASE4_INDEXES = [
   ["blogposts", { status: 1, category: 1, publishedAt: -1 }, "status_1_category_1_publishedAt_-1"],
@@ -37,12 +41,12 @@ export const runPhase4IndexMigration = async () => {
 };
 
 const runFromCli = async () => {
-  if (!process.env.MONGO_URI) throw new Error("MONGO_URI is required");
-  if (process.env.CONFIRM_PHASE4_INDEX_MIGRATION !== "yes") {
-    throw new Error("Set CONFIRM_PHASE4_INDEX_MIGRATION=yes after backup and staging verification");
-  }
+  const authorization = assertMigrationEnvironment({
+    confirmationVariable: "CONFIRM_PHASE4_INDEX_MIGRATION",
+  });
   await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
   try {
+    assertConnectedMigrationTarget(mongoose.connection, authorization);
     const created = await runPhase4IndexMigration();
     console.table(created);
     console.log("Phase 4 index migration completed");
