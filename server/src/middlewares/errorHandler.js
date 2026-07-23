@@ -1,7 +1,9 @@
 import { safeLog } from "../utils/safeLogger.js";
+import { incrementMetric } from "../observability/metrics.js";
 
 export const errorHandler = (err, req, res, next) => {
-  safeLog.error("GLOBAL ERROR", err);
+  incrementMetric("server.errors");
+  safeLog.error("global.error", err, { requestId: req.id });
 
   const isProd = process.env.NODE_ENV === "production";
 
@@ -15,12 +17,12 @@ export const errorHandler = (err, req, res, next) => {
     } else if (err.code === "LIMIT_UNEXPECTED_FILE") {
       message = "File không hợp lệ hoặc sai tên field.";
     }
-    return res.status(400).json({ success: false, message });
+    return res.status(400).json({ success: false, message, requestId: req.id });
   }
 
   // Lỗi file không đúng định dạng (từ fileFilter)
   if (err.message?.includes("Chỉ chấp nhận")) {
-    return res.status(400).json({ success: false, message: err.message });
+    return res.status(400).json({ success: false, message: err.message, requestId: req.id });
   }
 
   // Lỗi mongoose validation
@@ -29,6 +31,7 @@ export const errorHandler = (err, req, res, next) => {
     return res.status(400).json({
       success: false,
       message: "Dữ liệu không hợp lệ: " + messages.join(", "),
+      requestId: req.id,
     });
   }
 
@@ -38,6 +41,7 @@ export const errorHandler = (err, req, res, next) => {
     return res.status(409).json({
       success: false,
       message: `${field} đã tồn tại`,
+      requestId: req.id,
     });
   }
 
@@ -46,6 +50,7 @@ export const errorHandler = (err, req, res, next) => {
     return res.status(401).json({
       success: false,
       message: "Token không hợp lệ",
+      requestId: req.id,
     });
   }
 
@@ -53,5 +58,6 @@ export const errorHandler = (err, req, res, next) => {
   res.status(err.status || 500).json({
     success: false,
     message: isProd ? "Lỗi server nội bộ" : (err.message || "Lỗi server nội bộ"),
+    requestId: req.id,
   });
 };

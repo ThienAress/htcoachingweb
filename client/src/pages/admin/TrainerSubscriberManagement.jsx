@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, User, ChevronLeft, ChevronRight, Award, Trash2 } from "lucide-react";
+import { Search, User, ChevronLeft, ChevronRight, Award, Ban } from "lucide-react";
 import { toast } from "react-toastify";
 import { useDebounce } from "../../hooks/useDebounce";
-import { getAllSubscribers, deleteSubscription } from "../../services/trainerSubscription.service";
+import { getAllSubscribers, cancelSubscription } from "../../services/trainerSubscription.service";
 
 const planIconMap = {
   "Tiêu chuẩn": "🔥",
@@ -22,11 +22,9 @@ const TrainerSubscriberManagement = () => {
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearchTerm = useDebounce(searchInput, 500);
   const [currentPage, setCurrentPage] = useState(1);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
   const limit = 10;
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearchTerm]);
 
   const {
     data: subsData,
@@ -45,18 +43,23 @@ const TrainerSubscriberManagement = () => {
   const subscribers = subsData?.data || [];
   const pagination = subsData?.pagination || { total: 0, totalPages: 0 };
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteSubscription,
-    onSuccess: () => {
-      toast.success("Xóa gói thành công");
+  const cancelMutation = useMutation({
+    mutationFn: ({ id, reason }) => cancelSubscription(id, reason),
+    onSuccess: (response) => {
+      toast.success(response.data.message);
       queryClient.invalidateQueries({ queryKey: ["subscribers"] });
+      setCancelTarget(null);
+      setCancelReason("");
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi hủy gói"),
   });
 
-  const handleDelete = (id, name) => {
-    if (!window.confirm(`Xóa gói của "${name}"?`)) return;
-    deleteMutation.mutate(id);
+  const handleCancel = () => {
+    if (!cancelTarget || cancelReason.trim().length < 8) return;
+    cancelMutation.mutate({
+      id: cancelTarget._id,
+      reason: cancelReason.trim(),
+    });
   };
 
   const formatDate = (dateString) => {
@@ -91,7 +94,10 @@ const TrainerSubscriberManagement = () => {
             type="text"
             placeholder="Tìm kiếm theo tên hoặc email..."
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white text-fluid-sm"
           />
         </div>
@@ -154,11 +160,14 @@ const TrainerSubscriberManagement = () => {
                     </td>
                     <td className="px-3 md:px-4 py-2 md:py-3">
                       <button
-                        onClick={() => handleDelete(sub._id, sub.userId?.name)}
+                        onClick={() => {
+                          setCancelTarget(sub);
+                          setCancelReason("");
+                        }}
                         className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Xóa"
+                        title="Hủy gói"
                       >
-                        <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
+                        <Ban className="w-4 h-4 md:w-5 md:h-5" />
                       </button>
                     </td>
                   </tr>
@@ -199,6 +208,44 @@ const TrainerSubscriberManagement = () => {
             >
               <ChevronRight className="w-4 h-4" />
             </button>
+          </div>
+        )}
+        {cancelTarget && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 space-y-4">
+              <h2 className="text-lg font-bold text-slate-800">Hủy gói dịch vụ</h2>
+              <p className="text-sm text-slate-600">
+                Hủy gói của <strong>{cancelTarget.userId?.name}</strong>? Bản ghi
+                thanh toán và ledger sẽ được giữ nguyên; thao tác này không tự
+                động hoàn tiền.
+              </p>
+              <textarea
+                value={cancelReason}
+                onChange={(event) => setCancelReason(event.target.value)}
+                placeholder="Lý do hủy (ít nhất 8 ký tự)"
+                maxLength={500}
+                rows={4}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setCancelTarget(null)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-slate-600"
+                >
+                  Đóng
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={
+                    cancelMutation.isPending ||
+                    cancelReason.trim().length < 8
+                  }
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg disabled:opacity-50"
+                >
+                  {cancelMutation.isPending ? "Đang hủy..." : "Xác nhận hủy"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

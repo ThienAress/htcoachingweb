@@ -26,7 +26,7 @@ export default function useExercisesLogic() {
         setExerciseOptions(exercisesArray);
         setFilteredExercises(exercisesArray);
       })
-      .catch((err) => console.error("Lỗi lấy bài tập:", err));
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -173,8 +173,7 @@ export default function useExercisesLogic() {
         description: suggestion,
       });
       return true;
-    } catch (error) {
-      console.error("Gửi góp ý thất bại:", error);
+    } catch {
       return false;
     }
   };

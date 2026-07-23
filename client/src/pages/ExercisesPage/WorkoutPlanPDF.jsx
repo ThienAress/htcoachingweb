@@ -327,16 +327,21 @@ const styles = StyleSheet.create({
   colTips: { flex: 2.2 },
 });
 
-const getSectionLabel = (sectionId) => {
-  if (sectionId === "warmUp") return "Warm Up";
-  if (sectionId === "cooldown") return "Cooldown";
-  return "Main Workout";
+const getSectionLabel = (sectionId, t) => {
+  if (sectionId === "warmUp") return t ? t("table.col_warmup", "Warm Up") : "Warm Up";
+  if (sectionId === "cooldown") return t ? t("table.col_cooldown", "Cooldown") : "Cooldown";
+  return t ? t("table.col_main_workout", "Main Workout") : "Main Workout";
 };
 
-const getTableConfig = (sectionId) => {
+const getTableConfig = (sectionId, t) => {
   if (sectionId === "warmUp" || sectionId === "cooldown") {
     return {
-      columns: ["Exercises", "Sets", "Duration", "Coaching Tips"],
+      columns: [
+        t ? t("table.col_exercises") : "Exercises",
+        t ? t("table.col_sets") : "Sets",
+        t ? t("table.col_duration") : "Duration",
+        t ? t("table.col_tips") : "Coaching Tips",
+      ],
       widths: ["colEx", "colSets", "colDuration", "colTips"],
       renderRow: (ex) => [
         ex.name || "",
@@ -349,12 +354,12 @@ const getTableConfig = (sectionId) => {
 
   return {
     columns: [
-      "Exercises",
-      "Sets",
-      "Reps",
-      "Tempo",
-      "Duration",
-      "Coaching Tips",
+      t ? t("table.col_exercises") : "Exercises",
+      t ? t("table.col_sets") : "Sets",
+      t ? t("table.col_reps") : "Reps",
+      t ? t("table.col_tempo") : "Tempo",
+      t ? t("table.col_duration") : "Duration",
+      t ? t("table.col_tips") : "Coaching Tips",
     ],
     widths: [
       "colEx",
@@ -390,14 +395,14 @@ const renderTipCell = (value) => (
   <Text style={styles.tipText}>{value || "-"}</Text>
 );
 
-const WorkoutPlanPDF = ({ planData, date }) => {
+const WorkoutPlanPDF = ({ planData, date, t }) => {
   if (!planData || !Array.isArray(planData) || planData.length === 0) {
     return (
       <Document>
         <Page size="A4" style={styles.page}>
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyTitle}>HT COACHING</Text>
-            <Text style={styles.emptyText}>Không có dữ liệu lịch tập.</Text>
+            <Text style={styles.emptyText}>{t ? t("pdf.no_data") : "Không có dữ liệu lịch tập."}</Text>
           </View>
         </Page>
       </Document>
@@ -420,21 +425,21 @@ const WorkoutPlanPDF = ({ planData, date }) => {
 
             <View style={styles.metaRow}>
               <View style={styles.metaCard}>
-                <Text style={styles.metaLabel}>NGÀY TẠO</Text>
+                <Text style={styles.metaLabel}>{t ? t("pdf.created_date") : "NGÀY TẠO"}</Text>
                 <Text style={styles.metaValue}>
                   {date || new Date().toLocaleDateString("vi-VN")}
                 </Text>
               </View>
 
               <View style={styles.metaCard}>
-                <Text style={styles.metaLabel}>NHÓM CƠ</Text>
+                <Text style={styles.metaLabel}>{t ? t("pdf.muscle_group") : "NHÓM CƠ"}</Text>
                 <Text style={styles.metaValue}>
                   {group.muscleGroup || "Nhóm cơ"}
                 </Text>
               </View>
 
               <View style={[styles.metaCard, styles.metaCardLast]}>
-                <Text style={styles.metaLabel}>NGÀY TẬP</Text>
+                <Text style={styles.metaLabel}>{t ? t("pdf.session_date") : "NGÀY TẬP"}</Text>
                 <Text style={styles.metaValue}>{group.date || "..."}</Text>
               </View>
             </View>
@@ -454,15 +459,14 @@ const WorkoutPlanPDF = ({ planData, date }) => {
                 {group.muscleGroup || "Nhóm cơ"}
               </Text>
               <Text style={styles.groupSubtitle}>
-                Kế hoạch tập luyện cá nhân hóa, rõ ràng, trực quan và dễ theo
-                dõi trong từng buổi tập.
+                {t ? t("pdf.pdf_desc") : "Kế hoạch tập luyện cá nhân hóa, rõ ràng, trực quan và dễ theo dõi trong từng buổi tập."}
               </Text>
             </View>
 
             {group.sections?.map((section, sIdx) => {
               if (!section.data?.length) return null;
 
-              const { columns, widths, renderRow } = getTableConfig(section.id);
+              const { columns, widths, renderRow } = getTableConfig(section.id, t);
 
               return (
                 <View key={sIdx} wrap={false} style={styles.sectionWrap}>
@@ -470,7 +474,7 @@ const WorkoutPlanPDF = ({ planData, date }) => {
                     <View style={styles.sectionBar} />
                     <Text style={styles.sectionTitle}>{section.title}</Text>
                     <Text style={styles.sectionTag}>
-                      {getSectionLabel(section.id)}
+                      {getSectionLabel(section.id, t)}
                     </Text>
                   </View>
 
@@ -547,7 +551,7 @@ const WorkoutPlanPDF = ({ planData, date }) => {
             <Text
               style={styles.pageNumber}
               render={({ pageNumber, totalPages }) =>
-                `Trang ${pageNumber} / ${totalPages}`
+                t ? t("pdf.page", { pageNumber, totalPages }) : `Trang ${pageNumber} / ${totalPages}`
               }
             />
           </View>

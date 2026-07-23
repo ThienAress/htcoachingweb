@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -22,20 +23,21 @@ import {
 import { getMyPlans, getMyPlanDetails, submitFeedback, uploadClientFeedbackVideo } from "../../services/coaching.service";
 import SEO from "../../components/SEO";
 import Header from "../../sections/Header/Header";
+import { resolveMediaUrl } from "../../utils/mediaUrl";
 
-
-// Helper: lấy base URL server (bỏ /api ở cuối) để truy cập static files (/uploads/...)
-const getServerBaseUrl = () => {
-  const apiUrl = import.meta.env.VITE_API_URL || "";
-  return apiUrl.replace(/\/api\/?$/, "");
-};
+const toExerciseFeedback = (exercise) => ({
+  exerciseId: exercise._id,
+  completed: Boolean(exercise.completed),
+  clientFeedbackNote: exercise.clientFeedbackNote || "",
+  clientFeedbackVideo: exercise.clientFeedbackVideo || "",
+});
 
 const OnlineCoaching = () => {
+  const { t, i18n } = useTranslation("coaching");
   // States
   const [plans, setPlans] = useState([]);
   const [activePlan, setActivePlan] = useState(null);
   const [activeExerciseIndex, setActiveExerciseIndex] = useState(0);
-  const [openWeeks, setOpenWeeks] = useState({});
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,12 +49,8 @@ const OnlineCoaching = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Ref debounce auto-save cảm nhận bài tập
-  const feedbackSaveTimer = useRef(null);
-
-  // 1. Fetch all plans
-  useEffect(() => {
-    fetchPlans();
-  }, []);
+  const feedbackSaveTimers = useRef(new Map());
+  const planDetailsRequestRef = useRef(0);
 
   const fetchPlans = async () => {
     setIsLoadingPlans(true);
@@ -63,30 +61,26 @@ const OnlineCoaching = () => {
 
       // Nhóm theo tuần và tự động mở rộng tuần mới nhất
       if (plansData.length > 0) {
-        const grouped = groupPlansByWeek(plansData);
-        const keys = Object.keys(grouped);
-        if (keys.length > 0) {
-          setOpenWeeks({ [keys[0]]: true });
-        }
-
         // Tự động load chi tiết ngày tập đầu tiên (mới nhất)
         loadPlanDetails(plansData[0].dateString);
       } else {
         setIsLoadingPlans(false);
       }
-    } catch (err) {
-      console.error(err);
-      toast.error("Không thể tải danh sách ngày tập");
+    } catch {
+      toast.error(t("coaching.toasts.load_plan_err"));
       setIsLoadingPlans(false);
     }
   };
 
   // 2. Fetch chi tiết ngày tập
   const loadPlanDetails = async (dateString) => {
+    const requestId = ++planDetailsRequestRef.current;
     setIsLoadingDetails(true);
     try {
       const res = await getMyPlanDetails(dateString);
-      const plan = res.data.data;
+      if (requestId !== planDetailsRequestRef.current) return;
+
+      const plan = { ...res.data.data };
       if (plan && plan.exercises) {
         plan.exercises = plan.exercises.map((ex) => ({
           ...ex,
@@ -96,55 +90,39 @@ const OnlineCoaching = () => {
       setActivePlan(plan);
       setActiveExerciseIndex(0);
       setFeedbackText(plan.clientFeedbackText || "");
-    } catch (err) {
-      console.error(err);
-      toast.error("Lỗi lấy chi tiết ngày tập");
+    } catch {
+      if (requestId !== planDetailsRequestRef.current) return;
+      toast.error(t("coaching.toasts.load_detail_err"));
     } finally {
-      setIsLoadingDetails(false);
-      setIsLoadingPlans(false);
+      if (requestId === planDetailsRequestRef.current) {
+        setIsLoadingDetails(false);
+        setIsLoadingPlans(false);
+      }
     }
   };
 
   // Helper chia nhóm ngày tập theo tuần
-  const groupPlansByWeek = (plansList) => {
-    const groups = {};
-    plansList.forEach((plan) => {
-      const date = new Date(plan.date);
-      // Tìm ngày thứ hai đầu tuần
-      const day = date.getDay();
-      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(date.setDate(diff));
-      monday.setHours(0, 0, 0, 0);
+  useEffect(() => {
+    const timers = feedbackSaveTimers.current;
+    fetchPlans();
 
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-
-      const weekKey = `Tuần từ ${monday.toLocaleDateString("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-      })} đến ${sunday.toLocaleDateString("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      })}`;
-
-      if (!groups[weekKey]) {
-        groups[weekKey] = [];
+    return () => {
+      planDetailsRequestRef.current += 1;
+      for (const timer of timers.values()) {
+        clearTimeout(timer);
       }
-      groups[weekKey].push(plan);
-    });
-    return groups;
-  };
+      timers.clear();
+    };
+    // Initial load is intentionally scoped to the mounted page instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const toggleWeek = (weekKey) => {
-    setOpenWeeks((prev) => ({ ...prev, [weekKey]: !prev[weekKey] }));
-  };
 
   // Chuẩn hóa link YouTube
   const getYoutubeEmbedUrl = (url) => {
     if (!url) return "";
     let videoId = "";
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     if (match && match[2].length === 11) {
       videoId = match[2];
@@ -176,7 +154,7 @@ const OnlineCoaching = () => {
       <div className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-950 shadow-2xl aspect-video relative group">
         {videoUrl.startsWith("/uploads/") ? (
           <video
-            src={`${getServerBaseUrl()}${videoUrl}`}
+            src={resolveMediaUrl(videoUrl)}
             controls
             className="w-full h-full object-contain"
             key={videoUrl}
@@ -195,28 +173,39 @@ const OnlineCoaching = () => {
   };
 
   // Click tích hoàn thành bài tập hiện tại
+  // eslint-disable-next-line no-unused-vars
   const handleToggleExerciseCompleted = async (index) => {
     if (!activePlan) return;
-    const updatedExercises = [...activePlan.exercises];
-    updatedExercises[index].completed = !updatedExercises[index].completed;
+    const previousPlan = activePlan;
+    const updatedExercises = activePlan.exercises.map((exercise, exerciseIndex) =>
+      exerciseIndex === index
+        ? { ...exercise, completed: !exercise.completed }
+        : exercise,
+    );
 
     // Cập nhật local state trước để UI mượt
     setActivePlan({ ...activePlan, exercises: updatedExercises });
 
     try {
-      const formData = new FormData();
-      formData.append("exercises", JSON.stringify(updatedExercises));
-      formData.append("clientFeedbackText", feedbackText);
-
-      const res = await submitFeedback(activePlan.dateString, formData);
+      const res = await submitFeedback(activePlan.dateString, {
+        exercises: [toExerciseFeedback(updatedExercises[index])],
+        clientFeedbackText: feedbackText,
+      });
 
       // Update lại danh sách ngày tập để hiển thị checkmark xanh lá
-      const updatedPlans = plans.map((p) =>
-        p.dateString === activePlan.dateString ? { ...p, clientStatus: res.data.data.clientStatus } : p
+      setPlans((currentPlans) =>
+        currentPlans.map((plan) =>
+          plan.dateString === activePlan.dateString
+            ? { ...plan, clientStatus: res.data.data.clientStatus }
+            : plan,
+        ),
       );
-      setPlans(updatedPlans);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setActivePlan((currentPlan) =>
+        currentPlan?.dateString === previousPlan.dateString
+          ? previousPlan
+          : currentPlan,
+      );
       toast.error("Lỗi cập nhật tiến trình bài tập");
     }
   };
@@ -225,10 +214,13 @@ const OnlineCoaching = () => {
   const handleUploadFeedbackVideo = async (index, e) => {
     const file = e.target.files[0];
     if (!file) return;
+    const targetDateString = activePlan?.dateString;
+    const targetExercise = activePlan?.exercises[index];
+    if (!targetDateString || !targetExercise?._id) return;
 
-    // 1. Kiểm tra dung lượng (Max 100MB)
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error("Dung lượng file tối đa là 100MB!");
+    // 1. Kiểm tra dung lượng (Max 25MB)
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dung lượng file tối đa là 25MB!");
       return;
     }
 
@@ -252,40 +244,58 @@ const OnlineCoaching = () => {
       try {
         const formData = new FormData();
         formData.append("video", file);
+        formData.append("dateString", targetDateString);
+        formData.append("exerciseId", targetExercise._id);
 
         const uploadRes = await uploadClientFeedbackVideo(formData);
         const videoUrl = uploadRes.data.url;
 
         // Cập nhật exercises cục bộ
-        const updatedExercises = [...activePlan.exercises];
+        const updatedExercises = activePlan.exercises.map((exercise) => ({
+          ...exercise,
+        }));
         updatedExercises[index].clientFeedbackVideo = videoUrl;
         updatedExercises[index].completed = true; // Tự động hoàn thành bài tập khi tải video lên thành công
 
-        setActivePlan({ ...activePlan, exercises: updatedExercises });
+        setActivePlan((currentPlan) =>
+          currentPlan?.dateString === targetDateString
+            ? {
+                ...currentPlan,
+                clientStatus: uploadRes.data.clientStatus,
+                exercises: currentPlan.exercises.map((exercise) =>
+                  exercise._id === targetExercise._id
+                    ? {
+                        ...exercise,
+                        clientFeedbackVideo: videoUrl,
+                        completed: true,
+                      }
+                    : exercise,
+                ),
+              }
+            : currentPlan,
+        );
 
         // Tự động đồng bộ lưu giáo án lên server tức thời (Autosave)
-        const saveFormData = new FormData();
-        saveFormData.append("exercises", JSON.stringify(updatedExercises));
-        saveFormData.append("clientFeedbackText", feedbackText);
-
-        const res = await submitFeedback(activePlan.dateString, saveFormData);
-
         // Cập nhật trạng thái ngày tập + exercises trong sidebar
-        const updatedPlans = plans.map((p) =>
-          p.dateString === activePlan.dateString
-            ? { ...p, clientStatus: res.data.data.clientStatus, exercises: updatedExercises }
-            : p
+        setPlans((currentPlans) =>
+          currentPlans.map((plan) =>
+            plan.dateString === targetDateString
+              ? { ...plan, clientStatus: uploadRes.data.clientStatus }
+              : plan,
+          ),
         );
-        setPlans(updatedPlans);
 
         toast.success(`Đã lưu video phản hồi bài "${updatedExercises[index].name}"!`);
       } catch (err) {
-        console.error(err);
         const serverMsg = err.response?.data?.message;
         toast.error(serverMsg || "Không thể tải lên video phản hồi, vui lòng thử lại");
       } finally {
         setIsUploadingVideo(false);
       }
+    };
+    videoElement.onerror = () => {
+      window.URL.revokeObjectURL(videoElement.src);
+      toast.error(t("coaching.toasts.upload_failed"));
     };
     videoElement.src = URL.createObjectURL(file);
   };
@@ -293,31 +303,38 @@ const OnlineCoaching = () => {
   // Gỡ bỏ video phản hồi của một bài tập cụ thể
   const handleRemoveExerciseVideo = async (index) => {
     if (!activePlan) return;
+    const previousPlan = activePlan;
 
     try {
-      const updatedExercises = [...activePlan.exercises];
+      const updatedExercises = activePlan.exercises.map((exercise) => ({
+        ...exercise,
+      }));
       updatedExercises[index].clientFeedbackVideo = "";
       updatedExercises[index].completed = false; // Bỏ check hoàn thành
 
       setActivePlan({ ...activePlan, exercises: updatedExercises });
 
       // Đồng bộ lưu lên server
-      const saveFormData = new FormData();
-      saveFormData.append("exercises", JSON.stringify(updatedExercises));
-      saveFormData.append("clientFeedbackText", feedbackText);
+      const res = await submitFeedback(activePlan.dateString, {
+        exercises: [toExerciseFeedback(updatedExercises[index])],
+        clientFeedbackText: feedbackText,
+      });
 
-      const res = await submitFeedback(activePlan.dateString, saveFormData);
-
-      const updatedPlans = plans.map((p) =>
-        p.dateString === activePlan.dateString
-          ? { ...p, clientStatus: res.data.data.clientStatus, exercises: updatedExercises }
-          : p
+      setPlans((currentPlans) =>
+        currentPlans.map((plan) =>
+          plan.dateString === activePlan.dateString
+            ? { ...plan, clientStatus: res.data.data.clientStatus }
+            : plan,
+        ),
       );
-      setPlans(updatedPlans);
 
       toast.info("Đã gỡ bỏ video phản hồi của bài tập");
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setActivePlan((currentPlan) =>
+        currentPlan?.dateString === previousPlan.dateString
+          ? previousPlan
+          : currentPlan,
+      );
       toast.error("Không thể gỡ bỏ video phản hồi, vui lòng thử lại");
     }
   };
@@ -335,20 +352,26 @@ const OnlineCoaching = () => {
 
     setIsSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append("exercises", JSON.stringify(activePlan.exercises));
-      formData.append("clientFeedbackText", feedbackText);
-
-      const res = await submitFeedback(activePlan.dateString, formData);
+      const targetDateString = activePlan.dateString;
+      const res = await submitFeedback(targetDateString, {
+        exercises: activePlan.exercises.map(toExerciseFeedback),
+        clientFeedbackText: feedbackText,
+      });
       toast.success("Tuyệt vời! Gửi báo cáo buổi tập thành công đến Coach!");
 
-      const updatedPlans = plans.map((p) =>
-        p.dateString === activePlan.dateString ? { ...p, clientStatus: res.data.data.clientStatus } : p
+      setPlans((currentPlans) =>
+        currentPlans.map((plan) =>
+          plan.dateString === targetDateString
+            ? { ...plan, clientStatus: res.data.data.clientStatus }
+            : plan,
+        ),
       );
-      setPlans(updatedPlans);
-      setActivePlan({ ...activePlan, clientStatus: res.data.data.clientStatus });
+      setActivePlan((currentPlan) =>
+        currentPlan?.dateString === targetDateString
+          ? { ...currentPlan, clientStatus: res.data.data.clientStatus }
+          : currentPlan,
+      );
     } catch (err) {
-      console.error(err);
       const serverMsg = err.response?.data?.message;
       toast.error(serverMsg || "Gửi phản hồi thất bại, vui lòng thử lại");
     } finally {
@@ -400,11 +423,11 @@ const OnlineCoaching = () => {
     }
   };
 
-  // Format Thứ tiếng Việt
-  const getVietnameseDayName = (dateStr) => {
+  // Format Thứ tiếng Việt / tiếng Anh
+  const getLocalizedDayName = (dateStr) => {
     const date = new Date(dateStr);
     const day = date.getDay();
-    const days = [
+    const daysVi = [
       "Chủ Nhật",
       "Thứ Hai",
       "Thứ Ba",
@@ -413,14 +436,21 @@ const OnlineCoaching = () => {
       "Thứ Sáu",
       "Thứ Bảy",
     ];
-    return days[day];
+    const daysEn = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    return i18n.language === "vi" ? daysVi[day] : daysEn[day];
   };
-
-  const groupedPlans = groupPlansByWeek(plans);
 
   return (
     <>
-      <SEO title="Giáo Án Luyện Tập Cá Nhân - HT Coaching" noindex />
+      <SEO title={t("seo_coaching")} noindex />
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <Header />
 
@@ -428,14 +458,14 @@ const OnlineCoaching = () => {
         {isLoadingPlans ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-gray-400">Đang tải giáo án cá nhân...</p>
+            <p className="text-gray-400">{t("common.loading")}</p>
           </div>
         ) : plans.length === 0 ? (
           <div className="max-w-xl mx-auto mt-20 text-center px-4 bg-gray-900/40 border border-gray-800 rounded-2xl p-8 backdrop-blur-sm">
             <Dumbbell className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
-            <h2 className="text-2xl font-bold uppercase">Hệ Thống Coach Online</h2>
+            <h2 className="text-2xl font-bold uppercase">{t("coaching.title")}</h2>
             <p className="text-gray-400 mt-3 text-sm leading-relaxed">
-              Bạn chưa có giáo án tập luyện online được gán. Vui lòng đăng ký gói tập online và liên hệ Huấn luyện viên của bạn để kích hoạt giáo án luyện tập hàng ngày nhé!
+              {t("coaching.no_plans")}
             </p>
           </div>
         ) : (
@@ -445,15 +475,15 @@ const OnlineCoaching = () => {
               <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
                 <Dumbbell className="text-primary w-6 h-6" />
                 <span className="font-semibold text-primary tracking-wide">
-                  HỆ THỐNG COACH ONLINE
+                  {t("coaching.title")}
                 </span>
               </div>
               <h1 className="font-display text-fluid-5xl font-black uppercase text-white tracking-normal">
-                GIÁO ÁN <span className="text-primary">LUYỆN TẬP CÁ NHÂN</span>
+                {t("coaching.title_part1")} <span className="text-primary">{t("coaching.title_part2")}</span>
               </h1>
               <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
               <p className="text-gray-400 mt-4 max-w-xl mx-auto text-sm leading-relaxed">
-                Chương trình tập luyện được thiết kế riêng bởi Coach của bạn
+                {t("coaching.subtitle")}
               </p>
             </div>
 
@@ -470,8 +500,8 @@ const OnlineCoaching = () => {
                         <div className="flex items-center gap-2 text-primary font-semibold text-xs tracking-wider uppercase mb-1">
                           <Calendar className="w-3.5 h-3.5" />
                           <span>
-                            {getVietnameseDayName(activePlan.dateString)},{" "}
-                            {new Date(activePlan.date).toLocaleDateString("vi-VN")}
+                            {getLocalizedDayName(activePlan.dateString)},{" "}
+                            {new Date(activePlan.date).toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US")}
                           </span>
                         </div>
                         <h2 className="text-2xl font-black uppercase text-white tracking-normal">
@@ -480,9 +510,9 @@ const OnlineCoaching = () => {
                         <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
                           <User className="w-3 h-3 text-primary" />
                           <span>
-                            Cập nhật bởi Coach:{" "}
+                            {t("coaching.updated_by_coach")}{" "}
                             <strong className="text-white">
-                              {activePlan.trainerId?.name || "Huấn luyện viên"}
+                              {activePlan.trainerId?.name || t("plans.trainer")}
                             </strong>
                           </span>
                         </p>
@@ -495,7 +525,7 @@ const OnlineCoaching = () => {
                           : "bg-amber-500/20 text-amber-400 border-amber-500/30"
                           }`}
                       >
-                        {activePlan.clientStatus === "completed" ? "Đã tập xong" : "Chưa hoàn thành"}
+                        {activePlan.clientStatus === "completed" ? t("coaching.status_completed") : t("coaching.status_incomplete")}
                       </span>
                     </div>
 
@@ -505,7 +535,7 @@ const OnlineCoaching = () => {
                         <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                         <div>
                           <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wide">
-                            Ghi chú dặn dò của Coach:
+                            {t("plans.coach_notes")}:
                           </h4>
                           <p className="text-sm text-gray-300 mt-1 leading-relaxed">
                             {activePlan.note}
@@ -523,13 +553,13 @@ const OnlineCoaching = () => {
                     {/* A. Cụm chữ: Tên bài và sets/reps/nghỉ */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-850 pb-3">
                       <div>
-                        <span className="text-[10px] text-primary font-bold uppercase tracking-wider">Bài đang tập</span>
+                        <span className="text-[10px] text-primary font-bold uppercase tracking-wider">{t("coaching.current_exercise")}</span>
                         <h3 className="font-extrabold text-white text-fluid-base uppercase mt-0.5">
                           {activeExerciseIndex + 1}. {activePlan.exercises[activeExerciseIndex].name}
                         </h3>
                       </div>
                       <div className="text-xs text-gray-400 font-medium bg-gray-950/60 border border-gray-850 px-3 py-1.5 rounded-full shrink-0">
-                        {activePlan.exercises[activeExerciseIndex].sets} sets × {activePlan.exercises[activeExerciseIndex].reps} reps | Nghỉ: {activePlan.exercises[activeExerciseIndex].weight || "60s"}
+                        {activePlan.exercises[activeExerciseIndex].sets} {t("coaching.sets")} × {activePlan.exercises[activeExerciseIndex].reps} {t("coaching.reps")} | {t("coaching.rest")}: {activePlan.exercises[activeExerciseIndex].weight || "60s"}
                       </div>
                     </div>
 
@@ -537,25 +567,25 @@ const OnlineCoaching = () => {
                     <div className="space-y-3">
                       <span className="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
                         <Play className="w-3.5 h-3.5 text-primary" />
-                        Video hướng dẫn thực hiện động tác từ Coach
+                        {t("coaching.video_guideline")}
                       </span>
                       {isLoadingDetails ? (
                         <div className="aspect-video w-full bg-gray-900 rounded-2xl animate-pulse flex items-center justify-center">
-                          <p className="text-gray-500">Đang tải video hướng dẫn...</p>
+                          <p className="text-gray-500">{t("coaching.loading_guideline")}</p>
                         </div>
                       ) : getActiveVideoUrl() ? (
                         <div className="space-y-4">
                           {/* Video 1 */}
                           <div>
                             {getActiveVideoUrl2() && (
-                              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">Video hướng dẫn 1</span>
+                              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">{t("coaching.video_1")}</span>
                             )}
                             {renderVideoPlayer(getActiveVideoUrl(), activePlan?.title || "Coaching Video")}
                           </div>
                           {/* Video 2 (nếu có) */}
                           {getActiveVideoUrl2() && (
                             <div>
-                              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">Video hướng dẫn 2</span>
+                              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">{t("coaching.video_2")}</span>
                               {renderVideoPlayer(getActiveVideoUrl2(), `${activePlan?.title} - Video 2`)}
                             </div>
                           )}
@@ -563,7 +593,7 @@ const OnlineCoaching = () => {
                       ) : (
                         <div className="aspect-video w-full bg-gray-900/60 rounded-2xl border border-gray-800 border-dashed flex flex-col items-center justify-center gap-3 text-gray-500">
                           <Video className="w-12 h-12" />
-                          <p className="text-sm">Không có video hướng dẫn cụ thể</p>
+                          <p className="text-sm">{t("coaching.no_video")}</p>
                         </div>
                       )}
                     </div>
@@ -573,16 +603,16 @@ const OnlineCoaching = () => {
                       <div className="flex items-center justify-between text-xs text-gray-400 font-semibold uppercase tracking-wide">
                         <span className="flex items-center gap-1.5">
                           <UploadCloud className="w-4 h-4 text-primary" />
-                          Video kỹ thuật thực hiện bài tập này (Bắt buộc)
+                          {t("coaching.video_technical")}
                         </span>
-                        <span className="text-[10px] text-gray-500 normal-case font-medium">15s - 20s | Dung lượng &lt; 100MB</span>
+                        <span className="text-[10px] text-gray-500 normal-case font-medium">{t("coaching.video_technical_hint")}</span>
                       </div>
 
                       {activePlan.exercises[activeExerciseIndex].clientFeedbackVideo ? (
                         <div className="space-y-3">
                           <div className="rounded-xl overflow-hidden border border-gray-800 bg-black aspect-video max-w-sm mx-auto shadow-2xl relative">
                             <video
-                              src={`${getServerBaseUrl()}${activePlan.exercises[activeExerciseIndex].clientFeedbackVideo}`}
+                              src={resolveMediaUrl(activePlan.exercises[activeExerciseIndex].clientFeedbackVideo)}
                               controls
                               className="w-full h-full object-contain"
                             ></video>
@@ -590,7 +620,7 @@ const OnlineCoaching = () => {
                               type="button"
                               onClick={() => handleRemoveExerciseVideo(activeExerciseIndex)}
                               className="absolute top-3 right-3 bg-red-500/80 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition duration-200 cursor-pointer"
-                              title="Gỡ bỏ video"
+                              title={t("coaching.remove_video")}
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
@@ -604,10 +634,10 @@ const OnlineCoaching = () => {
                             <UploadCloud className="w-10 h-10 text-gray-500 group-hover:text-primary transition-colors animate-pulse mb-2" />
                           )}
                           <span className="text-fluid-xs font-semibold text-gray-300 mt-1">
-                            {isUploadingVideo ? "Đang tải video lên..." : "Tải lên video thực hiện động tác"}
+                            {isUploadingVideo ? t("coaching.toasts.submitting") : t("coaching.upload_technical_video")}
                           </span>
                           <span className="text-[10px] text-gray-500 mt-1 text-center">
-                            Bấm để chọn video quay động tác của bạn (mp4, mov, avi...)
+                            {t("coaching.upload_technical_hint")}
                           </span>
                           <input
                             type="file"
@@ -624,31 +654,48 @@ const OnlineCoaching = () => {
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
                         <MessageSquare className="w-3.5 h-3.5 text-primary" />
-                        Cảm nhận bài tập này
+                        {t("coaching.feelings_for_exercise")}
                       </label>
                       <textarea
                         rows={2}
                         value={activePlan.exercises[activeExerciseIndex].clientFeedbackNote || ""}
                         onChange={(e) => {
-                          const updatedExercises = [...activePlan.exercises];
-                          updatedExercises[activeExerciseIndex].clientFeedbackNote = e.target.value;
+                          const targetExerciseId =
+                            activePlan.exercises[activeExerciseIndex]._id;
+                          const updatedExercises = activePlan.exercises.map(
+                            (exercise) =>
+                              exercise._id === targetExerciseId
+                                ? {
+                                    ...exercise,
+                                    clientFeedbackNote: e.target.value,
+                                  }
+                                : exercise,
+                          );
                           const updatedPlan = { ...activePlan, exercises: updatedExercises };
+                          const updatedExercise = updatedExercises.find(
+                            (exercise) => exercise._id === targetExerciseId,
+                          );
                           setActivePlan(updatedPlan);
 
                           // Auto-save debounce 1s
-                          if (feedbackSaveTimer.current) clearTimeout(feedbackSaveTimer.current);
-                          feedbackSaveTimer.current = setTimeout(async () => {
+                          const saveKey = `${updatedPlan.dateString}:${targetExerciseId}`;
+                          const pendingTimer = feedbackSaveTimers.current.get(saveKey);
+                          if (pendingTimer) clearTimeout(pendingTimer);
+                          const timer = setTimeout(async () => {
                             try {
-                              const formData = new FormData();
-                              formData.append("exercises", JSON.stringify(updatedExercises));
-                              formData.append("clientFeedbackText", feedbackText);
-                              await submitFeedback(updatedPlan.dateString, formData);
-                            } catch (err) {
-                              console.error("Auto-save cảm nhận thất bại:", err);
+                              await submitFeedback(updatedPlan.dateString, {
+                                exercises: [toExerciseFeedback(updatedExercise)],
+                              });
+                            } catch {
+                              // Auto-save will retry on the next edit.
+                            } finally {
+                              feedbackSaveTimers.current.delete(saveKey);
                             }
                           }, 1000);
+                          feedbackSaveTimers.current.set(saveKey, timer);
                         }}
-                        placeholder="Bài này bạn tập thấy thế nào? Có khó khăn gì không..."
+                        maxLength={2000}
+                        placeholder={t("coaching.feelings_placeholder")}
                         className="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm placeholder-gray-600 transition resize-none"
                       ></textarea>
                     </div>
@@ -669,12 +716,12 @@ const OnlineCoaching = () => {
                         className="px-6 py-2.5 rounded-lg font-bold text-white bg-linear-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-300 shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
                       >
                         {alreadySubmitted
-                          ? "Đã nộp báo cáo ✓"
+                          ? `${t("coaching.report_submitted")} ✓`
                           : isSubmitting
-                            ? "Đang gửi báo cáo..."
+                            ? t("coaching.sending_report")
                             : allVideosUploaded
-                              ? "Nộp báo cáo & Hoàn thành"
-                              : `Còn ${activePlan.exercises.filter((ex) => !ex.clientFeedbackVideo).length} bài chưa upload video`}
+                              ? t("coaching.submit_report_and_complete")
+                              : t("coaching.remaining_videos", { count: activePlan.exercises.filter((ex) => !ex.clientFeedbackVideo).length })}
                       </button>
                     </div>
                   );
@@ -686,16 +733,16 @@ const OnlineCoaching = () => {
                 <div className="border-b border-gray-800 pb-3">
                   <h3 className="font-bold text-white uppercase tracking-wider text-sm flex items-center gap-2">
                     <FileText className="w-4 h-4 text-primary" />
-                    Lịch sử giáo án
+                    {t("coaching.plan_history")}
                   </h3>
                 </div>
 
                 <div className="space-y-3 max-h-[80vh] overflow-y-auto pr-1">
                   {plans.map((plan) => {
                     const isActive = activePlan?.dateString === plan.dateString;
-                    const isCompleted = plan.clientStatus === "completed";
+                    const _isCompleted = plan.clientStatus === "completed";
                     const isExpanded = !!expandedPlans[plan.dateString];
-                    const dateFormatted = new Date(plan.date).toLocaleDateString("vi-VN", {
+                    const dateFormatted = new Date(plan.date).toLocaleDateString(i18n.language === "vi" ? "vi-VN" : "en-US", {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",
@@ -731,7 +778,7 @@ const OnlineCoaching = () => {
                                 ? "text-primary font-black text-sm"
                                 : "text-gray-200 font-bold text-xs"
                             }`}>
-                              {getVietnameseDayName(plan.dateString).toUpperCase()}: {plan.title}
+                               {getLocalizedDayName(plan.dateString).toUpperCase()}: {plan.title}
                             </span>
                           </div>
 
@@ -803,16 +850,16 @@ const OnlineCoaching = () => {
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowConfirmModal(false)}>
           <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-md w-full mx-4 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-white">Xác nhận nộp báo cáo</h3>
+            <h3 className="text-lg font-bold text-white">{t("coaching.confirm_modal.title")}</h3>
             <p className="text-sm text-gray-400 leading-relaxed">
-              Bạn có chắc chắn muốn nộp báo cáo buổi tập này cho Coach không? Nếu cần chỉnh sửa thêm, bạn có thể bấm Hủy để quay lại.
+              {t("coaching.confirm_modal.desc")}
             </p>
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={() => setShowConfirmModal(false)}
                 className="px-5 py-2.5 rounded-xl font-bold text-gray-300 bg-gray-800 border border-gray-700 hover:bg-gray-700 transition-all duration-200 cursor-pointer text-sm"
               >
-                Hủy
+                {t("coaching.confirm_modal.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -822,7 +869,7 @@ const OnlineCoaching = () => {
                 disabled={isSubmitting}
                 className="px-5 py-2.5 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary transition-all duration-200 shadow-lg shadow-primary/20 cursor-pointer text-sm disabled:opacity-60"
               >
-                {isSubmitting ? "Đang gửi..." : "Xác nhận nộp"}
+                {isSubmitting ? t("coaching.confirm_modal.submitting") : t("coaching.confirm_modal.confirm")}
               </button>
             </div>
           </div>
@@ -839,22 +886,22 @@ const OnlineCoaching = () => {
               disabled={activeExerciseIndex === 0}
               className="px-4 py-2 text-xs font-bold rounded-full bg-gray-850 hover:bg-gray-800 text-white border border-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition flex items-center gap-1 cursor-pointer"
             >
-              &lt; BÀI TRƯỚC
+              {t("coaching.footer.prev_exercise")}
             </button>
             <button
               onClick={handleNextExercise}
               disabled={activeExerciseIndex === activePlan.exercises.length - 1}
               className="px-4 py-2 text-xs font-bold rounded-full bg-primary hover:bg-primary-dark text-white shadow-lg shadow-primary/20 transition flex items-center gap-1 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              BÀI KẾ TIẾP &gt;
+              {t("coaching.footer.next_exercise")}
             </button>
           </div>
 
           {/* Right: Active lesson details */}
           <div className="absolute right-4 text-right text-xs shrink-0">
-            <span className="text-gray-400 hidden sm:inline">Đang tập: </span>
+            <span className="text-gray-400 hidden sm:inline">{t("coaching.footer.active_label")}</span>
             <span className="text-primary font-bold">
-              Bài {activeExerciseIndex + 1}/{activePlan.exercises.length}:{" "}
+              {t("coaching.footer.active_no")} {activeExerciseIndex + 1}/{activePlan.exercises.length}:{" "}
             </span>
             <span className="text-white font-semibold">
               {activePlan.exercises[activeExerciseIndex]?.name || "N/A"}

@@ -1,4 +1,5 @@
 import express from "express";
+import { safeLog } from "../utils/safeLogger.js";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 
@@ -36,7 +37,7 @@ router.get("/me", protect, async (req, res) => {
 
     res.json(user);
   } catch (err) {
-    console.error("getMe error:", err.message);
+    safeLog.error("user_route.me_failed", err);
     res.status(500).json({ message: "Lỗi lấy thông tin cá nhân" });
   }
 });
@@ -65,7 +66,7 @@ router.put("/me/profile", protect, csrfProtection, async (req, res) => {
 
     res.json({ success: true, message: "Cập nhật thông tin thành công", user: updatedUser });
   } catch (err) {
-    console.error("updateProfile error:", err.message);
+    safeLog.error("user_route.profile_update_failed", err);
     res.status(500).json({ success: false, message: "Lỗi cập nhật thông tin cá nhân" });
   }
 });
@@ -93,7 +94,7 @@ router.put("/me/avatar", protect, csrfProtection, uploadAvatar.single("avatar"),
 
     res.json({ success: true, message: "Cập nhật ảnh đại diện thành công", avatar: result.url, user: updatedUser });
   } catch (err) {
-    console.error("updateAvatar error:", err.message);
+    safeLog.error("user_route.avatar_update_failed", err);
     res.status(500).json({ success: false, message: "Lỗi cập nhật ảnh đại diện" });
   }
 });
@@ -123,7 +124,7 @@ router.get("/me/orders", protect, async (req, res) => {
       clientOrders,
     });
   } catch (err) {
-    console.error(err);
+    safeLog.error("user_route.password_update_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy danh sách đơn hàng" });
   }
 });
@@ -139,7 +140,7 @@ router.get("/me/transactions", protect, async (req, res) => {
       transactions,
     });
   } catch (err) {
-    console.error(err);
+    safeLog.error("user_route.account_action_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy lịch sử giao dịch" });
   }
 });

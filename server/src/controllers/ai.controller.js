@@ -1,3 +1,5 @@
+import crypto from "crypto";
+import mongoose from "mongoose";
 import ChatConversation from "../models/ChatConversation.js";
 import KnowledgeEntry from "../models/KnowledgeEntry.js";
 import User from "../models/User.js";
@@ -8,21 +10,185 @@ import { buildSystemPrompt } from "../services/ai/systemPrompt.js";
 import { isUserLocked, moderateContent } from "../services/ai/contentModeration.js";
 import { searchKnowledgeBase } from "../services/ai/embedding.service.js";
 import { aiLogger } from "../services/ai/aiLogger.js";
+import { enrichContextWithDbData } from "../services/ai/contextEnricher.js";
+import {
+  buildChatSummary,
+  MAX_RECENT_REQUEST_IDS,
+  MAX_STORED_CHAT_MESSAGES,
+  parseChatRequest,
+} from "../utils/aiChat.js";
+import { incrementMetric } from "../observability/metrics.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 const MAX_ITERATIONS = 5;
 const MAX_HISTORY_MESSAGES = 20;
+const STREAM_STALE_MS = 10 * 60 * 1000;
+const CONVERSATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+const httpError = (status, message) => Object.assign(new Error(message), { status });
+
+const contextUpdate = (context) => {
+  const update = {};
+  for (const key of ["page", "pageType", "pageTitle", "lastPage", "userMetrics"]) {
+    if (context[key] !== "" && context[key] !== null && context[key] !== undefined) {
+      update[`context.${key}`] = context[key];
+    }
+  }
+  return update;
+};
+
+async function acquireConversation({
+  userId,
+  conversationId,
+  requestId,
+  message,
+  image,
+  context,
+  streamId,
+}) {
+  const duplicate = await ChatConversation.findOne({
+    userId,
+    recentRequestIds: requestId,
+  }).select("_id");
+  if (duplicate) return { conversation: duplicate, duplicate: true };
+
+  const timestamp = new Date();
+  const summary = buildChatSummary(message, timestamp);
+  const userMessage = {
+    role: "user",
+    content: message,
+    image,
+    timestamp,
+  };
+
+  if (!conversationId) {
+    try {
+      const conversation = await ChatConversation.create({
+        userId,
+        title: message.slice(0, 60),
+        messages: [userMessage],
+        messageCount: 1,
+        ...summary,
+        recentRequestIds: [requestId],
+        activeStreamId: streamId,
+        activeStreamStartedAt: timestamp,
+        context,
+        expiresAt: new Date(Date.now() + CONVERSATION_TTL_MS),
+      });
+      return { conversation, duplicate: false };
+    } catch (error) {
+      if (error?.code !== 11000) throw error;
+      const winner = await ChatConversation.findOne({
+        userId,
+        recentRequestIds: requestId,
+      });
+      if (winner) return { conversation: winner, duplicate: true };
+      throw error;
+    }
+  }
+
+  const staleBefore = new Date(Date.now() - STREAM_STALE_MS);
+  const conversation = await ChatConversation.findOneAndUpdate(
+    {
+      _id: conversationId,
+      userId,
+      recentRequestIds: { $ne: requestId },
+      $or: [
+        { activeStreamId: null },
+        { activeStreamId: { $exists: false } },
+        { activeStreamStartedAt: { $lt: staleBefore } },
+      ],
+    },
+    {
+      $set: {
+        activeStreamId: streamId,
+        activeStreamStartedAt: timestamp,
+        expiresAt: new Date(Date.now() + CONVERSATION_TTL_MS),
+        ...summary,
+        ...contextUpdate(context),
+      },
+      $inc: { messageCount: 1 },
+      $push: {
+        messages: {
+          $each: [userMessage],
+          $slice: -MAX_STORED_CHAT_MESSAGES,
+        },
+        recentRequestIds: {
+          $each: [requestId],
+          $slice: -MAX_RECENT_REQUEST_IDS,
+        },
+      },
+    },
+    { returnDocument: "after", runValidators: true },
+  ).select("+activeStreamId +recentRequestIds");
+
+  if (conversation) return { conversation, duplicate: false };
+
+  const existing = await ChatConversation.findOne({
+    _id: conversationId,
+    userId,
+  })
+    .select("_id activeStreamId recentRequestIds")
+    .lean();
+  if (!existing) throw httpError(404, "Không tìm thấy cuộc trò chuyện");
+  if (existing.recentRequestIds?.includes(requestId)) {
+    return { conversation: existing, duplicate: true };
+  }
+  throw httpError(409, "Cuộc trò chuyện đang xử lý một tin nhắn khác");
+}
+
+async function finalizeConversation({
+  conversationId,
+  userId,
+  streamId,
+  generatedMessages,
+  assistantPreview,
+}) {
+  const update = {
+    $set: {
+      activeStreamId: null,
+      activeStreamStartedAt: null,
+      expiresAt: new Date(Date.now() + CONVERSATION_TTL_MS),
+    },
+  };
+
+  if (generatedMessages.length > 0) {
+    update.$push = {
+      messages: {
+        $each: generatedMessages,
+        $slice: -MAX_STORED_CHAT_MESSAGES,
+      },
+    };
+    update.$inc = {
+      messageCount: generatedMessages.filter(
+        (item) => item.role === "assistant",
+      ).length,
+    };
+  }
+  if (assistantPreview) {
+    Object.assign(update.$set, buildChatSummary(assistantPreview));
+  }
+
+  return ChatConversation.updateOne(
+    { _id: conversationId, userId, activeStreamId: streamId },
+    update,
+    { runValidators: true },
+  );
+}
 
 // POST /api/ai/chat — SSE streaming chat với Agent Loop
 export const chatStream = async (req, res) => {
-  const { message, conversationId, context } = req.body;
   const userId = req.user.id;
+  const parsed = parseChatRequest(req.body);
 
-  if (!message || !message.trim()) {
-    return res.status(400).json({ success: false, message: "Tin nhắn không được để trống" });
+  if (parsed.error) {
+    return res.status(400).json({ success: false, message: parsed.error });
   }
+  const { message, conversationId, context, image, requestId } = parsed.value;
+  const streamId = crypto.randomUUID();
 
-  // Load user info sớm để check ban và dùng cho system prompt
   let user;
+  let conversation;
   try {
     user = await User.findById(userId).select("name isAiChatBanned").lean();
     if (user?.isAiChatBanned) {
@@ -32,75 +198,97 @@ export const chatStream = async (req, res) => {
         message: "🚫 Tài khoản của bạn đã bị cấm sử dụng Chat AI vĩnh viễn do vi phạm quy tắc cộng đồng nhiều lần.",
       });
     }
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống khi kiểm tra người dùng" });
-  }
+    const lockStatus = await isUserLocked(userId);
+    if (lockStatus.blocked) {
+      aiLogger.userLocked(userId, lockStatus.remainingMinutes);
+      return res.status(403).json({
+        success: false,
+        message: `🚫 Chat AI đang bị khóa tạm thời. Còn ${lockStatus.remainingMinutes} phút.`,
+      });
+    }
 
-  // Kiểm tra user bị khóa tạm thời (1h)
-  const lockStatus = isUserLocked(userId);
-  if (lockStatus.blocked) {
-    aiLogger.userLocked(userId, lockStatus.remainingMinutes);
-    return res.status(403).json({
+    const moderation = await moderateContent(userId, message);
+    if (!moderation.safe) {
+      aiLogger.moderationTrigger(userId, moderation.action || "blocked");
+      return res.status(400).json({ success: false, message: moderation.message });
+    }
+
+    const acquired = await acquireConversation({
+      userId,
+      conversationId,
+      requestId,
+      message,
+      image,
+      context,
+      streamId,
+    });
+    conversation = acquired.conversation;
+
+    if (acquired.duplicate) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders();
+      res.write(
+        `data: ${JSON.stringify({
+          type: "done",
+          conversationId: conversation._id,
+          duplicate: true,
+        })}\n\n`,
+      );
+      return res.end();
+    }
+  } catch (error) {
+    aiLogger.chatError(userId, error, "chatPreflight");
+    return res.status(error.status || 500).json({
       success: false,
-      message: `🚫 Chat AI đang bị khóa tạm thời. Còn ${lockStatus.remainingMinutes} phút.`,
+      message: error.status
+        ? error.message
+        : "Lỗi hệ thống khi chuẩn bị cuộc trò chuyện",
     });
   }
 
-  // Kiểm tra nội dung tin nhắn hiện tại
-  const moderation = await moderateContent(userId, message);
-  if (!moderation.safe) {
-    aiLogger.moderationTrigger(userId, moderation.action || "blocked");
-    return res.status(400).json({ success: false, message: moderation.message });
-  }
-
-  // Setup SSE headers
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  let isAborted = false;
-  req.on("close", () => {
-    isAborted = true;
+  const abortController = new AbortController();
+  res.on("close", () => {
+    if (!res.writableEnded && !abortController.signal.aborted) {
+      incrementMetric("ai.aborts");
+    }
+    abortController.abort();
   });
 
+  const generatedMessages = [];
+  let finalized = false;
+  let fullResponse = "";
   try {
     const chatStartTime = Date.now();
     let toolCallCount = 0;
+    res.write(
+      `data: ${JSON.stringify({
+        type: "conversation",
+        conversationId: conversation._id,
+      })}\n\n`,
+    );
 
-    // Load hoặc tạo conversation
-    let conversation;
-    if (conversationId) {
-      conversation = await ChatConversation.findOne({ _id: conversationId, userId });
+    // Enrich Context from DB
+    let pageData = null;
+    let pageType = null;
+    if (conversation.context?.page) {
+      pageType = conversation.context.pageType || 'general';
+      pageData = await enrichContextWithDbData(conversation.context);
     }
-    if (!conversation) {
-      conversation = new ChatConversation({ userId, context: context || {} });
-    }
-
-    // Update context
-    if (context) {
-      const existing = conversation.context?.toObject?.() || conversation.context || {};
-      conversation.context = { ...existing, ...context };
-    }
-
-    // Auto-set title từ tin nhắn đầu tiên của user
-    if (!conversation.title && message) {
-      conversation.title = message.trim().slice(0, 60);
-    }
-
-    // Thêm user message (kèm ảnh nếu có)
-    conversation.messages.push({
-      role: "user",
-      content: message.trim(),
-      image: context?.image || null,
-      timestamp: new Date(),
-    });
 
     // Build system prompt với context
     let systemPrompt = buildSystemPrompt({
       userName: user?.name,
-      currentPage: conversation.context?.lastPage,
+      currentPage: conversation.context?.page || conversation.context?.lastPage,
+      pageType,
+      pageData,
       userMetrics: conversation.context?.userMetrics,
     });
 
@@ -124,7 +312,7 @@ export const chatStream = async (req, res) => {
       }
     } catch (err) {
       // KB search lỗi không ảnh hưởng chat flow chính
-      console.error("KB search error (non-blocking):", err.message);
+      safeLog.error("ai.kb_search_non_blocking_failed", err);
     }
 
     const llmMessages = [
@@ -147,7 +335,6 @@ export const chatStream = async (req, res) => {
     ];
 
     const tools = getToolSchemas();
-    let fullResponse = "";
     let lastToolResultText = ""; // Backup: dùng khi Gemini im luôn sau tool call
 
     // === AGENT LOOP (Pattern từ Dify fc_agent_runner.py) ===
@@ -155,19 +342,28 @@ export const chatStream = async (req, res) => {
     let needsToolCall = true;
     aiLogger.chatStart(userId, conversation._id);
 
-    while (needsToolCall && iteration < MAX_ITERATIONS && !isAborted) {
+    while (
+      needsToolCall &&
+      iteration < MAX_ITERATIONS &&
+      !abortController.signal.aborted
+    ) {
       needsToolCall = false;
       iteration++;
 
-      for await (const chunk of llmStream(llmMessages, tools)) {
-        if (isAborted) break;
+      for await (const chunk of llmStream(llmMessages, tools, {
+        signal: abortController.signal,
+      })) {
+        if (abortController.signal.aborted) break;
         switch (chunk.type) {
           case "text":
             // Lọc error text từ Gemini (trả 200 nhưng body chứa lỗi kỹ thuật)
             if (chunk.content.includes("thought_signature") || 
                 chunk.content.includes("Lỗi AI") ||
                 chunk.content.startsWith("⚠️ Lỗi")) {
-              console.error("[AI] Filtered error text from LLM:", chunk.content.substring(0, 100));
+              safeLog.warn(
+                "ai.filtered_provider_error_text",
+                "Provider emitted technical error text",
+              );
               break;
             }
             fullResponse += chunk.content;
@@ -188,12 +384,13 @@ export const chatStream = async (req, res) => {
               // Thực thi tool
               const toolStartTime = Date.now();
               const toolResult = await executeTool(call.name, call.args, { userId });
+              const safeToolText = String(toolResult.text || "").slice(0, 20000);
               const toolDuration = Date.now() - toolStartTime;
               toolCallCount++;
               aiLogger.toolCall(userId, call.name, toolDuration, !toolResult.error);
 
               // Gửi tool_result cho FE
-              res.write(`data: ${JSON.stringify({ type: "tool_result", tool: call.name, text: toolResult.text })}\n\n`);
+              res.write(`data: ${JSON.stringify({ type: "tool_result", tool: call.name, text: safeToolText })}\n\n`);
 
               // Nếu có UI card → gửi cho FE render
               if (toolResult.uiCard) {
@@ -208,19 +405,19 @@ export const chatStream = async (req, res) => {
                 tool_calls: [call],
                 _thoughtParts: chunk.thoughtParts || [],
               });
-              llmMessages.push({ role: "tool", content: toolResult.text, name: call.name });
-              lastToolResultText = toolResult.text; // Lưu backup
+              llmMessages.push({ role: "tool", content: safeToolText, name: call.name });
+              lastToolResultText = safeToolText; // Lưu backup
 
               // Lưu tool call vào conversation
-              conversation.messages.push({
+              generatedMessages.push({
                 role: "assistant",
                 content: "",
                 toolCalls: [call],
                 timestamp: new Date(),
               });
-              conversation.messages.push({
+              generatedMessages.push({
                 role: "tool",
-                content: toolResult.text,
+                content: safeToolText,
                 toolName: call.name,
                 toolCallId: call.id,
                 uiCard: toolResult.uiCard,
@@ -236,36 +433,45 @@ export const chatStream = async (req, res) => {
       }
     }
 
-    if (isAborted) {
-      res.end();
-      return;
-    }
-
     // Lưu final response
     // Fallback: nếu Gemini không trả text sau tool call → dùng tool result text
-    if (!fullResponse && toolCallCount > 0 && lastToolResultText) {
-      console.error("[AI] Gemini silent after tool call — using tool result as fallback");
+    if (
+      !abortController.signal.aborted &&
+      !fullResponse &&
+      toolCallCount > 0 &&
+      lastToolResultText
+    ) {
+      safeLog.warn(
+        "ai.tool_result_fallback",
+        "Provider returned no text after tool call",
+      );
       fullResponse = lastToolResultText;
       res.write(`data: ${JSON.stringify({ type: "text", content: fullResponse })}\n\n`);
     }
     if (fullResponse) {
-      conversation.messages.push({
+      fullResponse = fullResponse.slice(0, 20000);
+      generatedMessages.push({
         role: "assistant",
         content: fullResponse,
         timestamp: new Date(),
       });
     }
 
-    // Reset TTL 30 ngày
-    conversation.expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    await conversation.save();
+    await finalizeConversation({
+      conversationId: conversation._id,
+      userId,
+      streamId,
+      generatedMessages,
+      assistantPreview: fullResponse,
+    });
+    finalized = true;
 
     // Tăng usageCount cho KB entries đã dùng (non-blocking)
     if (kbEntryIds.length > 0) {
       KnowledgeEntry.updateMany(
         { _id: { $in: kbEntryIds } },
         { $inc: { usageCount: 1 }, $set: { lastUsedAt: new Date() } }
-      ).catch((err) => console.error("KB usage update error:", err.message));
+      ).catch((err) => safeLog.error("ai.kb_usage_update_failed", err));
     }
 
     // Done event
@@ -275,12 +481,37 @@ export const chatStream = async (req, res) => {
       durationMs: Date.now() - chatStartTime,
       kbHits: kbEntryIds.length,
     });
-    res.write(`data: ${JSON.stringify({ type: "done", conversationId: conversation._id })}\n\n`);
-    res.end();
+    if (!abortController.signal.aborted) {
+      res.write(`data: ${JSON.stringify({ type: "done", conversationId: conversation._id })}\n\n`);
+      res.end();
+    }
   } catch (err) {
     aiLogger.chatError(userId, err, "chatStream");
-    res.write(`data: ${JSON.stringify({ type: "error", message: "Có lỗi xảy ra, vui lòng thử lại" })}\n\n`);
-    res.end();
+    if (!abortController.signal.aborted && !res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ type: "error", message: "Có lỗi xảy ra, vui lòng thử lại" })}\n\n`);
+      res.end();
+    }
+  } finally {
+    if (!finalized) {
+      if (fullResponse && !generatedMessages.some((item) => item.content === fullResponse)) {
+        generatedMessages.push({
+          role: "assistant",
+          content: fullResponse.slice(0, 20000),
+          timestamp: new Date(),
+        });
+      }
+      try {
+        await finalizeConversation({
+          conversationId: conversation._id,
+          userId,
+          streamId,
+          generatedMessages,
+          assistantPreview: fullResponse,
+        });
+      } catch (error) {
+        aiLogger.chatError(userId, error, "chatFinalize");
+      }
+    }
   }
 };
 
@@ -290,17 +521,15 @@ export const getConversations = async (req, res) => {
     const conversations = await ChatConversation.find({ userId: req.user.id })
       .sort({ updatedAt: -1 })
       .limit(30)
-      .select("_id title updatedAt messages")
+      .select("_id title updatedAt lastMessageAt lastMessagePreview messageCount")
       .lean();
 
     const list = conversations.map((c) => ({
       _id: c._id,
       title: c.title || "Cuộc trò chuyện",
       updatedAt: c.updatedAt,
-      preview: c.messages
-        .filter((m) => m.role === "user")
-        .slice(-1)[0]?.content?.slice(0, 80) || "",
-      messageCount: c.messages.filter((m) => m.role === "user" || m.role === "assistant").length,
+      preview: c.lastMessagePreview || "",
+      messageCount: c.messageCount || 0,
     }));
 
     res.json({ success: true, data: list });
@@ -312,6 +541,9 @@ export const getConversations = async (req, res) => {
 // GET /api/ai/conversations/:id — Load 1 conversation cụ thể
 export const getConversationById = async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Mã cuộc trò chuyện không hợp lệ" });
+    }
     const conversation = await ChatConversation.findOne({
       _id: req.params.id,
       userId: req.user.id,
@@ -331,25 +563,121 @@ export const getConversationById = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: "Không thể tải cuộc trò chuyện" });
   }
 };
 
 // DELETE /api/ai/conversations/:id — Xóa 1 conversation cụ thể
 export const deleteConversation = async (req, res) => {
   try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Mã cuộc trò chuyện không hợp lệ" });
+    }
     const result = await ChatConversation.deleteOne({
       _id: req.params.id,
       userId: req.user.id,
+      $or: [{ activeStreamId: null }, { activeStreamId: { $exists: false } }],
     });
 
     if (result.deletedCount === 0) {
+      const exists = await ChatConversation.exists({
+        _id: req.params.id,
+        userId: req.user.id,
+      });
+      if (exists) {
+        return res.status(409).json({
+          success: false,
+          message: "Hãy dừng phản hồi AI trước khi xóa cuộc trò chuyện",
+        });
+      }
       return res.status(404).json({ success: false, message: "Không tìm thấy cuộc trò chuyện" });
     }
 
     res.json({ success: true, message: "Đã xóa cuộc trò chuyện" });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: "Không thể xóa cuộc trò chuyện" });
+  }
+};
+
+// POST /api/ai/conversations/:id/fork — branch trước một user message
+export const forkConversation = async (req, res) => {
+  try {
+    const { messageId } = req.body || {};
+    if (
+      !mongoose.isValidObjectId(req.params.id) ||
+      !mongoose.isValidObjectId(messageId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Mã conversation hoặc message không hợp lệ",
+      });
+    }
+
+    const source = await ChatConversation.findOne({
+      _id: req.params.id,
+      userId: req.user.id,
+    });
+    if (!source) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy cuộc trò chuyện",
+      });
+    }
+
+    const branchIndex = source.messages.findIndex(
+      (message) => message._id.toString() === messageId,
+    );
+    if (branchIndex < 0 || source.messages[branchIndex].role !== "user") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể tạo nhánh từ tin nhắn của người dùng",
+      });
+    }
+
+    const copiedMessages = source.messages
+      .slice(0, branchIndex)
+      .slice(-(MAX_STORED_CHAT_MESSAGES - 1))
+      .map((message) => {
+        const copy = message.toObject();
+        delete copy._id;
+        return copy;
+      });
+    const lastMeaningful = [...copiedMessages]
+      .reverse()
+      .find(
+        (message) =>
+          ["user", "assistant"].includes(message.role) && message.content,
+      );
+    const branch = await ChatConversation.create({
+      userId: req.user.id,
+      title: `${source.title || "Cuộc trò chuyện"} (nhánh)`.slice(0, 80),
+      messages: copiedMessages,
+      messageCount: copiedMessages.filter((message) =>
+        ["user", "assistant"].includes(message.role),
+      ).length,
+      lastMessagePreview: String(lastMeaningful?.content || "").slice(0, 120),
+      lastMessageAt: lastMeaningful?.timestamp || null,
+      context: source.context?.toObject?.() || source.context || {},
+      forkedFromConversationId: source._id,
+      forkedFromMessageId: messageId,
+      expiresAt: new Date(Date.now() + CONVERSATION_TTL_MS),
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        conversationId: branch._id,
+        title: branch.title,
+        messages: branch.messages,
+        context: branch.context,
+      },
+    });
+  } catch (error) {
+    aiLogger.chatError(req.user.id, error, "forkConversation");
+    return res.status(500).json({
+      success: false,
+      message: "Không thể tạo nhánh cuộc trò chuyện",
+    });
   }
 };
 // GET /api/ai/history — Lấy conversation gần nhất (backward compat)
@@ -378,6 +706,16 @@ export const getHistory = async (req, res) => {
 // DELETE /api/ai/history — Xóa tất cả conversations
 export const clearHistory = async (req, res) => {
   try {
+    const active = await ChatConversation.exists({
+      userId: req.user.id,
+      activeStreamId: { $ne: null },
+    });
+    if (active) {
+      return res.status(409).json({
+        success: false,
+        message: "Hãy dừng phản hồi AI trước khi xóa lịch sử",
+      });
+    }
     await ChatConversation.deleteMany({ userId: req.user.id });
     res.json({ success: true, message: "Đã xóa lịch sử chat" });
   } catch (err) {
@@ -390,29 +728,33 @@ export const submitFeedback = async (req, res) => {
   try {
     const { messageId, feedback } = req.body;
 
-    if (!messageId || !["up", "down", null].includes(feedback)) {
+    if (
+      !mongoose.isValidObjectId(req.params.id) ||
+      !mongoose.isValidObjectId(messageId) ||
+      !["up", "down", null].includes(feedback)
+    ) {
       return res.status(400).json({ success: false, message: "Thiếu messageId hoặc feedback không hợp lệ" });
     }
 
-    const conversation = await ChatConversation.findOne({
+    const result = await ChatConversation.updateOne({
       _id: req.params.id,
       userId: req.user.id,
+      messages: {
+        $elemMatch: { _id: messageId, role: "assistant" },
+      },
+    }, {
+      $set: { "messages.$[message].feedback": feedback },
+    }, {
+      arrayFilters: [{ "message._id": messageId, "message.role": "assistant" }],
+      runValidators: true,
     });
 
-    if (!conversation) {
-      return res.status(404).json({ success: false, message: "Không tìm thấy cuộc trò chuyện" });
-    }
-
-    const message = conversation.messages.id(messageId);
-    if (!message || message.role !== "assistant") {
+    if (result.matchedCount === 0) {
       return res.status(400).json({ success: false, message: "Message không hợp lệ" });
     }
 
-    message.feedback = feedback;
-    await conversation.save();
-
     res.json({ success: true, message: "Đã lưu feedback" });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: "Không thể lưu feedback" });
   }
 };

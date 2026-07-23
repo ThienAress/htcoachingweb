@@ -5,7 +5,10 @@ const userSchema = new mongoose.Schema({
   email: String,
   phone: String,
 
-  password: String,
+  password: {
+    type: String,
+    select: false,
+  },
   role: {
     type: String,
     enum: ["admin", "trainer", "user"],
@@ -23,12 +26,20 @@ const userSchema = new mongoose.Schema({
   refreshToken: {
     type: String,
     default: null,
+    select: false,
   },
 
   isAiChatBanned: {
     type: Boolean,
     default: false,
   },
+
+  savedRecipes: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Recipe",
+    },
+  ],
 });
 // ✅ Indexes
 userSchema.index({ email: 1 }, { unique: true });

@@ -300,6 +300,7 @@ const CustomerStoryManagement = () => {
         openEditModal(res.data);
         setConfirmModal({ isOpen: false, existingStoryId: null });
       }
+    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       toast.error("Không thể tải thông tin câu chuyện cũ.");
     }
@@ -429,6 +430,7 @@ const CustomerStoryManagement = () => {
     });
   };
 
+  // eslint-disable-next-line no-unused-vars
   const updateMilestoneBullets = (index, value) => {
     updateMilestone(
       index,
@@ -440,6 +442,7 @@ const CustomerStoryManagement = () => {
     );
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleMilestoneImageUpload = async (index, field, file) => {
     if (!file) return;
 
@@ -1002,8 +1005,8 @@ const CustomerStoryManagement = () => {
                               if (existingStory) {
                                 setConfirmModal({ isOpen: true, existingStoryId: existingStory._id });
                               }
-                            } catch (error) {
-                              console.error("Lỗi kiểm tra khách hàng trùng:", error);
+                            } catch {
+                              // Duplicate lookup is best-effort.
                             }
                           }
                         }

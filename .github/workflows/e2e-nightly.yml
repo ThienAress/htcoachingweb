@@ -1,0 +1,35 @@
+name: E2E Nightly
+
+on:
+  schedule:
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+
+jobs:
+  browser-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PW_FULL_BROWSER_MATRIX: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: client
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-nightly
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14

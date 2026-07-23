@@ -1,6 +1,7 @@
 // Search Exercises Tool — Query Exercise model từ MongoDB
 
 import Exercise from "../../../models/Exercise.js";
+import { escapeRegex } from "../../../utils/escapeRegex.js";
 
 /**
  * Tìm bài tập theo nhóm cơ hoặc tên
@@ -12,10 +13,16 @@ export async function searchExercises(params) {
   const query = {};
 
   if (muscleGroup) {
-    query.muscleGroup = { $regex: muscleGroup, $options: "i" };
+    query.muscleGroup = {
+      $regex: escapeRegex(muscleGroup, 50),
+      $options: "i",
+    };
   }
   if (searchQuery) {
-    query.name = { $regex: searchQuery, $options: "i" };
+    query.name = {
+      $regex: escapeRegex(searchQuery, 100),
+      $options: "i",
+    };
   }
 
   const exercises = await Exercise.find(query)

@@ -149,7 +149,7 @@ describe("POST /api/deposits — Tạo yêu cầu nạp tiền", () => {
       accessToken
     );
 
-    expect(res3.status).toBe(400);
+    expect(res3.status).toBe(409);
     expect(res3.body.message).toContain("chờ admin duyệt");
   });
 
@@ -178,6 +178,27 @@ describe("POST /api/deposits — Tạo yêu cầu nạp tiền", () => {
       .send({ amount: 50000 });
 
     expect(res.status).toBe(401);
+  });
+
+  it("fails closed before writes when bank configuration is missing", async () => {
+    const { accessToken, user } = await createTestUser();
+    const original = process.env.BANK_ACCOUNT;
+    delete process.env.BANK_ACCOUNT;
+    try {
+      const response = await withAuth(
+        request(app).post("/api/deposits").send({ amount: 50000 }),
+        accessToken,
+      );
+
+      expect(response.status).toBe(503);
+      expect(response.body.code).toBe("BANK_TRANSFER_CONFIG_UNAVAILABLE");
+      expect(
+        await DepositRequest.countDocuments({ userId: user._id }),
+      ).toBe(0);
+      expect(await Wallet.countDocuments({ userId: user._id })).toBe(0);
+    } finally {
+      process.env.BANK_ACCOUNT = original;
+    }
   });
 });
 

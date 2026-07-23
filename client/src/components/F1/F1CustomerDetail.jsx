@@ -303,6 +303,7 @@ const F1CustomerDetail = ({
               Bắt đầu khảo sát
             </button>
             <button
+              data-testid="f1-open-assessment"
               onClick={onStartAssessment}
               disabled={!canOpenAssessment}
               className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
@@ -311,6 +312,7 @@ const F1CustomerDetail = ({
               Đánh giá thể chất
             </button>
             <button
+              data-testid="f1-open-ai-report"
               onClick={onOpenAiReport}
               disabled={!canOpenAiReport}
               className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"

@@ -1,161 +1,250 @@
-import puppeteer from 'puppeteer';
-import express from 'express';
-import fs from 'fs';
-import path from 'path';
-import axios from 'axios';
-import { fileURLToPath } from 'url';
+import puppeteer from "puppeteer";
+import express from "express";
+import fs from "fs";
+import path from "path";
+import axios from "axios";
+import { fileURLToPath } from "url";
+
+import {
+  fetchDynamicRouteContent,
+  normalizeDynamicRouteApiUrl,
+  resolveDynamicRoutePolicy,
+} from "./dynamic-routes.js";
+import { validatePrerenderSnapshot } from "./prerender-validation.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const PORT = 5174; // Port tạm thời để prerender
-const DIST_DIR = path.resolve(__dirname, '../dist');
-const API_URL = "https://htcoachingweb.onrender.com/api";
-
-// Danh sách các route tĩnh cơ bản
+const PORT = 5174;
+const DIST_DIR = path.resolve(__dirname, "../dist");
+const SITE_URL = "https://htcoachingweb.io.vn";
 const staticRoutes = [
-  '/',
-  '/ket-qua-khach-hang',
-  '/blog',
-  '/club',
-  '/exercises',
-  '/tdee-calculator',
-  '/mealplan'
+  "/",
+  "/ket-qua-khach-hang",
+  "/blog",
+  "/cong-thuc-nau-an",
+  "/club",
+  "/exercises",
+  "/tdee-calculator",
+  "/mealplan",
 ];
 
-async function fetchDynamicRoutes() {
-  const dynamicRoutes = [];
-  try {
-    console.log('Fetching dynamic routes from API...');
-    
-    // 1. Customer Stories
-    const storiesRes = await axios.get(`${API_URL}/customer-stories?limit=100`);
-    const stories = storiesRes.data?.data || [];
-    stories.forEach(s => dynamicRoutes.push(`/ket-qua-khach-hang/${s.slug}`));
-    
-    // 2. Trainers
-    const trainersRes = await axios.get(`${API_URL}/trainers`);
-    const trainers = trainersRes.data?.data || trainersRes.data || [];
-    trainers.filter(t => t.slug).forEach(t => dynamicRoutes.push(`/huan-luyen-vien/${t.slug}`));
-    
-    // 3. Blogs
-    const blogRes = await axios.get(`${API_URL}/blog?limit=100`);
-    const posts = blogRes.data?.data || [];
-    posts.forEach(p => dynamicRoutes.push(`/blog/${p.slug}`));
+const validSlug = (value) => {
+  const slug = String(value || "").trim();
+  return /^[a-z0-9][a-z0-9-]{0,159}$/i.test(slug) ? slug : null;
+};
 
-    console.log(`Fetched ${dynamicRoutes.length} dynamic routes.`);
-  } catch (err) {
-    console.error('Warning: Failed to fetch some dynamic routes for prerender:', err.message);
-  }
-  return dynamicRoutes;
-}
-
-async function prerender() {
-  if (!fs.existsSync(DIST_DIR)) {
-    console.error('Error: "dist" folder not found. Please run "npm run build" first.');
-    process.exit(1);
-  }
-
-  const dynamicRoutes = await fetchDynamicRoutes();
-  const routesToPrerender = [...staticRoutes, ...dynamicRoutes];
-
-  // Khởi tạo server tĩnh cho thư mục dist
-  const app = express();
-  
-  // Xử lý SPA fallback (chuyển mọi route về index.html để CSR tiếp quản nếu route không tồn tại)
-  app.use(express.static(DIST_DIR));
-  app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(DIST_DIR, 'index.html'));
+const routesFor = (items, prefix) =>
+  items.flatMap((item) => {
+    const slug = validSlug(item?.slug);
+    return slug ? [prefix + slug] : [];
   });
 
-  const server = app.listen(PORT, async () => {
-    console.log(`Prerender server running at http://localhost:${PORT}`);
-    console.log(`Total routes to prerender: ${routesToPrerender.length}`);
-    
-    let browser;
-    
-    try {
-      browser = await puppeteer.launch({
-        headless: "new",
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
+const discoverDynamicRoutes = async (policy, apiUrl) => {
+  const { content } = await fetchDynamicRouteContent({
+    fetchApi: (pathName) =>
+      axios.get(apiUrl + pathName, {
+        timeout: policy.requireDynamic ? 30_000 : 10_000,
+      }),
+    policy,
+  });
+  return [
+    ...routesFor(content.stories, "/ket-qua-khach-hang/"),
+    ...routesFor(content.trainers, "/huan-luyen-vien/"),
+    ...routesFor(content.blogs, "/blog/"),
+    ...routesFor(content.recipes, "/cong-thuc-nau-an/"),
+  ];
+};
 
-      for (const route of routesToPrerender) {
-        console.log(`Prerendering route: ${route}`);
-        const page = await browser.newPage();
-        
-        // Skip intro animation — Puppeteer không cần xem intro
-        await page.evaluateOnNewDocument(() => {
-          sessionStorage.setItem("introDone", "true");
-          window.isIntroDone = true;
-        });
+const startServer = (app) =>
+  new Promise((resolve, reject) => {
+    const server = app.listen(PORT, () => resolve(server));
+    server.once("error", reject);
+  });
 
-        // Tối ưu Network Interception: Chặn tải tài nguyên không cần thiết cho SEO
-        await page.setRequestInterception(true);
-        page.on('request', (req) => {
-          const resourceType = req.resourceType();
-          // Giữ stylesheet để React render đúng — chỉ chặn image/font/media
-          if (['image', 'font', 'media'].includes(resourceType)) {
-            req.abort();
-          } else {
-            req.continue();
-          }
-        });
-        
-        try {
-          await page.goto(`http://localhost:${PORT}${route}`, { waitUntil: 'networkidle2', timeout: 30000 });
-
-          // Chờ React render nội dung thật bên trong #root (không chỉ div trống)
-          await page.waitForFunction(
-            () => {
-              const root = document.querySelector('#root');
-              return root && root.innerHTML.trim().length > 100;
-            },
-            { timeout: 15000 }
-          );
-          
-          // Chờ thêm để API data arrive và component con render xong
-          await new Promise(r => setTimeout(r, 3000));
-        } catch (e) {
-          console.warn(`⚠️ Warning rendering ${route}: ${e.message}`);
-        }
-
-        // Lấy nội dung HTML đã được render
-        const html = await page.content();
-
-        // Validate: chỉ ghi file nếu prerender thành công (có nội dung thật)
-        const rootMatch = html.match(/<div id="root">([\s\S]*?)<\/div>/);
-        const hasContent = rootMatch && rootMatch[1].trim().length > 100;
-
-        if (!hasContent) {
-          console.warn(`⚠️ Skip ${route} — prerender không có nội dung (root trống)`);
-          await page.close();
-          continue;
-        }
-
-        // Tạo thư mục nếu route có depth > 1
-        const routePath = route === '/' ? DIST_DIR : path.join(DIST_DIR, route);
-        if (route !== '/') {
-          if (!fs.existsSync(routePath)) {
-            fs.mkdirSync(routePath, { recursive: true });
-          }
-        }
-
-        const filePath = path.join(routePath, 'index.html');
-        fs.writeFileSync(filePath, html, 'utf8');
-        console.log(`  ✅ ${route} — ${(html.length / 1024).toFixed(1)}KB`);
-        
-        await page.close();
-      }
-      
-      console.log('Prerendering completed successfully.');
-    } catch (err) {
-      console.error('Error during prerendering:', err);
-    } finally {
-      if (browser) await browser.close();
-      server.close();
+const stopServer = (server) =>
+  new Promise((resolve, reject) => {
+    if (!server?.listening) {
+      resolve();
+      return;
     }
+    server.close((error) => (error ? reject(error) : resolve()));
   });
-}
 
-prerender();
+const renderRoute = async (browser, route) => {
+  const page = await browser.newPage();
+  const expectedCanonical = new URL(route, SITE_URL).href;
+  try {
+    await page.evaluateOnNewDocument(() => {
+      sessionStorage.setItem("introDone", "true");
+      localStorage.setItem("ht_language", "vi");
+      window.isIntroDone = true;
+    });
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
+    });
+
+    await page.setRequestInterception(true);
+    page.on("request", (request) => {
+      if (["image", "font", "media"].includes(request.resourceType())) {
+        void request.abort();
+      } else {
+        void request.continue();
+      }
+    });
+
+    try {
+      await page.goto("http://localhost:" + PORT + route, {
+        waitUntil: "networkidle2",
+        timeout: 30_000,
+      });
+      await page.waitForFunction(
+        (canonical) => {
+          const root = document.querySelector("#root");
+          const canonicals = [
+            ...document.querySelectorAll('link[rel="canonical"]'),
+          ];
+          return (
+            root &&
+            root.innerHTML.trim().length > 100 &&
+            canonicals.length === 1 &&
+            canonicals[0].href === canonical
+          );
+        },
+        { timeout: 30_000 },
+        expectedCanonical,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } catch (error) {
+      console.warn("Navigation warning for " + route + ": " + error.message);
+    }
+
+    const snapshot = await page.evaluate(() => ({
+      rootLength:
+        document.querySelector("#root")?.innerHTML.trim().length || 0,
+      titles: [...document.querySelectorAll("title")].map((element) =>
+        element.textContent.trim(),
+      ),
+      descriptions: [
+        ...document.querySelectorAll('meta[name="description"]'),
+      ].map((element) => element.content.trim()),
+      canonicals: [
+        ...document.querySelectorAll('link[rel="canonical"]'),
+      ].map((element) => element.href),
+      robots: [...document.querySelectorAll('meta[name="robots"]')].map(
+        (element) => element.content.trim(),
+      ),
+    }));
+    const validationErrors = validatePrerenderSnapshot(
+      snapshot,
+      expectedCanonical,
+    );
+    if (validationErrors.length > 0) {
+      console.warn(
+        "Skipping " + route + ": " + validationErrors.join("; "),
+      );
+      return false;
+    }
+
+    const html = await page.content();
+
+    const segments = route.split("/").filter(Boolean);
+    const routePath =
+      segments.length === 0 ? DIST_DIR : path.join(DIST_DIR, ...segments);
+    fs.mkdirSync(routePath, { recursive: true });
+    fs.writeFileSync(path.join(routePath, "index.html"), html, "utf8");
+    console.log(
+      "  rendered " + route + " - " + (html.length / 1024).toFixed(1) + "KB",
+    );
+    return true;
+  } catch (error) {
+    console.error("Failed to prerender " + route + ": " + error.message);
+    return false;
+  } finally {
+    await page.close();
+  }
+};
+
+const prerender = async () => {
+  if (!fs.existsSync(DIST_DIR)) {
+    throw new Error('The "dist" folder is missing. Run the Vite build first.');
+  }
+
+  const policy = resolveDynamicRoutePolicy();
+  const apiUrl = normalizeDynamicRouteApiUrl(
+    process.env.PRERENDER_API_URL ||
+      process.env.VITE_API_URL ||
+      "https://htcoachingweb.onrender.com/api",
+    policy,
+  );
+  console.log(
+    "Prerender dynamic route mode: " +
+      (policy.requireDynamic ? "strict" : policy.skip ? "static" : "fallback"),
+  );
+  const dynamicRoutes = await discoverDynamicRoutes(policy, apiUrl);
+  const routesToPrerender = [...new Set([...staticRoutes, ...dynamicRoutes])];
+
+  // Keep the freshly built SPA shell immutable while routes are rendered.
+  // The root route is written to dist/index.html, so reading that file again
+  // for later routes would leak the homepage canonical and content into every
+  // subsequent prerender.
+  const appShellHtml = fs.readFileSync(
+    path.join(DIST_DIR, "index.html"),
+    "utf8",
+  );
+  const app = express();
+  app.use(express.static(DIST_DIR, { index: false }));
+  app.get(/.*/, (_req, res) => {
+    res
+      .set("Cache-Control", "no-store")
+      .type("html")
+      .send(appShellHtml);
+  });
+
+  const server = await startServer(app);
+  let browser;
+  try {
+    console.log("Prerender server running at http://localhost:" + PORT);
+    console.log("Total routes to prerender: " + routesToPrerender.length);
+    browser = await puppeteer.launch({
+      headless: "new",
+      // Prerender runs on localhost but reads the public production API.
+      // CORS remains enforced in the deployed application; this flag is only
+      // applied to the isolated build-time browser that creates static HTML.
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-web-security",
+      ],
+    });
+
+    const failures = [];
+    for (const route of routesToPrerender) {
+      console.log("Prerendering route: " + route);
+      if (!(await renderRoute(browser, route))) failures.push(route);
+    }
+
+    if (policy.requireDynamic && failures.length > 0) {
+      throw new Error(
+        "Strict prerender failed for " +
+          failures.length +
+          " route(s): " +
+          failures.join(", "),
+      );
+    }
+    console.log(
+      "Prerendering completed with " +
+        (routesToPrerender.length - failures.length) +
+        "/" +
+        routesToPrerender.length +
+        " routes.",
+    );
+  } finally {
+    if (browser) await browser.close();
+    await stopServer(server);
+  }
+};
+
+prerender().catch((error) => {
+  console.error("Error during prerendering:", error.message);
+  process.exitCode = 1;
+});

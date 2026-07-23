@@ -1,10 +1,10 @@
 import api from "../utils/api";
 
-export const getCheckins = (paramsOrPage = 1, limit = 10) => {
+export const getCheckins = (paramsOrPage = 1, limit = 10, signal) => {
   if (typeof paramsOrPage === 'string' && paramsOrPage.includes('page=')) {
-    return api.get(`/checkin?${paramsOrPage}`);
+    return api.get(`/checkin?${paramsOrPage}`, { signal });
   }
-  return api.get(`/checkin?page=${paramsOrPage}&limit=${limit}`);
+  return api.get(`/checkin?page=${paramsOrPage}&limit=${limit}`, { signal });
 };
 
 export const createCheckin = (data) => api.post("/checkin", data);

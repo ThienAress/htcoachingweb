@@ -150,6 +150,20 @@ const customerStorySchema = new mongoose.Schema(
       type: [milestoneSchema],
       default: [],
     },
+    // i18n: Bản dịch tiếng Anh (fallback về field gốc tiếng Việt nếu trống)
+    i18n: {
+      en: {
+        message: { type: String, default: "" },
+        result: { type: String, default: "" },
+        duration: { type: String, default: "" },
+        goal: { type: String, default: "" },
+        job: { type: String, default: "" },
+        problem: { type: String, default: "" },
+        solution: { type: String, default: "" },
+        quote: { type: String, default: "" },
+        highlights: { type: [String], default: [] },
+      },
+    },
     status: {
       type: String,
       enum: ["draft", "published"],

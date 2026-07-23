@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { X, Search, Check } from "lucide-react";
 
 const GROUP_LABELS = {
-  protein: { label: "Đạm (Protein)", color: "text-red-400", border: "border-red-400", bg: "bg-red-400/10" },
-  carb: { label: "Tinh bột (Carb)", color: "text-green-400", border: "border-green-400", bg: "bg-green-400/10" },
-  fat: { label: "Chất béo (Fat)", color: "text-yellow-400", border: "border-yellow-400", bg: "bg-yellow-400/10" },
+  protein: { color: "text-red-400", border: "border-red-400", bg: "bg-red-400/10" },
+  carb: { color: "text-green-400", border: "border-green-400", bg: "bg-green-400/10" },
+  fat: { color: "text-yellow-400", border: "border-yellow-400", bg: "bg-yellow-400/10" },
 };
 
 const classifyFood = (food) => {
@@ -18,6 +19,7 @@ const classifyFood = (food) => {
 };
 
 export default function FoodSelectorModal({ isOpen, onClose, onSave, initialSelected, foodDatabase = [] }) {
+  const { t } = useTranslation("mealplan");
   const [search, setSearch] = useState("");
   const [activeGroup, setActiveGroup] = useState("protein");
   const [selected, setSelected] = useState(() => initialSelected || { protein: [], carb: [], fat: [] });
@@ -66,9 +68,9 @@ export default function FoodSelectorModal({ isOpen, onClose, onSave, initialSele
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
           <div>
-            <h3 className="text-lg font-bold text-white">Chọn món yêu thích</h3>
+            <h3 className="text-lg font-bold text-white">{t("modal.title")}</h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              Hệ thống sẽ ưu tiên các món bạn chọn khi tạo thực đơn
+              {t("modal.subtitle")}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition">
@@ -88,7 +90,7 @@ export default function FoodSelectorModal({ isOpen, onClose, onSave, initialSele
                   : "border-gray-700 text-gray-400 hover:border-gray-500"
               }`}
             >
-              {meta.label}
+              {t(`modal.${group}`)}
               {selected[group]?.length > 0 && (
                 <span className={`ml-1.5 text-xs font-bold ${meta.color}`}>
                   ({selected[group].length})
@@ -104,7 +106,7 @@ export default function FoodSelectorModal({ isOpen, onClose, onSave, initialSele
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm kiếm món ăn..."
+            placeholder={t("modal.search_placeholder")}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary"
           />
         </div>
@@ -112,7 +114,7 @@ export default function FoodSelectorModal({ isOpen, onClose, onSave, initialSele
         {/* Food List */}
         <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-2">
           {filteredFoods.length === 0 ? (
-            <p className="text-center text-gray-500 py-8 text-sm">Không tìm thấy món nào</p>
+            <p className="text-center text-gray-500 py-8 text-sm">{t("modal.no_foods")}</p>
           ) : (
             filteredFoods.map((food) => {
               const id = food._id;
@@ -133,7 +135,7 @@ export default function FoodSelectorModal({ isOpen, onClose, onSave, initialSele
                       {food.label || food.name}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Đạm: {food.protein}g · Carb: {food.carb}g · Béo: {food.fat}g / 100g
+                      {t("selector.protein")}: {food.protein}g · {t("selector.carb")}: {food.carb}g · {t("selector.fat")}: {food.fat}g / 100g
                     </p>
                   </div>
                   {isSelected && <Check className={`w-4 h-4 shrink-0 ${meta.color}`} />}
@@ -146,20 +148,20 @@ export default function FoodSelectorModal({ isOpen, onClose, onSave, initialSele
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-700 flex items-center justify-between gap-3">
           <div className="text-sm text-gray-400">
-            Đã chọn: <span className="font-bold text-white">{totalSelected}</span> món
+            <Trans i18nKey="modal.selected_count" ns="mealplan" values={{ count: totalSelected }} components={[<span className="font-bold text-white" key="0" />]} />
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleReset}
               className="px-4 py-2 text-sm text-gray-400 hover:text-white border border-gray-600 rounded-lg transition"
             >
-              Xóa tất cả
+              {t("modal.clear_all")}
             </button>
             <button
               onClick={handleSave}
               className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded-lg transition"
             >
-              Lưu danh sách
+              {t("modal.save")}
             </button>
           </div>
         </div>

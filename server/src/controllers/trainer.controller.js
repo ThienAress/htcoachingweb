@@ -2,6 +2,7 @@ import path from "path";
 import Trainer from "../models/Trainer.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
+import { createI18nResolver } from "../utils/i18n.js";
 
 const getPublicTrainerQuery = () => ({
   status: "published",
@@ -105,12 +106,15 @@ const getTrainerPayload = (body = {}, existingTrainer = null) => {
         : wasPublished
           ? null
           : existingTrainer?.publishedAt || null,
+    // i18n: Nếu body có i18n, merge vào
+    i18n: body.i18n !== undefined ? body.i18n : (existingTrainer?.i18n || {}),
   };
 };
 
 export const getTrainers = async (req, res, next) => {
   try {
-    const { limit = 12, featured } = req.query;
+    const { limit = 12, featured, lang } = req.query;
+    const { resolveField, resolveArray } = createI18nResolver(lang);
 
     const query = getPublicTrainerQuery();
     if (featured === "true") {
@@ -122,10 +126,22 @@ export const getTrainers = async (req, res, next) => {
       .limit(Number(limit))
       .lean();
 
+    // Resolve i18n fields cho response
+    const localizedTrainers = trainers.map((t) => ({
+      ...t,
+      title: resolveField(t, "title"),
+      bio: resolveField(t, "bio"),
+      motto: resolveField(t, "motto"),
+      trainingStyle: resolveField(t, "trainingStyle"),
+      philosophy: resolveField(t, "philosophy"),
+      headline: resolveField(t, "headline"),
+      achievements: resolveArray(t, "achievements"),
+    }));
+
     res.status(200).json({
       success: true,
-      count: trainers.length,
-      data: trainers,
+      count: localizedTrainers.length,
+      data: localizedTrainers,
     });
   } catch (error) {
     next(error);
@@ -134,6 +150,9 @@ export const getTrainers = async (req, res, next) => {
 
 export const getTrainerBySlug = async (req, res, next) => {
   try {
+    const { lang } = req.query;
+    const { resolveField, resolveArray } = createI18nResolver(lang);
+
     const trainer = await Trainer.findOne({
       slug: req.params.slug,
       ...getPublicTrainerQuery(),
@@ -143,7 +162,19 @@ export const getTrainerBySlug = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy trainer" });
     }
 
-    res.status(200).json({ success: true, data: trainer });
+    // Resolve i18n fields
+    const localized = {
+      ...trainer,
+      title: resolveField(trainer, "title"),
+      bio: resolveField(trainer, "bio"),
+      motto: resolveField(trainer, "motto"),
+      trainingStyle: resolveField(trainer, "trainingStyle"),
+      philosophy: resolveField(trainer, "philosophy"),
+      headline: resolveField(trainer, "headline"),
+      achievements: resolveArray(trainer, "achievements"),
+    };
+
+    res.status(200).json({ success: true, data: localized });
   } catch (error) {
     next(error);
   }

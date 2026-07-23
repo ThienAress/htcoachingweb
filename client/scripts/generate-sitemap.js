@@ -1,112 +1,177 @@
-import fs from 'fs';
-import path from 'path';
-import axios from 'axios';
-import { fileURLToPath } from 'url';
+import fs from "fs";
+import path from "path";
+import axios from "axios";
+import { fileURLToPath } from "url";
+
+import {
+  fetchDynamicRouteContent,
+  normalizeDynamicRouteApiUrl,
+  resolveDynamicRoutePolicy,
+} from "./dynamic-routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const API_URL = "https://htcoachingweb.onrender.com/api";
 const SITE_URL = "https://htcoachingweb.io.vn";
-const today = new Date().toISOString().split('T')[0];
+const today = new Date().toISOString().split("T")[0];
 
 const staticRoutes = [
   { url: "/", priority: 1.0, changefreq: "weekly", lastmod: today },
-  { url: "/ket-qua-khach-hang", priority: 0.9, changefreq: "weekly", lastmod: today },
+  {
+    url: "/ket-qua-khach-hang",
+    priority: 0.9,
+    changefreq: "weekly",
+    lastmod: today,
+  },
   { url: "/blog", priority: 0.9, changefreq: "weekly", lastmod: today },
+  {
+    url: "/cong-thuc-nau-an",
+    priority: 0.8,
+    changefreq: "weekly",
+    lastmod: today,
+  },
   { url: "/club", priority: 0.8, changefreq: "monthly", lastmod: today },
-  { url: "/exercises", priority: 0.8, changefreq: "monthly", lastmod: today },
-  { url: "/tdee-calculator", priority: 0.7, changefreq: "yearly", lastmod: today },
-  { url: "/mealplan", priority: 0.7, changefreq: "yearly", lastmod: today },
+  {
+    url: "/exercises",
+    priority: 0.8,
+    changefreq: "monthly",
+    lastmod: today,
+  },
+  {
+    url: "/tdee-calculator",
+    priority: 0.7,
+    changefreq: "yearly",
+    lastmod: today,
+  },
+  {
+    url: "/mealplan",
+    priority: 0.7,
+    changefreq: "yearly",
+    lastmod: today,
+  },
 ];
 
-async function generateSitemap() {
-  try {
-    console.log("Generating sitemap...");
-    
-    let dynamicRoutes = [];
-    try {
-      // Fetch public customer stories
-      const res = await axios.get(`${API_URL}/customer-stories?limit=100`);
-      const stories = res.data?.data || [];
-      
-      dynamicRoutes = stories.map(story => ({
-        url: `/ket-qua-khach-hang/${story.slug}`,
-        priority: 0.8,
-        changefreq: "monthly",
-        lastmod: story.updatedAt ? new Date(story.updatedAt).toISOString().split('T')[0] : today,
-      }));
-      console.log(`Fetched ${dynamicRoutes.length} customer stories for sitemap.`);
-    } catch (err) {
-      console.error("Failed to fetch customer stories for sitemap:", err.message);
-    }
+const validSlug = (value) => {
+  const slug = String(value || "").trim();
+  return /^[a-z0-9][a-z0-9-]{0,159}$/i.test(slug) ? slug : null;
+};
 
-    // Fetch trainer profiles
-    let trainerRoutes = [];
-    try {
-      const res = await axios.get(`${API_URL}/trainers`);
-      const trainers = res.data?.data || res.data || [];
-      
-      trainerRoutes = trainers
-        .filter(t => t.slug)
-        .map(trainer => ({
-          url: `/huan-luyen-vien/${trainer.slug}`,
-          priority: 0.8,
-          changefreq: "monthly",
-          lastmod: trainer.updatedAt ? new Date(trainer.updatedAt).toISOString().split('T')[0] : today,
-        }));
-      console.log(`Fetched ${trainerRoutes.length} trainer profiles for sitemap.`);
-    } catch (err) {
-      console.error("Failed to fetch trainers for sitemap:", err.message);
-    }
+const lastModified = (value) => {
+  if (!value) return today;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? today
+    : date.toISOString().split("T")[0];
+};
 
-    // Fetch blog posts
-    let blogRoutes = [];
-    try {
-      const res = await axios.get(`${API_URL}/blog?limit=50`);
-      const posts = res.data?.data || [];
-      
-      blogRoutes = posts.map(post => ({
-        url: `/blog/${post.slug}`,
-        priority: 0.7,
-        changefreq: "monthly",
-        lastmod: post.updatedAt ? new Date(post.updatedAt).toISOString().split('T')[0] : today,
-      }));
-      console.log(`Fetched ${blogRoutes.length} blog posts for sitemap.`);
-    } catch (err) {
-      console.error("Failed to fetch blog posts for sitemap:", err.message);
-    }
+const xmlEscape = (value) =>
+  String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
 
-    const allRoutes = [...staticRoutes, ...dynamicRoutes, ...trainerRoutes, ...blogRoutes];
+const toRoutes = (items, prefix, priority) =>
+  items.flatMap((item) => {
+    const slug = validSlug(item?.slug);
+    return slug
+      ? [
+          {
+            url: prefix + slug,
+            priority,
+            changefreq: "monthly",
+            lastmod: lastModified(item?.updatedAt),
+          },
+        ]
+      : [];
+  });
 
-    const sitemapContent = `<?xml version="1.0" encoding="UTF-8"?>
+const preserveExistingSitemap = (sitemapPath, failureCount) => {
+  if (!fs.existsSync(sitemapPath)) return false;
+  const existing = fs.readFileSync(sitemapPath, "utf8");
+  const existingRouteCount = (existing.match(/<loc>/g) || []).length;
+  if (existingRouteCount <= staticRoutes.length) return false;
+  console.warn(
+    "Preserving existing sitemap with " +
+      existingRouteCount +
+      " routes because " +
+      failureCount +
+      " dynamic source(s) failed.",
+  );
+  return true;
+};
+
+const generateSitemap = async () => {
+  const policy = resolveDynamicRoutePolicy();
+  const apiUrl = normalizeDynamicRouteApiUrl(
+    process.env.SITEMAP_API_URL ||
+      process.env.VITE_API_URL ||
+      "https://htcoachingweb.onrender.com/api",
+    policy,
+  );
+  const fetchApi = (pathName) =>
+    axios.get(apiUrl + pathName, {
+      timeout: policy.requireDynamic ? 30_000 : 10_000,
+    });
+
+  console.log(
+    "Generating sitemap in " +
+      (policy.requireDynamic ? "strict" : policy.skip ? "static" : "fallback") +
+      " mode...",
+  );
+  const { content, failures } = await fetchDynamicRouteContent({
+    fetchApi,
+    policy,
+  });
+
+  const dynamicRoutes = [
+    ...toRoutes(content.stories, "/ket-qua-khach-hang/", 0.8),
+    ...toRoutes(content.trainers, "/huan-luyen-vien/", 0.8),
+    ...toRoutes(content.blogs, "/blog/", 0.7),
+    ...toRoutes(content.recipes, "/cong-thuc-nau-an/", 0.7),
+  ];
+  const publicDir = path.resolve(__dirname, "../public");
+  const sitemapPath = path.join(publicDir, "sitemap.xml");
+
+  if (
+    failures.length > 0 &&
+    !policy.skip &&
+    preserveExistingSitemap(sitemapPath, failures.length)
+  ) {
+    return;
+  }
+
+  const uniqueRoutes = [
+    ...new Map(
+      [...staticRoutes, ...dynamicRoutes].map((route) => [route.url, route]),
+    ).values(),
+  ];
+  const sitemapContent = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${allRoutes
+${uniqueRoutes
   .map(
     (route) => `  <url>
-    <loc>${SITE_URL}${route.url}</loc>
-    <lastmod>${route.lastmod || today}</lastmod>
+    <loc>${xmlEscape(SITE_URL + route.url)}</loc>
+    <lastmod>${route.lastmod}</lastmod>
     <changefreq>${route.changefreq}</changefreq>
     <priority>${route.priority}</priority>
-  </url>`
+  </url>`,
   )
-  .join('\n')}
-</urlset>`;
+  .join("\n")}
+</urlset>
+`;
 
-    // Đảm bảo thư mục public tồn tại
-    const publicDir = path.resolve(__dirname, '../public');
-    if (!fs.existsSync(publicDir)) {
-      fs.mkdirSync(publicDir, { recursive: true });
-    }
+  fs.mkdirSync(publicDir, { recursive: true });
+  fs.writeFileSync(sitemapPath, sitemapContent, "utf8");
+  console.log(
+    "Sitemap generated with " +
+      uniqueRoutes.length +
+      " routes at " +
+      sitemapPath,
+  );
+};
 
-    const sitemapPath = path.join(publicDir, 'sitemap.xml');
-    fs.writeFileSync(sitemapPath, sitemapContent, 'utf8');
-    
-    console.log(`Sitemap generated successfully at ${sitemapPath}`);
-  } catch (error) {
-    console.error("Error generating sitemap:", error);
-    process.exit(1);
-  }
-}
-
-generateSitemap();
+generateSitemap().catch((error) => {
+  console.error("Error generating sitemap:", error.message);
+  process.exitCode = 1;
+});

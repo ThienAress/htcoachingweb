@@ -1,0 +1,64 @@
+{
+  "nav": {
+    "home": "Trang chủ",
+    "about": "Giới thiệu",
+    "services": "Dịch vụ",
+    "feedback": "Feedback",
+    "blog": "Blog",
+    "tools": "Công cụ",
+    "club": "CLB",
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất"
+  },
+  "nav_dropdown": {
+    "packages": "Gói tập",
+    "packages_admin": "Gói dịch vụ",
+    "programs": "Chương trình tập",
+    "trainers": "Huấn luyện viên",
+    "tdee": "Tính TDEE",
+    "recipes": "Công thức nấu ăn",
+    "mealplan": "Gợi ý thực đơn"
+  },
+  "nav_user": {
+    "system_management": "Quản lý hệ thống",
+    "admin_panel": "Quản trị",
+    "f1_system": "Hệ thống khách F1",
+    "exercise_system": "Hệ thống bài tập",
+    "training_ops": "Nghiệp vụ huấn luyện",
+    "customer_checkin": "Checkin khách hàng",
+    "online_coaching": "Hệ thống Coach Online",
+    "training_schedule": "Lịch tập khách hàng",
+    "workout_plan": "Giáo án tập luyện",
+    "training_tools": "Công cụ tập luyện",
+    "checkin_history": "Lịch sử checkin",
+    "book_training": "Đăng ký giờ tập",
+    "online_plan": "Giáo án online",
+    "meal_suggestion": "Gợi ý meal plan",
+    "my_profile": "Profile của tôi",
+    "my_wallet": "Ví của tôi",
+    "account": "Tài khoản",
+    "overview": "Tổng quan",
+    "admin_system": "Quản trị Hệ thống",
+    "trainer_management": "Quản lý Huấn Luyện"
+  },
+  "footer": {
+    "slogan": "HTCOACHING – Rèn luyện bản lĩnh, nâng tầm phong cách, nơi hình thể và tinh thần cùng toả sáng.",
+    "quick_links": "LIÊN KẾT NHANH",
+    "home": "Trang chủ",
+    "customer_results": "Kết quả khách hàng",
+    "exercise_system": "Hệ thống bài tập",
+    "tdee": "Tính TDEE",
+    "meal_suggestion": "Gợi ý thực đơn",
+    "club": "CLB",
+    "training_programs": "CHƯƠNG TRÌNH TẬP LUYỆN",
+    "quality_commitment": "CAM KẾT CHẤT LƯỢNG",
+    "effectiveness_title": "Cam Kết Hiệu Quả",
+    "effectiveness_desc": "Hoàn tiền hoặc training lại nếu tuân thủ lộ trình mà không đạt kết quả.",
+    "privacy_title": "Private & Secure",
+    "privacy_desc": "Bảo mật thông tin & hình ảnh khách hàng tuyệt đối."
+  },
+  "language": {
+    "vi": "Tiếng Việt",
+    "en": "English"
+  }
+}

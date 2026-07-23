@@ -17,6 +17,7 @@ import { utcToLocalDateTime, localDateTimeToUTC } from "../../utils/date";
 const TrainerCheckinHistory = () => {
   const queryClient = useQueryClient();
 
+  // eslint-disable-next-line no-unused-vars
   const currentDateTimeLocal = (() => {
     const now = new Date();
     const tzOffsetMs = now.getTimezoneOffset() * 60000;

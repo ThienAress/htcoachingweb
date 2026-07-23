@@ -99,6 +99,16 @@ const beforeImagesSchema = new mongoose.Schema(
 
 const visualStageImageSchema = new mongoose.Schema(
   {
+    frontMediaId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "F1Media",
+      default: null,
+    },
+    sideMediaId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "F1Media",
+      default: null,
+    },
     frontUrl: {
       type: String,
       default: "",
@@ -142,6 +152,15 @@ const visualStageGenerationSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+    },
+    reservationId: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    reservedUntil: {
+      type: Date,
+      default: null,
     },
   },
   { _id: false },
@@ -233,6 +252,31 @@ const f1ResultPredictionSchema = new mongoose.Schema(
       default: "result-prediction-v1",
       trim: true,
     },
+    sourceFingerprint: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    generationKey: {
+      type: String,
+      default: "canonical",
+      trim: true,
+    },
+    requestId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    version: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
+    regeneratedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "F1ResultPrediction",
+      default: null,
+    },
 
     generatedAt: {
       type: Date,
@@ -243,5 +287,37 @@ const f1ResultPredictionSchema = new mongoose.Schema(
 );
 
 f1ResultPredictionSchema.index({ customerId: 1, createdAt: -1 });
+f1ResultPredictionSchema.index(
+  { requestId: 1 },
+  {
+    name: "uniq_f1_prediction_request",
+    unique: true,
+    partialFilterExpression: { requestId: { $type: "string" } },
+  },
+);
+f1ResultPredictionSchema.index(
+  {
+    customerId: 1,
+    intakeId: 1,
+    assessmentId: 1,
+    aiReportId: 1,
+    engineVersion: 1,
+    sourceFingerprint: 1,
+    generationKey: 1,
+  },
+  {
+    name: "uniq_f1_prediction_source",
+    unique: true,
+    partialFilterExpression: { sourceFingerprint: { $type: "string" } },
+  },
+);
+f1ResultPredictionSchema.index(
+  { customerId: 1, version: 1 },
+  {
+    name: "uniq_f1_prediction_version",
+    unique: true,
+    partialFilterExpression: { version: { $type: "number" } },
+  },
+);
 
 export default mongoose.model("F1ResultPrediction", f1ResultPredictionSchema);

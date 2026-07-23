@@ -12,7 +12,8 @@ import AdminLayout from "./layouts/AdminLayout";
 import TrainerLayout from "./layouts/TrainerLayout";
 import AdminRoute from "./routes/AdminRoute";
 import GlobalLoading from "./components/GlobalLoading";
-import ChatPanel from "./components/ChatWidget/ChatPanel";
+import DeferredChatPanel from "./components/ChatWidget/DeferredChatPanel";
+import WebVitalsReporter from "./components/WebVitalsReporter";
 
 // Lazy-loaded pages (Code Splitting)
 const Home = lazy(() => import("./pages/Home"));
@@ -64,6 +65,9 @@ const Blog = lazy(() => import("./pages/Blog"));
 const BlogDetail = lazy(() => import("./pages/BlogDetail"));
 const BlogManagement = lazy(() => import("./pages/admin/BlogManagement"));
 const KnowledgeBase = lazy(() => import("./pages/admin/KnowledgeBase"));
+const RecipeExplorer = lazy(() => import("./pages/RecipeExplorer/RecipeExplorer"));
+const RecipeDetail = lazy(() => import("./pages/RecipeExplorer/RecipeDetail"));
+const RecipeManagement = lazy(() => import("./pages/admin/RecipeManagement"));
 
 import "./index.css";
 import "./App.css";
@@ -71,31 +75,36 @@ import "./App.css";
 // ================= APP CONTENT =================
 function AppContent() {
   const navigate = useNavigate();
-  const [showIntro, setShowIntro] = useState(() => !sessionStorage.getItem("introDone"));
-  const [loadApp, setLoadApp] = useState(false);
+  const skipIntro = import.meta.env.VITE_E2E === "true";
+  const [showIntro, setShowIntro] = useState(
+    () => !skipIntro && !sessionStorage.getItem("introDone"),
+  );
+  const [loadApp, setLoadApp] = useState(
+    () => skipIntro || sessionStorage.getItem("introDone") === "true",
+  );
 
   const handleIntroComplete = useCallback(() => {
     setShowIntro(false);
+    setLoadApp(true);
     sessionStorage.setItem("introDone", "true");
     window.isIntroDone = true;
     window.dispatchEvent(new Event("introComplete"));
   }, []);
 
-  // Set window.isIntroDone immediately if already done
-  if (!showIntro && !window.isIntroDone) {
-    window.isIntroDone = true;
-  }
+  // Set window.isIntroDone when intro is done
+  useEffect(() => {
+    if (!showIntro) {
+      window.isIntroDone = true;
+    }
+  }, [showIntro]);
 
   useEffect(() => {
-    if (showIntro) {
-      // Delay mounting Routes to prevent JS parsing/rendering from blocking the GSAP animation (stuttering)
-      const timer = setTimeout(() => {
-        setLoadApp(true);
-      }, 1200);
-      return () => clearTimeout(timer);
-    } else {
+    if (!showIntro) return;
+    // Delay mounting Routes to prevent JS parsing/rendering from blocking the GSAP animation (stuttering)
+    const timer = setTimeout(() => {
       setLoadApp(true);
-    }
+    }, 1200);
+    return () => clearTimeout(timer);
   }, [showIntro]);
 
   useEffect(() => {
@@ -147,6 +156,10 @@ function AppContent() {
 
         {/* Suggested Mealplan */}
         <Route path="/mealplan" element={<MealPlan />} />
+
+        {/* Recipe Explorer */}
+        <Route path="/cong-thuc-nau-an" element={<RecipeExplorer />} />
+        <Route path="/cong-thuc-nau-an/:slug" element={<RecipeDetail />} />
 
         {/* Customer Booking */}
         <Route path="/book-training" element={<BookTraining />} />
@@ -206,6 +219,7 @@ function AppContent() {
           <Route path="contracts" element={<ContractManagement />} />
           <Route path="blog" element={<BlogManagement />} />
           <Route path="knowledge-base" element={<KnowledgeBase />} />
+          <Route path="recipes" element={<RecipeManagement />} />
           <Route
             path="exercise-suggestions"
             element={<ExerciseSuggestionsManagement />}
@@ -218,7 +232,8 @@ function AppContent() {
       </Suspense>
       )}
       <ToastContainer position="top-right" autoClose={2500} />
-      <ChatPanel />
+      <DeferredChatPanel />
+      <WebVitalsReporter />
     </>
   );
 }

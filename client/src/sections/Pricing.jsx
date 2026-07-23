@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { X, Gift, Sparkles, LogIn, ArrowRight, Wallet, CheckCircle, AlertTriangle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { getMyWallet } from "../services/wallet.service";
 import { purchaseTrainerPlan } from "../services/trainerSubscription.service";
 
 const Pricing = ({ isHeroAnimDone = false }) => {
+  const { t } = useTranslation("home");
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -48,6 +50,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   const [countdown, setCountdown] = useState(null);
   const [activeSubscription, setActiveSubscription] = useState(null);
   const [showAlreadySubscribed, setShowAlreadySubscribed] = useState(false);
+  const purchaseRequestIdRef = useRef(null);
 
   // Fetch gói đang dùng khi đăng nhập
   useEffect(() => {
@@ -109,68 +112,68 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   // Gói ONLINE
   const onlinePlans = [
     {
-      title: "CƠ BẢN",
-      durationText: "8 tuần",
+      title: t("pricing.names.basic"),
+      durationText: t("pricing.weeks", { count: 8 }),
       features: [
-        "Online Coaching — Nhận bài tập & feedback từ HLV",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.online"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
       gifts: [],
       totalSessions: 24,
     },
     {
-      title: "NÂNG CAO",
-      durationText: "16 tuần",
+      title: t("pricing.names.advanced"),
+      durationText: t("pricing.weeks", { count: 16 }),
       features: [
-        "Online Coaching — Nhận bài tập & feedback từ HLV",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.online"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
       gifts: [],
       featured: true,
       totalSessions: 48,
     },
     {
-      title: "VIP",
-      durationText: "24 tuần",
+      title: t("pricing.names.vip"),
+      durationText: t("pricing.weeks", { count: 24 }),
       features: [
-        "Online Coaching — Nhận bài tập & feedback từ HLV",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.online"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
       gifts: [],
       totalSessions: 72,
@@ -180,96 +183,96 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   // Gói 1-1
   const oneOnOnePlans = [
     {
-      title: "CƠ BẢN",
-      durationText: "8 tuần",
+      title: t("pricing.names.basic"),
+      durationText: t("pricing.weeks", { count: 8 }),
       features: [
-        "Tập 1 kèm 1",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.one_on_one"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
-      gifts: ["Shaker Bình Lắc Cao Cấp 600ml"],
+      gifts: [t("pricing.gifts.shaker")],
       totalSessions: 24,
     },
     {
-      title: "NÂNG CAO",
-      durationText: "16 tuần",
+      title: t("pricing.names.advanced"),
+      durationText: t("pricing.weeks", { count: 16 }),
       features: [
-        "Tập 1 kèm 1",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.one_on_one"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
-      gifts: ["Shaker Bình Lắc Cao Cấp 600ml", "2 bánh Biscotti 300g"],
+      gifts: [t("pricing.gifts.shaker"), t("pricing.gifts.biscotti")],
       featured: true,
       totalSessions: 48,
     },
     {
-      title: "VIP",
-      durationText: "24 tuần",
+      title: t("pricing.names.vip"),
+      durationText: t("pricing.weeks", { count: 24 }),
       features: [
-        "Tập 1 kèm 1",
-        "Giáo án cá nhân hóa",
-        "Tư vấn dinh dưỡng riêng",
-        "Theo dõi tiến độ theo tuần",
-        "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-        "Hỗ trợ căng cơ phục hồi sau tập",
-        "Cam kết kết quả 100%",
+        t("pricing.features.one_on_one"),
+        t("pricing.features.personalized_plan"),
+        t("pricing.features.diet_consultation"),
+        t("pricing.features.weekly_progress"),
+        t("pricing.features.notion_tracking"),
+        t("pricing.features.stretching_recovery"),
+        t("pricing.features.commitment"),
       ],
       systemFeatures: [
-        "Truy cập hệ thống bài tập đa dạng",
-        "Gợi ý thực đơn AI không giới hạn",
-        "Đặt lịch tập trực tuyến",
-        "Xem lịch trình tập luyện cá nhân",
-        "Xem lịch sử checkin cá nhân",
+        t("pricing.system_features.exercise_library"),
+        t("pricing.system_features.ai_mealplan"),
+        t("pricing.system_features.online_booking"),
+        t("pricing.system_features.personal_schedule"),
+        t("pricing.system_features.checkin_history"),
       ],
       gifts: [
-        "Balo cao cấp Degrey",
-        "Shaker Bình Lắc Cao Cấp 600ml",
-        "2 bánh Biscotti 300g",
+        t("pricing.gifts.backpack"),
+        t("pricing.gifts.shaker"),
+        t("pricing.gifts.biscotti"),
       ],
       totalSessions: 72,
     },
   ];
 
   const trialPlan = {
-    title: "Trải nghiệm",
-    durationText: "4 tuần",
+    title: t("pricing.names.trial"),
+    durationText: t("pricing.weeks", { count: 4 }),
     features: [
-      "Tập 1 kèm 1",
-      "Giáo án cá nhân hóa",
-      "Tư vấn dinh dưỡng riêng",
-      "Theo dõi tiến độ theo tuần",
-      "Sử dụng Notion để lưu trữ bài tập, tiến độ một cách thông minh",
-      "Hỗ trợ căng cơ phục hồi sau tập",
-      "Cam kết kết quả 100%",
+      t("pricing.features.one_on_one"),
+      t("pricing.features.personalized_plan"),
+      t("pricing.features.diet_consultation"),
+      t("pricing.features.weekly_progress"),
+      t("pricing.features.notion_tracking"),
+      t("pricing.features.stretching_recovery"),
+      t("pricing.features.commitment"),
     ],
     systemFeatures: [
-      "Truy cập hệ thống bài tập đa dạng",
-      "Gợi ý thực đơn AI không giới hạn",
-      "Đặt lịch tập trực tuyến",
-      "Xem lịch trình tập luyện cá nhân",
-      "Xem lịch sử checkin cá nhân",
+      t("pricing.system_features.exercise_library"),
+      t("pricing.system_features.ai_mealplan"),
+      t("pricing.system_features.online_booking"),
+      t("pricing.system_features.personal_schedule"),
+      t("pricing.system_features.checkin_history"),
     ],
     gifts: [],
     totalSessions: 12,
@@ -278,107 +281,107 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   // ===== GÓI DỊCH VỤ DÀNH CHO TRAINER =====
   const trainerPlans = [
     {
-      title: "Tiêu chuẩn",
+      title: t("pricing.trainer_plans.basic"),
       icon: "\uD83D\uDD25",
-      subtitle: "Dành cho HLV mới bắt đầu",
+      subtitle: t("pricing.trainer_plans.basic_sub"),
       priceMonth: 200000,
       priceYear: 2000000,
       categories: [
         {
-          name: "Quản lý học viên",
+          name: t("pricing.trainer_plans.categories.student_management"),
           features: [
-            "Quản lý tối đa 5 học viên",
-            "Tạo hồ sơ tập luyện cho học viên",
-            "Checkin/Checkout học viên qua hệ thống",
-            "Xem lịch sử checkin tất cả học viên",
-            "Trainer Dashboard — Thống kê tổng quan",
+            t("pricing.trainer_plans.features.max_5_students"),
+            t("pricing.trainer_plans.features.create_profile"),
+            t("pricing.trainer_plans.features.checkin_checkout"),
+            t("pricing.trainer_plans.features.checkin_history"),
+            t("pricing.trainer_plans.features.dashboard"),
           ]
         },
         {
-          name: "Coaching & Lịch tập",
+          name: t("pricing.trainer_plans.categories.coaching_schedule"),
           features: [
-            "Online Coaching — Gửi bài tập & feedback cho học viên",
-            "Tạo và quản lý lịch tập cho học viên",
+            t("pricing.trainer_plans.features.coaching_feedback"),
+            t("pricing.trainer_plans.features.manage_schedule"),
           ]
         }
       ]
     },
     {
-      title: "Chuyên nghiệp",
+      title: t("pricing.trainer_plans.advanced"),
       icon: "\uD83D\uDC8E",
-      subtitle: "Dành cho PT muốn phát triển",
+      subtitle: t("pricing.trainer_plans.advanced_sub"),
       priceMonth: 250000,
       priceYear: 2500000,
       featured: true,
       categories: [
         {
-          name: "Quản lý học viên",
+          name: t("pricing.trainer_plans.categories.student_management"),
           features: [
-            "Quản lý tối đa 20 học viên",
-            "Tạo hồ sơ tập luyện cho học viên",
-            "Checkin/Checkout học viên qua hệ thống",
-            "Xem lịch sử checkin tất cả học viên",
-            "Trainer Dashboard — Thống kê tổng quan",
+            t("pricing.trainer_plans.features.max_20_students"),
+            t("pricing.trainer_plans.features.create_profile"),
+            t("pricing.trainer_plans.features.checkin_checkout"),
+            t("pricing.trainer_plans.features.checkin_history"),
+            t("pricing.trainer_plans.features.dashboard"),
           ]
         },
         {
-          name: "Coaching & Lịch tập",
+          name: t("pricing.trainer_plans.categories.coaching_schedule"),
           features: [
-            "Online Coaching — Gửi bài tập & feedback cho học viên",
-            "Tạo và quản lý lịch tập cho học viên",
+            t("pricing.trainer_plans.features.coaching_feedback"),
+            t("pricing.trainer_plans.features.manage_schedule"),
           ]
         },
         {
-          name: "F1 CRM & AI",
+          name: t("pricing.trainer_plans.categories.crm_ai"),
           icon: "\u2728",
           features: [
-            "Hệ thống CRM quản lý khách hàng tiềm năng (F1)",
-            "AI phân tích & đánh giá khách hàng F1",
-            "Dự đoán kết quả tập luyện bằng AI",
-            "Báo cáo AI chi tiết cho từng khách hàng",
+            t("pricing.trainer_plans.features.crm_leads"),
+            t("pricing.trainer_plans.features.crm_ai_analysis"),
+            t("pricing.trainer_plans.features.crm_ai_prediction"),
+            t("pricing.trainer_plans.features.crm_ai_report"),
           ]
         }
       ]
     },
     {
-      title: "Cao cấp",
+      title: t("pricing.trainer_plans.vip"),
       icon: "\uD83D\uDC51",
-      subtitle: "Dành cho PT chuyên nghiệp",
+      subtitle: t("pricing.trainer_plans.vip_sub"),
       priceMonth: 300000,
       priceYear: 3000000,
       categories: [
         {
-          name: "Quản lý học viên",
+          name: t("pricing.trainer_plans.categories.student_management"),
           features: [
-            "Quản lý tối đa 50 học viên",
-            "Tạo hồ sơ tập luyện cho học viên",
-            "Checkin/Checkout học viên qua hệ thống",
-            "Xem lịch sử checkin tất cả học viên",
-            "Trainer Dashboard — Thống kê tổng quan",
+            t("pricing.trainer_plans.features.max_50_students"),
+            t("pricing.trainer_plans.features.create_profile"),
+            t("pricing.trainer_plans.features.checkin_checkout"),
+            t("pricing.trainer_plans.features.checkin_history"),
+            t("pricing.trainer_plans.features.dashboard"),
           ]
         },
         {
-          name: "Coaching & Lịch tập",
+          name: t("pricing.trainer_plans.categories.coaching_schedule"),
           features: [
-            "Online Coaching — Gửi bài tập & feedback cho học viên",
-            "Tạo và quản lý lịch tập cho học viên",
+            t("pricing.trainer_plans.features.coaching_feedback"),
+            t("pricing.trainer_plans.features.manage_schedule"),
           ]
         },
         {
-          name: "F1 CRM & AI",
+          name: t("pricing.trainer_plans.categories.crm_ai"),
           icon: "\u2728",
           features: [
-            "Hệ thống CRM quản lý khách hàng tiềm năng (F1)",
-            "AI phân tích & đánh giá khách hàng F1",
-            "Dự đoán kết quả tập luyện bằng AI",
-            "Báo cáo AI chi tiết cho từng khách hàng",
+            t("pricing.trainer_plans.features.crm_leads"),
+            t("pricing.trainer_plans.features.crm_ai_analysis"),
+            t("pricing.trainer_plans.features.crm_ai_prediction"),
+            t("pricing.trainer_plans.features.crm_ai_report"),
           ]
         },
         {
-          name: "Đặc quyền",
+          name: t("pricing.trainer_plans.categories.privilege"),
           icon: "\uD83D\uDC51",
           features: [
-            "Cập nhật tính năng mới miễn phí",
+            t("pricing.trainer_plans.features.free_updates"),
           ]
         }
       ]
@@ -436,7 +439,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     <section id="pricing" className="py-16 bg-[#262626]">
       <div className="container-custom mx-auto px-4">
         <h2 className="text-center text-primary uppercase">
-          {isTrainer ? "GÓI DỊCH VỤ CỦA CHÚNG TÔI" : "GÓI TẬP CỦA CHÚNG TÔI"}
+          {isTrainer ? t("pricing.title_trainer") : t("pricing.title_customer")}
         </h2>
 
 
@@ -487,7 +490,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 : "bg-[#222] text-white hover:-translate-y-0.5 hover:shadow-lg"
                 }`}
             >
-              Trải nghiệm
+              {t("pricing.trial")}
             </button>
           </div>
         )}
@@ -501,14 +504,14 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     }`}
                   onClick={() => setBillingCycle("month")}
                 >
-                  Tháng
+                  {t("pricing.month")}
                 </button>
                 <button
                   className={`relative z-10 w-1/2 h-full rounded-full font-semibold text-base transition-colors duration-300 ${billingCycle === "year" ? "text-white" : "text-gray-400"
                     }`}
                   onClick={() => setBillingCycle("year")}
                 >
-                  Năm
+                  {t("pricing.year")}
                 </button>
                 <div
                   className={`absolute top-0 w-1/2 h-full bg-gradient-to-r from-primary to-primary-dark rounded-full transition-all duration-500 ease-out ${billingCycle === "month" ? "left-0" : "left-1/2"
@@ -536,7 +539,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 >
                   {plan.featured && (
                     <div className="absolute -top-3 -right-3 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                      PHỔ BIẾN
+                      {t("pricing.popular")}
                     </div>
                   )}
 
@@ -549,11 +552,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     <div className="mt-6">
                       <div className="flex items-end gap-2">
                         <span className="text-fluid-4xl font-bold text-white">{formattedPrice}</span>
-                        <span className="text-gray-400 mb-1">/{billingCycle === "year" ? "Năm" : "Tháng"}</span>
+                        <span className="text-gray-400 mb-1">/{billingCycle === "year" ? t("pricing.year") : t("pricing.month")}</span>
                       </div>
                       {billingCycle === "year" && (
                         <p className="text-sm text-gray-500 mt-1">
-                          Bình quân {averageMonthPrice}/Tháng
+                          {t("pricing.avg_per_month")} {averageMonthPrice}/{t("pricing.month")}
                         </p>
                       )}
                     </div>
@@ -589,6 +592,8 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           setShowAlreadySubscribed(true);
                           return;
                         }
+                        purchaseRequestIdRef.current =
+                          globalThis.crypto.randomUUID();
                         setCheckoutPlan(plan);
                         setCheckoutResult(null);
                         setWalletLoading(true);
@@ -603,7 +608,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                       }}
                       className="w-full py-3 font-bold rounded-lg transition-all duration-300 bg-primary text-white hover:bg-orange-500 shadow-lg shadow-orange-500/20"
                     >
-                      MUA
+                      {t("pricing.buy")}
                     </button>
                   </div>
                 </div>
@@ -620,7 +625,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               >
                 {plan.featured && (
                   <div className="absolute -top-3 -right-3 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                    PHỔ BIẾN
+                    {t("pricing.popular")}
                   </div>
                 )}
                 <div className="text-center mb-4">
@@ -647,7 +652,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 {plan.systemFeatures && plan.systemFeatures.length > 0 && (
                   <div className="mt-4 mb-4">
                     <h4 className="text-sm font-semibold text-primary mb-2 uppercase tracking-wide">
-                      ✨ Quyền lợi hệ thống
+                      {t("pricing.system_benefits")}
                     </h4>
                     <ul className="space-y-1.5">
                       {plan.systemFeatures.map((sf, i) => (
@@ -664,11 +669,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     onClick={() => showGiftModal(plan.gifts)}
                     className="mt-4 p-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg border border-yellow-500/30 text-yellow-400 font-semibold cursor-pointer flex items-center justify-center gap-2 hover:scale-105 transition text-base"
                   >
-                    <Gift className="w-5 h-5" /> QUÀ TẶNG ĐẶC BIỆT
+                    <Gift className="w-5 h-5" /> {t("pricing.special_gifts")}
                   </div>
                 )}
                 <div className="mt-4 pt-3 border-t border-dashed border-gray-700 text-fluid-base text-gray-400 text-center">
-                  Tổng số buổi: {plan.totalSessions}
+                  {t("pricing.total_sessions")}: {plan.totalSessions}
                 </div>
                 <Link
                   to="/register"
@@ -678,7 +683,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                   }}
                   className="relative flex items-center justify-center w-full mt-5 py-3 2xl:py-4 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-fluid-base"
                 >
-                  <span className="relative z-10">Đăng ký ngay</span>
+                  <span className="relative z-10">{t("pricing.register_now")}</span>
                   <span className="absolute inset-0 bg-primary transform -translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></span>
                 </Link>
               </div>
@@ -693,9 +698,9 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary transition-colors group"
           >
             {isTrainer ? (
-              <>Bạn là khách hàng? <span className="underline underline-offset-2 group-hover:text-primary">Xem gói tập cá nhân</span> <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /></>
+              <>{t("pricing.switch_to_customer")} <span className="underline underline-offset-2 group-hover:text-primary">{t("pricing.view_personal_plans")}</span> <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /></>
             ) : (
-              <>Bạn là huấn luyện viên? <span className="underline underline-offset-2 group-hover:text-primary">Xem gói dành cho HLV</span> <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /></>
+              <>{t("pricing.switch_to_trainer")} <span className="underline underline-offset-2 group-hover:text-primary">{t("pricing.view_trainer_plans")}</span> <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /></>
             )}
           </button>
         </div>
@@ -711,7 +716,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             >
               <div className="flex justify-between items-center p-4 border-b border-yellow-500/30">
                 <h3 className="text-xl font-bold text-yellow-400 flex items-center gap-2">
-                  <Sparkles className="w-6 h-6" /> QUÀ TẶNG ĐẶC BIỆT
+                  <Sparkles className="w-6 h-6" /> {t("pricing.special_gifts")}
                 </h3>
                 <button
                   onClick={() => setGiftModalVisible(false)}
@@ -746,7 +751,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             >
               <div className="flex justify-between items-center p-4 border-b border-primary/30">
                 <h3 className="text-xl font-bold text-primary flex items-center gap-2">
-                  <Sparkles className="w-6 h-6" /> ƯU ĐÃI ĐẶC BIỆT
+                  <Sparkles className="w-6 h-6" /> {t("pricing.login_promo_title")}
                 </h3>
                 <button
                   onClick={() => setShowLoginPrompt(false)}
@@ -757,26 +762,25 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               </div>
               <div className="p-6 space-y-4">
                 <p className="text-gray-300 text-center text-lg">
-                  Đăng nhập ngay để nhận{" "}
-                  <strong className="text-primary">GIẢM 15%</strong> cho gói tập
-                  đầu tiên!
+                  {t("pricing.login_promo_text")}{" "}
+                  <strong className="text-primary">{t("pricing.login_promo_discount")}</strong> {t("pricing.login_promo_suffix")}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
                   <button
                     onClick={handleLoginRedirect}
                     className="flex-1 py-3 bg-gradient-to-r from-primary to-primary-dark text-white font-bold rounded-lg flex items-center justify-center gap-2 hover:scale-105 transition"
                   >
-                    <LogIn size={18} /> Đăng nhập ngay
+                    <LogIn size={18} /> {t("pricing.login_now")}
                   </button>
                   <button
                     onClick={handleContinueWithoutLogin}
                     className="flex-1 py-3 bg-gray-700 text-white font-bold rounded-lg flex items-center justify-center gap-2 hover:bg-gray-600 transition"
                   >
-                    Tiếp tục đăng ký <ArrowRight size={18} />
+                    {t("pricing.continue_register")} <ArrowRight size={18} />
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 text-center mt-2">
-                  * Ưu đãi chỉ áp dụng cho lần đăng ký đầu tiên khi có tài khoản
+                  {t("pricing.login_promo_note")}
                 </p>
               </div>
             </div>
@@ -867,7 +871,15 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           const handlePurchase = async () => {
             setCheckoutLoading(true);
             try {
-              const res = await purchaseTrainerPlan(checkoutPlan.title, billingCycle);
+              if (!purchaseRequestIdRef.current) {
+                purchaseRequestIdRef.current =
+                  globalThis.crypto.randomUUID();
+              }
+              const res = await purchaseTrainerPlan(
+                checkoutPlan.title,
+                billingCycle,
+                purchaseRequestIdRef.current,
+              );
               setCheckoutResult({
                 success: true,
                 message: res.data.message,
@@ -888,6 +900,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             if (!checkoutLoading) {
               setCheckoutPlan(null);
               setCheckoutResult(null);
+              purchaseRequestIdRef.current = null;
             }
           };
 
@@ -973,12 +986,21 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                         </div>
                       </div>
                     ) : (
-                      <button
-                        onClick={handleClose}
-                        className="w-full py-3 bg-gray-700 text-white font-semibold rounded-xl hover:bg-gray-600 transition"
-                      >
-                        Đóng
-                      </button>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={handleClose}
+                          className="py-3 bg-gray-700 text-white font-semibold rounded-xl hover:bg-gray-600 transition"
+                        >
+                          Đóng
+                        </button>
+                        <button
+                          onClick={handlePurchase}
+                          disabled={checkoutLoading}
+                          className="py-3 bg-primary text-white font-semibold rounded-xl hover:bg-orange-500 transition disabled:opacity-50"
+                        >
+                          {checkoutLoading ? "Đang thử lại..." : "Thử lại"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -1029,7 +1051,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           ⚠️ Số dư không đủ (thiếu {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(shortage)})
                         </p>
                         <button
-                          onClick={() => { setCheckoutPlan(null); navigate('/wallet'); }}
+                          onClick={() => {
+                            purchaseRequestIdRef.current = null;
+                            setCheckoutPlan(null);
+                            navigate('/wallet');
+                          }}
                           className="text-primary text-sm font-semibold hover:underline flex items-center justify-center gap-1 mx-auto"
                         >
                           Nạp tiền vào ví <ArrowRight className="w-3.5 h-3.5" />

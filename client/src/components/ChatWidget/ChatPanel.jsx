@@ -6,13 +6,85 @@ import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import ChatPanelSidebar from "./ChatPanelSidebar";
 import { submitAiFeedback } from "../../services/ai.service";
+import { compressChatImage } from "../../utils/compressChatImage";
 
-const QUICK_ACTIONS = [
+const PAGE_TYPE_MAP = {
+  "/tdee-calculator": "tdee_calculator",
+  "/mealplan": "meal_plan",
+  "/exercises": "exercises",
+  "/cong-thuc-nau-an": "recipe",
+  "/ket-qua-khach-hang": "customer_story",
+  "/huan-luyen-vien": "trainer_profile",
+  "/training-schedule": "training_schedule",
+  "/wallet": "wallet",
+  "/blog": "blog",
+  "/workout-plans": "workout_plan",
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function getPageType(pathname) {
+  for (const [prefix, type] of Object.entries(PAGE_TYPE_MAP)) {
+    if (pathname.startsWith(prefix)) return type;
+  }
+  return "general";
+}
+
+// Quick actions mặc định (hiện khi ở trang không có gợi ý riêng)
+const DEFAULT_QUICK_ACTIONS = [
   { emoji: "🌐", label: "Khám phá", value: "Giới thiệu cho tôi trang web HTCOACHING có những gì, tính năng và dịch vụ" },
   { emoji: "🔥", label: "Tính TDEE", value: "Tính TDEE cho tôi" },
   { emoji: "🥗", label: "Thực đơn", value: "Gợi ý thực đơn giảm mỡ tăng cơ" },
   { emoji: "👨‍🏫", label: "Tìm HLV", value: "Cho tôi xem thông tin các HLV tại HTCOACHING" },
 ];
+
+// Gợi ý câu hỏi theo trang (tương tự Gemini trên YouTube)
+// Key "detail" dùng khi URL có slug (trang chi tiết), "list" dùng cho trang danh sách
+const PAGE_SUGGESTIONS = {
+  blog: {
+    detail: [
+      { emoji: "📖", label: "Tóm tắt bài viết", value: "Tóm tắt nội dung bài viết tôi đang đọc" },
+      { emoji: "💡", label: "Ý chính là gì?", value: "Những điểm chính trong bài viết này là gì?" },
+      { emoji: "🏋️", label: "Áp dụng thế nào?", value: "Tôi nên áp dụng kiến thức trong bài viết này vào tập luyện như thế nào?" },
+    ],
+    list: [
+      { emoji: "📰", label: "Bài viết hay", value: "Gợi ý cho tôi chủ đề fitness nào đáng đọc" },
+    ],
+  },
+  recipe: {
+    detail: [
+      { emoji: "🥗", label: "Món này healthy không?", value: "Món ăn tôi đang xem có phù hợp cho người tập gym không?" },
+      { emoji: "📋", label: "Nguyên liệu cần gì?", value: "Liệt kê nguyên liệu chính của món này" },
+      { emoji: "🔄", label: "Thay thế nguyên liệu", value: "Tôi có thể thay thế nguyên liệu nào trong món này cho phù hợp hơn?" },
+    ],
+    list: [
+      { emoji: "🍳", label: "Món ăn healthy", value: "Gợi ý cho tôi vài công thức nấu ăn healthy" },
+    ],
+  },
+  customer_story: {
+    detail: [
+      { emoji: "📊", label: "Tóm tắt kết quả", value: "Tóm tắt kết quả tập luyện của học viên tôi đang xem" },
+      { emoji: "💪", label: "Phương pháp gì?", value: "Học viên này đã tập theo phương pháp gì để đạt kết quả?" },
+    ],
+  },
+  trainer_profile: {
+    detail: [
+      { emoji: "👨‍🏫", label: "Giới thiệu HLV", value: "Cho tôi biết thêm về HLV tôi đang xem" },
+      { emoji: "📅", label: "Đăng ký tập", value: "Tôi muốn đăng ký tập với HLV này" },
+    ],
+  },
+  tdee_calculator: {
+    list: [
+      { emoji: "🔥", label: "Tính TDEE", value: "Tính TDEE cho tôi" },
+      { emoji: "❓", label: "TDEE là gì?", value: "TDEE là gì và tại sao quan trọng?" },
+    ],
+  },
+  exercises: {
+    list: [
+      { emoji: "💪", label: "Gợi ý bài tập", value: "Gợi ý bài tập cho người mới bắt đầu" },
+      { emoji: "🎯", label: "Tập nhóm cơ nào?", value: "Hôm nay tôi nên tập nhóm cơ nào?" },
+    ],
+  },
+};
 
 const TOOL_LABELS = {
   calculate_tdee: "Đang tính TDEE...",
@@ -22,17 +94,17 @@ const TOOL_LABELS = {
   search_knowledge: "Đang tìm kiếm trên Google...",
 };
 
-export default function ChatPanel() {
+export default function ChatPanel({ initiallyOpen = false }) {
   const { user } = useAuth();
   const location = useLocation();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [chatTheme, setChatTheme] = useState(() => localStorage.getItem("ht_chat_theme") || "dark");
   const [input, setInput] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
-  
+
   const panelRef = useRef(null);
   const inputRef = useRef(null);
   const pillInputRef = useRef(null);
@@ -40,7 +112,7 @@ export default function ChatPanel() {
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const attachMenuRef = useRef(null);
-  
+
   const [pillInput, setPillInput] = useState("");
   const [pillExpanded, setPillExpanded] = useState(false);
   const noAuthPaths = ["/login", "/register", "/login-success"];
@@ -58,21 +130,29 @@ export default function ChatPanel() {
   }, [chatTheme]);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setSidebarOpen(!mobile);
+    };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
-    setSidebarOpen(!isMobile);
-  }, [isMobile]);
-
-  useEffect(() => {
     if (isOpen && user) {
       loadConversations();
-      if (messages.length === 0) loadHistory();
+      // Luôn tạo cuộc hội thoại mới khi mở chat → hiện suggestions context-aware
+      if (messages.length === 0 && !conversationId) loadHistory();
     }
-  }, [isOpen, user]);
+  }, [
+    conversationId,
+    isOpen,
+    loadConversations,
+    loadHistory,
+    messages.length,
+    user,
+  ]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -80,7 +160,8 @@ export default function ChatPanel() {
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 150);
+      const timer = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -129,21 +210,27 @@ export default function ChatPanel() {
 
   const handleSend = useCallback(() => {
     if ((!input.trim() && !selectedImage) || isLoading) return;
-    sendMessage(input.trim(), { page: location.pathname, image: selectedImage });
+
+    const context = {
+      page: location.pathname,
+      pageType: getPageType(location.pathname),
+      pageTitle: document.title,
+      image: selectedImage
+    };
+
+    sendMessage(input.trim(), context);
     setInput("");
     setSelectedImage(null);
   }, [input, selectedImage, isLoading, sendMessage, location.pathname]);
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      alert("Chỉ hỗ trợ tải lên hình ảnh!");
-      return;
+    try {
+      setSelectedImage(await compressChatImage(file));
+    } catch (imageError) {
+      alert(imageError.message);
     }
-    const reader = new FileReader();
-    reader.onload = (e) => setSelectedImage(e.target.result);
-    reader.readAsDataURL(file);
     e.target.value = "";
   };
 
@@ -157,8 +244,23 @@ export default function ChatPanel() {
   const handleNewConversation = () => {
     clearHistory();
     if (isMobile) setSidebarOpen(false);
-    inputRef.current?.focus();
+    setTimeout(() => inputRef.current?.focus(), 100);
   };
+
+  // Helper: lấy suggestions theo trang hiện tại
+  const getContextSuggestions = useCallback(() => {
+    const pageType = getPageType(location.pathname);
+    const slugParts = location.pathname.split('/').filter(Boolean);
+    const isDetail = slugParts.length >= 2;
+    const pageSuggestions = PAGE_SUGGESTIONS[pageType];
+    const contextActions = pageSuggestions
+      ? (isDetail ? pageSuggestions.detail : pageSuggestions.list) || []
+      : [];
+    return [
+      ...contextActions,
+      ...DEFAULT_QUICK_ACTIONS.filter(d => !contextActions.some(c => c.value === d.value)),
+    ].slice(0, 4);
+  }, [location.pathname]);
 
   const handleSwitchConversation = async (id) => {
     if (id === conversationId) return;
@@ -170,14 +272,15 @@ export default function ChatPanel() {
     if (!conversationId || !messageId) return;
     try {
       await submitAiFeedback(conversationId, messageId, feedback);
+    // eslint-disable-next-line no-unused-vars
     } catch (err) {
       // Silent fail — feedback là non-critical
     }
   }, [conversationId]);
 
-  const handleEditMessage = useCallback((msgIndex, newText) => {
+  const handleEditMessage = useCallback((messageId, newText) => {
     if (!newText?.trim()) return;
-    editMessage(msgIndex, newText);
+    editMessage(messageId, newText);
   }, [editMessage]);
 
   if (!user || noAuthPaths.includes(location.pathname)) return null;
@@ -190,7 +293,12 @@ export default function ChatPanel() {
     setPillExpanded(false);
     setIsOpen(true);
     setTimeout(() => {
-      sendMessage(text, { page: location.pathname });
+      const context = {
+        page: location.pathname,
+        pageType: getPageType(location.pathname),
+        pageTitle: document.title
+      };
+      sendMessage(text, context);
     }, 200);
   };
 
@@ -213,14 +321,14 @@ export default function ChatPanel() {
       )}
 
       <div className="flex items-end gap-2 bg-gray-100 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10 px-4 py-3 focus-within:border-emerald-500/40 focus-within:bg-white dark:focus-within:bg-white/10 transition-all shadow-sm">
-        <input 
-          type="file" 
-          accept="image/*" 
-          ref={fileInputRef} 
-          onChange={handleImageUpload} 
-          className="hidden" 
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          ref={fileInputRef}
+          onChange={handleImageUpload}
+          className="hidden"
         />
-        
+
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isLoading}
@@ -336,7 +444,7 @@ export default function ChatPanel() {
       >
         {/* Main Background */}
         <div className="flex w-full h-full bg-white dark:bg-[#131314] text-gray-900 dark:text-white transition-colors duration-300 overflow-hidden">
-          
+
           {/* Sidebar */}
           <div
             className={`transition-all duration-300 ease-in-out overflow-hidden shrink-0 absolute md:relative z-20 h-full border-r border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e1f22] ${
@@ -397,24 +505,29 @@ export default function ChatPanel() {
                   <h1 className="text-2xl md:text-3xl font-semibold mb-8 text-center text-gray-800 dark:text-gray-100">
                     Tôi có thể giúp gì cho bạn, {user?.name}?
                   </h1>
-                  
+
                   {/* Centered Input Area */}
                   <div className="w-full mb-8">
                     {renderInputArea()}
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full max-w-3xl mx-auto">
-                    {QUICK_ACTIONS.map((a) => (
-                      <button
-                        key={a.value}
-                        onClick={() => sendMessage(a.value, { page: location.pathname })}
-                        className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 transition-all text-left"
-                      >
-                        <span className="text-2xl">{a.emoji}</span>
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{a.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                  {(() => {
+                    const actions = getContextSuggestions();
+                    return (
+                      <div className={`grid grid-cols-2 ${actions.length > 2 ? 'md:grid-cols-4' : 'md:grid-cols-2'} gap-3 w-full max-w-3xl mx-auto`}>
+                        {actions.map((a) => (
+                          <button
+                            key={a.value}
+                            onClick={() => sendMessage(a.value, { page: location.pathname, pageType: getPageType(location.pathname), pageTitle: document.title })}
+                            className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 transition-all text-left"
+                          >
+                            <span className="text-2xl">{a.emoji}</span>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{a.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 /* Chat state */
@@ -428,10 +541,10 @@ export default function ChatPanel() {
                           isLoading;
                         return (
                           <ChatBubble
-                            key={i}
+                            key={msg._id || msg.localId || i}
                             message={msg}
                             onRetry={retryLastMessage}
-                            onEdit={(newText) => handleEditMessage(i, newText)}
+                            onEdit={handleEditMessage}
                             isThinking={isLastAssistant}
                             onFeedback={handleFeedback}
                           />
@@ -455,7 +568,7 @@ export default function ChatPanel() {
                       {error && (
                         <div className="flex items-center justify-between text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl px-4 py-3">
                           <span>{error}</span>
-                          <button 
+                          <button
                             onClick={retryLastMessage}
                             className="px-3 py-1.5 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/40 rounded-lg transition-colors font-medium flex items-center gap-1.5"
                           >
@@ -466,9 +579,28 @@ export default function ChatPanel() {
                       <div ref={messagesEndRef} />
                     </div>
                   </div>
-                  
-                  {/* Bottom Input Area */}
+
+                  {/* Bottom Suggestions + Input Area */}
                   <div className="shrink-0 px-4 md:px-6 pb-6 pt-2 bg-gradient-to-t from-white via-white to-transparent dark:from-[#131314] dark:via-[#131314] z-10">
+                    {/* Persistent suggestions */}
+                    {!isLoading && (() => {
+                      const actions = getContextSuggestions();
+                      if (actions.length === 0) return null;
+                      return (
+                        <div className="w-full max-w-3xl mx-auto flex flex-wrap justify-center gap-2 mb-3">
+                          {actions.map((a) => (
+                            <button
+                              key={a.value}
+                              onClick={() => sendMessage(a.value, { page: location.pathname, pageType: getPageType(location.pathname), pageTitle: document.title })}
+                              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-medium bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 transition-colors shadow-sm"
+                            >
+                              <span>{a.emoji}</span>
+                              <span className="whitespace-nowrap">{a.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     {renderInputArea()}
                     <div className="text-center text-[11px] text-gray-500 dark:text-gray-500 mt-3">
                       HT Assistant là AI và có thể mắc sai sót.

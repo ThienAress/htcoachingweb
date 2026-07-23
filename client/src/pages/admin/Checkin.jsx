@@ -3,7 +3,12 @@ import ReactDOM from "react-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -25,10 +30,11 @@ import {
   X,
 } from "lucide-react";
 
-import { getOrders } from "../../services/order.service";
+import { getCheckinOrderOptions } from "../../services/order.service";
 import { getCheckins, createCheckin } from "../../services/checkin.service";
 import { useAuth } from "../../context/AuthContext";
 import SEO from "../../components/SEO";
+import { useDebounce } from "../../hooks/useDebounce";
 
 const muscles = [
   "Ngực",
@@ -44,7 +50,7 @@ const muscles = [
 const checkinSchema = z.object({
   time: z.string().min(1, "Vui lòng chọn thời gian check-in"),
   muscle: z.array(z.string()).min(1, "Vui lòng chọn ít nhất một nhóm cơ"),
-  note: z.string().optional(),
+  note: z.string().max(500, "Ghi chú không được vượt quá 500 ký tự").optional(),
 });
 
 const Checkin = () => {
@@ -55,12 +61,26 @@ const Checkin = () => {
   const [isMuscleDropdownOpen, setIsMuscleDropdownOpen] = useState(false);
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const debouncedCustomerSearch = useDebounce(customerSearch, 300);
   const limit = 5;
+  const actorKey = user?._id || user?.id || "anonymous";
 
   // Fetch orders
   const { data: orders = [], isLoading: isLoadingOrders } = useQuery({
-    queryKey: ["orders"],
-    queryFn: () => getOrders(1, 1000).then((res) => res.data.data.orders || []),
+    queryKey: [
+      "actor",
+      actorKey,
+      user?.role,
+      "checkin-order-options",
+      debouncedCustomerSearch,
+    ],
+    queryFn: ({ signal }) =>
+      getCheckinOrderOptions(debouncedCustomerSearch, signal).then(
+        (res) => res.data.data || [],
+      ),
+    enabled: Boolean(user),
+    placeholderData: keepPreviousData,
   });
 
   // Fetch checkins
@@ -69,13 +89,14 @@ const Checkin = () => {
     isLoading: isLoadingCheckins,
     isError,
   } = useQuery({
-    queryKey: ["checkins", currentPage],
-    queryFn: () =>
-      getCheckins(currentPage, limit).then((res) => ({
+    queryKey: ["actor", actorKey, user?.role, "checkins", currentPage],
+    queryFn: ({ signal }) =>
+      getCheckins(currentPage, limit, signal).then((res) => ({
         data: res.data.data,
         pagination: res.data.pagination,
       })),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
+    enabled: Boolean(user),
   });
 
   const checkins = checkinsData?.data || [];
@@ -85,20 +106,12 @@ const Checkin = () => {
     page: 1,
   };
 
-  // Lọc order theo role: admin chỉ thấy order chưa có trainer (trainerId == null)
-  const filteredOrdersForCustomer = useMemo(() => {
-    if (user?.role === "admin") {
-      return orders.filter((o) => !o.trainerId);
-    }
-    return orders;
-  }, [orders, user?.role]);
-
   // Danh sách khách hàng (unique email) từ orders đã lọc
   const customers = useMemo(() => {
     return [
-      ...new Map(filteredOrdersForCustomer.map((o) => [o.email, o])).values(),
+      ...new Map(orders.map((o) => [o.email, o])).values(),
     ];
-  }, [filteredOrdersForCustomer]);
+  }, [orders]);
 
   const [selection, setSelection] = useState({
     customer: "",
@@ -147,12 +160,13 @@ const Checkin = () => {
 
   const handleSelectOrder = useCallback(
     (id) => {
-      const order = filteredOrdersForCustomer.find((o) => o._id === id);
+      const order = orders.find((o) => o._id === id);
       setSelection((prev) => ({ ...prev, orderId: id, orderData: order }));
     },
-    [filteredOrdersForCustomer],
+    [orders],
   );
 
+  // eslint-disable-next-line no-unused-vars
   const currentDateTimeLocal = useMemo(() => {
     const now = new Date();
     const tzOffsetMs = now.getTimezoneOffset() * 60000;
@@ -163,14 +177,21 @@ const Checkin = () => {
     return `${new Date().getFullYear()}-01-01T00:00`;
   }, []);
 
+  const checkinRequestIdRef = useRef(null);
+
   const createCheckinMutation = useMutation({
     mutationFn: createCheckin,
     onSuccess: () => {
+      checkinRequestIdRef.current = null;
       toast.success("Check-in thành công!");
       reset({ time: "", muscle: [], note: "" });
       setSelection({ customer: "", orderId: "", orderData: null });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["checkins"] });
+      queryClient.invalidateQueries({
+        queryKey: ["actor", actorKey, user?.role, "checkin-order-options"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["actor", actorKey, user?.role, "checkins"],
+      });
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Check-in thất bại");
@@ -188,11 +209,13 @@ const Checkin = () => {
         return;
       }
       const muscleString = data.muscle.join(", ");
+      checkinRequestIdRef.current ||= crypto.randomUUID();
       createCheckinMutation.mutate({
         time: new Date(data.time).toISOString(),
         muscle: muscleString,
         note: data.note,
         orderId: selection.orderId,
+        clientRequestId: checkinRequestIdRef.current,
       });
     },
     [selection, createCheckinMutation],
@@ -261,6 +284,16 @@ const Checkin = () => {
                       </div>
                       {isCustomerDropdownOpen && (
                         <div className="absolute z-50 w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-2xl overflow-y-auto max-h-40">
+                          <div className="sticky top-0 bg-gray-800 p-2 border-b border-gray-700">
+                            <input
+                              type="search"
+                              value={customerSearch}
+                              onChange={(event) => setCustomerSearch(event.target.value)}
+                              onClick={(event) => event.stopPropagation()}
+                              placeholder="Tìm tên hoặc email..."
+                              className="w-full rounded-md border border-gray-700 bg-gray-900 px-2.5 py-1.5 text-sm text-white outline-none focus:border-primary"
+                            />
+                          </div>
                           <div
                             onClick={() => {
                               setSelection({ customer: "", orderId: "", orderData: null });
@@ -303,7 +336,7 @@ const Checkin = () => {
                       className="w-full border border-gray-700 bg-gray-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary hover:bg-gray-750 transition"
                     >
                       <option value="" className="bg-gray-800 text-gray-400">Chọn gói</option>
-                      {filteredOrdersForCustomer
+                      {orders
                         .filter((o) => o.email === selection.customer)
                         .map((o) => (
                           <option key={o._id} value={o._id} className="bg-gray-800 text-white">

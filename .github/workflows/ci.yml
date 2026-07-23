@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, staging]
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+        working-directory: client
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: client
+      - run: npm run lint
+        working-directory: client
+      - run: npm test
+        working-directory: client
+      - run: npm run build
+        working-directory: client
+        env:
+          SKIP_DYNAMIC_ROUTES: "true"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: client-dist
+          path: client/dist
+          retention-days: 3
+
+  server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+        working-directory: server
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: server
+      - run: npm run check:runtime-logging
+        working-directory: server
+      - run: npm test
+        working-directory: server
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: node scripts/check-secrets.mjs
+      - run: node scripts/check-repository-boundaries.mjs
+      - run: npm run test:ops
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+      - run: npm ci
+      - run: npm ci
+        working-directory: client
+      - run: npx playwright install --with-deps chromium
+        if: github.event_name != 'schedule'
+      - run: npx playwright install --with-deps chromium firefox webkit
+        if: github.event_name == 'schedule'
+      - run: npm run test:e2e
+        env:
+          PW_FULL_BROWSER_MATRIX: ${{ github.event_name == 'schedule' }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-failure
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

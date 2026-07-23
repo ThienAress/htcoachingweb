@@ -8,7 +8,7 @@
  *
  * Thay vào đó, tạo app instance minimal chỉ với routes + middleware cần test.
  */
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import express from "express";
 import cookieParser from "cookie-parser";
@@ -25,7 +25,12 @@ let mongoServer;
 
 // ===== Setup & Teardown =====
 export async function setupTestDB() {
-  mongoServer = await MongoMemoryServer.create();
+  mongoServer = await MongoMemoryReplSet.create({
+    replSet: {
+      count: 1,
+      storageEngine: "wiredTiger",
+    },
+  });
   const uri = mongoServer.getUri();
   await mongoose.connect(uri);
 
@@ -33,6 +38,10 @@ export async function setupTestDB() {
   process.env.JWT_SECRET = TEST_JWT_SECRET;
   process.env.REFRESH_SECRET = TEST_REFRESH_SECRET;
   process.env.NODE_ENV = "test";
+  process.env.BANK_NAME = "Test Bank";
+  process.env.BANK_CODE = "TEST";
+  process.env.BANK_ACCOUNT = "0000000000";
+  process.env.BANK_HOLDER = "TEST ACCOUNT";
 }
 
 export async function teardownTestDB() {

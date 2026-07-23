@@ -1,3 +1,9 @@
+import crypto from "crypto";
+import {
+  incrementMetric,
+  observeMetric,
+} from "../../observability/metrics.js";
+
 // AI Logger — Structured JSON logging cho AI Chat system
 // Ghi vào console với format JSON, dễ parse cho analytics sau này
 
@@ -41,32 +47,52 @@ function log(level, event, data = {}) {
   }
 }
 
+const actorRef = (userId) =>
+  crypto
+    .createHmac("sha256", process.env.LOG_HASH_SECRET || process.env.JWT_SECRET || "local")
+    .update(String(userId || "anonymous"))
+    .digest("hex")
+    .slice(0, 16);
+
 export const aiLogger = {
   /** Chat session bắt đầu */
-  chatStart: (userId, conversationId) =>
-    log("info", "chat_start", { userId, conversationId }),
+  chatStart: (userId, conversationId) => {
+    incrementMetric("ai.requests");
+    log("info", "chat_start", { actorRef: actorRef(userId), conversationId });
+  },
 
   /** Chat session kết thúc thành công */
-  chatEnd: (userId, conversationId, { iterations, toolCalls, durationMs, kbHits }) =>
-    log("info", "chat_end", { userId, conversationId, iterations, toolCalls, durationMs, kbHits }),
+  chatEnd: (userId, conversationId, { iterations, toolCalls, durationMs, kbHits }) => {
+    incrementMetric("ai.completed");
+    observeMetric("ai.total_latency_ms", durationMs);
+    log("info", "chat_end", { actorRef: actorRef(userId), conversationId, iterations, toolCalls, durationMs, kbHits });
+  },
 
   /** Tool được gọi */
-  toolCall: (userId, toolName, durationMs, success) =>
-    log("info", "tool_call", { userId, toolName, durationMs, success }),
+  toolCall: (userId, toolName, durationMs, success) => {
+    incrementMetric("ai.tool_calls");
+    if (!success) incrementMetric("ai.tool_failures");
+    observeMetric("ai.tool_latency_ms", durationMs);
+    log("info", "tool_call", { actorRef: actorRef(userId), toolName, durationMs, success });
+  },
 
   /** Knowledge Base match */
   kbMatch: (userId, matchCount, topSimilarity) =>
-    log("debug", "kb_match", { userId, matchCount, topSimilarity }),
+    log("debug", "kb_match", { actorRef: actorRef(userId), matchCount, topSimilarity }),
 
   /** Content moderation trigger */
-  moderationTrigger: (userId, action) =>
-    log("warn", "moderation_trigger", { userId, action }),
+  moderationTrigger: (userId, action) => {
+    incrementMetric("ai.moderation_blocks");
+    log("warn", "moderation_trigger", { actorRef: actorRef(userId), action });
+  },
 
   /** Lỗi trong chat flow */
-  chatError: (userId, error, context) =>
-    log("error", "chat_error", { userId, error: error.message || error, context }),
+  chatError: (userId, error, context) => {
+    incrementMetric("ai.errors");
+    log("error", "chat_error", { actorRef: actorRef(userId), error: error.message || error, context });
+  },
 
   /** User bị locked */
   userLocked: (userId, remainingMinutes) =>
-    log("warn", "user_locked", { userId, remainingMinutes }),
+    log("warn", "user_locked", { actorRef: actorRef(userId), remainingMinutes }),
 };

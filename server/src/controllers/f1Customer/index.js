@@ -16,6 +16,7 @@ export {
 export {
   createF1Media,
   getF1Media,
+  readF1MediaContent,
   deleteF1Media,
 } from "./media.controller.js";
 

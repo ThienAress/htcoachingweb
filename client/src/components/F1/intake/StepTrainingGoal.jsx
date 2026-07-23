@@ -87,6 +87,9 @@ const SwitchRow = ({ label, checked, onChange, icon: Icon }) => {
         </div>
         <button
           type="button"
+          role="switch"
+          aria-checked={checked}
+          aria-label={label}
           onClick={() => onChange(!checked)}
           className={`relative h-7 w-14 shrink-0 rounded-full transition ${
             checked ? "bg-orange-500" : "bg-slate-300"

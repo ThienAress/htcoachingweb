@@ -303,35 +303,41 @@ export async function createContract(orderId, createdBy, ipAddress, userAgent) {
   if (!order) throw new Error("Đơn hàng không tồn tại");
   if (order.status !== "approved") throw new Error("Đơn hàng chưa được xác nhận");
 
-  const existing = await Contract.findOne({ orderId, status: { $nin: ["cancelled"] } });
-  if (existing) throw new Error("Đơn hàng đã có hợp đồng");
-
   const user = order.userId ? await User.findById(order.userId) : null;
   const trainer = order.trainerId ? await User.findById(order.trainerId) : null;
 
-  const contract = await Contract.create({
-    orderId: order._id,
-    clientId: order.userId,
-    trainerId: order.trainerId || createdBy,
-    trainerInfo: {
-      name: trainer?.name || "", birthYear: "", address: "",
-      phone: trainer?.phone || "", email: trainer?.email || "",
-    },
-    clientInfo: {
-      name: order.name || user?.name || "",
-      email: order.email || user?.email || "",
-      phone: order.phone || user?.phone || "",
-    },
-    packageDetails: {
-      packageName: order.package || "",
-      sessions: order.sessions || order.totalSessions || 0,
-      pricePerSession: 0, totalAmount: 0, startDate: null, endDate: null,
-    },
-    customSections: DEFAULT_SECTIONS,
-    status: "draft",
-    auditTrail: [{ action: "created", ipAddress, userAgent, timestamp: new Date() }],
-  });
-  return contract;
+  try {
+    const contract = await Contract.create({
+      orderId: order._id,
+      clientId: order.userId,
+      trainerId: order.trainerId || createdBy,
+      trainerInfo: {
+        name: trainer?.name || "", birthYear: "", address: "",
+        phone: trainer?.phone || "", email: trainer?.email || "",
+      },
+      clientInfo: {
+        name: order.name || user?.name || "",
+        email: order.email || user?.email || "",
+        phone: order.phone || user?.phone || "",
+      },
+      packageDetails: {
+        packageName: order.package || "",
+        sessions: order.sessions || order.totalSessions || 0,
+        pricePerSession: 0, totalAmount: 0, startDate: null, endDate: null,
+      },
+      customSections: DEFAULT_SECTIONS,
+      status: "draft",
+      isActive: true,
+      auditTrail: [{ action: "created", ipAddress, userAgent, timestamp: new Date() }],
+    });
+    return contract;
+  } catch (err) {
+    // Duplicate key → đã có contract active cho order này
+    if (err.code === 11000) {
+      throw new Error("Đơn hàng đã có hợp đồng");
+    }
+    throw err;
+  }
 }
 
 export async function getContracts(query = {}) {
@@ -346,7 +352,7 @@ export async function getContractById(contractId) {
 }
 
 export async function getContractByOrderId(orderId) {
-  return Contract.findOne({ orderId }).lean();
+  return Contract.findOne({ orderId, isActive: true }).lean();
 }
 
 export async function markAsViewed(contractId, ipAddress, userAgent) {
@@ -373,26 +379,51 @@ export async function sendToClient(contractId, ipAddress, userAgent) {
 }
 
 export async function signContract(contractId, signatureBase64, ipAddress, userAgent) {
-  const contract = await Contract.findById(contractId);
-  if (!contract) throw new Error("Hợp đồng không tồn tại");
-  if (contract.status === "signed") throw new Error("Hợp đồng đã được ký");
-  if (contract.status === "expired") throw new Error("Hợp đồng đã hết hạn");
-  if (contract.status === "cancelled") throw new Error("Hợp đồng đã bị hủy");
-  if (contract.status === "draft") throw new Error("Hợp đồng chưa được gửi");
+  // Step 1: Atomic reserve — chỉ 1 request thắng
+  const contract = await Contract.findOneAndUpdate(
+    { _id: contractId, status: { $in: ["sent", "viewed"] } },
+    { $set: { status: "signing" } },
+    { returnDocument: "after" }
+  );
+  if (!contract) {
+    const existing = await Contract.findById(contractId);
+    if (!existing) throw new Error("Hợp đồng không tồn tại");
+    if (existing.status === "signed") throw new Error("Hợp đồng đã được ký");
+    if (existing.status === "expired") throw new Error("Hợp đồng đã hết hạn");
+    if (existing.status === "cancelled") throw new Error("Hợp đồng đã bị hủy");
+    if (existing.status === "draft") throw new Error("Hợp đồng chưa được gửi");
+    if (existing.status === "signing") throw new Error("Hợp đồng đang được ký bởi yêu cầu khác");
+    throw new Error("Hợp đồng không ở trạng thái có thể ký");
+  }
 
-  const pdfBytes = await generateSignedPdf(contract, signatureBase64);
-  const fileHash = crypto.createHash("sha256").update(pdfBytes).digest("hex");
-  const filename = `hop-dong-${contract._id}-${Date.now()}.pdf`;
-  const fileId = await savePdfToGridFS(pdfBytes, filename);
+  try {
+    // Step 2: Generate PDF + save GridFS
+    const pdfBytes = await generateSignedPdf(contract, signatureBase64);
+    const fileHash = crypto.createHash("sha256").update(pdfBytes).digest("hex");
+    const filename = `hop-dong-${contract._id}-${Date.now()}.pdf`;
+    const fileId = await savePdfToGridFS(pdfBytes, filename);
 
-  contract.status = "signed";
-  contract.signatureImage = signatureBase64;
-  contract.signedAt = new Date();
-  contract.signedPdfFileId = fileId;
-  contract.fileHash = fileHash;
-  contract.auditTrail.push({ action: "signed", ipAddress, userAgent, timestamp: new Date() });
-  await contract.save();
-  return contract;
+    // Step 3: Final commit — atomic update
+    const signed = await Contract.findByIdAndUpdate(
+      contractId,
+      {
+        $set: {
+          status: "signed",
+          signatureImage: signatureBase64,
+          signedAt: new Date(),
+          signedPdfFileId: fileId,
+          fileHash,
+        },
+        $push: { auditTrail: { action: "signed", ipAddress, userAgent, timestamp: new Date() } },
+      },
+      { returnDocument: "after" }
+    );
+    return signed;
+  } catch (err) {
+    // Rollback: quay về trạng thái trước khi reserve
+    await Contract.findByIdAndUpdate(contractId, { $set: { status: "sent" } });
+    throw err;
+  }
 }
 
 export function getSignedPdfStream(contract) {
@@ -401,13 +432,33 @@ export function getSignedPdfStream(contract) {
 }
 
 export async function cancelContract(contractId, ipAddress, userAgent) {
-  const contract = await Contract.findById(contractId);
-  if (!contract) throw new Error("Hợp đồng không tồn tại");
-  if (contract.status === "signed") throw new Error("Không thể hủy hợp đồng đã ký");
-  contract.status = "cancelled";
-  contract.auditTrail.push({ action: "cancelled", ipAddress, userAgent, timestamp: new Date() });
-  await contract.save();
-  return contract;
+  const contract = await Contract.findOneAndUpdate(
+    {
+      _id: contractId,
+      status: { $in: ["draft", "sent", "viewed", "signing"] },
+    },
+    {
+      $set: { status: "cancelled", isActive: false },
+      $push: {
+        auditTrail: {
+          action: "cancelled",
+          ipAddress,
+          userAgent,
+          timestamp: new Date(),
+        },
+      },
+    },
+    { returnDocument: "after", runValidators: true },
+  );
+  if (contract) return contract;
+
+  const existing = await Contract.findById(contractId);
+  if (!existing) throw new Error("Hợp đồng không tồn tại");
+  if (existing.status === "signed") {
+    throw new Error("Không thể hủy hợp đồng đã ký");
+  }
+  if (existing.status === "cancelled") return existing;
+  throw new Error("Không thể hủy hợp đồng đã hết hiệu lực");
 }
 
 export async function updateContractDetails(contractId, updateData) {
@@ -427,31 +478,33 @@ export async function updateContractDetails(contractId, updateData) {
 }
 
 export async function deleteContract(contractId) {
-  const contract = await Contract.findById(contractId);
-  if (!contract) throw new Error("Hợp đồng không tồn tại");
-  if (["sent", "viewed"].includes(contract.status)) throw new Error("Không thể xóa hợp đồng đã gửi cho khách hàng");
-
-  // Xóa file PDF trong GridFS nếu có — tránh orphan files
-  if (contract.signedPdfFileId) {
-    try {
-      const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: "contracts" });
-      await bucket.delete(new mongoose.Types.ObjectId(contract.signedPdfFileId));
-    } catch {
-      // File có thể đã bị xóa trước đó — bỏ qua lỗi, vẫn tiếp tục xóa document
-    }
+  const contract = await Contract.findOneAndDelete({
+    _id: contractId,
+    status: "draft",
+  });
+  if (!contract) {
+    const existing = await Contract.findById(contractId).select("status").lean();
+    if (!existing) throw new Error("Hợp đồng không tồn tại");
+    throw new Error("Chỉ có thể xóa hợp đồng ở trạng thái nháp");
   }
-
-  await Contract.findByIdAndDelete(contractId);
   return { deleted: true };
 }
 
 export async function trackClientDownload(contractId) {
-  const contract = await Contract.findById(contractId);
-  if (!contract) throw new Error("Hợp đồng không tồn tại");
-  if (contract.clientDownloadedAt) throw new Error("Bạn đã tải hợp đồng này rồi. Mỗi hợp đồng chỉ được tải 1 lần.");
-  contract.clientDownloadedAt = new Date();
-  contract.auditTrail.push({ action: "downloaded", timestamp: new Date() });
-  await contract.save();
+  // Atomic: chỉ set clientDownloadedAt nếu chưa có
+  const contract = await Contract.findOneAndUpdate(
+    { _id: contractId, clientDownloadedAt: null },
+    {
+      $set: { clientDownloadedAt: new Date() },
+      $push: { auditTrail: { action: "downloaded", timestamp: new Date() } },
+    },
+    { returnDocument: "after" }
+  );
+  if (!contract) {
+    const exists = await Contract.findById(contractId);
+    if (!exists) throw new Error("Hợp đồng không tồn tại");
+    throw new Error("Bạn đã tải hợp đồng này rồi. Mỗi hợp đồng chỉ được tải 1 lần.");
+  }
   return contract;
 }
 
@@ -462,13 +515,18 @@ export async function getMyContracts(userId) {
 export async function expireOldContracts() {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const result = await Contract.updateMany(
-    { status: { $in: ["draft", "sent", "viewed"] }, createdAt: { $lt: sevenDaysAgo } },
-    { $set: { status: "expired" }, $push: { auditTrail: { action: "expired", timestamp: new Date() } } }
+    { status: { $in: ["draft", "sent", "viewed", "signing"] }, createdAt: { $lt: sevenDaysAgo } },
+    {
+      $set: { status: "expired", isActive: false },
+      $push: { auditTrail: { action: "expired", timestamp: new Date() } },
+    }
   );
   return result.modifiedCount;
 }
 
 export async function getApprovedOrdersWithoutContract() {
-  const contractedOrderIds = await Contract.distinct("orderId", { status: { $nin: ["cancelled"] } });
+  const contractedOrderIds = await Contract.distinct("orderId", {
+    isActive: true,
+  });
   return Order.find({ status: "approved", _id: { $nin: contractedOrderIds } }).populate("userId", "name email phone").sort({ approvedAt: -1 }).lean();
 }

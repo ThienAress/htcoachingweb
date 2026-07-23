@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useLayoutEffect } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Flip } from "gsap/Flip";
@@ -7,10 +8,12 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import FeedbackCard from "./FeedbackCard";
 import { getPublicCustomerStories } from "../../services/customerStory.service";
+import { translateData } from "../../utils/localDataTranslator";
 
 gsap.registerPlugin(ScrollTrigger, Flip);
 
 const Feedback = () => {
+  const { t, i18n } = useTranslation("home");
   const headerRef = useRef(null);
   const sliderRef = useRef(null);
   
@@ -24,11 +27,12 @@ const Feedback = () => {
   const [isPaused, setIsPaused] = useState(false);
 
   const { data: storiesResponse } = useQuery({
-    queryKey: ["public-customer-stories", "featured"],
-    queryFn: () => getPublicCustomerStories({ featured: true, limit: 8 }),
+    queryKey: ["public-customer-stories", "featured", i18n.language],
+    queryFn: () => getPublicCustomerStories({ featured: true, limit: 8, lang: i18n.language }),
   });
 
-  const stories = storiesResponse?.data || [];
+  const rawStories = storiesResponse?.data || [];
+  const stories = translateData(rawStories, "story", i18n.language);
 
   // Khởi tạo items lần đầu tiên khi tải xong data
   useEffect(() => {
@@ -50,6 +54,7 @@ const Feedback = () => {
 
   const handleNextRef = useRef();
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     handleNextRef.current = handleNext;
   });
 
@@ -157,7 +162,7 @@ const Feedback = () => {
     });
 
     setFlipState(null);
-  }, [items, flipState]);
+  }, [items, flipState, isMobile]);
 
   if (!stories.length) return null;
 
@@ -171,12 +176,12 @@ const Feedback = () => {
           ref={headerRef}
           className="mb-8 flex flex-col items-center justify-center gap-4 text-center"
         >
-          <h2 className="uppercase">CÂU CHUYỆN THAY ĐỔI CỦA KHÁCH HÀNG</h2>
+          <h2 className="uppercase">{t("feedback.title")}</h2>
           <Link
             to="/ket-qua-khach-hang"
             className="inline-flex items-center justify-center rounded-full border border-primary px-5 py-2 text-sm font-bold uppercase tracking-[0.12em] text-primary transition hover:bg-primary hover:text-white"
           >
-            Xem tất cả
+            {t("feedback.view_all")}
           </Link>
         </div>
 
@@ -236,4 +241,3 @@ const Feedback = () => {
 };
 
 export default Feedback;
-

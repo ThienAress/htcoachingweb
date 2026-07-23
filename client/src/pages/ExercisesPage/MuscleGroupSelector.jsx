@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { X, CheckCircle, Edit3 } from "lucide-react";
 
 export default function MuscleGroupSelector({
@@ -13,6 +14,7 @@ export default function MuscleGroupSelector({
   customGroupName,
   setCustomGroupName,
 }) {
+  const { t } = useTranslation("exercises");
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -31,7 +33,7 @@ export default function MuscleGroupSelector({
               <span
                 className={`font-semibold ${isSelected ? "text-primary" : "text-gray-300"}`}
               >
-                {group.name}
+                {group.id === "custom" ? t("muscle_selector.custom_btn_label") : group.name}
               </span>
               {isSelected && (
                 <CheckCircle className="w-4 h-4 text-primary mx-auto mt-1" />
@@ -48,7 +50,7 @@ export default function MuscleGroupSelector({
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-primary" />
-                CHỌN NHÓM CƠ
+                {t("muscle_selector.title")}
               </h3>
               <button
                 onClick={() => setShowCustomGroupModal(false)}
@@ -62,22 +64,22 @@ export default function MuscleGroupSelector({
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 <Edit3 className="w-4 h-4 inline mr-1.5 text-teal-400" />
-                Nhập tên nhóm cơ tùy chỉnh
+                {t("muscle_selector.custom_name_label")}
               </label>
               <input
                 type="text"
                 value={customGroupName}
                 onChange={(e) => setCustomGroupName(e.target.value)}
-                placeholder="VD: Abs, Forearm, Glute..."
+                placeholder={t("muscle_selector.custom_name_placeholder")}
                 className="w-full px-4 py-2.5 bg-gray-900 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
               />
               <p className="text-xs text-gray-500 mt-1.5">
-                Để trống nếu chỉ muốn chọn từ danh sách bên dưới
+                {t("muscle_selector.custom_name_help")}
               </p>
             </div>
 
             <div className="border-t border-gray-700 pt-4 mb-3">
-              <p className="text-sm font-medium text-gray-300 mb-3">Hoặc chọn từ danh sách có sẵn:</p>
+              <p className="text-sm font-medium text-gray-300 mb-3">{t("muscle_selector.available_list_label")}</p>
             </div>
 
             <div className="space-y-3 max-h-60 overflow-auto">
@@ -110,13 +112,13 @@ export default function MuscleGroupSelector({
                 onClick={() => setShowCustomGroupModal(false)}
                 className="px-4 py-2 border border-gray-600 rounded-xl text-gray-300 hover:bg-gray-700 transition"
               >
-                Hủy
+                {t("muscle_selector.cancel_btn")}
               </button>
               <button
                 onClick={handleCreateCustomGroup}
                 className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-xl shadow-lg shadow-primary/30 transition"
               >
-                Tạo nhóm
+                {t("muscle_selector.create_btn")}
               </button>
             </div>
           </div>

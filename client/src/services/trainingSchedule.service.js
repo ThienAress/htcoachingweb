@@ -15,7 +15,12 @@ export const createSchedule = (data) => api.post("/training-schedules", data);
 export const updateSchedule = (id, data) => api.put(`/training-schedules/${id}`, data);
 
 // Xóa 1 slot lịch tập
-export const deleteSchedule = (id) => api.delete(`/training-schedules/${id}`);
+export const deleteSchedule = (id, data) =>
+  api.delete(`/training-schedules/${id}`, { data });
 
 // Xóa tất cả lịch tập (reset tuần)
-export const clearAllSchedules = () => api.delete("/training-schedules");
+export const clearAllSchedules = (data) =>
+  api.delete("/training-schedules", { data });
+
+export const completeSchedule = (id, data) =>
+  api.patch(`/training-schedules/${id}/complete`, data);

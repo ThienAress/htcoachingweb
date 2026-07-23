@@ -6,6 +6,7 @@ import {
   ChevronRight,
   CheckCircle,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 function ProfileTab({
   user,
@@ -21,19 +22,20 @@ function ProfileTab({
   getAvatarUrl,
   fileInputRef,
 }) {
+  const { t } = useTranslation("account");
   return (
     <div className="animate-tab-fade">
       {/* Section Header */}
       <div className="mb-6 pb-4 border-b border-white/10">
-        <h2 className="text-xl font-bold text-white uppercase">Thông tin cá nhân</h2>
-        <p className="text-gray-400 text-fluid-xs mt-0.5">Quản lý thông tin cá nhân của bạn.</p>
+        <h2 className="text-xl font-bold text-white uppercase">{t("profile.title")}</h2>
+        <p className="text-gray-400 text-fluid-xs mt-0.5">{t("sidebar.desc")}</p>
       </div>
 
       {/* Main F8 layout block */}
       <div className="space-y-6">
         <div>
-          <h3 className="text-sm font-bold text-gray-300">Thông tin cơ bản</h3>
-          <p className="text-gray-400 text-xs mt-0.5">Quản lý tên hiển thị, email, số điện thoại, địa chỉ và ảnh đại diện của bạn.</p>
+          <h3 className="text-sm font-bold text-gray-300">{t("profile.title")}</h3>
+          <p className="text-gray-400 text-xs mt-0.5">{t("profile.desc")}</p>
         </div>
 
         {/* List style block */}
@@ -44,7 +46,7 @@ function ProfileTab({
             {editingField === "name" ? (
               <div className="p-5 sm:p-6 bg-white/5 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Họ và tên</span>
+                  <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{t("profile.full_name")}</span>
                   <button onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
                     <X size={16} />
                   </button>
@@ -53,7 +55,7 @@ function ProfileTab({
                   type="text"
                   value={editValues.name}
                   onChange={(e) => setEditValues({ ...editValues, name: e.target.value })}
-                  placeholder="Nhập họ tên đầy đủ"
+                  placeholder={t("profile.placeholder_name")}
                   className="w-full bg-black/50 border border-white/20 rounded-xl py-2.5 px-4 text-white text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
                   autoFocus
                 />
@@ -62,7 +64,7 @@ function ProfileTab({
                     onClick={() => setEditingField(null)}
                     className="px-3.5 py-1.5 rounded-lg border border-white/10 text-gray-300 hover:text-white transition-all cursor-pointer"
                   >
-                    Hủy
+                    {t("profile.cancel")}
                   </button>
                   <button
                     onClick={() => handleSaveField("name")}
@@ -70,7 +72,7 @@ function ProfileTab({
                     className="px-4 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                   >
                     {updating && <Loader2 size={12} className="animate-spin" />}
-                    <span>Lưu</span>
+                    <span>{t("profile.save")}</span>
                   </button>
                 </div>
               </div>
@@ -80,8 +82,8 @@ function ProfileTab({
                 className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-all outline-none"
               >
                 <div>
-                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">Họ và tên</span>
-                  <span className="text-sm font-semibold text-white mt-1.5 block">{editValues.name || user.name || "Chưa cập nhật"}</span>
+                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">{t("profile.full_name")}</span>
+                  <span className="text-sm font-semibold text-white mt-1.5 block">{editValues.name || user.name || t("profile.not_updated")}</span>
                 </div>
                 <ChevronRight size={18} className="text-gray-500" />
               </button>
@@ -91,11 +93,11 @@ function ProfileTab({
           {/* Row 2: Email (Readonly) */}
           <div className="p-5 flex items-center justify-between opacity-80">
             <div>
-              <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">Địa chỉ email</span>
+              <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">{t("profile.email")}</span>
               <span className="text-sm font-semibold text-gray-400 mt-1.5 block">{user.email || "N/A"}</span>
             </div>
             <span className="text-[10px] font-bold bg-white/5 border border-white/10 px-2.5 py-1 rounded-full text-emerald-400 flex items-center gap-1">
-              <CheckCircle size={10} /> Đã xác minh
+              <CheckCircle size={10} /> {t("profile.verified")}
             </span>
           </div>
 
@@ -104,7 +106,7 @@ function ProfileTab({
             {editingField === "phone" ? (
               <div className="p-5 sm:p-6 bg-white/5 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Số điện thoại</span>
+                  <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{t("profile.phone")}</span>
                   <button onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
                     <X size={16} />
                   </button>
@@ -113,7 +115,7 @@ function ProfileTab({
                   type="tel"
                   value={editValues.phone}
                   onChange={(e) => setEditValues({ ...editValues, phone: e.target.value })}
-                  placeholder="Nhập số điện thoại của bạn"
+                  placeholder={t("profile.placeholder_phone")}
                   className="w-full bg-black/50 border border-white/20 rounded-xl py-2.5 px-4 text-white text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
                   autoFocus
                 />
@@ -122,7 +124,7 @@ function ProfileTab({
                     onClick={() => setEditingField(null)}
                     className="px-3.5 py-1.5 rounded-lg border border-white/10 text-gray-300 hover:text-white transition-all cursor-pointer"
                   >
-                    Hủy
+                    {t("profile.cancel")}
                   </button>
                   <button
                     onClick={() => handleSaveField("phone")}
@@ -130,7 +132,7 @@ function ProfileTab({
                     className="px-4 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                   >
                     {updating && <Loader2 size={12} className="animate-spin" />}
-                    <span>Lưu</span>
+                    <span>{t("profile.save")}</span>
                   </button>
                 </div>
               </div>
@@ -140,8 +142,8 @@ function ProfileTab({
                 className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-all outline-none"
               >
                 <div>
-                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">Số điện thoại</span>
-                  <span className="text-sm font-semibold text-white mt-1.5 block">{editValues.phone || user.phone || "Chưa cập nhật"}</span>
+                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">{t("profile.phone")}</span>
+                  <span className="text-sm font-semibold text-white mt-1.5 block">{editValues.phone || user.phone || t("profile.not_updated")}</span>
                 </div>
                 <ChevronRight size={18} className="text-gray-500" />
               </button>
@@ -153,7 +155,7 @@ function ProfileTab({
             {editingField === "address" ? (
               <div className="p-5 sm:p-6 bg-white/5 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Địa chỉ thường trú</span>
+                  <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{t("profile.address")}</span>
                   <button onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
                     <X size={16} />
                   </button>
@@ -162,7 +164,7 @@ function ProfileTab({
                   type="text"
                   value={editValues.address}
                   onChange={(e) => setEditValues({ ...editValues, address: e.target.value })}
-                  placeholder="Nhập địa chỉ nhà chi tiết"
+                  placeholder={t("profile.placeholder_address")}
                   className="w-full bg-black/50 border border-white/20 rounded-xl py-2.5 px-4 text-white text-sm outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
                   autoFocus
                 />
@@ -171,7 +173,7 @@ function ProfileTab({
                     onClick={() => setEditingField(null)}
                     className="px-3.5 py-1.5 rounded-lg border border-white/10 text-gray-300 hover:text-white transition-all cursor-pointer"
                   >
-                    Hủy
+                    {t("profile.cancel")}
                   </button>
                   <button
                     onClick={() => handleSaveField("address")}
@@ -179,7 +181,7 @@ function ProfileTab({
                     className="px-4 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-bold transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                   >
                     {updating && <Loader2 size={12} className="animate-spin" />}
-                    <span>Lưu</span>
+                    <span>{t("profile.save")}</span>
                   </button>
                 </div>
               </div>
@@ -189,8 +191,8 @@ function ProfileTab({
                 className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-all outline-none"
               >
                 <div>
-                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">Địa chỉ thường trú</span>
-                  <span className="text-sm font-semibold text-white mt-1.5 block">{editValues.address || user.address || "Chưa cập nhật"}</span>
+                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">{t("profile.address")}</span>
+                  <span className="text-sm font-semibold text-white mt-1.5 block">{editValues.address || user.address || t("profile.not_updated")}</span>
                 </div>
                 <ChevronRight size={18} className="text-gray-500" />
               </button>
@@ -202,7 +204,7 @@ function ProfileTab({
             {editingField === "avatar" ? (
               <div className="p-5 sm:p-6 bg-white/5 space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Ảnh đại diện</span>
+                  <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">{t("profile.avatar_title")}</span>
                   <button onClick={() => setEditingField(null)} className="text-gray-400 hover:text-white">
                     <X size={16} />
                   </button>
@@ -226,9 +228,9 @@ function ProfileTab({
                       className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <Camera size={14} />
-                      <span>Tải ảnh mới từ thiết bị</span>
+                      <span>{t("profile.upload_btn")}</span>
                     </button>
-                    <span className="text-[10px] text-gray-500">Chấp nhận JPG, PNG, GIF, WEBP dung lượng tối đa 5MB.</span>
+                    <span className="text-[10px] text-gray-500">{t("profile.avatar_desc")}</span>
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -245,8 +247,8 @@ function ProfileTab({
                 className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-all outline-none"
               >
                 <div>
-                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">Ảnh đại diện</span>
-                  <span className="text-xs text-gray-500 mt-1 block">Hình ảnh chân dung hồ sơ cá nhân.</span>
+                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wider">{t("profile.avatar_title")}</span>
+                  <span className="text-xs text-gray-500 mt-1 block">{t("profile.avatar_help")}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <img

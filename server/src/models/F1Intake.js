@@ -114,6 +114,13 @@ const f1IntakeSchema = new mongoose.Schema(
       allowDataStorage: { type: Boolean, default: false },
       allowMediaStorage: { type: Boolean, default: false },
       allowAiAnalysis: { type: Boolean, default: false },
+      version: { type: String, default: "", trim: true },
+      collectedAt: { type: Date, default: null },
+      collectedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+      },
     },
     systemFlags: {
       painFlag: {
@@ -169,8 +176,19 @@ const f1IntakeSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-f1IntakeSchema.index({ customerId: 1, version: -1 });
+f1IntakeSchema.index(
+  { customerId: 1, version: -1 },
+  { name: "uniq_f1_intake_customer_version", unique: true },
+);
 f1IntakeSchema.index({ customerId: 1, isLatest: 1 });
+f1IntakeSchema.index(
+  { customerId: 1 },
+  {
+    name: "uniq_latest_f1_intake_per_customer",
+    unique: true,
+    partialFilterExpression: { isLatest: true },
+  },
+);
 f1IntakeSchema.index({ customerId: 1, isDraft: 1 });
 f1IntakeSchema.index({ "systemFlags.testPermission": 1 });
 f1IntakeSchema.index({ "trainingProfileGoal.primaryGoal": 1 });

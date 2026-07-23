@@ -1,4 +1,5 @@
 import Exercise from "../models/Exercise.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 // Lấy tất cả bài tập (có phân trang, tìm kiếm)
 export const getExercises = async (req, res) => {
@@ -34,7 +35,7 @@ export const getExercises = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(err);
+    safeLog.error("exercise.list_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -78,7 +79,7 @@ export const createExercise = async (req, res) => {
     });
     res.status(201).json({ success: true, data: exercise });
   } catch (err) {
-    console.error(err);
+    safeLog.error("exercise.create_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

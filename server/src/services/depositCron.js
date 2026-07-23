@@ -1,4 +1,5 @@
 import DepositRequest from "../models/DepositRequest.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 /**
  * Cron Job: Quét các yêu cầu nạp tiền pending đã quá hạn 15 phút
@@ -20,22 +21,20 @@ async function expirePendingDeposits() {
         expiresAt: { $lte: now },
       },
       {
-        $set: { status: "expired" },
+        $set: { status: "expired", isOpen: false },
       }
     );
 
     if (result.modifiedCount > 0) {
-      console.log(
-        `⏰ [Cron] Đã chuyển ${result.modifiedCount} yêu cầu nạp tiền sang "expired"`
-      );
+      safeLog.info("deposit_cron.expired", { count: result.modifiedCount });
     }
   } catch (err) {
-    console.error("❌ [Cron] Lỗi khi expire deposits:", err.message);
+    safeLog.error("deposit_cron.failed", err);
   }
 }
 
 export function startDepositCronJobs() {
-  console.log("⏰ [Cron] Khởi động cron job: expire pending deposits (mỗi 1 phút)");
+  safeLog.info("deposit_cron.started", { intervalMs: INTERVAL_MS });
 
   // Chạy ngay lần đầu khi server khởi động
   expirePendingDeposits();

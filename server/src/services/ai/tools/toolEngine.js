@@ -2,6 +2,20 @@
 // Học từ Dify ToolEngine pattern: execute → convert result → return
 
 import { toolRegistry } from "./toolRegistry.js";
+import Ajv from "ajv";
+
+const ajv = new Ajv({
+  allErrors: true,
+  coerceTypes: false,
+  removeAdditional: false,
+  useDefaults: false,
+});
+const toolValidators = new Map(
+  Object.values(toolRegistry).map((tool) => [
+    tool.name,
+    ajv.compile(tool.parameters),
+  ]),
+);
 
 /**
  * Thực thi 1 tool call
@@ -27,6 +41,30 @@ export async function executeTool(toolName, parameters, context) {
       text: "Bạn cần đăng nhập để sử dụng tính năng này.",
       uiCard: null,
       error: "Auth required",
+    };
+  }
+
+  const validate = toolValidators.get(toolName);
+  if (!validate(parameters)) {
+    return {
+      text:
+        "Thông tin để thực hiện yêu cầu chưa hợp lệ. Bạn vui lòng kiểm tra và cung cấp lại.",
+      uiCard: null,
+      error: null,
+      meta: {
+        toolName,
+        validationFailed: true,
+        invalidFields: [
+          ...new Set(
+            validate.errors.map(
+              (error) =>
+                error.instancePath.replace(/^\//, "") ||
+                error.params?.missingProperty ||
+                "parameters",
+            ),
+          ),
+        ],
+      },
     };
   }
 

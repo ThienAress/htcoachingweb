@@ -3,6 +3,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "react-toastify";
+import { useTranslation, Trans } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "../../context/AuthContext";
 import { X, Clock } from "lucide-react";
@@ -16,12 +18,22 @@ import { registerSchema } from "./registerSchema";
 import OrderSummary from "./components/OrderSummary";
 import FirstTimeModal from "./components/FirstTimeModal";
 
+const createDiscountCode = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
+  let code = "HT";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+};
+
 function RegisterPage() {
+  const { t } = useTranslation("auth");
   const { state } = useLocation();
   const navigate = useNavigate();
   const selectedPackage = state?.selectedPackage;
   const planMode = state?.planMode;
-  const gifts = state?.gifts || [];
+  const gifts = useMemo(() => state?.gifts || [], [state?.gifts]);
   const { user } = useAuth();
   const isLoggedIn = !!user;
 
@@ -30,11 +42,22 @@ function RegisterPage() {
   const [tempTime, setTempTime] = useState("");
 
   // Booking & discount states
-  const [discountCode, setDiscountCode] = useState("");
-  const [hasExistingBooking, setHasExistingBooking] = useState(false);
-  const [loadingCheck, setLoadingCheck] = useState(true);
   const [showFirstTimeModal, setShowFirstTimeModal] = useState(false);
+  const [bookingRequestId, setBookingRequestId] = useState(null);
 
+  // Helper dịch thứ trong tuần hiển thị cho UX
+  const getDayTranslation = useCallback((dayStr) => {
+    const map = {
+      "Thứ 2": t("register.days.mon"),
+      "Thứ 3": t("register.days.tue"),
+      "Thứ 4": t("register.days.wed"),
+      "Thứ 5": t("register.days.thu"),
+      "Thứ 6": t("register.days.fri"),
+      "Thứ 7": t("register.days.sat"),
+      "Chủ nhật": t("register.days.sun"),
+    };
+    return map[dayStr] || dayStr;
+  }, [t]);
 
   // Note hint UX states
   const [isNoteFocused, setIsNoteFocused] = useState(false);
@@ -75,37 +98,30 @@ function RegisterPage() {
   );
 
   // Fetch booking status
-  const fetchUserBookings = useCallback(async () => {
-    if (isLoggedIn) {
+  const {
+    data: bookingStatus,
+    isLoading: loadingBookingStatus,
+    refetch: fetchUserBookings,
+  } = useQuery({
+    queryKey: ["booking-status", user?._id],
+    enabled: isLoggedIn,
+    queryFn: async () => {
       try {
         const res = await checkUserHasBookings();
-        setHasExistingBooking(res.data.hasBookings);
+        const hasBookings = Boolean(res.data.hasBookings);
+        return {
+          hasBookings,
+          discountCode: hasBookings ? "" : createDiscountCode(),
+        };
       } catch {
-        setHasExistingBooking(false);
+        return { hasBookings: false, discountCode: createDiscountCode() };
       }
-    } else {
-      setHasExistingBooking(false);
-    }
-    setLoadingCheck(false);
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    fetchUserBookings();
-  }, [fetchUserBookings]);
-
-  // Generate discount code
-  useEffect(() => {
-    if (isLoggedIn && !hasExistingBooking && !loadingCheck) {
-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
-      let code = "HT";
-      for (let i = 0; i < 6; i++) {
-        code += chars[Math.floor(Math.random() * chars.length)];
-      }
-      setDiscountCode(code);
-    } else {
-      setDiscountCode("");
-    }
-  }, [isLoggedIn, hasExistingBooking, loadingCheck]);
+    },
+    staleTime: 60_000,
+  });
+  const hasExistingBooking = bookingStatus?.hasBookings || false;
+  const discountCode = bookingStatus?.discountCode || "";
+  const loadingCheck = isLoggedIn && loadingBookingStatus;
 
   // Redirect if no package selected
   useEffect(() => {
@@ -141,14 +157,19 @@ function RegisterPage() {
         sessions: selectedPackage.totalSessions,
         discountCode: isLoggedIn && !hasExistingBooking ? discountCode : null,
         gifts: gifts,
+        clientRequestId:
+          bookingRequestId || window.crypto.randomUUID(),
       };
+      setBookingRequestId(bookingData.clientRequestId);
 
       try {
         await createBooking(bookingData);
+        setBookingRequestId(null);
         await fetchUserBookings();
-        toast.success("Đăng ký thành công! Chúng tôi sẽ liên hệ tư vấn sớm nhất.");
+        toast.success(t("register.success_msg"));
         setTimeout(() => navigate("/"), 1500);
       } catch (error) {
+        if (error.response) setBookingRequestId(null);
         if (error.response?.data?.errors) {
           const errorMessages = error.response.data.errors
             .map((e) => e.msg)
@@ -157,7 +178,7 @@ function RegisterPage() {
         } else if (error.response?.data?.message) {
           toast.error(error.response.data.message);
         } else {
-          toast.error("Có lỗi xảy ra, vui lòng thử lại.");
+          toast.error(t("register.error_general"));
         }
       }
     },
@@ -168,8 +189,10 @@ function RegisterPage() {
       hasExistingBooking,
       discountCode,
       gifts,
+      bookingRequestId,
       fetchUserBookings,
       navigate,
+      t,
     ],
   );
 
@@ -199,28 +222,28 @@ function RegisterPage() {
 
   const handleCopyCode = useCallback((code) => {
     navigator.clipboard.writeText(code);
-    toast.success("Đã sao chép mã: " + code);
-  }, []);
+    toast.success(t("register.copy_code_success") + code);
+  }, [t]);
 
   if (!selectedPackage || !planMode) return null;
 
   if (loadingCheck) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-primary text-xl">Đang tải...</div>
+        <div className="text-primary text-xl">{t("register.loading")}</div>
       </div>
     );
   }
 
   return (
     <>
-      <SEO title="Đăng ký gói tập" noindex />
+      <SEO title={t("seo.register_title")} noindex />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 pt-12 pb-8">
         <div className="container-custom">
           <div className="text-center mb-8">
-            <h1 className="text-gray-800 uppercase">ĐĂNG KÝ GÓI TẬP</h1>
+            <h1 className="text-gray-800 uppercase">{t("register.title")}</h1>
             <p className="text-gray-500 mt-2">
-              Vui lòng điền thông tin bên dưới để chúng tôi liên hệ tư vấn
+              {t("register.subtitle")}
             </p>
           </div>
 
@@ -228,7 +251,7 @@ function RegisterPage() {
             {/* Cột trái - Form đăng ký */}
             <div className="flex-1 bg-white rounded-2xl shadow-lg p-6 md:p-8">
               <div className="flex items-center gap-2 border-b border-gray-200 pb-4 mb-6">
-                <h2 className="text-gray-800 uppercase">THÔNG TIN ĐĂNG KÝ</h2>
+                <h2 className="text-gray-800 uppercase">{t("register.info_section")}</h2>
               </div>
               <form
                 className="flex flex-col gap-5"
@@ -236,7 +259,7 @@ function RegisterPage() {
               >
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">
-                    Họ và tên *
+                    {t("register.name")}
                   </label>
                   <input
                     type="text"
@@ -252,7 +275,7 @@ function RegisterPage() {
 
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">
-                    Số điện thoại *
+                    {t("register.phone")}
                   </label>
                   <input
                     type="tel"
@@ -269,7 +292,7 @@ function RegisterPage() {
 
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">
-                    Email *
+                    {t("register.email")}
                   </label>
                   <input
                     type="email"
@@ -285,13 +308,13 @@ function RegisterPage() {
 
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">
-                    Phòng tập mong muốn *
+                    {t("register.location")}
                   </label>
                   <select
                     {...register("location")}
                     className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-primary"
                   >
-                    <option value="">-- Chọn phòng tập --</option>
+                    <option value="">{t("register.location_select")}</option>
                     <option>WAYSTATION DÂN CHỦ</option>
                     <option>WAYSTATION TRƯƠNG VĂN HẢI</option>
                     <option>WAYSTATION HIỆP BÌNH</option>
@@ -307,7 +330,7 @@ function RegisterPage() {
 
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">
-                    Thời gian tập luyện mong muốn *
+                    {t("register.schedule")}
                   </label>
                   <div className="flex flex-col sm:flex-row gap-3 mb-3">
                     <select
@@ -315,24 +338,24 @@ function RegisterPage() {
                       value={tempDay}
                       onChange={(e) => setTempDay(e.target.value)}
                     >
-                      <option value="">-- Chọn ngày --</option>
-                      <option>Thứ 2</option>
-                      <option>Thứ 3</option>
-                      <option>Thứ 4</option>
-                      <option>Thứ 5</option>
-                      <option>Thứ 6</option>
-                      <option>Thứ 7</option>
-                      <option>Chủ nhật</option>
+                      <option value="">{t("register.schedule_day")}</option>
+                      <option value="Thứ 2">{t("register.days.mon")}</option>
+                      <option value="Thứ 3">{t("register.days.tue")}</option>
+                      <option value="Thứ 4">{t("register.days.wed")}</option>
+                      <option value="Thứ 5">{t("register.days.thu")}</option>
+                      <option value="Thứ 6">{t("register.days.fri")}</option>
+                      <option value="Thứ 7">{t("register.days.sat")}</option>
+                      <option value="Chủ nhật">{t("register.days.sun")}</option>
                     </select>
                     <select
                       className="flex-1 p-3 border rounded-lg"
                       value={tempTime}
                       onChange={(e) => setTempTime(e.target.value)}
                     >
-                      <option value="">-- Chọn giờ --</option>
-                      {timeOptions.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
+                      <option value="">{t("register.schedule_time")}</option>
+                      {timeOptions.map((tOpt) => (
+                        <option key={tOpt} value={tOpt}>
+                          {tOpt}
                         </option>
                       ))}
                     </select>
@@ -341,7 +364,7 @@ function RegisterPage() {
                       onClick={handleAddSchedule}
                       className="order-button px-4 py-3 bg-gradient-to-r from-primary to-primary-dark text-white font-semibold rounded-lg hover:scale-105 transition"
                     >
-                      + Thêm
+                      {t("register.add_schedule")}
                     </button>
                   </div>
                   {fields.map((field, index) => (
@@ -351,7 +374,7 @@ function RegisterPage() {
                     >
                       <Clock size={16} className="text-gray-500" />
                       <span className="text-gray-700">
-                        {field.day} lúc {field.time}
+                        {getDayTranslation(field.day)} {t("register.schedule_at")} {field.time}
                       </span>
                       <button
                         type="button"
@@ -371,13 +394,13 @@ function RegisterPage() {
 
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">
-                    Thông tin bổ sung (không bắt buộc)
+                    {t("register.additional_info")}
                   </label>
                   <textarea
                     rows={4}
                     {...register("note")}
                     className="w-full p-3 border rounded-lg resize-none focus:ring-2 focus:ring-primary"
-                    placeholder="VD: link Facebook, Zalo, địa chỉ cụ thể, mong muốn khác..."
+                    placeholder={t("register.additional_info_placeholder")}
                     onFocus={() => setIsNoteFocused(true)}
                     onBlur={() => {
                       setTimeout(() => {
@@ -396,14 +419,16 @@ function RegisterPage() {
                       onMouseEnter={() => setIsNoteHintHovered(true)}
                       onMouseLeave={() => setIsNoteHintHovered(false)}
                     >
-                      📌 Ví dụ:{" "}
-                      <span className="text-blue-500">
-                        https://www.facebook.com/example
-                      </span>{" "}
-                      hoặc Zalo:{" "}
-                      <span className="text-blue-500">
-                        https://zalo.me/0934215227
-                      </span>
+                      <Trans t={t} i18nKey="register.note_hint">
+                        📌 Ví dụ:{" "}
+                        <span className="text-blue-500">
+                          https://www.facebook.com/example
+                        </span>{" "}
+                        hoặc Zalo:{" "}
+                        <span className="text-blue-500">
+                          https://zalo.me/0934215227
+                        </span>
+                      </Trans>
                     </small>
                   )}
                 </div>
@@ -413,7 +438,7 @@ function RegisterPage() {
                   disabled={isSubmitting}
                   className="order-button w-full py-4 text-lg font-bold text-white bg-gradient-to-r from-primary to-primary-dark rounded-xl shadow-md hover:shadow-lg transition-all mt-4 disabled:opacity-60"
                 >
-                  {isSubmitting ? "ĐANG GỬI..." : "GỬI ĐĂNG KÝ"}
+                  {isSubmitting ? t("register.submit_sending") : t("register.submit")}
                 </button>
               </form>
             </div>

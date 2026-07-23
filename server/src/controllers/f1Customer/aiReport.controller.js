@@ -3,6 +3,7 @@ import F1Assessment from "../../models/F1Assessment.js";
 import F1AiReport from "../../models/F1AiReport.js";
 import { F1Customer, assertCustomerAccess } from "./shared.js";
 import { buildAiReport } from "./aiReport.helpers.js";
+import { createIdempotentF1Artifact } from "../../services/f1ArtifactIntegrity.service.js";
 
 export const generateAiReport = async (req, res, next) => {
   try {
@@ -32,6 +33,12 @@ export const generateAiReport = async (req, res, next) => {
         message: "Khách hàng chưa có đánh giá thể chất để sinh AI report",
       });
     }
+    if (!intake.consent?.allowAiAnalysis || !intake.consent?.version) {
+      return res.status(403).json({
+        success: false,
+        message: "Khách hàng chưa đồng ý cho AI phân tích dữ liệu",
+      });
+    }
 
     const reportPayload = await buildAiReport({
       customer,
@@ -39,21 +46,43 @@ export const generateAiReport = async (req, res, next) => {
       assessment,
     });
 
-    const report = await F1AiReport.create({
+    const engineVersion =
+      reportPayload.engineVersion || "nasm-rule-engine-v3";
+    const result = await createIdempotentF1Artifact({
+      Model: F1AiReport,
       customerId: customer._id,
-      intakeId: intake._id,
-      assessmentId: assessment._id,
-      ...reportPayload,
+      sourceFields: {
+        customerId: customer._id,
+        intakeId: intake._id,
+        assessmentId: assessment._id,
+      },
+      sourceDocuments: [intake, assessment],
+      engineVersion,
+      requestId: req.body.requestId,
+      regenerate: Boolean(req.body.regenerate),
+      payload: reportPayload,
+      customerUpdate: (report) => ({
+        status: "ai_report_generated",
+        lastAiReportId: report._id,
+      }),
+      audit: {
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        action: "generate_f1_ai_report",
+        targetType: "f1_ai_report",
+        requestId: req.id,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+      },
     });
 
-    customer.status = "ai_report_generated";
-    customer.lastAiReportId = report._id;
-    await customer.save();
-
-    return res.status(201).json({
+    return res.status(result.idempotentReplay ? 200 : 201).json({
       success: true,
-      data: report,
-      message: "Sinh AI report thành công",
+      data: result.artifact,
+      idempotentReplay: result.idempotentReplay,
+      message: result.idempotentReplay
+        ? "AI report đã tồn tại cho nguồn dữ liệu này"
+        : "Sinh AI report thành công",
     });
   } catch (error) {
     return next(error);

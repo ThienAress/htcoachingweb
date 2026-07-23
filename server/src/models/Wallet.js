@@ -14,6 +14,7 @@ const walletSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+      validate: Number.isSafeInteger,
     },
 
     currency: {
@@ -26,6 +27,8 @@ const walletSchema = new mongoose.Schema(
     version: {
       type: Number,
       default: 0,
+      min: 0,
+      validate: Number.isSafeInteger,
     },
   },
   { timestamps: true }

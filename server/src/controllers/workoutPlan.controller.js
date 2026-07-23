@@ -1,5 +1,6 @@
 import WorkoutPlan from "../models/WorkoutPlan.js";
 import User from "../models/User.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 // Default sections template
 const DEFAULT_SECTIONS = [
@@ -45,7 +46,7 @@ export const getWorkoutPlans = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("getWorkoutPlans error:", err);
+    safeLog.error("workout_plan.list_failed", err);
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   }
 };
@@ -69,7 +70,7 @@ export const getMyWorkoutPlans = async (req, res) => {
 
     return res.json({ success: true, data: plans });
   } catch (err) {
-    console.error("getMyWorkoutPlans error:", err);
+    safeLog.error("workout_plan.my_list_failed", err);
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   }
 };
@@ -98,7 +99,7 @@ export const getWorkoutPlanById = async (req, res) => {
 
     return res.json({ success: true, data: plan });
   } catch (err) {
-    console.error("getWorkoutPlanById error:", err);
+    safeLog.error("workout_plan.detail_failed", err);
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   }
 };
@@ -141,7 +142,7 @@ export const createWorkoutPlan = async (req, res) => {
       message: "Tạo giáo án thành công",
     });
   } catch (err) {
-    console.error("createWorkoutPlan error:", err);
+    safeLog.error("workout_plan.create_failed", err);
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   }
 };
@@ -183,7 +184,7 @@ export const updateWorkoutPlan = async (req, res) => {
       message: "Cập nhật giáo án thành công",
     });
   } catch (err) {
-    console.error("updateWorkoutPlan error:", err);
+    safeLog.error("workout_plan.update_failed", err);
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   }
 };
@@ -204,7 +205,7 @@ export const deleteWorkoutPlan = async (req, res) => {
 
     return res.json({ success: true, message: "Đã xóa giáo án" });
   } catch (err) {
-    console.error("deleteWorkoutPlan error:", err);
+    safeLog.error("workout_plan.delete_failed", err);
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   }
 };
@@ -251,7 +252,7 @@ export const duplicateWorkoutPlan = async (req, res) => {
       message: "Nhân bản giáo án thành công",
     });
   } catch (err) {
-    console.error("duplicateWorkoutPlan error:", err);
+    safeLog.error("workout_plan.duplicate_failed", err);
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   }
 };

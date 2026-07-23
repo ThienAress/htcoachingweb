@@ -1,0 +1,64 @@
+{
+  "seo": {
+    "title": "Đăng ký giờ tập luyện",
+    "description": "Đăng ký và quản lý giờ tập luyện của bạn."
+  },
+  "days": {
+    "mon": "Thứ 2",
+    "tue": "Thứ 3",
+    "wed": "Thứ 4",
+    "thu": "Thứ 5",
+    "fri": "Thứ 6",
+    "sat": "Thứ 7",
+    "sun": "CN"
+  },
+  "dialog": {
+    "cancel": "Hủy",
+    "confirm": "Tiếp tục",
+    "confirm_register": "Xác nhận đăng ký"
+  },
+  "modal": {
+    "edit_title": "Chỉnh sửa lịch tập",
+    "create_title": "Đăng ký giờ tập",
+    "day_of_week": "Ngày trong tuần",
+    "start_time": "Giờ bắt đầu",
+    "end_time": "Giờ kết thúc",
+    "trainer": "Huấn luyện viên phụ trách",
+    "no_trainer": "Chưa có dữ liệu HLV",
+    "notes": "Ghi chú cho HLV",
+    "notes_placeholder": "VD: Cần tập trung giảm mỡ bụng...",
+    "cancel": "Hủy",
+    "submit_create": "Đăng ký",
+    "submit_edit": "Lưu thay đổi",
+    "processing": "Đang xử lý...",
+    "time_error": "Giờ bắt đầu phải nhỏ hơn giờ kết thúc",
+    "busy_times": "⏳ HLV đã có lịch vào các giờ:",
+    "free_times": "✅ HLV hiện đang trống lịch ngày này"
+  },
+  "page": {
+    "tag": "ĐĂNG KÝ GIỜ TẬP LUYỆN",
+    "title_main": "LỊCH TẬP",
+    "title_sub": "CỦA TÔI",
+    "desc": "Chủ động sắp xếp thời gian tập luyện. Lịch sẽ tự động đồng bộ với Huấn Luyện Viên của bạn.",
+    "registered_list": "Danh sách lịch đã đăng ký",
+    "add_new": "Thêm lịch mới",
+    "loading": "Đang tải dữ liệu...",
+    "no_bookings_title": "Bạn chưa đăng ký lịch tập nào",
+    "no_bookings_desc": "Hãy nhấn \"Thêm lịch mới\" để bắt đầu thiết lập thời gian tập luyện.",
+    "no_trainer_error": "Bạn chưa được phân công Huấn Luyện Viên.",
+    "trainer_message": "Lịch tập này do Huấn luyện viên tạo. Vui lòng liên hệ trực tiếp HLV nếu có thay đổi.",
+    "edit_limit_error": "Bạn đã hết lượt sửa hôm nay cho lịch tập này.",
+    "confirm_edit_msg": "Lưu ý: Bạn chỉ có thể chỉnh sửa mỗi lịch tập 1 lần trong ngày. Lịch của bạn sẽ không thể xóa được. Bạn có chắc chắn muốn thay đổi ngay bây giờ không?",
+    "confirm_register_msg": "Lịch tập của bạn sẽ được gửi trực tiếp đến Huấn Luyện Viên. Lưu ý: Bạn chỉ có thể chỉnh sửa, KHÔNG ĐƯỢC XÓA lịch tập này. Bạn có chắc chắn muốn đăng ký?",
+    "notes_label": "Ghi chú:",
+    "trainer_label": "HLV Phụ trách:",
+    "session_label": "Buổi tập hôm nay:",
+    "last_edit": "Chỉnh sửa lần cuối:",
+    "success_create": "Đã đăng ký lịch tập thành công!",
+    "success_update": "Đã cập nhật lịch tập!",
+    "error_create": "Lỗi khi đăng ký lịch tập",
+    "error_update": "Lỗi khi cập nhật",
+    "edit_btn_title": "Sửa lịch",
+    "edit_limit_title": "Đã hết lượt sửa hôm nay"
+  }
+}

@@ -2,10 +2,15 @@
 .env
 server/.env
 server/.env.development
+server/.env.*
+!server/.env.production.example
 client/.env
 client/.env.development
 client/.env.production
+client/.env.*
+!client/.env.example
 .env-backup/
+current_kb_entries.txt
 
 # node
 node_modules/
@@ -18,3 +23,19 @@ build/
 test-results/
 playwright-report/
 blob-report/
+
+# data backup & temp scripts
+server/scripts/
+
+# runtime and private data
+server/uploads/
+server/.private/
+.private/
+*.bson
+*.dump
+*.archive
+*.sqlite
+*.sqlite3
+
+# Local Netlify folder
+.netlify

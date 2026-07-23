@@ -1,6 +1,7 @@
 import React from "react";
 import { X } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
+import { getServerBaseUrl } from "../../utils/mediaUrl";
 
 const LoginModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
@@ -8,9 +9,11 @@ const LoginModal = ({ isOpen, onClose }) => {
   const handleGoogleLogin = () => {
     // Lưu trang hiện tại để sau login quay lại
     localStorage.setItem("redirectAfterLogin", "/mealplan");
-    const baseUrl = import.meta.env.DEV
-      ? "http://localhost:5000"
-      : "https://htcoachingweb.onrender.com";
+    const apiUrl =
+      import.meta.env.VITE_API_URL ||
+      (import.meta.env.DEV ? "http://localhost:5000/api" : "");
+    const baseUrl = getServerBaseUrl(apiUrl);
+    if (!baseUrl) throw new Error("Missing VITE_API_URL");
     window.location.href = `${baseUrl}/api/auth/google?client_url=${encodeURIComponent(window.location.origin)}`;
   };
 

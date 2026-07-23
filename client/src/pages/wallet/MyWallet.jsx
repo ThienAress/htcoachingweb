@@ -1,23 +1,26 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { getMyWallet, createDeposit, getMyDeposits, confirmDeposit } from "../../services/wallet.service";
 import { Wallet, Plus, Clock, CheckCircle, XCircle, AlertTriangle, Copy, ArrowLeft } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import SEO from "../../components/SEO";
+import { useTranslation } from "react-i18next";
 
 // ===== Format tiền VND =====
-const formatVND = (amount) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
+const formatVND = (amount, lang = "vi") =>
+  new Intl.NumberFormat(lang === "vi" ? "vi-VN" : "en-US", { style: "currency", currency: "VND" }).format(amount);
 
 // ===== Badge trạng thái =====
-const StatusBadge = ({ status }) => {
+const StatusBadge = ({ status, t }) => {
+  const trans = t || ((k) => k.includes(".") ? k.split(".")[1] : k);
   const map = {
-    pending: { label: "Đang chờ", color: "text-yellow-400 bg-yellow-400/10", icon: Clock },
-    success: { label: "Thành công", color: "text-green-400 bg-green-400/10", icon: CheckCircle },
-    expired: { label: "Hết hạn", color: "text-gray-400 bg-gray-400/10", icon: XCircle },
-    rejected: { label: "Từ chối", color: "text-red-400 bg-red-400/10", icon: XCircle },
-    needs_review: { label: "Đang chờ duyệt", color: "text-orange-400 bg-orange-400/10", icon: Clock },
+    pending: { label: trans("status.pending"), color: "text-yellow-400 bg-yellow-400/10", icon: Clock },
+    success: { label: trans("status.success"), color: "text-green-400 bg-green-400/10", icon: CheckCircle },
+    expired: { label: trans("status.expired"), color: "text-gray-400 bg-gray-400/10", icon: XCircle },
+    rejected: { label: trans("status.rejected"), color: "text-red-400 bg-red-400/10", icon: XCircle },
+    needs_review: { label: trans("status.needs_review"), color: "text-orange-400 bg-orange-400/10", icon: Clock },
+    reversed: { label: trans("status.reversal", { defaultValue: "Đã hoàn tác" }), color: "text-blue-400 bg-blue-400/10", icon: XCircle },
   };
   const info = map[status] || map.pending;
   const Icon = info.icon;
@@ -29,8 +32,9 @@ const StatusBadge = ({ status }) => {
 };
 
 // ===== Countdown Timer =====
-const Countdown = ({ expiresAt, onExpired }) => {
+const Countdown = ({ expiresAt, onExpired, t }) => {
   const [timeLeft, setTimeLeft] = useState(0);
+  const trans = t || ((k) => k.includes(".") ? k.split(".")[1] : k);
 
   useEffect(() => {
     const calc = () => {
@@ -46,7 +50,7 @@ const Countdown = ({ expiresAt, onExpired }) => {
   const mins = Math.floor(timeLeft / 60);
   const secs = timeLeft % 60;
 
-  if (timeLeft <= 0) return <span className="text-red-400 font-semibold">Đã hết hạn</span>;
+  if (timeLeft <= 0) return <span className="text-red-400 font-semibold">{trans("wallet.expired_label")}</span>;
 
   return (
     <span className={`font-mono font-bold text-lg ${timeLeft < 60 ? "text-red-400 animate-pulse" : "text-green-400"}`}>
@@ -57,6 +61,7 @@ const Countdown = ({ expiresAt, onExpired }) => {
 
 // ===== TRANG VÍ CỦA TÔI =====
 const MyWallet = () => {
+  const { t, i18n } = useTranslation("account");
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -83,8 +88,8 @@ const MyWallet = () => {
       const [walletRes, depositsRes] = await Promise.all([getMyWallet(), getMyDeposits()]);
       setBalance(walletRes.data.data.balance);
       setDeposits(depositsRes.data.data);
-    } catch (err) {
-      console.error("Fetch wallet error:", err);
+    } catch {
+      // Keep the zero balance and empty history fallback.
     } finally {
       setLoading(false);
     }
@@ -109,17 +114,17 @@ const MyWallet = () => {
         });
       }
     }
-  }, [deposits]);
+  }, [activeDeposit, deposits]);
 
   // Tạo yêu cầu nạp tiền
   const handleCreateDeposit = async () => {
     const amount = parseInt(depositAmount);
     if (!amount || amount < 5000) {
-      toast.error("Số tiền tối thiểu là 5.000đ");
+      toast.error(t("wallet.errors.min_limit"));
       return;
     }
     if (amount > 100000000) {
-      toast.error("Số tiền tối đa là 100.000.000đ");
+      toast.error(t("wallet.errors.max_limit"));
       return;
     }
 
@@ -130,10 +135,10 @@ const MyWallet = () => {
       setActiveDeposit(data);
       setShowDeposit(false);
       setDepositAmount("");
-      toast.success(res.data.message);
+      toast.success(t("wallet.errors.create_success"));
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi khi tạo yêu cầu nạp tiền");
+      toast.error(err.response?.data?.message || t("wallet.errors.create_failed", { defaultValue: "Lỗi khi tạo yêu cầu nạp tiền" }));
     } finally {
       setDepositLoading(false);
     }
@@ -146,10 +151,10 @@ const MyWallet = () => {
     try {
       await confirmDeposit(activeDeposit.depositRequestId);
       setActiveDeposit((prev) => ({ ...prev, status: "needs_review" }));
-      toast.success("Đã ghi nhận thanh toán!");
+      toast.success(t("wallet.errors.confirm_success"));
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi xác nhận thanh toán");
+      toast.error(err.response?.data?.message || t("wallet.errors.confirm_failed", { defaultValue: "Lỗi xác nhận thanh toán" }));
     } finally {
       setConfirmLoading(false);
     }
@@ -158,7 +163,7 @@ const MyWallet = () => {
   // Copy mã nạp tiền
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
-    toast.success("Đã sao chép!");
+    toast.success(t("wallet.errors.copy_success"));
   };
 
   // Số tiền nhanh
@@ -167,24 +172,24 @@ const MyWallet = () => {
   return (
     <phantom-ui loading={loading || undefined}>
     <div className="min-h-screen bg-[#1a1a1a] text-white">
-      <SEO title="Ví của tôi" noindex />
+      <SEO title={t("wallet.title")} noindex />
 
       {/* Header */}
       <div className="bg-gradient-to-r from-[#1a1a1a] to-[#2a2a2a] border-b border-gray-800">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition">
-            <ArrowLeft className="w-4 h-4" /> Quay lại
+            <ArrowLeft className="w-4 h-4" /> {t("wallet.back")}
           </button>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2 uppercase">
-                <Wallet className="w-7 h-7 text-primary" /> Ví của tôi
+                <Wallet className="w-7 h-7 text-primary" /> {t("wallet.title")}
               </h1>
-              <p className="text-gray-400 text-sm mt-1">Xin chào, {user?.name || user?.email}</p>
+              <p className="text-gray-400 text-sm mt-1">{t("wallet.welcome")}, {user?.name || user?.email}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-400">Số dư hiện tại</p>
-              <p className="text-3xl font-bold text-primary">{formatVND(balance)}</p>
+              <p className="text-sm text-gray-400">{t("wallet.balance")}</p>
+              <p className="text-3xl font-bold text-primary">{formatVND(balance, i18n.language)}</p>
             </div>
           </div>
         </div>
@@ -196,12 +201,12 @@ const MyWallet = () => {
           <div className="w-full py-4 bg-[#222] border border-orange-500/30 text-orange-400 font-semibold text-center rounded-xl space-y-2">
             <div className="flex items-center justify-center gap-2">
               <Clock className="w-5 h-5" />
-              <span>{hasNeedsReview ? "Đang có giao dịch chờ admin duyệt" : "Bạn đang có giao dịch chưa hoàn tất"}</span>
+              <span>{hasNeedsReview ? t("wallet.needs_review_warning") : t("wallet.pending_warning")}</span>
             </div>
             <p className="text-xs text-gray-500">
               {hasNeedsReview
-                ? "Bạn cần đợi giao dịch hiện tại được duyệt trước khi tạo yêu cầu nạp tiền mới."
-                : "Vui lòng hoàn tất hoặc chờ hết hạn giao dịch hiện tại trước khi tạo yêu cầu mới."
+                ? t("wallet.needs_review_desc")
+                : t("wallet.pending_desc")
               }
             </p>
           </div>
@@ -210,7 +215,7 @@ const MyWallet = () => {
             onClick={() => setShowDeposit(true)}
             className="w-full py-4 bg-gradient-to-r from-primary to-orange-500 text-white font-bold text-lg rounded-xl hover:shadow-lg hover:shadow-orange-500/30 transition-all flex items-center justify-center gap-2"
           >
-            <Plus className="w-5 h-5" /> Nạp tiền vào ví
+            <Plus className="w-5 h-5" /> {t("wallet.deposit_btn")}
           </button>
         )}
 
@@ -218,13 +223,14 @@ const MyWallet = () => {
         {activeDeposit && activeDeposit.status === "pending" && (
           <div className="bg-[#222] border border-gray-700 rounded-xl p-6 space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">Thông tin chuyển khoản</h3>
+              <h3 className="text-lg font-bold text-white">{t("wallet.qr_title")}</h3>
               <Countdown
                 expiresAt={activeDeposit.expiresAt}
                 onExpired={() => {
                   setActiveDeposit(null);
                   fetchData();
                 }}
+                t={t}
               />
             </div>
 
@@ -249,11 +255,11 @@ const MyWallet = () => {
                   {/* Thông tin chi tiết */}
                   <div className="bg-[#1a1a1a] rounded-lg p-4 space-y-3 text-sm">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Ngân hàng</span>
+                      <span className="text-gray-400">{t("wallet.bank")}</span>
                       <span className="font-semibold">{qr.bankName}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Số tài khoản</span>
+                      <span className="text-gray-400">{t("wallet.account_number")}</span>
                       <div className="flex items-center gap-2">
                         <span className="font-semibold">{qr.accountNumber}</span>
                         <button onClick={() => handleCopy(qr.accountNumber)} className="text-primary hover:text-orange-400">
@@ -262,15 +268,15 @@ const MyWallet = () => {
                       </div>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Chủ tài khoản</span>
+                      <span className="text-gray-400">{t("wallet.account_holder")}</span>
                       <span className="font-semibold">{qr.accountHolder}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Số tiền</span>
-                      <span className="font-bold text-primary text-base">{formatVND(qr.amount)}</span>
+                      <span className="text-gray-400">{t("wallet.amount")}</span>
+                      <span className="font-bold text-primary text-base">{formatVND(qr.amount, i18n.language)}</span>
                     </div>
                     <div className="flex justify-between items-center border-t border-gray-700 pt-3">
-                      <span className="text-gray-400">Nội dung CK</span>
+                      <span className="text-gray-400">{t("wallet.content")}</span>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-yellow-400 tracking-wider">{qr.content}</span>
                         <button onClick={() => handleCopy(qr.content)} className="text-primary hover:text-orange-400">
@@ -281,7 +287,7 @@ const MyWallet = () => {
                   </div>
 
                   <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-yellow-400 text-xs text-center">
-                    ⚠️ Vui lòng chuyển khoản <strong>đúng số tiền</strong> và <strong>đúng nội dung</strong> để hệ thống xác nhận nhanh nhất.
+                    ⚠️ {t("wallet.warning_alert")}
                   </div>
 
                   <button
@@ -290,7 +296,7 @@ const MyWallet = () => {
                     className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <CheckCircle className="w-5 h-5" />
-                    {confirmLoading ? "Đang xử lý..." : "Tôi đã thanh toán"}
+                    {confirmLoading ? t("wallet.confirm_loading") : t("wallet.confirm_btn")}
                   </button>
 
                   <button
@@ -300,7 +306,7 @@ const MyWallet = () => {
                     }}
                     className="w-full py-2 border border-gray-600 rounded-lg text-gray-400 hover:text-white hover:border-gray-400 transition text-sm"
                   >
-                    Đóng
+                    {t("profile.cancel")}
                   </button>
                 </div>
               );
@@ -316,13 +322,10 @@ const MyWallet = () => {
                 <CheckCircle className="w-10 h-10 text-green-400" />
               </div>
             </div>
-            <h3 className="text-xl font-bold text-green-400">Thanh toán đã được ghi nhận</h3>
-            <p className="text-gray-400 text-sm">
-              Hệ thống đã ghi nhận thanh toán của bạn.<br />
-              Vui lòng chờ admin xác nhận để cộng tiền vào ví.
-            </p>
+            <h3 className="text-xl font-bold text-green-400">{t("wallet.confirmed_title")}</h3>
+            <p className="text-gray-400 text-sm" dangerouslySetInnerHTML={{ __html: t("wallet.confirmed_desc") }} />
             <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-green-300 text-xs">
-              ⏳ Thời gian xác nhận thường từ 5 - 30 phút trong giờ hành chính.
+              {t("wallet.confirmed_help")}
             </div>
             <button
               onClick={() => {
@@ -331,7 +334,7 @@ const MyWallet = () => {
               }}
               className="w-full py-2 border border-gray-600 rounded-lg text-gray-400 hover:text-white hover:border-gray-400 transition text-sm"
             >
-              Đóng
+              {t("profile.cancel")}
             </button>
           </div>
         )}
@@ -339,18 +342,18 @@ const MyWallet = () => {
         {/* ===== LỊCH SỬ NẠP TIỀN ===== */}
         <div>
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-gray-400" /> Lịch sử nạp tiền
+            <Clock className="w-5 h-5 text-gray-400" /> {t("wallet.history_title")}
           </h3>
           {deposits.length === 0 ? (
             <div className="text-center text-gray-500 py-10 bg-[#222] rounded-xl border border-gray-800">
-              Chưa có giao dịch nào
+              {t("history.no_txs")}
             </div>
           ) : (
             <div className="space-y-3">
               {deposits.map((d) => (
                 <div
                   key={d._id}
-                  className="flex items-center justify-between bg-[#222] border border-gray-800 rounded-lg p-4 hover:border-gray-600 transition cursor-pointer"
+                  className="flex items-center justify-between gap-4 bg-[#222] border border-gray-800 rounded-lg p-4 hover:border-gray-600 transition cursor-pointer"
                   onClick={() => {
                     if (d.status === "pending") {
                       setActiveDeposit({
@@ -365,13 +368,18 @@ const MyWallet = () => {
                   }}
                 >
                   <div>
-                    <p className="font-semibold text-white">{formatVND(d.amount)}</p>
+                    <p className="font-semibold text-white">{formatVND(d.amount, i18n.language)}</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {new Date(d.createdAt).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
+                      {new Date(d.createdAt).toLocaleString(i18n.language === "vi" ? "vi-VN" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
                       {d.depositCode && <span className="ml-2 text-gray-600">• {d.depositCode}</span>}
                     </p>
+                    {d.reverseReason && (
+                      <p className="text-xs text-blue-400 mt-1">
+                        {d.reverseReason}
+                      </p>
+                    )}
                   </div>
-                  <StatusBadge status={d.status} />
+                  <StatusBadge status={d.status} t={t} />
                 </div>
               ))}
             </div>
@@ -390,11 +398,11 @@ const MyWallet = () => {
               <XCircle className="w-6 h-6" />
             </button>
 
-            <h3 className="text-xl font-bold text-white">Nạp tiền vào ví</h3>
+            <h3 className="text-xl font-bold text-white">{t("wallet.deposit_modal_title")}</h3>
 
             {/* Input số tiền */}
             <div>
-              <label className="text-sm text-gray-400 mb-1 block">Nhập số tiền (VND)</label>
+              <label className="text-sm text-gray-400 mb-1 block">{t("wallet.enter_amount")}</label>
               <input
                 type="number"
                 min={5000}
@@ -410,7 +418,7 @@ const MyWallet = () => {
                 className="w-full bg-[#2a2a2a] border border-gray-600 rounded-lg px-4 py-3 text-white text-lg focus:outline-none focus:border-primary transition"
               />
               {depositAmount && parseInt(depositAmount) >= 5000 && (
-                <p className="text-primary text-sm mt-1 font-semibold">{formatVND(parseInt(depositAmount))}</p>
+                <p className="text-primary text-sm mt-1 font-semibold">{formatVND(parseInt(depositAmount), i18n.language)}</p>
               )}
             </div>
 
@@ -437,11 +445,11 @@ const MyWallet = () => {
               disabled={depositLoading || !depositAmount || parseInt(depositAmount) < 5000}
               className="w-full py-3 bg-gradient-to-r from-primary to-orange-500 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-orange-500/30 transition-all"
             >
-              {depositLoading ? "Đang xử lý..." : "Tạo mã nạp tiền"}
+              {depositLoading ? t("wallet.confirm_loading") : t("wallet.create_code")}
             </button>
 
             <p className="text-xs text-gray-500 text-center">
-              Mã QR sẽ có hiệu lực trong 15 phút. Vui lòng chuyển khoản đúng số tiền và nội dung.
+              {t("wallet.qr_desc")}
             </p>
           </div>
         </div>

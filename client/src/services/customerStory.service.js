@@ -50,6 +50,7 @@ export const getPublicCustomerStories = async ({
   featured = false,
   limit = 12,
   trainerId,
+  lang,
 } = {}) => {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -63,6 +64,10 @@ export const getPublicCustomerStories = async ({
     params.set("trainerId", trainerId);
   }
 
+  if (lang) {
+    params.set("lang", lang);
+  }
+
   const res = await api.get(`/customer-stories?${params.toString()}`);
   return {
     ...res.data,
@@ -72,8 +77,11 @@ export const getPublicCustomerStories = async ({
   };
 };
 
-export const getPublicCustomerStoryBySlug = async (slug) => {
-  const res = await api.get(`/customer-stories/${slug}`);
+export const getPublicCustomerStoryBySlug = async (slug, { lang } = {}) => {
+  const params = new URLSearchParams();
+  if (lang) params.set("lang", lang);
+  const qs = params.toString();
+  const res = await api.get(`/customer-stories/${slug}${qs ? `?${qs}` : ""}`);
   return {
     ...res.data,
     data: normalizeStory(res.data?.data),

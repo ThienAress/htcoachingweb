@@ -27,11 +27,24 @@ const depositRequestSchema = new mongoose.Schema(
       type: String,
     },
 
-    // pending -> success / expired / rejected / needs_review
+    // pending -> needs_review -> success -> reversed
     status: {
       type: String,
-      enum: ["pending", "expired", "success", "rejected", "needs_review"],
+      enum: [
+        "pending",
+        "expired",
+        "success",
+        "rejected",
+        "needs_review",
+        "reversed",
+      ],
       default: "pending",
+    },
+
+    isOpen: {
+      type: Boolean,
+      default: true,
+      required: true,
     },
 
     // Thời điểm QR hết hạn (mặc định 15 phút sau khi tạo)
@@ -57,6 +70,22 @@ const depositRequestSchema = new mongoose.Schema(
     rejectReason: {
       type: String,
       default: null,
+      maxlength: 500,
+    },
+
+    reversedAt: {
+      type: Date,
+      default: null,
+    },
+    reversedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    reverseReason: {
+      type: String,
+      default: null,
+      maxlength: 500,
     },
   },
   { timestamps: true }
@@ -67,14 +96,17 @@ depositRequestSchema.index({ depositCode: 1 }, { unique: true });
 depositRequestSchema.index({ userId: 1, status: 1 });
 depositRequestSchema.index({ status: 1, expiresAt: 1 }); // Tối ưu Cron Job quét QR hết hạn
 
-// Chống spam: 1 user chỉ có tối đa 1 request pending tại 1 thời điểm
-// MongoDB hỗ trợ Partial Unique Index qua partialFilterExpression
+depositRequestSchema.pre("validate", function syncOpenState() {
+  this.isOpen = ["pending", "needs_review"].includes(this.status);
+});
+
+// Một user chỉ có tối đa một deposit chưa kết thúc.
 depositRequestSchema.index(
   { userId: 1 },
   {
     unique: true,
-    partialFilterExpression: { status: "pending" },
-    name: "unique_pending_per_user",
+    partialFilterExpression: { isOpen: true },
+    name: "unique_open_deposit_per_user",
   }
 );
 

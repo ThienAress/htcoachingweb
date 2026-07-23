@@ -9,6 +9,7 @@ import {
   getConversations,
   getConversationById,
   deleteConversation,
+  forkConversation,
   submitFeedback,
 } from "../controllers/ai.controller.js";
 
@@ -23,6 +24,7 @@ router.delete("/history", protect, csrfProtection, clearHistory);
 router.get("/conversations", protect, getConversations);
 router.get("/conversations/:id", protect, getConversationById);
 router.delete("/conversations/:id", protect, csrfProtection, deleteConversation);
+router.post("/conversations/:id/fork", protect, csrfProtection, forkConversation);
 
 // Feedback
 router.post("/conversations/:id/feedback", protect, csrfProtection, submitFeedback);

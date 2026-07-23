@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { MapPin, Phone, Mail, Clock, CheckCircle } from "lucide-react";
 import { sendContactMessage } from "../services/contact.service";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const Contact = () => {
+  const { t } = useTranslation("home");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -159,37 +161,37 @@ const Contact = () => {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name || formData.name.trim().length < 8)
-      newErrors.name = "Họ tên phải có ít nhất 8 ký tự";
+      newErrors.name = t("contact.errors.name");
     if (!formData.email.match(/^[\w.+-]+@gmail\.com$/))
-      newErrors.email = "Email phải đúng định dạng @gmail.com";
+      newErrors.email = t("contact.errors.email");
     if (!formData.phone.match(/^\d{10}$/))
-      newErrors.phone = "Số điện thoại phải đúng 10 số";
+      newErrors.phone = t("contact.errors.phone");
     if (!formData.social) {
-      newErrors.social = "Vui lòng nhập Facebook/Zalo";
+      newErrors.social = t("contact.errors.social_required");
     } else if (formData.social.length > 50) {
-      newErrors.social = "Tối đa 50 ký tự";
+      newErrors.social = t("contact.errors.social_max");
     } else if (
       /<|>|script|"|'|`|onerror|onload|alert|\(|\)/i.test(formData.social)
     ) {
-      newErrors.social = "Thông tin không hợp lệ";
+      newErrors.social = t("contact.errors.social_invalid");
     } else if (
       forbiddenKeywords.some((kw) => formData.social.toLowerCase().includes(kw))
     ) {
-      newErrors.social = "Thông tin chứa ngôn từ không phù hợp!";
+      newErrors.social = t("contact.errors.social_forbidden");
     } else if (
       /bong|casino|bet|ku\d+|cmd368|w88|fun88|fifa|letou|cacuoc|1xbet|dafabet|188bet|m88|baccarat|xoso|xổ\s*số|danh\s*bai|game\s*bai/i.test(
         formData.social,
       )
     ) {
-      newErrors.social = "Không chấp nhận link cá cược/bài bạc!";
+      newErrors.social = t("contact.errors.social_gambling");
     } else if (
       !/^https:\/\/(www\.facebook\.com\/[A-Za-z0-9.]+|zalo\.me\/\d{8,15})$/.test(
         formData.social,
       )
     ) {
-      newErrors.social = "Chỉ cho phép link Facebook hoặc Zalo hợp lệ!";
+      newErrors.social = t("contact.errors.social_format");
     }
-    if (!formData.package) newErrors.package = "Vui lòng chọn gói tập quan tâm";
+    if (!formData.package) newErrors.package = t("contact.errors.package");
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -224,12 +226,12 @@ const Contact = () => {
             <div className="bg-white rounded-xl p-8 max-w-md w-[90%] text-center shadow-xl animate-zoomIn">
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
               <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                ✔ Gửi thông tin thành công!
+                {t("contact.success_title")}
               </h3>
               <p className="text-gray-600">
-                Tư vấn viên sẽ liên hệ với bạn trong thời gian sớm nhất. <br />
-                Popup sẽ tự động đóng sau:{" "}
-                <strong className="text-red-500">{countdown} giây</strong>
+                {t("contact.success_message")} <br />
+                {t("contact.success_countdown")}{" "}
+                <strong className="text-red-500">{countdown} {t("contact.success_seconds")}</strong>
               </p>
             </div>
           </div>
@@ -237,10 +239,10 @@ const Contact = () => {
 
         <div className="max-w-3xl mx-auto text-center mb-12">
           <h2 className="font-display text-fluid-5xl leading-tight text-primary uppercase">
-            LIÊN HỆ VỚI CHÚNG TÔI
+            {t("contact.title")}
           </h2>
           <p className="text-gray text-lg">
-            Để lại thông tin, chúng tôi sẽ liên hệ tư vấn miễn phí cho bạn
+            {t("contact.subtitle")}
           </p>
         </div>
 
@@ -249,7 +251,7 @@ const Contact = () => {
             <div>
               <input
                 type="text"
-                placeholder="Họ và tên"
+                placeholder={t("contact.name_placeholder")}
                 className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-primary focus:ring-1  transition-all hover:scale-[1.01] "
                 value={formData.name}
                 onChange={(e) =>
@@ -264,7 +266,7 @@ const Contact = () => {
             <div>
               <input
                 type="email"
-                placeholder="Email"
+                placeholder={t("contact.email_placeholder")}
                 className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-primary focus:ring-1  transition-all hover:scale-[1.01] "
                 value={formData.email}
                 onChange={(e) =>
@@ -279,7 +281,7 @@ const Contact = () => {
             <div>
               <input
                 type="tel"
-                placeholder="Số điện thoại"
+                placeholder={t("contact.phone_placeholder")}
                 maxLength="10"
                 className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white focus:border-primary focus:ring-1  transition-all hover:scale-[1.01] "
                 value={formData.phone}
@@ -297,7 +299,7 @@ const Contact = () => {
             <div>
               <input
                 type="text"
-                placeholder="Trang cá nhân FB or ZALO"
+                placeholder={t("contact.social_placeholder")}
                 className="w-full px-4 py-3 rounded-md border border-gray bg-[#1a1a1a] text-white  focus:ring-1  transition-all hover:scale-[1.01] "
                 value={formData.social}
                 onChange={(e) =>
@@ -319,9 +321,9 @@ const Contact = () => {
                   onMouseEnter={() => setIsHintHovered(true)}
                   onMouseLeave={() => setIsHintHovered(false)}
                 >
-                  VD: Link Zalo:{" "}
+                  {t("contact.social_hint")}{" "}
                   <span className="text-blue-400">
-                    https://zalo.me/SĐT, thay bằng SĐT thật của bạn vào
+                    {t("contact.social_hint_detail")}
                   </span>
                 </div>
               )}
@@ -329,6 +331,7 @@ const Contact = () => {
 
             <div>
               <select
+                aria-label="Gói tập quan tâm"
                 className="w-full px-4 py-3 rounded-md border border-gray-700 bg-[#1a1a1a] text-white  "
                 value={formData.package}
                 onChange={(e) =>
@@ -336,7 +339,7 @@ const Contact = () => {
                 }
               >
                 <option value="" disabled>
-                  Chọn gói tập quan tâm
+                  {t("contact.package_placeholder")}
                 </option>
                 <option value="ONLINE">ONLINE</option>
                 <option value="1-1">1-1</option>
@@ -356,14 +359,14 @@ const Contact = () => {
                   : "bg-primary hover:bg-primary transform hover:scale-105 hover:shadow-red-500/30"
               }`}
             >
-              {isSubmitting ? "Đang gửi..." : "Gửi thông tin"}
+              {isSubmitting ? t("contact.submitting") : t("contact.submit")}
             </button>
           </form>
 
           <div className="space-y-5 text-gray-300">
             <div className="flex items-center gap-3">
               <MapPin className="text-primary w-6 h-6" />
-              <p>Tùy vào phòng tập bạn chọn</p>
+              <p>{t("contact.location")}</p>
             </div>
             <div className="flex items-center gap-3">
               <Phone className="text-primary w-6 h-6" />
@@ -375,7 +378,7 @@ const Contact = () => {
             </div>
             <div className="flex items-center gap-3">
               <Clock className="text-primary w-6 h-6" />
-              <p>Thứ 2 - Chủ nhật: 6:00 - 22:00</p>
+              <p>{t("contact.hours")}</p>
             </div>
           </div>
         </div>

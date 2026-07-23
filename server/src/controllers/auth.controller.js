@@ -97,7 +97,7 @@ export const refreshTokenController = async (req, res) => {
 
   try {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).select("+refreshToken");
 
     if (
       !user ||

@@ -49,6 +49,7 @@ describe("utcToLocalDateTime", () => {
     // Tháng 1, ngày 5, 3 giờ sáng UTC → local sẽ khác nhưng vẫn phải 2 digit
     const result = utcToLocalDateTime("2026-01-05T03:07:00Z");
     const parts = result.split("T");
+    // eslint-disable-next-line no-unused-vars
     const [year, month, day] = parts[0].split("-");
     const [hours, minutes] = parts[1].split(":");
 

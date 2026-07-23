@@ -10,12 +10,8 @@ export const getMyPlanDetails = (dateString) =>
   api.get(`/coaching/my-plans/${dateString}`);
 
 // 3. Khách hàng tích chọn hoàn thành bài, gửi phản hồi kèm file video phản hồi
-export const submitFeedback = (dateString, formData) =>
-  api.put(`/coaching/my-plans/${dateString}/feedback`, formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+export const submitFeedback = (dateString, feedback, signal) =>
+  api.put(`/coaching/my-plans/${dateString}/feedback`, feedback, { signal });
 
 // 3.b Khách hàng tải lên video phản hồi cho một bài tập cụ thể
 export const uploadClientFeedbackVideo = (formData) =>

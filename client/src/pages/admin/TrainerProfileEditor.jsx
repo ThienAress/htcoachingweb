@@ -25,6 +25,7 @@ import TrainerProfile from "../TrainerProfile";
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "");
 const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
 
+// eslint-disable-next-line no-unused-vars
 const availableIcons = [
   { value: "dumbbell", label: "Tạ (Dumbbell)" },
   { value: "utensils", label: "Dinh dưỡng (Utensils)" },
@@ -136,6 +137,7 @@ const FormSectionTitle = ({ number, title, description }) => (
 
 export default function TrainerProfileEditor() {
   const { id } = useParams();
+  // eslint-disable-next-line no-unused-vars
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(emptyProfileForm);
@@ -150,6 +152,8 @@ export default function TrainerProfileEditor() {
 
   useEffect(() => {
     if (detailData?.data && id) {
+      // Hydrate local edits only when the requested profile snapshot arrives.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(trainerToProfileForm(detailData.data));
       setBasicInfo(detailData.data);
     }

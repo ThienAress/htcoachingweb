@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import F1Intake from "../../models/F1Intake.js";
 import F1Assessment from "../../models/F1Assessment.js";
 import { F1Customer, assertCustomerAccess } from "./shared.js";
@@ -67,19 +68,52 @@ export const createAssessment = async (req, res, next) => {
 
     const overallLevel = computeOverallPhysicalLevel(draftAssessment);
 
-    const assessment = await F1Assessment.create({
-      customerId: customer._id,
-      intakeId: intake._id,
-      ...draftAssessment,
-      overallPhysicalLevel: overallLevel,
-      assessorNotes: req.body?.assessorNotes || "",
-      createdBy: req.user.id,
-      updatedBy: req.user.id,
-    });
-
-    customer.status = "assessment_completed";
-    customer.lastAssessmentId = assessment._id;
-    await customer.save();
+    const session = await mongoose.startSession();
+    let assessment;
+    try {
+      await session.withTransaction(async () => {
+        const created = await F1Assessment.create(
+          [
+            {
+              customerId: customer._id,
+              intakeId: intake._id,
+              ...draftAssessment,
+              overallPhysicalLevel: overallLevel,
+              assessorNotes: req.body?.assessorNotes || "",
+              createdBy: req.user.id,
+              updatedBy: req.user.id,
+            },
+          ],
+          { session },
+        );
+        assessment = created[0];
+        await F1Customer.updateOne(
+          { _id: customer._id },
+          {
+            $set: {
+              status: "assessment_completed",
+              lastAssessmentId: assessment._id,
+            },
+          },
+          { session },
+        );
+      });
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+      assessment = await F1Assessment.findOne({ intakeId: intake._id });
+      if (!assessment) throw error;
+      await F1Customer.updateOne(
+        { _id: customer._id },
+        {
+          $set: {
+            status: "assessment_completed",
+            lastAssessmentId: assessment._id,
+          },
+        },
+      );
+    } finally {
+      await session.endSession();
+    }
 
     return res.status(201).json({
       success: true,

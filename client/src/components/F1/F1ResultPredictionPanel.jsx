@@ -1,5 +1,5 @@
 // F1ResultPredictionPanel.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   RefreshCcw,
@@ -15,6 +15,7 @@ import {
   generateResultPredictionStageImages,
 } from "../../services/f1Customer.service";
 import { toast } from "react-toastify";
+import { resolveMediaUrl } from "../../utils/mediaUrl";
 
 import F1NasmPyramid from "./F1NasmPyramid";
 
@@ -343,7 +344,7 @@ const ImagePreviewCard = ({ title, imageUrl, emptyText }) => (
     <div className="mt-3 overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
       {imageUrl ? (
         <img
-          src={imageUrl}
+          src={resolveMediaUrl(imageUrl)}
           alt={title}
           className="h-[320px] w-full object-cover"
         />
@@ -469,6 +470,8 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
   const [generating, setGenerating] = useState(false);
   const [selectedStageKey, setSelectedStageKey] = useState("");
   const [generatingStageKey, setGeneratingStageKey] = useState("");
+  const predictionRequestIdRef = useRef(crypto.randomUUID());
+  const stageRequestIdsRef = useRef(new Map());
 
   useEffect(() => {
     const loadLatest = async () => {
@@ -477,8 +480,7 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
         setLoadingLatest(true);
         const res = await getLatestResultPrediction(customer._id);
         setPrediction(res?.data || null);
-      } catch (error) {
-        console.error(error);
+      } catch {
         setPrediction(null);
       } finally {
         setLoadingLatest(false);
@@ -518,12 +520,15 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     if (!customer?._id) return;
     try {
       setGenerating(true);
-      const res = await generateResultPrediction(customer._id);
+      const res = await generateResultPrediction(customer._id, {
+        requestId: predictionRequestIdRef.current,
+        regenerate: Boolean(prediction),
+      });
+      predictionRequestIdRef.current = crypto.randomUUID();
       setPrediction(res?.data || null);
       toast.success("Đã tạo dự đoán kết quả thành công");
       onGenerated?.(res?.data);
     } catch (error) {
-      console.error(error);
       toast.error(
         error?.response?.data?.message || "Tạo dự đoán kết quả thất bại",
       );
@@ -552,12 +557,16 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
     }
     try {
       setGeneratingStageKey(phaseKey);
+      const requestId =
+        stageRequestIdsRef.current.get(phaseKey) || crypto.randomUUID();
+      stageRequestIdsRef.current.set(phaseKey, requestId);
       const res = await generateResultPredictionStageImages(
         customer._id,
         prediction._id,
         phaseKey,
-        { forceRegenerate },
+        { forceRegenerate, requestId },
       );
+      stageRequestIdsRef.current.delete(phaseKey);
       const stagePayload = res?.data;
       if (stagePayload?.phaseKey) {
         setPrediction((prev) => {
@@ -584,7 +593,6 @@ const F1ResultPredictionPanel = ({ customer, onBack, onGenerated }) => {
             : "Đã tạo ảnh AI thành công"),
       );
     } catch (error) {
-      console.error(error);
       toast.error(
         error?.response?.data?.message || "Tạo ảnh AI cho phase thất bại",
       );

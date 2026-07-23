@@ -1,6 +1,7 @@
 import express from "express";
 import { protect, requireTrainerAccess } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
+import { scheduleMutationLimiter } from "../middlewares/rateLimit.js";
 
 import {
   getMySchedules,
@@ -8,6 +9,7 @@ import {
   createSchedule,
   updateSchedule,
   deleteSchedule,
+  completeSchedule,
   clearAllSchedules,
   getExerciseTypes,
 } from "../controllers/trainingSchedule.controller.js";
@@ -24,15 +26,24 @@ router.get("/", protect, requireTrainerAccess, getMySchedules);
 router.get("/my-clients", protect, requireTrainerAccess, getMyClients);
 
 // ➕ Tạo 1 slot lịch tập
-router.post("/", protect, requireTrainerAccess, csrfProtection, createSchedule);
+router.post("/", protect, scheduleMutationLimiter, requireTrainerAccess, csrfProtection, createSchedule);
 
 // ✏️ Sửa 1 slot lịch tập
-router.put("/:id", protect, requireTrainerAccess, csrfProtection, updateSchedule);
+router.put("/:id", protect, scheduleMutationLimiter, requireTrainerAccess, csrfProtection, updateSchedule);
+
+router.patch(
+  "/:id/complete",
+  protect,
+  scheduleMutationLimiter,
+  requireTrainerAccess,
+  csrfProtection,
+  completeSchedule,
+);
 
 // ❌ Xóa 1 slot lịch tập
-router.delete("/:id", protect, requireTrainerAccess, csrfProtection, deleteSchedule);
+router.delete("/:id", protect, scheduleMutationLimiter, requireTrainerAccess, csrfProtection, deleteSchedule);
 
 // 🗑️ Xóa tất cả lịch tập (reset tuần)
-router.delete("/", protect, requireTrainerAccess, csrfProtection, clearAllSchedules);
+router.delete("/", protect, scheduleMutationLimiter, requireTrainerAccess, csrfProtection, clearAllSchedules);
 
 export default router;

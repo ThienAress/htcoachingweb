@@ -101,7 +101,7 @@ const Field = ({ label, hint, children }) => (
 
 const hasMarkdown = (text) => {
   if (!text) return false;
-  return /[*_#`\[\]\n]/.test(text);
+  return ["*", "_", "#", "`", "[", "]", "\n"].some((marker) => text.includes(marker));
 };
 
 // ==================== MAIN COMPONENT ====================
@@ -248,8 +248,8 @@ const BlogManagement = () => {
           <h1 className="mt-4 text-fluid-4xl font-black text-slate-900 leading-tight">
             {form.title || "Tiêu đề bài viết"}
           </h1>
-          {form.coverImage && (
-            <img src={form.coverImage} alt="" className="mt-6 w-full rounded-2xl object-cover" />
+          {form.coverImage && !form.content?.includes(form.coverImage) && (
+            <img src={form.coverImage} alt="" className="mt-6 w-full rounded-2xl object-cover max-h-[400px]" />
           )}
           <div
             className="mt-8 prose prose-lg max-w-none
@@ -259,7 +259,7 @@ const BlogManagement = () => {
               prose-p:text-slate-600 prose-p:leading-[1.85] prose-p:text-[15px]
               prose-a:text-primary prose-a:font-semibold prose-a:no-underline hover:prose-a:underline
               prose-strong:text-slate-900 prose-strong:font-bold
-              prose-img:rounded-xl prose-img:shadow-md
+              prose-img:rounded-xl prose-img:shadow-md prose-img:mx-auto prose-img:!mb-3 [&_img+p]:!mt-2
               prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-xl prose-blockquote:py-4 prose-blockquote:px-6 prose-blockquote:not-italic prose-blockquote:text-slate-800
               prose-li:text-slate-600 prose-li:text-[15px] prose-li:leading-[1.85]
               prose-ul:space-y-1
@@ -406,6 +406,7 @@ const BlogManagement = () => {
             {/* TipTap WYSIWYG Editor */}
             <TipTapEditor
               content={form.content}
+              coverImage={form.coverImage}
               onChange={(html) => updateForm("content", html)}
               onImageUpload={handleImageUpload}
             />

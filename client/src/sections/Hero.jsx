@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { gsap } from "gsap";
 import SplitType from "split-type";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 
-import hero1 from "../assets/images/hero/hero1.jpg";
-import hero2 from "../assets/images/hero/hero2.jpg";
-import hero3 from "../assets/images/hero/hero3.jpg";
+import hero1 from "../assets/images/hero/hero1.webp";
+import hero2 from "../assets/images/hero/hero2.webp";
+import hero3 from "../assets/images/hero/hero3.webp";
 
 const Hero = ({ images, avatars, onAnimationComplete }) => {
+  const { t, i18n } = useTranslation("home");
   const [currentIndex, setCurrentIndex] = useState(0);
   const titleRef = useRef(null);
   const leftRef = useRef(null);
@@ -16,6 +18,11 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
   const checklistRef = useRef(null);
   const slidesRef = useRef([]);
   const statRef = useRef([]);
+  const onAnimationCompleteRef = useRef(onAnimationComplete);
+
+  useEffect(() => {
+    onAnimationCompleteRef.current = onAnimationComplete;
+  }, [onAnimationComplete]);
 
   const slides = images && images.length > 0
     ? images.map(img => ({ bgImage: `url(${img})` }))
@@ -93,14 +100,14 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
             { x: -20, opacity: 0 },
             {
               x: 0, opacity: 1, duration: 0.5, stagger: 0.12, ease: "power2.out", delay: 1.5,
-              onComplete: () => onAnimationComplete?.()
+              onComplete: () => onAnimationCompleteRef.current?.()
             }
           );
         }
       });
 
       if (window.innerWidth < 768) {
-        mobileTimer = setTimeout(() => onAnimationComplete?.(), 1000);
+        mobileTimer = setTimeout(() => onAnimationCompleteRef.current?.(), 1000);
       }
     };
 
@@ -184,16 +191,16 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [currentIndex, slides.length]);
+  }, [slides.length]);
 
   const handleNext = () => setCurrentIndex((prev) => (prev + 1) % slides.length);
   const handlePrev = () => setCurrentIndex((prev) => (prev - 1 + slides.length) % slides.length);
 
   const memoizedTitle = useMemo(() => (
-    <h1 ref={titleRef} className="hero-title font-display font-extrabold uppercase text-[50px] md:text-[68px] lg:text-[70px] xl:text-[80px] leading-[1.15] tracking-wide mb-6 text-dark" style={{ perspective: "1000px" }}>
-      Lột xác<br />trong <span className="text-primary">90 ngày</span><br />Không viện cớ.
+    <h1 key={i18n.language} ref={titleRef} className="hero-title font-display font-extrabold uppercase text-[50px] md:text-[68px] lg:text-[70px] xl:text-[80px] leading-[1.15] tracking-wide mb-6 text-dark" style={{ perspective: "1000px" }}>
+      {t("hero.title_line1")}<br />{t("hero.title_prefix")} <span className="text-primary">{t("hero.title_line2")}</span><br />{t("hero.title_line3")}
     </h1>
-  ), []);
+  ), [t, i18n.language]);
 
   return (
     <section id="home" className="relative min-h-screen pt-[73px] 2xl:pt-20 bg-[#FAF8F3] text-dark overflow-hidden flex flex-col">
@@ -203,13 +210,13 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
         <div ref={leftRef} className="w-full lg:w-1/2 flex flex-col justify-center pt-[5vh] lg:pt-[12vh] relative z-20 px-5 sm:px-10 lg:pl-[calc((100vw-1024px)/2+20px)] xl:pl-[calc((100vw-1280px)/2+20px)] 2xl:pl-[calc((100vw-1536px)/2+20px)] lg:pr-16 xl:pr-24 py-12 lg:py-0">
           <div data-gsap-reveal className="inline-flex items-center gap-2 bg-primary/10 text-[#C4400F] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-6 w-fit border border-primary/20">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-            Chương trình 90 ngày · HLV riêng
+            {t("hero.badge")}
           </div>
 
           {memoizedTitle}
 
           <p data-gsap-reveal className="text-dark/70 text-lg xl:text-xl leading-relaxed mb-10 max-w-lg font-medium">
-            Lộ trình tập & ăn được cá nhân hoá theo cơ địa của bạn, theo dõi tiến độ mỗi ngày trên Notion. <strong className="text-dark">Không đạt mục tiêu — hoàn tiền.</strong>
+            {t("hero.subtitle")} <strong className="text-dark">{t("hero.subtitle_bold")}</strong>
           </p>
 
           <div ref={ctaRef} className="flex flex-col xl:flex-row items-start xl:items-center gap-5 xl:gap-8 mb-8">
@@ -217,13 +224,13 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
               href="#contact"
               className="group inline-flex items-center gap-2 bg-primary hover:bg-[#C4400F] text-[#1a0800] font-bold text-[15px] xl:text-base px-6 xl:px-[38px] py-4 xl:py-[19px] rounded-[2px] shadow-[0_8px_24px_rgba(255,90,31,0.28)] hover:shadow-[0_12px_28px_rgba(255,90,31,0.4)] transition-all duration-300 hover:-translate-y-0.5 cursor-pointer whitespace-nowrap"
             >
-              Nhận lộ trình miễn phí <span className="font-sans group-hover:translate-x-1.5 transition-transform duration-300">→</span>
+              {t("hero.cta_primary")} <span className="font-sans group-hover:translate-x-1.5 transition-transform duration-300">→</span>
             </a>
             <Link
               to="/ket-qua-khach-hang"
               className="group relative inline-flex items-center gap-2 text-dark font-semibold text-[14px] xl:text-[15px] pb-1 cursor-pointer whitespace-nowrap"
             >
-              Xem hành trình học viên đã lột xác
+              {t("hero.cta_secondary")}
               <span className="absolute bottom-0 left-0 w-full h-[1.5px] bg-dark/20"></span>
               <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-dark group-hover:w-full transition-all duration-300 ease-out"></span>
             </Link>
@@ -231,12 +238,7 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
 
           {/* CHECKLIST */}
           <div ref={checklistRef} className="flex flex-col gap-3.5">
-            {[
-              "Lộ trình riêng biệt",
-              "Thực đơn thông minh",
-              "Theo dõi tiến độ dễ dàng trên Notion",
-              "Cam kết đạt mục tiêu 100%"
-            ].map((text, i) => (
+            {t("hero.checklist", { returnObjects: true }).map((text, i) => (
               <div key={i} className="flex items-center gap-3 font-semibold text-[14px] xl:text-[15px] text-dark/90">
                 <div className="w-[22px] h-[22px] rounded-full bg-dark flex items-center justify-center shrink-0">
                   <svg viewBox="0 0 24 24" fill="none" className="w-3 h-3"><path d="M20 6L9 17l-5-5" stroke="#FF5A1F" strokeWidth="3" strokeLinecap="round" /></svg>
@@ -269,16 +271,26 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
           {/* CUSTOM NAV BUTTONS INSIDE IMAGE */}
           <div className="absolute inset-0 flex items-center justify-between px-3 lg:px-6 z-20 pointer-events-none">
             <button
+              type="button"
+              aria-label="Ảnh trước"
               onClick={handlePrev}
               className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white hover:bg-black/80 transition-all flex items-center justify-center pointer-events-auto"
             >
-              <ChevronLeft className="w-6 h-6 lg:w-7 lg:h-7" />
+              <ChevronLeft
+                aria-hidden="true"
+                className="w-6 h-6 lg:w-7 lg:h-7"
+              />
             </button>
             <button
+              type="button"
+              aria-label="Ảnh tiếp theo"
               onClick={handleNext}
               className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white hover:bg-black/80 transition-all flex items-center justify-center pointer-events-auto"
             >
-              <ChevronRight className="w-6 h-6 lg:w-7 lg:h-7" />
+              <ChevronRight
+                aria-hidden="true"
+                className="w-6 h-6 lg:w-7 lg:h-7"
+              />
             </button>
           </div>
 
@@ -309,10 +321,10 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
                   >
                     0
                   </span>
-                  {" "}học viên đã lột xác
+                  {" "}{t("hero.stats_students")}
                 </span>
                 <span className="text-[13px] lg:text-[14px] text-gray-600 font-medium">
-                  Đánh giá trung bình 4.9/5
+                  {t("hero.stats_rating")}
                 </span>
               </div>
             </div>

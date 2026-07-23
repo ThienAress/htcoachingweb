@@ -11,7 +11,8 @@ const unwrap = (promise) => promise.then((res) => res.data);
 export const getF1DashboardSummary = () =>
   unwrap(api.get("/f1-customers/dashboard/summary"));
 
-export const getF1Customers = () => unwrap(api.get("/f1-customers"));
+export const getF1Customers = (params = {}) =>
+  unwrap(api.get("/f1-customers", { params }));
 
 export const getF1CustomerById = (customerId) =>
   unwrap(api.get(`/f1-customers/${customerId}`));
@@ -55,8 +56,13 @@ export const reviewTestPermission = (customerId, payload) =>
 export const getF1Media = (customerId) =>
   unwrap(api.get(`/f1-customers/${customerId}/media`));
 
-export const createF1Media = (customerId, payload) =>
-  unwrap(api.post(`/f1-customers/${customerId}/media`, payload));
+export const createF1Media = (customerId, payload, options = {}) =>
+  unwrap(
+    api.post(`/f1-customers/${customerId}/media`, payload, {
+      signal: options.signal,
+      onUploadProgress: options.onUploadProgress,
+    }),
+  );
 
 export const deleteF1Media = (customerId, mediaId) =>
   unwrap(api.delete(`/f1-customers/${customerId}/media/${mediaId}`));
@@ -87,8 +93,10 @@ export const getAssessmentStarterSuggestions = (customerId) =>
 export const getLatestAiReport = (customerId) =>
   unwrap(api.get(`/f1-customers/${customerId}/ai-reports/latest`));
 
-export const generateAiReport = (customerId) =>
-  unwrap(api.post(`/f1-customers/${customerId}/ai-reports/generate`));
+export const generateAiReport = (customerId, payload) =>
+  unwrap(
+    api.post(`/f1-customers/${customerId}/ai-reports/generate`, payload),
+  );
 
 export const approveAiReport = (customerId, reportId, payload) =>
   unwrap(
@@ -104,8 +112,10 @@ export const approveAiReport = (customerId, reportId, payload) =>
 export const getLatestOutcomeForecast = (customerId) =>
   unwrap(api.get(`/f1-customers/${customerId}/forecasts/latest`));
 
-export const generateOutcomeForecast = (customerId) =>
-  unwrap(api.post(`/f1-customers/${customerId}/forecasts/generate`));
+export const generateOutcomeForecast = (customerId, payload) =>
+  unwrap(
+    api.post(`/f1-customers/${customerId}/forecasts/generate`, payload),
+  );
 
 // =========================
 // RESULT PREDICTION
@@ -113,8 +123,13 @@ export const generateOutcomeForecast = (customerId) =>
 export const getLatestResultPrediction = (customerId) =>
   unwrap(api.get(`/f1-customers/${customerId}/result-predictions/latest`));
 
-export const generateResultPrediction = (customerId) =>
-  unwrap(api.post(`/f1-customers/${customerId}/result-predictions/generate`));
+export const generateResultPrediction = (customerId, payload) =>
+  unwrap(
+    api.post(
+      `/f1-customers/${customerId}/result-predictions/generate`,
+      payload,
+    ),
+  );
 
 export const generateResultPredictionStageImages = (
   customerId,

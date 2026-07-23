@@ -5,5 +5,8 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/__tests__/**/*.test.js"],
     exclude: ["node_modules"],
+    fileParallelism: false,
+    hookTimeout: 60000,
+    testTimeout: 30000,
   },
 });

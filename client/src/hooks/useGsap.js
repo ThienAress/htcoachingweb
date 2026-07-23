@@ -20,6 +20,7 @@ export const prefersReducedMotion = () =>
  */
 export const useGsapReveal = (options = {}) => {
   const ref = useRef(null);
+  const optionsRef = useRef(options);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -30,7 +31,7 @@ export const useGsapReveal = (options = {}) => {
       delay = 0,
       ease = "power2.out",
       start = "top 85%",
-    } = options;
+    } = optionsRef.current;
 
     let mm = gsap.matchMedia();
     mm.add(MOTION_OK, () => {
@@ -60,6 +61,8 @@ export const useGsapReveal = (options = {}) => {
  */
 export const useGsapStagger = (childSelector, options = {}) => {
   const containerRef = useRef(null);
+  const childSelectorRef = useRef(childSelector);
+  const optionsRef = useRef(options);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -70,9 +73,9 @@ export const useGsapStagger = (childSelector, options = {}) => {
       stagger = 0.15,
       ease = "power2.out",
       start = "top 85%",
-    } = options;
+    } = optionsRef.current;
 
-    const children = containerRef.current.querySelectorAll(childSelector);
+    const children = containerRef.current.querySelectorAll(childSelectorRef.current);
     if (!children.length) return;
 
     let mm = gsap.matchMedia();
@@ -103,11 +106,12 @@ export const useGsapStagger = (childSelector, options = {}) => {
 export const useGsapTimeline = (options = {}) => {
   const triggerRef = useRef(null);
   const tlRef = useRef(null);
+  const optionsRef = useRef(options);
 
   useEffect(() => {
     if (!triggerRef.current) return;
 
-    const { start = "top 85%", ease = "power2.out" } = options;
+    const { start = "top 85%", ease = "power2.out" } = optionsRef.current;
 
     let mm = gsap.matchMedia();
     mm.add(MOTION_OK, () => {

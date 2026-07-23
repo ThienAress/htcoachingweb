@@ -44,6 +44,30 @@ const trainerSubscriptionSchema = new mongoose.Schema(
       enum: ["active", "expired", "cancelled"],
       default: "active",
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+      required: true,
+    },
+    purchaseRequestId: {
+      type: String,
+      default: null,
+      maxlength: 100,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    cancelReason: {
+      type: String,
+      default: null,
+      maxlength: 500,
+    },
   },
   { timestamps: true }
 );
@@ -51,5 +75,25 @@ const trainerSubscriptionSchema = new mongoose.Schema(
 // ✅ Indexes
 trainerSubscriptionSchema.index({ userId: 1, status: 1 });
 trainerSubscriptionSchema.index({ endDate: 1, status: 1 });
+trainerSubscriptionSchema.index(
+  { userId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isActive: true },
+    name: "uniq_active_trainer_subscription",
+  },
+);
+trainerSubscriptionSchema.index(
+  { userId: 1, purchaseRequestId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { purchaseRequestId: { $type: "string" } },
+    name: "uniq_trainer_purchase_request",
+  },
+);
+
+trainerSubscriptionSchema.pre("validate", function syncActiveState() {
+  this.isActive = this.status === "active";
+});
 
 export default mongoose.model("TrainerSubscription", trainerSubscriptionSchema);

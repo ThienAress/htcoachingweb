@@ -1,13 +1,15 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Zap, Bed, Target } from "lucide-react";
 
 const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
+  const { t } = useTranslation("tdee");
   const goalText =
-    goal === "gain_muscle" ? "tăng cơ" 
-    : goal === "gain_weight" ? "tăng cân"
-    : goal === "lose_fat" ? "giảm mỡ" 
-    : goal === "lose_weight" ? "giảm cân"
-    : "duy trì";
+    goal === "gain_muscle" ? t("result.goal_gain_muscle")
+    : goal === "gain_weight" ? t("result.goal_gain_weight")
+    : goal === "lose_fat" ? t("result.goal_lose_fat")
+    : goal === "lose_weight" ? t("result.goal_lose_weight")
+    : t("result.goal_maintain");
 
   return (
     <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -16,10 +18,10 @@ const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
           <Zap className="w-8 h-8 text-primary" />
         </div>
         <h4 className="font-bold text-gray-300 text-lg uppercase tracking-wide mb-2">
-          TDEE của bạn
+          {t("result.your_tdee")}
         </h4>
         <div className="text-fluid-5xl font-black text-primary">
-          {tdee} <span className="text-base text-gray-400">kcal/ngày</span>
+          {tdee} <span className="text-base text-gray-400">{t("unit_kcal")}</span>
         </div>
       </div>
 
@@ -28,10 +30,10 @@ const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
           <Bed className="w-8 h-8 text-primary" />
         </div>
         <h4 className="font-bold text-gray-300 text-lg uppercase tracking-wide mb-2">
-          BMR của bạn
+          {t("result.your_bmr")}
         </h4>
         <div className="text-fluid-5xl font-black text-primary">
-          {bmr} <span className="text-base text-gray-400">kcal/ngày</span>
+          {bmr} <span className="text-base text-gray-400">{t("unit_kcal")}</span>
         </div>
       </div>
 
@@ -40,11 +42,11 @@ const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
           <Target className="w-8 h-8 text-primary" />
         </div>
         <h4 className="font-bold text-gray-300 text-lg uppercase tracking-wide mb-2">
-          Lượng calories cần thiết ({goalText})
+          {t("result.calories_needed", { goal: goalText })}
         </h4>
         <div className="text-fluid-5xl font-black text-primary">
           {adjustedCalories}{" "}
-          <span className="text-base text-gray-400">kcal/ngày</span>
+          <span className="text-base text-gray-400">{t("unit_kcal")}</span>
         </div>
       </div>
     </div>

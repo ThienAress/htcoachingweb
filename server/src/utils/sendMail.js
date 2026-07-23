@@ -1,7 +1,20 @@
 import { Resend } from "resend";
 import escapeHtml from "escape-html";
+import { safeLog } from "./safeLogger.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const deliverEmail = async (message) => {
+  if (
+    String(process.env.EMAIL_DELIVERY_MODE || "").toLowerCase() === "disabled"
+  ) {
+    safeLog.warn("mail.delivery_disabled", "Outbound email is disabled", {
+      template: "staging",
+    });
+    return { data: { id: "" } };
+  }
+  return resend.emails.send(message);
+};
 
 const formatDate = (t) => {
   if (!t) return "Chưa xác nhận";
@@ -83,15 +96,19 @@ export const sendMail = async (to, subject, order) => {
       </html>
     `;
 
-    const res = await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to,
       subject,
       html,
       headers: { "X-Entity-Ref-ID": Date.now().toString() },
     });
+    safeLog.info("mail.sent", {
+      template: "order",
+      providerMessageId: response?.data?.id || "",
+    });
   } catch (err) {
-    console.error("❌ ORDER MAIL ERROR:", err);
+    safeLog.error("mail.order_failed", err);
   }
 };
 
@@ -152,15 +169,19 @@ export const sendCheckinMail = async (to, data) => {
       </html>
     `;
 
-    const res = await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to,
       subject: "💪 Xác nhận buổi tập",
       html,
       headers: { "X-Entity-Ref-ID": Date.now().toString() },
     });
+    safeLog.info("mail.sent", {
+      template: "checkin",
+      providerMessageId: response?.data?.id || "",
+    });
   } catch (err) {
-    console.error("❌ CHECKIN MAIL ERROR:", err);
+    safeLog.error("mail.checkin_failed", err);
   }
 };
 
@@ -168,9 +189,9 @@ export const sendContactNotificationToAdmin = async (contact) => {
   try {
     const adminEmail = process.env.ADMIN_EMAIL; // phải set trong .env
     if (!adminEmail) {
-      console.warn(
-        "⚠️ ADMIN_EMAIL not set in environment, skipping email notification",
-      );
+      safeLog.warn("mail.skipped", "ADMIN_EMAIL is not configured", {
+        template: "contact_notification",
+      });
       return;
     }
 
@@ -229,7 +250,7 @@ export const sendContactNotificationToAdmin = async (contact) => {
       </html>
     `;
 
-    await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to: adminEmail,
       subject: "📬 Liên hệ mới từ khách hàng",
@@ -237,9 +258,12 @@ export const sendContactNotificationToAdmin = async (contact) => {
       headers: { "X-Entity-Ref-ID": Date.now().toString() },
     });
 
-    console.log(`📧 Contact notification sent to admin: ${adminEmail}`);
+    safeLog.info("mail.sent", {
+      template: "contact_notification",
+      providerMessageId: response?.data?.id || "",
+    });
   } catch (err) {
-    console.error("❌ Error sending contact notification email:", err);
+    safeLog.error("mail.contact_notification_failed", err);
   }
 };
 
@@ -248,7 +272,9 @@ export const sendBookingNotificationToAdmin = async (booking) => {
   try {
     const adminEmail = process.env.ADMIN_EMAIL;
     if (!adminEmail) {
-      console.warn("⚠️ ADMIN_EMAIL not set, skipping booking notification");
+      safeLog.warn("mail.skipped", "ADMIN_EMAIL is not configured", {
+        template: "booking_notification",
+      });
       return;
     }
 
@@ -306,7 +332,7 @@ export const sendBookingNotificationToAdmin = async (booking) => {
       </html>
     `;
 
-    await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to: adminEmail,
       subject: "📋 Đăng ký mới từ khách hàng",
@@ -314,9 +340,12 @@ export const sendBookingNotificationToAdmin = async (booking) => {
       headers: { "X-Entity-Ref-ID": Date.now().toString() },
     });
 
-    console.log(`📧 Booking notification sent to admin: ${adminEmail}`);
+    safeLog.info("mail.sent", {
+      template: "booking_notification",
+      providerMessageId: response?.data?.id || "",
+    });
   } catch (err) {
-    console.error("❌ Error sending booking notification email:", err);
+    safeLog.error("mail.booking_notification_failed", err);
   }
 };
 
@@ -381,7 +410,7 @@ export const sendScheduleReminderMail = async (to, data) => {
       </html>
     `;
 
-    await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to,
       subject: `⏰ Nhắc lịch tập — ${data.clientName} lúc ${data.startTime}`,
@@ -389,9 +418,12 @@ export const sendScheduleReminderMail = async (to, data) => {
       headers: { "X-Entity-Ref-ID": Date.now().toString() },
     });
 
-    console.log(`📧 Schedule reminder sent to ${to} for client: ${data.clientName}`);
+    safeLog.info("mail.sent", {
+      template: "schedule_reminder",
+      providerMessageId: response?.data?.id || "",
+    });
   } catch (err) {
-    console.error("❌ SCHEDULE REMINDER MAIL ERROR:", err);
+    safeLog.error("mail.schedule_reminder_failed", err);
   }
 };
 
@@ -454,7 +486,7 @@ export const sendContractMail = async (to, data) => {
       </html>
     `;
 
-    await resend.emails.send({
+    const response = await deliverEmail({
       from: "HT Coaching <noreply@htcoachingweb.io.vn>",
       to,
       subject: "📋 Hợp đồng huấn luyện cá nhân — Vui lòng ký xác nhận",
@@ -462,8 +494,11 @@ export const sendContractMail = async (to, data) => {
       headers: { "X-Entity-Ref-ID": Date.now().toString() },
     });
 
-    console.log(`📧 Contract email sent to ${to}`);
+    safeLog.info("mail.sent", {
+      template: "contract",
+      providerMessageId: response?.data?.id || "",
+    });
   } catch (err) {
-    console.error("❌ CONTRACT MAIL ERROR:", err);
+    safeLog.error("mail.contract_failed", err);
   }
 };

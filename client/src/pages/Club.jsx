@@ -8,6 +8,7 @@ import Contact from "../sections/Contact";
 import ChatIcons from "../components/ChatIcons";
 import ScrollToTop from "../components/ScrollToTop";
 import SEO from "../components/SEO";
+import { useTranslation, Trans } from "react-i18next";
 import { getGyms, getDistricts } from "../services/gym.service";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -15,6 +16,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 gsap.registerPlugin(ScrollTrigger);
 
 const Club = () => {
+  const { t } = useTranslation("club");
   const [selectedDistrict, setSelectedDistrict] = useState("Tất cả");
   const [searchTerm, setSearchTerm] = useState("");
   const titleRef = useRef(null);
@@ -41,7 +43,7 @@ const Club = () => {
     if (isLoading || !gymsData) return;
     // Skip animations if user prefers reduced motion
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    
+
     const ctx = gsap.context(() => {
       if (titleRef.current) {
         gsap.from(titleRef.current, {
@@ -55,7 +57,7 @@ const Club = () => {
       if (gridRef.current) {
         const cards = gridRef.current.querySelectorAll(".club-card");
         if (cards.length) {
-          gsap.fromTo(cards, 
+          gsap.fromTo(cards,
             { y: 40, opacity: 0 },
             {
               y: 0,
@@ -79,15 +81,15 @@ const Club = () => {
 
   return (
     <>
-      <SEO 
-        title="Danh sách phòng tập - HTCOACHING" 
-        description="Tìm phòng tập Gym, Boxing gần bạn tại TP.HCM. HTCOACHING hiện đang huấn luyện tại nhiều câu lạc bộ ở Quận 9, Thủ Đức — xem địa chỉ chi tiết ngay!"
+      <SEO
+        title={t("seo.title")}
+        description={t("seo.description")}
         canonical="/club"
         jsonLd={{
           "@context": "https://schema.org",
           "@type": "SportsActivityLocation",
-          "name": "Hệ thống phòng tập HTCOACHING",
-          "description": "Danh sách phòng tập Gym, Boxing tại TP.HCM nơi HTCOACHING đang huấn luyện.",
+          "name": t("seo.schema_name"),
+          "description": t("seo.schema_desc"),
           "url": "https://htcoachingweb.io.vn/club",
           "provider": {
             "@type": "Organization",
@@ -104,15 +106,15 @@ const Club = () => {
             <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
               <MapPin className="text-primary w-6 h-6" />
               <span className="font-semibold text-primary tracking-wide">
-                HỆ THỐNG PHÒNG TẬP
+                {t("header.tag")}
               </span>
             </div>
             <h1 className="font-display text-fluid-5xl font-black uppercase tracking-normal">
-              CÂU LẠC BỘ <span className="text-primary">PT CÓ THỂ VÀO DẠY</span>
+              <Trans t={t} i18nKey="header.title">CÂU LẠC BỘ <span className="text-primary">PT CÓ THỂ VÀO DẠY</span></Trans>
             </h1>
             <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
             <p className="text-gray-400 mt-4 max-w-xl mx-auto">
-              Tìm phòng tập gần bạn — xem giờ mở cửa, địa chỉ và chỉ đường Google Maps
+              {t("header.subtitle")}
             </p>
           </div>
 
@@ -122,7 +124,7 @@ const Club = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <input
                 type="text"
-                placeholder="Tìm phòng tập..."
+                placeholder={t("filters.search_placeholder")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2.5 rounded-xl bg-gray-800/60 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition min-w-[260px] text-sm backdrop-blur-sm"
@@ -134,7 +136,7 @@ const Club = () => {
               onChange={(e) => setSelectedDistrict(e.target.value)}
               className="px-4 py-2.5 rounded-xl bg-gray-800/60 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition min-w-[200px] text-sm backdrop-blur-sm"
             >
-              <option value="Tất cả">Tất cả khu vực</option>
+              <option value="Tất cả">{t("filters.all_areas")}</option>
               {districtsData.map((d, index) => (
                 <option key={index} value={d}>
                   {d}
@@ -143,7 +145,7 @@ const Club = () => {
             </select>
             {filteredGyms && (
               <span className="text-xs text-gray-500 font-medium">
-                {filteredGyms.length} phòng tập
+                {t("filters.gyms_count", { count: filteredGyms.length })}
               </span>
             )}
           </div>
@@ -174,7 +176,7 @@ const Club = () => {
                     {club.hasKickfit && (
                       <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg z-10 uppercase tracking-wider">
                         <Star className="w-3 h-3 fill-white" />
-                        KickFit / Boxing
+                        {t("card.has_kickfit")}
                       </div>
                     )}
 
@@ -201,7 +203,7 @@ const Club = () => {
                       {club.hasKickfit && (
                         <p className="flex items-center gap-2 text-orange-400 text-xs font-semibold">
                           <Flame size={14} className="shrink-0" />
-                          <span>Có KickFit / Boxing</span>
+                          <span>{t("card.has_kickfit")}</span>
                         </p>
                       )}
                       {club.note && (
@@ -212,13 +214,13 @@ const Club = () => {
                     </div>
 
                     {club.googleMapsUrl && (
-                      <a 
-                        href={club.googleMapsUrl} 
-                        target="_blank" 
+                      <a
+                        href={club.googleMapsUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="mt-auto flex justify-center items-center gap-2 w-full py-2.5 bg-gray-700/40 hover:bg-primary/20 text-gray-300 hover:text-primary font-semibold rounded-xl border border-gray-700 hover:border-primary/40 transition-all duration-300 text-sm"
                       >
-                        Xem trên bản đồ <ExternalLink size={14} />
+                        {t("card.view_on_map")} <ExternalLink size={14} />
                       </a>
                     )}
                   </div>
@@ -227,7 +229,7 @@ const Club = () => {
 
               {filteredGyms?.length === 0 && (
                 <div className="col-span-full py-20 text-center text-gray-500">
-                  Không tìm thấy phòng tập nào trong khu vực này.
+                  {t("card.no_results")}
                 </div>
               )}
             </div>
@@ -237,21 +239,21 @@ const Club = () => {
         {/* Internal Links Section */}
         <section className="mt-20 py-12 px-5 border-t border-gray-800">
           <div className="container-custom">
-            <h2 className="text-center text-2xl font-bold mb-8 uppercase text-white">Khám phá thêm</h2>
+            <h2 className="text-center text-2xl font-bold mb-8 uppercase text-white">{t("explore.title")}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
               <Link to="/ket-qua-khach-hang" className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all">
                 <span className="text-3xl">🏆</span>
-                <span className="font-semibold text-gray-300 group-hover:text-primary transition-colors">Kết quả khách hàng</span>
+                <span className="font-semibold text-gray-300 group-hover:text-primary transition-colors">{t("explore.customer_results")}</span>
                 <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-primary transition-colors" />
               </Link>
               <Link to="/exercises" className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all">
                 <span className="text-3xl">💪</span>
-                <span className="font-semibold text-gray-300 group-hover:text-primary transition-colors">Thư viện bài tập</span>
+                <span className="font-semibold text-gray-300 group-hover:text-primary transition-colors">{t("explore.exercises")}</span>
                 <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-primary transition-colors" />
               </Link>
               <Link to="/tdee-calculator" className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all">
                 <span className="text-3xl">📊</span>
-                <span className="font-semibold text-gray-300 group-hover:text-primary transition-colors">Tính TDEE</span>
+                <span className="font-semibold text-gray-300 group-hover:text-primary transition-colors">{t("explore.tdee")}</span>
                 <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-primary transition-colors" />
               </Link>
             </div>

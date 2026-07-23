@@ -1,5 +1,6 @@
 // controllers/food.controller.js
 import Food from "../models/Food.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 // Lấy danh sách thực phẩm (có phân trang, tìm kiếm) – ai cũng xem được
 export const getFoods = async (req, res) => {
@@ -48,7 +49,7 @@ export const getFoods = async (req, res) => {
       });
     }
   } catch (err) {
-    console.error("GET FOODS ERROR:", err);
+    safeLog.error("food.list_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -110,7 +111,7 @@ export const createFood = async (req, res) => {
 
     res.status(201).json({ success: true, data: food });
   } catch (err) {
-    console.error("CREATE FOOD ERROR:", err);
+    safeLog.error("food.create_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -175,7 +176,7 @@ export const createManyFoods = async (req, res) => {
       message: `Thêm thành công ${results.success.length} / ${foods.length} thực phẩm`,
     });
   } catch (err) {
-    console.error("BATCH CREATE FOODS ERROR:", err);
+    safeLog.error("food.batch_create_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -199,7 +200,7 @@ export const updateFood = async (req, res) => {
     await food.save();
     res.json({ success: true, data: food });
   } catch (err) {
-    console.error("UPDATE FOOD ERROR:", err);
+    safeLog.error("food.update_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -215,7 +216,7 @@ export const deleteFood = async (req, res) => {
     }
     res.json({ success: true, message: "Xóa thực phẩm thành công" });
   } catch (err) {
-    console.error("DELETE FOOD ERROR:", err);
+    safeLog.error("food.delete_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

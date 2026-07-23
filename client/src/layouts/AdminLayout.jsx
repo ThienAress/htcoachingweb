@@ -22,6 +22,7 @@ import {
   BrainCircuit,
   Brain,
   LayoutTemplate,
+  Utensils,
 } from "lucide-react";
 
 const SidebarContent = ({ onItemClick }) => {
@@ -57,6 +58,7 @@ const SidebarContent = ({ onItemClick }) => {
       label: "Nội dung",
       items: [
         { path: "/admin/trainers", label: "Đội ngũ HLV", icon: Users2 },
+        { path: "/admin/recipes", label: "Công thức nấu ăn", icon: Utensils },
         { path: "/admin/customer-stories", label: "Câu chuyện khách hàng", icon: BookOpenText },
         { path: "/admin/blog", label: "Blog", icon: BookOpen },
         { path: "/admin/exercise-suggestions", label: "Góp ý bài tập", icon: MessageSquareText },
@@ -172,7 +174,6 @@ const SidebarContent = ({ onItemClick }) => {
 };
 
 const AdminLayout = () => {
-  const location = useLocation();
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -185,10 +186,6 @@ const AdminLayout = () => {
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
-
-  useEffect(() => {
-    if (isMobile) setIsSidebarOpen(false);
-  }, [location, isMobile]);
 
   // Desktop layout
   if (!isMobile) {

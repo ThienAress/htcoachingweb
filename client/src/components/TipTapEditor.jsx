@@ -14,7 +14,7 @@ import {
   Heading2, Heading3, List, ListOrdered,
   Quote, Minus, Image as ImageIcon, Link as LinkIcon,
   AlignLeft, AlignCenter, Undo2, Redo2, Unlink, FileText,
-  Maximize2, Minimize2,
+  Maximize2, Minimize2, ImagePlus
 } from "lucide-react";
 
 const FontSize = Extension.create({
@@ -102,12 +102,12 @@ const parseMarkdownToHtml = (markdown) => {
   const lines = html.split("\n");
   let inTable = false;
   let tableHtml = "";
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line.startsWith("|") && line.endsWith("|")) {
       const cells = line.split("|").map(c => c.trim()).filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
-      
+
       // Bỏ qua dòng separator
       if (line.includes("---") || line.includes(":-")) {
         continue;
@@ -141,7 +141,7 @@ const parseMarkdownToHtml = (markdown) => {
     tableHtml += "</tbody></table>";
     lines[lines.length - 1] = tableHtml;
   }
-  
+
   html = lines.filter(line => {
     const trimmed = line.trim();
     if (trimmed.startsWith("|") && (trimmed.includes("---") || trimmed.includes(":-") || (!trimmed.includes("<table") && !trimmed.includes("<tr") && !trimmed.includes("<th") && !trimmed.includes("<td") && !trimmed.includes("</table")))) {
@@ -154,12 +154,12 @@ const parseMarkdownToHtml = (markdown) => {
   const processedLines = html.split("\n");
   let inUl = false;
   let inOl = false;
-  
+
   for (let i = 0; i < processedLines.length; i++) {
     const line = processedLines[i].trim();
     const ulMatch = line.match(/^[*+-]\s+(.*)$/);
     const olMatch = line.match(/^\d+\.\s+(.*)$/);
-    
+
     if (ulMatch) {
       let content = ulMatch[1];
       if (inOl) {
@@ -195,7 +195,7 @@ const parseMarkdownToHtml = (markdown) => {
       }
     }
   }
-  
+
   html = processedLines.join("\n");
 
   // 7. Phân tích Paragraphs (cho các dòng trống hoặc các dòng text thuần không chứa HTML block)
@@ -203,7 +203,7 @@ const parseMarkdownToHtml = (markdown) => {
   for (let i = 0; i < paragraphLines.length; i++) {
     const line = paragraphLines[i].trim();
     if (line === "") continue;
-    
+
     const isBlock = /^(<h[1-6]|<ul|<ol|<li|<blockquote|<table|<tr|<th|<td|<hr|<\/ul|<\/ol|<\/li|<\/blockquote|<\/table|<\/tr|<\/th|<\/td)/i.test(line);
     if (!isBlock) {
       paragraphLines[i] = `<p>${paragraphLines[i]}</p>`;
@@ -214,7 +214,7 @@ const parseMarkdownToHtml = (markdown) => {
   return html;
 };
 
-const TipTapEditor = ({ content, onChange, onImageUpload }) => {
+const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
   const extensions = useMemo(() => [
     StarterKit.configure({
       heading: { levels: [2, 3] },
@@ -270,7 +270,7 @@ const TipTapEditor = ({ content, onChange, onImageUpload }) => {
           "prose-headings:font-black prose-headings:text-slate-900 " +
           "prose-p:text-slate-600 prose-p:leading-relaxed " +
           "prose-a:text-primary prose-strong:text-slate-900 " +
-          "prose-img:rounded-xl prose-img:shadow-md prose-img:mx-auto " +
+          "prose-img:rounded-xl prose-img:shadow-md prose-img:mx-auto prose-img:!mb-3 [&_img+p]:!mt-2 " +
           "prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-xl " +
           "prose-blockquote:py-3 prose-blockquote:px-5 prose-blockquote:not-italic " +
           "prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm",
@@ -279,7 +279,7 @@ const TipTapEditor = ({ content, onChange, onImageUpload }) => {
         try {
           const parser = new DOMParser();
           const doc = parser.parseFromString(html, "text/html");
-          
+
           // 1. Chuyển đổi hoặc loại bỏ thẻ <font> cổ điển thường xuất hiện khi copy từ Word/Excel
           const fontElements = doc.querySelectorAll("font");
           fontElements.forEach((el) => {
@@ -300,7 +300,7 @@ const TipTapEditor = ({ content, onChange, onImageUpload }) => {
               el.removeAttribute("style");
             }
           });
-          
+
           // 3. Loại bỏ class ngoại lai để tránh class rác từ Word/Notion làm hỏng CSS Tailwind của editor
           const classedElements = doc.querySelectorAll("[class]");
           classedElements.forEach((el) => {
@@ -312,7 +312,7 @@ const TipTapEditor = ({ content, onChange, onImageUpload }) => {
           trashTags.forEach((el) => el.remove());
 
           return doc.body.innerHTML;
-        } catch (e) {
+        } catch {
           return html;
         }
       },
@@ -320,10 +320,10 @@ const TipTapEditor = ({ content, onChange, onImageUpload }) => {
         const text = event.clipboardData?.getData("text/plain");
         // Kiểm tra xem có chứa các cú pháp Markdown cơ bản hay không
         const isMarkdown = text && (
-          text.includes("# ") || 
-          text.includes("**") || 
-          text.includes("* ") || 
-          text.includes("---") || 
+          text.includes("# ") ||
+          text.includes("**") ||
+          text.includes("* ") ||
+          text.includes("---") ||
           text.includes("| ") ||
           text.includes("\n> ")
         );
@@ -379,7 +379,7 @@ const TipTapEditor = ({ content, onChange, onImageUpload }) => {
     input.onchange = (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target.result;
@@ -595,8 +595,16 @@ const TipTapEditor = ({ content, onChange, onImageUpload }) => {
         <MenuButton onClick={addImage} title="Chèn hình ảnh">
           <ImageIcon className="w-4 h-4" />
         </MenuButton>
+        {coverImage && (
+          <MenuButton
+            onClick={() => editor.chain().focus().setImage({ src: coverImage }).run()}
+            title="Chèn ảnh bìa vào bài viết"
+          >
+            <ImagePlus className="w-4 h-4 text-emerald-600" />
+          </MenuButton>
+        )}
         <MenuButton onClick={importMarkdownFile} title="Nhập từ file Markdown (.md)">
-          <FileText className="w-4 h-4 text-emerald-600" />
+          <FileText className="w-4 h-4 text-primary" />
         </MenuButton>
 
         <Divider />

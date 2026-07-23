@@ -30,6 +30,7 @@ const normalizeTrainer = (trainer = {}) => ({
 export const getPublicTrainers = async ({
   featured = false,
   limit = 12,
+  lang,
 } = {}) => {
   const params = new URLSearchParams({
     limit: String(limit),
@@ -37,6 +38,9 @@ export const getPublicTrainers = async ({
 
   if (featured) {
     params.set("featured", "true");
+  }
+  if (lang) {
+    params.set("lang", lang);
   }
 
   const res = await api.get(`/trainers?${params.toString()}`);
@@ -48,8 +52,11 @@ export const getPublicTrainers = async ({
   };
 };
 
-export const getPublicTrainerBySlug = async (slug) => {
-  const res = await api.get(`/trainers/${slug}`);
+export const getPublicTrainerBySlug = async (slug, { lang } = {}) => {
+  const params = new URLSearchParams();
+  if (lang) params.set("lang", lang);
+  const qs = params.toString();
+  const res = await api.get(`/trainers/${slug}${qs ? `?${qs}` : ""}`);
   return {
     ...res.data,
     data: normalizeTrainer(res.data?.data),

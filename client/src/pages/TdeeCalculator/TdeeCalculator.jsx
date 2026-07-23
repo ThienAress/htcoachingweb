@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation, Trans } from "react-i18next";
 import { Flame, BarChart3, Utensils, Calendar, Dumbbell } from "lucide-react";
 import TdeeForm from "./TdeeForm";
 import TdeeResultBox from "./TdeeResultBox";
@@ -8,8 +9,6 @@ import ManualMacroForm from "./ManualMacroForm";
 import Header from "../../sections/Header/Header";
 import ChatIcons from "../../components/ChatIcons";
 import SEO from "../../components/SEO";
-import { useAuth } from "../../context/AuthContext";
-import LoginModal from "../MealPlan/LoginModal";
 import {
   calculateBmr,
   calculateTdee,
@@ -18,44 +17,69 @@ import {
   getDefaultCalorieAdjustment,
 } from "./tdee.helpers";
 
+const DEFAULT_FORM = {
+  gender: "",
+  height: "",
+  weight: "",
+  age: "",
+  activity: "",
+  formula: "",
+  bodyfat: "",
+  goal: "",
+  customCalorieAdjustment: "",
+};
+
+const loadStoredTdee = () => {
+  const result = {
+    form: DEFAULT_FORM,
+    tdee: null,
+    bmr: null,
+    adjustedCalories: null,
+    macroSet: null,
+  };
+
+  try {
+    const savedForm = localStorage.getItem("tdeeForm");
+    if (savedForm) result.form = { ...DEFAULT_FORM, ...JSON.parse(savedForm) };
+  } catch {
+    localStorage.removeItem("tdeeForm");
+  }
+
+  try {
+    const savedData = localStorage.getItem("tdeeData");
+    if (savedData) {
+      const data = JSON.parse(savedData);
+      result.bmr = data.bmr ?? null;
+      result.tdee = data.tdee ?? null;
+      result.adjustedCalories = data.adjustedCalories ?? null;
+    }
+  } catch {
+    localStorage.removeItem("tdeeData");
+  }
+
+  try {
+    const savedMacros = localStorage.getItem("macroSet");
+    if (savedMacros) result.macroSet = JSON.parse(savedMacros);
+  } catch {
+    localStorage.removeItem("macroSet");
+  }
+
+  return result;
+};
+
 const TdeeCalculator = () => {
-  const [form, setForm] = useState({
-    gender: "",
-    height: "",
-    weight: "",
-    age: "",
-    activity: "",
-    formula: "",
-    bodyfat: "",
-    goal: "",
-    customCalorieAdjustment: "",
-  });
+  const { t } = useTranslation("tdee");
+  const [storedTdee] = useState(loadStoredTdee);
+  const [form, setForm] = useState(storedTdee.form);
 
   const [calcMode, setCalcMode] = useState("auto"); // "auto" | "manual"
   const [errors, setErrors] = useState({});
-  const [tdee, setTdee] = useState(null);
-  const [bmr, setBmr] = useState(null);
-  const [adjustedCalories, setAdjustedCalories] = useState(null);
-  const [macroSet, setMacroSet] = useState(null);
+  const [tdee, setTdee] = useState(storedTdee.tdee);
+  const [bmr, setBmr] = useState(storedTdee.bmr);
+  const [adjustedCalories, setAdjustedCalories] = useState(storedTdee.adjustedCalories);
+  const [macroSet, setMacroSet] = useState(storedTdee.macroSet);
   const [goalNotice, setGoalNotice] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
-
-  useEffect(() => {
-    const savedForm = localStorage.getItem("tdeeForm");
-    const savedData = localStorage.getItem("tdeeData");
-    const savedMacros = localStorage.getItem("macroSet");
-
-    if (savedForm) setForm(JSON.parse(savedForm));
-    if (savedData) {
-      const { bmr, tdee, adjustedCalories } = JSON.parse(savedData);
-      setBmr(bmr);
-      setTdee(tdee);
-      setAdjustedCalories(adjustedCalories);
-    }
-    if (savedMacros) setMacroSet(JSON.parse(savedMacros));
-  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -81,15 +105,15 @@ const TdeeCalculator = () => {
     const { gender, height, weight, age, activity, formula, bodyfat, goal } =
       form;
     let newErrors = {};
-    if (!gender) newErrors.gender = "Vui lòng chọn giới tính.";
-    if (!height || height <= 0) newErrors.height = "Chiều cao phải lớn hơn 0.";
-    if (!weight || weight <= 0) newErrors.weight = "Cân nặng phải lớn hơn 0.";
-    if (!age || age <= 0) newErrors.age = "Tuổi phải lớn hơn 0.";
-    if (!activity) newErrors.activity = "Vui lòng chọn mức độ hoạt động.";
-    if (!formula) newErrors.formula = "Vui lòng chọn công thức.";
-    if (!goal) newErrors.goal = "Vui lòng chọn mục tiêu.";
+    if (!gender) newErrors.gender = t("form.err_gender");
+    if (!height || height <= 0) newErrors.height = t("form.err_height");
+    if (!weight || weight <= 0) newErrors.weight = t("form.err_weight");
+    if (!age || age <= 0) newErrors.age = t("form.err_age");
+    if (!activity) newErrors.activity = t("form.err_activity");
+    if (!formula) newErrors.formula = t("form.err_formula");
+    if (!goal) newErrors.goal = t("form.err_goal");
     if (formula === "Katch-McArdle" && (!bodyfat || bodyfat <= 0)) {
-      newErrors.bodyfat = "Vui lòng nhập body fat (%).";
+      newErrors.bodyfat = t("form.err_bodyfat");
     }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -204,18 +228,14 @@ const TdeeCalculator = () => {
 
   const handleMealPlanClick = (e) => {
     e.preventDefault();
-    if (user) {
-      navigate("/mealplan");
-    } else {
-      setShowLoginModal(true);
-    }
+    navigate("/mealplan");
   };
 
   return (
     <main className="py-12 md:py-20 bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
       <SEO 
-        title="Công cụ tính TDEE & Macro chuẩn khoa học"
-        description="Tính TDEE (Tổng lượng calo tiêu thụ mỗi ngày) và Macro (Đạm, Tinh bột, Béo) chuẩn khoa học giúp giảm mỡ, tăng cơ hiệu quả."
+        title={t("seo_title")}
+        description={t("seo_desc")}
         canonical="/tdee-calculator"
         jsonLd={tdeeSchema}
       />
@@ -229,13 +249,11 @@ const TdeeCalculator = () => {
             </span>
           </div>
           <h1 className="text-fluid-5xl font-black uppercase">
-            ĐO LƯỢNG <span className="text-primary">CALO ĐỐT CHÁY</span> TRONG 1
-            NGÀY
+            <Trans i18nKey="title" ns="tdee" components={[<span className="text-primary" key="0" />]} />
           </h1>
           <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
           <p className="text-gray-400 mt-4 max-w-xl mx-auto">
-            Tính toán chính xác TDEE để tối ưu hóa quá trình tập luyện và dinh
-            dưỡng
+            {t("subtitle")}
           </p>
         </div>
 
@@ -250,7 +268,7 @@ const TdeeCalculator = () => {
                   : "text-gray-400 hover:text-gray-200"
               }`}
             >
-              Tính tự động
+              {t("mode_auto")}
             </button>
             <button
               onClick={() => setCalcMode("manual")}
@@ -260,13 +278,13 @@ const TdeeCalculator = () => {
                   : "text-gray-400 hover:text-gray-200"
               }`}
             >
-              Đã có Macro (Nhập tay)
+              {t("mode_manual")}
             </button>
           </div>
         </div>
 
         {calcMode === "manual" ? (
-          <ManualMacroForm setShowLoginModal={setShowLoginModal} />
+          <ManualMacroForm />
         ) : (
           <>
             <TdeeForm
@@ -298,17 +316,11 @@ const TdeeCalculator = () => {
                   <Flame className="text-primary w-5 h-5" />
                 </div>
                 <h3 className="text-fluid-2xl font-bold text-primary">
-                  1. TDEE là gì?
+                  {t("info.tdee_title")}
                 </h3>
               </div>
-              <p className="text-gray-300 leading-relaxed text-lg">
-                <strong className="text-gray-200">
-                  TDEE (Total Daily Energy Expenditure)
-                </strong>{" "}
-                là tổng năng lượng bạn tiêu hao trong một ngày, bao gồm các hoạt
-                động sống cơ bản (BMR), vận động và tiêu hao do tiêu hóa thức
-                ăn. Biết được TDEE giúp bạn điều chỉnh chế độ ăn và luyện tập để
-                đạt được mục tiêu.
+              <p className="text-gray-300 leading-relaxed mb-4">
+                <Trans i18nKey="info.tdee_desc" ns="tdee" components={[<strong className="text-gray-200" key="0" />]} />
               </p>
             </div>
 
@@ -318,24 +330,23 @@ const TdeeCalculator = () => {
                   <BarChart3 className="text-primary w-5 h-5" />
                 </div>
                 <h3 className="text-fluid-2xl font-bold text-primary">
-                  2. Tính toán macros
+                  {t("info.macro_title")}
                 </h3>
               </div>
               <p className="text-gray-300 leading-relaxed mb-6">
-                Khi đã biết được tổng năng lượng bạn cần, bước tiếp theo là xác
-                định các chất đa lượng{" "}
-                <strong className="text-gray-200">(macros)</strong> bao gồm:{" "}
-                <strong className="text-gray-200">Đạm (Protein)</strong>,{" "}
-                <strong className="text-gray-200">Tinh bột (Carb)</strong>,{" "}
-                <strong className="text-gray-200">Chất béo (Fat)</strong>. Bạn
-                muốn mình tính giúp dựa trên thông số trên không?
+                <Trans i18nKey="info.macro_desc" ns="tdee" components={[
+                  <strong className="text-gray-200" key="0" />,
+                  <strong className="text-gray-200" key="1" />,
+                  <strong className="text-gray-200" key="2" />,
+                  <strong className="text-gray-200" key="3" />
+                ]} />
               </p>
               <button
                 onClick={calculateMacro}
                 className="btn btn-primary shadow-lg shadow-primary/30 flex items-center gap-2"
               >
                 <BarChart3 className="w-5 h-5" />
-                <span>Tính toán macro</span>
+                <span>{t("info.btn_macro")}</span>
               </button>
 
               {macroSet && (
@@ -352,26 +363,18 @@ const TdeeCalculator = () => {
                         <Utensils className="text-primary w-5 h-5" />
                       </div>
                       <h3 className="text-fluid-2xl font-bold text-primary">
-                        3. Lịch ăn cụ thể sẽ như thế nào?
+                        {t("info.meal_title")}
                       </h3>
                     </div>
                     <p className="text-gray-300 leading-relaxed mb-6">
-                      Sau khi đã tính được{" "}
-                      <strong className="text-gray-200">macros</strong>, bạn có
-                      muốn mình{" "}
-                      <strong className="text-gray-200">
-                        gợi ý luôn lịch ăn hàng ngày
-                      </strong>{" "}
-                      dựa trên thông số đó không? Nhấn vào nút dưới để nhận thực
-                      đơn mẫu phù hợp với những thực phẩm đa dạng hỗ trợ mục
-                      tiêu của bạn được tốt hơn.
+                      <Trans i18nKey="info.meal_desc" ns="tdee" components={[<strong className="text-gray-200" key="0" />, <strong className="text-gray-200" key="1" />]} />
                     </p>
                     <button
                       onClick={handleMealPlanClick}
                       className="btn btn-primary shadow-lg flex items-center gap-2 inline-flex"
                     >
                       <Calendar className="w-5 h-5" />
-                      <span>Gợi ý lịch ăn</span>
+                      <span>{t("info.btn_meal")}</span>
                     </button>
                   </div>
                 </>
@@ -385,21 +388,23 @@ const TdeeCalculator = () => {
 
       {/* Internal Links */}
       <section className="max-w-4xl mx-auto mt-16 mb-8 px-4">
-        <h2 className="text-center text-xl font-bold text-white mb-2 uppercase">Công cụ khác</h2>
-        <p className="text-center text-sm text-gray-400 mb-6">
-          Kết hợp dinh dưỡng với bài tập để đạt kết quả tốt nhất
+        <h2 className="text-center text-2xl font-bold text-white mb-2 uppercase">
+          <Trans i18nKey="tools.title" ns="tdee" components={[<span className="text-primary" key="0" />]} />
+        </h2>
+        <p className="text-center text-sm text-gray-400 mb-10">
+          {t("tools.desc")}
         </p>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-3">
           <Link
             to="/exercises"
             className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
           >
             <Dumbbell className="h-6 w-6 text-primary mb-3" />
             <h3 className="font-bold text-white group-hover:text-primary transition">
-              Thư viện bài tập
+              {t("tools.exercises")}
             </h3>
             <p className="mt-2 text-sm text-gray-400 leading-relaxed">
-              Tạo lịch tập cá nhân hóa theo từng nhóm cơ và xuất PDF.
+              {t("tools.exercises_desc")}
             </p>
           </Link>
           <Link
@@ -408,10 +413,10 @@ const TdeeCalculator = () => {
           >
             <Calendar className="h-6 w-6 text-primary mb-3" />
             <h3 className="font-bold text-white group-hover:text-primary transition">
-              Gợi ý thực đơn
+              {t("tools.mealplan")}
             </h3>
             <p className="mt-2 text-sm text-gray-400 leading-relaxed">
-              Nhận thực đơn dinh dưỡng phù hợp mục tiêu giảm mỡ hoặc tăng cơ.
+              {t("tools.mealplan_desc")}
             </p>
           </Link>
           <Link
@@ -420,17 +425,16 @@ const TdeeCalculator = () => {
           >
             <Flame className="h-6 w-6 text-primary mb-3" />
             <h3 className="font-bold text-white group-hover:text-primary transition">
-              Kết quả khách hàng
+              {t("tools.stories")}
             </h3>
             <p className="mt-2 text-sm text-gray-400 leading-relaxed">
-              Xem hành trình thay đổi vóc dáng thực tế từ các học viên.
+              {t("tools.stories_desc")}
             </p>
           </Link>
         </div>
       </section>
 
       <ChatIcons />
-      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </main>
   );
 };

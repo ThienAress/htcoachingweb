@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Home, UserPlus, Users, Menu, X } from "lucide-react";
 import {
   createF1Customer,
@@ -9,14 +10,29 @@ import {
 } from "../../services/f1Customer.service";
 import { toast } from "react-toastify";
 import SEO from "../../components/SEO";
+import { useDebounce } from "../../hooks/useDebounce";
 
-import F1CustomerList from "../../components/F1/F1CustomerList";
-import F1CustomerDetail from "../../components/F1/F1CustomerDetail";
-import F1IntakeWizard from "../../components/F1/F1IntakeWizard";
-import F1CreateCustomerForm from "../../components/F1/F1CreateCustomerForm";
-import F1AssessmentPanel from "../../components/F1/F1AssessmentPanel";
-import F1AiReportPanel from "../../components/F1/F1AiReportPanel";
-import F1ResultPredictionPanel from "../../components/F1/F1ResultPredictionPanel";
+const F1CustomerList = lazy(
+  () => import("../../components/F1/F1CustomerList"),
+);
+const F1CustomerDetail = lazy(
+  () => import("../../components/F1/F1CustomerDetail"),
+);
+const F1IntakeWizard = lazy(
+  () => import("../../components/F1/F1IntakeWizard"),
+);
+const F1CreateCustomerForm = lazy(
+  () => import("../../components/F1/F1CreateCustomerForm"),
+);
+const F1AssessmentPanel = lazy(
+  () => import("../../components/F1/F1AssessmentPanel"),
+);
+const F1AiReportPanel = lazy(
+  () => import("../../components/F1/F1AiReportPanel"),
+);
+const F1ResultPredictionPanel = lazy(
+  () => import("../../components/F1/F1ResultPredictionPanel"),
+);
 
 const initialCreateForm = {
   fullName: "",
@@ -29,48 +45,36 @@ const initialCreateForm = {
 };
 
 const F1Customers = () => {
+  const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState("list");
-  const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const [loading, setLoading] = useState(false);
-  const [submittingCreate, setSubmittingCreate] = useState(false);
-  const [deletingCustomer, setDeletingCustomer] = useState(false);
-
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [createForm, setCreateForm] = useState(initialCreateForm);
-
-  const [reviewingTestPermission, setReviewingTestPermission] = useState(false);
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const filteredCustomers = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    if (!keyword) return customers;
-    return customers.filter((item) => {
-      return (
-        item.fullName?.toLowerCase().includes(keyword) ||
-        item.phone?.toLowerCase().includes(keyword) ||
-        item.email?.toLowerCase().includes(keyword) ||
-        item.code?.toLowerCase().includes(keyword)
-      );
-    });
-  }, [customers, search]);
-
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      const res = await getF1Customers();
-      setCustomers(Array.isArray(res.data) ? res.data : res.data?.items || []);
-    } catch (error) {
-      console.error("GET F1 CUSTOMERS ERROR:", error);
-    } finally {
-      setLoading(false);
-    }
+  const debouncedSearch = useDebounce(search.trim(), 350);
+  const customersQuery = useQuery({
+    queryKey: ["f1-customers", { search: debouncedSearch, page, limit: 10 }],
+    queryFn: () =>
+      getF1Customers({ search: debouncedSearch, page, limit: 10 }),
+    placeholderData: (previous) => previous,
+  });
+  const customers = Array.isArray(customersQuery.data?.data)
+    ? customersQuery.data.data
+    : [];
+  const pagination = customersQuery.data?.pagination || {
+    page,
+    totalPages: 1,
+    total: customers.length,
   };
+  const invalidateCustomers = () =>
+    queryClient.invalidateQueries({ queryKey: ["f1-customers"] });
+  const createMutation = useMutation({ mutationFn: createF1Customer });
+  const deleteMutation = useMutation({ mutationFn: deleteF1CustomerApi });
+  const reviewMutation = useMutation({
+    mutationFn: ({ customerId, payload }) =>
+      reviewTestPermission(customerId, payload),
+  });
 
   const resetCreateForm = () => {
     setCreateForm(initialCreateForm);
@@ -85,42 +89,34 @@ const F1Customers = () => {
   const handleCreateCustomer = async (e) => {
     e.preventDefault();
     try {
-      setSubmittingCreate(true);
       const payload = {
         ...createForm,
         age: Number(createForm.age) || 0,
       };
-      const res = await createF1Customer(payload);
+      const res = await createMutation.mutateAsync(payload);
       const createdCustomer = res.data;
       setSelectedCustomer(createdCustomer);
       setViewMode("intake");
-      await fetchCustomers();
+      await invalidateCustomers();
     } catch (error) {
-      console.error("CREATE F1 CUSTOMER ERROR:", error);
       alert(error?.response?.data?.message || "Tạo khách hàng thất bại");
-    } finally {
-      setSubmittingCreate(false);
     }
   };
 
   const handleDeleteCustomer = async () => {
     if (!selectedCustomer?._id) return;
     const confirmed = window.confirm(
-      `Bạn có chắc muốn xóa khách hàng "${selectedCustomer.fullName}" không?\n\nDữ liệu intake, media, đánh giá thể chất, AI report và dự đoán kết quả liên quan sẽ bị xóa.`,
+      `Bạn có chắc muốn yêu cầu xóa dữ liệu của "${selectedCustomer.fullName}" không?\n\nMedia sẽ được xóa khỏi private storage trước, sau đó dữ liệu sức khỏe mới được xóa.`,
     );
     if (!confirmed) return;
     try {
-      setDeletingCustomer(true);
-      await deleteF1CustomerApi(selectedCustomer._id);
-      toast.success("Xóa khách hàng thành công");
+      await deleteMutation.mutateAsync(selectedCustomer._id);
+      toast.success("Đã tiếp nhận yêu cầu xóa dữ liệu an toàn");
       setSelectedCustomer(null);
       setViewMode("list");
-      await fetchCustomers();
+      await invalidateCustomers();
     } catch (error) {
-      console.error("DELETE F1 CUSTOMER ERROR:", error);
       toast.error(error?.response?.data?.message || "Xóa khách hàng thất bại");
-    } finally {
-      setDeletingCustomer(false);
     }
   };
 
@@ -159,7 +155,7 @@ const F1Customers = () => {
       lastIntakeId: result?._id || result?.data?._id || prev?.lastIntakeId,
     }));
     setViewMode("detail");
-    await fetchCustomers();
+    await invalidateCustomers();
   };
 
   const handleAssessmentSubmitted = async (result) => {
@@ -174,7 +170,7 @@ const F1Customers = () => {
         prev?.overallPhysicalLevel,
     }));
     setViewMode("detail");
-    await fetchCustomers();
+    await invalidateCustomers();
   };
 
   const handleAiReportGenerated = async (result) => {
@@ -183,14 +179,16 @@ const F1Customers = () => {
       status: "ai_report_generated",
       lastAiReportId: result?._id || result?.data?._id || prev?.lastAiReportId,
     }));
-    await fetchCustomers();
+    await invalidateCustomers();
   };
 
   const handleReviewTestPermission = async (payload) => {
     if (!selectedCustomer?._id) return;
     try {
-      setReviewingTestPermission(true);
-      const res = await reviewTestPermission(selectedCustomer._id, payload);
+      const res = await reviewMutation.mutateAsync({
+        customerId: selectedCustomer._id,
+        payload,
+      });
       const updatedCustomer = res?.data?.customer;
       const updatedIntake = res?.data?.intake;
       setSelectedCustomer((prev) => ({
@@ -208,14 +206,11 @@ const F1Customers = () => {
         lastIntakeId: updatedIntake?._id || prev?.lastIntakeId,
       }));
       toast.success(res?.message || "PT review thành công");
-      await fetchCustomers();
+      await invalidateCustomers();
     } catch (error) {
-      console.error("REVIEW TEST PERMISSION ERROR:", error);
       toast.error(
         error?.response?.data?.message || "PT review test permission thất bại",
       );
-    } finally {
-      setReviewingTestPermission(false);
     }
   };
 
@@ -225,7 +220,7 @@ const F1Customers = () => {
       lastResultPredictionId:
         result?._id || result?.data?._id || prev?.lastResultPredictionId,
     }));
-    await fetchCustomers();
+    await invalidateCustomers();
   };
 
   return (
@@ -235,6 +230,9 @@ const F1Customers = () => {
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        aria-label={mobileMenuOpen ? "Đóng menu F1" : "Mở menu F1"}
+        aria-expanded={mobileMenuOpen}
+        aria-controls="f1-navigation"
         className="fixed left-4 top-4 z-50 rounded-full bg-white p-2 shadow-lg md:hidden"
       >
         {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -242,6 +240,7 @@ const F1Customers = () => {
 
       {/* Sidebar - desktop & mobile overlay */}
       <aside
+        id="f1-navigation"
         className={`fixed inset-y-0 left-0 z-40 w-72 transform bg-gradient-to-b from-slate-800 to-slate-900 text-white shadow-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
@@ -298,12 +297,24 @@ const F1Customers = () => {
       {/* Main content */}
       <main className="flex-1 overflow-x-auto p-4 md:p-8">
         <div className="mx-auto max-w-7xl">
+          <Suspense
+            fallback={
+              <div role="status" className="p-6 text-slate-600">
+                Đang tải màn hình F1...
+              </div>
+            }
+          >
           {viewMode === "list" && (
             <F1CustomerList
-              loading={loading}
+              loading={customersQuery.isLoading}
               search={search}
-              setSearch={setSearch}
-              customers={filteredCustomers}
+              setSearch={(value) => {
+                setSearch(value);
+                setPage(1);
+              }}
+              customers={customers}
+              pagination={pagination}
+              onPageChange={setPage}
               onOpenCreate={handleOpenCreate}
               onSelectCustomer={handleSelectCustomer}
             />
@@ -313,7 +324,7 @@ const F1Customers = () => {
             <F1CreateCustomerForm
               createForm={createForm}
               setCreateForm={setCreateForm}
-              submittingCreate={submittingCreate}
+              submittingCreate={createMutation.isPending}
               onBack={() => setViewMode("list")}
               onSubmit={handleCreateCustomer}
             />
@@ -328,8 +339,8 @@ const F1Customers = () => {
               onOpenAiReport={() => setViewMode("report")}
               onOpenResultPrediction={() => setViewMode("result_prediction")}
               onDelete={handleDeleteCustomer}
-              deleting={deletingCustomer}
-              reviewingTestPermission={reviewingTestPermission}
+              deleting={deleteMutation.isPending}
+              reviewingTestPermission={reviewMutation.isPending}
               onReviewTestPermission={handleReviewTestPermission}
             />
           )}
@@ -366,6 +377,7 @@ const F1Customers = () => {
               onGenerated={handleResultPredictionGenerated}
             />
           )}
+          </Suspense>
         </div>
       </main>
     </div>

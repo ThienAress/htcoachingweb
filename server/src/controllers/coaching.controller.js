@@ -2,23 +2,41 @@ import path from "path";
 import CoachingDay from "../models/CoachingDay.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
-import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import {
+  destroyCloudinaryAsset,
+  getCloudinaryPublicIdFromUrl,
+  uploadBufferToCloudinary,
+} from "../utils/cloudinaryUpload.js";
+import { applyExerciseFeedback } from "../utils/coachingFeedback.js";
+import { buildTrainerPlanUpdate } from "../utils/coachingPlan.js";
+import { incrementMetric } from "../observability/metrics.js";
+import { trackDbQuery } from "../observability/queryTelemetry.js";
+import { safeLog } from "../utils/safeLogger.js";
+
+const MAX_CLIENT_FEEDBACK_TEXT_LENGTH = 5000;
 
 // ================= KHÁCH HÀNG (CLIENT) =================
 
 // 1. Lấy danh sách ngày tập của tôi (để dựng sidebar gập/mở tuần)
 export const getMyPlans = async (req, res) => {
   try {
-    const plans = await CoachingDay.find({ userId: req.user.id })
-      .populate("trainerId", "name email avatar")
-      .sort({ date: -1 });
+    const plans = await trackDbQuery("coaching.client.list", () =>
+      CoachingDay.find({ userId: req.user.id })
+        .select(
+          "date dateString title clientStatus exercises.name exercises.completed trainerId",
+        )
+        .populate("trainerId", "name email avatar")
+        .sort({ date: -1 })
+        .limit(100)
+        .lean(),
+    );
 
     res.json({
       success: true,
       data: plans,
     });
   } catch (err) {
-    console.error("GET MY PLANS ERROR:", err);
+    safeLog.error("coaching.my_plans_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy danh sách bài tập" });
   }
 };
@@ -44,7 +62,7 @@ export const getMyPlanDetails = async (req, res) => {
       data: plan,
     });
   } catch (err) {
-    console.error("GET PLAN DETAILS ERROR:", err);
+    safeLog.error("coaching.plan_detail_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy chi tiết bài tập" });
   }
 };
@@ -55,13 +73,15 @@ export const submitFeedback = async (req, res) => {
     const { dateString } = req.params;
     const { clientFeedbackText } = req.body;
 
-    let exercises = req.body.exercises;
-    if (typeof exercises === "string") {
-      try {
-        exercises = JSON.parse(exercises);
-      } catch (e) {
-        console.error("Error parsing exercises JSON:", e);
-      }
+    if (
+      clientFeedbackText !== undefined &&
+      (typeof clientFeedbackText !== "string" ||
+        clientFeedbackText.length > MAX_CLIENT_FEEDBACK_TEXT_LENGTH)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Phản hồi buổi tập không hợp lệ hoặc quá dài",
+      });
     }
 
     const plan = await CoachingDay.findOne({
@@ -76,10 +96,22 @@ export const submitFeedback = async (req, res) => {
       });
     }
 
-    // Cập nhật các trường
-    if (exercises && Array.isArray(exercises)) {
-      plan.exercises = exercises;
+    const previousFeedbackVideoIds = new Map(
+      plan.exercises.map((exercise) => [
+        String(exercise._id),
+        getCloudinaryPublicIdFromUrl(exercise.clientFeedbackVideo),
+      ]),
+    );
+
+    try {
+      applyExerciseFeedback(plan.exercises, req.body.exercises);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
     }
+
     if (clientFeedbackText !== undefined) {
       plan.clientFeedbackText = clientFeedbackText;
     }
@@ -104,13 +136,32 @@ export const submitFeedback = async (req, res) => {
 
     await plan.save();
 
+    const staleFeedbackVideoIds = plan.exercises
+      .map((exercise) => {
+        const previousId = previousFeedbackVideoIds.get(String(exercise._id));
+        const currentId = getCloudinaryPublicIdFromUrl(
+          exercise.clientFeedbackVideo,
+        );
+        return previousId && previousId !== currentId ? previousId : null;
+      })
+      .filter(Boolean);
+
+    for (const publicId of staleFeedbackVideoIds) {
+      try {
+        await destroyCloudinaryAsset(publicId, "video");
+      } catch (cleanupError) {
+        incrementMetric("coaching.cleanup_failures");
+        safeLog.error("coaching.removed_feedback_cleanup_failed", cleanupError);
+      }
+    }
+
     res.json({
       success: true,
       data: plan,
       message: "Cập nhật tiến trình tập luyện thành công",
     });
   } catch (err) {
-    console.error("SUBMIT FEEDBACK ERROR:", err);
+    safeLog.error("coaching.feedback_submit_failed", err);
     res.status(500).json({ success: false, message: "Lỗi gửi phản hồi tập luyện" });
   }
 };
@@ -128,9 +179,14 @@ export const getTrainerClients = async (req, res) => {
     }
 
     // Lấy orders approved, populate user
-    const orders = await Order.find(query)
-      .populate("userId", "name email avatar phone")
-      .sort({ updatedAt: -1 });
+    const orders = await trackDbQuery("coaching.trainer.clients", () =>
+      Order.find(query)
+        .select("userId package updatedAt")
+        .populate("userId", "name email avatar phone")
+        .sort({ updatedAt: -1 })
+        .limit(1000)
+        .lean(),
+    );
 
     // Lọc ra danh sách khách hàng duy nhất
     const clientsMap = {};
@@ -158,7 +214,7 @@ export const getTrainerClients = async (req, res) => {
       data: uniqueClients,
     });
   } catch (err) {
-    console.error("GET TRAINER CLIENTS ERROR:", err);
+    safeLog.error("coaching.trainer_clients_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy danh sách khách hàng" });
   }
 };
@@ -180,16 +236,20 @@ export const getClientTimeline = async (req, res) => {
       }
     }
 
-    const history = await CoachingDay.find({ userId })
-      .populate("trainerId", "name email")
-      .sort({ date: -1 });
+    const history = await trackDbQuery("coaching.trainer.timeline", () =>
+      CoachingDay.find({ userId })
+        .populate("trainerId", "name email")
+        .sort({ date: -1 })
+        .limit(120)
+        .lean(),
+    );
 
     res.json({
       success: true,
       data: history,
     });
   } catch (err) {
-    console.error("GET CLIENT TIMELINE ERROR:", err);
+    safeLog.error("coaching.client_timeline_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy lịch sử bài tập của khách" });
   }
 };
@@ -198,41 +258,83 @@ export const getClientTimeline = async (req, res) => {
 export const upsertCoachingDay = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { dateString, title, videoUrl, note, exercises } = req.body;
+    const { dateString, revision, assignedTrainerId } = req.body;
+    const existingPlan = dateString
+      ? await CoachingDay.findOne({ userId, dateString })
+      : null;
 
-    if (!dateString || !title) {
-      return res.status(400).json({ success: false, message: "Vui lòng điền ngày và tiêu đề giáo án" });
-    }
-
-    // Kiểm tra quyền quản lý
+    const orderQuery = {
+      userId,
+      status: "approved",
+    };
     if (req.user.role !== "admin") {
-      const hasOrder = await Order.findOne({
-        userId,
-        trainerId: req.user.id,
-        status: "approved",
-      });
-      if (!hasOrder) {
-        return res.status(403).json({ success: false, message: "Bạn không có quyền gán bài tập cho khách hàng này" });
-      }
+      orderQuery.trainerId = req.user.id;
+    } else if (assignedTrainerId) {
+      orderQuery.trainerId = assignedTrainerId;
     }
 
-    const date = new Date(`${dateString}T00:00:00.000Z`);
+    const approvedOrder = await Order.findOne(orderQuery).sort({
+      updatedAt: -1,
+    });
+    if (!approvedOrder) {
+      return res.status(403).json({
+        success: false,
+        message: "Không tìm thấy quan hệ huấn luyện đã được phê duyệt",
+      });
+    }
 
-    // Thực hiện upsert giáo án
-    const plan = await CoachingDay.findOneAndUpdate(
-      { userId, dateString },
-      {
+    let trainerId;
+    if (existingPlan) {
+      trainerId = existingPlan.trainerId;
+      if (
+        req.user.role !== "admin" &&
+        String(trainerId) !== String(req.user.id)
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Bạn không có quyền sửa giáo án này",
+        });
+      }
+      if (!Number.isInteger(revision) || revision !== existingPlan.__v) {
+        incrementMetric("coaching.revision_conflicts");
+        return res.status(409).json({
+          success: false,
+          code: "COACHING_REVISION_CONFLICT",
+          message: "Giáo án đã thay đổi. Vui lòng tải lại trước khi lưu",
+          currentRevision: existingPlan.__v,
+        });
+      }
+    } else {
+      trainerId =
+        req.user.role === "admin"
+          ? assignedTrainerId || approvedOrder.trainerId
+          : req.user.id;
+    }
+
+    let planUpdate;
+    try {
+      planUpdate = buildTrainerPlanUpdate(
+        req.body,
+        existingPlan?.exercises || [],
+      );
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    let plan;
+    if (existingPlan) {
+      existingPlan.set(planUpdate);
+      plan = await existingPlan.save();
+    } else {
+      plan = await CoachingDay.create({
         userId,
-        trainerId: req.user.id,
-        dateString,
-        date,
-        title,
-        videoUrl: videoUrl || "",
-        note: note || "",
-        exercises: exercises || [],
-      },
-      { returnDocument: 'after', upsert: true }
-    );
+        trainerId,
+        ...planUpdate,
+      });
+    }
 
     res.json({
       success: true,
@@ -240,7 +342,15 @@ export const upsertCoachingDay = async (req, res) => {
       message: "Lưu giáo án thành công",
     });
   } catch (err) {
-    console.error("UPSERT COACHING DAY ERROR:", err);
+    safeLog.error("coaching.day_upsert_failed", err);
+    if (err.name === "VersionError") {
+      incrementMetric("coaching.revision_conflicts");
+      return res.status(409).json({
+        success: false,
+        code: "COACHING_REVISION_CONFLICT",
+        message: "Giáo án đã được cập nhật bởi một yêu cầu khác",
+      });
+    }
     res.status(500).json({ success: false, message: "Lỗi lưu giáo án luyện tập" });
   }
 };
@@ -273,7 +383,7 @@ export const deleteCoachingDay = async (req, res) => {
       message: "Đã xóa giáo án thành công",
     });
   } catch (err) {
-    console.error("DELETE COACHING DAY ERROR:", err);
+    safeLog.error("coaching.day_delete_failed", err);
     res.status(500).json({ success: false, message: "Lỗi xóa giáo án tập luyện" });
   }
 };
@@ -300,16 +410,37 @@ export const uploadCoachingDemoVideo = async (req, res) => {
       message: "Tải lên video demo thành công",
     });
   } catch (err) {
-    console.error("UPLOAD DEMO ERROR:", err);
+    safeLog.error("coaching.demo_upload_failed", err);
     res.status(500).json({ success: false, message: "Lỗi tải lên video demo" });
   }
 };
 
 // 9. Tải lên video phản hồi kỹ thuật bài tập của Client
 export const uploadClientFeedbackVideo = async (req, res) => {
+  let uploadedPublicId = "";
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "Không tìm thấy file tải lên" });
+    }
+
+    const { dateString, exerciseId } = req.body;
+    if (!dateString || !exerciseId) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu ngày giáo án hoặc mã bài tập",
+      });
+    }
+
+    const plan = await CoachingDay.findOne({
+      userId: req.user.id,
+      dateString,
+    });
+    const exercise = plan?.exercises.id(exerciseId);
+    if (!plan || !exercise) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy bài tập thuộc giáo án của bạn",
+      });
     }
 
     const ext = path.extname(req.file.originalname || "").toLowerCase();
@@ -320,14 +451,46 @@ export const uploadClientFeedbackVideo = async (req, res) => {
       resource_type: "video",
       allowed_formats: ["mp4", "mov", "avi", "webm", "mkv", "m4v", "3gp"],
     });
+    uploadedPublicId = result.public_id;
+
+    const previousPublicId = getCloudinaryPublicIdFromUrl(
+      exercise.clientFeedbackVideo,
+    );
+    exercise.clientFeedbackVideo = result.url;
+    exercise.completed = true;
+    plan.clientStatus =
+      plan.exercises.length > 0 &&
+      plan.exercises.every((item) => item.completed)
+        ? "completed"
+        : "pending";
+    await plan.save();
+
+    if (previousPublicId && previousPublicId !== uploadedPublicId) {
+      try {
+        await destroyCloudinaryAsset(previousPublicId, "video");
+      } catch (cleanupError) {
+        incrementMetric("coaching.cleanup_failures");
+        safeLog.error("coaching.old_feedback_cleanup_failed", cleanupError);
+      }
+    }
 
     res.json({
       success: true,
       url: result.url,
+      revision: plan.__v,
+      clientStatus: plan.clientStatus,
       message: "Tải lên video phản hồi thành công",
     });
   } catch (err) {
-    console.error("UPLOAD CLIENT FEEDBACK VIDEO ERROR:", err);
+    if (uploadedPublicId) {
+      try {
+        await destroyCloudinaryAsset(uploadedPublicId, "video");
+      } catch (cleanupError) {
+        incrementMetric("coaching.cleanup_failures");
+        safeLog.error("coaching.new_feedback_cleanup_failed", cleanupError);
+      }
+    }
+    safeLog.error("coaching.feedback_video_upload_failed", err);
     res.status(500).json({ success: false, message: "Lỗi tải lên video phản hồi" });
   }
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Trash2, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "react-toastify";
@@ -11,10 +11,6 @@ const UserManagement = () => {
   const debouncedSearchTerm = useDebounce(searchInput, 500);
   const [currentPage, setCurrentPage] = useState(1);
   const limit = 10;
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearchTerm]);
 
   const {
     data: usersData,
@@ -72,7 +68,10 @@ const UserManagement = () => {
             type="text"
             placeholder="Tìm kiếm theo tên hoặc email..."
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-fluid-sm"
           />
         </div>

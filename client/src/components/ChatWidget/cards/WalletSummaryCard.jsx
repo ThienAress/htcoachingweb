@@ -6,6 +6,7 @@ const TYPE_CONFIG = {
   purchase: { label: "Thanh toán", icon: ArrowDownRight, color: "text-red-400" },
   refund: { label: "Hoàn tiền", icon: ArrowUpRight, color: "text-blue-400" },
   adjustment: { label: "Điều chỉnh", icon: ArrowUpRight, color: "text-yellow-400" },
+  reversal: { label: "Hoàn tác", icon: ArrowDownRight, color: "text-blue-400" },
 };
 
 const formatVnd = (amount) =>

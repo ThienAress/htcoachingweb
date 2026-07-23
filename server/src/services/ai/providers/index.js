@@ -3,6 +3,7 @@
 
 import { mockLLMStream, formatToolsForProvider as mockFormatTools } from "./mock.provider.js";
 import { geminiLLMStream, formatToolsForProvider as geminiFormatTools } from "./gemini.provider.js";
+import { safeLog } from "../../../utils/safeLogger.js";
 
 const providers = {
   mock: { stream: mockLLMStream, formatTools: mockFormatTools },
@@ -11,10 +12,19 @@ const providers = {
   // claude: sẽ thêm khi production
 };
 
-const providerName = process.env.AI_PROVIDER || "mock";
+const providerName =
+  process.env.AI_PROVIDER ||
+  (process.env.NODE_ENV === "production" ? "" : "mock");
 
 if (!providers[providerName]) {
-  console.warn(`⚠️ AI_PROVIDER="${providerName}" không tồn tại, fallback về mock`);
+  if (process.env.NODE_ENV === "production") {
+    const error = new Error("A production AI provider must be configured");
+    error.code = "AI_PROVIDER_NOT_CONFIGURED";
+    throw error;
+  }
+  safeLog.warn("ai.provider_fallback", "Unknown provider, using mock", {
+    provider: providerName,
+  });
 }
 
 const activeProvider = providers[providerName] || providers.mock;

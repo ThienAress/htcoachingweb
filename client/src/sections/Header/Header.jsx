@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Menu,
   X,
@@ -23,11 +24,14 @@ import { useAuth } from "../../context/AuthContext";
 import { getMyWallet } from "../../services/wallet.service";
 import { getMySubscription } from "../../services/trainerSubscription.service";
 import { getMyCheckins } from "../../services/checkin.service";
+import LanguageSwitcher from "../../components/LanguageSwitcher";
+import { useQuery } from "@tanstack/react-query";
 
 function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
 
   const getAvatarUrl = (avatar) => {
     if (!avatar) return "https://i.pravatar.cc/32";
@@ -46,10 +50,42 @@ function Header() {
   const [openDropdown, setOpenDropdown] = useState(false);
   const dropdownRef = useRef(null);
   const [openGroups, setOpenGroups] = useState({});
-  const [walletBalance, setWalletBalance] = useState(null);
-  const [activeSubscription, setActiveSubscription] = useState(null);
-  const [hasOrders, setHasOrders] = useState(false);
-  const [hasOnlinePackage, setHasOnlinePackage] = useState(false);
+  const { data: accountSummary } = useQuery({
+    queryKey: ["header-account-summary", user?._id],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const [walletResult, subscriptionResult, checkinsResult] =
+        await Promise.allSettled([
+          getMyWallet(),
+          getMySubscription(),
+          getMyCheckins(),
+        ]);
+      const orders =
+        checkinsResult.status === "fulfilled"
+          ? (checkinsResult.value.data.data?.orders || [])
+          : [];
+
+      return {
+        walletBalance:
+          walletResult.status === "fulfilled"
+            ? walletResult.value.data.data.balance
+            : null,
+        activeSubscription:
+          subscriptionResult.status === "fulfilled"
+            ? subscriptionResult.value.data.data
+            : null,
+        hasOrders: orders.length > 0,
+        hasOnlinePackage: orders.some(
+          (order) => order.package?.toLowerCase().includes("online"),
+        ),
+      };
+    },
+    staleTime: 60_000,
+  });
+  const walletBalance = user ? (accountSummary?.walletBalance ?? null) : null;
+  const activeSubscription = user ? (accountSummary?.activeSubscription ?? null) : null;
+  const hasOrders = Boolean(user && accountSummary?.hasOrders);
+  const hasOnlinePackage = Boolean(user && accountSummary?.hasOnlinePackage);
 
   // Map tên gói -> icon
   const planIconMap = {
@@ -66,35 +102,6 @@ function Header() {
   };
 
   // Fetch số dư ví + gói dịch vụ + đơn hàng
-  useEffect(() => {
-    if (user) {
-      getMyWallet()
-        .then((res) => setWalletBalance(res.data.data.balance))
-        .catch(() => setWalletBalance(null));
-      getMySubscription()
-        .then((res) => setActiveSubscription(res.data.data))
-        .catch(() => setActiveSubscription(null));
-      getMyCheckins()
-        .then((res) => {
-          const orders = res.data.data?.orders || [];
-          setHasOrders(orders.length > 0);
-          const isOnline = orders.some(
-            (o) => o.package && o.package.toLowerCase().includes("online")
-          );
-          setHasOnlinePackage(isOnline);
-        })
-        .catch(() => {
-          setHasOrders(false);
-          setHasOnlinePackage(false);
-        });
-    } else {
-      setWalletBalance(null);
-      setActiveSubscription(null);
-      setHasOrders(false);
-      setHasOnlinePackage(false);
-    }
-  }, [user]);
-
   // Hàm scroll đến section
   const handleScrollToSection = (sectionId) => {
     if (location.pathname !== "/") {
@@ -189,64 +196,64 @@ function Header() {
   const dropdownItems = isAdmin
     ? [
       {
-        group: "Quản lý hệ thống",
+        group: t("nav_user.system_management"),
         children: [
-          { label: "Quản trị", icon: LayoutDashboard, path: "/admin" },
-          { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
-          { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+          { label: t("nav_user.admin_panel"), icon: LayoutDashboard, path: "/admin" },
+          { label: t("nav_user.f1_system"), icon: Users, path: "/f1-customers" },
+          { label: t("nav_user.exercise_system"), icon: Dumbbell, path: "/exercises" },
         ]
       },
       { isDivider: true },
       {
-        group: "Nghiệp vụ huấn luyện",
+        group: t("nav_user.training_ops"),
         children: [
-          { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
-          { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
-          { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },
-          { label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" },
+          { label: t("nav_user.customer_checkin"), icon: UserCheck, path: "/checkin" },
+          { label: t("nav_user.online_coaching"), icon: Sparkles, path: "/trainer/coaching" },
+          { label: t("nav_user.training_schedule"), icon: CalendarDays, path: "/training-schedule" },
+          { label: t("nav_user.workout_plan"), icon: FileText, path: "/workout-plans" },
         ]
       },
       { isDivider: true },
-      { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
-      { label: "Tài khoản", icon: User, path: "/account" },
-      { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
+      { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
+      { label: t("nav_user.account"), icon: User, path: "/account" },
+      { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
     ]
     : hasTrainerAccess
       ? [
         {
-          group: "Nghiệp vụ huấn luyện",
+          group: t("nav_user.training_ops"),
           children: [
-            { label: "Tổng quan", icon: LayoutDashboard, path: "/trainer" },
-            { label: "Checkin khách hàng", icon: UserCheck, path: "/checkin" },
-            { label: "Hệ thống Coach Online", icon: Sparkles, path: "/trainer/coaching" },
-            { label: "Lịch tập khách hàng", icon: CalendarDays, path: "/training-schedule" },
-            { label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" },
-            { label: "Hệ thống khách F1", icon: Users, path: "/f1-customers" },
-            { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+            { label: t("nav_user.overview"), icon: LayoutDashboard, path: "/trainer" },
+            { label: t("nav_user.customer_checkin"), icon: UserCheck, path: "/checkin" },
+            { label: t("nav_user.online_coaching"), icon: Sparkles, path: "/trainer/coaching" },
+            { label: t("nav_user.training_schedule"), icon: CalendarDays, path: "/training-schedule" },
+            { label: t("nav_user.workout_plan"), icon: FileText, path: "/workout-plans" },
+            { label: t("nav_user.f1_system"), icon: Users, path: "/f1-customers" },
+            { label: t("nav_user.exercise_system"), icon: Dumbbell, path: "/exercises" },
           ]
         },
         { isDivider: true },
-        { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
-        { label: "Tài khoản", icon: User, path: "/account" },
-        { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
+        { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
+        { label: t("nav_user.account"), icon: User, path: "/account" },
+        { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
       ]
       : [
         {
-          group: "Công cụ tập luyện",
+          group: t("nav_user.training_tools"),
           children: [
-            ...(hasOrders ? [{ label: "Lịch sử checkin", icon: History, path: "/my-history" }] : []),
-            ...(hasOrders ? [{ label: "Đăng ký giờ tập", icon: CalendarDays, path: "/book-training" }] : []),
-            ...(hasOrders ? [{ label: "Giáo án tập luyện", icon: FileText, path: "/workout-plans" }] : []),
-            ...(hasOnlinePackage ? [{ label: "Giáo án online", icon: Sparkles, path: "/online-coaching" }] : []),
-            { label: "Gợi ý meal plan", icon: Utensils, path: "/tdee-calculator" },
-            { label: "Hệ thống bài tập", icon: Dumbbell, path: "/exercises" },
+            ...(hasOrders ? [{ label: t("nav_user.checkin_history"), icon: History, path: "/my-history" }] : []),
+            ...(hasOrders ? [{ label: t("nav_user.book_training"), icon: CalendarDays, path: "/book-training" }] : []),
+            ...(hasOrders ? [{ label: t("nav_user.workout_plan"), icon: FileText, path: "/workout-plans" }] : []),
+            ...(hasOnlinePackage ? [{ label: t("nav_user.online_plan"), icon: Sparkles, path: "/online-coaching" }] : []),
+            { label: t("nav_user.meal_suggestion"), icon: Utensils, path: "/tdee-calculator" },
+            { label: t("nav_user.exercise_system"), icon: Dumbbell, path: "/exercises" },
           ]
         },
         { isDivider: true },
-        ...(user?.customerStorySlug ? [{ label: "Profile của tôi", icon: Star, path: `/ket-qua-khach-hang/${user.customerStorySlug}` }] : []),
-        { label: "Ví của tôi", icon: Wallet, path: "/wallet" },
-        { label: "Tài khoản", icon: User, path: "/account" },
-        { label: "Đăng xuất", icon: LogOut, onClick: handleLogout },
+        ...(user?.customerStorySlug ? [{ label: t("nav_user.my_profile"), icon: Star, path: `/ket-qua-khach-hang/${user.customerStorySlug}` }] : []),
+        { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
+        { label: t("nav_user.account"), icon: User, path: "/account" },
+        { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
       ];
 
   const textColorClass = isSolidHeader ? "text-white" : "text-dark";
@@ -282,7 +289,7 @@ function Header() {
                 to="/"
                 className={`nav-link-hover ${textColorClass} font-semibold relative whitespace-nowrap text-[15px] transition-colors`}
               >
-                Trang chủ
+                {t("nav.home")}
               </Link>
             </li>
             <li>
@@ -290,23 +297,23 @@ function Header() {
                 onClick={() => handleScrollToSection("about")}
                 className={`nav-link-hover ${textMutedClass} font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-[15px] transition-colors`}
               >
-                Giới thiệu
+                {t("nav.about")}
               </button>
             </li>
             <li className="relative group">
               <button
                 className={`nav-link-hover ${textMutedClass} font-semibold relative flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-[15px] transition-colors`}
               >
-                Dịch vụ <ChevronDown size={14} className="transition-transform duration-200 group-hover:rotate-180" />
+                {t("nav.services")} <ChevronDown size={14} className="transition-transform duration-200 group-hover:rotate-180" />
               </button>
               {/* Dropdown */}
               <div className="absolute top-full left-1/2 -translate-x-1/2 w-52 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                 <div className="bg-white rounded-xl shadow-2xl py-2 border border-gray-100">
                   <button onClick={() => handleScrollToSection("pricing")} className="w-full text-left px-5 py-3 text-sm text-gray-800 hover:bg-orange-50 hover:text-primary font-semibold transition-colors">
-                    {["admin", "trainer"].includes(user?.role) ? "Gói dịch vụ" : "Gói tập"}
+                    {["admin", "trainer"].includes(user?.role) ? t("nav_dropdown.packages_admin") : t("nav_dropdown.packages")}
                   </button>
-                  <button onClick={() => handleScrollToSection("classes")} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">Chương trình tập</button>
-                  <button onClick={() => handleScrollToSection("trainers")} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">Huấn luyện viên</button>
+                  <button onClick={() => handleScrollToSection("classes")} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_dropdown.programs")}</button>
+                  <button onClick={() => handleScrollToSection("trainers")} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_dropdown.trainers")}</button>
                 </div>
               </div>
             </li>
@@ -316,7 +323,7 @@ function Header() {
                 onClick={() => handleScrollToSection("customer")}
                 className={`nav-link-hover ${textMutedClass} font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-[15px] transition-colors`}
               >
-                Feedback
+                {t("nav.feedback")}
               </button>
             </li>
             <li>
@@ -327,27 +334,36 @@ function Header() {
                 Blog
               </Link>
             </li>
-            <li>
+            <li className="relative group">
               <button
-                onClick={() => handleScrollToSection("contact")}
-                className={`nav-link-hover ${textMutedClass} font-semibold relative whitespace-nowrap bg-transparent border-none cursor-pointer text-[15px] transition-colors`}
+                className={`nav-link-hover ${textMutedClass} font-semibold relative flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-[15px] transition-colors`}
               >
-                Liên hệ
+                {t("nav.tools")} <ChevronDown size={14} className="transition-transform duration-200 group-hover:rotate-180" />
               </button>
+              {/* Dropdown */}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 w-[220px] pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <div className="bg-white rounded-xl shadow-2xl py-2 border border-gray-100">
+                  <Link to="/exercises" className="block w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_user.exercise_system")}</Link>
+                  <Link to="/tdee-calculator" className="block w-full text-left px-5 py-3 text-sm text-gray-800 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_dropdown.tdee")}</Link>
+                  <Link to="/cong-thuc-nau-an" className="block w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_dropdown.recipes")}</Link>
+                  <Link to="/mealplan" className="block w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_dropdown.mealplan")}</Link>
+                </div>
+              </div>
             </li>
             <li>
               <Link
                 to="/club"
                 className={`nav-link-hover ${textMutedClass} font-semibold relative whitespace-nowrap text-[15px] transition-colors`}
               >
-                CLB
+                {t("nav.club")}
               </Link>
             </li>
           </ul>
         </nav>
 
-        {/* LOGIN / USER - Desktop Dropdown */}
-        <div className="hidden lg:block">
+        {/* Language Switcher + LOGIN / USER - Desktop */}
+        <div className="hidden lg:flex items-center gap-2">
+          <LanguageSwitcher isSolidHeader={isSolidHeader} />
           {user ? (
             <div className="relative" ref={dropdownRef}>
               <button
@@ -460,7 +476,7 @@ function Header() {
                 isSolidHeader ? "bg-orange-500 hover:bg-orange-600 text-white" : "bg-dark hover:bg-black text-white"
               }`}
             >
-              Đăng nhập
+              {t("nav.login")}
             </Link>
           )}
         </div>
@@ -566,20 +582,20 @@ function Header() {
                   onClick={() => setMenuOpen(false)}
                   className="block w-full text-center bg-[#FF5A1F] hover:bg-[#C4400F] text-white font-bold text-[16px] px-4 py-3.5 rounded-full shadow-md transition-colors"
                 >
-                  Đăng nhập
+                  {t("nav.login")}
                 </Link>
               </div>
             )}
             
             <ul className="w-full flex flex-col items-center gap-2">
               {[
-                { label: "Trang chủ", action: () => navigate("/") },
-                { label: "Giới thiệu", action: () => handleScrollToSection("about") },
-                { label: "Dịch vụ", action: () => handleScrollToSection("pricing") },
-                { label: "Feedback", action: () => handleScrollToSection("customer") },
-                { label: "Blog", action: () => navigate("/blog") },
-                { label: "Liên hệ", action: () => handleScrollToSection("contact") },
-                { label: "CLB", action: () => navigate("/club") }
+                { label: t("nav.home"), action: () => navigate("/") },
+                { label: t("nav.about"), action: () => handleScrollToSection("about") },
+                { label: t("nav.services"), action: () => handleScrollToSection("pricing") },
+                { label: t("nav.feedback"), action: () => handleScrollToSection("customer") },
+                { label: t("nav.blog"), action: () => navigate("/blog") },
+                { label: t("nav.tools"), action: () => handleScrollToSection("tools") },
+                { label: t("nav.club"), action: () => navigate("/club") }
               ].map((link, index) => (
                 <li key={index} className="w-full">
                   <button
@@ -601,7 +617,7 @@ function Header() {
                     onClick={() => setMenuOpen(false)}
                     className="block text-center text-[#FF5A1F] font-bold text-[17px] py-3.5 px-4 rounded-lg hover:bg-white/10 transition-colors bg-white/5"
                   >
-                    Quản trị Hệ thống
+                    {t("nav_user.admin_system")}
                   </Link>
                 </li>
               )}
@@ -612,7 +628,7 @@ function Header() {
                     onClick={() => setMenuOpen(false)}
                     className="block text-center text-[#FF5A1F] font-bold text-[17px] py-3.5 px-4 rounded-lg hover:bg-white/10 transition-colors bg-white/5"
                   >
-                    Quản lý Huấn Luyện
+                    {t("nav_user.trainer_management")}
                   </Link>
                 </li>
               )}

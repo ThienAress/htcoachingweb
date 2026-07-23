@@ -1,4 +1,5 @@
 import User from "../../models/User.js";
+import AiModerationState from "../../models/AiModerationState.js";
 
 // Danh sách pattern cấm
 const BLOCKED_URL_PATTERNS = [
@@ -13,35 +14,26 @@ const VULGAR_WORDS = [
   "đụ", "dcm", "vcl", "vkl", "clgt", "cc",
 ];
 
-// In-memory store: userId → { warnings, lockedUntil }
-const userModerationState = new Map();
-
-// Cleanup hết hạn mỗi 30 phút
-setInterval(() => {
-  const now = Date.now();
-  for (const [userId, state] of userModerationState) {
-    if (state.lockedUntil && state.lockedUntil < now) {
-      userModerationState.delete(userId);
-    }
-  }
-}, 30 * 60 * 1000);
-
 /**
  * Kiểm tra user có bị khóa không (tạm thời)
  * @returns {{ blocked: boolean, remainingMinutes?: number }}
  */
-export function isUserLocked(userId) {
-  const state = userModerationState.get(userId);
+export async function isUserLocked(userId) {
+  const state = await AiModerationState.findOne({ userId })
+    .select("lockedUntil")
+    .lean();
   if (!state?.lockedUntil) return { blocked: false };
 
-  const now = Date.now();
-  if (state.lockedUntil > now) {
-    const remaining = Math.ceil((state.lockedUntil - now) / 60000);
+  const lockedUntil = new Date(state.lockedUntil).getTime();
+  if (lockedUntil > Date.now()) {
+    const remaining = Math.ceil((lockedUntil - Date.now()) / 60000);
     return { blocked: true, remainingMinutes: remaining };
   }
 
-  // Hết hạn → xóa khóa tạm, nhưng GIỮ LẠI warnings để cộng dồn
-  state.lockedUntil = null;
+  await AiModerationState.updateOne(
+    { userId, lockedUntil: { $lte: new Date() } },
+    { $set: { lockedUntil: null } },
+  );
   return { blocked: false };
 }
 
@@ -65,20 +57,16 @@ export async function moderateContent(userId, text) {
     return { safe: true };
   }
 
-  // Vi phạm → check state
-  let state = userModerationState.get(userId);
-  if (!state) {
-    state = { warnings: 0, lockedUntil: null };
-    userModerationState.set(userId, state);
-  }
-
-  state.warnings++;
+  const state = await AiModerationState.findOneAndUpdate(
+    { userId },
+    { $inc: { warnings: 1 } },
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
+  );
 
   if (state.warnings >= 3) {
     // Vi phạm lần 3 → Cấm vĩnh viễn (Lưu vào Database)
     await User.findByIdAndUpdate(userId, { isAiChatBanned: true });
-    // Dọn dẹp bộ nhớ tạm
-    userModerationState.delete(userId);
+    await AiModerationState.deleteOne({ userId });
     
     return {
       safe: false,
@@ -88,7 +76,8 @@ export async function moderateContent(userId, text) {
 
   if (state.warnings === 2) {
     // Lần 2: Khóa 1 giờ
-    state.lockedUntil = Date.now() + 60 * 60 * 1000;
+    state.lockedUntil = new Date(Date.now() + 60 * 60 * 1000);
+    await state.save();
     return {
       safe: false,
       message: "🚫 Bạn đã vi phạm quy tắc cộng đồng lần thứ 2. Chat AI đã bị khóa trong 1 giờ.",

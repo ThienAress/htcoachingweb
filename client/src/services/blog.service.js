@@ -2,13 +2,13 @@ import api from "../utils/api";
 
 // ==================== PUBLIC ====================
 
-export const getPublicBlogPosts = async (params = {}) => {
-  const res = await api.get("/blog", { params });
+export const getPublicBlogPosts = async (params = {}, signal) => {
+  const res = await api.get("/blog", { params, signal });
   return res.data;
 };
 
-export const getPublicBlogPostBySlug = async (slug) => {
-  const res = await api.get(`/blog/${slug}`);
+export const getPublicBlogPostBySlug = async (slug, signal) => {
+  const res = await api.get(`/blog/${slug}`, { signal });
   return res.data;
 };
 

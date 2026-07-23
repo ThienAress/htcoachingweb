@@ -1,0 +1,74 @@
+{
+  "seo": {
+    "title": "Blog - Fitness & Health Knowledge",
+    "description": "Share fitness knowledge, nutrition, OPT templates, and physical assessment from professional coach team at HTCOACHING."
+  },
+  "categories": {
+    "all": "All",
+    "tap-luyen": "Training",
+    "dinh-duong": "Nutrition",
+    "hieu-co-the": "Understand Your Body",
+    "tu-duy-loi-song": "Mindset & Lifestyle"
+  },
+  "sub_categories": {
+    "form-ky-thuat": "Form & Technique",
+    "giao-an-mau": "Sample Workouts",
+    "sua-loi-sai": "Fix Common Mistakes",
+    "theo-muc-tieu": "Goal-based Training",
+    "macro-calo": "Macros & Calories",
+    "thuc-pham-cho": "Food & Grocery shopping",
+    "goi-y-thuc-don": "Meal suggestions",
+    "thuc-pham-bo-sung": "Supplements",
+    "voc-dang-tu-the": "Posture & Body Type Analysis",
+    "dot-mo-xay-co": "Fat Loss & Muscle Building Mechanism",
+    "phuc-hoi-chan-thuong": "Recovery & Injuries",
+    "phuong-phap-coaching": "Our Methodology",
+    "cau-chuyen-thanh-cong": "Success Stories",
+    "tu-duy-ky-luat": "Mindset & Discipline"
+  },
+  "header": {
+    "tag": "HTCOACHING Blog",
+    "title": "<1>Fitness</1> Knowledge",
+    "subtitle": "Shared by our coaching team — help you train right, eat right, and get results faster"
+  },
+  "filters": {
+    "filtering": "Filtering:",
+    "cancel_filter": "Clear filter ×"
+  },
+  "card": {
+    "read_time": "{{count}} min read",
+    "views": "views",
+    "no_posts_title": "No posts available yet",
+    "no_posts_desc": "Please check back later!"
+  },
+  "sidebar": {
+    "featured": "Featured Posts",
+    "toc": "TABLE OF CONTENTS",
+    "need_consulting": "Need consulting?",
+    "consulting_desc": "Contact a coach to get a suitable personalized roadmap.",
+    "contact_btn": "Contact now"
+  },
+  "detail": {
+    "home": "Home",
+    "blog": "Blog",
+    "toc_mobile": "📖 Table of Contents",
+    "author_title": "Article advised by",
+    "experience": "Experience:",
+    "philosophy": "Philosophy:",
+    "cta_title": "Register trial session with PT {{name}}",
+    "cta_desc": "Get physical assessment & free training roadmap advice.",
+    "contact_info": "Contact Info:",
+    "view_profile": "View PT {{name}} profile",
+    "related_posts": "Related <1>Posts</1>",
+    "explore_more": {
+      "title": "Explore <1>more</1>",
+      "subtitle": "Start your body transformation journey today",
+      "tdee": "Calculate TDEE & Macro",
+      "tdee_desc": "Determine the amount of calories you need daily.",
+      "exercises": "Exercise Library",
+      "exercises_desc": "Create personalized workout plans and export PDF.",
+      "results": "Customer Results",
+      "results_desc": "See body transformation journeys from HTCOACHING members."
+    }
+  }
+}

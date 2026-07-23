@@ -1,59 +1,64 @@
-import { useState, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Cookies from "js-cookie";
 import api from "../utils/api";
 import {
-  getAiHistory,
-  getAiChatUrl,
-  getAiConversations,
-  getAiConversationById,
   deleteAiConversation,
+  forkAiConversation,
+  getAiChatUrl,
+  getAiConversationById,
+  getAiConversations,
+  getAiHistory,
 } from "../services/ai.service";
 
-/**
- * Gửi chat request qua fetch (cho SSE streaming)
- * Tự refresh token khi gặp 401
- */
+const STREAM_FLUSH_MS = 80;
+
 async function fetchWithRefresh(url, options) {
   let response = await fetch(url, options);
+  if (response.status !== 401) return response;
 
-  if (response.status === 401) {
-    try {
-      await api.post("/auth/refresh", {});
-      const newCsrf = Cookies.get("csrfToken");
-      if (newCsrf && options.headers) {
-        options.headers["X-CSRF-Token"] = newCsrf;
-      }
-      response = await fetch(url, options);
-    } catch {
-      window.location.href = "/login";
-      throw new Error("Phiên đăng nhập hết hạn");
+  try {
+    await api.post("/auth/refresh", {});
+    const csrfToken = Cookies.get("csrfToken");
+    if (csrfToken && options.headers) {
+      options.headers["X-CSRF-Token"] = csrfToken;
     }
+    return fetch(url, options);
+  } catch {
+    window.location.href = "/login";
+    throw new Error("Phiên đăng nhập hết hạn");
   }
-
-  return response;
 }
 
-function mapMessages(rawMessages) {
+export function mapAiMessages(rawMessages = []) {
   const result = [];
-  for (const m of rawMessages) {
-    if (m.role === "user") {
-      result.push({ role: m.role, content: m.content || "", image: m.image || null, timestamp: m.timestamp });
-    } else if (m.role === "assistant") {
-      result.push({ role: m.role, content: m.content || "", uiCards: [], timestamp: m.timestamp });
-    } else if (m.role === "tool" && m.uiCard) {
-      // Gắn uiCard vào assistant message trước đó để render lịch sử
-      const last = result[result.length - 1];
-      if (last && last.role === "assistant") {
-        last.uiCards.push(m.uiCard);
-      }
+  for (const message of rawMessages) {
+    if (message.role === "user") {
+      result.push({
+        _id: message._id,
+        role: "user",
+        content: message.content || "",
+        image: message.image || null,
+        timestamp: message.timestamp,
+      });
+    } else if (message.role === "assistant") {
+      result.push({
+        _id: message._id,
+        role: "assistant",
+        content: message.content || "",
+        feedback: message.feedback || null,
+        uiCards: [],
+        timestamp: message.timestamp,
+      });
+    } else if (message.role === "tool" && message.uiCard) {
+      const lastAssistant = [...result]
+        .reverse()
+        .find((item) => item.role === "assistant");
+      if (lastAssistant) lastAssistant.uiCards.push(message.uiCard);
     }
   }
   return result;
 }
 
-/**
- * Hook quản lý AI chat — SSE streaming + multi-conversation management
- */
 export default function useAiChat() {
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
@@ -61,316 +66,444 @@ export default function useAiChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTool, setActiveTool] = useState(null);
   const [error, setError] = useState(null);
-  const abortRef = useRef(null);
+
+  const mountedRef = useRef(true);
+  const messagesRef = useRef([]);
+  const conversationIdRef = useRef(null);
+  const activeSessionRef = useRef(null);
+  const navigationSequenceRef = useRef(0);
   const sendingRef = useRef(false);
-
-
-  // Typewriter Buffer Refs — Cơ chế tuyệt đối (Absolute State) để chống Race Condition
+  const flushTimerRef = useRef(null);
+  const reconcileTimerRef = useRef(null);
   const pendingTextRef = useRef("");
-  const displayedTextRef = useRef(""); // Lưu chính xác những gì đang hiển thị trên UI
-  const typeWriterIntervalRef = useRef(null);
+  const displayedTextRef = useRef("");
 
-  const stopTypewriter = useCallback(() => {
-    if (typeWriterIntervalRef.current) {
-      clearInterval(typeWriterIntervalRef.current);
-      typeWriterIntervalRef.current = null;
+  const setCurrentConversationId = useCallback((value) => {
+    conversationIdRef.current = value;
+    if (mountedRef.current) setConversationId(value);
+  }, []);
+
+  const setCurrentMessages = useCallback((valueOrUpdater) => {
+    if (!mountedRef.current) return;
+    setMessages((previous) => {
+      const next =
+        typeof valueOrUpdater === "function"
+          ? valueOrUpdater(previous)
+          : valueOrUpdater;
+      messagesRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const clearFlushTimer = useCallback(() => {
+    if (flushTimerRef.current) {
+      clearInterval(flushTimerRef.current);
+      flushTimerRef.current = null;
     }
-    if (pendingTextRef.current.length > 0) {
-      const remaining = pendingTextRef.current;
+  }, []);
+
+  const flushPendingText = useCallback(
+    (sessionId) => {
+      const session = activeSessionRef.current;
+      if (!session || session.id !== sessionId || !pendingTextRef.current) return;
+      displayedTextRef.current += pendingTextRef.current;
       pendingTextRef.current = "";
-      displayedTextRef.current += remaining;
-      setMessages((prev) => {
-        const updated = [...prev];
-        const last = updated[updated.length - 1];
-        if (last?.role === "assistant") {
-          updated[updated.length - 1] = { ...last, content: displayedTextRef.current };
-        }
-        return updated;
-      });
-    }
-  }, []);
+      const content = displayedTextRef.current;
+      setCurrentMessages((previous) =>
+        previous.map((message) =>
+          message.localId === session.assistantLocalId
+            ? { ...message, content }
+            : message,
+        ),
+      );
+    },
+    [setCurrentMessages],
+  );
 
-  const startTypewriter = useCallback(() => {
-    if (typeWriterIntervalRef.current) return;
-    typeWriterIntervalRef.current = setInterval(() => {
-      const pendingLength = pendingTextRef.current.length;
-      if (pendingLength > 0) {
-        // Nếu bộ đệm dài, tăng tốc độ gõ để bắt kịp AI
-        const charsToTake = pendingLength > 150 ? 12 : pendingLength > 50 ? 5 : 2;
-        const chunk = pendingTextRef.current.slice(0, charsToTake);
-        pendingTextRef.current = pendingTextRef.current.slice(charsToTake);
-        displayedTextRef.current += chunk;
+  const startFlushTimer = useCallback(
+    (sessionId) => {
+      clearFlushTimer();
+      flushTimerRef.current = setInterval(
+        () => flushPendingText(sessionId),
+        STREAM_FLUSH_MS,
+      );
+    },
+    [clearFlushTimer, flushPendingText],
+  );
 
-        setMessages((prev) => {
-          const updated = [...prev];
-          const last = updated[updated.length - 1];
-          if (last?.role === "assistant") {
-            updated[updated.length - 1] = { ...last, content: displayedTextRef.current };
-          }
-          return updated;
-        });
+  const cancelRequest = useCallback(
+    (flush = true) => {
+      const session = activeSessionRef.current;
+      if (session && flush) flushPendingText(session.id);
+      session?.controller.abort();
+      activeSessionRef.current = null;
+      clearFlushTimer();
+      pendingTextRef.current = "";
+      displayedTextRef.current = "";
+      sendingRef.current = false;
+      if (mountedRef.current) {
+        setIsLoading(false);
+        setActiveTool(null);
       }
-    }, 25); // Render 40 khung hình / giây
+      if (flush && session) {
+        const expectedConversationId =
+          conversationIdRef.current || session.targetConversationId;
+        const expectedNavigation = navigationSequenceRef.current;
+        clearTimeout(reconcileTimerRef.current);
+        reconcileTimerRef.current = setTimeout(async () => {
+          if (
+            !expectedConversationId ||
+            !mountedRef.current ||
+            activeSessionRef.current ||
+            navigationSequenceRef.current !== expectedNavigation ||
+            conversationIdRef.current !== expectedConversationId
+          ) {
+            return;
+          }
+          try {
+            const response = await getAiConversationById(expectedConversationId);
+            if (
+              mountedRef.current &&
+              !activeSessionRef.current &&
+              navigationSequenceRef.current === expectedNavigation
+            ) {
+              setCurrentMessages(mapAiMessages(response.data?.messages));
+            }
+          } catch {
+            // The user can still reload this conversation from the sidebar.
+          }
+        }, 180);
+      }
+    },
+    [clearFlushTimer, flushPendingText, setCurrentMessages],
+  );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      activeSessionRef.current?.controller.abort();
+      activeSessionRef.current = null;
+      sendingRef.current = false;
+      if (flushTimerRef.current) clearInterval(flushTimerRef.current);
+      if (reconcileTimerRef.current) clearTimeout(reconcileTimerRef.current);
+    };
   }, []);
 
-  // Load conversation gần nhất (dùng khi mở panel lần đầu)
   const loadHistory = useCallback(async () => {
+    const sequence = ++navigationSequenceRef.current;
     try {
-      const res = await getAiHistory();
-      if (res.data) {
-        setConversationId(res.data.conversationId);
-        setMessages(mapMessages(res.data.messages));
+      const response = await getAiHistory();
+      if (!mountedRef.current || sequence !== navigationSequenceRef.current) return;
+      if (response.data) {
+        setCurrentConversationId(response.data.conversationId);
+        setCurrentMessages(mapAiMessages(response.data.messages));
       }
     } catch {
-      // Chưa có history — bỏ qua
+      // Empty history is a valid state.
     }
-  }, []);
+  }, [setCurrentConversationId, setCurrentMessages]);
 
-  // Tải danh sách tất cả conversations
   const loadConversations = useCallback(async () => {
     try {
-      const res = await getAiConversations();
-      setConversations(res.data || []);
+      const response = await getAiConversations();
+      if (mountedRef.current) setConversations(response.data || []);
     } catch {
-      // ignore
+      // The sidebar is non-critical.
     }
   }, []);
 
-  // Switch sang conversation khác
-  const switchConversation = useCallback(async (id) => {
-    try {
-      const res = await getAiConversationById(id);
-      if (res.data) {
-        setConversationId(res.data.conversationId);
-        setMessages(mapMessages(res.data.messages));
-        setError(null);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  // Xóa 1 conversation cụ thể
-  const removeConversation = useCallback(
+  const switchConversation = useCallback(
     async (id) => {
+      if (id === conversationIdRef.current) return;
+      cancelRequest(false);
+      clearTimeout(reconcileTimerRef.current);
+      const sequence = ++navigationSequenceRef.current;
       try {
-        await deleteAiConversation(id);
-        setConversations((prev) => prev.filter((c) => c._id !== id));
-        // Nếu đang xem conversation bị xóa → reset về blank
-        if (id === conversationId) {
-          setMessages([]);
-          setConversationId(null);
+        const response = await getAiConversationById(id);
+        if (!mountedRef.current || sequence !== navigationSequenceRef.current) return;
+        if (response.data) {
+          setCurrentConversationId(response.data.conversationId);
+          setCurrentMessages(mapAiMessages(response.data.messages));
           setError(null);
         }
       } catch {
-        // ignore
+        if (mountedRef.current) setError("Không thể tải cuộc trò chuyện");
       }
     },
-    [conversationId]
+    [cancelRequest, setCurrentConversationId, setCurrentMessages],
   );
 
-  // Bắt đầu cuộc trò chuyện mới (reset state, không xóa cũ)
+  const removeConversation = useCallback(
+    async (id) => {
+      if (id === conversationIdRef.current) cancelRequest(false);
+      try {
+        await deleteAiConversation(id);
+        if (!mountedRef.current) return;
+        setConversations((previous) =>
+          previous.filter((conversation) => conversation._id !== id),
+        );
+        if (id === conversationIdRef.current) {
+          setCurrentConversationId(null);
+          setCurrentMessages([]);
+          setError(null);
+        }
+      } catch (requestError) {
+        if (mountedRef.current) {
+          setError(
+            requestError.response?.data?.message ||
+              "Không thể xóa cuộc trò chuyện",
+          );
+        }
+      }
+    },
+    [cancelRequest, setCurrentConversationId, setCurrentMessages],
+  );
+
   const clearHistory = useCallback(() => {
-    setMessages([]);
-    setConversationId(null);
+    cancelRequest(false);
+    navigationSequenceRef.current += 1;
+    setCurrentConversationId(null);
+    setCurrentMessages([]);
     setError(null);
-  }, []);
+  }, [cancelRequest, setCurrentConversationId, setCurrentMessages]);
 
-  // Gửi tin nhắn + nhận SSE stream
   const sendMessage = useCallback(
-    async (text, context = {}) => {
-      if (!text.trim() || isLoading || sendingRef.current) return;
-      sendingRef.current = true;
+    async (text, context = {}, options = {}) => {
+      const normalizedText =
+        String(text || "").trim() ||
+        (context.image ? "Hãy phân tích hình ảnh này." : "");
+      if (!normalizedText || sendingRef.current) return;
 
-      const userMsg = { 
-        role: "user", 
-        content: text.trim(), 
-        image: context?.image || null, 
-        timestamp: new Date().toISOString() 
+      cancelRequest(false);
+      navigationSequenceRef.current += 1;
+      sendingRef.current = true;
+      const sessionId = crypto.randomUUID();
+      const requestId = crypto.randomUUID();
+      const assistantLocalId = `assistant-${sessionId}`;
+      const targetConversationId =
+        options.targetConversationId === undefined
+          ? conversationIdRef.current
+          : options.targetConversationId;
+      const controller = new AbortController();
+      activeSessionRef.current = {
+        id: sessionId,
+        controller,
+        assistantLocalId,
+        targetConversationId,
       };
-      setMessages((prev) => [...prev, userMsg]);
+      pendingTextRef.current = "";
+      displayedTextRef.current = "";
+
+      const timestamp = new Date().toISOString();
+      setCurrentMessages((previous) => [
+        ...previous,
+        {
+          localId: `user-${sessionId}`,
+          role: "user",
+          content: normalizedText,
+          image: context.image || null,
+          timestamp,
+        },
+        {
+          localId: assistantLocalId,
+          role: "assistant",
+          content: "",
+          uiCards: [],
+          timestamp,
+        },
+      ]);
       setIsLoading(true);
       setError(null);
       setActiveTool(null);
+      startFlushTimer(sessionId);
 
-      const assistantMsg = { role: "assistant", content: "", uiCards: [], timestamp: new Date().toISOString() };
-      setMessages((prev) => [...prev, assistantMsg]);
+      const isActive = () =>
+        mountedRef.current && activeSessionRef.current?.id === sessionId;
 
       try {
-        if (abortRef.current) {
-          abortRef.current.abort();
-        }
-        const controller = new AbortController();
-        abortRef.current = controller;
-        pendingTextRef.current = "";
-        displayedTextRef.current = "";
-        startTypewriter();
-
         const csrfToken = Cookies.get("csrfToken");
-        const fetchOptions = {
+        const response = await fetchWithRefresh(getAiChatUrl(), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             ...(csrfToken && { "X-CSRF-Token": csrfToken }),
           },
           credentials: "include",
-          body: JSON.stringify({ message: text.trim(), conversationId, context }),
+          body: JSON.stringify({
+            message: normalizedText,
+            conversationId: targetConversationId,
+            requestId,
+            context,
+          }),
           signal: controller.signal,
-        };
-
-        const response = await fetchWithRefresh(getAiChatUrl(), fetchOptions);
-
+        });
         if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.message || `HTTP ${response.status}`);
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.message || `HTTP ${response.status}`);
         }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-
-        while (true) {
+        while (isActive()) {
           const { done, value } = await reader.read();
           if (done) break;
-
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n\n");
-          buffer = lines.pop() || "";
+          const events = buffer.split("\n\n");
+          buffer = events.pop() || "";
 
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const jsonStr = line.slice(6);
-
+          for (const rawEvent of events) {
+            if (!isActive() || !rawEvent.startsWith("data: ")) continue;
+            let event;
             try {
-              const event = JSON.parse(jsonStr);
-
-              switch (event.type) {
-                case "text":
-                  // Ném vào buffer để gõ từ từ
-                  pendingTextRef.current += event.content;
-                  break;
-
-                case "tool_start":
-                  setActiveTool(event.tool);
-                  // Xóa sạch văn bản dở dang của Turn trước trên cả Buffer, State và UI
-                  pendingTextRef.current = "";
-                  displayedTextRef.current = "";
-                  if (typeWriterIntervalRef.current) {
-                    clearInterval(typeWriterIntervalRef.current);
-                    typeWriterIntervalRef.current = null;
-                  }
-                  
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    const last = updated[updated.length - 1];
-                    if (last?.role === "assistant") {
-                      updated[updated.length - 1] = { ...last, content: "" };
-                    }
-                    return updated;
-                  });
-
-                  // Chạy lại Typewriter cho luồng văn bản mới
-                  startTypewriter();
-                  break;
-
-                case "tool_result":
-                  setActiveTool(null);
-                  break;
-
-                case "ui_card":
-                  setMessages((prev) => {
-                    const updated = [...prev];
-                    const last = updated[updated.length - 1];
-                    if (last?.role === "assistant") {
-                      const cards = [...(last.uiCards || []), { cardType: event.cardType, data: event.data }];
-                      updated[updated.length - 1] = { ...last, uiCards: cards };
-                    }
-                    return updated;
-                  });
-                  break;
-
-                case "done":
-                  if (event.conversationId) {
-                    const newId = event.conversationId;
-                    setConversationId(newId);
-                    // Refresh sidebar list
-                    getAiConversations()
-                      .then((r) => setConversations(r.data || []))
-                      .catch(() => {});
-                  }
-                  break;
-
-                case "error":
-                  setError(event.message);
-                  break;
-              }
+              event = JSON.parse(rawEvent.slice(6));
             } catch {
-              // JSON parse error — skip
+              continue;
+            }
+
+            if (event.type === "text") {
+              pendingTextRef.current += String(event.content || "");
+            } else if (event.type === "conversation") {
+              if (event.conversationId) setCurrentConversationId(event.conversationId);
+            } else if (event.type === "tool_start") {
+              pendingTextRef.current = "";
+              displayedTextRef.current = "";
+              setActiveTool(event.tool);
+              setCurrentMessages((previous) =>
+                previous.map((message) =>
+                  message.localId === assistantLocalId
+                    ? { ...message, content: "" }
+                    : message,
+                ),
+              );
+            } else if (event.type === "tool_result") {
+              setActiveTool(null);
+            } else if (event.type === "ui_card") {
+              setCurrentMessages((previous) =>
+                previous.map((message) =>
+                  message.localId === assistantLocalId
+                    ? {
+                        ...message,
+                        uiCards: [
+                          ...(message.uiCards || []),
+                          { cardType: event.cardType, data: event.data },
+                        ],
+                      }
+                    : message,
+                ),
+              );
+            } else if (event.type === "error") {
+              setError(event.message || "Có lỗi xảy ra");
+            } else if (event.type === "done") {
+              flushPendingText(sessionId);
+              if (event.conversationId) setCurrentConversationId(event.conversationId);
+              if (event.conversationId) {
+                const current = await getAiConversationById(event.conversationId);
+                if (isActive() && current.data) {
+                  setCurrentMessages(mapAiMessages(current.data.messages));
+                }
+              }
+              loadConversations();
             }
           }
         }
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          setError(err.message || "Không thể kết nối tới server");
-          setMessages((prev) => {
-            const last = prev[prev.length - 1];
-            if (last?.role === "assistant" && !last.content) {
-              return prev.slice(0, -1);
-            }
-            return prev;
-          });
+      } catch (requestError) {
+        if (requestError.name !== "AbortError" && isActive()) {
+          setError(requestError.message || "Không thể kết nối tới server");
+          setCurrentMessages((previous) =>
+            previous.filter(
+              (message) =>
+                message.localId !== assistantLocalId ||
+                message.content ||
+                message.uiCards?.length,
+            ),
+          );
         }
       } finally {
-        setIsLoading(false);
-        sendingRef.current = false;
-        setActiveTool(null);
-        abortRef.current = null;
-        stopTypewriter();
+        if (activeSessionRef.current?.id === sessionId) {
+          flushPendingText(sessionId);
+          activeSessionRef.current = null;
+          clearFlushTimer();
+          pendingTextRef.current = "";
+          displayedTextRef.current = "";
+          sendingRef.current = false;
+          if (mountedRef.current) {
+            setIsLoading(false);
+            setActiveTool(null);
+          }
+        }
       }
     },
-    [conversationId, isLoading]
+    [
+      cancelRequest,
+      clearFlushTimer,
+      flushPendingText,
+      loadConversations,
+      setCurrentConversationId,
+      setCurrentMessages,
+      startFlushTimer,
+    ],
   );
 
-  const cancelRequest = useCallback(() => {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setIsLoading(false);
-    sendingRef.current = false;
-    setActiveTool(null);
-    stopTypewriter();
-  }, [stopTypewriter]);
+  const branchAndSend = useCallback(
+    async (messageId, text, context = {}) => {
+      const sourceConversationId = conversationIdRef.current;
+      if (!sourceConversationId || !messageId) {
+        clearHistory();
+        return sendMessage(text, context, { targetConversationId: null });
+      }
 
-  const retryLastMessage = useCallback(() => {
-    setMessages((prev) => {
-      const lastUserMsg = [...prev].reverse().find(m => m.role === "user");
-      if (!lastUserMsg) return prev;
-      
-      // Xoá tin nhắn lỗi và tin nhắn user để tạo lại luồng mới
-      const idx = prev.lastIndexOf(lastUserMsg);
-      const newMessages = prev.slice(0, idx);
+      cancelRequest(false);
+      try {
+        const response = await forkAiConversation(
+          sourceConversationId,
+          messageId,
+        );
+        if (!response.data || !mountedRef.current) return;
+        setCurrentConversationId(response.data.conversationId);
+        setCurrentMessages(mapAiMessages(response.data.messages));
+        await sendMessage(text, context, {
+          targetConversationId: response.data.conversationId,
+        });
+      } catch (requestError) {
+        if (mountedRef.current) {
+          setError(
+            requestError.response?.data?.message ||
+              "Không thể tạo nhánh cuộc trò chuyện",
+          );
+        }
+      }
+    },
+    [
+      cancelRequest,
+      clearHistory,
+      sendMessage,
+      setCurrentConversationId,
+      setCurrentMessages,
+    ],
+  );
 
-      // Async trigger send để nhường luồng React render state
-      setTimeout(() => {
-        sendMessage(lastUserMsg.content, { image: lastUserMsg.image });
-      }, 10);
-      
-      return newMessages;
-    });
-  }, [sendMessage]);
+  const retryLastMessage = useCallback(
+    (messageId) => {
+      const target = messageId
+        ? messagesRef.current.find((message) => message._id === messageId)
+        : [...messagesRef.current]
+            .reverse()
+            .find((message) => message.role === "user");
+      if (target) {
+        branchAndSend(target._id, target.content, { image: target.image });
+      }
+    },
+    [branchAndSend],
+  );
 
-  // Chỉnh sửa message tại index, cắt bỏ tất cả messages sau đó và gửi lại
-  const editMessage = useCallback((msgIndex, newText) => {
-    setMessages((prev) => {
-      // Cắt đến trước message được edit (xóa message đó và tất cả phía sau)
-      const newMessages = prev.slice(0, msgIndex);
-      // Async trigger để nhường React render
-      setTimeout(() => {
-        sendMessage(newText.trim());
-      }, 10);
-      return newMessages;
-    });
-    setError(null);
-  }, [sendMessage]);
+  const editMessage = useCallback(
+    (messageId, newText) => {
+      if (newText?.trim()) branchAndSend(messageId, newText.trim());
+    },
+    [branchAndSend],
+  );
 
   return {
     messages,
@@ -390,4 +523,3 @@ export default function useAiChat() {
     editMessage,
   };
 }
-

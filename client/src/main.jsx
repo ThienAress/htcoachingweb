@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import App from "./App.jsx";
+import "./i18n";
 import { HelmetProvider } from "react-helmet-async";
 import "@aejkatappaja/phantom-ui";
 

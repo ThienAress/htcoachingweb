@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Edit,
   Trash,
@@ -27,6 +27,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 const CheckinHistory = () => {
   const queryClient = useQueryClient();
 
+  // eslint-disable-next-line no-unused-vars
   const currentDateTimeLocal = (() => {
     const now = new Date();
     const tzOffsetMs = now.getTimezoneOffset() * 60000;
@@ -47,10 +48,6 @@ const CheckinHistory = () => {
   const limit = 10;
 
   // Reset page khi debouncedSearchName, selectedMonth, selectedYear thay đổi
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearchName, selectedMonth, selectedYear]);
-
   // Build query params
   const buildParams = () => {
     const params = new URLSearchParams();
@@ -182,7 +179,10 @@ const CheckinHistory = () => {
             type="text"
             placeholder="Tìm theo tên khách hàng..."
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={(e) => {
+              setSearchInput(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-fluid-sm"
           />
         </div>
@@ -191,7 +191,10 @@ const CheckinHistory = () => {
             <CalendarDays className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
             <select
               value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+              onChange={(e) => {
+                setSelectedMonth(e.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none text-fluid-sm w-full sm:w-auto"
             >
               <option value="">Tháng</option>
@@ -208,7 +211,10 @@ const CheckinHistory = () => {
             <CalendarDays className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
             <select
               value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
+              onChange={(e) => {
+                setSelectedYear(e.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none text-fluid-sm w-full sm:w-auto"
             >
               <option value="">Năm</option>

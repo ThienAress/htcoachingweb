@@ -3,6 +3,8 @@ import CustomerStory from "../models/CustomerStory.js";
 import Trainer from "../models/Trainer.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
+import { createI18nResolver } from "../utils/i18n.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 const getPublicStoryQuery = () => ({
   status: "published",
@@ -102,12 +104,17 @@ const getStoryPayload = (body = {}, existingStory = null) => {
   if (body.trainerId) payload.trainerId = body.trainerId;
   else payload.trainerId = null;
 
+  // i18n: Nếu body có i18n, merge vào
+  if (body.i18n !== undefined) payload.i18n = body.i18n;
+
   return payload;
 };
 
 export const getCustomerStories = async (req, res) => {
   try {
     const featured = req.query.featured;
+    const lang = req.query.lang;
+    const { resolveField, resolveArray } = createI18nResolver(lang);
     const requestedLimit = Number.parseInt(req.query.limit, 10);
     const limit = Number.isFinite(requestedLimit)
       ? Math.min(Math.max(requestedLimit, 1), 50)
@@ -143,12 +150,23 @@ export const getCustomerStories = async (req, res) => {
       .limit(limit)
       .lean();
 
+    // Resolve i18n fields cho response
+    const localizedStories = stories.map((s) => ({
+      ...s,
+      message: resolveField(s, "message"),
+      result: resolveField(s, "result"),
+      duration: resolveField(s, "duration"),
+      goal: resolveField(s, "goal"),
+      job: resolveField(s, "job"),
+      highlights: resolveArray(s, "highlights"),
+    }));
+
     res.json({
       success: true,
-      data: stories,
+      data: localizedStories,
     });
   } catch (err) {
-    console.error("GET CUSTOMER STORIES ERROR:", err);
+    safeLog.error("customer_story.public_list_failed", err);
     res.status(500).json({
       success: false,
       message: "Lỗi lấy danh sách câu chuyện khách hàng",
@@ -204,7 +222,7 @@ export const getAdminCustomerStories = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("GET ADMIN CUSTOMER STORIES ERROR:", err);
+    safeLog.error("customer_story.admin_list_failed", err);
     res.status(500).json({
       success: false,
       message: "Lỗi lấy danh sách câu chuyện khách hàng",
@@ -223,7 +241,7 @@ export const getAdminCustomerStoryById = async (req, res) => {
     }
     res.json({ success: true, data: story });
   } catch (err) {
-    console.error("GET ADMIN CUSTOMER STORY DETAIL ERROR:", err);
+    safeLog.error("customer_story.admin_detail_failed", err);
     res.status(500).json({
       success: false,
       message: "Lỗi lấy chi tiết câu chuyện khách hàng",
@@ -259,7 +277,7 @@ export const createCustomerStory = async (req, res) => {
     
     res.status(201).json({ success: true, data: story });
   } catch (err) {
-    console.error("CREATE CUSTOMER STORY ERROR:", err);
+    safeLog.error("customer_story.create_failed", err);
     if (err.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -306,7 +324,7 @@ export const updateCustomerStory = async (req, res) => {
 
     res.json({ success: true, data: existingStory });
   } catch (err) {
-    console.error("UPDATE CUSTOMER STORY ERROR:", err);
+    safeLog.error("customer_story.update_failed", err);
     if (err.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -350,7 +368,7 @@ export const updateCustomerStoryStatus = async (req, res) => {
 
     res.json({ success: true, data: story });
   } catch (err) {
-    console.error("UPDATE CUSTOMER STORY STATUS ERROR:", err);
+    safeLog.error("customer_story.status_update_failed", err);
     res.status(500).json({
       success: false,
       message: "Lỗi cập nhật trạng thái câu chuyện khách hàng",
@@ -377,7 +395,7 @@ export const deleteCustomerStory = async (req, res) => {
       message: "Xóa câu chuyện khách hàng thành công",
     });
   } catch (err) {
-    console.error("DELETE CUSTOMER STORY ERROR:", err);
+    safeLog.error("customer_story.delete_failed", err);
     res.status(500).json({
       success: false,
       message: "Lỗi xóa câu chuyện khách hàng",
@@ -419,7 +437,7 @@ export const uploadCustomerStoryImageFile = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("UPLOAD CUSTOMER STORY IMAGE ERROR:", err);
+    safeLog.error("customer_story.image_upload_failed", err);
     res.status(500).json({
       success: false,
       message: "Lỗi upload ảnh câu chuyện khách hàng",
@@ -430,6 +448,8 @@ export const uploadCustomerStoryImageFile = async (req, res) => {
 export const getCustomerStoryBySlug = async (req, res) => {
   try {
     const slug = String(req.params.slug || "").toLowerCase().trim();
+    const lang = req.query.lang;
+    const { resolveField, resolveArray } = createI18nResolver(lang);
 
     const story = await CustomerStory.findOne({
       ...getPublicStoryQuery(),
@@ -443,12 +463,26 @@ export const getCustomerStoryBySlug = async (req, res) => {
       });
     }
 
+    // Resolve i18n fields
+    const localized = {
+      ...story,
+      message: resolveField(story, "message"),
+      result: resolveField(story, "result"),
+      duration: resolveField(story, "duration"),
+      goal: resolveField(story, "goal"),
+      job: resolveField(story, "job"),
+      problem: resolveField(story, "problem"),
+      solution: resolveField(story, "solution"),
+      quote: resolveField(story, "quote"),
+      highlights: resolveArray(story, "highlights"),
+    };
+
     res.json({
       success: true,
-      data: story,
+      data: localized,
     });
   } catch (err) {
-    console.error("GET CUSTOMER STORY DETAIL ERROR:", err);
+    safeLog.error("customer_story.public_detail_failed", err);
     res.status(500).json({
       success: false,
       message: "Lỗi lấy chi tiết câu chuyện khách hàng",

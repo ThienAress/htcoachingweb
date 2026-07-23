@@ -1,26 +1,27 @@
 import React from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { Drumstick, Droplet, Wheat } from "lucide-react";
 
 const MacroTable = ({ macroSet, tdee, adjustedCalories, goal }) => {
+  const { t } = useTranslation("tdee");
   if (!macroSet) return null;
 
-  const goalText =
-    goal === "gain"
-      ? "tăng cân"
-      : goal === "lose"
-        ? "giảm cân"
-        : "duy trì cân nặng";
+  const goalText = t(`result.goal_${goal}`);
 
   return (
     <div className="mt-10">
       <div className="mb-8 p-5 bg-gradient-to-r from-primary/30 to-primary/10 border-l-4 border-primary rounded-r-xl backdrop-blur-sm">
         <p className="text-gray-200 leading-relaxed">
-          🔥 Đây là lượng calories mình đã điều chỉnh từ TDEE ban đầu của bạn là{" "}
-          <strong className="text-primary text-lg">{tdee}</strong> kcal thành
-          lượng calories cần thiết để{" "}
-          <strong className="text-yellow-300">{goalText}</strong> là{" "}
-          <strong className="text-primary text-lg">{adjustedCalories}</strong>{" "}
-          kcal. Theo dõi và thay đổi theo tuần cho phù hợp bạn nhé.
+          <Trans
+            i18nKey="info.macro_note"
+            ns="tdee"
+            values={{ tdee, goal: goalText, adjusted: adjustedCalories }}
+            components={[
+              <strong className="text-primary text-lg" key="0" />,
+              <strong className="text-yellow-300" key="1" />,
+              <strong className="text-primary text-lg" key="2" />
+            ]}
+          />
         </p>
       </div>
 

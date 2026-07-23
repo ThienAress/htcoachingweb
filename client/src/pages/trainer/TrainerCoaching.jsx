@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -34,11 +34,28 @@ import api from "../../utils/api";
 import SEO from "../../components/SEO";
 import Header from "../../sections/Header/Header";
 import Footer from "../../sections/Footer/Footer";
+import { resolveMediaUrl } from "../../utils/mediaUrl";
 
-// Helper: lấy base URL server (bỏ /api ở cuối) để truy cập static files (/uploads/...)
-const getServerBaseUrl = () => {
-  const apiUrl = import.meta.env.VITE_API_URL || "";
-  return apiUrl.replace(/\/api\/?$/, "");
+const createLocalExerciseId = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const createExercise = (exercise = {}) => ({
+  name: "",
+  sets: 4,
+  reps: "10-12",
+  weight: "60s",
+  videoUrl: "",
+  videoUrl2: "",
+  completed: false,
+  ...exercise,
+  localId: String(exercise._id || exercise.localId || createLocalExerciseId()),
+});
+
+const serializeExercise = (exercise) => {
+  const payload = { ...exercise };
+  delete payload.localId;
+  return payload;
 };
 
 const TrainerCoaching = () => {
@@ -54,13 +71,14 @@ const TrainerCoaching = () => {
   const [planTitle, setPlanTitle] = useState("");
   const [planNote, setPlanNote] = useState("");
   const [exercises, setExercises] = useState([]);
+  const [planRevision, setPlanRevision] = useState(null);
 
   // Database bài tập có sẵn
   const [exerciseDatabase, setExerciseDatabase] = useState([]);
 
   // Client feedback states
-  const [clientFeedbackText, setClientFeedbackText] = useState("");
-  const [clientFeedbackVideo, setClientFeedbackVideo] = useState("");
+  const [, setClientFeedbackText] = useState("");
+  const [, setClientFeedbackVideo] = useState("");
   const [clientStatus, setClientStatus] = useState("pending");
   const [activeReviewExerciseIndex, setActiveReviewExerciseIndex] = useState(0);
 
@@ -72,14 +90,12 @@ const TrainerCoaching = () => {
   const [uploadingIndex, setUploadingIndex] = useState(null);
 
   // Ref theo dõi trạng thái IME composition (gõ tiếng Việt)
+  // eslint-disable-next-line no-unused-vars
   const isComposing = useRef(false);
+  const timelineRequestRef = useRef(0);
+  const selectedDateRef = useRef(selectedDate);
 
   // 1. Tải danh sách khách hàng & database bài tập
-  useEffect(() => {
-    fetchClients();
-    fetchExerciseDatabase();
-  }, []);
-
   const fetchClients = async () => {
     setIsLoadingClients(true);
     try {
@@ -89,8 +105,7 @@ const TrainerCoaching = () => {
       if (clientsData.length > 0) {
         handleSelectClient(clientsData[0]);
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error("Lỗi lấy danh sách khách hàng");
     } finally {
       setIsLoadingClients(false);
@@ -101,33 +116,51 @@ const TrainerCoaching = () => {
     try {
       const res = await api.get("/exercises?limit=500");
       setExerciseDatabase(res.data.data || []);
-    } catch (err) {
-      console.error("Lỗi tải database bài tập:", err);
+    } catch {
+      // The editor can still work without the optional exercise database.
     }
   };
 
+  useEffect(() => {
+    fetchClients();
+    fetchExerciseDatabase();
+
+    return () => {
+      timelineRequestRef.current += 1;
+    };
+    // Initial load is intentionally scoped to the mounted page instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // 2. Chọn khách hàng
   const handleSelectClient = async (client) => {
+    const requestId = ++timelineRequestRef.current;
     setSelectedClient(client);
     setIsLoadingTimeline(true);
     try {
       const res = await getClientTimeline(client._id);
+      if (requestId !== timelineRequestRef.current) return;
+
       const timelineData = res.data.data || [];
       setTimeline(timelineData);
 
       // Tự động load giáo án ngày đang chọn nếu có trong DB
-      const existingPlan = timelineData.find((p) => p.dateString === selectedDate);
+      const existingPlan = timelineData.find(
+        (p) => p.dateString === selectedDateRef.current,
+      );
       loadPlanData(existingPlan);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      if (requestId !== timelineRequestRef.current) return;
       toast.error("Lỗi lấy lịch sử bài tập của khách");
     } finally {
-      setIsLoadingTimeline(false);
+      if (requestId === timelineRequestRef.current) {
+        setIsLoadingTimeline(false);
+      }
     }
   };
 
   // 3. Thay đổi ngày
   const handleDateChange = (dateStr) => {
+    selectedDateRef.current = dateStr;
     setSelectedDate(dateStr);
     const existingPlan = timeline.find((p) => p.dateString === dateStr);
     loadPlanData(existingPlan);
@@ -139,10 +172,12 @@ const TrainerCoaching = () => {
     if (plan) {
       setPlanTitle(plan.title || "");
       setPlanNote(plan.note || "");
+      setPlanRevision(plan.__v ?? 0);
 
       // Sanitise old weight values of 'Tạ vừa sức' or empty string to '60s' rest duration
       const sanitizedExercises = (plan.exercises || []).map((ex) => ({
         ...ex,
+        localId: String(ex._id || ex.localId || createLocalExerciseId()),
         weight: (ex.weight === "Tạ vừa sức" || !ex.weight) ? "60s" : ex.weight
       }));
 
@@ -153,9 +188,8 @@ const TrainerCoaching = () => {
     } else {
       setPlanTitle("");
       setPlanNote("");
-      setExercises([
-        { name: "", sets: 4, reps: "10-12", weight: "60s", videoUrl: "", videoUrl2: "", completed: false }
-      ]);
+      setPlanRevision(null);
+      setExercises([createExercise()]);
       setClientFeedbackText("");
       setClientFeedbackVideo("");
       setClientStatus("pending");
@@ -164,19 +198,22 @@ const TrainerCoaching = () => {
 
   // 4. Thay đổi dòng bài tập (Dynamic Inputs)
   const handleAddExercise = () => {
-    setExercises((prev) => [
-      ...prev,
-      { name: "", sets: 4, reps: "10-12", weight: "60s", videoUrl: "", videoUrl2: "", completed: false }
-    ]);
+    setExercises((prev) => [...prev, createExercise()]);
   };
 
   const handleRemoveExercise = (index) => {
-    setExercises((prev) => prev.filter((_, i) => i !== index));
+    setExercises((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      setActiveReviewExerciseIndex((current) =>
+        Math.max(0, Math.min(current, next.length - 1)),
+      );
+      return next;
+    });
   };
 
   const handleExerciseChange = (index, field, value) => {
     setExercises((prev) => {
-      const copy = [...prev];
+      const copy = prev.map((exercise) => ({ ...exercise }));
       copy[index][field] = value;
 
       // Hỗ trợ tự điền link video demo nếu chọn bài có sẵn trong database
@@ -209,28 +246,35 @@ const TrainerCoaching = () => {
   const handleUploadExerciseDemo = async (index, e, videoField = "videoUrl") => {
     const file = e.target.files[0];
     if (!file) return;
+    const exerciseId = exercises[index]?.localId;
+    if (!exerciseId) return;
 
-    // Giới hạn dung lượng (Max 50MB cho video demo của Coach)
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error("Dung lượng file tối đa là 50MB!");
+    // Giới hạn dung lượng (Max 25MB cho video demo của Coach)
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("Dung lượng file tối đa là 25MB!");
       return;
     }
 
-    const uploadKey = `${index}-${videoField === "videoUrl" ? "1" : "2"}`;
+    const uploadKey = `${exerciseId}-${videoField === "videoUrl" ? "1" : "2"}`;
     setUploadingIndex(uploadKey);
     try {
       const formData = new FormData();
       formData.append("video", file);
 
       const res = await uploadDemoVideo(formData);
-      handleExerciseChange(index, videoField, res.data.url);
+      setExercises((prev) =>
+        prev.map((exercise) =>
+          exercise.localId === exerciseId
+            ? { ...exercise, [videoField]: res.data.url }
+            : exercise,
+        ),
+      );
       toast.success("Tải lên video demo thành công!");
     } catch (err) {
-      console.error(err);
       const serverMsg = err.response?.data?.message;
       toast.error(serverMsg || "Tải lên video thất bại, hãy thử lại");
     } finally {
-      setUploadingIndex(null);
+      setUploadingIndex((current) => current === uploadKey ? null : current);
     }
   };
 
@@ -258,24 +302,34 @@ const TrainerCoaching = () => {
         dateString: selectedDate,
         title: planTitle.trim(),
         note: planNote.trim(),
-        exercises,
+        exercises: exercises.map(serializeExercise),
+        revision: planRevision,
       };
 
       const res = await upsertCoachingDay(selectedClient._id, planPayload);
       toast.success("Đã lưu giáo án luyện tập thành công!");
 
-      const updatedTimeline = [...timeline];
-      const idx = updatedTimeline.findIndex((p) => p.dateString === selectedDate);
-      if (idx !== -1) {
-        updatedTimeline[idx] = res.data.data;
-      } else {
-        updatedTimeline.push(res.data.data);
-        updatedTimeline.sort((a, b) => new Date(b.date) - new Date(a.date));
-      }
-      setTimeline(updatedTimeline);
+      setTimeline((currentTimeline) => {
+        const updatedTimeline = [...currentTimeline];
+        const idx = updatedTimeline.findIndex(
+          (p) => p.dateString === selectedDate,
+        );
+        if (idx !== -1) {
+          updatedTimeline[idx] = res.data.data;
+        } else {
+          updatedTimeline.push(res.data.data);
+          updatedTimeline.sort((a, b) => new Date(b.date) - new Date(a.date));
+        }
+        return updatedTimeline;
+      });
       setClientStatus(res.data.data.clientStatus);
+      setPlanRevision(res.data.data.__v ?? null);
     } catch (err) {
-      console.error(err);
+      if (err.response?.status === 409) {
+        toast.error("Giáo án vừa được thay đổi. Đang tải lại dữ liệu mới nhất");
+        await handleSelectClient(selectedClient);
+        return;
+      }
       toast.error(err.response?.data?.message || "Lưu giáo án thất bại");
     } finally {
       setIsSaving(false);
@@ -291,11 +345,11 @@ const TrainerCoaching = () => {
       await deleteCoachingDay(selectedClient._id, selectedDate);
       toast.success("Đã xoá giáo án thành công");
 
-      const updatedTimeline = timeline.filter((p) => p.dateString !== selectedDate);
-      setTimeline(updatedTimeline);
+      setTimeline((currentTimeline) =>
+        currentTimeline.filter((p) => p.dateString !== selectedDate),
+      );
       loadPlanData(null);
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error("Xoá giáo án thất bại");
     }
   };
@@ -325,11 +379,16 @@ const TrainerCoaching = () => {
     return { initial, colorClass: colors[colorIndex] };
   };
 
-  const filteredClients = clients.filter(
-    (c) =>
-      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return clients;
+
+    return clients.filter(
+      (client) =>
+        client.name.toLowerCase().includes(normalizedSearch) ||
+        client.email.toLowerCase().includes(normalizedSearch),
+    );
+  }, [clients, searchTerm]);
 
   return (
     <>
@@ -585,7 +644,7 @@ const TrainerCoaching = () => {
                       <div className="space-y-4">
                         {exercises.map((ex, idx) => (
                           <div
-                            key={idx}
+                            key={ex.localId || ex._id || idx}
                             className="relative rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 group/card"
                           >
                             {/* Gradient accent bar */}
@@ -673,7 +732,7 @@ const TrainerCoaching = () => {
                                       className="flex-1 bg-gray-950/60 border border-gray-700/40 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-600 transition-all duration-200 truncate"
                                     />
                                     <label className="shrink-0 p-2.5 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 hover:border-primary/40 cursor-pointer text-primary transition-all duration-200 flex items-center justify-center">
-                                      {uploadingIndex === `${idx}-1` ? (
+                                      {uploadingIndex === `${ex.localId}-1` ? (
                                         <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                                       ) : (
                                         <UploadCloud className="w-4 h-4" />
@@ -681,7 +740,7 @@ const TrainerCoaching = () => {
                                       <input
                                         type="file"
                                         accept="video/*"
-                                        disabled={uploadingIndex === `${idx}-1`}
+                                        disabled={uploadingIndex === `${ex.localId}-1`}
                                         onChange={(e) => handleUploadExerciseDemo(idx, e, "videoUrl")}
                                         className="hidden"
                                       />
@@ -707,7 +766,7 @@ const TrainerCoaching = () => {
                                     <div className="rounded-xl overflow-hidden border border-gray-700/40 bg-black/40 aspect-video shadow-lg">
                                       {ex.videoUrl.startsWith("/uploads/") ? (
                                         <video
-                                          src={`${getServerBaseUrl()}${ex.videoUrl}`}
+                                          src={resolveMediaUrl(ex.videoUrl)}
                                           controls
                                           className="w-full h-full object-contain"
                                           key={ex.videoUrl}
@@ -745,7 +804,7 @@ const TrainerCoaching = () => {
                                       className="flex-1 bg-gray-950/60 border border-gray-700/40 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 text-white placeholder-gray-600 transition-all duration-200 truncate"
                                     />
                                     <label className="shrink-0 p-2.5 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 hover:border-primary/40 cursor-pointer text-primary transition-all duration-200 flex items-center justify-center">
-                                      {uploadingIndex === `${idx}-2` ? (
+                                      {uploadingIndex === `${ex.localId}-2` ? (
                                         <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                                       ) : (
                                         <UploadCloud className="w-4 h-4" />
@@ -753,7 +812,7 @@ const TrainerCoaching = () => {
                                       <input
                                         type="file"
                                         accept="video/*"
-                                        disabled={uploadingIndex === `${idx}-2`}
+                                        disabled={uploadingIndex === `${ex.localId}-2`}
                                         onChange={(e) => handleUploadExerciseDemo(idx, e, "videoUrl2")}
                                         className="hidden"
                                       />
@@ -779,7 +838,7 @@ const TrainerCoaching = () => {
                                     <div className="rounded-xl overflow-hidden border border-gray-700/40 bg-black/40 aspect-video shadow-lg">
                                       {ex.videoUrl2.startsWith("/uploads/") ? (
                                         <video
-                                          src={`${getServerBaseUrl()}${ex.videoUrl2}`}
+                                          src={resolveMediaUrl(ex.videoUrl2)}
                                           controls
                                           className="w-full h-full object-contain"
                                           key={ex.videoUrl2}
@@ -877,7 +936,7 @@ const TrainerCoaching = () => {
                           const isActive = activeReviewExerciseIndex === idx;
                           return (
                             <div
-                              key={idx}
+                              key={ex.localId || ex._id || idx}
                               onClick={() => setActiveReviewExerciseIndex(idx)}
                               className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-all duration-200 ${isActive
                                   ? "bg-primary/10 border-primary/40 text-white font-semibold"
@@ -930,7 +989,7 @@ const TrainerCoaching = () => {
                             </p>
                             <div className="rounded-xl overflow-hidden border border-gray-700/40 bg-black/40 aspect-video shadow-2xl relative">
                               <video
-                                src={`${getServerBaseUrl()}${exercises[activeReviewExerciseIndex].clientFeedbackVideo}`}
+                                src={resolveMediaUrl(exercises[activeReviewExerciseIndex].clientFeedbackVideo)}
                                 controls
                                 className="w-full h-full object-contain"
                                 key={exercises[activeReviewExerciseIndex].clientFeedbackVideo}

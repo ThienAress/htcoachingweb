@@ -4,6 +4,7 @@ import F1AiReport from "../../models/F1AiReport.js";
 import F1OutcomeForecast from "../../models/F1OutcomeForecast.js";
 import { F1Customer, assertCustomerAccess } from "./shared.js";
 import { buildOutcomeForecast } from "./forecast.helpers.js";
+import { createIdempotentF1Artifact } from "../../services/f1ArtifactIntegrity.service.js";
 
 export const generateOutcomeForecast = async (req, res, next) => {
   try {
@@ -38,6 +39,12 @@ export const generateOutcomeForecast = async (req, res, next) => {
         message: "Khách hàng chưa có AI report để dự đoán kết quả",
       });
     }
+    if (!intake.consent?.allowAiAnalysis || !intake.consent?.version) {
+      return res.status(403).json({
+        success: false,
+        message: "Khách hàng chưa đồng ý cho AI phân tích dữ liệu",
+      });
+    }
 
     if (aiReport?.inputSummary?.readinessStatus === "hold") {
       return res.status(400).json({
@@ -53,18 +60,43 @@ export const generateOutcomeForecast = async (req, res, next) => {
       aiReport,
     });
 
-    const forecast = await F1OutcomeForecast.create({
+    const engineVersion =
+      forecastPayload.engineVersion || "forecast-engine-v1";
+    const result = await createIdempotentF1Artifact({
+      Model: F1OutcomeForecast,
       customerId: customer._id,
-      intakeId: intake._id,
-      assessmentId: assessment._id,
-      aiReportId: aiReport._id,
-      ...forecastPayload,
+      sourceFields: {
+        customerId: customer._id,
+        intakeId: intake._id,
+        assessmentId: assessment._id,
+        aiReportId: aiReport._id,
+      },
+      sourceDocuments: [intake, assessment, aiReport],
+      engineVersion,
+      requestId: req.body.requestId,
+      regenerate: Boolean(req.body.regenerate),
+      payload: forecastPayload,
+      customerUpdate: (forecast) => ({
+        lastOutcomeForecastId: forecast._id,
+      }),
+      audit: {
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        action: "generate_f1_forecast",
+        targetType: "f1_outcome_forecast",
+        requestId: req.id,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+      },
     });
 
-    return res.status(201).json({
+    return res.status(result.idempotentReplay ? 200 : 201).json({
       success: true,
-      data: forecast,
-      message: "Generate dự đoán kết quả thành công",
+      data: result.artifact,
+      idempotentReplay: result.idempotentReplay,
+      message: result.idempotentReplay
+        ? "Forecast đã tồn tại cho nguồn dữ liệu này"
+        : "Generate dự đoán kết quả thành công",
     });
   } catch (error) {
     return next(error);

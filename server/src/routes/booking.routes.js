@@ -9,6 +9,7 @@ import {
   updateBookingStatus,
   checkUserHasBookings,
   deleteBooking,
+  archiveBooking,
 } from "../controllers/booking.controller.js";
 import { optionalAuth } from "../middlewares/optionalAuth.js";
 
@@ -34,6 +35,13 @@ router.patch(
   updateBookingStatus,
 );
 router.get("/check-user", protect, checkUserHasBookings);
+router.patch(
+  "/:id/archive",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  archiveBooking,
+);
 router.delete(
   "/:id",
   protect,

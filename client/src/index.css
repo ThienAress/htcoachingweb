@@ -120,6 +120,30 @@
   line-height: 1.75 !important;
 }
 
+/* Image and Caption styles for editor to match live view */
+.tiptap img, .prose img {
+  display: block !important;
+  border-radius: 0.75rem !important;
+  margin-bottom: 0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Xử lý trường hợp ảnh bị bọc trong thẻ p */
+.tiptap p:has(img), .prose p:has(img) {
+  margin-bottom: 0.125rem !important;
+}
+
+/* Áp dụng cho đoạn văn bản ngay dưới ảnh (caption) */
+.tiptap img + p, .prose img + p,
+.tiptap p:has(img) + p, .prose p:has(img) + p {
+  margin-top: 0 !important;
+  font-size: 14px !important;
+  color: #64748b !important;
+  text-align: center !important;
+}
+
 .tiptap h2, .prose h2 {
   margin-top: 1.5rem !important;
   margin-bottom: 0.75rem !important;

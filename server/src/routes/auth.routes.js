@@ -1,7 +1,9 @@
 import express from "express";
+import { safeLog } from "../utils/safeLogger.js";
 import passport from "passport";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 import {
   refreshTokenController,
@@ -66,15 +68,48 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
   res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
 };
 
+// ===== OAUTH STATE HELPERS (HMAC signed) =====
+const STATE_SECRET = process.env.JWT_SECRET;
+const STATE_MAX_AGE_MS = 5 * 60 * 1000; // 5 phút
+
+const signOAuthState = (payload) => {
+  const data = Buffer.from(JSON.stringify({ ...payload, iat: Date.now() })).toString("base64url");
+  const sig = crypto.createHmac("sha256", STATE_SECRET).update(data).digest("base64url");
+  return `${data}.${sig}`;
+};
+
+const verifyOAuthState = (state) => {
+  if (!state || !state.includes(".")) return null;
+  const [data, sig] = state.split(".");
+  if (!data || !sig) return null;
+  const expected = crypto.createHmac("sha256", STATE_SECRET).update(data).digest("base64url");
+  if (Buffer.from(sig).length !== Buffer.from(expected).length) return null;
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf-8"));
+    if (Date.now() - payload.iat > STATE_MAX_AGE_MS) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+};
+
+// Redirect allowlist: production + localhost + explicit previews
+const getRedirectAllowlist = () => {
+  const list = [process.env.CLIENT_URL];
+  if (!isProd) list.push("http://localhost:5173");
+  const previews = process.env.PREVIEW_ORIGINS
+    ? process.env.PREVIEW_ORIGINS.split(",").map((o) => o.trim())
+    : [];
+  return [...list, ...previews].filter(Boolean);
+};
+
 // ===== GOOGLE OAUTH =====
 router.get(
   "/google",
   (req, res, next) => {
-    // Lấy client_url từ request, nếu không có thì dùng mặc định
     const clientUrl = req.query.client_url || process.env.CLIENT_URL;
-    
-    // Mã hóa state để truyền qua Google
-    const state = Buffer.from(JSON.stringify({ clientUrl })).toString("base64");
+    const state = signOAuthState({ clientUrl });
     
     passport.authenticate("google", {
       scope: ["profile", "email"],
@@ -94,22 +129,14 @@ router.get(
       // Mặc định là CLIENT_URL trong env
       let clientUrl = process.env.CLIENT_URL;
 
-      // Giải mã state để lấy client_url (nếu có)
+      // Verify signed state
       if (req.query.state) {
-        try {
-          const decodedState = JSON.parse(Buffer.from(req.query.state, "base64").toString("utf-8"));
-          if (decodedState.clientUrl) {
-            // Chỉ cho phép các origin hợp lệ
-            if (
-              decodedState.clientUrl === process.env.CLIENT_URL || 
-              decodedState.clientUrl.startsWith("http://localhost:") || 
-              (decodedState.clientUrl.startsWith("https://") && decodedState.clientUrl.endsWith(".netlify.app"))
-            ) {
-              clientUrl = decodedState.clientUrl;
-            }
+        const decoded = verifyOAuthState(req.query.state);
+        if (decoded?.clientUrl) {
+          const allowlist = getRedirectAllowlist();
+          if (allowlist.includes(decoded.clientUrl)) {
+            clientUrl = decoded.clientUrl;
           }
-        } catch (e) {
-          console.error("Failed to parse state", e);
         }
       }
 
@@ -131,12 +158,39 @@ router.get(
 
       return res.redirect(`${clientUrl}/login-success`);
     } catch (err) {
-      console.error("[GOOGLE CALLBACK ERROR]:", err);
+      safeLog.error("auth.google_callback_failed", err);
       // Fallback url nếu lỗi ko lấy được state
       return res.redirect(`${process.env.CLIENT_URL}/login?error=server`);
     }
   },
 );
+
+// ===== DEV BYPASS LOGIN =====
+if (process.env.NODE_ENV !== "production") {
+  router.get("/dev-login", async (req, res) => {
+    try {
+      const { email } = req.query;
+      const User = (await import("../models/User.js")).default;
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+
+      const accessToken = signAccessToken(user);
+      const refreshToken = signRefreshToken(user);
+
+      const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+      user.refreshToken = hashedRefreshToken;
+      await user.save();
+
+      setAuthCookies(res, accessToken, refreshToken);
+      return res.redirect(`${process.env.CLIENT_URL || "http://localhost:5173"}/login-success`);
+    } catch (err) {
+      safeLog.error("auth.google_callback_unhandled", err);
+      return res.status(500).json({ success: false, message: "Dev login failed" });
+    }
+  });
+}
 
 // ===== REFRESH / LOGOUT =====
 router.post("/refresh", csrfProtection, refreshTokenController);

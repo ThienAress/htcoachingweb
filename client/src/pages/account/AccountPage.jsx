@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useTranslation } from "react-i18next";
 import Header from "../../sections/Header/Header";
 import Footer from "../../sections/Footer/Footer";
 import {
@@ -26,6 +27,7 @@ import HistoryTab from "./components/HistoryTab";
 import ContractsTab from "./components/ContractsTab";
 
 function AccountPage() {
+  const { t } = useTranslation("account");
   const navigate = useNavigate();
   const { user, refetch } = useAuth();
 
@@ -108,22 +110,23 @@ function AccountPage() {
         try {
           const contractRes = await getMyContracts();
           setMyContracts(contractRes.data?.data || []);
+        // eslint-disable-next-line no-empty
         } catch {}
       } catch {
-        toast.error("Lỗi khi tải dữ liệu tài khoản!");
+        toast.error(t("profile.errors.fetch_failed"));
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [user, navigate]);
+  }, [user, navigate, t]);
 
   // Handle single field save — Optimistic UI
   const handleSaveField = async (field) => {
     const value = editValues[field]?.trim();
     if (field === "name" && !value) {
-      toast.error("Họ tên không được để trống!");
+      toast.error(t("profile.errors.name_empty"));
       return;
     }
 
@@ -142,17 +145,17 @@ function AccountPage() {
       const response = await updateMyProfile(updatedData);
 
       if (response.data.success) {
-        toast.success("Cập nhật thông tin thành công!");
+        toast.success(t("profile.errors.update_success"));
         await refetch();
       } else {
         // Rollback
         setEditValues((prev) => ({ ...prev, [field]: previousValue || "" }));
-        toast.error(response.data.message || "Cập nhật thất bại!");
+        toast.error(response.data.message || t("profile.errors.update_failed"));
       }
     } catch (err) {
       // Rollback
       setEditValues((prev) => ({ ...prev, [field]: previousValue || "" }));
-      toast.error(err.response?.data?.message || "Lỗi cập nhật thông tin!");
+      toast.error(err.response?.data?.message || t("profile.errors.update_failed"));
     } finally {
       setUpdating(false);
     }
@@ -164,7 +167,7 @@ function AccountPage() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Ảnh đại diện không được vượt quá 5MB!");
+      toast.error(t("profile.errors.avatar_limit"));
       return;
     }
 
@@ -180,14 +183,14 @@ function AccountPage() {
       const response = await updateMyAvatar(uploadData);
 
       if (response.data.success) {
-        toast.success("Cập nhật ảnh đại diện thành công!");
+        toast.success(t("profile.errors.upload_success"));
         await refetch();
         setEditingField(null);
       } else {
-        toast.error(response.data.message || "Tải lên ảnh thất bại!");
+        toast.error(response.data.message || t("profile.errors.upload_failed"));
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Lỗi tải lên ảnh!");
+      toast.error(err.response?.data?.message || t("profile.errors.upload_failed"));
     } finally {
       setUploading(false);
       // Cleanup preview URL sau khi refetch xong (ảnh thật đã có)
@@ -202,27 +205,27 @@ function AccountPage() {
 
     const taggedSub = orders.trainerSubscriptions.map(s => ({
       _id: s._id,
-      title: `Gói HLV ${s.planTitle}`,
-      subtitle: `Chu kỳ: ${s.billingCycle === "month" ? "Tháng" : "Năm"} | Đăng ký để quản lý học viên`,
-      typeLabel: "Đơn HLV",
+      title: t("orders.plan_hlv", { name: s.planTitle }),
+      subtitle: t("orders.cycle_desc", { cycle: s.billingCycle === "month" ? t("orders.cycle_month") : t("orders.cycle_year") }),
+      typeLabel: t("orders.type_sub"),
       status: s.status === "active" ? "approved" : "cancelled",
       createdAt: s.createdAt
     }));
 
     const taggedHlv = orders.trainerOrders.map(o => ({
       _id: o._id,
-      title: `Gói PT: ${o.package || "N/A"}`,
-      subtitle: `HLV phụ trách: ${o.trainerId?.name || "Ngẫu nhiên"}`,
-      typeLabel: "Đơn Khách PT",
+      title: t("orders.plan_pt", { name: o.package || "N/A" }),
+      subtitle: t("orders.trainer_assigned", { name: o.trainerId?.name || t("orders.trainer_random") }),
+      typeLabel: t("orders.type_pt"),
       status: o.status,
       createdAt: o.createdAt
     }));
 
     const taggedPt = orders.clientOrders.map(o => ({
       _id: o._id,
-      title: `Gói PT: ${o.package || "N/A"}`,
-      subtitle: `Học viên: ${o.userId?.name || o.name || "Khách hàng"}`,
-      typeLabel: "Đơn Khách PT",
+      title: t("orders.plan_pt", { name: o.package || "N/A" }),
+      subtitle: t("orders.client_name", { name: o.userId?.name || o.name || t("orders.client_default") }),
+      typeLabel: t("orders.type_pt"),
       status: o.status,
       createdAt: o.createdAt
     }));
@@ -245,21 +248,21 @@ function AccountPage() {
     }
 
     return combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }, [orders, orderFilter, orderSearch]);
+  }, [orders, orderFilter, orderSearch, t]);
 
   if (!user) return null;
 
   // Sidebar menu items
   const menuItems = [
-    { key: "profile", label: "Thông tin cá nhân", icon: User, group: "Tài khoản" },
-    { key: "orders", label: "Đơn hàng của tôi", icon: ShoppingBag, group: "Đơn hàng" },
-    { key: "history", label: "Lịch sử thanh toán", icon: History, group: "Lịch sử" },
-    { key: "contracts", label: "Hợp đồng của tôi", icon: FileText, group: "Hợp đồng" },
+    { key: "profile", label: t("sidebar.profile"), icon: User, group: t("profile.title") },
+    { key: "orders", label: t("sidebar.orders"), icon: ShoppingBag, group: t("orders.title") },
+    { key: "history", label: t("sidebar.history"), icon: History, group: t("history.title") },
+    { key: "contracts", label: t("sidebar.contracts"), icon: FileText, group: t("contracts.title") },
   ];
 
   return (
     <>
-      <SEO title="Cài đặt tài khoản" noindex />
+      <SEO title={t("sidebar.title")} noindex />
       <Header />
 
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-gray-100 font-sans pt-28 sm:pt-30 lg:pt-30 pb-16">
@@ -271,10 +274,10 @@ function AccountPage() {
             <div className="lg:col-span-1">
               <div className="mb-6 lg:mb-8">
                 <h1 className="text-fluid-2xl font-black uppercase text-white tracking-wide">
-                  Cài đặt tài khoản
+                  {t("sidebar.title")}
                 </h1>
                 <p className="text-gray-400 text-fluid-xs mt-1 leading-relaxed">
-                  Quản lý hồ sơ, bảo mật, đơn hàng và lịch sử giao dịch của bạn.
+                  {t("sidebar.desc")}
                 </p>
               </div>
 

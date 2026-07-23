@@ -6,14 +6,22 @@ import { safeLog } from './safeLogger.js';
 export const triggerNetlifyBuild = async () => {
   const buildHookUrl = process.env.NETLIFY_BUILD_HOOK_URL;
   if (!buildHookUrl) {
-    console.log('[Webhook] NETLIFY_BUILD_HOOK_URL is not configured, skipping build trigger.');
-    return;
+    safeLog.info("build_hook.skipped", { reason: "not_configured" });
+    return { triggered: false, reason: "not_configured" };
   }
 
   try {
-    await fetch(buildHookUrl, { method: 'POST' });
-    console.log('[Webhook] Netlify build triggered successfully.');
+    const response = await fetch(buildHookUrl, {
+      method: "POST",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) {
+      throw new Error(`Netlify build hook returned HTTP ${response.status}`);
+    }
+    safeLog.info("build_hook.triggered", { status: response.status });
+    return { triggered: true, status: response.status };
   } catch (error) {
-    safeLog.error('Webhook Error', error);
+    safeLog.error("build_hook.failed", error);
+    return { triggered: false, reason: "request_failed" };
   }
 };

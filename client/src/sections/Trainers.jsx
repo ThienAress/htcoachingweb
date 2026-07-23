@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { getPublicTrainers } from "../services/trainer.service";
 import { useNavigate } from "react-router-dom";
+import { translateData } from "../utils/localDataTranslator";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -24,18 +26,19 @@ const iconMap = {
 };
 
 const Trainers = ({ previewData }) => {
+  const { t, i18n } = useTranslation("home");
   const navigate = useNavigate();
   const { data: queryData, isLoading } = useQuery({
-    queryKey: ["public-trainers"],
+    queryKey: ["public-trainers", i18n.language],
     queryFn: async () => {
-      const res = await getPublicTrainers();
+      const res = await getPublicTrainers({ lang: i18n.language });
       return res.data;
     },
     enabled: !previewData,
     staleTime: 5 * 60 * 1000,
   });
 
-  const trainersList = previewData || queryData || [];
+  const trainersList = translateData(previewData || queryData || [], "trainer", i18n.language);
   const sectionRef = useRef(null);
   const containerRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -99,6 +102,8 @@ const Trainers = ({ previewData }) => {
   useEffect(() => {
     startAutoplay();
     return () => stopAutoplay();
+  // Autoplay restarts after each slide and needs the current carousel closure.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile, trainersList.length, currentIndex]);
 
   const handleTouchStart = (e) => {
@@ -210,7 +215,7 @@ const Trainers = ({ previewData }) => {
           }}
           className="mt-4 w-full flex items-center justify-center gap-2 text-slate-800 uppercase text-sm font-black tracking-wider group hover:text-primary transition-colors"
         >
-          Xem chi tiết
+          {t("trainers.view_detail")}
           <span className="bg-primary/10 text-primary p-1.5 rounded-full group-hover:translate-x-1 group-hover:bg-primary group-hover:text-white transition-all duration-300">
             <ArrowRight size={14} strokeWidth={3} />
           </span>
@@ -253,7 +258,7 @@ const Trainers = ({ previewData }) => {
           className="inline-flex items-center justify-center w-fit mr-auto gap-2 px-8 py-3.5 bg-primary text-white rounded-xl font-bold shadow-lg hover:bg-primary-dark hover:-translate-y-1 transition-all"
         >
           <ArrowRight size={18} />
-          Liên hệ huấn luyện viên tư vấn miễn phí
+          {t("trainers.contact_cta")}
         </a>
       </div>
     </div>
@@ -268,7 +273,7 @@ const Trainers = ({ previewData }) => {
       <div className="container-custom p-0!">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-left uppercase m-0" data-gsap="title">
-            HUẤN LUYỆN VIÊN HTCOACHING
+            {t("trainers.title")}
           </h2>
           {trainersList.length > 1 && (
             <div className="hidden md:flex gap-3">

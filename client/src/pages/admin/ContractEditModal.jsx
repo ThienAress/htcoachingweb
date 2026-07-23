@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "react-toastify";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { XCircle, Send, Plus, Trash2, AlertTriangle } from "lucide-react";
@@ -35,30 +35,27 @@ const ContractEditModal = ({ contract, onClose }) => {
   // Track focus state cho money fields để hiển thị raw khi đang nhập, format khi blur
   const [moneyFocus, setMoneyFocus] = useState({ pricePerSession: false, totalAmount: false });
 
-  const [form, setForm] = useState({
-    trainerName: "", trainerBirthYear: "", trainerAddress: "", trainerPhone: "", trainerEmail: "",
-    clientName: "", clientPhone: "", clientEmail: "",
-    sessions: "", pricePerSession: "", totalAmount: "", startDate: "", endDate: "",
-  });
-  const [sections, setSections] = useState([]);
-
-  useEffect(() => {
-    const c = contract;
-    setForm({
-      trainerName: c.trainerInfo?.name || "", trainerBirthYear: c.trainerInfo?.birthYear || "",
-      trainerAddress: c.trainerInfo?.address || "", trainerPhone: c.trainerInfo?.phone || "",
-      trainerEmail: c.trainerInfo?.email || "",
-      clientName: c.clientInfo?.name || "", clientPhone: c.clientInfo?.phone || "", clientEmail: c.clientInfo?.email || "",
-      sessions: c.packageDetails?.sessions ? String(c.packageDetails.sessions) : "",
-      pricePerSession: c.packageDetails?.pricePerSession ? String(c.packageDetails.pricePerSession) : "",
-      totalAmount: c.packageDetails?.totalAmount ? String(c.packageDetails.totalAmount) : "",
-      startDate: c.packageDetails?.startDate ? new Date(c.packageDetails.startDate).toISOString().split("T")[0] : "",
-      endDate: c.packageDetails?.endDate ? new Date(c.packageDetails.endDate).toISOString().split("T")[0] : "",
-    });
-    setSections(c.customSections?.map(s => ({ ...s, items: [...(s.items || [])] })) || []);
-    setTrainerSig(c.trainerSignature || "");
-    setIsDrawingSig(!c.trainerSignature);
-  }, [contract]);
+  const [form, setForm] = useState(() => ({
+    trainerName: contract.trainerInfo?.name || "",
+    trainerBirthYear: contract.trainerInfo?.birthYear || "",
+    trainerAddress: contract.trainerInfo?.address || "",
+    trainerPhone: contract.trainerInfo?.phone || "",
+    trainerEmail: contract.trainerInfo?.email || "",
+    clientName: contract.clientInfo?.name || "",
+    clientPhone: contract.clientInfo?.phone || "",
+    clientEmail: contract.clientInfo?.email || "",
+    sessions: contract.packageDetails?.sessions ? String(contract.packageDetails.sessions) : "",
+    pricePerSession: contract.packageDetails?.pricePerSession ? String(contract.packageDetails.pricePerSession) : "",
+    totalAmount: contract.packageDetails?.totalAmount ? String(contract.packageDetails.totalAmount) : "",
+    startDate: contract.packageDetails?.startDate ? new Date(contract.packageDetails.startDate).toISOString().split("T")[0] : "",
+    endDate: contract.packageDetails?.endDate ? new Date(contract.packageDetails.endDate).toISOString().split("T")[0] : "",
+  }));
+  const [sections, setSections] = useState(
+    () => contract.customSections?.map((section) => ({
+      ...section,
+      items: [...(section.items || [])],
+    })) || [],
+  );
 
   const validate = () => {
     const e = {};

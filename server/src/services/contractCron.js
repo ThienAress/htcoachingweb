@@ -1,4 +1,5 @@
 import { expireOldContracts } from "./contract.service.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 // Chạy mỗi 24 giờ — expire HĐ chưa ký sau 7 ngày
 const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 giờ
@@ -7,15 +8,15 @@ async function runExpireContracts() {
   try {
     const count = await expireOldContracts();
     if (count > 0) {
-      console.log(`📋 [Cron] Đã expire ${count} hợp đồng quá hạn`);
+      safeLog.info("contract_cron.expired", { count });
     }
   } catch (error) {
-    console.error("❌ [Cron] Lỗi khi expire contracts:", error.message);
+    safeLog.error("contract_cron.failed", error);
   }
 }
 
 export function startContractCronJobs() {
-  console.log("📋 [Cron] Khởi động cron job: expire contracts (mỗi 24 giờ)");
+  safeLog.info("contract_cron.started", { intervalMs: INTERVAL_MS });
 
   // Chạy ngay lần đầu
   runExpireContracts();

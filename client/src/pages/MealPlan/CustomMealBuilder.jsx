@@ -1,4 +1,6 @@
+// eslint-disable-next-line no-unused-vars
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { Wheat, Drumstick, Fish, Plus, X, Search, Crown, Save, PlusCircle } from "lucide-react";
 import MealSummary from "./MealSummary";
 import NutritionLegend from "./NutritionLegend";
@@ -8,6 +10,35 @@ import { useAuth } from "../../context/AuthContext";
 
 const round1 = (num) => Math.round(num * 10) / 10;
 const calcCalories = (p, c, f) => round1(p * 4 + c * 4 + f * 9);
+const emptyMeal = (index) => ({
+  id: `meal-${Date.now()}-${index}`,
+  mealName: `Bữa ${index + 1}`,
+  carbFood: [],
+  proteinFood: [],
+  fatFood: [],
+});
+
+const loadMeals = (storageKey, selectedPlan) => {
+  let meals = [];
+  const saved = localStorage.getItem(storageKey);
+  if (saved) {
+    try {
+      meals = JSON.parse(saved).map((meal) => ({
+        ...meal,
+        carbFood: Array.isArray(meal.carbFood) ? meal.carbFood : (meal.carbFood ? [meal.carbFood] : []),
+        proteinFood: Array.isArray(meal.proteinFood) ? meal.proteinFood : (meal.proteinFood ? [meal.proteinFood] : []),
+        fatFood: Array.isArray(meal.fatFood) ? meal.fatFood : (meal.fatFood ? [meal.fatFood] : []),
+      }));
+    } catch {
+      meals = [];
+    }
+  }
+
+  return Array.from(
+    { length: selectedPlan },
+    (_, index) => meals[index] || emptyMeal(index),
+  );
+};
 
 export default function CustomMealBuilder({
   foodDatabase,
@@ -15,53 +46,17 @@ export default function CustomMealBuilder({
   targetLabel,
   selectedPlan,
 }) {
-  const { accessLevel, canGenerate, recordGeneration } = useMealPlanAccess();
+  const { t } = useTranslation("mealplan");
+  const { accessLevel, canGenerate, recordGeneration, maxGenerations } = useMealPlanAccess();
   const { user } = useAuth();
-  
+
   const storageKey = `customMealBuilder_${user ? user._id : "guest"}`;
-  
+
   // State for meals
-  const [meals, setMeals] = useState([]);
+  const [meals, setMeals] = useState(() => loadMeals(storageKey, selectedPlan));
   const [hasRecorded, setHasRecorded] = useState(false);
 
   // Initialize or adjust meals based on selectedPlan
-  useEffect(() => {
-    setMeals((prev) => {
-      const saved = localStorage.getItem(storageKey);
-      if (saved && prev.length === 0) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (parsed.length > 0) {
-            return parsed.map(meal => ({
-              ...meal,
-              carbFood: Array.isArray(meal.carbFood) ? meal.carbFood : (meal.carbFood ? [meal.carbFood] : []),
-              proteinFood: Array.isArray(meal.proteinFood) ? meal.proteinFood : (meal.proteinFood ? [meal.proteinFood] : []),
-              fatFood: Array.isArray(meal.fatFood) ? meal.fatFood : (meal.fatFood ? [meal.fatFood] : []),
-            }));
-          }
-        } catch (e) {}
-      }
-
-      if (prev.length === selectedPlan) return prev;
-      
-      const newMeals = [...prev];
-      if (newMeals.length < selectedPlan) {
-        for (let i = newMeals.length; i < selectedPlan; i++) {
-          newMeals.push({
-            id: `meal-${Date.now()}-${i}`,
-            mealName: `Bữa ${i + 1}`,
-            carbFood: [],
-            proteinFood: [],
-            fatFood: [],
-          });
-        }
-      } else {
-        return newMeals.slice(0, selectedPlan);
-      }
-      return newMeals;
-    });
-  }, [selectedPlan]);
-
   // Save to localStorage
   useEffect(() => {
     if (meals.length > 0) {
@@ -111,15 +106,15 @@ export default function CustomMealBuilder({
   const handleOpenModal = async (mealIndex, type) => {
     // Check trial limit only when they try to add the very FIRST food if they haven't recorded yet
     const hasAnyFood = meals.some(m => m.carbFood?.length || m.proteinFood?.length || m.fatFood?.length);
-    
+
     if (!hasAnyFood && !hasRecorded) {
       if (!canGenerate) {
-        toast.error("Bạn đã hết lượt sử dụng miễn phí. Hãy đăng ký gói để tiếp tục trải nghiệm!", { autoClose: 5000 });
+        toast.error(t("toast.no_remaining", { max: maxGenerations }), { autoClose: 5000 });
         return;
       }
       const recorded = await recordGeneration();
       if (!recorded && accessLevel === "trial") {
-        toast.error("Không thể ghi nhận lượt sử dụng hoặc đã hết lượt.");
+        toast.error(t("toast.record_failed"));
         return;
       }
       setHasRecorded(true);
@@ -161,7 +156,7 @@ export default function CustomMealBuilder({
   const searchResults = useMemo(() => {
     const keyword = searchQuery.toLowerCase().trim();
     let filtered = foodDatabase.filter(f => (f.label || f.name || "").toLowerCase().includes(keyword));
-    
+
     // Sort by priority (if needed)
     filtered.sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
@@ -186,12 +181,12 @@ export default function CustomMealBuilder({
       return newMeals;
     });
     setModalOpen(false);
-    toast.success(`Đã thêm ${food.label || food.name}`);
+    toast.success(t("toast.added_food", { name: food.label || food.name }));
   };
 
   const handleAddCustomFood = () => {
-    if (!customFood.name) return toast.error("Vui lòng nhập tên thực phẩm");
-    
+    if (!customFood.name) return toast.error(t("toast.enter_name"));
+
     setMeals(prev => {
       const newMeals = [...prev];
       const newMeal = { ...newMeals[activeCell.mealIndex] };
@@ -209,22 +204,22 @@ export default function CustomMealBuilder({
       return newMeals;
     });
     setModalOpen(false);
-    toast.success("Đã thêm thực phẩm tự chọn");
+    toast.success(t("toast.added_custom"));
   };
 
   const renderCell = (mealIndex, type, icon, colorClass, borderClass, bgClass, emptyLabel) => {
     const foods = meals[mealIndex][type] || [];
-    
+
     return (
       <div className="flex flex-col gap-2 h-full">
         {foods.map((food, foodIndex) => {
           const m = getFoodDisplayMacros(food);
           return (
             <div key={foodIndex} className={`relative bg-gray-800/80 border border-gray-700 rounded-xl p-3 shadow-inner group ${colorClass}`}>
-              <button 
+              <button
                 onClick={() => handleRemoveFood(mealIndex, type, foodIndex)}
                 className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"
-                title="Xóa thực phẩm"
+                title={t("builder.remove_food")}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -234,8 +229,8 @@ export default function CustomMealBuilder({
                   {food.label || food.name}
                 </span>
                 <div className="flex items-center gap-1 shrink-0 bg-gray-900 rounded-lg px-2 py-1 border border-gray-700 focus-within:border-primary transition-colors">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     value={food.amount}
                     onChange={(e) => handleAmountChange(mealIndex, type, foodIndex, e.target.value)}
                     className="w-12 bg-transparent text-white text-right text-sm font-bold outline-none"
@@ -245,7 +240,7 @@ export default function CustomMealBuilder({
                   <span className="text-xs text-gray-400">g</span>
                 </div>
               </div>
-              
+
               <div className="text-xs text-gray-300 bg-gray-900/50 rounded-lg p-2 flex justify-between">
                 <span title="Protein">P: <strong>{m.p}</strong>g</span>
                 <span title="Carb">C: <strong>{m.c}</strong>g</span>
@@ -254,8 +249,8 @@ export default function CustomMealBuilder({
             </div>
           );
         })}
-        
-        <button 
+
+        <button
           onClick={() => handleOpenModal(mealIndex, type)}
           className={`w-full ${foods.length === 0 ? 'min-h-[80px] h-full' : 'py-2 mt-auto'} border-2 border-dashed ${borderClass} ${bgClass} ${colorClass} hover:opacity-80 rounded-xl flex flex-col items-center justify-center gap-1 transition-all`}
         >
@@ -265,7 +260,7 @@ export default function CustomMealBuilder({
               <span className="text-xs font-semibold">{emptyLabel}</span>
             </>
           ) : (
-            <span className="text-xs font-semibold flex items-center gap-1"><Plus className="w-3 h-3"/> Thêm món</span>
+            <span className="text-xs font-semibold flex items-center gap-1"><Plus className="w-3 h-3"/> {t("builder.add_item")}</span>
           )}
         </button>
       </div>
@@ -277,7 +272,7 @@ export default function CustomMealBuilder({
       <div className="mb-6 bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 flex gap-3">
         <Search className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
         <div className="text-sm text-blue-200">
-          <strong className="text-blue-300">Hướng dẫn:</strong> Nhấn vào ô trống để tìm thực phẩm trong cơ sở dữ liệu hoặc tự nhập thủ công. Cập nhật định lượng (g) trực tiếp trên ô, hệ thống sẽ tính toán Calories và Macro ngay lập tức.
+          <strong className="text-blue-300">{t("builder.instructions_title")}</strong> {t("builder.instructions")}
         </div>
       </div>
 
@@ -287,19 +282,19 @@ export default function CustomMealBuilder({
             <thead className="bg-gray-700/60">
               <tr>
                 <th className="w-[12%] px-3 sm:px-5 py-4 text-left text-primary font-bold border-b border-gray-600 text-fluid-sm rounded-tl-2xl">
-                  Bữa ăn
+                  {t("builder.meal_header")}
                 </th>
                 <th className="w-[26%] px-3 sm:px-5 py-4 text-left text-green-300 font-bold border-b border-gray-600">
-                  <Wheat className="w-4 h-4 inline mr-1" /> Tinh bột
+                  <Wheat className="w-4 h-4 inline mr-1" /> {t("builder.carb")}
                 </th>
                 <th className="w-[26%] px-3 sm:px-5 py-4 text-left text-red-300 font-bold border-b border-gray-600">
-                  <Drumstick className="w-4 h-4 inline mr-1" /> Đạm
+                  <Drumstick className="w-4 h-4 inline mr-1" /> {t("builder.protein")}
                 </th>
                 <th className="w-[26%] px-3 sm:px-5 py-4 text-left text-yellow-300 font-bold border-b border-gray-600">
-                  <Fish className="w-4 h-4 inline mr-1" /> Chất béo
+                  <Fish className="w-4 h-4 inline mr-1" /> {t("builder.fat")}
                 </th>
                 <th className="w-[10%] px-3 sm:px-5 py-4 text-center text-primary font-bold border-b border-gray-600 rounded-tr-2xl">
-                  Calo
+                  {t("builder.calories")}
                 </th>
               </tr>
             </thead>
@@ -318,13 +313,13 @@ export default function CustomMealBuilder({
                       {meal.mealName}
                     </td>
                     <td className="px-2 sm:px-3 py-3 align-top">
-                      {renderCell(idx, 'carbFood', Wheat, 'text-green-300', 'border-green-500/30', 'bg-green-500/5', 'Tinh bột')}
+                      {renderCell(idx, 'carbFood', Wheat, 'text-green-300', 'border-green-500/30', 'bg-green-500/5', t("builder.carb"))}
                     </td>
                     <td className="px-2 sm:px-3 py-3 align-top">
-                      {renderCell(idx, 'proteinFood', Drumstick, 'text-red-300', 'border-red-500/30', 'bg-red-500/5', 'Đạm')}
+                      {renderCell(idx, 'proteinFood', Drumstick, 'text-red-300', 'border-red-500/30', 'bg-red-500/5', t("builder.protein"))}
                     </td>
                     <td className="px-2 sm:px-3 py-3 align-top">
-                      {renderCell(idx, 'fatFood', Fish, 'text-yellow-300', 'border-yellow-500/30', 'bg-yellow-500/5', 'Chất béo')}
+                      {renderCell(idx, 'fatFood', Fish, 'text-yellow-300', 'border-yellow-500/30', 'bg-yellow-500/5', t("builder.fat"))}
                     </td>
                     <td className="px-3 sm:px-5 py-4 font-bold text-primary text-fluid-sm text-center align-middle">
                       {mealCal} <span className="text-xs text-gray-400 font-normal block">kcal</span>
@@ -338,8 +333,8 @@ export default function CustomMealBuilder({
       </div>
 
       <NutritionLegend />
-      
-      <MealSummary 
+
+      <MealSummary
         totalMacros={totalMacros}
         totalCalories={totalCalories}
         targetMacros={targetMacros}
@@ -351,10 +346,8 @@ export default function CustomMealBuilder({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm">
           <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-gray-800/50">
-              <h3 className="text-lg font-bold text-white">
-                Thêm <span className="text-primary uppercase">
-                  {activeCell?.type === 'carbFood' ? 'Tinh bột' : activeCell?.type === 'proteinFood' ? 'Đạm' : 'Chất béo'}
-                </span>
+              <h3 className="text-lg font-bold text-white uppercase">
+                {t("builder.add_type", { type: activeCell?.type === 'carbFood' ? t("builder.carb") : activeCell?.type === 'proteinFood' ? t("builder.protein") : t("builder.fat") })}
               </h3>
               <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-white transition bg-gray-800 hover:bg-gray-700 rounded-full p-1.5">
                 <X className="w-5 h-5" />
@@ -362,17 +355,17 @@ export default function CustomMealBuilder({
             </div>
 
             <div className="flex border-b border-gray-700">
-              <button 
+              <button
                 onClick={() => setIsCustomMode(false)}
                 className={`flex-1 py-3 text-sm font-semibold transition-colors ${!isCustomMode ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                Từ Database
+                {t("builder.from_db")}
               </button>
-              <button 
+              <button
                 onClick={() => setIsCustomMode(true)}
                 className={`flex-1 py-3 text-sm font-semibold transition-colors ${isCustomMode ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-gray-400 hover:text-gray-200'}`}
               >
-                Nhập thủ công
+                {t("builder.manual_input")}
               </button>
             </div>
 
@@ -381,9 +374,9 @@ export default function CustomMealBuilder({
                 <div className="p-4 pb-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input 
-                      type="text" 
-                      placeholder="Tìm tên thực phẩm..."
+                    <input
+                      type="text"
+                      placeholder={t("builder.search_placeholder")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full bg-gray-950 border border-gray-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
@@ -391,15 +384,15 @@ export default function CustomMealBuilder({
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto p-4 pt-2 space-y-2">
                   {searchResults.length === 0 ? (
                     <div className="text-center py-8 text-gray-500 text-sm">
-                      Không tìm thấy thực phẩm. Bạn có thể chọn "Nhập thủ công" để tự thêm.
+                      {t("builder.no_food_found")}
                     </div>
                   ) : (
                     searchResults.map(f => (
-                      <button 
+                      <button
                         key={f._id}
                         onClick={() => handleSelectDbFood(f)}
                         className="w-full text-left p-3 rounded-xl border border-gray-700 hover:border-primary/50 bg-gray-800/50 hover:bg-gray-800 transition-all flex justify-between items-center group"
@@ -416,15 +409,20 @@ export default function CustomMealBuilder({
                       </button>
                     ))
                   )}
-                  
+
                   {accessLevel === "trial" && (
                     <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 text-center">
                       <Crown className="w-6 h-6 text-orange-400 mx-auto mb-2" />
                       <p className="text-sm text-gray-300">
-                        Bạn đang xem <strong className="text-white">10 thực phẩm</strong> cơ bản. Có hơn <strong className="text-white">{foodDatabase.length - 10}</strong> thực phẩm đa dạng khác trong kho dữ liệu.
+                        <Trans
+                          i18nKey="builder.trial_limit_text"
+                          ns="mealplan"
+                          values={{ remaining: foodDatabase.length - 10 }}
+                          components={[<strong className="text-white" key="0" />, <strong className="text-white" key="1" />]}
+                        />
                       </p>
                       <a href="/" className="inline-block mt-3 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-orange-500/20">
-                        Nâng cấp gói ngay
+                        {t("builder.upgrade_now")}
                       </a>
                     </div>
                   )}
@@ -434,20 +432,20 @@ export default function CustomMealBuilder({
               <div className="p-6 flex-1 overflow-y-auto">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1.5">Tên thực phẩm</label>
-                    <input 
-                      type="text" 
+                    <label className="block text-sm text-gray-400 mb-1.5">{t("builder.food_name")}</label>
+                    <input
+                      type="text"
                       value={customFood.name}
                       onChange={e => setCustomFood(p => ({ ...p, name: e.target.value }))}
-                      placeholder="VD: Whey Protein ISO"
+                      placeholder={t("builder.food_name_placeholder")}
                       className="w-full bg-gray-950 border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-primary"
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm text-red-400 mb-1.5 font-medium">Protein (g)</label>
-                      <input 
+                      <label className="block text-sm text-red-400 mb-1.5 font-medium">{t("builder.protein")} (g)</label>
+                      <input
                         type="number" min="0" step="0.1"
                         value={customFood.protein}
                         onChange={e => setCustomFood(p => ({ ...p, protein: e.target.value }))}
@@ -457,8 +455,8 @@ export default function CustomMealBuilder({
                       <span className="block mt-1 text-[10px] text-gray-500">/ 100g</span>
                     </div>
                     <div>
-                      <label className="block text-sm text-green-400 mb-1.5 font-medium">Carb (g)</label>
-                      <input 
+                      <label className="block text-sm text-green-400 mb-1.5 font-medium">{t("builder.carb")} (g)</label>
+                      <input
                         type="number" min="0" step="0.1"
                         value={customFood.carb}
                         onChange={e => setCustomFood(p => ({ ...p, carb: e.target.value }))}
@@ -468,8 +466,8 @@ export default function CustomMealBuilder({
                       <span className="block mt-1 text-[10px] text-gray-500">/ 100g</span>
                     </div>
                     <div>
-                      <label className="block text-sm text-yellow-400 mb-1.5 font-medium">Fat (g)</label>
-                      <input 
+                      <label className="block text-sm text-yellow-400 mb-1.5 font-medium">{t("builder.fat")} (g)</label>
+                      <input
                         type="number" min="0" step="0.1"
                         value={customFood.fat}
                         onChange={e => setCustomFood(p => ({ ...p, fat: e.target.value }))}
@@ -480,12 +478,12 @@ export default function CustomMealBuilder({
                     </div>
                   </div>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={handleAddCustomFood}
                   className="w-full mt-6 py-3 bg-primary hover:bg-primary-dark text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20"
                 >
-                  <Save className="w-5 h-5" /> Thêm vào thực đơn
+                  <Save className="w-5 h-5" /> {t("builder.add_to_menu")}
                 </button>
               </div>
             )}

@@ -11,5 +11,8 @@ export const approveDeposit = (id) => api.post(`/admin/deposits/${id}/approve`);
 export const rejectDeposit = (id, reason) =>
   api.post(`/admin/deposits/${id}/reject`, { reason });
 
-// Xóa yêu cầu nạp tiền
+export const reverseDeposit = (id, reason) =>
+  api.post("/admin/deposits/" + id + "/reverse", { reason });
+
+// Chỉ xóa yêu cầu expired/rejected chưa tạo ledger.
 export const deleteAdminDeposit = (id) => api.delete(`/admin/deposits/${id}`);

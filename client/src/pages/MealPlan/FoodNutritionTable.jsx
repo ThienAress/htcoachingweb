@@ -1,14 +1,19 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Search, ChevronUp, ChevronDown, Flame, Lock, Crown } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const FREE_VISIBLE_ROWS = 10;
 
 const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
+  const { t } = useTranslation("mealplan");
   const [searchText, setSearchText] = useState("");
   const [sortOrder, setSortOrder] = useState(null);
 
-  const getFoodDisplayName = (food) => food?.label || food?.name || "Không tên";
+  const getFoodDisplayName = useCallback(
+    (food) => food?.label || food?.name || t("table.no_name"),
+    [t],
+  );
 
   const getCalories = (item) =>
     Math.round(item.protein * 4 + item.carb * 4 + item.fat * 9);
@@ -28,7 +33,7 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
         if (sortOrder === "desc") return calB - calA;
         return 0;
       });
-  }, [foodDatabase, searchText, sortOrder]);
+  }, [foodDatabase, getFoodDisplayName, searchText, sortOrder]);
 
   // Nếu hết lượt miễn phí → chỉ hiển thị 10 dòng đầu
   const visibleData = canViewFull ? filteredData : filteredData.slice(0, FREE_VISIBLE_ROWS);
@@ -40,7 +45,7 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
         <div className="relative flex-1">
           <input
             type="text"
-            placeholder={canViewFull ? "Tìm kiếm thực phẩm..." : "🔒 Nâng cấp gói để tìm kiếm"}
+            placeholder={canViewFull ? t("table.search_placeholder") : t("table.upgrade_search")}
             value={canViewFull ? searchText : ""}
             onChange={(e) => canViewFull && setSearchText(e.target.value)}
             disabled={!canViewFull}
@@ -83,13 +88,13 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
       <div className="overflow-x-auto -mx-4 sm:mx-0">
         <div className="min-w-[640px] md:min-w-full relative">
           <div className="grid grid-cols-7 gap-3 bg-gray-900/80 p-3 rounded-t-xl border-b border-gray-700 text-gray-300 font-semibold text-sm">
-            <div className="col-span-2">Thực phẩm</div>
-            <div>Khẩu phần</div>
-            <div>Protein</div>
-            <div>Carb</div>
-            <div>Fat</div>
+            <div className="col-span-2">{t("table.food")}</div>
+            <div>{t("table.portion")}</div>
+            <div>{t("table.protein")}</div>
+            <div>{t("table.carb")}</div>
+            <div>{t("table.fat")}</div>
             <div>
-              <Flame className="w-4 h-4 inline mr-1 text-primary" /> Calo
+              <Flame className="w-4 h-4 inline mr-1 text-primary" /> {t("table.calories")}
             </div>
           </div>
 
@@ -138,12 +143,11 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
                 </div>
 
                 <h3 className="text-xl font-bold text-white mb-2">
-                  Còn {filteredData.length - FREE_VISIBLE_ROWS}+ thực phẩm chưa mở khóa
+                  {t("table.remaining_locked", { count: filteredData.length - FREE_VISIBLE_ROWS })}
                 </h3>
 
                 <p className="text-gray-400 text-sm mb-6 max-w-md mx-auto">
-                  Nâng cấp gói dịch vụ để xem toàn bộ bảng dinh dưỡng với {filteredData.length} thực phẩm
-                  và sử dụng gợi ý thực đơn không giới hạn.
+                  {t("table.upgrade_desc", { count: filteredData.length })}
                 </p>
 
                 <Link
@@ -151,7 +155,7 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
                   className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold py-3 px-8 rounded-xl transition-all duration-300 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transform hover:scale-[1.02]"
                 >
                   <Crown className="w-5 h-5" />
-                  Nâng cấp gói dịch vụ
+                  {t("table.upgrade_btn")}
                 </Link>
               </div>
             </div>
@@ -159,7 +163,7 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
 
           {filteredData.length === 0 && (
             <div className="text-center py-10 text-gray-400">
-              Không tìm thấy thực phẩm
+              {t("table.no_food_found")}
             </div>
           )}
         </div>

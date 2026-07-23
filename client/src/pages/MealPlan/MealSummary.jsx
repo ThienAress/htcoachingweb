@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Target, TrendingUp, TrendingDown, Activity } from "lucide-react";
 
 const MealSummary = ({
@@ -7,6 +8,8 @@ const MealSummary = ({
   targetMacros,
   targetLabel,
 }) => {
+  const { t } = useTranslation("mealplan");
+
   if (!totalMacros || totalMacros.protein === undefined) return null;
 
   const targetProtein = Number(targetMacros?.protein || 0);
@@ -22,9 +25,9 @@ const MealSummary = ({
   const diffFat = Number(totalMacros?.fat || 0) - targetFat;
 
   const formatDiff = (value) => {
-    if (Math.abs(value) < 1) return "Đạt chuẩn";
-    if (value > 0) return `Dư ${Math.round(value)}g`;
-    return `Thiếu ${Math.round(Math.abs(value))}g`;
+    if (Math.abs(value) < 1) return t("summary.reached");
+    if (value > 0) return t("summary.excess", { value: Math.round(value) });
+    return t("summary.deficit", { value: Math.round(Math.abs(value)) });
   };
 
   const getDiffColor = (value) => {
@@ -48,13 +51,13 @@ const MealSummary = ({
     <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 sm:p-6 mt-8 shadow-xl">
       <h3 className="text-fluid-xl font-bold text-center mb-6 flex items-center justify-center gap-2">
         <Target className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
-        Tổng dinh dưỡng cả ngày
+        {t("summary.total_daily")}
       </h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 text-center">
         <div className="bg-gray-900/60 rounded-xl p-4 border border-gray-700">
           <div className="text-red-400 text-fluid-lg font-bold mb-1">
-            Đạm
+            {t("summary.protein")}
           </div>
           <div className="text-fluid-2xl font-black text-white">
             {totalMacros.protein}g
@@ -63,21 +66,21 @@ const MealSummary = ({
             {totalCalories > 0
               ? Math.round((totalMacros.protein * 4 * 100) / totalCalories)
               : 0}
-            % calo
+            {t("summary.percent_calories")}
           </div>
           <div className="mt-2 text-xs text-gray-400">
-            Mục tiêu: {targetProtein}g
+            {t("summary.target_g", { value: targetProtein })}
           </div>
           <div
             className={`text-xs mt-1 font-semibold ${getDiffColor(diffProtein)}`}
           >
-            {formatDiff(diffProtein)} đạm
+            {t("summary.diff_protein", { diff: formatDiff(diffProtein) })}
           </div>
         </div>
 
         <div className="bg-gray-900/60 rounded-xl p-4 border border-gray-700">
           <div className="text-green-400 text-fluid-lg font-bold mb-1">
-            Tinh bột
+            {t("summary.carb")}
           </div>
           <div className="text-fluid-2xl font-black text-white">
             {totalMacros.carb}g
@@ -86,21 +89,21 @@ const MealSummary = ({
             {totalCalories > 0
               ? Math.round((totalMacros.carb * 4 * 100) / totalCalories)
               : 0}
-            % calo
+            {t("summary.percent_calories")}
           </div>
           <div className="mt-2 text-xs text-gray-400">
-            Mục tiêu: {targetCarb}g
+            {t("summary.target_g", { value: targetCarb })}
           </div>
           <div
             className={`text-xs mt-1 font-semibold ${getDiffColor(diffCarb)}`}
           >
-            {formatDiff(diffCarb)} tinh bột
+            {t("summary.diff_carb", { diff: formatDiff(diffCarb) })}
           </div>
         </div>
 
         <div className="bg-gray-900/60 rounded-xl p-4 border border-gray-700">
           <div className="text-yellow-400 text-fluid-lg font-bold mb-1">
-            Chất béo
+            {t("summary.fat")}
           </div>
           <div className="text-fluid-2xl font-black text-white">
             {totalMacros.fat}g
@@ -109,15 +112,15 @@ const MealSummary = ({
             {totalCalories > 0
               ? Math.round((totalMacros.fat * 9 * 100) / totalCalories)
               : 0}
-            % calo
+            {t("summary.percent_calories")}
           </div>
           <div className="mt-2 text-xs text-gray-400">
-            Mục tiêu: {targetFat}g
+            {t("summary.target_g", { value: targetFat })}
           </div>
           <div
             className={`text-xs mt-1 font-semibold ${getDiffColor(diffFat)}`}
           >
-            {formatDiff(diffFat)} chất béo
+            {t("summary.diff_fat", { diff: formatDiff(diffFat) })}
           </div>
         </div>
       </div>
@@ -135,29 +138,27 @@ const MealSummary = ({
             <div className="flex items-center justify-center gap-2">
               {statusIcon}
               <span>
-                {targetLabel ? `${targetLabel} • ` : ""}
-                Mục tiêu {targetCalories.toLocaleString()} kcal
+                {targetLabel ? `${targetLabel === "Tự nhập (Custom)" ? t("selector.custom_plan") : targetLabel} • ` : ""}
+                {t("summary.target_kcal", { value: targetCalories.toLocaleString() })}
               </span>
             </div>
 
             <div className="mt-2 text-fluid-xs text-gray-300">
-              Thực tế đang{" "}
+              {t("summary.actual_status")}{" "}
               <span className={statusColor}>
                 {diffCalories === 0
-                  ? "khớp hoàn toàn"
+                  ? t("summary.exact_match")
                   : `${diffCalories > 0 ? "+" : ""}${diffCalories} kcal`}
               </span>{" "}
-              so với mục tiêu
+              {t("summary.compared_to_target")}
             </div>
 
             <div className="mt-1 text-xs text-gray-400">
-              Đạt {Math.round(percent)}% calories mục tiêu
+              {t("summary.percent_calories_goal", { value: Math.round(percent) })}
             </div>
           </div>
         )}
       </div>
-
-
     </div>
   );
 };

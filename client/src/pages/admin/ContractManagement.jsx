@@ -190,7 +190,13 @@ const ContractManagement = () => {
         </div>
       )}
 
-      {editingContract && <ContractEditModal contract={editingContract} onClose={() => setEditingContract(null)} />}
+      {editingContract && (
+        <ContractEditModal
+          key={editingContract._id}
+          contract={editingContract}
+          onClose={() => setEditingContract(null)}
+        />
+      )}
     </div>
   );
 };

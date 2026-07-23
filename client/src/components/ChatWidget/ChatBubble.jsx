@@ -69,8 +69,8 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
       return;
     }
     setHasRetried(true);
-    onRetry?.();
-  }, [hasRetried, onRetry]);
+    onRetry?.(message._id);
+  }, [hasRetried, message._id, onRetry]);
 
   const handleEditOpen = useCallback(() => {
     setEditText(message.content || "");
@@ -89,8 +89,8 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
       return;
     }
     setIsEditing(false);
-    onEdit?.(trimmed);
-  }, [editText, message.content, onEdit]);
+    onEdit?.(message._id, trimmed);
+  }, [editText, message._id, message.content, onEdit]);
 
   const handleEditKeyDown = useCallback((e) => {
     if (e.key === "Enter" && !e.shiftKey) {

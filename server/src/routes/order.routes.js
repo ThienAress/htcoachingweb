@@ -10,6 +10,7 @@ import {
 import {
   createOrder,
   getOrders,
+  getCheckinOrderOptions,
   approveOrder,
   updateOrder,
   deleteOrder,
@@ -29,6 +30,12 @@ router.post(
 
 // 🔥 ADMIN
 router.get("/", protect, requireTrainerAccess, getOrders);
+router.get(
+  "/checkin-options",
+  protect,
+  requireTrainerAccess,
+  getCheckinOrderOptions,
+);
 router.put(
   "/:id/approve",
   protect,

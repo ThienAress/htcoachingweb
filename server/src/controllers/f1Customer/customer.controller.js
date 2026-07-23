@@ -6,26 +6,31 @@ import {
   assertCustomerAccess,
   generateF1Code,
   buildLifecycleSummary,
-  deleteCustomerCascade,
 } from "./shared.js";
+import { requestF1CustomerDeletion } from "../../services/f1PrivacyLifecycle.service.js";
 
 export const createF1Customer = async (req, res, next) => {
+  const session = await mongoose.startSession();
   try {
-    const code = await generateF1Code();
-    const customer = await F1Customer.create({
-      code,
-      fullName: req.body.fullName,
-      age: req.body.age,
-      gender: req.body.gender,
-      occupation: req.body.occupation || "",
-      phone: req.body.phone || "",
-      email: (req.body.email || "").toLowerCase().trim(),
-      assignedTrainerId:
-        req.body.assignedTrainerId ||
-        (!req.isAdmin ? req.user.id : null),
-      source: req.body.source || "manual",
-      createdBy: req.user.id,
-      notesInternal: req.body.notesInternal || "",
+    let customer;
+    await session.withTransaction(async () => {
+      const code = await generateF1Code(session);
+      const created = await F1Customer.create([{
+        code,
+        fullName: req.body.fullName,
+        age: req.body.age,
+        gender: req.body.gender,
+        occupation: req.body.occupation || "",
+        phone: req.body.phone || "",
+        email: (req.body.email || "").toLowerCase().trim(),
+        assignedTrainerId:
+          req.body.assignedTrainerId ||
+          (!req.isAdmin ? req.user.id : null),
+        source: req.body.source || "manual",
+        createdBy: req.user.id,
+        notesInternal: req.body.notesInternal || "",
+      }], { session });
+      customer = created[0];
     });
 
     return res.status(201).json({
@@ -35,13 +40,15 @@ export const createF1Customer = async (req, res, next) => {
     });
   } catch (error) {
     return next(error);
+  } finally {
+    await session.endSession();
   }
 };
 
 export const getF1Customers = async (req, res, next) => {
   try {
-    const page = Number(req.query.page) || 1;
-    const limit = Math.min(Number(req.query.limit) || 10, 50);
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
     const skip = (page - 1) * limit;
     const search = (req.query.search || "").trim();
     const status = (req.query.status || "").trim();
@@ -182,26 +189,26 @@ export const updateF1CustomerStatus = async (req, res, next) => {
 };
 
 export const deleteF1Customer = async (req, res, next) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const customer = await F1Customer.findById(req.params.id).session(session);
+    const customer = await F1Customer.findById(req.params.id);
     assertCustomerAccess(customer, req);
-
-    await deleteCustomerCascade(customer._id, session);
-    await F1Customer.deleteOne({ _id: customer._id }).session(session);
-
-    await session.commitTransaction();
-
-    return res.json({
+    const job = await requestF1CustomerDeletion({
+      customer,
+      actorId: req.user.id,
+      actorRole: req.user.role,
+      reason: req.body?.reason || "admin_request",
+      requestContext: {
+        requestId: req.id || "",
+        ipAddress: req.ip || "",
+        userAgent: req.get("user-agent") || "",
+      },
+    });
+    return res.status(202).json({
       success: true,
-      message: "Xóa khách hàng F1 thành công",
+      data: { deletionJobId: job._id, status: job.status },
+      message: "Yêu cầu xóa dữ liệu F1 đã được đưa vào hàng đợi an toàn",
     });
   } catch (error) {
-    await session.abortTransaction();
     return next(error);
-  } finally {
-    session.endSession();
   }
 };

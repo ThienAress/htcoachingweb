@@ -1,5 +1,6 @@
 import F1AiRule from "../../models/F1AiRule.js";
 import get from "lodash/get.js";
+import { safeLog } from "../../utils/safeLogger.js";
 
 const PHASE_LABELS = {
   pending_review: "Chờ review thêm trước khi vào phase huấn luyện",
@@ -438,7 +439,7 @@ const buildTrainingNotesAsync = async ({
       }
     }
   } catch (err) {
-    console.error("Lỗi khi load rules từ DB:", err);
+    safeLog.error("f1.ai_rules_load_failed", err);
   }
 
   // Fallback to hardcoded rules if DB is empty or fails

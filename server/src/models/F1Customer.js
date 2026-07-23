@@ -88,6 +88,37 @@ const f1CustomerSchema = new mongoose.Schema(
       ref: "F1AiReport",
       default: null,
     },
+    lastOutcomeForecastId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "F1OutcomeForecast",
+      default: null,
+    },
+    lastResultPredictionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "F1ResultPrediction",
+      default: null,
+    },
+    consentVersion: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
+    deletionRequestedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    retentionExpiresAt: {
+      type: Date,
+      default: null,
+    },
     notesInternal: {
       type: String,
       default: "",
@@ -100,8 +131,9 @@ const f1CustomerSchema = new mongoose.Schema(
 
 f1CustomerSchema.index({ phone: 1 });
 f1CustomerSchema.index({ email: 1 });
-f1CustomerSchema.index({ assignedTrainerId: 1, status: 1 });
+f1CustomerSchema.index({ assignedTrainerId: 1, status: 1, createdAt: -1 });
 f1CustomerSchema.index({ status: 1, createdAt: -1 });
+f1CustomerSchema.index({ status: 1, retentionExpiresAt: 1 });
 f1CustomerSchema.index({ fullName: "text", phone: "text", email: "text" });
 
 export default mongoose.model("F1Customer", f1CustomerSchema);

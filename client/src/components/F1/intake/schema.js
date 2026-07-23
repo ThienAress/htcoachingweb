@@ -1,9 +1,21 @@
 import { z } from "zod";
 
+// eslint-disable-next-line no-unused-vars
 const normalizeOptionalText = (val) => {
   const normalized = String(val || "").trim();
   const negativeWords = ["không", "khong", "none", "no", "không có"];
   return negativeWords.includes(normalized.toLowerCase()) ? "" : normalized;
+};
+
+const emptyOptionalNumbers = (fields) => (value) => {
+  if (!value || typeof value !== "object") return value;
+  const normalized = { ...value };
+  for (const field of fields) {
+    if (normalized[field] === "" || normalized[field] === null) {
+      normalized[field] = undefined;
+    }
+  }
+  return normalized;
 };
 
 export const customerInfoSchema = z.object({
@@ -29,7 +41,9 @@ export const healthScreeningSchema = z.object({
   warningSigns: z.array(z.string()).optional().default([]),
 });
 
-export const lifestyleNutritionSchema = z.object({
+export const lifestyleNutritionSchema = z.preprocess(
+  emptyOptionalNumbers(["mealsPerDay", "sleepHours"]),
+  z.object({
   mealsPerDay: z.coerce.number().min(1).max(10).optional().or(z.literal("").transform(() => undefined)),
   usuallyEatOut: z.boolean(),
   foodAllergies: z.string().optional(),
@@ -37,18 +51,35 @@ export const lifestyleNutritionSchema = z.object({
   sleepHours: z.coerce.number().min(0).max(24).optional().or(z.literal("").transform(() => undefined)),
   stressLevel: z.string().optional(),
   workActivityLevel: z.string().optional(),
-});
+  }),
+);
 
-export const bodyMetricsSchema = z.object({
+export const bodyMetricsSchema = z.preprocess(
+  emptyOptionalNumbers([
+    "heightCm",
+    "weightKg",
+    "bodyFatPercent",
+    "waistCm",
+    "hipCm",
+    "restingHeartRate",
+  ]),
+  z.object({
   heightCm: z.coerce.number().min(50).max(250, "Chiều cao không hợp lệ").optional().or(z.literal("").transform(() => undefined)),
   weightKg: z.coerce.number().min(10).max(300, "Cân nặng không hợp lệ").optional().or(z.literal("").transform(() => undefined)),
   bodyFatPercent: z.coerce.number().min(0).max(80).optional().or(z.literal("").transform(() => undefined)),
   waistCm: z.coerce.number().min(20).max(250).optional().or(z.literal("").transform(() => undefined)),
   hipCm: z.coerce.number().min(20).max(250).optional().or(z.literal("").transform(() => undefined)),
   restingHeartRate: z.coerce.number().min(20).max(220).optional().or(z.literal("").transform(() => undefined)),
-});
+  }),
+);
 
-export const trainingGoalSchema = z.object({
+export const trainingGoalSchema = z.preprocess(
+  emptyOptionalNumbers([
+    "trainingDaysPerWeek",
+    "sessionDurationMinutes",
+    "targetWeightKg",
+  ]),
+  z.object({
   currentlyTraining: z.boolean(),
   trainingDaysPerWeek: z.coerce.number().optional().or(z.literal("").transform(() => undefined)),
   sessionDurationMinutes: z.coerce.number().optional().or(z.literal("").transform(() => undefined)),
@@ -58,7 +89,8 @@ export const trainingGoalSchema = z.object({
   primaryGoal: z.string().min(1, "Vui lòng chọn mục tiêu chính"),
   targetWeightKg: z.coerce.number().optional().or(z.literal("").transform(() => undefined)),
   targetDeadline: z.string().optional(),
-}).superRefine((data, ctx) => {
+  }),
+).superRefine((data, ctx) => {
   if (data.currentlyTraining) {
     if (!data.trainingDaysPerWeek || data.trainingDaysPerWeek <= 0 || data.trainingDaysPerWeek > 14) {
       ctx.addIssue({

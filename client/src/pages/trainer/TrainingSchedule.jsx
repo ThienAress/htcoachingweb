@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -10,10 +10,11 @@ import {
   User,
   Dumbbell,
   AlertTriangle,
-  Timer,
   BarChart3,
   FileText,
   Flame,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import SEO from "../../components/SEO";
@@ -54,10 +55,50 @@ const DEFAULT_COLORS = {
   Stretching: "#ec4899",
 };
 
+const getVietnamDateKey = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]),
+  );
+  return values.year + "-" + values.month + "-" + values.day;
+};
+
+const addDays = (dateKey, days) => {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return (
+    date.getUTCFullYear() +
+    "-" +
+    String(date.getUTCMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(date.getUTCDate()).padStart(2, "0")
+  );
+};
+
+const dayIndexForDate = (dateKey) => {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const jsDay = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return jsDay === 0 ? 6 : jsDay - 1;
+};
+
+const nextDateForDay = (dayOfWeek) => {
+  const today = getVietnamDateKey();
+  const offset = (dayOfWeek - dayIndexForDate(today) + 7) % 7;
+  return addDays(today, offset);
+};
+
+const newRequestId = () => window.crypto.randomUUID();
+
 const INITIAL_FORM = {
   clientId: "",
   clientName: "",
   dayOfWeek: 0,
+  occurrenceDateKey: addDays(getVietnamDateKey(), 1),
   startTime: "08:00",
   endTime: "09:00",
   exerciseType: "Boxing",
@@ -154,32 +195,30 @@ const ConfirmDialog = ({ title, message, onConfirm, onCancel }) => (
 
 // ===== SCHEDULE MODAL =====
 const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEditing, isPending, defaultFormValues, clients }) => {
-  const [form, setForm] = useState(INITIAL_FORM);
-  const [useCustomType, setUseCustomType] = useState(false);
-
-  useEffect(() => {
-    if (initialData) {
-      const isCustom = !EXERCISE_TYPES.some((t) => t.label === initialData.exerciseType);
-      setForm({
+  const initialTypeIsCustom =
+    initialData &&
+    !EXERCISE_TYPES.some((type) => type.label === initialData.exerciseType);
+  const [form, setForm] = useState(() =>
+    initialData
+      ? {
         clientId: initialData.clientId?._id || initialData.clientId || "",
         clientName: initialData.clientId?.name || initialData.clientName || "",
         dayOfWeek: initialData.dayOfWeek ?? 0,
+        occurrenceDateKey:
+          initialData.occurrenceDateKey || nextDateForDay(initialData.dayOfWeek ?? 0),
         startTime: initialData.startTime || "08:00",
         endTime: initialData.endTime || "09:00",
-        exerciseType: isCustom ? "Khác" : initialData.exerciseType || "Boxing",
-        customExerciseType: isCustom ? initialData.exerciseType : "",
+        exerciseType: initialTypeIsCustom ? "Khác" : initialData.exerciseType || "Boxing",
+        customExerciseType: initialTypeIsCustom ? initialData.exerciseType : "",
         notes: initialData.notes || "",
         color: initialData.color || "#ff5500",
-      });
-      setUseCustomType(isCustom);
-    } else {
-      setForm({
+      }
+      : {
         ...INITIAL_FORM,
         ...(defaultFormValues || {}),
-      });
-      setUseCustomType(false);
-    }
-  }, [initialData, isOpen]);
+      },
+  );
+  const [useCustomType, setUseCustomType] = useState(Boolean(initialTypeIsCustom));
 
   if (!isOpen) return null;
 
@@ -207,7 +246,8 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
 
     onSubmit({
       clientId: form.clientId,
-      dayOfWeek: Number(form.dayOfWeek),
+      occurrenceDateKey: form.occurrenceDateKey,
+      dayOfWeek: dayIndexForDate(form.occurrenceDateKey),
       startTime: form.startTime,
       endTime: form.endTime,
       exerciseType: finalType,
@@ -266,13 +306,23 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
-              <CalendarDays className="w-3.5 h-3.5 inline mr-1" /> Ngày trong tuần *
+              <CalendarDays className="w-3.5 h-3.5 inline mr-1" /> Ngày tập *
             </label>
-            <select value={form.dayOfWeek} onChange={(e) => setForm((f) => ({ ...f, dayOfWeek: Number(e.target.value) }))} className={inputClass}>
-              {DAY_LABELS.map((label, idx) => (
-                <option key={idx} value={idx}>{label}</option>
-              ))}
-            </select>
+            <input
+              type="date"
+              value={form.occurrenceDateKey}
+              min={getVietnamDateKey()}
+              max={addDays(getVietnamDateKey(), 56)}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  occurrenceDateKey: e.target.value,
+                  dayOfWeek: dayIndexForDate(e.target.value),
+                }))
+              }
+              className={inputClass}
+              required
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -360,6 +410,7 @@ const TrainingSchedule = () => {
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [confirmAction, setConfirmAction] = useState(null);
   const [defaultFormValues, setDefaultFormValues] = useState(null);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const {
     data: schedules = [],
@@ -380,34 +431,65 @@ const TrainingSchedule = () => {
   const createMut = useMutation({
     mutationFn: (data) => createSchedule(data),
     onSuccess: () => { toast.success("Đã tạo lịch tập thành công!"); queryClient.invalidateQueries({ queryKey: ["training-schedules"] }); setIsModalOpen(false); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi tạo lịch tập"),
+    onError: (err) => {
+      if (err.response?.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ["training-schedules"] });
+      }
+      toast.error(err.response?.data?.message || "Lỗi khi tạo lịch tập");
+    },
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, data }) => updateSchedule(id, data),
     onSuccess: () => { toast.success("Đã cập nhật lịch tập!"); queryClient.invalidateQueries({ queryKey: ["training-schedules"] }); setIsModalOpen(false); setEditingSchedule(null); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật"),
+    onError: (err) => {
+      if (err.response?.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ["training-schedules"] });
+      }
+      toast.error(err.response?.data?.message || "Lỗi khi cập nhật");
+    },
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id) => deleteSchedule(id),
-    onSuccess: () => { toast.success("Đã xóa lịch tập!"); queryClient.invalidateQueries({ queryKey: ["training-schedules"] }); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa"),
+    mutationFn: ({ id, data }) => deleteSchedule(id, data),
+    onSuccess: () => { toast.success("Đã hủy lịch tập!"); queryClient.invalidateQueries({ queryKey: ["training-schedules"] }); },
+    onError: (err) => {
+      if (err.response?.status === 409) {
+        queryClient.invalidateQueries({ queryKey: ["training-schedules"] });
+      }
+      toast.error(err.response?.data?.message || "Lỗi khi hủy");
+    },
   });
 
   const clearMut = useMutation({
-    mutationFn: () => clearAllSchedules(),
-    onSuccess: (res) => { toast.success(res.data.message || "Đã xóa tất cả!"); queryClient.invalidateQueries({ queryKey: ["training-schedules"] }); setConfirmAction(null); },
+    mutationFn: (data) => clearAllSchedules(data),
+    onSuccess: (res) => { toast.success(res.data.message || "Đã hủy tất cả!"); queryClient.invalidateQueries({ queryKey: ["training-schedules"] }); setConfirmAction(null); },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi"),
   });
 
   const today = useMemo(() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; }, []);
 
+  const weekDates = useMemo(() => {
+    const todayKey = getVietnamDateKey();
+    const monday = addDays(todayKey, -dayIndexForDate(todayKey));
+    return Array.from(
+      { length: 7 },
+      (_, index) => addDays(monday, weekOffset * 7 + index),
+    );
+  }, [weekOffset]);
+
   const schedulesByDay = useMemo(() => {
     const g = Array.from({ length: 7 }, () => []);
-    schedules.forEach((s) => { if (s.dayOfWeek >= 0 && s.dayOfWeek <= 6) g[s.dayOfWeek].push(s); });
+    schedules.forEach((s) => {
+      const index = s.occurrenceDateKey
+        ? weekDates.indexOf(s.occurrenceDateKey)
+        : weekOffset === 0
+          ? s.dayOfWeek
+          : -1;
+      if (index >= 0 && index <= 6) g[index].push(s);
+    });
     return g;
-  }, [schedules]);
+  }, [schedules, weekDates, weekOffset]);
 
   const stats = useMemo(() => {
     const clientsSet = new Set(schedules.map((s) => s.clientId?._id || s.clientName.toLowerCase()));
@@ -416,34 +498,14 @@ const TrainingSchedule = () => {
     return { totalSlots: schedules.length, uniqueClients: clientsSet.size, typeCounts: types };
   }, [schedules]);
 
-  const earliestExpiry = useMemo(() => {
-    if (!schedules.length) return null;
-    return schedules.reduce((min, s) => { const d = new Date(s.expiresAt); return d < min ? d : min; }, new Date(schedules[0].expiresAt));
-  }, [schedules]);
-
-  const [countdown, setCountdown] = useState("");
-  useEffect(() => {
-    if (!earliestExpiry) { setCountdown(""); return; }
-    const update = () => {
-      const diff = earliestExpiry - new Date();
-      if (diff <= 0) { setCountdown("Đã hết hạn"); return; }
-      const d = Math.floor(diff / 86400000);
-      const h = Math.floor((diff % 86400000) / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      setCountdown(`${d}d ${h}h ${m}m`);
-    };
-    update();
-    const id = setInterval(update, 60000);
-    return () => clearInterval(id);
-  }, [earliestExpiry]);
-
-  const handleCreate = useCallback((dayOfWeek, startTime) => {
+  const handleCreate = useCallback((dayOfWeek, startTime, occurrenceDateKey) => {
     setEditingSchedule(null);
     if (dayOfWeek !== undefined && startTime !== undefined) {
       const startH = parseInt(startTime.split(":")[0], 10);
       const endTime = startH >= 23 ? "00:00" : `${String(startH + 1).padStart(2, "0")}:00`;
       setDefaultFormValues({
         dayOfWeek,
+        occurrenceDateKey: occurrenceDateKey || nextDateForDay(dayOfWeek),
         startTime,
         endTime,
       });
@@ -456,24 +518,44 @@ const TrainingSchedule = () => {
 
   const handleDelete = useCallback((s) => {
     setConfirmAction({
-      title: "Xóa lịch tập",
-      message: `Bạn có chắc muốn xóa lịch tập của "${s.clientId?.name || s.clientName}"?`,
-      onConfirm: () => { deleteMut.mutate(s._id); setConfirmAction(null); },
+      title: "Hủy lịch tập",
+      message: `Lịch của "${s.clientId?.name || s.clientName}" sẽ được lưu trong lịch sử.`,
+      onConfirm: () => {
+        deleteMut.mutate({
+          id: s._id,
+          data: {
+            revision: s.revision,
+            requestId: newRequestId(),
+            reason: "Huấn luyện viên hủy lịch",
+          },
+        });
+        setConfirmAction(null);
+      },
     });
   }, [deleteMut]);
 
   const handleClearAll = useCallback(() => {
-    if (!schedules.length) return toast.info("Không có lịch tập nào để xóa");
+    if (!schedules.length) return toast.info("Không có lịch tập nào để hủy");
     setConfirmAction({
-      title: "Xóa tất cả lịch tập",
-      message: `Bạn có chắc muốn xóa tất cả ${schedules.length} lịch tập?`,
-      onConfirm: () => clearMut.mutate(),
+      title: "Hủy tất cả lịch tập",
+      message: `Bạn có chắc muốn hủy tất cả ${schedules.length} lịch tập?`,
+      onConfirm: () => clearMut.mutate({ requestId: newRequestId() }),
     });
   }, [schedules.length, clearMut]);
 
   const handleSubmit = useCallback((data) => {
-    if (editingSchedule) updateMut.mutate({ id: editingSchedule._id, data });
-    else createMut.mutate(data);
+    if (editingSchedule) {
+      updateMut.mutate({
+        id: editingSchedule._id,
+        data: {
+          ...data,
+          revision: editingSchedule.revision,
+          requestId: newRequestId(),
+        },
+      });
+    } else {
+      createMut.mutate({ ...data, requestId: newRequestId() });
+    }
   }, [editingSchedule, updateMut, createMut]);
 
   if (isError) {
@@ -513,7 +595,7 @@ const TrainingSchedule = () => {
                 </h1>
                 <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full" />
                 <p className="text-gray-400 mt-4 max-w-xl mx-auto">
-                  Dữ liệu tự động xóa sau 7 ngày — Hãy cập nhật lịch hàng tuần
+                  Mỗi buổi tập gắn với ngày cụ thể và được lưu lại trong lịch sử
                 </p>
               </div>
 
@@ -521,12 +603,6 @@ const TrainingSchedule = () => {
               <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 md:p-6 mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex flex-wrap items-center gap-3">
-                    {countdown && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                        <Timer className="w-3.5 h-3.5" />
-                        Hết hạn: {countdown}
-                      </span>
-                    )}
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
                       {stats.totalSlots} buổi tập
                     </span>
@@ -537,10 +613,33 @@ const TrainingSchedule = () => {
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex items-center border border-gray-700 rounded-lg overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setWeekOffset((value) => Math.max(0, value - 1))}
+                        disabled={weekOffset === 0}
+                        className="p-2 text-gray-300 hover:bg-gray-700 disabled:opacity-40"
+                        title="Tuần trước"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <span className="px-3 text-xs text-gray-300">
+                        {weekDates[0]} - {weekDates[6]}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setWeekOffset((value) => Math.min(7, value + 1))}
+                        disabled={weekOffset === 7}
+                        className="p-2 text-gray-300 hover:bg-gray-700 disabled:opacity-40"
+                        title="Tuần sau"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
                     {schedules.length > 0 && (
                       <button onClick={handleClearAll} className="flex items-center gap-1.5 px-3 py-2 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm font-medium transition-colors">
                         <Trash2 className="w-4 h-4" />
-                        <span className="hidden sm:inline">Xóa tất cả</span>
+                        <span className="hidden sm:inline">Hủy tất cả</span>
                       </button>
                     )}
                     <button onClick={handleCreate} className="flex items-center gap-1.5 px-5 py-2.5 rounded-full bg-primary hover:bg-primary-dark text-white text-sm font-medium transition-all shadow-lg shadow-primary/30">
@@ -598,10 +697,11 @@ const TrainingSchedule = () => {
                       {/* Day headers */}
                       <div />
                       {DAY_SHORT.map((label, idx) => (
-                        <div key={idx} className={`text-center py-2.5 px-1 border-l border-gray-700/50 select-none ${idx === today ? "text-primary" : "text-gray-400"}`}>
+                        <div key={idx} className={`text-center py-2.5 px-1 border-l border-gray-700/50 select-none ${weekOffset === 0 && idx === today ? "text-primary" : "text-gray-400"}`}>
                           <div className="text-[0.65rem] uppercase tracking-wide opacity-60">{label}</div>
+                          <div className="text-[0.65rem] opacity-60">{weekDates[idx].slice(5)}</div>
                           <div className="mt-0.5">
-                            {idx === today ? (
+                            {weekOffset === 0 && idx === today ? (
                               <span className="inline-flex items-center justify-center px-2 h-7 rounded-full bg-primary text-white text-xs font-bold">
                                 {DAY_LABELS[idx]}
                               </span>
@@ -620,7 +720,7 @@ const TrainingSchedule = () => {
                             <div
                               key={dayIdx}
                               className="relative border-l border-t border-gray-700/30 h-12 hover:bg-white/[0.02] cursor-pointer"
-                              onClick={() => handleCreate(dayIdx, hour)}
+                              onClick={() => handleCreate(dayIdx, hour, weekDates[dayIdx])}
                             >
                               {rowIdx === 0 &&
                                 schedulesByDay[dayIdx].map((s) => {
@@ -657,11 +757,11 @@ const TrainingSchedule = () => {
                     {DAY_LABELS.map((dayLabel, dayIdx) => {
                       const daySchedules = schedulesByDay[dayIdx];
                       return (
-                        <div key={dayIdx} className={`rounded-xl border overflow-hidden ${dayIdx === today ? "ring-2 ring-primary/30 border-primary/30" : "border-gray-700"}`}>
-                          <div className={`px-4 py-2.5 text-sm font-semibold flex items-center justify-between border-b ${dayIdx === today ? "bg-primary/10 text-primary border-primary/20" : "bg-gray-800/80 text-gray-300 border-gray-700"}`}>
+                        <div key={dayIdx} className={`rounded-xl border overflow-hidden ${weekOffset === 0 && dayIdx === today ? "ring-2 ring-primary/30 border-primary/30" : "border-gray-700"}`}>
+                          <div className={`px-4 py-2.5 text-sm font-semibold flex items-center justify-between border-b ${weekOffset === 0 && dayIdx === today ? "bg-primary/10 text-primary border-primary/20" : "bg-gray-800/80 text-gray-300 border-gray-700"}`}>
                             <span>
-                              {dayLabel}
-                              {dayIdx === today && (
+                              {dayLabel} · {weekDates[dayIdx].slice(5)}
+                              {weekOffset === 0 && dayIdx === today && (
                                 <span className="ml-2 text-[0.65rem] bg-primary text-white px-1.5 py-0.5 rounded-full">Hôm nay</span>
                               )}
                             </span>
@@ -710,17 +810,18 @@ const TrainingSchedule = () => {
       <Footer />
 
       {/* Modal */}
-      <ScheduleModal
+      {isModalOpen && <ScheduleModal
+        key={editingSchedule?._id || JSON.stringify(defaultFormValues)}
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditingSchedule(null); setDefaultFormValues(null); }}
         onSubmit={handleSubmit}
         onDelete={(s) => { setIsModalOpen(false); setEditingSchedule(null); handleDelete(s); }}
         initialData={editingSchedule}
         isEditing={!!editingSchedule}
-        isPending={createMut.isPending || updateMut.isPending}
+        isPending={createMut.isPending || updateMut.isPending || deleteMut.isPending}
         defaultFormValues={defaultFormValues}
         clients={clients}
-      />
+      />}
 
       {/* Confirm */}
       {confirmAction && (

@@ -1,5 +1,5 @@
 // F1ForecastPanel.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   RefreshCcw,
@@ -60,6 +60,7 @@ const F1ForecastPanel = ({ customer, onBack, onGenerated }) => {
   const [forecast, setForecast] = useState(null);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const requestIdRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
     const loadLatest = async () => {
@@ -68,8 +69,7 @@ const F1ForecastPanel = ({ customer, onBack, onGenerated }) => {
         setLoadingLatest(true);
         const res = await getLatestOutcomeForecast(customer._id);
         setForecast(res?.data || null);
-      } catch (error) {
-        console.error(error);
+      } catch {
         setForecast(null);
       } finally {
         setLoadingLatest(false);
@@ -82,12 +82,15 @@ const F1ForecastPanel = ({ customer, onBack, onGenerated }) => {
     if (!customer?._id) return;
     try {
       setGenerating(true);
-      const res = await generateOutcomeForecast(customer._id);
+      const res = await generateOutcomeForecast(customer._id, {
+        requestId: requestIdRef.current,
+        regenerate: Boolean(forecast),
+      });
+      requestIdRef.current = crypto.randomUUID();
       setForecast(res?.data || null);
       alert("Generate dự đoán kết quả thành công");
       onGenerated?.(res?.data);
     } catch (error) {
-      console.error(error);
       alert(
         error?.response?.data?.message || "Generate dự đoán kết quả thất bại",
       );

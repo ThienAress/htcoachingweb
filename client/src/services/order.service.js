@@ -2,6 +2,12 @@ import api from "../utils/api";
 
 export const getOrders = (page = 1, limit = 5) => api.get(`/orders?page=${page}&limit=${limit}`);
 
+export const getCheckinOrderOptions = (search = "", signal) =>
+  api.get("/orders/checkin-options", {
+    params: { search, limit: 30 },
+    signal,
+  });
+
 export const createOrder = (data) => api.post("/orders", data);
 
 export const updateOrder = (id, data) => api.put(`/orders/${id}`, data);

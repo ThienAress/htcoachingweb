@@ -225,22 +225,31 @@ export const getOrCreateDraftIntake = async (customer, userId) => {
 
   if (!draft) {
     const version = await getNextIntakeVersion(customer._id);
-    draft = await F1Intake.create({
-      customerId: customer._id,
-      version,
-      isLatest: true,
-      isDraft: true,
-      customerInfo: {
-        fullName: customer.fullName,
-        age: customer.age,
-        gender: customer.gender,
-        occupation: customer.occupation,
-        phone: customer.phone,
-        email: customer.email,
-      },
-      createdBy: userId,
-      updatedBy: userId,
-    });
+    try {
+      draft = await F1Intake.create({
+        customerId: customer._id,
+        version,
+        isLatest: true,
+        isDraft: true,
+        customerInfo: {
+          fullName: customer.fullName,
+          age: customer.age,
+          gender: customer.gender,
+          occupation: customer.occupation,
+          phone: customer.phone,
+          email: customer.email,
+        },
+        createdBy: userId,
+        updatedBy: userId,
+      });
+    } catch (error) {
+      if (error.code !== 11000) throw error;
+      draft = await F1Intake.findOne({
+        customerId: customer._id,
+        isLatest: true,
+      });
+      if (!draft) throw error;
+    }
   }
 
   return draft;
