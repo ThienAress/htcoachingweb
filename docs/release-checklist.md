@@ -36,6 +36,13 @@ Rollback procedure: [production-rollback-runbook.md](./production-rollback-runbo
 
 ## Staging database
 
+- [x] Require `APP_ENV=staging`, exact
+      `MIGRATION_TARGET_DATABASE=htcoaching_staging`, and a phase-specific
+      confirmation before every migration.
+- [x] Verify the connected Mongoose database matches the target lock before any
+      migration write; Phase 7 checks this before rebuilding slot claims.
+- [x] Require production migration snapshot and approval evidence in code; no
+      production migration is approved by this checklist.
 - [x] Run Phase 1-3 migrations in order if the environment has not applied them.
 - [x] Set CONFIRM_PHASE4_INDEX_MIGRATION=yes, then run npm run migrate:phase4.
 - [x] Run npm run verify:phase4-indexes.
@@ -116,6 +123,10 @@ change approval, and an identified rollback path.
 
 ## Production rollout
 
+- [ ] Record `MIGRATION_BACKUP_SNAPSHOT_ID`, `MIGRATION_APPROVAL_ID`, exact
+      `MIGRATION_TARGET_DATABASE`, and the owner-approved phase list.
+- [ ] Set `CONFIRM_PRODUCTION_MIGRATION=production` only inside the approved
+      migration window; remove the one-run migration variables afterward.
 - [ ] Deploy server before client when the client depends on new endpoints.
 - [ ] Run approved index migration and index verification.
 - [ ] Deploy client and purge CDN only after health checks pass.

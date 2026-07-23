@@ -7,9 +7,12 @@ Target branch: main
 
 ## 1. Release decision
 
-The staging baseline at b1ab077 passed CI, browser, Recipe API and live staging
-checks. The monitoring changes after that baseline must receive a new staging
-commit and green CI before they become the release candidate.
+The staging candidate at `aba22a1` includes the validated Recipe API,
+monitoring, strict dynamic-route build, migration fail-closed controls,
+DOMPurify patch, and pinned Node runtime. Local browser, build, dependency and
+security gates passed. CI run `29982481091` passed all four jobs, and the
+post-deploy staging health/security checks passed 7/7 and 7/7. Owner-controlled
+production gates below still block any merge decision.
 
 Do not merge while any of these blockers is unresolved:
 
@@ -81,6 +84,9 @@ the rollback runbook and the Atlas snapshot evidence. It must also record:
    as the Render OPS_METRICS_TOKEN. Never print either value.
 5. Confirm GitHub Issues and Action failure notifications reach the owner.
 6. Create an Atlas on-demand snapshot and record its identifier.
+   Production migration execution also requires
+   `MIGRATION_TARGET_DATABASE`, `MIGRATION_BACKUP_SNAPSHOT_ID`,
+   `MIGRATION_APPROVAL_ID`, and `CONFIRM_PRODUCTION_MIGRATION=production`.
 7. Lock or pause Netlify production publishing so the client cannot publish
    before the new server endpoint is healthy.
 8. Confirm the Netlify build reports strict dynamic route mode. Netlify

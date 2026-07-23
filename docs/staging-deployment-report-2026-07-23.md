@@ -233,3 +233,32 @@ These items are intentionally not marked complete:
 - Perform a separate final diff review and explicit merge decision.
 - After production deployment, observe application, financial, schedule, AI,
   F1, privacy, CSP, and 5xx metrics for the full release window.
+
+## Final migration and runtime hardening
+
+Candidate `aba22a1` adds fail-closed controls without running any migration or
+writing staging/production data:
+
+- Phase 1-9 migration entrypoints require exact `APP_ENV`, database lock, and
+  phase confirmation.
+- Production migration entrypoints additionally require an Atlas snapshot ID,
+  approval ID, and the exact production confirmation phrase.
+- The connected database is rechecked before writes; Phase 7 performs this
+  check before its slot-claim rebuild.
+- Background jobs start only for explicit `BACKGROUND_JOBS_ENABLED=true`.
+- DOMPurify is pinned to 3.4.12 and Node to patched 22.23.1 across hosting
+  manifests and CI workflows.
+
+Local verification after these changes passed 148 server tests, 94 client
+tests, lint, runtime logging, all three dependency audits, secret/data-boundary
+scans, static and strict builds, and 135 Chromium/Firefox/WebKit E2E tests. The
+strict read-only staging build again generated and prerendered 24/24 routes.
+
+GitHub CI run `29982481091` passed all four jobs for `aba22a1`. A separate
+post-deploy direct check at `2026-07-23T05:37:49Z` passed staging health 7/7
+and security smoke 7/7, including live/ready, Blog, Recipe, Recipe taxonomy,
+CORS, operations authentication, private F1 legacy-path denial, and bounded
+unknown-API behavior.
+
+Full operational details and the production-only gates are recorded in
+`docs/migration-runtime-hardening-report-2026-07-23.md`.
