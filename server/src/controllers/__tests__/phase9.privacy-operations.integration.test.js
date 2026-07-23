@@ -118,10 +118,17 @@ describe("Phase 9 security and telemetry boundaries", () => {
     const jsonMetrics = await request(app)
       .get("/api/ops/metrics")
       .set("X-Ops-Token", process.env.OPS_METRICS_TOKEN);
+    const alerts = await request(app)
+      .get("/api/ops/alerts")
+      .set("X-Ops-Token", process.env.OPS_METRICS_TOKEN);
+    const unauthorizedAlerts = await request(app).get("/api/ops/alerts");
 
     expect(prometheus.status).toBe(200);
     expect(prometheus.text).toContain("htcoaching_http_requests");
     expect(jsonMetrics.status).toBe(401);
+    expect(alerts.status).toBe(200);
+    expect(Array.isArray(alerts.body.data)).toBe(true);
+    expect(unauthorizedAlerts.status).toBe(401);
   });
 });
 

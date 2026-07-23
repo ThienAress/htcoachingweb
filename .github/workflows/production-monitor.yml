@@ -1,0 +1,70 @@
+name: Production Monitor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: production-monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  read-only-monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run public production smoke
+        run: npm run smoke:production
+        env:
+          ALLOW_REMOTE_PRODUCTION_SMOKE: "true"
+          PRODUCTION_CLIENT_URL: https://htcoachingweb.io.vn
+          PRODUCTION_API_URL: https://htcoachingweb.onrender.com
+      - name: Check protected metrics and integrity alerts
+        run: npm run monitor:production
+        env:
+          ALLOW_REMOTE_PRODUCTION_MONITOR: "true"
+          PRODUCTION_CLIENT_URL: https://htcoachingweb.io.vn
+          PRODUCTION_API_URL: https://htcoachingweb.onrender.com
+          OPS_METRICS_TOKEN: ${{ secrets.PRODUCTION_OPS_METRICS_TOKEN }}
+      - name: Open production alert issue
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = "[Production monitor] Action required";
+            const openIssues = await github.paginate(
+              github.rest.issues.listForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: "open",
+                per_page: 100,
+              },
+            );
+            if (!openIssues.some((issue) => issue.title === title)) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body:
+                  "The read-only production monitor failed. " +
+                  "Review workflow run " +
+                  context.serverUrl +
+                  "/" +
+                  context.repo.owner +
+                  "/" +
+                  context.repo.repo +
+                  "/actions/runs/" +
+                  context.runId +
+                  " and follow docs/production-rollback-runbook.md.",
+              });
+            }

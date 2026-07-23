@@ -76,7 +76,7 @@ router.get(
   },
 );
 
-router.get("/alerts", protect, requireRoles("admin"), (_req, res) => {
+router.get("/alerts", requireOpsReadAccess, (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json({ success: true, data: getOperationalAlerts() });
 });

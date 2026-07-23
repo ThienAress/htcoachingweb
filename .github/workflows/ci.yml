@@ -73,6 +73,8 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/check-secrets.mjs
+      - run: node scripts/check-repository-boundaries.mjs
+      - run: npm run test:ops
 
   e2e:
     runs-on: ubuntu-latest

@@ -10,6 +10,9 @@
     "test:e2e": "npx playwright test",
     "security:secrets": "node scripts/check-secrets.mjs",
     "security:data-boundaries": "node scripts/check-repository-boundaries.mjs",
+    "test:ops": "node --test scripts/production-monitoring.test.mjs",
+    "smoke:production": "node scripts/production-smoke.mjs",
+    "monitor:production": "node scripts/production-monitor.mjs",
     "test": "cd client && npx vitest run && cd ../server && npx vitest run && cd .. && npx playwright test"
   },
   "repository": {

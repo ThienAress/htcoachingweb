@@ -24,7 +24,7 @@ Optional F1 bounds have conservative defaults: `F1_MEDIA_MAX_INPUT_BYTES`, `F1_M
 - `GET /api/ops/health`: public liveness/readiness response without secrets.
 - `GET /api/ops/metrics`: admin-only JSON snapshot.
 - `GET /api/ops/metrics/prometheus`: admin session or `X-Ops-Token`.
-- `GET /api/ops/alerts`: admin-only current alert indicators.
+- `GET /api/ops/alerts`: admin session or `X-Ops-Token` current alert indicators.
 - `GET /api/ops/privacy/f1`: admin-only aggregate F1 lifecycle counts.
 
 Prometheus scrape example:
@@ -39,7 +39,12 @@ http_headers:
 
 Metrics are in-process counters and bounded summaries. Scrape every server replica and aggregate externally; a process restart resets its local values.
 
-Implemented indicators cover financial reconciliation mismatch, F1 media cleanup failure, reminder failure and HTTP 5xx. The application exposes state but does not send pages by itself. Wire Prometheus/Alertmanager or the selected observability platform, test a real notification, assign an owner and attach the incident runbook before production approval.
+Implemented indicators cover financial reconciliation mismatch, F1 media cleanup
+failure, reminder failure and HTTP 5xx. The production-monitor GitHub workflow
+polls these indicators every 15 minutes and opens one deduplicated issue on
+failure. Wire per-replica Prometheus/Alertmanager or the selected observability
+platform as the durable metrics store, test a real notification, assign an owner
+and attach the incident runbook before production approval.
 
 ## 3. F1 retention
 

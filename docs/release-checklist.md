@@ -1,6 +1,8 @@
 # Release Checklist
 
 Current staging evidence: [staging-deployment-report-2026-07-23.md](./staging-deployment-report-2026-07-23.md).
+Production plan: [production-release-plan-2026-07-23.md](./production-release-plan-2026-07-23.md).
+Rollback procedure: [production-rollback-runbook.md](./production-rollback-runbook.md).
 
 ## Repository incident closure - updated 2026-07-22
 
@@ -99,6 +101,8 @@ change approval, and an identified rollback path.
 - [x] Keep F1_RETENTION_ENFORCE=false until deletion/provider cleanup is observed.
 - [x] Configure OPS_METRICS_TOKEN (minimum 24 characters) and verify the Prometheus
       endpoint rejects missing/incorrect tokens.
+- [x] Add read-only production smoke/metrics scripts and the scheduled GitHub
+      production monitor workflow.
 - [ ] Wire Prometheus scrape and external alert delivery; send one test alert to
       the named owner.
 - [x] Enforce CSP in staging after reviewing violations and testing public,
