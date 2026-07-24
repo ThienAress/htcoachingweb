@@ -164,9 +164,11 @@ Release commit: `51df495c74e4233dafec082c69088db093b3659a`
   adds a maximum of three attempts to the read-only liveness/readiness checks.
   Persistent failures still fail the workflow. Operations tests pass 7/7 and
   a real idle cold-start smoke timed out once, retried, then passed 11/11.
-- Alert issue `#30` remains open until a fully successful scheduled monitor run.
-  The workflow now comments on and closes the matching alert automatically only
-  after both public smoke and protected monitoring succeed.
+- Follow-up monitoring head `bcac627171dc0675528c8b6259a9a062ef24b4da`
+  passed main CI run `30111725428` across client, server, secrets/ops, and E2E.
+- Immediate production monitor run `30111725527` passed both public smoke and
+  protected monitoring. It added a resolution comment to alert issue `#30` and
+  closed the issue automatically with reason `completed`.
 - Production bundle scan: 3 canonical API references and 0 legacy Render API
   references across 936,995 bytes.
 - RUM currently has 58 samples and about 70 hours of coverage. The seven-day
