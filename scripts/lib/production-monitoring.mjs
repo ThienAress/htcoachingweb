@@ -85,6 +85,40 @@ export const fetchTimed = async (url, options = {}) => {
   };
 };
 
+export const retryReadOnlyOperation = async (
+  operation,
+  {
+    attempts = 3,
+    delayMs = 2_000,
+    onRetry = () => {},
+    sleep = (durationMs) =>
+      new Promise((resolve) => setTimeout(resolve, durationMs)),
+  } = {},
+) => {
+  assert(typeof operation === "function", "Retry operation must be a function");
+  assert(
+    Number.isInteger(attempts) && attempts >= 1 && attempts <= 5,
+    "Retry attempts must be between one and five",
+  );
+  assert(
+    Number.isFinite(delayMs) && delayMs >= 0 && delayMs <= 30_000,
+    "Retry delay must be between zero and 30000 milliseconds",
+  );
+
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation(attempt);
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) break;
+      onRetry(error, attempt);
+      await sleep(delayMs * attempt);
+    }
+  }
+  throw lastError;
+};
+
 export const parsePrometheusMetrics = (source) => {
   const metrics = new Map();
   for (const rawLine of String(source || "").split(/\r?\n/)) {

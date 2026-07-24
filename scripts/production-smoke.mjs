@@ -3,6 +3,7 @@ import {
   assert,
   fetchTimed,
   productionTargets,
+  retryReadOnlyOperation,
   validateGoogleOAuthRedirect,
 } from "./lib/production-monitoring.mjs";
 
@@ -76,7 +77,16 @@ const main = async () => {
     ["api liveness", "/api/ops/health/live"],
     ["api readiness", "/api/ops/health/ready"],
   ]) {
-    const result = await jsonCheck(targets.apiOrigin + path, name);
+    const result = await retryReadOnlyOperation(
+      () => jsonCheck(targets.apiOrigin + path, name),
+      {
+        onRetry: (error, attempt) => {
+          process.stderr.write(
+            `[production-smoke] ${name} attempt ${attempt} failed: ${error.message}; retrying\n`,
+          );
+        },
+      },
+    );
     record(name, { httpStatus: 200, durationMs: result.durationMs });
   }
 

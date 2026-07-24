@@ -5,6 +5,7 @@ import {
   activeOperationalAlerts,
   parsePrometheusMetrics,
   productionTargets,
+  retryReadOnlyOperation,
   validateGoogleOAuthRedirect,
   normalizeRumBaseline,
   summarizePrometheusMetrics,
@@ -162,4 +163,43 @@ test("operational alert evaluation exposes only safe bounded fields", () => {
   assert.deepEqual(active, [
     { code: "http_5xx", severity: "high", active: true, value: 2 },
   ]);
+});
+
+test("read-only retry recovers from bounded transient failures", async () => {
+  let calls = 0;
+  const retries = [];
+  const result = await retryReadOnlyOperation(
+    async () => {
+      calls += 1;
+      if (calls < 3) throw new Error(`transient-${calls}`);
+      return "healthy";
+    },
+    {
+      attempts: 3,
+      delayMs: 0,
+      onRetry: (error, attempt) => retries.push([error.message, attempt]),
+    },
+  );
+
+  assert.equal(result, "healthy");
+  assert.equal(calls, 3);
+  assert.deepEqual(retries, [
+    ["transient-1", 1],
+    ["transient-2", 2],
+  ]);
+});
+
+test("read-only retry preserves the final persistent failure", async () => {
+  let calls = 0;
+  await assert.rejects(
+    retryReadOnlyOperation(
+      async () => {
+        calls += 1;
+        throw new Error(`persistent-${calls}`);
+      },
+      { attempts: 2, delayMs: 0 },
+    ),
+    /persistent-2/,
+  );
+  assert.equal(calls, 2);
 });
