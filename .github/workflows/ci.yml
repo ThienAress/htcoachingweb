@@ -38,7 +38,7 @@ jobs:
         working-directory: client
         env:
           SKIP_DYNAMIC_ROUTES: "true"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: client-dist
@@ -98,7 +98,7 @@ jobs:
       - run: npm run test:e2e
         env:
           PW_FULL_BROWSER_MATRIX: ${{ github.event_name == 'schedule' }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-failure
