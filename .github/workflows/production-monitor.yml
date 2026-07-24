@@ -27,14 +27,14 @@ jobs:
         env:
           ALLOW_REMOTE_PRODUCTION_SMOKE: "true"
           PRODUCTION_CLIENT_URL: https://htcoachingweb.io.vn
-          PRODUCTION_API_URL: https://htcoachingweb.onrender.com
+          PRODUCTION_API_URL: https://api.htcoachingweb.io.vn
       - name: Check protected metrics and integrity alerts
         if: always()
         run: npm run monitor:production
         env:
           ALLOW_REMOTE_PRODUCTION_MONITOR: "true"
           PRODUCTION_CLIENT_URL: https://htcoachingweb.io.vn
-          PRODUCTION_API_URL: https://htcoachingweb.onrender.com
+          PRODUCTION_API_URL: https://api.htcoachingweb.io.vn
           OPS_METRICS_TOKEN: ${{ secrets.PRODUCTION_OPS_METRICS_TOKEN }}
           PRODUCTION_MONITOR_OUTPUT: artifacts/production-monitor.json
       - name: Retain metrics and RUM snapshot

@@ -153,19 +153,18 @@ change approval, and an identified rollback path.
 - [x] Implement and test a bounded Phase 8 disposition for 3 missing legacy F1
       media sources. Default execution remains fail-closed; the explicit
       `mark_failed` strategy preserves records and rejects deletion.
-- [ ] Obtain explicit owner approval to apply `mark_failed` to exactly 3
-      production media records, clear dead URL/public ID values, seed the F1
-      counter, backfill 1 consent, 4 reports and 3 predictions, and create the
-      reviewed Phase 8 indexes. The one-run environment must include
-      `PHASE8_MISSING_MEDIA_STRATEGY=mark_failed` and
-      `PHASE8_EXPECTED_MISSING_MEDIA_COUNT=3`.
+- [x] Resolve the Phase 8 media decision with explicit owner approval. The
+      owner superseded `mark_failed` by confirming that all F1 records were
+      test-only and authorizing their complete deletion. The guarded purge
+      removed 14 F1 documents, no Cloudinary asset, and left 0 F1 verifier
+      issues.
 
-- [ ] Record `MIGRATION_BACKUP_SNAPSHOT_ID`, `MIGRATION_APPROVAL_ID`, exact
+- [x] Record `MIGRATION_BACKUP_SNAPSHOT_ID`, `MIGRATION_APPROVAL_ID`, exact
       `MIGRATION_TARGET_DATABASE`, and the owner-approved phase list.
-- [ ] Set `CONFIRM_PRODUCTION_MIGRATION=production` only inside the approved
+- [x] Set `CONFIRM_PRODUCTION_MIGRATION=production` only inside the approved
       migration window; remove the one-run migration variables afterward.
 - [ ] Deploy server before client when the client depends on new endpoints.
-- [ ] Run approved index migration and index verification.
+- [x] Run approved index migration and index verification.
 - [ ] Deploy client and purge CDN only after health checks pass.
 - [ ] Observe 5xx rate, P95 HTTP/DB/AI latency, AI aborts, embedding failures,
       transaction aborts, revision conflicts, financial conflicts/reconciliation

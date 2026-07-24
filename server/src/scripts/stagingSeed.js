@@ -15,7 +15,7 @@ import Wallet from "../models/Wallet.js";
 
 const DATABASE_NAME = "htcoaching_staging";
 const FIXTURE_VERSION = "2026-07-23-v1";
-const PRODUCTION_PUBLIC_API_ORIGIN = "https://htcoachingweb.onrender.com";
+const PRODUCTION_PUBLIC_API_ORIGIN = "https://api.htcoachingweb.io.vn";
 const cleanupMode = process.argv.includes("--cleanup");
 
 const fixtureTag = (kind) => ({

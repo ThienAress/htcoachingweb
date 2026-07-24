@@ -106,7 +106,7 @@ const generateSitemap = async () => {
   const apiUrl = normalizeDynamicRouteApiUrl(
     process.env.SITEMAP_API_URL ||
       process.env.VITE_API_URL ||
-      "https://htcoachingweb.onrender.com/api",
+      "https://api.htcoachingweb.io.vn/api",
     policy,
   );
   const fetchApi = (pathName) =>

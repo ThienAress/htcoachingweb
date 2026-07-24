@@ -3,6 +3,7 @@ import {
   assert,
   fetchTimed,
   productionTargets,
+  validateGoogleOAuthRedirect,
 } from "./lib/production-monitoring.mjs";
 
 const jsonCheck = async (url, name, validate = () => true) => {
@@ -79,6 +80,21 @@ const main = async () => {
     record(name, { httpStatus: 200, durationMs: result.durationMs });
   }
 
+  const oauthResult = await fetchTimed(
+    targets.apiOrigin +
+      "/api/auth/google?client_url=" +
+      encodeURIComponent(targets.clientOrigin),
+  );
+  assert(
+    oauthResult.response.status >= 300 &&
+      oauthResult.response.status < 400,
+    "Google OAuth start returned " + oauthResult.response.status,
+  );
+  validateGoogleOAuthRedirect(oauthResult.response.headers.get("location"));
+  record("Google OAuth topology", {
+    httpStatus: oauthResult.response.status,
+    durationMs: oauthResult.durationMs,
+  });
   const blog = await jsonCheck(
     targets.apiOrigin + "/api/blog?limit=1",
     "blog public API",

@@ -1,5 +1,5 @@
 export const CANONICAL_CLIENT_ORIGIN = "https://htcoachingweb.io.vn";
-export const PRODUCTION_API_ORIGIN = "https://htcoachingweb.onrender.com";
+export const PRODUCTION_API_ORIGIN = "https://api.htcoachingweb.io.vn";
 
 const APPROVED_CLIENT_ORIGINS = new Set([
   CANONICAL_CLIENT_ORIGIN,
@@ -40,6 +40,31 @@ export const productionTargets = (env = process.env) => ({
     "PRODUCTION_API_URL",
   ),
 });
+
+export const validateGoogleOAuthRedirect = (
+  location,
+  expectedCallback =
+    PRODUCTION_API_ORIGIN + "/api/auth/google/callback",
+) => {
+  const destination = new URL(String(location || ""));
+  assert(
+    destination.protocol === "https:" &&
+      destination.hostname === "accounts.google.com",
+    "Google OAuth did not redirect to the approved provider",
+  );
+  assert(
+    destination.searchParams.get("redirect_uri") === expectedCallback,
+    "Google OAuth callback URI does not match the canonical production API",
+  );
+  assert(
+    destination.searchParams.get("state"),
+    "Google OAuth redirect is missing signed state",
+  );
+  return {
+    providerOrigin: destination.origin,
+    callbackUri: destination.searchParams.get("redirect_uri"),
+  };
+};
 
 export const fetchTimed = async (url, options = {}) => {
   const startedAt = performance.now();

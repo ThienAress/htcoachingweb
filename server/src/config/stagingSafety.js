@@ -3,6 +3,7 @@ const PRODUCTION_ORIGINS = new Set([
   "https://htcoachingweb.io.vn",
   "https://htcoachingweb.netlify.app",
   "https://htcoachingweb.onrender.com",
+  "https://api.htcoachingweb.io.vn",
 ]);
 
 const splitOrigins = (value) =>

@@ -1,4 +1,4 @@
-const PRODUCTION_API_BASE = "https://htcoachingweb.onrender.com/api";
+const PRODUCTION_API_BASE = "https://api.htcoachingweb.io.vn/api";
 
 const emptyContent = () => ({
   stories: [],

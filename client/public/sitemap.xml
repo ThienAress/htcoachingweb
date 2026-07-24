@@ -2,49 +2,49 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://htcoachingweb.io.vn/</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/ket-qua-khach-hang</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/club</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/exercises</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/tdee-calculator</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-24</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/mealplan</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-24</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -109,14 +109,392 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://htcoachingweb.io.vn/blog/vua-tang-co-vua-giam-mo-body-recomposition</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/cach-giam-mo-bung-hieu-qua-boc-tran-co-che-dot-mo</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/phuong-phap-tap-gym-hieu-qua-dap-tan-bay-no-pain-no-gain</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/tu-duy-tap-gym-dung-cach-ngung-copy-giao-an-vdv</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/thuc-don-giam-can-binh-dan-di-cho-chuan-macro</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/su-that-ve-thuc-pham-giam-can-doc-nhan-mac-tranh-cu-lua</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/bai-tap-chua-gu-lung-giai-ma-tu-the-sua-loi-co-rua</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/tap-gym-bi-lech-co-giai-ma-nguyen-nhan-cach-khac-phuc</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/cach-tinh-macro-giam-mo-flexible-dieting</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/cach-tinh-calo-giam-can-ngung-nhin-doi</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/lich-tap-gym-cho-nguoi-tap-moi-an-toan-chuan-khoa-hoc</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/lich-tap-gym-4-ngay-1-tuan-pha-bo-chung-ta-upper-lower</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/blog/lich-tap-gym-cho-nguoi-ban-ron-sua-gu-lung</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://htcoachingweb.io.vn/blog/ky-thuat-dumbbell-chest-press-chuan</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://htcoachingweb.io.vn/blog/ky-thuat-bodyweight-squat-cho-nguoi-moi</loc>
-    <lastmod>2026-07-20</lastmod>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/vietnamese-style-veggie-hotpot</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/vietnamese-veg-parcels</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/tofu-greens-cashew-stir-fry</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/tangy-carrot-cabbage-onion-salad</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/vegan-banh-mi</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/vietnamese-prawn-spiralized-rolls</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/vietnamese-caramel-trout</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/sea-bass-with-sizzled-ginger-chilli-spring-onions</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/salt-pepper-squid</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/salmon-noodle-wraps</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/salmon-noodle-soup</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/prawn-noodle-salad-with-crispy-shallots</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/noodle-bowl-salad</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/crispy-fried-fish-with-ginger-and-fermented-soybeans-trey-chien-chuon</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/bang-bang-prawn-salad</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/vietnamese-style-caramel-pork</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/vietnamese-pork-salad</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/vietnamese-grilled-pork-bun-thit-nuong</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/rice-paper-dumplings</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/barbecue-pork-buns</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/turkey-banh-mi</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/purple-sprouting-broccoli-tempura-with-nuoc-cham</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/vietnamese-lamb-shanks-with-sweet-potatoes</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/vietnamese-chicken-salad</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/turkish-lahmacun</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/steak-vietnamese-noodle-salad</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/beef-pho</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/beef-banh-mi-bowls-with-sriracha-mayo-carrot-pickled-cucumber</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/mbuzi-choma-roasted-goat</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/jamaican-curry-goat</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/yemeni-lahsa-elite-shakshuka</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/ugali-kenyan-cornmeal</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/torrijas-with-sherry</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/torrijas</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/smoked-haddock-kedgeree</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/salmon-eggs-eggs-benedict</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/rmmegrt-norwegian-sour-cream-porridge</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/oatmeal-pancakes</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/jamaican-cornmeal-porridge</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/home-made-mandazi</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/grits</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/full-english-breakfast</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/fruit-and-cream-cheese-breakfast-pastries</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/flija-layered-pancake-crepe</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/english-breakfast</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/dutch-poffertjes-mini-pancakes</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/breakfast-potatoes</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/bread-omelette</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/antiguan-breakfast-chop-up-and-saltfish</loc>
+    <lastmod>2026-07-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/yaki-udon</loc>
+    <lastmod>2026-07-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

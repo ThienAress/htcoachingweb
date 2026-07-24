@@ -5,6 +5,7 @@ import {
   activeOperationalAlerts,
   parsePrometheusMetrics,
   productionTargets,
+  validateGoogleOAuthRedirect,
   normalizeRumBaseline,
   summarizePrometheusMetrics,
 } from "./lib/production-monitoring.mjs";
@@ -12,7 +13,7 @@ import {
 test("production targets accept only explicit application origins", () => {
   assert.deepEqual(productionTargets({}), {
     clientOrigin: "https://htcoachingweb.io.vn",
-    apiOrigin: "https://htcoachingweb.onrender.com",
+    apiOrigin: "https://api.htcoachingweb.io.vn",
   });
   assert.throws(
     () =>
@@ -30,6 +31,28 @@ test("production targets accept only explicit application origins", () => {
   );
 });
 
+test("Google OAuth redirect stays on the canonical production API", () => {
+  const location = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  location.searchParams.set(
+    "redirect_uri",
+    "https://api.htcoachingweb.io.vn/api/auth/google/callback",
+  );
+  location.searchParams.set("state", "signed-state");
+
+  assert.deepEqual(validateGoogleOAuthRedirect(location), {
+    providerOrigin: "https://accounts.google.com",
+    callbackUri:
+      "https://api.htcoachingweb.io.vn/api/auth/google/callback",
+  });
+  location.searchParams.set(
+    "redirect_uri",
+    "https://htcoachingweb.onrender.com/api/auth/google/callback",
+  );
+  assert.throws(
+    () => validateGoogleOAuthRedirect(location),
+    /canonical production API/,
+  );
+});
 test("Prometheus parser returns a bounded release summary", () => {
   const source = `
 # TYPE htcoaching_http_requests counter
