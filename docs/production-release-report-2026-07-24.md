@@ -3,7 +3,7 @@
 Date: 2026-07-24
 Branch: `fix/production-auth-and-data-migration`
 Base commit: `fb38840629212fbe67a71893407458b31ce63b4d`
-Status: pre-deploy gates passed; production deploy pending
+Status: deployed; automated post-deploy gates passed; owner Google login pending
 
 ## Scope
 
@@ -137,15 +137,43 @@ the automated checks do not interact with the owner's Google account.
 
 ## Deployment And Post-Deploy Gate
 
-Pending:
+Release commit: `51df495c74e4233dafec082c69088db093b3659a`
 
-- Push the release branch and require CI success.
-- Merge the reviewed release commit into `main`.
-- Deploy the exact `main` commit to Render.
-- Confirm Netlify publishes the exact `main` commit.
-- Run full production smoke and protected monitoring.
-- Complete one owner-driven Google login.
-- Record deploy IDs, commit SHA, smoke result, and monitoring result here.
+- Staging CI run `30071292732`: success.
+- Render staging deploy `dep-d9hg1mok1i2s739i2il0`: live at the exact release
+  commit.
+- The push-triggered staging health workflow started before the Render deploy
+  was live and failed its first public API step. Direct checks after the exact
+  deploy became live passed health 7/7 and security 7/7.
+- Main CI run `30071600836`: success.
+- Netlify production deploy `6a630256074b92000800b1e3`: ready at the exact
+  release commit.
+- Render production deploy `dep-d9hg7ifavr4c73ehiahg`: live at the exact
+  release commit.
+- Full production smoke: 11/11 passed, including Google OAuth topology, blog
+  detail, recipe detail, and the dynamic sitemap.
+- Protected production monitoring: success with 0 HTTP errors, 0 server
+  errors, 0 integrity alerts, and HTTP P95 of about 161 ms.
+- Five scheduled monitor runs (`30075102408`, `30084464997`, `30090924036`,
+  `30099087577`, and `30106165724`) failed only the public smoke step after
+  its 30-second API timeout; every protected metrics, integrity, and artifact
+  step passed. A direct smoke while the API was awake passed 11/11, confirming
+  the repeated failure pattern was the Render cold start rather than a broken
+  endpoint.
+- Follow-up operations commit `160b87408722fbd74f1fce902c3e368dce4685a6`
+  adds a maximum of three attempts to the read-only liveness/readiness checks.
+  Persistent failures still fail the workflow. Operations tests pass 7/7 and
+  the updated production smoke passes 11/11.
+- Production bundle scan: 3 canonical API references and 0 legacy Render API
+  references across 936,995 bytes.
+- RUM currently has 58 samples and about 70 hours of coverage. The seven-day
+  baseline is not ready; slow LCP on the homepage and login page remains a
+  performance backlog item.
+
+Pending manual gate:
+
+- Complete one owner-driven Google login and confirm the authenticated account
+  page loads without `Khong co token`.
 
 Rollback must use the reviewed previous application deploy. Database rollback
 must use the fresh backup only if a verified data regression requires it; an

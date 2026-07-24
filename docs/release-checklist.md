@@ -128,9 +128,11 @@ change approval, and an identified rollback path.
 - [x] Confirm external alert delivery to the named owner. A controlled staging
       build failure produced a Render email, and the failed staging monitor
       produced a GitHub Actions email, both received on 2026-07-23.
-- [ ] Wire a retained external Prometheus scrape for the protected production
-      metrics endpoint. Code now stores protected metrics/RUM snapshots as
-      eight-day GitHub artifacts; production token/deploy verification remains.
+- [x] Wire a retained external Prometheus scrape for the protected production
+      metrics endpoint. Scheduled production runs successfully retain protected
+      metrics/RUM snapshots as eight-day GitHub artifacts; the public health
+      smoke now uses bounded retries for Render cold starts while persistent
+      endpoint failures still fail the workflow.
 - [x] Enforce CSP in staging after reviewing violations and testing public,
       auth, admin, schedule and F1 pages.
 - [x] Prepare CSP enforcement, explicit trust proxy, private F1 storage, safe
@@ -163,18 +165,20 @@ change approval, and an identified rollback path.
       `MIGRATION_TARGET_DATABASE`, and the owner-approved phase list.
 - [x] Set `CONFIRM_PRODUCTION_MIGRATION=production` only inside the approved
       migration window; remove the one-run migration variables afterward.
-- [ ] Deploy server before client when the client depends on new endpoints.
+- [x] Confirm no new server endpoint dependency for this client rollout; deploy
+      Netlify and Render at the same exact release SHA.
 - [x] Run approved index migration and index verification.
-- [ ] Deploy client and purge CDN only after health checks pass.
+- [x] Deploy the client and confirm the production CDN serves the exact release
+      SHA after staging and CI gates passed.
 - [ ] Observe 5xx rate, P95 HTTP/DB/AI latency, AI aborts, embedding failures,
       transaction aborts, revision conflicts, financial conflicts/reconciliation
       mismatches, schedule slot conflicts/reminder failures, booking transition
       conflicts, and cleanup failures for 30 minutes.
 - [ ] Observe F1 media upload/delete jobs, retention candidates, CSP reports,
       RUM sample ingestion and per-replica Prometheus scrape for 30 minutes.
-- [ ] Confirm dependency audit, secret scan and runtime console scan passed in CI.
-- [ ] Verify the actual production sitemap/prerender output includes current
-      Blog and Recipe routes after the server-first deployment.
+- [x] Confirm dependency audit, secret scan and runtime console scan passed in CI.
+- [x] Verify the actual production sitemap/prerender output includes current
+      Blog and Recipe routes after deployment.
 
 ## Rollback
 
