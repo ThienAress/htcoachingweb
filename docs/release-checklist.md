@@ -133,7 +133,9 @@ change approval, and an identified rollback path.
       metrics/RUM snapshots as eight-day GitHub artifacts; the public health
       smoke now uses bounded retries for Render cold starts while persistent
       endpoint failures still fail the workflow. A successful full run comments
-      on and closes the matching open production alert issue.
+      on and closes the matching open production alert issue. Changes to the
+      production monitoring workflow/scripts also trigger an immediate run on
+      `main`, while the recurring schedule remains enabled.
 - [x] Enforce CSP in staging after reviewing violations and testing public,
       auth, admin, schedule and F1 pages.
 - [x] Prepare CSP enforcement, explicit trust proxy, private F1 storage, safe

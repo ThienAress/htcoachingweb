@@ -1,6 +1,14 @@
 name: Production Monitor
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/production-monitor.yml"
+      - "scripts/lib/production-monitoring.mjs"
+      - "scripts/production-monitor.mjs"
+      - "scripts/production-monitoring.test.mjs"
+      - "scripts/production-smoke.mjs"
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
