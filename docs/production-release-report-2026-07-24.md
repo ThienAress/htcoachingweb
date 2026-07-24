@@ -168,7 +168,8 @@ Release commit: `51df495c74e4233dafec082c69088db093b3659a`
   passed main CI run `30111725428` across client, server, secrets/ops, and E2E.
 - Immediate production monitor run `30111725527` passed both public smoke and
   protected monitoring. It added a resolution comment to alert issue `#30` and
-  closed the issue automatically with reason `completed`.
+  closed the issue automatically with reason `completed`. The next scheduled
+  monitor run `30112109375` also passed on the same monitoring commit.
 - Production bundle scan: 3 canonical API references and 0 legacy Render API
   references across 936,995 bytes.
 - RUM currently has 58 samples and about 70 hours of coverage. The seven-day
