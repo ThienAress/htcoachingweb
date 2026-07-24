@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "check:bundle": "node scripts/check-bundle-budget.js",
-    "security:audit": "npm audit --audit-level=high"
+    "security:audit": "npm audit --audit-level=high",
+    "build:netlify": "puppeteer browsers install chrome && npm run build"
   },
   "dependencies": {
     "@aejkatappaja/phantom-ui": "^0.10.1",
