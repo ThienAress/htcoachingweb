@@ -1,3 +1,5 @@
+import { retryReadOnlyOperation } from "./lib/production-monitoring.mjs";
+
 const APPROVED_CLIENT_ORIGIN =
   "https://staging--htcoachingweb.netlify.app";
 const APPROVED_API_ORIGIN = "https://htcoachingweb-staging.onrender.com";
@@ -105,7 +107,7 @@ const main = async () => {
       (body) => Array.isArray(body.data),
     ],
   ]) {
-    await check(name, async () => {
+    const runApiCheck = async () => {
       const { response, durationMs } = await fetchTimed(
         `${config.apiOrigin}${path}`,
         { headers: { Accept: "application/json" } },
@@ -122,7 +124,19 @@ const main = async () => {
         name + " returned an invalid response contract",
       );
       return { httpStatus: response.status, durationMs };
-    });
+    };
+    const isHealthCheck = path.startsWith("/api/ops/health/");
+    await check(name, () =>
+      isHealthCheck
+        ? retryReadOnlyOperation(runApiCheck, {
+            onRetry: (error, attempt) => {
+              process.stderr.write(
+                `[staging-health] ${name} attempt ${attempt} failed: ${error.message}; retrying\n`,
+              );
+            },
+          })
+        : runApiCheck(),
+    );
   }
 
   process.stdout.write(

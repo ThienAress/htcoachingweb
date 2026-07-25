@@ -29,6 +29,7 @@ jobs:
           STAGING_API_URL: https://htcoachingweb-staging.onrender.com
           STAGING_CLIENT_URL: https://staging--htcoachingweb.netlify.app
       - name: Run read-only staging security checks
+        if: always()
         working-directory: server
         run: npm run security:smoke
         env:
