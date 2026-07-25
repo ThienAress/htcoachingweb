@@ -3,7 +3,7 @@ import BlogPost from "../models/BlogPost.js";
 import "../models/Trainer.js";
 import sanitizeHtml from "sanitize-html";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
-import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
+import { scheduleNetlifyBuild } from "../utils/triggerBuild.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import { safeLog } from "../utils/safeLogger.js";
 
@@ -47,6 +47,29 @@ const slugify = (value = "") =>
 
 const escapeRegex = (value) =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const publicBuildFields = [
+  "title",
+  "slug",
+  "content",
+  "excerpt",
+  "category",
+  "subCategory",
+  "tags",
+  "coverImage",
+  "author",
+  "metaTitle",
+  "metaDescription",
+  "focusKeyword",
+  "featured",
+];
+
+const publicBuildFieldsChanged = (post, payload) =>
+  publicBuildFields.some((field) => {
+    const currentValue = post.get?.(field) ?? post[field] ?? null;
+    const nextValue = payload[field] ?? null;
+    return JSON.stringify(currentValue) !== JSON.stringify(nextValue);
+  });
 
 const getBlogPayload = (body = {}, existingPost = null) => {
   const title = String(body.title || "").trim();
@@ -271,9 +294,8 @@ export const createBlogPost = async (req, res) => {
 
     const post = await BlogPost.create(payload);
     
-    // Trigger Netlify rebuild if published
     if (post.status === "published") {
-      triggerNetlifyBuild();
+      scheduleNetlifyBuild("blog_published");
     }
     
     res.status(201).json({ success: true, data: post });
@@ -293,6 +315,7 @@ export const updateBlogPost = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy bài viết" });
     }
 
+    const wasPublished = existingPost.status === "published";
     const payload = getBlogPayload(req.body, existingPost);
     if (!payload.title || !payload.slug) {
       return res.status(400).json({ success: false, message: "Tiêu đề bài viết là bắt buộc" });
@@ -306,11 +329,18 @@ export const updateBlogPost = async (req, res) => {
       });
     }
 
+    const publicContentChanged = publicBuildFieldsChanged(existingPost, payload);
     Object.assign(existingPost, payload);
     await existingPost.save();
 
-    // Trigger Netlify rebuild (whether it changed to/from published)
-    triggerNetlifyBuild();
+    const isPublished = existingPost.status === "published";
+    if (!wasPublished && isPublished) {
+      scheduleNetlifyBuild("blog_published");
+    } else if (wasPublished && !isPublished) {
+      scheduleNetlifyBuild("blog_unpublished");
+    } else if (wasPublished && publicContentChanged) {
+      scheduleNetlifyBuild("blog_updated");
+    }
 
     res.json({ success: true, data: existingPost });
   } catch (err) {
@@ -329,9 +359,8 @@ export const deleteBlogPost = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy bài viết" });
     }
 
-    // Trigger Netlify rebuild if it was published
     if (post.status === "published") {
-      triggerNetlifyBuild();
+      scheduleNetlifyBuild("blog_deleted");
     }
 
     res.json({ success: true, message: "Xóa bài viết thành công" });
