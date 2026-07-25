@@ -179,7 +179,8 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
     return (waist / hip).toFixed(2);
   }, [waistCm, hipCm]);
 
-  const handleNextStep = async () => {
+  const handleNextStep = async (event) => {
+    event?.preventDefault();
     // Validate current step
     let isValid = false;
     if (currentStep === 1) isValid = await trigger("customerInfo");

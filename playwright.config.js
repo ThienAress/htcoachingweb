@@ -18,7 +18,8 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 30000,
   expect: { timeout: 10000 },
-  workers: fullBrowserMatrix ? 3 : undefined,
+  // The mock API uses process-level mutable fixtures across browser projects.
+  workers: fullBrowserMatrix ? 1 : undefined,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI
     ? [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]]

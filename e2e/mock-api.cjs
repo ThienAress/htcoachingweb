@@ -95,7 +95,12 @@ const sendJson = (res, body, status = 200) => {
 const handleApi = (req, res, path) => {
   const role = req.headers["x-e2e-role"];
   const actor = ACTORS[role] || null;
-  if (!["GET", "HEAD"].includes(req.method)) req.resume();
+  const isF1MediaUpload =
+    path === "/api/f1-customers/" + F1_CUSTOMER_ID + "/media" &&
+    req.method === "POST";
+  if (!["GET", "HEAD"].includes(req.method) && !isF1MediaUpload) {
+    req.resume();
+  }
 
   if (path === "/api/user/me") {
     return actor
@@ -176,10 +181,7 @@ const handleApi = (req, res, path) => {
     };
     return sendJson(res, { success: true, data: f1Intake });
   }
-  if (
-    path === "/api/f1-customers/" + F1_CUSTOMER_ID + "/media" &&
-    req.method === "POST"
-  ) {
+  if (isF1MediaUpload) {
     req.on("end", () => {
       sendJson(
         res,
@@ -200,6 +202,7 @@ const handleApi = (req, res, path) => {
         201,
       );
     });
+    req.resume();
     return;
   }
   if (

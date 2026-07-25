@@ -328,10 +328,8 @@ export const deleteOrder = async (req, res) => {
         );
       }
 
-      const [hasCheckins, hasContract] = await Promise.all([
-        Checkin.exists({ orderId }).session(session),
-        Contract.exists({ orderId }).session(session),
-      ]);
+      const hasCheckins = await Checkin.exists({ orderId }).session(session);
+      const hasContract = await Contract.exists({ orderId }).session(session);
       if (hasCheckins || hasContract) {
         throw orderError(
           409,

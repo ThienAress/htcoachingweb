@@ -238,25 +238,27 @@ export const processF1DataDeletionBatch = async ({
       const session = await mongoose.startSession();
       try {
         await session.withTransaction(async () => {
-          await Promise.all([
-            F1Intake.deleteMany({ customerId: job.customerId }).session(session),
-            F1Assessment.deleteMany({ customerId: job.customerId }).session(
-              session,
-            ),
-            F1AiReport.deleteMany({ customerId: job.customerId }).session(
-              session,
-            ),
-            F1OutcomeForecast.deleteMany({
-              customerId: job.customerId,
-            }).session(session),
-            F1ResultPrediction.deleteMany({
-              customerId: job.customerId,
-            }).session(session),
-            F1Media.deleteMany({ customerId: job.customerId }).session(session),
-            F1MediaDeletionJob.deleteMany({
-              customerId: job.customerId,
-            }).session(session),
-          ]);
+          await F1Intake.deleteMany({ customerId: job.customerId }).session(
+            session,
+          );
+          await F1Assessment.deleteMany({ customerId: job.customerId }).session(
+            session,
+          );
+          await F1AiReport.deleteMany({ customerId: job.customerId }).session(
+            session,
+          );
+          await F1OutcomeForecast.deleteMany({
+            customerId: job.customerId,
+          }).session(session);
+          await F1ResultPrediction.deleteMany({
+            customerId: job.customerId,
+          }).session(session);
+          await F1Media.deleteMany({ customerId: job.customerId }).session(
+            session,
+          );
+          await F1MediaDeletionJob.deleteMany({
+            customerId: job.customerId,
+          }).session(session);
           await pseudonymizeCustomer(job.customerId, session);
           await F1DataDeletionJob.updateOne(
             { _id: job._id },

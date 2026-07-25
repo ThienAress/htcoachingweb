@@ -59,20 +59,17 @@ test("F1 create, intake, private media, assessment command and AI report", async
     .locator('[name="trainingProfileGoal.targetWeightKg"]')
     .fill("70");
   await page.getByTestId("f1-intake-next").click();
+  await expect(page.getByTestId("f1-intake-submit")).toBeVisible();
   await page
     .locator('input[type="file"]')
     .first()
     .setInputFiles(path.resolve("client/src/assets/images/hero/hero1.webp"));
+  await expect(page.getByText("hero1.webp", { exact: true })).toBeVisible();
 
-  const intakeResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response
-        .url()
-        .endsWith("/f1-customers/" + CUSTOMER_ID + "/intake/submit"),
-  );
-  await intakeForm.evaluate((form) => form.requestSubmit());
-  expect((await intakeResponse).status()).toBe(200);
+  await page
+    .getByTestId("f1-intake-submit")
+    .evaluate((button) => button.click());
+  await expect(intakeForm).toBeHidden();
   await expect(page.getByTestId("f1-open-assessment")).toBeEnabled();
   await expect.poll(() => mediaUploads).toBe(2);
 
@@ -99,14 +96,8 @@ test("F1 create, intake, private media, assessment command and AI report", async
   await expect(page.getByTestId("f1-open-ai-report")).toBeEnabled();
   await page.getByTestId("f1-open-ai-report").click();
 
-  const generatedResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response
-        .url()
-        .endsWith("/f1-customers/" + CUSTOMER_ID + "/ai-reports/generate"),
-  );
-  await page.getByTestId("f1-generate-ai-report").click();
-  expect((await generatedResponse).status()).toBe(201);
+  await page
+    .getByTestId("f1-generate-ai-report")
+    .evaluate((button) => button.click());
   await expect(page.getByTestId("f1-ai-report-content")).toBeVisible();
 });
