@@ -13,6 +13,7 @@ import TrainerLayout from "./layouts/TrainerLayout";
 import AdminRoute from "./routes/AdminRoute";
 import GlobalLoading from "./components/GlobalLoading";
 import DeferredChatPanel from "./components/ChatWidget/DeferredChatPanel";
+import DevToolsGuard from "./components/DevToolsGuard";
 import WebVitalsReporter from "./components/WebVitalsReporter";
 
 // Lazy-loaded pages (Code Splitting)
@@ -243,6 +244,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <DevToolsGuard />
         <AppContent />
       </AuthProvider>
     </BrowserRouter>
