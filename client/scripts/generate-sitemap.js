@@ -122,6 +122,7 @@ const generateSitemap = async () => {
   const { content, failures } = await fetchDynamicRouteContent({
     fetchApi,
     policy,
+    fetchAllPages: true,
   });
 
   const dynamicRoutes = [

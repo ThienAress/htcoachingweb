@@ -17,7 +17,12 @@ const responseFor = (path) => {
   if (path.startsWith("/blog")) {
     return { data: { data: [{ slug: "blog-one" }] } };
   }
-  return { data: { data: [{ slug: "recipe-one" }] } };
+  return {
+    data: {
+      data: [{ slug: "recipe-one" }],
+      pagination: { total: 1, page: 1, limit: 50, totalPages: 1 },
+    },
+  };
 };
 
 describe("dynamic route release policy", () => {
@@ -164,5 +169,93 @@ describe("dynamic route release policy", () => {
       }),
     ).rejects.toThrow(/recipes \(HTTP 404\)/);
     expect(permanentAttempts).toBe(1);
+  });
+
+  it("fetches every recipe page reported by the public API", async () => {
+    const fetchApi = vi.fn(async (path) => {
+      if (!path.startsWith("/recipes")) return responseFor(path);
+
+      const page = Number(
+        new URL(path, "https://example.test").searchParams.get("page"),
+      );
+      const pageSize = page === 3 ? 1 : 50;
+      return {
+        data: {
+          data: Array.from({ length: pageSize }, (_, index) => ({
+            slug: `recipe-${page}-${index + 1}`,
+          })),
+          pagination: { total: 101, page, limit: 50, totalPages: 3 },
+        },
+      };
+    });
+
+    const result = await fetchDynamicRouteContent({
+      fetchApi,
+      policy: resolveDynamicRoutePolicy({ REQUIRE_DYNAMIC_ROUTES: "true" }),
+      logger: { error: vi.fn() },
+      retryDelayMs: 0,
+      fetchAllPages: true,
+    });
+
+    expect(result.content.recipes).toHaveLength(101);
+    expect(
+      fetchApi.mock.calls
+        .map(([path]) => path)
+        .filter((path) => path.startsWith("/recipes")),
+    ).toEqual([
+      "/recipes?limit=50&page=1",
+      "/recipes?limit=50&page=2",
+      "/recipes?limit=50&page=3",
+    ]);
+  });
+
+  it("keeps recipe pagination opt-in for lightweight prerendering", async () => {
+    const fetchApi = vi.fn(async (path) => {
+      if (!path.startsWith("/recipes")) return responseFor(path);
+
+      return {
+        data: {
+          data: Array.from({ length: 50 }, (_, index) => ({
+            slug: `recipe-${index + 1}`,
+          })),
+          pagination: { total: 101, page: 1, limit: 50, totalPages: 3 },
+        },
+      };
+    });
+
+    const result = await fetchDynamicRouteContent({
+      fetchApi,
+      policy: resolveDynamicRoutePolicy({ REQUIRE_DYNAMIC_ROUTES: "true" }),
+      logger: { error: vi.fn() },
+      retryDelayMs: 0,
+    });
+
+    expect(result.content.recipes).toHaveLength(50);
+    expect(
+      fetchApi.mock.calls.filter(([path]) => path.startsWith("/recipes")),
+    ).toHaveLength(1);
+  });
+
+  it("fails a strict build when recipe pagination is incomplete", async () => {
+    const fetchApi = vi.fn(async (path) => {
+      if (!path.startsWith("/recipes")) return responseFor(path);
+
+      return {
+        data: {
+          data: [{ slug: "recipe-one" }],
+          pagination: { total: 2, page: 1, limit: 50, totalPages: 1 },
+        },
+      };
+    });
+
+    await expect(
+      fetchDynamicRouteContent({
+        fetchApi,
+        policy: resolveDynamicRoutePolicy({ REQUIRE_DYNAMIC_ROUTES: "true" }),
+        logger: { error: vi.fn() },
+        retryDelayMs: 0,
+        fetchAllPages: true,
+      }),
+    ).rejects.toThrow(/recipes \(invalid response\)/);
   });
 });

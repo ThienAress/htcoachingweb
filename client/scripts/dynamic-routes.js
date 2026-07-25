@@ -1,4 +1,7 @@
 const PRODUCTION_API_BASE = "https://api.htcoachingweb.io.vn/api";
+const RECIPE_PAGE_SIZE = 50;
+const RECIPE_PAGE_CONCURRENCY = 4;
+const MAX_RECIPE_PAGES = 1_000;
 
 const emptyContent = () => ({
   stories: [],
@@ -30,8 +33,10 @@ const sourceDefinitions = [
   {
     key: "recipes",
     label: "recipes",
-    path: "/recipes?limit=500",
+    path: `/recipes?limit=${RECIPE_PAGE_SIZE}&page=1`,
+    pagePath: (page) => `/recipes?limit=${RECIPE_PAGE_SIZE}&page=${page}`,
     extract: (response) => response?.data?.data,
+    extractPagination: (response) => response?.data?.pagination,
   },
 ];
 
@@ -78,6 +83,110 @@ const fetchWithRetry = async ({
     }
   }
   throw lastError;
+};
+
+const extractSourceItems = (source, response) => {
+  const items = source.extract(response);
+  if (!Array.isArray(items)) {
+    throw new TypeError("Dynamic route source did not return an array");
+  }
+  return items;
+};
+
+const parsePagination = (source, response) => {
+  const pagination = source.extractPagination?.(response);
+  const parsed = {
+    total: Number(pagination?.total),
+    page: Number(pagination?.page),
+    limit: Number(pagination?.limit),
+    totalPages: Number(pagination?.totalPages),
+  };
+  if (
+    !Number.isSafeInteger(parsed.total) ||
+    parsed.total < 0 ||
+    !Number.isSafeInteger(parsed.page) ||
+    parsed.page < 1 ||
+    !Number.isSafeInteger(parsed.limit) ||
+    parsed.limit < 1 ||
+    !Number.isSafeInteger(parsed.totalPages) ||
+    parsed.totalPages < 0 ||
+    parsed.totalPages > MAX_RECIPE_PAGES ||
+    parsed.totalPages !== Math.ceil(parsed.total / parsed.limit)
+  ) {
+    throw new TypeError("Dynamic route pagination is invalid");
+  }
+  return parsed;
+};
+
+const fetchSourceContent = async ({
+  source,
+  fetchApi,
+  maxAttempts,
+  retryDelayMs,
+  fetchAllPages,
+}) => {
+  const firstResponse = await fetchWithRetry({
+    fetchApi,
+    path: source.path,
+    maxAttempts,
+    retryDelayMs,
+  });
+  const items = extractSourceItems(source, firstResponse);
+
+  if (!source.pagePath || !fetchAllPages) return items;
+  const firstPagination = parsePagination(source, firstResponse);
+  if (firstPagination.page !== 1 || items.length > firstPagination.limit) {
+    throw new TypeError("Dynamic route pagination is inconsistent");
+  }
+
+  for (
+    let batchStart = 2;
+    batchStart <= firstPagination.totalPages;
+    batchStart += RECIPE_PAGE_CONCURRENCY
+  ) {
+    const batchEnd = Math.min(
+      batchStart + RECIPE_PAGE_CONCURRENCY - 1,
+      firstPagination.totalPages,
+    );
+    const pages = Array.from(
+      { length: batchEnd - batchStart + 1 },
+      (_, index) => batchStart + index,
+    );
+    const batchItems = await Promise.all(
+      pages.map(async (page) => {
+        const response = await fetchWithRetry({
+          fetchApi,
+          path: source.pagePath(page),
+          maxAttempts,
+          retryDelayMs,
+        });
+        const pagination = parsePagination(source, response);
+        const pageItems = extractSourceItems(source, response);
+        if (
+          pagination.total !== firstPagination.total ||
+          pagination.page !== page ||
+          pagination.limit !== firstPagination.limit ||
+          pagination.totalPages !== firstPagination.totalPages ||
+          pageItems.length > pagination.limit
+        ) {
+          throw new TypeError("Dynamic route pagination changed while fetching");
+        }
+        return pageItems;
+      }),
+    );
+    items.push(...batchItems.flat());
+  }
+
+  if (items.length !== firstPagination.total) {
+    throw new TypeError("Dynamic route pagination is incomplete");
+  }
+
+  const slugs = items.map((item) => String(item?.slug || ""));
+  if (slugs.some((slug) => !slug) || new Set(slugs).size !== slugs.length) {
+    throw new TypeError("Dynamic route pagination contains invalid slugs");
+  }
+
+  return items;
 };
 
 export const resolveDynamicRoutePolicy = (env = process.env) => {
@@ -129,6 +238,7 @@ export const fetchDynamicRouteContent = async ({
   logger = console,
   maxAttempts = policy.requireDynamic ? 3 : 2,
   retryDelayMs = 500,
+  fetchAllPages = false,
 }) => {
   if (policy.skip) {
     return { content: emptyContent(), failures: [], skipped: true };
@@ -139,17 +249,13 @@ export const fetchDynamicRouteContent = async ({
   await Promise.all(
     sourceDefinitions.map(async (source) => {
       try {
-        const response = await fetchWithRetry({
+        content[source.key] = await fetchSourceContent({
+          source,
           fetchApi,
-          path: source.path,
           maxAttempts,
           retryDelayMs,
+          fetchAllPages,
         });
-        const items = source.extract(response);
-        if (!Array.isArray(items)) {
-          throw new TypeError("Dynamic route source did not return an array");
-        }
-        content[source.key] = items;
       } catch (error) {
         const failure = {
           key: source.key,
