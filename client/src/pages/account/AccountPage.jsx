@@ -294,7 +294,7 @@ function AccountPage() {
                           setEditingField(null);
                         }}
                         className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer ${activeTab === item.key
-                          ? "bg-slate-700/60 text-white border-l-4 border-orange-500 shadow-md"
+                          ? "bg-slate-700/60 text-white ring-1 ring-inset ring-orange-500/60 shadow-md"
                           : "text-gray-400 hover:text-white hover:bg-white/5"
                           }`}
                       >

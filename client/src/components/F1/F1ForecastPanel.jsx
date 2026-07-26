@@ -45,7 +45,7 @@ const ListCard = ({ title, items = [], emptyText = "Chưa có dữ liệu" }) =>
 );
 
 const ForecastCaseCard = ({ title, data }) => (
-  <div className="rounded-xl border-l-4 border-l-orange-500 bg-white p-5 shadow-sm">
+  <div className="rounded-xl border border-orange-200 bg-white p-5 shadow-sm">
     <h3 className="text-lg font-bold text-slate-800">{title}</h3>
     <p className="mt-2 text-3xl font-black text-orange-600">
       {data?.months ? `${data.months} tháng` : "--"}

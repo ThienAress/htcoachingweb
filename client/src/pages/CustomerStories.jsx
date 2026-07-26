@@ -477,7 +477,7 @@ const CustomerStories = () => {
                 return (
                   <article
                     key={item.title}
-                    className="border-l-4 border-primary bg-slate-50 p-4"
+                    className="border border-slate-200 bg-slate-50 p-4"
                   >
                     <h3 className="flex items-center gap-3 text-lg font-black uppercase text-slate-950">
                       <Icon className="h-6 w-6 shrink-0 text-primary" />

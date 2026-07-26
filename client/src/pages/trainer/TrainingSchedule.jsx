@@ -371,7 +371,7 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
           {/* Preview */}
           <div className="p-3 rounded-lg border border-dashed border-gray-600 bg-gray-900/50">
             <p className="text-xs text-gray-500 mb-1">Xem trước:</p>
-            <div className="rounded-lg px-3 py-2 border-l-4" style={{ background: hexToRgba(form.color, 0.2), borderLeftColor: form.color, color: form.color }}>
+            <div className="rounded-lg border px-3 py-2" style={{ background: hexToRgba(form.color, 0.2), borderColor: form.color, color: form.color }}>
               <p className="text-sm font-semibold">{form.clientName || "Tên khách hàng"}</p>
               <p className="text-xs opacity-80">{form.startTime} - {form.endTime}</p>
               <p className="text-xs opacity-70">{useCustomType ? form.customExerciseType || "Loại bài tập" : form.exerciseType}</p>
@@ -728,12 +728,12 @@ const TrainingSchedule = () => {
                                   return (
                                     <div
                                       key={s._id}
-                                      className="absolute left-0.5 right-0.5 rounded-lg px-1.5 py-1 cursor-pointer border-l-[3px] overflow-hidden hover:scale-[1.02] hover:shadow-lg hover:z-10 transition-all z-[5]"
+                                      className="absolute left-0.5 right-0.5 z-[5] cursor-pointer overflow-hidden rounded-lg border px-1.5 py-1 transition-all hover:z-10 hover:scale-[1.02] hover:shadow-lg"
                                       style={{
                                         top: `${top}px`,
                                         height: `${height}px`,
                                         background: hexToRgba(s.color, 0.2),
-                                        borderLeftColor: s.color,
+                                        borderColor: s.color,
                                         color: s.color,
                                       }}
                                       onClick={(e) => { e.stopPropagation(); handleEdit(s); }}

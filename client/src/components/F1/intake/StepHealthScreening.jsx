@@ -129,7 +129,7 @@ const StepHealthScreening = ({ register, watch, setValue, errors }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 border-l-4 border-orange-500 pl-3">
+      <div className="flex items-center gap-2 border-b border-orange-200 pb-3">
         <Heart size={20} className="text-orange-600" />
         <div>
           <h3 className="text-xl font-bold text-slate-800">Sức khỏe</h3>

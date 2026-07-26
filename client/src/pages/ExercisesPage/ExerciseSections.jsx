@@ -55,9 +55,9 @@ export default function ExerciseSections({
       <div key={`${muscleGroupId}-${section.id}`} className="mb-8">
         {/* Header section - không xuống dòng */}
         <div
-          className={`flex ${isMobile ? "flex-wrap" : "flex-row justify-between items-center"} gap-3 mb-3 p-3 rounded-xl bg-gray-800/50 backdrop-blur-sm border-l-4`}
+          className={`mb-3 flex ${isMobile ? "flex-wrap" : "flex-row items-center justify-between"} gap-3 rounded-xl border bg-gray-800/50 p-3`}
           style={{
-            borderLeftColor:
+            borderColor:
               getMuscleGroupById(muscleGroupId)?.color || "#ef4444",
           }}
         >

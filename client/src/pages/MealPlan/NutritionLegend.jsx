@@ -32,7 +32,7 @@ const NutritionLegend = () => (
         <span className="text-gray-300 text-sm">Lượng chất béo (fat)</span>
       </div>
     </div>
-    <div className="mt-5 p-3 sm:p-4 bg-blue-900/30 rounded-xl border-l-4 border-blue-500 flex items-start gap-3">
+    <div className="mt-5 flex items-start gap-3 rounded-xl border border-blue-500/40 bg-blue-900/30 p-3 sm:p-4">
       <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
       <span className="text-fluid-xs text-gray-200">
         <strong className="text-blue-300">Lưu ý:</strong> Trong carb hoặc fat

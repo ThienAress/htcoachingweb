@@ -602,7 +602,7 @@ export default function KnowledgeBase() {
                   setSuggesting(false);
                 }}
                 disabled={suggesting}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all"
+                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
               >
                 <Sparkles size={14} className={suggesting ? "animate-spin" : ""} />
                 {suggesting ? "Đang quét..." : "Quét & Gợi ý"}
@@ -670,7 +670,7 @@ export default function KnowledgeBase() {
                   key={c._id}
                   onClick={() => viewConversation(c._id)}
                   className={`w-full text-left px-3 py-3 hover:bg-slate-50 transition-colors ${
-                    selectedConv === c._id ? "bg-indigo-50 border-l-2 border-indigo-500" : ""
+                    selectedConv === c._id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : ""
                   }`}
                 >
                   <p className="text-sm font-medium text-slate-800 line-clamp-1">{c.title}</p>

@@ -36,7 +36,7 @@ const SuggestionBlock = ({
     );
   const protocolOptions = extractProtocolOptions(suggestion);
   return (
-    <div className="rounded-xl border-l-4 border-l-orange-500 bg-orange-50/40 p-4">
+    <div className="rounded-xl border border-orange-200 bg-orange-50/40 p-4">
       <p className="font-bold text-slate-800 whitespace-pre-line">
         {suggestion.title || suggestion.name}
       </p>
@@ -275,7 +275,7 @@ const EnduranceAssessmentSection = ({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-2 border-l-4 border-orange-500 pl-3">
+      <div className="flex items-center gap-2 border-b border-orange-200 pb-3">
         <Gauge size={20} className="text-orange-600" />
         <div>
           <h3 className="text-xl font-bold text-slate-800">Sức bền</h3>

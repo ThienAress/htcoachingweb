@@ -557,7 +557,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                             {[0, 1, 2].map((i) => (
                               <span
                                 key={i}
-                                className="w-1.5 h-1.5 bg-emerald-500 dark:bg-emerald-400 rounded-full animate-bounce"
+                                className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 dark:bg-emerald-400"
                                 style={{ animationDelay: `${i * 0.15}s` }}
                               />
                             ))}

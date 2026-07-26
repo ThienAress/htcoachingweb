@@ -10,7 +10,7 @@ const MacroTable = ({ macroSet, tdee, adjustedCalories, goal }) => {
 
   return (
     <div className="mt-10">
-      <div className="mb-8 p-5 bg-gradient-to-r from-primary/30 to-primary/10 border-l-4 border-primary rounded-r-xl backdrop-blur-sm">
+      <div className="mb-8 rounded-xl border border-primary/30 bg-primary/10 p-5">
         <p className="text-gray-200 leading-relaxed">
           <Trans
             i18nKey="info.macro_note"

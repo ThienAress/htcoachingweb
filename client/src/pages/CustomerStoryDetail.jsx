@@ -416,13 +416,13 @@ const CustomerStoryDetail = ({ previewData }) => {
 
           <div className="min-w-0">
             <div className="grid gap-5 md:grid-cols-2">
-              <article className="border-l-4 border-primary bg-light p-5">
+              <article className="border border-primary/30 bg-light p-5">
                 <h2 className="h3 mb-3 text-2xl uppercase">{t("detail.client_problem")}</h2>
                 <p className="text-fluid-sm leading-7 text-gray">
                   {story.problem || <UpdatingLabel />}
                 </p>
               </article>
-              <article className="border-l-4 border-black bg-light p-5">
+              <article className="border border-slate-300 bg-light p-5">
                 <h2 className="h3 mb-3 text-2xl uppercase">{t("detail.trainer_solution")}</h2>
                 <p className="text-fluid-sm leading-7 text-gray">
                   {story.solution || <UpdatingLabel />}
@@ -499,7 +499,7 @@ const CustomerStoryDetail = ({ previewData }) => {
 
             {story.quote && (
               <section className="mt-10 border-t border-gray-200 pt-10 pb-4">
-                <blockquote className="relative rounded-r-2xl border-l-4 border-primary bg-primary/5 p-8 sm:p-10">
+                <blockquote className="relative rounded-2xl border border-primary/30 bg-primary/5 p-8 sm:p-10">
                   <div className="absolute -top-3 left-6 bg-white px-2">
                     <svg
                       className="h-8 w-8 text-primary/40"

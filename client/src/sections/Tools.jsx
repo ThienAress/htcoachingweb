@@ -45,9 +45,9 @@ const Tools = ({ image }) => {
           .set(sideCardsRef.current, { display: "grid" }, 0)
           .to(sideCardsRef.current, { width: "calc(50% - 12px)", opacity: 1, duration: 1.2, ease: "power3.inOut" }, 0)
           // Nhảy 3 thẻ con lên
-          .fromTo(exerciseRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "back.out(1.5)" }, 0.4)
-          .fromTo(recipeRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "back.out(1.5)" }, 0.6)
-          .fromTo(mealplanRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "back.out(1.5)" }, 0.8);
+          .fromTo(exerciseRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" }, 0.4)
+          .fromTo(recipeRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" }, 0.6)
+          .fromTo(mealplanRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "power3.out" }, 0.8);
       } else {
         // Mobile Animation
         gsap.set(sideCardsRef.current, { display: "grid", width: "100%", opacity: 1 });

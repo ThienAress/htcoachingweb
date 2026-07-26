@@ -341,7 +341,7 @@ const TrainerProfile = ({ previewData }) => {
               {trainer.trainingStyle && (
                 <div className="space-y-3">
                   <h3 className="text-sm font-bold text-primary tracking-[0.15em] uppercase">{t("sections.training_style")}</h3>
-                  <p className="text-slate-300 leading-relaxed border-l-2 border-primary/50 pl-4 py-1">{trainer.trainingStyle}</p>
+                  <p className="text-slate-300 leading-relaxed">{trainer.trainingStyle}</p>
                 </div>
               )}
 
