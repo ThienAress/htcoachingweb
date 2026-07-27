@@ -115,6 +115,58 @@ describe("Phase 2 AI conversation integrity", () => {
     expect(busy.status).toBe(409);
   });
 
+  it("persists structured TDEE memory after a successful tool call", async () => {
+    const { user, accessToken } = await createTestUser();
+    await withAuth(
+      request(app).post("/api/ai/chat").send({
+        message:
+          "Tính TDEE cho nam 30 tuổi, cao 175cm, nặng 75kg, tập 3-5 buổi, mục tiêu giảm mỡ",
+        requestId: "e26e93e8-8d21-4be2-9c6e-2ebf3cc340b5",
+      }),
+      accessToken,
+    );
+
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+
+    expect(conversation.workingMemory.lastTdee).toMatchObject({
+      input: {
+        gender: "male",
+        age: 30,
+        heightCm: 175,
+        weightKg: 75,
+        activityLevel: "moderate",
+        goal: "fat_loss",
+      },
+    });
+  });
+
+  it("reuses TDEE memory when the next turn requests a four-meal plan", async () => {
+    const { user, accessToken } = await createTestUser();
+    await withAuth(
+      request(app).post("/api/ai/chat").send({
+        message:
+          "Tính TDEE cho nam 30 tuổi, cao 175cm, nặng 75kg, tập 3-5 buổi, mục tiêu giảm mỡ",
+        requestId: "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b6",
+      }),
+      accessToken,
+    );
+    const conversation = await ChatConversation.findOne({ userId: user._id });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat").send({
+        message: "Làm lại thực đơn với 4 meal cho tôi",
+        conversationId: conversation._id,
+        requestId: "a36e93e8-8d21-4be2-9c6e-2ebf3cc340b7",
+      }),
+      accessToken,
+    );
+    const updated = await ChatConversation.findById(conversation._id).lean();
+
+    expect(response.text).not.toContain("cần tính TDEE trước");
+    expect(updated.workingMemory.lastMeal.mealsPerDay).toBe(4);
+  });
+
   it("forks before a user message instead of rewriting server history", async () => {
     const { user, accessToken } = await createTestUser();
     await withAuth(

@@ -10,9 +10,10 @@ import { safeLog } from "../../../utils/safeLogger.js";
 /**
  * Tra cứu thông tin thực tế bằng Google Search Grounding
  * @param {{ query: string }} params
+ * @param {{ signal?: AbortSignal }} context
  * @returns {{ text: string, uiCard: null }}
  */
-export async function searchKnowledge({ query }) {
+export async function searchKnowledge({ query }, context = {}) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return { text: "Không thể tìm kiếm: chưa cấu hình GEMINI_API_KEY.", uiCard: null };
@@ -39,6 +40,7 @@ export async function searchKnowledge({ query }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: context.signal,
     });
 
     if (!response.ok) {

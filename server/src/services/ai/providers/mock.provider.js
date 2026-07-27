@@ -12,6 +12,9 @@ const SLOT_FILLING_RESPONSES = {
 function detectIntent(message) {
   const lower = message.toLowerCase();
 
+  if (/thực đơn|meal|menu|món ăn/i.test(lower)) {
+    return "meal";
+  }
   if (/tdee|calo|calories|kcal|dinh dưỡng|thực đơn|ăn|giảm mỡ|tăng cơ|giảm cân|tăng cân/i.test(lower)) {
     return "tdee";
   }
@@ -21,10 +24,24 @@ function detectIntent(message) {
   if (/huấn luyện|hlv|trainer|pt|coach/i.test(lower)) {
     return "trainer";
   }
-  if (/thực đơn|meal|menu|món ăn/i.test(lower)) {
-    return "meal";
-  }
   return "general";
+}
+
+function extractTdeeMemory(messages) {
+  const systemText = messages.find((message) => message.role === "system")?.content || "";
+  const calories = systemText.match(
+    /Calo mục tiêu đã xác nhận:\s*(\d+)\s*kcal\/ngày/i,
+  );
+  const macro = systemText.match(
+    /Moderate-carb:\s*Protein\s*(\d+)g,\s*Carb\s*(\d+)g,\s*Fat\s*(\d+)g/i,
+  );
+  if (!calories || !macro) return null;
+  return {
+    targetCalories: Number(calories[1]),
+    proteinGrams: Number(macro[1]),
+    carbGrams: Number(macro[2]),
+    fatGrams: Number(macro[3]),
+  };
 }
 
 // Kiểm tra xem message có đủ data để gọi tool không
@@ -128,9 +145,25 @@ export async function* mockLLMStream(messages, tools, options = {}) {
       break;
     }
     case "meal": {
+      const memory = extractTdeeMemory(messages);
+      if (!memory) {
+        yield {
+          type: "text",
+          content: "Để gợi ý thực đơn, em cần tính TDEE trước. Bạn cho em biết giới tính, tuổi, chiều cao, cân nặng và mức vận động nhé!",
+        };
+        break;
+      }
+      const mealsMatch = userText.match(/([1-6])\s*(?:meal|bữa)/i);
       yield {
-        type: "text",
-        content: "Để gợi ý thực đơn, em cần tính TDEE trước. Bạn cho em biết giới tính, tuổi, chiều cao, cân nặng và mức vận động nhé!",
+        type: "tool_call",
+        toolCalls: [{
+          id: "mock_4",
+          name: "suggest_meal",
+          args: {
+            ...memory,
+            mealsPerDay: mealsMatch ? Number(mealsMatch[1]) : 3,
+          },
+        }],
       };
       break;
     }

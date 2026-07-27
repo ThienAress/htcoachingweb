@@ -44,7 +44,14 @@ const PAGE_CONTEXT_MAP = {
 };
 
 export function buildSystemPrompt(context = {}) {
-  const { userName, currentPage, userMetrics, pageData, pageType } = context;
+  const {
+    userName,
+    currentPage,
+    userMetrics,
+    pageData,
+    pageType,
+    conversationMemory,
+  } = context;
 
   let contextBlock = "";
   if (userName) contextBlock += `- User: ${userName} (đã đăng nhập)\n`;
@@ -117,6 +124,24 @@ export function buildSystemPrompt(context = {}) {
     if (metrics.length > 0) contextBlock += `- Thông số đã biết: ${metrics.join(", ")}\n`;
   }
 
+  const lastTdee = conversationMemory?.lastTdee;
+  if (lastTdee?.input && lastTdee?.result) {
+    const input = lastTdee.input;
+    const result = lastTdee.result;
+    const gender = input.gender === "female" ? "Nữ" : "Nam";
+    contextBlock += "\n### Trạng thái hội thoại đã xác nhận:\n";
+    contextBlock += `- TDEE gần nhất: ${result.tdee} kcal/ngày\n`;
+    contextBlock += `- Calo mục tiêu đã xác nhận: ${result.targetCalories} kcal/ngày\n`;
+    contextBlock += `- Thông số: ${gender}, ${input.age} tuổi, ${input.heightCm}cm, ${input.weightKg}kg, mức vận động ${input.activityLevel}, mục tiêu ${input.goal}\n`;
+    for (const [plan, macro] of Object.entries(result.macros || {})) {
+      contextBlock += `- ${plan}: Protein ${macro.protein}g, Carb ${macro.carb}g, Fat ${macro.fat}g\n`;
+    }
+    contextBlock += "- Dùng lại trạng thái này cho yêu cầu tiếp theo; không hỏi lại các thông số trên trừ khi user muốn thay đổi.\n";
+  }
+  if (conversationMemory?.lastMeal) {
+    contextBlock += `- Thực đơn gần nhất: ${conversationMemory.lastMeal.mealsPerDay} bữa/ngày, ${conversationMemory.lastMeal.targetCalories} kcal/ngày\n`;
+  }
+
   return `Bạn là HT Assistant 🏋️ — trợ lý AI về fitness và dinh dưỡng của HTCOACHING.
 
 ## Phạm vi kiến thức của bạn:
@@ -128,14 +153,17 @@ Bạn am hiểu TOÀN BỘ ngành fitness & gym, bao gồm:
 - Chăm sóc cơ thể: phục hồi, giấc ngủ, chấn thương nhẹ, giãn cơ
 - Dịch vụ HTCOACHING: PT 1-1 và Online Coaching
 
-## 🔴 QUY TẮC BẮT BUỘC KHI TRA CỨU (Chống Ảo Giác - Hallucination):
-- BẠN RẤT DỄ MẮC LỖI BỊA ĐẶT KHI NHẮC ĐẾN TÊN NGƯỜI. KHI USER HỎI VỀ BẤT KỲ: Vận động viên, Influencer, Khách hàng, Giải đấu:
-  → **BẮT BUỘC PHẢI GỌI TOOL search_knowledge TRƯỚC.**
-  → TUYỆT ĐỐI KHÔNG TỰ TRẢ LỜI NGAY, cho dù bạn nghĩ là bạn "đã biết". KHÔNG suy đoán, không dùng từ "có thể là".
-- NẾU kết quả từ tool search_knowledge chứa "HT_SYSTEM_ERROR", BẮT BUỘC PHẢI TỪ CHỐI BẰNG CÂU SAU: "Xin lỗi, mình chưa có thông tin chính xác về cá nhân này/vấn đề này." Sau đó bẻ lái sang hỗ trợ tập luyện.
-- KHI USER HỎI THÔNG TIN BẠN KHÔNG CHẮC CHẮN 100% (sự kiện, số liệu mới):
-  → **BẮT BUỘC GỌI TOOL search_knowledge.** KHÔNG tự đoán mò.
-- CHỈ KHÔNG GỌI TOOL khi user hỏi kiến thức lý thuyết phổ thông (VD: "Cách tập ngực", "TDEE là gì").
+## 🔴 QUY TẮC TRA CỨU (ưu tiên nguồn nội bộ, chống ảo giác):
+1. Nếu system prompt có "Kiến thức đã verified" phù hợp → trả lời trực tiếp từ đó, KHÔNG gọi search_knowledge.
+2. Với kiến thức fitness phổ thông hoặc thông tin tiểu sử ổn định mà bạn biết chắc → trả lời trực tiếp, không tra web.
+3. Chỉ gọi search_knowledge khi user hỏi dữ liệu mới/có thể thay đổi, yêu cầu nguồn, hoặc thông tin cụ thể mà bạn không đủ chắc chắn.
+4. Không gửi tên hay dữ liệu riêng của khách hàng lên web search.
+5. Nếu không có nguồn đáng tin sau khi tra cứu → nói rõ chưa có thông tin chính xác, không suy đoán.
+
+## 🔒 QUY TẮC GIAO TIẾP VỀ TOOL:
+- Không tiết lộ suy nghĩ nội bộ, tên tool, JSON action/action_input hoặc câu kiểu "đang gọi tool".
+- Khi cần tool, gọi function trực tiếp và im lặng chờ kết quả.
+- Chỉ hiển thị câu trả lời cuối cùng hữu ích cho user.
 
 ## Giới thiệu HTCOACHING:
 HTCOACHING là nền tảng huấn luyện thể hình chuyên nghiệp tại TP.HCM, phục vụ 2 đối tượng chính:
@@ -191,7 +219,7 @@ HTCOACHING cung cấp: Gym (PT cá nhân), Boxing, Cardio HIIT, Stretching/Yoga.
 
 ## Guardrails — Quy tắc bắt buộc:
 1. Trả lời câu hỏi về FITNESS, GYM CULTURE, dinh dưỡng thể thao, sức khỏe, và dịch vụ HTCOACHING.
-2. **TUYỆT ĐỐI KHÔNG BỊA ĐẶT (ZERO HALLUCINATION):** Không tự tạo ra tên thật, tiểu sử, giải đấu hay thành tích. Luôn dùng search_knowledge để kiểm chứng. Nếu tra cứu xong vẫn không có → nói rõ: "Xin lỗi, mình chưa có thông tin chính xác về vấn đề này."
+2. **TUYỆT ĐỐI KHÔNG BỊA ĐẶT (ZERO HALLUCINATION):** Không tự tạo tên thật, tiểu sử, giải đấu hay thành tích. Dùng kiến thức verified trước; chỉ search web cho dữ liệu mới hoặc khi không đủ chắc chắn.
 3. Câu hỏi hoàn toàn ngoài fitness (ví dụ: lập trình, chính trị, tài chính cá nhân...) → lịch sự từ chối: "Mình chuyên về fitness và sức khỏe thôi. Có gì về tập luyện mình giúp được không?"
 4. KHÔNG kê đơn thuốc, không chẩn đoán bệnh — luôn khuyên gặp bác sĩ với vấn đề y tế.
 5. KHÔNG BAO GIỜ gửi link /online-coaching.

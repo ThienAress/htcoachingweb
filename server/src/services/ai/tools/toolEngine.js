@@ -16,6 +16,55 @@ const toolValidators = new Map(
     ajv.compile(tool.parameters),
   ]),
 );
+const DEFAULT_TOOL_TIMEOUT_MS = 15000;
+
+const createAbortError = (reason) => {
+  const error = new Error(reason?.message || "Tool execution aborted");
+  error.name = "AbortError";
+  return error;
+};
+
+async function runToolWithDeadline(tool, parameters, context) {
+  const controller = new AbortController();
+  const timeoutMs = Math.min(
+    Math.max(Number(context.timeoutMs) || DEFAULT_TOOL_TIMEOUT_MS, 10),
+    60000,
+  );
+  let timedOut = false;
+  const abortFromCaller = () => controller.abort(context.signal?.reason);
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort(new Error("Tool execution timed out"));
+  }, timeoutMs);
+
+  if (context.signal?.aborted) abortFromCaller();
+  else context.signal?.addEventListener("abort", abortFromCaller, { once: true });
+
+  let rejectOnAbort;
+  const abortPromise = new Promise((_, reject) => {
+    rejectOnAbort = () => reject(createAbortError(controller.signal.reason));
+    if (controller.signal.aborted) rejectOnAbort();
+    else controller.signal.addEventListener("abort", rejectOnAbort, { once: true });
+  });
+
+  try {
+    const result = await Promise.race([
+      Promise.resolve().then(() =>
+        tool.execute(parameters, { ...context, signal: controller.signal }),
+      ),
+      abortPromise,
+    ]);
+    return { result, timedOut: false };
+  } catch (error) {
+    if (context.signal?.aborted) throw createAbortError(context.signal.reason);
+    if (timedOut) return { result: null, timedOut: true };
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    context.signal?.removeEventListener("abort", abortFromCaller);
+    controller.signal.removeEventListener("abort", rejectOnAbort);
+  }
+}
 
 /**
  * Thực thi 1 tool call
@@ -83,8 +132,17 @@ export async function executeTool(toolName, parameters, context) {
 
   const startTime = Date.now();
   try {
-    const result = await tool.execute(parameters, context);
+    const execution = await runToolWithDeadline(tool, parameters, context);
     const timeCost = Date.now() - startTime;
+    if (execution.timedOut) {
+      return {
+        text: "Công cụ phản hồi quá lâu. Bạn vui lòng thử lại sau ít phút.",
+        uiCard: null,
+        error: null,
+        meta: { toolName, timeCost, timedOut: true },
+      };
+    }
+    const result = execution.result;
 
     return {
       text: result.text,
@@ -93,6 +151,9 @@ export async function executeTool(toolName, parameters, context) {
       meta: { toolName, timeCost },
     };
   } catch (err) {
+    if (context.signal?.aborted) {
+      throw createAbortError(context.signal.reason);
+    }
     // Trả message thân thiện thay vì lỗi kỹ thuật
     const friendlyMessages = {
       search_blog: "Hiện tại chưa có bài viết nào trong hệ thống. Bạn có thể hỏi tôi trực tiếp về chủ đề này nhé!",

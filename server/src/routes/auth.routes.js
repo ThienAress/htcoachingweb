@@ -11,6 +11,7 @@ import {
 } from "../controllers/auth.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { csrfProtection, generateCsrfToken } from "../middlewares/csrf.js";
+import { setCsrfCookie } from "../utils/csrfCookie.js";
 
 const router = express.Router();
 const isProd = process.env.NODE_ENV === "production";
@@ -65,7 +66,7 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
   );
 
   const csrfToken = generateCsrfToken();
-  res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
+  setCsrfCookie(res, csrfToken, getCsrfCookieOptions());
 };
 
 // ===== OAUTH STATE HELPERS (HMAC signed) =====
