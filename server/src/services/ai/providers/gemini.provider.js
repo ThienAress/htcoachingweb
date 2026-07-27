@@ -260,6 +260,7 @@ async function* streamGemini(messages, tools, signal) {
       const retryBody = {
         contents: retryContents,
         ...(retrySystem && { systemInstruction: retrySystem }),
+        ...(geminiTools && { tools: geminiTools }),
         generationConfig: body.generationConfig,
       };
 
@@ -275,6 +276,27 @@ async function* streamGemini(messages, tools, signal) {
         if (signal.aborted) throw err;
         yield { type: "text", content: "Xin lỗi, tôi không thể xử lý lúc này. Bạn thử lại nhé! 😊" };
         return;
+      }
+
+      if (!retryResponse.ok && retryResponse.status === 400 && geminiTools) {
+        safeLog.warn(
+          "ai.gemini_tool_free_retry",
+          "Retrying provider without tools after minimal retry failed",
+        );
+        const toolFreeRetryBody = { ...retryBody };
+        delete toolFreeRetryBody.tools;
+        try {
+          retryResponse = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(toolFreeRetryBody),
+            signal,
+          });
+        } catch (err) {
+          if (signal.aborted) throw err;
+          yield { type: "text", content: "Xin lỗi, tôi không thể xử lý lúc này. Bạn thử lại nhé! 😊" };
+          return;
+        }
       }
 
       if (!retryResponse.ok) {

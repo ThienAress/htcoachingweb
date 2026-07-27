@@ -105,7 +105,7 @@ describe("geminiLLMStream retry", () => {
     ]);
   });
 
-  it("retries a rejected tool request without tools", async () => {
+  it("keeps tools when retrying with minimal conversation history", async () => {
     process.env.GEMINI_API_KEY = "test-api-key";
 
     const fetchMock = vi
@@ -157,9 +157,49 @@ describe("geminiLLMStream retry", () => {
       firstBody.tools[0].functionDeclarations[0].parameters
         .additionalProperties,
     ).toBeUndefined();
-    expect(retryBody.tools).toBeUndefined();
+    expect(retryBody.tools).toBeDefined();
     expect(chunks).toEqual([
       { type: "text", content: "Fallback response" },
+    ]);
+  });
+
+  it("falls back without tools when the minimal tool request is still rejected", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    const badResponse = () =>
+      new Response(
+        JSON.stringify({ error: { code: 400, status: "INVALID_ARGUMENT" } }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(badResponse())
+      .mockResolvedValueOnce(badResponse())
+      .mockResolvedValueOnce(
+        new Response(
+          'data: {"candidates":[{"content":{"parts":[{"text":"Tool-free fallback"}]}}]}\n\n',
+          { status: 200, headers: { "Content-Type": "text/event-stream" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const tools = [{
+      type: "function",
+      function: {
+        name: "lookup",
+        description: "Lookup a value",
+        parameters: { type: "object", properties: {} },
+      },
+    }];
+    const chunks = await collectStream(
+      geminiLLMStream([{ role: "user", content: "Hello" }], tools),
+    );
+
+    const minimalBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    const toolFreeBody = JSON.parse(fetchMock.mock.calls[2][1].body);
+    expect(minimalBody.tools).toBeDefined();
+    expect(toolFreeBody.tools).toBeUndefined();
+    expect(chunks).toEqual([
+      { type: "text", content: "Tool-free fallback" },
     ]);
   });
 });

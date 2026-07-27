@@ -91,7 +91,7 @@ const TOOL_LABELS = {
   search_exercises: "Đang tìm bài tập...",
   suggest_meal: "Đang lên thực đơn...",
   get_trainer_info: "Đang tìm HLV...",
-  search_knowledge: "Đang tìm kiếm trên Google...",
+  search_knowledge: "Đang kiểm chứng thông tin...",
 };
 
 export default function ChatPanel({ initiallyOpen = false }) {
@@ -352,6 +352,8 @@ export default function ChatPanel({ initiallyOpen = false }) {
         <button
           onClick={isLoading ? cancelRequest : handleSend}
           disabled={!isLoading && !input.trim() && !selectedImage}
+          aria-label={isLoading ? "Dừng phản hồi" : "Gửi tin nhắn"}
+          title={isLoading ? "Dừng phản hồi" : "Gửi tin nhắn"}
           className={`shrink-0 p-2 flex items-center justify-center transition-colors bg-transparent ${
             isLoading
               ? "text-red-500 hover:text-red-600"

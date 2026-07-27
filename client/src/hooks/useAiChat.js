@@ -1,33 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import Cookies from "js-cookie";
-import api from "../utils/api";
 import {
   deleteAiConversation,
   forkAiConversation,
-  getAiChatUrl,
   getAiConversationById,
   getAiConversations,
   getAiHistory,
+  openAiChatStream,
 } from "../services/ai.service";
 
 const STREAM_FLUSH_MS = 80;
-
-async function fetchWithRefresh(url, options) {
-  let response = await fetch(url, options);
-  if (response.status !== 401) return response;
-
-  try {
-    await api.post("/auth/refresh", {});
-    const csrfToken = Cookies.get("csrfToken");
-    if (csrfToken && options.headers) {
-      options.headers["X-CSRF-Token"] = csrfToken;
-    }
-    return fetch(url, options);
-  } catch {
-    window.location.href = "/login";
-    throw new Error("Phiên đăng nhập hết hạn");
-  }
-}
 
 export function mapAiMessages(rawMessages = []) {
   const result = [];
@@ -322,22 +303,15 @@ export default function useAiChat() {
         mountedRef.current && activeSessionRef.current?.id === sessionId;
 
       try {
-        const csrfToken = Cookies.get("csrfToken");
-        const response = await fetchWithRefresh(getAiChatUrl(), {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(csrfToken && { "X-CSRF-Token": csrfToken }),
-          },
-          credentials: "include",
-          body: JSON.stringify({
+        const response = await openAiChatStream(
+          {
             message: normalizedText,
             conversationId: targetConversationId,
             requestId,
             context,
-          }),
-          signal: controller.signal,
-        });
+          },
+          { signal: controller.signal },
+        );
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
           throw new Error(data.message || `HTTP ${response.status}`);
