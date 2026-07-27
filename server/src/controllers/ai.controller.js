@@ -403,6 +403,21 @@ export const chatStream = async (req, res) => {
             // nên mọi văn bản đã sinh ra ở Turn hiện tại chỉ là nháp và phải bị vứt bỏ.
             fullResponse = "";
 
+            // Gemini yêu cầu parallel function calls nằm trong cùng model turn,
+            // sau đó mới tới các functionResponse trong một user turn.
+            llmMessages.push({
+              role: "assistant",
+              content: "",
+              tool_calls: chunk.toolCalls,
+              _thoughtParts: chunk.thoughtParts || [],
+            });
+            generatedMessages.push({
+              role: "assistant",
+              content: "",
+              toolCalls: chunk.toolCalls,
+              timestamp: new Date(),
+            });
+
             for (const call of chunk.toolCalls) {
               // Gửi tool_start cho FE loading
               res.write(`data: ${JSON.stringify({ type: "tool_start", tool: call.name })}\n\n`);
@@ -440,24 +455,16 @@ export const chatStream = async (req, res) => {
                 res.write(`data: ${JSON.stringify({ type: "ui_card", ...toolResult.uiCard })}\n\n`);
               }
 
-              // Thêm assistant tool_call + tool result vào messages cho LLM iteration tiếp
-              // Kèm thoughtParts để Gemini nhận diện đúng thinking context
-              llmMessages.push({ 
-                role: "assistant", 
-                content: "", 
-                tool_calls: [call],
-                _thoughtParts: chunk.thoughtParts || [],
+              // Thêm tool result vào messages cho LLM iteration tiếp.
+              llmMessages.push({
+                role: "tool",
+                content: safeToolText,
+                name: call.name,
+                id: call.id,
               });
-              llmMessages.push({ role: "tool", content: safeToolText, name: call.name });
               lastToolResultText = safeToolText; // Lưu backup
 
               // Lưu tool call vào conversation
-              generatedMessages.push({
-                role: "assistant",
-                content: "",
-                toolCalls: [call],
-                timestamp: new Date(),
-              });
               generatedMessages.push({
                 role: "tool",
                 content: safeToolText,
