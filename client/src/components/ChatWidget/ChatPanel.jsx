@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import ChatPanelSidebar from "./ChatPanelSidebar";
+import { createChatHistoryLoadGate } from "./chatHistoryLoadGate";
 import { submitAiFeedback } from "../../services/ai.service";
 import { compressChatImage } from "../../utils/compressChatImage";
 
@@ -112,6 +113,11 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const attachMenuRef = useRef(null);
+  const historyLoadGateRef = useRef(null);
+
+  if (historyLoadGateRef.current == null) {
+    historyLoadGateRef.current = createChatHistoryLoadGate();
+  }
 
   const [pillInput, setPillInput] = useState("");
   const [pillExpanded, setPillExpanded] = useState(false);
@@ -124,6 +130,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
     clearHistory, switchConversation, removeConversation, cancelRequest,
     retryLastMessage, editMessage,
   } = useAiChat();
+  const authenticatedUserId = user?._id || user?.id || null;
 
   useEffect(() => {
     localStorage.setItem("ht_chat_theme", chatTheme);
@@ -140,12 +147,20 @@ export default function ChatPanel({ initiallyOpen = false }) {
   }, []);
 
   useEffect(() => {
+    if (
+      !isOpen ||
+      !authenticatedUserId ||
+      !historyLoadGateRef.current.shouldLoad(authenticatedUserId)
+    ) {
+      return;
+    }
     if (isOpen && user) {
       loadConversations();
       // Luôn tạo cuộc hội thoại mới khi mở chat → hiện suggestions context-aware
       if (messages.length === 0 && !conversationId) loadHistory();
     }
   }, [
+    authenticatedUserId,
     conversationId,
     isOpen,
     loadConversations,
