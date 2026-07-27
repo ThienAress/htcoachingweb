@@ -550,9 +550,9 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     <p className="text-gray-400 text-fluid-sm mt-1 text-center">{plan.subtitle}</p>
 
                     <div className="mt-6">
-                      <div className="flex items-end gap-2">
-                        <span className="text-fluid-4xl font-bold text-white">{formattedPrice}</span>
-                        <span className="text-gray-400 mb-1">/{billingCycle === "year" ? t("pricing.year") : t("pricing.month")}</span>
+                      <div className="flex items-baseline flex-wrap gap-x-1.5 gap-y-0">
+                        <span className="text-3xl xl:text-4xl font-bold text-white leading-tight">{formattedPrice}</span>
+                        <span className="text-gray-400 text-sm shrink-0">/{billingCycle === "year" ? t("pricing.year") : t("pricing.month")}</span>
                       </div>
                       {billingCycle === "year" && (
                         <p className="text-sm text-gray-500 mt-1">

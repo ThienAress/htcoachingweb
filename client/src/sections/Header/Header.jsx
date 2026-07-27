@@ -309,7 +309,7 @@ function Header() {
               {/* Dropdown */}
               <div className="absolute top-full left-1/2 -translate-x-1/2 w-52 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                 <div className="bg-white rounded-xl shadow-2xl py-2 border border-gray-100">
-                  <button onClick={() => handleScrollToSection("pricing")} className="w-full text-left px-5 py-3 text-sm text-gray-800 hover:bg-orange-50 hover:text-primary font-semibold transition-colors">
+                  <button onClick={() => handleScrollToSection("pricing")} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">
                     {["admin", "trainer"].includes(user?.role) ? t("nav_dropdown.packages_admin") : t("nav_dropdown.packages")}
                   </button>
                   <button onClick={() => handleScrollToSection("classes")} className="w-full text-left px-5 py-3 text-sm text-gray-700 hover:bg-orange-50 hover:text-primary transition-colors">{t("nav_dropdown.programs")}</button>
