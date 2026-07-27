@@ -19,46 +19,13 @@ import {
 import { getAdminTrainers } from "../../services/trainer.service";
 import { useDebounce } from "../../hooks/useDebounce";
 import TipTapEditor from "../../components/TipTapEditor";
-
-const CATEGORIES = [
-  { value: "tap-luyen", label: "Tập Luyện" },
-  { value: "dinh-duong", label: "Dinh Dưỡng" },
-  { value: "hieu-co-the", label: "Hiểu Về Cơ Thể" },
-  { value: "tu-duy-loi-song", label: "Tư Duy & Lối Sống" },
-];
-const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map((c) => [c.value, c.label]));
-
-const SUB_CATEGORIES = {
-  "tap-luyen": [
-    { value: "form-ky-thuat", label: "Kỹ thuật & Form tập" },
-    { value: "giao-an-mau", label: "Chương trình tập mẫu" },
-    { value: "sua-loi-sai", label: "Sửa lỗi sai thường gặp" },
-    { value: "theo-muc-tieu", label: "Tập theo mục tiêu" },
-  ],
-  "dinh-duong": [
-    { value: "macro-calo", label: "Hiểu về Macro & Calo" },
-    { value: "thuc-pham-cho", label: "Thực phẩm & Đi chợ" },
-    { value: "goi-y-thuc-don", label: "Gợi ý Thực đơn" },
-    { value: "thuc-pham-bo-sung", label: "Thực phẩm bổ sung" },
-  ],
-  "hieu-co-the": [
-    { value: "voc-dang-tu-the", label: "Giải mã Vóc dáng & Tư thế" },
-    { value: "dot-mo-xay-co", label: "Cơ chế Đốt mỡ & Xây cơ" },
-    { value: "phuc-hoi-chan-thuong", label: "Phục hồi & Chấn thương" },
-  ],
-  "tu-duy-loi-song": [
-    { value: "phuong-phap-coaching", label: "Phương pháp của chúng tôi" },
-    { value: "cau-chuyen-thanh-cong", label: "Câu chuyện thay đổi (Success Stories)" },
-    { value: "tu-duy-ky-luat", label: "Tư duy kỷ luật (Mindset)" },
-  ],
-};
-
-const getSubCategoryLabel = (category, subValue) => {
-  if (!category || !subValue) return "";
-  const list = SUB_CATEGORIES[category] || [];
-  const found = list.find((s) => s.value === subValue);
-  return found ? found.label : subValue;
-};
+import {
+  BLOG_CATEGORIES as CATEGORIES,
+  BLOG_CATEGORY_MAP as CATEGORY_MAP,
+  BLOG_SUB_CATEGORIES as SUB_CATEGORIES,
+  getBlogSubCategoryLabel as getSubCategoryLabel,
+  normalizeBlogSubCategory,
+} from "../../data/blogCategories";
 
 const emptyForm = {
   title: "", slug: "", content: "", excerpt: "",
@@ -71,7 +38,7 @@ const postToForm = (post) => ({
   title: post.title || "", slug: post.slug || "",
   content: post.content || "", excerpt: post.excerpt || "",
   category: post.category || "tap-luyen",
-  subCategory: post.subCategory || "",
+  subCategory: normalizeBlogSubCategory(post.subCategory || ""),
   tags: Array.isArray(post.tags) ? post.tags.join(", ") : "",
   coverImage: post.coverImage || "",
   author: post.author?._id || post.author || "",

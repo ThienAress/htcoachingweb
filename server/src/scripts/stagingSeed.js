@@ -12,6 +12,10 @@ import Recipe from "../models/Recipe.js";
 import Trainer from "../models/Trainer.js";
 import User from "../models/User.js";
 import Wallet from "../models/Wallet.js";
+import {
+  isBlogCategory,
+  normalizeBlogSubCategory,
+} from "../constants/blogCategories.js";
 
 const DATABASE_NAME = "htcoaching_staging";
 const FIXTURE_VERSION = "2026-07-23-v1";
@@ -141,12 +145,6 @@ const importPublicContent = async () => {
   const blogResponse = blogSource.data || {};
   const recipeResponse = recipeSource.data || {};
 
-  const blogCategories = new Set([
-    "tap-luyen",
-    "dinh-duong",
-    "hieu-co-the",
-    "tu-duy-loi-song",
-  ]);
   let importedBlogs = 0;
   for (const item of (blogResponse.data || []).slice(0, limit)) {
     const slug = asString(item.slug, 180).toLowerCase();
@@ -163,10 +161,12 @@ const importPublicContent = async () => {
           "<p><em>Staging copy created from the public listing. " +
           "The production detail endpoint is intentionally not read.</em></p>",
         excerpt,
-        category: blogCategories.has(item.category)
+        category: isBlogCategory(item.category)
           ? item.category
           : "tap-luyen",
-        subCategory: asString(item.subCategory, 100),
+        subCategory: normalizeBlogSubCategory(
+          asString(item.subCategory, 100),
+        ),
         tags: asStringArray(item.tags, 20, 100),
         coverImage: asString(item.coverImage, 2048),
         author: null,

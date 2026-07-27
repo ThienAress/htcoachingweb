@@ -6,6 +6,12 @@ import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { scheduleNetlifyBuild } from "../utils/triggerBuild.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import { safeLog } from "../utils/safeLogger.js";
+import {
+  getBlogSubCategoryFilter,
+  isBlogCategory,
+  isBlogSubCategory,
+  normalizeBlogSubCategory,
+} from "../constants/blogCategories.js";
 
 // Cấu hình sanitize — Tầng 1 bảo mật chống XSS
 const sanitizeOptions = {
@@ -86,8 +92,10 @@ const getBlogPayload = (body = {}, existingPost = null) => {
     slug: slugify(rawSlug || title),
     content: sanitizeContent(String(body.content || "")),
     excerpt: String(body.excerpt || "").trim(),
-    category: body.category || "tap-luyen",
-    subCategory: String(body.subCategory || "").trim(),
+    category: String(body.category || "tap-luyen").trim(),
+    subCategory: normalizeBlogSubCategory(
+      String(body.subCategory || "").trim(),
+    ),
     tags,
     coverImage: String(body.coverImage || "").trim(),
     author: body.author || null,
@@ -105,6 +113,16 @@ const getBlogPayload = (body = {}, existingPost = null) => {
   };
 };
 
+const getClassificationError = ({ category, subCategory }) => {
+  if (!isBlogCategory(category)) {
+    return "Chủ đề blog không hợp lệ";
+  }
+  if (!isBlogSubCategory(category, subCategory)) {
+    return "Danh mục con không thuộc chủ đề đã chọn";
+  }
+  return "";
+};
+
 // ==================== PUBLIC ====================
 
 export const getPublicBlogPosts = async (req, res) => {
@@ -119,11 +137,11 @@ export const getPublicBlogPosts = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const query = { status: "published" };
-    if (["tap-luyen", "dinh-duong", "hieu-co-the", "tu-duy-loi-song"].includes(category)) {
+    if (isBlogCategory(category)) {
       query.category = category;
     }
     if (subCategory) {
-      query.subCategory = subCategory.slice(0, 100);
+      query.subCategory = getBlogSubCategoryFilter(subCategory.slice(0, 100));
     }
 
     const [total, posts] = await trackDbQuery("blog.public.list", () =>
@@ -219,11 +237,11 @@ export const getAdminBlogPosts = async (req, res) => {
 
     const query = {};
     if (["draft", "published"].includes(status)) query.status = status;
-    if (["tap-luyen", "dinh-duong", "hieu-co-the", "tu-duy-loi-song"].includes(category)) {
+    if (isBlogCategory(category)) {
       query.category = category;
     }
     if (subCategory) {
-      query.subCategory = subCategory;
+      query.subCategory = getBlogSubCategoryFilter(subCategory);
     }
     if (search) {
       const safeSearch = escapeRegex(search);
@@ -283,6 +301,10 @@ export const createBlogPost = async (req, res) => {
     if (!payload.title || !payload.slug) {
       return res.status(400).json({ success: false, message: "Tiêu đề bài viết là bắt buộc" });
     }
+    const classificationError = getClassificationError(payload);
+    if (classificationError) {
+      return res.status(400).json({ success: false, message: classificationError });
+    }
 
     const existing = await BlogPost.findOne({ slug: payload.slug });
     if (existing) {
@@ -319,6 +341,10 @@ export const updateBlogPost = async (req, res) => {
     const payload = getBlogPayload(req.body, existingPost);
     if (!payload.title || !payload.slug) {
       return res.status(400).json({ success: false, message: "Tiêu đề bài viết là bắt buộc" });
+    }
+    const classificationError = getClassificationError(payload);
+    if (classificationError) {
+      return res.status(400).json({ success: false, message: classificationError });
     }
 
     const existingSlug = await BlogPost.findOne({ slug: payload.slug, _id: { $ne: req.params.id } });

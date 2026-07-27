@@ -8,13 +8,15 @@
     "tap-luyen": "Training",
     "dinh-duong": "Nutrition",
     "hieu-co-the": "Understand Your Body",
-    "tu-duy-loi-song": "Mindset & Lifestyle"
+    "tu-duy-loi-song": "Mindset & Lifestyle",
+    "cong-cu-tinh-toan": "Tools & Calculators"
   },
   "sub_categories": {
     "form-ky-thuat": "Form & Technique",
     "giao-an-mau": "Sample Workouts",
     "sua-loi-sai": "Fix Common Mistakes",
     "theo-muc-tieu": "Goal-based Training",
+    "thiet-bi-dung-cu": "Training Equipment & Gear",
     "macro-calo": "Macros & Calories",
     "thuc-pham-cho": "Food & Grocery shopping",
     "goi-y-thuc-don": "Meal suggestions",
@@ -22,9 +24,16 @@
     "voc-dang-tu-the": "Posture & Body Type Analysis",
     "dot-mo-xay-co": "Fat Loss & Muscle Building Mechanism",
     "phuc-hoi-chan-thuong": "Recovery & Injuries",
-    "phuong-phap-coaching": "Our Methodology",
+    "hormone-giac-ngu": "Hormones & Sleep",
+    "phuong-phap-coaching": "Expert Insights",
+    "goc-nhin-chuyen-gia": "Expert Insights",
     "cau-chuyen-thanh-cong": "Success Stories",
-    "tu-duy-ky-luat": "Mindset & Discipline"
+    "tu-duy-ky-luat": "Mindset & Discipline",
+    "thoi-quen-loi-song": "Habits & Lifestyle",
+    "huong-dan-tdee": "TDEE Calculator Guide",
+    "hieu-ket-qua-meal-plan": "Understanding Meal Plan Results",
+    "tra-cuu-bai-tap": "Exercise Lookup",
+    "chi-so-the-hinh": "Fitness Metrics"
   },
   "header": {
     "tag": "HTCOACHING Blog",

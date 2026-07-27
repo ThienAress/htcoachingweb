@@ -123,6 +123,53 @@ describe("Phase 3 content and option queries", () => {
     ).toBe(6);
   });
 
+  it("filters the new tools topic and includes legacy expert-insight posts", async () => {
+    const base = {
+      content: "<p>Content</p>",
+      excerpt: "Excerpt",
+      status: "published",
+      publishedAt: new Date("2026-07-01T00:00:00.000Z"),
+    };
+    await BlogPost.create([
+      {
+        ...base,
+        title: "TDEE Guide",
+        slug: "tdee-guide",
+        category: "cong-cu-tinh-toan",
+        subCategory: "huong-dan-tdee",
+      },
+      {
+        ...base,
+        title: "Legacy Methodology",
+        slug: "legacy-methodology",
+        category: "tu-duy-loi-song",
+        subCategory: "phuong-phap-coaching",
+      },
+      {
+        ...base,
+        title: "Expert Insight",
+        slug: "expert-insight",
+        category: "tu-duy-loi-song",
+        subCategory: "goc-nhin-chuyen-gia",
+      },
+    ]);
+
+    const tools = await request(app).get(
+      "/api/blog?category=cong-cu-tinh-toan&subCategory=huong-dan-tdee",
+    );
+    expect(tools.status).toBe(200);
+    expect(tools.body.data.map((post) => post.slug)).toEqual(["tdee-guide"]);
+
+    const expertInsights = await request(app).get(
+      "/api/blog?category=tu-duy-loi-song&subCategory=goc-nhin-chuyen-gia",
+    );
+    expect(expertInsights.status).toBe(200);
+    expect(expertInsights.body.data.map((post) => post.slug).sort()).toEqual([
+      "expert-insight",
+      "legacy-methodology",
+    ]);
+  });
+
   it("creates recipes as drafts and rejects malformed structured fields", async () => {
     const { accessToken } = await createTestUser({
       email: "recipe-admin@example.com",

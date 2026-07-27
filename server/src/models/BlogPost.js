@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { BLOG_CATEGORIES } from "../constants/blogCategories.js";
 
 const blogPostSchema = new mongoose.Schema(
   {
@@ -25,7 +26,7 @@ const blogPostSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["tap-luyen", "dinh-duong", "hieu-co-the", "tu-duy-loi-song"],
+      enum: BLOG_CATEGORIES,
       required: true,
     },
     subCategory: {

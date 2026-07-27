@@ -12,43 +12,23 @@ import ScrollToTop from "../components/ScrollToTop";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { translateData } from "../utils/localDataTranslator";
+import {
+  BLOG_CATEGORIES,
+  BLOG_SUB_CATEGORIES,
+  normalizeBlogSubCategory,
+} from "../data/blogCategories";
 
 const CATEGORIES = [
   { value: "", key: "categories.all" },
-  { value: "tap-luyen", key: "categories.tap-luyen" },
-  { value: "dinh-duong", key: "categories.dinh-duong" },
-  { value: "hieu-co-the", key: "categories.hieu-co-the" },
-  { value: "tu-duy-loi-song", key: "categories.tu-duy-loi-song" },
+  ...BLOG_CATEGORIES,
 ];
 
-const SUB_CATEGORIES = {
-  "tap-luyen": [
-    { value: "form-ky-thuat", key: "sub_categories.form-ky-thuat" },
-    { value: "giao-an-mau", key: "sub_categories.giao-an-mau" },
-    { value: "sua-loi-sai", key: "sub_categories.sua-loi-sai" },
-    { value: "theo-muc-tieu", key: "sub_categories.theo-muc-tieu" },
-  ],
-  "dinh-duong": [
-    { value: "macro-calo", key: "sub_categories.macro-calo" },
-    { value: "thuc-pham-cho", key: "sub_categories.thuc-pham-cho" },
-    { value: "goi-y-thuc-don", key: "sub_categories.goi-y-thuc-don" },
-    { value: "thuc-pham-bo-sung", key: "sub_categories.thuc-pham-bo-sung" },
-  ],
-  "hieu-co-the": [
-    { value: "voc-dang-tu-the", key: "sub_categories.voc-dang-tu-the" },
-    { value: "dot-mo-xay-co", key: "sub_categories.dot-mo-xay-co" },
-    { value: "phuc-hoi-chan-thuong", key: "sub_categories.phuc-hoi-chan-thuong" },
-  ],
-  "tu-duy-loi-song": [
-    { value: "phuong-phap-coaching", key: "sub_categories.phuong-phap-coaching" },
-    { value: "cau-chuyen-thanh-cong", key: "sub_categories.cau-chuyen-thanh-cong" },
-    { value: "tu-duy-ky-luat", key: "sub_categories.tu-duy-ky-luat" },
-  ],
-};
+const SUB_CATEGORIES = BLOG_SUB_CATEGORIES;
 
 const getSubCategoryLabel = (t, category, subValue) => {
   if (!category || !subValue) return "";
-  return t(`sub_categories.${subValue}`, { defaultValue: subValue });
+  const normalizedSubValue = normalizeBlogSubCategory(subValue);
+  return t(`sub_categories.${normalizedSubValue}`, { defaultValue: subValue });
 };
 
 const getCategoryLabel = (t, catValue) => {

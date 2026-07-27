@@ -15,10 +15,12 @@ import Footer from "../sections/Footer/Footer";
 import ChatIcons from "../components/ChatIcons";
 import ScrollToTop from "../components/ScrollToTop";
 import { translateData } from "../utils/localDataTranslator";
+import { normalizeBlogSubCategory } from "../data/blogCategories";
 
 const getSubCategoryLabel = (t, category, subValue) => {
   if (!category || !subValue) return "";
-  return t(`sub_categories.${subValue}`, { defaultValue: subValue });
+  const normalizedSubValue = normalizeBlogSubCategory(subValue);
+  return t(`sub_categories.${normalizedSubValue}`, { defaultValue: subValue });
 };
 
 const getCategoryLabel = (t, catValue) => {

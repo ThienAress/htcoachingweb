@@ -8,13 +8,15 @@
     "tap-luyen": "Tập Luyện",
     "dinh-duong": "Dinh Dưỡng",
     "hieu-co-the": "Hiểu Về Cơ Thể",
-    "tu-duy-loi-song": "Tư Duy & Lối Sống"
+    "tu-duy-loi-song": "Tư Duy & Lối Sống",
+    "cong-cu-tinh-toan": "Công Cụ & Tính Toán"
   },
   "sub_categories": {
     "form-ky-thuat": "Kỹ thuật & Form tập",
     "giao-an-mau": "Chương trình tập mẫu",
     "sua-loi-sai": "Sửa lỗi sai thường gặp",
     "theo-muc-tieu": "Tập theo mục tiêu",
+    "thiet-bi-dung-cu": "Thiết bị & Dụng cụ tập",
     "macro-calo": "Hiểu về Macro & Calo",
     "thuc-pham-cho": "Thực phẩm & Đi chợ",
     "goi-y-thuc-don": "Gợi ý Thực đơn",
@@ -22,9 +24,16 @@
     "voc-dang-tu-the": "Giải mã Vóc dáng & Tư thế",
     "dot-mo-xay-co": "Cơ chế Đốt mỡ & Xây cơ",
     "phuc-hoi-chan-thuong": "Phục hồi & Chấn thương",
-    "phuong-phap-coaching": "Phương pháp của chúng tôi",
-    "cau-chuyen-thanh-cong": "Câu chuyện thay đổi (Success Stories)",
-    "tu-duy-ky-luat": "Tư duy kỷ luật (Mindset)"
+    "hormone-giac-ngu": "Hormone & Giấc ngủ",
+    "phuong-phap-coaching": "Góc nhìn chuyên gia",
+    "goc-nhin-chuyen-gia": "Góc nhìn chuyên gia",
+    "cau-chuyen-thanh-cong": "Câu chuyện thay đổi",
+    "tu-duy-ky-luat": "Tư duy kỷ luật (Mindset)",
+    "thoi-quen-loi-song": "Thói quen & Lối sống",
+    "huong-dan-tdee": "Hướng dẫn TDEE Calculator",
+    "hieu-ket-qua-meal-plan": "Hiểu kết quả Meal Plan",
+    "tra-cuu-bai-tap": "Tra cứu bài tập",
+    "chi-so-the-hinh": "Chỉ số thể hình"
   },
   "header": {
     "tag": "Blog HTCOACHING",
