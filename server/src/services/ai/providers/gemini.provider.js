@@ -89,14 +89,26 @@ function convertMessages(messages) {
         // Include thought parts TRƯỚC functionCall (Gemini yêu cầu khi thinking mode bật)
         if (msg._thoughtParts && msg._thoughtParts.length > 0) {
           for (const tp of msg._thoughtParts) {
-            parts.push({ thought: true, text: tp.text });
+            const thoughtPart = { thought: true };
+            if (tp.text) thoughtPart.text = tp.text;
+            const thoughtSignature =
+              tp.thoughtSignature || tp.thought_signature;
+            if (thoughtSignature) {
+              thoughtPart.thoughtSignature = thoughtSignature;
+            }
+            parts.push(thoughtPart);
           }
         }
         for (const tc of msg.tool_calls) {
           const fnCall = { name: tc.name, args: tc.args || {} };
           if (tc.id) fnCall.id = tc.id;
-          if (tc.thought_signature) fnCall.thought_signature = tc.thought_signature;
-          parts.push({ functionCall: fnCall });
+          const functionCallPart = { functionCall: fnCall };
+          const thoughtSignature =
+            tc.thoughtSignature || tc.thought_signature;
+          if (thoughtSignature) {
+            functionCallPart.thoughtSignature = thoughtSignature;
+          }
+          parts.push(functionCallPart);
         }
       }
       if (parts.length > 0) rawContents.push({ role: "model", parts });
@@ -112,7 +124,7 @@ function convertMessages(messages) {
       }
 
       rawContents.push({
-        role: "function",
+        role: "user",
         parts: [{
           functionResponse: {
             id: msg.id || msg.name,
@@ -124,7 +136,7 @@ function convertMessages(messages) {
     }
   }
 
-  // 1. Gộp các block giống role liên tiếp nhau (User-User, Model-Model, Function-Function)
+  // 1. Gộp các block giống role liên tiếp nhau (User-User, Model-Model)
   const mergedContents = [];
   for (const current of rawContents) {
     const prev = mergedContents[mergedContents.length - 1];
@@ -135,28 +147,18 @@ function convertMessages(messages) {
     }
   }
 
-  // 2. Sanitize Xen Kẽ: Đảm bảo luồng hợp lệ: user -> model -> function -> model -> user ...
+  // 2. Sanitize xen kẽ: functionResponse là một user turn theo Gemini API.
   const finalContents = [];
   for (const current of mergedContents) {
     const prev = finalContents[finalContents.length - 1];
 
     if (current.role === "user") {
-      if (prev && prev.role === "function") {
-        finalContents.push({ role: "model", parts: [{ text: "Đã xử lý xong kết quả." }] });
-      }
       finalContents.push(current);
     } else if (current.role === "model") {
       if (!prev) {
         finalContents.push({ role: "user", parts: [{ text: "Bắt đầu trò chuyện." }] });
       }
       finalContents.push(current);
-    } else if (current.role === "function") {
-      if (prev && prev.role === "model") {
-        finalContents.push(current);
-      } else {
-        // Bỏ qua function mồ côi (trước nó không phải model có call)
-        continue;
-      }
     }
   }
   
@@ -327,7 +329,8 @@ async function* streamGemini(messages, tools, signal) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let thoughtBuffer = []; // Buffer thought parts để gửi kèm tool_call
+  const thoughtBuffer = []; // Buffer thought parts để gửi kèm tool_call
+  const pendingToolCalls = [];
 
   while (true) {
     const { done, value } = await reader.read();
@@ -355,9 +358,16 @@ async function* streamGemini(messages, tools, signal) {
         if (!candidate?.content?.parts) continue;
 
         for (const part of candidate.content.parts) {
+          const thoughtSignature =
+            part.thoughtSignature || part.thought_signature;
+
           // Buffer thought parts — KHÔNG gửi ra UI nhưng CẦN echo lại cho Gemini
           if (part.thought) {
-            thoughtBuffer.push({ thought: true, text: part.text });
+            thoughtBuffer.push({
+              thought: true,
+              ...(part.text && { text: part.text }),
+              ...(thoughtSignature && { thoughtSignature }),
+            });
             continue;
           }
 
@@ -366,24 +376,27 @@ async function* streamGemini(messages, tools, signal) {
           }
 
           if (part.functionCall) {
-            yield {
-              type: "tool_call",
-              toolCalls: [{
-                id: part.functionCall.id || part.id || `gemini_${Date.now()}`,
-                name: part.functionCall.name,
-                args: part.functionCall.args || {},
-                ...(part.functionCall.thought_signature && { thought_signature: part.functionCall.thought_signature }),
-              }],
-              // Gửi kèm thought parts cho controller echo lại Gemini
-              thoughtParts: thoughtBuffer.length > 0 ? [...thoughtBuffer] : undefined,
-            };
-            thoughtBuffer = []; // Reset sau mỗi tool call
+            pendingToolCalls.push({
+              id: part.functionCall.id || part.id || `gemini_${Date.now()}`,
+              name: part.functionCall.name,
+              args: part.functionCall.args || {},
+              ...(thoughtSignature && { thoughtSignature }),
+            });
           }
         }
       } catch {
         // JSON parse error — skip malformed chunk
       }
     }
+  }
+
+  if (pendingToolCalls.length > 0) {
+    yield {
+      type: "tool_call",
+      toolCalls: pendingToolCalls,
+      // Echo lại nguyên thứ tự model parts trước toàn bộ parallel calls.
+      thoughtParts: thoughtBuffer.length > 0 ? thoughtBuffer : undefined,
+    };
   }
 }
 
