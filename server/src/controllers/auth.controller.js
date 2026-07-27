@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { generateCsrfToken } from "../middlewares/csrf.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { setCsrfCookie } from "../utils/csrfCookie.js";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -58,7 +59,7 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
   );
 
   const csrfToken = generateCsrfToken();
-  res.cookie("csrfToken", csrfToken, getCsrfCookieOptions());
+  setCsrfCookie(res, csrfToken, getCsrfCookieOptions());
 };
 
 const clearAuthCookies = (res) => {

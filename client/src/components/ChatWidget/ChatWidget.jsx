@@ -16,7 +16,7 @@ const TOOL_LABELS = {
   search_exercises: "Đang tìm bài tập...",
   suggest_meal: "Đang lên thực đơn...",
   get_trainer_info: "Đang tìm HLV...",
-  search_knowledge: "Đang tìm kiếm trên Google...",
+  search_knowledge: "Đang kiểm chứng thông tin...",
 };
 
 const QUICK_ACTIONS = [
@@ -385,6 +385,8 @@ export default function ChatWidget() {
               {isLoading ? (
                 <button
                   onClick={cancelRequest}
+                  aria-label="Dừng phản hồi"
+                  title="Dừng phản hồi"
                   className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
                 >
                   <Square size={16} />

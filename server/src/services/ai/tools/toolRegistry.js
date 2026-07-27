@@ -120,10 +120,11 @@ export const toolRegistry = {
       "Tra cứu thông tin thực tế từ internet bằng Google Search. " +
       "⚠️ CHỈ GỌI KHI: thông tin KHÔNG có trong phần 'Kiến thức đã verified' ở system prompt. " +
       "Nếu system prompt đã có câu trả lời → DÙNG NGAY, KHÔNG gọi tool này. " +
-      "GỌI KHI: user hỏi về VĐV, influencer, kết quả thi đấu, tin tức mới " +
-      "mà KHÔNG tìm thấy trong kiến thức đã verified. " +
+      "GỌI KHI: user hỏi dữ liệu mới/có thể thay đổi, yêu cầu nguồn, hoặc thông tin cụ thể " +
+      "mà model không đủ chắc chắn và không tìm thấy trong kiến thức verified. " +
       "VÍ DỤ nên gọi: 'Mr. Olympia 2024 ai thắng', 'bài nghiên cứu mới về creatine'. " +
-      "KHÔNG GỌI KHI: câu hỏi đã được trả lời bởi KB, hoặc là kiến thức gym phổ thông.",
+      "KHÔNG GỌI KHI: câu hỏi đã được trả lời bởi KB, kiến thức gym phổ thông, " +
+      "hoặc tiểu sử ổn định mà model biết chắc.",
     parameters: {
       type: "object",
       additionalProperties: false,

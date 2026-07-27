@@ -12,6 +12,11 @@ import { searchKnowledgeBase } from "../services/ai/embedding.service.js";
 import { aiLogger } from "../services/ai/aiLogger.js";
 import { enrichContextWithDbData } from "../services/ai/contextEnricher.js";
 import {
+  deriveConversationMemory,
+  updateConversationMemory,
+} from "../services/ai/conversationMemory.js";
+import { sanitizeAssistantOutput } from "../services/ai/assistantOutput.js";
+import {
   buildChatSummary,
   MAX_RECENT_REQUEST_IDS,
   MAX_STORED_CHAT_MESSAGES,
@@ -24,6 +29,8 @@ const MAX_ITERATIONS = 5;
 const MAX_HISTORY_MESSAGES = 20;
 const STREAM_STALE_MS = 10 * 60 * 1000;
 const CONVERSATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const CHAT_DEADLINE_MS = 75 * 1000;
+const TOOL_TIMEOUT_MS = 15 * 1000;
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 
@@ -143,6 +150,7 @@ async function finalizeConversation({
   streamId,
   generatedMessages,
   assistantPreview,
+  workingMemory,
 }) {
   const update = {
     $set: {
@@ -167,6 +175,9 @@ async function finalizeConversation({
   }
   if (assistantPreview) {
     Object.assign(update.$set, buildChatSummary(assistantPreview));
+  }
+  if (workingMemory && Object.keys(workingMemory).length > 0) {
+    update.$set.workingMemory = workingMemory;
   }
 
   return ChatConversation.updateOne(
@@ -255,14 +266,25 @@ export const chatStream = async (req, res) => {
   res.flushHeaders();
 
   const abortController = new AbortController();
+  let clientDisconnected = false;
+  let deadlineExceeded = false;
+  const deadlineTimer = setTimeout(() => {
+    deadlineExceeded = true;
+    abortController.abort(new Error("AI response deadline exceeded"));
+  }, CHAT_DEADLINE_MS);
   res.on("close", () => {
     if (!res.writableEnded && !abortController.signal.aborted) {
+      clientDisconnected = true;
       incrementMetric("ai.aborts");
+      abortController.abort(new Error("Client disconnected"));
     }
-    abortController.abort();
   });
 
   const generatedMessages = [];
+  let conversationMemory = deriveConversationMemory(
+    conversation.messages,
+    conversation.workingMemory,
+  );
   let finalized = false;
   let fullResponse = "";
   try {
@@ -290,6 +312,7 @@ export const chatStream = async (req, res) => {
       pageType,
       pageData,
       userMetrics: conversation.context?.userMetrics,
+      conversationMemory,
     });
 
     // === KNOWLEDGE BASE SEARCH ===
@@ -340,6 +363,7 @@ export const chatStream = async (req, res) => {
     // === AGENT LOOP (Pattern từ Dify fc_agent_runner.py) ===
     let iteration = 0;
     let needsToolCall = true;
+    let protocolRetryCount = 0;
     aiLogger.chatStart(userId, conversation._id);
 
     while (
@@ -349,6 +373,8 @@ export const chatStream = async (req, res) => {
     ) {
       needsToolCall = false;
       iteration++;
+      let iterationText = "";
+      let iterationCalledTool = false;
 
       for await (const chunk of llmStream(llmMessages, tools, {
         signal: abortController.signal,
@@ -366,16 +392,31 @@ export const chatStream = async (req, res) => {
               );
               break;
             }
-            fullResponse += chunk.content;
-            res.write(`data: ${JSON.stringify({ type: "text", content: chunk.content })}\n\n`);
+            iterationText += chunk.content;
             break;
 
           case "tool_call":
             needsToolCall = true;
+            iterationCalledTool = true;
             
             // XÓA BỎ VĂN BẢN RÁC: Khi LLM gọi tool, nó sẽ bắt đầu lại từ đầu ở Turn sau,
             // nên mọi văn bản đã sinh ra ở Turn hiện tại chỉ là nháp và phải bị vứt bỏ.
             fullResponse = "";
+
+            // Gemini yêu cầu parallel function calls nằm trong cùng model turn,
+            // sau đó mới tới các functionResponse trong một user turn.
+            llmMessages.push({
+              role: "assistant",
+              content: "",
+              tool_calls: chunk.toolCalls,
+              _thoughtParts: chunk.thoughtParts || [],
+            });
+            generatedMessages.push({
+              role: "assistant",
+              content: "",
+              toolCalls: chunk.toolCalls,
+              timestamp: new Date(),
+            });
 
             for (const call of chunk.toolCalls) {
               // Gửi tool_start cho FE loading
@@ -383,11 +424,28 @@ export const chatStream = async (req, res) => {
 
               // Thực thi tool
               const toolStartTime = Date.now();
-              const toolResult = await executeTool(call.name, call.args, { userId });
+              const toolResult = await executeTool(call.name, call.args, {
+                userId,
+                signal: abortController.signal,
+                timeoutMs: TOOL_TIMEOUT_MS,
+              });
+              if (abortController.signal.aborted) break;
               const safeToolText = String(toolResult.text || "").slice(0, 20000);
               const toolDuration = Date.now() - toolStartTime;
               toolCallCount++;
               aiLogger.toolCall(userId, call.name, toolDuration, !toolResult.error);
+              if (
+                !toolResult.error &&
+                !toolResult.meta?.validationFailed &&
+                !toolResult.meta?.timedOut
+              ) {
+                conversationMemory = updateConversationMemory(
+                  conversationMemory,
+                  call.name,
+                  call.args,
+                  toolResult,
+                );
+              }
 
               // Gửi tool_result cho FE
               res.write(`data: ${JSON.stringify({ type: "tool_result", tool: call.name, text: safeToolText })}\n\n`);
@@ -397,24 +455,16 @@ export const chatStream = async (req, res) => {
                 res.write(`data: ${JSON.stringify({ type: "ui_card", ...toolResult.uiCard })}\n\n`);
               }
 
-              // Thêm assistant tool_call + tool result vào messages cho LLM iteration tiếp
-              // Kèm thoughtParts để Gemini nhận diện đúng thinking context
-              llmMessages.push({ 
-                role: "assistant", 
-                content: "", 
-                tool_calls: [call],
-                _thoughtParts: chunk.thoughtParts || [],
+              // Thêm tool result vào messages cho LLM iteration tiếp.
+              llmMessages.push({
+                role: "tool",
+                content: safeToolText,
+                name: call.name,
+                id: call.id,
               });
-              llmMessages.push({ role: "tool", content: safeToolText, name: call.name });
               lastToolResultText = safeToolText; // Lưu backup
 
               // Lưu tool call vào conversation
-              generatedMessages.push({
-                role: "assistant",
-                content: "",
-                toolCalls: [call],
-                timestamp: new Date(),
-              });
               generatedMessages.push({
                 role: "tool",
                 content: safeToolText,
@@ -431,6 +481,33 @@ export const chatStream = async (req, res) => {
             break;
         }
       }
+
+      if (abortController.signal.aborted) break;
+      if (!iterationCalledTool && iterationText) {
+        const guarded = sanitizeAssistantOutput(iterationText);
+        if (guarded.protocolLeak && protocolRetryCount < 1) {
+          protocolRetryCount++;
+          llmMessages.push({ role: "assistant", content: iterationText });
+          llmMessages.push({
+            role: "user",
+            content:
+              "Không hiển thị JSON action, tên tool hoặc suy nghĩ nội bộ. Hãy gọi function phù hợp trực tiếp; nếu không cần function thì chỉ trả lời cuối cùng.",
+          });
+          needsToolCall = true;
+          continue;
+        }
+
+        fullResponse =
+          guarded.content ||
+          "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.";
+        res.write(
+          `data: ${JSON.stringify({ type: "text", content: fullResponse })}\n\n`,
+        );
+      }
+    }
+
+    if (deadlineExceeded) {
+      throw new Error("AI response deadline exceeded");
     }
 
     // Lưu final response
@@ -463,6 +540,7 @@ export const chatStream = async (req, res) => {
       streamId,
       generatedMessages,
       assistantPreview: fullResponse,
+      workingMemory: conversationMemory,
     });
     finalized = true;
 
@@ -487,11 +565,15 @@ export const chatStream = async (req, res) => {
     }
   } catch (err) {
     aiLogger.chatError(userId, err, "chatStream");
-    if (!abortController.signal.aborted && !res.writableEnded) {
-      res.write(`data: ${JSON.stringify({ type: "error", message: "Có lỗi xảy ra, vui lòng thử lại" })}\n\n`);
+    if (!clientDisconnected && !res.writableEnded) {
+      const message = deadlineExceeded
+        ? "HT Assistant phản hồi quá lâu. Bạn vui lòng thử lại."
+        : "Có lỗi xảy ra, vui lòng thử lại";
+      res.write(`data: ${JSON.stringify({ type: "error", message })}\n\n`);
       res.end();
     }
   } finally {
+    clearTimeout(deadlineTimer);
     if (!finalized) {
       if (fullResponse && !generatedMessages.some((item) => item.content === fullResponse)) {
         generatedMessages.push({
@@ -507,6 +589,7 @@ export const chatStream = async (req, res) => {
           streamId,
           generatedMessages,
           assistantPreview: fullResponse,
+          workingMemory: conversationMemory,
         });
       } catch (error) {
         aiLogger.chatError(userId, error, "chatFinalize");
@@ -658,6 +741,7 @@ export const forkConversation = async (req, res) => {
       lastMessagePreview: String(lastMeaningful?.content || "").slice(0, 120),
       lastMessageAt: lastMeaningful?.timestamp || null,
       context: source.context?.toObject?.() || source.context || {},
+      workingMemory: deriveConversationMemory(copiedMessages),
       forkedFromConversationId: source._id,
       forkedFromMessageId: messageId,
       expiresAt: new Date(Date.now() + CONVERSATION_TTL_MS),

@@ -89,6 +89,10 @@ const chatConversationSchema = new mongoose.Schema(
       lastPage: { type: String, default: "" },
       userMetrics: { type: mongoose.Schema.Types.Mixed, default: null },
     },
+    workingMemory: {
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({}),
+    },
     tokenUsage: {
       totalInputTokens: { type: Number, default: 0 },
       totalOutputTokens: { type: Number, default: 0 },
