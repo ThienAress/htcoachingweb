@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { DEPOSIT_POLICY } from "../constants/depositPolicy.js";
 
 const depositRequestSchema = new mongoose.Schema(
   {
@@ -12,7 +13,8 @@ const depositRequestSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
-      min: 5000, // Tối thiểu 5.000đ
+      min: DEPOSIT_POLICY.minAmount,
+      max: DEPOSIT_POLICY.maxAmount,
     },
 
     // Mã nạp tiền duy nhất (NanoID), VD: HTC-8A9X-2M4K

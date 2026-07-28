@@ -10,6 +10,7 @@ import {
   getMyWallet,
   confirmDeposit,
 } from "../controllers/deposit.controller.js";
+import { getDepositPolicy } from "../controllers/depositPolicy.controller.js";
 
 const router = express.Router();
 
@@ -18,6 +19,9 @@ router.post("/", protect, financialCommandLimiter, csrfProtection, createDeposit
 
 // 📋 User xem lịch sử nạp tiền
 router.get("/", protect, getMyDeposits);
+
+// Server-authoritative amount policy for frontend validation.
+router.get("/policy", protect, getDepositPolicy);
 
 // 🔍 User xem chi tiết 1 yêu cầu nạp
 router.get("/:id", protect, getDepositById);

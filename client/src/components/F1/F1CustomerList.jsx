@@ -1,19 +1,10 @@
 import { ChevronLeft, ChevronRight, Search, UserPlus } from "lucide-react";
+import { F1_CUSTOMER_STATUS_LABELS } from "../../constants/f1CustomerStatus";
 
 const StatusBadge = ({ value }) => {
-  const map = {
-    new: "Mới tạo",
-    intake_in_progress: "Đang khảo sát",
-    intake_completed: "Đã khảo sát",
-    assessment_completed: "Đã đánh giá thể chất",
-    ai_report_generated: "Đã có AI report",
-    program_started: "Đã bắt đầu lộ trình",
-    archived: "Đã lưu trữ",
-  };
-
   return (
     <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-      {map[value] || value}
+      {F1_CUSTOMER_STATUS_LABELS[value] || value}
     </span>
   );
 };

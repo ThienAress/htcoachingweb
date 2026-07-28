@@ -6,7 +6,7 @@ import Contract from "../models/Contract.js";
 import AuditLog from "../models/AuditLog.js";
 import User from "../models/User.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
-import { getMaxClientsByPlan } from "./trainerSubscription.controller.js";
+import { getMaxClientsByPlan } from "../services/trainerPlanCatalog.service.js";
 import jwt from "jsonwebtoken";
 import { escapeRegex } from "../utils/escapeRegex.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
@@ -40,11 +40,17 @@ export const createOrder = async (req, res) => {
       });
 
       if (subscription) {
-        const maxClients = getMaxClientsByPlan(subscription.planTitle);
+        const maxClients = getMaxClientsByPlan(
+          subscription.planCode || subscription.planTitle,
+        );
 
         if (maxClients > 0) {
           // Đếm số email unique mà trainer đang quản lý
-          const existingEmails = await Order.distinct("email", { trainerId });
+          const existingEmails = await Order.distinct("email", {
+            trainerId,
+            status: { $in: ["pending", "approved"] },
+            sessions: { $gt: 0 },
+          });
 
           // Nếu email này chưa tồn tại → cần 1 slot mới
           const isNewClient = !existingEmails.includes(normalizedEmail);

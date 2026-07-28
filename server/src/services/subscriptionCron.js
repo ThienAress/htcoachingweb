@@ -1,27 +1,40 @@
 import TrainerSubscription from "../models/TrainerSubscription.js";
+import { calculateRetentionDeadlines } from "./trainerSubscriptionLifecycle.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 
-/**
- * Cron Job: Quét các gói HLV đang "active" nhưng đã quá endDate
- * và chuyển trạng thái thành "expired".
- *
- * Chạy mỗi 1 phút bằng setInterval.
- */
+const INTERVAL_MS = 60 * 1000;
 
-const INTERVAL_MS = 60 * 1000; // 1 phút
-
-async function expireTrainerSubscriptions() {
+export async function expireTrainerSubscriptions() {
   try {
     const now = new Date();
+    const expiredCandidates = await TrainerSubscription.find({
+      status: "active",
+      endDate: { $lte: now },
+    })
+      .select("_id endDate")
+      .lean();
 
-    const result = await TrainerSubscription.updateMany(
-      {
-        status: "active",
-        endDate: { $lte: now },
-      },
-      {
-        $set: { status: "expired", isActive: false },
-      }
+    if (expiredCandidates.length === 0) return 0;
+    const result = await TrainerSubscription.bulkWrite(
+      expiredCandidates.map((subscription) => {
+        const retention = calculateRetentionDeadlines(
+          subscription.endDate || now,
+        );
+        return {
+          updateOne: {
+            filter: { _id: subscription._id, status: "active" },
+            update: {
+              $set: {
+                status: "expired",
+                isActive: false,
+                structuredRetentionExpiresAt:
+                  retention.structuredRetentionExpiresAt,
+                mediaRetentionExpiresAt: retention.mediaRetentionExpiresAt,
+              },
+            },
+          },
+        };
+      }),
     );
 
     if (result.modifiedCount > 0) {
@@ -29,17 +42,15 @@ async function expireTrainerSubscriptions() {
         count: result.modifiedCount,
       });
     }
-  } catch (err) {
-    safeLog.error("subscription_cron.failed", err);
+    return result.modifiedCount;
+  } catch (error) {
+    safeLog.error("subscription_cron.failed", error);
+    return 0;
   }
 }
 
 export function startSubscriptionCronJobs() {
   safeLog.info("subscription_cron.started", { intervalMs: INTERVAL_MS });
-
-  // Chạy ngay lần đầu khi server khởi động
   expireTrainerSubscriptions();
-
-  // Lặp lại mỗi 1 phút
   setInterval(expireTrainerSubscriptions, INTERVAL_MS);
 }

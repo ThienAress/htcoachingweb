@@ -2,6 +2,7 @@ import crypto from "crypto";
 import DepositRequest from "../models/DepositRequest.js";
 import Wallet from "../models/Wallet.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { validateDepositAmount } from "../constants/depositPolicy.js";
 
 const getBankTransferConfig = () => {
   const config = {
@@ -32,24 +33,12 @@ export const createDeposit = async (req, res) => {
     const userId = req.user.id;
     const { amount } = req.body;
 
-    if (!Number.isSafeInteger(amount)) {
+    const amountValidation = validateDepositAmount(amount);
+    if (!amountValidation.valid) {
       return res.status(400).json({
         success: false,
-        code: "INVALID_DEPOSIT_AMOUNT",
-        message: "Số tiền nạp phải là số nguyên VND",
-      });
-    }
-    if (amount < 5000) {
-      return res.status(400).json({
-        success: false,
-        message: "Số tiền nạp tối thiểu là 5.000đ",
-      });
-    }
-
-    if (amount > 100000000) {
-      return res.status(400).json({
-        success: false,
-        message: "Số tiền nạp tối đa là 100.000.000đ",
+        code: amountValidation.code,
+        message: amountValidation.message,
       });
     }
 

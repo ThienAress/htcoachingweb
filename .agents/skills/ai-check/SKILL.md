@@ -107,7 +107,7 @@ client/src/services/ai.service.js
 Chạy script tự động kiểm tra tất cả tools:
 
 ```bash
-node .agents/scripts/validate-tools.js
+node .agents/scripts/validate-tools.mjs
 ```
 
 Script kiểm tra:

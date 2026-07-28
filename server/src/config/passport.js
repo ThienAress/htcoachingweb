@@ -2,6 +2,16 @@ import "./env.js";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/User.js";
+import { claimPendingTrainerGrantForUser } from "../services/trainerSubscriptionGrant.service.js";
+import { safeLog } from "../utils/safeLogger.js";
+
+const claimPendingGrantWithoutBlockingLogin = async (user) => {
+  try {
+    await claimPendingTrainerGrantForUser(user);
+  } catch (error) {
+    safeLog.error("auth.pending_trainer_grant_claim_failed", error);
+  }
+};
 
 passport.use(
   new GoogleStrategy(
@@ -33,6 +43,7 @@ passport.use(
             user.role = "admin";
             await user.save();
           }
+          await claimPendingGrantWithoutBlockingLogin(user);
           return done(null, user);
         }
 
@@ -44,6 +55,7 @@ passport.use(
           role: isAdminEmail ? "admin" : "user",
         });
 
+        await claimPendingGrantWithoutBlockingLogin(user);
         return done(null, user);
       } catch (err) {
         return done(err, null);

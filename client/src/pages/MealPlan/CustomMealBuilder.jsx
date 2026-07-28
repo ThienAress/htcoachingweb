@@ -47,7 +47,7 @@ export default function CustomMealBuilder({
   selectedPlan,
 }) {
   const { t } = useTranslation("mealplan");
-  const { accessLevel, canGenerate, recordGeneration, maxGenerations } = useMealPlanAccess();
+  const { accessLevel, isChecking, accessError, canGenerate, recordGeneration, maxGenerations } = useMealPlanAccess();
   const { user } = useAuth();
 
   const storageKey = `customMealBuilder_${user ? user._id : "guest"}`;
@@ -104,6 +104,11 @@ export default function CustomMealBuilder({
   const { totalMacros, totalCalories } = calculateTotal();
 
   const handleOpenModal = async (mealIndex, type) => {
+    if (isChecking || accessError) {
+      toast.error("Không thể xác minh lượt tạo thực đơn. Vui lòng thử lại.");
+      return;
+    }
+
     // Check trial limit only when they try to add the very FIRST food if they haven't recorded yet
     const hasAnyFood = meals.some(m => m.carbFood?.length || m.proteinFood?.length || m.fatFood?.length);
 

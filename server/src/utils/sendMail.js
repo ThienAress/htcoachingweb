@@ -502,3 +502,79 @@ export const sendContractMail = async (to, data) => {
     safeLog.error("mail.contract_failed", err);
   }
 };
+
+const trainerPlanMailLayout = ({ heading, greeting, content }) => `
+  <!DOCTYPE html>
+  <html lang="vi">
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin:0;padding:24px;background:#f4f4f4;font-family:'Segoe UI',Arial,sans-serif;color:#1e293b">
+      <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:20px;overflow:hidden">
+          <tr><td style="padding:28px;background:#172033;color:#fff;text-align:center">
+            <h1 style="margin:0;font-size:25px">HT COACHING</h1>
+            <p style="margin:8px 0 0;color:#fed7aa">${safe(heading)}</p>
+          </td></tr>
+          <tr><td style="padding:28px">
+            <p style="font-size:17px">${greeting}</p>
+            ${content}
+            <p style="margin-top:24px;font-size:12px;color:#64748b">Email này được gửi tự động từ HT Coaching.</p>
+          </td></tr>
+        </table>
+      </td></tr></table>
+    </body>
+  </html>`;
+
+export const sendTrainerGrantInvitationMail = async (to, data) => {
+  try {
+    const loginUrl = `${String(process.env.CLIENT_URL || "https://htcoachingweb.io.vn").replace(/\/$/, "")}/login`;
+    const html = trainerPlanMailLayout({
+      heading: "Bạn đã được cấp gói huấn luyện viên",
+      greeting: `Chào <strong>${safe(to)}</strong>,`,
+      content: `
+        <p>HT Coaching đã ghi nhận gói <strong>${safe(data.plan?.title)}</strong> theo chu kỳ <strong>${safe(data.billingCycle)}</strong> cho email này.</p>
+        <p>Hãy đăng nhập bằng đúng email để nhận gói. Thời hạn chỉ bắt đầu khi bạn nhận gói thành công.</p>
+        <p style="text-align:center;margin:28px 0"><a href="${safe(loginUrl)}" style="display:inline-block;padding:12px 24px;border-radius:12px;background:#f97316;color:#fff;text-decoration:none;font-weight:700">Đăng nhập nhận gói</a></p>`,
+    });
+    const response = await deliverEmail({
+      from: "HT Coaching <noreply@htcoachingweb.io.vn>",
+      to,
+      subject: "HT Coaching — Gói huấn luyện viên đang chờ bạn nhận",
+      html,
+    });
+    safeLog.info("mail.sent", {
+      template: "trainer_grant_invitation",
+      providerMessageId: response?.data?.id || "",
+    });
+  } catch (error) {
+    safeLog.error("mail.trainer_grant_invitation_failed", error);
+  }
+};
+
+export const sendTrainerSubscriptionActivatedMail = async (to, data) => {
+  try {
+    const subscription = data.subscription || {};
+    const html = trainerPlanMailLayout({
+      heading: "Đăng ký gói huấn luyện viên thành công",
+      greeting: `Chào <strong>${safe(data.name || to)}</strong>,`,
+      content: `
+        <p>Gói <strong>${safe(subscription.planTitle)}</strong> của bạn đã được kích hoạt.</p>
+        <table width="100%" cellpadding="10" cellspacing="0" style="background:#fff7ed;border-radius:12px">
+          <tr><td>Chu kỳ</td><td><strong>${safe(subscription.billingCycle)}</strong></td></tr>
+          <tr><td>Ngày bắt đầu</td><td>${formatDate(subscription.startDate)}</td></tr>
+          <tr><td>Ngày hết hạn</td><td>${formatDate(subscription.endDate)}</td></tr>
+        </table>`,
+    });
+    const response = await deliverEmail({
+      from: "HT Coaching <noreply@htcoachingweb.io.vn>",
+      to,
+      subject: "HT Coaching — Đăng ký gói huấn luyện viên thành công",
+      html,
+    });
+    safeLog.info("mail.sent", {
+      template: "trainer_subscription_activated",
+      providerMessageId: response?.data?.id || "",
+    });
+  } catch (error) {
+    safeLog.error("mail.trainer_subscription_activated_failed", error);
+  }
+};

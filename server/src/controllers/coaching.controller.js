@@ -236,8 +236,12 @@ export const getClientTimeline = async (req, res) => {
       }
     }
 
+    const historyFilter = { userId };
+    if (req.user.role !== "admin") {
+      historyFilter.trainerId = req.user.id;
+    }
     const history = await trackDbQuery("coaching.trainer.timeline", () =>
-      CoachingDay.find({ userId })
+      CoachingDay.find(historyFilter)
         .populate("trainerId", "name email")
         .sort({ date: -1 })
         .limit(120)

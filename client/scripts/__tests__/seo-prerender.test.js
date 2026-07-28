@@ -78,4 +78,70 @@ describe("prerender SEO validation", () => {
       ]),
     );
   });
+
+  it("rejects homepage JSON-LD when trainer plan offers are missing", () => {
+    expect(
+      validatePrerenderSnapshot(
+        {
+          ...validSnapshot,
+          canonicals: ["https://htcoachingweb.io.vn/"],
+          structuredData: [
+            {
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "Service",
+                  name: "HTCOACHING trainer platform",
+                },
+              ],
+            },
+          ],
+        },
+        "https://htcoachingweb.io.vn/",
+        {
+          expectedServiceOffers: [
+            { price: 0, priceCurrency: "VND" },
+            { price: 200000, priceCurrency: "VND" },
+          ],
+        },
+      ),
+    ).toContain("expected 2 Service offers in JSON-LD, received 0");
+  });
+
+  it("rejects homepage JSON-LD when an offer amount drifts", () => {
+    expect(
+      validatePrerenderSnapshot(
+        {
+          ...validSnapshot,
+          canonicals: ["https://htcoachingweb.io.vn/"],
+          structuredData: [
+            {
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "Service",
+                  name: "HTCOACHING trainer platform",
+                  offers: [
+                    { "@type": "Offer", price: 0, priceCurrency: "VND" },
+                    {
+                      "@type": "Offer",
+                      price: 5,
+                      priceCurrency: "VND",
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        "https://htcoachingweb.io.vn/",
+        {
+          expectedServiceOffers: [
+            { price: 0, priceCurrency: "VND" },
+            { price: 200000, priceCurrency: "VND" },
+          ],
+        },
+      ),
+    ).toContain("Service offer prices or currencies do not match the catalog");
+  });
 });

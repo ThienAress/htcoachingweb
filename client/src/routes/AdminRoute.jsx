@@ -7,13 +7,16 @@ const AdminRoute = ({ children }) => {
   const location = useLocation();
   const { user, loading } = useAuth();
   const requiresSubscription = user?.role === "user";
-  const { data: subscription, isLoading: subLoading } = useQuery({
+  const {
+    data: subscription,
+    isLoading: subLoading,
+    isError: subError,
+    isFetching: subFetching,
+    refetch: refetchSubscription,
+  } = useQuery({
     queryKey: ["route-subscription", user?._id],
     enabled: requiresSubscription,
-    queryFn: () =>
-      getMySubscription()
-        .then((res) => res.data.data)
-        .catch(() => null),
+    queryFn: () => getMySubscription().then((res) => res.data.data),
     staleTime: 60_000,
   });
 
@@ -29,6 +32,23 @@ const AdminRoute = ({ children }) => {
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+
+  if (requiresSubscription && subError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-slate-50 px-4 text-center text-slate-700">
+        <p>Không thể xác minh gói huấn luyện viên của bạn.</p>
+        <button
+          type="button"
+          onClick={() => refetchSubscription()}
+          disabled={subFetching}
+          className="min-h-11 rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white hover:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-50"
+        >
+          {subFetching ? "Đang thử lại..." : "Thử lại"}
+        </button>
+      </div>
+    );
+  }
+
 
   // Admin → chỉ vào /admin hoặc /trainer
   if (user.role === "admin") {

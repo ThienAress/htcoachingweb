@@ -48,8 +48,7 @@ const MealPlan = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const { user, loading: authLoading } = useAuth();
-  // eslint-disable-next-line no-unused-vars
-  const { accessLevel, isChecking, canGenerate, remainingGenerations, recordGeneration, maxGenerations } = useMealPlanAccess();
+  const { accessLevel, isChecking, accessError, retryAccess, canGenerate, remainingGenerations, recordGeneration, maxGenerations } = useMealPlanAccess();
 
   // Đợi macroSet load xong
   const isMacroReady = macroSet !== null;
@@ -90,6 +89,15 @@ const MealPlan = () => {
       setShowLoginModal(true);
       return;
     }
+    if (isChecking) {
+      toast.info(t("toast.loading_macros"));
+      return;
+    }
+    if (accessError) {
+      toast.error("Không thể xác minh lượt tạo thực đơn. Vui lòng thử lại.");
+      return;
+    }
+
 
     // Kiểm tra giới hạn lượt cho trial users
     if (!canGenerate) {
@@ -202,7 +210,7 @@ const MealPlan = () => {
             <MealButton
               onGenerate={handleGenerateMeal}
               isGenerating={isGenerating}
-              disabled={!isMacroReady || isLoadingFoods}
+              disabled={!isMacroReady || isLoadingFoods || isChecking || accessError}
               label={buttonLabel}
             />
 
@@ -222,6 +230,19 @@ const MealPlan = () => {
               </button>
             )}
           </div>
+
+          {user && accessError && (
+            <div className="mx-auto mb-6 max-w-lg rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
+              <p>Không thể xác minh lượt tạo thực đơn hiện tại.</p>
+              <button
+                type="button"
+                onClick={() => retryAccess()}
+                className="mt-2 min-h-11 rounded-md px-3 py-2 font-semibold hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+              >
+                Thử tải lại
+              </button>
+            </div>
+          )}
 
           {/* Thông báo giới hạn lượt cho trial users */}
           {accessLevel === "trial" && (

@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { X, Gift, Sparkles, LogIn, ArrowRight, Wallet, CheckCircle, AlertTriangle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { getMyWallet } from "../services/wallet.service";
-import { purchaseTrainerPlan } from "../services/trainerSubscription.service";
+import {
+  getMySubscription,
+  purchaseTrainerPlan,
+} from "../services/trainerSubscription.service";
+import { useTrainerPlanCatalog } from "../hooks/useTrainerPlanCatalog";
+import { createTrainerPlanPurchasePayload } from "../utils/trainerPlanCatalog";
 
 const Pricing = ({ isHeroAnimDone = false }) => {
   const { t } = useTranslation("home");
@@ -49,19 +54,40 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   const [checkoutResult, setCheckoutResult] = useState(null); // { success, message, data }
   const [countdown, setCountdown] = useState(null);
   const [activeSubscription, setActiveSubscription] = useState(null);
+  const [freeTrialStatus, setFreeTrialStatus] = useState("unknown");
+  const {
+    data: trainerCatalogData,
+    isLoading: trainerCatalogLoading,
+    isError: trainerCatalogError,
+    refetch: refetchTrainerCatalog,
+  } = useTrainerPlanCatalog();
+  const trainerCatalog = trainerCatalogData?.byCode || {};
+  const [showFreeTrialUsed, setShowFreeTrialUsed] = useState(false);
   const [showAlreadySubscribed, setShowAlreadySubscribed] = useState(false);
   const purchaseRequestIdRef = useRef(null);
 
-  // Fetch gói đang dùng khi đăng nhập
-  useEffect(() => {
-    if (user) {
-      import("../services/trainerSubscription.service").then(({ getMySubscription }) => {
-        getMySubscription()
-          .then((res) => setActiveSubscription(res.data.data))
-          .catch(() => setActiveSubscription(null));
-      });
+
+  const loadTrainerSubscription = useCallback(async () => {
+    if (!user) {
+      setActiveSubscription(null);
+      setFreeTrialStatus("unknown");
+      return;
+    }
+    setFreeTrialStatus("unknown");
+    try {
+      const res = await getMySubscription();
+      setActiveSubscription(res.data.data);
+      setFreeTrialStatus(res.data.freeTrial?.status || "unknown");
+    } catch {
+      setActiveSubscription(null);
+      setFreeTrialStatus("error");
     }
   }, [user]);
+
+  // Fetch gói đang dùng khi đăng nhập
+  useEffect(() => {
+    void loadTrainerSubscription();
+  }, [loadTrainerSubscription]);
 
   // Khóa scroll khi drawer mở
   useEffect(() => {
@@ -279,18 +305,48 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   };
 
   // ===== GÓI DỊCH VỤ DÀNH CHO TRAINER =====
-  const trainerPlans = [
+  const trainerPlans = trainerCatalogData ? [
     {
-      title: t("pricing.trainer_plans.basic"),
-      icon: "\uD83D\uDD25",
-      subtitle: t("pricing.trainer_plans.basic_sub"),
-      priceMonth: 200000,
-      priceYear: 2000000,
+      code: "free",
+      title: t("pricing.trainer_plans.free"),
+      icon: "🎁",
+      subtitle: t("pricing.trainer_plans.free_sub", { count: trainerCatalog.free.durationDays }),
+      priceMonth: trainerCatalog.free.prices.trial,
+      priceYear: trainerCatalog.free.prices.trial,
+      durationDays: trainerCatalog.free.durationDays,
+      isFree: true,
       categories: [
         {
           name: t("pricing.trainer_plans.categories.student_management"),
           features: [
-            t("pricing.trainer_plans.features.max_5_students"),
+            t("pricing.trainer_plans.features.max_students", { count: trainerCatalog.free.maxClients }),
+            t("pricing.trainer_plans.features.create_profile"),
+            t("pricing.trainer_plans.features.checkin_checkout"),
+            t("pricing.trainer_plans.features.checkin_history"),
+            t("pricing.trainer_plans.features.dashboard"),
+          ],
+        },
+        {
+          name: t("pricing.trainer_plans.categories.coaching_schedule"),
+          features: [
+            t("pricing.trainer_plans.features.coaching_feedback"),
+            t("pricing.trainer_plans.features.manage_schedule"),
+          ],
+        },
+      ],
+    },
+    {
+      code: "standard",
+      title: t("pricing.trainer_plans.basic"),
+      icon: "\uD83D\uDD25",
+      subtitle: t("pricing.trainer_plans.basic_sub"),
+      priceMonth: trainerCatalog.standard.prices.month,
+      priceYear: trainerCatalog.standard.prices.year,
+      categories: [
+        {
+          name: t("pricing.trainer_plans.categories.student_management"),
+          features: [
+            t("pricing.trainer_plans.features.max_students", { count: trainerCatalog.standard.maxClients }),
             t("pricing.trainer_plans.features.create_profile"),
             t("pricing.trainer_plans.features.checkin_checkout"),
             t("pricing.trainer_plans.features.checkin_history"),
@@ -308,16 +364,17 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     },
     {
       title: t("pricing.trainer_plans.advanced"),
+      code: "professional",
       icon: "\uD83D\uDC8E",
       subtitle: t("pricing.trainer_plans.advanced_sub"),
-      priceMonth: 250000,
-      priceYear: 2500000,
+      priceMonth: trainerCatalog.professional.prices.month,
+      priceYear: trainerCatalog.professional.prices.year,
       featured: true,
       categories: [
         {
           name: t("pricing.trainer_plans.categories.student_management"),
           features: [
-            t("pricing.trainer_plans.features.max_20_students"),
+            t("pricing.trainer_plans.features.max_students", { count: trainerCatalog.professional.maxClients }),
             t("pricing.trainer_plans.features.create_profile"),
             t("pricing.trainer_plans.features.checkin_checkout"),
             t("pricing.trainer_plans.features.checkin_history"),
@@ -346,14 +403,15 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     {
       title: t("pricing.trainer_plans.vip"),
       icon: "\uD83D\uDC51",
+      code: "premium",
       subtitle: t("pricing.trainer_plans.vip_sub"),
-      priceMonth: 300000,
-      priceYear: 3000000,
+      priceMonth: trainerCatalog.premium.prices.month,
+      priceYear: trainerCatalog.premium.prices.year,
       categories: [
         {
           name: t("pricing.trainer_plans.categories.student_management"),
           features: [
-            t("pricing.trainer_plans.features.max_50_students"),
+            t("pricing.trainer_plans.features.max_students", { count: trainerCatalog.premium.maxClients }),
             t("pricing.trainer_plans.features.create_profile"),
             t("pricing.trainer_plans.features.checkin_checkout"),
             t("pricing.trainer_plans.features.checkin_history"),
@@ -386,7 +444,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         }
       ]
     }
-  ];
+  ] : [];
 
   const plans = mode === "online" ? onlinePlans : oneOnOnePlans;
 
@@ -522,16 +580,40 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 2xl:gap-8 max-w-5xl 2xl:max-w-6xl mx-auto">
+        {isTrainer && trainerCatalogLoading && (
+          <div className="mx-auto mb-6 max-w-xl rounded-xl border border-gray-700 bg-[#1a1a1a] p-6 text-center text-gray-300">
+            {t("pricing.trainer_plans.checking_trial")}
+          </div>
+        )}
+        {isTrainer && trainerCatalogError && (
+          <div className="mx-auto mb-6 max-w-xl rounded-xl border border-red-500/40 bg-red-500/10 p-6 text-center">
+            <p className="text-red-300">
+              {t("pricing.trainer_plans.retry_trial_check")}
+            </p>
+            <button
+              type="button"
+              onClick={() => refetchTrainerCatalog()}
+              className="mt-4 min-h-11 rounded-lg bg-primary px-4 py-2 font-semibold text-white hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+            >
+              {t("pricing.trainer_plans.retry_trial_check")}
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 2xl:gap-8 max-w-7xl mx-auto">
           {isTrainer ? (
             trainerPlans.map((plan, idx) => {
-              const currentPrice = billingCycle === "year" ? plan.priceYear : plan.priceMonth;
+              const currentPrice = plan.isFree
+                ? 0
+                : billingCycle === "year"
+                  ? plan.priceYear
+                  : plan.priceMonth;
               const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(currentPrice);
-              const averageMonthPrice = billingCycle === "year" ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Math.round(plan.priceYear / 12)) : null;
+              const averageMonthPrice = !plan.isFree && billingCycle === "year" ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Math.round(plan.priceYear / 12)) : null;
 
               return (
                 <div
-                  key={idx}
+                  key={plan.code || idx}
                   className={`relative bg-[#1a1a1a] border-2 rounded-xl p-8 2xl:p-10 transition-all duration-300 w-full flex flex-col ${plan.featured
                     ? "border-primary bg-gradient-to-br from-[#1a1a1a] to-[#2a2a2a]"
                     : "border-gray-800"
@@ -543,6 +625,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     </div>
                   )}
 
+                  {plan.isFree && freeTrialStatus === "used" && (
+                    <div className="absolute -top-3 -right-3 rounded-full bg-slate-600 px-3 py-1 text-xs font-bold text-white shadow-md">
+                      {t("pricing.trainer_plans.trial_used_badge")}
+                    </div>
+                  )}
                   <div className="mb-6">
                     <h3 className="text-fluid-2xl font-bold text-white text-center whitespace-nowrap">
                       {plan.title}
@@ -552,9 +639,9 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     <div className="mt-6">
                       <div className="flex items-baseline flex-wrap gap-x-1.5 gap-y-0">
                         <span className="text-3xl xl:text-4xl font-bold text-white leading-tight">{formattedPrice}</span>
-                        <span className="text-gray-400 text-sm shrink-0">/{billingCycle === "year" ? t("pricing.year") : t("pricing.month")}</span>
+                        <span className="text-gray-400 text-sm shrink-0">/{plan.isFree ? t("pricing.trainer_plans.days", { count: plan.durationDays }) : billingCycle === "year" ? t("pricing.year") : t("pricing.month")}</span>
                       </div>
-                      {billingCycle === "year" && (
+                      {!plan.isFree && billingCycle === "year" && (
                         <p className="text-sm text-gray-500 mt-1">
                           {t("pricing.avg_per_month")} {averageMonthPrice}/{t("pricing.month")}
                         </p>
@@ -582,13 +669,21 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
                   <div className="mt-8">
                     <button
+                      disabled={plan.isFree && Boolean(user) && freeTrialStatus === "unknown"}
                       onClick={async () => {
                         if (!user) {
                           setShowTrainerLoginPrompt(true);
                           return;
                         }
-                        // Kiểm tra nếu đang dùng gói này rồi
-                        if (activeSubscription && activeSubscription.planTitle === plan.title) {
+                        if (plan.isFree && freeTrialStatus === "error") {
+                          void loadTrainerSubscription();
+                          return;
+                        }
+                        if (plan.isFree && freeTrialStatus === "used") {
+                          setShowFreeTrialUsed(true);
+                          return;
+                        }
+                        if (activeSubscription && activeSubscription.planCode === plan.code) {
                           setShowAlreadySubscribed(true);
                           return;
                         }
@@ -596,19 +691,32 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           globalThis.crypto.randomUUID();
                         setCheckoutPlan(plan);
                         setCheckoutResult(null);
-                        setWalletLoading(true);
-                        try {
-                          const res = await getMyWallet();
-                          setWalletBalance(res.data.data.balance);
-                        } catch {
+                        if (plan.isFree) {
                           setWalletBalance(0);
-                        } finally {
                           setWalletLoading(false);
+                        } else {
+                          setWalletLoading(true);
+                          try {
+                            const res = await getMyWallet();
+                            setWalletBalance(res.data.data.balance);
+                          } catch {
+                            setWalletBalance(0);
+                          } finally {
+                            setWalletLoading(false);
+                          }
                         }
                       }}
-                      className="w-full py-3 font-bold rounded-lg transition-all duration-300 bg-primary text-white hover:bg-orange-500 shadow-lg shadow-orange-500/20"
+                      className="w-full rounded-lg bg-primary py-3 font-bold text-white shadow-lg shadow-orange-500/20 transition-all duration-300 hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-wait disabled:opacity-60"
                     >
-                      {t("pricing.buy")}
+                      {plan.isFree && user && freeTrialStatus === "unknown"
+                        ? t("pricing.trainer_plans.checking_trial")
+                        : plan.isFree && user && freeTrialStatus === "error"
+                          ? t("pricing.trainer_plans.retry_trial_check")
+                          : plan.isFree && freeTrialStatus === "used"
+                          ? t("pricing.trainer_plans.upgrade_cta")
+                          : plan.isFree
+                            ? t("pricing.trainer_plans.start_free")
+                            : t("pricing.buy")}
                     </button>
                   </div>
                 </div>
@@ -825,6 +933,38 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         )}
 
         {/* ===== MODAL ĐÃ ĐĂNG KÝ GÓI NÀY ===== */}
+        {showFreeTrialUsed && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+            onClick={() => setShowFreeTrialUsed(false)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="free-trial-used-title"
+              className="w-full max-w-sm rounded-2xl border border-slate-600 bg-[#1a1a1a] p-6 text-center shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/15">
+                <AlertTriangle className="h-7 w-7 text-amber-400" aria-hidden="true" />
+              </div>
+              <h3 id="free-trial-used-title" className="text-lg font-bold text-white">
+                {t("pricing.trainer_plans.trial_ended_title")}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-400">
+                {t("pricing.trainer_plans.trial_ended_message")}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowFreeTrialUsed(false)}
+                className="mt-5 w-full rounded-lg bg-primary px-4 py-3 font-bold text-white transition-colors hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+              >
+                {t("pricing.trainer_plans.choose_paid_plan")}
+              </button>
+            </div>
+          </div>
+        )}
+
         {showAlreadySubscribed && (
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -863,9 +1003,13 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
         {/* ===== DRAWER CHECKOUT GÓI HLV (trượt từ phải) ===== */}
         {checkoutPlan && (() => {
-          const price = billingCycle === "year" ? checkoutPlan.priceYear : checkoutPlan.priceMonth;
+          const isFreeCheckout = checkoutPlan.isFree;
+          const selectedBillingCycle = isFreeCheckout ? "trial" : billingCycle;
+          const price = isFreeCheckout
+            ? 0
+            : billingCycle === "year" ? checkoutPlan.priceYear : checkoutPlan.priceMonth;
           const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-          const isEnough = walletBalance !== null && walletBalance >= price;
+          const isEnough = isFreeCheckout || (walletBalance !== null && walletBalance >= price);
           const shortage = walletBalance !== null ? price - walletBalance : 0;
 
           const handlePurchase = async () => {
@@ -875,11 +1019,13 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 purchaseRequestIdRef.current =
                   globalThis.crypto.randomUUID();
               }
-              const res = await purchaseTrainerPlan(
-                checkoutPlan.title,
-                billingCycle,
-                purchaseRequestIdRef.current,
-              );
+              const payload = createTrainerPlanPurchasePayload({
+                catalog: trainerCatalogData,
+                planCode: checkoutPlan.code,
+                billingCycle: selectedBillingCycle,
+                requestId: purchaseRequestIdRef.current,
+              });
+              const res = await purchaseTrainerPlan(payload);
               setCheckoutResult({
                 success: true,
                 message: res.data.message,
@@ -887,9 +1033,14 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               });
               setCountdown(5);
             } catch (err) {
+              if (err.response?.data?.code === "CATALOG_CHANGED") {
+                purchaseRequestIdRef.current = null;
+                await refetchTrainerCatalog();
+              }
               setCheckoutResult({
                 success: false,
                 message: err.response?.data?.message || "Có lỗi xảy ra",
+                code: err.response?.data?.code,
               });
             } finally {
               setCheckoutLoading(false);
@@ -937,7 +1088,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                   </div>
                   <div className="mt-4 flex items-end gap-1">
                     <span className="text-3xl font-bold text-white">{formattedPrice}</span>
-                    <span className="text-gray-400 mb-1">/{billingCycle === "year" ? "Năm" : "Tháng"}</span>
+                    <span className="text-gray-400 mb-1">/{isFreeCheckout ? t("pricing.trainer_plans.days", { count: checkoutPlan.durationDays }) : billingCycle === "year" ? t("pricing.year") : t("pricing.month")}</span>
                   </div>
                 </div>
 
@@ -950,9 +1101,9 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
                             <CheckCircle className="w-10 h-10 text-green-400" />
                           </div>
-                          <h4 className="text-xl font-bold text-green-400">Thanh toán thành công!</h4>
+                          <h4 className="text-xl font-bold text-green-400">Kích hoạt thành công!</h4>
                           <p className="text-gray-400 text-sm">{checkoutResult.message}</p>
-                          {checkoutResult.data && (
+                          {checkoutResult.data?.newBalance !== null && checkoutResult.data?.newBalance !== undefined && (
                             <div className="bg-[#222] rounded-xl p-4 w-full text-sm">
                               <div className="flex justify-between text-gray-400">
                                 <span>Số dư còn lại</span>
@@ -986,13 +1137,14 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className={`grid gap-3 ${checkoutResult.code === "CATALOG_CHANGED" ? "grid-cols-1" : "grid-cols-2"}`}>
                         <button
                           onClick={handleClose}
                           className="py-3 bg-gray-700 text-white font-semibold rounded-xl hover:bg-gray-600 transition"
                         >
                           Đóng
                         </button>
+                        {checkoutResult.code !== "CATALOG_CHANGED" && (
                         <button
                           onClick={handlePurchase}
                           disabled={checkoutLoading}
@@ -1000,12 +1152,14 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                         >
                           {checkoutLoading ? "Đang thử lại..." : "Thử lại"}
                         </button>
+                        )}
                       </div>
                     )}
                   </div>
                 ) : (
                   <div className="px-6 py-6 space-y-6">
                     {/* Phương thức thanh toán */}
+                    {!isFreeCheckout && (
                     <div>
                       <p className="text-sm text-gray-400 mb-3 font-medium">Phương thức thanh toán</p>
                       <div className="bg-[#222] border-2 border-primary/50 rounded-xl p-4">
@@ -1031,6 +1185,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                         </div>
                       </div>
                     </div>
+                    )}
 
                     {/* Chi tiết thanh toán */}
                     <div className="bg-[#222] rounded-xl p-4 space-y-3">
@@ -1045,7 +1200,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     </div>
 
                     {/* Thiếu tiền warning */}
-                    {!walletLoading && !isEnough && walletBalance !== null && (
+                    {!isFreeCheckout && !walletLoading && !isEnough && walletBalance !== null && (
                       <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center space-y-2">
                         <p className="text-red-400 text-sm font-medium">
                           ⚠️ Số dư không đủ (thiếu {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(shortage)})
@@ -1069,7 +1224,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                       disabled={checkoutLoading || walletLoading || !isEnough}
                       className="w-full py-4 bg-gradient-to-r from-primary to-orange-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                     >
-                      {checkoutLoading ? "Đang xử lý..." : "THANH TOÁN"}
+                      {checkoutLoading
+                        ? "Đang xử lý..."
+                        : isFreeCheckout
+                          ? "KÍCH HOẠT MIỄN PHÍ"
+                          : "THANH TOÁN"}
                     </button>
                   </div>
                 )}

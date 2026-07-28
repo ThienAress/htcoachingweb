@@ -25,7 +25,7 @@ import {
   updateCustomerStoryStatus,
   uploadCustomerStoryImage,
 } from "../../services/customerStory.service";
-import { getOrders } from "../../services/order.service";
+import { getAllOrders } from "../../services/orderCollection.service";
 import { getAdminTrainers } from "../../services/trainer.service";
 import CustomerStoryDetail from "../CustomerStoryDetail";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -240,9 +240,9 @@ const CustomerStoryManagement = () => {
 
   const { data: ordersData } = useQuery({
     queryKey: ["admin-orders-for-story"],
-    queryFn: () => getOrders(1, 0), // Lấy tất cả orders
+    queryFn: getAllOrders,
   });
-  const allOrders = ordersData?.data?.data?.orders || [];
+  const allOrders = ordersData || [];
 
   const { data: trainersData } = useQuery({
     queryKey: ["admin-trainers-for-story"],

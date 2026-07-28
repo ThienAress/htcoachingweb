@@ -1,20 +1,28 @@
 import api from "../utils/api";
 
-// Mua gói HLV (thanh toán bằng ví)
-export const purchaseTrainerPlan = (planTitle, billingCycle, requestId) =>
-  api.post("/trainer-subscriptions/purchase", {
-    planTitle,
-    billingCycle,
-    requestId,
-  });
+export const getTrainerPlanCatalog = () =>
+  api.get("/trainer-subscriptions/catalog");
 
-// Xem gói hiện tại
+export const purchaseTrainerPlan = (payload) =>
+  api.post("/trainer-subscriptions/purchase", payload);
+
 export const getMySubscription = () => api.get("/trainer-subscriptions/my");
 
-// Admin: Lấy tất cả HLV có gói active
 export const getAllSubscribers = (page = 1, limit = 10, search = "") =>
-  api.get(`/trainer-subscriptions/all?page=${page}&limit=${limit}&search=${search}`);
+  api.get("/trainer-subscriptions/all", {
+    params: { page, limit, search },
+  });
 
-// Admin: Hủy entitlement, giữ nguyên subscription và ledger để đối soát.
 export const cancelSubscription = (id, reason) =>
-  api.post("/trainer-subscriptions/" + id + "/cancel", { reason });
+  api.post(`/trainer-subscriptions/${id}/cancel`, { reason });
+
+export const grantTrainerPlanByEmail = (payload) =>
+  api.post("/trainer-subscriptions/admin/grants", payload);
+
+export const getPendingTrainerGrants = (page = 1, limit = 20) =>
+  api.get("/trainer-subscriptions/admin/grants/pending", {
+    params: { page, limit },
+  });
+
+export const revokePendingTrainerGrant = (id) =>
+  api.post(`/trainer-subscriptions/admin/grants/${id}/revoke`);

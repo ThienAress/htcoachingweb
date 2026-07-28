@@ -170,6 +170,17 @@
       "backpack": "Premium Degrey Backpack"
     },
     "trainer_plans": {
+      "free": "Free trial",
+      "free_sub": "All core features for {{count}} days",
+      "days": "{{count}} days",
+      "trial_used_badge": "Trial used",
+      "start_free": "START FREE",
+      "checking_trial": "CHECKING...",
+      "retry_trial_check": "CHECK AGAIN",
+      "upgrade_cta": "CHOOSE A PAID PLAN",
+      "trial_ended_title": "Your free trial has ended",
+      "trial_ended_message": "This email has already used its one-time trial. Choose a paid plan to keep managing your data and clients.",
+      "choose_paid_plan": "View paid plans",
       "basic": "Basic",
       "basic_sub": "For trainers just starting out",
       "advanced": "Professional",
@@ -183,9 +194,7 @@
         "privilege": "Privileges"
       },
       "features": {
-        "max_5_students": "Manage up to 5 clients",
-        "max_20_students": "Manage up to 20 clients",
-        "max_50_students": "Manage up to 50 clients",
+        "max_students": "Manage up to {{count}} clients",
         "create_profile": "Create client training profiles",
         "checkin_checkout": "Checkin/Checkout clients via system",
         "checkin_history": "View check-in history of all clients",

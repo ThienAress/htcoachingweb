@@ -106,7 +106,7 @@ Hoặc nói "fix #1" để tôi implement trực tiếp.
 
 | User nói | AI làm |
 |----------|--------|
-| "plan #1, #3" | Viết plans theo `plan-template.md` vào `plans/` folder |
+| "plan #1, #3" | Viết plans theo `plan-template.md` vào `docs/plans/` folder |
 | "fix #1" | Implement trực tiếp (không cần plan cho task nhỏ) |
 | "plan tất cả" | Viết plans cho tất cả findings |
 
@@ -116,7 +116,7 @@ Hoặc nói "fix #1" để tôi implement trực tiếp.
 
 Khi user gõ `$audit reconcile` hoặc "check lại plans":
 
-Đọc `plans/README.md` và mỗi plan file, xử lý theo status:
+Đọc `docs/plans/README.md` và mỗi plan file, xử lý theo status:
 
 | Status | Action |
 |--------|--------|
@@ -127,7 +127,7 @@ Khi user gõ `$audit reconcile` hoặc "check lại plans":
 
 **Output:**
 ```
-🔄 RECONCILE — plans/
+🔄 RECONCILE — docs/plans/
 ━━━━━━━━━━━━━━━━━━━━
 ✅ DONE (verified): 001, 003
 🔄 REFRESHED: 002 (code changed, updated excerpts)

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// validate-tools.js — Kiểm tra tất cả AI tools trong toolRegistry
-// Chạy: node .agents/scripts/validate-tools.js
+// validate-tools.mjs — Kiểm tra tất cả AI tools trong toolRegistry
+// Chạy: node .agents/scripts/validate-tools.mjs
 // Dùng trong: /ai-check workflow (Bước 4)
 
 import { toolRegistry, getToolSchemas } from "../../server/src/services/ai/tools/toolRegistry.js";

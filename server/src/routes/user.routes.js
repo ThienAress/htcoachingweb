@@ -17,6 +17,7 @@ import {
 import {
   validateDeleteUser,
 } from "../middlewares/validation.js";
+import { getTrainerAssignmentCandidates } from "../controllers/trainerAssignment.controller.js";
 
 const router = express.Router();
 
@@ -150,6 +151,12 @@ router.get("/me/transactions", protect, async (req, res) => {
 
 
 // ===== GET USER FROM GOOGLE =====
+router.get(
+  "/trainer-assignment-candidates",
+  protect,
+  requireRoles("admin"),
+  getTrainerAssignmentCandidates,
+);
 router.get("/users", protect, requireRoles("admin"), getUsers);
 router.delete(
   "/:id",

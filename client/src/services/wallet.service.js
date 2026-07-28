@@ -14,3 +14,5 @@ export const getMyDeposits = () => api.get("/deposits");
 
 // Xem số dư ví
 export const getMyWallet = () => api.get("/me/wallet");
+
+export const getDepositPolicy = () => api.get("/deposits/policy");

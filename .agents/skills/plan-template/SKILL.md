@@ -115,7 +115,7 @@ Machine-checkable. TẤT CẢ phải đạt:
 - [ ] Feature hoạt động đúng (mô tả cụ thể scenario verify)
 - [ ] Không có file ngoài in-scope list bị modified
 - [ ] Không có `console.log()` debug tạm thời còn sót
-- [ ] `plans/README.md` status row updated (nếu có)
+- [ ] `docs/plans/README.md` status row updated (nếu có)
 
 ## STOP Conditions
 
@@ -137,7 +137,7 @@ Cho người/AI maintain code sau khi change lands:
 
 ---
 
-## Index File: `plans/README.md`
+## Index File: `docs/plans/README.md`
 
 Viết 1 lần sau khi tạo plans, update khi execute:
 
