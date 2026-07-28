@@ -502,7 +502,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
 
         {!isTrainer && (
-          <div className="flex justify-center items-center gap-4 flex-wrap mb-10">
+          <div className="flex justify-center items-center gap-4 flex-wrap mt-8 mb-10">
             <div className="relative w-64 h-12 rounded-full bg-[#222] shadow-lg">
               <div className="relative w-full h-full">
                 <input
@@ -554,7 +554,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         )}
 
         {isTrainer && (
-          <div className="flex justify-center items-center mb-10">
+          <div className="flex justify-center items-center mt-8 mb-10">
             <div className="relative w-64 h-12 rounded-full bg-[#222] shadow-lg">
               <div className="relative w-full h-full flex">
                 <button
@@ -600,7 +600,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 2xl:gap-8 max-w-7xl mx-auto">
+        <div className={`grid grid-cols-1 gap-6 2xl:gap-8 mx-auto ${isTrainer ? "sm:grid-cols-2 xl:grid-cols-4 max-w-7xl" : "sm:grid-cols-2 lg:grid-cols-3 max-w-5xl"}`}>
           {isTrainer ? (
             trainerPlans.map((plan, idx) => {
               const currentPrice = plan.isFree
@@ -789,7 +789,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     e.preventDefault();
                     handleRegister(plan, mode === "trial" ? "trial" : mode);
                   }}
-                  className="relative flex items-center justify-center w-full mt-5 py-3 2xl:py-4 font-bold uppercase tracking-wide rounded-md overflow-hidden group transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-fluid-base"
+                  className="group relative flex items-center justify-center w-full mt-5 py-3 2xl:py-4 font-bold uppercase tracking-wide rounded-md overflow-hidden transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-fluid-base"
                 >
                   <span className="relative z-10">{t("pricing.register_now")}</span>
                   <span className="absolute inset-0 bg-primary transform -translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></span>
