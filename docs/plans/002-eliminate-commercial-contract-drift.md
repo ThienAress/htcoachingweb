@@ -15,7 +15,8 @@
 - **Depends on**: Plan 001
 - **Category**: security | payment | correctness | tests | tech-debt
 - **Planned at**: 2026-07-28
-- **Status**: IMPLEMENTED / VERIFIED — STAGING PENDING
+- **Status**: DEPLOYED / VERIFIED ON STAGING
+- **Staging verified at**: 2026-07-28
 - **Implemented and verified locally at**: 2026-07-28
 
 ## Why This Matters

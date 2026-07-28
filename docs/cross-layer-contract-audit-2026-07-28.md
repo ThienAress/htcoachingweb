@@ -161,4 +161,5 @@ Không chạy migration, seed hoặc retention cleanup trên staging/production 
 - UI check: 33/40 (Good); không có HIGH mới trong surfaces đã sửa, retry/error controls có focus-visible và touch target tối thiểu.
 - SEO check: PASS qua structured-data regression tests và full prerender.
 - Skill drift: 11 AI tools đã đồng bộ; cảnh báo không block là `tdd-guide` vẫn ghi inventory 10 file cũ trong khi repo hiện có 76 test files.
-- E2E local: SKIP theo pre-deploy policy vì không khởi động dev servers; thay bằng smoke test read-only sau khi staging deploy.
+- E2E Chromium theo đúng CI: 46/46 PASS sau khi đồng bộ mock `/trainer-subscriptions/my` với response `200 + data: null + freeTrial`.
+- Staging smoke read-only: frontend/API health, readiness, CORS/security headers, 4-plan catalog, 7 Home offers và auth boundaries đều PASS; GitHub `Staging Health and Security` thành công.

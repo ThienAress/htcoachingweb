@@ -111,9 +111,21 @@ const handleApi = (req, res, path) => {
     return req.headers["x-e2e-trainer-access"] === "true"
       ? sendJson(res, {
           success: true,
-          data: { _id: "subscription-e2e", status: "active" },
+          data: {
+            _id: "subscription-e2e",
+            status: "active",
+            planCode: "standard",
+          },
+          freeTrial: {
+            status: "used",
+            claimedAt: "2026-07-01T00:00:00.000Z",
+          },
         })
-      : sendJson(res, { success: false, message: "No subscription" }, 404);
+      : sendJson(res, {
+          success: true,
+          data: null,
+          freeTrial: { status: "available", claimedAt: null },
+        });
   }
   if (path === "/api/site-settings") {
     return sendJson(res, { success: true, data: {} });
