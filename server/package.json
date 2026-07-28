@@ -19,6 +19,7 @@
     "migrate:phase7": "node src/migrations/20260719-phase7-schedule-booking-integrity.js",
     "migrate:phase8": "node src/migrations/20260720-phase8-f1-private-integrity.js",
     "migrate:phase9": "node src/migrations/20260720-phase9-privacy-operations.js",
+    "migrate:phase10": "node src/migrations/20260728-phase10-trainer-lifecycle.js",
     "reconcile:wallets": "node src/scripts/reconcileWallets.js",
     "verify:phase4-indexes": "node src/scripts/verifyPhase4Indexes.js",
     "verify:phase7": "node src/scripts/verifyPhase7ScheduleIntegrity.js",

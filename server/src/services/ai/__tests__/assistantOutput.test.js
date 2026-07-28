@@ -23,4 +23,28 @@ describe("AI assistant output guard", () => {
 
     expect(result).toEqual({ content: "", protocolLeak: true });
   });
+
+  it("removes explanations that expose internal tool mechanics", () => {
+    const result = sanitizeAssistantOutput(
+      'Cảm ơn bạn đã khen! Mình được trang bị các công cụ (tools) để kết nối với dữ liệu thực tế.\n\n' +
+        'Khi bạn hỏi về vận động viên, mình sẽ gọi tool search_knowledge để tra cứu thông tin.\n\n' +
+        'Khi cần thông tin cập nhật, mình sẽ kiểm chứng từ nguồn phù hợp rồi tổng hợp lại dễ hiểu cho bạn.',
+    );
+
+    expect(result).toEqual({
+      content:
+        'Khi cần thông tin cập nhật, mình sẽ kiểm chứng từ nguồn phù hợp rồi tổng hợp lại dễ hiểu cho bạn.',
+      protocolLeak: false,
+    });
+  });
+
+  it("keeps normal references to customer-facing tools", () => {
+    const result = sanitizeAssistantOutput(
+      "Bạn có thể dùng công cụ tính TDEE miễn phí trên HTCOACHING.",
+    );
+
+    expect(result.content).toBe(
+      "Bạn có thể dùng công cụ tính TDEE miễn phí trên HTCOACHING.",
+    );
+  });
 });

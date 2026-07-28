@@ -1,5 +1,9 @@
 import { body, param, validationResult } from "express-validator";
 import mongoose from "mongoose";
+import {
+  TRAINER_BILLING_CYCLES,
+  TRAINER_PLAN_CODES,
+} from "../constants/trainerPlans.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -925,5 +929,50 @@ export const validateUpdateContract = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Tổng tiền phải >= 0"),
+  handleValidationErrors,
+];
+
+// ============================================================================
+// TRAINER SUBSCRIPTION VALIDATIONS
+// ============================================================================
+
+export const validateTrainerPlanPurchase = [
+  body().custom((value) => {
+    if (!value?.planCode && !value?.planTitle) {
+      throw new Error("planCode hoặc planTitle là bắt buộc");
+    }
+    return true;
+  }),
+  body("planCode").optional().isIn(TRAINER_PLAN_CODES)
+    .withMessage("planCode không hợp lệ"),
+  body("planTitle").optional().isString().isLength({ min: 1, max: 60 })
+    .withMessage("planTitle không hợp lệ"),
+  body("billingCycle").isIn(TRAINER_BILLING_CYCLES)
+    .withMessage("billingCycle không hợp lệ"),
+  body("requestId").isUUID().withMessage("requestId không hợp lệ"),
+  body("expectedAmount")
+    .custom(
+      (value) => Number.isSafeInteger(value) && value >= 0,
+    )
+    .withMessage("expectedAmount không hợp lệ"),
+  body("catalogFingerprint")
+    .isString()
+    .matches(/^[a-f0-9]{64}$/)
+    .withMessage("catalogFingerprint không hợp lệ"),
+  body("protocolVersion")
+    .custom((value) => value === 1)
+    .withMessage("protocolVersion không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateTrainerPlanGrant = [
+  body("email").isString().trim().isLength({ min: 3, max: 320 }).isEmail()
+    .withMessage("Email không hợp lệ"),
+  body("planCode")
+    .isIn(TRAINER_PLAN_CODES)
+    .withMessage("planCode không hợp lệ"),
+  body("billingCycle")
+    .isIn(TRAINER_BILLING_CYCLES)
+    .withMessage("billingCycle không hợp lệ"),
   handleValidationErrors,
 ];

@@ -170,6 +170,17 @@
       "backpack": "Balo cao cấp Degrey"
     },
     "trainer_plans": {
+      "free": "Dùng thử",
+      "free_sub": "Đầy đủ tính năng cốt lõi trong {{count}} ngày",
+      "days": "{{count}} ngày",
+      "trial_used_badge": "Đã dùng thử",
+      "start_free": "BẮT ĐẦU MIỄN PHÍ",
+      "checking_trial": "ĐANG KIỂM TRA...",
+      "retry_trial_check": "THỬ KIỂM TRA LẠI",
+      "upgrade_cta": "CHỌN GÓI TRẢ PHÍ",
+      "trial_ended_title": "Gói dùng thử đã kết thúc",
+      "trial_ended_message": "Email này đã sử dụng quyền dùng thử một lần. Hãy chọn gói trả phí để tiếp tục quản lý dữ liệu và khách hàng của bạn.",
+      "choose_paid_plan": "Xem các gói trả phí",
       "basic": "Tiêu chuẩn",
       "basic_sub": "Dành cho HLV mới bắt đầu",
       "advanced": "Chuyên nghiệp",
@@ -183,9 +194,7 @@
         "privilege": "Đặc quyền"
       },
       "features": {
-        "max_5_students": "Quản lý tối đa 5 học viên",
-        "max_20_students": "Quản lý tối đa 20 học viên",
-        "max_50_students": "Quản lý tối đa 50 học viên",
+        "max_students": "Quản lý tối đa {{count}} học viên",
         "create_profile": "Tạo hồ sơ tập luyện cho học viên",
         "checkin_checkout": "Checkin/Checkout học viên qua hệ thống",
         "checkin_history": "Xem lịch sử checkin tất cả học viên",

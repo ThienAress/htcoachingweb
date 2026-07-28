@@ -70,6 +70,7 @@ export const requireTrainerAccess = async (req, res, next) => {
     });
 
     if (activeSub) {
+      req.trainerSubscription = activeSub;
       req.isAdmin = false;
       req.isTrainer = true;
       return next();

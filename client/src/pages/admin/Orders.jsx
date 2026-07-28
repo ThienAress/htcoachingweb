@@ -34,7 +34,8 @@ import {
   approveOrder,
 } from "../../services/order.service";
 import { createContract } from "../../services/contract.service";
-import { getTrainers } from "../../services/user.service";
+import { getTrainerAssignmentCandidates } from "../../services/trainerAssignment.service";
+import { getOrderStatusMeta } from "../../constants/orderStatus";
 import { useAuth } from "../../context/AuthContext";
 
 const orderSchema = z.object({
@@ -48,6 +49,19 @@ const orderSchema = z.object({
   note: z.string().optional(),
   trainerId: z.string().nullable(),
 });
+const ORDER_STATUS_ICONS = {
+  pending: Clock,
+  approved: Check,
+  completed: Check,
+  cancelled: X,
+};
+
+const OrderStatusBadge = ({ status, className = "" }) => {
+  const meta = getOrderStatusMeta(status);
+  const Icon = ORDER_STATUS_ICONS[status] || Clock;
+  return <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${meta.badgeClass} ${className}`}><Icon className="h-3 w-3" />{meta.label}</span>;
+};
+
 
 const Orders = () => {
   const { user } = useAuth();
@@ -77,9 +91,14 @@ const Orders = () => {
 
   const totalPages = ordersData?.totalPages || 1;
 
-  const { data: trainersData } = useQuery({
-    queryKey: ["trainers"],
-    queryFn: () => getTrainers().then((res) => res.data.data),
+  const {
+    data: trainersData,
+    isLoading: trainersLoading,
+    isError: trainersError,
+    refetch: refetchTrainers,
+  } = useQuery({
+    queryKey: ["trainer-assignment-candidates"],
+    queryFn: () => getTrainerAssignmentCandidates().then((res) => res.data.data.trainers),
     enabled: user?.role === "admin",
   });
   const trainers = trainersData || [];
@@ -307,10 +326,7 @@ const Orders = () => {
                 >
                   {/* Header */}
                   <div
-                    className={`px-4 py-3 border-b ${order.status === "approved"
-                      ? "bg-[#dbfce7]"
-                      : "bg-[#fef9c2]"
-                      }`}
+                    className={`px-4 py-3 border-b ${getOrderStatusMeta(order.status).headerClass}`}
                   >
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
@@ -319,15 +335,7 @@ const Orders = () => {
                           {order.name}
                         </span>
                       </div>
-                      {order.status === "approved" ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                          <Check className="w-3 h-3" /> Đã xác nhận
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-                          <Clock className="w-3 h-3" /> Chờ xác nhận
-                        </span>
-                      )}
+                      <OrderStatusBadge status={order.status} />
                     </div>
                   </div>
                   {/* Nội dung */}
@@ -524,13 +532,7 @@ const Orders = () => {
                     <label className="text-xs text-gray-500 uppercase">
                       Trạng thái
                     </label>
-                    <span
-                      className={`inline-block px-2 py-1 rounded-full text-xs font-medium ml-2 ${selectedOrder.status === "approved" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}
-                    >
-                      {selectedOrder.status === "approved"
-                        ? "Đã xác nhận"
-                        : "Chờ xác nhận"}
-                    </span>
+                    <OrderStatusBadge status={selectedOrder.status} className="ml-2" />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 uppercase">
@@ -743,6 +745,7 @@ const Orders = () => {
                     <select
                       {...register("trainerId")}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1"
+                      disabled={trainersLoading || trainersError}
                     >
                       <option value="">-- Không có trainer --</option>
                       {trainers.map((t) => (
@@ -751,6 +754,18 @@ const Orders = () => {
                         </option>
                       ))}
                     </select>
+                    {trainersError && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                        <span>Không thể tải danh sách HLV.</span>
+                        <button
+                          type="button"
+                          onClick={() => refetchTrainers()}
+                          className="min-h-11 rounded px-3 py-2 font-semibold hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                        >
+                          Thử lại
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="sticky bottom-0 bg-white border-t pt-4 flex justify-end gap-3">

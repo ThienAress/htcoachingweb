@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import SEO from "../../components/SEO";
 import { useTranslation } from "react-i18next";
+import { useDepositPolicy } from "../../hooks/useDepositPolicy";
 
 // ===== Format tiền VND =====
 const formatVND = (amount, lang = "vi") =>
@@ -64,6 +65,12 @@ const MyWallet = () => {
   const { t, i18n } = useTranslation("account");
   const { user } = useAuth();
   const navigate = useNavigate();
+  const {
+    data: depositPolicy,
+    isLoading: policyLoading,
+    isError: policyError,
+    refetch: refetchPolicy,
+  } = useDepositPolicy();
 
   const [balance, setBalance] = useState(0);
   const [deposits, setDeposits] = useState([]);
@@ -119,11 +126,15 @@ const MyWallet = () => {
   // Tạo yêu cầu nạp tiền
   const handleCreateDeposit = async () => {
     const amount = parseInt(depositAmount);
-    if (!amount || amount < 5000) {
+    if (!depositPolicy) {
+      toast.error("Không thể xác minh giới hạn nạp tiền. Vui lòng tải lại.");
+      return;
+    }
+    if (!amount || amount < depositPolicy.minAmount) {
       toast.error(t("wallet.errors.min_limit"));
       return;
     }
-    if (amount > 100000000) {
+    if (amount > depositPolicy.maxAmount) {
       toast.error(t("wallet.errors.max_limit"));
       return;
     }
@@ -167,7 +178,10 @@ const MyWallet = () => {
   };
 
   // Số tiền nhanh
-  const quickAmounts = [5000, 10000, 50000, 100000, 200000, 500000];
+  const quickAmounts = depositPolicy
+    ? [5000, 10000, 50000, 100000, 200000, 500000].filter(
+        (amount) => amount >= depositPolicy.minAmount && amount <= depositPolicy.maxAmount,
+      ) : [];
 
   return (
     <phantom-ui loading={loading || undefined}>
@@ -405,22 +419,34 @@ const MyWallet = () => {
               <label className="text-sm text-gray-400 mb-1 block">{t("wallet.enter_amount")}</label>
               <input
                 type="number"
-                min={5000}
-                max={100000000}
+                min={depositPolicy?.minAmount}
+                max={depositPolicy?.maxAmount}
                 value={depositAmount}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (val === "" || parseInt(val) <= 100000000) {
+                  if (val === "" || !depositPolicy || parseInt(val) <= depositPolicy.maxAmount) {
                     setDepositAmount(val);
                   }
                 }}
                 placeholder="Ví dụ: 500000"
                 className="w-full bg-[#2a2a2a] border border-gray-600 rounded-lg px-4 py-3 text-white text-lg focus:outline-none focus:border-primary transition"
               />
-              {depositAmount && parseInt(depositAmount) >= 5000 && (
+              {depositAmount && depositPolicy && parseInt(depositAmount) >= depositPolicy.minAmount && (
                 <p className="text-primary text-sm mt-1 font-semibold">{formatVND(parseInt(depositAmount), i18n.language)}</p>
               )}
             </div>
+              {policyError && (
+                <div className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+                  <p>Không thể tải giới hạn nạp tiền hiện tại.</p>
+                  <button
+                    type="button"
+                    onClick={() => refetchPolicy()}
+                    className="mt-2 min-h-11 rounded-md px-3 py-2 font-semibold hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                  >
+                    Thử tải lại
+                  </button>
+                </div>
+              )}
 
             {/* Số tiền nhanh */}
             <div className="flex flex-wrap gap-2">
@@ -442,7 +468,7 @@ const MyWallet = () => {
             {/* Nút xác nhận */}
             <button
               onClick={handleCreateDeposit}
-              disabled={depositLoading || !depositAmount || parseInt(depositAmount) < 5000}
+              disabled={depositLoading || policyLoading || !depositPolicy || !depositAmount || parseInt(depositAmount) < depositPolicy.minAmount || parseInt(depositAmount) > depositPolicy.maxAmount}
               className="w-full py-3 bg-gradient-to-r from-primary to-orange-500 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-orange-500/30 transition-all"
             >
               {depositLoading ? t("wallet.confirm_loading") : t("wallet.create_code")}

@@ -62,31 +62,42 @@ router.post("/record", protect, csrfProtection, async (req, res) => {
   try {
     const { id } = req.user;
 
-    const user = await User.findById(id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User không tồn tại" });
-    }
+    const user = await User.findOneAndUpdate(
+      {
+        _id: id,
+        $or: [
+          { mealPlanGenerations: { $lt: MAX_FREE_GENERATIONS } },
+          { mealPlanGenerations: { $exists: false } },
+        ],
+      },
+      { $inc: { mealPlanGenerations: 1 } },
+      { returnDocument: "after", runValidators: true },
+    ).select("mealPlanGenerations");
 
-    const currentCount = user.mealPlanGenerations || 0;
-
-    // Nếu đã hết lượt → từ chối
-    if (currentCount >= MAX_FREE_GENERATIONS) {
-      return res.status(403).json({
-        success: false,
-        message: "Đã hết lượt gợi ý miễn phí",
-        data: { generationCount: currentCount, maxGenerations: MAX_FREE_GENERATIONS }
+    if (user) {
+      return res.json({
+        success: true,
+        data: {
+          generationCount: user.mealPlanGenerations,
+          maxGenerations: MAX_FREE_GENERATIONS,
+        },
       });
     }
 
-    user.mealPlanGenerations = currentCount + 1;
-    await user.save();
+    const existing = await User.findById(id)
+      .select("mealPlanGenerations")
+      .lean();
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "User không tồn tại" });
+    }
 
-    return res.json({
-      success: true,
+    return res.status(403).json({
+      success: false,
+      message: "Đã hết lượt gợi ý miễn phí",
       data: {
-        generationCount: user.mealPlanGenerations,
+        generationCount: existing.mealPlanGenerations || 0,
         maxGenerations: MAX_FREE_GENERATIONS,
-      }
+      },
     });
   } catch (err) {
     safeLog.error("mealplan.generation_record_failed", err);

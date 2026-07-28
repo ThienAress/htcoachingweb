@@ -4,6 +4,7 @@ import { Search, User, ChevronLeft, ChevronRight, Award, Ban } from "lucide-reac
 import { toast } from "react-toastify";
 import { useDebounce } from "../../hooks/useDebounce";
 import { getAllSubscribers, cancelSubscription } from "../../services/trainerSubscription.service";
+import TrainerGrantPanel from "./components/TrainerGrantPanel";
 
 const planIconMap = {
   "Tiêu chuẩn": "🔥",
@@ -87,6 +88,8 @@ const TrainerSubscriberManagement = () => {
         <p className="text-sm text-slate-500">
           Danh sách người dùng đã mua gói dịch vụ huấn luyện viên.
         </p>
+
+        <TrainerGrantPanel />
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />

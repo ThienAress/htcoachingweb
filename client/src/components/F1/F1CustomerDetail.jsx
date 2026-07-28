@@ -13,6 +13,10 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import F1TestPermissionReviewCard from "./F1TestPermissionReviewCard";
+import {
+  F1_CUSTOMER_STATUS_LABELS,
+  getF1Progress,
+} from "../../constants/f1CustomerStatus";
 
 const InfoItem = ({ label, value }) => {
   return (
@@ -58,18 +62,9 @@ const ProgressCard = ({ title, done }) => {
 };
 
 const StatusBadge = ({ value }) => {
-  const map = {
-    new: "Mới tạo",
-    intake_in_progress: "Đang khảo sát",
-    intake_completed: "Đã khảo sát",
-    testing_completed: "Đã đánh giá thể chất",
-    assessment_completed: "Đã đánh giá thể chất",
-    ai_report_generated: "Đã có AI report",
-    archived: "Lưu trữ",
-  };
   return (
     <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
-      {map[value] || value}
+      {F1_CUSTOMER_STATUS_LABELS[value] || value}
     </span>
   );
 };
@@ -179,36 +174,14 @@ const F1CustomerDetail = ({
 }) => {
   if (!customer) return null;
 
-  const intakeDone = [
-    "intake_completed",
-    "testing_completed",
-    "assessment_completed",
-    "ai_report_generated",
-  ].includes(customer.status);
-
-  const assessmentDone = [
-    "testing_completed",
-    "assessment_completed",
-    "ai_report_generated",
-  ].includes(customer.status);
-
-  const reportDone = ["ai_report_generated"].includes(customer.status);
-  const resultPredictionDone = Boolean(customer.lastResultPredictionId);
-  const canOpenAssessment =
-    [
-      "intake_completed",
-      "testing_completed",
-      "assessment_completed",
-      "ai_report_generated",
-    ].includes(customer.status) && customer.testPermission !== "hold_test";
-  const canOpenAiReport = [
-    "testing_completed",
-    "assessment_completed",
-    "ai_report_generated",
-  ].includes(customer.status);
-  const canOpenResultPrediction = ["ai_report_generated"].includes(
+  const { intakeDone, assessmentDone, reportDone } = getF1Progress(
     customer.status,
   );
+  const resultPredictionDone = Boolean(customer.lastResultPredictionId);
+  const canOpenAssessment =
+    intakeDone && customer.testPermission !== "hold_test";
+  const canOpenAiReport = assessmentDone;
+  const canOpenResultPrediction = reportDone;
 
   return (
     <section className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6">

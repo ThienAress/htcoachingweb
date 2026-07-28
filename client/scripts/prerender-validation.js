@@ -6,7 +6,42 @@ const normalizedUrl = (value) => {
   }
 };
 
-export const validatePrerenderSnapshot = (snapshot, expectedCanonical) => {
+const hasSchemaType = (node, expectedType) => {
+  const types = Array.isArray(node?.["@type"])
+    ? node["@type"]
+    : [node?.["@type"]];
+  return types.includes(expectedType);
+};
+
+const listSchemaNodes = (structuredData) =>
+  (structuredData || []).flatMap((entry) =>
+    Array.isArray(entry?.["@graph"]) ? entry["@graph"] : [entry],
+  );
+
+const listServiceOffers = (structuredData) =>
+  listSchemaNodes(structuredData)
+    .filter((node) => hasSchemaType(node, "Service"))
+    .flatMap((node) =>
+      Array.isArray(node?.offers)
+        ? node.offers
+        : node?.offers
+          ? [node.offers]
+          : [],
+    );
+
+const offerContractKey = (offer) => {
+  const price = Number(offer?.price);
+  const currency = String(offer?.priceCurrency || "").trim();
+  return Number.isSafeInteger(price) && price >= 0 && currency
+    ? `${currency}:${price}`
+    : "";
+};
+
+export const validatePrerenderSnapshot = (
+  snapshot,
+  expectedCanonical,
+  requirements = {},
+) => {
   const errors = [];
   const titles = snapshot?.titles || [];
   const descriptions = snapshot?.descriptions || [];
@@ -40,6 +75,28 @@ export const validatePrerenderSnapshot = (snapshot, expectedCanonical) => {
     errors.push(
       `expected one index,follow robots tag, received ${robots.join(", ") || "none"}`,
     );
+  }
+
+  const expectedServiceOffers = requirements.expectedServiceOffers;
+  if (Array.isArray(expectedServiceOffers)) {
+    const receivedServiceOffers = listServiceOffers(snapshot?.structuredData);
+    if (receivedServiceOffers.length !== expectedServiceOffers.length) {
+      errors.push(
+        `expected ${expectedServiceOffers.length} Service offers in JSON-LD, received ${receivedServiceOffers.length}`,
+      );
+    } else {
+      const expectedKeys = expectedServiceOffers.map(offerContractKey).sort();
+      const receivedKeys = receivedServiceOffers.map(offerContractKey).sort();
+      if (
+        expectedKeys.includes("") ||
+        receivedKeys.includes("") ||
+        expectedKeys.some((key, index) => key !== receivedKeys[index])
+      ) {
+        errors.push(
+          "Service offer prices or currencies do not match the catalog",
+        );
+      }
+    }
   }
 
   return errors;

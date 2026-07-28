@@ -11,6 +11,10 @@ import {
   resolveDynamicRoutePolicy,
 } from "./dynamic-routes.js";
 import { validatePrerenderSnapshot } from "./prerender-validation.js";
+import {
+  getTrainerPlanCatalogMeta,
+  listTrainerPlans,
+} from "../../server/src/services/trainerPlanCatalog.service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +31,30 @@ const staticRoutes = [
   "/tdee-calculator",
   "/mealplan",
 ];
+
+const trainerPlanCatalog = listTrainerPlans();
+const trainerPlanCatalogMeta = getTrainerPlanCatalogMeta();
+const trainerPlanCatalogResponse = JSON.stringify({
+  success: true,
+  data: trainerPlanCatalog,
+  meta: trainerPlanCatalogMeta,
+});
+const expectedServiceOffers = trainerPlanCatalog.flatMap((plan) =>
+  plan.billingCycles.map((cycle) => ({
+    price: plan.prices[cycle],
+    priceCurrency: trainerPlanCatalogMeta.currency,
+  })),
+);
+
+const isTrainerPlanCatalogRequest = (requestUrl) => {
+  try {
+    return new URL(requestUrl).pathname.endsWith(
+      "/trainer-subscriptions/catalog",
+    );
+  } catch {
+    return false;
+  }
+};
 
 const validSlug = (value) => {
   const slug = String(value || "").trim();
@@ -85,7 +113,14 @@ const renderRoute = async (browser, route) => {
 
     await page.setRequestInterception(true);
     page.on("request", (request) => {
-      if (["image", "font", "media"].includes(request.resourceType())) {
+      if (isTrainerPlanCatalogRequest(request.url())) {
+        void request.respond({
+          status: 200,
+          contentType: "application/json; charset=utf-8",
+          headers: { "Access-Control-Allow-Origin": "*" },
+          body: trainerPlanCatalogResponse,
+        });
+      } else if (["image", "font", "media"].includes(request.resourceType())) {
         void request.abort();
       } else {
         void request.continue();
@@ -133,10 +168,24 @@ const renderRoute = async (browser, route) => {
       robots: [...document.querySelectorAll('meta[name="robots"]')].map(
         (element) => element.content.trim(),
       ),
+      structuredData: [
+        ...document.querySelectorAll('script[type="application/ld+json"]'),
+      ]
+        .map((element) => {
+          try {
+            return JSON.parse(element.textContent || "");
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean),
     }));
     const validationErrors = validatePrerenderSnapshot(
       snapshot,
       expectedCanonical,
+      route === "/"
+        ? { expectedServiceOffers }
+        : undefined,
     );
     if (validationErrors.length > 0) {
       console.warn(

@@ -11,7 +11,7 @@ import {
   Search,
 } from "lucide-react";
 
-import { getOrders } from "../../services/order.service";
+import { getAllOrders } from "../../services/orderCollection.service";
 
 const TrainerDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,7 +24,7 @@ const TrainerDashboard = () => {
     refetch,
   } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => getOrders(1, 0).then((res) => res.data.data.orders || []),
+    queryFn: getAllOrders,
   });
 
   // Lọc khách hàng theo tên

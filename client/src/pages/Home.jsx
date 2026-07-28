@@ -11,10 +11,15 @@ import Pricing from "../sections/Pricing";
 import Contact from "../sections/Contact";
 import ScrollToTop from "../components/ScrollToTop";
 import ChatIcons from "../components/ChatIcons";
+import { useTrainerPlanCatalog } from "../hooks/useTrainerPlanCatalog";
+import { buildTrainerPlanOffers } from "../utils/trainerPlanCatalog";
 import SEO from "../components/SEO";
 
 const Home = () => {
   const [heroAnimDone, setHeroAnimDone] = useState(false);
+  const { data: trainerPlanCatalog } = useTrainerPlanCatalog();
+  const trainerPlanOffers = trainerPlanCatalog
+    ? buildTrainerPlanOffers(trainerPlanCatalog) : [];
   const { data: settingsResponse } = useQuery({
     queryKey: ["site-settings"],
     queryFn: async () => {
@@ -53,6 +58,17 @@ const Home = () => {
           "@type": "Organization",
           "name": "HTCOACHING"
         }
+      },
+      {
+        "@type": "Service",
+        "name": "Nền tảng quản lý huấn luyện viên HTCOACHING",
+        "serviceType": "Phần mềm quản lý học viên cho huấn luyện viên",
+        "url": "https://htcoachingweb.io.vn/#pricing",
+        "provider": {
+          "@type": "Organization",
+          "name": "HTCOACHING"
+        },
+        ...(trainerPlanOffers.length ? { offers: trainerPlanOffers } : {})
       },
       {
         "@type": "FAQPage",

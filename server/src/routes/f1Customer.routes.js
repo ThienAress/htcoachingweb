@@ -1,5 +1,5 @@
 import express from "express";
-import { protect, requireRoles, requireTrainerAccess } from "../middlewares/auth.middleware.js";
+import { protect, requireRoles, requireTrainerAccess } from "../middlewares/f1Access.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import {
   approveAiReport,

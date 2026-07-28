@@ -10,6 +10,8 @@ import {
 import request from "supertest";
 
 vi.mock("../../utils/sendMail.js", () => ({
+  sendTrainerGrantInvitationMail: vi.fn().mockResolvedValue(undefined),
+  sendTrainerSubscriptionActivatedMail: vi.fn().mockResolvedValue(undefined),
   sendMail: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -36,6 +38,10 @@ import AuditLog from "../../models/AuditLog.js";
 import { applyWalletEntry } from "../../services/walletLedger.service.js";
 import { reconcileWallets } from "../../services/walletReconciliation.service.js";
 import { deleteContract } from "../../services/contract.service.js";
+import {
+  getTrainerPlanAmount,
+  getTrainerPlanCatalogMeta,
+} from "../../services/trainerPlanCatalog.service.js";
 import { runPhase6Migration } from "../../migrations/20260719-phase6-financial-integrity.js";
 
 let app;
@@ -209,12 +215,17 @@ describe("Phase 6 financial state machines", () => {
       email: "phase6-subscription-admin@example.com",
       role: "admin",
     });
-    await fundWallet(actor.user._id, 20000);
+    await fundWallet(actor.user._id, 220000);
     const requestId = "11111111-1111-4111-8111-111111111111";
+    const { catalogFingerprint, protocolVersion } =
+      getTrainerPlanCatalogMeta();
     const body = {
       planTitle: "Tiêu chuẩn",
       billingCycle: "month",
       requestId,
+      expectedAmount: getTrainerPlanAmount("standard", "month"),
+      catalogFingerprint,
+      protocolVersion,
     };
 
     const purchased = await postAs(
@@ -242,7 +253,7 @@ describe("Phase 6 financial state machines", () => {
       }),
     ).toBe(1);
     expect((await Wallet.findOne({ userId: actor.user._id })).balance).toBe(
-      15000,
+      20000,
     );
 
     const subscription = await TrainerSubscription.findOne({
@@ -266,7 +277,7 @@ describe("Phase 6 financial state machines", () => {
     expect(persisted.status).toBe("cancelled");
     expect(persisted.isActive).toBe(false);
     expect((await Wallet.findOne({ userId: actor.user._id })).balance).toBe(
-      15000,
+      20000,
     );
     expect(
       await WalletTransaction.countDocuments({

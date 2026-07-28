@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import {
+  TRAINER_BILLING_CYCLES,
+  TRAINER_PLAN_CODES,
+} from "../constants/trainerPlans.js";
 
 const trainerSubscriptionSchema = new mongoose.Schema(
   {
@@ -13,12 +17,35 @@ const trainerSubscriptionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    planCode: {
+      type: String,
+      enum: TRAINER_PLAN_CODES,
+      default: null,
+    },
 
     // Chu kỳ thanh toán: "month" | "year"
     billingCycle: {
       type: String,
-      enum: ["month", "year"],
+      enum: TRAINER_BILLING_CYCLES,
       required: true,
+    },
+    source: {
+      type: String,
+      enum: [
+        "legacy",
+        "self_purchase",
+        "free_trial",
+        "admin_grant",
+        "pending_grant",
+      ],
+      default: "legacy",
+    },
+    normalizedEmail: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      maxlength: 320,
+      default: null,
     },
 
     // Số tiền đã thanh toán
@@ -41,7 +68,7 @@ const trainerSubscriptionSchema = new mongoose.Schema(
     // active | expired | cancelled
     status: {
       type: String,
-      enum: ["active", "expired", "cancelled"],
+      enum: ["active", "expired", "cancelled", "superseded"],
       default: "active",
     },
     isActive: {
@@ -68,6 +95,19 @@ const trainerSubscriptionSchema = new mongoose.Schema(
       default: null,
       maxlength: 500,
     },
+    previousSubscriptionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "TrainerSubscription",
+      default: null,
+    },
+    supersededAt: { type: Date, default: null },
+    supersededBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "TrainerSubscription",
+      default: null,
+    },
+    structuredRetentionExpiresAt: { type: Date, default: null },
+    mediaRetentionExpiresAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -75,6 +115,9 @@ const trainerSubscriptionSchema = new mongoose.Schema(
 // ✅ Indexes
 trainerSubscriptionSchema.index({ userId: 1, status: 1 });
 trainerSubscriptionSchema.index({ endDate: 1, status: 1 });
+trainerSubscriptionSchema.index({ normalizedEmail: 1, status: 1 });
+trainerSubscriptionSchema.index({ structuredRetentionExpiresAt: 1, status: 1 });
+trainerSubscriptionSchema.index({ mediaRetentionExpiresAt: 1, status: 1 });
 trainerSubscriptionSchema.index(
   { userId: 1 },
   {

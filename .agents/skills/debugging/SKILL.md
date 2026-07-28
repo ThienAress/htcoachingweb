@@ -141,7 +141,7 @@ Checklist debug riêng cho hệ thống HT Assistant:
 □ LLM description có rõ ràng "GỌI KHI..." không?
 □ Parameters schema có đúng JSON Schema format không?
 □ requiresAuth: true nhưng user chưa login?
-→ Chạy: node .agents/scripts/validate-tools.js
+→ Chạy: node .agents/scripts/validate-tools.mjs
 ```
 
 ### UI Card không render

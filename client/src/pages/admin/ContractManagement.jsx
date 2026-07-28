@@ -12,19 +12,21 @@ import {
   deleteContractApi,
 } from "../../services/contract.service";
 import ContractEditModal from "./ContractEditModal";
+import { CONTRACT_STATUS_META } from "../../constants/contractStatus";
 
-const STATUS_MAP = {
-  draft: { label: "Nháp", color: "bg-slate-100 text-slate-600", icon: Edit3 },
-  sent: { label: "Đã gửi", color: "bg-blue-100 text-blue-700", icon: Send },
-  viewed: { label: "Đã xem", color: "bg-indigo-100 text-indigo-700", icon: Eye },
-  signed: { label: "Đã ký", color: "bg-emerald-100 text-emerald-700", icon: CheckCircle },
-  expired: { label: "Hết hạn", color: "bg-slate-100 text-slate-500", icon: AlertTriangle },
-  cancelled: { label: "Đã hủy", color: "bg-red-100 text-red-600", icon: XCircle },
+const STATUS_ICONS = {
+  edit: Edit3,
+  send: Send,
+  view: Eye,
+  pending: AlertTriangle,
+  signed: CheckCircle,
+  warning: AlertTriangle,
+  cancelled: XCircle,
 };
 
 const StatusBadge = ({ status }) => {
-  const config = STATUS_MAP[status] || STATUS_MAP.draft;
-  const Icon = config.icon;
+  const config = CONTRACT_STATUS_META[status] || CONTRACT_STATUS_META.draft;
+  const Icon = STATUS_ICONS[config.icon] || AlertTriangle;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
       <Icon className="w-3 h-3" />{config.label}
@@ -106,7 +108,7 @@ const ContractManagement = () => {
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {[{ value: "", label: "Tất cả" }, { value: "draft", label: "Nháp" }, { value: "sent", label: "Đã gửi" }, { value: "viewed", label: "Đã xem" }, { value: "signed", label: "Đã ký" }, { value: "expired", label: "Hết hạn" }, { value: "cancelled", label: "Đã hủy" }].map((f) => (
+        {[{ value: "", label: "Tất cả" }, { value: "draft", label: "Nháp" }, { value: "sent", label: "Đã gửi" }, { value: "viewed", label: "Đã xem" }, { value: "signing", label: "Đang ký" }, { value: "signed", label: "Đã ký" }, { value: "expired", label: "Hết hạn" }, { value: "cancelled", label: "Đã hủy" }].map((f) => (
           <button key={f.value} onClick={() => setStatusFilter(f.value)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === f.value ? "bg-emerald-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"}`}>
             {f.label}
