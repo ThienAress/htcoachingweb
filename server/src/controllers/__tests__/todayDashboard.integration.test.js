@@ -140,12 +140,29 @@ describe("Today Dashboard read-only aggregation", () => {
       userId: unassignedClient.user._id,
       trainerId: null,
     });
+    await CoachingDay.create({
+      userId: unassignedClient.user._id,
+      trainerId: unassignedClient.user._id,
+      dateString: DATE_KEY,
+      date: getVietnamDayRangeUtc(DATE_KEY).start,
+      title: "Legacy coaching day",
+      exercises: [],
+    });
 
     const unassigned = await getDay(unassignedClient.accessToken);
     expect(unassigned.body.data.eligibility.status).toBe(
       "assignment_required",
     );
-    expect(unassigned.body.data.capabilities.canViewSources).toBe(false);
+    expect(unassigned.body.data.capabilities).toMatchObject({
+      canViewSources: true,
+      canEditJournal: false,
+      canSubmitDay: false,
+      canComment: false,
+    });
+    expect(unassigned.body.data.sections.coaching).toMatchObject({
+      status: "ready",
+      day: { title: "Legacy coaching day" },
+    });
   });
 
   it("aggregates only owned, customer-visible source summaries", async () => {

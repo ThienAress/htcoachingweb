@@ -21,6 +21,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 005 | Khôi phục accessibility gate cho Trainer và F1 mobile | P1 | S | 004 | IMPLEMENTED / VERIFIED |
 | 006 | Chuyển Today thành Customer Dashboard theo module | P1 | L | 003H, 004 | IMPLEMENTED / VERIFIED |
 | 007 | Deploy Customer Dashboard lên staging và xác minh từ xa | P1 | S | 003H, 004, 005, 006 | DEPLOYED / VERIFIED ON STAGING |
+| 008 | Đồng bộ đầy đủ tài khoản test vào local và staging | P1 | S | 007 | IMPLEMENTED / LOCAL + DATA VERIFIED — STAGING DEPLOY PENDING |
 
 ## Dependency Notes
 
@@ -31,6 +32,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 - Plan 005 depends on Plan 004 because lỗi được phát hiện trong full regression gate khi bàn giao homepage entry.
 - Plan 006 depends on 003H và 004 vì nó tái cấu trúc presentation của Today đã harden và thay entry homepage hiện có bằng customer shell.
 - Plan 007 depends on 003H–006 vì staging chỉ được deploy sau khi Dashboard, homepage entry và regression accessibility đã hoàn tất local.
+- Plan 008 depends on 007 vì dữ liệu test phải được đồng bộ vào đúng runtime đã deploy để kiểm tra Customer Dashboard end-to-end.
 
 ## Findings Considered and Rejected
 

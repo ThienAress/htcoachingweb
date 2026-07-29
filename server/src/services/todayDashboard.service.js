@@ -76,7 +76,7 @@ const resolveEligibility = async (userId) => {
           orderId: id(activeOrder._id),
           trainer: null,
         },
-        canViewSources: false,
+        canViewSources: true,
         email,
         orderIds,
       };
