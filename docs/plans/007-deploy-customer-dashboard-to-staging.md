@@ -11,7 +11,7 @@
 - **Depends on**: 003H, 004, 005, 006
 - **Category**: release | staging | verification
 - **Planned at**: 2026-07-29
-- **Status**: READY TO DEPLOY — LOCAL GATES PASS
+- **Status**: DEPLOYED / VERIFIED ON STAGING
 
 ## Why This Matters
 
@@ -21,7 +21,7 @@ frontend, API, auth boundary và Dashboard hoạt động trên URL staging th�
 
 ## Current State
 
-- Branch deploy canonical là `staging`; `origin/staging` hiện ở commit `f0aecef`.
+- Branch deploy canonical là `staging`; runtime candidate đã deploy là `040f36a`.
 - Frontend staging: `https://staging--htcoachingweb.netlify.app`.
 - API staging: `https://htcoachingweb-staging.onrender.com`.
 - Push `staging` kích hoạt GitHub CI, Netlify branch deploy, Render auto-deploy và workflow
@@ -90,11 +90,11 @@ frontend, API, auth boundary và Dashboard hoạt động trên URL staging th�
 ## Done Criteria
 
 - [x] Pre-deploy seven gates hoàn tất và `ship` = GO.
-- [ ] Release commit chỉ chứa file thuộc phạm vi, không có secret/artifact local.
-- [ ] `origin/staging`, Render staging và Netlify branch deploy cùng candidate.
-- [ ] GitHub CI và Staging Health/Security pass.
-- [ ] Remote health/security smoke pass và production không bị ghi.
-- [ ] Plan 007 cùng index được cập nhật bằng evidence thực tế.
+- [x] Release commit chỉ chứa file thuộc phạm vi, không có secret/artifact local.
+- [x] `origin/staging`, Render staging và Netlify branch deploy cùng candidate.
+- [x] GitHub CI và Staging Health/Security pass.
+- [x] Remote health/security smoke pass và production không bị ghi.
+- [x] Plan 007 cùng index được cập nhật bằng evidence thực tế.
 
 ## Local Gate Results
 
@@ -109,6 +109,19 @@ frontend, API, auth boundary và Dashboard hoạt động trên URL staging th�
   repository data boundaries, ops tests và `git diff --check` đều PASS.
 - File-size exception: hai integration suites giữ lifecycle scenarios trong cùng fixture;
   `coachingComment.service.js` 305 dòng là transaction orchestrator đã tách helper modules.
+
+## Remote Deployment Results
+
+- Runtime release commit: `040f36a2909d16a57373b3f861e04ba6782b08e8` trên `origin/staging`.
+- Netlify branch deploy `6a69bff8cd6d7200083cc09d` ở trạng thái `ready`, `commit_ref=040f36a`.
+- GitHub CI run `30437469121`: client, server, E2E và secrets đều `success`.
+- Staging Health and Security run `30437470297`: `success` trên đúng head SHA `040f36a`.
+- Direct staging health tại `2026-07-29T08:58:55.499Z`: 7/7 pass.
+- Direct staging security smoke: 7/7 pass.
+- Render readiness trả 200; hai route mới `/api/today-dashboard/day/:dateKey` và
+  `/api/notifications` trả 401 cho anonymous, chứng minh backend candidate đã live và giữ auth boundary.
+- Browser smoke mở `/dashboard` trên Netlify staging, redirect đúng sang `/login`, không có console error.
+- Không chạy migration, seed, cleanup hoặc staging write; production không bị thay đổi.
 
 ## STOP Conditions
 

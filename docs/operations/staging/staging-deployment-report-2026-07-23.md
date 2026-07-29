@@ -310,3 +310,17 @@ This closes the code/test portion only. Production remains unchanged and the
 release remains `NO-GO` until the owner separately approves the exact three
 record updates, backup ID, target database, approval ID, and migration phase
 list.
+
+## Customer Dashboard staging release — 2026-07-29
+
+- Runtime candidate `040f36a2909d16a57373b3f861e04ba6782b08e8` was pushed to `staging`.
+- Netlify branch deploy `6a69bff8cd6d7200083cc09d` reached `ready` at the exact candidate.
+- GitHub CI run `30437469121` passed client, server, E2E and secrets jobs.
+- Staging Health and Security run `30437470297` passed on the same head SHA.
+- Local release gates passed strict staging-backed prerender 25/25, client 167/167,
+  server 329/329, Chromium E2E 61/61, dependency/security scans and `ship` GO.
+- Direct remote health passed 7/7 and security smoke passed 7/7.
+- Render readiness returned 200. New Today Dashboard and Notifications routes returned
+  401 anonymously, confirming the new backend surface is live and protected.
+- Netlify `/dashboard` redirected an anonymous browser to `/login` without console errors.
+- No migration, seed, cleanup, staging data mutation or production operation was run.
