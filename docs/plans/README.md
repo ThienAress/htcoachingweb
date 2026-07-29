@@ -21,7 +21,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 005 | Khôi phục accessibility gate cho Trainer và F1 mobile | P1 | S | 004 | IMPLEMENTED / VERIFIED |
 | 006 | Chuyển Today thành Customer Dashboard theo module | P1 | L | 003H, 004 | IMPLEMENTED / VERIFIED |
 | 007 | Deploy Customer Dashboard lên staging và xác minh từ xa | P1 | S | 003H, 004, 005, 006 | DEPLOYED / VERIFIED ON STAGING |
-| 008 | Đồng bộ đầy đủ tài khoản test vào local và staging | P1 | S | 007 | IMPLEMENTED / LOCAL + DATA VERIFIED — STAGING DEPLOY PENDING |
+| 008 | Đồng bộ đầy đủ tài khoản test vào local và staging | P1 | S | 007 | DEPLOYED / VERIFIED ON STAGING |
 
 ## Dependency Notes
 

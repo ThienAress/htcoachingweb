@@ -12,7 +12,7 @@
 - **Depends on**: 007
 - **Category**: migration / bug
 - **Planned at**: 2026-07-29
-- **Execution**: IMPLEMENTED / LOCAL + DATA VERIFIED — STAGING DEPLOY PENDING
+- **Execution**: DEPLOYED / VERIFIED ON STAGING
 
 ## Why This Matters
 
@@ -125,3 +125,9 @@ production phải xuất hiện ở target với count/fingerprint khớp.
   contract gate và `git diff --check` pass. UI/SEO gate không áp dụng cho release backend-only.
 - Live production không được query lại trong lượt này vì Render/browser access bị policy chặn; nguồn
   write là snapshot account đã kéo về trước đó theo xác nhận của owner. Production writes: zero.
+- Runtime release `40998036f60f120871125651d2b3221c992d92e4` được push lên `staging`.
+- Render staging deploy `dep-d9ku96rl550s73afc5p0` đạt `live` đúng runtime release.
+- GitHub CI run `30447906475` hoàn tất `success`: server, client, secrets và E2E đều xanh.
+- Staging Health and Security run `30447906489` hoàn tất `success`.
+- Remote authenticated API của account test tại ngày `2026-07-06` trả HTTP 200,
+  `canViewSources=true` và coaching source `ready`.
