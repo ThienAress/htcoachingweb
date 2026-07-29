@@ -190,6 +190,26 @@ describe("trainer subscription lifecycle", () => {
     expect(response.body.freeTrial.status).toBe("used");
   });
 
+  it("returns canonical entitlements with the active subscription", async () => {
+    const actor = await createTestUser({ email: "free-entitlements@example.com" });
+    await postAs(
+      "/api/trainer-subscriptions/purchase",
+      actor.accessToken,
+      confirmedPurchaseBody(
+        "free",
+        "trial",
+        "11111111-1111-4111-8111-111111111119",
+      ),
+    );
+
+    const response = await withAuth(
+      request(app).get("/api/trainer-subscriptions/my"),
+      actor.accessToken,
+    );
+
+    expect(response.body.data.entitlements).toEqual({ f1CrmAi: false });
+  });
+
   it("upgrades Free to paid without deleting trainer data", async () => {
     const actor = await createTestUser({ email: "upgrade@example.com" });
     await Wallet.create({

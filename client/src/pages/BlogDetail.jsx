@@ -124,7 +124,10 @@ const formatDate = (date, language) => {
 const SidebarPostCard = ({ post }) => {
   const { t } = useTranslation("blog");
   return (
-    <Link to={`/blog/${post.slug}`} className="group flex gap-3 items-start py-3 border-b border-gray-100 last:border-0">
+    <Link
+      to={`/blog/${post.slug}`}
+      className="group flex items-start gap-3 rounded-lg border-b border-gray-100 px-1 py-3 transition-colors last:border-0 hover:bg-orange-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
       <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-100">
         {post.coverImage ? (
           <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
@@ -135,6 +138,9 @@ const SidebarPostCard = ({ post }) => {
         )}
       </div>
       <div className="min-w-0 flex-1">
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+          {getCategoryLabel(t, post.category)}
+        </p>
         <h4 className="text-xs font-bold text-dark leading-snug group-hover:text-primary transition line-clamp-2">
           {post.title}
         </h4>
@@ -196,6 +202,11 @@ const BlogDetail = () => {
   const relatedPosts = useMemo(
     () => translateData(relatedPostsRaw || [], "blog", i18n.language),
     [relatedPostsRaw, i18n.language]
+  );
+  const discoveryPostsRaw = postResponse?.discoveryPosts;
+  const discoveryPosts = useMemo(
+    () => translateData(discoveryPostsRaw || [], "blog", i18n.language),
+    [discoveryPostsRaw, i18n.language],
   );
 
   const toc = useMemo(() => extractTOC(post?.content), [post?.content]);
@@ -353,6 +364,22 @@ const BlogDetail = () => {
                 </details>
               )}
 
+              {discoveryPosts.length > 0 && (
+                <section className="mb-8 lg:hidden" aria-labelledby="mobile-discovery-title">
+                  <h2
+                    id="mobile-discovery-title"
+                    className="mb-2 text-sm font-black uppercase tracking-wide text-dark"
+                  >
+                    {t("sidebar.discover_topics")}
+                  </h2>
+                  <div className="divide-y divide-gray-100">
+                    {discoveryPosts.slice(0, 3).map((item) => (
+                      <SidebarPostCard key={item._id} post={item} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* Content — HTML render với DOMPurify (Tầng 2 bảo mật) */}
               <div
                 className="prose prose-lg max-w-none
@@ -504,7 +531,24 @@ const BlogDetail = () => {
                   </div>
                 )}
 
-
+                {discoveryPosts.length > 0 && (
+                  <section
+                    className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+                    aria-labelledby="desktop-discovery-title"
+                  >
+                    <h3
+                      id="desktop-discovery-title"
+                      className="mb-2 text-sm font-black uppercase tracking-wide text-dark"
+                    >
+                      {t("sidebar.discover_topics")}
+                    </h3>
+                    <div>
+                      {discoveryPosts.map((item) => (
+                        <SidebarPostCard key={item._id} post={item} />
+                      ))}
+                    </div>
+                  </section>
+                )}
 
                 {/* Khối 3: Bạn cần tư vấn? */}
                 <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 text-white shadow-lg">

@@ -16,6 +16,24 @@ import F1Media from "../models/F1Media.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import { cspReportLimiter, rumLimiter } from "../middlewares/rateLimit.js";
 import { runF1RetentionSweep } from "../services/f1PrivacyLifecycle.service.js";
+import {
+  runDailyJournalRetentionSweep,
+} from "../services/dailyJournalPrivacy.service.js";
+import {
+  runSavedMealPlanRetentionSweep,
+} from "../services/savedMealPlanPrivacy.service.js";
+import {
+  runCoachingHabitRetentionSweep,
+} from "../services/coachingHabitPrivacy.service.js";
+import {
+  runWeeklyCheckinRetentionSweep,
+} from "../services/weeklyCheckinPrivacy.service.js";
+import {
+  runCoachingCommentRetentionSweep,
+} from "../services/coachingCommentPrivacy.service.js";
+import {
+  runInAppNotificationRetentionSweep,
+} from "../services/inAppNotificationPrivacy.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { getRuntimeState } from "../operations/runtimeState.js";
 import { getRumBaseline } from "../observability/rumBaseline.js";
@@ -211,6 +229,182 @@ router.post(
       });
       return res.json({ success: true, data: result });
     } catch (error) {
+      return next(error);
+    }
+  },
+);
+
+router.post(
+  "/privacy/daily-journals/retention",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  async (req, res, next) => {
+    try {
+      const result = await runDailyJournalRetentionSweep({
+        enforce: req.body?.enforce === true,
+        actorId: req.user.id,
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, data: result });
+    } catch (error) {
+      if (error.statusCode) {
+        if (error.statusCode >= 500) {
+          safeLog.error("daily_journal.retention_failed", error);
+        }
+        return res.status(error.statusCode).json({
+          success: false,
+          code: error.codeName || "DAILY_JOURNAL_RETENTION_FAILED",
+          message: error.message,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+router.post(
+  "/privacy/saved-meal-plans/retention",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  async (req, res, next) => {
+    try {
+      const result = await runSavedMealPlanRetentionSweep({
+        enforce: req.body?.enforce === true,
+        actorId: req.user.id,
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, data: result });
+    } catch (error) {
+      if (error.statusCode) {
+        if (error.statusCode >= 500) {
+          safeLog.error("saved_meal_plan.retention_failed", error);
+        }
+        return res.status(error.statusCode).json({
+          success: false,
+          code:
+            error.codeName || "SAVED_MEAL_PLAN_RETENTION_FAILED",
+          message: error.message,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+router.post(
+  "/privacy/coaching-habits/retention",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  async (req, res, next) => {
+    try {
+      const result = await runCoachingHabitRetentionSweep({
+        enforce: req.body?.enforce === true,
+        actorId: req.user.id,
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, data: result });
+    } catch (error) {
+      if (error.statusCode) {
+        if (error.statusCode >= 500) {
+          safeLog.error("coaching_habit.retention_failed", error);
+        }
+        return res.status(error.statusCode).json({
+          success: false,
+          code: error.codeName || "COACHING_HABIT_RETENTION_FAILED",
+          message: error.message,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+router.post(
+  "/privacy/weekly-checkins/retention",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  async (req, res, next) => {
+    try {
+      const result = await runWeeklyCheckinRetentionSweep({
+        enforce: req.body?.enforce === true,
+        actorId: req.user.id,
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, data: result });
+    } catch (error) {
+      if (error.statusCode) {
+        if (error.statusCode >= 500) {
+          safeLog.error("weekly_checkin.retention_failed", error);
+        }
+        return res.status(error.statusCode).json({
+          success: false,
+          code: error.codeName || "WEEKLY_CHECKIN_RETENTION_FAILED",
+          message: error.message,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+router.post(
+  "/privacy/coaching-comments/retention",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  async (req, res, next) => {
+    try {
+      const result = await runCoachingCommentRetentionSweep({
+        enforce: req.body?.enforce === true,
+        actorId: req.user.id,
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, data: result });
+    } catch (error) {
+      if (error.statusCode) {
+        if (error.statusCode >= 500) {
+          safeLog.error("coaching_comment.retention_failed", error);
+        }
+        return res.status(error.statusCode).json({
+          success: false,
+          code: error.codeName || "COACHING_COMMENT_RETENTION_FAILED",
+          message: error.message,
+        });
+      }
+      return next(error);
+    }
+  },
+);
+
+router.post(
+  "/privacy/in-app-notifications/retention",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  async (req, res, next) => {
+    try {
+      const result = await runInAppNotificationRetentionSweep({
+        enforce: req.body?.enforce === true,
+        actorId: req.user.id,
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, data: result });
+    } catch (error) {
+      if (error.statusCode) {
+        if (error.statusCode >= 500) {
+          safeLog.error("notification.retention_failed", error);
+        }
+        return res.status(error.statusCode).json({
+          success: false,
+          code:
+            error.codeName || "NOTIFICATION_RETENTION_FAILED",
+          message: error.message,
+        });
+      }
       return next(error);
     }
   },

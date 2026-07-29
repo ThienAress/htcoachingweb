@@ -10,6 +10,10 @@ import {
 } from "../services/trainerSubscription.service";
 import { useTrainerPlanCatalog } from "../hooks/useTrainerPlanCatalog";
 import { createTrainerPlanPurchasePayload } from "../utils/trainerPlanCatalog";
+import { TodayProgressPrompt } from "../components/TodayProgressPrompt";
+
+const TODAY_PROGRESS_PROMPT_DISMISSED_KEY =
+  "ht_today_progress_prompt_dismissed";
 
 const Pricing = ({ isHeroAnimDone = false }) => {
   const { t } = useTranslation("home");
@@ -21,6 +25,15 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     return localStorage.getItem("pricingViewMode") || null;
   });
   const [showModeModal, setShowModeModal] = useState(false);
+  const [progressPromptDismissed, setProgressPromptDismissed] = useState(
+    () =>
+      sessionStorage.getItem(TODAY_PROGRESS_PROMPT_DISMISSED_KEY) === "true",
+  );
+
+  const dismissProgressPrompt = useCallback(() => {
+    sessionStorage.setItem(TODAY_PROGRESS_PROMPT_DISMISSED_KEY, "true");
+    setProgressPromptDismissed(true);
+  }, []);
 
   // Chờ hero animation xong mới hiện modal chọn role
   useEffect(() => {
@@ -33,9 +46,22 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     setViewMode(mode);
     localStorage.setItem("pricingViewMode", mode);
     setShowModeModal(false);
+    dismissProgressPrompt();
+  };
+
+  const handleOpenTodayDashboard = () => {
+    handleSelectMode("customer");
+    navigate("/dashboard");
   };
 
   const isTrainer = viewMode === "trainer";
+  const modeModalPending = !viewMode && isHeroAnimDone;
+  const showProgressPrompt =
+    isHeroAnimDone &&
+    viewMode === "customer" &&
+    !showModeModal &&
+    !modeModalPending &&
+    !progressPromptDismissed;
 
   const [mode, setMode] = useState("1-1");
   const [billingCycle, setBillingCycle] = useState("month");
@@ -495,6 +521,12 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
   return (
     <section id="pricing" className="py-16 bg-[#262626]">
+      {showProgressPrompt && (
+        <TodayProgressPrompt
+          onDismiss={dismissProgressPrompt}
+          onOpen={handleOpenTodayDashboard}
+        />
+      )}
       <div className="container-custom mx-auto px-4">
         <h2 className="text-center text-primary uppercase">
           {isTrainer ? t("pricing.title_trainer") : t("pricing.title_customer")}
@@ -1241,6 +1273,10 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         {showModeModal && (
           <div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pricing-persona-title"
+            aria-describedby="pricing-persona-description"
           >
             <div
               className="bg-[#1a1a1a] border-2 border-primary rounded-2xl max-w-md w-full shadow-2xl"
@@ -1248,8 +1284,8 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             >
               <div className="p-8 space-y-6">
                 <div className="text-center">
-                  <h3 className="text-2xl font-bold text-white mb-2">Bạn là ai?</h3>
-                  <p className="text-gray-400 text-sm">Chọn chế độ để xem gói phù hợp với bạn</p>
+                  <h3 id="pricing-persona-title" className="text-2xl font-bold text-white mb-2">Bạn là ai?</h3>
+                  <p id="pricing-persona-description" className="text-gray-400 text-sm">Chọn chế độ để xem gói phù hợp với bạn</p>
                 </div>
                 <div className="flex flex-col gap-3">
                   <button
@@ -1263,6 +1299,22 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     className="w-full py-4 text-lg font-bold rounded-xl transition-all duration-300 border-2 border-gray-700 text-white hover:border-primary hover:bg-primary/10 hover:scale-[1.02]"
                   >
                     Huấn luyện viên
+                  </button>
+                </div>
+                <div className="border-t border-white/10 pt-5 text-center">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-primary">
+                    {t("progress_entry.eyebrow")}
+                  </p>
+                  <button
+                    className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-3 text-sm font-bold text-white transition-colors hover:border-primary hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    onClick={handleOpenTodayDashboard}
+                    type="button"
+                  >
+                    <span>{t("progress_entry.cta")}</span>
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="h-4 w-4 transition-transform group-hover:translate-x-1"
+                    />
                   </button>
                 </div>
               </div>

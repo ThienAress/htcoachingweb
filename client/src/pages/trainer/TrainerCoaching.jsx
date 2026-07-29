@@ -35,6 +35,12 @@ import SEO from "../../components/SEO";
 import Header from "../../sections/Header/Header";
 import Footer from "../../sections/Footer/Footer";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
+import {
+  addDaysToDateKey,
+  getVietnamDateKey,
+} from "../../utils/vietnamDate";
+import { TrainerHabitManager } from "./TrainerHabitManager";
+import { TrainerClientOverview } from "./TrainerClientOverview";
 
 const createLocalExerciseId = () =>
   globalThis.crypto?.randomUUID?.() ||
@@ -62,8 +68,8 @@ const TrainerCoaching = () => {
   // States
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
+  const [selectedDate, setSelectedDate] = useState(() =>
+    getVietnamDateKey(),
   );
 
   // Giáo án states
@@ -356,15 +362,11 @@ const TrainerCoaching = () => {
 
   // 7. Điều hướng ngày trước/sau
   const handlePrevDate = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() - 1);
-    handleDateChange(d.toISOString().split("T")[0]);
+    handleDateChange(addDaysToDateKey(selectedDate, -1));
   };
 
   const handleNextDate = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + 1);
-    handleDateChange(d.toISOString().split("T")[0]);
+    handleDateChange(addDaysToDateKey(selectedDate, 1));
   };
 
   // Helper: Tạo avatar chữ cái đầu giống Google
@@ -578,6 +580,17 @@ const TrainerCoaching = () => {
                   </div>
                 </div>
 
+                <TrainerHabitManager
+                  clientId={selectedClient._id}
+                  dateKey={selectedDate}
+                />
+
+                <TrainerClientOverview
+                  key={selectedClient._id}
+                  clientId={selectedClient._id}
+                  dateKey={selectedDate}
+                />
+
                 {/* Form Soạn Giáo Án */}
                 <div className="bg-gradient-to-br from-gray-900/70 to-gray-950/50 backdrop-blur-md rounded-2xl border border-gray-700/40 p-6 shadow-xl space-y-6">
                   <div className="flex items-center justify-between border-b border-gray-700/30 pb-4">
@@ -586,7 +599,12 @@ const TrainerCoaching = () => {
                         <Sparkles className="w-4 h-4 text-primary" />
                       </div>
                       <h3 className="font-bold text-white uppercase tracking-wider text-fluid-sm">
-                        Thiết lập giáo án: {new Date(selectedDate).toLocaleDateString("vi-VN")}
+                        Thiết lập giáo án:{" "}
+                        {new Intl.DateTimeFormat("vi-VN", {
+                          timeZone: "Asia/Ho_Chi_Minh",
+                        }).format(
+                          new Date(selectedDate + "T12:00:00+07:00"),
+                        )}
                       </h3>
                     </div>
                   </div>

@@ -1,0 +1,37 @@
+# Tài liệu HTCOACHINGWEB
+
+Tài liệu được tổ chức theo vai trò để giữ root `docs/` gọn và giúp tìm đúng
+nguồn canonical trước khi thay đổi code.
+
+## Cấu trúc
+
+| Thư mục | Nội dung |
+|---|---|
+| `specs/` | Yêu cầu sản phẩm và quyết định nghiệp vụ canonical |
+| `plans/` | Implementation plan đang hoặc sẽ được thực thi |
+| `phases/` | Báo cáo, inventory và runbook gắn với Phase 0–10 |
+| `audits/` | Audit codebase và contract xuyên lớp |
+| `architecture/` | Thiết kế hạ tầng hoặc kiến trúc dùng lâu dài |
+| `operations/` | Release checklist, production, staging và runbook vận hành |
+| `reports/` | Báo cáo kỹ thuật không thuộc riêng một phase |
+| `handoffs/` | Bàn giao context giữa các đợt làm việc |
+
+## Điểm vào chính
+
+- [Implementation plans](./plans/README.md)
+- [Today Dashboard spec](./specs/today-dashboard.md)
+- [Release checklist](./operations/release-checklist.md)
+- [Incident runbook](./operations/runbooks/incident-runbook.md)
+- [Today Dashboard Release B runbook](./operations/runbooks/today-dashboard-release-b.md)
+- [Today Dashboard Phase 5–6 runbook](./operations/runbooks/today-dashboard-phase5-6.md)
+- [Today Dashboard completion audit 2026-07-29](./audits/today-dashboard-completion-audit-2026-07-29.md)
+- [Production rollback](./operations/runbooks/production-rollback-runbook.md)
+
+## Quy ước
+
+- File mới thuộc một phase phải đặt trong `phases/phase-XX/`.
+- Spec và plan không đặt trong phase report; chúng có lifecycle riêng trong
+  `specs/` và `plans/`.
+- Khi di chuyển tài liệu, phải cập nhật cả Markdown links lẫn path được nhúng
+  trong code, runbook hoặc output observability.
+- Không lưu secret, dữ liệu production hoặc bản export database trong `docs/`.

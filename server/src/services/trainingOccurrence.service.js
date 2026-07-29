@@ -1,65 +1,21 @@
-export const TRAINING_TIME_ZONE = "Asia/Ho_Chi_Minh";
+import {
+  APP_TIME_ZONE,
+  addDaysToDateKey,
+  getAppDayOfWeek,
+  getVietnamDateKey,
+  parseDateKey,
+} from "../utils/dateKey.js";
+
+export const TRAINING_TIME_ZONE = APP_TIME_ZONE;
 export const SLOT_MINUTES = 15;
 export const MAX_OCCURRENCE_DAYS_AHEAD = 56;
 
-const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const VIETNAM_OFFSET_HOURS = 7;
 
-const dateFormatter = new Intl.DateTimeFormat("en-CA", {
-  timeZone: TRAINING_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+export { getAppDayOfWeek, getVietnamDateKey };
 
-const pad = (value) => String(value).padStart(2, "0");
-
-export const getVietnamDateKey = (date = new Date()) => {
-  const parts = {};
-  for (const part of dateFormatter.formatToParts(date)) {
-    if (part.type !== "literal") parts[part.type] = part.value;
-  }
-  return parts.year + "-" + parts.month + "-" + parts.day;
-};
-
-const parseDateKey = (dateKey) => {
-  if (!DATE_KEY_PATTERN.test(String(dateKey || ""))) {
-    throw Object.assign(new Error("Ngày tập không hợp lệ (YYYY-MM-DD)"), {
-      statusCode: 400,
-    });
-  }
-  const [year, month, day] = dateKey.split("-").map(Number);
-  const check = new Date(Date.UTC(year, month - 1, day));
-  if (
-    check.getUTCFullYear() !== year ||
-    check.getUTCMonth() !== month - 1 ||
-    check.getUTCDate() !== day
-  ) {
-    throw Object.assign(new Error("Ngày tập không tồn tại"), {
-      statusCode: 400,
-    });
-  }
-  return { year, month, day };
-};
-
-export const getAppDayOfWeek = (dateKey) => {
-  const { year, month, day } = parseDateKey(dateKey);
-  const jsDay = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-  return jsDay === 0 ? 6 : jsDay - 1;
-};
-
-const addDaysToKey = (dateKey, amount) => {
-  const { year, month, day } = parseDateKey(dateKey);
-  const date = new Date(Date.UTC(year, month - 1, day + amount));
-  return (
-    date.getUTCFullYear() +
-    "-" +
-    pad(date.getUTCMonth() + 1) +
-    "-" +
-    pad(date.getUTCDate())
-  );
-};
+const addDaysToKey = addDaysToDateKey;
 
 export const getNextOccurrenceDateKey = (
   dayOfWeek,

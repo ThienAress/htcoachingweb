@@ -24,6 +24,7 @@ import { getMyPlans, getMyPlanDetails, submitFeedback, uploadClientFeedbackVideo
 import SEO from "../../components/SEO";
 import Header from "../../sections/Header/Header";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
+import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread";
 
 const toExerciseFeedback = (exercise) => ({
   exerciseId: exercise._id,
@@ -845,6 +846,16 @@ const OnlineCoaching = () => {
           </div>
         )}
       </div>
+
+      {activePlan?._id && (
+        <div className="mx-auto max-w-6xl px-4 pb-28">
+          <CoachingCommentThread
+            targetType="coaching_day"
+            targetId={activePlan._id}
+            title="Trao đổi về Coaching Day"
+          />
+        </div>
+      )}
 
       {/* MODAL XÁC NHẬN NỘP BÁO CÁO */}
       {showConfirmModal && (

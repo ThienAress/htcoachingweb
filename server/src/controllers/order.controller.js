@@ -12,9 +12,32 @@ import { escapeRegex } from "../utils/escapeRegex.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
+import {
+  syncDailyJournalRetentionForClient,
+} from "../services/dailyJournalRetentionPolicy.service.js";
 
 const orderError = (status, code, message) =>
   Object.assign(new Error(message), { status, code });
+
+const syncOrderDailyJournalRetention = async ({
+  clientId,
+  coachingEndedAt = null,
+  source,
+}) => {
+  try {
+    return await syncDailyJournalRetentionForClient({
+      clientId,
+      coachingEndedAt,
+    });
+  } catch (error) {
+    incrementMetric("daily_journal.retention_sync_failures");
+    safeLog.error("daily_journal.retention_sync_failed", error, {
+      source,
+      hasEndTimestamp: Boolean(coachingEndedAt),
+    });
+    return { updated: 0, state: "sync_failed" };
+  }
+};
 
 export const createOrder = async (req, res) => {
   try {
@@ -90,6 +113,12 @@ export const createOrder = async (req, res) => {
       sessions: Number(req.body.sessions),
       totalSessions: Number(req.body.sessions),
     });
+    if (order.status === "approved" && order.sessions > 0) {
+      await syncOrderDailyJournalRetention({
+        clientId: order.userId,
+        source: "order_create",
+      });
+    }
 
     res.json({
       success: true,
@@ -204,6 +233,10 @@ export const approveOrder = async (req, res) => {
     } catch (mailErr) {
       safeLog.error("order.mail_failed", mailErr);
     }
+    await syncOrderDailyJournalRetention({
+      clientId: order.userId,
+      source: "order_approve",
+    });
 
     res.json({
       success: true,
@@ -284,6 +317,18 @@ export const updateOrder = async (req, res) => {
     if (order.status === "pending" && updateData.status === "approved") {
       updateData.approvedAt = new Date();
     }
+    const lifecycleAt = new Date();
+    if (updateData.status === "completed") {
+      updateData.completedAt = lifecycleAt;
+    }
+    if (updateData.status === "cancelled") {
+      updateData.cancelledAt = lifecycleAt;
+    }
+    if (nextSessions === 0 && Number(order.sessions) > 0) {
+      updateData.sessionsExhaustedAt = lifecycleAt;
+    } else if (nextSessions > 0 && Number(order.sessions) === 0) {
+      updateData.sessionsExhaustedAt = null;
+    }
 
     const updated = await Order.findOneAndUpdate(
       {
@@ -303,6 +348,19 @@ export const updateOrder = async (req, res) => {
         success: false,
         code: "ORDER_STATE_CONFLICT",
         message: "Đơn đã thay đổi bởi yêu cầu khác. Vui lòng tải lại.",
+      });
+    }
+    if (
+      order.status === "approved" ||
+      (updated.status === "approved" && updated.sessions > 0)
+    ) {
+      await syncOrderDailyJournalRetention({
+        clientId: updated.userId,
+        coachingEndedAt:
+          updated.cancelledAt ||
+          updated.completedAt ||
+          updated.sessionsExhaustedAt,
+        source: "order_update",
       });
     }
 

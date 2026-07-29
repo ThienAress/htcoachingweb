@@ -5,7 +5,6 @@ import {
   Menu,
   X,
   LogOut,
-  History,
   ChevronDown,
   UserCheck,
   Dumbbell,
@@ -14,18 +13,19 @@ import {
   CalendarDays,
   Sparkles,
   User,
-  Utensils,
   FileText,
   Star,
   LayoutDashboard,
+  Bell,
 } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
 import { getMyWallet } from "../../services/wallet.service";
 import { getMySubscription } from "../../services/trainerSubscription.service";
-import { getMyCheckins } from "../../services/checkin.service";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
+import { canAccessF1 } from "../../utils/trainerEntitlements";
+import { NotificationCenter } from "../../components/NotificationCenter";
 
 function Header() {
   const navigate = useNavigate();
@@ -54,16 +54,11 @@ function Header() {
     queryKey: ["header-account-summary", user?._id],
     enabled: Boolean(user),
     queryFn: async () => {
-      const [walletResult, subscriptionResult, checkinsResult] =
+      const [walletResult, subscriptionResult] =
         await Promise.allSettled([
           getMyWallet(),
           getMySubscription(),
-          getMyCheckins(),
         ]);
-      const orders =
-        checkinsResult.status === "fulfilled"
-          ? (checkinsResult.value.data.data?.orders || [])
-          : [];
 
       return {
         walletBalance:
@@ -74,18 +69,12 @@ function Header() {
           subscriptionResult.status === "fulfilled"
             ? subscriptionResult.value.data.data
             : null,
-        hasOrders: orders.length > 0,
-        hasOnlinePackage: orders.some(
-          (order) => order.package?.toLowerCase().includes("online"),
-        ),
       };
     },
     staleTime: 60_000,
   });
   const walletBalance = user ? (accountSummary?.walletBalance ?? null) : null;
   const activeSubscription = user ? (accountSummary?.activeSubscription ?? null) : null;
-  const hasOrders = Boolean(user && accountSummary?.hasOrders);
-  const hasOnlinePackage = Boolean(user && accountSummary?.hasOnlinePackage);
 
   // Map tên gói -> icon
   const planIconMap = {
@@ -101,7 +90,7 @@ function Header() {
     }));
   };
 
-  // Fetch số dư ví + gói dịch vụ + đơn hàng
+  // Fetch số dư ví + gói dịch vụ
   // Hàm scroll đến section
   const handleScrollToSection = (sectionId) => {
     if (location.pathname !== "/") {
@@ -189,6 +178,7 @@ function Header() {
   // Kiểm tra quyền: admin/trainer role HOẶC user có subscription
   const isAdmin = user?.role === "admin";
   const hasTrainerAccess = user?.role === "trainer" || activeSubscription;
+  const f1Allowed = canAccessF1(user, activeSubscription);
 
   const isHomePage = location.pathname === "/";
   const isSolidHeader = isScrolled || !isHomePage;
@@ -215,6 +205,7 @@ function Header() {
       },
       { isDivider: true },
       { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
+      { label: t("nav_user.notifications"), icon: Bell, path: "/notifications" },
       { label: t("nav_user.account"), icon: User, path: "/account" },
       { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
     ]
@@ -228,30 +219,30 @@ function Header() {
             { label: t("nav_user.online_coaching"), icon: Sparkles, path: "/trainer/coaching" },
             { label: t("nav_user.training_schedule"), icon: CalendarDays, path: "/training-schedule" },
             { label: t("nav_user.workout_plan"), icon: FileText, path: "/workout-plans" },
-            { label: t("nav_user.f1_system"), icon: Users, path: "/f1-customers" },
+            ...(f1Allowed
+              ? [
+                  {
+                    label: t("nav_user.f1_system"),
+                    icon: Users,
+                    path: "/f1-customers",
+                  },
+                ]
+              : []),
             { label: t("nav_user.exercise_system"), icon: Dumbbell, path: "/exercises" },
           ]
         },
         { isDivider: true },
         { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
+        { label: t("nav_user.notifications"), icon: Bell, path: "/notifications" },
         { label: t("nav_user.account"), icon: User, path: "/account" },
         { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
       ]
       : [
-        {
-          group: t("nav_user.training_tools"),
-          children: [
-            ...(hasOrders ? [{ label: t("nav_user.checkin_history"), icon: History, path: "/my-history" }] : []),
-            ...(hasOrders ? [{ label: t("nav_user.book_training"), icon: CalendarDays, path: "/book-training" }] : []),
-            ...(hasOrders ? [{ label: t("nav_user.workout_plan"), icon: FileText, path: "/workout-plans" }] : []),
-            ...(hasOnlinePackage ? [{ label: t("nav_user.online_plan"), icon: Sparkles, path: "/online-coaching" }] : []),
-            { label: t("nav_user.meal_suggestion"), icon: Utensils, path: "/tdee-calculator" },
-            { label: t("nav_user.exercise_system"), icon: Dumbbell, path: "/exercises" },
-          ]
-        },
+        { label: t("nav_user.today_dashboard"), icon: LayoutDashboard, path: "/dashboard" },
         { isDivider: true },
         ...(user?.customerStorySlug ? [{ label: t("nav_user.my_profile"), icon: Star, path: `/ket-qua-khach-hang/${user.customerStorySlug}` }] : []),
         { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
+        { label: t("nav_user.notifications"), icon: Bell, path: "/notifications" },
         { label: t("nav_user.account"), icon: User, path: "/account" },
         { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
       ];
@@ -364,10 +355,16 @@ function Header() {
         {/* Language Switcher + LOGIN / USER - Desktop */}
         <div className="hidden lg:flex items-center gap-2">
           <LanguageSwitcher isSolidHeader={isSolidHeader} />
+          {user && (
+            <NotificationCenter userId={user._id} solid={isSolidHeader} />
+          )}
           {user ? (
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setOpenDropdown(!openDropdown)}
+                aria-label={`${t("nav_user.open_account_menu")}: ${user.name}`}
+                aria-expanded={openDropdown}
+                aria-controls="account-dropdown-menu"
                 className={`flex items-center gap-1.5 2xl:gap-2.5 rounded-full px-2.5 2xl:px-4 py-1.5 transition-colors border ${
                   isSolidHeader ? "bg-white/10 hover:bg-white/20 border-transparent" : "bg-gray-100 hover:bg-gray-200 border-gray-200"
                 }`}
@@ -397,7 +394,11 @@ function Header() {
                 <ChevronDown size={16} className={`${textColorClass} ml-1`} />
               </button>
               {openDropdown && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden z-50 border border-gray-100">
+                <div
+                  id="account-dropdown-menu"
+                  data-testid="account-dropdown-menu"
+                  className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden z-50 border border-gray-100"
+                >
                   <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                     <p className="font-semibold text-gray-800 truncate">
                       {user.name}{activeSubscription ? ` - ${activeSubscription.planTitle}` : ""}
@@ -483,6 +484,9 @@ function Header() {
 
         {/* MOBILE BUTTON */}
         <div className="absolute right-5 lg:hidden flex items-center gap-3 z-20">
+          {user && (
+            <NotificationCenter userId={user._id} solid={isSolidHeader} />
+          )}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className={`${isSolidHeader ? "text-white" : "text-dark bg-white shadow-sm p-1.5 rounded-md border border-gray-200"}`}

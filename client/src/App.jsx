@@ -11,6 +11,8 @@ import MainLayout from "./layouts/MainLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import TrainerLayout from "./layouts/TrainerLayout";
 import AdminRoute from "./routes/AdminRoute";
+import AuthenticatedRoute from "./routes/AuthenticatedRoute";
+import F1Route from "./routes/F1Route";
 import GlobalLoading from "./components/GlobalLoading";
 import DeferredChatPanel from "./components/ChatWidget/DeferredChatPanel";
 import WebVitalsReporter from "./components/WebVitalsReporter";
@@ -68,6 +70,16 @@ const KnowledgeBase = lazy(() => import("./pages/admin/KnowledgeBase"));
 const RecipeExplorer = lazy(() => import("./pages/RecipeExplorer/RecipeExplorer"));
 const RecipeDetail = lazy(() => import("./pages/RecipeExplorer/RecipeDetail"));
 const RecipeManagement = lazy(() => import("./pages/admin/RecipeManagement"));
+const TodayDashboard = lazy(() => import("./pages/today-dashboard/TodayDashboard"));
+const TodayDashboardIndex = lazy(() => import("./pages/today-dashboard/TodayDashboardIndex"));
+const CustomerDashboardLayout = lazy(() => import("./layouts/CustomerDashboardLayout"));
+const TodayDashboardDayLayout = lazy(() => import("./pages/today-dashboard/TodayDashboardDayLayout"));
+const TodayTraining = lazy(() => import("./pages/today-dashboard/TodayTraining"));
+const TodayNutrition = lazy(() => import("./pages/today-dashboard/TodayNutrition"));
+const TodayJournal = lazy(() => import("./pages/today-dashboard/TodayJournal"));
+const LegacyDashboardRedirect = lazy(() => import("./pages/today-dashboard/LegacyDashboardRedirect"));
+const ProgressPage = lazy(() => import("./pages/progress/ProgressPage"));
+const NotificationsPage = lazy(() => import("./pages/notifications/NotificationsPage"));
 
 import "./index.css";
 import "./App.css";
@@ -142,13 +154,70 @@ function AppContent() {
         <Route path="/blog/:slug" element={<BlogDetail />} />
         <Route path="/club" element={<Club />} />
         <Route path="/exercises" element={<ExercisesPage />} />
-        <Route path="/f1-customers" element={<F1Customers />} />
+        <Route
+          path="/f1-customers"
+          element={
+            <F1Route>
+              <F1Customers />
+            </F1Route>
+          }
+        />
         <Route path="/wallet" element={<MyWallet />} />
         <Route path="/training-schedule" element={<TrainingSchedule />} />
         <Route path="/workout-plans" element={<WorkoutPlan />} />
         <Route path="/workout-plans/:id" element={<WorkoutPlanDetail />} />
         <Route path="/online-coaching" element={<OnlineCoaching />} />
         <Route path="/account" element={<AccountPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <AuthenticatedRoute>
+              <CustomerDashboardLayout />
+            </AuthenticatedRoute>
+          }
+        >
+          <Route index element={<TodayDashboardIndex />} />
+          <Route path="today" element={<TodayDashboardIndex />} />
+          <Route path="today/:dateKey" element={<TodayDashboardDayLayout />}>
+            <Route index element={<TodayDashboard />} />
+            <Route path="training" element={<TodayTraining />} />
+            <Route path="nutrition" element={<TodayNutrition />} />
+            <Route path="journal" element={<TodayJournal />} />
+          </Route>
+          <Route path="progress" element={<ProgressPage embedded />} />
+        </Route>
+        <Route
+          path="/today"
+          element={
+            <AuthenticatedRoute>
+              <TodayDashboardIndex />
+            </AuthenticatedRoute>
+          }
+        />
+        <Route
+          path="/today/:dateKey"
+          element={
+            <AuthenticatedRoute>
+              <LegacyDashboardRedirect />
+            </AuthenticatedRoute>
+          }
+        />
+        <Route
+          path="/progress"
+          element={
+            <AuthenticatedRoute>
+              <LegacyDashboardRedirect destination="progress" />
+            </AuthenticatedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <AuthenticatedRoute>
+              <NotificationsPage />
+            </AuthenticatedRoute>
+          }
+        />
         <Route path="/contracts/:id" element={<ContractSign />} />
 
         {/* TDEE Calculator */}

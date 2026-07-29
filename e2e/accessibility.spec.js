@@ -1,12 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-const useRole = async (page, role) => {
+const useRole = async (page, role, extraHeaders = {}) => {
   await page.route("**/api/**", (route) =>
     route.continue({
       headers: {
         ...route.request().headers(),
         "x-e2e-role": role,
+        ...extraHeaders,
       },
     }),
   );
@@ -52,11 +53,35 @@ test("trainer schedule passes critical accessibility smoke", async ({
   await expectNoCriticalViolations(page);
 });
 
-test("F1 mobile workflow screen passes critical accessibility smoke", async ({
+test("trainer and F1 mobile workflow screens pass critical accessibility smoke", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await useRole(page, "trainer");
-  await page.goto("/f1-customers");
+  await useRole(page, "trainer", { "x-e2e-trainer-access": "true" });
+  await page.goto("/trainer");
   await expectNoCriticalViolations(page);
+  await page.goto("/f1-customers");
+  await expect(page).toHaveURL(/\/f1-customers$/);
+  await expectNoCriticalViolations(page);
+});
+
+test("Today, Progress and Notifications pass critical accessibility smoke", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await useRole(page, "user");
+  await page.goto("/dashboard");
+  await page.waitForURL(/\/dashboard\/today\/\d{4}-\d{2}-\d{2}$/);
+  const todayPath = new URL(page.url()).pathname;
+  for (const path of [
+    todayPath,
+    todayPath + "/training",
+    todayPath + "/nutrition",
+    todayPath + "/journal",
+    "/dashboard/progress",
+    "/notifications",
+  ]) {
+    await page.goto(path);
+    await expectNoCriticalViolations(page);
+  }
 });

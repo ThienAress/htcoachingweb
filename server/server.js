@@ -43,6 +43,17 @@ import exerciseSuggestionRoutes from "./src/routes/exerciseSuggestion.routes.js"
 import customerStoryRoutes from "./src/routes/customerStory.routes.js";
 import depositRoutes from "./src/routes/deposit.routes.js";
 import mealplanAccessRoutes from "./src/routes/mealplanAccess.routes.js";
+import todayDashboardRoutes from "./src/routes/todayDashboard.routes.js";
+import dailyJournalRoutes from "./src/routes/dailyJournal.routes.js";
+import savedMealPlanRoutes from "./src/routes/savedMealPlan.routes.js";
+import coachingHabitRoutes from "./src/routes/coachingHabit.routes.js";
+import weeklyCheckinRoutes from "./src/routes/weeklyCheckin.routes.js";
+import progressRoutes from "./src/routes/progress.routes.js";
+import coachingCommentRoutes from "./src/routes/coachingComment.routes.js";
+import trainerOverviewRoutes from "./src/routes/trainerOverview.routes.js";
+import notificationRoutes from "./src/routes/notification.routes.js";
+import trainerClientOverviewRoutes from "./src/routes/trainerClientOverview.routes.js";
+import coachingActivityRoutes from "./src/routes/coachingActivity.routes.js";
 import { getMyWallet } from "./src/routes/deposit.routes.js";
 import { startDepositCronJobs } from "./src/services/depositCron.js";
 import { startSubscriptionCronJobs } from "./src/services/subscriptionCron.js";
@@ -189,6 +200,17 @@ app.use("/api/trainers", trainerRoutes);
 
 app.use("/api/deposits", depositRoutes);
 app.use("/api/mealplan-access", mealplanAccessRoutes);
+app.use("/api/today-dashboard", todayDashboardRoutes);
+app.use("/api/daily-journals", dailyJournalRoutes);
+app.use("/api/saved-meal-plans", savedMealPlanRoutes);
+app.use("/api/coaching-habits", coachingHabitRoutes);
+app.use("/api/weekly-checkins", weeklyCheckinRoutes);
+app.use("/api/progress", progressRoutes);
+app.use("/api/coaching-comments", coachingCommentRoutes);
+app.use("/api/trainer-overview", trainerOverviewRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/trainer-client-overview", trainerClientOverviewRoutes);
+app.use("/api/coaching-activity", coachingActivityRoutes);
 import adminDepositRoutes from "./src/routes/adminDeposit.routes.js";
 app.use("/api/admin/deposits", adminDepositRoutes);
 

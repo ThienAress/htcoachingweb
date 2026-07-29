@@ -79,6 +79,7 @@ const TrainerLayout = () => {
         />
       )}
       <aside
+        id="trainer-sidebar"
         ref={sidebarRef}
         className={`
           fixed md:sticky top-0 left-0 w-64 bg-[#1C2D42] shadow-lg z-40
@@ -178,8 +179,11 @@ const TrainerLayout = () => {
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 hover:bg-white/10 rounded-lg text-white"
+            aria-label="Mở menu huấn luyện viên"
+            aria-expanded={isSidebarOpen}
+            aria-controls="trainer-sidebar"
           >
-            <Menu className="w-5 h-5" />
+            <Menu aria-hidden="true" className="w-5 h-5" />
           </button>
           <div className="flex-1 text-center font-semibold text-white">
             HTCOACHING Trainer

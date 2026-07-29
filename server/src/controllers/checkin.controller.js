@@ -5,6 +5,9 @@ import User from "../models/User.js";
 import { sendCheckinMail } from "../utils/sendMail.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
+import {
+  syncDailyJournalRetentionForClient,
+} from "../services/dailyJournalRetentionPolicy.service.js";
 
 // Helper để parse time an toàn
 const parseSafeTime = (timeInput) => {
@@ -66,6 +69,16 @@ export const createCheckin = async (req, res) => {
         );
         error.statusCode = 400;
         throw error;
+      }
+      if (order.sessions === 0) {
+        const exhaustedAt = new Date();
+        order.sessionsExhaustedAt = exhaustedAt;
+        await order.save({ session });
+        await syncDailyJournalRetentionForClient({
+          clientId: order.userId,
+          coachingEndedAt: exhaustedAt,
+          session,
+        });
       }
 
       [checkin] = await Checkin.create(
@@ -209,14 +222,23 @@ export const deleteCheckin = async (req, res) => {
         throw error;
       }
 
-      await Order.findOneAndUpdate(
+      const restoredOrder = await Order.findOneAndUpdate(
         {
           _id: checkin.orderId,
           $expr: { $lt: ["$sessions", "$totalSessions"] },
         },
-        { $inc: { sessions: 1 } },
-        { session },
+        {
+          $inc: { sessions: 1 },
+          $set: { sessionsExhaustedAt: null },
+        },
+        { session, returnDocument: "after" },
       );
+      if (restoredOrder) {
+        await syncDailyJournalRetentionForClient({
+          clientId: restoredOrder.userId,
+          session,
+        });
+      }
     });
 
     res.json({

@@ -12,6 +12,7 @@ import Footer from "../../sections/Footer/Footer";
 import { useAuth } from "../../context/AuthContext";
 import { getWorkoutPlans, getMyWorkoutPlans, getWorkoutPlanById, updateWorkoutPlan } from "../../services/workoutPlan.service";
 import { getExercises } from "../../services/exercise.service";
+import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread";
 
 const EMPTY_EXERCISE = {
   name: "", sets: "", reps: "", tempo: "", duration: "", coachingTips: "", maxWeight: "",
@@ -731,6 +732,15 @@ const WorkoutPlanDetail = () => {
             </div>
           )}
         </div>
+        {form._id && (
+          <div className="container-custom mt-8">
+            <CoachingCommentThread
+              targetType="workout_plan"
+              targetId={form._id}
+              title="Trao đổi về giáo án"
+            />
+          </div>
+        )}
       </main>
       <Footer />
 

@@ -29,6 +29,11 @@ import {
   deleteSchedule,
   clearAllSchedules,
 } from "../../services/trainingSchedule.service";
+import {
+  addDaysToDateKey as addDays,
+  getAppDayOfWeek as dayIndexForDate,
+  getVietnamDateKey,
+} from "../../utils/vietnamDate";
 
 // ===== CONSTANTS =====
 const DAY_LABELS = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
@@ -53,37 +58,6 @@ const DEFAULT_COLORS = {
   Cardio: "#10b981",
   Yoga: "#8b5cf6",
   Stretching: "#ec4899",
-};
-
-const getVietnamDateKey = (date = new Date()) => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const values = Object.fromEntries(
-    parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]),
-  );
-  return values.year + "-" + values.month + "-" + values.day;
-};
-
-const addDays = (dateKey, days) => {
-  const [year, month, day] = dateKey.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day + days));
-  return (
-    date.getUTCFullYear() +
-    "-" +
-    String(date.getUTCMonth() + 1).padStart(2, "0") +
-    "-" +
-    String(date.getUTCDate()).padStart(2, "0")
-  );
-};
-
-const dayIndexForDate = (dateKey) => {
-  const [year, month, day] = dateKey.split("-").map(Number);
-  const jsDay = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-  return jsDay === 0 ? 6 : jsDay - 1;
 };
 
 const nextDateForDay = (dayOfWeek) => {

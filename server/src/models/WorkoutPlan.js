@@ -91,6 +91,14 @@ const workoutPlanSchema = new mongoose.Schema(
 // ✅ Indexes
 workoutPlanSchema.index({ trainerId: 1, planDate: -1 });
 workoutPlanSchema.index({ clientId: 1, planDate: -1 });
+workoutPlanSchema.index(
+  { clientId: 1, status: 1, planDate: 1 },
+  { name: "workout_plan_client_status_range" },
+);
+workoutPlanSchema.index(
+  { clientEmail: 1, status: 1, planDate: 1 },
+  { name: "workout_plan_legacy_client_status_range" },
+);
 workoutPlanSchema.index({ trainerId: 1, clientEmail: 1 });
 workoutPlanSchema.index({ status: 1 });
 

@@ -25,6 +25,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import LoginModal from "./LoginModal";
+import SavedMealPlans from "./SavedMealPlans";
 
 const loadSelectedFoods = () => {
   const saved = localStorage.getItem("selectedFoods");
@@ -320,6 +321,13 @@ const MealPlan = () => {
                       targetLabel={selectedMacroPlan}
                     />
                   </>
+                )}
+                {user && (
+                  <SavedMealPlans
+                    meals={meals}
+                    target={activeMacroTarget}
+                    targetLabel={selectedMacroPlan}
+                  />
                 )}
               </>
             ) : activeTab === "custom" ? (
