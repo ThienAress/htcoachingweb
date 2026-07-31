@@ -89,6 +89,7 @@ const TRAINER_NAVIGATION_GROUPS = [
 export const getAccountWorkspaceItems = ({
   isAdmin = false,
   hasTrainerAccess = false,
+  todayPlatformEnabled = true,
 } = {}) => {
   if (isAdmin) {
     return [ACCOUNT_WORKSPACES.admin, ACCOUNT_WORKSPACES.customerManagement];
@@ -98,16 +99,21 @@ export const getAccountWorkspaceItems = ({
     return [ACCOUNT_WORKSPACES.customerManagement];
   }
 
-  return [ACCOUNT_WORKSPACES.customerDashboard];
+  return todayPlatformEnabled ? [ACCOUNT_WORKSPACES.customerDashboard] : [];
 };
 
-export const getTrainerNavigationGroups = ({ f1Allowed = false } = {}) =>
+export const getTrainerNavigationGroups = ({
+  f1Allowed = false,
+  todayPlatformEnabled = true,
+} = {}) =>
   TRAINER_NAVIGATION_GROUPS.filter(
     (group) => !group.requiresF1 || f1Allowed,
   ).map((group) => ({
     ...group,
-    items: group.items.map((item) => ({ ...item })),
-  }));
+    items: group.items
+      .filter((item) => todayPlatformEnabled || item.key !== "health")
+      .map((item) => ({ ...item })),
+  })).filter((group) => group.items.length > 0);
 
 export const isTrainerNavigationItemActive = (itemKey, pathname) => {
   const item = TRAINER_NAVIGATION_GROUPS.flatMap(

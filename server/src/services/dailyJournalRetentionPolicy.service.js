@@ -4,6 +4,7 @@ import SavedMealPlan from "../models/SavedMealPlan.js";
 import CoachingHabit from "../models/CoachingHabit.js";
 import WeeklyCheckin from "../models/WeeklyCheckin.js";
 import CoachingComment from "../models/CoachingComment.js";
+import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
 import InAppNotification from "../models/InAppNotification.js";
 import WellnessTarget from "../models/WellnessTarget.js";
 
@@ -64,6 +65,10 @@ export const syncDailyJournalRetentionForClient = async ({
   coachingEndedAt = null,
   session = null,
 }) => {
+  if (!isTodayPlatformEnabled()) {
+    return { updated: 0, state: "feature_disabled" };
+  }
+
   if (!clientId) return { updated: 0, state: "missing_client" };
   let activeQuery = Order.exists({
     userId: clientId,

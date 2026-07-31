@@ -14,7 +14,12 @@ notification tham gia cùng retention deadline đã duyệt của dữ liệu To
 
 ## Feature flags
 
-- TODAY_DASHBOARD_ENABLED=false: rollback toàn bộ Today read surface.
+- `TODAY_DASHBOARD_ENABLED=true`: yêu cầu bật toàn bộ Today API surface. Production
+  vẫn fail closed cho đến khi `TODAY_PLATFORM_PRODUCTION_APPROVED=true`; staging
+  mặc định bật khi `APP_ENV=staging` để giữ acceptance environment hiện tại.
+- `VITE_TODAY_PLATFORM_ENABLED=true`: build client có Today/Progress,
+  Notifications và Theo dõi sức khỏe. Production build fail closed khi biến
+  thiếu hoặc sai; Netlify branch context `staging` đặt explicit `true`.
 - TODAY_JOURNAL_WRITES_ENABLED=true: bật journal save/submit/correction.
 - TODAY_MEAL_PLAN_WRITES_ENABLED=true: bật Saved Meal Plan mutations.
 - TODAY_HABIT_WRITES_ENABLED=true: bật Coaching Habit mutations.
@@ -69,12 +74,18 @@ vận hành riêng.
 
 ## Staged rollout
 
-1. Deploy với TODAY_DASHBOARD_ENABLED=false và toàn bộ write flags tắt.
+1. Deploy với `TODAY_DASHBOARD_ENABLED=false`,
+   `TODAY_PLATFORM_PRODUCTION_APPROVED=false`, production client không đặt
+   `VITE_TODAY_PLATFORM_ENABLED` và toàn bộ write/retention flags tắt. Client
+   flag là build-time nên mọi thay đổi phải rebuild/redeploy Netlify.
 2. Xác nhận backup/readiness; chạy Release G + Phase 6 migration trên target đã duyệt.
 3. Chạy verifier và load smoke bằng synthetic client; mọi gate phải PASS.
 4. Bật read-only cho internal accounts, sau đó cohort nhỏ.
 5. Bật từng write flag theo thứ tự Journal → Meal → Habit → Weekly → Comment.
 6. Theo dõi tối thiểu 30 phút mỗi cohort trước khi mở rộng.
+
+Rollback UI/API bằng cách đặt cả hai platform flags về `false` và publish lại
+known-good Netlify deploy; không drop collection/index hoặc chạy cleanup.
 
 Rollback cohort nếu một trong các ngưỡng sau kéo dài 15 phút:
 

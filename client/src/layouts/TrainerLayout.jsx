@@ -24,6 +24,7 @@ import {
   getTrainerNavigationGroups,
   isTrainerNavigationItemActive,
 } from "../navigation/workspaceNavigation";
+import { TODAY_PLATFORM_ENABLED } from "../config/featureFlags";
 
 const TrainerLayout = () => {
   const location = useLocation();
@@ -111,7 +112,10 @@ const TrainerLayout = () => {
     exercises: Dumbbell,
     f1Customers: TrendingUp,
   };
-  const navGroups = getTrainerNavigationGroups({ f1Allowed }).map((group) => ({
+  const navGroups = getTrainerNavigationGroups({
+    f1Allowed,
+    todayPlatformEnabled: TODAY_PLATFORM_ENABLED,
+  }).map((group) => ({
     ...group,
     items: group.items.map((item) => ({
       ...item,

@@ -16,6 +16,7 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { getTrainerClients } from "../../services/coaching.service";
+import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 import {
   getVietnamDateKey,
   isValidDateKey,
@@ -203,10 +204,11 @@ export const TrainerClientWorkspace = () => {
       </section>
 
       {/* ── Tabs ── */}
-      <nav
-        className="flex gap-2 overflow-x-auto border-b border-gray-700 px-1"
-        aria-label="Nội dung hồ sơ học viên"
-      >
+      {TODAY_PLATFORM_ENABLED && (
+        <nav
+          className="flex gap-2 overflow-x-auto border-b border-gray-700 px-1"
+          aria-label="Nội dung hồ sơ học viên"
+        >
         {TRAINER_CLIENT_TABS.map((tab) => {
           const Icon = TAB_ICONS[tab.id];
           const isActive = activeTab === tab.id;
@@ -228,19 +230,28 @@ export const TrainerClientWorkspace = () => {
             </button>
           );
         })}
-      </nav>
+        </nav>
+      )}
 
       {/* ── Tab content ── */}
-      {activeTab === "overview" && (
+      {!TODAY_PLATFORM_ENABLED && (
+        <section className="rounded-2xl border border-gray-700 bg-gray-800/50 p-6 text-gray-300">
+          <h2 className="text-lg font-bold text-white">Hồ sơ theo dõi đang được chuẩn bị</h2>
+          <p className="mt-2 max-w-prose text-sm leading-6 text-gray-400">
+            Danh sách khách hàng và chức năng tạo giáo án vẫn hoạt động. Dữ liệu sức khỏe chuyên sâu sẽ được mở sau khi hoàn tất kiểm tra hệ thống.
+          </p>
+        </section>
+      )}
+      {TODAY_PLATFORM_ENABLED && activeTab === "overview" && (
         <TrainerClientOverview clientId={clientId} dateKey={dateKey} />
       )}
-      {activeTab === "wellness" && (
+      {TODAY_PLATFORM_ENABLED && activeTab === "wellness" && (
         <TrainerWellnessTargetCard
           key={"wellness-target:" + clientId}
           clientId={clientId}
         />
       )}
-      {activeTab === "habits" && (
+      {TODAY_PLATFORM_ENABLED && activeTab === "habits" && (
         <TrainerHabitManager clientId={clientId} dateKey={dateKey} />
       )}
       </div>

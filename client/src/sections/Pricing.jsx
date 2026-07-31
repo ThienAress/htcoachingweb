@@ -11,6 +11,7 @@ import {
 import { useTrainerPlanCatalog } from "../hooks/useTrainerPlanCatalog";
 import { createTrainerPlanPurchasePayload } from "../utils/trainerPlanCatalog";
 import { TodayProgressPrompt } from "../components/TodayProgressPrompt";
+import { TODAY_PLATFORM_ENABLED } from "../config/featureFlags";
 
 const TODAY_PROGRESS_PROMPT_DISMISSED_KEY =
   "ht_today_progress_prompt_dismissed";
@@ -521,7 +522,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
   return (
     <section id="pricing" className="py-16 bg-[#262626]">
-      {showProgressPrompt && (
+      {TODAY_PLATFORM_ENABLED && showProgressPrompt && (
         <TodayProgressPrompt
           onDismiss={dismissProgressPrompt}
           onOpen={handleOpenTodayDashboard}

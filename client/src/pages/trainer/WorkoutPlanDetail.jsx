@@ -15,6 +15,7 @@ import { getExercises } from "../../services/exercise.service";
 import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread";
 import { WorkoutPlanClientTargetSummary } from "./WorkoutPlanClientTargetSummary";
 import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigation";
+import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 
 const EMPTY_EXERCISE = {
   name: "", sets: "", reps: "", tempo: "", duration: "", coachingTips: "", maxWeight: "",
@@ -643,7 +644,7 @@ const WorkoutPlanDetail = ({ embedded = false }) => {
         </div>
 
         <div className="container-custom mt-6">
-          {!isUserOnly && form.clientId && (
+          {TODAY_PLATFORM_ENABLED && !isUserOnly && form.clientId && (
             <div className="mb-6">
               <WorkoutPlanClientTargetSummary clientId={form.clientId} />
             </div>
@@ -739,7 +740,7 @@ const WorkoutPlanDetail = ({ embedded = false }) => {
             </div>
           )}
         </div>
-        {form._id && (
+        {TODAY_PLATFORM_ENABLED && form._id && (
           <div className="container-custom mt-8">
             <CoachingCommentThread
               targetType="workout_plan"

@@ -1,10 +1,11 @@
 import { getTodayDashboard } from "../services/todayDashboard.service.js";
 import { parseDateKey } from "../utils/dateKey.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
 
 export const getTodayDashboardDay = async (req, res) => {
   res.setHeader("Cache-Control", "private, no-store");
-  if (String(process.env.TODAY_DASHBOARD_ENABLED).toLowerCase() === "false") {
+  if (!isTodayPlatformEnabled()) {
     return res.status(503).json({
       success: false,
       code: "TODAY_DASHBOARD_DISABLED",

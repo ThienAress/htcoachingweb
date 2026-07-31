@@ -43,6 +43,8 @@ import exerciseSuggestionRoutes from "./src/routes/exerciseSuggestion.routes.js"
 import customerStoryRoutes from "./src/routes/customerStory.routes.js";
 import depositRoutes from "./src/routes/deposit.routes.js";
 import mealplanAccessRoutes from "./src/routes/mealplanAccess.routes.js";
+import { TODAY_PLATFORM_API_PREFIXES } from "./src/config/todayPlatform.js";
+import { requireTodayPlatform } from "./src/middlewares/todayPlatform.middleware.js";
 import todayDashboardRoutes from "./src/routes/todayDashboard.routes.js";
 import dailyJournalRoutes from "./src/routes/dailyJournal.routes.js";
 import wellnessTargetRoutes from "./src/routes/wellnessTarget.routes.js";
@@ -201,6 +203,7 @@ app.use("/api/trainers", trainerRoutes);
 
 app.use("/api/deposits", depositRoutes);
 app.use("/api/mealplan-access", mealplanAccessRoutes);
+app.use(TODAY_PLATFORM_API_PREFIXES, requireTodayPlatform);
 app.use("/api/today-dashboard", todayDashboardRoutes);
 app.use("/api/daily-journals", dailyJournalRoutes);
 app.use("/api/wellness-targets", wellnessTargetRoutes);

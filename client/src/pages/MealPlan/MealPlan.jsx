@@ -26,6 +26,7 @@ import { Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import LoginModal from "./LoginModal";
 import SavedMealPlans from "./SavedMealPlans";
+import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 
 const loadSelectedFoods = () => {
   const saved = localStorage.getItem("selectedFoods");
@@ -322,7 +323,7 @@ const MealPlan = () => {
                     />
                   </>
                 )}
-                {user && (
+                {user && TODAY_PLATFORM_ENABLED && (
                   <SavedMealPlans
                     meals={meals}
                     target={activeMacroTarget}

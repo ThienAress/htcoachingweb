@@ -13,6 +13,7 @@ import TrainerLayout from "./layouts/TrainerLayout";
 import AdminRoute from "./routes/AdminRoute";
 import AuthenticatedRoute from "./routes/AuthenticatedRoute";
 import F1Route from "./routes/F1Route";
+import TodayPlatformRoute from "./routes/TodayPlatformRoute";
 import GlobalLoading from "./components/GlobalLoading";
 import DeferredChatPanel from "./components/ChatWidget/DeferredChatPanel";
 import WebVitalsReporter from "./components/WebVitalsReporter";
@@ -177,7 +178,9 @@ function AppContent() {
           path="/dashboard"
           element={
             <AuthenticatedRoute>
-              <CustomerDashboardLayout />
+              <TodayPlatformRoute>
+                <CustomerDashboardLayout />
+              </TodayPlatformRoute>
             </AuthenticatedRoute>
           }
         >
@@ -195,7 +198,9 @@ function AppContent() {
           path="/today"
           element={
             <AuthenticatedRoute>
-              <TodayDashboardIndex />
+              <TodayPlatformRoute>
+                <TodayDashboardIndex />
+              </TodayPlatformRoute>
             </AuthenticatedRoute>
           }
         />
@@ -203,7 +208,9 @@ function AppContent() {
           path="/today/:dateKey"
           element={
             <AuthenticatedRoute>
-              <LegacyDashboardRedirect />
+              <TodayPlatformRoute>
+                <LegacyDashboardRedirect />
+              </TodayPlatformRoute>
             </AuthenticatedRoute>
           }
         />
@@ -211,7 +218,9 @@ function AppContent() {
           path="/progress"
           element={
             <AuthenticatedRoute>
-              <LegacyDashboardRedirect destination="progress" />
+              <TodayPlatformRoute>
+                <LegacyDashboardRedirect destination="progress" />
+              </TodayPlatformRoute>
             </AuthenticatedRoute>
           }
         />
@@ -219,7 +228,9 @@ function AppContent() {
           path="/notifications"
           element={
             <AuthenticatedRoute>
-              <NotificationsPage />
+              <TodayPlatformRoute>
+                <NotificationsPage />
+              </TodayPlatformRoute>
             </AuthenticatedRoute>
           }
         />
@@ -251,10 +262,21 @@ function AppContent() {
         >
           <Route index element={<TrainerDashboard />} />
           <Route path="clients/:clientId" element={<TrainerClientWorkspace />} />
-          <Route path="health" element={<TrainerDashboard />} />
+          <Route
+            path="health"
+            element={
+              <TodayPlatformRoute fallback="/trainer">
+                <TrainerDashboard />
+              </TodayPlatformRoute>
+            }
+          />
           <Route
             path="health/clients/:clientId"
-            element={<TrainerClientWorkspace />}
+            element={
+              <TodayPlatformRoute fallback="/trainer">
+                <TrainerClientWorkspace />
+              </TodayPlatformRoute>
+            }
           />
           <Route path="checkin" element={<Checkin embedded />} />
           <Route path="coaching" element={<TrainerCoaching embedded />} />

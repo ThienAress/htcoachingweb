@@ -30,6 +30,7 @@ import LanguageSwitcher from "../../components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
 import { NotificationCenter } from "../../components/NotificationCenter";
 import { getAccountWorkspaceItems } from "../../navigation/workspaceNavigation";
+import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 
 function Header() {
   const navigate = useNavigate();
@@ -199,6 +200,7 @@ function Header() {
   const workspaceItems = getAccountWorkspaceItems({
     isAdmin,
     hasTrainerAccess,
+    todayPlatformEnabled: TODAY_PLATFORM_ENABLED,
   }).map((item) => ({
     ...item,
     label: t(item.labelKey),
@@ -215,13 +217,19 @@ function Header() {
         ]
       : []),
     { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
-    { label: t("nav_user.notifications"), icon: Bell, path: "/notifications" },
+    ...(TODAY_PLATFORM_ENABLED
+      ? [{ label: t("nav_user.notifications"), icon: Bell, path: "/notifications" }]
+      : []),
     { label: t("nav_user.account"), icon: User, path: "/account" },
   ];
   const dropdownItems = [
-    { isSectionLabel: true, label: t("nav_user.workspaces") },
-    ...workspaceItems,
-    { isDivider: true },
+    ...(workspaceItems.length > 0
+      ? [
+          { isSectionLabel: true, label: t("nav_user.workspaces") },
+          ...workspaceItems,
+          { isDivider: true },
+        ]
+      : []),
     { isSectionLabel: true, label: t("nav_user.account") },
     ...personalItems,
     { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
@@ -335,7 +343,7 @@ function Header() {
         {/* Language Switcher + LOGIN / USER - Desktop */}
         <div className="hidden lg:flex items-center gap-2">
           <LanguageSwitcher isSolidHeader={isSolidHeader} />
-          {user && (
+          {user && TODAY_PLATFORM_ENABLED && (
             <NotificationCenter userId={user._id} solid={isSolidHeader} />
           )}
           {user ? (
@@ -436,7 +444,7 @@ function Header() {
 
         {/* MOBILE BUTTON */}
         <div className="absolute right-4 lg:hidden flex items-center gap-2 z-20">
-          {user && (
+          {user && TODAY_PLATFORM_ENABLED && (
             <NotificationCenter userId={user._id} solid={isSolidHeader} />
           )}
           <button
@@ -589,7 +597,7 @@ function Header() {
             {/* ── Workspace + account actions ── */}
             {user && (
               <div className="space-y-5">
-                <div>
+                {workspaceItems.length > 0 && <div>
                   <p className="mb-3 inline-flex rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-white">
                     {t("nav_user.workspaces")}
                   </p>
@@ -611,7 +619,7 @@ function Header() {
                       );
                     })}
                   </div>
-                </div>
+                </div>}
 
                 <div>
                   <p className="mb-3 inline-flex rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-white">

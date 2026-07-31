@@ -12,6 +12,7 @@ import { escapeRegex } from "../utils/escapeRegex.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
 import {
   syncDailyJournalRetentionForClient,
 } from "../services/dailyJournalRetentionPolicy.service.js";
@@ -24,6 +25,10 @@ const syncOrderDailyJournalRetention = async ({
   coachingEndedAt = null,
   source,
 }) => {
+  if (!isTodayPlatformEnabled()) {
+    return { updated: 0, state: "feature_disabled" };
+  }
+
   try {
     return await syncDailyJournalRetentionForClient({
       clientId,
@@ -317,17 +322,19 @@ export const updateOrder = async (req, res) => {
     if (order.status === "pending" && updateData.status === "approved") {
       updateData.approvedAt = new Date();
     }
-    const lifecycleAt = new Date();
-    if (updateData.status === "completed") {
-      updateData.completedAt = lifecycleAt;
-    }
-    if (updateData.status === "cancelled") {
-      updateData.cancelledAt = lifecycleAt;
-    }
-    if (nextSessions === 0 && Number(order.sessions) > 0) {
-      updateData.sessionsExhaustedAt = lifecycleAt;
-    } else if (nextSessions > 0 && Number(order.sessions) === 0) {
-      updateData.sessionsExhaustedAt = null;
+    if (isTodayPlatformEnabled()) {
+      const lifecycleAt = new Date();
+      if (updateData.status === "completed") {
+        updateData.completedAt = lifecycleAt;
+      }
+      if (updateData.status === "cancelled") {
+        updateData.cancelledAt = lifecycleAt;
+      }
+      if (nextSessions === 0 && Number(order.sessions) > 0) {
+        updateData.sessionsExhaustedAt = lifecycleAt;
+      } else if (nextSessions > 0 && Number(order.sessions) === 0) {
+        updateData.sessionsExhaustedAt = null;
+      }
     }
 
     const updated = await Order.findOneAndUpdate(

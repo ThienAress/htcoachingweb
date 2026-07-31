@@ -35,6 +35,23 @@ describe("workspace navigation contract", () => {
     ]);
   });
 
+  it("hides Today workspaces and health navigation while the platform is off", () => {
+    expect(
+      getAccountWorkspaceItems({
+        isAdmin: false,
+        hasTrainerAccess: false,
+        todayPlatformEnabled: false,
+      }),
+    ).toEqual([]);
+
+    expect(
+      getTrainerNavigationGroups({
+        f1Allowed: false,
+        todayPlatformEnabled: false,
+      }).flatMap((group) => group.items.map((item) => item.key)),
+    ).not.toContain("health");
+  });
+
   it("organizes trainer operations and fails closed for F1", () => {
     const groups = getTrainerNavigationGroups({ f1Allowed: false });
 

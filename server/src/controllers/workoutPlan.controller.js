@@ -5,6 +5,7 @@ import {
   deleteCoachingCommentsForTargets,
 } from "../services/coachingCommentPrivacy.service.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
 
 // Default sections template
 const DEFAULT_SECTIONS = [
@@ -195,9 +196,11 @@ export const updateWorkoutPlan = async (req, res) => {
 
 // ===== DELETE /api/workout-plans/:id — Xóa plan =====
 export const deleteWorkoutPlan = async (req, res) => {
-  const session = await mongoose.startSession();
+  const todayPlatformEnabled = isTodayPlatformEnabled();
+  const session = todayPlatformEnabled ? await mongoose.startSession() : null;
   try {
-    const plan = await WorkoutPlan.findById(req.params.id).session(session);
+    const planQuery = WorkoutPlan.findById(req.params.id);
+    const plan = session ? await planQuery.session(session) : await planQuery;
     if (!plan) {
       return res.status(404).json({ success: false, message: "Không tìm thấy giáo án" });
     }
@@ -206,23 +209,27 @@ export const deleteWorkoutPlan = async (req, res) => {
       return res.status(403).json({ success: false, message: "Không có quyền xóa" });
     }
 
-    await session.withTransaction(async () => {
-      await WorkoutPlan.deleteOne({ _id: plan._id }).session(session);
-      await deleteCoachingCommentsForTargets({
-        targets: [{
-          targetType: "workout_plan",
-          targetId: plan._id,
-        }],
-        session,
+    if (session) {
+      await session.withTransaction(async () => {
+        await WorkoutPlan.deleteOne({ _id: plan._id }).session(session);
+        await deleteCoachingCommentsForTargets({
+          targets: [{
+            targetType: "workout_plan",
+            targetId: plan._id,
+          }],
+          session,
+        });
       });
-    });
+    } else {
+      await plan.deleteOne();
+    }
 
     return res.json({ success: true, message: "Đã xóa giáo án" });
   } catch (err) {
     safeLog.error("workout_plan.delete_failed", err);
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   } finally {
-    await session.endSession();
+    if (session) await session.endSession();
   }
 };
 

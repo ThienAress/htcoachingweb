@@ -4,6 +4,7 @@ import { X, Plus, Trash2, GripVertical } from "lucide-react";
 import { toast } from "react-toastify";
 import { createWorkoutPlan } from "../../services/workoutPlan.service";
 import { WorkoutPlanClientTargetSummary } from "./WorkoutPlanClientTargetSummary";
+import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 
 const DEFAULT_SECTIONS = [
   { name: "WARM UP", icon: "🔥", sortOrder: 0, exercises: [] },
@@ -171,7 +172,7 @@ const PlanModal = ({ clients, initialClientId, initialDate, onClose, onSaved }) 
             </div>
           </div>
 
-          {form.clientId && (
+          {TODAY_PLATFORM_ENABLED && form.clientId && (
             <WorkoutPlanClientTargetSummary clientId={form.clientId} />
           )}
 
