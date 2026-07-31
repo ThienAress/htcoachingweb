@@ -17,9 +17,9 @@ const definitions = {
     icon: CalendarClock,
   },
   coaching: {
-    title: "Coaching trong ngày",
-    empty: "HLV chưa giao nội dung coaching cho ngày này.",
-    actionLabel: "Mở giáo án online",
+    title: "Huấn luyện trong ngày",
+    empty: "HLV chưa giao nội dung huấn luyện cho ngày này.",
+    actionLabel: "Mở giáo án trực tuyến",
     icon: ClipboardCheck,
   },
   workout: {
@@ -31,7 +31,7 @@ const definitions = {
   attendance: {
     title: "Điểm danh",
     empty: "Chưa có lượt điểm danh trong ngày này.",
-    actionLabel: "Xem lịch sử check-in",
+    actionLabel: "Xem lịch sử điểm danh",
     icon: History,
   },
 };

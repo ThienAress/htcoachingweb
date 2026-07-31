@@ -27,7 +27,7 @@ export const upsertPlannedMealEntry = (
       entry.mode === "follow_plan" && entry.plannedMealKey === mealKey,
   );
   if (index < 0 && next.length >= 10) {
-    throw new Error("A day can contain at most 10 meal entries");
+    throw new Error("Mỗi ngày có tối đa 10 mục bữa ăn");
   }
   const value = {
     entryId: index >= 0 ? next[index].entryId : entryId,
@@ -59,7 +59,7 @@ export const createRecipeMealEntry = ({ entryId, recipeId }) => ({
 
 export const appendNutritionEntry = (entries, entry) => {
   if (entries.length >= 10) {
-    throw new Error("A day can contain at most 10 meal entries");
+    throw new Error("Mỗi ngày có tối đa 10 mục bữa ăn");
   }
   return [...toNutritionCommandEntries(entries), entry];
 };

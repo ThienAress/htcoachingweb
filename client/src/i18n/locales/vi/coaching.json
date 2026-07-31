@@ -3,6 +3,7 @@
   "seo_coaching_desc": "Theo dõi lịch tập luyện và gửi video phản hồi kỹ thuật trực tiếp cho Coach của bạn.",
   "seo_contract": "Ký Hợp Đồng Dịch Vụ | HTCOACHING",
   "seo_plan": "Giáo Án Tập Luyện | HTCOACHING",
+  "plan_title": "Giáo Án Tập Luyện",
   "seo_plan_desc": "Xem giáo án tập luyện chi tiết do huấn luyện viên của bạn thiết kế.",
   "common": {
     "loading": "Đang tải dữ liệu...",
@@ -85,7 +86,7 @@
   },
   "plans": {
     "title": "DANH SÁCH GIÁO ÁN",
-    "subtitle": "CỦA TÔI",
+    "subtitle": "",
     "desc": "Theo dõi và thực hiện giáo án tập luyện chi tiết do huấn luyện viên của bạn thiết kế.",
     "code": "Mã giáo án",
     "trainer": "Huấn luyện viên",

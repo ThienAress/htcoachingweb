@@ -2,17 +2,7 @@ import TrainerSubscription from "../models/TrainerSubscription.js";
 import { requireTrainerAccess } from "./auth.middleware.js";
 import { safeLog } from "../utils/safeLogger.js";
 
-export const requireTrainerActor = (req, res, next) =>
-  requireTrainerAccess(req, res, () => {
-    if (req.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        code: "TRAINER_ROLE_REQUIRED",
-        message: "Chức năng này yêu cầu tài khoản huấn luyện viên",
-      });
-    }
-    return next();
-  });
+export const requireTrainerActor = requireTrainerAccess;
 
 export const attachOptionalTrainerAccess = async (req, res, next) => {
   if (req.user.role === "admin") {

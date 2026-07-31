@@ -76,6 +76,7 @@ const loadCoachingDays = async (clientId, range) => {
 const loadJournals = async (clientId, range) => {
   const documents = await DailyJournal.find({
     clientId,
+    status: "submitted",
     dateKey: { $gte: range.startDateKey, $lte: range.endDateKey },
   })
     .select("dateKey wellness nutrition habitCompletions")

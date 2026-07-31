@@ -208,7 +208,7 @@ export const buildProgressReadModel = ({
   habits = [],
   weeklyCheckins = [],
 }) => ({
-  formulaVersion: "progress-v1",
+  formulaVersion: "progress-v2",
   timeZone: "Asia/Ho_Chi_Minh",
   range,
   compliance: {

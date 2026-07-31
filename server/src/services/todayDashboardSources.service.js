@@ -1,6 +1,7 @@
 import Checkin from "../models/Checkin.js";
 import CoachingDay from "../models/CoachingDay.js";
 import DailyJournal from "../models/DailyJournal.js";
+import SavedMealPlan from "../models/SavedMealPlan.js";
 import TrainingSchedule from "../models/TrainingSchedule.js";
 import WorkoutPlan from "../models/WorkoutPlan.js";
 import { toDailyJournalDto } from "./dailyJournalDto.service.js";
@@ -156,11 +157,31 @@ const loadAttendance = async ({ orderIds, range }) => {
   }));
 };
 
-const loadJournal = async ({ userId, dateKey, actorScope = "client" }) =>
-  toDailyJournalDto(
-    await DailyJournal.findOne({ clientId: userId, dateKey }).lean(),
-    { includePrivate: actorScope !== "trainer" },
-  );
+const loadJournal = async ({ userId, dateKey, actorScope = "client" }) => {
+  const journal = await DailyJournal.findOne({ clientId: userId, dateKey })
+    .lean();
+  const dto = toDailyJournalDto(journal, {
+    includePrivate: actorScope !== "trainer",
+  });
+  const assignment = dto?.nutrition?.assignment;
+  if (!assignment?.savedMealPlanId) return dto;
+
+  const plan = await SavedMealPlan.findOne({
+    _id: assignment.savedMealPlanId,
+    ownerId: userId,
+    version: assignment.version,
+  })
+    .select("meals.key")
+    .lean();
+
+  return {
+    ...dto,
+    nutrition: {
+      ...dto.nutrition,
+      plannedMealKeys: plan ? plan.meals.map((meal) => meal.key) : [],
+    },
+  };
+};
 
 export const loadTodaySources = ({
   userId,

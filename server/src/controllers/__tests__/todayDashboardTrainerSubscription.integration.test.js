@@ -30,12 +30,13 @@ import weeklyCheckinRoutes from "../../routes/weeklyCheckin.routes.js";
 import {
   addDaysToDateKey,
   getAppDayOfWeek,
+  getMonthWeekPeriod,
   getVietnamDateKey,
 } from "../../utils/dateKey.js";
 
 let app;
 const today = getVietnamDateKey();
-const weekStart = addDaysToDateKey(today, -getAppDayOfWeek(today));
+const weekStart = getMonthWeekPeriod(today).startDateKey;
 
 const seedSubscriptionTrainer = async (suffix) => {
   const trainer = await createTestUser({

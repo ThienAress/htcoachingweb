@@ -58,3 +58,13 @@ export const checkinToWeeklyValues = (checkin) =>
   );
 
 export const weeklyCheckinPayload = weeklyValuesToPatch;
+
+export const getAdherenceLevel = (score) => {
+  if (score === "" || score === null || score === undefined) return null;
+  const value = Number(score);
+  if (!Number.isFinite(value) || value < 1 || value > 10) return null;
+  if (value <= 3) return { label: "Cần hỗ trợ thêm", range: "1–3" };
+  if (value <= 6) return { label: "Chưa ổn định", range: "4–6" };
+  if (value <= 8) return { label: "Bám khá tốt", range: "7–8" };
+  return { label: "Bám rất tốt", range: "9–10" };
+};

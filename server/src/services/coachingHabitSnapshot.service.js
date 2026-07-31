@@ -29,7 +29,7 @@ export const assertHabitRequestId = (requestId) => {
   }
 };
 
-export const normalizeHabitInput = (input, { createdByRole }) => {
+export const normalizeHabitInput = (input, { createdByRole, scheduleOverride = null }) => {
   assertHabitRequestId(input?.requestId);
   const allowed = new Set([
     "requestId",
@@ -99,7 +99,7 @@ export const normalizeHabitInput = (input, { createdByRole }) => {
         ? ""
         : text(input.description, { field: "description", max: 500 }),
     category: input.category,
-    schedule: {
+    schedule: scheduleOverride || {
       daysOfWeek: [...days].sort((left, right) => left - right),
       startDateKey: schedule.startDateKey,
       endDateKey,

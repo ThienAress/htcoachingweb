@@ -5,6 +5,7 @@ import CoachingHabit from "../models/CoachingHabit.js";
 import WeeklyCheckin from "../models/WeeklyCheckin.js";
 import CoachingComment from "../models/CoachingComment.js";
 import InAppNotification from "../models/InAppNotification.js";
+import WellnessTarget from "../models/WellnessTarget.js";
 
 const RETAINED_MODELS = [
   { model: DailyJournal, ownerField: "clientId" },
@@ -13,6 +14,7 @@ const RETAINED_MODELS = [
   { model: WeeklyCheckin, ownerField: "clientId" },
   { model: CoachingComment, ownerField: "clientId" },
   { model: InAppNotification, ownerField: "clientId" },
+  { model: WellnessTarget, ownerField: "clientId" },
 ];
 
 const updateRetainedDocuments = async ({

@@ -13,6 +13,7 @@ import { useAuth } from "../../context/AuthContext";
 import { getWorkoutPlans, getMyWorkoutPlans, getWorkoutPlanById, updateWorkoutPlan } from "../../services/workoutPlan.service";
 import { getExercises } from "../../services/exercise.service";
 import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread";
+import { WorkoutPlanClientTargetSummary } from "./WorkoutPlanClientTargetSummary";
 
 const EMPTY_EXERCISE = {
   name: "", sets: "", reps: "", tempo: "", duration: "", coachingTips: "", maxWeight: "",
@@ -641,6 +642,11 @@ const WorkoutPlanDetail = () => {
         </div>
 
         <div className="container-custom mt-6">
+          {!isUserOnly && form.clientId && (
+            <div className="mb-6">
+              <WorkoutPlanClientTargetSummary clientId={form.clientId} />
+            </div>
+          )}
           {/* Tabs */}
           <div className="flex items-center border-b border-gray-800 mb-6">
             <button

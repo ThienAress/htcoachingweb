@@ -23,21 +23,25 @@ export const assertHabitWritesEnabled = () => {
 export const resolveClientHabitAccess = ({ clientId, session = null }) =>
   resolveJournalWriteAccess({ clientId, session });
 
-export const assertTrainerManagesClient = async ({
-  trainerId,
+export const assertCoachManagesClient = async ({
+  actor,
   clientId,
   session = null,
 }) => {
   if (!mongoose.isValidObjectId(clientId)) {
     throw habitError(400, "clientId không hợp lệ", "INVALID_CLIENT_ID");
   }
-  let query = Order.findOne({
+  if (!new Set(["trainer", "admin"]).has(actor?.role)) {
+    throw habitError(403, "Không có quyền", "COACHING_HABIT_FORBIDDEN");
+  }
+  const filter = {
     userId: clientId,
-    trainerId,
     status: "approved",
     sessions: { $gt: 0 },
-  })
-    .select("_id")
+    ...(actor.role === "admin" ? {} : { trainerId: actor.id }),
+  };
+  let query = Order.findOne(filter)
+    .select("_id trainerId")
     .lean();
   if (session) query = query.session(session);
   const order = await query;
@@ -51,7 +55,18 @@ export const assertTrainerManagesClient = async ({
   return order;
 };
 
-export const findHabitForStatus = async ({
+export const assertTrainerManagesClient = ({
+  trainerId,
+  clientId,
+  session = null,
+}) =>
+  assertCoachManagesClient({
+    actor: { id: trainerId, role: "trainer" },
+    clientId,
+    session,
+  });
+
+export const findHabitForMutation = async ({
   actor,
   habitId,
   session = null,
@@ -73,15 +88,16 @@ export const findHabitForStatus = async ({
     ) {
       throw habitError(404, "Không tìm thấy habit", "COACHING_HABIT_NOT_FOUND");
     }
-  } else if (actor.role === "trainer") {
+  } else if (actor.role === "trainer" || actor.role === "admin") {
     if (
       habit.createdByRole !== "trainer" ||
-      String(habit.createdById) !== String(actor.id)
+      (actor.role === "trainer" &&
+        String(habit.createdById) !== String(actor.id))
     ) {
       throw habitError(404, "Không tìm thấy habit", "COACHING_HABIT_NOT_FOUND");
     }
-    await assertTrainerManagesClient({
-      trainerId: actor.id,
+    await assertCoachManagesClient({
+      actor,
       clientId: habit.clientId,
       session,
     });

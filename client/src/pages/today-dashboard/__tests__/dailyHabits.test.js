@@ -3,7 +3,11 @@ import {
   toHabitCompletionCommands,
   upsertHabitCompletion,
 } from "../dailyHabits";
-import { habitFormSchema, habitFormToPayload } from "../habitForm";
+import {
+  habitFormSchema,
+  habitFormToPayload,
+  habitToFormValues,
+} from "../habitForm";
 
 describe("dailyHabits adapter", () => {
   it("strips server snapshots before sending Journal patch", () => {
@@ -60,7 +64,7 @@ describe("dailyHabits adapter", () => {
         lineageKey: "next",
         status: "completed",
       }),
-    ).toThrow(/20 habit completions/i);
+    ).toThrow(/20 lượt hoàn thành thói quen/i);
   });
 
   it("requires a scheduled day and keeps self-created habit private by default", () => {
@@ -86,6 +90,66 @@ describe("dailyHabits adapter", () => {
       title: "Walk",
       visibility: "private",
       schedule: { daysOfWeek: [0, 2] },
+    });
+  });
+
+  it("giao habit HLV cho đủ bảy ngày từ ngày tạo thực tế", () => {
+    expect(
+      habitFormToPayload(
+        {
+          title: "Đi bộ",
+          category: "movement",
+          daysOfWeek: [2],
+          shared: false,
+        },
+        "2026-06-01",
+        { trainer: true, todayDateKey: "2026-07-31" },
+      ),
+    ).toMatchObject({
+      visibility: "shared",
+      schedule: {
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        startDateKey: "2026-07-31",
+        endDateKey: null,
+      },
+    });
+  });
+  it("prefills and preserves hidden definition fields when updating a habit", () => {
+    const habit = {
+      title: "Đi bộ",
+      category: "movement",
+      description: "Sau bữa tối",
+      target: 30,
+      unit: "phút",
+      visibility: "shared",
+      schedule: {
+        daysOfWeek: [0, 2, 4],
+        startDateKey: "2026-07-01",
+        endDateKey: "2026-08-01",
+      },
+    };
+
+    expect(habitToFormValues(habit)).toMatchObject({
+      title: "Đi bộ",
+      daysOfWeek: [0, 2, 4],
+      shared: true,
+    });
+    expect(
+      habitFormToPayload(habitToFormValues(habit), "2026-07-31", {
+        trainer: true,
+        habit,
+        todayDateKey: "2026-07-31",
+      }),
+    ).toMatchObject({
+      description: "Sau bữa tối",
+      target: 30,
+      unit: "phút",
+      visibility: "shared",
+      schedule: {
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        startDateKey: "2026-07-01",
+        endDateKey: null,
+      },
     });
   });
 });

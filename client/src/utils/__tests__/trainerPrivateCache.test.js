@@ -30,6 +30,37 @@ describe("trainer private query cache", () => {
     queryClient.clear();
   });
 
+  it("purges inactive private queries without refetching the active client picker", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const activeKey = ["trainer-clients"];
+    const inactiveKey = ["progress", "trainer", "client-1"];
+    const activeFetch = vi.fn().mockResolvedValue({ private: "refetched" });
+    queryClient.setQueryData(activeKey, { private: "client-picker" });
+    queryClient.setQueryData(inactiveKey, { private: "progress" });
+    const observer = new QueryObserver(queryClient, {
+      queryKey: activeKey,
+      queryFn: activeFetch,
+      staleTime: Infinity,
+    });
+    const unsubscribe = observer.subscribe(() => {});
+
+    await purgeTrainerPrivateQueries(queryClient, { type: "inactive" });
+
+    expect({
+      activeData: queryClient.getQueryData(activeKey),
+      inactiveData: queryClient.getQueryData(inactiveKey),
+      fetchCalls: activeFetch.mock.calls.length,
+    }).toEqual({
+      activeData: { private: "client-picker" },
+      inactiveData: undefined,
+      fetchCalls: 0,
+    });
+    unsubscribe();
+    queryClient.clear();
+  });
+
   it("keeps the purge scope limited to known trainer-private roots", async () => {
     const queryClient = new QueryClient();
     const publicKey = ["blog", "latest"];

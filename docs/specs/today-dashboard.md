@@ -316,13 +316,13 @@ Không gọi lại generator mỗi khi xem lịch sử vì kết quả/thuật t
 
 `GET /api/today-dashboard/day/:dateKey`
 
-Contract canonical v1:
+Contract canonical v2:
 
 ```json
 {
   "success": true,
   "data": {
-    "contractVersion": 1,
+    "contractVersion": 2,
     "dateKey": "2026-07-28",
     "timeZone": "Asia/Ho_Chi_Minh",
     "eligibility": {
@@ -332,8 +332,13 @@ Contract canonical v1:
     },
     "summary": {
       "dayStatus": "in_progress",
-      "completionPercent": 60,
-      "formulaVersion": "today-v1",
+      "completionPercent": 32,
+      "formulaVersion": "today-v2",
+      "moduleProgress": {
+        "training": { "completed": 1, "total": 3, "percent": 33, "state": "in_progress" },
+        "nutrition": { "completed": 0, "total": 0, "percent": null, "state": "not_applicable" },
+        "journal": { "completed": 3, "total": 10, "percent": 30, "state": "in_progress" }
+      },
       "attentionFlags": []
     },
     "capabilities": {
@@ -346,7 +351,8 @@ Contract canonical v1:
       "schedule": { "status": "ready", "source": "training_schedule", "items": [], "deepLink": "/book-training", "error": null },
       "coaching": { "status": "empty", "source": "coaching_day", "day": null, "deepLink": "/online-coaching", "error": null },
       "workout": { "status": "empty", "source": "workout_plan", "items": [], "deepLink": "/workout-plans", "error": null },
-      "attendance": { "status": "empty", "source": "checkin", "items": [], "deepLink": "/my-history", "error": null }
+      "attendance": { "status": "empty", "source": "checkin", "items": [], "deepLink": "/my-history", "error": null },
+      "journal": { "status": "ready", "source": "daily_journal", "day": {}, "deepLink": "/today", "error": null }
     },
     "partialErrors": []
   }
@@ -362,6 +368,10 @@ Yêu cầu:
 - Partial failure được chuẩn hóa, không biến toàn response thành 500 nếu section độc lập lỗi.
 - `401/403` là lỗi toàn request, không được hạ thành partial error.
 - Response private đặt `Cache-Control: private, no-store`.
+- `moduleProgress.training` đếm lịch tập, bài coaching và giáo án; điểm danh không cộng thêm mẫu số.
+- `moduleProgress.nutrition` chỉ áp dụng khi truy xuất được đúng phiên bản thực đơn đã gán; mỗi planned meal chỉ đếm một lần.
+- `moduleProgress.journal` dùng 8 wellness field × 10% và trạng thái `submitted` × 20%; không chấm tốt/xấu.
+- Module không có nhiệm vụ trả `percent: null`, không tự chuyển thành 100%.
 
 ### 9.2. Daily Journal
 
@@ -413,6 +423,7 @@ Completion là chỉ báo hỗ trợ, không phải điểm sức khỏe.
 - Rest day không bị tính thiếu workout.
 - Công thức phải đặt ở server, có `formulaVersion`.
 - UI không tự tính công thức khác server.
+- Wellness Target độc lập chỉ dùng so sánh actual/target; không tham gia `moduleProgress.journal` hoặc `completionPercent`.
 
 ### 10.3. Edit window
 
@@ -543,3 +554,16 @@ Feature chỉ được xem là hoàn thành khi:
 - Staging được pilot bằng dữ liệu test.
 - Có rollback/feature flag và tài liệu vận hành.
 - Không còn nguồn dữ liệu trùng hoặc đường ghi tắt bỏ qua domain service.
+## 18. Quyết định UI cho version và xóa Habit — 2026-07-31
+
+- Version của Wellness Target và Coaching Habit là contract kỹ thuật nội bộ, không hiển thị trên UI.
+- Habit definition được cập nhật bằng immutable latest version.
+- Thao tác Xóa là archived soft-delete để không rewrite completion snapshot đã lưu trong Daily Journal.
+## 19. Habit hằng ngày và kỳ báo cáo tuần trong tháng — 2026-07-31
+
+- Habit do HLV/admin giao luôn áp dụng đủ bảy ngày, từ ngày giao tới khi bị xóa hoặc
+  Order không còn buổi; Habit cá nhân của học viên vẫn được chọn ngày.
+- Weekly Check-in chia theo các period nằm gọn trong tháng: period đầu bắt đầu ngày 1,
+  period giữa theo Thứ Hai–Chủ Nhật, period cuối kết thúc ngày cuối tháng.
+- `weekStartDateKey` tiếp tục là storage key nhưng mang nghĩa ngày đầu period trong tháng.
+- Điểm Bám kế hoạch vẫn lưu 1–10; UI diễn giải thành bốn mức coaching-friendly.

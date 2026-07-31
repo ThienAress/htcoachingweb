@@ -63,7 +63,7 @@ describe("dailyNutrition adapter", () => {
       entryId: String(index),
     }));
     expect(() => appendNutritionEntry(entries, { entryId: "next" })).toThrow(
-      /10 meal entries/i,
+      /10 mục bữa ăn/i,
     );
   });
 });

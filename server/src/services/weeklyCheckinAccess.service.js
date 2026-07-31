@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import {
-  addDaysToDateKey,
-  getAppDayOfWeek,
+  getMonthWeekPeriod,
+  getPreviousMonthWeekPeriod,
   getVietnamDateKey,
   parseDateKey,
 } from "../utils/dateKey.js";
@@ -25,12 +25,12 @@ export const assertWeeklyCheckinWritesEnabled = () => {
   }
 };
 
-export const assertMondayWeekKey = (weekStartDateKey) => {
+export const assertMonthWeekPeriodKey = (weekStartDateKey) => {
   parseDateKey(weekStartDateKey);
-  if (getAppDayOfWeek(weekStartDateKey) !== 0) {
+  if (getMonthWeekPeriod(weekStartDateKey).startDateKey !== weekStartDateKey) {
     throw weeklyCheckinError(
       400,
-      "weekStartDateKey phải là thứ Hai",
+      "weekStartDateKey phải là ngày đầu kỳ báo cáo trong tháng",
       "INVALID_WEEK_START",
     );
   }
@@ -40,14 +40,17 @@ export const assertWeeklyCheckinEditWindow = (
   weekStartDateKey,
   now = new Date(),
 ) => {
-  assertMondayWeekKey(weekStartDateKey);
+  assertMonthWeekPeriodKey(weekStartDateKey);
   const today = getVietnamDateKey(now);
-  const currentWeek = addDaysToDateKey(today, -getAppDayOfWeek(today));
-  const previousWeek = addDaysToDateKey(currentWeek, -7);
-  if (weekStartDateKey !== currentWeek && weekStartDateKey !== previousWeek) {
+  const currentPeriod = getMonthWeekPeriod(today);
+  const previousPeriod = getPreviousMonthWeekPeriod(today);
+  if (
+    weekStartDateKey !== currentPeriod.startDateKey &&
+    weekStartDateKey !== previousPeriod.startDateKey
+  ) {
     throw weeklyCheckinError(
       422,
-      "Chỉ có thể ghi check-in của tuần hiện tại hoặc tuần trước",
+      "Chỉ có thể ghi báo cáo của kỳ hiện tại hoặc kỳ liền trước",
       "WEEKLY_CHECKIN_EDIT_WINDOW_CLOSED",
     );
   }

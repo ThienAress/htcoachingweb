@@ -11,6 +11,8 @@ export const changeCoachingHabitStatus = (id, data) =>
     "/coaching-habits/" + encodeURIComponent(id) + "/status",
     data,
   );
+export const updateCoachingHabitDefinition = (id, data) =>
+  api.put("/coaching-habits/" + encodeURIComponent(id), data);
 
 export const listTrainerClientHabits = (clientId, dateKey) =>
   api.get(

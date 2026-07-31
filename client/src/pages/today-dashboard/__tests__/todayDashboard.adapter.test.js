@@ -1,15 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { adaptTodayDashboard } from "../todayDashboard.adapter";
 
+const progress = (overrides = {}) => ({
+  completed: 0,
+  total: 10,
+  percent: 0,
+  state: "not_started",
+  ...overrides,
+});
+
 const contract = (overrides = {}) => ({
-  contractVersion: 1,
+  contractVersion: 2,
   dateKey: "2030-01-02",
   timeZone: "Asia/Ho_Chi_Minh",
   eligibility: { status: "active", orderId: "order-1", trainer: null },
   summary: {
     dayStatus: "not_started",
     completionPercent: 0,
-    formulaVersion: "today-v1",
+    formulaVersion: "today-v2",
+    moduleProgress: {
+      training: progress({ total: 0, percent: null, state: "not_applicable" }),
+      nutrition: progress({ total: 0, percent: null, state: "not_applicable" }),
+      journal: progress(),
+    },
     attentionFlags: [],
   },
   capabilities: {
@@ -53,10 +66,10 @@ const contract = (overrides = {}) => ({
 });
 
 describe("Today Dashboard contract adapter", () => {
-  it("normalizes a valid v1 response", () => {
+  it("normalizes a valid v2 response", () => {
     const result = adaptTodayDashboard(contract());
 
-    expect(result.contractVersion).toBe(1);
+    expect(result.contractVersion).toBe(2);
     expect(result.sections.schedule.items).toEqual([]);
     expect(result.sections.coaching.day).toBeNull();
   });
@@ -106,10 +119,32 @@ describe("Today Dashboard contract adapter", () => {
 
   it("rejects unknown versions and malformed dates", () => {
     expect(() =>
-      adaptTodayDashboard(contract({ contractVersion: 2 })),
+      adaptTodayDashboard(contract({ contractVersion: 1 })),
     ).toThrow("TODAY_CONTRACT_UNSUPPORTED");
     expect(() =>
       adaptTodayDashboard(contract({ dateKey: "2030-02-30" })),
     ).toThrow("TODAY_CONTRACT_INVALID");
+  });
+
+  it("rejects a missing module progress contract", () => {
+    const payload = contract();
+    delete payload.summary.moduleProgress;
+
+    expect(() => adaptTodayDashboard(payload)).toThrow(
+      "TODAY_CONTRACT_INVALID",
+    );
+  });
+
+  it("rejects an inconsistent not-applicable module", () => {
+    const payload = contract();
+    payload.summary.moduleProgress.training = progress({
+      total: 0,
+      percent: 100,
+      state: "completed",
+    });
+
+    expect(() => adaptTodayDashboard(payload)).toThrow(
+      "TODAY_CONTRACT_INVALID",
+    );
   });
 });

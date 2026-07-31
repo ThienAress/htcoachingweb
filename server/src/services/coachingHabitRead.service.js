@@ -1,7 +1,8 @@
 import CoachingHabit from "../models/CoachingHabit.js";
 import DailyJournal from "../models/DailyJournal.js";
+import Order from "../models/Order.js";
 import { addDaysToDateKey, parseDateKey } from "../utils/dateKey.js";
-import { assertTrainerManagesClient } from "./coachingHabitAccess.service.js";
+import { assertCoachManagesClient } from "./coachingHabitAccess.service.js";
 import { toCoachingHabitDto } from "./coachingHabitDto.service.js";
 import {
   deriveHabitStreak,
@@ -33,15 +34,21 @@ const withDerivedState = (habits, journals, dateKey) =>
 
 export const listMyCoachingHabits = async ({ clientId, dateKey }) => {
   parseDateKey(dateKey);
-  const [habits, journals] = await Promise.all([
-    CoachingHabit.find({
-      clientId,
-      isLatest: true,
-    })
-      .sort({ createdAt: 1 })
-      .lean(),
+  const [activeOrder, journals] = await Promise.all([
+    Order.exists({
+      userId: clientId,
+      status: "approved",
+      sessions: { $gt: 0 },
+    }),
     readJournals(clientId, dateKey),
   ]);
+  const habits = await CoachingHabit.find({
+    clientId,
+    isLatest: true,
+    ...(activeOrder ? {} : { createdByRole: "user" }),
+  })
+    .sort({ createdAt: 1 })
+    .lean();
   return {
     items: withDerivedState(habits, journals, dateKey),
     dateKey,
@@ -49,18 +56,22 @@ export const listMyCoachingHabits = async ({ clientId, dateKey }) => {
 };
 
 export const listTrainerClientHabits = async ({
-  trainerId,
+  actor,
   clientId,
   dateKey,
 }) => {
   parseDateKey(dateKey);
-  await assertTrainerManagesClient({ trainerId, clientId });
+  await assertCoachManagesClient({ actor, clientId });
+  const coachCreatedFilter =
+    actor.role === "admin"
+      ? { createdByRole: "trainer" }
+      : { createdByRole: "trainer", createdById: actor.id };
   const [habits, journals] = await Promise.all([
     CoachingHabit.find({
       clientId,
       isLatest: true,
       $or: [
-        { createdByRole: "trainer", createdById: trainerId },
+        coachCreatedFilter,
         { createdByRole: "user", visibility: "shared" },
       ],
     })

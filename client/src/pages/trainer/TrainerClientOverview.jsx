@@ -43,14 +43,7 @@ export const TrainerClientOverview = ({ clientId, dateKey }) => {
       queryKey: ["trainer-client-overview"],
       type: "inactive",
     });
-    void Promise.all([
-      purgeTrainerPrivateQueries(queryClient),
-      queryClient.resetQueries({
-        queryKey: ["trainer-client-overview", clientId, dateKey, days],
-        exact: true,
-        type: "active",
-      }),
-    ]);
+    void purgeTrainerPrivateQueries(queryClient, { type: "inactive" });
   }, [accessRevoked, clientId, dateKey, days, query.isSuccess, queryClient]);
   const setWeekly = (weeklyCheckin) => {
     queryClient.setQueryData(queryKey, (current) =>
@@ -70,7 +63,7 @@ export const TrainerClientOverview = ({ clientId, dateKey }) => {
       <summary className="min-h-11 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
         <h2 className="flex min-h-11 items-center gap-2 font-bold text-white">
           <BarChart3 size={19} className="text-orange-400" aria-hidden="true" />
-          Today & Progress
+          Hôm nay và Tiến trình
         </h2>
       </summary>
       <div className="mt-4">

@@ -2,10 +2,7 @@ import AuditLog from "../models/AuditLog.js";
 import CoachingHabit from "../models/CoachingHabit.js";
 import User from "../models/User.js";
 import WeeklyCheckin from "../models/WeeklyCheckin.js";
-import {
-  addDaysToDateKey,
-  getAppDayOfWeek,
-} from "../utils/dateKey.js";
+import { getMonthWeekPeriod } from "../utils/dateKey.js";
 import { assertTrainerWeeklyCheckinRead } from "./weeklyCheckinAccess.service.js";
 import { toWeeklyCheckinDto } from "./weeklyCheckinDto.service.js";
 import { getTrainerClientProgress } from "./progress.service.js";
@@ -71,11 +68,11 @@ export const getTrainerClientOverview = async ({
     trainerId: actor.id,
     clientId,
   });
-  const currentWeek = addDaysToDateKey(dateKey, -getAppDayOfWeek(dateKey));
+  const currentPeriod = getMonthWeekPeriod(dateKey);
   const weeklyCheckin = toWeeklyCheckinDto(
     await WeeklyCheckin.findOne({
       clientId,
-      weekStartDateKey: currentWeek,
+      weekStartDateKey: currentPeriod.startDateKey,
       status: { $in: ["submitted", "reviewed"] },
     }).lean(),
   );

@@ -43,6 +43,11 @@ export const useTodayDashboardDay = (dateKey) => {
               : current,
         );
       }
+      if (journal?.status === "submitted") {
+        void queryClient.invalidateQueries({
+          queryKey: ["progress", user?._id],
+        });
+      }
       void refetchToday();
     },
     [dateKey, queryClient, refetchToday, user?._id],

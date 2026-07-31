@@ -1,6 +1,7 @@
 import {
   changeCoachingHabitStatus,
   createCoachingHabit,
+  updateCoachingHabit,
 } from "../services/coachingHabit.service.js";
 import {
   deleteCoachingHabitData,
@@ -44,6 +45,20 @@ const create = (source) => async (req, res) => {
 export const createMyHabit = create("user");
 export const createTrainerClientHabit = create("trainer");
 
+export const updateHabitDefinition = async (req, res) => {
+  privateResponse(res);
+  try {
+    const result = await updateCoachingHabit({
+      actor: actor(req),
+      habitId: req.params.id,
+      input: req.body,
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return sendError(res, error, "coaching_habit.update_failed");
+  }
+};
+
 export const changeMyHabitStatus = async (req, res) => {
   privateResponse(res);
   try {
@@ -75,7 +90,7 @@ export const listTrainerHabits = async (req, res) => {
   privateResponse(res);
   try {
     const data = await listTrainerClientHabits({
-      trainerId: req.user.id,
+      actor: actor(req),
       clientId: req.params.clientId,
       dateKey: req.query.dateKey,
     });

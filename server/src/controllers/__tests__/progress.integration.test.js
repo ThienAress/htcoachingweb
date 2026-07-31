@@ -63,6 +63,35 @@ afterEach(clearCollections);
 afterAll(teardownTestDB);
 
 describe("Progress Hub API", () => {
+  it("excludes draft journals until the client submits them", async () => {
+    const assigned = await createAssigned("submitted-journal");
+    const journal = await DailyJournal.create({
+      clientId: assigned.client.user._id,
+      trainerIdAtCreation: assigned.trainer.user._id,
+      dateKey: today,
+      status: "draft",
+      wellness: { energy: 8 },
+      revision: 1,
+    });
+
+    const readEnergyAverage = async () => {
+      const response = await withAuth(
+        request(app).get("/api/progress?days=7"),
+        assigned.client.accessToken,
+      );
+      return response.body.data.wellness.energy.average;
+    };
+
+    const draftAverage = await readEnergyAverage();
+    await DailyJournal.updateOne(
+      { _id: journal._id },
+      { $set: { status: "submitted", submittedAt: new Date() } },
+    );
+    const submittedAverage = await readEnergyAverage();
+
+    expect([draftAverage, submittedAverage]).toEqual([null, 8]);
+  });
+
   it("shares canonical metrics while excluding client-private habits from trainer input", async () => {
     const assigned = await createAssigned("shared");
     const lineageKey = "71111111-1111-4111-8111-111111111111";
@@ -90,6 +119,8 @@ describe("Progress Hub API", () => {
       clientId: assigned.client.user._id,
       trainerIdAtCreation: assigned.trainer.user._id,
       dateKey: today,
+      status: "submitted",
+      submittedAt: new Date(),
       wellness: { sleepHours: 8, energy: 7 },
       habitCompletions: [
         {
@@ -134,7 +165,7 @@ describe("Progress Hub API", () => {
     expect(own.status).toBe(200);
     expect(own.headers["cache-control"]).toContain("private");
     expect(own.body.data).toMatchObject({
-      formulaVersion: "progress-v1",
+      formulaVersion: "progress-v2",
       range: { days: 7 },
       compliance: {
         scheduleAttendance: { percent: 100 },
@@ -153,6 +184,42 @@ describe("Progress Hub API", () => {
     });
   });
 
+  it("recomputes current metrics after a trainer edits and deletes source data", async () => {
+    const assigned = await createAssigned("source-refresh");
+    const schedule = await TrainingSchedule.create({
+      trainerId: assigned.trainer.user._id,
+      clientId: assigned.client.user._id,
+      clientName: assigned.client.user.name,
+      occurrenceDateKey: today,
+      startAt: new Date(range.start.getTime() + 8 * 60 * 60 * 1000),
+      endAt: new Date(range.start.getTime() + 9 * 60 * 60 * 1000),
+      dayOfWeek: getAppDayOfWeek(today),
+      startTime: "08:00",
+      endTime: "09:00",
+      exerciseType: "Strength",
+      status: "scheduled",
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+    });
+
+    const readPercent = async () => {
+      const response = await withAuth(
+        request(app).get("/api/progress?days=7"),
+        assigned.client.accessToken,
+      );
+      return response.body.data.compliance.scheduleAttendance.percent;
+    };
+
+    const beforeEdit = await readPercent();
+    await TrainingSchedule.updateOne(
+      { _id: schedule._id },
+      { $set: { status: "completed" } },
+    );
+    const afterEdit = await readPercent();
+    await TrainingSchedule.deleteOne({ _id: schedule._id });
+    const afterDelete = await readPercent();
+
+    expect([beforeEdit, afterEdit, afterDelete]).toEqual([null, 100, null]);
+  });
   it("rejects invalid ranges and trainer IDOR, then revokes access immediately", async () => {
     const assigned = await createAssigned("idor");
     const outsider = await createAssigned("outsider");

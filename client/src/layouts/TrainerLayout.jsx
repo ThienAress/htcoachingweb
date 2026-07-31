@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, History, Sparkles, Menu, X, Users, CalendarDays, ChevronDown } from "lucide-react";
+import { Home, Menu, X, Users, CalendarDays, ChevronDown } from "lucide-react";
 
 const TrainerLayout = () => {
   const location = useLocation();
@@ -38,14 +38,7 @@ const TrainerLayout = () => {
         { path: "/training-schedule", label: "Lịch tập khách hàng", icon: CalendarDays },
       ],
     },
-    {
-      key: "tools",
-      label: "Công cụ",
-      items: [
-        { path: "/trainer/checkin-history", label: "Lịch sử check-in", icon: History },
-        { path: "/trainer/coaching", label: "Hệ thống Coach Online", icon: Sparkles },
-      ],
-    },
+
   ];
 
   // Only show groups that have items
@@ -131,7 +124,11 @@ const TrainerLayout = () => {
                     <ul className="space-y-1 pb-2">
                       {group.items.map((item) => {
                         const Icon = item.icon;
-                        const isActive = location.pathname === item.path;
+                        const isActive =
+                          item.path === "/trainer"
+                            ? location.pathname === "/trainer" ||
+                              location.pathname.startsWith("/trainer/clients/")
+                            : location.pathname === item.path;
                         return (
                           <li key={item.path}>
                             <Link

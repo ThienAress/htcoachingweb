@@ -28,6 +28,11 @@ const Checkin = lazy(() => import("./pages/admin/Checkin"));
 const CheckinHistory = lazy(() => import("./pages/admin/CheckinHistory"));
 const MyHistory = lazy(() => import("./pages/MyHistory"));
 const TrainerDashboard = lazy(() => import("./pages/trainer/Dashboard"));
+const TrainerClientWorkspace = lazy(() =>
+  import("./pages/trainer/TrainerClientWorkspace.jsx").then((module) => ({
+    default: module.TrainerClientWorkspace,
+  })),
+);
 
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const ContactMessages = lazy(() => import("./pages/admin/ContactMessages"));
@@ -255,6 +260,7 @@ function AppContent() {
           }
         >
           <Route index element={<TrainerDashboard />} />
+          <Route path="clients/:clientId" element={<TrainerClientWorkspace />} />
           <Route path="checkin-history" element={<TrainerCheckinHistory />} />
         </Route>
 

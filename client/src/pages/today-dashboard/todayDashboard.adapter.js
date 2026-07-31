@@ -15,6 +15,13 @@ const SECTION_NAMES = [
   "attendance",
   "journal",
 ];
+const MODULE_NAMES = ["training", "nutrition", "journal"];
+const MODULE_STATES = new Set([
+  "not_applicable",
+  "not_started",
+  "in_progress",
+  "completed",
+]);
 
 const OPTIONAL_SECTION_DEFAULTS = {
   journal: {
@@ -55,14 +62,64 @@ const normalizeSection = (name, section) => {
   };
 };
 
+const normalizeModuleProgress = (name, progress) => {
+  if (
+    !progress ||
+    !Number.isInteger(progress.completed) ||
+    !Number.isInteger(progress.total) ||
+    progress.completed < 0 ||
+    progress.total < 0 ||
+    progress.completed > progress.total ||
+    !MODULE_STATES.has(progress.state)
+  ) {
+    contractError("TODAY_CONTRACT_INVALID", "invalid module progress " + name);
+  }
+
+  if (progress.total === 0) {
+    if (
+      progress.completed !== 0 ||
+      progress.percent !== null ||
+      progress.state !== "not_applicable"
+    ) {
+      contractError(
+        "TODAY_CONTRACT_INVALID",
+        "inconsistent not-applicable module " + name,
+      );
+    }
+    return progress;
+  }
+
+  const expectedPercent = Math.round(
+    (progress.completed / progress.total) * 100,
+  );
+  const expectedState =
+    expectedPercent === 100
+      ? "completed"
+      : expectedPercent === 0
+        ? "not_started"
+        : "in_progress";
+  if (
+    !Number.isFinite(progress.percent) ||
+    progress.percent !== expectedPercent ||
+    progress.state !== expectedState
+  ) {
+    contractError(
+      "TODAY_CONTRACT_INVALID",
+      "inconsistent module progress " + name,
+    );
+  }
+
+  return progress;
+};
+
 export const adaptTodayDashboard = (payload) => {
   if (!payload || typeof payload !== "object") {
     contractError("TODAY_CONTRACT_INVALID", "payload must be an object");
   }
-  if (payload.contractVersion !== 1) {
+  if (payload.contractVersion !== 2) {
     contractError(
       "TODAY_CONTRACT_UNSUPPORTED",
-      "expected contract version 1",
+      "expected contract version 2",
     );
   }
   if (!isValidDateKey(payload.dateKey)) {
@@ -77,6 +134,8 @@ export const adaptTodayDashboard = (payload) => {
   if (
     !payload.summary ||
     !Number.isFinite(payload.summary.completionPercent) ||
+    payload.summary.formulaVersion !== "today-v2" ||
+    !payload.summary.moduleProgress ||
     !payload.capabilities ||
     typeof payload.capabilities.canViewSources !== "boolean"
   ) {
@@ -89,6 +148,13 @@ export const adaptTodayDashboard = (payload) => {
       normalizeSection(name, payload.sections?.[name]),
     ]),
   );
+  const moduleProgress = Object.fromEntries(
+    MODULE_NAMES.map((name) => [
+      name,
+      normalizeModuleProgress(name, payload.summary.moduleProgress[name]),
+    ]),
+  );
+
   return {
     ...payload,
     sections,
@@ -101,6 +167,7 @@ export const adaptTodayDashboard = (payload) => {
         100,
         Math.max(0, payload.summary.completionPercent),
       ),
+      moduleProgress,
       attentionFlags: Array.isArray(payload.summary.attentionFlags)
         ? payload.summary.attentionFlags
         : [],

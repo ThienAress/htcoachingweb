@@ -34,6 +34,7 @@ const SidebarContent = ({ onItemClick }) => {
       label: "Quản lý",
       items: [
         { path: "/admin/users", label: "Người dùng", icon: Users },
+        { path: "/trainer", label: "Huấn luyện học viên", icon: Dumbbell },
         { path: "/admin/trainer-subscribers", label: "Huấn luyện viên", icon: Sparkles },
         { path: "/admin/orders", label: "Đơn hàng", icon: Package },
         { path: "/admin/contracts", label: "Hợp đồng HLV", icon: FileText },

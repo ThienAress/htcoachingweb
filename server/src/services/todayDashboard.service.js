@@ -6,6 +6,7 @@ import {
 } from "../observability/metrics.js";
 import { APP_TIME_ZONE, getVietnamDayRangeUtc } from "../utils/dateKey.js";
 import { resolveClientTrainer } from "./trainingScheduleCommand.service.js";
+import { calculateTodaySummary } from "./todayDashboardSummary.service.js";
 import {
   isJournalDateEditable,
 } from "./dailyJournalAccess.service.js";
@@ -103,35 +104,6 @@ const resolveEligibility = async (userId) => {
   };
 };
 
-const calculateSummary = (sections, partialErrors) => {
-  const schedules =
-    sections.schedule.status === "ready" ? sections.schedule.items : [];
-  const exercises =
-    sections.coaching.status === "ready"
-      ? sections.coaching.day.exercises
-      : [];
-  const applicable = schedules.length + exercises.length;
-  const completed =
-    schedules.filter((item) => item.status === "completed").length +
-    exercises.filter((item) => item.completed).length;
-  const completionPercent =
-    applicable === 0 ? 100 : Math.round((completed / applicable) * 100);
-  const dayStatus =
-    applicable === 0
-      ? "rest_day"
-      : completionPercent === 100
-        ? "completed"
-        : completionPercent === 0
-          ? "not_started"
-          : "in_progress";
-  return {
-    dayStatus,
-    completionPercent,
-    formulaVersion: "today-v1",
-    attentionFlags: partialErrors.length > 0 ? ["partial_data"] : [],
-  };
-};
-
 const aggregateSources = async (context) => {
   const loaders = loadTodaySources(context);
   const names = Object.keys(loaders);
@@ -190,16 +162,27 @@ export const getTodayDashboard = async ({
     sections.journal?.status === "ready" &&
     sections.journal.day?.status === "draft";
   return {
-    contractVersion: 1,
+    contractVersion: 2,
     dateKey,
     timeZone: APP_TIME_ZONE,
     eligibility: eligibility.public,
     summary: eligibility.canViewSources
-      ? calculateSummary(sections, partialErrors)
+      ? calculateTodaySummary(sections, partialErrors)
       : {
           dayStatus: "unavailable",
           completionPercent: 0,
-          formulaVersion: "today-v1",
+          formulaVersion: "today-v2",
+          moduleProgress: Object.fromEntries(
+            ["training", "nutrition", "journal"].map((name) => [
+              name,
+              {
+                completed: 0,
+                total: 0,
+                percent: null,
+                state: "not_applicable",
+              },
+            ]),
+          ),
           attentionFlags: [],
         },
     capabilities: {

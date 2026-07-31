@@ -1040,6 +1040,14 @@ export const validateTrainerCoachingHabitList = [
   ...validateCoachingHabitList,
 ];
 
+export const validateCoachingHabitUpdate = [
+  param("id").isMongoId().withMessage("Habit ID không hợp lệ"),
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+  body("expectedVersion").isInt({ min: 1 }).toInt(),
+  ...coachingHabitFields(),
+  handleValidationErrors,
+];
+
 export const validateCoachingHabitStatus = [
   param("id").isMongoId().withMessage("Habit ID không hợp lệ"),
   body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
@@ -1599,5 +1607,78 @@ export const validateTrainerPlanGrant = [
   body("billingCycle")
     .isIn(TRAINER_BILLING_CYCLES)
     .withMessage("billingCycle không hợp lệ"),
+  handleValidationErrors,
+];
+
+const exactWellnessTargetBody = (allowed) =>
+  body().custom((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Request body không hợp lệ");
+    }
+    if (Object.keys(value).some((key) => !allowed.includes(key))) {
+      throw new Error("Request chứa field không được phép");
+    }
+    return true;
+  });
+
+const exactWellnessTargets = body("targets").custom((value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("targets phải là object");
+  }
+  const allowed = ["sleepHours", "waterMl", "steps"];
+  if (
+    Object.keys(value).length !== allowed.length ||
+    Object.keys(value).some((key) => !allowed.includes(key))
+  ) {
+    throw new Error("targets phải có đúng sleepHours, waterMl và steps");
+  }
+  return true;
+});
+
+export const validateWellnessTargetOwnRead = [
+  query("dateKey")
+    .isString()
+    .custom((value) => {
+      parseDateKey(value);
+      return true;
+    })
+    .withMessage("dateKey không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateWellnessTargetClient = [
+  param("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateWellnessTargetWrite = [
+  param("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  exactWellnessTargetBody([
+    "expectedVersion",
+    "requestId",
+    "targets",
+    "note",
+  ]),
+  body("expectedVersion").isInt({ min: 0 }).toInt(),
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+  exactWellnessTargets,
+  body("targets.sleepHours").isFloat({ min: 1, max: 24 }).toFloat(),
+  body("targets.waterMl").isInt({ min: 250, max: 20000 }).toInt(),
+  body("targets.steps").isInt({ min: 100, max: 200000 }).toInt(),
+  body("note").optional().isString().trim().isLength({ max: 500 }),
+  handleValidationErrors,
+];
+
+export const validateWellnessTargetExport = [
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateDeleteWellnessTargets = [
+  exactWellnessTargetBody(["confirmation"]),
+  body("confirmation")
+    .equals("DELETE_MY_WELLNESS_TARGETS")
+    .withMessage("Thiếu xác nhận xóa Wellness Targets"),
   handleValidationErrors,
 ];

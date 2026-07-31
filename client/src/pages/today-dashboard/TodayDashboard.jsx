@@ -18,133 +18,260 @@ const dayStatusLabel = (status) =>
     rest_day: "Ngày nghỉ",
   })[status] || "Đang cập nhật";
 
+const dayStatusColor = (status) =>
+  ({
+    not_started: "text-slate-400",
+    in_progress: "text-cyan-400",
+    completed: "text-emerald-400",
+    submitted: "text-violet-400",
+    rest_day: "text-slate-400",
+  })[status] || "text-slate-400";
+
+const dayStatusBg = (status) =>
+  ({
+    not_started: "bg-slate-800/60 border-slate-700",
+    in_progress: "bg-cyan-500/10 border-cyan-500/30",
+    completed: "bg-emerald-500/10 border-emerald-500/30",
+    submitted: "bg-violet-500/10 border-violet-500/30",
+    rest_day: "bg-slate-800/60 border-slate-700",
+  })[status] || "bg-slate-800/60 border-slate-700";
+
+/* SVG Progress Ring */
+const ProgressRing = ({ percent = 0, size = 80, stroke = 7, color = "#f97316" }) => {
+  const r = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference - (percent / 100) * circumference;
+  return (
+    <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={stroke}
+        className="text-slate-800"
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={stroke}
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dashoffset 0.6s ease" }}
+      />
+    </svg>
+  );
+};
+
+const MODULE_CONFIG = {
+  training: {
+    icon: Dumbbell,
+    label: "Lịch & bài tập",
+    description: "Huấn luyện, giáo án và điểm danh.",
+    accent: "cyan",
+    iconBg: "bg-cyan-500/15",
+    iconColor: "text-cyan-400",
+    border: "border-cyan-500/20",
+    hoverBorder: "hover:border-cyan-500/40",
+    arrowHover: "group-hover:text-cyan-400",
+    statusColor: "text-cyan-300",
+  },
+  nutrition: {
+    icon: Utensils,
+    label: "Dinh dưỡng",
+    description: "Thực đơn và ghi lại bữa ăn.",
+    accent: "emerald",
+    iconBg: "bg-emerald-500/15",
+    iconColor: "text-emerald-400",
+    border: "border-emerald-500/20",
+    hoverBorder: "hover:border-emerald-500/40",
+    arrowHover: "group-hover:text-emerald-400",
+    statusColor: "text-emerald-300",
+  },
+  journal: {
+    icon: NotebookPen,
+    label: "Nhật ký & thói quen",
+    description: "Sức khỏe, thói quen và báo cáo tuần.",
+    accent: "amber",
+    iconBg: "bg-amber-500/15",
+    iconColor: "text-amber-400",
+    border: "border-amber-500/20",
+    hoverBorder: "hover:border-amber-500/40",
+    arrowHover: "group-hover:text-amber-400",
+    statusColor: "text-amber-300",
+  },
+  progress: {
+    icon: TrendingUp,
+    label: "Tổng quan",
+    description: "Số liệu tổng hợp và xu hướng.",
+    accent: "violet",
+    iconBg: "bg-violet-500/15",
+    iconColor: "text-violet-400",
+    border: "border-violet-500/20",
+    hoverBorder: "hover:border-violet-500/40",
+    arrowHover: "group-hover:text-violet-400",
+    statusColor: "text-violet-300",
+  },
+};
+
 const TodayDashboard = () => {
   const { data, dateKey } = useOutletContext();
-  const journal = data.sections.journal.day;
   const scheduleItems = data.sections.schedule.items || [];
   const nextSchedule = scheduleItems[0] || null;
-  const nutrition = journal?.nutrition || {};
-  const journalPercent = journal?.completion?.percent || 0;
+  const moduleProgress = data.summary.moduleProgress;
+  const trainingProgress = moduleProgress.training;
+  const nutritionProgress = moduleProgress.nutrition;
+  const journalProgress = moduleProgress.journal;
+  const completionPercent = data.summary.completionPercent;
+  const dayStatus = data.summary.dayStatus;
 
-  const modules = [
-    {
-      key: "training",
-      title: "Lịch & bài tập",
-      description: "Xem lịch, coaching, giáo án và điểm danh.",
-      status: nextSchedule
-        ? nextSchedule.startTime + " · " + nextSchedule.exerciseType
-        : "Không có lịch tập hôm nay",
-      icon: Dumbbell,
-    },
-    {
-      key: "nutrition",
-      title: "Dinh dưỡng",
-      description: "Theo dõi thực đơn và ghi lại bữa ăn.",
-      status: nutrition.assignment
-        ? "Đã có thực đơn áp dụng"
-        : (nutrition.entries || []).length > 0
-          ? nutrition.entries.length + " bữa đã ghi"
-          : "Chưa ghi bữa ăn",
-      icon: Utensils,
-    },
-    {
-      key: "journal",
-      title: "Nhật ký & thói quen",
-      description: "Cập nhật wellness, habit và trao đổi với HLV.",
-      status: journal ? "Nhật ký đã hoàn thành " + journalPercent + "%" : "Chưa bắt đầu nhật ký",
-      icon: NotebookPen,
-    },
-    {
-      key: "progress",
-      title: "Tiến trình",
-      description: "Xem xu hướng, Weekly Check-in và hoạt động coaching.",
-      status: "Mở báo cáo tiến trình",
-      icon: TrendingUp,
-    },
-  ];
+  const moduleStatuses = {
+    training: nextSchedule
+      ? nextSchedule.startTime + " · " + nextSchedule.exerciseType
+      : trainingProgress.percent === null
+        ? "Không có nhiệm vụ"
+        : "Tiến độ tập luyện " + trainingProgress.percent + "%",
+    nutrition:
+      nutritionProgress.percent === null
+        ? "Chưa có thực đơn áp dụng"
+        : "Tiến độ thực đơn " + nutritionProgress.percent + "%",
+    journal: "Nhật ký: " + journalProgress.percent + "% hoàn thành",
+    progress: "Mở trang tổng quan",
+  };
+  const ringColor =
+    completionPercent >= 100
+      ? "#34d399"
+      : completionPercent >= 50
+        ? "#22d3ee"
+        : "#f97316";
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(260px,0.55fr)]">
-        <section className="rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6">
-          <div className="flex items-center gap-2 text-sm font-semibold text-orange-300">
-            <CalendarClock aria-hidden="true" className="h-5 w-5" /> Việc tiếp theo
-          </div>
-          {nextSchedule ? (
-            <>
-              <h2 className="mt-4 text-xl font-bold text-white">{nextSchedule.exerciseType}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                {nextSchedule.startTime}–{nextSchedule.endTime}
-                {nextSchedule.notes ? " · " + nextSchedule.notes : ""}
-              </p>
-              <Link
-                to={dashboardPathFor("training", dateKey)}
-                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-orange-500 px-4 text-sm font-bold text-slate-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
-              >
-                Mở lịch & bài tập <ArrowRight aria-hidden="true" className="h-4 w-4" />
-              </Link>
-            </>
-          ) : (
-            <>
-              <h2 className="mt-4 text-xl font-bold text-white">Hoàn thiện nhật ký trong ngày</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Hôm nay chưa có lịch tập. Bạn vẫn có thể cập nhật wellness, bữa ăn và habit.
-              </p>
-              <Link
-                to={dashboardPathFor("journal", dateKey)}
-                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-orange-500 px-4 text-sm font-bold text-slate-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
-              >
-                Mở nhật ký <ArrowRight aria-hidden="true" className="h-4 w-4" />
-              </Link>
-            </>
-          )}
-        </section>
+      {/* ── Hero: Việc tiếp theo ── */}
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-slate-800/50 p-5 shadow-lg ring-1 ring-inset ring-white/[0.04] sm:p-6">
+        {/* Ambient glow background */}
+        <div
+          className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-20"
+          style={{ background: "radial-gradient(circle, #f97316 0%, transparent 70%)" }}
+          aria-hidden="true"
+        />
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6">
-          <p className="text-sm font-semibold text-slate-400">Trạng thái hôm nay</p>
-          <p className="mt-3 text-2xl font-bold text-white">
-            {dayStatusLabel(data.summary.dayStatus)}
-          </p>
-          <p className="mt-2 text-sm text-slate-400">
-            {data.summary.completionPercent}% kế hoạch đã hoàn thành
-          </p>
-          <progress
-            value={data.summary.completionPercent}
-            max="100"
-            className="mt-5 h-2 w-full accent-orange-500"
-            aria-label="Mức hoàn thành tổng quan"
-          />
-        </section>
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 text-sm font-semibold text-orange-400">
+              <CalendarClock aria-hidden="true" className="h-4 w-4" />
+              Việc tiếp theo
+            </div>
+
+            {nextSchedule ? (
+              <>
+                <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">
+                  {nextSchedule.exerciseType}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  {nextSchedule.startTime}–{nextSchedule.endTime}
+                  {nextSchedule.notes ? " · " + nextSchedule.notes : ""}
+                </p>
+                <Link
+                  to={dashboardPathFor("training", dateKey)}
+                  className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-bold text-slate-950 transition-colors hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                >
+                  Mở lịch &amp; bài tập <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                </Link>
+              </>
+            ) : (
+              <>
+                <h2 className="mt-3 text-xl font-bold text-white sm:text-2xl">
+                  Hoàn thiện nhật ký trong ngày
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Hôm nay chưa có lịch tập. Bạn vẫn có thể cập nhật sức khỏe, bữa ăn và thói quen.
+                </p>
+                <Link
+                  to={dashboardPathFor("journal", dateKey)}
+                  className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-bold text-slate-950 transition-colors hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                >
+                  Mở nhật ký <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Completion Ring */}
+          <div className="flex shrink-0 flex-col items-center gap-2">
+            <div className="relative inline-flex items-center justify-center">
+              <ProgressRing percent={completionPercent} size={88} stroke={7} color={ringColor} />
+              <span className="absolute text-center">
+                <span className="block text-xl font-bold text-white leading-none">
+                  {completionPercent}
+                </span>
+                <span className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+                  %
+                </span>
+              </span>
+            </div>
+            <div
+              className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${dayStatusBg(dayStatus)} ${dayStatusColor(dayStatus)}`}
+            >
+              {dayStatusLabel(dayStatus)}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
-        <div className="border-b border-slate-800 px-5 py-4 sm:px-6">
-          <h2 className="text-lg font-bold text-white">Chọn một mục để tiếp tục</h2>
-          <p className="mt-1 text-sm text-slate-400">Mỗi khu vực chỉ hiển thị nội dung liên quan.</p>
-        </div>
-        <div className="divide-y divide-slate-800">
-          {modules.map((item) => {
-            const Icon = item.icon;
+      {/* ── Module Grid 2×2 ── */}
+      <div>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          Chọn khu vực để tiếp tục
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {Object.entries(MODULE_CONFIG).map(([key, cfg]) => {
+            const Icon = cfg.icon;
             return (
               <Link
-                key={item.key}
-                to={dashboardPathFor(item.key, dateKey)}
-                className="group flex min-h-20 items-center gap-4 px-5 py-4 hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400 sm:px-6"
+                key={key}
+                to={dashboardPathFor(key, dateKey)}
+                className={`group relative overflow-hidden rounded-2xl border bg-slate-800/40 p-4 shadow-sm ring-1 ring-inset ring-white/[0.04] transition-all duration-200 ${cfg.border} ${cfg.hoverBorder} hover:bg-slate-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 sm:p-5`}
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-orange-300 group-hover:bg-slate-800">
-                  <Icon aria-hidden="true" className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-bold text-white">{item.title}</span>
-                  <span className="mt-1 block text-sm text-slate-400">{item.description}</span>
-                  <span className="mt-1 block truncate text-xs font-semibold text-orange-300">{item.status}</span>
-                </span>
-                <ArrowRight aria-hidden="true" className="h-5 w-5 shrink-0 text-slate-600 group-hover:text-orange-300" />
+                {/* Subtle corner glow on hover */}
+                <div
+                  className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  style={{
+                    background: `radial-gradient(circle, var(--tw-ring-color, currentColor) 0%, transparent 70%)`,
+                  }}
+                  aria-hidden="true"
+                />
+
+                <div className="relative flex items-start gap-4">
+                  <span
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${cfg.iconBg} ${cfg.iconColor} transition-transform duration-200 group-hover:scale-110`}
+                  >
+                    <Icon aria-hidden="true" className="h-5 w-5" />
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <span className="block font-bold text-white">{cfg.label}</span>
+                    <span className="mt-0.5 block text-sm text-slate-400">{cfg.description}</span>
+                    <span className={`mt-2 block truncate text-xs font-semibold ${cfg.statusColor}`}>
+                      {moduleStatuses[key]}
+                    </span>
+                  </div>
+
+                  <ArrowRight
+                    aria-hidden="true"
+                    className={`h-4 w-4 shrink-0 text-slate-600 transition-all duration-200 ${cfg.arrowHover} group-hover:translate-x-0.5`}
+                  />
+                </div>
               </Link>
             );
           })}
         </div>
-      </section>
+      </div>
     </div>
   );
 };

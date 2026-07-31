@@ -40,12 +40,13 @@ import {
 import {
   addDaysToDateKey,
   getAppDayOfWeek,
+  getMonthWeekPeriod,
   getVietnamDateKey,
 } from "../../utils/dateKey.js";
 
 let app;
 const today = getVietnamDateKey();
-const weekStart = addDaysToDateKey(today, -getAppDayOfWeek(today));
+const weekStart = getMonthWeekPeriod(today).startDateKey;
 const REQUEST_ID = "a9999999-9999-4999-8999-999999999999";
 
 const createActive = async (suffix) => {

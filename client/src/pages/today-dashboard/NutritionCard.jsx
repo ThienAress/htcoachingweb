@@ -144,7 +144,7 @@ export const NutritionCard = ({
             Dinh dưỡng trong ngày
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-400">
-            Gắn exact version của thực đơn hoặc ghi nhanh những gì bạn đã ăn.
+            Gắn đúng phiên bản của thực đơn hoặc ghi nhanh những gì bạn đã ăn.
           </p>
         </div>
       </div>
@@ -174,7 +174,7 @@ export const NutritionCard = ({
                 {assignment.titleSnapshot}
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                Exact version {assignment.version}
+                Phiên bản {assignment.version}
               </p>
             </div>
             <button
@@ -287,7 +287,7 @@ export const NutritionCard = ({
       </div>
       {!canEdit && (
         <p className="mt-4 text-sm text-slate-500">
-          Ngày này chỉ có thể xem hoặc gói coaching hiện không hoạt động.
+          Ngày này chỉ có thể xem hoặc gói huấn luyện hiện không hoạt động.
         </p>
       )}
     </section>

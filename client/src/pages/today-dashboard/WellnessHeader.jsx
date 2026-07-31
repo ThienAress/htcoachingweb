@@ -11,9 +11,9 @@ const saveLabel = {
 export const WellnessHeader = ({ saveState }) => (
   <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
     <div>
-      <h2 className="text-lg font-bold text-white">Wellness hôm nay</h2>
+      <h2 className="text-lg font-bold text-white">Sức khỏe hôm nay</h2>
       <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
-        Ghi nhanh trạng thái cơ thể. Ghi chú riêng không hiển thị cho HLV.
+        Dữ liệu được lưu nháp tự động và chỉ vào Tổng quan sau khi bạn gửi nhật ký ngày.
       </p>
     </div>
     <span

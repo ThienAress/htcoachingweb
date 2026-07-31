@@ -9,15 +9,15 @@ import {
 const LABELS = {
   daily_journal_submitted: "Đã gửi nhật ký ngày",
   daily_journal_updated: "Đã cập nhật nhật ký ngày",
-  weekly_checkin_submitted: "Đã gửi Weekly Check-in",
-  weekly_checkin_reviewed: "HLV đã review Weekly Check-in",
-  weekly_checkin_updated: "Đã cập nhật Weekly Check-in",
-  coaching_comment_create: "Đã tạo bình luận coaching",
-  coaching_comment_edit: "Đã sửa bình luận coaching",
-  coaching_comment_remove: "Đã gỡ bình luận coaching",
+  weekly_checkin_submitted: "Đã gửi báo cáo tuần",
+  weekly_checkin_reviewed: "HLV đã xem xét báo cáo tuần",
+  weekly_checkin_updated: "Đã cập nhật báo cáo tuần",
+  coaching_comment_create: "Đã tạo bình luận huấn luyện",
+  coaching_comment_edit: "Đã sửa bình luận huấn luyện",
+  coaching_comment_remove: "Đã gỡ bình luận huấn luyện",
   training_schedule_completed: "Đã hoàn thành lịch tập",
   training_schedule_cancelled: "Lịch tập đã hủy",
-  coaching_day_completed: "Đã hoàn thành Coaching Day",
+  coaching_day_completed: "Đã hoàn thành ngày huấn luyện",
   workout_plan_completed: "Đã hoàn thành giáo án",
 };
 const formatTime = (value) =>
@@ -56,10 +56,10 @@ export const CoachingActivityPanel = ({ days, userId }) => {
         <div>
           <h2 className="flex items-center gap-2 font-bold text-white">
             <TimerReset size={19} className="text-orange-400" aria-hidden="true" />
-            Activity timeline
+            Dòng thời gian hoạt động
           </h2>
           <p className="mt-1 text-sm text-slate-400">
-            Chỉ gồm event, timestamp và source ID; không chứa nội dung sức khỏe.
+            Chỉ gồm loại hoạt động, thời điểm và mã nguồn; không chứa nội dung sức khỏe.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -78,12 +78,12 @@ export const CoachingActivityPanel = ({ days, userId }) => {
       </div>
       {exportMutation.isError && (
         <p className="mt-3 text-sm text-red-300" role="alert">
-          Không thể export activity lúc này.
+          Không thể xuất dữ liệu hoạt động lúc này.
         </p>
       )}
       {query.isLoading ? (
         <div className="mt-4 h-28 animate-pulse rounded-xl bg-slate-900" role="status">
-          <span className="sr-only">Đang tải activity...</span>
+          <span className="sr-only">Đang tải hoạt động...</span>
         </div>
       ) : query.isError ? (
         <button
@@ -91,11 +91,11 @@ export const CoachingActivityPanel = ({ days, userId }) => {
           onClick={() => query.refetch()}
           className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-red-300 hover:bg-red-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
         >
-          <RefreshCw size={16} aria-hidden="true" /> Tải lại activity
+          <RefreshCw size={16} aria-hidden="true" /> Tải lại hoạt động
         </button>
       ) : query.data.items.length === 0 ? (
         <p className="mt-4 rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
-          Chưa có activity trong khoảng này.
+          Chưa có hoạt động trong khoảng này.
         </p>
       ) : (
         <ol className="mt-4 divide-y divide-slate-800">

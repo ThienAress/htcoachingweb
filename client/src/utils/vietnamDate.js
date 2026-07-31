@@ -55,3 +55,40 @@ export const getAppDayOfWeek = (dateKey) => {
   ).getUTCDay();
   return jsDay === 0 ? 6 : jsDay - 1;
 };
+
+export const getMonthWeekPeriods = (dateKey) => {
+  const parsed = parseDateKey(dateKey);
+  if (!parsed) return [];
+  const lastDay = new Date(
+    Date.UTC(parsed.year, parsed.month, 0),
+  ).getUTCDate();
+  const monthPrefix = `${parsed.year}-${String(parsed.month).padStart(2, "0")}`;
+  const periods = [];
+  let startDay = 1;
+
+  while (startDay <= lastDay) {
+    const startDateKey = `${monthPrefix}-${String(startDay).padStart(2, "0")}`;
+    const daysUntilSunday = 6 - getAppDayOfWeek(startDateKey);
+    const endDay = Math.min(lastDay, startDay + daysUntilSunday);
+    periods.push({
+      index: periods.length + 1,
+      startDateKey,
+      endDateKey: `${monthPrefix}-${String(endDay).padStart(2, "0")}`,
+    });
+    startDay = endDay + 1;
+  }
+
+  return periods;
+};
+
+export const getMonthWeekPeriod = (dateKey) =>
+  getMonthWeekPeriods(dateKey).find(
+    ({ startDateKey, endDateKey }) =>
+      dateKey >= startDateKey && dateKey <= endDateKey,
+  ) || null;
+
+export const getPreviousMonthWeekPeriod = (dateKey) => {
+  const currentPeriod = getMonthWeekPeriod(dateKey);
+  if (!currentPeriod) return null;
+  return getMonthWeekPeriod(addDaysToDateKey(currentPeriod.startDateKey, -1));
+};

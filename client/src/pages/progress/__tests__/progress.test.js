@@ -5,9 +5,11 @@ import {
 } from "../progressPresentation";
 import {
   checkinToWeeklyValues,
+  getAdherenceLevel,
   weeklyFormSchema,
   weeklyValuesToPatch,
 } from "../weeklyCheckinForm";
+import { getMonthWeekPeriods } from "../../../utils/vietnamDate";
 
 describe("Progress presentation", () => {
   it("keeps unavailable compliance distinct from zero percent", () => {
@@ -77,5 +79,24 @@ describe("Weekly Check-in form", () => {
       energy: "6",
       note: "Tuần tốt",
     });
+  });
+
+  it("chia tháng thành các kỳ tuần rõ ràng", () => {
+    expect(getMonthWeekPeriods("2026-07-15")).toEqual([
+      { index: 1, startDateKey: "2026-07-01", endDateKey: "2026-07-05" },
+      { index: 2, startDateKey: "2026-07-06", endDateKey: "2026-07-12" },
+      { index: 3, startDateKey: "2026-07-13", endDateKey: "2026-07-19" },
+      { index: 4, startDateKey: "2026-07-20", endDateKey: "2026-07-26" },
+      { index: 5, startDateKey: "2026-07-27", endDateKey: "2026-07-31" },
+    ]);
+  });
+
+  it("diễn giải điểm bám kế hoạch bằng ngôn ngữ coaching", () => {
+    expect([2, 5, 8, 10].map((score) => getAdherenceLevel(score).label)).toEqual([
+      "Cần hỗ trợ thêm",
+      "Chưa ổn định",
+      "Bám khá tốt",
+      "Bám rất tốt",
+    ]);
   });
 });

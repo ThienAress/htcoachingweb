@@ -16,7 +16,7 @@ import { HabitDefinitionActions } from "./HabitDefinitionActions";
 
 const requestId = () => window.crypto.randomUUID();
 const apiMessage = (error) =>
-  error.response?.data?.message || "Không thể cập nhật habit lúc này.";
+  error.response?.data?.message || "Không thể cập nhật thói quen lúc này.";
 export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
   const queryClient = useQueryClient();
   const [correctionReason, setCorrectionReason] = useState("");
@@ -41,7 +41,7 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
         ? createMyCoachingHabit(payload)
         : changeCoachingHabitStatus(habitId, payload),
     onSuccess: () => {
-      setNotice("Đã cập nhật habit.");
+      setNotice("Đã cập nhật thói quen.");
       setFailedDefinition(null);
       void queryClient.invalidateQueries({
         queryKey: ["coaching-habits", "my", dateKey],
@@ -59,7 +59,7 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
         ? correctDailyJournal(dateKey, payload)
         : saveDailyJournal(dateKey, payload),
     onSuccess: (response) => {
-      setNotice("Đã cập nhật trạng thái habit trong ngày.");
+      setNotice("Đã cập nhật trạng thái thói quen trong ngày.");
       setFailedCompletion(null);
       setCorrectionReason("");
       onChanged?.(response.data.data);
@@ -144,10 +144,10 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
         <Flame className="mt-0.5 text-orange-400" size={22} aria-hidden="true" />
         <div>
           <h2 id="daily-habits-title" className="text-lg font-bold text-white">
-            Habit hôm nay
+            Thói quen hôm nay
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-400">
-            Streak được tính từ lịch sử theo ngày, không lưu counter có thể drift.
+            Chuỗi ngày được tính từ lịch sử hoàn thành, không lưu bộ đếm riêng để tránh sai lệch.
           </p>
         </div>
       </div>
@@ -155,7 +155,7 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
       {isSubmitted && (
         <div className="mt-4">
           <label htmlFor="habit-correction-reason" className="text-sm text-slate-300">
-            Lý do chỉnh sửa habit sau khi gửi
+            Lý do chỉnh sửa thói quen sau khi gửi
           </label>
           <input
             id="habit-correction-reason"
@@ -170,18 +170,18 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
       )}
 
       {habitsQuery.isLoading ? (
-        <p className="mt-4 text-sm text-slate-400">Đang tải habits...</p>
+        <p className="mt-4 text-sm text-slate-400">Đang tải thói quen...</p>
       ) : habitsQuery.isError ? (
         <button
           type="button"
           onClick={() => habitsQuery.refetch()}
           className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-red-300 hover:bg-red-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
         >
-          <RefreshCw size={15} /> Tải lại habits
+          <RefreshCw size={15} /> Tải lại thói quen
         </button>
       ) : scheduled.length === 0 ? (
         <p className="mt-4 text-sm text-slate-400">
-          Không có habit active được lên lịch cho ngày này.
+          Không có thói quen đang hoạt động được lên lịch cho ngày này.
         </p>
       ) : (
         <ul className="mt-4 grid gap-3 lg:grid-cols-2">

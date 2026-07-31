@@ -44,7 +44,7 @@ test.describe("Today Dashboard private journey", () => {
     ).toBeVisible();
     await expect(page.getByLabel("Giấc ngủ (giờ)")).toHaveCount(0);
     await expect(
-      page.getByRole("navigation", { name: "Điều hướng Dashboard" }),
+      page.getByRole("navigation", { name: "Điều hướng bảng theo dõi" }),
     ).toBeVisible();
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
       "content",
@@ -78,7 +78,7 @@ test.describe("Today Dashboard private journey", () => {
     await page.goto("/dashboard/today/" + dateKey);
 
     const navigation = page.getByRole("navigation", {
-      name: "Điều hướng Dashboard",
+      name: "Điều hướng bảng theo dõi",
     });
     await navigation.getByRole("link", { name: "Dinh dưỡng" }).click();
     await expect(page).toHaveURL(
@@ -102,7 +102,7 @@ test.describe("Today Dashboard private journey", () => {
     await page.goto("/dashboard/today/" + dateKey);
 
     const navigation = page.getByRole("navigation", {
-      name: "Điều hướng Dashboard",
+      name: "Điều hướng bảng theo dõi",
     });
     await expect(navigation).toBeVisible();
     await navigation.getByRole("link", { name: "Tập luyện" }).click();
@@ -148,9 +148,9 @@ test.describe("Today Dashboard private journey", () => {
 
     for (const [name, path] of [
       ["Đăng ký giờ tập", "/book-training"],
-      ["Mở giáo án online", "/online-coaching"],
+      ["Mở giáo án trực tuyến", "/online-coaching"],
       ["Xem giáo án tập luyện", "/workout-plans"],
-      ["Xem lịch sử check-in", "/my-history"],
+      ["Xem lịch sử điểm danh", "/my-history"],
       ["Hệ thống bài tập", "/exercises"],
     ]) {
       await expect(page.getByRole("link", { name, exact: true })).toHaveAttribute(
@@ -161,7 +161,7 @@ test.describe("Today Dashboard private journey", () => {
 
     await page.goto("/dashboard/today/" + dateKey + "/nutrition");
     await expect(
-      page.getByRole("link", { name: "Tính TDEE & tạo meal plan" }),
+      page.getByRole("link", { name: "Tính TDEE và tạo thực đơn" }),
     ).toHaveAttribute("href", "/tdee-calculator");
   });
 
@@ -219,7 +219,7 @@ test.describe("Today Dashboard private journey", () => {
 
     await expect(page).toHaveURL(/\/dashboard\/progress$/);
     await expect(
-      page.getByRole("heading", { name: "Tiến trình coaching của bạn" }),
+      page.getByRole("heading", { name: "Tổng quan hoạt động của bạn" }),
     ).toBeVisible();
     await expect(page.getByText("50%").first()).toBeVisible();
     await expect(page.getByText("Chưa có dữ liệu").first()).toBeVisible();

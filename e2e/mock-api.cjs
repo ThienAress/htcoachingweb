@@ -187,7 +187,7 @@ const handleApi = (req, res, path) => {
     return sendJson(res, {
       success: true,
       data: {
-        contractVersion: 1,
+        contractVersion: 2,
         dateKey: todayKey,
         timeZone: "Asia/Ho_Chi_Minh",
         eligibility: {
@@ -200,9 +200,14 @@ const handleApi = (req, res, path) => {
           },
         },
         summary: {
-          dayStatus: "in_progress",
-          completionPercent: 50,
-          formulaVersion: "today-v1",
+          dayStatus: "not_started",
+          completionPercent: 0,
+          formulaVersion: "today-v2",
+          moduleProgress: {
+            training: { completed: 0, total: 1, percent: 0, state: "not_started" },
+            nutrition: { completed: 0, total: 0, percent: null, state: "not_applicable" },
+            journal: { completed: 0, total: 10, percent: 0, state: "not_started" },
+          },
           attentionFlags: [],
         },
         capabilities: {

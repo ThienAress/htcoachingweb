@@ -26,14 +26,16 @@ import trainerClientOverviewRoutes from "../../routes/trainerClientOverview.rout
 import {
   addDaysToDateKey,
   getAppDayOfWeek,
+  getMonthWeekPeriod,
+  getPreviousMonthWeekPeriod,
   getVietnamDateKey,
   getVietnamDayRangeUtc,
 } from "../../utils/dateKey.js";
 
 let app;
 const today = getVietnamDateKey();
-const currentWeek = addDaysToDateKey(today, -getAppDayOfWeek(today));
-const previousWeek = addDaysToDateKey(currentWeek, -7);
+const currentWeek = getMonthWeekPeriod(today).startDateKey;
+const previousWeek = getPreviousMonthWeekPeriod(today).startDateKey;
 const dayRange = getVietnamDayRangeUtc(today);
 
 const createAssigned = async (suffix) => {
@@ -162,7 +164,7 @@ describe("Trainer client overview", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers["cache-control"]).toContain("private");
-    expect(response.body.data.today.summary.formulaVersion).toBe("today-v1");
+    expect(response.body.data.today.summary.formulaVersion).toBe("today-v2");
     expect(response.body.data.weeklyCheckin._id).toBe(String(weekly._id));
     expect(
       response.body.data.progress.compliance.scheduleAttendance.percent,
@@ -200,6 +202,27 @@ describe("Trainer client overview", () => {
         targetId: data.client.user._id,
       }),
     ).toBe(1);
+  });
+
+  it("lets an admin read the overview for any active client", async () => {
+    const data = await createAssigned("admin");
+    const admin = await createTestUser({
+      email: "overview-admin@example.com",
+      role: "admin",
+    });
+    const response = await withAuth(
+      request(app).get(
+        "/api/trainer-client-overview/" +
+          data.client.user._id +
+          "?dateKey=" +
+          today +
+          "&days=30",
+      ),
+      admin.accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.clientId).toBe(String(data.client.user._id));
   });
 
   it("blocks other trainers and revokes current trainer immediately", async () => {

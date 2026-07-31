@@ -42,7 +42,7 @@ export const ActivityTimeline = ({ dateKey, enabled }) => {
           className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-700 px-3 text-sm font-semibold text-slate-200 hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
         >
           <RefreshCw size={16} />
-          Tải lại timeline
+          Tải lại dòng thời gian
         </button>
       ) : query.data?.length ? (
         <ol className="mt-4 space-y-3">

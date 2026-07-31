@@ -28,13 +28,14 @@ import coachingRoutes from "../../routes/coaching.routes.js";
 import {
   addDaysToDateKey,
   getAppDayOfWeek,
+  getMonthWeekPeriod,
   getVietnamDateKey,
   getVietnamDayRangeUtc,
 } from "../../utils/dateKey.js";
 
 let app;
 const today = getVietnamDateKey();
-const currentWeek = addDaysToDateKey(today, -getAppDayOfWeek(today));
+const currentWeek = getMonthWeekPeriod(today).startDateKey;
 const range = getVietnamDayRangeUtc(today);
 
 const createAssigned = async (suffix) => {

@@ -108,6 +108,16 @@ export const dailyJournalMutationLimiter = rateLimit({
   },
 });
 
+export const wellnessTargetMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều thay đổi mục tiêu sức khỏe. Vui lòng thử lại sau.",
+  },
+});
 export const savedMealPlanMutationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 60,

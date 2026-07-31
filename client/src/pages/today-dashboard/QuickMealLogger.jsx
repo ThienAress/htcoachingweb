@@ -31,7 +31,7 @@ export const QuickMealLogger = ({ entryCount, disabled, onAdd }) => {
     event.preventDefault();
     setError("");
     if (limitReached) {
-      setError("Mỗi ngày có tối đa 10 meal entries.");
+      setError("Mỗi ngày có tối đa 10 mục bữa ăn.");
       return;
     }
     if (mode === "manual") {
@@ -75,7 +75,7 @@ export const QuickMealLogger = ({ entryCount, disabled, onAdd }) => {
           </p>
         </div>
         <span className="text-xs font-semibold text-slate-400">
-          {entryCount}/10 entries
+          {entryCount}/10 mục
         </span>
       </div>
 
@@ -193,7 +193,7 @@ export const QuickMealLogger = ({ entryCount, disabled, onAdd }) => {
         disabled={disabled || limitReached}
         className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        <Plus size={16} aria-hidden="true" /> Thêm meal entry
+        <Plus size={16} aria-hidden="true" /> Thêm bữa ăn
       </button>
     </form>
   );

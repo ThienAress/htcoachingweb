@@ -25,12 +25,13 @@ import weeklyCheckinRoutes from "../../routes/weeklyCheckin.routes.js";
 import {
   addDaysToDateKey,
   getAppDayOfWeek,
+  getMonthWeekPeriod,
   getVietnamDateKey,
 } from "../../utils/dateKey.js";
 
 let app;
 const today = getVietnamDateKey();
-const currentWeek = addDaysToDateKey(today, -getAppDayOfWeek(today));
+const currentWeek = getMonthWeekPeriod(today).startDateKey;
 
 const createAssigned = async () => {
   const trainer = await createTestUser({

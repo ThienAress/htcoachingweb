@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import WeeklyCheckin from "../models/WeeklyCheckin.js";
 import { incrementMetric } from "../observability/metrics.js";
 import {
-  assertMondayWeekKey,
+  assertMonthWeekPeriodKey,
   assertTrainerWeeklyCheckinRead,
   assertWeeklyCheckinWritesEnabled,
   weeklyCheckinError,
@@ -42,7 +42,7 @@ export const reviewWeeklyCheckin = async ({
   now = new Date(),
 }) => {
   assertWeeklyCheckinWritesEnabled();
-  assertMondayWeekKey(weekStartDateKey);
+  assertMonthWeekPeriodKey(weekStartDateKey);
   if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
     throw weeklyCheckinError(400, "expectedRevision không hợp lệ", "INVALID_REVISION");
   }

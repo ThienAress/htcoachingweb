@@ -22,6 +22,12 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 006 | Chuyển Today thành Customer Dashboard theo module | P1 | L | 003H, 004 | IMPLEMENTED / VERIFIED |
 | 007 | Deploy Customer Dashboard lên staging và xác minh từ xa | P1 | S | 003H, 004, 005, 006 | DEPLOYED / VERIFIED ON STAGING |
 | 008 | Đồng bộ đầy đủ tài khoản test vào local và staging | P1 | S | 007 | DEPLOYED / VERIFIED ON STAGING |
+| 009 | Việt hóa Customer Dashboard và trực quan hóa tiến trình | P1 | M | 003F, 006, 008 | IMPLEMENTED / VERIFIED |
+| 010 | Tách tiến độ hoàn thành theo module của Customer Dashboard | P1 | M | 003B, 003C, 006, 009 | IMPLEMENTED / LOCAL VERIFIED — PRERENDER BLOCKED |
+| 011 | Thêm mục tiêu sức khỏe do HLV và admin thiết lập | P1 | L | 008, 009, 010 | IMPLEMENTED / LOCAL VERIFIED - MIGRATION NOT RUN |
+| 012 | Tách quản lý học viên khỏi Coach Online | P1 | M | 009, 010, 011 | IMPLEMENTED / LOCAL VERIFIED |
+| 013 | Đơn giản hóa quản lý mục tiêu và thói quen của học viên | P1 | M | 011, 012 | DONE / LOCAL VERIFIED |
+| 014 | Chuẩn hóa thói quen hằng ngày và báo cáo tuần theo tháng | P1 | M | 013 | DONE / LOCAL VERIFIED |
 
 ## Dependency Notes
 
@@ -33,6 +39,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 - Plan 006 depends on 003H và 004 vì nó tái cấu trúc presentation của Today đã harden và thay entry homepage hiện có bằng customer shell.
 - Plan 007 depends on 003H–006 vì staging chỉ được deploy sau khi Dashboard, homepage entry và regression accessibility đã hoàn tất local.
 - Plan 008 depends on 007 vì dữ liệu test phải được đồng bộ vào đúng runtime đã deploy để kiểm tra Customer Dashboard end-to-end.
+- Plan 009 depends on 003F, 006 và 008 vì biểu đồ dùng read model tiến trình, product shell và snapshot local đã xác minh.
+- Plan 012 depends on 009-011 vì workspace tái sử dụng progress presentation, module completion và wellness targets đã hoàn tất.
 
 ## Findings Considered and Rejected
 

@@ -2,7 +2,8 @@ import DailyJournal from "../models/DailyJournal.js";
 import WeeklyCheckin from "../models/WeeklyCheckin.js";
 import {
   addDaysToDateKey,
-  getAppDayOfWeek,
+  getMonthWeekPeriod,
+  getPreviousMonthWeekPeriod,
 } from "../utils/dateKey.js";
 
 const id = (value) => (value ? String(value) : null);
@@ -11,11 +12,8 @@ export const getTrainerClientAttention = async ({
   clientId,
   dateKey,
 }) => {
-  const currentWeek = addDaysToDateKey(
-    dateKey,
-    -getAppDayOfWeek(dateKey),
-  );
-  const previousWeek = addDaysToDateKey(currentWeek, -7);
+  const currentWeek = getMonthWeekPeriod(dateKey).startDateKey;
+  const previousWeek = getPreviousMonthWeekPeriod(dateKey).startDateKey;
   const recentStart = addDaysToDateKey(dateKey, -6);
   const [painJournals, weeklyCheckins] = await Promise.all([
     DailyJournal.find({

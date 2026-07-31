@@ -37,5 +37,8 @@ server/.private/
 *.sqlite
 *.sqlite3
 
+# local crawler/research output
+.local-data/
+
 # Local Netlify folder
 .netlify

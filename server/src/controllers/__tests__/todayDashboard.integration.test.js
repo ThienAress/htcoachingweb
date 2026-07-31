@@ -21,6 +21,7 @@ import todayDashboardRoutes from "../../routes/todayDashboard.routes.js";
 import Checkin from "../../models/Checkin.js";
 import CoachingDay from "../../models/CoachingDay.js";
 import DailyJournal from "../../models/DailyJournal.js";
+import SavedMealPlan from "../../models/SavedMealPlan.js";
 import Order from "../../models/Order.js";
 import TrainingSchedule from "../../models/TrainingSchedule.js";
 import WorkoutPlan from "../../models/WorkoutPlan.js";
@@ -57,6 +58,41 @@ const createOrder = ({
     status,
   });
 
+const createSavedMealPlan = ({ ownerId, trainerId }) => {
+  const meal = (key, name, type) => ({
+    key,
+    name,
+    type,
+    foods: [
+      {
+        foodId: new SavedMealPlan()._id,
+        label: name,
+        amountGrams: 100,
+        nutrition: { protein: 10, carb: 20, fat: 5, calories: 165 },
+      },
+    ],
+    totals: { protein: 10, carb: 20, fat: 5, calories: 165 },
+  });
+
+  return SavedMealPlan.create({
+    ownerId,
+    trainerIdAtCreation: trainerId,
+    lineageKey: "10000000-0000-4000-8000-000000000001",
+    version: 1,
+    isLatest: true,
+    status: "active",
+    title: "Today meal plan",
+    meals: [
+      meal("breakfast", "Breakfast", "breakfast"),
+      meal("lunch", "Lunch", "lunch"),
+    ],
+    totals: { protein: 20, carb: 40, fat: 10, calories: 330 },
+    commandType: "create",
+    createdByRequestId: "today-module-progress-plan",
+    payloadFingerprint: "a".repeat(64),
+  });
+};
+
 beforeAll(async () => {
   await setupTestDB();
   app = createTestApp();
@@ -65,6 +101,7 @@ beforeAll(async () => {
     Checkin.init(),
     CoachingDay.init(),
     DailyJournal.init(),
+    SavedMealPlan.init(),
     Order.init(),
     TrainingSchedule.init(),
     WorkoutPlan.init(),
@@ -111,7 +148,7 @@ describe("Today Dashboard read-only aggregation", () => {
     expect(response.headers["cache-control"]).toContain("private");
     expect(response.headers["cache-control"]).toContain("no-store");
     expect(response.body.data).toMatchObject({
-      contractVersion: 1,
+      contractVersion: 2,
       dateKey: DATE_KEY,
       timeZone: "Asia/Ho_Chi_Minh",
       eligibility: { status: "never_coached" },
@@ -276,9 +313,92 @@ describe("Today Dashboard read-only aggregation", () => {
     expect(JSON.stringify(data)).not.toContain("private.example");
     expect(data.summary).toMatchObject({
       dayStatus: "in_progress",
-      completionPercent: 50,
-      formulaVersion: "today-v1",
+      completionPercent: 17,
+      formulaVersion: "today-v2",
+      moduleProgress: {
+        training: { completed: 1, total: 3, percent: 33 },
+        nutrition: { completed: 0, total: 0, percent: null },
+        journal: { completed: 0, total: 10, percent: 0 },
+      },
     });
+  });
+
+  it("calculates nutrition completion from the exact assigned meal plan", async () => {
+    const trainer = await createTestUser({
+      email: "today-nutrition-trainer@example.com",
+      role: "trainer",
+    });
+    const client = await createTestUser({
+      email: "today-nutrition-client@example.com",
+    });
+    await createOrder({
+      userId: client.user._id,
+      trainerId: trainer.user._id,
+    });
+    const plan = await createSavedMealPlan({
+      ownerId: client.user._id,
+      trainerId: trainer.user._id,
+    });
+    await DailyJournal.create({
+      clientId: client.user._id,
+      trainerIdAtCreation: trainer.user._id,
+      dateKey: DATE_KEY,
+      nutrition: {
+        assignment: {
+          savedMealPlanId: plan._id,
+          lineageKey: plan.lineageKey,
+          version: plan.version,
+          titleSnapshot: plan.title,
+          assignedAt: new Date(),
+        },
+        entries: [
+          {
+            entryId: "20000000-0000-4000-8000-000000000001",
+            mode: "follow_plan",
+            status: "eaten",
+            plannedMealKey: "breakfast",
+            savedMealPlanId: plan._id,
+            version: plan.version,
+            labelSnapshot: "Breakfast",
+            recordedAt: new Date(),
+          },
+        ],
+      },
+      revision: 1,
+    });
+
+    const partial = await getDay(client.accessToken);
+    expect(partial.body.data.summary.moduleProgress.nutrition).toMatchObject({
+      completed: 1,
+      total: 2,
+      percent: 50,
+    });
+    expect(
+      partial.body.data.sections.journal.day.nutrition.plannedMealKeys,
+    ).toEqual(["breakfast", "lunch"]);
+
+    await DailyJournal.updateOne(
+      { clientId: client.user._id, dateKey: DATE_KEY },
+      {
+        $push: {
+          "nutrition.entries": {
+            entryId: "20000000-0000-4000-8000-000000000002",
+            mode: "follow_plan",
+            status: "skipped",
+            plannedMealKey: "lunch",
+            savedMealPlanId: plan._id,
+            version: plan.version,
+            labelSnapshot: "Lunch",
+            recordedAt: new Date(),
+          },
+        },
+      },
+    );
+
+    const complete = await getDay(client.accessToken);
+    expect(complete.body.data.summary.moduleProgress.nutrition.percent).toBe(
+      100,
+    );
   });
 
   it("allows an inactive client to read their own history", async () => {

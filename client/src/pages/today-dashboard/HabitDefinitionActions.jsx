@@ -1,25 +1,78 @@
-import { Archive, Pause, Play } from "lucide-react";
+import { Archive, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-export const HabitDefinitionActions = ({ habit, disabled, onStatus }) => {
+export const HabitDefinitionActions = ({
+  habit,
+  disabled,
+  onStatus,
+  variant = "client",
+  onEdit,
+  onDelete,
+}) => {
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  if (variant === "trainer") {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onEdit(habit)}
+          disabled={disabled}
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:opacity-40"
+        >
+          <Pencil size={15} aria-hidden="true" /> Cập nhật
+        </button>
+        {confirmDelete ? (
+          <>
+            <button
+              type="button"
+              onClick={() => onDelete(habit)}
+              disabled={disabled}
+              className="min-h-11 rounded-lg bg-red-900/40 px-3 py-2 text-sm font-semibold text-red-200 hover:bg-red-900/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-40"
+            >
+              Xác nhận xóa
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(false)}
+              disabled={disabled}
+              className="min-h-11 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40"
+            >
+              Hủy
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            disabled={disabled}
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-400 hover:bg-slate-800 hover:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-40"
+          >
+            <Trash2 size={15} aria-hidden="true" /> Xóa
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap gap-2">
-    <button
-      type="button"
-      onClick={() =>
-        onStatus(habit, habit.status === "paused" ? "active" : "paused")
-      }
-      disabled={disabled}
-      className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:opacity-40"
-    >
-      {habit.status === "paused" ? (
-        <Play size={15} aria-hidden="true" />
-      ) : (
-        <Pause size={15} aria-hidden="true" />
-      )}
-      {habit.status === "paused" ? "Bật lại" : "Tạm dừng"}
-    </button>
+      <button
+        type="button"
+        onClick={() =>
+          onStatus(habit, habit.status === "paused" ? "active" : "paused")
+        }
+        disabled={disabled}
+        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:opacity-40"
+      >
+        {habit.status === "paused" ? (
+          <Play size={15} aria-hidden="true" />
+        ) : (
+          <Pause size={15} aria-hidden="true" />
+        )}
+        {habit.status === "paused" ? "Bật lại" : "Tạm dừng"}
+      </button>
       {confirmArchive ? (
         <>
           <button

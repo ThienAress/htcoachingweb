@@ -1,9 +1,9 @@
 const METRIC_LABELS = {
   scheduleAttendance: "Lịch tập với HLV",
   workoutCompletion: "Giáo án tập luyện",
-  coachingCompletion: "Coaching hằng ngày",
+  coachingCompletion: "Huấn luyện hằng ngày",
   mealCompliance: "Bữa ăn theo kế hoạch",
-  habitCompliance: "Habit được giao",
+  habitCompliance: "Thói quen được giao",
 };
 
 export const progressMetricRows = (compliance = {}) =>

@@ -34,6 +34,9 @@ import {
 import {
   runInAppNotificationRetentionSweep,
 } from "../services/inAppNotificationPrivacy.service.js";
+import {
+  runWellnessTargetRetentionSweep,
+} from "../services/wellnessTargetPrivacy.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { getRuntimeState } from "../operations/runtimeState.js";
 import { getRumBaseline } from "../observability/rumBaseline.js";
@@ -380,6 +383,34 @@ router.post(
   },
 );
 
+router.post(
+  "/privacy/wellness-targets/retention",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  async (req, res, next) => {
+    try {
+      const result = await runWellnessTargetRetentionSweep({
+        enforce: req.body?.enforce === true,
+        actorId: req.user.id,
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, data: result });
+    } catch (error) {
+      if (error.statusCode) {
+        if (error.statusCode >= 500) {
+          safeLog.error("wellness_target.retention_failed", error);
+        }
+        return res.status(error.statusCode).json({
+          success: false,
+          code: error.codeName || "WELLNESS_TARGET_RETENTION_FAILED",
+          message: error.message,
+        });
+      }
+      return next(error);
+    }
+  },
+);
 router.post(
   "/privacy/in-app-notifications/retention",
   protect,

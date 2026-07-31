@@ -39,8 +39,9 @@ import {
   addDaysToDateKey,
   getVietnamDateKey,
 } from "../../utils/vietnamDate";
-import { TrainerHabitManager } from "./TrainerHabitManager";
-import { TrainerClientOverview } from "./TrainerClientOverview";
+
+
+
 
 const createLocalExerciseId = () =>
   globalThis.crypto?.randomUUID?.() ||
@@ -579,17 +580,6 @@ const TrainerCoaching = () => {
                     </button>
                   </div>
                 </div>
-
-                <TrainerHabitManager
-                  clientId={selectedClient._id}
-                  dateKey={selectedDate}
-                />
-
-                <TrainerClientOverview
-                  key={selectedClient._id}
-                  clientId={selectedClient._id}
-                  dateKey={selectedDate}
-                />
 
                 {/* Form Soạn Giáo Án */}
                 <div className="bg-gradient-to-br from-gray-900/70 to-gray-950/50 backdrop-blur-md rounded-2xl border border-gray-700/40 p-6 shadow-xl space-y-6">

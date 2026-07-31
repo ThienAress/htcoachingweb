@@ -1,11 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Send, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { correctDailyJournal, saveDailyJournal, submitDailyJournal } from "../../services/dailyJournal.service";
+import { getMyWellnessTarget } from "../../services/wellnessTarget.service";
 import { WellnessFields } from "./WellnessFields";
 import { WellnessSaveError } from "./WellnessSaveError";
+import { WellnessTargetSummary } from "./WellnessTargetSummary";
 import { WellnessHeader } from "./WellnessHeader";
 import { journalToWellnessValues, wellnessFormSchema, wellnessValuesToPatch } from "./wellness";
 
@@ -36,6 +38,16 @@ export const WellnessCard = ({ dateKey, journal, canEdit, onChanged }) => {
     mode: "onChange",
   });
   const painValue = watch("pain");
+  const sleepHours = watch("sleepHours");
+  const waterMl = watch("waterMl");
+  const steps = watch("steps");
+  const targetQuery = useQuery({
+    queryKey: ["wellness-target", "me", dateKey],
+    queryFn: async () => (await getMyWellnessTarget(dateKey)).data.data,
+    staleTime: 30_000,
+    retry: (count, error) =>
+      count < 1 && Number(error.response?.status || 500) >= 500,
+  });
 
   const command = useMutation({
     mutationFn: ({ kind, payload }) => {
@@ -236,6 +248,13 @@ export const WellnessCard = ({ dateKey, journal, canEdit, onChanged }) => {
   return (
     <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6">
       <WellnessHeader saveState={saveState} />
+      <WellnessTargetSummary
+        target={targetQuery.data}
+        actual={{ sleepHours, waterMl, steps }}
+        isLoading={targetQuery.isLoading}
+        isError={targetQuery.isError}
+        onRetry={() => targetQuery.refetch()}
+      />
 
       {!canEdit && (
         <p className="mb-4 flex items-start gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300">

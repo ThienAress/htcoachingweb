@@ -88,7 +88,7 @@ const coachingHabitSchema = new mongoose.Schema(
     },
     commandType: {
       type: String,
-      enum: ["create", "status"],
+      enum: ["create", "status", "update"],
       required: true,
       select: false,
     },

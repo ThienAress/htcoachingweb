@@ -65,6 +65,9 @@ const auditLogSchema = new mongoose.Schema(
         "delete_today_dashboard_data",
         "export_coaching_activity",
         "read_trainer_client_overview",
+        "write_wellness_target",
+        "delete_wellness_target_data",
+        "retention_delete_wellness_target",
         "read_coaching_comment_thread",
         "write_coaching_comment",
         "generate_f1_ai_report",
@@ -95,6 +98,7 @@ const auditLogSchema = new mongoose.Schema(
         "coaching_habit",
         "weekly_checkin",
         "coaching_comment",
+        "wellness_target",
       ],
     },
     targetId: {

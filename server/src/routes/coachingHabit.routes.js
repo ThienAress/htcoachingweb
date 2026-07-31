@@ -7,9 +7,9 @@ import {
   exportMyHabits,
   listMyHabits,
   listTrainerHabits,
+  updateHabitDefinition,
 } from "../controllers/coachingHabit.controller.js";
-import { protect } from "../middlewares/auth.middleware.js";
-import { requireTrainerActor } from "../middlewares/trainerAccess.middleware.js";
+import { protect, requireTrainerAccess } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import { coachingHabitMutationLimiter } from "../middlewares/rateLimit.js";
 import {
@@ -17,6 +17,7 @@ import {
   validateCoachingHabitExport,
   validateCoachingHabitList,
   validateCoachingHabitStatus,
+  validateCoachingHabitUpdate,
   validateDeleteCoachingHabits,
   validateTrainerCoachingHabitCreate,
   validateTrainerCoachingHabitList,
@@ -35,7 +36,7 @@ router.delete(
 router.get("/my", validateCoachingHabitList, listMyHabits);
 router.post(
   "/trainer/clients/:clientId",
-  requireTrainerActor,
+  requireTrainerAccess,
   coachingHabitMutationLimiter,
   csrfProtection,
   validateTrainerCoachingHabitCreate,
@@ -43,7 +44,7 @@ router.post(
 );
 router.get(
   "/trainer/clients/:clientId",
-  requireTrainerActor,
+  requireTrainerAccess,
   validateTrainerCoachingHabitList,
   listTrainerHabits,
 );
@@ -53,6 +54,13 @@ router.post(
   csrfProtection,
   validateCoachingHabitCreate,
   createMyHabit,
+);
+router.put(
+  "/:id",
+  coachingHabitMutationLimiter,
+  csrfProtection,
+  validateCoachingHabitUpdate,
+  updateHabitDefinition,
 );
 router.post(
   "/:id/status",

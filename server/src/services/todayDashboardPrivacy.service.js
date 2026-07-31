@@ -10,6 +10,7 @@ import NotificationPreference from "../models/NotificationPreference.js";
 import SavedMealPlan from "../models/SavedMealPlan.js";
 import WeeklyCheckin from "../models/WeeklyCheckin.js";
 import WeeklyCheckinRevision from "../models/WeeklyCheckinRevision.js";
+import WellnessTarget from "../models/WellnessTarget.js";
 
 const deleteDashboardCollections = async ({
   clientId,
@@ -24,6 +25,7 @@ const deleteDashboardCollections = async ({
     ["coachingHabits", CoachingHabit, { clientId }],
     ["weeklyCheckinRevisions", WeeklyCheckinRevision, { clientId }],
     ["weeklyCheckins", WeeklyCheckin, { clientId }],
+    ["wellnessTargets", WellnessTarget, { clientId }],
     ["coachingCommentRevisions", CoachingCommentRevision, { clientId }],
     ["coachingComments", CoachingComment, { clientId }],
     [

@@ -17,7 +17,7 @@ export const upsertHabitCompletion = (
   if (index >= 0) next[index] = value;
   else {
     if (next.length >= 20) {
-      throw new Error("A day can contain at most 20 habit completions");
+      throw new Error("Mỗi ngày có tối đa 20 lượt hoàn thành thói quen");
     }
     next.push(value);
   }

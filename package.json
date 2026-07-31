@@ -14,7 +14,11 @@
     "test:ops": "node --test scripts/production-monitoring.test.mjs scripts/dependency-audit-policy.test.mjs",
     "smoke:production": "node scripts/production-smoke.mjs",
     "monitor:production": "node scripts/production-monitor.mjs",
-    "test": "cd client && npx vitest run && cd ../server && npx vitest run && cd .. && npx playwright test"
+    "test": "cd client && npx vitest run && cd ../server && npx vitest run && cd .. && npx playwright test",
+    "crawl:hevy-blog": "node scripts/hevy-blog-crawler.mjs",
+    "test:hevy-blog-crawler": "node --test scripts/hevy-blog-crawler.test.mjs",
+    "convert:hevy-blog-markdown": "node scripts/hevy-blog-markdown.mjs",
+    "test:hevy-blog-markdown": "node --test scripts/hevy-blog-markdown.test.mjs"
   },
   "repository": {
     "type": "git",
@@ -33,6 +37,8 @@
   "homepage": "https://github.com/ThienAress/htcoachingweb#readme",
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
-    "@playwright/test": "^1.61.0"
+    "@playwright/test": "^1.61.0",
+    "@truto/turndown-plugin-gfm": "1.0.2",
+    "turndown": "7.2.4"
   }
 }

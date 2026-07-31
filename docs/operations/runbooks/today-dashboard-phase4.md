@@ -15,7 +15,7 @@ trên đúng target. Runbook này không cấp quyền chạy migration, deploy 
 
 - Client: GET /api/progress?days=7|30|90.
 - Trainer: GET /api/progress/trainer/clients/:clientId?days=7|30|90.
-- Range khác 7/30/90 fail closed; response dùng formulaVersion=progress-v1 và
+- Range khác 7/30/90 fail closed; response dùng formulaVersion=progress-v2, chỉ tổng hợp Daily Journal đã gửi và
   Cache-Control: private, no-store.
 - Task chưa đến hạn trong ngày hiện tại không bị tính fail; completion đã ghi hôm nay được tính ngay.
 - Denominator bằng 0 trả percent: null, không trả zero-compliance.

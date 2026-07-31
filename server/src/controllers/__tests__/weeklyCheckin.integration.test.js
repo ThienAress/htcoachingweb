@@ -24,12 +24,13 @@ import weeklyCheckinRoutes from "../../routes/weeklyCheckin.routes.js";
 import {
   addDaysToDateKey,
   getAppDayOfWeek,
+  getMonthWeekPeriod,
   getVietnamDateKey,
 } from "../../utils/dateKey.js";
 
 let app;
 const today = getVietnamDateKey();
-const currentWeek = addDaysToDateKey(today, -getAppDayOfWeek(today));
+const currentWeek = getMonthWeekPeriod(today).startDateKey;
 const IDS = {
   save: "91111111-1111-4111-8111-111111111111",
   stale: "92222222-2222-4222-8222-222222222222",

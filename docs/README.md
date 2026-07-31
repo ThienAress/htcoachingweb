@@ -20,10 +20,13 @@ nguồn canonical trước khi thay đổi code.
 
 - [Implementation plans](./plans/README.md)
 - [Today Dashboard spec](./specs/today-dashboard.md)
+- [Wellness targets spec](./specs/wellness-targets.md)
+- [Trainer client workspace spec](./specs/trainer-client-workspace.md)
 - [Release checklist](./operations/release-checklist.md)
 - [Incident runbook](./operations/runbooks/incident-runbook.md)
 - [Today Dashboard Release B runbook](./operations/runbooks/today-dashboard-release-b.md)
 - [Today Dashboard Phase 5–6 runbook](./operations/runbooks/today-dashboard-phase5-6.md)
+- [Wellness targets runbook](./operations/runbooks/wellness-targets.md)
 - [Today Dashboard completion audit 2026-07-29](./audits/today-dashboard-completion-audit-2026-07-29.md)
 - [Production rollback](./operations/runbooks/production-rollback-runbook.md)
 

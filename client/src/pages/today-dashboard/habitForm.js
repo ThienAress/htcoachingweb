@@ -1,3 +1,4 @@
+import { getVietnamDateKey } from "../../utils/vietnamDate";
 import { z } from "zod";
 
 export const habitFormSchema = z.object({
@@ -20,13 +21,37 @@ export const habitFormDefaults = {
   shared: false,
 };
 
-export const habitFormToPayload = (values, dateKey, { trainer = false } = {}) => ({
+export const habitToFormValues = (habit) => ({
+  title: habit?.title || "",
+  category: habit?.category || "recovery",
+  daysOfWeek: [...(habit?.schedule?.daysOfWeek || habitFormDefaults.daysOfWeek)],
+  shared: habit?.visibility === "shared",
+});
+
+export const habitFormToPayload = (
+  values,
+  dateKey,
+  { trainer = false, habit = null, todayDateKey = getVietnamDateKey() } = {},
+) => ({
   title: values.title.trim(),
+  ...(habit
+    ? {
+        description: habit.description || "",
+        target: habit.target ?? null,
+        unit: habit.unit || "",
+      }
+    : {}),
   category: values.category,
-  schedule: {
-    daysOfWeek: [...values.daysOfWeek].sort(),
-    startDateKey: dateKey,
-    endDateKey: null,
-  },
+  schedule: trainer
+    ? {
+        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+        startDateKey: habit?.schedule?.startDateKey || todayDateKey,
+        endDateKey: null,
+      }
+    : {
+        daysOfWeek: [...values.daysOfWeek].sort(),
+        startDateKey: habit?.schedule?.startDateKey || dateKey,
+        endDateKey: habit?.schedule?.endDateKey || null,
+      },
   visibility: trainer || values.shared ? "shared" : "private",
 });
