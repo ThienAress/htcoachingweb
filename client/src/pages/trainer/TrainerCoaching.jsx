@@ -33,7 +33,6 @@ import {
 import api from "../../utils/api";
 import SEO from "../../components/SEO";
 import Header from "../../sections/Header/Header";
-import Footer from "../../sections/Footer/Footer";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
 import {
   addDaysToDateKey,
@@ -65,7 +64,7 @@ const serializeExercise = (exercise) => {
   return payload;
 };
 
-const TrainerCoaching = () => {
+const TrainerCoaching = ({ embedded = false }) => {
   // States
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
@@ -397,9 +396,9 @@ const TrainerCoaching = () => {
     <>
       <SEO title="Setup Bài Tập Coach Online - HT Coaching" noindex />
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-      <Header />
+      {!embedded && <Header />}
 
-      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pt-28 pb-16">
+      <main className={`${embedded ? "min-h-[calc(100vh-3rem)] pt-8" : "min-h-screen pt-28"} bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pb-16`}>
         <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-6">
 
           {/* Header Tiêu Đề */}
@@ -1050,7 +1049,6 @@ const TrainerCoaching = () => {
         ))}
       </datalist>
 
-      <Footer />
     </>
   );
 };

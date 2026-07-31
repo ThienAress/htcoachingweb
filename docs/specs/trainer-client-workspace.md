@@ -20,6 +20,17 @@ về workspace để chỉnh sửa.
 
 ## User flows
 
+### Theo dõi sức khỏe từ Nghiệp vụ huấn luyện
+
+1. HLV/admin mở `Theo dõi sức khỏe` trong nhóm Nghiệp vụ huấn luyện.
+2. Route `/trainer/health` tái sử dụng danh sách client canonical từ
+   `GET /api/coaching/trainer/clients`; HLV chỉ nhận client thuộc Order approved,
+   còn buổi và có `trainerId` là chính họ; admin giữ phạm vi toàn hệ thống.
+3. Chọn một client mở `/trainer/health/clients/:clientId`.
+4. Workspace giữ ba tab `Tổng quan`, `Mục tiêu sức khỏe` và
+   `Thói quen hằng ngày`.
+5. Route cũ `/trainer/clients/:clientId` tiếp tục hoạt động để không phá deep link.
+
 ### HLV/admin quản lý học viên
 
 1. Vào Khách của tôi.
@@ -32,7 +43,8 @@ về workspace để chỉnh sửa.
 
 1. Chọn client trong modal tạo giáo án hoặc mở giáo án đã có.
 2. Xem tóm tắt mục tiêu hiện tại: ngủ, nước, bước.
-3. Chọn Điều chỉnh mục tiêu để mở workspace đúng client.
+3. Chọn `Chỉnh sửa mục tiêu` để mở đúng client tại
+   `/trainer/health/clients/:clientId?tab=wellness`.
 4. WorkoutPlan không lưu bản sao mục tiêu.
 
 ## UI states và accessibility
@@ -55,6 +67,11 @@ về workspace để chỉnh sửa.
 
 - Coach Online không còn ba module quản lý chung.
 - Trainer/admin mở được đúng workspace của client active từ Khách của tôi.
+- Menu Nghiệp vụ huấn luyện có entry `Theo dõi sức khỏe` cho admin/HLV; mobile
+  có entry tương đương.
+- `/trainer/health` chỉ render danh sách client do backend trả về; frontend không
+  nhận hoặc tự lọc dữ liệu của HLV khác.
+- Giáo án chỉ đọc target summary và deep-link sang health workspace để chỉnh sửa.
 - Overview và target giữ contract hiện tại; Habit giữ ownership hiện tại và bổ sung update definition có optimistic version.
 - Tạo/chỉnh WorkoutPlan thấy target summary và link đúng client.
 - Admin navigation không còn gắn nhãn Huấn luyện học viên nhưng dẫn vào Coach Online.

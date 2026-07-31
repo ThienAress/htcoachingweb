@@ -46,8 +46,45 @@ description: Quy tắc bảo mật bắt buộc — Auth flow, CSRF, JWT, rate l
 | **Environment** | `.env` files KHÔNG được commit. KHÔNG in nội dung `.env` ra chat. KHÔNG hardcode credentials |
 | **Rate Limiting** | Production có rate limit (`rateLimit.js`). KHÔNG xóa hoặc tăng limit quá mức |
 | **Role check** | Backend PHẢI check role bằng middleware trước khi xử lý. KHÔNG trust role từ frontend |
-| **Validation** | Input PHẢI validate ở cả client (Zod) VÀ server (express-validator). KHÔNG bỏ 1 trong 2 |
+| **Validation** | Server PHẢI validate mọi input không tin cậy. Form user-facing validate thêm ở client bằng Zod để có UX tốt, nhưng client validation không thay thế server validation |
 | **Upload** | PHẢI validate file type, size trong upload middleware. KHÔNG cho upload file tùy ý |
+
+---
+
+## Dữ Liệu Nhạy Cảm & Quyền Truy Cập
+
+Xem dữ liệu sức khỏe, đánh giá cơ thể, ảnh/video, hội thoại AI, thông tin định danh,
+token, cookie và dữ liệu tài chính là dữ liệu nhạy cảm.
+
+| Rule | Chi tiết |
+|------|---------|
+| **Least privilege** | Query chỉ lấy field cần dùng; không trả raw document nếu response contract không cần toàn bộ fields |
+| **Ownership/IDOR** | Endpoint user-accessible lấy object theo ID phải ràng buộc ownership/assignment ở backend. Không dựa vào việc frontend đã ẩn link |
+| **Logging** | Không log raw request body, cookie, token, health payload, ảnh chữ ký hoặc nội dung hội thoại. Dùng `safeLog` với metadata allowlist |
+| **Projection** | DTO/response phải loại internal notes, audit metadata, secret/provider fields và dữ liệu của user khác |
+| **Retention** | Không tự thêm retention, export, delete hoặc anonymization semantics. Thay đổi privacy lifecycle cần spec và impact check riêng |
+| **Media** | Media nhạy cảm không mặc định public; dùng delivery đã được authorization hoặc signed/expiring URL theo pattern hiện có |
+
+Admin role không tự động loại bỏ yêu cầu audit/least privilege. Với read/write dữ liệu
+sức khỏe hoặc tài chính, kiểm tra permission, mục đích endpoint và audit requirements
+trong domain hiện tại.
+
+---
+
+## Query, External Input & Integration Safety
+
+- Không spread trực tiếp `req.body` vào Mongoose create/update. Dùng allowlist fields và
+  validation contract để ngăn mass assignment, operator injection và prototype keys.
+- Object ID, enum, sort, filter, pagination và regex input phải được validate/bound trước
+  khi đưa vào query. Không cho client truyền tùy ý Mongo operators.
+- Code fetch URL do user/provider cung cấp phải chống SSRF: allowlist protocol/domain,
+  chặn loopback/private/link-local targets và đặt timeout/size limit.
+- Webhook/callback phải verify signature theo raw payload khi provider yêu cầu, chống
+  replay và giữ handler idempotent trước khi mutation.
+- Redirect URL phải lấy từ allowlist/canonical config; không redirect thẳng tới URL từ
+  query/body chưa kiểm tra.
+- Khi thêm external domain, kiểm tra đồng thời CORS, Helmet CSP, privacy impact và cách
+  credential được truyền; không nới wildcard chỉ để request chạy được.
 
 ---
 

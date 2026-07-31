@@ -36,7 +36,7 @@ Khi implement feature mới có business logic:
 Khi fix bug hoặc bổ sung test cho code có sẵn:
 1. Reproduce bug scenario trong test → confirm FAIL
 2. Fix code → confirm test PASS
-3. Ghi vào `known_issues.md` nếu bug nghiêm trọng
+3. Ghi vào `../known-issues/SKILL.md` nếu bug nghiêm trọng và có giá trị dùng lại lâu dài
 
 ---
 
@@ -51,26 +51,17 @@ Khi fix bug hoặc bổ sung test cho code có sẵn:
 
 ---
 
-## Test Files Hiện Tại (10 files)
+## Test Inventory Hiện Tại
 
-### Client (3 files)
-- `client/src/utils/__tests__/assessment.helpers.test.js`
-- `client/src/utils/__tests__/date.test.js`
-- `client/src/utils/__tests__/foodCategory.test.js`
+Không ghi tổng số hoặc danh sách snapshot trong skill vì test suite thay đổi thường xuyên.
+Lấy inventory trực tiếp từ repo khi bắt đầu task:
 
-### Server (5 files)
-- `server/src/controllers/__tests__/auth.controller.test.js`
-- `server/src/controllers/__tests__/deposit.controller.test.js`
-- `server/src/controllers/__tests__/deposit.integration.test.js`
-- `server/src/middlewares/__tests__/auth.middleware.test.js`
-- `server/src/middlewares/__tests__/csrf.test.js`
+```bash
+rg --files client/src server/src e2e | rg "(test|spec)\.(js|jsx|ts|tsx)$"
+```
 
-### E2E (2 files)
-- `e2e/homepage.spec.js`
-- `e2e/public-pages.spec.js`
-
-### Test Infrastructure
-- `server/src/__tests__/setup.js` — Shared helpers
+Test infrastructure dùng chung nằm tại `server/src/__tests__/setup.js`. Chọn exemplar
+gần domain đang sửa nhất thay vì mặc định sao chép một test cũ được liệt kê trong tài liệu.
 
 ---
 

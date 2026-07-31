@@ -41,7 +41,7 @@ Frontend (React)                         Backend (Express)
 │ useAiChat.js    │                     │   ├ providers/        │
 │ ChatBubble.jsx  │                     │   │  ├ gemini.provider│
 │ cards/          │                     │   │  └ mock.provider  │
-│   TdeeFormCard  │                     │   ├ tools/ (11 tools) │
+│   TdeeFormCard  │                     │   ├ tools/            │
 │   TdeeResult    │                     │   │  ├ toolRegistry   │
 │   ExerciseList  │                     │   │  ├ toolEngine     │
 │   MealSuggest   │                     │   │  └ ... (see below)│

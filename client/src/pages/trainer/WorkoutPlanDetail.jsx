@@ -14,6 +14,7 @@ import { getWorkoutPlans, getMyWorkoutPlans, getWorkoutPlanById, updateWorkoutPl
 import { getExercises } from "../../services/exercise.service";
 import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread";
 import { WorkoutPlanClientTargetSummary } from "./WorkoutPlanClientTargetSummary";
+import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigation";
 
 const EMPTY_EXERCISE = {
   name: "", sets: "", reps: "", tempo: "", duration: "", coachingTips: "", maxWeight: "",
@@ -394,7 +395,7 @@ const SectionBlock = ({ section, onUpdate, onRemove, isOpen, onToggle, mode, isL
 };
 
 // ===== MAIN COMPONENT =====
-const WorkoutPlanDetail = () => {
+const WorkoutPlanDetail = ({ embedded = false }) => {
   const { t, i18n } = useTranslation("coaching");
   const { id } = useParams();
   const navigate = useNavigate();
@@ -451,7 +452,7 @@ const WorkoutPlanDetail = () => {
       }
 
       if (matchedPlan) {
-        navigate(`/workout-plans/${matchedPlan._id}`);
+        navigate(getWorkoutPlanWorkspacePath(matchedPlan._id, { embedded }));
       } else {
         setTargetDate(dateStr);
         if (isUserOnly) {
@@ -559,14 +560,14 @@ const WorkoutPlanDetail = () => {
   return (
     <>
       <SEO title={`${t("plans.detail_title")}: ${form.title}`} noindex />
-      <Header />
+      {!embedded && <Header />}
 
-      <main className="min-h-screen bg-gray-950 text-white pt-24 pb-20">
+      <main className={`bg-gray-950 text-white pb-20 ${embedded ? "min-h-[calc(100vh-3rem)] overflow-hidden pt-0" : "min-h-screen pt-24"}`}>
         {/* Header Bar */}
-        <div className="bg-gray-900 border-b border-gray-800 sticky top-20 z-40 shadow-sm">
+        <div className={`bg-gray-900 border-b border-gray-800 sticky z-40 shadow-sm ${embedded ? "top-0" : "top-20"}`}>
           <div className="container-custom py-3 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <button onClick={() => navigate("/workout-plans")} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
+              <button onClick={() => navigate(getWorkoutPlanWorkspacePath(undefined, { embedded }))} className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors">
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
@@ -748,7 +749,7 @@ const WorkoutPlanDetail = () => {
           </div>
         )}
       </main>
-      <Footer />
+      {!embedded && <Footer />}
 
       {/* Confirm Send Plan Modal */}
       {showConfirmModal && (
@@ -817,7 +818,7 @@ const WorkoutPlanDetail = () => {
               <button
                 onClick={() => {
                   setShowCreateMissingModal(false);
-                  navigate(`/workout-plans?create=true&client=${form.clientId}&date=${targetDate}`);
+                  navigate(`${getWorkoutPlanWorkspacePath(undefined, { embedded })}?create=true&client=${form.clientId}&date=${targetDate}`);
                 }}
                 className="px-5 py-2.5 rounded-xl bg-primary hover:bg-orange-500 text-white transition-colors font-medium"
               >

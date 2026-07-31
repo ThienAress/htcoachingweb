@@ -240,16 +240,6 @@ function AppContent() {
 
         {/* TRAINER LOGIN — ẩn: trainer giờ login bằng Google bình thường */}
 
-        {/* Standalone Trainer Coaching route with Header/Footer inside */}
-        <Route
-          path="/trainer/coaching"
-          element={
-            <AdminRoute>
-              <TrainerCoaching />
-            </AdminRoute>
-          }
-        />
-
         {/* TRAINER PANEL */}
         <Route
           path="/trainer"
@@ -261,6 +251,19 @@ function AppContent() {
         >
           <Route index element={<TrainerDashboard />} />
           <Route path="clients/:clientId" element={<TrainerClientWorkspace />} />
+          <Route path="health" element={<TrainerDashboard />} />
+          <Route
+            path="health/clients/:clientId"
+            element={<TrainerClientWorkspace />}
+          />
+          <Route path="checkin" element={<Checkin embedded />} />
+          <Route path="coaching" element={<TrainerCoaching embedded />} />
+          <Route path="schedule" element={<TrainingSchedule embedded />} />
+          <Route path="workout-plans" element={<WorkoutPlan embedded />} />
+          <Route
+            path="workout-plans/:id"
+            element={<WorkoutPlanDetail embedded />}
+          />
           <Route path="checkin-history" element={<TrainerCheckinHistory />} />
         </Route>
 

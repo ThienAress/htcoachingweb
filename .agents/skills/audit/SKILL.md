@@ -43,15 +43,15 @@ Map territory trước khi đánh giá:
 Stack: React 19 + Vite 8 | Express 5 + Mongoose 9 | MongoDB
 Build: cd client && npm run build
 Dev:   cd client && npm run dev | cd server && npm run dev
-Tests: ⚠️ Chưa có
+Tests: [đếm trực tiếp client/server/e2e từ repo]
 Hotspots: [top 5 files thay đổi gần đây]
-Known Issues: [7 items từ known_issues.md]
+Known Issues: [đọc trực tiếp từ ../known-issues/SKILL.md]
 ━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ### Phase 2: Audit
 
-Đọc `..$audit-playbook/SKILL.md` và quét theo depth level:
+Đọc `../audit-playbook/SKILL.md` và quét theo depth level:
 
 **Quick:**
 - Chỉ quét hotspots (files churn cao) + critical paths (auth, payment, wallet)

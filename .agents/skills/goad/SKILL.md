@@ -1,6 +1,6 @@
 ---
 name: goad
-description: Meta-prompting workflow (Self-Healing). Ép AI tự đánh giá, quét codebase, và cập nhật (refactor) một file Skill để chống lại hiện tượng Skill Rot.
+description: Audit instruction drift và cập nhật một Codex skill theo codebase thực tế. Dùng khi file trong `.agents/skills/` có dấu hiệu lỗi thời; luôn tạo draft repo-native và chờ user phê duyệt rõ ràng trước khi sửa.
 ---
 
 # $goad — Tự động cập nhật kỹ năng (Skill Self-Healing)
@@ -34,7 +34,7 @@ Sử dụng công cụ đọc file và `rg` để:
 3. Quét nhanh codebase thực tế (Ví dụ: các controllers, services, hoặc UI components liên quan đến skill đó) để xem code đang viết theo pattern nào.
 
 ## Bước 2: Phản biện (The Goading)
-Tự hỏi và trả lời nhanh (Internal Monologue):
+Đánh giá nội bộ và chỉ ghi kết luận có bằng chứng vào bản audit:
 - Những hướng dẫn trong file skill hiện tại có còn đúng với Tech Stack hiện hành không? (VD: Đang dùng Vite 8 + Tailwind 4 nhưng file skill lại nói Webpack/Tailwind 3?)
 - Có pattern nào trong codebase thực tế mà file skill chưa đề cập không? (VD: Luồng SSE, cơ chế CSRF mới...)
 - File skill có bị dài dòng, "dạy đời" kiểu lý thuyết thay vì hành động (Action-oriented) không?
@@ -43,11 +43,12 @@ Tự hỏi và trả lời nhanh (Internal Monologue):
 
 > **QUAN TRỌNG: KHÔNG ĐƯỢC ghi đè file skill trực tiếp ở bước này.**
 
-1. Viết bản skill mới vào **artifact `implementation_plan.md`**.
+1. Tạo bản audit repo-native tại `docs/audits/YYYY-MM-DD-<skill-name>-skill-drift.md`. Không ghi đè audit có sẵn; nếu tên đã tồn tại, thêm suffix ngắn mô tả phạm vi.
 2. Trình bày rõ ràng:
-   - **GIỮA**: Những phần giữ nguyên (và tại sao).
+   - **GIỮ**: Những phần giữ nguyên (và tại sao).
    - **XÓA**: Những phần bị xóa (và tại sao — lỗi thời / sai / thừa).
    - **THÊM**: Những phần mới (và source: codebase thực tế / package.json / pattern quan sát được).
+   - **VERIFY**: Lệnh hoặc kiểm tra chứng minh bản skill mới khớp codebase.
 3. Đánh tag confidence cho từng thay đổi:
    - 🟢 **Verified** — Đã xác nhận từ codebase thực tế
    - 🟡 **Assumed** — Dự đoán hợp lý nhưng chưa verify 100%
@@ -60,18 +61,20 @@ Tự hỏi và trả lời nhanh (Internal Monologue):
 5. **Proactive Triggers:** Thêm một mục "Proactive Triggers", quy định những trường hợp AI phải tự động "báo động" mà không cần user hỏi.
 6. **Disambiguation:** Ghi rõ "Khi nào KHÔNG dùng skill này".
 
-4. **DỪNG LẠI** — Set `RequestFeedback: true` trên artifact và chờ user review.
+4. Gửi user đường dẫn bản audit, tóm tắt thay đổi dự kiến và yêu cầu **phê duyệt rõ ràng**.
+5. **DỪNG LẠI** — Không coi im lặng, yêu cầu audit ban đầu hoặc việc tạo draft là quyền sửa skill. Chờ user approve trong một message tiếp theo.
 
 ## Bước 3b: Áp dụng (Apply — CHỈ sau khi user APPROVE)
 
-> Chỉ thực hiện bước này **SAU KHI user đã approve** artifact ở bước 3a.
+> Chỉ thực hiện bước này **SAU KHI user đã approve rõ ràng** bản audit ở bước 3a.
 
-1. Cập nhật `SKILL.md` bằng patch có phạm vi nhỏ.
-2. Nếu có reference mới → tạo trong `<skill>/references/`.
-3. Verify: đọc lại file vừa ghi để đảm bảo nội dung đúng.
+1. Đọc lại target và `git diff` vì codebase có thể đã thay đổi trong lúc chờ approval. Nếu evidence hoặc phạm vi đã đổi đáng kể, cập nhật draft và xin duyệt lại.
+2. Cập nhật `SKILL.md` bằng `apply_patch` có phạm vi nhỏ khi công cụ này khả dụng; nếu runtime không cung cấp `apply_patch`, dùng cơ chế patch tương đương của runtime và tuyệt đối không ghi đè toàn file bằng shell write trick.
+3. Nếu có reference mới → tạo trong `<skill>/references/`.
+4. Verify: đọc lại file vừa ghi, chạy các kiểm tra nêu trong draft và xem `git diff -- <target> <references>` để bảo đảm không sửa ngoài phạm vi đã duyệt.
 
 ## Bước 4: Báo cáo
-In ra một Changelog ngắn gọn về những gì đã được Audit và Update.
+In ra một Changelog ngắn gọn về những gì đã được audit và update, kèm file đã sửa, validation đã chạy và phần chưa thể kiểm chứng.
 Gắn thẻ độ tự tin cho việc cập nhật: 🟢 Verified (Codebase thực tế đúng như vậy) hoặc 🟡 Assumed (Dự đoán một số phần).
 
 ---

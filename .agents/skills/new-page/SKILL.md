@@ -117,7 +117,7 @@ Kiểm tra lại `<SEO>` component trong page:
 ## Bước 6: JSON-LD (Nếu cần) 📊
 
 Áp dụng cho:
-- **Trang chủ:** `LocalBusiness` + `FAQPage` schema (`@graph`)
+- **Trang chủ:** `Organization` + `ProfessionalService` + `Service` + `FAQPage` schema (`@graph`); nguồn canonical là `homeSchema` trong `client/src/pages/Home.jsx`
 - **Customer Story:** `Article` schema (có `datePublished`, `dateModified`)
 - **Trainer Profile:** `Person` schema
 - **Trang dịch vụ/pricing:** `Service` schema

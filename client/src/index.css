@@ -109,6 +109,17 @@
   text-transform: none !important;
 }
 
+/*
+ * Product surfaces prioritize scanability over the display typography used by
+ * public brand pages. Local text-size utilities still control each heading.
+ */
+.product-surface h1,
+.product-surface h2,
+.product-surface h3 {
+  font-family: var(--font-sans);
+  text-transform: none;
+}
+
 /* ================= TIPTAP & PROSE EDITOR/CONTENT STYLES ================= */
 .tiptap, .prose {
   outline: none;

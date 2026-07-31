@@ -378,7 +378,7 @@ const ScheduleModal = ({ isOpen, onClose, onSubmit, onDelete, initialData, isEdi
 };
 
 // ===== MAIN COMPONENT =====
-const TrainingSchedule = () => {
+const TrainingSchedule = ({ embedded = false }) => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
@@ -535,14 +535,14 @@ const TrainingSchedule = () => {
   if (isError) {
     return (
       <>
-        <Header />
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+        {!embedded && <Header />}
+        <div className={`${embedded ? "min-h-[60vh]" : "min-h-screen"} bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center`}>
           <div className="text-center text-white">
             <p className="text-red-400 mb-4">Lỗi tải dữ liệu: {error?.message}</p>
             <button onClick={() => refetch()} className="px-4 py-2 bg-primary text-white rounded-lg">Thử lại</button>
           </div>
         </div>
-        <Footer />
+        {!embedded && <Footer />}
       </>
     );
   }
@@ -550,9 +550,9 @@ const TrainingSchedule = () => {
   return (
     <>
       <SEO title="Lịch tập khách hàng" description="Quản lý lịch tập hàng tuần cho khách hàng." noindex />
-      <Header />
+      {!embedded && <Header />}
 
-      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pt-28 pb-8">
+      <main className={`bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pb-8 ${embedded ? "min-h-[calc(100vh-3rem)] pt-8" : "min-h-screen pt-28"}`}>
         <div className="container-custom">
           {isLoading ? (
             <ScheduleSkeleton />
@@ -780,8 +780,8 @@ const TrainingSchedule = () => {
           )}
         </div>
       </main>
-      <ChatIcons />
-      <Footer />
+      {!embedded && <ChatIcons />}
+      {!embedded && <Footer />}
 
       {/* Modal */}
       {isModalOpen && <ScheduleModal

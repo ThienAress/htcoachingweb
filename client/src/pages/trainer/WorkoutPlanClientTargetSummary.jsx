@@ -3,7 +3,7 @@ import { RefreshCw, Target } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getTrainerClientWellnessTarget } from "../../services/wellnessTarget.service";
 import {
-  buildTrainerClientWorkspacePath,
+  buildTrainerHealthWorkspacePath,
   buildWellnessTargetSummary,
   getTrainerClientId,
 } from "./trainerClientWorkspace.helpers";
@@ -22,7 +22,7 @@ export const WorkoutPlanClientTargetSummary = ({ clientId }) => {
   });
   if (!normalizedClientId) return null;
   const items = buildWellnessTargetSummary(query.data);
-  const workspacePath = buildTrainerClientWorkspacePath(normalizedClientId, {
+  const workspacePath = buildTrainerHealthWorkspacePath(normalizedClientId, {
     tab: "wellness",
   });
 
@@ -39,7 +39,7 @@ export const WorkoutPlanClientTargetSummary = ({ clientId }) => {
           to={workspacePath}
           className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-cyan-300 hover:bg-cyan-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
         >
-          Điều chỉnh mục tiêu
+          Chỉnh sửa tại Theo dõi sức khỏe
         </Link>
       </div>
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTrainerClientWorkspacePath,
+  buildTrainerHealthWorkspacePath,
   buildWellnessTargetSummary,
   getTrainerClientId,
   normalizeTrainerClientTab,
@@ -36,6 +37,23 @@ describe("trainer client workspace presentation", () => {
     ).toBe(
       "/trainer/clients/client%2F123?tab=habits&date=2026-07-30",
     );
+  });
+
+  it("builds the canonical health-tracking deep link", () => {
+    expect(
+      buildTrainerHealthWorkspacePath("client/123", {
+        tab: "wellness",
+        dateKey: "2026-07-30",
+      }),
+    ).toBe(
+      "/trainer/health/clients/client%2F123?tab=wellness&date=2026-07-30",
+    );
+    expect(
+      buildTrainerHealthWorkspacePath("client-id", {
+        tab: "unknown",
+        dateKey: "not-a-date",
+      }),
+    ).toBe("/trainer/health/clients/client-id");
   });
 
   it("presents only complete numeric wellness targets", () => {

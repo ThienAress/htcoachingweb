@@ -1,53 +1,33 @@
 ---
 name: ship
-description: Pre-deploy gate cho htcoachingweb. Chạy trước MỌI lần deploy lên Netlify/Render. Tất cả bước phải PASS — 1 bước FAIL → NO-GO, không deploy.
+description: Release gate cuối cho HTCOACHINGWEB; tái sử dụng QA evidence hợp lệ, kiểm tra security, SEO, cleanup và kết luận GO/NO-GO mà không chạy trùng build/tests.
 ---
 
-# $ship — Pre-Deploy Checklist
+# $ship — Release Gate
 
-> **Nguyên tắc:** Chỉ deploy khi tất cả bước dưới đây xanh. Không có ngoại lệ.
+`$ship` ra quyết định phát hành, không phải một QA pipeline thứ hai. `GO` không tự cấp quyền push/deploy; chỉ thực hiện khi user yêu cầu rõ.
 
 ---
 
 ## Cách chạy
 
-Khi user gõ `$ship`, AI thực hiện tuần tự từng bước, báo cáo kết quả từng bước, và kết luận GO hoặc NO-GO.
+Khi user gọi `$ship`, AI báo từng gate và kết luận `GO`, `GO WITH WARNINGS` hoặc `NO-GO`.
 
 ---
 
-## Bước 1: Build Check 🏗️
+## Gate 1: QA evidence 🧪
 
-```bash
-cd client && npm run build
-```
+1. Tìm evidence theo contract tại `.agents/skills/qa/SKILL.md`.
+2. Nếu evidence đúng `HEAD`, working tree, scope và chưa hết hạn, tái sử dụng; **không chạy lại build/tests**.
+3. Nếu thiếu hoặc hết hạn, chạy/ủy quyền `$qa` đúng một lần rồi dùng evidence mới. Không chép lệnh build/test vào `$ship`.
+4. Khi chạy trong `$pre-deploy`, nhận nguyên QA evidence từ Gate 3.
 
-**PASS khi:** Build thành công, 0 errors.  
-**FAIL khi:** Có bất kỳ error nào.  
-**Nếu FAIL:** Dừng tại đây, báo cáo lỗi cụ thể, không tiếp tục.
-
----
-
-## Bước 2: Test Check 🧪
-
-// turbo
-```bash
-cd client && npx vitest run
-```
-
-// turbo
-```bash
-cd server && npx vitest run
-```
-
-**PASS khi:** Tất cả tests pass (client + server).  
-**FAIL khi:** Có bất kỳ test fail. Dừng tại đây, báo cáo test nào fail.
-
-> ⚠️ E2E tests (`npx playwright test`) chỉ chạy khi dev servers đang running. Nếu không running → SKIP E2E, chỉ chạy unit + integration.
+Gate `PASS` khi release build và các test bắt buộc pass, E2E là `PASS` hoặc `SKIP` có lý do hợp lệ, và không có thay đổi liên quan sau QA. QA `FAIL`/`BLOCKED` hoặc evidence không hợp lệ dẫn đến `NO-GO`.
 
 
 ---
 
-## Bước 3: Security Scan 🔐
+## Gate 2: Security 🔐
 
 Đọc code thay đổi và kiểm tra:
 
@@ -73,8 +53,10 @@ cd server && npx vitest run
 
 **Dependency scan:**
 ```bash
-cd client && npm run security:audit
-cd server && npm run security:audit
+npm run security:secrets
+npm run security:data-boundaries
+npm run security:audit --prefix client
+npm run security:audit --prefix server
 ```
 - [ ] Không có lỗ hổng mức `high` hoặc `critical`
 
@@ -83,14 +65,14 @@ cd server && npm run security:audit
 
 ---
 
-## Bước 4: SEO Check 🔍
+## Gate 3: SEO 🔍
 
-*Chỉ chạy nếu có thay đổi liên quan đến routes hoặc pages.*
+Nếu diff chạm public route, metadata, sitemap hoặc prerender, chạy `$seo-check`; tái sử dụng report còn hợp lệ từ `$pre-deploy` thay vì audit lần hai.
 
 - [ ] Page public mới có `<SEO>` component với đủ `title`, `description`, `canonical`
 - [ ] Trang hệ thống (admin, trainer, account) có `noindex={true}`
-- [ ] Route mới đã được thêm vào `scripts/generate-sitemap.js`
-- [ ] Route mới đã được thêm vào `scripts/prerender.js`
+- [ ] Route public mới đã được thêm vào `client/scripts/generate-sitemap.js`
+- [ ] Route public mới đã được thêm vào `client/scripts/prerender.js`
 
 **PASS khi:** Tất cả items applicable ✅.  
 **SKIP khi:** Không có thay đổi liên quan đến routes/pages.  
@@ -98,7 +80,9 @@ cd server && npm run security:audit
 
 ---
 
-## Bước 5: Cleanup Check 🧹
+## Gate 4: Cleanup 🧹
+
+Áp dụng `.agents/skills/cleanup-delivery/SKILL.md`.
 
 - [ ] Không có `console.log()` debug tạm thời
 - [ ] Không có commented-out code mới
@@ -106,24 +90,37 @@ cd server && npm run security:audit
 - [ ] Không có hardcoded values (API URLs, credentials)
 - [ ] File mới ≤ 300 dòng
 
-**PASS khi:** Tất cả items ✅.  
-**FAIL khi:** Bất kỳ item nào ❌ — liệt kê file và dòng cụ thể.
+**PASS khi:** Tất cả items bắt buộc đạt.
+**FAIL khi:** Finding gây lỗi, rò rỉ dữ liệu, breaking change hoặc vi phạm điều kiện hoàn thành; liệt kê `file:line`.
+
+---
+
+## Gate 5: Release decision
+
+| Điều kiện | Kết quả |
+|---|---|
+| Bất kỳ gate bắt buộc `FAIL`/`BLOCKED` | `NO-GO` |
+| Còn finding `BLOCK` hoặc `HIGH` | `NO-GO` |
+| Mọi gate pass, không còn `BLOCK`/`HIGH`, có MED được document | `GO WITH WARNINGS` |
+| Mọi gate pass, không còn finding đáng kể | `GO` |
+
+Mỗi MED được chấp nhận phải có bằng chứng, rủi ro còn lại, lý do chưa sửa, owner và follow-up. MED không được dùng để hạ cấp build/test/security failure. LOW là tùy chọn nhưng vẫn ghi trong report.
 
 ---
 
 ## Output Format
 
 ```
-🚢 SHIP CHECKLIST — HTCoachingWeb
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SHIP REPORT — HTCoachingWeb
 
-[1/5] Build Check      ✅ PASS / ❌ FAIL
-[2/5] Test Check       ✅ PASS (X/Y passed) / ❌ FAIL
-[3/5] Security Scan    ✅ PASS / ❌ FAIL
-[4/5] SEO Check        ✅ PASS / ⏭️ SKIP (no route changes)
-[5/5] Cleanup Check    ✅ PASS / ❌ FAIL
+QA evidence: PASS (reused | generated once) | FAIL
+Security: PASS | FAIL
+SEO: PASS | SKIP (<evidence>) | FAIL
+Cleanup: PASS | FAIL
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RESULT: ✅ GO — Sẵn sàng deploy
-        ❌ NO-GO — [Liệt kê items cần fix]
+BLOCK/HIGH: 0 | <findings>
+MED accepted: 0 | <finding + risk + owner + follow-up>
+
+RESULT: GO | GO WITH WARNINGS | NO-GO
+Reason: <evidence-backed conclusion>
 ```

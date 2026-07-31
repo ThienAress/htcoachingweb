@@ -2,11 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
-  Menu,
-  X,
   LogOut,
   ChevronDown,
-  UserCheck,
   Dumbbell,
   Users,
   Wallet,
@@ -17,6 +14,13 @@ import {
   Star,
   LayoutDashboard,
   Bell,
+  Home,
+  Lightbulb,
+  MessageSquare,
+  Package,
+  Activity,
+  Calculator,
+  Utensils,
 } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
@@ -24,8 +28,8 @@ import { getMyWallet } from "../../services/wallet.service";
 import { getMySubscription } from "../../services/trainerSubscription.service";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
-import { canAccessF1 } from "../../utils/trainerEntitlements";
 import { NotificationCenter } from "../../components/NotificationCenter";
+import { getAccountWorkspaceItems } from "../../navigation/workspaceNavigation";
 
 function Header() {
   const navigate = useNavigate();
@@ -47,9 +51,9 @@ function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const headerRef = useRef(null);
+  const mobileMenuButtonRef = useRef(null);
   const [openDropdown, setOpenDropdown] = useState(false);
   const dropdownRef = useRef(null);
-  const [openGroups, setOpenGroups] = useState({});
   const { data: accountSummary } = useQuery({
     queryKey: ["header-account-summary", user?._id],
     enabled: Boolean(user),
@@ -81,13 +85,6 @@ function Header() {
     "Tiêu chuẩn": "🔥",
     "Chuyên nghiệp": "💎",
     "Cao cấp": "👑",
-  };
-
-  const toggleGroup = (groupName) => {
-    setOpenGroups((prev) => ({
-      ...prev,
-      [groupName]: !prev[groupName],
-    }));
   };
 
   // Fetch số dư ví + gói dịch vụ
@@ -170,6 +167,18 @@ function Header() {
     return () => (document.body.style.overflow = "");
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        mobileMenuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [menuOpen]);
+
   const handleLogout = async () => {
     await logout();
     navigate("/");
@@ -178,74 +187,45 @@ function Header() {
   // Kiểm tra quyền: admin/trainer role HOẶC user có subscription
   const isAdmin = user?.role === "admin";
   const hasTrainerAccess = user?.role === "trainer" || activeSubscription;
-  const f1Allowed = canAccessF1(user, activeSubscription);
 
   const isHomePage = location.pathname === "/";
   const isSolidHeader = isScrolled || !isHomePage;
 
-  const dropdownItems = isAdmin
-    ? [
-      {
-        group: t("nav_user.system_management"),
-        children: [
-          { label: t("nav_user.admin_panel"), icon: LayoutDashboard, path: "/admin" },
-          { label: t("nav_user.f1_system"), icon: Users, path: "/f1-customers" },
-          { label: t("nav_user.exercise_system"), icon: Dumbbell, path: "/exercises" },
-        ]
-      },
-      { isDivider: true },
-      {
-        group: t("nav_user.training_ops"),
-        children: [
-          { label: t("nav_user.customer_checkin"), icon: UserCheck, path: "/checkin" },
-          { label: t("nav_user.online_coaching"), icon: Sparkles, path: "/trainer/coaching" },
-          { label: t("nav_user.training_schedule"), icon: CalendarDays, path: "/training-schedule" },
-          { label: t("nav_user.workout_plan"), icon: FileText, path: "/workout-plans" },
-        ]
-      },
-      { isDivider: true },
-      { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
-      { label: t("nav_user.notifications"), icon: Bell, path: "/notifications" },
-      { label: t("nav_user.account"), icon: User, path: "/account" },
-      { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
-    ]
-    : hasTrainerAccess
+  const workspaceIconMap = {
+    admin: LayoutDashboard,
+    customerManagement: Users,
+    customerDashboard: LayoutDashboard,
+  };
+  const workspaceItems = getAccountWorkspaceItems({
+    isAdmin,
+    hasTrainerAccess,
+  }).map((item) => ({
+    ...item,
+    label: t(item.labelKey),
+    icon: workspaceIconMap[item.key],
+  }));
+  const personalItems = [
+    ...(user?.customerStorySlug
       ? [
-        {
-          group: t("nav_user.training_ops"),
-          children: [
-            { label: t("nav_user.overview"), icon: LayoutDashboard, path: "/trainer" },
-            { label: t("nav_user.customer_checkin"), icon: UserCheck, path: "/checkin" },
-            { label: t("nav_user.online_coaching"), icon: Sparkles, path: "/trainer/coaching" },
-            { label: t("nav_user.training_schedule"), icon: CalendarDays, path: "/training-schedule" },
-            { label: t("nav_user.workout_plan"), icon: FileText, path: "/workout-plans" },
-            ...(f1Allowed
-              ? [
-                  {
-                    label: t("nav_user.f1_system"),
-                    icon: Users,
-                    path: "/f1-customers",
-                  },
-                ]
-              : []),
-            { label: t("nav_user.exercise_system"), icon: Dumbbell, path: "/exercises" },
-          ]
-        },
-        { isDivider: true },
-        { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
-        { label: t("nav_user.notifications"), icon: Bell, path: "/notifications" },
-        { label: t("nav_user.account"), icon: User, path: "/account" },
-        { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
-      ]
-      : [
-        { label: t("nav_user.today_dashboard"), icon: LayoutDashboard, path: "/dashboard" },
-        { isDivider: true },
-        ...(user?.customerStorySlug ? [{ label: t("nav_user.my_profile"), icon: Star, path: `/ket-qua-khach-hang/${user.customerStorySlug}` }] : []),
-        { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
-        { label: t("nav_user.notifications"), icon: Bell, path: "/notifications" },
-        { label: t("nav_user.account"), icon: User, path: "/account" },
-        { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
-      ];
+          {
+            label: t("nav_user.my_profile"),
+            icon: Star,
+            path: `/ket-qua-khach-hang/${user.customerStorySlug}`,
+          },
+        ]
+      : []),
+    { label: t("nav_user.my_wallet"), icon: Wallet, path: "/wallet" },
+    { label: t("nav_user.notifications"), icon: Bell, path: "/notifications" },
+    { label: t("nav_user.account"), icon: User, path: "/account" },
+  ];
+  const dropdownItems = [
+    { isSectionLabel: true, label: t("nav_user.workspaces") },
+    ...workspaceItems,
+    { isDivider: true },
+    { isSectionLabel: true, label: t("nav_user.account") },
+    ...personalItems,
+    { label: t("nav.logout"), icon: LogOut, onClick: handleLogout },
+  ];
 
   const textColorClass = isSolidHeader ? "text-white" : "text-dark";
   const textMutedClass = isSolidHeader ? "text-white/80 hover:text-white" : "text-dark/70 hover:text-dark";
@@ -409,46 +389,18 @@ function Header() {
                   </div>
                   <div className="py-2">
                     {dropdownItems.map((item, idx) => {
+                      if (item.isSectionLabel) {
+                        return (
+                          <p
+                            key={idx}
+                            className="px-4 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-gray-500"
+                          >
+                            {item.label}
+                          </p>
+                        );
+                      }
                       if (item.isDivider) {
                         return <div key={idx} className="h-px bg-gray-100 my-1"></div>;
-                      }
-                      if (item.children) {
-                        const isOpen = openGroups[item.group];
-                        return (
-                          <div key={idx} className="w-full">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleGroup(item.group);
-                              }}
-                              className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition"
-                            >
-                              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{item.group}</span>
-                              <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-                            </button>
-                            <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}>
-                              <div className="bg-gray-50/30 py-1">
-                                {item.children.map((child, cIdx) => {
-                                  const ChildIcon = child.icon;
-                                  return (
-                                    <button
-                                      key={cIdx}
-                                      onClick={() => {
-                                        if (child.onClick) child.onClick();
-                                        else if (child.path) navigate(child.path);
-                                        setOpenDropdown(false);
-                                      }}
-                                      className="w-full flex items-center gap-3 pl-6 pr-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-primary transition-colors"
-                                    >
-                                      <ChildIcon size={16} className="text-gray-400" />
-                                      <span className="font-medium">{child.label}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          </div>
-                        );
                       }
                       const Icon = item.icon;
                       return (
@@ -459,7 +411,7 @@ function Header() {
                             else if (item.path) navigate(item.path);
                             setOpenDropdown(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
+                          className="flex min-h-11 w-full items-center gap-3 px-4 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-500"
                         >
                           <Icon size={18} className="text-gray-400" />
                           <span className="font-medium">{item.label}</span>
@@ -483,160 +435,218 @@ function Header() {
         </div>
 
         {/* MOBILE BUTTON */}
-        <div className="absolute right-5 lg:hidden flex items-center gap-3 z-20">
+        <div className="absolute right-4 lg:hidden flex items-center gap-2 z-20">
           {user && (
             <NotificationCenter userId={user._id} solid={isSolidHeader} />
           )}
           <button
+            ref={mobileMenuButtonRef}
             onClick={() => setMenuOpen(!menuOpen)}
-            className={`${isSolidHeader ? "text-white" : "text-dark bg-white shadow-sm p-1.5 rounded-md border border-gray-200"}`}
             aria-label={menuOpen ? "Đóng menu" : "Mở menu"}
             aria-expanded={menuOpen}
+            aria-controls="mobile-menu-drawer"
+            className={`relative flex h-10 w-10 flex-col items-center justify-center gap-[5px] rounded-xl transition-all duration-300 ${
+              isSolidHeader
+                ? "bg-white/10 hover:bg-white/20 border border-white/20"
+                : "bg-white shadow-md border border-gray-200 hover:bg-gray-50"
+            }`}
           >
-            {menuOpen ? <X size={isSolidHeader ? 28 : 22} /> : <Menu size={isSolidHeader ? 28 : 22} />}
+            <span className={`block h-[2px] w-5 rounded-full transition-all duration-300 origin-center ${
+              isSolidHeader ? "bg-white" : "bg-gray-800"
+            } ${menuOpen ? "translate-y-[7px] rotate-45" : ""}`} />
+            <span className={`block h-[2px] rounded-full transition-all duration-300 ${
+              isSolidHeader ? "bg-white" : "bg-gray-800"
+            } ${menuOpen ? "w-0 opacity-0" : "w-3.5"}`} />
+            <span className={`block h-[2px] w-5 rounded-full transition-all duration-300 origin-center ${
+              isSolidHeader ? "bg-white" : "bg-gray-800"
+            } ${menuOpen ? "-translate-y-[7px] -rotate-45" : ""}`} />
           </button>
         </div>
 
-        {/* MOBILE MENU */}
+        {/* MOBILE MENU DRAWER */}
         <div
-          className={`fixed inset-0 top-[73px] bg-gradient-to-b from-[#e8810c] via-[#75440c] to-[#1a1a1a] z-10 transform transition-transform duration-300 ${menuOpen ? "translate-x-0" : "translate-x-full"
-            } lg:hidden overflow-y-auto`}
+          id="mobile-menu-drawer"
+          aria-hidden={!menuOpen}
+          inert={!menuOpen}
+          className={`fixed inset-0 top-[73px] z-10 transform transition-transform duration-300 ease-in-out lg:hidden overflow-y-auto bg-gradient-to-b from-[#e8810c] via-[#75440c] to-[#1a1a1a] ${
+            menuOpen ? "translate-x-0" : "translate-x-full"
+          }`}
         >
-          <div className="flex flex-col items-center justify-start min-h-full py-8 px-5">
+          <div className="flex flex-col min-h-full px-5 py-6 gap-5">
+
+            {/* ── User card ── */}
             {user ? (
-              <div className="w-full mb-8 bg-black/20 backdrop-blur-md rounded-2xl overflow-hidden border border-white/10">
-                <div className="p-5 flex flex-col items-center border-b border-white/10 bg-black/20">
-                  <img
-                    src={getAvatarUrl(user.avatar)}
-                    className="w-20 h-20 rounded-full shadow-sm mb-3 border border-white/20"
-                    alt="avatar"
-                  />
-                  <span className="text-white text-lg font-bold">
-                    {user.name}{activeSubscription ? ` - ${activeSubscription.planTitle}` : ""}
-                  </span>
-                  <span className="text-white/70 text-sm mt-1 text-center break-all">
-                    {user.email || "user@example.com"}
-                  </span>
-                </div>
-                <div className="py-2">
-                  {dropdownItems.map((item, idx) => {
-                    if (item.isDivider) {
-                      return <div key={idx} className="h-px bg-white/10 my-2 mx-5"></div>;
-                    }
-                    if (item.children) {
-                      const isOpen = openGroups[item.group];
-                      return (
-                        <div key={idx} className="w-full">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleGroup(item.group);
-                            }}
-                            className="w-full flex items-center justify-between px-5 py-3 hover:bg-white/5 transition"
-                          >
-                            <span className="text-[11px] font-bold text-white/60 uppercase tracking-wider">{item.group}</span>
-                            <ChevronDown size={14} className={`text-white/60 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-                          </button>
-                          <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}>
-                            <div className="bg-black/20 py-1 border-y border-white/5">
-                              {item.children.map((child, cIdx) => {
-                                const ChildIcon = child.icon;
-                                return (
-                                  <button
-                                    key={cIdx}
-                                    onClick={() => {
-                                      if (child.onClick) child.onClick();
-                                      else if (child.path) navigate(child.path);
-                                      setMenuOpen(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 pl-8 pr-5 py-3 text-white/90 hover:bg-white/10 hover:text-white transition-colors"
-                                  >
-                                    <ChildIcon size={18} className="text-white/60" />
-                                    <span className="font-medium">{child.label}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          if (item.onClick) item.onClick();
-                          else if (item.path) navigate(item.path);
-                          setMenuOpen(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-5 py-3 text-white/90 hover:bg-white/5 hover:text-white transition-colors"
-                      >
-                        <Icon size={20} className="text-white/60" />
-                        <span className="font-medium">{item.label}</span>
-                      </button>
-                    );
-                  })}
+              <div className="rounded-2xl bg-black/25 border border-white/10 overflow-hidden">
+                <div className="flex items-center gap-3 p-4">
+                  <div className="relative shrink-0">
+                    <img
+                      src={getAvatarUrl(user.avatar)}
+                      className="h-12 w-12 rounded-full border-2 border-white/30 object-cover shadow-md"
+                      alt="avatar"
+                    />
+                    {activeSubscription && (
+                      <span className="absolute -right-1 -top-1 text-base" title={activeSubscription.planTitle}>
+                        {planIconMap[activeSubscription.planTitle] || ""}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold text-white">{user.name}</p>
+                    <p className="truncate text-xs text-white/60">{user.email}</p>
+                    {walletBalance !== null && (
+                      <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-yellow-300">
+                        <Wallet size={12} /> {new Intl.NumberFormat("vi-VN").format(walletBalance)}đ
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="w-full mb-8">
-                <Link
-                  to="/login"
-                  onClick={() => setMenuOpen(false)}
-                  className="block w-full text-center bg-[#FF5A1F] hover:bg-[#C4400F] text-white font-bold text-[16px] px-4 py-3.5 rounded-full shadow-md transition-colors"
-                >
-                  {t("nav.login")}
-                </Link>
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full text-center bg-white text-orange-600 font-bold text-[16px] px-4 py-3.5 rounded-2xl shadow-md hover:bg-orange-50 transition-colors"
+              >
+                {t("nav.login")}
+              </Link>
+            )}
+
+            {/* ── MENU grid ── */}
+            <div>
+              <p className="mb-3 inline-flex rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-white">Menu</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: t("nav.home"), icon: Home, action: () => navigate("/") },
+                  { label: t("nav.about"), icon: Lightbulb, action: () => handleScrollToSection("about") },
+                  { label: t("nav.feedback"), icon: MessageSquare, action: () => handleScrollToSection("customer") },
+                  { label: t("nav.blog"), icon: FileText, action: () => navigate("/blog") },
+                  { label: t("nav.club"), icon: Dumbbell, action: () => navigate("/club") },
+                ].map((item, i) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => { item.action(); setMenuOpen(false); }}
+                      className="flex flex-col items-center gap-2 rounded-2xl border border-white/15 bg-slate-950/75 px-2 py-3 text-center transition-all hover:bg-slate-950/90 active:scale-95"
+                    >
+                      <Icon size={24} className="text-white/90" strokeWidth={1.5} />
+                      <span className="text-[11px] font-semibold leading-tight text-white">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── Dịch vụ ── */}
+            <div>
+              <p className="mb-3 inline-flex rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-white">{t("nav.services")}</p>
+              <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: ["admin", "trainer"].includes(user?.role) ? t("nav_dropdown.packages_admin") : t("nav_dropdown.packages"), icon: Package, action: () => handleScrollToSection("pricing") },
+                    { label: t("nav_dropdown.programs"), icon: Activity, action: () => handleScrollToSection("classes") },
+                    { label: t("nav_dropdown.trainers"), icon: Users, action: () => handleScrollToSection("trainers") },
+                  ].map((sub, i) => {
+                    const SubIcon = sub.icon;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => { sub.action(); setMenuOpen(false); }}
+                        className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/15 bg-slate-950/75 px-2 py-3 text-center transition-all hover:bg-slate-950/90 active:scale-95"
+                      >
+                        <SubIcon size={24} className="text-white/90" strokeWidth={1.5} />
+                        <span className="text-[11px] font-semibold leading-tight text-white">{sub.label}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* ── Công cụ ── */}
+            <div>
+              <p className="mb-3 inline-flex rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-white">{t("nav.tools")}</p>
+              <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: t("nav_user.exercise_system"), icon: Activity, path: "/exercises" },
+                    { label: t("nav_dropdown.tdee"), icon: Calculator, path: "/tdee-calculator" },
+                    { label: t("nav_dropdown.recipes"), icon: Utensils, path: "/cong-thuc-nau-an" },
+                    { label: t("nav_dropdown.mealplan"), icon: CalendarDays, path: "/mealplan" },
+                  ].map((sub, i) => {
+                    const SubIcon = sub.icon;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => { navigate(sub.path); setMenuOpen(false); }}
+                        className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/15 bg-slate-950/75 px-2 py-3 text-center transition-all hover:bg-slate-950/90 active:scale-95"
+                      >
+                        <SubIcon size={24} className="text-white/90" strokeWidth={1.5} />
+                        <span className="text-[11px] font-semibold leading-tight text-white">{sub.label}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* ── Workspace + account actions ── */}
+            {user && (
+              <div className="space-y-5">
+                <div>
+                  <p className="mb-3 inline-flex rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-white">
+                    {t("nav_user.workspaces")}
+                  </p>
+                  <div className="space-y-1.5">
+                    {workspaceItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.key}
+                          onClick={() => {
+                            navigate(item.path);
+                            setMenuOpen(false);
+                          }}
+                          className="flex min-h-11 w-full items-center gap-3 rounded-2xl border border-orange-400/30 bg-orange-500/20 px-4 py-3 text-sm font-semibold text-orange-100 transition-colors hover:bg-orange-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                        >
+                          <Icon size={18} className="text-orange-300" strokeWidth={1.5} />
+                          {item.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-3 inline-flex rounded-full bg-slate-950/80 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-white">
+                    {t("nav_user.account")}
+                  </p>
+                  <div className="space-y-1.5">
+                    {personalItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.path}
+                        onClick={() => { navigate(item.path); setMenuOpen(false); }}
+                        className="flex min-h-11 w-full items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold text-white/80 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                      >
+                        <Icon size={18} className="text-white/50" strokeWidth={1.5} />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => { handleLogout(); setMenuOpen(false); }}
+                    className="flex min-h-11 w-full items-center gap-3 rounded-2xl border border-red-400/20 bg-red-500/15 px-4 py-3 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                  >
+                    <LogOut size={18} strokeWidth={1.5} />
+                    {t("nav.logout")}
+                  </button>
+                  </div>
+                </div>
               </div>
             )}
-            
-            <ul className="w-full flex flex-col items-center gap-2">
-              {[
-                { label: t("nav.home"), action: () => navigate("/") },
-                { label: t("nav.about"), action: () => handleScrollToSection("about") },
-                { label: t("nav.services"), action: () => handleScrollToSection("pricing") },
-                { label: t("nav.feedback"), action: () => handleScrollToSection("customer") },
-                { label: t("nav.blog"), action: () => navigate("/blog") },
-                { label: t("nav.tools"), action: () => handleScrollToSection("tools") },
-                { label: t("nav.club"), action: () => navigate("/club") }
-              ].map((link, index) => (
-                <li key={index} className="w-full">
-                  <button
-                    onClick={() => {
-                      link.action();
-                      setMenuOpen(false);
-                    }}
-                    className="block text-center text-white/90 font-medium text-[17px] py-3.5 px-4 rounded-lg hover:bg-white/10 w-full transition-colors"
-                  >
-                    {link.label}
-                  </button>
-                </li>
-              ))}
-              
-              {isAdmin && (
-                <li className="w-full mt-2">
-                  <Link
-                    to="/admin"
-                    onClick={() => setMenuOpen(false)}
-                    className="block text-center text-[#FF5A1F] font-bold text-[17px] py-3.5 px-4 rounded-lg hover:bg-white/10 transition-colors bg-white/5"
-                  >
-                    {t("nav_user.admin_system")}
-                  </Link>
-                </li>
-              )}
-              {!isAdmin && hasTrainerAccess && (
-                <li className="w-full mt-2">
-                  <Link
-                    to="/trainer"
-                    onClick={() => setMenuOpen(false)}
-                    className="block text-center text-[#FF5A1F] font-bold text-[17px] py-3.5 px-4 rounded-lg hover:bg-white/10 transition-colors bg-white/5"
-                  >
-                    {t("nav_user.trainer_management")}
-                  </Link>
-                </li>
-              )}
-            </ul>
+
+            {/* ── Language ── */}
+            <div className="mt-auto pt-2 border-t border-white/10">
+              <LanguageSwitcher isSolidHeader={true} />
+            </div>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import { Flame, Plus, Repeat2, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import {
   changeCoachingHabitStatus,
@@ -11,6 +11,12 @@ import { CreateHabitForm } from "../today-dashboard/CreateHabitForm";
 import { HabitDefinitionActions } from "../today-dashboard/HabitDefinitionActions";
 
 const requestId = () => window.crypto.randomUUID();
+
+const STREAK_COLOR = (streak) => {
+  if (streak >= 14) return "text-emerald-400";
+  if (streak >= 7) return "text-orange-400";
+  return "text-gray-500";
+};
 
 export const TrainerHabitManager = ({ clientId, dateKey }) => {
   const queryClient = useQueryClient();
@@ -94,106 +100,154 @@ export const TrainerHabitManager = ({ clientId, dateKey }) => {
     "Không thể cập nhật thói quen lúc này.";
 
   return (
-    <section className="rounded-2xl border border-gray-700/40 bg-gray-900/70 p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="font-bold text-white">Thói quen hằng ngày</h2>
-          <p className="mt-1 text-xs leading-5 text-gray-400">
-            Habit HLV giao áp dụng mỗi ngày đến khi xóa hoặc gói tập hết buổi. Thói quen cá nhân chỉ hiển thị khi học viên chia sẻ.
-          </p>
+    <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-sm">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10">
+            <Repeat2 className="h-4 w-4 text-cyan-300" aria-hidden="true" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-slate-50">Thói quen hằng ngày</h2>
+            <p className="mt-0.5 max-w-2xl text-xs leading-5 text-slate-400">
+              Thói quen HLV giao được áp dụng mỗi ngày cho đến khi xóa hoặc gói tập kết thúc.
+            </p>
+          </div>
         </div>
-        <span className="text-xs font-semibold text-primary">
+        <span className="shrink-0 rounded-full bg-cyan-400/10 px-2.5 py-1 text-xs font-bold text-cyan-200">
           {habits.length} thói quen
         </span>
       </div>
 
-      {habitsQuery.isLoading ? (
-        <p className="mt-4 text-sm text-gray-400">Đang tải thói quen...</p>
-      ) : habitsQuery.isError ? (
-        <button
-          type="button"
-          onClick={() => habitsQuery.refetch()}
-          className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-red-300 hover:bg-red-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
-        >
-          <RefreshCw size={15} /> Tải lại
-        </button>
-      ) : habits.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-400">
-          Chưa có thói quen được chia sẻ hoặc giao.
-        </p>
-      ) : (
-        <ul className="mt-4 grid gap-2 md:grid-cols-2">
-          {habits.map((habit) => (
-            <li
-              key={habit._id}
-              className="rounded-xl border border-gray-700/50 p-3"
+      <div className="space-y-5 p-5">
+        {/* Habit list */}
+        {habitsQuery.isLoading ? (
+          <div className="space-y-2">
+            <div className="h-16 animate-pulse rounded-xl bg-gray-800/60" />
+            <div className="h-16 animate-pulse rounded-xl bg-gray-800/40" />
+          </div>
+        ) : habitsQuery.isError ? (
+          <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-4 text-red-300" role="alert">
+            <p className="text-sm">
+              {habitsQuery.error?.response?.data?.message ||
+                "Không thể tải thói quen của học viên. Vui lòng kiểm tra kết nối và thử lại."}
+            </p>
+            <button
+              type="button"
+              onClick={() => habitsQuery.refetch()}
+              className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 text-sm font-semibold text-red-300 hover:bg-red-500/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
             >
-              <h3 className="text-sm font-semibold text-white">
-                {habit.title}
-              </h3>
-              <p className="mt-1 text-xs text-gray-500">
-                {habit.createdByRole === "trainer"
-                  ? "HLV giao"
-                  : "Học viên chia sẻ"}
-                {" · " + habit.currentStreak + " ngày"}
-              </p>
-              {habit.createdByRole === "trainer" && (
-                <div className="mt-3">
-                  <HabitDefinitionActions
-                    habit={habit}
-                    disabled={command.isPending}
-                    variant="trainer"
-                    onEdit={setEditingHabit}
-                    onDelete={deleteHabit}
-                  />
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {editingHabit && (
-        <CreateHabitForm
-          dateKey={dateKey}
-          disabled={command.isPending}
-          trainerMode
-          initialHabit={editingHabit}
-          onUpdate={(data) => updateHabit(editingHabit, data)}
-          onCancel={() => setEditingHabit(null)}
-        />
-      )}
-
-      <CreateHabitForm
-        dateKey={dateKey}
-        disabled={command.isPending}
-        onCreate={createHabit}
-        trainerMode
-      />
-
-      <div className="mt-3" aria-live="polite">
-        {notice && <p className="text-sm text-emerald-300">{notice}</p>}
-        {command.error && (
-          <div className="text-sm text-red-300">
-            <p>{message}</p>
-            {failedCommand && (
-              <button
-                type="button"
-                onClick={() =>
-                  command.error?.response?.status === 409
-                    ? habitsQuery.refetch()
-                    : command.mutate(failedCommand)
-                }
-                disabled={command.isPending}
-                className="mt-2 min-h-11 rounded-lg px-3 py-2 font-semibold hover:bg-red-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-40"
+              <RefreshCw size={14} aria-hidden="true" /> Tải lại
+            </button>
+          </div>
+        ) : habits.length === 0 ? (
+          <div className="py-6 text-center">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-900">
+              <Repeat2 className="h-5 w-5 text-slate-400" aria-hidden="true" />
+            </div>
+            <p className="mt-3 text-sm font-semibold text-slate-200">
+              Chưa có thói quen
+            </p>
+            <p className="mt-1 text-sm text-slate-400">
+              Chưa có thói quen được chia sẻ hoặc giao.
+            </p>
+          </div>
+        ) : (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {habits.map((habit) => (
+              <li
+                key={habit._id}
+                className="rounded-xl border border-slate-800 bg-slate-900 p-4 transition-colors hover:border-slate-700"
               >
-                {command.error?.response?.status === 409
-                  ? "Tải dữ liệu mới"
-                  : "Thử lại"}
-              </button>
-            )}
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-sm font-semibold leading-5 text-slate-50">
+                    {habit.title}
+                  </h3>
+                  {habit.currentStreak > 0 && (
+                    <div className={`flex items-center gap-1 shrink-0 ${STREAK_COLOR(habit.currentStreak)}`}>
+                      <Flame className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span className="text-xs font-bold tabular-nums">{habit.currentStreak}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-slate-400">
+                  {habit.createdByRole === "trainer" ? "HLV giao" : "Học viên chia sẻ"}
+                  {habit.currentStreak > 0 && ` · ${habit.currentStreak} ngày liên tiếp`}
+                </p>
+                {habit.createdByRole === "trainer" && (
+                  <div className="mt-2.5">
+                    <HabitDefinitionActions
+                      habit={habit}
+                      disabled={command.isPending}
+                      variant="trainer"
+                      onEdit={setEditingHabit}
+                      onDelete={deleteHabit}
+                    />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Edit form */}
+        {editingHabit && (
+          <div className="border-t border-slate-800 pt-5">
+            <CreateHabitForm
+              dateKey={dateKey}
+              disabled={command.isPending}
+              trainerMode
+              initialHabit={editingHabit}
+              onUpdate={(data) => updateHabit(editingHabit, data)}
+              onCancel={() => setEditingHabit(null)}
+            />
           </div>
         )}
+
+        {/* Create form */}
+        <div className="border-t border-slate-800 pt-5">
+          <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-100">
+            <Plus className="h-4 w-4 text-cyan-300" aria-hidden="true" />
+            Giao thói quen mới
+          </p>
+          <CreateHabitForm
+            dateKey={dateKey}
+            disabled={command.isPending}
+            onCreate={createHabit}
+            trainerMode
+          />
+        </div>
+
+        {/* Feedback */}
+        <div aria-live="polite">
+          {notice && (
+            <p className="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+              {notice}
+            </p>
+          )}
+          {command.error && (
+            <div className="rounded-xl border border-red-900/40 bg-red-950/20 p-3 text-xs text-red-300">
+              <p>{message}</p>
+              {failedCommand && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    command.error?.response?.status === 409
+                      ? habitsQuery.refetch()
+                      : command.mutate(failedCommand)
+                  }
+                  disabled={command.isPending}
+                  className="mt-2 min-h-11 rounded-lg border border-red-500/20 bg-red-500/10 px-3 font-semibold hover:bg-red-500/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:opacity-40"
+                >
+                  {command.error?.response?.status === 409
+                    ? "Tải dữ liệu mới"
+                    : "Thử lại"}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

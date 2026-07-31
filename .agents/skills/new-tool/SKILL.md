@@ -1,12 +1,12 @@
 ---
 name: new-tool
-description: Tạo AI tool mới cho HT Assistant. Dùng khi thêm function-calling tool cho AI chatbot; bảo đảm đủ các file và đăng ký đúng.
+description: Tạo AI tool mới cho HT Assistant ở mode text-only hoặc Generative UI; bảo đảm contract, registry, quyền truy cập và phần frontend tùy chọn được đăng ký đúng.
 ---
 
 # $new-tool — Tạo AI Tool Mới
 
 > **Trigger:** User yêu cầu thêm tính năng mới cho AI chat (ví dụ: "cho AI kiểm tra lịch tập")
-> **Output:** Tool backend + UI Card frontend + registered trong cả 2 đầu
+> **Output:** Tool backend đã đăng ký; chỉ thêm UI Card frontend khi dữ liệu cần presentation có cấu trúc.
 
 ---
 
@@ -15,14 +15,26 @@ description: Tạo AI tool mới cho HT Assistant. Dùng khi thêm function-call
 ```
 □ Backend:  server/src/services/ai/tools/{name}.tool.js
 □ Registry: server/src/services/ai/tools/toolRegistry.js (import + entry)
-□ Card:     client/src/components/ChatWidget/cards/{Name}Card.jsx
-□ Bubble:   client/src/components/ChatWidget/ChatBubble.jsx (import + CARD_COMPONENTS)
-□ Skill:    .agents/skills/ai-chat-system.md (cập nhật File Map + Test checklist)
+□ Contract: tool luôn trả { text, uiCard? }
+□ Mode B:   client/src/components/ChatWidget/cards/{Name}Card.jsx
+□ Mode B:   client/src/components/ChatWidget/ChatBubble.jsx (import + CARD_COMPONENTS)
+□ Skill:    .agents/skills/ai-chat-system/SKILL.md (cập nhật File Map + Test checklist)
 ```
 
 ---
 
-## Bước 1: Xác định Tool Type
+## Bước 1: Chọn Response Mode và Tool Type
+
+Chọn đúng một response mode trước khi tạo file:
+
+| Mode | Dùng khi | Kết quả |
+|------|----------|---------|
+| **A — Text-only** | Câu trả lời ngắn, markdown đã đủ rõ, không cần tương tác hoặc layout riêng | `{ text }` |
+| **B — Generative UI** | Kết quả có cấu trúc, nhiều trường, danh sách hoặc hành động cần card để đọc nhanh | `{ text, uiCard }` |
+
+Không tạo UI Card chỉ để bọc lại một đoạn text. `uiCard` là optional; Tool Engine và Chat UI vẫn phải hoạt động khi tool chỉ trả `{ text }`.
+
+Sau đó xác định quyền truy cập:
 
 | Type | Ví dụ | `requiresAuth` | `requiresConfirmation` |
 |------|-------|:--------------:|:---------------------:|
@@ -43,18 +55,11 @@ Tạo file `server/src/services/ai/tools/{toolName}.tool.js`:
 
 import {Model} from "../../../models/{Model}.js";
 
-/**
- * {Mô tả chức năng}
- * @param {object} params - Parameters từ LLM
- * @param {{ userId: string, userRole: string }} context
- * @returns {{ text: string, uiCard: object|null }}
- */
 export async function {toolFunction}(params, context) {
   // 1. Auth check (nếu requiresAuth)
   if (!context.userId) {
     return {
       text: "Bạn cần đăng nhập để sử dụng tính năng này.",
-      uiCard: null,
     };
   }
 
@@ -63,21 +68,30 @@ export async function {toolFunction}(params, context) {
 
   // 3. Handle empty result
   if (!data || data.length === 0) {
-    return { text: "Không tìm thấy dữ liệu.", uiCard: null };
+    return { text: "Không tìm thấy dữ liệu." };
   }
 
   // 4. Build text cho LLM (markdown format, có links)
   const text = `...`;
 
-  // 5. Build UI Card data
-  const uiCard = {
-    cardType: "{cardType}",  // phải match CARD_COMPONENTS key
-    data: { ... },
-  };
-
-  return { text, uiCard };
+  // Mode A — text-only:
+  return { text };
 }
 ```
+
+Với Mode B, thay `return { text };` cuối function bằng:
+
+```javascript
+return {
+  text,
+  uiCard: {
+    cardType: "{cardType}", // phải match CARD_COMPONENTS key
+    data: { ... },
+  },
+};
+```
+
+Không thêm JSDoc mặc định. Chỉ thêm khi type/contract không thể hiểu rõ từ code hoặc user yêu cầu. Dù chọn mode nào, `text` vẫn bắt buộc để LLM có ngữ cảnh và để UI có fallback.
 
 **Pattern mẫu:** Xem `getTrainerInfo.tool.js` hoặc `checkWallet.tool.js`
 
@@ -102,7 +116,9 @@ Sửa `server/src/services/ai/tools/toolRegistry.js`:
 
 ---
 
-## Bước 4: Tạo UI Card (Frontend)
+## Bước 4: Tạo UI Card (Chỉ Mode B)
+
+Nếu chọn Mode A, bỏ qua Bước 4 và Bước 5.
 
 Tạo file `client/src/components/ChatWidget/cards/{Name}Card.jsx`:
 
@@ -142,7 +158,7 @@ export default function {Name}Card({ data }) {
 
 ---
 
-## Bước 5: Register Card trong ChatBubble
+## Bước 5: Register Card trong ChatBubble (Chỉ Mode B)
 
 Sửa `client/src/components/ChatWidget/ChatBubble.jsx`:
 
@@ -161,10 +177,10 @@ Sửa `client/src/components/ChatWidget/ChatBubble.jsx`:
 
 ## Bước 6: Cập Nhật Skill Doc
 
-Sửa `.agents/skills/ai-chat-system.md`:
+Sửa `.agents/skills/ai-chat-system/SKILL.md`:
 
 1. Thêm tool vào **File Map** (Backend table)
-2. Thêm card vào **File Map** (Frontend table)
+2. Nếu chọn Mode B, thêm card vào **File Map** (Frontend table)
 3. Thêm test case vào **Test checklist**
 
 ---
@@ -173,10 +189,13 @@ Sửa `.agents/skills/ai-chat-system.md`:
 
 ```
 □ Server khởi động không lỗi
-□ cd client && npm run build → exit 0
+□ node .agents/scripts/validate-tools.mjs → exit 0
+□ npm run test:unit:server → tool/registry tests pass
 □ Chat AI → hỏi câu trigger tool → nhận streaming response
-□ UI Card hiển thị đúng data
+□ Mode A → text hiển thị đúng khi không có uiCard
+□ Mode B → npm run build --prefix client → exit 0 và UI Card hiển thị đúng data
 □ Tool không gọi khi chưa đủ điều kiện
+□ Tool write yêu cầu confirmation trước khi thực thi
 ```
 
 ---
@@ -186,6 +205,8 @@ Sửa `.agents/skills/ai-chat-system.md`:
 | ❌ SAI | ✅ ĐÚNG |
 |--------|--------|
 | Tool trả text dài không format | Dùng markdown (bold, list, links) |
+| Tạo card cho mọi tool | Chỉ dùng Mode B khi structured UI tạo giá trị rõ ràng |
+| Text-only vẫn trả `uiCard: null` theo thói quen | Trả `{ text }`; giữ `uiCard` là optional |
 | cardType không match giữa BE và FE | Kiểm tra string match chính xác |
 | Tool write không có confirmation | Set `requiresConfirmation: true` |
 | Query `.find({})` không limit | Luôn có `.limit()` |

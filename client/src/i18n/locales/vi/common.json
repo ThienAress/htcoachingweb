@@ -20,11 +20,14 @@
     "mealplan": "Gợi ý thực đơn"
   },
   "nav_user": {
+    "workspaces": "Không gian làm việc",
+    "customer_management": "Quản lý khách hàng",
     "system_management": "Quản lý hệ thống",
     "admin_panel": "Quản trị",
     "f1_system": "Hệ thống khách F1",
     "exercise_system": "Hệ thống bài tập",
     "training_ops": "Nghiệp vụ huấn luyện",
+    "health_tracking": "Theo dõi sức khỏe",
     "customer_checkin": "Checkin khách hàng",
     "online_coaching": "Hệ thống Coach Online",
     "training_schedule": "Lịch tập khách hàng",

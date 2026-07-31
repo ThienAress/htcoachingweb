@@ -20,6 +20,7 @@ import {
   duplicateWorkoutPlan,
 } from "../../services/workoutPlan.service";
 import PlanModal from "./WorkoutPlanModal";
+import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigation";
 
 // ===== STATUS CONFIG =====
 const STATUS_MAP = {
@@ -34,7 +35,7 @@ const formatDate = (d, locale = "vi-VN") => {
 };
 
 // ===== MAIN COMPONENT =====
-const WorkoutPlan = () => {
+const WorkoutPlan = ({ embedded = false }) => {
   const { t, i18n } = useTranslation("coaching");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -119,7 +120,7 @@ const WorkoutPlan = () => {
   };
 
   const handleEdit = (plan) => {
-    navigate(`/workout-plans/${plan._id}`);
+    navigate(getWorkoutPlanWorkspacePath(plan._id, { embedded }));
   };
 
   const handleModalClose = () => {
@@ -135,9 +136,9 @@ const WorkoutPlan = () => {
   return (
     <>
       <SEO title={t("seo_plan")} description={t("seo_plan_desc")} noindex />
-      <Header />
+      {!embedded && <Header />}
 
-      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pt-28 pb-8">
+      <main className={`bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pb-8 ${embedded ? "min-h-[calc(100vh-3rem)] pt-8" : "min-h-screen pt-28"}`}>
         <div className="container-custom">
           {/* ===== HERO ===== */}
           <div className="text-center mb-8">
@@ -332,8 +333,8 @@ const WorkoutPlan = () => {
         </div>
       </main>
 
-      <ChatIcons />
-      <Footer />
+      {!embedded && <ChatIcons />}
+      {!embedded && <Footer />}
 
       {/* Modal */}
       {modalOpen && !clientsLoading && (
@@ -344,7 +345,7 @@ const WorkoutPlan = () => {
           onClose={handleModalClose}
           onSaved={(newPlanId) => {
             handleModalClose();
-            navigate(`/workout-plans/${newPlanId}`);
+            navigate(getWorkoutPlanWorkspacePath(newPlanId, { embedded }));
           }}
         />
       )}

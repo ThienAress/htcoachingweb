@@ -1,12 +1,13 @@
 ---
 name: pre-deploy
-description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 7 gates (audit quick → ai-check → qa → ui-check → seo-check → skill-drift → ship). Gom TẤT CẢ findings, yêu cầu fix hết, re-check cho đến khi ALL PASS → mới được push. Mỗi workflow con vẫn chạy riêng lẻ được bằng lệnh riêng.
+description: Pipeline điều phối 7 gates trước push/deploy; gom findings, tái sử dụng evidence giữa QA và ship, và chỉ cho READY khi mọi gate bắt buộc pass.
 ---
 
-# $pre-deploy — Full Pipeline Trước Khi Push Code
+# $pre-deploy — Full Release Pipeline
 
-> **Nguyên tắc:** Chạy 7 gates tuần tự. Gom tất cả findings. Fix hết. Re-check. Chỉ khi ALL PASS → mới được push/deploy.
-> **Mỗi gate vẫn chạy riêng lẻ được:** `$audit quick`, `$ai-check`, `$qa`, `$ui-check`, `$seo-check`, `$ship`.
+`$pre-deploy` điều phối các workflow chuyên trách. Nó không chép hoặc chạy trùng logic build/test của `$qa`, và không thay quyền quyết định cuối của `$ship`.
+
+Các gate độc lập có thể chạy song song khi không phụ thuộc nhau. Gate 7 chỉ chạy sau khi đã gom evidence. Nếu một gate fail, vẫn có thể hoàn tất các kiểm tra read-only an toàn để báo cáo đầy đủ; tuyệt đối không deploy.
 
 ---
 
@@ -14,41 +15,19 @@ description: Pipeline đầy đủ trước khi push code. Chạy tuần tự 7 
 
 | Lệnh | Mô tả |
 |-------|--------|
-| `$pre-deploy` | Full pipeline — 7 gates tuần tự |
-| `$pre-deploy skip-audit` | Bỏ qua audit (khi vừa chạy `$audit` xong gần đây) |
-| `$pre-deploy skip-ai` | Bỏ qua ai-check (khi không sửa file AI nào) |
-| `$pre-deploy skip-qa` | Bỏ qua QA (khi vừa chạy `$qa` xong gần đây) |
-| `$pre-deploy skip-ui` | Bỏ qua ui-check (khi chỉ sửa backend) |
-| `$pre-deploy skip-drift` | Bỏ qua skill-drift (khi chỉ fix bug nhỏ) |
+| `$pre-deploy` | Full pipeline — 7 gates, có thể song song các gate độc lập |
+| `$pre-deploy skip-audit` | Chỉ bỏ qua khi có report hợp lệ cho đúng working tree |
+| `$pre-deploy skip-ai` | Bỏ qua khi diff không chạm hệ thống AI |
+| `$pre-deploy skip-qa` | Chỉ bỏ qua khi có release QA evidence hợp lệ cho đúng working tree |
+| `$pre-deploy skip-ui` | Bỏ qua khi diff không chạm UI/layout/CSS/interaction |
 
 ---
 
 ## Pipeline Flow
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                              $pre-deploy PIPELINE                                       │
-│                                                                                         │
-│  Gate 1       Gate 2       Gate 3      Gate 4       Gate 5       Gate 6      Gate 7     │
-│  ┌────────┐  ┌────────┐  ┌───────┐  ┌────────┐  ┌──────────┐  ┌───────┐  ┌────────┐   │
-│  │$audit  │─▶│/ai-    │─▶│ $qa   │─▶│/ui-    │─▶│/seo-     │─▶│skill- │─▶│ $ship  │   │
-│  │ quick  │  │ check  │  │       │  │ check  │  │ check    │  │ drift │  │        │   │
-│  └────────┘  └────────┘  └───────┘  └────────┘  └──────────┘  └───────┘  └────────┘   │
-│       │           │           │          │            │            │           │         │
-│       ▼           ▼           ▼          ▼            ▼            ▼           ▼         │
-│   findings    findings    test results findings    findings    warnings     GO/NO-GO    │
-│                                                                                         │
-│  ════════════════════════════════════════════════════════════════════════════            │
-│                    GOM TẤT CẢ FINDINGS                                                  │
-│                    ↓                                                                     │
-│              FIX → RE-CHECK → ALL PASS?                                                 │
-│                    ↓               ↓                                                     │
-│                   NO              YES                                                    │
-│                    ↓               ↓                                                     │
-│              FIX TIẾP        ✅ READY TO PUSH                                           │
-│                                                                                         │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
-```
+`$audit quick` → `$ai-check` → `$qa` → `$ui-check` → `$seo-check` → `npm run agents:validate` → `$ship`.
+
+Gom findings và evidence sau sáu gate đầu. Fix/invalidate/re-check phần bị ảnh hưởng, sau đó để `$ship` quyết định `GO`, `GO WITH WARNINGS` hoặc `NO-GO`.
 
 ---
 
@@ -89,22 +68,16 @@ Chạy `$ai-check` — kiểm tra hệ thống HT Assistant.
 
 ---
 
-## Gate 3: QA Check 🧪 (Tests)
+## Gate 3: QA Evidence 🧪
 
-Chạy `$qa quick` — build + unit tests + integration tests.
+Chạy `$qa` đúng một lần. `$qa` sở hữu release build, client unit tests, server unit/integration tests và trạng thái E2E.
 
-**Focus:** Verify code không broken, tests pass.
+**Output gate:** QA evidence theo contract tại `.agents/skills/qa/SKILL.md`.
 
-**Hành vi:**
-- `cd client && npm run build` → phải exit 0
-- `cd client && npx vitest run` → client unit tests
-- `cd server && npx vitest run` → server unit + integration tests
-
-**Output gate:** Test results (X passed, Y failed) hoặc "All pass ✓"
-
-**SKIP khi:** Không có thay đổi logic code (chỉ sửa docs, configs, styling).
-
-> ⚠️ E2E tests KHÔNG chạy trong pre-deploy pipeline (cần dev servers). Chạy riêng bằng `$qa e2e`.
+- Không dùng `$qa quick` làm release evidence.
+- Chỉ skip khi đã có evidence đúng `HEAD`, working tree, scope và chưa hết hạn.
+- Chuyển nguyên evidence sang Gate 7; `$ship` không chạy lại build/tests nếu working tree chưa thay đổi.
+- E2E phải là `PASS`, hoặc `SKIP` kèm lý do và đánh giá rủi ro; không được báo pass giả.
 
 ---
 
@@ -143,49 +116,34 @@ Chạy `$seo-check` — quét tất cả trang public.
 
 ---
 
-## Gate 6: Skill Drift 📡 (AI Knowledge Freshness)
+## Gate 6: Agent-System Validation 📡
 
-Detect-only — kiểm tra skill files có bị lỗi thời không. **KHÔNG tự rewrite, KHÔNG block deploy.**
+Chạy validator canonical; không hardcode lại danh sách skill hoặc tên tài liệu trong workflow này:
 
-**Focus:** Phát hiện drift giữa codebase thực tế và nội dung skill files.
-
-**Hành vi — 4 checks nhanh:**
-
-1. **AI Tools drift**: So sánh files trong `server/src/services/ai/tools/*.tool.js` vs danh sách trong `ai-chat-system.md` → báo nếu có tool mới chưa documented
-2. **Test count drift**: Đếm test files trong `client/src/**/__tests__/` + `server/src/**/__tests__/` + `e2e/` → so với số ghi trong `tdd.md` → báo nếu lệch >2 files
-3. **Known issues drift**: Check nhanh các issues trong `known_issues.md` còn đúng không (file tồn tại? pattern vẫn còn?)
-4. **By-design sync**: Verify by-design list trong `audit-playbook.md` khớp với `known_issues.md`
-
-**Output gate:** Warnings hoặc "No drift ✓"
-
-**KHÔNG block deploy** — chỉ output warnings dạng:
-```
-⚠️ SKILL DRIFT DETECTED:
-- ai-chat-system.md: 1 new tool file not documented (newTool.tool.js)
-- tdd.md: test count changed (10 → 12 files)
-→ Recommend: run $goad on affected files after deploy
+```bash
+npm run agents:validate
 ```
 
-**SKIP khi:** Không có thay đổi nào trong `server/src/services/ai/tools/`, `server/src/**/__tests__/`, `client/src/**/__tests__/`, `e2e/`.
+Validator kiểm tra cấu trúc, frontmatter, references, commands và các drift có thể tự động phát hiện trong `AGENTS.md`/`.agents/`.
+
+- Exit code khác `0`: gate `FAIL`, release `NO-GO`.
+- Warning MED/LOW không làm gate fail nếu được document đầy đủ.
+- Không skip trước release.
+- Không tự rewrite skill trong pipeline; dùng `$goad` trong task riêng sau khi user duyệt.
 
 ---
 
-## Gate 7: Ship 🚢 (Deploy Gate)
+## Gate 7: Ship 🚢
 
-Chạy `$ship` — pre-deploy checklist cứng.
+Chạy `$ship` với QA evidence từ Gate 3, SEO report từ Gate 5 và toàn bộ findings đã gom.
 
-**Focus:** Build, Tests, Security, SEO basics, Cleanup.
+`$ship` validate evidence rồi chạy security, cleanup và release decision. Nếu `$ship` chạy lại build/tests dù evidence còn hợp lệ, đó là lỗi workflow.
 
-**Hành vi:**
-- `npm run build` → phải pass
-- `vitest run` (client + server) → phải pass
-- Security scan (IDOR, CSRF timing-safe, CSP, safeLog, `npm run security:audit`, security.txt) → phải pass
-- SEO basics (nếu có route changes) → phải pass
-- Cleanup check → phải pass
+**Output gate:** `GO`, `GO WITH WARNINGS` hoặc `NO-GO`.
 
-**Output gate:** GO / NO-GO
-
-**Gate này là hard gate:** 1 item FAIL = NO-GO. Không tiếp tục.
+- Gate bắt buộc `FAIL`/`BLOCKED`, hoặc còn `BLOCK`/`HIGH` → `NO-GO`.
+- MED chỉ được chấp nhận khi gate vẫn pass và có evidence, residual risk, lý do, owner, follow-up.
+- MED không được dùng để hạ cấp build/test/security failure.
 
 ---
 
@@ -199,11 +157,11 @@ Sau khi chạy xong 7 gates, tổng hợp:
 
 [Gate 1/7] Audit Quick      ✅ Clean / ⚠️ X findings / ⏭️ SKIP
 [Gate 2/7] AI Check         ✅ Pass / ⚠️ X findings / ⏭️ SKIP
-[Gate 3/7] QA Check         ✅ All pass (X tests) / ❌ Y failed / ⏭️ SKIP
+[Gate 3/7] QA Evidence      ✅ PASS (valid) / ❌ FAIL / ⛔ BLOCKED
 [Gate 4/7] UI Check (?/40)  ✅ Pass / ⚠️ X findings / ⏭️ SKIP
 [Gate 5/7] SEO Check        ✅ Pass / ⚠️ X findings / ⏭️ SKIP
-[Gate 6/7] Skill Drift      ✅ No drift / ⚠️ X warnings / ⏭️ SKIP
-[Gate 7/7] Ship             ✅ GO / ❌ NO-GO
+[Gate 6/7] Agent Validation ✅ PASS / ⚠️ PASS WITH WARNINGS / ❌ FAIL
+[Gate 7/7] Ship             ✅ GO / ⚠️ GO WITH WARNINGS / ❌ NO-GO
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -211,7 +169,7 @@ Sau khi chạy xong 7 gates, tổng hợp:
 
 | # | Gate | Finding | File | Severity | Category |
 |---|------|---------|------|:--------:|----------|
-| 1 | Ship | Build failed | - | 🔴 BLOCK | Build |
+| 1 | QA | Release build failed | - | 🔴 BLOCK | Build |
 | 2 | Audit | Missing CSRF on route | file:line | 🔴 HIGH | Security |
 | 3 | AI | Prompt links to /online-coaching | systemPrompt.js | 🔴 HIGH | AI |
 | 4 | UI | Bounce easing in Hero | file:line | 🔴 HIGH | Slop |
@@ -223,15 +181,17 @@ Sau khi chạy xong 7 gates, tổng hợp:
 🔴 BLOCKING (must fix before push):
 - #1 Build failed — fix build errors first
 - #2 Missing CSRF — add csrfProtection middleware
+- #3 AI prompt exposes restricted route — correct prompt policy
+- #4 Critical UI violation — fix before release
 
 ⚠️ SHOULD FIX (strongly recommended):
-- #3 Bounce easing — change to power3.out
-- #4 Missing JSON-LD — add Article schema
-- #5 Gray on color — use same-hue lighter shade
+- #5 Missing JSON-LD — add Article schema or document accepted MED
+- #6 Gray on color — correct contrast or document accepted MED
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RESULT: ❌ NOT READY — Fix 2 blocking + 3 warnings trước khi push
-        ✅ READY TO PUSH — All gates passed, 0 findings
+RESULT: ❌ NOT READY — Gate fail hoặc còn BLOCK/HIGH
+        ⚠️ READY WITH WARNINGS — All required gates pass; MED documented
+        ✅ READY TO PUSH — All required gates pass, no significant findings
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -256,8 +216,8 @@ RESULT: ❌ NOT READY — Fix 2 blocking + 3 warnings trước khi push
 
 ⚠️ READY WITH WARNINGS khi:
 - 0 findings 🔴
-- Có findings 🟡 MED (documented, sẽ fix sau)
-- Ship gate = GO
+- Có findings 🟡 MED với evidence, residual risk, reason, owner và follow-up
+- Ship gate = GO WITH WARNINGS
 
 ❌ NOT READY khi:
 - Còn bất kỳ finding 🔴 nào
@@ -273,12 +233,13 @@ RESULT: ❌ NOT READY — Fix 2 blocking + 3 warnings trước khi push
 | "fix all 🔴" | Fix tất cả BLOCK + HIGH findings |
 | "fix all" | Fix tất cả findings |
 | "fix #2, #3" | Fix findings cụ thể |
-| "skip #5, push" | Ghi nhận skip, chỉ push nếu không còn 🔴 |
+| "skip #5, push" | Document MED đầy đủ; chỉ GO WITH WARNINGS nếu mọi gate pass và không còn 🔴 |
 
 **Sau khi fix → AI tự động:**
-1. Chạy `npm run build` verify
-2. Re-check chỉ các gates có findings (không chạy lại toàn bộ)
-3. Cập nhật report → confirm READY hoặc còn findings
+1. Invalidate evidence bị ảnh hưởng bởi diff mới
+2. Re-check chỉ gate/lệnh bị ảnh hưởng và tạo evidence mới
+3. Chạy lại `$ship` với evidence cập nhật
+4. Cập nhật report → confirm READY hoặc còn findings
 
 ---
 

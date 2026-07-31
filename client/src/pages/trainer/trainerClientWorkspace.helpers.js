@@ -19,7 +19,8 @@ export const getTrainerClientId = (client) => {
 export const normalizeTrainerClientTab = (value) =>
   VALID_TAB_IDS.has(value) ? value : "overview";
 
-export const buildTrainerClientWorkspacePath = (
+const buildTrainerWorkspacePath = (
+  basePath,
   clientId,
   { tab = "overview", dateKey = "" } = {},
 ) => {
@@ -29,11 +30,18 @@ export const buildTrainerClientWorkspacePath = (
   if (DATE_KEY_PATTERN.test(dateKey)) params.set("date", dateKey);
   const query = params.toString();
   return (
-    "/trainer/clients/" +
+    basePath +
+    "/" +
     encodeURIComponent(getTrainerClientId({ _id: clientId })) +
     (query ? "?" + query : "")
   );
 };
+
+export const buildTrainerClientWorkspacePath = (clientId, options) =>
+  buildTrainerWorkspacePath("/trainer/clients", clientId, options);
+
+export const buildTrainerHealthWorkspacePath = (clientId, options) =>
+  buildTrainerWorkspacePath("/trainer/health/clients", clientId, options);
 
 const numberLabel = (value) =>
   Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 2 });

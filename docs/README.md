@@ -22,6 +22,7 @@ nguồn canonical trước khi thay đổi code.
 - [Today Dashboard spec](./specs/today-dashboard.md)
 - [Wellness targets spec](./specs/wellness-targets.md)
 - [Trainer client workspace spec](./specs/trainer-client-workspace.md)
+- [Workspace navigation spec](./specs/workspace-navigation.md)
 - [Release checklist](./operations/release-checklist.md)
 - [Incident runbook](./operations/runbooks/incident-runbook.md)
 - [Today Dashboard Release B runbook](./operations/runbooks/today-dashboard-release-b.md)

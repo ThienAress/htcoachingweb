@@ -28,6 +28,9 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 012 | Tách quản lý học viên khỏi Coach Online | P1 | M | 009, 010, 011 | IMPLEMENTED / LOCAL VERIFIED |
 | 013 | Đơn giản hóa quản lý mục tiêu và thói quen của học viên | P1 | M | 011, 012 | DONE / LOCAL VERIFIED |
 | 014 | Chuẩn hóa thói quen hằng ngày và báo cáo tuần theo tháng | P1 | M | 013 | DONE / LOCAL VERIFIED |
+| 015 | Mở luồng Theo dõi sức khỏe từ Nghiệp vụ huấn luyện | P1 | S | 012, 014 | DONE / LOCAL VERIFIED |
+| 016 | Rút gọn dropdown và gom nghiệp vụ vào Quản lý khách hàng | P1 | M | 012, 015 | IMPLEMENTED / LOCAL VERIFIED — VISUAL MANUAL PENDING |
+| 017 | Harden agent governance và loại bỏ instruction drift | P1 | M | — | DONE / VERIFIED |
 
 ## Dependency Notes
 
@@ -41,6 +44,11 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 - Plan 008 depends on 007 vì dữ liệu test phải được đồng bộ vào đúng runtime đã deploy để kiểm tra Customer Dashboard end-to-end.
 - Plan 009 depends on 003F, 006 và 008 vì biểu đồ dùng read model tiến trình, product shell và snapshot local đã xác minh.
 - Plan 012 depends on 009-011 vì workspace tái sử dụng progress presentation, module completion và wellness targets đã hoàn tất.
+- Plan 015 depends on 012 và 014 vì nó tái sử dụng client workspace, ownership
+  Order hiện có và contract Habit/Wellness đã ổn định.
+- Plan 016 depends on 012 và 015 vì nó dùng Trainer workspace và health entry hiện có
+  làm nền để tổ chức lại toàn bộ điều hướng nghiệp vụ.
+- Plan 017 độc lập với product roadmap; chỉ harden instruction system và không chạm Doppler/environment.
 
 ## Findings Considered and Rejected
 

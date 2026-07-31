@@ -1,12 +1,83 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, Menu, X, Users, CalendarDays, ChevronDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Home,
+  Menu,
+  X,
+  Users,
+  HeartPulse,
+  CalendarDays,
+  UserCheck,
+  Sparkles,
+  FileText,
+  Dumbbell,
+  TrendingUp,
+  ChevronDown,
+  SidebarClose,
+  SidebarOpen,
+} from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { getMySubscription } from "../services/trainerSubscription.service";
+import { canAccessF1 } from "../utils/trainerEntitlements";
+import {
+  getTrainerNavigationGroups,
+  isTrainerNavigationItemActive,
+} from "../navigation/workspaceNavigation";
 
 const TrainerLayout = () => {
   const location = useLocation();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const sidebarRef = useRef(null);
+  const { user } = useAuth();
+  const needsSubscription = Boolean(user && user.role !== "admin");
+  const { data: subscription } = useQuery({
+    queryKey: ["route-subscription", user?._id],
+    enabled: needsSubscription,
+    queryFn: () => getMySubscription().then((response) => response.data.data),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const f1Allowed = canAccessF1(user, subscription);
+  const isNavItemActive = (itemKey) =>
+    isTrainerNavigationItemActive(itemKey, location.pathname);
 
+  // Mobile overlay state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Desktop collapse state
+  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  const isSidebarHidden = isDesktopViewport
+    ? isDesktopCollapsed
+    : !isSidebarOpen;
+
+  const sidebarRef = useRef(null);
+  const mobileMenuButtonRef = useRef(null);
+
+  const closeMobileSidebar = () => {
+    setIsSidebarOpen(false);
+    requestAnimationFrame(() => mobileMenuButtonRef.current?.focus());
+  };
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const updateViewport = () => setIsDesktopViewport(mediaQuery.matches);
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+    return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isSidebarOpen) return undefined;
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsSidebarOpen(false);
+        mobileMenuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isSidebarOpen]);
+
+  // Click outside → đóng sidebar mobile
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -21,6 +92,7 @@ const TrainerLayout = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isSidebarOpen]);
 
+  // Khoá scroll body khi sidebar mobile đang mở
   useEffect(() => {
     if (isSidebarOpen) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
@@ -29,26 +101,32 @@ const TrainerLayout = () => {
     };
   }, [isSidebarOpen]);
 
-  const navGroups = [
-    {
-      key: "clients",
-      label: "Khách hàng",
-      items: [
-        { path: "/trainer", label: "Khách của tôi", icon: Users },
-        { path: "/training-schedule", label: "Lịch tập khách hàng", icon: CalendarDays },
-      ],
-    },
+  const navigationIconMap = {
+    clients: Users,
+    health: HeartPulse,
+    checkin: UserCheck,
+    coaching: Sparkles,
+    schedule: CalendarDays,
+    workoutPlans: FileText,
+    exercises: Dumbbell,
+    f1Customers: TrendingUp,
+  };
+  const navGroups = getTrainerNavigationGroups({ f1Allowed }).map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      icon: navigationIconMap[item.key],
+    })),
+  }));
 
-  ];
-
-  // Only show groups that have items
   const visibleGroups = navGroups.filter((g) => g.items.length > 0);
 
-  // Auto-expand group containing active page
   const getInitialOpen = () => {
     const open = {};
     visibleGroups.forEach((group) => {
-      const hasActive = group.items.some((item) => location.pathname === item.path);
+      const hasActive = group.items.some((item) =>
+        isNavItemActive(item.key),
+      );
       open[group.key] = hasActive;
     });
     if (!Object.values(open).some(Boolean) && visibleGroups.length > 0) {
@@ -64,41 +142,60 @@ const TrainerLayout = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex min-h-screen bg-slate-100 text-slate-950">
+      {/* ── Mobile overlay ── */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
+
+      {/* ── Sidebar ── */}
       <aside
         id="trainer-sidebar"
         ref={sidebarRef}
-        className={`
-          fixed md:sticky top-0 left-0 w-64 bg-[#1C2D42] shadow-lg z-40
-          transition-transform duration-300 ease-in-out
-          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-          min-h-screen overflow-y-auto
-        `}
+        aria-hidden={isSidebarHidden}
+        inert={isSidebarHidden}
+        className={[
+          // Mobile: fixed overlay
+          "fixed top-0 left-0 z-40 min-h-screen",
+          // Desktop: sticky, trong flow, animate width
+          "md:sticky md:shrink-0 md:overflow-hidden",
+          // Mobile transform
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          // Desktop width animate
+          isDesktopCollapsed ? "md:w-0" : "md:w-64",
+          // Shared
+          "w-64 bg-slate-900 shadow-lg transition-all duration-200 ease-out",
+        ].join(" ")}
       >
-        <div className="relative h-full flex flex-col text-white">
-          {/* Nút đóng trên mobile */}
+        <div className="relative h-full flex flex-col text-white w-64 min-h-screen overflow-y-auto">
+          {/* Nút đóng — mobile only */}
           <button
-            onClick={() => setIsSidebarOpen(false)}
-            className="absolute top-4 right-4 p-1 rounded-md text-white/60 hover:bg-white/10 transition-colors md:hidden"
+            onClick={closeMobileSidebar}
+            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:hidden"
             aria-label="Đóng menu"
           >
             <X className="w-5 h-5" />
           </button>
 
           {/* Branding */}
-          <div className="flex items-center gap-2 p-4 border-b border-white/10">
+          <div className="flex items-center justify-between border-b border-white/10 p-5">
             <div>
-              <h3 className="text-lg font-bold tracking-tight leading-tight">
+              <p className="text-lg font-bold leading-tight tracking-tight">
                 HTCOACHING
-              </h3>
-              <p className="text-xs text-white/60">Trainer Panel</p>
+              </p>
+              <p className="text-xs text-slate-400">Quản lý khách hàng</p>
             </div>
+            <button
+              onClick={() => setIsDesktopCollapsed(true)}
+              className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+              aria-label="Thu sidebar"
+              title="Thu sidebar"
+            >
+              <SidebarClose className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Navigation Groups */}
@@ -109,11 +206,12 @@ const TrainerLayout = () => {
                 <div key={group.key}>
                   <button
                     onClick={() => toggleGroup(group.key)}
-                    className="w-full flex items-center justify-between px-4 py-2 text-[11px] font-bold text-white/50 uppercase tracking-widest hover:text-white/80 transition-colors cursor-pointer"
+                    className="flex min-h-11 w-full cursor-pointer items-center justify-between rounded-lg px-4 py-2 text-left text-xs font-bold uppercase tracking-widest text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                    aria-expanded={isOpen}
                   >
-                    <span>{group.label}</span>
+                    <span className="flex-1 pr-2 leading-relaxed">{group.label}</span>
                     <ChevronDown
-                      className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                      className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                     />
                   </button>
                   <div
@@ -124,23 +222,20 @@ const TrainerLayout = () => {
                     <ul className="space-y-1 pb-2">
                       {group.items.map((item) => {
                         const Icon = item.icon;
-                        const isActive =
-                          item.path === "/trainer"
-                            ? location.pathname === "/trainer" ||
-                              location.pathname.startsWith("/trainer/clients/")
-                            : location.pathname === item.path;
+                        const isActive = isNavItemActive(item.key);
                         return (
                           <li key={item.path}>
                             <Link
                               to={item.path}
                               onClick={() => setIsSidebarOpen(false)}
                               className={`
-                                flex items-center gap-3 px-4 py-2 rounded-lg transition-colors
+                                flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 transition-colors
                                 ${
                                   isActive
-                                    ? "bg-white/20 text-white font-medium"
-                                    : "text-white/80 hover:bg-white/10 hover:text-white"
+                                    ? "bg-slate-700 text-white font-semibold"
+                                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
                                 }
+                                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400
                               `}
                             >
                               <Icon className="w-5 h-5" />
@@ -156,12 +251,12 @@ const TrainerLayout = () => {
             })}
           </nav>
 
-          {/* Nút về trang chủ */}
+          {/* Trang chủ */}
           <div className="p-4 border-t border-white/10">
             <Link
               to="/"
               onClick={() => setIsSidebarOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 rounded-lg text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+              className="flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
             >
               <Home className="w-5 h-5" />
               <span>Trang chủ</span>
@@ -170,12 +265,14 @@ const TrainerLayout = () => {
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0">
-        {/* Sticky top bar trên mobile (giữ nguyên logic, chỉ đổi màu) */}
-        <div className="md:hidden sticky top-0 z-20 bg-[#1C2D42] border-b border-white/10 px-4 py-3 flex items-center gap-3 shadow-sm">
+      {/* ── Main content ── */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Topbar mobile */}
+        <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-white/10 bg-slate-900 px-4 py-3 shadow-sm md:hidden">
           <button
+            ref={mobileMenuButtonRef}
             onClick={() => setIsSidebarOpen(true)}
-            className="p-2 hover:bg-white/10 rounded-lg text-white"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
             aria-label="Mở menu huấn luyện viên"
             aria-expanded={isSidebarOpen}
             aria-controls="trainer-sidebar"
@@ -183,13 +280,36 @@ const TrainerLayout = () => {
             <Menu aria-hidden="true" className="w-5 h-5" />
           </button>
           <div className="flex-1 text-center font-semibold text-white">
-            HTCOACHING Trainer
+            Quản lý khách hàng
           </div>
         </div>
-        <div className="p-4 md:p-6">
+
+        {/* Floating desktop toggle button when collapsed */}
+        {isDesktopCollapsed && (
+          <button
+            onClick={() => setIsDesktopCollapsed(false)}
+            className="fixed top-4 left-4 z-40 hidden md:flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-slate-300 shadow-md hover:bg-slate-800 hover:text-white transition-colors"
+            aria-label="Mở sidebar"
+            title="Mở sidebar"
+          >
+            <SidebarOpen className="w-5 h-5" aria-hidden="true" />
+          </button>
+        )}
+
+        <main className={`flex-1 flex flex-col ${
+          location.pathname === '/trainer' ||
+          location.pathname.startsWith('/trainer/health') ||
+          location.pathname.startsWith('/trainer/clients') ||
+          location.pathname === '/trainer/checkin' ||
+          location.pathname === '/trainer/coaching' ||
+          location.pathname.startsWith('/trainer/schedule') ||
+          location.pathname.startsWith('/trainer/workout-plans')
+            ? ''
+            : 'p-4 md:p-6 xl:p-8'
+        }`}>
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

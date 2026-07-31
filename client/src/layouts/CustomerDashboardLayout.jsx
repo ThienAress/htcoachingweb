@@ -6,7 +6,10 @@ import {
   TrendingUp,
   UserRound,
   Utensils,
+  SidebarOpen,
+  SidebarClose,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { NotificationCenter } from "../components/NotificationCenter";
 import { useAuth } from "../context/AuthContext";
@@ -33,13 +36,13 @@ const initialsFor = (name = "Học viên") =>
     .map((part) => part[0]?.toUpperCase())
     .join("") || "HV";
 
-/* ── Sidebar nav (desktop) ── */
+/* ── Sidebar nav ── */
 const CustomerNav = ({ activeSection, dateKey, mobile = false }) => (
   <nav
     aria-label="Điều hướng bảng theo dõi"
     className={
       mobile
-        ? "grid grid-cols-5 border-t border-slate-800 bg-slate-950"
+        ? "grid grid-cols-5"
         : "space-y-0.5"
     }
   >
@@ -83,6 +86,17 @@ const CustomerNav = ({ activeSection, dateKey, mobile = false }) => (
 const CustomerDashboardLayout = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const updateViewport = () => setIsDesktopViewport(mediaQuery.matches);
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+    return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
+
   const today = getVietnamDateKey();
   const dateKey = dashboardDateFromPath(location.pathname, today);
   const activeSection = dashboardSectionFromPath(location.pathname);
@@ -102,7 +116,15 @@ const CustomerDashboardLayout = () => {
 
       <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-[1600px] gap-3 lg:gap-4">
         {/* ── Sidebar ── */}
-        <aside className="sticky top-0 hidden h-[calc(100vh-2rem)] w-64 shrink-0 flex-col rounded-2xl bg-slate-900 p-5 shadow-2xl ring-1 ring-white/[0.06] lg:flex">
+        <aside
+          className={[
+            "sticky top-0 hidden h-[calc(100vh-2rem)] shrink-0 flex-col rounded-2xl bg-slate-900 shadow-2xl ring-1 ring-white/[0.06] lg:flex",
+            "overflow-hidden transition-all duration-300 ease-in-out",
+            isCollapsed ? "w-0 p-0 opacity-0" : "w-64 p-5 opacity-100",
+          ].join(" ")}
+          aria-hidden={!isDesktopViewport || isCollapsed}
+          inert={!isDesktopViewport || isCollapsed}
+        >
           {/* Logo */}
           <Link
             to="/"
@@ -161,22 +183,38 @@ const CustomerDashboardLayout = () => {
         {/* ── Main content ── */}
         <div className="min-w-0 flex-1 rounded-2xl bg-slate-900 shadow-2xl ring-1 ring-white/[0.06]">
           {/* Topbar */}
-          <header className="sticky top-0 z-20 flex h-16 items-center justify-between rounded-t-2xl border-b border-white/[0.07] bg-slate-900/95 px-4 backdrop-blur-md lg:px-8">
-            {/* Mobile: logo */}
-            <Link
-              to="/"
-              className="font-black tracking-tight text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 lg:hidden"
-            >
-              HTCOACHING
-            </Link>
+          <header className="sticky top-0 z-20 flex h-16 items-center justify-between rounded-t-2xl border-b border-white/[0.07] bg-slate-900/95 px-4 backdrop-blur-md lg:px-6">
+            <div className="flex items-center gap-3">
+              {/* Desktop sidebar toggle */}
+              <button
+                onClick={() => setIsCollapsed((v) => !v)}
+                aria-label={isCollapsed ? "Mở sidebar" : "Thu sidebar"}
+                title={isCollapsed ? "Mở sidebar" : "Thu sidebar"}
+                className="hidden lg:flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition-all duration-200 hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+              >
+                {isCollapsed ? (
+                  <SidebarOpen aria-hidden="true" className="h-5 w-5" />
+                ) : (
+                  <SidebarClose aria-hidden="true" className="h-5 w-5" />
+                )}
+              </button>
 
-            {/* Desktop: greeting */}
-            <p className="hidden text-sm text-slate-400 lg:block">
-              <span className="font-semibold text-white">
-                {greeting}, {user?.name?.split(" ").at(-1) || "bạn"}
-              </span>{" "}
-              — chúc bạn một ngày hiệu quả 💪
-            </p>
+              {/* Mobile: logo */}
+              <Link
+                to="/"
+                className="font-black tracking-tight text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 lg:hidden"
+              >
+                HTCOACHING
+              </Link>
+
+              {/* Desktop: greeting */}
+              <p className="hidden text-sm text-slate-400 lg:block">
+                <span className="font-semibold text-white">
+                  {greeting}, {user?.name?.split(" ").at(-1) || "bạn"}
+                </span>{" "}
+                — chúc bạn một ngày hiệu quả 💪
+              </p>
+            </div>
 
             {/* Right actions */}
             <div className="flex items-center gap-2">
@@ -207,7 +245,7 @@ const CustomerDashboardLayout = () => {
 
           <main
             id="customer-dashboard-content"
-            className="mx-auto max-w-7xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-12 lg:pt-8"
+            className="product-surface mx-auto max-w-7xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-12 lg:pt-8"
           >
             <Outlet />
           </main>
@@ -215,8 +253,10 @@ const CustomerDashboardLayout = () => {
       </div>
 
       {/* Mobile bottom nav */}
-      <div className="fixed inset-x-0 bottom-0 z-20 bg-slate-950 pb-[env(safe-area-inset-bottom)] lg:hidden">
-        <CustomerNav activeSection={activeSection} dateKey={dateKey} mobile />
+      <div className="fixed inset-x-3 bottom-4 z-20 pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <div className="overflow-hidden rounded-2xl border border-white/[0.15] bg-slate-950/95 shadow-2xl backdrop-blur-xl">
+          <CustomerNav activeSection={activeSection} dateKey={dateKey} mobile />
+        </div>
       </div>
     </div>
   );

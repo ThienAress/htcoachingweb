@@ -53,7 +53,7 @@ Xác nhận bug tái hiện được một cách nhất quán:
 - Ghi lại **chính xác** các bước để trigger bug
 - Xác định: môi trường nào? (local/staging/production)
 - Xác định: luôn xảy ra hay intermittent?
-- Nếu không reproduce được → **DỪNG**, báo cáo với user trước khi tiếp tục
+- Nếu chưa reproduce được → tiếp tục điều tra read-only bằng code, logs đã redact, tests và lịch sử thay đổi; ghi rõ confidence. Chỉ dừng hỏi trước khi một giả định chưa chứng minh sẽ làm thay đổi hành vi, dữ liệu, bảo mật hoặc phạm vi.
 
 ### Bước 2: LOCALIZE
 Thu hẹp vị trí lỗi:
@@ -77,7 +77,7 @@ Implement fix tối thiểu:
 ### Bước 5: GUARD
 Ngăn bug tái hiện:
 - Thêm comment nếu fix không self-evident
-- Nếu bug nghiêm trọng → ghi vào `skills/known_issues.md`
+- Nếu bug nghiêm trọng → ghi vào `.agents/skills/known-issues/SKILL.md`
 - Nếu project đã có test → thêm test case cover scenario này
 
 ---
@@ -199,10 +199,12 @@ Bug xảy ra
 ```
 □ Token có trong httpOnly cookie không? (Network tab → Request Headers → Cookie)
 □ CSRF token có được gửi kèm không? (Headers → x-csrf-token)
-□ Token có bị expired không? (Decode JWT tại jwt.io)
+□ Token có bị expired không? (decode local; chỉ inspect allowlist claim như `exp`, `iat`, `role`)
 □ Role trong token có match với route guard không?
 □ CORS origin có include đúng domain không? (server.js → corsOptions)
 ```
+
+> Không paste JWT, cookie hoặc credential vào `jwt.io` hay bất kỳ dịch vụ bên thứ ba nào. Khi cần inspect, decode hoàn toàn trên máy local bằng dependency hiện có hoặc debugger; không log raw token hay toàn bộ payload.
 
 ### 🌐 CORS Errors
 ```
@@ -252,16 +254,24 @@ Bug xảy ra
 ## Ghi Chú Debug Hữu Ích
 
 ```js
-// Tạm thời log request đến server (xóa sau khi debug xong)
-app.use((req, res, next) => {
-  console.log(`[DEBUG] ${req.method} ${req.path}`, req.body);
-  next();
-});
+// Chỉ dùng trên local; không thêm debug logging vào staging/production.
+// Log metadata allowlist, không log giá trị req.body, cookie hoặc authorization header.
+// Dùng safeLog từ server/src/utils/safeLogger.js với relative import phù hợp.
+if (process.env.NODE_ENV === "development") {
+  safeLog.info("request.debug", {
+    method: req.method,
+    path: req.path,
+    requestId: req.id,
+  });
 
-// Kiểm tra JWT payload (server-side)
-import jwt from 'jsonwebtoken';
-const decoded = jwt.decode(token); // không verify, chỉ decode
-console.log('[DEBUG] Token payload:', decoded);
+  // Decode JWT hoàn toàn local và chỉ inspect claim allowlist.
+  // Không log raw token hoặc toàn bộ decoded payload.
+  const decoded = jwt.decode(token);
+  const jwtDebug = decoded
+    ? { exp: decoded.exp, iat: decoded.iat, role: decoded.role }
+    : { decodeFailed: true };
+  safeLog.info("jwt.debug", jwtDebug);
+}
 ```
 
-> ⚠️ Xóa toàn bộ debug logs trước khi deliver — xem `../cleanup-delivery/SKILL.md`.
+> ⚠️ Các snippet trên chỉ được dùng ở local. Không bật hoặc thêm debug logging trên staging/production. Dù `safeLog` có redaction, vẫn không truyền token, cookie, authorization header, password, secret hoặc PII vào logger. Xóa toàn bộ debug logs trước khi deliver — xem `../cleanup-delivery/SKILL.md`.
