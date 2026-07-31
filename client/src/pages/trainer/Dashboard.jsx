@@ -1,216 +1,201 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  User,
+  ArrowRight,
+  HeartPulse,
   Mail,
-  Phone,
   Package,
-  Calendar,
-  MapPin,
-  Clock,
+  Phone,
+  RefreshCw,
   Search,
+  Users,
 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { getTrainerClients } from "../../services/coaching.service";
+import {
+  buildTrainerClientWorkspacePath,
+  buildTrainerHealthWorkspacePath,
+} from "./trainerClientWorkspace.helpers";
 
-import { getAllOrders } from "../../services/orderCollection.service";
+const loadClients = async () =>
+  (await getTrainerClients()).data.data || [];
 
 const TrainerDashboard = () => {
+  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
-
-  const {
-    data: orders = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ["orders"],
-    queryFn: getAllOrders,
+  const isHealthTracking = location.pathname.startsWith("/trainer/health");
+  const PageIcon = isHealthTracking ? HeartPulse : Users;
+  const buildWorkspacePath = isHealthTracking
+    ? buildTrainerHealthWorkspacePath
+    : buildTrainerClientWorkspacePath;
+  const clientsQuery = useQuery({
+    queryKey: ["trainer-clients"],
+    queryFn: loadClients,
+    staleTime: 30_000,
+    gcTime: 0,
+    retry: (count, error) =>
+      count < 1 && Number(error.response?.status || 500) >= 500,
   });
 
-  // Lọc khách hàng theo tên
-  const filteredOrders = orders.filter((order) =>
-    order.name?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
-  if (isError) {
-    return (
-      <div className="p-4 text-red-500">
-        Lỗi tải dữ liệu: {error?.message}
-        <button
-          onClick={() => refetch()}
-          className="ml-4 px-3 py-1 bg-blue-500 text-white rounded"
-        >
-          Thử lại
-        </button>
-      </div>
+  const clients = useMemo(() => {
+    const normalized = searchTerm.trim().toLowerCase();
+    if (!normalized) return clientsQuery.data || [];
+    return (clientsQuery.data || []).filter(
+      (client) =>
+        client.name?.toLowerCase().includes(normalized) ||
+        client.email?.toLowerCase().includes(normalized),
     );
-  }
+  }, [clientsQuery.data, searchTerm]);
 
   return (
-    <phantom-ui loading={isLoading || undefined}>
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="flex-1 flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white min-h-[calc(100vh-3rem)] p-4 md:p-8 pt-8">
+      <div className="container-custom">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 uppercase">
-            <User className="w-6 h-6 text-primary" />
-            KHÁCH HÀNG CỦA BẠN
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Danh sách khách hàng được phân công phụ trách
+          <h1 className="flex items-center gap-2 text-3xl font-bold text-white uppercase">
+            <PageIcon className="h-8 w-8 text-primary" aria-hidden="true" />
+            {isHealthTracking ? "Theo dõi sức khỏe" : "Khách của tôi"}
+          </h1>
+          <p className="mt-2 max-w-prose text-sm leading-6 text-gray-400">
+            {isHealthTracking
+              ? "Chọn học viên để xem tổng quan, mục tiêu sức khỏe và thói quen hằng ngày."
+              : "Quản lý tiến trình, mục tiêu sức khỏe và thói quen của từng học viên."}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Ô tìm kiếm */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Tìm theo tên khách hàng..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        <span className="text-sm font-semibold text-gray-400 bg-gray-800/50 px-4 py-2 rounded-full border border-gray-700">
+          {clientsQuery.data?.length || 0} học viên đang hoạt động
+        </span>
+      </header>
+
+      <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 md:p-6 mb-6">
+        <label className="relative block max-w-md">
+          <span className="sr-only">Tìm học viên</span>
+          <Search
+            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Tìm theo tên hoặc email..."
+            className="min-h-11 w-full rounded-lg border border-gray-600 bg-gray-700 pl-10 pr-4 text-sm text-white placeholder-gray-400 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+          />
+        </label>
+      </div>
+
+      {clientsQuery.isLoading ? (
+        <div className="space-y-3" role="status">
+          <span className="sr-only">Đang tải danh sách học viên...</span>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-16 animate-pulse rounded-xl bg-gray-800 border border-gray-700"
             />
-          </div>
-          <div className="text-sm text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-            Tổng số khách: {orders.length}
-          </div>
+          ))}
         </div>
-      </div>
-
-      {/* Table - Desktop */}
-      <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                  Họ tên
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                  Email
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                  SĐT
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                  Địa chỉ
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                  Gói
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                  Buổi
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                  Phòng
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">
-                  Thời gian
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredOrders.map((order) => (
-                <tr
-                  key={order._id}
-                  className="border-t border-slate-100 hover:bg-slate-50 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium text-slate-700">
-                    {order.name}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{order.email}</td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {order.userId?.phone || order.phone || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {order.userId?.address || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{order.package}</td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex justify-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
-                      {order.sessions} buổi
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {order.gym || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {order.schedule || "—"}
-                  </td>
-                </tr>
-              ))}
-              {filteredOrders.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-8 text-center text-slate-500"
-                  >
-                    {searchTerm
-                      ? "Không tìm thấy khách hàng phù hợp."
-                      : "Không có khách hàng nào được phân công."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Card View - Mobile & Tablet */}
-      <div className="md:hidden space-y-4">
-        {filteredOrders.map((order) => (
-          <div
-            key={order._id}
-            className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 space-y-3"
+      ) : clientsQuery.isError ? (
+        <section className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-red-400">
+          <p className="font-semibold">Không thể tải danh sách học viên.</p>
+          <p className="mt-1 text-sm text-red-300/80">
+            {clientsQuery.error?.response?.data?.message ||
+              "Vui lòng kiểm tra kết nối và thử lại."}
+          </p>
+          <button
+            type="button"
+            onClick={() => clientsQuery.refetch()}
+            className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg px-4 bg-red-500/20 font-semibold hover:bg-red-500/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
           >
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-2">
-                <User className="w-5 h-5 text-indigo-600" />
-                <h3 className="font-semibold text-slate-800">{order.name}</h3>
-              </div>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700">
-                {order.sessions} buổi
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="flex items-center gap-2 text-slate-600">
-                <Mail className="w-4 h-4 text-slate-400" />
-                <span className="truncate">{order.email}</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <Phone className="w-4 h-4 text-slate-400" />
-                <span>{order.userId?.phone || order.phone || "—"}</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <MapPin className="w-4 h-4 text-slate-400" />
-                <span>{order.userId?.address || "—"}</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <Package className="w-4 h-4 text-slate-400" />
-                <span>{order.package}</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <MapPin className="w-4 h-4 text-slate-400" />
-                <span>{order.gym || "—"}</span>
-              </div>
-              <div className="col-span-2 flex items-center gap-2 text-slate-600">
-                <Clock className="w-4 h-4 text-slate-400" />
-                <span>{order.schedule || "—"}</span>
-              </div>
-            </div>
-          </div>
-        ))}
-        {filteredOrders.length === 0 && (
-          <div className="text-center py-8 text-slate-500 bg-white rounded-xl shadow-sm border">
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Thử lại
+          </button>
+        </section>
+      ) : clients.length === 0 ? (
+        <section className="rounded-xl border border-gray-700 bg-gray-800/50 backdrop-blur-sm p-12 text-center">
+          <Users className="mx-auto h-12 w-12 text-gray-600" aria-hidden="true" />
+          <h2 className="mt-4 text-lg font-bold text-gray-300">
+            {searchTerm ? "Không tìm thấy học viên" : "Chưa có học viên đang hoạt động"}
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
             {searchTerm
-              ? "Không tìm thấy khách hàng phù hợp."
-              : "Không có khách hàng nào được phân công."}
+              ? "Thử tìm bằng tên hoặc email khác."
+              : "Học viên sẽ xuất hiện khi có gói được duyệt và còn buổi."}
+          </p>
+        </section>
+      ) : (
+        <>
+          <div className="hidden overflow-hidden rounded-2xl border border-gray-700 bg-gray-800/50 backdrop-blur-sm md:block">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-900/80 text-gray-400 border-b border-gray-700">
+                <tr>
+                  <th className="px-5 py-3 font-semibold">Học viên</th>
+                  <th className="px-5 py-3 font-semibold">Liên hệ</th>
+                  <th className="px-5 py-3 font-semibold">Gói</th>
+                  <th className="px-5 py-3 text-right font-semibold">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700/50">
+                {clients.map((client) => (
+                  <tr key={client._id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="px-5 py-4">
+                      <strong className="text-white font-medium">{client.name}</strong>
+                      <span className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                        <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                        {client.email}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-gray-300">
+                      <span className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-gray-500" aria-hidden="true" />
+                        {client.phone || "Chưa cập nhật"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-gray-300">
+                      <span className="flex items-center gap-2">
+                        <Package className="h-4 w-4 text-gray-500" aria-hidden="true" />
+                        {client.package || "Gói huấn luyện"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <Link
+                        to={buildWorkspacePath(client._id)}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-primary hover:bg-primary/10 border border-transparent hover:border-primary/20 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                      >
+                        {isHealthTracking ? "Xem hồ sơ sức khỏe" : "Quản lý"}
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
+
+          <div className="grid gap-4 md:hidden">
+            {clients.map((client) => (
+              <article key={client._id} className="rounded-2xl border border-gray-700 bg-gray-800/50 backdrop-blur-sm p-5 hover:border-gray-600 transition-colors">
+                <h2 className="font-bold text-white text-lg">{client.name}</h2>
+                <p className="mt-1 truncate text-sm text-gray-400">{client.email}</p>
+                <p className="mt-3 text-sm text-gray-300 flex items-center gap-2">
+                  <Package className="h-4 w-4 text-gray-500" />
+                  {client.package || "Gói huấn luyện"}
+                </p>
+                <Link
+                  to={buildWorkspacePath(client._id)}
+                  className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white hover:bg-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 shadow-lg shadow-primary/20"
+                >
+                  {isHealthTracking
+                    ? "Xem hồ sơ sức khỏe"
+                    : "Quản lý học viên"}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
       </div>
     </div>
-    </phantom-ui>
   );
 };
 

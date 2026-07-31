@@ -75,6 +75,7 @@ jobs:
       - run: npm run check:commercial-contracts
       - run: node scripts/check-secrets.mjs
       - run: node scripts/check-repository-boundaries.mjs
+      - run: npm run agents:validate
       - run: npm run test:ops
 
   e2e:

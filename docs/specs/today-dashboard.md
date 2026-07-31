@@ -1,9 +1,9 @@
 # Feature Spec: Today Dashboard
 
-Status: DRAFT — chờ duyệt trước khi triển khai  
-Ngày soạn: 2026-07-28  
-Đối tượng chính: khách hàng đang thuê huấn luyện viên  
-Phạm vi tài liệu: yêu cầu sản phẩm, kiến trúc, dữ liệu, bảo mật và tiêu chí nghiệm thu; chưa triển khai code
+Status: APPROVED / IMPLEMENTED — Release A–H local verified; staging và F1 baseline linking pending
+Ngày soạn: 2026-07-28
+Đối tượng chính: khách hàng đang thuê huấn luyện viên
+Phạm vi tài liệu: yêu cầu sản phẩm, kiến trúc, dữ liệu, bảo mật và tiêu chí nghiệm thu; Release A–H đã triển khai, F1 baseline chỉ được làm khi có explicit identity link được duyệt
 
 ## 1. Tóm tắt
 
@@ -80,15 +80,18 @@ Quyền:
 - Xem lịch sử chỉnh sửa của chính mình.
 - Gửi weekly check-in và trao đổi với HLV.
 
-### 5.2. Người dùng chưa có coaching
+### 5.2. Người dùng chưa có hoặc đã kết thúc coaching
 
-Có thể mở `/today`, nhưng chỉ thấy:
+Người chưa từng có coaching có thể mở `/today`, nhưng chỉ thấy:
 
 - Giải thích lợi ích.
 - Trạng thái chưa có gói/HLV.
 - CTA tới luồng phù hợp.
 
-Không tạo journal coaching hoặc hiển thị dữ liệu riêng tư của người khác.
+Khách đã từng coaching nhưng hiện không còn active order nhận trạng thái `inactive`.
+Họ vẫn được xem dữ liệu của chính mình ở ngày quá khứ trong thời hạn lưu trữ nhưng
+không được tạo actual log mới ngoài policy. Không tạo journal coaching hoặc hiển thị
+dữ liệu riêng tư của người khác cho trạng thái `never_coached`.
 
 ### 5.3. Huấn luyện viên
 
@@ -129,17 +132,30 @@ Nguyên tắc bắt buộc:
 
 ### 7.1. Điều hướng
 
-Các route dự kiến:
+Customer Dashboard dùng một product shell riêng, tách các nhiệm vụ theo progressive disclosure:
 
-- `/today`: ngày hiện tại theo giờ Việt Nam.
-- `/today/:dateKey`: xem ngày cụ thể, `dateKey` dạng `YYYY-MM-DD`.
-- `/progress`: tiến trình tổng hợp.
+- `/dashboard`: entry canonical, chuyển tới tổng quan ngày hiện tại theo giờ Việt Nam.
+- `/dashboard/today/:dateKey`: tổng quan ngắn theo ngày, `dateKey` dạng `YYYY-MM-DD`.
+- `/dashboard/today/:dateKey/training`: lịch, coaching, giáo án và điểm danh.
+- `/dashboard/today/:dateKey/nutrition`: thực đơn và ghi bữa ăn.
+- `/dashboard/today/:dateKey/journal`: wellness, habit, ghi chú, trao đổi và timeline.
+- `/dashboard/progress`: tiến trình tổng hợp và Weekly Check-in.
+- `/today`, `/today/:dateKey` và `/progress`: compatibility redirects; không được xóa khi notification,
+  bookmark hoặc client cũ còn dùng deep link này.
 - `/weekly-checkin/:weekKey`: check-in tuần.
 - `/trainer/clients/:clientId/today/:dateKey`: góc nhìn HLV.
 
 Tất cả page route phải lazy-load. Các trang này là private, có `noindex` và không nằm trong sitemap/prerender.
 
 ### 7.2. Bố cục Today
+
+Customer Dashboard shell có 5 mục ổn định: **Hôm nay**, **Tập luyện**, **Dinh dưỡng**,
+**Nhật ký** và **Tiến trình**. Desktop dùng sidebar; mobile dùng bottom navigation. Không copy
+toàn bộ mật độ navigation của Admin Panel.
+
+Trang tổng quan không nhúng form đầy đủ. Nó chỉ hiển thị ngày, completion, việc tiếp theo,
+attention state và các hàng điều hướng có trạng thái ngắn. Form/editor thuộc module nào phải nằm
+trong module đó; route con giữ nguyên `dateKey` khi người dùng chuyển mục.
 
 1. **Header theo ngày**
    - Ngày hiện tại, chuyển ngày trước/sau.
@@ -198,6 +214,12 @@ Tất cả page route phải lazy-load. Các trang này là private, có `noinde
     - Hoàn thành bài tập.
     - Log bữa ăn.
     - Thêm ghi chú.
+
+11. **Progressive disclosure**
+    - Overview trả lời “hôm nay cần làm gì tiếp theo”, không cố hiển thị toàn bộ dữ liệu.
+    - Training, Nutrition và Journal tái sử dụng component/service hiện có trong route con.
+    - Comment ở đúng context; notification và account giữ ở shell/header, không chiếm primary nav.
+    - Một module lỗi không làm mất sidebar/bottom nav hoặc module khác.
 
 ### 7.3. Trạng thái giao diện bắt buộc
 
@@ -294,25 +316,46 @@ Không gọi lại generator mỗi khi xem lịch sử vì kết quả/thuật t
 
 `GET /api/today-dashboard/day/:dateKey`
 
-Response ở mức khái niệm:
+Contract canonical v2:
 
 ```json
 {
-  "dateKey": "2026-07-28",
-  "timezone": "Asia/Ho_Chi_Minh",
-  "eligibility": {},
-  "summary": {},
-  "sections": {
-    "schedule": {},
-    "coaching": {},
-    "workout": {},
-    "nutrition": {},
-    "wellness": {},
-    "habits": {},
-    "comments": {}
-  },
-  "capabilities": {},
-  "partialErrors": []
+  "success": true,
+  "data": {
+    "contractVersion": 2,
+    "dateKey": "2026-07-28",
+    "timeZone": "Asia/Ho_Chi_Minh",
+    "eligibility": {
+      "status": "active",
+      "orderId": "id",
+      "trainer": { "_id": "id", "name": "..." }
+    },
+    "summary": {
+      "dayStatus": "in_progress",
+      "completionPercent": 32,
+      "formulaVersion": "today-v2",
+      "moduleProgress": {
+        "training": { "completed": 1, "total": 3, "percent": 33, "state": "in_progress" },
+        "nutrition": { "completed": 0, "total": 0, "percent": null, "state": "not_applicable" },
+        "journal": { "completed": 3, "total": 10, "percent": 30, "state": "in_progress" }
+      },
+      "attentionFlags": []
+    },
+    "capabilities": {
+      "canViewSources": true,
+      "canEditJournal": false,
+      "canSubmitDay": false,
+      "canComment": false
+    },
+    "sections": {
+      "schedule": { "status": "ready", "source": "training_schedule", "items": [], "deepLink": "/book-training", "error": null },
+      "coaching": { "status": "empty", "source": "coaching_day", "day": null, "deepLink": "/online-coaching", "error": null },
+      "workout": { "status": "empty", "source": "workout_plan", "items": [], "deepLink": "/workout-plans", "error": null },
+      "attendance": { "status": "empty", "source": "checkin", "items": [], "deepLink": "/my-history", "error": null },
+      "journal": { "status": "ready", "source": "daily_journal", "day": {}, "deepLink": "/today", "error": null }
+    },
+    "partialErrors": []
+  }
 }
 ```
 
@@ -320,18 +363,24 @@ Yêu cầu:
 
 - Read-only.
 - Server suy ra user và quan hệ coaching.
-- Mỗi section có `source`, `sourceId`, `deepLink`, `status`.
+- Mỗi section có `source`, `deepLink`, `status`, payload riêng và `error` đã redact.
 - Không trả field nội bộ không cần cho UI.
 - Partial failure được chuẩn hóa, không biến toàn response thành 500 nếu section độc lập lỗi.
+- `401/403` là lỗi toàn request, không được hạ thành partial error.
+- Response private đặt `Cache-Control: private, no-store`.
+- `moduleProgress.training` đếm lịch tập, bài coaching và giáo án; điểm danh không cộng thêm mẫu số.
+- `moduleProgress.nutrition` chỉ áp dụng khi truy xuất được đúng phiên bản thực đơn đã gán; mỗi planned meal chỉ đếm một lần.
+- `moduleProgress.journal` dùng 8 wellness field × 10% và trạng thái `submitted` × 20%; không chấm tốt/xấu.
+- Module không có nhiệm vụ trả `percent: null`, không tự chuyển thành 100%.
 
 ### 9.2. Daily Journal
 
 - `GET /api/daily-journals/:dateKey`
 - `PUT /api/daily-journals/:dateKey`
 - `POST /api/daily-journals/:dateKey/submit`
-- `POST /api/daily-journals/:dateKey/reopen`
+- `POST /api/daily-journals/:dateKey/corrections`
 - `POST /api/daily-journals/:dateKey/review`
-- `GET /api/daily-journals/:dateKey/revisions`
+- `GET /api/daily-journals/:dateKey/revisions?page=1&limit=20`
 
 Mutation gửi:
 
@@ -374,6 +423,7 @@ Completion là chỉ báo hỗ trợ, không phải điểm sức khỏe.
 - Rest day không bị tính thiếu workout.
 - Công thức phải đặt ở server, có `formulaVersion`.
 - UI không tự tính công thức khác server.
+- Wellness Target độc lập chỉ dùng so sánh actual/target; không tham gia `moduleProgress.journal` hoặc `completionPercent`.
 
 ### 10.3. Edit window
 
@@ -405,7 +455,8 @@ Completion là chỉ báo hỗ trợ, không phải điểm sức khỏe.
 - Log bằng `safeLog`, không log raw health notes hoặc PII.
 - Private media chỉ triển khai khi có signed access, ownership và deletion lifecycle.
 - Cập nhật export/delete/retention khi tạo collection chứa dữ liệu người dùng.
-- Retention đề xuất: cấu hình được, mặc định 365 ngày sau khi coaching kết thúc; phải được duyệt privacy trước implementation.
+- Retention đã duyệt: cấu hình được, mặc định 365 ngày sau khi coaching kết thúc; enforcement
+  chỉ bật sau khi collection có lifecycle timestamp, target và privacy/operations gate tương ứng.
 - Notification không chứa chi tiết nhạy cảm ở push/email.
 - Trang private dùng `noindex`, không sitemap và không prerender.
 
@@ -468,15 +519,28 @@ Không đưa nội dung note hoặc dữ liệu sức khỏe thô vào analytics
 - New collections tham gia đầy đủ privacy export/deletion/retention.
 - Mobile, loading, empty, error, offline và accessibility states được kiểm tra.
 
-## 16. Các quyết định cần duyệt trước khi code
+## 16. Các quyết định đã duyệt
 
-1. Edit window: đề xuất 7 ngày.
-2. Retention sau coaching: đề xuất cấu hình mặc định 365 ngày.
+1. Edit window: 7 ngày.
+2. Retention sau coaching: cấu hình mặc định 365 ngày, chỉ bật enforcement sau khi
+   có lifecycle timestamp canonical và privacy gate của collection tương ứng.
 3. HLV mất quyền ngay khi quan hệ coaching hết hiệu lực.
 4. Ảnh tiến độ và ảnh bữa ăn hoãn khỏi MVP.
 5. F1 chỉ liên kết thủ công/có xác nhận, không auto-link email.
 6. Notification phase đầu chỉ in-app.
 7. Today MVP ưu tiên tổng hợp + quick log, chưa có gamification phức tạp.
+8. Tuần bắt đầu vào thứ Hai theo `Asia/Ho_Chi_Minh`.
+9. Pain threshold mặc định là 7/10 và chỉ tạo safety copy, không chẩn đoán.
+10. Habit do khách tự tạo mặc định private; chỉ chia sẻ khi khách chủ động bật.
+11. Release A chỉ đọc dữ liệu hiện có, không tạo model/index/migration mới.
+12. Mọi release tạo dữ liệu người dùng phải hoàn thành export/delete/retention và
+   no-store cache gate trước khi bật write.
+13. Customer Dashboard là navigation/presentation shell; `/dashboard` canonical nhưng các deep link
+    `/today` và `/progress` cũ phải tiếp tục hoạt động qua redirect.
+14. Overview dùng progressive disclosure; editor Wellness, Nutrition và Habit không cùng xuất hiện
+    trên một trang tổng quan.
+15. Menu tài khoản khách hàng chỉ có một entry vào Customer Dashboard. Các route chuyên sâu cũ vẫn
+    canonical nhưng được mở từ module Tập luyện hoặc Dinh dưỡng; public Tools menu không bị thay đổi.
 
 ## 17. Định nghĩa hoàn thành của feature
 
@@ -485,7 +549,21 @@ Feature chỉ được xem là hoàn thành khi:
 - Tất cả phase đã duyệt đạt acceptance criteria.
 - API, schema, privacy lifecycle và migration đều có test.
 - UI đạt mobile, keyboard, screen reader cơ bản và reduced motion.
+- Customer Dashboard giữ đúng module/date khi điều hướng, legacy deep links vẫn tới đúng nội dung.
 - Security/data-boundary scans pass.
 - Staging được pilot bằng dữ liệu test.
 - Có rollback/feature flag và tài liệu vận hành.
 - Không còn nguồn dữ liệu trùng hoặc đường ghi tắt bỏ qua domain service.
+## 18. Quyết định UI cho version và xóa Habit — 2026-07-31
+
+- Version của Wellness Target và Coaching Habit là contract kỹ thuật nội bộ, không hiển thị trên UI.
+- Habit definition được cập nhật bằng immutable latest version.
+- Thao tác Xóa là archived soft-delete để không rewrite completion snapshot đã lưu trong Daily Journal.
+## 19. Habit hằng ngày và kỳ báo cáo tuần trong tháng — 2026-07-31
+
+- Habit do HLV/admin giao luôn áp dụng đủ bảy ngày, từ ngày giao tới khi bị xóa hoặc
+  Order không còn buổi; Habit cá nhân của học viên vẫn được chọn ngày.
+- Weekly Check-in chia theo các period nằm gọn trong tháng: period đầu bắt đầu ngày 1,
+  period giữa theo Thứ Hai–Chủ Nhật, period cuối kết thúc ngày cuối tháng.
+- `weekStartDateKey` tiếp tục là storage key nhưng mang nghĩa ngày đầu period trong tháng.
+- Điểm Bám kế hoạch vẫn lưu 1–10; UI diễn giải thành bốn mức coaching-friendly.

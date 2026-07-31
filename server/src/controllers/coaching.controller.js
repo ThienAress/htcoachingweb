@@ -1,4 +1,5 @@
 import path from "path";
+import mongoose from "mongoose";
 import CoachingDay from "../models/CoachingDay.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
@@ -12,6 +13,10 @@ import { buildTrainerPlanUpdate } from "../utils/coachingPlan.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
+import {
+  deleteCoachingCommentsForTargets,
+} from "../services/coachingCommentPrivacy.service.js";
 
 const MAX_CLIENT_FEEDBACK_TEXT_LENGTH = 5000;
 
@@ -171,7 +176,7 @@ export const submitFeedback = async (req, res) => {
 // 4. Lấy danh sách khách hàng được gán cho Trainer (từ các Orders approved)
 export const getTrainerClients = async (req, res) => {
   try {
-    let query = { status: "approved" };
+    let query = { status: "approved", sessions: { $gt: 0 } };
     
     // Nếu không phải admin thì trainer chỉ lấy khách của họ
     if (req.user.role !== "admin") {
@@ -361,6 +366,8 @@ export const upsertCoachingDay = async (req, res) => {
 
 // 7. Xoá giáo án của một ngày tập cụ thể
 export const deleteCoachingDay = async (req, res) => {
+  const todayPlatformEnabled = isTodayPlatformEnabled();
+  const session = todayPlatformEnabled ? await mongoose.startSession() : null;
   try {
     const { userId, dateString } = req.params;
 
@@ -376,7 +383,25 @@ export const deleteCoachingDay = async (req, res) => {
       }
     }
 
-    const deleted = await CoachingDay.findOneAndDelete({ userId, dateString });
+    let deleted = null;
+    if (session) {
+      await session.withTransaction(async () => {
+        deleted = await CoachingDay.findOneAndDelete({
+          userId,
+          dateString,
+        }).session(session);
+        if (!deleted) return;
+        await deleteCoachingCommentsForTargets({
+          targets: [{
+            targetType: "coaching_day",
+            targetId: deleted._id,
+          }],
+          session,
+        });
+      });
+    } else {
+      deleted = await CoachingDay.findOneAndDelete({ userId, dateString });
+    }
 
     if (!deleted) {
       return res.status(404).json({ success: false, message: "Không tìm thấy giáo án tập để xóa" });
@@ -389,6 +414,8 @@ export const deleteCoachingDay = async (req, res) => {
   } catch (err) {
     safeLog.error("coaching.day_delete_failed", err);
     res.status(500).json({ success: false, message: "Lỗi xóa giáo án tập luyện" });
+  } finally {
+    if (session) await session.endSession();
   }
 };
 

@@ -26,6 +26,7 @@ import User from "../../models/User.js";
 import Recipe from "../../models/Recipe.js";
 import CoachingDay from "../../models/CoachingDay.js";
 import Checkin from "../../models/Checkin.js";
+import DailyJournal from "../../models/DailyJournal.js";
 import Order from "../../models/Order.js";
 import Contract from "../../models/Contract.js";
 import F1Intake from "../../models/F1Intake.js";
@@ -283,9 +284,14 @@ describe("Phase 0 security boundaries", () => {
       name: client.name,
       email: client.email,
       package: "PT 10",
-      sessions: 2,
-      totalSessions: 2,
+      sessions: 1,
+      totalSessions: 1,
       status: "approved",
+    });
+    const journal = await DailyJournal.create({
+      clientId: client._id,
+      trainerIdAtCreation: trainer._id,
+      dateKey: "2026-07-19",
     });
     await Checkin.init();
     const payload = {
@@ -304,7 +310,12 @@ describe("Phase 0 security boundaries", () => {
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
     expect(await Checkin.countDocuments({ orderId: order._id })).toBe(1);
-    expect((await Order.findById(order._id)).sessions).toBe(1);
+    const exhaustedOrder = await Order.findById(order._id);
+    expect(exhaustedOrder.sessions).toBe(0);
+    expect(exhaustedOrder.sessionsExhaustedAt).toBeInstanceOf(Date);
+    expect(
+      (await DailyJournal.findById(journal._id)).retentionExpiresAt,
+    ).toBeInstanceOf(Date);
 
     const savedCheckin = await Checkin.findOne({ orderId: order._id });
     const deleted = await withAuth(
@@ -318,7 +329,12 @@ describe("Phase 0 security boundaries", () => {
 
     expect(deleted.status).toBe(200);
     expect(repeatedDelete.status).toBe(404);
-    expect((await Order.findById(order._id)).sessions).toBe(2);
+    const restoredOrder = await Order.findById(order._id);
+    expect(restoredOrder.sessions).toBe(1);
+    expect(restoredOrder.sessionsExhaustedAt).toBeNull();
+    expect(
+      (await DailyJournal.findById(journal._id)).retentionExpiresAt,
+    ).toBeNull();
   });
 
   it("preserves client coaching progress and rejects a stale trainer revision", async () => {

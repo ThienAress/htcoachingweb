@@ -6,6 +6,7 @@ import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
 import { scheduleNetlifyBuild } from "../utils/triggerBuild.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { getDiscoveryBlogPosts } from "../services/blogDiscovery.service.js";
 import {
   getBlogSubCategoryFilter,
   isBlogCategory,
@@ -213,10 +214,17 @@ export const getPublicBlogPostBySlug = async (req, res) => {
           .lean()
       : [];
     const relatedPosts = [...relatedByTags, ...relatedFallback];
+    const discoveryPosts = await trackDbQuery("blog.public.discovery", () =>
+      getDiscoveryBlogPosts({
+        currentPostId: post._id,
+        currentCategory: post.category,
+        limit: 5,
+      }),
+    );
 
     await BlogPost.updateOne({ _id: post._id }, { $inc: { views: 1 } });
 
-    res.json({ success: true, data: post, relatedPosts });
+    res.json({ success: true, data: post, relatedPosts, discoveryPosts });
   } catch (err) {
     safeLog.error("blog.public_detail_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy chi tiết bài viết" });

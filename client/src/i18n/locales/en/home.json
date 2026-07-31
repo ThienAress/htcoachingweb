@@ -22,6 +22,13 @@
     "stats_students": "students transformed",
     "stats_rating": "Average rating 4.9/5"
   },
+  "progress_entry": {
+    "eyebrow": "For coaching clients",
+    "title": "Today's plan is ready",
+    "description": "Open your training, nutrition, and progress in one place.",
+    "cta": "Open today's plan",
+    "dismiss": "Hide today's plan reminder"
+  },
   "about": {
     "title": "YOUR TRANSFORMATION PARTNER",
     "quote": "\"There's no great body in the comfort zone. Either change — or stay the same forever.\"",

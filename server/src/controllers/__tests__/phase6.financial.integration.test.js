@@ -35,9 +35,15 @@ import Order from "../../models/Order.js";
 import Checkin from "../../models/Checkin.js";
 import Contract from "../../models/Contract.js";
 import AuditLog from "../../models/AuditLog.js";
+import DailyJournal from "../../models/DailyJournal.js";
 import { applyWalletEntry } from "../../services/walletLedger.service.js";
 import { reconcileWallets } from "../../services/walletReconciliation.service.js";
 import { deleteContract } from "../../services/contract.service.js";
+import {
+  getOperationalAlerts,
+  getMetricsSnapshot,
+  resetMetricsForTests,
+} from "../../observability/metrics.js";
 import {
   getTrainerPlanAmount,
   getTrainerPlanCatalogMeta,
@@ -99,6 +105,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  resetMetricsForTests();
   await clearCollections();
 });
 
@@ -107,6 +114,57 @@ afterAll(async () => {
 });
 
 describe("Phase 6 financial state machines", () => {
+  it("keeps a committed order response successful when journal retention sync fails", async () => {
+    const admin = await createTestUser({
+      email: "phase6-retention-admin@example.com",
+      role: "admin",
+    });
+    const trainer = await createTestUser({
+      email: "phase6-retention-trainer@example.com",
+      role: "trainer",
+    });
+    const client = await createTestUser({
+      email: "phase6-retention-client@example.com",
+    });
+    const order = await Order.create({
+      userId: client.user._id,
+      trainerId: trainer.user._id,
+      name: client.user.name,
+      email: client.user.email,
+      package: "Standard",
+      sessions: 5,
+      totalSessions: 5,
+      status: "approved",
+    });
+    const updateMany = vi
+      .spyOn(DailyJournal, "updateMany")
+      .mockRejectedValueOnce(new Error("retention sync unavailable"));
+
+    const response = await withAuth(
+      request(app)
+        .put("/api/orders/" + order._id)
+        .send({ status: "completed" }),
+      admin.accessToken,
+    );
+    updateMany.mockRestore();
+
+    expect(response.status).toBe(200);
+    const completedOrder = await Order.findById(order._id);
+    expect(completedOrder.status).toBe("completed");
+    expect(completedOrder.completedAt).toBeInstanceOf(Date);
+    expect(
+      getMetricsSnapshot().counters[
+        "daily_journal.retention_sync_failures"
+      ],
+    ).toBe(1);
+    expect(
+      getOperationalAlerts().find(
+        (alert) =>
+          alert.code === "daily_journal_retention_sync_failure",
+      ),
+    ).toMatchObject({ active: true, severity: "high", value: 1 });
+  });
+
   it("rejects non-integer and string deposit amounts", async () => {
     const actor = await createTestUser({
       email: "phase6-amount@example.com",

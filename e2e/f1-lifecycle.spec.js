@@ -9,6 +9,7 @@ const useTrainer = async (page) => {
       headers: {
         ...route.request().headers(),
         "x-e2e-role": "trainer",
+        "x-e2e-trainer-access": "true",
       },
     }),
   );

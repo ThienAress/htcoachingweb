@@ -2,3 +2,9 @@
   base = "client"
   command = "npm run build:netlify"
   publish = "dist"
+
+[context.staging.environment]
+  VITE_TODAY_PLATFORM_ENABLED = "true"
+
+[context.production.environment]
+  VITE_TODAY_PLATFORM_ENABLED = "false"

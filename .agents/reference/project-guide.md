@@ -2,6 +2,7 @@
 
 > **Scope:** Tài liệu tham khảo chi tiết cho các coding agent làm việc trong dự án này.
 > **Mục tiêu:** AI code chính xác, đơn giản, an toàn — như một dev partner hiểu rõ project.
+> **Vai trò:** Architecture/file-map reference. Policy canonical nằm trong `AGENTS.md` và `.agents/rules/`; khi có khác biệt, policy canonical thắng.
 
 ---
 
@@ -10,7 +11,7 @@
 - Bạn là **fullstack developer partner** — hỗ trợ code, debug, review cho dự án htcoachingweb.
 - Luôn giao tiếp, giải thích và báo cáo bằng **Tiếng Việt**.
 - Diễn giải **ngắn gọn, rõ ràng, có căn cứ** — không suy đoán mơ hồ.
-- Khi không chắc chắn → **DỪNG LẠI và hỏi**, không tự ý quyết định.
+- Nếu có thể kiểm tra hoặc suy luận an toàn từ code bằng thao tác read-only → tiếp tục và nêu giả định. Chỉ dừng hỏi khi lựa chọn làm thay đổi đáng kể hành vi, dữ liệu, bảo mật hoặc phạm vi.
 
 ---
 
@@ -20,10 +21,10 @@
 
 Trước khi implement:
 
-- **Nêu rõ giả định.** Nếu không chắc → hỏi.
-- **Nhiều cách hiểu → trình bày tất cả**, để user chọn — không tự ý pick.
+- **Nêu rõ giả định.** Kiểm tra code trước; chỉ hỏi khi giả định dẫn tới lựa chọn có ảnh hưởng đáng kể.
+- **Nhiều cách hiểu có hệ quả khác nhau → trình bày các lựa chọn quan trọng**, để user chọn khi không thể suy ra an toàn.
 - **Có cách đơn giản hơn → nói ra.** Push back khi cần thiết.
-- **Không hiểu → DỪNG.** Nói rõ cái gì chưa hiểu, rồi hỏi.
+- **Không hiểu phần quyết định thay đổi → DỪNG.** Vẫn tiếp tục điều tra read-only và nói rõ bằng chứng còn thiếu.
 
 **Đặc biệt cho htcoachingweb:**
 
@@ -135,23 +136,23 @@ htcoachingweb/
 │       ├── hooks/                   ← Custom hooks (useMealGenerator, useGsap...)
 │       ├── layouts/                 ← MainLayout, AdminLayout, TrainerLayout
 │       ├── pages/                   ← Page components (lazy-loaded)
-│       │   ├── admin/               ← 15+ admin pages
+│       │   ├── admin/               ← Admin pages
 │       │   ├── trainer/             ← Trainer dashboard, coaching, schedule
 │       │   ├── customer/            ← Online coaching
 │       │   └── [public pages]       ← Home, Login, Register, Club, Exercises...
 │       ├── routes/                  ← AdminRoute (role-based guard)
 │       ├── sections/                ← Landing page sections (Hero, Pricing, About...)
-│       ├── services/                ← API call functions (20 service files)
+│       ├── services/                ← API call functions
 │       └── utils/                   ← api.js (axios instance), csrf, navigation
 │
 ├── server/                          ← Express 5 API
 │   ├── server.js                    ← Entry point (routes, middleware, cron jobs)
 │   └── src/
 │       ├── config/                  ← db.js, env.js, passport.js
-│       ├── controllers/             ← Request handlers (17 controllers)
+│       ├── controllers/             ← Request handlers
 │       ├── middlewares/             ← Auth, CSRF, rate limit, uploads, validation
-│       ├── models/                  ← Mongoose schemas (26 models)
-│       ├── routes/                  ← Express routers (20 route files)
+│       ├── models/                  ← Mongoose schemas
+│       ├── routes/                  ← Express routers
 │       ├── services/                ← Business logic + cron jobs
 │       └── utils/                   ← Shared utilities
 │
@@ -175,7 +176,7 @@ htcoachingweb/
 | **Public** | `/`, `/ket-qua-khach-hang/*`, `/huan-luyen-vien/*`, `/tdee-calculator`, `/mealplan`, `/exercises`, `/club` | Không cần auth |
 | **User** | `/login`, `/register`, `/checkin`, `/my-history`, `/wallet`, `/online-coaching`, `/account` | JWT `role: "user"` |
 | **Trainer** | `/trainer/*` (Dashboard, Checkin History, Coaching, Schedule) | JWT `role: "trainer"` hoặc `role: "user"` + active subscription |
-| **Admin** | `/admin/*` (15+ management pages) | JWT `role: "admin"` |
+| **Admin** | `/admin/*` | JWT `role: "admin"` |
 
 ---
 
@@ -435,29 +436,11 @@ Danh sách trang `noindex`: `/login`, `/login-success`, `/admin/*`, `/trainer/*`
 
 ### Rule 5: JSON-LD Structured Data
 
-**Trang chủ — Organization + FAQPage (`@graph`):**
-```json
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "Organization",
-      "name": "HTCOACHING",
-      "url": "https://htcoachingweb.io.vn"
-    },
-    {
-      "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "Câu hỏi?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Trả lời." }
-        }
-      ]
-    }
-  ]
-}
-```
+**Trang chủ — `Organization + ProfessionalService + Service + FAQPage` (`@graph`):**
+
+Nguồn canonical là `homeSchema` trong `client/src/pages/Home.jsx`. Không sao chép toàn
+bộ payload vào guide này vì offers và nội dung FAQ thay đổi theo code/runtime. Khi audit,
+kiểm tra đủ bốn node trên và validate payload prerender thực tế.
 
 **Trang Customer Story — Article (có `datePublished`, `dateModified`):**
 ```json

@@ -1,14 +1,11 @@
 ---
 name: qa
-description: Quality Assurance workflow — chạy tests (unit + integration + E2E), kiểm tra test coverage, verify build. Chạy trước deploy hoặc sau khi thêm feature mới.
+description: Workflow QA duy nhất sở hữu việc chạy compile/release build, unit, integration và E2E; tạo evidence có thể tái sử dụng bởi pre-deploy và ship.
 ---
 
-# $qa — Quality Assurance Check
+# $qa — Quality Assurance
 
-> Chạy pipeline QA tuần tự: Build → Unit Tests → Integration Tests → E2E Tests.
-> Sử dụng: `$qa` (full) hoặc `$qa quick` (chỉ build + unit tests)
-
-// turbo-all
+`$qa` là nguồn sự thật duy nhất cho build và test. `$pre-deploy` và `$ship` phải tái sử dụng QA evidence hợp lệ thay vì chạy lại cùng lệnh.
 
 ---
 
@@ -16,48 +13,29 @@ description: Quality Assurance workflow — chạy tests (unit + integration + E
 
 | Lệnh | Mô tả |
 |-------|--------|
-| `$qa` | Full pipeline — build + client tests + server tests + E2E |
-| `$qa quick` | Quick — chỉ build + client tests + server tests |
-| `$qa client` | Chỉ client tests |
-| `$qa server` | Chỉ server tests |
-| `$qa e2e` | Chỉ E2E tests (cần dev servers running) |
-
----
-
-## Pipeline Flow
-
-```
-┌────────────────────────────────────────────────────┐
-│                    $qa PIPELINE                     │
-│                                                     │
-│  Step 1       Step 2        Step 3       Step 4     │
-│ ┌────────┐  ┌──────────┐  ┌─────────┐  ┌───────┐  │
-│ │ Build  │─▶│ Client   │─▶│ Server  │─▶│  E2E  │  │
-│ │ Check  │  │  Tests   │  │  Tests  │  │ Tests │  │
-│ └────────┘  └──────────┘  └─────────┘  └───────┘  │
-│      │           │             │            │       │
-│    FAIL?       FAIL?         FAIL?        FAIL?    │
-│    → STOP      report        report       report   │
-│                                                     │
-│  ═══════════════════════════════════════════════    │
-│                  QA REPORT                          │
-│           PASS / FAIL (X/Y tests)                   │
-└────────────────────────────────────────────────────┘
-```
+| `$qa` | Release build + client tests + server tests + E2E khi đủ điều kiện; tạo release evidence |
+| `$qa quick` | Compile-only + client tests + server tests; không phải release evidence |
+| `$qa client` | Compile-only + client tests |
+| `$qa server` | Server tests |
+| `$qa e2e` | E2E; bổ sung vào evidence hiện có |
 
 ---
 
 ## Step 1: Build Check 🏗️
 
-Build frontend để verify không có compilation errors.
+`$qa quick` và `$qa client` dùng compile-only, không chạy lifecycle `prebuild`/`postbuild`:
 
 ```bash
-cd client && npm run build
+cd client && npx vite build
 ```
 
-→ Verify: Exit code 0, không có errors
+`$qa` dùng release build. Lệnh này chạy sitemap, Vite build, prerender và bundle budget theo npm lifecycle:
 
-**Nếu FAIL:** Dừng pipeline. Không chạy tests khi code không build được.
+```bash
+npm run build --prefix client
+```
+
+Nếu compile-only pass nhưng release build fail thì QA vẫn **FAIL**. Không nâng kết quả quick thành release evidence.
 
 ---
 
@@ -66,7 +44,7 @@ cd client && npm run build
 Chạy unit tests frontend.
 
 ```bash
-cd client && npx vitest run
+npm run test:unit:client
 ```
 
 → Verify: Ghi nhận số tests passed/failed/skipped
@@ -87,7 +65,7 @@ cd client && npx vitest run
 Chạy unit + integration tests backend.
 
 ```bash
-cd server && npx vitest run
+npm run test:unit:server
 ```
 
 → Verify: Ghi nhận số tests passed/failed/skipped
@@ -129,14 +107,14 @@ describe('Module Name', () => {
 
 ## Step 4: E2E Tests 🌐 (Playwright)
 
-> ⚠️ Chỉ chạy khi dev servers đang running (client + server).
-> Nếu không running → SKIP step này.
+> Chỉ chạy khi dev servers và dữ liệu thử nghiệm cần thiết đã sẵn sàng.
+> Nếu thiếu điều kiện, ghi `SKIP` kèm lý do; không được báo `PASS`.
 
 ```bash
-npx playwright test
+npm run test:e2e
 ```
 
-→ Verify: Ghi nhận kết quả. Screenshots lưu tự động khi fail.
+→ Verify: Ghi nhận kết quả. Screenshots lưu tự động khi fail. Với auth, payment, wallet, contract hoặc workflow chính, E2E là bắt buộc nếu tiêu chí nghiệm thu yêu cầu.
 
 ### Trước khi viết E2E test mới
 
@@ -146,38 +124,39 @@ npx playwright test
 
 ---
 
+## QA evidence contract
+
+Trước khi chạy, ghi `git status --short`, `git diff --stat` và Git `HEAD`. Evidence chỉ hợp lệ khi có đủ:
+
+- Thời điểm chạy và mode (`full`, `quick`, `client`, `server`, `e2e`).
+- `HEAD` và trạng thái working tree; nếu dirty, kèm danh sách file thay đổi và diff stat làm fingerprint.
+- Chính xác lệnh đã chạy, exit code, PASS/FAIL/SKIP và số test.
+- Release build `PASS` nếu dùng cho deploy.
+- Client/server tests `PASS` cho các layer nằm trong phạm vi.
+- E2E `PASS` hoặc `SKIP` có lý do và đánh giá rủi ro.
+- Không có thay đổi code/config/test liên quan sau thời điểm evidence được tạo.
+
+Evidence hết hạn ngay khi working tree liên quan thay đổi. Sau khi sửa, chỉ chạy lại các lệnh bị ảnh hưởng và cập nhật evidence; không tái sử dụng kết quả cũ bằng suy đoán. Mọi exit code khác `0` là `FAIL`; lỗi môi trường phải ghi `BLOCKED`, không đổi thành `PASS`.
+
 ## Output Format
 
+```text
+QA EVIDENCE — HTCoachingWeb
+Mode: full | quick | client | server | e2e
+Timestamp: <ISO-8601>
+HEAD: <commit>
+Working tree: clean | dirty (<changed files + diff stat>)
+
+Release build: PASS | FAIL | NOT RUN
+Client tests: PASS (X) | FAIL (Y) | NOT RUN
+Server tests: PASS (X) | FAIL (Y) | NOT RUN
+E2E: PASS (X) | FAIL (Y) | SKIP (<reason>) | NOT RUN
+
+Result: PASS | FAIL | BLOCKED
+Release evidence: VALID | NOT VALID
 ```
-🧪 QA REPORT — HTCoachingWeb
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-[1/4] Build Check        ✅ PASS (Xs) / ❌ FAIL
-[2/4] Client Tests       ✅ X passed, 0 failed / ❌ X passed, Y failed
-[3/4] Server Tests       ✅ X passed, 0 failed / ❌ X passed, Y failed
-[4/4] E2E Tests          ✅ X passed / ⏭️ SKIP (no dev servers)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📋 FAILED TESTS (nếu có):
-
-| # | Layer  | Test Name                  | Error Summary        |
-|---|--------|----------------------------|---------------------|
-| 1 | Server | auth controller - login    | Expected 200, got 401 |
-| 2 | Client | utils/format - formatVnd   | Expected "1.000đ"    |
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📊 COVERAGE SUMMARY:
-- Total tests: X
-- Passed: X
-- Failed: Y
-- Skipped: Z
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RESULT: ✅ ALL PASS — QA gate cleared
-        ❌ FAIL — X tests failed, fix trước khi deploy
-```
+`PASS` nghĩa là mọi lệnh bắt buộc của mode đã pass. Chỉ `$qa` full đáp ứng đủ điều kiện để ghi `Release evidence: VALID`.
 
 ---
 
@@ -201,7 +180,7 @@ Khi viết tests mới, ưu tiên theo risk:
 
 | Tình huống | Lệnh |
 |------------|-------|
-| Trước deploy (trong $pre-deploy pipeline) | Tự động |
+| Trước deploy (trong `$pre-deploy`) | `$qa` full đúng một lần |
 | Sau khi thêm feature mới | `$qa` |
 | Chỉ sửa frontend | `$qa client` |
 | Chỉ sửa backend | `$qa server` |

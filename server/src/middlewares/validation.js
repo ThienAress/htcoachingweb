@@ -1,9 +1,10 @@
-import { body, param, validationResult } from "express-validator";
+import { body, param, query, validationResult } from "express-validator";
 import mongoose from "mongoose";
 import {
   TRAINER_BILLING_CYCLES,
   TRAINER_PLAN_CODES,
 } from "../constants/trainerPlans.js";
+import { parseDateKey } from "../utils/dateKey.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -698,6 +699,638 @@ export const validateDeleteUser = [
 ];
 
 // ============================================================================
+// DAILY JOURNAL VALIDATIONS
+// ============================================================================
+
+const journalDate = () =>
+  param("dateKey")
+    .matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)
+    .withMessage("dateKey phải theo YYYY-MM-DD")
+    .custom((value) => {
+      parseDateKey(value);
+      return true;
+    })
+    .withMessage("dateKey không tồn tại");
+
+const journalCommandFields = () => [
+  body("expectedRevision")
+    .isInt({ min: 0 })
+    .withMessage("expectedRevision phải là số nguyên không âm")
+    .toInt(),
+  body("requestId").isUUID().withMessage("requestId không hợp lệ"),
+];
+
+const journalPatchFields = () => [
+  body("patch").isObject().withMessage("patch phải là object"),
+  body("patch.wellness.sleepHours")
+    .optional({ nullable: true })
+    .isFloat({ min: 0, max: 24 })
+    .withMessage("sleepHours phải từ 0 đến 24")
+    .toFloat(),
+  body("patch.wellness.waterMl")
+    .optional({ nullable: true })
+    .isInt({ min: 0, max: 20000 })
+    .withMessage("waterMl phải từ 0 đến 20000")
+    .toInt(),
+  body("patch.wellness.steps")
+    .optional({ nullable: true })
+    .isInt({ min: 0, max: 200000 })
+    .withMessage("steps phải từ 0 đến 200000")
+    .toInt(),
+  ...["energy", "hunger", "stress", "soreness"].map((field) =>
+    body("patch.wellness." + field)
+      .optional({ nullable: true })
+      .isInt({ min: 1, max: 10 })
+      .withMessage(field + " phải từ 1 đến 10")
+      .toInt(),
+  ),
+  body("patch.wellness.pain")
+    .optional({ nullable: true })
+    .isInt({ min: 0, max: 10 })
+    .withMessage("pain phải từ 0 đến 10")
+    .toInt(),
+  body("patch.wellness.painArea")
+    .optional({ nullable: true })
+    .isString()
+    .isLength({ max: 120 })
+    .withMessage("painArea tối đa 120 ký tự"),
+  ...["private", "shared"].map((field) =>
+    body("patch.notes." + field)
+      .optional({ nullable: true })
+      .isString()
+      .isLength({ max: 2000 })
+      .withMessage("Ghi chú tối đa 2000 ký tự"),
+  ),
+  body("patch.nutrition")
+    .optional()
+    .isObject()
+    .withMessage("nutrition phải là object"),
+  body("patch.nutrition.assignment")
+    .optional({ nullable: true })
+    .isObject()
+    .withMessage("nutrition.assignment phải là object hoặc null"),
+  body("patch.nutrition.assignment.savedMealPlanId")
+    .optional()
+    .isMongoId()
+    .withMessage("savedMealPlanId không hợp lệ"),
+  body("patch.nutrition.entries")
+    .optional()
+    .isArray({ max: 10 })
+    .withMessage("nutrition.entries có tối đa 10 phần tử"),
+  body("patch.nutrition.entries.*.entryId")
+    .isUUID(4)
+    .withMessage("entryId phải là UUID v4"),
+  body("patch.nutrition.entries.*.mode")
+    .isIn(["follow_plan", "recipe", "manual"])
+    .withMessage("Meal entry mode không hợp lệ"),
+  body("patch.nutrition.entries.*.status")
+    .isIn(["eaten", "changed", "skipped"])
+    .withMessage("Meal entry status không hợp lệ"),
+  body("patch.nutrition.entries.*.plannedMealKey")
+    .optional()
+    .isString()
+    .isLength({ min: 1, max: 40 }),
+  body("patch.nutrition.entries.*.recipeId")
+    .optional()
+    .isMongoId()
+    .withMessage("recipeId không hợp lệ"),
+  body("patch.nutrition.entries.*.description")
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 240 }),
+  body("patch.nutrition.entries.*.note")
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ max: 240 }),
+  body("patch.habitCompletions")
+    .optional()
+    .isArray({ max: 20 })
+    .withMessage("habitCompletions có tối đa 20 phần tử"),
+  body("patch.habitCompletions.*.habitId")
+    .isMongoId()
+    .withMessage("habitId không hợp lệ"),
+  body("patch.habitCompletions.*.status")
+    .isIn(["completed", "skipped"])
+    .withMessage("Habit completion status không hợp lệ"),
+];
+
+export const validateDailyJournalDate = [
+  journalDate(),
+  handleValidationErrors,
+];
+
+export const validateSaveDailyJournal = [
+  journalDate(),
+  ...journalCommandFields(),
+  ...journalPatchFields(),
+  handleValidationErrors,
+];
+
+export const validateSubmitDailyJournal = [
+  journalDate(),
+  ...journalCommandFields(),
+  handleValidationErrors,
+];
+
+export const validateCorrectDailyJournal = [
+  journalDate(),
+  ...journalCommandFields(),
+  ...journalPatchFields(),
+  body("reason")
+    .isString()
+    .trim()
+    .isLength({ min: 3, max: 500 })
+    .withMessage("Chỉnh sửa sau khi gửi cần lý do từ 3 đến 500 ký tự"),
+  handleValidationErrors,
+];
+
+export const validateDailyJournalPagination = [
+  journalDate(),
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 50 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateDailyJournalExport = [
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateTrainerDailyJournalRead = [
+  param("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  journalDate(),
+  handleValidationErrors,
+];
+
+export const validateDeleteDailyJournalData = [
+  body("confirmation")
+    .equals("DELETE_MY_DAILY_JOURNALS")
+    .withMessage("Thiếu xác nhận xóa dữ liệu nhật ký"),
+  handleValidationErrors,
+];
+
+// ============================================================================
+// SAVED MEAL PLAN VALIDATIONS
+// ============================================================================
+
+const savedMealPlanContentFields = () => [
+  body("title")
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage("title phải có từ 1 đến 100 ký tự"),
+  body("target")
+    .optional({ nullable: true })
+    .isObject()
+    .withMessage("target phải là object"),
+  body("target.label")
+    .optional()
+    .isString()
+    .isLength({ max: 80 })
+    .withMessage("target.label tối đa 80 ký tự"),
+  body("target.protein").optional({ nullable: true }).isFloat({ min: 0, max: 1000 }).toFloat(),
+  body("target.carb").optional({ nullable: true }).isFloat({ min: 0, max: 2000 }).toFloat(),
+  body("target.fat").optional({ nullable: true }).isFloat({ min: 0, max: 1000 }).toFloat(),
+  body("target.calories").optional({ nullable: true }).isFloat({ min: 0, max: 20000 }).toFloat(),
+  body("meals")
+    .isArray({ min: 1, max: 6 })
+    .withMessage("meals cần từ 1 đến 6 bữa"),
+  body("meals.*.key")
+    .isString()
+    .matches(/^[a-z0-9][a-z0-9_-]*$/i)
+    .isLength({ min: 1, max: 40 })
+    .withMessage("meal key không hợp lệ"),
+  body("meals.*.name")
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 80 })
+    .withMessage("meal name không hợp lệ"),
+  body("meals.*.type")
+    .isIn(["breakfast", "lunch", "dinner", "snack", "other"])
+    .withMessage("meal type không hợp lệ"),
+  body("meals.*.foods")
+    .isArray({ min: 1, max: 8 })
+    .withMessage("Mỗi bữa cần từ 1 đến 8 thực phẩm"),
+  body("meals.*.foods.*.foodId")
+    .isMongoId()
+    .withMessage("foodId không hợp lệ"),
+  body("meals.*.foods.*.amountGrams")
+    .isFloat({ min: 1, max: 1000 })
+    .withMessage("amountGrams phải từ 1 đến 1000")
+    .toFloat(),
+];
+
+export const validateCreateSavedMealPlan = [
+  body("requestId").isUUID().withMessage("requestId không hợp lệ"),
+  ...savedMealPlanContentFields(),
+  handleValidationErrors,
+];
+
+export const validateReviseSavedMealPlan = [
+  param("id").isMongoId().withMessage("Saved Meal Plan ID không hợp lệ"),
+  body("requestId").isUUID().withMessage("requestId không hợp lệ"),
+  body("expectedVersion")
+    .isInt({ min: 1 })
+    .withMessage("expectedVersion không hợp lệ")
+    .toInt(),
+  ...savedMealPlanContentFields(),
+  handleValidationErrors,
+];
+
+export const validateArchiveSavedMealPlan = [
+  param("id").isMongoId().withMessage("Saved Meal Plan ID không hợp lệ"),
+  body("requestId").isUUID().withMessage("requestId không hợp lệ"),
+  body("expectedVersion")
+    .isInt({ min: 1 })
+    .withMessage("expectedVersion không hợp lệ")
+    .toInt(),
+  handleValidationErrors,
+];
+
+export const validateSavedMealPlanId = [
+  param("id").isMongoId().withMessage("Saved Meal Plan ID không hợp lệ"),
+  handleValidationErrors,
+];
+
+const savedMealPlanPagination = () => [
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+];
+
+export const validateSavedMealPlanList = [
+  query("status")
+    .optional()
+    .isIn(["active", "archived", "all"])
+    .withMessage("status không hợp lệ"),
+  ...savedMealPlanPagination(),
+  handleValidationErrors,
+];
+
+export const validateSavedMealPlanExport = [
+  ...savedMealPlanPagination(),
+  handleValidationErrors,
+];
+
+export const validateDeleteSavedMealPlans = [
+  body("confirmation")
+    .equals("DELETE_MY_SAVED_MEAL_PLANS")
+    .withMessage("Thiếu xác nhận xóa Saved Meal Plans"),
+  handleValidationErrors,
+];
+
+// ============================================================================
+// COACHING HABIT VALIDATIONS
+// ============================================================================
+
+const coachingHabitFields = () => [
+  body("title").isString().trim().isLength({ min: 1, max: 100 }),
+  body("description").optional().isString().trim().isLength({ max: 500 }),
+  body("category")
+    .isIn(["nutrition", "movement", "recovery", "mindset", "other"])
+    .withMessage("Habit category không hợp lệ"),
+  body("schedule").isObject().withMessage("schedule phải là object"),
+  body("schedule.daysOfWeek")
+    .isArray({ min: 1, max: 7 })
+    .withMessage("daysOfWeek cần từ 1 đến 7 ngày"),
+  body("schedule.daysOfWeek.*")
+    .isInt({ min: 0, max: 6 })
+    .withMessage("daysOfWeek phải trong khoảng 0-6")
+    .toInt(),
+  body("schedule.startDateKey")
+    .matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)
+    .withMessage("startDateKey phải theo YYYY-MM-DD"),
+  body("schedule.endDateKey")
+    .optional({ nullable: true })
+    .matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)
+    .withMessage("endDateKey phải theo YYYY-MM-DD"),
+  body("target")
+    .optional({ nullable: true })
+    .isFloat({ min: 0, max: 100000 })
+    .toFloat(),
+  body("unit").optional().isString().trim().isLength({ max: 40 }),
+  body("visibility")
+    .optional()
+    .isIn(["private", "shared"])
+    .withMessage("visibility không hợp lệ"),
+];
+
+export const validateCoachingHabitCreate = [
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+  ...coachingHabitFields(),
+  handleValidationErrors,
+];
+
+export const validateTrainerCoachingHabitCreate = [
+  param("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  ...validateCoachingHabitCreate,
+];
+
+export const validateCoachingHabitList = [
+  query("dateKey")
+    .matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)
+    .withMessage("dateKey phải theo YYYY-MM-DD"),
+  handleValidationErrors,
+];
+
+export const validateTrainerCoachingHabitList = [
+  param("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  ...validateCoachingHabitList,
+];
+
+export const validateCoachingHabitUpdate = [
+  param("id").isMongoId().withMessage("Habit ID không hợp lệ"),
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+  body("expectedVersion").isInt({ min: 1 }).toInt(),
+  ...coachingHabitFields(),
+  handleValidationErrors,
+];
+
+export const validateCoachingHabitStatus = [
+  param("id").isMongoId().withMessage("Habit ID không hợp lệ"),
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+  body("expectedVersion").isInt({ min: 1 }).toInt(),
+  body("status").isIn(["active", "paused", "archived"]),
+  handleValidationErrors,
+];
+
+export const validateCoachingHabitExport = [
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateDeleteCoachingHabits = [
+  body("confirmation")
+    .equals("DELETE_MY_COACHING_HABITS")
+    .withMessage("Thiếu xác nhận xóa Coaching Habits"),
+  handleValidationErrors,
+];
+
+// ============================================================================
+// WEEKLY CHECK-IN VALIDATIONS
+// ============================================================================
+
+const weeklyDateKey = () =>
+  param("weekStartDateKey")
+    .matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)
+    .custom((value) => {
+      parseDateKey(value);
+      return true;
+    })
+    .withMessage("weekStartDateKey không hợp lệ");
+
+const exactWeeklyBody = (allowed) =>
+  body().custom((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Request body không hợp lệ");
+    }
+    if (Object.keys(value).some((key) => !allowed.includes(key))) {
+      throw new Error("Request chứa field không được phép");
+    }
+    return true;
+  });
+
+const weeklyCommandFields = () => [
+  body("expectedRevision").isInt({ min: 0 }).toInt(),
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+];
+
+export const validateSaveWeeklyCheckin = [
+  weeklyDateKey(),
+  exactWeeklyBody(["expectedRevision", "requestId", "patch"]),
+  ...weeklyCommandFields(),
+  body("patch").isObject().withMessage("patch phải là object"),
+  body("patch.body").isObject().withMessage("patch.body phải là object"),
+  handleValidationErrors,
+];
+
+export const validateSubmitWeeklyCheckin = [
+  weeklyDateKey(),
+  exactWeeklyBody(["expectedRevision", "requestId"]),
+  ...weeklyCommandFields(),
+  handleValidationErrors,
+];
+
+export const validateWeeklyCheckinCorrection = [
+  weeklyDateKey(),
+  exactWeeklyBody(["expectedRevision", "requestId", "patch", "reason"]),
+  ...weeklyCommandFields(),
+  body("patch").isObject().withMessage("patch phải là object"),
+  body("patch.body").isObject().withMessage("patch.body phải là object"),
+  body("reason").isString().trim().isLength({ min: 3, max: 500 }),
+  handleValidationErrors,
+];
+
+export const validateWeeklyCheckinReview = [
+  param("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  weeklyDateKey(),
+  exactWeeklyBody(["expectedRevision", "requestId", "review"]),
+  ...weeklyCommandFields(),
+  body("review").isObject().withMessage("review phải là object"),
+  body("review.message").isString().trim().isLength({ min: 1, max: 2000 }),
+  body("review.rating").optional({ nullable: true }).isInt({ min: 1, max: 10 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateWeeklyCheckinRead = [
+  param("clientId").optional().isMongoId().withMessage("clientId không hợp lệ"),
+  weeklyDateKey(),
+  handleValidationErrors,
+];
+
+export const validateWeeklyCheckinRevisionList = [
+  weeklyDateKey(),
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 50 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateWeeklyCheckinExport = [
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateDeleteWeeklyCheckins = [
+  exactWeeklyBody(["confirmation"]),
+  body("confirmation")
+    .equals("DELETE_MY_WEEKLY_CHECKINS")
+    .withMessage("Thiếu xác nhận xóa Weekly Check-ins"),
+  handleValidationErrors,
+];
+
+export const validateProgressRead = [
+  query("days")
+    .isInt()
+    .toInt()
+    .isIn([7, 30, 90])
+    .withMessage("days chỉ hỗ trợ 7, 30 hoặc 90"),
+  handleValidationErrors,
+];
+
+export const validateTrainerProgressRead = [
+  param("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  ...validateProgressRead,
+];
+
+export const validateTrainerOverview = [
+  param("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  query("dateKey")
+    .matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)
+    .custom((value) => {
+      parseDateKey(value);
+      return true;
+    })
+    .withMessage("dateKey không hợp lệ"),
+  query("days")
+    .isInt()
+    .toInt()
+    .isIn([7, 30, 90])
+    .withMessage("days chỉ hỗ trợ 7, 30 hoặc 90"),
+  handleValidationErrors,
+];
+
+// ============================================================================
+// COACHING COMMENT VALIDATIONS
+// ============================================================================
+
+const commentTargetType = (location = "body") =>
+  (location === "body" ? body("targetType") : param("targetType"))
+    .isIn([
+      "daily_journal",
+      "weekly_checkin",
+      "coaching_day",
+      "workout_plan",
+    ])
+    .withMessage("targetType không hợp lệ");
+
+const exactCommentBody = (allowed) =>
+  body().custom((value) => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some((key) => !allowed.includes(key))
+    ) {
+      throw new Error("Request chứa field không được phép");
+    }
+    return true;
+  });
+
+export const validateCoachingCommentCreate = [
+  exactCommentBody(["targetType", "targetId", "requestId", "body"]),
+  commentTargetType(),
+  body("targetId").isMongoId().withMessage("targetId không hợp lệ"),
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+  body("body").isString().trim().isLength({ min: 1, max: 2000 }),
+  handleValidationErrors,
+];
+
+export const validateCoachingCommentList = [
+  commentTargetType("param"),
+  param("targetId").isMongoId().withMessage("targetId không hợp lệ"),
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 50 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateCoachingCommentEdit = [
+  param("commentId").isMongoId().withMessage("commentId không hợp lệ"),
+  exactCommentBody(["expectedRevision", "requestId", "body"]),
+  body("expectedRevision").isInt({ min: 1 }).toInt(),
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+  body("body").isString().trim().isLength({ min: 1, max: 2000 }),
+  handleValidationErrors,
+];
+
+export const validateCoachingCommentRemove = [
+  param("commentId").isMongoId().withMessage("commentId không hợp lệ"),
+  exactCommentBody(["expectedRevision", "requestId"]),
+  body("expectedRevision").isInt({ min: 1 }).toInt(),
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+  handleValidationErrors,
+];
+
+export const validateCoachingCommentExport = [
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateDeleteCoachingComments = [
+  exactCommentBody(["confirmation"]),
+  body("confirmation")
+    .equals("DELETE_MY_COACHING_COMMENTS")
+    .withMessage("Thiếu xác nhận xóa Coaching Comments"),
+  handleValidationErrors,
+];
+
+// ============================================================================
+// IN-APP NOTIFICATION VALIDATIONS
+// ============================================================================
+
+export const validateNotificationList = [
+  query("status").optional().isIn(["all", "unread"]),
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 50 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateNotificationRead = [
+  param("notificationId")
+    .isMongoId()
+    .withMessage("notificationId không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateNotificationPreference = [
+  body().custom((value) => {
+    const allowed = [
+      "expectedRevision",
+      "inAppEnabled",
+      "comments",
+      "journal",
+      "weekly",
+    ];
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some((key) => !allowed.includes(key))
+    ) {
+      throw new Error("Request chứa field không được phép");
+    }
+    return true;
+  }),
+  body("expectedRevision").isInt({ min: 0 }).toInt(),
+  body("inAppEnabled").isBoolean().toBoolean(),
+  body("comments").isBoolean().toBoolean(),
+  body("journal").isBoolean().toBoolean(),
+  body("weekly").isBoolean().toBoolean(),
+  handleValidationErrors,
+];
+
+export const validateTrainerClientOverview = validateTrainerOverview;
+
+export const validateCoachingActivityRead = [
+  query("days")
+    .isInt()
+    .toInt()
+    .isIn([7, 30, 90])
+    .withMessage("days chỉ hỗ trợ 7, 30 hoặc 90"),
+  handleValidationErrors,
+];
+
+export const validateCoachingActivityExport = [
+  ...validateCoachingActivityRead.slice(0, -1),
+  query("format").isIn(["json", "csv"]).withMessage("format không hợp lệ"),
+  handleValidationErrors,
+];
+
+// ============================================================================
 // CONTACT & BOOKING VALIDATIONS
 // ============================================================================
 
@@ -974,5 +1607,78 @@ export const validateTrainerPlanGrant = [
   body("billingCycle")
     .isIn(TRAINER_BILLING_CYCLES)
     .withMessage("billingCycle không hợp lệ"),
+  handleValidationErrors,
+];
+
+const exactWellnessTargetBody = (allowed) =>
+  body().custom((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Request body không hợp lệ");
+    }
+    if (Object.keys(value).some((key) => !allowed.includes(key))) {
+      throw new Error("Request chứa field không được phép");
+    }
+    return true;
+  });
+
+const exactWellnessTargets = body("targets").custom((value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("targets phải là object");
+  }
+  const allowed = ["sleepHours", "waterMl", "steps"];
+  if (
+    Object.keys(value).length !== allowed.length ||
+    Object.keys(value).some((key) => !allowed.includes(key))
+  ) {
+    throw new Error("targets phải có đúng sleepHours, waterMl và steps");
+  }
+  return true;
+});
+
+export const validateWellnessTargetOwnRead = [
+  query("dateKey")
+    .isString()
+    .custom((value) => {
+      parseDateKey(value);
+      return true;
+    })
+    .withMessage("dateKey không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateWellnessTargetClient = [
+  param("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateWellnessTargetWrite = [
+  param("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  exactWellnessTargetBody([
+    "expectedVersion",
+    "requestId",
+    "targets",
+    "note",
+  ]),
+  body("expectedVersion").isInt({ min: 0 }).toInt(),
+  body("requestId").isUUID(4).withMessage("requestId phải là UUID v4"),
+  exactWellnessTargets,
+  body("targets.sleepHours").isFloat({ min: 1, max: 24 }).toFloat(),
+  body("targets.waterMl").isInt({ min: 250, max: 20000 }).toInt(),
+  body("targets.steps").isInt({ min: 100, max: 200000 }).toInt(),
+  body("note").optional().isString().trim().isLength({ max: 500 }),
+  handleValidationErrors,
+];
+
+export const validateWellnessTargetExport = [
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+  handleValidationErrors,
+];
+
+export const validateDeleteWellnessTargets = [
+  exactWellnessTargetBody(["confirmation"]),
+  body("confirmation")
+    .equals("DELETE_MY_WELLNESS_TARGETS")
+    .withMessage("Thiếu xác nhận xóa Wellness Targets"),
   handleValidationErrors,
 ];

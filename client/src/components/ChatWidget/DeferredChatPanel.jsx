@@ -4,7 +4,14 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const ChatPanel = lazy(() => import("./ChatPanel"));
-const HIDDEN_PATHS = ["/login", "/register", "/login-success", "/admin", "/trainer"];
+const HIDDEN_PATHS = [
+  "/login",
+  "/register",
+  "/login-success",
+  "/admin",
+  "/trainer",
+  "/dashboard",
+];
 
 export default function DeferredChatPanel() {
   const { user } = useAuth();

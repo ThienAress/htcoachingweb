@@ -90,24 +90,12 @@ function CustomerStories() {
 
 ## Rule 5: JSON-LD Structured Data
 
-### Trang chủ — LocalBusiness
+### Trang chủ — Organization + ProfessionalService + Service + FAQPage
 
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  "name": "HTCOACHING",
-  "description": "HLV cá nhân: Gym, Boxing, Tăng cơ & Giảm mỡ",
-  "url": "https://htcoachingweb.io.vn",
-  "image": "https://htcoachingweb.io.vn/og-image.png",
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "TP. Hồ Chí Minh",
-    "addressCountry": "VN"
-  },
-  "priceRange": "$$"
-}
-```
+Trang chủ dùng một `@graph` gồm bốn node trên. Nguồn canonical là `homeSchema` trong
+`client/src/pages/Home.jsx`; offers của `Service` có thể được tạo từ dữ liệu pricing.
+Không thay bằng `LocalBusiness` nếu product chưa có một địa điểm doanh nghiệp canonical
+được xác minh. Khi sửa phải kiểm tra cả DOM prerender, không chỉ source JSX.
 
 ### Trang Customer Story — Article
 

@@ -8,7 +8,7 @@ import { getTrainerPlan } from "../services/trainerPlanCatalog.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 const requireF1Entitlement = async (req, res, next) => {
-  if (req.user.role === "admin" || req.user.role === "trainer") return next();
+  if (req.user.role === "admin") return next();
 
   try {
     const subscription =

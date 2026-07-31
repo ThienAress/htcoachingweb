@@ -180,6 +180,10 @@ trainingScheduleSchema.index(
 );
 trainingScheduleSchema.index({ trainerId: 1, status: 1, startAt: 1 });
 trainingScheduleSchema.index({ clientId: 1, status: 1, startAt: 1 });
+trainingScheduleSchema.index(
+  { clientId: 1, occurrenceDateKey: 1, startAt: 1 },
+  { name: "training_schedule_client_day_range" },
+);
 trainingScheduleSchema.index({ status: 1, startAt: 1 });
 trainingScheduleSchema.index({ trainerId: 1, dayOfWeek: 1, startTime: 1 });
 trainingScheduleSchema.index({ expiresAt: 1, status: 1 });

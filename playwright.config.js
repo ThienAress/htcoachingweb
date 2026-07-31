@@ -32,6 +32,7 @@ export default defineConfig({
         ...process.env,
         VITE_API_URL: "http://127.0.0.1:5100/api",
         VITE_E2E: "true",
+        VITE_TODAY_PLATFORM_ENABLED: "true",
       },
       url: "http://127.0.0.1:4174",
       reuseExistingServer: !process.env.CI,

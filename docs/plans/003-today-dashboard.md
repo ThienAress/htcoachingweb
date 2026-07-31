@@ -5,6 +5,7 @@
 > [`docs/specs/today-dashboard.md`](../specs/today-dashboard.md). Không triển khai
 > nhiều phase cùng lúc. Mỗi phase phải được user duyệt riêng, hoàn thành test/gate
 > và cập nhật trạng thái trước khi bắt đầu phase tiếp theo.
+> Release hardening cuối: [`003h-today-dashboard-hardening.md`](./003h-today-dashboard-hardening.md).
 >
 > **Drift check đầu tiên**: Trước khi code, chạy lại các lệnh inventory trong phần
 > Commands. Nếu vai trò của `TrainingSchedule`, `CoachingDay`, `WorkoutPlan`, `Order`
@@ -18,7 +19,7 @@
 - **Depends on**: Plan 001 và Plan 002 đã được triển khai
 - **Category**: feature | architecture | data | privacy | UX | tests
 - **Planned at**: 2026-07-28
-- **Status**: SPEC / PLAN — CHƯA IMPLEMENT
+- **Status**: IMPLEMENTED / LOCAL VERIFIED — STAGING + F1 BASELINE LINKING PENDING
 
 ## Assumptions đã chốt
 
@@ -33,6 +34,9 @@
 9. Khách được ghi bữa ăn nhanh; không bắt nhập calories/gram cho mọi trường hợp.
 10. F1 chỉ được dùng làm baseline khi có liên kết danh tính rõ ràng; không join ngầm
     bằng email.
+11. Người đã hết coaching vẫn đọc own-history trong retention window; người chưa
+    từng coaching chỉ thấy onboarding.
+12. Mỗi release tạo collection mới phải ship privacy lifecycle trong chính release đó.
 
 ## Why This Matters
 
@@ -277,6 +281,7 @@ GET /api/today-dashboard/day/:dateKey
 {
   "success": true,
   "data": {
+    "contractVersion": 1,
     "dateKey": "2026-07-28",
     "timeZone": "Asia/Ho_Chi_Minh",
     "eligibility": {
@@ -292,26 +297,23 @@ GET /api/today-dashboard/day/:dateKey
     "summary": {
       "dayStatus": "in_progress",
       "completionPercent": 60,
+      "formulaVersion": "today-v1",
       "attentionFlags": []
     },
-    "schedule": { "items": [], "source": "training_schedule" },
-    "coaching": { "day": null, "source": "coaching_day" },
-    "workoutPlans": [],
-    "attendance": [],
-    "journal": null,
-    "nutrition": { "plan": null, "totals": null },
-    "habits": [],
-    "comments": [],
-    "links": {
-      "booking": "/book-training",
-      "coaching": "/online-coaching",
-      "workoutPlans": "/workout-plans"
-    }
+    "sections": {
+      "schedule": { "status": "ready", "source": "training_schedule", "items": [], "deepLink": "/book-training", "error": null },
+      "coaching": { "status": "empty", "source": "coaching_day", "day": null, "deepLink": "/online-coaching", "error": null },
+      "workout": { "status": "empty", "source": "workout_plan", "items": [], "deepLink": "/workout-plans", "error": null },
+      "attendance": { "status": "empty", "source": "checkin", "items": [], "deepLink": "/my-history", "error": null }
+    },
+    "partialErrors": []
   }
 }
 ```
 
 Response chỉ trả summary cần thiết. Chi tiết video/plan lớn tiếp tục lấy từ API gốc.
+`401/403` luôn là full-request error. Chỉ lỗi source độc lập mới vào `partialErrors`.
+Response private phải có `Cache-Control: private, no-store`.
 
 ### Daily journal
 
@@ -320,7 +322,8 @@ GET  /api/daily-journals/:dateKey
 PUT  /api/daily-journals/:dateKey
 POST /api/daily-journals/:dateKey/submit
 POST /api/daily-journals/:dateKey/corrections
-GET  /api/daily-journals/:dateKey/history
+POST /api/daily-journals/:dateKey/review
+GET  /api/daily-journals/:dateKey/revisions?page=1&limit=20
 ```
 
 Mọi mutation:
@@ -610,6 +613,8 @@ module hiện tại.
 - Admin path rõ ràng, ghi request context cho sensitive support reads.
 - Reuse logic/date helpers từ `trainingScheduleCommand.service.js` và
   `trainingOccurrence.service.js`; không copy constant timezone.
+- Phân biệt `never_coached`, `pending`, `active`, `inactive` và
+  `assignment_required`; own-history của client inactive vẫn đọc được.
 
 **Acceptance**:
 
@@ -630,6 +635,11 @@ module hiện tại.
 - Chỉ select summary fields; không tải video payload hoặc toàn history.
 - Không `save`, `update` hoặc tạo snapshot.
 - Tính completion bằng pure helper mới, không ghi DB.
+- Dùng `Promise.allSettled`; authentication/ownership là fatal còn source error độc
+  lập được redact vào section tương ứng.
+- Workout filter đúng customer contract: chỉ `published|completed`, ưu tiên
+  `clientId`, fallback email chỉ cho legacy record và query `planDate` theo range UTC
+  của ngày Việt Nam.
 
 **Acceptance**: cùng source IDs/status với API gốc; 0 writes.
 
@@ -643,6 +653,8 @@ cancelled schedule và partial missing source.
 - Mount `/api/today-dashboard` trong `server/server.js` theo inline-import convention.
 - Validate dateKey bằng helper server hiện có.
 - Response contract đúng phần Proposed API.
+- Gắn read limiter và `Cache-Control: private, no-store`.
+- Ghi metric latency tổng, partial error và payload size ngay từ Release A.
 
 **Acceptance**: `GET /day/2026-07-28` trả envelope ổn định; invalid date trả 400.
 
@@ -666,6 +678,8 @@ cancelled schedule và partial missing source.
   CoachingCard, WorkoutPlanCard, EmptyState.
 - Card dùng summary và link màn hình gốc; không nhúng form/video upload.
 - Thêm `/today` trong `App.jsx` bằng lazy import và protected behavior hiện có.
+- Thêm cả `/today/:dateKey` và customer `AuthenticatedRoute`; không dùng
+  `AdminRoute` cho customer page.
 - Thêm navigation có điều kiện trong Header.
 - `<SEO noindex />`; không sửa sitemap/prerender.
 
@@ -680,6 +694,8 @@ redirect login; keyboard/mobile usable.
 - Read-only verification bằng test account đã xác nhận.
 - So sánh source IDs với `/book-training`, `/online-coaching`, `/workout-plans`.
 - Không có model/index/migration mới.
+- Header cache/query key có user id; logout hoặc `401/403` không giữ private data.
+- Metrics và rollback threshold của Release A đã được ghi trước production cohort.
 
 ## Phase 2 — Daily Journal, revision và quick wellness logging
 
@@ -692,6 +708,8 @@ redirect login; keyboard/mobile usable.
 - Bounded arrays, max lengths, numeric ranges và explicit defaults.
 - Tạo migration createIndexes + verify; không backfill documents.
 - Dùng migration safety hiện có; không chạy staging/prod chưa xác nhận.
+- Trong cùng phase, mở rộng privacy export/delete/retention inventory cho hai model;
+  không defer sang Phase 6.
 
 **Acceptance**: document cũ không bị tác động; duplicate client/date fail.
 
@@ -705,6 +723,10 @@ redirect login; keyboard/mobile usable.
 - Submit idempotent.
 - Correction cần reason, actor và revision mới.
 - Server tự tính completion summary.
+- Idempotency dùng unique actor/request key + payload fingerprint theo
+  `TrainingScheduleCommand`; `requestId` không chỉ là field ghi chú trong revision.
+- Autosave không tạo audit revision vô hạn: chỉ checkpoint meaningful diff và history
+  luôn phân trang.
 
 **Acceptance**: stale update trả 409; double request không tạo revision trùng.
 
@@ -744,11 +766,21 @@ redirect login; keyboard/mobile usable.
 
 **Verify**: deterministic ordering test.
 
+### Phase 2 release gate
+
+- Export/delete/retention cho journal và revisions đã có integration test.
+- Private response có no-store; mutation limiter, CSRF, IDOR và idempotency pass.
+- Không bật write flag nếu lifecycle timestamp hoặc retention policy chưa canonical.
+
+**Kết quả 2026-07-29**: Release B đạt gate. Retention enforcement re-check active Order
+trước khi xóa, yêu cầu explicit env flag và phát alert khi lifecycle sync phụ thất bại.
+Không chạy migration, backfill, retention enforcement hoặc production write.
+
 ## Phase 3 — Persisted Meal Plan và Habit execution
 
 **Depends on**: Phase 2 verified.
 
-### Task 3.1 — Lưu meal generator output
+### Task 3.1 — Lưu meal generator output — IMPLEMENTED / VERIFIED 2026-07-29
 
 - Tạo `SavedMealPlan` model/service/routes/controller.
 - Reuse output của `useMealGenerator`; không rewrite generator.
@@ -760,7 +792,7 @@ redirect login; keyboard/mobile usable.
 
 **Verify**: contract/integration tests và cross-device E2E bằng fresh context.
 
-### Task 3.2 — Gắn meal plan vào ngày
+### Task 3.2 — Gắn meal plan vào ngày — IMPLEMENTED / VERIFIED 2026-07-29
 
 - Cho khách chọn SavedMealPlan cho một hoặc nhiều dateKeys trong giới hạn.
 - DailyJournal lưu plan reference + version/snapshot id, không copy toàn plan tùy tiện.
@@ -771,7 +803,7 @@ redirect login; keyboard/mobile usable.
 
 **Verify**: versioning and historical immutability tests.
 
-### Task 3.3 — Quick meal logging
+### Task 3.3 — Quick meal logging — IMPLEMENTED / VERIFIED 2026-07-29
 
 - Ba mode: follow plan, recipe, manual description.
 - Manual không hiển thị macro chính xác nếu không có quantities.
@@ -782,7 +814,7 @@ redirect login; keyboard/mobile usable.
 
 **Verify**: Zod/server validation parity và accessibility.
 
-### Task 3.4 — Habit assignment/completion
+### Task 3.4 — Habit assignment/completion — IMPLEMENTED / VERIFIED 2026-07-29
 
 - Tạo `CoachingHabit`.
 - Trainer tạo/pause/archive habit chỉ cho managed client.
@@ -889,6 +921,8 @@ redirect login; keyboard/mobile usable.
 - Cung cấp export JSON/CSV có xác thực; PDF chỉ làm bằng workflow PDF riêng nếu user
   duyệt sau.
 - Export có timestamp/timezone/source IDs để đối chiếu.
+- Audit enum cần cho admin sensitive read phải được thêm ở phase đầu tiên sử dụng,
+  không chờ riêng Task 5.4.
 
 **Acceptance**: support có thể trace ai làm gì mà không đọc raw server logs.
 
@@ -896,14 +930,22 @@ redirect login; keyboard/mobile usable.
 
 ## Phase 6 — Privacy lifecycle, performance và staged rollout
 
+**Kết quả local 2026-07-29**: deletion orchestration và target cascades đã
+transactionally verified; retention mặc định dry-run/fail-closed; critical range
+queries có index verifier, load/payload budgets và bounded readers. Full unit,
+build, E2E và security gates PASS. Chưa chạy migration, staging seed, retention
+enforcement hoặc production write.
+
 ### Task 6.1 — Deletion/retention integration
 
-- Inventory DailyJournal, revisions, SavedMealPlan, Habit, WeeklyCheckin, Comment/media.
-- Tạo coaching data deletion job hoặc mở rộng user privacy orchestration có transaction.
+- Re-audit inventory DailyJournal, revisions, SavedMealPlan, Habit, WeeklyCheckin,
+  Comment/media đã được tích hợp ở từng release.
+- Hardening coaching data deletion orchestration, retry và cross-collection transaction.
 - Pseudonymize/delete theo policy; audit tối thiểu được giữ theo policy.
 - Dry-run default, enforcement cần explicit env và actor như F1 pattern.
 
-**STOP**: retention days/privacy policy chưa được product owner xác nhận.
+**STOP**: không đổi retention days/pseudonymization ngoài policy đã duyệt và
+không bật enforcement khi chưa có target, env guard và admin actor.
 
 ### Task 6.2 — Query/index/performance
 
@@ -1017,20 +1059,35 @@ redirect login; keyboard/mobile usable.
 - Phase 2.
 - Quick log, submit, revision và privacy lifecycle.
 
-### Release C — Ăn uống và thói quen
+### Release C — Saved Meal Plan
 
-- Phase 3.
-- Persisted meal plan, daily execution và habits.
+- Phase 3, Task 3.1.
+- Persist/version output từ Food canonical; đã implemented/verified.
 
-### Release D — Tiến trình và review tuần
+### Release D — Daily meal execution
+
+- Phase 3, Task 3.2–3.3.
+- Gắn exact plan version vào ngày và quick meal log.
+
+### Release E — Coaching habits
+
+- Phase 3, Task 3.4.
+- Habit assignment, completion và streak derived.
+
+### Release F — Tiến trình và review tuần
 
 - Phase 4.
 - Progress, weekly check-in và optional explicit F1 baseline.
 
-### Release E — Đồng hành cùng HLV
+### Release G — Đồng hành cùng HLV
 
-- Phase 5 + Phase 6.
-- Contextual comments, trainer workspace, notifications, hardening và rollout.
+- Phase 5.
+- Contextual comments, trainer workspace, notifications và activity/audit export.
+
+### Release H — Hardening và rollout
+
+- Phase 6.
+- Privacy orchestration, query/index/load budgets, cache purge và staged rollout runbook.
 
 Mỗi release phải đạt gate và có thể deploy độc lập; không chờ toàn bộ feature mới
 tạo giá trị.
@@ -1051,17 +1108,17 @@ Một task chỉ được đóng khi:
 
 ## Done Criteria
 
-- [ ] Phase 1 read-only compose dữ liệu hiện có, không duplicate source model.
-- [ ] Mỗi mutation domain mới có auth, CSRF, server validation và ownership.
-- [ ] Daily history có revision và correction reason.
-- [ ] Meal plan không còn phụ thuộc duy nhất vào localStorage.
-- [ ] Progress/weekly metrics dùng một backend read model chung.
-- [ ] Trainer không sửa client-entered health/nutrition fields.
-- [ ] F1 không join ngầm bằng email.
-- [ ] Private media gate đạt trước mọi health/meal photo upload.
-- [ ] Deletion/retention inventory đủ model mới.
-- [ ] Protected routes noindex và không vào sitemap/prerender.
-- [ ] Tất cả test/build/security gates pass ở từng phase.
+- [x] Phase 1 read-only compose dữ liệu hiện có, không duplicate source model.
+- [x] Mỗi mutation domain mới có auth, CSRF, server validation và ownership.
+- [x] Daily history có revision và correction reason.
+- [x] Meal plan không còn phụ thuộc duy nhất vào localStorage.
+- [x] Progress/weekly metrics dùng một backend read model chung.
+- [x] Trainer không sửa client-entered health/nutrition fields.
+- [x] F1 không join ngầm bằng email.
+- [x] Private media bị defer; không có health/meal photo upload mới.
+- [x] Deletion/retention inventory đủ model mới.
+- [x] Protected routes noindex và không vào sitemap/prerender.
+- [x] Tất cả local test/build/E2E/security gates pass ở từng phase.
 - [ ] Staging verification có evidence trước production.
 
 ## STOP Conditions

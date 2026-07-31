@@ -583,6 +583,7 @@ export const useMealGenerator = ({
   const mapFoodData = (food) =>
     food
       ? {
+          _id: food._id,
           name: food.name,
           label: food.label,
           amount: food.amount,

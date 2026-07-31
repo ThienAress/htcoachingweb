@@ -19,7 +19,7 @@ description: Hướng dẫn audit codebase theo 7 danh mục. Dùng khi user g�
 | Pattern | Lý do by-design |
 |---------|-----------------| 
 | Mixed quote style (`""` và `''`) | Project convention |
-| File >300 dòng (3 files >39K) | Biết rồi, chưa ưu tiên — xem `known_issues.md` |
+| File lớn đã được ghi nhận | Biết rồi, chưa ưu tiên — xem `../known-issues/SKILL.md`; chỉ report nếu task tạo thêm rủi ro cụ thể |
 | `validation.js` 25K 1-file-all | Pattern có chủ đích |
 | `htcoachingweb.onrender.com` hardcode trong Login + LoginModal | Google OAuth callback URL — intentional |
 | CSP `'unsafe-inline'` cho scriptSrc/styleSrc | Cần cho GA4 + Tailwind CSS |

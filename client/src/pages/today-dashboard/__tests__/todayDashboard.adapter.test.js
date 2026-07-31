@@ -1,0 +1,150 @@
+import { describe, expect, it } from "vitest";
+import { adaptTodayDashboard } from "../todayDashboard.adapter";
+
+const progress = (overrides = {}) => ({
+  completed: 0,
+  total: 10,
+  percent: 0,
+  state: "not_started",
+  ...overrides,
+});
+
+const contract = (overrides = {}) => ({
+  contractVersion: 2,
+  dateKey: "2030-01-02",
+  timeZone: "Asia/Ho_Chi_Minh",
+  eligibility: { status: "active", orderId: "order-1", trainer: null },
+  summary: {
+    dayStatus: "not_started",
+    completionPercent: 0,
+    formulaVersion: "today-v2",
+    moduleProgress: {
+      training: progress({ total: 0, percent: null, state: "not_applicable" }),
+      nutrition: progress({ total: 0, percent: null, state: "not_applicable" }),
+      journal: progress(),
+    },
+    attentionFlags: [],
+  },
+  capabilities: {
+    canViewSources: true,
+    canEditJournal: false,
+    canSubmitDay: false,
+    canComment: false,
+  },
+  sections: {
+    schedule: {
+      status: "empty",
+      source: "training_schedule",
+      items: [],
+      deepLink: "/book-training",
+      error: null,
+    },
+    coaching: {
+      status: "empty",
+      source: "coaching_day",
+      day: null,
+      deepLink: "/online-coaching",
+      error: null,
+    },
+    workout: {
+      status: "empty",
+      source: "workout_plan",
+      items: [],
+      deepLink: "/workout-plans",
+      error: null,
+    },
+    attendance: {
+      status: "empty",
+      source: "checkin",
+      items: [],
+      deepLink: "/my-history",
+      error: null,
+    },
+  },
+  partialErrors: [],
+  ...overrides,
+});
+
+describe("Today Dashboard contract adapter", () => {
+  it("normalizes a valid v2 response", () => {
+    const result = adaptTodayDashboard(contract());
+
+    expect(result.contractVersion).toBe(2);
+    expect(result.sections.schedule.items).toEqual([]);
+    expect(result.sections.coaching.day).toBeNull();
+  });
+
+  it("keeps onboarding eligibility fail-closed", () => {
+    const result = adaptTodayDashboard(
+      contract({
+        eligibility: { status: "never_coached" },
+        capabilities: {
+          canViewSources: false,
+          canEditJournal: false,
+          canSubmitDay: false,
+          canComment: false,
+        },
+      }),
+    );
+
+    expect(result.eligibility.status).toBe("never_coached");
+    expect(result.capabilities.canViewSources).toBe(false);
+  });
+
+  it("preserves redacted partial section errors", () => {
+    const result = adaptTodayDashboard(
+      contract({
+        partialErrors: [
+          { section: "workout", code: "WORKOUT_SOURCE_UNAVAILABLE" },
+        ],
+        sections: {
+          ...contract().sections,
+          workout: {
+            status: "error",
+            source: "workout_plan",
+            items: [],
+            deepLink: "/workout-plans",
+            error: {
+              code: "WORKOUT_SOURCE_UNAVAILABLE",
+              message: "Không thể tải giáo án lúc này",
+            },
+          },
+        },
+      }),
+    );
+
+    expect(result.sections.workout.status).toBe("error");
+    expect(result.partialErrors).toHaveLength(1);
+  });
+
+  it("rejects unknown versions and malformed dates", () => {
+    expect(() =>
+      adaptTodayDashboard(contract({ contractVersion: 1 })),
+    ).toThrow("TODAY_CONTRACT_UNSUPPORTED");
+    expect(() =>
+      adaptTodayDashboard(contract({ dateKey: "2030-02-30" })),
+    ).toThrow("TODAY_CONTRACT_INVALID");
+  });
+
+  it("rejects a missing module progress contract", () => {
+    const payload = contract();
+    delete payload.summary.moduleProgress;
+
+    expect(() => adaptTodayDashboard(payload)).toThrow(
+      "TODAY_CONTRACT_INVALID",
+    );
+  });
+
+  it("rejects an inconsistent not-applicable module", () => {
+    const payload = contract();
+    payload.summary.moduleProgress.training = progress({
+      total: 0,
+      percent: 100,
+      state: "completed",
+    });
+
+    expect(() => adaptTodayDashboard(payload)).toThrow(
+      "TODAY_CONTRACT_INVALID",
+    );
+  });
+});

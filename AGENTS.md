@@ -9,12 +9,15 @@
 
 ## Cách làm việc
 
-1. Đọc file liên quan và trạng thái Git trước khi sửa. Không đoán schema, route, API response hoặc convention.
-2. Với task nhiều bước, nêu plan có tiêu chí kiểm chứng và cập nhật plan khi thực hiện.
-3. Chỉ thay đổi phần cần thiết; giữ style hiện có; không refactor, format hoặc xóa dead code ngoài phạm vi.
-4. Dọn import/biến/code thừa chỉ khi chính thay đổi hiện tại tạo ra chúng.
-5. Tự đọc lỗi, xác định root cause, sửa và chạy lại tối đa 3 vòng trước khi báo blocker.
-6. Trước khi bàn giao, chạy kiểm tra tương xứng với rủi ro và báo rõ file, logic, side effect, kiểm tra đã chạy.
+1. Đánh giá task là `SIMPLE`, `MODERATE` hoặc `COMPLEX` theo `.agents/rules/workflow/task-orchestration.md` trước khi hành động.
+2. Đọc file liên quan và trạng thái Git trước khi sửa. Không đoán schema, route, API response hoặc convention.
+3. Với task nhiều bước, nêu plan có tiêu chí kiểm chứng và cập nhật plan khi thực hiện.
+4. Task dễ do root agent tự xử lý. Task phức tạp chỉ giao các workstream độc lập cho subagents khi môi trường cho phép; root agent giữ vai trò lập plan, tích hợp, review chéo, verification và báo cáo cuối.
+5. Không để nhiều agents sửa cùng file; mỗi subagent phải có file ownership, phạm vi cấm sửa và verification riêng.
+6. Chỉ thay đổi phần cần thiết; giữ style hiện có; không refactor, format hoặc xóa dead code ngoài phạm vi.
+7. Dọn import/biến/code thừa chỉ khi chính thay đổi hiện tại tạo ra chúng.
+8. Tự đọc lỗi, xác định root cause, sửa và chạy lại tối đa 3 vòng trước khi báo blocker.
+9. Trước khi bàn giao, chạy kiểm tra tương xứng với rủi ro và báo rõ file, logic, side effect, kiểm tra đã chạy.
 
 ## An toàn Git và dữ liệu
 
@@ -50,6 +53,7 @@
 - Mỗi loại upload có middleware riêng và phải validate type/size.
 - Endpoint user-accessible truy cập object theo ID phải có ownership/IDOR check; role phải được kiểm tra ở backend.
 - Security-critical logging dùng `safeLog`; không log raw error có thể chứa PII.
+- Dữ liệu sức khỏe, định danh, token, cookie và nội dung hội thoại là dữ liệu nhạy cảm; chỉ lấy field cần thiết, không log raw payload và phải kiểm tra ownership ở backend.
 
 ### Bảo mật nhạy cảm
 
@@ -84,6 +88,7 @@ Chọn tập kiểm tra nhỏ nhất đủ chứng minh thay đổi; mở rộng
 - Client build: `npm run build --prefix client`
 - Secret scan: `npm run security:secrets`
 - Repository boundary scan: `npm run security:data-boundaries`
+- Agent instructions: `npm run agents:validate`
 
 Không tuyên bố pass nếu lệnh chưa chạy hoặc bị phụ thuộc môi trường. Với API change, kiểm tra response format và error contract; với UI change, kiểm tra loading/empty/error/disabled states và accessibility cơ bản.
 
@@ -91,10 +96,19 @@ Không tuyên bố pass nếu lệnh chưa chạy hoặc bị phụ thuộc môi
 
 Rules chi tiết được giữ trong `.agents/rules/`:
 
+- Task orchestration: `.agents/rules/workflow/task-orchestration.md`
 - Code patterns: `.agents/rules/code/tech_patterns.md`
 - Anti-patterns: `.agents/rules/code/anti_patterns.md`
 - Security: `.agents/rules/security/security.md`
 - SEO: `.agents/rules/seo/seo.md`
+
+Thứ tự nguồn canonical để tránh instruction drift:
+
+1. `AGENTS.md`: quyền hạn, safety và routing bắt buộc.
+2. `.agents/rules/`: policy canonical theo domain; skill phải link tới rule thay vì chép lại.
+3. `.agents/reference/project-guide.md`: kiến trúc và file map, không phải nguồn policy.
+4. `.agents/skills/`: workflow thực thi, không hardcode số liệu có thể đếm từ repo.
+5. `docs/specs/` và `docs/operations/`: nghiệp vụ và runbook canonical.
 
 Codex tự phát hiện skill từ `.agents/skills/<skill-name>/SKILL.md`. Khi task khớp description hoặc user gọi `$skill-name`, phải đọc toàn bộ `SKILL.md` trước khi hành động. Ưu tiên các skill sau:
 

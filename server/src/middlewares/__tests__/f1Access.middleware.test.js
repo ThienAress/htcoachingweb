@@ -87,18 +87,29 @@ describe("F1 CRM & AI entitlement", () => {
     }
   });
 
-  it("giữ quyền truy cập cho admin và trainer legacy", async () => {
-    for (const role of ["admin", "trainer"]) {
-      const actor = await createTestUser({
-        email: `${role}@example.com`,
-        role,
-      });
-      const response = await withAuth(
-        request(app).get("/f1"),
-        actor.accessToken,
-      );
-      expect(response.status).toBe(200);
-      await clearCollections();
-    }
+  it("giữ quyền truy cập đặc biệt cho admin", async () => {
+    const actor = await createTestUser({
+      email: "admin@example.com",
+      role: "admin",
+    });
+    const response = await withAuth(
+      request(app).get("/f1"),
+      actor.accessToken,
+    );
+    expect(response.status).toBe(200);
+  });
+
+  it("chặn legacy trainer nếu gói hiện tại không có F1 entitlement", async () => {
+    const actor = await createTestUser({
+      email: "legacy-free@example.com",
+      role: "trainer",
+    });
+    await addSubscription(actor.user._id, "free", "Free");
+
+    const response = await withAuth(
+      request(app).get("/f1"),
+      actor.accessToken,
+    );
+    expect(response.status).toBe(403);
   });
 });

@@ -28,6 +28,7 @@ import F1DataDeletionJob from "../../models/F1DataDeletionJob.js";
 import F1Intake from "../../models/F1Intake.js";
 import F1Media from "../../models/F1Media.js";
 import F1MediaDeletionJob from "../../models/F1MediaDeletionJob.js";
+import TrainerSubscription from "../../models/TrainerSubscription.js";
 import {
   createF1MediaFromBuffer,
   processF1MediaDeletionBatch,
@@ -128,6 +129,24 @@ const validJpeg = () =>
     .withMetadata({ orientation: 6 })
     .toBuffer();
 
+const createF1Trainer = async (overrides) => {
+  const actor = await createTestUser(overrides);
+  const now = Date.now();
+  await TrainerSubscription.create({
+    userId: actor.user._id,
+    planTitle: "Chuyên nghiệp",
+    planCode: "professional",
+    billingCycle: "month",
+    source: "admin_grant",
+    amount: 0,
+    startDate: new Date(now - 60_000),
+    endDate: new Date(now + 30 * 24 * 60 * 60 * 1000),
+    status: "active",
+    isActive: true,
+  });
+  return actor;
+};
+
 beforeAll(async () => {
   await setupTestDB();
   installStorageAdapter();
@@ -144,6 +163,7 @@ beforeAll(async () => {
     F1DataDeletionJob.init(),
     F1Assessment.init(),
     F1AiReport.init(),
+    TrainerSubscription.init(),
   ]);
 });
 
@@ -161,7 +181,7 @@ afterAll(async () => {
 
 describe("Phase 8 private F1 media", () => {
   it("rejects fake image bytes and stores valid images re-encoded without public fields", async () => {
-    const trainer = await createTestUser({
+    const trainer = await createF1Trainer({
       email: "phase8-media-trainer@example.com",
       role: "trainer",
     });
@@ -206,11 +226,11 @@ describe("Phase 8 private F1 media", () => {
   });
 
   it("blocks cross-trainer media reads and redirects authorized reads to a short-lived URL", async () => {
-    const owner = await createTestUser({
+    const owner = await createF1Trainer({
       email: "phase8-owner@example.com",
       role: "trainer",
     });
-    const outsider = await createTestUser({
+    const outsider = await createF1Trainer({
       email: "phase8-outsider@example.com",
       role: "trainer",
     });
@@ -242,7 +262,7 @@ describe("Phase 8 private F1 media", () => {
   });
 
   it("creates a cleanup job when the database transition fails after provider upload", async () => {
-    const trainer = await createTestUser({
+    const trainer = await createF1Trainer({
       email: "phase8-compensation@example.com",
       role: "trainer",
     });
@@ -271,7 +291,7 @@ describe("Phase 8 private F1 media", () => {
   });
 
   it("retries provider deletion and treats a missing provider object as success", async () => {
-    const trainer = await createTestUser({
+    const trainer = await createF1Trainer({
       email: "phase8-delete@example.com",
       role: "trainer",
     });
@@ -306,7 +326,7 @@ describe("Phase 8 private F1 media", () => {
 
 describe("Phase 8 F1 integrity and privacy", () => {
   it("allocates unique F1 codes under concurrent customer creation", async () => {
-    const trainer = await createTestUser({
+    const trainer = await createF1Trainer({
       email: "phase8-counter@example.com",
       role: "trainer",
     });
@@ -333,7 +353,7 @@ describe("Phase 8 F1 integrity and privacy", () => {
   });
 
   it("deduplicates concurrent artifact commands by request and source", async () => {
-    const trainer = await createTestUser({
+    const trainer = await createF1Trainer({
       email: "phase8-artifact@example.com",
       role: "trainer",
     });
@@ -378,7 +398,7 @@ describe("Phase 8 F1 integrity and privacy", () => {
   });
 
   it("deletes provider objects before health data and keeps a pseudonymous tombstone", async () => {
-    const trainer = await createTestUser({
+    const trainer = await createF1Trainer({
       email: "phase8-erasure@example.com",
       role: "trainer",
     });
@@ -421,7 +441,7 @@ describe("Phase 8 F1 integrity and privacy", () => {
   });
 
   it("seeds the counter idempotently from the maximum valid F1 code", async () => {
-    const trainer = await createTestUser({
+    const trainer = await createF1Trainer({
       email: "phase8-migration@example.com",
       role: "trainer",
     });
@@ -440,7 +460,7 @@ describe("Phase 8 F1 integrity and privacy", () => {
   });
 
   it("fails closed on missing media unless explicitly marked failed", async () => {
-    const trainer = await createTestUser({
+    const trainer = await createF1Trainer({
       email: "phase8-missing-media@example.com",
       role: "trainer",
     });

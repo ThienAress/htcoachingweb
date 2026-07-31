@@ -38,6 +38,18 @@ const orderSchema = new mongoose.Schema(
     approvedAt: {
       type: Date,
     },
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    sessionsExhaustedAt: {
+      type: Date,
+      default: null,
+    },
 
     trainerId: {
       type: mongoose.Schema.Types.ObjectId,

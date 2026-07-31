@@ -5,7 +5,7 @@ description: Thay đổi Mongoose schema an toàn. Dùng khi thêm, sửa hoặc
 
 # $schema-change — Thay Đổi Mongoose Schema An Toàn
 
-> **Tại sao cần workflow này?** htcoachingweb có 26 models và 17 controllers. Thay đổi 1 field trong schema mà không trace hết các nơi dùng → API trả sai data, validation fail, hoặc data bị corrupt.
+> **Tại sao cần workflow này?** htcoachingweb có nhiều models, controllers và consumers xuyên lớp. Thay đổi 1 field trong schema mà không trace hết các nơi dùng → API trả sai data, validation fail, hoặc data bị corrupt. Không hardcode số file; dùng `rg`/inventory hiện tại khi bắt đầu task.
 
 ---
 

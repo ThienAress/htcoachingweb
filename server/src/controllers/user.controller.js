@@ -1,6 +1,10 @@
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import Checkin from "../models/Checkin.js";
+import {
+  deleteTodayDashboardData,
+} from "../services/todayDashboardPrivacy.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 export const getUsers = async (req, res) => {
@@ -41,31 +45,40 @@ export const getUsers = async (req, res) => {
 };
 
 export const deleteUser = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const userId = req.params.id;
+    let user = null;
+    await session.withTransaction(async () => {
+      user = await User.findById(userId).session(session);
+      if (!user) return;
 
-    // Tìm user
-    const user = await User.findById(userId);
+      const orders = await Order.find({ userId })
+        .select("_id")
+        .session(session);
+      const orderIds = orders.map((order) => order._id);
+
+      if (orderIds.length > 0) {
+        await Checkin.deleteMany({
+          orderId: { $in: orderIds },
+        }).session(session);
+      }
+
+      await deleteTodayDashboardData({
+        clientId: userId,
+        actorId: req.user.id,
+        actorRole: req.user.role,
+        session,
+      });
+      await Order.deleteMany({ userId }).session(session);
+      await User.deleteOne({ _id: userId }).session(session);
+    });
+
     if (!user) {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy người dùng" });
     }
-
-    // Tìm tất cả orders của user
-    const orders = await Order.find({ userId });
-    const orderIds = orders.map((o) => o._id);
-
-    // Xóa checkins thuộc các order này
-    if (orderIds.length > 0) {
-      await Checkin.deleteMany({ orderId: { $in: orderIds } });
-    }
-
-    // Xóa orders
-    await Order.deleteMany({ userId });
-
-    // Xóa user
-    await User.findByIdAndDelete(userId);
 
     res.json({
       success: true,
@@ -73,6 +86,11 @@ export const deleteUser = async (req, res) => {
     });
   } catch (err) {
     safeLog.error("user.delete_failed", err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Không thể xóa người dùng lúc này",
+    });
+  } finally {
+    await session.endSession();
   }
 };

@@ -168,11 +168,13 @@ export const getRecipes = async (req, res) => {
       area,
       tag,
       source,
+      view,
       page: rawPage,
       limit: rawLimit,
     } = req.query;
 
     const query = { isPublished: true };
+    const prerenderView = view === "prerender";
 
     if (search) {
       const safeSearch = search
@@ -221,10 +223,33 @@ export const getRecipes = async (req, res) => {
       { $skip: skip },
       { $limit: limit },
       {
-        $project: {
-          name: 1, slug: 1, category: 1, area: 1,
-          thumbnail: 1, prepTime: 1, tags: 1, source: 1,
-        },
+        $project: prerenderView
+          ? {
+              name: 1,
+              nameEn: 1,
+              slug: 1,
+              category: 1,
+              area: 1,
+              thumbnail: 1,
+              prepTime: 1,
+              tags: 1,
+              source: 1,
+              ingredients: 1,
+              instructions: 1,
+              youtubeUrl: 1,
+              sourceUrl: 1,
+              updatedAt: 1,
+            }
+          : {
+              name: 1,
+              slug: 1,
+              category: 1,
+              area: 1,
+              thumbnail: 1,
+              prepTime: 1,
+              tags: 1,
+              source: 1,
+            },
       },
     ];
 

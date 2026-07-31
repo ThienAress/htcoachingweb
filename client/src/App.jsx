@@ -11,6 +11,9 @@ import MainLayout from "./layouts/MainLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import TrainerLayout from "./layouts/TrainerLayout";
 import AdminRoute from "./routes/AdminRoute";
+import AuthenticatedRoute from "./routes/AuthenticatedRoute";
+import F1Route from "./routes/F1Route";
+import TodayPlatformRoute from "./routes/TodayPlatformRoute";
 import GlobalLoading from "./components/GlobalLoading";
 import DeferredChatPanel from "./components/ChatWidget/DeferredChatPanel";
 import WebVitalsReporter from "./components/WebVitalsReporter";
@@ -26,6 +29,11 @@ const Checkin = lazy(() => import("./pages/admin/Checkin"));
 const CheckinHistory = lazy(() => import("./pages/admin/CheckinHistory"));
 const MyHistory = lazy(() => import("./pages/MyHistory"));
 const TrainerDashboard = lazy(() => import("./pages/trainer/Dashboard"));
+const TrainerClientWorkspace = lazy(() =>
+  import("./pages/trainer/TrainerClientWorkspace.jsx").then((module) => ({
+    default: module.TrainerClientWorkspace,
+  })),
+);
 
 const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const ContactMessages = lazy(() => import("./pages/admin/ContactMessages"));
@@ -68,6 +76,16 @@ const KnowledgeBase = lazy(() => import("./pages/admin/KnowledgeBase"));
 const RecipeExplorer = lazy(() => import("./pages/RecipeExplorer/RecipeExplorer"));
 const RecipeDetail = lazy(() => import("./pages/RecipeExplorer/RecipeDetail"));
 const RecipeManagement = lazy(() => import("./pages/admin/RecipeManagement"));
+const TodayDashboard = lazy(() => import("./pages/today-dashboard/TodayDashboard"));
+const TodayDashboardIndex = lazy(() => import("./pages/today-dashboard/TodayDashboardIndex"));
+const CustomerDashboardLayout = lazy(() => import("./layouts/CustomerDashboardLayout"));
+const TodayDashboardDayLayout = lazy(() => import("./pages/today-dashboard/TodayDashboardDayLayout"));
+const TodayTraining = lazy(() => import("./pages/today-dashboard/TodayTraining"));
+const TodayNutrition = lazy(() => import("./pages/today-dashboard/TodayNutrition"));
+const TodayJournal = lazy(() => import("./pages/today-dashboard/TodayJournal"));
+const LegacyDashboardRedirect = lazy(() => import("./pages/today-dashboard/LegacyDashboardRedirect"));
+const ProgressPage = lazy(() => import("./pages/progress/ProgressPage"));
+const NotificationsPage = lazy(() => import("./pages/notifications/NotificationsPage"));
 
 import "./index.css";
 import "./App.css";
@@ -142,13 +160,80 @@ function AppContent() {
         <Route path="/blog/:slug" element={<BlogDetail />} />
         <Route path="/club" element={<Club />} />
         <Route path="/exercises" element={<ExercisesPage />} />
-        <Route path="/f1-customers" element={<F1Customers />} />
+        <Route
+          path="/f1-customers"
+          element={
+            <F1Route>
+              <F1Customers />
+            </F1Route>
+          }
+        />
         <Route path="/wallet" element={<MyWallet />} />
         <Route path="/training-schedule" element={<TrainingSchedule />} />
         <Route path="/workout-plans" element={<WorkoutPlan />} />
         <Route path="/workout-plans/:id" element={<WorkoutPlanDetail />} />
         <Route path="/online-coaching" element={<OnlineCoaching />} />
         <Route path="/account" element={<AccountPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <AuthenticatedRoute>
+              <TodayPlatformRoute>
+                <CustomerDashboardLayout />
+              </TodayPlatformRoute>
+            </AuthenticatedRoute>
+          }
+        >
+          <Route index element={<TodayDashboardIndex />} />
+          <Route path="today" element={<TodayDashboardIndex />} />
+          <Route path="today/:dateKey" element={<TodayDashboardDayLayout />}>
+            <Route index element={<TodayDashboard />} />
+            <Route path="training" element={<TodayTraining />} />
+            <Route path="nutrition" element={<TodayNutrition />} />
+            <Route path="journal" element={<TodayJournal />} />
+          </Route>
+          <Route path="progress" element={<ProgressPage embedded />} />
+        </Route>
+        <Route
+          path="/today"
+          element={
+            <AuthenticatedRoute>
+              <TodayPlatformRoute>
+                <TodayDashboardIndex />
+              </TodayPlatformRoute>
+            </AuthenticatedRoute>
+          }
+        />
+        <Route
+          path="/today/:dateKey"
+          element={
+            <AuthenticatedRoute>
+              <TodayPlatformRoute>
+                <LegacyDashboardRedirect />
+              </TodayPlatformRoute>
+            </AuthenticatedRoute>
+          }
+        />
+        <Route
+          path="/progress"
+          element={
+            <AuthenticatedRoute>
+              <TodayPlatformRoute>
+                <LegacyDashboardRedirect destination="progress" />
+              </TodayPlatformRoute>
+            </AuthenticatedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <AuthenticatedRoute>
+              <TodayPlatformRoute>
+                <NotificationsPage />
+              </TodayPlatformRoute>
+            </AuthenticatedRoute>
+          }
+        />
         <Route path="/contracts/:id" element={<ContractSign />} />
 
         {/* TDEE Calculator */}
@@ -166,16 +251,6 @@ function AppContent() {
 
         {/* TRAINER LOGIN — ẩn: trainer giờ login bằng Google bình thường */}
 
-        {/* Standalone Trainer Coaching route with Header/Footer inside */}
-        <Route
-          path="/trainer/coaching"
-          element={
-            <AdminRoute>
-              <TrainerCoaching />
-            </AdminRoute>
-          }
-        />
-
         {/* TRAINER PANEL */}
         <Route
           path="/trainer"
@@ -186,6 +261,31 @@ function AppContent() {
           }
         >
           <Route index element={<TrainerDashboard />} />
+          <Route path="clients/:clientId" element={<TrainerClientWorkspace />} />
+          <Route
+            path="health"
+            element={
+              <TodayPlatformRoute fallback="/trainer">
+                <TrainerDashboard />
+              </TodayPlatformRoute>
+            }
+          />
+          <Route
+            path="health/clients/:clientId"
+            element={
+              <TodayPlatformRoute fallback="/trainer">
+                <TrainerClientWorkspace />
+              </TodayPlatformRoute>
+            }
+          />
+          <Route path="checkin" element={<Checkin embedded />} />
+          <Route path="coaching" element={<TrainerCoaching embedded />} />
+          <Route path="schedule" element={<TrainingSchedule embedded />} />
+          <Route path="workout-plans" element={<WorkoutPlan embedded />} />
+          <Route
+            path="workout-plans/:id"
+            element={<WorkoutPlanDetail embedded />}
+          />
           <Route path="checkin-history" element={<TrainerCheckinHistory />} />
         </Route>
 

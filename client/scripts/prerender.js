@@ -6,10 +6,18 @@ import axios from "axios";
 import { fileURLToPath } from "url";
 
 import {
-  fetchDynamicRouteContent,
   normalizeDynamicRouteApiUrl,
   resolveDynamicRoutePolicy,
 } from "./dynamic-routes.js";
+import {
+  createPrerenderResponseCache,
+  fetchPrerenderRecipes,
+  responseForPrerenderRequest,
+} from "./prerender-content.js";
+import {
+  mapWithConcurrency,
+  routesFromSitemap,
+} from "./prerender-routes.js";
 import { validatePrerenderSnapshot } from "./prerender-validation.js";
 import {
   getTrainerPlanCatalogMeta,
@@ -21,16 +29,7 @@ const __dirname = path.dirname(__filename);
 const PORT = 5174;
 const DIST_DIR = path.resolve(__dirname, "../dist");
 const SITE_URL = "https://htcoachingweb.io.vn";
-const staticRoutes = [
-  "/",
-  "/ket-qua-khach-hang",
-  "/blog",
-  "/cong-thuc-nau-an",
-  "/club",
-  "/exercises",
-  "/tdee-calculator",
-  "/mealplan",
-];
+const PRERENDER_CONCURRENCY = 4;
 
 const trainerPlanCatalog = listTrainerPlans();
 const trainerPlanCatalogMeta = getTrainerPlanCatalogMeta();
@@ -56,33 +55,6 @@ const isTrainerPlanCatalogRequest = (requestUrl) => {
   }
 };
 
-const validSlug = (value) => {
-  const slug = String(value || "").trim();
-  return /^[a-z0-9][a-z0-9-]{0,159}$/i.test(slug) ? slug : null;
-};
-
-const routesFor = (items, prefix) =>
-  items.flatMap((item) => {
-    const slug = validSlug(item?.slug);
-    return slug ? [prefix + slug] : [];
-  });
-
-const discoverDynamicRoutes = async (policy, apiUrl) => {
-  const { content } = await fetchDynamicRouteContent({
-    fetchApi: (pathName) =>
-      axios.get(apiUrl + pathName, {
-        timeout: policy.requireDynamic ? 30_000 : 10_000,
-      }),
-    policy,
-  });
-  return [
-    ...routesFor(content.stories, "/ket-qua-khach-hang/"),
-    ...routesFor(content.trainers, "/huan-luyen-vien/"),
-    ...routesFor(content.blogs, "/blog/"),
-    ...routesFor(content.recipes, "/cong-thuc-nau-an/"),
-  ];
-};
-
 const startServer = (app) =>
   new Promise((resolve, reject) => {
     const server = app.listen(PORT, () => resolve(server));
@@ -98,7 +70,7 @@ const stopServer = (server) =>
     server.close((error) => (error ? reject(error) : resolve()));
   });
 
-const renderRoute = async (browser, route) => {
+const renderRoute = async (browser, route, recipeCache) => {
   const page = await browser.newPage();
   const expectedCanonical = new URL(route, SITE_URL).href;
   try {
@@ -113,7 +85,13 @@ const renderRoute = async (browser, route) => {
 
     await page.setRequestInterception(true);
     page.on("request", (request) => {
-      if (isTrainerPlanCatalogRequest(request.url())) {
+      const cachedResponse = responseForPrerenderRequest(
+        request.url(),
+        recipeCache,
+      );
+      if (cachedResponse) {
+        void request.respond(cachedResponse);
+      } else if (isTrainerPlanCatalogRequest(request.url())) {
         void request.respond({
           status: 200,
           contentType: "application/json; charset=utf-8",
@@ -225,12 +203,34 @@ const prerender = async () => {
       "https://api.htcoachingweb.io.vn/api",
     policy,
   );
+  let routesToPrerender = routesFromSitemap(
+    fs.readFileSync(path.join(DIST_DIR, "sitemap.xml"), "utf8"),
+    SITE_URL,
+  );
+  let recipes = [];
+  if (!policy.skip) {
+    try {
+      recipes = await fetchPrerenderRecipes((pathName) =>
+        axios.get(apiUrl + pathName, {
+          timeout: policy.requireDynamic ? 30_000 : 10_000,
+        }),
+      );
+    } catch (error) {
+      if (policy.requireDynamic) throw error;
+      console.warn(
+        "Skipping recipe prerender because public content could not be cached: " +
+          error.message,
+      );
+      routesToPrerender = routesToPrerender.filter(
+        (route) => !route.startsWith("/cong-thuc-nau-an/"),
+      );
+    }
+  }
+  const recipeCache = createPrerenderResponseCache(recipes);
   console.log(
     "Prerender dynamic route mode: " +
       (policy.requireDynamic ? "strict" : policy.skip ? "static" : "fallback"),
   );
-  const dynamicRoutes = await discoverDynamicRoutes(policy, apiUrl);
-  const routesToPrerender = [...new Set([...staticRoutes, ...dynamicRoutes])];
 
   // Keep the freshly built SPA shell immutable while routes are rendered.
   // The root route is written to dist/index.html, so reading that file again
@@ -266,11 +266,20 @@ const prerender = async () => {
       ],
     });
 
-    const failures = [];
-    for (const route of routesToPrerender) {
-      console.log("Prerendering route: " + route);
-      if (!(await renderRoute(browser, route))) failures.push(route);
-    }
+    const renderResults = await mapWithConcurrency(
+      routesToPrerender,
+      PRERENDER_CONCURRENCY,
+      async (route) => {
+        console.log("Prerendering route: " + route);
+        return {
+          route,
+          success: await renderRoute(browser, route, recipeCache),
+        };
+      },
+    );
+    const failures = renderResults
+      .filter((result) => !result.success)
+      .map((result) => result.route);
 
     if (policy.requireDynamic && failures.length > 0) {
       throw new Error(

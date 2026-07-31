@@ -86,6 +86,104 @@ export const scheduleMutationLimiter = rateLimit({
   },
 });
 
+export const todayDashboardReadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều yêu cầu tải Today Dashboard. Vui lòng thử lại sau.",
+  },
+});
+
+export const dailyJournalMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều thay đổi nhật ký. Vui lòng thử lại sau.",
+  },
+});
+
+export const wellnessTargetMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều thay đổi mục tiêu sức khỏe. Vui lòng thử lại sau.",
+  },
+});
+export const savedMealPlanMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều thay đổi meal plan. Vui lòng thử lại sau.",
+  },
+});
+
+export const coachingHabitMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều thay đổi Coaching Habit. Vui lòng thử lại sau.",
+  },
+});
+
+export const weeklyCheckinMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều thay đổi Weekly Check-in. Vui lòng thử lại sau.",
+  },
+});
+
+export const progressReadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều yêu cầu tải tiến trình. Vui lòng thử lại sau.",
+  },
+});
+
+export const coachingCommentMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều thao tác comment. Vui lòng thử lại sau.",
+  },
+});
+
+export const notificationMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Quá nhiều thao tác notification. Vui lòng thử lại sau.",
+  },
+});
+
 export const financialCommandLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,

@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
 import TrainerTrialClaim from "../models/TrainerTrialClaim.js";
 import {
+  getTrainerPlan,
   getTrainerPlanCatalogMeta,
   listTrainerPlans,
 } from "../services/trainerPlanCatalog.service.js";
@@ -91,11 +92,20 @@ export const getMySubscription = async (req, res) => {
         : null,
     ]);
 
+    const plan = getTrainerPlan(
+      subscription?.planCode || subscription?.planTitle,
+    );
+    const subscriptionData = subscription
+      ? {
+          ...subscription,
+          entitlements: { ...(plan?.entitlements || {}) },
+        }
+      : null;
     let freeTrialStatus = trialClaim ? "used" : "available";
     if (subscription?.planCode === "free") freeTrialStatus = "active";
     return res.status(200).json({
       success: true,
-      data: subscription || null,
+      data: subscriptionData,
       freeTrial: {
         status: freeTrialStatus,
         claimedAt: trialClaim?.claimedAt || null,

@@ -54,7 +54,7 @@ grep -rL "SEO" client/src/pages/*.jsx --include="*.jsx"
 
 | Trang | Schema bắt buộc | Check |
 |-------|-----------------|:-----:|
-| Home | Organization + FAQPage (`@graph`) | |
+| Home | Organization + ProfessionalService + Service + FAQPage (`@graph`) | |
 | CustomerStoryDetail | Article (có `datePublished`, `dateModified`) | |
 | TrainerProfile | Person + FAQPage (`@graph`) | |
 | TdeeCalculator | WebApplication + FAQPage (`@graph`) | |

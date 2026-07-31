@@ -53,6 +53,7 @@
   "sidebar": {
     "featured": "Featured Posts",
     "toc": "TABLE OF CONTENTS",
+    "discover_topics": "Explore other topics",
     "need_consulting": "Need consulting?",
     "consulting_desc": "Contact a coach to get a suitable personalized roadmap.",
     "contact_btn": "Contact now"

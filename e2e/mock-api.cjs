@@ -57,6 +57,31 @@ const ACTORS = {
     role: "user",
   },
 };
+let todayJournal = {
+  _id: "200000000000000000000001",
+  dateKey: todayKey,
+  timeZone: "Asia/Ho_Chi_Minh",
+  wellness: {
+    sleepHours: null,
+    waterMl: null,
+    steps: null,
+    energy: null,
+    hunger: null,
+    stress: null,
+    soreness: null,
+    pain: null,
+    painArea: "",
+  },
+  notes: { private: "", shared: "" },
+  nutrition: { assignment: null, entries: [] },
+  habitCompletions: [],
+  status: "draft",
+  submittedAt: null,
+  revision: 1,
+  completion: { filled: 0, total: 8, percent: 0 },
+  updatedAt: "2026-07-29T00:00:00.000Z",
+};
+let savedMealPlans = [];
 const F1_CUSTOMER_ID = "100000000000000000000001";
 const F1_INTAKE_ID = "100000000000000000000002";
 const F1_ASSESSMENT_ID = "100000000000000000000003";
@@ -115,6 +140,7 @@ const handleApi = (req, res, path) => {
             _id: "subscription-e2e",
             status: "active",
             planCode: "standard",
+            entitlements: { f1CrmAi: true },
           },
           freeTrial: {
             status: "used",
@@ -129,6 +155,246 @@ const handleApi = (req, res, path) => {
   }
   if (path === "/api/site-settings") {
     return sendJson(res, { success: true, data: {} });
+  }
+  if (path === "/api/checkin/me" && req.method === "GET") {
+    return sendJson(res, {
+      success: true,
+      data: {
+        orders: [
+          {
+            _id: "order-today-e2e",
+            userId: ACTORS.user._id,
+            email: ACTORS.user.email,
+            package: "Online Coaching E2E",
+            status: "approved",
+          },
+        ],
+        checkins: [],
+      },
+    });
+  }
+  if (
+    path === "/api/today-dashboard/day/" + todayKey &&
+    req.method === "GET"
+  ) {
+    const emptyItems = (source, deepLink) => ({
+      status: "empty",
+      source,
+      items: [],
+      deepLink,
+      error: null,
+    });
+    return sendJson(res, {
+      success: true,
+      data: {
+        contractVersion: 2,
+        dateKey: todayKey,
+        timeZone: "Asia/Ho_Chi_Minh",
+        eligibility: {
+          status: "active",
+          orderId: "order-today-e2e",
+          trainer: {
+            _id: ACTORS.trainer._id,
+            name: ACTORS.trainer.name,
+            avatar: "",
+          },
+        },
+        summary: {
+          dayStatus: "not_started",
+          completionPercent: 0,
+          formulaVersion: "today-v2",
+          moduleProgress: {
+            training: { completed: 0, total: 1, percent: 0, state: "not_started" },
+            nutrition: { completed: 0, total: 0, percent: null, state: "not_applicable" },
+            journal: { completed: 0, total: 10, percent: 0, state: "not_started" },
+          },
+          attentionFlags: [],
+        },
+        capabilities: {
+          canViewSources: true,
+          canEditJournal: true,
+          canSubmitDay: true,
+          canComment: false,
+        },
+        sections: {
+          schedule: {
+            status: "ready",
+            source: "training_schedule",
+            items: [{
+              _id: "schedule-today-e2e",
+              occurrenceDateKey: todayKey,
+              startTime: "09:00",
+              endTime: "10:00",
+              exerciseType: "E2E Strength Session",
+              notes: "Kiểm tra Today",
+              status: "scheduled",
+            }],
+            deepLink: "/book-training",
+            error: null,
+          },
+          coaching: {
+            status: "empty",
+            source: "coaching_day",
+            day: null,
+            deepLink: "/online-coaching",
+            error: null,
+          },
+          workout: emptyItems("workout_plan", "/workout-plans"),
+          attendance: emptyItems("checkin", "/my-history"),
+          journal: {
+            status: "ready",
+            source: "daily_journal",
+            day: todayJournal,
+            deepLink: "/today",
+            error: null,
+          },
+        },
+        partialErrors: [],
+      },
+    });
+  }
+  if (
+    path === "/api/daily-journals/" + todayKey &&
+    req.method === "PUT"
+  ) {
+    todayJournal = {
+      ...todayJournal,
+      wellness: { ...todayJournal.wellness, sleepHours: 7.5 },
+      revision: todayJournal.revision + 1,
+      completion: { filled: 1, total: 8, percent: 13 },
+      updatedAt: new Date().toISOString(),
+    };
+    return sendJson(res, { success: true, data: todayJournal });
+  }
+  if (path === "/api/coaching-habits/my" && req.method === "GET") {
+    return sendJson(res, {
+      success: true,
+      data: { items: [], pagination: { page: 1, limit: 50, total: 0 } },
+    });
+  }
+  if (path === "/api/saved-meal-plans" && req.method === "GET") {
+    return sendJson(res, {
+      success: true,
+      data: {
+        items: savedMealPlans,
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: savedMealPlans.length,
+        },
+      },
+    });
+  }
+  if (path === "/api/saved-meal-plans" && req.method === "POST") {
+    const plan = {
+      _id: "200000000000000000000002",
+      title: "Thực đơn E2E đã lưu",
+      version: 1,
+      status: "active",
+      totals: { protein: 120, carb: 180, fat: 60, calories: 1740 },
+      updatedAt: new Date().toISOString(),
+    };
+    savedMealPlans = [plan];
+    return sendJson(res, { success: true, data: plan }, 201);
+  }
+  if (
+    path === "/api/daily-journals/" + todayKey + "/timeline" &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, { success: true, data: [] });
+  }
+  if (path === "/api/progress" && req.method === "GET") {
+    const unavailable = { numerator: 0, denominator: 0, percent: null };
+    return sendJson(res, {
+      success: true,
+      data: {
+        formulaVersion: "progress-v1",
+        timeZone: "Asia/Ho_Chi_Minh",
+        range: {
+          days: 30,
+          startDateKey: addDays(todayKey, -29),
+          endDateKey: todayKey,
+        },
+        compliance: {
+          scheduleAttendance: {
+            numerator: 1,
+            denominator: 2,
+            percent: 50,
+          },
+          workoutCompletion: unavailable,
+          coachingCompletion: unavailable,
+          mealCompliance: unavailable,
+          habitCompliance: unavailable,
+        },
+        wellness: {},
+        weightTrend: { points: [], changeKg: null },
+      },
+    });
+  }
+  if (
+    path.startsWith("/api/weekly-checkins/") &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, { success: true, data: null });
+  }
+  if (path === "/api/coaching-activity" && req.method === "GET") {
+    return sendJson(res, {
+      success: true,
+      data: {
+        formulaVersion: "coaching-activity-v1",
+        timeZone: "Asia/Ho_Chi_Minh",
+        range: {
+          days: 30,
+          startDateKey: addDays(todayKey, -29),
+          endDateKey: todayKey,
+        },
+        items: [],
+      },
+    });
+  }
+  if (path === "/api/notifications" && req.method === "GET") {
+    return sendJson(res, {
+      success: true,
+      data: {
+        items: [{
+          _id: "notification-e2e",
+          type: "weekly_reviewed",
+          category: "weekly",
+          targetType: "weekly_checkin",
+          targetId: "weekly-e2e",
+          title: "HLV đã review Weekly Check-in",
+          deepLink: "/progress",
+          readAt: null,
+          createdAt: "2026-07-29T02:00:00.000Z",
+        }],
+        unreadCount: 1,
+        pagination: { page: 1, limit: 20, total: 1 },
+      },
+    });
+  }
+  if (
+    path === "/api/notifications/preferences" &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: {
+        inAppEnabled: true,
+        comments: true,
+        journal: true,
+        weekly: true,
+        revision: 0,
+      },
+    });
+  }
+  if (
+    path === "/api/notifications/notification-e2e/read" &&
+    req.method === "POST"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: { _id: "notification-e2e", readAt: new Date().toISOString() },
+    });
   }
   if (path === "/api/f1-customers/dashboard/summary") {
     return sendJson(res, {

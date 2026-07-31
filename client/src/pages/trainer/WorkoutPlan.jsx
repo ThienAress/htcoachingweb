@@ -12,7 +12,7 @@ import Header from "../../sections/Header/Header";
 import Footer from "../../sections/Footer/Footer";
 import ChatIcons from "../../components/ChatIcons";
 import { useAuth } from "../../context/AuthContext";
-import { getMyClients } from "../../services/trainingSchedule.service";
+import { getTrainerClients } from "../../services/coaching.service";
 import {
   getWorkoutPlans,
   getMyWorkoutPlans,
@@ -20,6 +20,7 @@ import {
   duplicateWorkoutPlan,
 } from "../../services/workoutPlan.service";
 import PlanModal from "./WorkoutPlanModal";
+import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigation";
 
 // ===== STATUS CONFIG =====
 const STATUS_MAP = {
@@ -34,7 +35,7 @@ const formatDate = (d, locale = "vi-VN") => {
 };
 
 // ===== MAIN COMPONENT =====
-const WorkoutPlan = () => {
+const WorkoutPlan = ({ embedded = false }) => {
   const { t, i18n } = useTranslation("coaching");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -53,8 +54,8 @@ const WorkoutPlan = () => {
 
   // Fetch clients (chỉ trainer/admin)
   const { data: clients = [], isLoading: clientsLoading } = useQuery({
-    queryKey: ["my-clients"],
-    queryFn: () => getMyClients().then((res) => res.data.data || []),
+    queryKey: ["trainer-clients"],
+    queryFn: () => getTrainerClients().then((res) => res.data.data || []),
     enabled: isTrainerOrAdmin,
   });
 
@@ -119,7 +120,7 @@ const WorkoutPlan = () => {
   };
 
   const handleEdit = (plan) => {
-    navigate(`/workout-plans/${plan._id}`);
+    navigate(getWorkoutPlanWorkspacePath(plan._id, { embedded }));
   };
 
   const handleModalClose = () => {
@@ -135,18 +136,22 @@ const WorkoutPlan = () => {
   return (
     <>
       <SEO title={t("seo_plan")} description={t("seo_plan_desc")} noindex />
-      <Header />
+      {!embedded && <Header />}
 
-      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pt-28 pb-8">
+      <main className={`bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pb-8 ${embedded ? "min-h-[calc(100vh-3rem)] pt-8" : "min-h-screen pt-28"}`}>
         <div className="container-custom">
           {/* ===== HERO ===== */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-3 bg-primary/20 backdrop-blur-sm rounded-full px-5 py-2 mb-4">
               <Flame className="text-primary w-6 h-6" />
-              <span className="font-semibold text-primary tracking-wide">{t("seo_plan").toUpperCase()}</span>
+              <span className="font-semibold text-primary tracking-wide">{t("plan_title").toUpperCase()}</span>
             </div>
             <h1 className="font-display text-fluid-6xl font-black uppercase tracking-normal">
-              {isTrainerOrAdmin ? t("plans.title") : t("plans.subtitle")} <span className="text-primary">{t("seo_plan")}</span>
+              {isTrainerOrAdmin ? (
+                <>{t("plans.title")} <span className="text-primary">{t("plan_title")}</span></>
+              ) : (
+                <span className="text-primary">{t("plan_title")}</span>
+              )}
             </h1>
             <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full" />
             <p className="text-gray-400 mt-4 max-w-xl mx-auto">
@@ -328,8 +333,8 @@ const WorkoutPlan = () => {
         </div>
       </main>
 
-      <ChatIcons />
-      <Footer />
+      {!embedded && <ChatIcons />}
+      {!embedded && <Footer />}
 
       {/* Modal */}
       {modalOpen && !clientsLoading && (
@@ -340,7 +345,7 @@ const WorkoutPlan = () => {
           onClose={handleModalClose}
           onSaved={(newPlanId) => {
             handleModalClose();
-            navigate(`/workout-plans/${newPlanId}`);
+            navigate(getWorkoutPlanWorkspacePath(newPlanId, { embedded }));
           }}
         />
       )}

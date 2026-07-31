@@ -33,8 +33,14 @@ import {
 import api from "../../utils/api";
 import SEO from "../../components/SEO";
 import Header from "../../sections/Header/Header";
-import Footer from "../../sections/Footer/Footer";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
+import {
+  addDaysToDateKey,
+  getVietnamDateKey,
+} from "../../utils/vietnamDate";
+
+
+
 
 const createLocalExerciseId = () =>
   globalThis.crypto?.randomUUID?.() ||
@@ -58,12 +64,12 @@ const serializeExercise = (exercise) => {
   return payload;
 };
 
-const TrainerCoaching = () => {
+const TrainerCoaching = ({ embedded = false }) => {
   // States
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
+  const [selectedDate, setSelectedDate] = useState(() =>
+    getVietnamDateKey(),
   );
 
   // Giáo án states
@@ -356,15 +362,11 @@ const TrainerCoaching = () => {
 
   // 7. Điều hướng ngày trước/sau
   const handlePrevDate = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() - 1);
-    handleDateChange(d.toISOString().split("T")[0]);
+    handleDateChange(addDaysToDateKey(selectedDate, -1));
   };
 
   const handleNextDate = () => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + 1);
-    handleDateChange(d.toISOString().split("T")[0]);
+    handleDateChange(addDaysToDateKey(selectedDate, 1));
   };
 
   // Helper: Tạo avatar chữ cái đầu giống Google
@@ -394,9 +396,9 @@ const TrainerCoaching = () => {
     <>
       <SEO title="Setup Bài Tập Coach Online - HT Coaching" noindex />
       <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-      <Header />
+      {!embedded && <Header />}
 
-      <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pt-28 pb-16">
+      <main className={`${embedded ? "min-h-[calc(100vh-3rem)] pt-8" : "min-h-screen pt-28"} bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pb-16`}>
         <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-6">
 
           {/* Header Tiêu Đề */}
@@ -586,7 +588,12 @@ const TrainerCoaching = () => {
                         <Sparkles className="w-4 h-4 text-primary" />
                       </div>
                       <h3 className="font-bold text-white uppercase tracking-wider text-fluid-sm">
-                        Thiết lập giáo án: {new Date(selectedDate).toLocaleDateString("vi-VN")}
+                        Thiết lập giáo án:{" "}
+                        {new Intl.DateTimeFormat("vi-VN", {
+                          timeZone: "Asia/Ho_Chi_Minh",
+                        }).format(
+                          new Date(selectedDate + "T12:00:00+07:00"),
+                        )}
                       </h3>
                     </div>
                   </div>
@@ -1042,7 +1049,6 @@ const TrainerCoaching = () => {
         ))}
       </datalist>
 
-      <Footer />
     </>
   );
 };
