@@ -18,7 +18,7 @@ import {
   SidebarOpen,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { getMySubscription } from "../services/trainerSubscription.service";
+import { mySubscriptionQueryOptions } from "../queries/subscription.queries";
 import { canAccessF1 } from "../utils/trainerEntitlements";
 import {
   getTrainerNavigationGroups,
@@ -30,13 +30,13 @@ const TrainerLayout = () => {
   const location = useLocation();
   const { user } = useAuth();
   const needsSubscription = Boolean(user && user.role !== "admin");
-  const { data: subscription } = useQuery({
-    queryKey: ["route-subscription", user?._id],
-    enabled: needsSubscription,
-    queryFn: () => getMySubscription().then((response) => response.data.data),
-    staleTime: 60_000,
-    retry: false,
-  });
+  const { data: subscription } = useQuery(
+    mySubscriptionQueryOptions({
+      userId: user?._id,
+      enabled: needsSubscription,
+      retry: false,
+    }),
+  );
   const f1Allowed = canAccessF1(user, subscription);
   const isNavItemActive = (itemKey) =>
     isTrainerNavigationItemActive(itemKey, location.pathname);

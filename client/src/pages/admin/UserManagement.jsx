@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { Search, Trash2, User, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "react-toastify";
 import { getUsers, deleteUser } from "../../services/user.service";
@@ -18,10 +21,13 @@ const UserManagement = () => {
     isError,
     error,
   } = useQuery({
-    queryKey: ["users", currentPage, debouncedSearchTerm],
+    queryKey: adminQueryKeys.users.list({
+      page: currentPage,
+      search: debouncedSearchTerm,
+    }),
     queryFn: () =>
       getUsers(currentPage, limit, debouncedSearchTerm).then((res) => res.data),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const users = usersData?.data || [];
@@ -31,7 +37,7 @@ const UserManagement = () => {
     mutationFn: deleteUser,
     onSuccess: () => {
       toast.success("Xóa người dùng thành công");
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+      invalidateByKey(queryClient, adminQueryKeys.users.all());
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
   });

@@ -24,10 +24,10 @@ import {
 } from "lucide-react";
 import logo from "../../assets/images/logo/logo.svg";
 import { useAuth } from "../../context/AuthContext";
-import { getMyWallet } from "../../services/wallet.service";
-import { getMySubscription } from "../../services/trainerSubscription.service";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
+import { mySubscriptionQueryOptions } from "../../queries/subscription.queries";
+import { walletBalanceQueryOptions } from "../../queries/walletAccount.queries";
 import { NotificationCenter } from "../../components/NotificationCenter";
 import { getAccountWorkspaceItems } from "../../navigation/workspaceNavigation";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
@@ -55,31 +55,15 @@ function Header() {
   const mobileMenuButtonRef = useRef(null);
   const [openDropdown, setOpenDropdown] = useState(false);
   const dropdownRef = useRef(null);
-  const { data: accountSummary } = useQuery({
-    queryKey: ["header-account-summary", user?._id],
-    enabled: Boolean(user),
-    queryFn: async () => {
-      const [walletResult, subscriptionResult] =
-        await Promise.allSettled([
-          getMyWallet(),
-          getMySubscription(),
-        ]);
-
-      return {
-        walletBalance:
-          walletResult.status === "fulfilled"
-            ? walletResult.value.data.data.balance
-            : null,
-        activeSubscription:
-          subscriptionResult.status === "fulfilled"
-            ? subscriptionResult.value.data.data
-            : null,
-      };
-    },
-    staleTime: 60_000,
-  });
-  const walletBalance = user ? (accountSummary?.walletBalance ?? null) : null;
-  const activeSubscription = user ? (accountSummary?.activeSubscription ?? null) : null;
+  const userId = user?._id;
+  const { data: wallet } = useQuery(
+    walletBalanceQueryOptions({ userId }),
+  );
+  const { data: activeSubscriptionData } = useQuery(
+    mySubscriptionQueryOptions({ userId }),
+  );
+  const walletBalance = user ? (wallet?.balance ?? null) : null;
+  const activeSubscription = user ? (activeSubscriptionData ?? null) : null;
 
   // Map tên gói -> icon
   const planIconMap = {
@@ -88,7 +72,6 @@ function Header() {
     "Cao cấp": "👑",
   };
 
-  // Fetch số dư ví + gói dịch vụ
   // Hàm scroll đến section
   const handleScrollToSection = (sectionId) => {
     if (location.pathname !== "/") {

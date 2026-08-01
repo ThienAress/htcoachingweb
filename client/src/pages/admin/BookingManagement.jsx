@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  getBookings,
   updateBookingStatus,
   archiveBooking,
 } from "../../services/booking.service";
+import { adminBookingsQueryOptions } from "../../queries/admin.queries";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import {
   PhoneCall,
   CheckCircle,
@@ -23,56 +26,63 @@ import {
 } from "lucide-react";
 
 const BookingManagement = () => {
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [filterStatus, setFilterStatus] = useState("");
   const [search, setSearch] = useState("");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const bookingsQuery = useQuery(
+    adminBookingsQueryOptions({
+      page,
+      limit: 9,
+      status: filterStatus,
+      search,
+    }),
+  );
+  const bookings = bookingsQuery.data?.items || [];
+  const totalPages = bookingsQuery.data?.pagination?.totalPages || 1;
+  const loading = bookingsQuery.isLoading;
 
-  const fetchBookings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await getBookings(page, 9, filterStatus, search);
-      setBookings(res.data.data);
-      setTotalPages(res.data.pagination.totalPages);
-    } catch {
-      // Keep the existing empty state when the booking list cannot be loaded.
-    } finally {
-      setLoading(false);
-    }
-  }, [filterStatus, page, search]);
+  const statusMutation = useMutation({
+    mutationFn: ({ booking, status }) =>
+      updateBookingStatus(
+        booking._id,
+        status,
+        booking.revision,
+      ),
+    onSuccess: () =>
+      invalidateByKey(queryClient, adminQueryKeys.bookings.all()),
+  });
 
-  useEffect(() => {
-    fetchBookings();
-  }, [fetchBookings]);
+  const archiveMutation = useMutation({
+    mutationFn: (booking) => archiveBooking(booking._id, booking.revision),
+    onSuccess: () =>
+      invalidateByKey(queryClient, adminQueryKeys.bookings.all()),
+  });
 
   const handleStatusUpdate = async (booking, status) => {
     if (!window.confirm(`Xác nhận chuyển trạng thái thành "${status}"?`))
       return;
     try {
-      await updateBookingStatus(
-        booking._id,
-        status,
-        booking.revision,
-      );
-      fetchBookings();
+      await statusMutation.mutateAsync({ booking, status });
     } catch (err) {
       alert(err.response?.data?.message || "Lỗi cập nhật");
-      if (err.response?.status === 409) fetchBookings();
+      if (err.response?.status === 409) {
+        await invalidateByKey(queryClient, adminQueryKeys.bookings.all());
+      }
     }
   };
 
   const handleArchive = async (booking) => {
     if (!window.confirm("Lưu trữ booking này?")) return;
     try {
-      await archiveBooking(booking._id, booking.revision);
-      fetchBookings();
+      await archiveMutation.mutateAsync(booking);
     } catch (err) {
       alert(err.response?.data?.message || "Lỗi lưu trữ");
-      if (err.response?.status === 409) fetchBookings();
+      if (err.response?.status === 409) {
+        await invalidateByKey(queryClient, adminQueryKeys.bookings.all());
+      }
     }
   };
 
@@ -232,7 +242,7 @@ const BookingManagement = () => {
                       onClick={() =>
                         handleStatusUpdate(booking, "contacted")
                       }
-                      disabled={booking.status !== "pending"}
+                      disabled={booking.status !== "pending" || statusMutation.isPending}
                       className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Đã liên hệ"
                     >
@@ -242,7 +252,7 @@ const BookingManagement = () => {
                       onClick={() =>
                         handleStatusUpdate(booking, "completed")
                       }
-                      disabled={booking.status !== "contacted"}
+                      disabled={booking.status !== "contacted" || statusMutation.isPending}
                       className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Hoàn thành"
                     >
@@ -252,7 +262,10 @@ const BookingManagement = () => {
                       onClick={() =>
                         handleStatusUpdate(booking, "cancelled")
                       }
-                      disabled={!["pending", "contacted"].includes(booking.status)}
+                      disabled={
+                        statusMutation.isPending ||
+                        !["pending", "contacted"].includes(booking.status)
+                      }
                       className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed"
                       title="Hủy"
                     >
@@ -260,7 +273,9 @@ const BookingManagement = () => {
                     </button>
                     <button
                       onClick={() => handleArchive(booking)}
-                      className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition"
+                      disabled={archiveMutation.isPending}
+                      aria-label="Lưu trữ booking"
+                      className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 disabled:cursor-wait disabled:opacity-30"
                       title="Lưu trữ"
                     >
                       <Archive size={18} />

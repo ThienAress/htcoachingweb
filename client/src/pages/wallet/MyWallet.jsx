@@ -1,14 +1,22 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../context/AuthContext";
-import { getMyWallet, createDeposit, getMyDeposits, confirmDeposit } from "../../services/wallet.service";
+import { createDeposit, confirmDeposit } from "../../services/wallet.service";
 import { Wallet, Plus, Clock, CheckCircle, XCircle, AlertTriangle, Copy, ArrowLeft } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import SEO from "../../components/SEO";
 import { useTranslation } from "react-i18next";
 import { useDepositPolicy } from "../../hooks/useDepositPolicy";
+import {
+  invalidateDepositHistory,
+  walletBalanceQueryOptions,
+  walletDepositsQueryOptions,
+} from "../../queries/walletAccount.queries";
 
 // ===== Format tiền VND =====
+const EMPTY_DEPOSITS = [];
+
 const formatVND = (amount, lang = "vi") =>
   new Intl.NumberFormat(lang === "vi" ? "vi-VN" : "en-US", { style: "currency", currency: "VND" }).format(amount);
 
@@ -60,6 +68,18 @@ const Countdown = ({ expiresAt, onExpired, t }) => {
   );
 };
 
+const toActiveDeposit = (deposit) =>
+  deposit
+    ? {
+        depositRequestId: deposit.depositRequestId || deposit._id,
+        amount: deposit.amount,
+        depositCode: deposit.depositCode,
+        qrPayload: deposit.qrPayload,
+        expiresAt: deposit.expiresAt,
+        status: deposit.status,
+      }
+    : null;
+
 // ===== TRANG VÍ CỦA TÔI =====
 const MyWallet = () => {
   const { t, i18n } = useTranslation("account");
@@ -72,56 +92,62 @@ const MyWallet = () => {
     refetch: refetchPolicy,
   } = useDepositPolicy();
 
-  const [balance, setBalance] = useState(0);
-  const [deposits, setDeposits] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const userId = user?._id;
 
   // Modal nạp tiền
   const [showDeposit, setShowDeposit] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
-  const [depositLoading, setDepositLoading] = useState(false);
-  const [confirmLoading, setConfirmLoading] = useState(false);
 
   // Màn hình QR
-  const [activeDeposit, setActiveDeposit] = useState(null);
+  const [selectedDeposit, setActiveDeposit] = useState(null);
 
-  // Fetch dữ liệu
+  const walletQuery = useQuery(
+    walletBalanceQueryOptions({ userId }),
+  );
+  const depositsQuery = useQuery(
+    walletDepositsQueryOptions({ userId }),
+  );
+  const balance = walletQuery.data?.balance ?? null;
+  const deposits = depositsQuery.data || EMPTY_DEPOSITS;
+  const loading = walletQuery.isPending || depositsQuery.isPending;
+
+  const createDepositMutation = useMutation({
+    mutationFn: createDeposit,
+    onSuccess: () => invalidateDepositHistory(queryClient, userId),
+    onError: (error) =>
+      error?.response?.status === 409
+        ? invalidateDepositHistory(queryClient, userId)
+        : undefined,
+  });
+  const confirmDepositMutation = useMutation({
+    mutationFn: confirmDeposit,
+    onSuccess: () => invalidateDepositHistory(queryClient, userId),
+    onError: (error) =>
+      error?.response?.status === 409
+        ? invalidateDepositHistory(queryClient, userId)
+        : undefined,
+  });
+  const depositLoading = createDepositMutation.isPending;
+  const confirmLoading = confirmDepositMutation.isPending;
+
   // Kiểm tra có giao dịch đang chờ duyệt hoặc đang pending
   const hasNeedsReview = deposits.some((d) => d.status === "needs_review");
   const hasPendingDeposit = deposits.some((d) => d.status === "pending");
-
-  const fetchData = useCallback(async () => {
-    try {
-      const [walletRes, depositsRes] = await Promise.all([getMyWallet(), getMyDeposits()]);
-      setBalance(walletRes.data.data.balance);
-      setDeposits(depositsRes.data.data);
-    } catch {
-      // Keep the zero balance and empty history fallback.
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Tự mở lại QR nếu có deposit đang pending
-  useEffect(() => {
-    if (!activeDeposit && deposits.length > 0) {
-      const pendingDeposit = deposits.find((d) => d.status === "pending");
-      if (pendingDeposit) {
-        setActiveDeposit({
-          depositRequestId: pendingDeposit._id,
-          amount: pendingDeposit.amount,
-          depositCode: pendingDeposit.depositCode,
-          qrPayload: pendingDeposit.qrPayload,
-          expiresAt: pendingDeposit.expiresAt,
-          status: pendingDeposit.status,
-        });
-      }
-    }
-  }, [activeDeposit, deposits]);
+  const isRefreshingOpenDeposits =
+    depositsQuery.isFetching && (hasNeedsReview || hasPendingDeposit);
+  const refreshedSelectedDeposit = selectedDeposit?.depositRequestId
+    ? deposits.find(
+        (deposit) => deposit._id === selectedDeposit.depositRequestId,
+      )
+    : null;
+  const activeDeposit = toActiveDeposit(
+    refreshedSelectedDeposit ||
+      selectedDeposit ||
+      deposits.find((deposit) =>
+        ["pending", "needs_review"].includes(deposit.status),
+      ),
+  );
 
   // Tạo yêu cầu nạp tiền
   const handleCreateDeposit = async () => {
@@ -139,35 +165,43 @@ const MyWallet = () => {
       return;
     }
 
-    setDepositLoading(true);
     try {
-      const res = await createDeposit(amount);
+      const res = await createDepositMutation.mutateAsync(amount);
       const data = res.data.data;
       setActiveDeposit(data);
       setShowDeposit(false);
       setDepositAmount("");
       toast.success(t("wallet.errors.create_success"));
-      fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || t("wallet.errors.create_failed", { defaultValue: "Lỗi khi tạo yêu cầu nạp tiền" }));
-    } finally {
-      setDepositLoading(false);
+      toast.error(
+        err.response?.data?.message ||
+          t("wallet.errors.create_failed", {
+            defaultValue: "Lỗi khi tạo yêu cầu nạp tiền",
+          }),
+      );
     }
   };
 
   // Xác nhận đã thanh toán
   const handleConfirmDeposit = async () => {
     if (!activeDeposit) return;
-    setConfirmLoading(true);
     try {
-      await confirmDeposit(activeDeposit.depositRequestId);
-      setActiveDeposit((prev) => ({ ...prev, status: "needs_review" }));
+      await confirmDepositMutation.mutateAsync(
+        activeDeposit.depositRequestId,
+      );
+      setActiveDeposit((previous) => ({
+        ...activeDeposit,
+        ...previous,
+        status: "needs_review",
+      }));
       toast.success(t("wallet.errors.confirm_success"));
-      fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || t("wallet.errors.confirm_failed", { defaultValue: "Lỗi xác nhận thanh toán" }));
-    } finally {
-      setConfirmLoading(false);
+      toast.error(
+        err.response?.data?.message ||
+          t("wallet.errors.confirm_failed", {
+            defaultValue: "Lỗi xác nhận thanh toán",
+          }),
+      );
     }
   };
 
@@ -203,7 +237,23 @@ const MyWallet = () => {
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-400">{t("wallet.balance")}</p>
-              <p className="text-3xl font-bold text-primary">{formatVND(balance, i18n.language)}</p>
+              {walletQuery.isError ? (
+                <div role="alert" className="mt-1">
+                  <p className="text-3xl font-bold text-gray-500">—</p>
+                  <button
+                    type="button"
+                    onClick={() => walletQuery.refetch()}
+                    disabled={walletQuery.isFetching}
+                    className="mt-1 text-xs font-semibold text-orange-300 hover:text-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-wait disabled:opacity-50"
+                  >
+                    {walletQuery.isFetching ? "Đang tải lại..." : "Không tải được · Thử lại"}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-3xl font-bold text-primary">
+                  {balance === null ? "—" : formatVND(balance, i18n.language)}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -223,6 +273,11 @@ const MyWallet = () => {
                 : t("wallet.pending_desc")
               }
             </p>
+            {isRefreshingOpenDeposits && (
+              <p role="status" aria-live="polite" className="text-xs text-orange-300">
+                Đang đồng bộ trạng thái giao dịch...
+              </p>
+            )}
           </div>
         ) : (
           <button
@@ -242,7 +297,7 @@ const MyWallet = () => {
                 expiresAt={activeDeposit.expiresAt}
                 onExpired={() => {
                   setActiveDeposit(null);
-                  fetchData();
+                  void depositsQuery.refetch();
                 }}
                 t={t}
               />
@@ -316,7 +371,7 @@ const MyWallet = () => {
                   <button
                     onClick={() => {
                       setActiveDeposit(null);
-                      fetchData();
+                      void depositsQuery.refetch();
                     }}
                     className="w-full py-2 border border-gray-600 rounded-lg text-gray-400 hover:text-white hover:border-gray-400 transition text-sm"
                   >
@@ -344,7 +399,7 @@ const MyWallet = () => {
             <button
               onClick={() => {
                 setActiveDeposit(null);
-                fetchData();
+                void depositsQuery.refetch();
               }}
               className="w-full py-2 border border-gray-600 rounded-lg text-gray-400 hover:text-white hover:border-gray-400 transition text-sm"
             >
@@ -358,7 +413,32 @@ const MyWallet = () => {
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <Clock className="w-5 h-5 text-gray-400" /> {t("wallet.history_title")}
           </h3>
-          {deposits.length === 0 ? (
+          {depositsQuery.isError && depositsQuery.data && (
+            <div role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+              Không thể cập nhật lịch sử mới nhất.
+              <button
+                type="button"
+                onClick={() => depositsQuery.refetch()}
+                disabled={depositsQuery.isFetching}
+                className="ml-2 font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-wait disabled:opacity-50"
+              >
+                Thử lại
+              </button>
+            </div>
+          )}
+          {depositsQuery.isError && !depositsQuery.data ? (
+            <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center text-red-300">
+              <p>Không thể tải lịch sử nạp tiền.</p>
+              <button
+                type="button"
+                onClick={() => depositsQuery.refetch()}
+                disabled={depositsQuery.isFetching}
+                className="mt-3 min-h-11 rounded-lg border border-red-400/50 px-4 py-2 font-semibold hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-wait disabled:opacity-50"
+              >
+                {depositsQuery.isFetching ? "Đang tải lại..." : "Thử lại"}
+              </button>
+            </div>
+          ) : deposits.length === 0 ? (
             <div className="text-center text-gray-500 py-10 bg-[#222] rounded-xl border border-gray-800">
               {t("history.no_txs")}
             </div>

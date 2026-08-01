@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { getMySubscription } from "../services/trainerSubscription.service";
+import { mySubscriptionQueryOptions } from "../queries/subscription.queries";
 
 const AdminRoute = ({ children }) => {
   const location = useLocation();
@@ -13,12 +13,12 @@ const AdminRoute = ({ children }) => {
     isError: subError,
     isFetching: subFetching,
     refetch: refetchSubscription,
-  } = useQuery({
-    queryKey: ["route-subscription", user?._id],
-    enabled: requiresSubscription,
-    queryFn: () => getMySubscription().then((res) => res.data.data),
-    staleTime: 60_000,
-  });
+  } = useQuery(
+    mySubscriptionQueryOptions({
+      userId: user?._id,
+      enabled: requiresSubscription,
+    }),
+  );
 
   // Fetch subscription cho user thường
   if (loading || (requiresSubscription && subLoading)) {

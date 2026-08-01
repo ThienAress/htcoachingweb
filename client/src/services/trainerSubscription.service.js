@@ -6,7 +6,8 @@ export const getTrainerPlanCatalog = () =>
 export const purchaseTrainerPlan = (payload) =>
   api.post("/trainer-subscriptions/purchase", payload);
 
-export const getMySubscription = () => api.get("/trainer-subscriptions/my");
+export const getMySubscription = ({ signal } = {}) =>
+  api.get("/trainer-subscriptions/my", { signal });
 
 export const getAllSubscribers = (page = 1, limit = 10, search = "") =>
   api.get("/trainer-subscriptions/all", {

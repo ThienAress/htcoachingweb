@@ -1,5 +1,8 @@
 import { useState, useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import DOMPurify from "dompurify";
@@ -88,7 +91,12 @@ const BlogManagement = () => {
   const limit = 10;
 
   const queryKey = useMemo(
-    () => ["admin-blog-posts", page, statusFilter, categoryFilter, debouncedSearch],
+    () => adminQueryKeys.blogPosts.list({
+      page,
+      status: statusFilter,
+      category: categoryFilter,
+      search: debouncedSearch,
+    }),
     [page, statusFilter, categoryFilter, debouncedSearch],
   );
 
@@ -101,7 +109,7 @@ const BlogManagement = () => {
         category: categoryFilter || undefined,
         search: debouncedSearch || undefined,
       }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const { data: trainersData } = useQuery({
@@ -113,7 +121,7 @@ const BlogManagement = () => {
   const posts = data?.data || [];
   const totalPages = data?.pagination?.totalPages || 1;
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin-blog-posts"] });
+  const invalidate = () => invalidateByKey(queryClient, adminQueryKeys.blogPosts.all());
 
   const goList = () => { setMode("list"); setEditingPost(null); setForm(emptyForm); setExcerptMode("plain"); };
 

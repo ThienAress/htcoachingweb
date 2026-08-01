@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -222,7 +225,11 @@ const CustomerStoryManagement = () => {
   const limit = 10;
 
   const queryKey = useMemo(
-    () => ["admin-customer-stories", page, status, debouncedSearch],
+    () => adminQueryKeys.customerStories.list({
+      page,
+      status,
+      search: debouncedSearch,
+    }),
     [page, status, debouncedSearch],
   );
 
@@ -235,7 +242,7 @@ const CustomerStoryManagement = () => {
         status,
         search: debouncedSearch,
       }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const { data: ordersData } = useQuery({
@@ -254,7 +261,7 @@ const CustomerStoryManagement = () => {
   const totalPages = data?.pagination?.totalPages || 1;
 
   const invalidateStories = () =>
-    queryClient.invalidateQueries({ queryKey: ["admin-customer-stories"] });
+    invalidateByKey(queryClient, adminQueryKeys.customerStories.all());
 
   const closeModal = () => {
     setIsModalOpen(false);

@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { Search, User, ChevronLeft, ChevronRight, Award, Ban } from "lucide-react";
 import { toast } from "react-toastify";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -33,12 +36,15 @@ const TrainerSubscriberManagement = () => {
     isError,
     error,
   } = useQuery({
-    queryKey: ["subscribers", currentPage, debouncedSearchTerm],
+    queryKey: adminQueryKeys.subscribers.list({
+      page: currentPage,
+      search: debouncedSearchTerm,
+    }),
     queryFn: () =>
       getAllSubscribers(currentPage, limit, debouncedSearchTerm).then(
         (res) => res.data
       ),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const subscribers = subsData?.data || [];
@@ -48,7 +54,7 @@ const TrainerSubscriberManagement = () => {
     mutationFn: ({ id, reason }) => cancelSubscription(id, reason),
     onSuccess: (response) => {
       toast.success(response.data.message);
-      queryClient.invalidateQueries({ queryKey: ["subscribers"] });
+      invalidateByKey(queryClient, adminQueryKeys.subscribers.all());
       setCancelTarget(null);
       setCancelReason("");
     },

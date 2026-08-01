@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Plus, Edit, Trash2, X, BrainCircuit, FileWarning, Search, HelpCircle } from "lucide-react";
@@ -22,7 +24,7 @@ const F1AiRuleManagement = () => {
   });
 
   const { data: response, isLoading } = useQuery({
-    queryKey: ["f1AiRules"],
+    queryKey: adminQueryKeys.f1AiRules.all(),
     queryFn: getF1AiRules,
   });
 
@@ -37,7 +39,7 @@ const F1AiRuleManagement = () => {
     onSuccess: () => {
       toast.success("Thêm rule thành công");
       resetModal();
-      queryClient.invalidateQueries(["f1AiRules"]);
+      invalidateByKey(queryClient, adminQueryKeys.f1AiRules.all());
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi thêm rule"),
   });
@@ -47,7 +49,7 @@ const F1AiRuleManagement = () => {
     onSuccess: () => {
       toast.success("Cập nhật thành công");
       resetModal();
-      queryClient.invalidateQueries(["f1AiRules"]);
+      invalidateByKey(queryClient, adminQueryKeys.f1AiRules.all());
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi cập nhật"),
   });
@@ -56,7 +58,7 @@ const F1AiRuleManagement = () => {
     mutationFn: deleteF1AiRule,
     onSuccess: () => {
       toast.success("Xóa thành công");
-      queryClient.invalidateQueries(["f1AiRules"]);
+      invalidateByKey(queryClient, adminQueryKeys.f1AiRules.all());
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
   });

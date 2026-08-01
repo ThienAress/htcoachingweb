@@ -64,8 +64,13 @@ requirePattern(
 );
 requirePattern(
   "client/src/hooks/useDepositPolicy.js",
-  /normalizeDepositPolicyResponse/,
-  "deposit policy response must be validated before rendering",
+  /useQuery\(depositPolicyQueryOptions\(\)\)/,
+  "deposit policy hook must use the canonical validated query factory",
+);
+requirePattern(
+  "client/src/queries/walletAccount.queries.js",
+  /getDepositPolicy\(\{ signal \}\)\.then\(normalizeDepositPolicyResponse\)/,
+  "deposit policy query factory must validate the response before caching",
 );
 
 for (const file of [

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast } from "react-toastify";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
@@ -145,7 +147,7 @@ export default function TrainerProfileEditor() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const { data: detailData, isFetching: isFetchingDetail } = useQuery({
-    queryKey: ["admin-trainer-detail", id],
+    queryKey: adminQueryKeys.trainers.detail(id),
     queryFn: () => getAdminTrainerById(id),
     enabled: !!id,
   });
@@ -163,8 +165,8 @@ export default function TrainerProfileEditor() {
     mutationFn: ({ id, data }) => updateTrainer(id, data),
     onSuccess: () => {
       toast.success("Cập nhật Profile thành công!");
-      queryClient.invalidateQueries(["admin-trainers"]);
-      queryClient.invalidateQueries(["admin-trainer-detail", id]);
+      invalidateByKey(queryClient, adminQueryKeys.trainers.all());
+      invalidateByKey(queryClient, adminQueryKeys.trainers.detail(id));
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật Profile"),
   });

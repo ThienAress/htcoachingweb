@@ -31,6 +31,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 015 | Mở luồng Theo dõi sức khỏe từ Nghiệp vụ huấn luyện | P1 | S | 012, 014 | DONE / LOCAL VERIFIED |
 | 016 | Rút gọn dropdown và gom nghiệp vụ vào Quản lý khách hàng | P1 | M | 012, 015 | IMPLEMENTED / LOCAL VERIFIED — VISUAL MANUAL PENDING |
 | 017 | Harden agent governance và loại bỏ instruction drift | P1 | M | — | DONE / VERIFIED |
+| 018 | Chuẩn hóa TanStack Query v5 và vòng đời server state | P1 | L | 001, 002, 003H | DONE / LOCAL VERIFIED |
 
 ## Dependency Notes
 
@@ -49,6 +50,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 - Plan 016 depends on 012 và 015 vì nó dùng Trainer workspace và health entry hiện có
   làm nền để tổ chức lại toàn bộ điều hướng nghiệp vụ.
 - Plan 017 độc lập với product roadmap; chỉ harden instruction system và không chạm Doppler/environment.
+- Plan 018 phụ thuộc 001–002 cho subscription/wallet contracts và 003H cho private cache hardening;
+  wallet/account runtime chỉ được triển khai sau khi spec riêng được duyệt.
 
 ## Findings Considered and Rejected
 

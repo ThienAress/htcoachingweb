@@ -13,7 +13,10 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -66,19 +69,19 @@ const CheckinHistory = () => {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: [
-      "checkins",
-      currentPage,
-      debouncedSearchName,
-      selectedMonth,
-      selectedYear,
-    ],
+    queryKey: adminQueryKeys.checkins.list({
+      page: currentPage,
+      search: debouncedSearchName,
+      month: selectedMonth,
+      year: selectedYear,
+      scope: "admin",
+    }),
     queryFn: () =>
       getCheckins(buildParams()).then((res) => ({
         data: res.data.data,
         pagination: res.data.pagination,
       })),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const checkins = checkinsData?.data || [];
@@ -93,7 +96,7 @@ const CheckinHistory = () => {
     mutationFn: deleteCheckin,
     onSuccess: () => {
       toast.success("Xóa check-in thành công");
-      queryClient.invalidateQueries({ queryKey: ["checkins"] });
+      invalidateByKey(queryClient, adminQueryKeys.checkins.all());
     },
     onError: (err) => toast.error(err.message),
   });
@@ -104,7 +107,7 @@ const CheckinHistory = () => {
     onSuccess: () => {
       toast.success("Cập nhật thành công");
       setShowModal(false);
-      queryClient.invalidateQueries({ queryKey: ["checkins"] });
+      invalidateByKey(queryClient, adminQueryKeys.checkins.all());
     },
     onError: (err) => toast.error(err.message),
   });

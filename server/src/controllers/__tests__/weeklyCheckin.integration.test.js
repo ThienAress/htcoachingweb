@@ -23,14 +23,22 @@ import WeeklyCheckinRevision from "../../models/WeeklyCheckinRevision.js";
 import weeklyCheckinRoutes from "../../routes/weeklyCheckin.routes.js";
 import {
   addDaysToDateKey,
-  getAppDayOfWeek,
   getMonthWeekPeriod,
+  getPreviousMonthWeekPeriod,
   getVietnamDateKey,
 } from "../../utils/dateKey.js";
 
 let app;
 const today = getVietnamDateKey();
-const currentWeek = getMonthWeekPeriod(today).startDateKey;
+const currentPeriod = getMonthWeekPeriod(today);
+const currentWeek = currentPeriod.startDateKey;
+const futurePeriodStart = getMonthWeekPeriod(
+  addDaysToDateKey(currentPeriod.endDateKey, 1),
+).startDateKey;
+const previousPeriod = getPreviousMonthWeekPeriod(today);
+const expiredPeriodStart = getPreviousMonthWeekPeriod(
+  previousPeriod.startDateKey,
+).startDateKey;
 const IDS = {
   save: "91111111-1111-4111-8111-111111111111",
   stale: "92222222-2222-4222-8222-222222222222",
@@ -141,7 +149,7 @@ describe("Weekly Check-in lifecycle", () => {
     expect(await WeeklyCheckin.countDocuments()).toBe(1);
   });
 
-  it("requires Monday and bounds writes to current or previous week", async () => {
+  it("requires a canonical period start and bounds writes to the current or previous period", async () => {
     const { client } = await createAssigned("window");
     const nonMonday = await saveCheckin(
       client.accessToken,
@@ -151,13 +159,13 @@ describe("Weekly Check-in lifecycle", () => {
     );
     const future = await saveCheckin(
       client.accessToken,
-      addDaysToDateKey(currentWeek, 7),
+      futurePeriodStart,
       0,
       IDS.stale,
     );
     const old = await saveCheckin(
       client.accessToken,
-      addDaysToDateKey(currentWeek, -14),
+      expiredPeriodStart,
       0,
       IDS.submit,
     );

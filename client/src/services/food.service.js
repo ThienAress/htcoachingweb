@@ -11,6 +11,8 @@ export const getFoods = (page = 1, limit = 10, search = "") => {
   return api.get(`/foods?${params.toString()}`);
 };
 
+export const getAllFoods = (signal) =>
+  api.get("/foods", { params: { all: true }, signal });
 export const getFoodById = (id) => api.get(`/foods/${id}`);
 export const createFood = (data) => api.post("/foods", data);
 export const createManyFoods = (foodsArray) =>

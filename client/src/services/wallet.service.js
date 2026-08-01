@@ -10,9 +10,12 @@ export const getDepositById = (id) => api.get(`/deposits/${id}`);
 export const confirmDeposit = (id) => api.post(`/deposits/${id}/confirm`);
 
 // Lịch sử nạp tiền
-export const getMyDeposits = () => api.get("/deposits");
+export const getMyDeposits = ({ signal } = {}) =>
+  api.get("/deposits", { signal });
 
 // Xem số dư ví
-export const getMyWallet = () => api.get("/me/wallet");
+export const getMyWallet = ({ signal } = {}) =>
+  api.get("/me/wallet", { signal });
 
-export const getDepositPolicy = () => api.get("/deposits/policy");
+export const getDepositPolicy = ({ signal } = {}) =>
+  api.get("/deposits/policy", { signal });

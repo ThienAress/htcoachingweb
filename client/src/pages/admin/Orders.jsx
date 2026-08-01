@@ -3,7 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -84,9 +87,9 @@ const Orders = () => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["orders", currentPage],
+    queryKey: adminQueryKeys.orders.list({ page: currentPage, limit: 6 }),
     queryFn: () => getOrders(currentPage, 6).then((res) => res.data.data),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const totalPages = ordersData?.totalPages || 1;
@@ -151,7 +154,7 @@ const Orders = () => {
   const createOrderMutation = useMutation({
     mutationFn: createOrder,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      invalidateByKey(queryClient, adminQueryKeys.orders.all());
       toast.success("Tạo đơn hàng thành công");
       resetForm();
     },
@@ -162,7 +165,7 @@ const Orders = () => {
   const updateOrderMutation = useMutation({
     mutationFn: ({ id, data }) => updateOrder(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      invalidateByKey(queryClient, adminQueryKeys.orders.all());
       toast.success("Cập nhật đơn hàng thành công");
       resetForm();
     },
@@ -173,7 +176,7 @@ const Orders = () => {
   const approveOrderMutation = useMutation({
     mutationFn: (id) => approveOrder(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      invalidateByKey(queryClient, adminQueryKeys.orders.all());
       toast.success("Đã xác nhận đơn hàng");
     },
     onError: (err) =>
@@ -183,7 +186,7 @@ const Orders = () => {
   const deleteOrderMutation = useMutation({
     mutationFn: (id) => deleteOrder(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      invalidateByKey(queryClient, adminQueryKeys.orders.all());
       toast.success("Đã xóa đơn hàng");
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),

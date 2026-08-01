@@ -1,55 +1,46 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useCallback } from "react";
 
 import { useAuth } from "../context/AuthContext";
-import {
-  checkMealPlanAccess,
-  recordMealPlanGeneration,
-} from "../services/mealplanAccess.service";
+import { mealPlanAccessQueryOptions } from "../queries/coaching.queries";
+import { coachingKeys } from "../queries/queryKeys";
+import { recordMealPlanGeneration } from "../services/mealplanAccess.service";
 import { deriveMealPlanAccess } from "../utils/mealPlanAccess";
 
 export const useMealPlanAccess = () => {
-  const [accessLevel, setAccessLevel] = useState(null);
-  const [isChecking, setIsChecking] = useState(true);
-  const [accessError, setAccessError] = useState(false);
-  const [generationCount, setGenerationCount] = useState(0);
-  const [maxGenerations, setMaxGenerations] = useState(null);
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const queryKey = coachingKeys.mealPlanAccess(user?._id);
+  const accessQuery = useQuery(mealPlanAccessQueryOptions(user?._id));
+  const accessLevel = accessQuery.data?.access || null;
+  const generationCount = accessQuery.data?.generationCount || 0;
+  const maxGenerations = accessQuery.data?.maxGenerations ?? null;
 
-  const checkAccess = useCallback(async () => {
-    if (!user) {
-      setAccessLevel(null);
-      setGenerationCount(0);
-      setMaxGenerations(null);
-      setAccessError(false);
-      setIsChecking(false);
-      return;
-    }
+  const recordMutation = useMutation({
+    mutationFn: recordMealPlanGeneration,
+    onSuccess: (response) => {
+      queryClient.setQueryData(queryKey, (current) => ({
+        ...(current || {}),
+        generationCount: response.data.data.generationCount,
+      }));
+    },
+    onError: (error) => {
+      if (error.response?.status !== 403) return;
+      const data = error.response.data?.data;
+      if (!data) return;
+      queryClient.setQueryData(queryKey, (current) => ({
+        ...(current || {}),
+        ...data,
+      }));
+    },
+  });
 
-    try {
-      setIsChecking(true);
-      setAccessError(false);
-      const response = await checkMealPlanAccess();
-      const {
-        access,
-        generationCount: count,
-        maxGenerations: max,
-      } = response.data.data;
-      setAccessLevel(access);
-      setGenerationCount(count);
-      setMaxGenerations(max);
-    } catch {
-      setAccessLevel(null);
-      setGenerationCount(0);
-      setMaxGenerations(null);
-      setAccessError(true);
-    } finally {
-      setIsChecking(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    void checkAccess();
-  }, [checkAccess]);
+  const recordGenerationMutation = recordMutation.mutateAsync;
+  const refetchAccess = accessQuery.refetch;
 
   const { canGenerate, remainingGenerations } = deriveMealPlanAccess({
     accessLevel,
@@ -62,23 +53,20 @@ export const useMealPlanAccess = () => {
     if (accessLevel !== "trial") return false;
 
     try {
-      const response = await recordMealPlanGeneration();
-      setGenerationCount(response.data.data.generationCount);
+      await recordGenerationMutation();
       return true;
-    } catch (error) {
-      if (error.response?.status === 403) {
-        const data = error.response.data?.data;
-        if (data) setGenerationCount(data.generationCount);
-      }
+    } catch {
       return false;
     }
-  }, [accessLevel]);
+  }, [accessLevel, recordGenerationMutation]);
+
+  const retryAccess = useCallback(() => refetchAccess(), [refetchAccess]);
 
   return {
     accessLevel,
-    isChecking,
-    accessError,
-    retryAccess: checkAccess,
+    isChecking: Boolean(user && accessQuery.isPending),
+    accessError: Boolean(user && accessQuery.isError),
+    retryAccess,
     canGenerate,
     remainingGenerations,
     generationCount,

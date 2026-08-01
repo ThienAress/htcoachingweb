@@ -24,7 +24,8 @@ export const cancelContract = (id) => api.put(`/contracts/${id}/cancel`);
 
 export const deleteContractApi = (id) => api.delete(`/contracts/${id}`);
 
-export const getMyContracts = () => api.get("/contracts/my");
+export const getMyContracts = ({ signal } = {}) =>
+  api.get("/contracts/my", { signal });
 
 export const clientDownloadContract = (id) =>
   api.get(`/contracts/${id}/client-download`, { responseType: "blob" });

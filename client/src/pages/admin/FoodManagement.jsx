@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import {
   Search,
   Plus,
@@ -53,10 +56,13 @@ const FoodManagement = () => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["foods", currentPage, debouncedSearchTerm],
+    queryKey: adminQueryKeys.foods.list({
+      page: currentPage,
+      search: debouncedSearchTerm,
+    }),
     queryFn: () =>
       getFoods(currentPage, limit, debouncedSearchTerm).then((res) => res.data),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const foods = foodsData?.data || [];
@@ -66,7 +72,7 @@ const FoodManagement = () => {
     mutationFn: createFood,
     onSuccess: () => {
       toast.success("Thêm thực phẩm thành công");
-      queryClient.invalidateQueries({ queryKey: ["foods"] });
+      invalidateByKey(queryClient, adminQueryKeys.foods.all());
       closeModal();
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi thêm"),
@@ -76,7 +82,7 @@ const FoodManagement = () => {
     mutationFn: ({ id, data }) => updateFood(id, data),
     onSuccess: () => {
       toast.success("Cập nhật thành công");
-      queryClient.invalidateQueries({ queryKey: ["foods"] });
+      invalidateByKey(queryClient, adminQueryKeys.foods.all());
       closeModal();
     },
     onError: (err) =>
@@ -87,7 +93,7 @@ const FoodManagement = () => {
     mutationFn: deleteFood,
     onSuccess: () => {
       toast.success("Xóa thực phẩm thành công");
-      queryClient.invalidateQueries({ queryKey: ["foods"] });
+      invalidateByKey(queryClient, adminQueryKeys.foods.all());
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
   });
@@ -97,7 +103,7 @@ const FoodManagement = () => {
     onSuccess: (res) => {
       setBatchResult(res.data.data);
       toast.success(res.data.message);
-      queryClient.invalidateQueries({ queryKey: ["foods"] });
+      invalidateByKey(queryClient, adminQueryKeys.foods.all());
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi import"),
   });

@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -47,9 +50,12 @@ const ExerciseManagement = () => {
   }, [search]);
 
   const { data: exercisesResponse, isLoading } = useQuery({
-    queryKey: ["exercises", page, debouncedSearch],
+    queryKey: adminQueryKeys.exercises.list({
+      page,
+      search: debouncedSearch,
+    }),
     queryFn: () => getExercises(page, limit, debouncedSearch),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const exercises = exercisesResponse?.data || [];
@@ -60,7 +66,7 @@ const ExerciseManagement = () => {
     onSuccess: () => {
       toast.success(" Thêm bài tập thành công");
       resetModal();
-      queryClient.invalidateQueries(["exercises"]);
+      invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (err) =>
       toast.error(err.response?.data?.message || "Lỗi khi thêm"),
@@ -70,7 +76,7 @@ const ExerciseManagement = () => {
     onSuccess: () => {
       toast.success(" Cập nhật thành công");
       resetModal();
-      queryClient.invalidateQueries(["exercises"]);
+      invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (err) =>
       toast.error(err.response?.data?.message || "Lỗi cập nhật"),
@@ -79,7 +85,7 @@ const ExerciseManagement = () => {
     mutationFn: deleteExercise,
     onSuccess: () => {
       toast.success(" Xóa thành công");
-      queryClient.invalidateQueries(["exercises"]);
+      invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
   });
@@ -89,7 +95,7 @@ const ExerciseManagement = () => {
       toast.success(res.data.message || "Thêm hàng loạt thành công");
       setBatchText("");
       setShowBatchModal(false);
-      queryClient.invalidateQueries(["exercises"]);
+      invalidateByKey(queryClient, adminQueryKeys.exercises.all());
     },
     onError: (err) =>
       toast.error(err.response?.data?.message || "Lỗi thêm hàng loạt"),

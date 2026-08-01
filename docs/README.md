@@ -23,6 +23,7 @@ nguồn canonical trước khi thay đổi code.
 - [Wellness targets spec](./specs/wellness-targets.md)
 - [Trainer client workspace spec](./specs/trainer-client-workspace.md)
 - [Workspace navigation spec](./specs/workspace-navigation.md)
+- [Wallet/Account Query migration spec](./specs/wallet-account-query-migration.md)
 - [Release checklist](./operations/release-checklist.md)
 - [Incident runbook](./operations/runbooks/incident-runbook.md)
 - [Today Dashboard Release B runbook](./operations/runbooks/today-dashboard-release-b.md)

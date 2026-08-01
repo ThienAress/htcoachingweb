@@ -1,17 +1,31 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import { Clock } from "lucide-react";
 
+import { recipeDetailQueryOptions } from "../../queries/recipe.queries";
 import { getFlagUrl } from "./constants";
 
 const RecipeCard = ({ recipe }) => {
   const { t, i18n } = useTranslation("recipe");
+  const queryClient = useQueryClient();
   const { name, slug, category, thumbnail, prepTime, tags } = recipe;
   const area = recipe.area ? t(`areas.${recipe.area}`, { defaultValue: recipe.area }) : "";
+  const prefetchDetail = () => {
+    if (!slug) return;
+    void queryClient.prefetchQuery(
+      recipeDetailQueryOptions({
+        slug,
+        language: i18n.language,
+      }),
+    );
+  };
 
   return (
     <Link
       to={`/cong-thuc-nau-an/${slug}`}
+      onMouseEnter={prefetchDetail}
+      onFocus={prefetchDetail}
       className="group bg-zinc-800/50 rounded-2xl border border-zinc-700 overflow-hidden transition-all hover:-translate-y-1 hover:border-primary hover:shadow-xl hover:shadow-primary/10"
     >
       {/* Thumbnail */}

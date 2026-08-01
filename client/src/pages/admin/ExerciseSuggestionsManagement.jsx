@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -34,12 +37,16 @@ const ExerciseSuggestionsManagement = () => {
   }, [search]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["exerciseSuggestions", page, filterStatus, debouncedSearch],
+    queryKey: adminQueryKeys.exerciseSuggestions.list({
+      page,
+      status: filterStatus,
+      search: debouncedSearch,
+    }),
     queryFn: () =>
       getExerciseSuggestions(page, limit, filterStatus, debouncedSearch).then(
         (res) => res.data,
       ),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
   const suggestions = data?.data || [];
   const totalPages = data?.pagination?.totalPages || 1;
@@ -49,7 +56,7 @@ const ExerciseSuggestionsManagement = () => {
       updateSuggestionStatus(id, status, adminNote),
     onSuccess: () => {
       toast.success(" Cập nhật trạng thái thành công");
-      queryClient.invalidateQueries(["exerciseSuggestions"]);
+      invalidateByKey(queryClient, adminQueryKeys.exerciseSuggestions.all());
     },
     onError: (err) =>
       toast.error(err.response?.data?.message || "Lỗi cập nhật"),
@@ -58,7 +65,7 @@ const ExerciseSuggestionsManagement = () => {
     mutationFn: deleteSuggestion,
     onSuccess: () => {
       toast.success(" Xóa góp ý thành công");
-      queryClient.invalidateQueries(["exerciseSuggestions"]);
+      invalidateByKey(queryClient, adminQueryKeys.exerciseSuggestions.all());
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi xóa"),
   });

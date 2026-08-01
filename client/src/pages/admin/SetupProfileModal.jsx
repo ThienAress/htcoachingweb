@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast } from "react-toastify";
 import {
   Save,
@@ -154,7 +156,7 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
 
   const { data: detailData, isFetching: isFetchingDetail } = useQuery({
-    queryKey: ["admin-trainer-detail", selectedId],
+    queryKey: adminQueryKeys.trainers.detail(selectedId),
     queryFn: () => getAdminTrainerById(selectedId),
     enabled: !!selectedId,
   });
@@ -173,8 +175,8 @@ export default function SetupProfileModal({ trainers, initialTrainerId, onClose 
     mutationFn: ({ id, data }) => updateTrainer(id, data),
     onSuccess: () => {
       toast.success("Cập nhật Profile thành công!");
-      queryClient.invalidateQueries(["admin-trainers"]);
-      queryClient.invalidateQueries(["admin-trainer-detail", selectedId]);
+      invalidateByKey(queryClient, adminQueryKeys.trainers.all());
+      invalidateByKey(queryClient, adminQueryKeys.trainers.detail(selectedId));
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật Profile"),
   });

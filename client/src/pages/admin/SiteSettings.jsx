@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast } from "react-toastify";
 import { UploadCloud, Trash2, Loader2, Image as ImageIcon, X } from "lucide-react";
 import {
@@ -138,7 +140,7 @@ const SiteSettings = () => {
   const queryClient = useQueryClient();
 
   const { data: settingsResponse, isLoading } = useQuery({
-    queryKey: ["site-settings"],
+    queryKey: adminQueryKeys.siteSettings.all(),
     queryFn: async () => {
       const res = await getSiteSettings();
       return res.data;
@@ -149,7 +151,7 @@ const SiteSettings = () => {
     mutationFn: ({ apiPath, fieldName, formData }) => uploadSettingImage(apiPath || fieldName, formData),
     onSuccess: () => {
       toast.success("Tải ảnh lên thành công!");
-      queryClient.invalidateQueries(["site-settings"]);
+      invalidateByKey(queryClient, adminQueryKeys.siteSettings.all());
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || "Lỗi khi tải ảnh lên");
@@ -160,7 +162,7 @@ const SiteSettings = () => {
     mutationFn: ({ fieldName, imageUrl }) => removeSettingImage(fieldName, imageUrl),
     onSuccess: () => {
       toast.success("Đã xóa ảnh!");
-      queryClient.invalidateQueries(["site-settings"]);
+      invalidateByKey(queryClient, adminQueryKeys.siteSettings.all());
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || "Lỗi khi xóa ảnh");

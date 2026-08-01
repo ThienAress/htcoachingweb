@@ -1,17 +1,22 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { X, Gift, Sparkles, LogIn, ArrowRight, Wallet, CheckCircle, AlertTriangle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { getMyWallet } from "../services/wallet.service";
-import {
-  getMySubscription,
-  purchaseTrainerPlan,
-} from "../services/trainerSubscription.service";
+import { purchaseTrainerPlan } from "../services/trainerSubscription.service";
 import { useTrainerPlanCatalog } from "../hooks/useTrainerPlanCatalog";
 import { createTrainerPlanPurchasePayload } from "../utils/trainerPlanCatalog";
 import { TodayProgressPrompt } from "../components/TodayProgressPrompt";
 import { TODAY_PLATFORM_ENABLED } from "../config/featureFlags";
+import {
+  mySubscriptionQueryOptions,
+  selectMySubscriptionSnapshot,
+} from "../queries/subscription.queries";
+import {
+  applyTrainerPlanPurchaseResponse,
+  walletBalanceQueryOptions,
+} from "../queries/walletAccount.queries";
 
 const TODAY_PROGRESS_PROMPT_DISMISSED_KEY =
   "ht_today_progress_prompt_dismissed";
@@ -20,6 +25,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   const { t } = useTranslation("home");
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // View mode: "customer" | "trainer" | null
   const [viewMode, setViewMode] = useState(() => {
@@ -74,14 +80,9 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
   // Checkout modal states
   const [checkoutPlan, setCheckoutPlan] = useState(null);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(null);
-  const [walletLoading, setWalletLoading] = useState(false);
   const [showTrainerLoginPrompt, setShowTrainerLoginPrompt] = useState(false);
   const [checkoutResult, setCheckoutResult] = useState(null); // { success, message, data }
   const [countdown, setCountdown] = useState(null);
-  const [activeSubscription, setActiveSubscription] = useState(null);
-  const [freeTrialStatus, setFreeTrialStatus] = useState("unknown");
   const {
     data: trainerCatalogData,
     isLoading: trainerCatalogLoading,
@@ -94,27 +95,42 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   const purchaseRequestIdRef = useRef(null);
 
 
-  const loadTrainerSubscription = useCallback(async () => {
-    if (!user) {
-      setActiveSubscription(null);
-      setFreeTrialStatus("unknown");
-      return;
-    }
-    setFreeTrialStatus("unknown");
-    try {
-      const res = await getMySubscription();
-      setActiveSubscription(res.data.data);
-      setFreeTrialStatus(res.data.freeTrial?.status || "unknown");
-    } catch {
-      setActiveSubscription(null);
-      setFreeTrialStatus("error");
-    }
-  }, [user]);
-
-  // Fetch gói đang dùng khi đăng nhập
-  useEffect(() => {
-    void loadTrainerSubscription();
-  }, [loadTrainerSubscription]);
+  const userId = user?._id;
+  const walletQuery = useQuery(
+    walletBalanceQueryOptions({ userId }),
+  );
+  const {
+    data: subscriptionSnapshot,
+    isPending: subscriptionPending,
+    isError: subscriptionError,
+    refetch: refetchSubscription,
+  } = useQuery(
+    mySubscriptionQueryOptions({
+      userId,
+      select: selectMySubscriptionSnapshot,
+    }),
+  );
+  const purchaseMutation = useMutation({
+    mutationFn: purchaseTrainerPlan,
+    onSuccess: (response) =>
+      userId
+        ? applyTrainerPlanPurchaseResponse({
+            queryClient,
+            userId,
+            response,
+          })
+        : undefined,
+  });
+  const walletBalance = walletQuery.data?.balance ?? null;
+  const walletLoading = Boolean(user && walletQuery.isFetching);
+  const walletError = walletQuery.isError;
+  const checkoutLoading = purchaseMutation.isPending;
+  const activeSubscription = subscriptionSnapshot?.subscription ?? null;
+  const freeTrialStatus = !user || subscriptionPending
+    ? "unknown"
+    : subscriptionError
+      ? "error"
+      : subscriptionSnapshot?.freeTrial?.status || "unknown";
 
   // Khóa scroll khi drawer mở
   useEffect(() => {
@@ -703,13 +719,13 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                   <div className="mt-8">
                     <button
                       disabled={plan.isFree && Boolean(user) && freeTrialStatus === "unknown"}
-                      onClick={async () => {
+                      onClick={() => {
                         if (!user) {
                           setShowTrainerLoginPrompt(true);
                           return;
                         }
                         if (plan.isFree && freeTrialStatus === "error") {
-                          void loadTrainerSubscription();
+                          void refetchSubscription();
                           return;
                         }
                         if (plan.isFree && freeTrialStatus === "used") {
@@ -724,19 +740,8 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           globalThis.crypto.randomUUID();
                         setCheckoutPlan(plan);
                         setCheckoutResult(null);
-                        if (plan.isFree) {
-                          setWalletBalance(0);
-                          setWalletLoading(false);
-                        } else {
-                          setWalletLoading(true);
-                          try {
-                            const res = await getMyWallet();
-                            setWalletBalance(res.data.data.balance);
-                          } catch {
-                            setWalletBalance(0);
-                          } finally {
-                            setWalletLoading(false);
-                          }
+                        if (!plan.isFree) {
+                          void walletQuery.refetch();
                         }
                       }}
                       className="w-full rounded-lg bg-primary py-3 font-bold text-white shadow-lg shadow-orange-500/20 transition-all duration-300 hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-wait disabled:opacity-60"
@@ -1042,11 +1047,14 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             ? 0
             : billingCycle === "year" ? checkoutPlan.priceYear : checkoutPlan.priceMonth;
           const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-          const isEnough = isFreeCheckout || (walletBalance !== null && walletBalance >= price);
+          const isWalletVerified =
+            isFreeCheckout ||
+            (!walletError && !walletLoading && walletBalance !== null);
+          const isEnough =
+            isFreeCheckout || (isWalletVerified && walletBalance >= price);
           const shortage = walletBalance !== null ? price - walletBalance : 0;
 
           const handlePurchase = async () => {
-            setCheckoutLoading(true);
             try {
               if (!purchaseRequestIdRef.current) {
                 purchaseRequestIdRef.current =
@@ -1058,7 +1066,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 billingCycle: selectedBillingCycle,
                 requestId: purchaseRequestIdRef.current,
               });
-              const res = await purchaseTrainerPlan(payload);
+              const res = await purchaseMutation.mutateAsync(payload);
               setCheckoutResult({
                 success: true,
                 message: res.data.message,
@@ -1075,8 +1083,6 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 message: err.response?.data?.message || "Có lỗi xảy ra",
                 code: err.response?.data?.code,
               });
-            } finally {
-              setCheckoutLoading(false);
             }
           };
 
@@ -1204,10 +1210,32 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                             <div>
                               <p className="text-white font-semibold text-sm">Ví cá nhân</p>
                               {walletLoading ? (
-                                <p className="text-gray-500 text-xs">Đang tải...</p>
+                                <p role="status" className="text-gray-500 text-xs">
+                                  Đang xác minh số dư...
+                                </p>
+                              ) : walletError || walletBalance === null ? (
+                                <div role="alert" className="text-xs text-red-400">
+                                  <p>Số dư: —</p>
+                                  <button
+                                    type="button"
+                                    onClick={() => walletQuery.refetch()}
+                                    disabled={walletQuery.isFetching}
+                                    className="mt-1 font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-wait disabled:opacity-50"
+                                  >
+                                    {walletQuery.isFetching
+                                      ? "Đang tải lại..."
+                                      : "Không tải được · Thử lại"}
+                                  </button>
+                                </div>
                               ) : (
-                                <p className={`text-xs font-medium ${isEnough ? 'text-green-400' : 'text-red-400'}`}>
-                                  Số dư: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(walletBalance || 0)}
+                                <p
+                                  className={
+                                    isEnough
+                                      ? "text-xs font-medium text-green-400"
+                                      : "text-xs font-medium text-red-400"
+                                  }
+                                >
+                                  Số dư: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(walletBalance)}
                                 </p>
                               )}
                             </div>
@@ -1233,7 +1261,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     </div>
 
                     {/* Thiếu tiền warning */}
-                    {!isFreeCheckout && !walletLoading && !isEnough && walletBalance !== null && (
+                    {!isFreeCheckout && !walletLoading && !isEnough && isWalletVerified && (
                       <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center space-y-2">
                         <p className="text-red-400 text-sm font-medium">
                           ⚠️ Số dư không đủ (thiếu {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(shortage)})

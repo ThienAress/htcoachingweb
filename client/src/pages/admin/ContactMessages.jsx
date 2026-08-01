@@ -1,6 +1,9 @@
 // ================= IMPORT =================
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -58,7 +61,11 @@ const ContactMessages = () => {
     isError,
     error,
   } = useQuery({
-    queryKey: ["contactMessages", currentPage, statusFilter, debouncedSearch],
+    queryKey: adminQueryKeys.contactMessages.list({
+      page: currentPage,
+      status: statusFilter,
+      search: debouncedSearch,
+    }),
     queryFn: () =>
       getContactMessages(
         currentPage,
@@ -66,7 +73,7 @@ const ContactMessages = () => {
         statusFilter,
         debouncedSearch,
       ).then((res) => res.data),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const messages = messagesData?.data || [];
@@ -81,7 +88,7 @@ const ContactMessages = () => {
     mutationFn: ({ id, status }) => updateContactStatus(id, status),
     onSuccess: () => {
       toast.success("Cập nhật trạng thái thành công");
-      queryClient.invalidateQueries({ queryKey: ["contactMessages"] });
+      invalidateByKey(queryClient, adminQueryKeys.contactMessages.all());
     },
     onError: (err) =>
       toast.error(err.response?.data?.message || "Cập nhật thất bại"),
@@ -91,7 +98,7 @@ const ContactMessages = () => {
     mutationFn: deleteContactMessage,
     onSuccess: () => {
       toast.success("Xóa liên hệ thành công");
-      queryClient.invalidateQueries({ queryKey: ["contactMessages"] });
+      invalidateByKey(queryClient, adminQueryKeys.contactMessages.all());
     },
     onError: (err) =>
       toast.error(err.response?.data?.message || "Xóa thất bại"),

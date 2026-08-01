@@ -17,8 +17,6 @@ import { useState } from "react";
 
 import {
   addBookmark,
-  getBookmarkedRecipes,
-  getRecipeBySlug,
   removeBookmark,
 } from "../../services/recipe.service";
 import { useAuth } from "../../context/AuthContext";
@@ -27,6 +25,11 @@ import Footer from "../../sections/Footer/Footer";
 import ChatIcons from "../../components/ChatIcons";
 import ScrollToTop from "../../components/ScrollToTop";
 import SEO from "../../components/SEO";
+import {
+  recipeBookmarkCacheCallbacks,
+  recipeBookmarksQueryOptions,
+  recipeDetailQueryOptions,
+} from "../../queries/recipe.queries";
 import { getFlagUrl } from "./constants";
 
 const RecipeDetail = () => {
@@ -36,20 +39,14 @@ const RecipeDetail = () => {
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["recipe", slug, i18n.language],
-    queryFn: ({ signal }) => getRecipeBySlug(slug, signal),
-    enabled: !!slug,
-  });
+  const { data, isLoading, error } = useQuery(
+    recipeDetailQueryOptions({ slug, language: i18n.language }),
+  );
 
   const recipe = data?.data;
-  const bookmarkQueryKey = ["recipe-bookmarks", user?._id || "anonymous"];
-  const { data: bookmarkData } = useQuery({
-    queryKey: bookmarkQueryKey,
-    queryFn: ({ signal }) => getBookmarkedRecipes(signal),
-    enabled: Boolean(user),
-    staleTime: 60 * 1000,
-  });
+  const bookmarkOptions = recipeBookmarksQueryOptions(user?._id);
+  const bookmarkQueryKey = bookmarkOptions.queryKey;
+  const { data: bookmarkData } = useQuery(bookmarkOptions);
   const isSaved = Boolean(
     recipe?._id &&
       bookmarkData?.data?.some((item) => item._id === recipe._id),
@@ -58,20 +55,12 @@ const RecipeDetail = () => {
   const bookmarkMutation = useMutation({
     mutationFn: () =>
       isSaved ? removeBookmark(recipe._id) : addBookmark(recipe._id),
-    onSuccess: (result) => {
-      queryClient.setQueryData(bookmarkQueryKey, (current) => {
-        const currentItems = current?.data || [];
-        return {
-          ...(current || { success: true }),
-          data: result.saved
-            ? [
-                ...currentItems.filter((item) => item._id !== recipe._id),
-                recipe,
-              ]
-            : currentItems.filter((item) => item._id !== recipe._id),
-        };
-      });
-    },
+    ...recipeBookmarkCacheCallbacks({
+      queryClient,
+      queryKey: bookmarkQueryKey,
+      recipe,
+      wasSaved: isSaved,
+    }),
   });
 
   const displayArea = recipe?.area ? t(`areas.${recipe.area}`, { defaultValue: recipe.area }) : "";

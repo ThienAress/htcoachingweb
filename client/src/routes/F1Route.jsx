@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getMySubscription } from "../services/trainerSubscription.service";
+import { mySubscriptionQueryOptions } from "../queries/subscription.queries";
 import { canAccessF1 } from "../utils/trainerEntitlements";
 
 const AccessStatus = ({ children }) => (
@@ -19,12 +19,12 @@ const F1Route = ({ children }) => {
     isError,
     isFetching,
     refetch,
-  } = useQuery({
-    queryKey: ["route-subscription", user?._id],
-    enabled: needsSubscription,
-    queryFn: () => getMySubscription().then((response) => response.data.data),
-    staleTime: 60_000,
-  });
+  } = useQuery(
+    mySubscriptionQueryOptions({
+      userId: user?._id,
+      enabled: needsSubscription,
+    }),
+  );
 
   if (loading || (needsSubscription && isLoading)) {
     return <AccessStatus>Đang kiểm tra quyền truy cập F1...</AccessStatus>;

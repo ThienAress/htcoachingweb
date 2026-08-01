@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useNavigate, Link } from "react-router-dom";
@@ -199,13 +202,17 @@ export default function TrainerManagement() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const { data: listData, isLoading } = useQuery({
-    queryKey: ["admin-trainers", page, statusFilter, debouncedSearch],
+    queryKey: adminQueryKeys.trainers.list({
+      page,
+      status: statusFilter,
+      search: debouncedSearch,
+    }),
     queryFn: () => getAdminTrainers({ page, limit: 10, status: statusFilter, search: debouncedSearch }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const { data: detailData, isFetching: isFetchingDetail } = useQuery({
-    queryKey: ["admin-trainer-detail", selectedId],
+    queryKey: adminQueryKeys.trainers.detail(selectedId),
     queryFn: () => getAdminTrainerById(selectedId),
     enabled: !!selectedId,
   });
@@ -225,7 +232,7 @@ export default function TrainerManagement() {
     mutationFn: createTrainer,
     onSuccess: () => {
       toast.success("Thêm HLV thành công!");
-      queryClient.invalidateQueries(["admin-trainers"]);
+      invalidateByKey(queryClient, adminQueryKeys.trainers.all());
       setIsModalOpen(false);
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi thêm HLV"),
@@ -235,8 +242,8 @@ export default function TrainerManagement() {
     mutationFn: ({ id, data }) => updateTrainer(id, data),
     onSuccess: () => {
       toast.success("Cập nhật HLV thành công!");
-      queryClient.invalidateQueries(["admin-trainers"]);
-      queryClient.invalidateQueries(["admin-trainer-detail", selectedId]);
+      invalidateByKey(queryClient, adminQueryKeys.trainers.all());
+      invalidateByKey(queryClient, adminQueryKeys.trainers.detail(selectedId));
       setIsModalOpen(false);
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật HLV"),
@@ -246,7 +253,7 @@ export default function TrainerManagement() {
     mutationFn: deleteTrainer,
     onSuccess: () => {
       toast.success("Xóa HLV thành công!");
-      queryClient.invalidateQueries(["admin-trainers"]);
+      invalidateByKey(queryClient, adminQueryKeys.trainers.all());
       setDeleteConfirm(null);
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa HLV"),
@@ -256,7 +263,7 @@ export default function TrainerManagement() {
     mutationFn: ({ id, status }) => updateTrainerStatus(id, status),
     onSuccess: () => {
       toast.success("Cập nhật trạng thái thành công!");
-      queryClient.invalidateQueries(["admin-trainers"]);
+      invalidateByKey(queryClient, adminQueryKeys.trainers.all());
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật trạng thái"),
   });

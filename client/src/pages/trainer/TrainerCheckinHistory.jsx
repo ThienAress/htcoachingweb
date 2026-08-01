@@ -10,7 +10,10 @@ import {
   X,
   Search,
 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateByKey } from "../../queries/invalidation";
+import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast, ToastContainer } from "react-toastify";
 import { getCheckins, updateCheckin } from "../../services/checkin.service";
 import { utcToLocalDateTime, localDateTimeToUTC } from "../../utils/date";
@@ -39,13 +42,17 @@ const TrainerCheckinHistory = () => {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["checkins", currentPage],
+    queryKey: adminQueryKeys.checkins.list({
+      page: currentPage,
+      limit,
+      scope: "trainer",
+    }),
     queryFn: () =>
       getCheckins(currentPage, limit).then((res) => ({
         data: res.data.data,
         pagination: res.data.pagination,
       })),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const checkins = checkinsData?.data || [];
@@ -65,7 +72,7 @@ const TrainerCheckinHistory = () => {
     onSuccess: () => {
       toast.success("Cập nhật thành công");
       setShowModal(false);
-      queryClient.invalidateQueries({ queryKey: ["checkins"] });
+      invalidateByKey(queryClient, adminQueryKeys.checkins.all());
     },
     onError: (err) => toast.error(err.message),
   });
