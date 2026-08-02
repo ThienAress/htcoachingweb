@@ -21,6 +21,17 @@ description: Quét codebase tìm bugs, security issues, performance problems, te
 | `$audit tests` | Chỉ quét test coverage |
 | `$audit <category>` | Chỉ quét 1 category cụ thể |
 
+## Modes, proactive triggers và boundary
+
+- **Quick**: hotspots + critical paths; Security + Bugs + Tests; HIGH confidence only.
+- **Standard**: key packages và đủ 7 categories.
+- **Focused security**: bắt buộc threat-model context, coverage ledger và candidate validation.
+- **Proactive triggers**: auth/payment/wallet, trust boundary mới, release lớn, incident hoặc periodic review.
+- **KHÔNG dùng thay** `$qa`, `$pre-deploy` hoặc `$ship`; audit tìm/vet vấn đề, không sở hữu build hay release decision.
+
+Paid Codex Security không chạy mặc định. Dùng local audit/CI trước; nếu risk yêu cầu external scan thì theo
+`docs/operations/runbooks/codex-security-scan.md` và ghi đúng trạng thái SKIP/PREFLIGHT/COMPLETE/BLOCKED.
+
 ---
 
 ## Workflow — 4 Phases
@@ -62,6 +73,14 @@ Known Issues: [đọc trực tiếp từ ../known-issues/SKILL.md]
 - Quét key packages: routes, controllers, services, models, middlewares, hooks, pages chính
 - 7 categories: Bugs, Security, Performance, Tests, Tech Debt, Dependencies, DX
 - Output: Full findings table
+
+**Security candidate lifecycle:**
+
+1. Map entry point/untrusted input → validation → authorization → sink/asset.
+2. Xác minh attacker-controlled path, reachability và impact; ghi method/evidence thực tế.
+3. Candidate thiếu proof phải ghi `proof gap`, không nâng thành confirmed vulnerability.
+4. Accepted finding được fix riêng bằng bounded patch + focused regression + re-validation.
+5. Rejected finding ghi lý do/evidence để không re-report.
 
 **Focused (security/perf/tests/...):**
 - 1 category, quét sâu
@@ -109,6 +128,20 @@ Hoặc nói "fix #1" để tôi implement trực tiếp.
 | "plan #1, #3" | Viết plans theo `plan-template.md` vào `docs/plans/` folder |
 | "fix #1" | Implement trực tiếp (không cần plan cho task nhỏ) |
 | "plan tất cả" | Viết plans cho tất cả findings |
+
+---
+
+## Security coverage evidence
+
+Với `$audit security` hoặc quick audit chạm critical path, thêm ledger theo
+`audit-playbook/references/security-coverage-ledger.md`:
+
+- Target revision, scope type, in/out-of-scope và threat-model assumptions.
+- Reviewed surfaces, tests/static/runtime evidence và result.
+- Deferred surfaces, proof gaps, owner/follow-up.
+- Accepted/rejected findings và re-validation sau fix.
+
+Không tuyên bố “full coverage” nếu ledger còn deferred area không được đánh giá.
 
 ---
 

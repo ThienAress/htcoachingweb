@@ -35,13 +35,22 @@ Gom findings và evidence sau sáu gate đầu. Fix/invalidate/re-check phần b
 
 Chạy `$audit quick` — quét hotspots, top findings, HIGH confidence only.
 
-**Focus:** Bugs, Security, Performance trong code thay đổi gần đây.
+**Focus:** Bugs, Security và Tests trong code thay đổi gần đây.
 
 **Hành vi:**
 - Quét files có churn cao (git log)
 - Quét critical paths (auth, payment, wallet, contract)
 - **Security focus:** IDOR patterns (`findById` không kèm ownership check), timing-safe CSRF, CSP headers, PII trong logs
 - Chỉ báo findings có confidence HIGH
+
+**External Codex Security evidence (risk-based):**
+
+- Routine changes: dùng local/CI gates, ghi `SKIP (policy does not require paid scan)`.
+- Auth/payment/wallet, release lớn hoặc trust boundary mới: bắt đầu bằng bounded working-tree/diff/path.
+- Full/deep chỉ khi bounded evidence/threat model yêu cầu và có explicit scope + cost authority.
+- Dùng wrapper/runbook; không thêm automatic paid scan vào CI.
+- Ghi đúng trạng thái `SKIP`, `PREFLIGHT ONLY`, `COMPLETE`, `PARTIAL/BLOCKED`.
+- `PREFLIGHT ONLY` không phải PASS. Nếu release plan bắt buộc completed scan mà scan chưa complete, gate BLOCKED.
 
 **Output gate:** Findings table hoặc "Clean ✓"
 

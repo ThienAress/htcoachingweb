@@ -32,6 +32,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 016 | Rút gọn dropdown và gom nghiệp vụ vào Quản lý khách hàng | P1 | M | 012, 015 | IMPLEMENTED / LOCAL VERIFIED — VISUAL MANUAL PENDING |
 | 017 | Harden agent governance và loại bỏ instruction drift | P1 | M | — | DONE / VERIFIED |
 | 018 | Chuẩn hóa TanStack Query v5 và vòng đời server state | P1 | L | 001, 002, 003H | DONE / LOCAL VERIFIED |
+| 019 | Harden auth và F1 authorization | P1 | M | — | DONE / LOCAL VERIFIED |
+| 020 | Codify security review governance | P1 | M | 019 | DONE / LOCAL VERIFIED — STAGING PENDING |
 
 ## Dependency Notes
 
@@ -52,6 +54,10 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 - Plan 017 độc lập với product roadmap; chỉ harden instruction system và không chạm Doppler/environment.
 - Plan 018 phụ thuộc 001–002 cho subscription/wallet contracts và 003H cho private cache hardening;
   wallet/account runtime chỉ được triển khai sau khi spec riêng được duyệt.
+- Plan 019 độc lập với product roadmap; harden OAuth state, cookie-only token contract, dev-login và
+  F1 ownership mà không đổi schema hoặc dữ liệu.
+- Plan 020 phụ thuộc 019 để biến security findings và regression evidence thành threat model, coverage
+  ledger, bounded Codex Security workflow và release gates trước khi promote staging/main.
 
 ## Findings Considered and Rejected
 

@@ -62,11 +62,21 @@ Tìm kiếm:
 - **Timing attacks**: So sánh secrets phải dùng `crypto.timingSafeEqual()`
 - **Safe logging**: `console.error(err)` trong production có thể leak PII
 
-**Patterns đã fix (KHÔNG re-report):**
-- CSRF timing-safe: `csrf.js` dùng `timingSafeEqual()` ✅
-- Contract/F1/Deposit IDOR: đã có ownership checks ✅
-- Safe logger: auth + errorHandler đã dùng `safeLog` ✅
-- Security.txt: tồn tại ✅
+**Canonical patterns:** đọc `../known-issues/SKILL.md`, root `SECURITY.md` và code hiện tại; không hardcode
+trạng thái “đã fix” trong playbook vì chúng có thể drift.
+
+#### Security coverage ledger
+
+Dùng template `references/security-coverage-ledger.md` và ghi đủ:
+
+- target revision + diff/working-tree/path/codebase scope;
+- entry point/untrusted input → validation → authorization → sink/asset;
+- validation method, realistic reachability/impact và result;
+- deferred areas, proof gaps và re-validation sau fix.
+
+Candidate lifecycle bắt buộc: candidate → validate/reject → impact/path → accepted finding → bounded fix →
+focused regression → re-validation. Không có attacker-controlled path hoặc repeatable evidence thì ghi
+`proof gap`, không report confirmed vulnerability.
 
 ### 3. Performance ⚡
 
@@ -119,3 +129,15 @@ Tìm: Missing typecheck/formatter, slow feedback, undocumented env vars, unstruc
 | **standard** (`$audit`) | Key packages + routes + models + middlewares | All 7 | Full table |
 
 Dù ở level nào, **ghi rõ** những gì KHÔNG được audit.
+
+---
+
+## Proactive triggers và boundary
+
+- Tự bật focused security workflow khi diff chạm auth/payment/wallet, ownership, upload/private data,
+  external callback/webhook hoặc trust boundary mới.
+- Dùng playbook để tạo/vet findings; không dùng thay QA hoặc release decision.
+- Paid Codex Security chỉ chạy theo `docs/operations/runbooks/codex-security-scan.md`; raw output không tự
+  trở thành finding và preflight không phải PASS.
+
+---

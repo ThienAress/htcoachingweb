@@ -30,6 +30,10 @@ nguồn canonical trước khi thay đổi code.
 - [Today Dashboard Phase 5–6 runbook](./operations/runbooks/today-dashboard-phase5-6.md)
 - [Wellness targets runbook](./operations/runbooks/wellness-targets.md)
 - [Today Dashboard completion audit 2026-07-29](./audits/today-dashboard-completion-audit-2026-07-29.md)
+- [Security audit 2026-08-02](./audits/security-audit-2026-08-02.md)
+- [Security coverage ledger 2026-08-02](./audits/security-coverage-ledger-2026-08-02.md)
+- [Codex Security scan runbook](./operations/runbooks/codex-security-scan.md)
+- [Security workflow skill drift audit 2026-08-02](./audits/2026-08-02-security-workflow-skill-drift.md)
 - [Production rollback](./operations/runbooks/production-rollback-runbook.md)
 
 ## Quy ước

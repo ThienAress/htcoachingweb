@@ -86,6 +86,24 @@ trong domain hiện tại.
 - Khi thêm external domain, kiểm tra đồng thời CORS, Helmet CSP, privacy impact và cách
   credential được truyền; không nới wildcard chỉ để request chạy được.
 
+## Security Review Evidence Contract
+
+- Security-sensitive review phải ghi target revision, diff/path/scope, threat-model assumptions và out-of-scope.
+- Trace entry point/untrusted input → validation → authorization → sink/asset; không chỉ grep pattern.
+- Chỉ xác nhận finding khi có attacker-controlled path, realistic reachability/impact và validation evidence.
+- Candidate chưa đủ proof phải ghi proof gap; rejected finding phải có lý do để tránh re-report.
+- Mỗi accepted finding được fix bằng bounded patch, focused regression test và re-validation.
+- Coverage ledger phải ghi reviewed/deferred surfaces theo template của `audit-playbook`.
+
+## Codex Security Scope & Cost Policy
+
+- Routine changes dùng secret scan, dependency audit, tests và local ownership/security review.
+- Auth/payment/wallet, release lớn hoặc trust boundary mới bắt đầu bằng diff/working-tree/path scan nhỏ.
+- Full/deep scan chỉ chạy khi có explicit scope, user cost authority và `--ack-full-scan`.
+- Luôn dùng wrapper tại `scripts/codex-security-scan.mjs`; default dry-run, max-cost thấp, policy ceiling `$5`.
+- `--max-cost` là estimate guard, không phải hard billing cap; không tự chạy paid scan trong CI.
+- Preflight không phải completed scan; raw candidate không phải confirmed vulnerability.
+
 ---
 
 ## Files Nhạy Cảm — KHÔNG SỬA Trừ Khi Được Yêu Cầu

@@ -51,6 +51,17 @@ Gate `PASS` khi release build và các test bắt buộc pass, E2E là `PASS` ho
 - [ ] Error handlers trong security-critical paths (auth, payment, contract) dùng `safeLog` thay vì `console.error`
 - [ ] Không log PII (password, phone, signatureImage, tokens) ra production logs
 
+**Coverage ledger:**
+- [ ] Security-sensitive diff ghi target/scope, reviewed surfaces, entry point → validation → authorization → sink
+- [ ] Deferred areas và proof gaps được ghi rõ; finding accepted/rejected có evidence
+- [ ] Focused regression và re-validation tồn tại cho accepted finding đã fix
+
+**Codex Security evidence:**
+- [ ] Routine change có thể `SKIP` theo policy; local security gates vẫn bắt buộc
+- [ ] High-risk/release change ghi `PREFLIGHT ONLY`, `COMPLETE` hoặc `PARTIAL/BLOCKED` đúng thực tế
+- [ ] Paid/full/deep scan không chạy nếu thiếu explicit scope, cost authority hoặc acknowledgement
+- [ ] Preflight/raw output không được dùng làm PASS hoặc confirmed finding
+
 **Dependency scan:**
 ```bash
 npm run security:secrets
@@ -117,6 +128,8 @@ QA evidence: PASS (reused | generated once) | FAIL
 Security: PASS | FAIL
 SEO: PASS | SKIP (<evidence>) | FAIL
 Cleanup: PASS | FAIL
+Coverage ledger: PASS | SKIP (not security-sensitive) | FAIL
+Codex Security: COMPLETE | PREFLIGHT ONLY | SKIP (<policy>) | PARTIAL/BLOCKED
 
 BLOCK/HIGH: 0 | <findings>
 MED accepted: 0 | <finding + risk + owner + follow-up>
