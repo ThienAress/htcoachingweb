@@ -152,7 +152,7 @@ describe("Phase 0 security boundaries", () => {
       .set("Cookie", [`refreshToken=${refreshToken}`]);
 
     expect(refreshResponse.status).toBe(200);
-    expect(refreshResponse.body.data.token).toBeTruthy();
+    expect(refreshResponse.body.data).not.toHaveProperty("token");
     expect(JSON.stringify(refreshResponse.body)).not.toContain("refreshToken");
   });
 

@@ -123,7 +123,6 @@ export const refreshTokenController = async (req, res) => {
     return res.json({
       success: true,
       data: {
-        token: newAccessToken,
         user: sanitizeUserResponse(user),
       },
     });

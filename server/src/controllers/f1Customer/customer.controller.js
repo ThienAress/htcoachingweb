@@ -23,9 +23,9 @@ export const createF1Customer = async (req, res, next) => {
         occupation: req.body.occupation || "",
         phone: req.body.phone || "",
         email: (req.body.email || "").toLowerCase().trim(),
-        assignedTrainerId:
-          req.body.assignedTrainerId ||
-          (!req.isAdmin ? req.user.id : null),
+        assignedTrainerId: req.isAdmin
+          ? req.body.assignedTrainerId || null
+          : req.user.id,
         source: req.body.source || "manual",
         createdBy: req.user.id,
         notesInternal: req.body.notesInternal || "",
@@ -146,6 +146,14 @@ export const updateF1Customer = async (req, res, next) => {
     };
 
     if (req.body.assignedTrainerId !== undefined) {
+      if (!req.isAdmin) {
+        const error = new Error(
+          "Chỉ admin mới có thể thay đổi huấn luyện viên phụ trách",
+        );
+        error.status = 403;
+        error.code = "F1_ASSIGNMENT_ADMIN_REQUIRED";
+        throw error;
+      }
       updates.assignedTrainerId = req.body.assignedTrainerId || null;
     }
 

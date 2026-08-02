@@ -56,6 +56,10 @@ const testGoogleOAuth = async () => {
   assert(location.searchParams.get("client_id"), "OAuth redirect is missing client_id");
   assert(location.searchParams.get("state"), "OAuth redirect is missing signed state");
   assert(
+    response.headers.get("set-cookie")?.includes("googleOAuthState="),
+    "OAuth redirect is missing browser-bound state cookie",
+  );
+  assert(
     location.searchParams.get("redirect_uri") ===
       `${STAGING_API_ORIGIN}/api/auth/google/callback`,
     "OAuth redirect_uri is not isolated to staging",

@@ -3,7 +3,6 @@ import { safeLog } from "../utils/safeLogger.js";
 import passport from "passport";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 
 import {
   refreshTokenController,
@@ -12,6 +11,14 @@ import {
 import { protect } from "../middlewares/auth.middleware.js";
 import { csrfProtection, generateCsrfToken } from "../middlewares/csrf.js";
 import { setCsrfCookie } from "../utils/csrfCookie.js";
+import {
+  createOAuthState,
+  generateOAuthNonce,
+  isDevLoginEnabled,
+  isLoopbackAddress,
+  OAUTH_STATE_MAX_AGE_MS,
+  verifyOAuthState,
+} from "../utils/oauthState.js";
 
 const router = express.Router();
 const isProd = process.env.NODE_ENV === "production";
@@ -70,30 +77,15 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
 };
 
 // ===== OAUTH STATE HELPERS (HMAC signed) =====
-const STATE_SECRET = process.env.JWT_SECRET;
-const STATE_MAX_AGE_MS = 5 * 60 * 1000; // 5 phút
-
-const signOAuthState = (payload) => {
-  const data = Buffer.from(JSON.stringify({ ...payload, iat: Date.now() })).toString("base64url");
-  const sig = crypto.createHmac("sha256", STATE_SECRET).update(data).digest("base64url");
-  return `${data}.${sig}`;
-};
-
-const verifyOAuthState = (state) => {
-  if (!state || !state.includes(".")) return null;
-  const [data, sig] = state.split(".");
-  if (!data || !sig) return null;
-  const expected = crypto.createHmac("sha256", STATE_SECRET).update(data).digest("base64url");
-  if (Buffer.from(sig).length !== Buffer.from(expected).length) return null;
-  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
-  try {
-    const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf-8"));
-    if (Date.now() - payload.iat > STATE_MAX_AGE_MS) return null;
-    return payload;
-  } catch {
-    return null;
-  }
-};
+const OAUTH_STATE_COOKIE = "googleOAuthState";
+const OAUTH_CALLBACK_PATH = "/api/auth/google/callback";
+const getOAuthStateCookieOptions = (includeMaxAge = true) => ({
+  httpOnly: true,
+  secure: isProd,
+  sameSite: "lax",
+  path: OAUTH_CALLBACK_PATH,
+  ...(includeMaxAge ? { maxAge: OAUTH_STATE_MAX_AGE_MS } : {}),
+});
 
 // Redirect allowlist: production + localhost + explicit previews
 const getRedirectAllowlist = () => {
@@ -105,12 +97,40 @@ const getRedirectAllowlist = () => {
   return [...list, ...previews].filter(Boolean);
 };
 
+const rejectInvalidOAuthState = (req, res, next) => {
+  const decoded = verifyOAuthState({
+    state: req.query.state,
+    secret: process.env.JWT_SECRET,
+    expectedNonce: req.cookies[OAUTH_STATE_COOKIE],
+  });
+  res.clearCookie(
+    OAUTH_STATE_COOKIE,
+    getOAuthStateCookieOptions(false),
+  );
+  if (!decoded) {
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    return res.redirect(`${clientUrl}/login?error=invalid_oauth_state`);
+  }
+  req.googleOAuthState = decoded;
+  return next();
+};
+
 // ===== GOOGLE OAUTH =====
 router.get(
   "/google",
   (req, res, next) => {
     const clientUrl = req.query.client_url || process.env.CLIENT_URL;
-    const state = signOAuthState({ clientUrl });
+    const nonce = generateOAuthNonce();
+    const state = createOAuthState({
+      secret: process.env.JWT_SECRET,
+      clientUrl,
+      nonce,
+    });
+    res.cookie(
+      OAUTH_STATE_COOKIE,
+      nonce,
+      getOAuthStateCookieOptions(),
+    );
     
     passport.authenticate("google", {
       scope: ["profile", "email"],
@@ -122,6 +142,7 @@ router.get(
 
 router.get(
   "/google/callback",
+  rejectInvalidOAuthState,
   passport.authenticate("google", { session: false }),
   async (req, res) => {
     try {
@@ -130,14 +151,11 @@ router.get(
       // Mặc định là CLIENT_URL trong env
       let clientUrl = process.env.CLIENT_URL;
 
-      // Verify signed state
-      if (req.query.state) {
-        const decoded = verifyOAuthState(req.query.state);
-        if (decoded?.clientUrl) {
-          const allowlist = getRedirectAllowlist();
-          if (allowlist.includes(decoded.clientUrl)) {
-            clientUrl = decoded.clientUrl;
-          }
+      const stateClientUrl = req.googleOAuthState?.clientUrl;
+      if (stateClientUrl) {
+        const allowlist = getRedirectAllowlist();
+        if (allowlist.includes(stateClientUrl)) {
+          clientUrl = stateClientUrl;
         }
       }
 
@@ -167,9 +185,15 @@ router.get(
 );
 
 // ===== DEV BYPASS LOGIN =====
-if (process.env.NODE_ENV !== "production") {
+if (isDevLoginEnabled(process.env)) {
   router.get("/dev-login", async (req, res) => {
     try {
+      if (!isLoopbackAddress(req.socket?.remoteAddress || req.ip)) {
+        return res.status(404).json({
+          success: false,
+          message: "Not found",
+        });
+      }
       const { email } = req.query;
       const User = (await import("../models/User.js")).default;
       const user = await User.findOne({ email });
