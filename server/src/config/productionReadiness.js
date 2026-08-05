@@ -1,3 +1,5 @@
+import { resolveMealScanProvider } from "./mealScanProvider.js";
+
 const PLACEHOLDER_PATTERN =
   /(change[-_ ]?me|replace[-_ ]?me|placeholder|example|your[-_ ]|test[-_ ]secret|local[-_ ]secret)/i;
 const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/i;
@@ -379,7 +381,9 @@ export const validateProductionEnvironment = (
   validateBooleanSetting(env, findings, "GEMINI_PAID_SERVICE_CONFIRMED", {
     required: true,
   });
+  const mealScanProvider = resolveMealScanProvider(env);
   if (
+    mealScanProvider !== "mock" &&
     String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() !== "true"
   ) {
     addFinding(
@@ -529,6 +533,7 @@ export const validateProductionEnvironment = (
       geminiPaidServiceConfirmed:
         String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() ===
         "true",
+      mealScanProvider,
       foodReferenceLookupEnabled:
         String(env.FOOD_REFERENCE_LOOKUP_ENABLED || "").toLowerCase() ===
         "true",

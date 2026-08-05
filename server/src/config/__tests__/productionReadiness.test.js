@@ -146,6 +146,31 @@ describe("production readiness configuration", () => {
       "GEMINI_PAID_SERVICE_NOT_CONFIRMED",
     );
   });
+
+  it("allows an explicit staging Meal Scan mock without Paid Service", () => {
+    const env = validEnvironment();
+    env.APP_ENV = "staging";
+    env.MEAL_SCAN_PROVIDER = "mock";
+    env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors).toEqual([]);
+    expect(result.summary.mealScanProvider).toBe("mock");
+  });
+
+  it("does not allow the staging Meal Scan override in production", () => {
+    const env = validEnvironment();
+    env.APP_ENV = "production";
+    env.MEAL_SCAN_PROVIDER = "mock";
+    env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "GEMINI_PAID_SERVICE_NOT_CONFIRMED",
+    );
+  });
   it("keeps the anonymous Meal Scan contract fixed at two scans per day", () => {
     const env = validEnvironment();
     env.MEAL_SCAN_ANONYMOUS_DAILY_LIMIT = "3";

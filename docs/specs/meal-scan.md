@@ -39,8 +39,10 @@ chỉnh khẩu phần, nhưng không trình bày output AI như số liệu chí
 - Response: `{ success: true, data: MealScanResult }`, header
   `Cache-Control: private, no-store`.
 - Non-production Meal Scan mặc định trả mock deterministic, độc lập với AI_PROVIDER toàn cục;
-  MEAL_SCAN_PROVIDER=gemini chỉ là opt-in test local có kiểm soát. Production luôn dùng
-  AI_PROVIDER=gemini và fail closed nếu thiếu Paid Service/config hoặc output sai.
+  MEAL_SCAN_PROVIDER=gemini chỉ là opt-in test local có kiểm soát. Runtime production luôn dùng
+  AI_PROVIDER=gemini và fail closed nếu thiếu Paid Service/config hoặc output sai. Riêng
+  APP_ENV=staging được phép đặt MEAL_SCAN_PROVIDER=mock để không gửi ảnh thử nghiệm tới Gemini khi
+  project chưa có billing; override này không có hiệu lực ở production.
 - Không tạo model, collection, migration hoặc retention job.
 
 ```js

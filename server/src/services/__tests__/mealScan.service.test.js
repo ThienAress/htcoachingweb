@@ -22,6 +22,7 @@ describe("mealScan.service", () => {
   beforeEach(() => {
     for (const key of [
       "NODE_ENV",
+      "APP_ENV",
       "AI_PROVIDER",
       "MEAL_SCAN_PROVIDER",
       "GEMINI_API_KEY",
@@ -117,6 +118,7 @@ describe("mealScan.service", () => {
 
   test("uses Gemini in production and ignores the development mock override", async () => {
     process.env.NODE_ENV = "production";
+    process.env.APP_ENV = "production";
     process.env.AI_PROVIDER = "gemini";
     process.env.MEAL_SCAN_PROVIDER = "mock";
     process.env.GEMINI_API_KEY = "test-key";
@@ -159,6 +161,26 @@ describe("mealScan.service", () => {
     expect(body.contents[0].parts[0].text).toMatch(/Dầu ô liu.*"grams":15/i);
     expect(result.total.calories.estimate).toBe(265);
     expect(result.total.fat.estimate).toBe(15);
+  });
+
+  test("uses the deterministic mock for an explicit staging override", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.APP_ENV = "staging";
+    process.env.AI_PROVIDER = "gemini";
+    process.env.MEAL_SCAN_PROVIDER = "mock";
+    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const result = await analyzeMealImage({
+      mimeType: "image/jpeg",
+      base64: "YQ==",
+      locale: "vi",
+    });
+
+    expect(result.mealName).toContain("Dữ liệu mẫu");
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   test("fails closed when provider output has no valid ingredients", async () => {

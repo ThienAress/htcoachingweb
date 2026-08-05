@@ -8,6 +8,7 @@ import {
   createMealScanError,
   normalizeMealScanResult,
 } from "./mealScanResult.js";
+import { resolveMealScanProvider } from "../config/mealScanProvider.js";
 
 export { normalizeMealScanResult } from "./mealScanResult.js";
 
@@ -84,10 +85,7 @@ export const analyzeMealImage = async ({
   locale = "vi",
   declaredIngredients = [],
 }) => {
-  const provider =
-    process.env.NODE_ENV === "production"
-      ? process.env.AI_PROVIDER || ""
-      : process.env.MEAL_SCAN_PROVIDER || "mock";
+  const provider = resolveMealScanProvider();
   const resolvedDeclaredIngredients = await resolveDeclaredIngredients(
     declaredIngredients,
   );
