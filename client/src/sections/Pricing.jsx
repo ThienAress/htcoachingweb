@@ -90,7 +90,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     refetch: refetchTrainerCatalog,
   } = useTrainerPlanCatalog();
   const trainerCatalog = trainerCatalogData?.byCode || {};
-  const [showFreeTrialUsed, setShowFreeTrialUsed] = useState(false);
+  const [showFreeTrialNotice, setShowFreeTrialNotice] = useState(false);
   const [showAlreadySubscribed, setShowAlreadySubscribed] = useState(false);
   const purchaseRequestIdRef = useRef(null);
 
@@ -674,9 +674,14 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     </div>
                   )}
 
-                  {plan.isFree && freeTrialStatus === "used" && (
+                  {plan.isFree &&
+                    ["used", "ineligible"].includes(freeTrialStatus) && (
                     <div className="absolute -top-3 -right-3 rounded-full bg-slate-600 px-3 py-1 text-xs font-bold text-white shadow-md">
-                      {t("pricing.trainer_plans.trial_used_badge")}
+                      {t(
+                        freeTrialStatus === "ineligible"
+                          ? "pricing.trainer_plans.order_exists_badge"
+                          : "pricing.trainer_plans.trial_used_badge",
+                      )}
                     </div>
                   )}
                   <div className="mb-6">
@@ -728,8 +733,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           void refetchSubscription();
                           return;
                         }
-                        if (plan.isFree && freeTrialStatus === "used") {
-                          setShowFreeTrialUsed(true);
+                        if (
+                          plan.isFree &&
+                          ["used", "ineligible"].includes(freeTrialStatus)
+                        ) {
+                          setShowFreeTrialNotice(true);
                           return;
                         }
                         if (activeSubscription && activeSubscription.planCode === plan.code) {
@@ -750,11 +758,13 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                         ? t("pricing.trainer_plans.checking_trial")
                         : plan.isFree && user && freeTrialStatus === "error"
                           ? t("pricing.trainer_plans.retry_trial_check")
-                          : plan.isFree && freeTrialStatus === "used"
-                          ? t("pricing.trainer_plans.upgrade_cta")
-                          : plan.isFree
-                            ? t("pricing.trainer_plans.start_free")
-                            : t("pricing.buy")}
+                          : plan.isFree && freeTrialStatus === "ineligible"
+                            ? t("pricing.trainer_plans.ineligible_cta")
+                            : plan.isFree && freeTrialStatus === "used"
+                              ? t("pricing.trainer_plans.upgrade_cta")
+                              : plan.isFree
+                                ? t("pricing.trainer_plans.start_free")
+                                : t("pricing.buy")}
                     </button>
                   </div>
                 </div>
@@ -970,31 +980,39 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           </div>
         )}
 
-        {/* ===== MODAL ĐÃ ĐĂNG KÝ GÓI NÀY ===== */}
-        {showFreeTrialUsed && (
+        {/* ===== MODAL TRẠNG THÁI GÓI FREE ===== */}
+        {showFreeTrialNotice && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-            onClick={() => setShowFreeTrialUsed(false)}
+            onClick={() => setShowFreeTrialNotice(false)}
           >
             <div
               role="dialog"
               aria-modal="true"
-              aria-labelledby="free-trial-used-title"
+              aria-labelledby="free-trial-notice-title"
               className="w-full max-w-sm rounded-2xl border border-slate-600 bg-[#1a1a1a] p-6 text-center shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/15">
                 <AlertTriangle className="h-7 w-7 text-amber-400" aria-hidden="true" />
               </div>
-              <h3 id="free-trial-used-title" className="text-lg font-bold text-white">
-                {t("pricing.trainer_plans.trial_ended_title")}
+              <h3 id="free-trial-notice-title" className="text-lg font-bold text-white">
+                {t(
+                  freeTrialStatus === "ineligible"
+                    ? "pricing.trainer_plans.order_exists_title"
+                    : "pricing.trainer_plans.trial_ended_title",
+                )}
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-gray-400">
-                {t("pricing.trainer_plans.trial_ended_message")}
+                {t(
+                  freeTrialStatus === "ineligible"
+                    ? "pricing.trainer_plans.order_exists_message"
+                    : "pricing.trainer_plans.trial_ended_message",
+                )}
               </p>
               <button
                 type="button"
-                onClick={() => setShowFreeTrialUsed(false)}
+                onClick={() => setShowFreeTrialNotice(false)}
                 className="mt-5 w-full rounded-lg bg-primary px-4 py-3 font-bold text-white transition-colors hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
               >
                 {t("pricing.trainer_plans.choose_paid_plan")}

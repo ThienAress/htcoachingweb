@@ -2,12 +2,13 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
-import { PDFDocument, rgb } from "pdf-lib";
+import { PDFDocument, degrees, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import mongoose from "mongoose";
 import Contract from "../models/Contract.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
+import { safeLog } from "../utils/safeLogger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -62,6 +63,14 @@ function getPdfStreamFromGridFS(fileId) {
   return bucket.openDownloadStream(new mongoose.Types.ObjectId(fileId));
 }
 
+async function deletePdfFromGridFS(fileId) {
+  if (!fileId) return;
+  const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+    bucketName: "contracts",
+  });
+  await bucket.delete(new mongoose.Types.ObjectId(fileId));
+}
+
 // ============================================================================
 // PDF GENERATION — Sinh từ code (không dùng template)
 // ============================================================================
@@ -87,8 +96,10 @@ async function generateSignedPdf(contract, signatureBase64) {
   }
 
   const W = 612, H = 792;
-  const c = rgb(0, 0, 0);
-  const gray = rgb(0.4, 0.4, 0.4);
+  const c = rgb(0.07, 0.09, 0.08);
+  const gray = rgb(0.38, 0.43, 0.41);
+  const brand = rgb(0.02, 0.45, 0.34);
+  const brandSoft = rgb(0.9, 0.97, 0.94);
   const { trainerInfo, clientInfo, packageDetails, customSections } = contract;
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString("vi-VN") : "...";
   const fmtMoney = (n) => n ? n.toLocaleString("vi-VN") : "...";
@@ -101,9 +112,36 @@ async function generateSignedPdf(contract, signatureBase64) {
   const hl = (page, x1, x2, y) => {
     page.drawLine({ start: { x: x1, y }, end: { x: x2, y }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) });
   };
+  const decoratePage = (page) => {
+    page.drawText("HTCOACHING", {
+      x: 175,
+      y: 320,
+      size: 48,
+      font: fontBold,
+      color: brand,
+      rotate: degrees(35),
+      opacity: 0.035,
+    });
+    page.drawRectangle({ x: 0, y: H - 32, width: W, height: 32, color: brand });
+    dt(page, "HTCOACHING", 34, H - 21, {
+      size: 12,
+      bold: true,
+      color: rgb(1, 1, 1),
+    });
+    dt(page, `Mã hợp đồng: ${contract._id}`, 365, H - 20, {
+      size: 8,
+      color: rgb(0.9, 1, 0.96),
+    });
+    hl(page, 34, W - 34, 26);
+    dt(page, "Tài liệu hợp đồng điện tử · htcoachingweb.io.vn", 34, 12, {
+      size: 7,
+      color: gray,
+    });
+  };
 
   // ====== TRANG 1: Thông tin ======
   const p1 = pdfDoc.addPage([W, H]);
+  decoratePage(p1);
   let y = H - 55;
 
   // Helper: căn giữa text (có option bold)
@@ -176,6 +214,7 @@ async function generateSignedPdf(contract, signatureBase64) {
 
   // ====== TRANG 2: Nội quy ======
   const p2 = pdfDoc.addPage([W, H]);
+  decoratePage(p2);
   y = H - 55;
   centerText(p2, "CHÍNH SÁCH VÀ NỘI QUY CỦA KHÁCH HÀNG VÀ HUẤN LUYỆN VIÊN", y, 13, { bold: true });
   y -= 35;
@@ -183,7 +222,11 @@ async function generateSignedPdf(contract, signatureBase64) {
   let currentPage = p2;
   const sections = customSections || [];
   for (const sec of sections) {
-    if (y < 80) { currentPage = pdfDoc.addPage([W, H]); y = H - 50; }
+    if (y < 80) {
+      currentPage = pdfDoc.addPage([W, H]);
+      decoratePage(currentPage);
+      y = H - 50;
+    }
     // Section title — Bold, size 12
     dt(currentPage, sec.title || "", 50, y, { size: 12, bold: true });
     y -= 20;
@@ -195,7 +238,11 @@ async function generateSignedPdf(contract, signatureBase64) {
       for (let i = 0; i < sec.items.length; i++) {
         const lines = wrapText(`${i + 1}. ${sec.items[i]}`, font, 10, 440);
         for (const line of lines) {
-          if (y < 50) { currentPage = pdfDoc.addPage([W, H]); y = H - 50; }
+          if (y < 50) {
+            currentPage = pdfDoc.addPage([W, H]);
+            decoratePage(currentPage);
+            y = H - 50;
+          }
           dt(currentPage, line, 90, y);
           y -= 15;
         }
@@ -206,71 +253,142 @@ async function generateSignedPdf(contract, signatureBase64) {
 
   // ====== TRANG CHỮ KÝ ======
   const p3 = pdfDoc.addPage([W, H]);
+  decoratePage(p3);
   y = H - 80;
 
-  // Helper: căn giữa text trong cột (có option bold)
-  function centerColText(page, text, centerX, yPos, sz, clr, bold) {
-    const f = bold ? fontBold : font;
-    const tw = f.widthOfTextAtSize(String(text), sz);
-    dt(page, text, centerX - tw / 2, yPos, { size: sz, color: clr || c, bold });
-  }
+  centerText(p3, "XÁC NHẬN KÝ KẾT HỢP ĐỒNG", y, 17, { bold: true });
+  y -= 23;
+  centerText(
+    p3,
+    "Hai bên xác nhận đã đọc, hiểu và đồng ý với toàn bộ nội dung hợp đồng.",
+    y,
+    9,
+  );
 
-  // Helper: scale ảnh chữ ký vừa vặn (maxHeight = 60px, maxWidth = 120px)
-  function fitSignature(img) {
-    const maxW = 120, maxH = 60;
-    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
-    return { width: img.width * scale, height: img.height * scale };
-  }
+  const signedAt = new Date();
+  const dateText = `TP. Hồ Chí Minh, ngày ${signedAt.getDate()} tháng ${signedAt.getMonth() + 1} năm ${signedAt.getFullYear()}`;
+  y -= 34;
+  centerText(p3, dateText, y, 10);
 
-  // Bên A (trái) — Bên B (phải)
-  const leftCenter = W / 4;
-  const rightCenter = (W * 3) / 4;
+  const embedSignature = async (dataUrl) => {
+    const match = /^data:(image\/(?:png|jpeg));base64,([A-Za-z0-9+/=]+)$/.exec(
+      String(dataUrl || ""),
+    );
+    if (!match) return null;
+    const bytes = Buffer.from(match[2], "base64");
+    return match[1] === "image/jpeg"
+      ? pdfDoc.embedJpg(bytes)
+      : pdfDoc.embedPng(bytes);
+  };
 
-  // Dòng ngày tháng — căn phải bên cột Bên B
-  const now = new Date();
-  const dateStr = `TP. Hồ Chí Minh, ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
-  const dateTw = font.widthOfTextAtSize(dateStr, 10);
-  dt(p3, dateStr, rightCenter - dateTw / 2, y, { size: 10, color: gray });
+  const drawSignatureCard = async ({
+    x,
+    title,
+    name,
+    signature,
+    signedLabel,
+  }) => {
+    const width = 238;
+    const height = 245;
+    const top = y - 28;
+    p3.drawRectangle({
+      x,
+      y: top - height,
+      width,
+      height,
+      color: brandSoft,
+      borderColor: brand,
+      borderWidth: 1,
+    });
+    dt(p3, title, x + 18, top - 28, {
+      size: 11,
+      bold: true,
+      color: brand,
+    });
+    dt(p3, "(Ký và ghi rõ họ tên)", x + 18, top - 48, {
+      size: 8,
+      color: gray,
+    });
 
-  y -= 40;
-  centerColText(p3, "ĐẠI DIỆN BÊN A", leftCenter, y, 12, c, true);
-  centerColText(p3, "BÊN B", rightCenter, y, 12, c, true);
-  y -= 16;
-  centerColText(p3, "(Ký, ghi rõ họ tên)", leftCenter, y, 9, gray);
-  centerColText(p3, "(Ký và ghi rõ họ tên)", rightCenter, y, 9, gray);
+    p3.drawRectangle({
+      x: x + 18,
+      y: top - 157,
+      width: width - 36,
+      height: 92,
+      color: rgb(1, 1, 1),
+      borderColor: rgb(0.78, 0.84, 0.81),
+      borderWidth: 0.75,
+    });
 
-  const sigY = y - 20; // vị trí bắt đầu chữ ký
-
-  // Chữ ký HLV
-  if (contract.trainerSignature) {
     try {
-      const tSigData = contract.trainerSignature.replace(/^data:image\/\w+;base64,/, "");
-      const tSigBytes = Buffer.from(tSigData, "base64");
-      const tSigImg = await pdfDoc.embedPng(tSigBytes);
-      const tDims = fitSignature(tSigImg);
-      p3.drawImage(tSigImg, { x: leftCenter - tDims.width / 2, y: sigY - tDims.height, width: tDims.width, height: tDims.height });
-    } catch { /* skip */ }
-  }
-  centerColText(p3, trainerInfo?.name || "", leftCenter, sigY - 80, 10, c, true);
+      const image = await embedSignature(signature);
+      if (image) {
+        const maxW = width - 58;
+        const maxH = 68;
+        const scale = Math.min(maxW / image.width, maxH / image.height, 1);
+        const imageWidth = image.width * scale;
+        const imageHeight = image.height * scale;
+        p3.drawImage(image, {
+          x: x + (width - imageWidth) / 2,
+          y: top - 145 + (68 - imageHeight) / 2,
+          width: imageWidth,
+          height: imageHeight,
+        });
+      }
+    } catch {
+      dt(p3, "Không thể hiển thị ảnh chữ ký", x + 32, top - 116, {
+        size: 8,
+        color: gray,
+      });
+    }
 
-  // Chữ ký KH
-  if (signatureBase64) {
-    try {
-      const base64Data = signatureBase64.replace(/^data:image\/\w+;base64,/, "");
-      const sigBytes = Buffer.from(base64Data, "base64");
-      const sigImage = await pdfDoc.embedPng(sigBytes);
-      const dims = fitSignature(sigImage);
-      p3.drawImage(sigImage, { x: rightCenter - dims.width / 2, y: sigY - dims.height, width: dims.width, height: dims.height });
-    } catch { /* skip */ }
-  }
-  centerColText(p3, clientInfo.name || "", rightCenter, sigY - 80, 10);
+    dt(p3, name || "Chưa cập nhật họ tên", x + 18, top - 184, {
+      size: 11,
+      bold: true,
+    });
+    dt(p3, signedLabel, x + 18, top - 207, {
+      size: 8,
+      color: gray,
+    });
+  };
 
-  // Nếu KH chưa ký — vẽ dòng chấm
-  if (!signatureBase64) {
-    const dotLine = "..........................................";
-    const dotW = font.widthOfTextAtSize(dotLine, 10);
-    dt(p3, dotLine, rightCenter - dotW / 2, sigY - 80);
-  }
+  await drawSignatureCard({
+    x: 48,
+    title: "ĐẠI DIỆN BÊN A",
+    name: trainerInfo?.name,
+    signature: contract.trainerSignature,
+    signedLabel: "Đã ký trước khi phát hành hợp đồng",
+  });
+  await drawSignatureCard({
+    x: 326,
+    title: "BÊN B",
+    name: clientInfo?.name,
+    signature: signatureBase64,
+    signedLabel: `Đã ký lúc ${signedAt.toLocaleString("vi-VN")}`,
+  });
+
+  y -= 310;
+  p3.drawRectangle({
+    x: 48,
+    y: y - 70,
+    width: W - 96,
+    height: 70,
+    color: rgb(0.96, 0.98, 0.97),
+    borderColor: rgb(0.82, 0.88, 0.85),
+    borderWidth: 0.75,
+  });
+  dt(p3, "BẢO TOÀN TÀI LIỆU", 66, y - 23, {
+    size: 9,
+    bold: true,
+    color: brand,
+  });
+  dt(
+    p3,
+    "Bản PDF hoàn tất được lưu cùng mã băm SHA-256 để kiểm tra tính toàn vẹn.",
+    66,
+    y - 44,
+    { size: 8, color: gray },
+  );
 
   return await pdfDoc.save();
 }
@@ -292,6 +410,29 @@ function wrapText(text, font, fontSize, maxWidth) {
   }
   if (current) lines.push(current);
   return lines;
+}
+
+function contractSigningError(contract) {
+  const error = new Error();
+  const states = {
+    draft: ["Hợp đồng chưa được gửi", "CONTRACT_NOT_SENT", 409],
+    sent: ["Vui lòng xem hết hợp đồng trước khi ký", "CONTRACT_NOT_VIEWED", 409],
+    signing: ["Hợp đồng đang được ký bởi yêu cầu khác", "CONTRACT_SIGNING", 409],
+    signed: ["Hợp đồng đã được ký", "CONTRACT_ALREADY_SIGNED", 409],
+    expired: ["Hợp đồng đã hết hạn", "CONTRACT_EXPIRED", 409],
+    cancelled: ["Hợp đồng đã bị hủy", "CONTRACT_CANCELLED", 409],
+  };
+  const [message, code, statusCode] = contract
+    ? states[contract.status] || [
+        "Hợp đồng không ở trạng thái có thể ký",
+        "CONTRACT_NOT_SIGNABLE",
+        409,
+      ]
+    : ["Hợp đồng không tồn tại", "CONTRACT_NOT_FOUND", 404];
+  error.message = message;
+  error.code = code;
+  error.statusCode = statusCode;
+  return error;
 }
 
 // ============================================================================
@@ -344,23 +485,42 @@ export async function getContracts(query = {}) {
   const filter = {};
   if (query.status) filter.status = query.status;
   if (query.trainerId) filter.trainerId = query.trainerId;
-  return Contract.find(filter).populate("clientId", "name email").populate("orderId", "package sessions status").sort({ createdAt: -1 }).lean();
+  return Contract.find(filter)
+    .select("-auditTrail -signatureImage -trainerSignature")
+    .populate("clientId", "name email")
+    .populate("orderId", "package sessions status")
+    .sort({ createdAt: -1 })
+    .lean();
 }
 
 export async function getContractById(contractId) {
-  return Contract.findById(contractId).populate("clientId", "name email phone").populate("orderId", "package sessions totalSessions status gym schedule").populate("trainerId", "name email");
+  return Contract.findById(contractId)
+    .select("-auditTrail")
+    .populate("clientId", "name email phone")
+    .populate("orderId", "package sessions totalSessions status gym schedule")
+    .populate("trainerId", "name email");
 }
 
 export async function getContractByOrderId(orderId) {
   return Contract.findOne({ orderId, isActive: true }).lean();
 }
 
-export async function markAsViewed(contractId, ipAddress, userAgent) {
-  const contract = await Contract.findById(contractId);
-  if (!contract) throw new Error("Hợp đồng không tồn tại");
+export async function markAsViewed(
+  contractId,
+  clientId,
+  ipAddress,
+  userAgent,
+) {
+  const contract = await Contract.findOne({ _id: contractId, clientId });
+  if (!contract) throw contractSigningError(null);
   if (contract.status === "sent") {
     contract.status = "viewed";
-    contract.auditTrail.push({ action: "viewed", ipAddress, userAgent, timestamp: new Date() });
+    contract.auditTrail.push({
+      action: "viewed",
+      ipAddress,
+      userAgent,
+      timestamp: new Date(),
+    });
     await contract.save();
   }
   return contract;
@@ -378,51 +538,88 @@ export async function sendToClient(contractId, ipAddress, userAgent) {
   return contract;
 }
 
-export async function signContract(contractId, signatureBase64, ipAddress, userAgent) {
-  // Step 1: Atomic reserve — chỉ 1 request thắng
-  const contract = await Contract.findOneAndUpdate(
-    { _id: contractId, status: { $in: ["sent", "viewed"] } },
-    { $set: { status: "signing" } },
-    { returnDocument: "after" }
-  );
-  if (!contract) {
-    const existing = await Contract.findById(contractId);
-    if (!existing) throw new Error("Hợp đồng không tồn tại");
-    if (existing.status === "signed") throw new Error("Hợp đồng đã được ký");
-    if (existing.status === "expired") throw new Error("Hợp đồng đã hết hạn");
-    if (existing.status === "cancelled") throw new Error("Hợp đồng đã bị hủy");
-    if (existing.status === "draft") throw new Error("Hợp đồng chưa được gửi");
-    if (existing.status === "signing") throw new Error("Hợp đồng đang được ký bởi yêu cầu khác");
-    throw new Error("Hợp đồng không ở trạng thái có thể ký");
+export async function signContract({
+  contractId,
+  clientId,
+  signatureImage,
+  acceptedTerms,
+  ipAddress,
+  userAgent,
+}) {
+  if (acceptedTerms !== true) {
+    const error = new Error("Bạn cần đồng ý với hợp đồng trước khi ký");
+    error.code = "CONSENT_REQUIRED";
+    error.statusCode = 400;
+    throw error;
   }
 
-  try {
-    // Step 2: Generate PDF + save GridFS
-    const pdfBytes = await generateSignedPdf(contract, signatureBase64);
-    const fileHash = crypto.createHash("sha256").update(pdfBytes).digest("hex");
-    const filename = `hop-dong-${contract._id}-${Date.now()}.pdf`;
-    const fileId = await savePdfToGridFS(pdfBytes, filename);
+  const reserved = await Contract.findOneAndUpdate(
+    { _id: contractId, clientId, status: "viewed" },
+    { $set: { status: "signing" } },
+    { returnDocument: "after" },
+  );
 
-    // Step 3: Final commit — atomic update
-    const signed = await Contract.findByIdAndUpdate(
-      contractId,
+  if (!reserved) {
+    const existing = await Contract.findOne({ _id: contractId, clientId })
+      .select("status")
+      .lean();
+    throw contractSigningError(existing);
+  }
+
+  let fileId;
+  try {
+    const pdfBytes = await generateSignedPdf(reserved, signatureImage);
+    const fileHash = crypto.createHash("sha256").update(pdfBytes).digest("hex");
+    const signedAt = new Date();
+    fileId = await savePdfToGridFS(
+      pdfBytes,
+      `hop-dong-${reserved._id}-${Date.now()}.pdf`,
+    );
+
+    const signed = await Contract.findOneAndUpdate(
+      { _id: contractId, clientId, status: "signing" },
       {
         $set: {
           status: "signed",
-          signatureImage: signatureBase64,
-          signedAt: new Date(),
+          signatureImage,
+          signedAt,
           signedPdfFileId: fileId,
           fileHash,
         },
-        $push: { auditTrail: { action: "signed", ipAddress, userAgent, timestamp: new Date() } },
+        $push: {
+          auditTrail: {
+            action: "signed",
+            ipAddress,
+            userAgent,
+            timestamp: signedAt,
+          },
+        },
       },
-      { returnDocument: "after" }
+      { returnDocument: "after", runValidators: true },
     );
+
+    if (!signed) {
+      const error = new Error("Không thể hoàn tất ký hợp đồng");
+      error.code = "CONTRACT_SIGNING_CONFLICT";
+      error.statusCode = 409;
+      throw error;
+    }
     return signed;
-  } catch (err) {
-    // Rollback: quay về trạng thái trước khi reserve
-    await Contract.findByIdAndUpdate(contractId, { $set: { status: "sent" } });
-    throw err;
+  } catch (error) {
+    await Contract.updateOne(
+      { _id: contractId, clientId, status: "signing" },
+      { $set: { status: "viewed" } },
+    );
+    if (fileId) {
+      await deletePdfFromGridFS(fileId).catch((cleanupError) => {
+        safeLog.warn(
+          "contract.signed_pdf_cleanup_failed",
+          "Could not remove an orphaned signed PDF after signing failed",
+          { errorName: cleanupError?.name || "Error" },
+        );
+      });
+    }
+    throw error;
   }
 }
 
@@ -509,7 +706,11 @@ export async function trackClientDownload(contractId) {
 }
 
 export async function getMyContracts(userId) {
-  return Contract.find({ clientId: userId }).populate("orderId", "package sessions status").sort({ createdAt: -1 }).lean();
+  return Contract.find({ clientId: userId })
+    .select("status packageDetails signedAt clientDownloadedAt createdAt")
+    .populate("orderId", "package sessions status")
+    .sort({ createdAt: -1 })
+    .lean();
 }
 
 export async function expireOldContracts() {

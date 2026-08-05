@@ -1,6 +1,18 @@
 // controllers/food.controller.js
 import Food from "../models/Food.js";
+import {
+  hasFoodMacroMutation,
+  hasKnownFoodSource,
+  normalizeFoodSource,
+} from "../services/foodProvenance.js";
 import { safeLog } from "../utils/safeLogger.js";
+
+const provenanceErrorResponse = (res, error) =>
+  res.status(error?.status || 400).json({
+    success: false,
+    code: error?.code || "FOOD_SOURCE_INVALID",
+    message: error?.message || "Nguồn dữ liệu dinh dưỡng không hợp lệ",
+  });
 
 // Lấy danh sách thực phẩm (có phân trang, tìm kiếm) – ai cũng xem được
 export const getFoods = async (req, res) => {
@@ -72,7 +84,8 @@ export const getFoodById = async (req, res) => {
 // Tạo mới (chỉ admin)
 export const createFood = async (req, res) => {
   try {
-    let { label, protein, carb, fat, calories } = req.body;
+    let { label, protein, carb, fat, calories, nutritionBasis, source } = req.body;
+    source = normalizeFoodSource(source);
 
     // validation cơ bản
     if (
@@ -107,10 +120,15 @@ export const createFood = async (req, res) => {
       carb: parseFloat(carb),
       fat: parseFloat(fat),
       calories,
+      nutritionBasis: nutritionBasis || "per_100g",
+      source,
     });
 
     res.status(201).json({ success: true, data: food });
   } catch (err) {
+    if (err?.code?.startsWith("FOOD_SOURCE_")) {
+      return provenanceErrorResponse(res, err);
+    }
     safeLog.error("food.create_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }
@@ -126,14 +144,21 @@ export const createManyFoods = async (req, res) => {
         .json({ success: false, message: "Dữ liệu không hợp lệ" });
     }
 
+    let normalizedSources;
+    try {
+      normalizedSources = foods.map((item) => normalizeFoodSource(item.source));
+    } catch (error) {
+      return provenanceErrorResponse(res, error);
+    }
+
     const results = {
       success: [],
       failed: [],
     };
 
-    for (const item of foods) {
+    for (const [index, item] of foods.entries()) {
       try {
-        let { label, protein, carb, fat, calories } = item;
+        let { label, protein, carb, fat, calories, nutritionBasis } = item;
 
         if (
           !label ||
@@ -163,6 +188,8 @@ export const createManyFoods = async (req, res) => {
           carb: parseFloat(carb),
           fat: parseFloat(fat),
           calories: parseFloat(calories),
+          nutritionBasis: nutritionBasis || "per_100g",
+          source: normalizedSources[index],
         });
         results.success.push(newFood);
       } catch (err) {
@@ -184,7 +211,7 @@ export const createManyFoods = async (req, res) => {
 // Cập nhật (chỉ admin)
 export const updateFood = async (req, res) => {
   try {
-    const { label, protein, carb, fat, calories } = req.body;
+    const { label, protein, carb, fat, calories, nutritionBasis, source } = req.body;
     const food = await Food.findById(req.params.id);
     if (!food) {
       return res
@@ -192,14 +219,33 @@ export const updateFood = async (req, res) => {
         .json({ success: false, message: "Không tìm thấy thực phẩm" });
     }
 
+    if (
+      hasFoodMacroMutation(req.body) &&
+      !hasKnownFoodSource(food.source) &&
+      !source
+    ) {
+      return provenanceErrorResponse(
+        res,
+        Object.assign(new Error("Cần bổ sung nguồn trước khi sửa macro legacy"), {
+          code: "FOOD_SOURCE_REQUIRED",
+          status: 400,
+        }),
+      );
+    }
+
     if (label) food.label = label;
     if (protein !== undefined) food.protein = protein;
     if (carb !== undefined) food.carb = carb;
     if (fat !== undefined) food.fat = fat;
     if (calories !== undefined) food.calories = calories;
+    if (nutritionBasis !== undefined) food.nutritionBasis = nutritionBasis;
+    if (source !== undefined) food.source = normalizeFoodSource(source);
     await food.save();
     res.json({ success: true, data: food });
   } catch (err) {
+    if (err?.code?.startsWith("FOOD_SOURCE_")) {
+      return provenanceErrorResponse(res, err);
+    }
     safeLog.error("food.update_failed", err);
     res.status(500).json({ success: false, message: err.message });
   }

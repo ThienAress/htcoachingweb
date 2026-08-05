@@ -227,7 +227,7 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
               {t("hero.cta_primary")} <span className="font-sans group-hover:translate-x-1.5 transition-transform duration-300">→</span>
             </a>
             <Link
-              to="/ket-qua-khach-hang"
+              to="/ket-qua-khach-hang/"
               className="group relative inline-flex items-center gap-2 text-dark font-semibold text-[14px] xl:text-[15px] pb-1 cursor-pointer whitespace-nowrap"
             >
               {t("hero.cta_secondary")}

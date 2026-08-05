@@ -125,7 +125,7 @@ const SidebarPostCard = ({ post }) => {
   const { t } = useTranslation("blog");
   return (
     <Link
-      to={`/blog/${post.slug}`}
+      to={`/blog/${post.slug}/`}
       className="group flex items-start gap-3 rounded-lg border-b border-gray-100 px-1 py-3 transition-colors last:border-0 hover:bg-orange-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
     >
       <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-100">
@@ -156,7 +156,7 @@ const RelatedCard = ({ post }) => {
   const { t } = useTranslation("blog");
   return (
     <Link
-      to={`/blog/${post.slug}`}
+      to={`/blog/${post.slug}/`}
       className="group flex gap-4 items-start p-4 rounded-xl bg-white border border-gray-100 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/30"
     >
       <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
@@ -231,7 +231,7 @@ const BlogDetail = () => {
     );
   }
 
-  if (!post) return <Navigate to="/blog" replace />;
+  if (!post) return <Navigate to="/blog/" replace />;
 
   const articleSchema = {
     "@context": "https://schema.org",
@@ -243,7 +243,7 @@ const BlogDetail = () => {
         "author": post.author ? {
           "@type": "Person",
           "name": post.author.name,
-          "url": `https://htcoachingweb.io.vn/huan-luyen-vien/${post.author.slug}`,
+          "url": `https://htcoachingweb.io.vn/huan-luyen-vien/${post.author.slug}/`,
         } : { "@type": "Organization", "name": "HTCOACHING" },
         "publisher": {
           "@type": "Organization",
@@ -258,7 +258,7 @@ const BlogDetail = () => {
         "@type": "BreadcrumbList",
         "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "Trang chủ", "item": "https://htcoachingweb.io.vn/" },
-          { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://htcoachingweb.io.vn/blog" },
+          { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://htcoachingweb.io.vn/blog/" },
           { "@type": "ListItem", "position": 3, "name": post.title },
         ],
       },
@@ -291,7 +291,7 @@ const BlogDetail = () => {
           <nav className="flex items-center gap-2 text-sm text-white/50 mb-8">
             <Link to="/" className="hover:text-white transition">{t("detail.home")}</Link>
             <ChevronRight className="w-3 h-3" />
-            <Link to="/blog" className="hover:text-white transition">{t("detail.blog")}</Link>
+            <Link to="/blog/" className="hover:text-white transition">{t("detail.blog")}</Link>
             <ChevronRight className="w-3 h-3" />
             <span className="text-white/70 truncate max-w-[200px]">{post.title}</span>
           </nav>
@@ -307,7 +307,7 @@ const BlogDetail = () => {
 
           <div className="flex flex-wrap items-center gap-4 mt-6 text-sm text-white/50">
             {post.author && (
-              <Link to={`/huan-luyen-vien/${post.author.slug}`} className="flex items-center gap-2 hover:text-white transition">
+              <Link to={`/huan-luyen-vien/${post.author.slug}/`} className="flex items-center gap-2 hover:text-white transition">
                 {post.author.image ? (
                   <img src={post.author.image} alt={post.author.name} className="w-8 h-8 rounded-full object-cover border-2 border-primary/50" />
                 ) : (
@@ -435,7 +435,7 @@ const BlogDetail = () => {
                     <div>
                       <p className="text-xs font-bold uppercase text-primary tracking-widest">{t("detail.author_title")}</p>
                       <Link
-                        to={`/huan-luyen-vien/${post.author.slug}`}
+                        to={`/huan-luyen-vien/${post.author.slug}/`}
                         className="text-xl font-black text-dark hover:text-primary transition"
                       >
                         PT {post.author.name}
@@ -480,7 +480,7 @@ const BlogDetail = () => {
                     <p className="text-sm font-bold text-dark mb-3">{t("detail.contact_info")}</p>
                     <div className="space-y-2 text-sm text-gray">
                       <Link
-                        to={`/huan-luyen-vien/${post.author.slug}`}
+                        to={`/huan-luyen-vien/${post.author.slug}/`}
                         className="flex items-center gap-2 hover:text-primary transition"
                       >
                         <BookOpen className="w-4 h-4 text-primary" />
@@ -590,17 +590,17 @@ const BlogDetail = () => {
               {t("detail.explore_more.subtitle")}
             </p>
             <div className="grid gap-4 sm:grid-cols-3">
-              <Link to="/tdee-calculator" className="group border border-gray-100 bg-gray-50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg hover:bg-white">
+              <Link to="/tdee-calculator/" className="group border border-gray-100 bg-gray-50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg hover:bg-white">
                 <Flame className="h-6 w-6 text-primary mb-3" />
                 <h3 className="font-bold text-dark group-hover:text-primary transition">{t("detail.explore_more.tdee")}</h3>
                 <p className="mt-2 text-sm text-gray leading-relaxed">{t("detail.explore_more.tdee_desc")}</p>
               </Link>
-              <Link to="/exercises" className="group border border-gray-100 bg-gray-50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg hover:bg-white">
+              <Link to="/exercises/" className="group border border-gray-100 bg-gray-50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg hover:bg-white">
                 <Dumbbell className="h-6 w-6 text-primary mb-3" />
                 <h3 className="font-bold text-dark group-hover:text-primary transition">{t("detail.explore_more.exercises")}</h3>
                 <p className="mt-2 text-sm text-gray leading-relaxed">{t("detail.explore_more.exercises_desc")}</p>
               </Link>
-              <Link to="/ket-qua-khach-hang" className="group border border-gray-100 bg-gray-50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg hover:bg-white">
+              <Link to="/ket-qua-khach-hang/" className="group border border-gray-100 bg-gray-50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg hover:bg-white">
                 <CheckCircle2 className="h-6 w-6 text-primary mb-3" />
                 <h3 className="font-bold text-dark group-hover:text-primary transition">{t("detail.explore_more.results")}</h3>
                 <p className="mt-2 text-sm text-gray leading-relaxed">{t("detail.explore_more.results_desc")}</p>

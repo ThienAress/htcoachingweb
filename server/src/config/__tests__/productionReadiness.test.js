@@ -28,6 +28,14 @@ const validEnvironment = () => ({
   RESEND_API_KEY: "resend-" + "g".repeat(32),
   AI_PROVIDER: "gemini",
   GEMINI_API_KEY: "gemini-" + "h".repeat(32),
+  GEMINI_PAID_SERVICE_CONFIRMED: "true",
+  MEAL_SCAN_RATE_LIMIT_MAX: "10",
+  MEAL_SCAN_ANONYMOUS_DAILY_LIMIT: "2",
+  FOOD_REFERENCE_LOOKUP_ENABLED: "false",
+  OPEN_FOOD_FACTS_ENABLED: "false",
+  FOOD_REFERENCE_TIMEOUT_MS: "5000",
+  FOOD_REFERENCE_RATE_LIMIT_MAX: "30",
+  FOOD_REFERENCE_MAX_RESPONSE_BYTES: "2097152",
   AI_IMAGE_PROVIDER: "openai",
   OPENAI_API_KEY: "openai-" + "i".repeat(32),
   BANK_NAME: "Production Bank",
@@ -125,6 +133,38 @@ describe("production readiness configuration", () => {
 
     expect(result.errors.map((finding) => finding.code)).toContain(
       "BACKGROUND_JOBS_ENABLED_REQUIRED",
+    );
+  });
+
+  it("blocks production Meal Scan until Gemini Paid Service is confirmed", () => {
+    const env = validEnvironment();
+    env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "GEMINI_PAID_SERVICE_NOT_CONFIRMED",
+    );
+  });
+  it("keeps the anonymous Meal Scan contract fixed at two scans per day", () => {
+    const env = validEnvironment();
+    env.MEAL_SCAN_ANONYMOUS_DAILY_LIMIT = "3";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "MEAL_SCAN_ANONYMOUS_DAILY_LIMIT_INVALID",
+    );
+  });
+
+  it("keeps the authenticated Meal Scan contract fixed at ten scans per day", () => {
+    const env = validEnvironment();
+    env.MEAL_SCAN_RATE_LIMIT_MAX = "11";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "MEAL_SCAN_RATE_LIMIT_MAX_INVALID",
     );
   });
 

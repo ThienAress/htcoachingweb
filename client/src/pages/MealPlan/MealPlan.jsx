@@ -143,12 +143,12 @@ const MealPlan = () => {
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": t("seo_title"),
-    "url": "https://htcoachingweb.io.vn/mealplan",
+    "url": "https://htcoachingweb.io.vn/mealplan/",
     "description": t("seo_desc"),
     "applicationCategory": "HealthApplication",
     "operatingSystem": "Web",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "VND" },
-    "provider": { "@type": "Organization", "name": "HTCOACHING", "url": "https://htcoachingweb.io.vn" }
+    "provider": { "@type": "Organization", "name": "HTCOACHING", "url": "https://htcoachingweb.io.vn/" }
   };
 
   return (
@@ -365,7 +365,7 @@ const MealPlan = () => {
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             <Link
-              to="/tdee-calculator"
+              to="/tdee-calculator/"
               className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <BarChart3 className="h-6 w-6 text-primary mb-3" />
@@ -377,7 +377,7 @@ const MealPlan = () => {
               </p>
             </Link>
             <Link
-              to="/exercises"
+              to="/exercises/"
               className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Dumbbell className="h-6 w-6 text-primary mb-3" />
@@ -389,7 +389,7 @@ const MealPlan = () => {
               </p>
             </Link>
             <Link
-              to="/ket-qua-khach-hang"
+              to="/ket-qua-khach-hang/"
               className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Trophy className="h-6 w-6 text-primary mb-3" />

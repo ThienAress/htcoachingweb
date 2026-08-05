@@ -376,6 +376,62 @@ export const validateProductionEnvironment = (
     );
   }
   validateSecret(env, findings, "GEMINI_API_KEY", { minimum: 20 });
+  validateBooleanSetting(env, findings, "GEMINI_PAID_SERVICE_CONFIRMED", {
+    required: true,
+  });
+  if (
+    String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() !== "true"
+  ) {
+    addFinding(
+      findings,
+      "errors",
+      "GEMINI_PAID_SERVICE_NOT_CONFIRMED",
+      "Customer Meal Scan images require an explicitly confirmed Gemini Paid Service project.",
+    );
+  }
+  validateIntegerSetting(env, findings, "MEAL_SCAN_RATE_LIMIT_MAX", {
+    minimum: 10,
+    maximum: 10,
+  });
+  validateIntegerSetting(env, findings, "MEAL_SCAN_ANONYMOUS_DAILY_LIMIT", {
+    minimum: 2,
+    maximum: 2,
+  });
+
+  validateBooleanSetting(env, findings, "FOOD_REFERENCE_LOOKUP_ENABLED", {
+    required: true,
+  });
+  validateBooleanSetting(env, findings, "OPEN_FOOD_FACTS_ENABLED", {
+    required: true,
+  });
+  validateIntegerSetting(env, findings, "FOOD_REFERENCE_TIMEOUT_MS", {
+    minimum: 500,
+    maximum: 15000,
+  });
+  validateIntegerSetting(env, findings, "FOOD_REFERENCE_RATE_LIMIT_MAX", {
+    minimum: 1,
+    maximum: 100,
+  });
+  validateIntegerSetting(env, findings, "FOOD_REFERENCE_MAX_RESPONSE_BYTES", {
+    minimum: 1024,
+    maximum: 5 * 1024 * 1024,
+  });
+  if (
+    String(env.FOOD_REFERENCE_LOOKUP_ENABLED || "").toLowerCase() === "true"
+  ) {
+    validateSecret(env, findings, "FDC_API_KEY", { minimum: 8 });
+  }
+  if (
+    String(env.OPEN_FOOD_FACTS_ENABLED || "").toLowerCase() === "true" &&
+    String(env.FOOD_REFERENCE_LOOKUP_ENABLED || "").toLowerCase() !== "true"
+  ) {
+    addFinding(
+      findings,
+      "errors",
+      "OPEN_FOOD_FACTS_REQUIRES_LOOKUP",
+      "OPEN_FOOD_FACTS_ENABLED requires FOOD_REFERENCE_LOOKUP_ENABLED=true.",
+    );
+  }
 
   if (String(env.AI_IMAGE_PROVIDER || "").toLowerCase() !== "openai") {
     addFinding(
@@ -470,6 +526,12 @@ export const validateProductionEnvironment = (
       cspEnforced: String(env.CSP_ENFORCE || "").toLowerCase() === "true",
       retentionEnforced:
         String(env.F1_RETENTION_ENFORCE || "").toLowerCase() === "true",
+      geminiPaidServiceConfirmed:
+        String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() ===
+        "true",
+      foodReferenceLookupEnabled:
+        String(env.FOOD_REFERENCE_LOOKUP_ENABLED || "").toLowerCase() ===
+        "true",
     },
   };
 };

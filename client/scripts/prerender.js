@@ -15,6 +15,7 @@ import {
   responseForPrerenderRequest,
 } from "./prerender-content.js";
 import {
+  canonicalUrlForRoute,
   mapWithConcurrency,
   routesFromSitemap,
 } from "./prerender-routes.js";
@@ -72,7 +73,7 @@ const stopServer = (server) =>
 
 const renderRoute = async (browser, route, recipeCache) => {
   const page = await browser.newPage();
-  const expectedCanonical = new URL(route, SITE_URL).href;
+  const expectedCanonical = canonicalUrlForRoute(route, SITE_URL);
   try {
     await page.evaluateOnNewDocument(() => {
       sessionStorage.setItem("introDone", "true");

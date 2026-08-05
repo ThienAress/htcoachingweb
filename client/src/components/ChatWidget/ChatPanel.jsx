@@ -6,6 +6,11 @@ import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import ChatPanelSidebar from "./ChatPanelSidebar";
 import { createChatHistoryLoadGate } from "./chatHistoryLoadGate";
+import {
+  getChatVisualViewportBounds,
+  persistChatTheme,
+  resolveInitialChatTheme,
+} from "./chatPanelRuntime";
 import { submitAiFeedback } from "../../services/ai.service";
 import { compressChatImage } from "../../utils/compressChatImage";
 
@@ -101,7 +106,8 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
-  const [chatTheme, setChatTheme] = useState(() => localStorage.getItem("ht_chat_theme") || "dark");
+  const [chatTheme, setChatTheme] = useState(resolveInitialChatTheme);
+  const [mobileViewport, setMobileViewport] = useState(null);
   const [input, setInput] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -133,7 +139,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const authenticatedUserId = user?._id || user?.id || null;
 
   useEffect(() => {
-    localStorage.setItem("ht_chat_theme", chatTheme);
+    persistChatTheme(chatTheme);
   }, [chatTheme]);
 
   useEffect(() => {
@@ -145,6 +151,27 @@ export default function ChatPanel({ initiallyOpen = false }) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen || !isMobile) return;
+
+    const visualViewport = window.visualViewport;
+    const syncViewport = () => {
+      setMobileViewport(getChatVisualViewportBounds(window));
+    };
+
+    syncViewport();
+    visualViewport?.addEventListener("resize", syncViewport);
+    visualViewport?.addEventListener("scroll", syncViewport);
+    window.addEventListener("resize", syncViewport);
+    window.addEventListener("orientationchange", syncViewport);
+    return () => {
+      visualViewport?.removeEventListener("resize", syncViewport);
+      visualViewport?.removeEventListener("scroll", syncViewport);
+      window.removeEventListener("resize", syncViewport);
+      window.removeEventListener("orientationchange", syncViewport);
+    };
+  }, [isMobile, isOpen]);
 
   useEffect(() => {
     if (
@@ -203,14 +230,35 @@ export default function ChatPanel({ initiallyOpen = false }) {
   }, [showAttachMenu]);
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      document.documentElement.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
-    }
     if (!isOpen) return;
+
+    const body = document.body;
+    const root = document.documentElement;
+    const scrollY = window.scrollY;
+    const previousBodyStyles = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+      overscrollBehavior: body.style.overscrollBehavior,
+    };
+    const previousRootStyles = {
+      overflow: root.style.overflow,
+      overscrollBehavior: root.style.overscrollBehavior,
+    };
+
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    root.style.overflow = "hidden";
+    root.style.overscrollBehavior = "none";
+
     const handleKey = (e) => { if (e.key === "Escape") setIsOpen(false); };
     const handleClose = () => setIsOpen(false);
     document.addEventListener("keydown", handleKey);
@@ -218,8 +266,9 @@ export default function ChatPanel({ initiallyOpen = false }) {
     return () => {
       document.removeEventListener("keydown", handleKey);
       window.removeEventListener("close-ai-chat", handleClose);
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
+      Object.assign(body.style, previousBodyStyles);
+      Object.assign(root.style, previousRootStyles);
+      window.scrollTo(0, scrollY);
     };
   }, [isOpen]);
 
@@ -456,6 +505,15 @@ export default function ChatPanel({ initiallyOpen = false }) {
         className={`fixed inset-0 z-[60] flex transition-transform duration-300 ease-out w-full ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
+        style={
+          isMobile && mobileViewport
+            ? {
+                top: `${mobileViewport.top}px`,
+                height: `${mobileViewport.height}px`,
+                bottom: "auto",
+              }
+            : undefined
+        }
         role="dialog"
         aria-label="HT Assistant"
       >

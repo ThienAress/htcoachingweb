@@ -24,6 +24,7 @@ nguồn canonical trước khi thay đổi code.
 - [Trainer client workspace spec](./specs/trainer-client-workspace.md)
 - [Workspace navigation spec](./specs/workspace-navigation.md)
 - [Wallet/Account Query migration spec](./specs/wallet-account-query-migration.md)
+- [Meal Scan spec](./specs/meal-scan.md)
 - [Release checklist](./operations/release-checklist.md)
 - [Incident runbook](./operations/runbooks/incident-runbook.md)
 - [Today Dashboard Release B runbook](./operations/runbooks/today-dashboard-release-b.md)

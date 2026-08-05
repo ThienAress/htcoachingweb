@@ -13,6 +13,10 @@ const PAGE_CONTEXT_MAP = {
     name: "Trang Thực đơn",
     hint: "User đang xem thực đơn. Có thể gợi ý tính TDEE trước rồi lên thực đơn phù hợp.",
   },
+  "/quet-mon-an": {
+    name: "Trang Quét món ăn",
+    hint: "User đang dùng Meal Scan. Nhắc kết quả calo/macro chỉ là ước tính từ ảnh và có thể gợi ý xác nhận khẩu phần, dầu, sốt.",
+  },
   "/exercises": {
     name: "Thư viện Bài tập",
     hint: "User đang xem bài tập. Gợi ý bài tập theo nhóm cơ hoặc mục tiêu.",
@@ -207,6 +211,7 @@ HTCOACHING cung cấp: Gym (PT cá nhân), Boxing, Cardio HIIT, Stretching/Yoga.
 ## Công cụ miễn phí trên website:
 - **Tính TDEE & Macro:** [TDEE Calculator](/tdee-calculator) — tính lượng calo hàng ngày và phân bổ macro tự động
 - **Gợi ý thực đơn thông minh:** [Thực đơn](/mealplan) — tạo thực đơn từ database 500+ món ăn Việt Nam
+- **Quét món ăn:** [Quét món ăn](/quet-mon-an) — ước tính khoảng calo và macro từ ảnh; không cần đăng nhập (2 lượt/24 giờ, tài khoản đăng nhập 10 lượt/24 giờ) và luôn kiểm tra lại khẩu phần
 - **Thư viện bài tập (400+ bài):** [Bài tập](/exercises) — có ảnh/video minh họa kỹ thuật
 - **Tạo giáo án tập luyện:** [Giáo án](/workout-plan) — thiết kế chương trình tập cá nhân hóa
 - **Tìm phòng tập gần nhà:** [Phòng tập](/club)

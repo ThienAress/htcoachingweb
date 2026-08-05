@@ -100,7 +100,7 @@ const Tools = ({ image }) => {
               </p>
               <div>
                 <Link
-                  to="/tdee-calculator"
+                  to="/tdee-calculator/"
                   className="inline-flex items-center gap-2 bg-primary text-white font-semibold hover:bg-[#d67b0b] px-8 py-3.5 rounded-full transition-all duration-300 transform group-hover:translate-x-2 shadow-[0_0_15px_rgba(255,90,31,0.4)]"
                 >
                   {t("tools.tdee_cta")} <ArrowRight className="w-5 h-5" />
@@ -125,7 +125,7 @@ const Tools = ({ image }) => {
                 <p className="text-gray-300 text-sm mb-5 line-clamp-2">{t("tools.exercise_desc")}</p>
                 <div>
                   <Link
-                    to="/exercises"
+                    to="/exercises/"
                     className="inline-flex items-center gap-2 text-white font-semibold hover:text-primary transition-colors text-sm"
                   >
                     {t("tools.exercise_cta")} <ArrowRight className="w-4 h-4" />
@@ -147,7 +147,7 @@ const Tools = ({ image }) => {
                 <p className="text-gray-300 text-sm mb-5 line-clamp-2">{t("tools.recipe_desc")}</p>
                 <div>
                   <Link
-                    to="/cong-thuc-nau-an"
+                    to="/cong-thuc-nau-an/"
                     className="inline-flex items-center gap-2 text-white font-semibold hover:text-primary transition-colors text-sm"
                   >
                     {t("tools.recipe_cta")} <ArrowRight className="w-4 h-4" />
@@ -169,7 +169,7 @@ const Tools = ({ image }) => {
                 <p className="text-gray-300 text-sm mb-5 line-clamp-2">{t("tools.mealplan_desc")}</p>
                 <div>
                   <Link
-                    to="/mealplan"
+                    to="/mealplan/"
                     className="inline-flex items-center gap-2 text-white font-semibold hover:text-primary transition-colors text-sm"
                   >
                     {t("tools.mealplan_cta")} <ArrowRight className="w-4 h-4" />

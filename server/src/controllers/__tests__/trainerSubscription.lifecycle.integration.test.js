@@ -252,4 +252,69 @@ describe("trainer subscription lifecycle", () => {
     expect(await Order.exists({ _id: retainedOrder._id })).toBeTruthy();
   });
 
+  it("rejects Free when the student already has an Order", async () => {
+    const actor = await createTestUser({ email: "ordered-student@example.com" });
+    await Order.create({
+      userId: actor.user._id,
+      trainerId: actor.user._id,
+      name: "Ordered Student",
+      email: actor.user.email,
+      sessions: 10,
+      totalSessions: 10,
+      status: "cancelled",
+    });
+
+    const response = await postAs(
+      "/api/trainer-subscriptions/purchase",
+      actor.accessToken,
+      confirmedPurchaseBody(
+        "free",
+        "trial",
+        "11111111-1111-4111-8111-111111111117",
+      ),
+    );
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("TRAINER_FREE_ORDER_EXISTS");
+    expect(
+      await TrainerSubscription.countDocuments({ userId: actor.user._id }),
+    ).toBe(0);
+    expect(
+      await TrainerTrialClaim.countDocuments({ userId: actor.user._id }),
+    ).toBe(0);
+  });
+
+  it("reports Free as ineligible and blocks legacy email-only Orders", async () => {
+    const actor = await createTestUser({ email: "legacy-order@example.com" });
+    await Order.create({
+      name: "Legacy Student",
+      email: actor.user.email,
+      sessions: 8,
+      totalSessions: 8,
+      status: "completed",
+    });
+
+    const snapshot = await withAuth(
+      request(app).get("/api/trainer-subscriptions/my"),
+      actor.accessToken,
+    );
+    const purchase = await postAs(
+      "/api/trainer-subscriptions/purchase",
+      actor.accessToken,
+      confirmedPurchaseBody(
+        "free",
+        "trial",
+        "11111111-1111-4111-8111-111111111118",
+      ),
+    );
+
+    expect(snapshot.status).toBe(200);
+    expect(snapshot.body.freeTrial).toEqual({
+      status: "ineligible",
+      reason: "existing_order",
+      claimedAt: null,
+    });
+    expect(purchase.status).toBe(409);
+    expect(purchase.body.code).toBe("TRAINER_FREE_ORDER_EXISTS");
+  });
 });

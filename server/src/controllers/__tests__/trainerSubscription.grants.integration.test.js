@@ -27,6 +27,7 @@ import TrainerSubscription from "../../models/TrainerSubscription.js";
 import TrainerTrialClaim from "../../models/TrainerTrialClaim.js";
 import PendingTrainerGrant from "../../models/PendingTrainerGrant.js";
 import User from "../../models/User.js";
+import Order from "../../models/Order.js";
 import { claimPendingTrainerGrantForUser } from "../../services/trainerSubscriptionGrant.service.js";
 import {
   sendTrainerGrantInvitationMail,
@@ -86,6 +87,44 @@ describe("trainer subscription grants", () => {
     expect(subscription.source).toBe("admin_grant");
     expect(sendTrainerSubscriptionActivatedMail).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps admin Free grants as an explicit override for an existing Order", async () => {
+    const admin = await createTestUser({
+      email: "free-order-override-admin@example.com",
+      role: "admin",
+    });
+    const trainer = await createTestUser({
+      email: "free-order-override@example.com",
+    });
+    await Order.create({
+      userId: trainer.user._id,
+      trainerId: admin.user._id,
+      name: trainer.user.name,
+      email: trainer.user.email,
+      sessions: 10,
+      totalSessions: 10,
+      status: "approved",
+    });
+
+    const response = await postAs(
+      "/api/trainer-subscriptions/admin/grants",
+      admin.accessToken,
+      {
+        email: trainer.user.email,
+        planCode: "free",
+        billingCycle: "trial",
+      },
+    );
+
+    const subscription = await TrainerSubscription.findOne({
+      userId: trainer.user._id,
+      isActive: true,
+    });
+    expect(response.status).toBe(201);
+    expect(subscription.planCode).toBe("free");
+    expect(subscription.source).toBe("admin_grant");
+  });
+
 
   it("stores an unknown email as pending and claims it after verified login", async () => {
     const admin = await createTestUser({

@@ -27,7 +27,7 @@ describe("prerender SEO validation", () => {
     rootLength: 500,
     titles: ["Bài viết | HTCOACHING"],
     descriptions: ["Mô tả duy nhất"],
-    canonicals: ["https://htcoachingweb.io.vn/blog/bai-viet"],
+    canonicals: ["https://htcoachingweb.io.vn/blog/bai-viet/"],
     robots: ["index,follow"],
   };
 
@@ -35,7 +35,7 @@ describe("prerender SEO validation", () => {
     expect(
       validatePrerenderSnapshot(
         validSnapshot,
-        "https://htcoachingweb.io.vn/blog/bai-viet",
+        "https://htcoachingweb.io.vn/blog/bai-viet/",
       ),
     ).toEqual([]);
   });
@@ -48,10 +48,10 @@ describe("prerender SEO validation", () => {
           titles: ["Bài viết | HTCOACHING", "HTCOACHING"],
           canonicals: [
             "https://htcoachingweb.io.vn/",
-            "https://htcoachingweb.io.vn/blog/bai-viet",
+            "https://htcoachingweb.io.vn/blog/bai-viet/",
           ],
         },
-        "https://htcoachingweb.io.vn/blog/bai-viet",
+        "https://htcoachingweb.io.vn/blog/bai-viet/",
       ),
     ).toEqual(
       expect.arrayContaining([
@@ -69,7 +69,7 @@ describe("prerender SEO validation", () => {
           rootLength: 0,
           canonicals: ["https://htcoachingweb.io.vn/"],
         },
-        "https://htcoachingweb.io.vn/blog/bai-viet",
+        "https://htcoachingweb.io.vn/blog/bai-viet/",
       ),
     ).toEqual(
       expect.arrayContaining([

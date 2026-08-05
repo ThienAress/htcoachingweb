@@ -7,6 +7,7 @@ import viCommon from "./locales/vi/common.json";
 import viHome from "./locales/vi/home.json";
 import viTdee from "./locales/vi/tdee.json";
 import viMealPlan from "./locales/vi/mealplan.json";
+import viMealScan from "./locales/vi/mealScan.json";
 import viRecipe from "./locales/vi/recipe.json";
 import viExercises from "./locales/vi/exercises.json";
 import viStories from "./locales/vi/stories.json";
@@ -23,6 +24,7 @@ import enCommon from "./locales/en/common.json";
 import enHome from "./locales/en/home.json";
 import enTdee from "./locales/en/tdee.json";
 import enMealPlan from "./locales/en/mealplan.json";
+import enMealScan from "./locales/en/mealScan.json";
 import enRecipe from "./locales/en/recipe.json";
 import enExercises from "./locales/en/exercises.json";
 import enStories from "./locales/en/stories.json";
@@ -44,6 +46,7 @@ i18n
         home: viHome,
         tdee: viTdee,
         mealplan: viMealPlan,
+        mealScan: viMealScan,
         recipe: viRecipe,
         exercises: viExercises,
         stories: viStories,
@@ -60,6 +63,7 @@ i18n
         home: enHome,
         tdee: enTdee,
         mealplan: enMealPlan,
+        mealScan: enMealScan,
         recipe: enRecipe,
         exercises: enExercises,
         stories: enStories,

@@ -55,6 +55,7 @@ const WorkoutPlan = lazy(() => import("./pages/trainer/WorkoutPlan"));
 const WorkoutPlanDetail = lazy(() => import("./pages/trainer/WorkoutPlanDetail"));
 const TdeeCalculator = lazy(() => import("./pages/TdeeCalculator/TdeeCalculator"));
 const MealPlan = lazy(() => import("./pages/MealPlan/MealPlan"));
+const MealScan = lazy(() => import("./pages/MealScan/MealScan"));
 const BookTraining = lazy(() => import("./pages/customer/BookTraining"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage/RegisterPage"));
 const Club = lazy(() => import("./pages/Club"));
@@ -149,6 +150,7 @@ function AppContent() {
             path="/huan-luyen-vien/:slug"
             element={<TrainerProfile />}
           />
+          <Route path="/quet-mon-an" element={<MealScan />} />
         </Route>
 
         <Route path="/login" element={<Login />} />
