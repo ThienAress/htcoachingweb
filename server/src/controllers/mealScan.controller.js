@@ -1,4 +1,5 @@
 import { analyzeMealImage } from "../services/mealScan.service.js";
+import { serializeRequestQuota } from "../services/serviceAccessPolicy.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 const ERROR_MESSAGES = {
@@ -53,7 +54,11 @@ export const analyzeMealScan = async (req, res) => {
       scenario: result.imageAssessment?.scenario || "unknown",
       itemCount: result.items.length,
     });
-    return res.json({ success: true, data: result });
+    return res.json({
+      success: true,
+      data: result,
+      meta: { quota: serializeRequestQuota(req, "meal_scan") },
+    });
   } catch (error) {
     const status = Number(error?.status) || 500;
     const code = error?.code || "MEAL_SCAN_FAILED";

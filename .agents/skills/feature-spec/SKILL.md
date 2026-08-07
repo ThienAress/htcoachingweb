@@ -105,7 +105,7 @@ Sau đó viết **Spec Document** gồm 6 phần:
 Với spec đã được approve, lập technical plan:
 
 1. Xác định các component chính và dependency
-2. Xác định thứ tự implement (cái gì phải làm trước)
+2. Chia thành các vertical behavior slice end-to-end có thể demo/verify độc lập
 3. Nêu risks và cách giảm thiểu
 4. Xác định các bước verify checkpoint
 
@@ -117,15 +117,18 @@ Chia plan thành tasks nhỏ, mỗi task theo format:
 
 ```markdown
 - [ ] Task: [Mô tả cụ thể]
+  - Behavior: [Hành vi observable hoàn chỉnh mà task cung cấp]
   - Acceptance: [Điều kiện để coi task này là XONG]
   - Verify: [Cách confirm — build, test, manual check]
-  - Files: [Những file sẽ bị chạm vào]
+  - Files: [Blast radius dự kiến — những file/layer cần chạm]
+  - Depends on: [Task/blocker phải hoàn tất trước, hoặc "none"]
 ```
 
 **Nguyên tắc:**
-- Mỗi task hoàn thành được trong 1 session tập trung
-- Mỗi task không chạm quá ~5 files
-- Thứ tự theo dependency, không phải theo perceived importance
+- Mỗi task là một **vertical tracer bullet**: cung cấp một behavior end-to-end qua các layer cần thiết, có thể demo và verify độc lập
+- Giữ mỗi task vừa một session tập trung; nếu quá lớn, chia tiếp theo behavior/acceptance scenario, không chia ngang thành "DB trước, API sau, UI cuối"
+- Số file chỉ là tín hiệu blast radius. Task chạm nhiều file phải giải thích impact và verification, không bị tách cơ học chỉ để đạt quota
+- Thứ tự theo dependency; sau mỗi task, codebase phải ở trạng thái chạy được và behavior vừa thêm đã được kiểm chứng
 
 ---
 

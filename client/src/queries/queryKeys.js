@@ -44,6 +44,42 @@ export const coachingKeys = {
 };
 
 export const adminQueryKeys = {
+  serviceAccessPolicies: {
+    all: () => ["admin-service-access-policies"],
+  },
+  conversionOrigins: {
+    all: () => ["admin-conversion-origins"],
+    bookings: () => [...adminQueryKeys.conversionOrigins.all(), "bookings"],
+    contacts: () => [...adminQueryKeys.conversionOrigins.all(), "contacts"],
+  },
+  seoAnalytics: {
+    all: () => ["admin-seo-analytics"],
+    overview: (filters) => [
+      ...adminQueryKeys.seoAnalytics.all(),
+      "overview",
+      filters,
+    ],
+    providers: () => [
+      ...adminQueryKeys.seoAnalytics.all(),
+      "providers",
+    ],
+    blogs: {
+      all: () => [...adminQueryKeys.seoAnalytics.all(), "blogs"],
+      list: (filters) =>
+        listKey(adminQueryKeys.seoAnalytics.blogs.all(), filters),
+      detail: (slug, filters) => [
+        ...adminQueryKeys.seoAnalytics.blogs.all(),
+        "detail",
+        slug,
+        filters,
+      ],
+    },
+    keywords: {
+      all: () => [...adminQueryKeys.seoAnalytics.all(), "keywords"],
+      list: (filters) =>
+        listKey(adminQueryKeys.seoAnalytics.keywords.all(), filters),
+    },
+  },
   bookings: {
     all: () => ["admin-bookings"],
     list: (filters) => listKey(adminQueryKeys.bookings.all(), filters),

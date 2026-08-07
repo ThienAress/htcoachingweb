@@ -11,8 +11,9 @@ chỉnh khẩu phần, nhưng không trình bày output AI như số liệu chí
 ## Product contract
 
 - Navbar: `Công cụ → Quét món ăn`; tiếng Anh là `Meal Scan`.
-- Trang và thao tác phân tích ảnh đều public. Anonymous được 2 lượt/24 giờ theo IP; user đăng nhập
-  được 10 lượt/24 giờ theo user. Vượt quota trả 429, không gọi provider và không debit ví.
+- Trang và thao tác phân tích ảnh đều public. Anonymous được 2 lượt/24 giờ theo IP; user thường được
+  3 lượt/24 giờ; coaching customer và HLV được 10 lượt/24 giờ theo user. Vượt quota trả 429, không gọi
+  provider và không debit ví.
 - Desktop: upload 5/12, kết quả 7/12; mobile xếp dọc.
 - Ảnh nén tại browser, chỉ xử lý tạm thời, không lưu DB/Cloudinary/log/chat.
 - JPEG/PNG/WebP; tối đa 280 KB client và 300 KB API sau nén.
@@ -36,8 +37,8 @@ chỉnh khẩu phần, nhưng không trình bày output AI như số liệu chí
 - Request: `{ image: "data:image/...;base64,...", locale?: "vi" | "en", declaredIngredients?:
   [{ name: string, grams: number }] }`. Middleware giới hạn tối đa 8 mục, trim tên tối đa 80 ký tự và
   chỉ nhận gram 1–3000 trước khi request có thể tiêu quota.
-- Response: `{ success: true, data: MealScanResult }`, header
-  `Cache-Control: private, no-store`.
+- Response: `{ success: true, data: MealScanResult, meta: { quota: { serviceKey, tier, limit, remaining,
+  resetAt } } }`, header `Cache-Control: private, no-store`. Lỗi 429 trả cùng `meta.quota`.
 - Non-production Meal Scan mặc định trả mock deterministic, độc lập với AI_PROVIDER toàn cục;
   MEAL_SCAN_PROVIDER=gemini chỉ là opt-in test local có kiểm soát. Runtime production luôn dùng
   AI_PROVIDER=gemini và fail closed nếu thiếu Paid Service/config hoặc output sai. Riêng
@@ -185,8 +186,8 @@ CSRF/rate limit; persist raw ảnh/base64.
 
 - Anonymous analysis requires the existing CSRF mechanism and server image validation. Invalid
   payloads do not spend quota; every provider-bound request, including a `422` non-food result, does.
-- Anonymous limit là 2 requests/24 giờ theo normalized IP; authenticated limit là 10 requests/24 giờ
-  theo user ID. Lượt vượt quota dừng trước controller/provider và không tạo wallet ledger. Limiter dùng
+- Anonymous limit là 2 requests/24 giờ theo normalized IP; user thường 3 requests/24 giờ; coaching customer
+  và HLV 10 requests/24 giờ theo user ID. Lượt vượt quota dừng trước controller/provider và không tạo wallet ledger. Limiter dùng
   ephemeral in-memory store và không persist/log raw IP; horizontal scaling cần shared privacy-reviewed
   store.
 - Barcode/external packaged-food lookup remains authenticated and is not rendered in the simplified result;

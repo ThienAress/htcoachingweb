@@ -119,13 +119,31 @@ const Home = () => {
         canonical="/" 
         jsonLd={homeSchema}
       />
-      <Hero images={settings.heroImages} avatars={settings.heroAvatars} onAnimationComplete={() => setHeroAnimDone(true)} />
+      <Hero
+        imagesByKey={settings.heroImagesByKey}
+        images={settings.heroImages}
+        avatarsByKey={settings.heroAvatarsByKey}
+        avatars={settings.heroAvatars}
+        onAnimationComplete={() => setHeroAnimDone(true)}
+      />
       <Feedback />
-      <About images={settings.aboutImages} />
-      <Trainers />
-      <Classes images={settings.classesImages} />
+      <About
+        imagesByKey={settings.aboutImagesByKey}
+        images={settings.aboutImages}
+      />
+      <Trainers
+        imagesByKey={settings.trainerImagesByKey}
+        legacyImage={settings.trainerImage}
+      />
+      <Classes
+        imagesByKey={settings.classesImagesByKey}
+        legacyImages={settings.classesImages}
+      />
       <Pricing isHeroAnimDone={heroAnimDone} />
-      <Tools image={settings.toolsImage} />
+      <Tools
+        imagesByKey={settings.toolsImagesByKey}
+        legacyImage={settings.toolsImage}
+      />
       <Contact />
       <ScrollToTop />
       <ChatIcons />

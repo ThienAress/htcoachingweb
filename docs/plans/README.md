@@ -45,6 +45,18 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 026A | Giới hạn chi phí Meal Scan và mặc định mock ở development | P1 | S | 026 | IMPLEMENTED / LOCAL VERIFIED — CAP AMOUNT PENDING |
 | 026B | Thu thập thành phần khai báo và đơn giản hóa kết quả Meal Scan | P1 | M | 026A | IMPLEMENTED / LOCAL VERIFIED |
 | 026C | Tính thành phần khai báo vào tổng Meal Scan | P1 | M | 026B | RELEASE CANDIDATE VERIFIED — STAGING PENDING |
+| 027 | Hoàn thiện hành trình public ưu tiên giá trị | P1 | M | 003C, 004, 018 | IMPLEMENTED / LOCAL VERIFIED — LIVE FOOD PREVIEW + PRERENDER PENDING |
+| 028 | Xây dựng SEO & Conversion Analytics an toàn | P1 | XL | 019, 020, 027 | IN PROGRESS — 028A–028C LOCAL VERIFIED |
+| 028A | Instrument public SEO/conversion measurement | P1 | M | 028 | DONE / LOCAL VERIFIED — LIVE GA4 PENDING |
+| 028B | Build Admin SEO analytics read model | P1 | L | 028A | DONE / NODE 22 LOCAL VERIFIED — LIVE GOOGLE + STRICT PRERENDER PENDING |
+| 028C | Link explicit business conversions | P1 | L | 028B | DONE / NODE 22 LOCAL VERIFIED — STAGING INDEX APPLY + STRICT PRERENDER PENDING |
+| 028D | Pilot OpenSEO read-only MCP | P1 | M | 028B | TASKS APPROVED — OPS APPROVALS REQUIRED |
+| 029 | Quản lý ảnh Homepage theo stable key | P1 | M | 027, 028A | COMPLETE |
+| 030 | Modernize agent workflows with composable, enforced skills | P1 | L | 017 | COMPLETE / VERIFIED |
+| 031 | Mở HT Assistant theo ngữ cảnh toàn website cho guest | P1 | L | 019, 020, 021, 026A, 027 | IMPLEMENTED / LOCAL VERIFIED — FULL SERVER + PRERENDER ENV BLOCKED |
+| 032 | Mở quản trị riêng theo từng huấn luyện viên | P1 | L | 016, 019, 023, 031 | COMPLETE / LOCAL VERIFIED |
+| 033 | Chuẩn hóa quyền truy cập và hạn mức dịch vụ | P1 | L | 026A, 027, 030, 031, 032 | COMPLETE / FOCUSED VERIFIED — FULL SERVER + PRERENDER ENV BLOCKED |
+| 034 | Đồng bộ quyền lợi gói HLV và mở soạn thảo bảng trong Blog | P1 | M | 033 | DONE / LOCAL VERIFIED |
 
 ## Dependency Notes
 
@@ -88,6 +100,22 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   privacy, mock-development và cost boundaries đã harden.
 - Plan 026C phụ thuộc 026B vì nó biến dữ liệu khai báo đang chỉ hiển thị thành breakdown server-authoritative,
   cộng vào total/macro score và đánh dấu rõ mục không có nutrition source mà không đổi schema.
+- Plan 027 phụ thuộc 003C cho lưu Meal Plan, 004 cho homepage entry và 018 cho auth/server-state;
+  thay presentation và anonymous client preview nhưng không đổi backend entitlement hoặc commercial contract.
+- Plan 028 phụ thuộc 019–020 cho auth/security boundary và 027 cho public CTA journey; bổ sung đo lường,
+  read model, admin dashboard rồi mới mở OpenSEO/MCP, không lưu raw IP hoặc làm public runtime phụ thuộc provider.
+- Plan 028A–028D là các release gate của Plan 028: measurement → read model/dashboard → explicit conversion;
+  OpenSEO chỉ pilot sau khi dashboard cache-first đã ổn định và vẫn tách khỏi core runtime.
+- Plan 030 phụ thuộc 017 vì mở rộng agent governance đã harden bằng router, invocation metadata,
+  domain memory, review và handoff có validator enforcement; không chạm product runtime.
+- Plan 031 phụ thuộc auth/security/chat/public-journey đã harden để mở guest trong quota, giữ CSRF/ownership
+  và đưa page context canonical vào cùng contract mà không làm public runtime đọc raw DOM.
+- Plan 032 phụ thuộc workspace/auth/contract đã harden để mở Order, Contract và Check-in cho trainer theo
+  owner filter backend; đồng thời giữ delete Order/Contract là quyền admin.
+- Plan 033 phụ thuộc các quota, public preview, agent workflow và entitlement đã có để gom policy vào registry
+  canonical, enforce theo tier và hiển thị cùng contract trong Admin mà không cần migration.
+- Plan 034 phụ thuộc 033 để mở rộng cùng trang Admin bằng catalog quyền lợi HLV canonical, đồng thời bổ sung
+  Tiptap TableKit độc lập với service quota và không mở mutation hoặc schema mới.
 
 ## Findings Considered and Rejected
 

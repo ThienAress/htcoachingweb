@@ -393,15 +393,6 @@ export const validateProductionEnvironment = (
       "Customer Meal Scan images require an explicitly confirmed Gemini Paid Service project.",
     );
   }
-  validateIntegerSetting(env, findings, "MEAL_SCAN_RATE_LIMIT_MAX", {
-    minimum: 10,
-    maximum: 10,
-  });
-  validateIntegerSetting(env, findings, "MEAL_SCAN_ANONYMOUS_DAILY_LIMIT", {
-    minimum: 2,
-    maximum: 2,
-  });
-
   validateBooleanSetting(env, findings, "FOOD_REFERENCE_LOOKUP_ENABLED", {
     required: true,
   });

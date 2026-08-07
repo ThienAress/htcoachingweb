@@ -16,6 +16,11 @@ import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
 import {
   syncDailyJournalRetentionForClient,
 } from "../services/dailyJournalRetentionPolicy.service.js";
+import {
+  assertConversionOriginAvailable,
+  normalizeConversionOriginPersistenceError,
+  resolveConversionOrigin,
+} from "../services/conversionOrigin.service.js";
 
 const orderError = (status, code, message) =>
   Object.assign(new Error(message), { status, code });
@@ -56,7 +61,18 @@ export const createOrder = async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const trainerId = req.body.trainerId || null;
+    const trainerId = req.isAdmin
+      ? req.body.trainerId || null
+      : req.user.id;
+    const conversionOrigin = await resolveConversionOrigin({
+      originBookingId: req.body.originBookingId,
+      originContactMessageId: req.body.originContactMessageId,
+      isAdmin: req.user.role === "admin",
+    });
+    await assertConversionOriginAvailable({
+      Model: Order,
+      conversionOrigin,
+    });
 
     // ===== Check giới hạn học viên theo gói HLV =====
     if (trainerId) {
@@ -111,12 +127,18 @@ export const createOrder = async (req, res) => {
     }
 
     const order = await Order.create({
-      ...req.body,
+      name: req.body.name,
       email: normalizedEmail,
+      phone: req.body.phone || "",
+      package: req.body.package,
+      gym: req.body.gym,
+      schedule: req.body.schedule,
+      note: req.body.note || "",
       userId: user._id,
       trainerId,
       sessions: Number(req.body.sessions),
       totalSessions: Number(req.body.sessions),
+      ...conversionOrigin,
     });
     if (order.status === "approved" && order.sessions > 0) {
       await syncOrderDailyJournalRetention({
@@ -131,8 +153,21 @@ export const createOrder = async (req, res) => {
       message: "Tạo đơn thành công",
     });
   } catch (err) {
-    safeLog.error("order.create_failed", err);
-    res.status(500).json({ message: err.message });
+    const normalizedError = normalizeConversionOriginPersistenceError(err);
+    const status = normalizedError?.status || 500;
+    if (status >= 500) {
+      safeLog.error("order.create_failed", normalizedError);
+    } else {
+      safeLog.warn("order.create_rejected", "Order create rejected", {
+        code: normalizedError.code,
+      });
+    }
+    res.status(status).json({
+      success: false,
+      code: normalizedError?.code || "ORDER_CREATE_FAILED",
+      message:
+        status >= 500 ? "Lỗi tạo đơn" : normalizedError.message,
+    });
   }
 };
 
@@ -259,9 +294,22 @@ export const approveOrder = async (req, res) => {
 
 export const updateOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).lean();
+    const ownerFilter = req.isAdmin
+      ? { _id: req.params.id }
+      : { _id: req.params.id, trainerId: req.user.id };
+    const order = await Order.findOne(ownerFilter).lean();
     if (!order) {
       return res.status(404).json({ success: false, message: "Không tìm thấy đơn" });
+    }
+    if (
+      !req.isAdmin &&
+      !["pending", "approved"].includes(order.status)
+    ) {
+      return res.status(400).json({
+        success: false,
+        code: "ORDER_NOT_EDITABLE",
+        message: "Chỉ có thể sửa đơn đang chờ xác nhận hoặc đang hoạt động",
+      });
     }
 
     // State transition guard
@@ -283,19 +331,21 @@ export const updateOrder = async (req, res) => {
     }
 
     // Whitelist fields cho phép update — ngăn inject field bất ngờ
-    const allowed = [
+    const commonFields = [
       "name",
       "email",
       "phone",
       "package",
       "sessions",
-      "totalSessions",
-      "trainerId",
-      "status",
       "gym",
       "schedule",
       "note",
     ];
+    const allowed = req.isAdmin
+      ? [...commonFields, "totalSessions", "trainerId", "status"]
+      : order.status === "pending"
+        ? commonFields
+        : ["name", "phone", "gym", "schedule", "note"];
     const updateData = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updateData[key] = req.body[key];
@@ -339,7 +389,7 @@ export const updateOrder = async (req, res) => {
 
     const updated = await Order.findOneAndUpdate(
       {
-        _id: req.params.id,
+        ...ownerFilter,
         status: order.status,
         updatedAt: order.updatedAt,
       },

@@ -9,7 +9,7 @@ const useActor = async (page, role) => {
 };
 
 test.describe("homepage Today Dashboard entry", () => {
-  test("shares the persona dialog instead of opening a competing prompt", async ({
+  test("does not interrupt an anonymous visitor with a persona or progress prompt", async ({
     page,
   }) => {
     await page.addInitScript(() => {
@@ -19,20 +19,9 @@ test.describe("homepage Today Dashboard entry", () => {
 
     await page.goto("/");
 
-    const personaDialog = page.getByRole("dialog", { name: "Bạn là ai?" });
-    await expect(personaDialog).toBeVisible();
-    await expect(
-      personaDialog.getByRole("button", { name: "Mở kế hoạch hôm nay" }),
-    ).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Bạn là ai?" })).toHaveCount(0);
     await expect(page.getByTestId("today-progress-prompt")).toHaveCount(0);
-
-    await personaDialog
-      .getByRole("button", { name: "Mở kế hoạch hôm nay" })
-      .click();
-    await expect(page).toHaveURL(/\/login$/);
-    await expect
-      .poll(() => page.evaluate(() => window.history.state?.usr?.from))
-      .toBe("/dashboard");
+    await expect(page.locator("header a[href='/login']:visible").first()).toBeVisible();
   });
 
   test("opens the canonical dashboard for a returning authenticated customer", async ({
@@ -67,6 +56,7 @@ test.describe("homepage Today Dashboard entry", () => {
       localStorage.setItem("pricingViewMode", "customer");
       sessionStorage.removeItem("ht_today_progress_prompt_dismissed");
     });
+    await useActor(page, "user");
 
     await page.goto("/");
 

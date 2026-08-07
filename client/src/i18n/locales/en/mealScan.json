@@ -31,6 +31,10 @@
     "upload": "Step 01 — Choose photo",
     "analyze": "Step 02 — Analyze & review"
   },
+  "quota": {
+    "remaining": "{{remaining}}/{{limit}} scans remaining",
+    "reset": "Resets {{time}}"
+  },
   "uploader": {
     "checking": "Checking image quality...",
     "title": "Meal photo",
@@ -136,8 +140,8 @@
     "quality_unreadable": "This image cannot be read. Choose or take another photo.",
     "type": "Only JPEG, PNG or WebP images are supported.",
     "size": "The source image must be no larger than 10 MB.",
-    "MEAL_SCAN_ANONYMOUS_LIMITED": "You have used both no-account scans for this 24-hour period. Log in for more scans or try again later.",
-    "MEAL_SCAN_RATE_LIMITED": "You have used all 10 scans for this 24-hour period. Please try again when your quota resets.",
+    "MEAL_SCAN_ANONYMOUS_LIMITED": "You have used all {{limit}} no-account scans for this 24-hour period. Log in for more scans or try again later.",
+    "MEAL_SCAN_RATE_LIMITED": "You have used all {{limit}} scans for this 24-hour period. Please try again when your quota resets.",
     "generic": "The photo cannot be analyzed right now. Please try again."
   },
 

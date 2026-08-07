@@ -5,6 +5,7 @@ import {
   TRAINER_PLAN_CODES,
 } from "../constants/trainerPlans.js";
 import { parseDateKey } from "../utils/dateKey.js";
+import { normalizeLeadAttribution } from "../models/leadAttribution.schema.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -27,6 +28,23 @@ const nullableObjectId = (value) => {
   if (value === null || value === undefined || value === "") return true;
   return mongoose.Types.ObjectId.isValid(value);
 };
+
+const conversionOriginValidators = () => [
+  body("originBookingId")
+    .optional({ nullable: true, checkFalsy: true })
+    .isMongoId()
+    .withMessage("originBookingId không hợp lệ"),
+  body("originContactMessageId")
+    .optional({ nullable: true, checkFalsy: true })
+    .isMongoId()
+    .withMessage("originContactMessageId không hợp lệ")
+    .custom((value, { req }) => {
+      if (value && req.body.originBookingId) {
+        throw new Error("Chỉ được chọn một nguồn Booking hoặc Contact");
+      }
+      return true;
+    }),
+];
 
 // Custom validator cho thời gian: đảm bảo có thể parse thành Date hợp lệ
 const isValidDate = (value) => {
@@ -108,6 +126,8 @@ export const validateCreateF1Customer = [
     .optional()
     .isIn(["manual", "booking", "referral", "walkin"])
     .withMessage("Nguồn khách không hợp lệ"),
+
+  ...conversionOriginValidators(),
 
   handleValidationErrors,
 ];
@@ -650,6 +670,7 @@ export const validateCreateOrder = [
       return mongoose.Types.ObjectId.isValid(value);
     })
     .withMessage("trainerId không hợp lệ"),
+  ...conversionOriginValidators(),
   handleValidationErrors,
 ];
 
@@ -1334,6 +1355,13 @@ export const validateCoachingActivityExport = [
 // CONTACT & BOOKING VALIDATIONS
 // ============================================================================
 
+const optionalLeadAttribution = body("attribution")
+  .optional({ nullable: true })
+  .custom((value) => {
+    normalizeLeadAttribution(value);
+    return true;
+  });
+
 export const validateContactMessage = [
   body("name")
     .notEmpty()
@@ -1367,6 +1395,7 @@ export const validateContactMessage = [
     .withMessage("Vui lòng chọn gói tập")
     .isIn(["ONLINE", "1-1", "TRIAL"])
     .withMessage("Gói tập không hợp lệ"),
+  optionalLeadAttribution,
   handleValidationErrors,
 ];
 
@@ -1446,6 +1475,7 @@ export const validateCreateBooking = [
   body("clientRequestId")
     .isUUID()
     .withMessage("clientRequestId không hợp lệ"),
+  optionalLeadAttribution,
   handleValidationErrors,
 ];
 
@@ -1779,5 +1809,101 @@ export const validateDeleteWellnessTargets = [
   body("confirmation")
     .equals("DELETE_MY_WELLNESS_TARGETS")
     .withMessage("Thiếu xác nhận xóa Wellness Targets"),
+  handleValidationErrors,
+];
+
+const validateAnalyticsDateRange = (location) => [
+  location("startDate")
+    .isString()
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .withMessage("startDate không hợp lệ"),
+  location("endDate")
+    .isString()
+    .matches(/^\d{4}-\d{2}-\d{2}$/)
+    .custom((endDate, { req }) => {
+      const startDate =
+        location === query ? req.query.startDate : req.body.startDate;
+      parseDateKey(startDate);
+      parseDateKey(endDate);
+      const start = new Date(`${startDate}T00:00:00.000Z`);
+      const end = new Date(`${endDate}T00:00:00.000Z`);
+      const days = (end.getTime() - start.getTime()) / 86_400_000;
+      if (
+        Number.isNaN(start.getTime()) ||
+        Number.isNaN(end.getTime()) ||
+        days < 0 ||
+        days > 366
+      ) {
+        throw new Error("Khoảng ngày không hợp lệ");
+      }
+      return true;
+    }),
+];
+
+export const validateSeoAnalyticsRead = [
+  ...validateAnalyticsDateRange(query),
+  handleValidationErrors,
+];
+
+const analyticsListValidation = () => [
+  query("page").optional().isInt({ min: 1 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+  query("search").optional().isString().trim().isLength({ max: 100 }),
+  query("direction").optional().isIn(["asc", "desc"]),
+];
+
+export const validateSeoAnalyticsBlogList = [
+  ...validateAnalyticsDateRange(query),
+  ...analyticsListValidation(),
+  query("sort")
+    .optional()
+    .isIn([
+      "publishedAt",
+      "title",
+      "clicks",
+      "impressions",
+      "activeUsers",
+      "engagedReads",
+      "ctaClicks",
+      "leads",
+      "conversionRate",
+      "legacyViews",
+    ]),
+  handleValidationErrors,
+];
+
+export const validateSeoAnalyticsKeywordList = [
+  ...validateAnalyticsDateRange(query),
+  ...analyticsListValidation(),
+  query("sort")
+    .optional()
+    .isIn(["query", "clicks", "impressions", "ctr", "position"]),
+  handleValidationErrors,
+];
+
+export const validateSeoAnalyticsBlogDetail = [
+  param("slug")
+    .isString()
+    .matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .isLength({ max: 160 }),
+  ...validateAnalyticsDateRange(query),
+  handleValidationErrors,
+];
+
+export const validateSeoAnalyticsSync = [
+  body().custom((value) => {
+    const allowed = ["provider", "startDate", "endDate"];
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some((key) => !allowed.includes(key))
+    ) {
+      throw new Error("Request sync không hợp lệ");
+    }
+    return true;
+  }),
+  body("provider").isIn(["ga4", "gsc"]),
+  ...validateAnalyticsDateRange(body),
   handleValidationErrors,
 ];

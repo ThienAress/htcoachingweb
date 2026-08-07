@@ -39,6 +39,8 @@ const UserManagement = lazy(() => import("./pages/admin/UserManagement"));
 const ContactMessages = lazy(() => import("./pages/admin/ContactMessages"));
 const FoodManagement = lazy(() => import("./pages/admin/FoodManagement"));
 const BookingManagement = lazy(() => import("./pages/admin/BookingManagement"));
+const SeoAnalyticsPage = lazy(() => import("./pages/admin/SeoAnalyticsPage"));
+const ServiceAccessPoliciesPage = lazy(() => import("./pages/admin/ServiceAccessPoliciesPage"));
 const ExerciseManagement = lazy(() => import("./pages/admin/ExerciseManagement"));
 const ExerciseSuggestionsManagement = lazy(() => import("./pages/admin/ExerciseSuggestionsManagement"));
 const CustomerStoryManagement = lazy(() => import("./pages/admin/CustomerStoryManagement"));
@@ -288,6 +290,8 @@ function AppContent() {
             path="workout-plans/:id"
             element={<WorkoutPlanDetail embedded />}
           />
+          <Route path="orders" element={<Orders embedded />} />
+          <Route path="contracts" element={<ContractManagement />} />
           <Route path="checkin-history" element={<TrainerCheckinHistory />} />
         </Route>
 
@@ -310,6 +314,8 @@ function AppContent() {
           <Route path="contact-messages" element={<ContactMessages />} />
           <Route path="foods" element={<FoodManagement />} />
           <Route path="bookings" element={<BookingManagement />} />
+          <Route path="seo-analytics" element={<SeoAnalyticsPage />} />
+          <Route path="service-access-policies" element={<ServiceAccessPoliciesPage />} />
           <Route path="exercises" element={<ExerciseManagement />} />
           <Route path="f1-ai-rules" element={<F1AiRuleManagement />} />
           <Route path="trainers" element={<TrainerManagement />} />

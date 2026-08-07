@@ -1,29 +1,72 @@
 import { createHmac, randomBytes } from "node:crypto";
 
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import {
+  resolveRequestServicePolicy,
+  serializeRequestQuota,
+} from "../services/serviceAccessPolicy.service.js";
 
-// AI Chat rate limit — per user (dùng userId thay vì IP)
-// Route này luôn đi qua protect middleware → req.user.id luôn có
+const getQuotaLimit = (serviceKey) => async (req) => {
+  const { policy } = await resolveRequestServicePolicy(req, serviceKey);
+  if (policy.mode !== "quota" || !Number.isSafeInteger(policy.limit)) {
+    throw new Error(`Service ${serviceKey} does not define a rate-limit quota`);
+  }
+  return policy.limit;
+};
+
+const quotaHandler = ({ serviceKey, code, message }) => (req, res) => {
+  const quota = serializeRequestQuota(req, serviceKey);
+  return res.status(429).json({
+    success: false,
+    code,
+    message: message(quota),
+    meta: { quota },
+  });
+};
+
+// AI Chat authenticated rate limit — per user; guest dùng limiter riêng theo IP HMAC.
 export const aiChatLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 giờ
-  max: 30, // 30 messages/giờ cho user thường
-  keyGenerator: (req) => req.user?.id?.toString() ?? "anonymous",
-  message: {
-    success: false,
-    message: "Bạn đã gửi quá nhiều tin nhắn. Vui lòng thử lại sau 1 giờ.",
-  },
+  limit: getQuotaLimit("ai_chat"),
+  skip: (req) => !req.user?.id,
+  keyGenerator: (req) => req.user.id.toString(),
+  handler: quotaHandler({
+    serviceKey: "ai_chat",
+    code: "AI_RATE_LIMITED",
+    message: (quota) =>
+      `Bạn đã dùng hết ${quota?.limit || 15} tin trong giờ này. Vui lòng thử lại sau.`,
+  }),
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-const authenticatedMealScanDailyLimit = Math.min(
-  Math.max(1, Number(process.env.MEAL_SCAN_RATE_LIMIT_MAX) || 10),
-  100,
-);
-const anonymousDailyLimit = Math.min(
-  Math.max(1, Number(process.env.MEAL_SCAN_ANONYMOUS_DAILY_LIMIT) || 2),
-  10,
-);
+const anonymousAiChatKeySalt = randomBytes(32);
+
+const createAnonymousAiChatKey = (req) =>
+  createHmac(
+    "sha256",
+    process.env.AI_GUEST_RATE_LIMIT_SECRET ||
+      process.env.LOG_HASH_SECRET ||
+      process.env.JWT_SECRET ||
+      anonymousAiChatKeySalt,
+  )
+    .update(ipKeyGenerator(req.ip))
+    .digest("hex");
+
+export const aiGuestChatLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: getQuotaLimit("ai_chat"),
+  skip: (req) => Boolean(req.user?.id),
+  keyGenerator: createAnonymousAiChatKey,
+  handler: quotaHandler({
+    serviceKey: "ai_chat",
+    code: "AI_GUEST_RATE_LIMITED",
+    message: (quota) =>
+      `Bạn đã dùng hết ${quota?.limit || 5} lượt hỏi miễn phí trong giờ này. Đăng nhập để tiếp tục.`,
+  }),
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const anonymousMealScanKeySalt = randomBytes(32);
 
@@ -34,28 +77,30 @@ const createAnonymousMealScanKey = (req) =>
 
 export const mealScanAnonymousLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
-  max: anonymousDailyLimit,
+  limit: getQuotaLimit("meal_scan"),
   skip: (req) => Boolean(req.user?.id),
   keyGenerator: createAnonymousMealScanKey,
-  message: {
-    success: false,
+  handler: quotaHandler({
+    serviceKey: "meal_scan",
     code: "MEAL_SCAN_ANONYMOUS_LIMITED",
-    message: `Bạn đã dùng hết ${anonymousDailyLimit} lượt quét miễn phí trong 24 giờ. Đăng nhập để tiếp tục.`,
-  },
+    message: (quota) =>
+      `Bạn đã dùng hết ${quota?.limit || 2} lượt quét miễn phí trong 24 giờ. Đăng nhập để tiếp tục.`,
+  }),
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 export const mealScanLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
-  max: authenticatedMealScanDailyLimit,
+  limit: getQuotaLimit("meal_scan"),
   skip: (req) => !req.user?.id,
   keyGenerator: (req) => req.user.id.toString(),
-  message: {
-    success: false,
+  handler: quotaHandler({
+    serviceKey: "meal_scan",
     code: "MEAL_SCAN_RATE_LIMITED",
-    message: "Bạn đã dùng hết 10 lượt quét trong 24 giờ. Vui lòng thử lại sau.",
-  },
+    message: (quota) =>
+      `Bạn đã dùng hết ${quota?.limit || 3} lượt quét trong 24 giờ. Vui lòng thử lại sau.`,
+  }),
   standardHeaders: true,
   legacyHeaders: false,
 });

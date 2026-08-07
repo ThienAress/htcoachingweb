@@ -14,24 +14,14 @@ import {
   calculateTdee,
   calculateAdjustedCalories,
   calculateMacroSet,
+  createDefaultTdeeForm,
   getDefaultCalorieAdjustment,
+  normalizeStoredTdeeForm,
 } from "./tdee.helpers";
-
-const DEFAULT_FORM = {
-  gender: "",
-  height: "",
-  weight: "",
-  age: "",
-  activity: "",
-  formula: "",
-  bodyfat: "",
-  goal: "",
-  customCalorieAdjustment: "",
-};
 
 const loadStoredTdee = () => {
   const result = {
-    form: DEFAULT_FORM,
+    form: createDefaultTdeeForm(),
     tdee: null,
     bmr: null,
     adjustedCalories: null,
@@ -40,7 +30,7 @@ const loadStoredTdee = () => {
 
   try {
     const savedForm = localStorage.getItem("tdeeForm");
-    if (savedForm) result.form = { ...DEFAULT_FORM, ...JSON.parse(savedForm) };
+    if (savedForm) result.form = normalizeStoredTdeeForm(JSON.parse(savedForm));
   } catch {
     localStorage.removeItem("tdeeForm");
   }
@@ -147,17 +137,7 @@ const TdeeCalculator = () => {
   };
 
   const handleReset = () => {
-    setForm({
-      gender: "",
-      height: "",
-      weight: "",
-      age: "",
-      activity: "",
-      formula: "",
-      bodyfat: "",
-      goal: "",
-      customCalorieAdjustment: "",
-    });
+    setForm(createDefaultTdeeForm());
     setTdee(null);
     setBmr(null);
     setAdjustedCalories(null);

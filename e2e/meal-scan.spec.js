@@ -227,12 +227,21 @@ test.describe("Meal Scan authenticated local journey", () => {
         success: false,
         code: "MEAL_SCAN_RATE_LIMITED",
         message: "Provider fallback message",
+        meta: {
+          quota: {
+            serviceKey: "meal_scan",
+            tier: "user",
+            limit: 3,
+            remaining: 0,
+            resetAt: "2026-08-08T00:00:00.000Z",
+          },
+        },
       },
     });
     await uploadAndAnalyze(page);
 
     await expect(page.getByRole("alert")).toContainText(
-      "Bạn đã dùng hết 10 lượt quét trong 24 giờ.",
+      "Bạn đã dùng hết 3 lượt quét trong 24 giờ.",
     );
   });
 

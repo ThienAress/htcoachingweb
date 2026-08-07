@@ -4,12 +4,20 @@ import { useTranslation } from "react-i18next";
 import { gsap } from "gsap";
 import SplitType from "split-type";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { trackAnalyticsEvent } from "../utils/analytics";
+import {
+  HOME_HERO_AVATAR_CATALOG,
+  HOME_HERO_CATALOG,
+  buildCatalogMediaItems,
+} from "../config/homeSectionCatalog";
 
-import hero1 from "../assets/images/hero/hero1.webp";
-import hero2 from "../assets/images/hero/hero2.webp";
-import hero3 from "../assets/images/hero/hero3.webp";
-
-const Hero = ({ images, avatars, onAnimationComplete }) => {
+const Hero = ({
+  imagesByKey,
+  images,
+  avatarsByKey,
+  avatars,
+  onAnimationComplete,
+}) => {
   const { t, i18n } = useTranslation("home");
   const [currentIndex, setCurrentIndex] = useState(0);
   const titleRef = useRef(null);
@@ -24,13 +32,23 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
     onAnimationCompleteRef.current = onAnimationComplete;
   }, [onAnimationComplete]);
 
-  const slides = images && images.length > 0
-    ? images.map(img => ({ bgImage: `url(${img})` }))
-    : [
-      { bgImage: `url(${hero1})` },
-      { bgImage: `url(${hero2})` },
-      { bgImage: `url(${hero3})` },
-    ];
+  const slides = useMemo(
+    () => buildCatalogMediaItems(HOME_HERO_CATALOG, {
+      imagesByKey,
+      legacyImages: images,
+    })
+      .map((item) => item.image)
+      .filter(Boolean)
+      .map((image) => ({ bgImage: `url(${image})` })),
+    [images, imagesByKey],
+  );
+  const displayAvatars = useMemo(
+    () => buildCatalogMediaItems(HOME_HERO_AVATAR_CATALOG, {
+      imagesByKey: avatarsByKey,
+      legacyImages: avatars,
+    }).map((item) => item.image).filter(Boolean),
+    [avatars, avatarsByKey],
+  );
 
   // GSAP animations for Text and Left Block
   useLayoutEffect(() => {
@@ -222,6 +240,12 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
           <div ref={ctaRef} className="flex flex-col xl:flex-row items-start xl:items-center gap-5 xl:gap-8 mb-8">
             <a
               href="#contact"
+              onClick={() =>
+                trackAnalyticsEvent("consultation_cta_click", {
+                  cta_placement: "hero_primary",
+                  content_type: "homepage",
+                })
+              }
               className="group inline-flex items-center gap-2 bg-primary hover:bg-[#C4400F] text-[#1a0800] font-bold text-[15px] xl:text-base px-6 xl:px-[38px] py-4 xl:py-[19px] rounded-[2px] shadow-[0_8px_24px_rgba(255,90,31,0.28)] hover:shadow-[0_12px_28px_rgba(255,90,31,0.4)] transition-all duration-300 hover:-translate-y-0.5 cursor-pointer whitespace-nowrap"
             >
               {t("hero.cta_primary")} <span className="font-sans group-hover:translate-x-1.5 transition-transform duration-300">→</span>
@@ -299,9 +323,9 @@ const Hero = ({ images, avatars, onAnimationComplete }) => {
 
             <div className="flex items-center gap-3.5">
               {/* Avatars Overlapping */}
-              {avatars && avatars.length > 0 && (
+              {displayAvatars.length > 0 && (
                 <div className="flex -space-x-2.5 shrink-0">
-                  {avatars.map((avatar, idx) => (
+                  {displayAvatars.map((avatar, idx) => (
                     <img
                       key={idx}
                       src={avatar}

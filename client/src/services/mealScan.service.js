@@ -14,5 +14,8 @@ export const analyzeMeal = async (
   if (!response.data?.success || !response.data?.data) {
     throw new Error("Kết quả phân tích không hợp lệ");
   }
-  return response.data.data;
+  return {
+    result: response.data.data,
+    quota: response.data.meta?.quota || null,
+  };
 };

@@ -27,11 +27,15 @@ import { ShieldAlert } from "lucide-react";
 import LoginModal from "./LoginModal";
 import SavedMealPlans from "./SavedMealPlans";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
+import {
+  hasUsedGuestMealPlanPreview,
+  markGuestMealPlanPreviewUsed,
+} from "../../utils/publicJourney";
 
 const loadSelectedFoods = () => {
-  const saved = localStorage.getItem("selectedFoods");
-  if (!saved) return null;
   try {
+    const saved = globalThis.localStorage?.getItem("selectedFoods");
+    if (!saved) return null;
     return JSON.parse(saved);
   } catch {
     return null;
@@ -48,6 +52,9 @@ const MealPlan = () => {
   const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
   const [selectedFoods, setSelectedFoods] = useState(loadSelectedFoods);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [guestPreviewUsed, setGuestPreviewUsed] = useState(
+    hasUsedGuestMealPlanPreview,
+  );
 
   const { user, loading: authLoading } = useAuth();
   const { accessLevel, isChecking, accessError, retryAccess, canGenerate, remainingGenerations, recordGeneration, maxGenerations } = useMealPlanAccess();
@@ -65,7 +72,7 @@ const MealPlan = () => {
       selectedPlan,
       targetMacros: activeMacroTarget,
       foodDatabase,
-      customFoods: selectedFoods,
+      customFoods: user ? selectedFoods : null,
     });
 
 
@@ -86,31 +93,39 @@ const MealPlan = () => {
 
   // Xử lý tạo thực đơn (gợi ý)
   const handleGenerateMeal = async () => {
-    // Guest chưa login → hiện LoginModal
-    if (!user) {
-      setShowLoginModal(true);
-      return;
-    }
-    if (isChecking) {
-      toast.info(t("toast.loading_macros"));
-      return;
-    }
-    if (accessError) {
-      toast.error("Không thể xác minh lượt tạo thực đơn. Vui lòng thử lại.");
-      return;
-    }
-
-
-    // Kiểm tra giới hạn lượt cho trial users
-    if (!canGenerate) {
-      toast.error(
-        t("toast.no_remaining", { max: maxGenerations }),
-        { autoClose: 5000 }
-      );
-      return;
-    }
-
     if (selectedMacroPlan && macroSet && macroSet[selectedMacroPlan]) {
+      if (!foodDatabase?.length) {
+        toast.info(t("toast.loading_foods"));
+        return;
+      }
+
+      if (!user) {
+        if (guestPreviewUsed) {
+          setShowLoginModal(true);
+          return;
+        }
+
+        generateMeals(macroSet[selectedMacroPlan]);
+        markGuestMealPlanPreviewUsed();
+        setGuestPreviewUsed(true);
+        return;
+      }
+
+      if (isChecking) {
+        toast.info(t("toast.loading_macros"));
+        return;
+      }
+      if (accessError) {
+        toast.error(t("toast.access_error"));
+        return;
+      }
+      if (!canGenerate) {
+        toast.error(t("toast.no_remaining", { max: maxGenerations }), {
+          autoClose: 5000,
+        });
+        return;
+      }
+
       // Ghi nhận lượt lên server trước
       const recorded = await recordGeneration();
       if ((!recorded) && accessLevel === "trial") {
@@ -128,7 +143,28 @@ const MealPlan = () => {
   };
 
   const hasMeals = meals.length > 0;
-  const buttonLabel = hasMeals ? t("btn_regenerate") : t("btn_generate");
+  const buttonLabel =
+    !user && guestPreviewUsed
+      ? t("btn_login_to_regenerate")
+      : hasMeals
+        ? t("btn_regenerate")
+        : t("btn_generate");
+
+  const handleOpenFavorites = () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    setIsFoodModalOpen(true);
+  };
+
+  const handleSelectTab = (tab) => {
+    if (tab === "custom" && !user) {
+      setShowLoginModal(true);
+      return;
+    }
+    setActiveTab(tab);
+  };
 
   // Loading states (chỉ chờ auth, không block nếu chưa login)
   if (authLoading) {
@@ -212,18 +248,22 @@ const MealPlan = () => {
             <MealButton
               onGenerate={handleGenerateMeal}
               isGenerating={isGenerating}
-              disabled={!isMacroReady || isLoadingFoods || isChecking || accessError}
+              disabled={
+                !isMacroReady ||
+                isLoadingFoods ||
+                (Boolean(user) && (isChecking || accessError))
+              }
               label={buttonLabel}
             />
 
             <button
-              onClick={() => setIsFoodModalOpen(true)}
-              className="w-full sm:w-auto px-5 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium transition flex items-center justify-center gap-2"
+              onClick={handleOpenFavorites}
+              className="w-full sm:w-auto min-h-11 px-5 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium transition flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <Heart className="w-4 h-4" /> {t("btn_select_favorites")}
             </button>
 
-            {selectedFoods && (
+            {user && selectedFoods && (
               <button
                 onClick={handleResetSelectedFoods}
                 className="w-full sm:w-auto px-5 py-2.5 bg-red-900/50 hover:bg-red-800/50 rounded-full text-red-300 font-medium transition flex items-center justify-center gap-2"
@@ -232,6 +272,25 @@ const MealPlan = () => {
               </button>
             )}
           </div>
+
+          {!user && guestPreviewUsed && (
+            <div
+              className="mx-auto mb-6 max-w-2xl rounded-xl border border-primary/30 bg-primary/10 p-4 text-center"
+              role="status"
+            >
+              <p className="font-bold text-white">{t("guest_preview.title")}</p>
+              <p className="mt-1 text-sm leading-6 text-gray-300">
+                {t("guest_preview.description")}
+              </p>
+              <button
+                className="mt-3 min-h-11 rounded-lg bg-primary px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                onClick={() => setShowLoginModal(true)}
+                type="button"
+              >
+                {t("guest_preview.cta")}
+              </button>
+            </div>
+          )}
 
           {user && accessError && (
             <div className="mx-auto mb-6 max-w-lg rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300">
@@ -276,7 +335,7 @@ const MealPlan = () => {
           <div className="border-b border-gray-700 mb-6">
             <div className="flex justify-center sm:justify-start gap-4 sm:gap-6">
               <button
-                onClick={() => setActiveTab("menu")}
+                onClick={() => handleSelectTab("menu")}
                 className={`py-2 px-1 font-semibold text-sm transition-all flex items-center gap-1 ${activeTab === "menu"
                     ? "border-b-2 border-primary text-primary"
                     : "text-gray-400 hover:text-gray-200"
@@ -286,7 +345,7 @@ const MealPlan = () => {
               </button>
 
               <button
-                onClick={() => setActiveTab("custom")}
+                onClick={() => handleSelectTab("custom")}
                 className={`py-2 px-1 font-semibold text-sm transition-all flex items-center gap-1 ${activeTab === "custom"
                     ? "border-b-2 border-primary text-primary"
                     : "text-gray-400 hover:text-gray-200"
@@ -296,7 +355,7 @@ const MealPlan = () => {
               </button>
 
               <button
-                onClick={() => setActiveTab("nutrition")}
+                onClick={() => handleSelectTab("nutrition")}
                 className={`py-2 px-1 font-semibold text-sm transition-all flex items-center gap-1 ${activeTab === "nutrition"
                     ? "border-b-2 border-primary text-primary"
                     : "text-gray-400 hover:text-gray-200"

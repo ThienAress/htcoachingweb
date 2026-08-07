@@ -16,6 +16,8 @@ import ChatIcons from "../components/ChatIcons";
 import ScrollToTop from "../components/ScrollToTop";
 import { translateData } from "../utils/localDataTranslator";
 import { normalizeBlogSubCategory } from "../data/blogCategories";
+import useBlogEngagement from "../hooks/useBlogEngagement";
+import { trackAnalyticsEvent } from "../utils/analytics";
 
 const getSubCategoryLabel = (t, category, subValue) => {
   if (!category || !subValue) return "";
@@ -211,6 +213,12 @@ const BlogDetail = () => {
 
   const toc = useMemo(() => extractTOC(post?.content), [post?.content]);
 
+  useBlogEngagement({
+    slug: post?.slug || "",
+    category: post?.category || "",
+    language: i18n.language,
+  });
+
   if (isLoading) {
     return (
       <>
@@ -394,6 +402,7 @@ const BlogDetail = () => {
                   prose-li:text-slate-800 prose-li:text-[15px] prose-li:leading-[1.85]
                   prose-ul:space-y-1
                   prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono
+                  [&_.tableWrapper]:my-6 [&_.tableWrapper]:max-w-full [&_.tableWrapper]:overflow-x-auto
                 "
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(fixBrokenLinks(injectHeadingIds(post.content))) }}
                 onClick={(e) => {
@@ -469,6 +478,13 @@ const BlogDetail = () => {
                     </p>
                     <Link
                       to="/#contact"
+                      onClick={() =>
+                        trackAnalyticsEvent("consultation_cta_click", {
+                          cta_placement: "blog_author",
+                          content_type: "blog",
+                          content_slug: post.slug,
+                        })
+                      }
                       className="mt-4 inline-flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-primary-dark transition"
                     >
                       {t("sidebar.contact_btn")} <ArrowRight className="w-4 h-4" />
@@ -558,6 +574,13 @@ const BlogDetail = () => {
                   </p>
                   <Link
                     to="/#contact"
+                    onClick={() =>
+                      trackAnalyticsEvent("consultation_cta_click", {
+                        cta_placement: "blog_sidebar",
+                        content_type: "blog",
+                        content_slug: post.slug,
+                      })
+                    }
                     className="mt-3 inline-flex items-center gap-1.5 bg-primary text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-primary/90 transition"
                   >
                     {t("sidebar.contact_btn")} <ArrowRight className="w-3 h-3" />

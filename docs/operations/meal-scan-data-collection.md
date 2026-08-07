@@ -99,7 +99,8 @@ secret. Mỗi lần đổi model/prompt/schema phải tạo holdout report mới
 - Development runtime dùng Meal Scan mock mặc định và không gửi ảnh sang Gemini. Chỉ đặt
   MEAL_SCAN_PROVIDER=gemini cho thử nghiệm local có kiểm soát với ảnh test/public, không phải ảnh khách.
 - Production giữ Paid Service gate và quota server-authoritative: anonymous 2 lượt/24 giờ/IP,
-  authenticated 10 lượt/24 giờ/user. Response 429 không gọi provider và không debit ví HTCOACHING.
+  user thường 3 lượt/24 giờ/user, coaching customer và HLV 10 lượt/24 giờ/user. Response 429 không gọi
+  provider và không debit ví HTCOACHING.
 - Trước deploy, owner phải xác nhận đúng AI Studio project/billing account và phê duyệt project-level
   monthly spend cap bằng USD. Không tự suy ra cap từ app wallet hoặc tier limit.
 - Theo dõi Usage/Spend trong AI Studio; app rate limit là cost guard bổ sung, không thay spend cap.

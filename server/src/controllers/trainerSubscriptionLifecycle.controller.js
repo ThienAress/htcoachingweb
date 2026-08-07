@@ -4,6 +4,7 @@ import TrainerTrialClaim from "../models/TrainerTrialClaim.js";
 import {
   getTrainerPlan,
   getTrainerPlanCatalogMeta,
+  listTrainerPlanBenefits,
   listTrainerPlans,
 } from "../services/trainerPlanCatalog.service.js";
 import { purchaseTrainerSubscription } from "../services/trainerSubscriptionPurchase.service.js";
@@ -38,6 +39,7 @@ export const getTrainerPlanCatalog = (_req, res) =>
   res.status(200).json({
     success: true,
     data: listTrainerPlans(),
+    benefits: listTrainerPlanBenefits(),
     meta: getTrainerPlanCatalogMeta(),
   });
 

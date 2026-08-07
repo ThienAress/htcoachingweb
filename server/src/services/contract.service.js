@@ -439,8 +439,17 @@ function contractSigningError(contract) {
 // SERVICE FUNCTIONS
 // ============================================================================
 
-export async function createContract(orderId, createdBy, ipAddress, userAgent) {
-  const order = await Order.findById(orderId);
+export async function createContract(
+  orderId,
+  createdBy,
+  ipAddress,
+  userAgent,
+  { trainerId = null } = {},
+) {
+  const order = await Order.findOne({
+    _id: orderId,
+    ...(trainerId ? { trainerId } : {}),
+  });
   if (!order) throw new Error("Đơn hàng không tồn tại");
   if (order.status !== "approved") throw new Error("Đơn hàng chưa được xác nhận");
 
@@ -481,10 +490,10 @@ export async function createContract(orderId, createdBy, ipAddress, userAgent) {
   }
 }
 
-export async function getContracts(query = {}) {
+export async function getContracts({ status, trainerId = null } = {}) {
   const filter = {};
-  if (query.status) filter.status = query.status;
-  if (query.trainerId) filter.trainerId = query.trainerId;
+  if (status) filter.status = status;
+  if (trainerId) filter.trainerId = trainerId;
   return Contract.find(filter)
     .select("-auditTrail -signatureImage -trainerSignature")
     .populate("clientId", "name email")
@@ -526,8 +535,17 @@ export async function markAsViewed(
   return contract;
 }
 
-export async function sendToClient(contractId, ipAddress, userAgent) {
-  const contract = await Contract.findById(contractId);
+export async function sendToClient(
+  contractId,
+  ipAddress,
+  userAgent,
+  { trainerId = null } = {},
+) {
+  const ownerFilter = {
+    _id: contractId,
+    ...(trainerId ? { trainerId } : {}),
+  };
+  const contract = await Contract.findOne(ownerFilter);
   if (!contract) throw new Error("Hợp đồng không tồn tại");
   if (contract.status !== "draft") throw new Error("Chỉ có thể gửi hợp đồng ở trạng thái nháp");
   if (!contract.trainerSignature) throw new Error("HLV chưa ký tên. Vui lòng ký trước khi gửi.");
@@ -628,10 +646,19 @@ export function getSignedPdfStream(contract) {
   return getPdfStreamFromGridFS(contract.signedPdfFileId);
 }
 
-export async function cancelContract(contractId, ipAddress, userAgent) {
+export async function cancelContract(
+  contractId,
+  ipAddress,
+  userAgent,
+  { trainerId = null } = {},
+) {
+  const ownerFilter = {
+    _id: contractId,
+    ...(trainerId ? { trainerId } : {}),
+  };
   const contract = await Contract.findOneAndUpdate(
     {
-      _id: contractId,
+      ...ownerFilter,
       status: { $in: ["draft", "sent", "viewed", "signing"] },
     },
     {
@@ -649,7 +676,7 @@ export async function cancelContract(contractId, ipAddress, userAgent) {
   );
   if (contract) return contract;
 
-  const existing = await Contract.findById(contractId);
+  const existing = await Contract.findOne(ownerFilter);
   if (!existing) throw new Error("Hợp đồng không tồn tại");
   if (existing.status === "signed") {
     throw new Error("Không thể hủy hợp đồng đã ký");
@@ -658,8 +685,15 @@ export async function cancelContract(contractId, ipAddress, userAgent) {
   throw new Error("Không thể hủy hợp đồng đã hết hiệu lực");
 }
 
-export async function updateContractDetails(contractId, updateData) {
-  const contract = await Contract.findById(contractId);
+export async function updateContractDetails(
+  contractId,
+  updateData,
+  { trainerId = null } = {},
+) {
+  const contract = await Contract.findOne({
+    _id: contractId,
+    ...(trainerId ? { trainerId } : {}),
+  });
   if (!contract) throw new Error("Hợp đồng không tồn tại");
   if (contract.status !== "draft") throw new Error("Chỉ có thể sửa hợp đồng ở trạng thái nháp");
 
@@ -725,9 +759,19 @@ export async function expireOldContracts() {
   return result.modifiedCount;
 }
 
-export async function getApprovedOrdersWithoutContract() {
+export async function getApprovedOrdersWithoutContract({ trainerId = null } = {}) {
+  const ownerFilter = trainerId ? { trainerId } : {};
   const contractedOrderIds = await Contract.distinct("orderId", {
     isActive: true,
+    ...ownerFilter,
   });
-  return Order.find({ status: "approved", _id: { $nin: contractedOrderIds } }).populate("userId", "name email phone").sort({ approvedAt: -1 }).lean();
+  return Order.find({
+    status: "approved",
+    _id: { $nin: contractedOrderIds },
+    ...ownerFilter,
+  })
+    .select("name email package sessions totalSessions trainerId approvedAt userId")
+    .populate("userId", "name email phone")
+    .sort({ approvedAt: -1 })
+    .lean();
 }

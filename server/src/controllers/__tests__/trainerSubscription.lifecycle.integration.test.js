@@ -79,6 +79,13 @@ describe("trainer subscription lifecycle", () => {
       { month: 250000, year: 2500000 },
       { month: 300000, year: 3000000 },
     ]);
+    expect(response.body.benefits).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "max_students" }),
+        expect.objectContaining({ key: "crm_ai_analysis" }),
+        expect.objectContaining({ key: "free_updates" }),
+      ]),
+    );
     expect(response.body.meta).toEqual({
       currency: "VND",
       catalogFingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),

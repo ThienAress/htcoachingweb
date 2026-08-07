@@ -1,0 +1,7 @@
+interface:
+  display_name: "Service Access Policy"
+  short_description: "Manage service access limits and entitlements"
+  default_prompt: "Use $service-access-policy to add or change a service quota safely."
+
+policy:
+  allow_implicit_invocation: true

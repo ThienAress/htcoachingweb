@@ -39,6 +39,8 @@ import contactRoutes from "./src/routes/contact.routes.js";
 import foodRoutes from "./src/routes/food.routes.js";
 import foodReferenceRoutes from "./src/routes/foodReference.routes.js";
 import bookingRoutes from "./src/routes/booking.routes.js";
+import seoAnalyticsRoutes from "./src/routes/seoAnalytics.routes.js";
+import serviceAccessPolicyRoutes from "./src/routes/serviceAccessPolicy.routes.js";
 import exerciseRoutes from "./src/routes/exercise.routes.js";
 import exerciseSuggestionRoutes from "./src/routes/exerciseSuggestion.routes.js";
 import customerStoryRoutes from "./src/routes/customerStory.routes.js";
@@ -220,6 +222,8 @@ app.use("/api/trainer-overview", trainerOverviewRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/trainer-client-overview", trainerClientOverviewRoutes);
 app.use("/api/coaching-activity", coachingActivityRoutes);
+app.use("/api/admin/analytics", seoAnalyticsRoutes);
+app.use("/api/admin/service-access-policies", serviceAccessPolicyRoutes);
 import adminDepositRoutes from "./src/routes/adminDeposit.routes.js";
 app.use("/api/admin/deposits", adminDepositRoutes);
 

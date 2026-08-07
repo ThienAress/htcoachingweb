@@ -76,7 +76,19 @@ describe("POST /api/meal-scans/analyze", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers["cache-control"]).toBe("private, no-store");
-    expect(response.body).toEqual({ success: true, data: RESULT });
+    expect(response.body).toMatchObject({
+      success: true,
+      data: RESULT,
+      meta: {
+        quota: {
+          serviceKey: "meal_scan",
+          tier: "user",
+          limit: 3,
+          remaining: 2,
+          resetAt: expect.any(String),
+        },
+      },
+    });
     expect(analyzeMealImage).toHaveBeenCalledWith({
       mimeType: "image/jpeg",
       base64: "YQ==",
@@ -85,13 +97,13 @@ describe("POST /api/meal-scans/analyze", () => {
     });
   });
 
-  test("limits an authenticated user to ten scans per 24 hours without debiting wallet", async () => {
+  test("limits a regular authenticated user to three scans per 24 hours without debiting wallet", async () => {
     const { accessToken } = await createTestUser();
     analyzeMealImage.mockResolvedValue(RESULT);
     const statuses = [];
     let limitedResponse;
 
-    for (let attempt = 1; attempt <= 11; attempt += 1) {
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
       const response = await withAuth(
         request(app).post("/api/meal-scans/analyze"),
         accessToken,
@@ -101,16 +113,17 @@ describe("POST /api/meal-scans/analyze", () => {
         declaredIngredients: [{ name: "  Dầu ô liu  ", grams: 15 }],
       });
       statuses.push(response.status);
-      if (attempt === 11) limitedResponse = response;
+      if (attempt === 4) limitedResponse = response;
     }
 
-    expect(statuses).toEqual([...Array(10).fill(200), 429]);
-    expect(limitedResponse.headers["ratelimit-policy"]).toMatch(/10;w=86400/);
+    expect(statuses).toEqual([200, 200, 200, 429]);
+    expect(limitedResponse.headers["ratelimit-policy"]).toMatch(/3;w=86400/);
     expect(limitedResponse.body).toMatchObject({
       success: false,
       code: "MEAL_SCAN_RATE_LIMITED",
+      meta: { quota: { tier: "user", limit: 3, remaining: 0 } },
     });
-    expect(analyzeMealImage).toHaveBeenCalledTimes(10);
+    expect(analyzeMealImage).toHaveBeenCalledTimes(3);
     expect(await WalletTransaction.countDocuments()).toBe(0);
   });
 
@@ -121,7 +134,11 @@ describe("POST /api/meal-scans/analyze", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers["cache-control"]).toBe("private, no-store");
-    expect(response.body).toEqual({ success: true, data: RESULT });
+    expect(response.body).toMatchObject({
+      success: true,
+      data: RESULT,
+      meta: { quota: { tier: "guest", limit: 2, remaining: 1 } },
+    });
   });
 
   test("keeps CSRF mandatory for anonymous scans", async () => {

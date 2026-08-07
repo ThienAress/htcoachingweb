@@ -89,9 +89,10 @@ describe("AI conversation working memory", () => {
   it("describes the current anonymous Meal Scan quota", () => {
     const prompt = buildSystemPrompt({ page: "/quet-mon-an" });
 
-    expect(prompt).toContain("không cần đăng nhập");
+    expect(prompt).toContain("guest có 2 lượt/24 giờ");
     expect(prompt).toContain("2 lượt/24 giờ");
-    expect(prompt).toContain("10 lượt/24 giờ");
+    expect(prompt).toContain("user thường 3 lượt/24 giờ");
+    expect(prompt).toContain("user có gói/HLV 10 lượt/24 giờ");
     expect(prompt).not.toContain("cần đăng nhập và luôn kiểm tra lại khẩu phần");
   });
 

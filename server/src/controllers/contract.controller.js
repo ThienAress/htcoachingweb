@@ -30,7 +30,8 @@ export const createContract = async (req, res) => {
       orderId,
       req.user.id,
       req.ip,
-      req.headers["user-agent"]
+      req.headers["user-agent"],
+      { trainerId: req.isAdmin ? null : req.user.id },
     );
     res.status(201).json({ success: true, data: contract });
   } catch (error) {
@@ -44,7 +45,10 @@ export const createContract = async (req, res) => {
  */
 export const getContracts = async (req, res) => {
   try {
-    const contracts = await contractService.getContracts(req.query);
+    const contracts = await contractService.getContracts({
+      status: req.query.status,
+      trainerId: req.isAdmin ? null : req.user.id,
+    });
     res.json({ success: true, data: contracts });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -56,7 +60,9 @@ export const getContracts = async (req, res) => {
  */
 export const getApprovedOrders = async (req, res) => {
   try {
-    const orders = await contractService.getApprovedOrdersWithoutContract();
+    const orders = await contractService.getApprovedOrdersWithoutContract({
+      trainerId: req.isAdmin ? null : req.user.id,
+    });
     res.json({ success: true, data: orders });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -94,7 +100,11 @@ export const getContractById = async (req, res) => {
  */
 export const updateContract = async (req, res) => {
   try {
-    const contract = await contractService.updateContractDetails(req.params.id, req.body);
+    const contract = await contractService.updateContractDetails(
+      req.params.id,
+      req.body,
+      { trainerId: req.isAdmin ? null : req.user.id },
+    );
     res.json({ success: true, data: contract });
   } catch (error) {
     const status = error.message.includes("không tồn tại") ? 404 : 400;
@@ -110,7 +120,8 @@ export const sendContract = async (req, res) => {
     const contract = await contractService.sendToClient(
       req.params.id,
       req.ip,
-      req.headers["user-agent"]
+      req.headers["user-agent"],
+      { trainerId: req.isAdmin ? null : req.user.id },
     );
 
     // Gửi email cho khách hàng
@@ -192,7 +203,8 @@ export const cancelContract = async (req, res) => {
     const contract = await contractService.cancelContract(
       req.params.id,
       req.ip,
-      req.headers["user-agent"]
+      req.headers["user-agent"],
+      { trainerId: req.isAdmin ? null : req.user.id },
     );
     res.json({ success: true, data: contract });
   } catch (error) {

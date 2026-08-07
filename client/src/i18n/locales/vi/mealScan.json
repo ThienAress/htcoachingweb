@@ -31,6 +31,10 @@
     "upload": "Bước 01 — Chọn ảnh",
     "analyze": "Bước 02 — Phân tích & kiểm tra"
   },
+  "quota": {
+    "remaining": "Còn {{remaining}}/{{limit}} lượt quét",
+    "reset": "Làm mới {{time}}"
+  },
   "uploader": {
     "checking": "Đang kiểm tra chất lượng ảnh...",
     "title": "Ảnh món ăn",
@@ -135,8 +139,8 @@
     "quality_unreadable": "Không thể đọc ảnh này. Hãy chọn hoặc chụp một ảnh khác.",
     "type": "Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.",
     "size": "Ảnh gốc không được vượt quá 10 MB.",
-    "MEAL_SCAN_ANONYMOUS_LIMITED": "Bạn đã dùng hết 2 lượt quét không cần tài khoản trong 24 giờ. Hãy đăng nhập để có thêm lượt hoặc thử lại sau.",
-    "MEAL_SCAN_RATE_LIMITED": "Bạn đã dùng hết 10 lượt quét trong 24 giờ. Vui lòng thử lại khi quota được làm mới.",
+    "MEAL_SCAN_ANONYMOUS_LIMITED": "Bạn đã dùng hết {{limit}} lượt quét không cần tài khoản trong 24 giờ. Hãy đăng nhập để có thêm lượt hoặc thử lại sau.",
+    "MEAL_SCAN_RATE_LIMITED": "Bạn đã dùng hết {{limit}} lượt quét trong 24 giờ. Vui lòng thử lại khi quota được làm mới.",
     "generic": "Không thể phân tích ảnh lúc này. Vui lòng thử lại."
   },
 

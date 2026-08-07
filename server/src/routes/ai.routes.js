@@ -1,7 +1,12 @@
 import express from "express";
 import { protect } from "../middlewares/auth.middleware.js";
+import { ensureAiActor } from "../middlewares/aiGuestSession.js";
+import { optionalAiAuth } from "../middlewares/optionalAiAuth.js";
 import { csrfProtection } from "../middlewares/csrf.js";
-import { aiChatLimiter } from "../middlewares/aiRateLimit.js";
+import {
+  aiChatLimiter,
+  aiGuestChatLimiter,
+} from "../middlewares/aiRateLimit.js";
 import {
   chatStream,
   getHistory,
@@ -15,8 +20,16 @@ import {
 
 const router = express.Router();
 
-// Tất cả routes đều cần đăng nhập
-router.post("/chat", protect, csrfProtection, aiChatLimiter, chatStream);
+// Chat cho phép guest có quota; history và thao tác conversation vẫn cần login.
+router.post(
+  "/chat",
+  optionalAiAuth,
+  ensureAiActor,
+  csrfProtection,
+  aiGuestChatLimiter,
+  aiChatLimiter,
+  chatStream,
+);
 router.get("/history", protect, getHistory);
 router.delete("/history", protect, csrfProtection, clearHistory);
 

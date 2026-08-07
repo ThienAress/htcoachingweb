@@ -1,6 +1,7 @@
 // F1CreateCustomerForm.jsx
 import { useState } from "react";
 import { ArrowLeft, UserPlus, Shield, Sparkles } from "lucide-react";
+import ConversionOriginFields from "../admin/ConversionOriginFields";
 
 const Input = ({ label, required, error, ...props }) => {
   return (
@@ -103,6 +104,10 @@ const validateCreateCustomerForm = (form) => {
     errors.email = "Email phải có đuôi @gmail.com";
   }
 
+  if (form.originType && !form.originId) {
+    errors.originId = "Vui lòng chọn đúng bản ghi nguồn";
+  }
+
   return errors;
 };
 
@@ -110,6 +115,8 @@ const F1CreateCustomerForm = ({
   createForm,
   setCreateForm,
   submittingCreate,
+  canSelectOrigin,
+  conversionOrigins,
   onBack,
   onSubmit,
 }) => {
@@ -248,6 +255,21 @@ const F1CreateCustomerForm = ({
               error={errors.email}
             />
           </div>
+
+          {canSelectOrigin && (
+            <ConversionOriginFields
+              originType={createForm.originType}
+              originId={createForm.originId}
+              onTypeChange={(value) => updateField("originType", value)}
+              onIdChange={(value) => updateField("originId", value)}
+              bookings={conversionOrigins.bookings}
+              contacts={conversionOrigins.contacts}
+              isLoading={conversionOrigins.isLoading}
+              isError={conversionOrigins.isError}
+              onRetry={conversionOrigins.retry}
+              error={errors.originId}
+            />
+          )}
 
           <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end">
             <button

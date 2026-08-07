@@ -34,6 +34,7 @@
 - Luồng chuẩn: route → controller → service → model. Frontend gọi API qua `client/src/services/` và axios instance hiện có.
 - Deploy: frontend Netlify, backend Render. Node version chuẩn lấy từ `.node-version`, `.nvmrc`, và `package.json`.
 - Tài liệu kiến trúc, roles, naming, SEO, testing và known issues chi tiết: `.agents/reference/project-guide.md`. Chỉ đọc các section liên quan khi cần thêm context.
+- Vocabulary nghiệp vụ canonical nằm trong `CONTEXT.md`; quyết định kiến trúc bền nằm trong `docs/architecture/adr/`. Không dùng hai nguồn này thay cho spec hoặc plan.
 
 ## Luật code bắt buộc
 
@@ -106,15 +107,21 @@ Thứ tự nguồn canonical để tránh instruction drift:
 
 1. `AGENTS.md`: quyền hạn, safety và routing bắt buộc.
 2. `.agents/rules/`: policy canonical theo domain; skill phải link tới rule thay vì chép lại.
-3. `.agents/reference/project-guide.md`: kiến trúc và file map, không phải nguồn policy.
-4. `.agents/skills/`: workflow thực thi, không hardcode số liệu có thể đếm từ repo.
-5. `docs/specs/` và `docs/operations/`: nghiệp vụ và runbook canonical.
+3. `CONTEXT.md`: vocabulary nghiệp vụ; không chứa implementation detail.
+4. `docs/architecture/adr/`: quyết định kiến trúc bền và trade-off.
+5. `.agents/reference/project-guide.md`: kiến trúc và file map, không phải nguồn policy.
+6. `.agents/skills/`: workflow thực thi, không hardcode số liệu có thể đếm từ repo.
+7. `docs/specs/` và `docs/operations/`: nghiệp vụ và runbook canonical.
 
 Codex tự phát hiện skill từ `.agents/skills/<skill-name>/SKILL.md`. Khi task khớp description hoặc user gọi `$skill-name`, phải đọc toàn bộ `SKILL.md` trước khi hành động. Ưu tiên các skill sau:
 
-- Quy trình: `feature-spec`, `plan-template`, `debugging`, `cleanup-delivery`, `tdd-guide`.
-- Chất lượng/tham khảo: `audit-playbook`, `ui-quality`, `known-issues`, `pdf-generation`, `ai-chat-system`.
+- Router: user gọi `$ask-ht` khi chưa rõ next workflow; router chỉ định tuyến, không tự thực thi.
+
+- Quy trình: `feature-spec`, `plan-template`, `domain-modeling`, `debugging`, `tdd-guide`, `code-review`, `cleanup-delivery`, `handoff`.
+- Chất lượng/tham khảo: `impact-check`, `audit-playbook`, `ui-quality`, `known-issues`, `pdf-generation`, `ai-chat-system`, `service-access-policy`.
 - Workflow chuyển thành skill: `audit`, `ship`, `seo-check`, `new-page`, `schema-change`, `ui-check`, `pre-deploy`, `qa`, `ai-check`, `new-tool`, `goad`.
+
+Invocation catalog và flow map nằm tại `.agents/reference/agent-workflow-map.md`; `agents/openai.yaml` của mỗi skill là contract được validator kiểm tra.
 
 Các tên `/audit`, `/ship` cũ không phải slash command native của Codex. Dùng `$audit`, `$ship`, ... hoặc mô tả yêu cầu bằng ngôn ngữ tự nhiên.
 

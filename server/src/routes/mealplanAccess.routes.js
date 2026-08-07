@@ -2,53 +2,40 @@ import express from "express";
 import { safeLog } from "../utils/safeLogger.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
-import TrainerSubscription from "../models/TrainerSubscription.js";
-import Order from "../models/Order.js";
 import User from "../models/User.js";
+import { getServiceAccessPolicy } from "../constants/serviceAccessPolicies.js";
+import { resolveServiceAccessTier } from "../services/serviceAccessPolicy.service.js";
 
 const router = express.Router();
-
-const MAX_FREE_GENERATIONS = 1;
 
 // ===== CHECK QUYỀN TRUY CẬP =====
 router.get("/check", protect, async (req, res) => {
   try {
-    const { id, role } = req.user;
-
-    // 1. Admin & Trainer luôn có quyền
-    if (role === "admin" || role === "trainer") {
-      return res.json({ success: true, data: { access: "unlimited", generationCount: 0, maxGenerations: MAX_FREE_GENERATIONS } });
+    const tier = await resolveServiceAccessTier(req.user);
+    const policy = getServiceAccessPolicy("meal_plan", tier);
+    if (policy.mode === "unlimited") {
+      return res.json({
+        success: true,
+        data: {
+          access: "unlimited",
+          generationCount: 0,
+          maxGenerations: null,
+          tier,
+        },
+      });
     }
 
-    const currentUser = await User.findById(id);
-
-    // 2. Check TrainerSubscription (đã mua gói HLV)
-    const activeSub = await TrainerSubscription.findOne({
-      userId: id,
-      isActive: true,
-      endDate: { $gt: new Date() },
-    });
-    if (activeSub) {
-      return res.json({ success: true, data: { access: "unlimited", generationCount: 0, maxGenerations: MAX_FREE_GENERATIONS } });
-    }
-
-    // 3. Check Order (gói tập thông thường)
-    const activeOrder = await Order.findOne({
-      userId: id,
-      status: "approved"
-    });
-    if (activeOrder) {
-      return res.json({ success: true, data: { access: "unlimited", generationCount: 0, maxGenerations: MAX_FREE_GENERATIONS } });
-    }
-
-    // 4. User thường (kể cả F1 Customer) → trial với giới hạn lượt
+    const currentUser = await User.findById(req.user.id)
+      .select("mealPlanGenerations")
+      .lean();
     const generationCount = currentUser?.mealPlanGenerations || 0;
     return res.json({
       success: true,
       data: {
         access: "trial",
         generationCount,
-        maxGenerations: MAX_FREE_GENERATIONS,
+        maxGenerations: policy.limit,
+        tier,
       }
     });
   } catch (err) {
@@ -61,12 +48,25 @@ router.get("/check", protect, async (req, res) => {
 router.post("/record", protect, csrfProtection, async (req, res) => {
   try {
     const { id } = req.user;
+    const tier = await resolveServiceAccessTier(req.user);
+    const policy = getServiceAccessPolicy("meal_plan", tier);
+    if (policy.mode === "unlimited") {
+      return res.json({
+        success: true,
+        data: {
+          access: "unlimited",
+          generationCount: 0,
+          maxGenerations: null,
+          tier,
+        },
+      });
+    }
 
     const user = await User.findOneAndUpdate(
       {
         _id: id,
         $or: [
-          { mealPlanGenerations: { $lt: MAX_FREE_GENERATIONS } },
+          { mealPlanGenerations: { $lt: policy.limit } },
           { mealPlanGenerations: { $exists: false } },
         ],
       },
@@ -79,7 +79,7 @@ router.post("/record", protect, csrfProtection, async (req, res) => {
         success: true,
         data: {
           generationCount: user.mealPlanGenerations,
-          maxGenerations: MAX_FREE_GENERATIONS,
+          maxGenerations: policy.limit,
         },
       });
     }
@@ -96,7 +96,7 @@ router.post("/record", protect, csrfProtection, async (req, res) => {
       message: "Đã hết lượt gợi ý miễn phí",
       data: {
         generationCount: existing.mealPlanGenerations || 0,
-        maxGenerations: MAX_FREE_GENERATIONS,
+        maxGenerations: policy.limit,
       },
     });
   } catch (err) {

@@ -12,6 +12,7 @@
     "security:data-boundaries": "node scripts/check-repository-boundaries.mjs",
     "security:codex": "node scripts/codex-security-scan.mjs",
     "agents:validate": "node .agents/scripts/validate-agent-system.mjs",
+    "verify:seo-conversion-indexes": "node scripts/verify-seo-conversion-indexes.mjs",
     "check:commercial-contracts": "node scripts/check-commercial-contract-boundaries.mjs",
     "test:ops": "node --test scripts/production-monitoring.test.mjs scripts/dependency-audit-policy.test.mjs scripts/codex-security-scan.test.mjs",
     "smoke:production": "node scripts/production-smoke.mjs",

@@ -16,6 +16,9 @@ import {
   ChevronDown,
   SidebarClose,
   SidebarOpen,
+  Package,
+  ScrollText,
+  History,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { mySubscriptionQueryOptions } from "../queries/subscription.queries";
@@ -111,6 +114,9 @@ const TrainerLayout = () => {
     workoutPlans: FileText,
     exercises: Dumbbell,
     f1Customers: TrendingUp,
+    orders: Package,
+    contracts: ScrollText,
+    checkinHistory: History,
   };
   const navGroups = getTrainerNavigationGroups({
     f1Allowed,
@@ -177,6 +183,7 @@ const TrainerLayout = () => {
         <div className="relative h-full flex flex-col text-white w-64 min-h-screen overflow-y-auto">
           {/* Nút đóng — mobile only */}
           <button
+            type="button"
             onClick={closeMobileSidebar}
             className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:hidden"
             aria-label="Đóng menu"
@@ -193,10 +200,11 @@ const TrainerLayout = () => {
               <p className="text-xs text-slate-400">Quản lý khách hàng</p>
             </div>
             <button
+              type="button"
               onClick={() => setIsDesktopCollapsed(true)}
-              className="hidden md:flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-              aria-label="Thu sidebar"
-              title="Thu sidebar"
+              className="hidden size-11 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:flex"
+              aria-label="Thu sidebar HLV"
+              title="Thu sidebar HLV"
             >
               <SidebarClose className="w-5 h-5" />
             </button>
@@ -274,6 +282,7 @@ const TrainerLayout = () => {
         {/* Topbar mobile */}
         <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-white/10 bg-slate-900 px-4 py-3 shadow-sm md:hidden">
           <button
+            type="button"
             ref={mobileMenuButtonRef}
             onClick={() => setIsSidebarOpen(true)}
             className="flex h-11 w-11 items-center justify-center rounded-lg text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
@@ -291,10 +300,13 @@ const TrainerLayout = () => {
         {/* Floating desktop toggle button when collapsed */}
         {isDesktopCollapsed && (
           <button
+            type="button"
             onClick={() => setIsDesktopCollapsed(false)}
-            className="fixed top-4 left-4 z-40 hidden md:flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-slate-300 shadow-md hover:bg-slate-800 hover:text-white transition-colors"
-            aria-label="Mở sidebar"
-            title="Mở sidebar"
+            className="fixed left-4 top-4 z-40 hidden size-11 items-center justify-center rounded-lg bg-slate-900 text-slate-300 shadow-md transition-colors hover:bg-slate-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:flex"
+            aria-label="Mở sidebar HLV"
+            aria-controls="trainer-sidebar"
+            aria-expanded="false"
+            title="Mở sidebar HLV"
           >
             <SidebarOpen className="w-5 h-5" aria-hidden="true" />
           </button>

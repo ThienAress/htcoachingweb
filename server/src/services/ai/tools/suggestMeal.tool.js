@@ -10,9 +10,16 @@ export async function suggestMeal(params) {
   const { targetCalories, proteinGrams, carbGrams, fatGrams, mealsPerDay = 3 } = params;
 
   // Lấy thực phẩm từ DB
-  const proteinFoods = await Food.find({ protein: { $gte: 12 } }).lean();
-  const carbFoods = await Food.find({ carb: { $gte: 15 } }).lean();
-  const fatFoods = await Food.find({ fat: { $gte: 8 } }).lean();
+  const projection = "label protein carb fat calories";
+  const proteinFoods = await Food.find({ protein: { $gte: 12 } })
+    .select(projection)
+    .lean();
+  const carbFoods = await Food.find({ carb: { $gte: 15 } })
+    .select(projection)
+    .lean();
+  const fatFoods = await Food.find({ fat: { $gte: 8 } })
+    .select(projection)
+    .lean();
 
   // Fallback data nếu DB trống
   const proteinList = proteinFoods.length > 0 ? proteinFoods : [

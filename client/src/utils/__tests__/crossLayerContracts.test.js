@@ -53,6 +53,22 @@ const catalogResponse = {
         entitlements: { f1CrmAi: true },
       },
     ],
+    benefits: [
+      {
+        key: "max_students",
+        label: "Số học viên quản lý tối đa",
+        category: { key: "student_management", label: "Quản lý học viên" },
+        valueType: "capacity",
+        includedPlanCodes: ["free", "standard", "professional", "premium"],
+      },
+      {
+        key: "crm_ai_analysis",
+        label: "AI phân tích & đánh giá khách hàng F1",
+        category: { key: "crm_ai", label: "F1 CRM & AI" },
+        valueType: "included",
+        includedPlanCodes: ["professional", "premium"],
+      },
+    ],
     meta: {
       currency: "VND",
       catalogFingerprint: "a".repeat(64),
@@ -65,6 +81,10 @@ describe("cross-layer client contracts", () => {
   it("builds checkout and SEO values from the same catalog response", () => {
     const catalog = normalizeTrainerPlanCatalogResponse(catalogResponse);
     expect(catalog.byCode.standard.prices.month).toBe(200000);
+    expect(catalog.benefits.map((benefit) => benefit.key)).toEqual([
+      "max_students",
+      "crm_ai_analysis",
+    ]);
     expect(buildTrainerPlanOffers(catalog)).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "Free - 30 ngày", price: 0 }),
       expect.objectContaining({ name: "Tiêu chuẩn - theo tháng", price: 200000 }),
@@ -100,6 +120,12 @@ describe("cross-layer client contracts", () => {
     const malformed = structuredClone(catalogResponse);
     malformed.data.data[1].prices.month = "200000";
     expect(() => normalizeTrainerPlanCatalogResponse(malformed)).toThrow(
+      "incomplete",
+    );
+
+    const malformedBenefits = structuredClone(catalogResponse);
+    malformedBenefits.data.benefits[1].includedPlanCodes = ["enterprise"];
+    expect(() => normalizeTrainerPlanCatalogResponse(malformedBenefits)).toThrow(
       "incomplete",
     );
   });

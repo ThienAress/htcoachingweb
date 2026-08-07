@@ -65,6 +65,7 @@ export default function MealScan() {
   const [ingredientsLocked, setIngredientsLocked] = useState(false);
   const [ingredientErrorCode, setIngredientErrorCode] = useState("");
   const [confirmAnalysisOpen, setConfirmAnalysisOpen] = useState(false);
+  const [quota, setQuota] = useState(null);
 
   useEffect(
     () => () => {
@@ -223,11 +224,12 @@ export default function MealScan() {
       setStatus("compressing");
       const image = await compressChatImage(file);
       setStatus("analyzing");
-      const data = await analyzeMeal(
+      const { result: data, quota: nextQuota } = await analyzeMeal(
         image,
         i18n.language,
         declaredIngredients,
       );
+      setQuota(nextQuota);
       setResult(data);
       setAdjustments(
         Object.fromEntries(
@@ -236,9 +238,15 @@ export default function MealScan() {
       );
       setStatus("result");
     } catch (scanError) {
-      const errorKey = SCAN_ERROR_KEYS[scanError.response?.data?.code];
+      const responseQuota = scanError.response?.data?.meta?.quota;
+      if (responseQuota) setQuota(responseQuota);
+      const errorCode = scanError.response?.data?.code;
+      const errorKey = SCAN_ERROR_KEYS[errorCode];
+      const quotaLimit =
+        responseQuota?.limit ??
+        (errorCode === "MEAL_SCAN_ANONYMOUS_LIMITED" ? 2 : 3);
       setError(
-        (errorKey && t(errorKey)) ||
+        (errorKey && t(errorKey, { limit: quotaLimit })) ||
           scanError.response?.data?.message ||
           scanError.message ||
           t("errors.generic"),
@@ -349,6 +357,30 @@ export default function MealScan() {
                   {t("steps.upload")}
                 </span>
               </p>
+              {quota && (
+                <p
+                  className="mb-3 text-center text-sm font-semibold text-slate-700"
+                  role="status"
+                >
+                  {t("quota.remaining", {
+                    remaining: quota.remaining,
+                    limit: quota.limit,
+                  })}
+                  {quota.resetAt && (
+                    <span className="font-normal text-slate-500">
+                      {" · "}
+                      {t("quota.reset", {
+                        time: new Intl.DateTimeFormat(i18n.language, {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }).format(new Date(quota.resetAt)),
+                      })}
+                    </span>
+                  )}
+                </p>
+              )}
               <MealScanUploader
                 user={user}
                 file={file}

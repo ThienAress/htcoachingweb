@@ -28,15 +28,20 @@ description: Hướng dẫn test và TDD cho htcoachingweb. Dùng khi viết ho�
 
 ### Mode 1: TDD New Feature
 Khi implement feature mới có business logic:
-1. RED → Viết failing test mô tả behavior mong muốn
-2. GREEN → Viết code tối thiểu để test PASS
-3. REFACTOR → Cải thiện code, giữ tests xanh
+1. RED → Viết failing test cho **một behavior** qua public seam ổn định; confirm test fail vì đúng behavior còn thiếu
+2. GREEN → Viết code tối thiểu qua các layer cần thiết để behavior đó PASS
+3. REFACTOR → Chỉ micro-refactor an toàn (naming, local duplication, extraction nhỏ), rồi chạy lại focused test
+
+Lặp vòng này theo từng vertical behavior slice. Không viết toàn bộ tests theo layer trước rồi mới
+implement tất cả. Structural refactor, đổi boundary hoặc tổ chức lại nhiều module được defer sang
+review/refactor task riêng sau khi behavior đã xanh.
 
 ### Mode 2: Regression Guard
 Khi fix bug hoặc bổ sung test cho code có sẵn:
 1. Reproduce bug scenario trong test → confirm FAIL
 2. Fix code → confirm test PASS
-3. Ghi vào `../known-issues/SKILL.md` nếu bug nghiêm trọng và có giá trị dùng lại lâu dài
+3. Chỉ micro-refactor nếu cần → chạy lại regression test
+4. Ghi vào `../known-issues/SKILL.md` nếu bug nghiêm trọng và có giá trị dùng lại lâu dài
 
 ---
 
@@ -169,7 +174,9 @@ describe('BlogListCard', () => {
 
 | Quy tắc | Chi tiết |
 |---------|---------|
-| **TDD flow** | RED → GREEN → REFACTOR |
+| **TDD flow** | RED → GREEN → micro-REFACTOR cho từng behavior slice; structural refactor ở review |
+| **Public seam** | Ưu tiên HTTP contract, exported service/function hoặc UI qua user interaction; tránh private helper và internal call order |
+| **Behavior-first** | Test observable outcome; không couple test với implementation detail và không viết tất cả tests theo horizontal layer trước |
 | **Naming** | `{filename}.test.{js\|jsx}` trong `__tests__/` |
 | **Independence** | Mỗi test chạy độc lập — `afterEach` clear data |
 | **No test-only code** | KHÔNG thêm exports vào production code chỉ cho test |
@@ -199,6 +206,9 @@ describe('BlogListCard', () => {
 | Test gọi API thật (production DB) | Dùng MongoDB Memory Server |
 | Hardcode ObjectId trong test | Tạo dynamic bằng `createTestUser()` |
 | Test quá nhiều thứ trong 1 `test()` | 1 test = 1 assertion chính |
+| Mock private internals/call order | Assert behavior qua public seam ổn định |
+| Viết toàn bộ tests DB/API/UI rồi mới implement | Hoàn tất RED → GREEN → micro-REFACTOR cho từng vertical behavior slice |
+| Structural refactor ngay trong GREEN | Defer sang review/refactor task; GREEN chỉ thêm code tối thiểu |
 | Skip test fail thay vì fix | Fix hoặc xóa — không để skip lâu dài |
 
 ---

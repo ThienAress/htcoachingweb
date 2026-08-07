@@ -315,7 +315,12 @@ export const createFromConversation = async (req, res) => {
   if (!validId(conversationId) || !Number.isInteger(questionIndex) || !Number.isInteger(answerIndex)) {
     return res.status(400).json({ success: false, message: "Nguồn conversation không hợp lệ" });
   }
-  const conversation = await ChatConversation.findById(conversationId).select("messages").lean();
+  const conversation = await ChatConversation.findOne({
+    _id: conversationId,
+    userId: { $ne: null },
+  })
+    .select("messages")
+    .lean();
   if (!conversation) return res.status(404).json({ success: false, message: "Không tìm thấy conversation nguồn" });
   const sourceQuestion = conversation.messages[questionIndex];
   const sourceAnswer = conversation.messages[answerIndex];
@@ -510,7 +515,7 @@ export const deleteVariant = async (req, res) => {
 export const getAllConversations = async (req, res) => {
   const page = clampInteger(req.query.page, 1, 1, 100000);
   const limit = clampInteger(req.query.limit, 20, 1, 100);
-  const filter = {};
+  const filter = { userId: { $ne: null } };
   const search = String(req.query.search || "").trim().slice(0, 100);
   if (search) {
     const regex = new RegExp(escapeRegex(search), "i");
@@ -543,7 +548,10 @@ export const getAllConversations = async (req, res) => {
 
 export const getFullConversation = async (req, res) => {
   if (!validId(req.params.id)) return res.status(400).json({ success: false, message: "Mã conversation không hợp lệ" });
-  const conversation = await ChatConversation.findById(req.params.id)
+  const conversation = await ChatConversation.findOne({
+    _id: req.params.id,
+    userId: { $ne: null },
+  })
     .populate("userId", "name email")
     .lean();
   if (!conversation) return res.status(404).json({ success: false, message: "Không tìm thấy cuộc trò chuyện" });
@@ -585,6 +593,7 @@ export const suggestFromConversations = async (req, res) => {
     const days = clampInteger(req.body?.days, 7, 1, 90);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const conversations = await ChatConversation.find({
+      userId: { $ne: null },
       updatedAt: { $gte: since },
     })
       .sort({ updatedAt: -1 })
