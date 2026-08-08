@@ -44,6 +44,9 @@ export const coachingKeys = {
 };
 
 export const adminQueryKeys = {
+  skillRadar: {
+    all: () => ["admin-skill-radar"],
+  },
   serviceAccessPolicies: {
     all: () => ["admin-service-access-policies"],
   },

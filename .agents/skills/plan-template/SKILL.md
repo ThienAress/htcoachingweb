@@ -145,6 +145,10 @@ từng step chưa tạo ra behavior kiểm chứng được. Số file là tín 
 step chạm nhiều file phải nêu impact và verification. Thứ tự theo dependency và giữ codebase chạy
 được sau mỗi step.)
 
+**Task right-sizing:** Một step là đơn vị nhỏ nhất có test/verification cycle riêng và đủ độc lập để reviewer có thể
+reject step đó nhưng vẫn approve step bên cạnh. Gộp scaffolding/config/docs vào behavior cần chúng; không tách task chỉ
+để tạo file hoặc commit nhỏ.
+
 Với wide mechanical refactor không thể tạo vertical behavior slice tự nhiên, dùng **expand-contract**:
 thêm shape/path mới tương thích → chuyển consumers theo batch có verify → xóa shape/path cũ chỉ khi
 mọi consumer đã migrate. Ghi rõ compatibility window và rollback point cho từng batch.
@@ -227,3 +231,7 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (+ lý do 1 dòng) | REJECTED
 - [ ] STOP conditions cụ thể cho plan này, KHÔNG boilerplate?
 - [ ] Đọc chỉ "Why this matters" + "Done criteria" hiểu được đang approve gì?
 - [ ] Không có secret values — chỉ locations và credential types?
+- [ ] Đã đọc lại spec/request và map từng requirement vào ít nhất một step hoặc ghi rõ out-of-scope?
+- [ ] Đã quét placeholder `TBD`, `TODO marker`, `implement later`, `similar to` và chỉ dẫn mơ hồ như “handle edge cases”?
+- [ ] Tên symbol, payload, route và command có nhất quán giữa các step?
+- [ ] Mỗi task boundary có deliverable/verification riêng thay vì chỉ chia theo technical layer?

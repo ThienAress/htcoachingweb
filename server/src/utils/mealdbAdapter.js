@@ -37,7 +37,8 @@ export const normalizeMealDbMeal = (rawMeal) => {
     thumbnail: rawMeal.strMealThumb || "",
     ingredients,
     instructions,
-    youtubeUrl: rawMeal.strYoutube || "",
+    // Không nhập video YouTube tham khảo; chỉ dùng video chính chủ khi upload được hỗ trợ.
+    youtubeUrl: "",
     sourceUrl: rawMeal.strSource || "",
     source: "mealdb",
     mealDbId: rawMeal.idMeal || "",

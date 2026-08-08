@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   SidebarClose,
   SidebarOpen,
+  RadioTower,
 } from "lucide-react";
 
 const SidebarContent = ({
@@ -87,6 +88,7 @@ const SidebarContent = ({
         { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
         { path: "/admin/seo-analytics", label: "SEO & Chuyển đổi", icon: ChartNoAxesCombined },
         { path: "/admin/service-access-policies", label: "Quyền & hạn mức", icon: ShieldCheck },
+        { path: "/admin/skill-radar", label: "Radar công nghệ", icon: RadioTower },
       ],
     },
   ];

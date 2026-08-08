@@ -19,6 +19,7 @@
 | Dịch vụ có quota/dùng thử/paywall | `$service-access-policy` → `$impact-check` → tests → `$code-review` → `$cleanup-delivery` |
 | Codebase health/periodic review | `$audit` → findings/plan backlog; không tự sửa nếu user chỉ yêu cầu review |
 | PDF project artifact | `$pdf-generation` → focused verification → `$cleanup-delivery` |
+| Theo dõi upstream skill/repo | user gọi `$skill-radar`; scan + audit draft, không tự sửa local canonical source |
 | Skill/rule có dấu hiệu stale | user gọi `$goad`; audit draft trước, apply chỉ sau approval |
 | Release candidate | user gọi `$pre-deploy`; pipeline điều phối `$qa`, checks và `$ship` |
 | Chuyển session/agent | user gọi `$handoff` sau khi cập nhật artifact canonical |
@@ -51,6 +52,7 @@
 | `$qa` | model | build/test evidence owner |
 | `$schema-change` | model | Mongoose schema workflow |
 | `$service-access-policy` | model | access, quota và entitlement workflow |
+| `$skill-radar` | user | upstream discovery và external drift review |
 | `$seo-check` | model | SEO gate |
 | `$ship` | model | release decision primitive |
 | `$tdd-guide` | model | TDD/testing primitive |
@@ -62,5 +64,5 @@
 - Chọn flow nhỏ nhất đủ chứng minh thay đổi; không ép task `SIMPLE` qua spec/plan/release pipeline.
 - Skill domain-specific thắng skill generic khi contract nhạy cảm.
 - `pre-deploy` là user-controlled entry; gate con vẫn model-invoked để orchestrator gọi được.
-- `goad` và `handoff` giữ user-controlled vì có lifecycle/side effect không nên tự khởi động từ một request gần nghĩa.
+- `skill-radar`, `goad` và `handoff` giữ user-controlled vì có lifecycle/side effect không nên tự khởi động từ một request gần nghĩa.
 - Khi thêm/rename/xóa skill, cập nhật catalog, router-facing flow và `agents/openai.yaml` trong cùng diff.

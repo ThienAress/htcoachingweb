@@ -1,3 +1,5 @@
+import fs from "node:fs";
+
 import { parseDateKey } from "../utils/dateKey.js";
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -106,10 +108,24 @@ export const isSafeSearchQuery = (value) => {
 };
 
 export const googleCredentialsFromEnv = (env = process.env) => {
-  const raw = env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  let raw = env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw && env.GOOGLE_APPLICATION_CREDENTIALS) {
+    try {
+      raw = fs.readFileSync(
+        String(env.GOOGLE_APPLICATION_CREDENTIALS).trim(),
+        "utf8",
+      );
+    } catch {
+      throw new AnalyticsProviderError(
+        "google",
+        "INVALID_CONFIG",
+        "Google credential không hợp lệ",
+      );
+    }
+  }
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(String(raw).replace(/^\uFEFF/, ""));
     if (!parsed.client_email || !parsed.private_key) throw new Error("missing fields");
     return {
       client_email: parsed.client_email,

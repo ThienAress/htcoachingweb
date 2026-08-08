@@ -29,6 +29,7 @@ nguồn canonical trước khi thay đổi code.
 - [SEO & Conversion Analytics spec](./specs/seo-conversion-analytics.md)
 - [Home section media management spec](./specs/home-section-media-management.md)
 - [Agent workflow modernization spec](./specs/agent-workflow-modernization.md)
+- [Upstream Skill Radar spec](./specs/upstream-skill-radar.md)
 - [Sitewide AI Assistant context and guest access spec](./specs/sitewide-ai-assistant.md)
 - [Service access policy spec](./specs/service-access-policy.md)
 - [Service access and quota matrix 2026-08-07](./reports/service-access-matrix-2026-08-07.md)
@@ -43,6 +44,7 @@ nguồn canonical trước khi thay đổi code.
 - [Security coverage ledger 2026-08-02](./audits/security-coverage-ledger-2026-08-02.md)
 - [Codex Security scan runbook](./operations/runbooks/codex-security-scan.md)
 - [Security workflow skill drift audit 2026-08-02](./audits/2026-08-02-security-workflow-skill-drift.md)
+- [Skill Radar audit 2026-08](./audits/2026-08-skill-radar.md)
 - [Production rollback](./operations/runbooks/production-rollback-runbook.md)
 
 ## Quy ước

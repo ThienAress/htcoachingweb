@@ -28,7 +28,9 @@ Nếu thiếu spec, vẫn review Standards; ghi `Spec/Contract: NOT ASSESSABLE` 
 ### Standards
 
 Tìm violation documented, regression, bug, error-handling gap, performance issue và design smell gây
-shotgun surgery/low locality. Không report style mà tooling đã enforce trừ khi tool đang fail.
+shotgun surgery/low locality. Khi diff có dấu hiệu design smell, đọc
+[Design smell baseline](references/design-smells.md); mọi smell là heuristic và project standard luôn thắng.
+Không report style mà tooling đã enforce trừ khi tool đang fail.
 
 ### Spec/Contract
 

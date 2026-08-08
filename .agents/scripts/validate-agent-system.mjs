@@ -3,13 +3,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateWatchlist } from "./skill-radar-contract.mjs";
+import { validateSkillEvalDirectory } from "./skill-eval-contract.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(SCRIPT_DIR, "../..");
 const AGENTS_ROOT = path.join(ROOT, ".agents");
 const SKILLS_ROOT = path.join(AGENTS_ROOT, "skills");
+const SKILL_EVAL_ROOT = path.join(AGENTS_ROOT, "evals", "skills");
 const RULES_ROOT = path.join(AGENTS_ROOT, "rules");
 const WORKFLOW_MAP = path.join(AGENTS_ROOT, "reference", "agent-workflow-map.md");
+const UPSTREAM_WATCHLIST = path.join(AGENTS_ROOT, "upstream-skills", "watchlist.json");
 
 let errors = 0;
 let warnings = 0;
@@ -214,6 +218,33 @@ for (const directory of skillDirectories) {
   if (lineCount > 500) fail(`${relative(skillPath)}: ${lineCount} lines exceeds 500-line skill limit`);
 }
 pass(`${skillDirectories.length} skill directories checked`);
+
+console.log("\n🧪 Skill evaluation corpora");
+try {
+  const summary = validateSkillEvalDirectory({
+    rootDir: SKILL_EVAL_ROOT,
+    skillsRoot: SKILLS_ROOT,
+  });
+  pass(`${summary.corpora} corpora / ${summary.cases} scenarios checked`);
+} catch (error) {
+  fail(`Invalid skill eval catalog: ${error.message}`);
+}
+
+console.log("\n📡 Upstream skill watchlist");
+try {
+  const watchlist = validateWatchlist(JSON.parse(readText(UPSTREAM_WATCHLIST)));
+  for (const entry of watchlist.entries) {
+    for (const localTarget of entry.localTargets) {
+      const resolved = path.resolve(ROOT, localTarget);
+      if (!resolved.startsWith(`${ROOT}${path.sep}`) || !fs.existsSync(resolved)) {
+        fail(`${entry.id}: missing or unsafe local target ${localTarget}`);
+      }
+    }
+  }
+  pass(`${watchlist.entries.length} upstream skills checked`);
+} catch (error) {
+  fail(`Invalid upstream watchlist: ${error.message}`);
+}
 
 console.log("\n📜 Rule metadata");
 const ruleFiles = listFiles(RULES_ROOT, (filePath) => filePath.endsWith(".md"));

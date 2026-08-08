@@ -73,6 +73,9 @@ Known Issues: [đọc trực tiếp từ ../known-issues/SKILL.md]
 - Quét key packages: routes, controllers, services, models, middlewares, hooks, pages chính
 - 7 categories: Bugs, Security, Performance, Tests, Tech Debt, Dependencies, DX
 - Output: Full findings table
+- Khi tìm architecture/deepening opportunity, đọc
+  [Architecture depth review](../audit-playbook/references/architecture-depth.md) và chỉ giữ candidate có friction,
+  deletion-test evidence cùng before/after seam rõ.
 
 **Security candidate lifecycle:**
 

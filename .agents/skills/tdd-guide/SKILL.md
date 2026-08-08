@@ -28,9 +28,11 @@ description: Hướng dẫn test và TDD cho htcoachingweb. Dùng khi viết ho�
 
 ### Mode 1: TDD New Feature
 Khi implement feature mới có business logic:
-1. RED → Viết failing test cho **một behavior** qua public seam ổn định; confirm test fail vì đúng behavior còn thiếu
-2. GREEN → Viết code tối thiểu qua các layer cần thiết để behavior đó PASS
-3. REFACTOR → Chỉ micro-refactor an toàn (naming, local duplication, extraction nhỏ), rồi chạy lại focused test
+1. Ghi public seam đã chọn và vì sao seam đó quan sát đúng behavior. Tự chọn khi contract đã rõ từ code/spec; chỉ hỏi
+   user khi hai seam hợp lệ dẫn tới API/ownership hoặc phạm vi khác nhau đáng kể.
+2. RED → Viết failing test cho **một behavior** qua public seam ổn định; confirm test fail vì đúng behavior còn thiếu
+3. GREEN → Viết code tối thiểu qua các layer cần thiết để behavior đó PASS
+4. REFACTOR → Chỉ micro-refactor an toàn (naming, local duplication, extraction nhỏ), rồi chạy lại focused test
 
 Lặp vòng này theo từng vertical behavior slice. Không viết toàn bộ tests theo layer trước rồi mới
 implement tất cả. Structural refactor, đổi boundary hoặc tổ chức lại nhiều module được defer sang
@@ -207,6 +209,7 @@ describe('BlogListCard', () => {
 | Hardcode ObjectId trong test | Tạo dynamic bằng `createTestUser()` |
 | Test quá nhiều thứ trong 1 `test()` | 1 test = 1 assertion chính |
 | Mock private internals/call order | Assert behavior qua public seam ổn định |
+| Assertion tính expected bằng cùng công thức/constant của code (tautological) | Dùng literal đã tính độc lập, worked example hoặc spec làm source of truth |
 | Viết toàn bộ tests DB/API/UI rồi mới implement | Hoàn tất RED → GREEN → micro-REFACTOR cho từng vertical behavior slice |
 | Structural refactor ngay trong GREEN | Defer sang review/refactor task; GREEN chỉ thêm code tối thiểu |
 | Skip test fail thay vì fix | Fix hoặc xóa — không để skip lâu dài |

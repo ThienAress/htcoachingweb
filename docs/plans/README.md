@@ -57,6 +57,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 032 | Mở quản trị riêng theo từng huấn luyện viên | P1 | L | 016, 019, 023, 031 | COMPLETE / LOCAL VERIFIED |
 | 033 | Chuẩn hóa quyền truy cập và hạn mức dịch vụ | P1 | L | 026A, 027, 030, 031, 032 | COMPLETE / FOCUSED VERIFIED — FULL SERVER + PRERENDER ENV BLOCKED |
 | 034 | Đồng bộ quyền lợi gói HLV và mở soạn thảo bảng trong Blog | P1 | M | 033 | DONE / LOCAL VERIFIED |
+| 035 | Xây dựng Upstream Skill Radar và trang Admin Radar công nghệ | P1 | L | 017, 030 | IMPLEMENTED / LOCAL VERIFIED — AUTHENTICATED VISUAL PENDING |
+| 036 | Thích nghi các finding từ baseline Upstream Skill Radar | P1 | L | 030, 035 | IMPLEMENTED / LOCAL VERIFIED — PRERENDER ENV BLOCKED |
 
 ## Dependency Notes
 
@@ -116,6 +118,10 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   canonical, enforce theo tier và hiển thị cùng contract trong Admin mà không cần migration.
 - Plan 034 phụ thuộc 033 để mở rộng cùng trang Admin bằng catalog quyền lợi HLV canonical, đồng thời bổ sung
   Tiptap TableKit độc lập với service quota và không mở mutation hoặc schema mới.
+- Plan 035 phụ thuộc 017 và 030 vì mở rộng agent governance/validator hiện có bằng external upstream drift;
+  dashboard chỉ đọc snapshot đã duyệt và không cho upstream tự sửa policy hoặc skill canonical.
+- Plan 036 phụ thuộc 030 và 035 vì dùng workflow/validator hiện có cùng provenance Radar để thích nghi 13 finding có
+  evidence; plan sửa đúng semantics baseline trước rồi mới thay local skill và không tự sửa canonical rules.
 
 ## Findings Considered and Rejected
 

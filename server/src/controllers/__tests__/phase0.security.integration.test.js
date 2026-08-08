@@ -162,6 +162,7 @@ describe("Phase 0 security boundaries", () => {
       slug: "published-recipe",
       category: "Public Category",
       area: "Public Area",
+      youtubeUrl: "https://www.youtube.com/watch?v=third-party",
       isPublished: true,
     });
     const draft = await Recipe.create({
@@ -193,6 +194,7 @@ describe("Phase 0 security boundaries", () => {
     );
 
     expect(publishedResponse.status).toBe(200);
+    expect(publishedResponse.body.data).not.toHaveProperty("youtubeUrl");
     expect(draftResponse.status).toBe(404);
     expect(categoriesResponse.body.data).toEqual(["Public Category"]);
     expect(areasResponse.body.data).toEqual(["Public Area"]);

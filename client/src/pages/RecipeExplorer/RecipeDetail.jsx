@@ -8,7 +8,6 @@ import {
   Heart,
   Check,
   Copy,
-  Youtube,
   Flame,
   Dumbbell,
   Calendar,
@@ -84,14 +83,6 @@ const RecipeDetail = () => {
     }
   };
 
-  const getYoutubeEmbedUrl = (url) => {
-    if (!url) return null;
-    const match = url.match(
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/,
-    );
-    return match ? `https://www.youtube.com/embed/${match[1]}` : null;
-  };
-
   if (isLoading) {
     return (
       <>
@@ -136,8 +127,6 @@ const RecipeDetail = () => {
       </>
     );
   }
-
-  const embedUrl = getYoutubeEmbedUrl(recipe.youtubeUrl);
 
   return (
     <>
@@ -335,26 +324,6 @@ const RecipeDetail = () => {
               </div>
             </div>
 
-            {/* YouTube embed */}
-            {embedUrl && (
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 md:p-8">
-                <h2 className="font-bold text-white text-xl mb-6 flex items-center gap-3">
-                  <span className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                    <Youtube className="w-5 h-5 text-red-500" />
-                  </span>
-                  {t("detail.section_video")}
-                </h2>
-              <div className="aspect-video rounded-xl overflow-hidden bg-zinc-800">
-                <iframe
-                  src={embedUrl}
-                  title={t("detail.embed_title", { name: recipe.name })}
-                  className="w-full h-full"
-                  allowFullScreen
-                  loading="lazy"
-                />
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </main>
