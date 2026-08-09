@@ -11,7 +11,7 @@ const analyticsSyncStateSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: SEO_ANALYTICS_PROVIDERS,
-      unique: true,
+      index: { unique: true, name: "uniq_analytics_sync_provider" },
     },
     status: {
       type: String,
@@ -54,6 +54,9 @@ analyticsSyncStateSchema.path("windowEnd").validate((value) => {
   }
 }, "windowEnd không hợp lệ");
 
-analyticsSyncStateSchema.index({ status: 1, lockUntil: 1 });
+analyticsSyncStateSchema.index(
+  { status: 1, lockUntil: 1 },
+  { name: "analytics_sync_status_lock" },
+);
 
 export default mongoose.model("AnalyticsSyncState", analyticsSyncStateSchema);

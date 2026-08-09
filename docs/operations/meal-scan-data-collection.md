@@ -98,9 +98,12 @@ secret. Mỗi lần đổi model/prompt/schema phải tạo holdout report mới
 
 - Development runtime dùng Meal Scan mock mặc định và không gửi ảnh sang Gemini. Chỉ đặt
   MEAL_SCAN_PROVIDER=gemini cho thử nghiệm local có kiểm soát với ảnh test/public, không phải ảnh khách.
-- Production chưa xác nhận billing project/spend cap phải đặt `MEAL_SCAN_PROVIDER=disabled`;
+- Production chưa xác nhận data-use mode phải đặt `MEAL_SCAN_PROVIDER=disabled`. Paid Service dùng
+  `GEMINI_PAID_SERVICE_CONFIRMED=true`; Free/Unpaid Tier chỉ dùng khi owner đã chấp thuận điều khoản dữ liệu,
+  đặt `GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED=true`, giữ disclosure theo từng request ở UI và bắt buộc
+  `providerDataUseAccepted=true` tại middleware trước limiter/provider;
   request fail-closed với 503 và không gọi provider. `mock` vẫn chỉ được phép cho staging.
-- Production giữ Paid Service gate và quota server-authoritative: anonymous 2 lượt/24 giờ/IP,
+- Production giữ data-use gate và quota server-authoritative: anonymous 2 lượt/24 giờ/IP,
   user thường 3 lượt/24 giờ/user, coaching customer và HLV 10 lượt/24 giờ/user. Response 429 không gọi
   provider và không debit ví HTCOACHING.
 - Trước deploy, owner phải xác nhận đúng AI Studio project/billing account và phê duyệt project-level

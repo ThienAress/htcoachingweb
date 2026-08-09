@@ -32,6 +32,7 @@ describe("mealScan service", () => {
       image: "data:image/webp;base64,YQ==",
       locale: "vi",
       declaredIngredients: [{ name: "Dầu ô liu", grams: 15 }],
+      providerDataUseAccepted: true,
     });
   });
 

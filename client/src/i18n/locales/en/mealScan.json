@@ -45,7 +45,7 @@
     "remove": "Remove selected photo",
     "choose_file": "Choose a meal photo",
     "replace": "Choose another photo",
-    "privacy": "The photo is compressed and sent temporarily for analysis. HTCOACHING does not save it to your profile or media library.",
+    "privacy": "The photo is compressed and sent temporarily to the Google Gemini Free Tier for analysis. HTCOACHING does not save it to your profile; do not select photos containing people or sensitive information.",
     "anonymous_hint": "No sign-up required: 2 free scans every 24 hours.",
     "login_more": "Log in for more scans.",
 
@@ -77,10 +77,10 @@
     }
   },
   "confirm_analysis": {
-    "title": "Anything else to adjust?",
-    "description": "When you agree and the image is sent for analysis, one scan will be used from your current quota.",
+    "title": "Confirm sending the photo to Google Gemini",
+    "description": "When you agree, the photo and declared ingredients are sent to the Google Gemini Free Tier. Google may use submitted data to improve its products or have human reviewers process it. Do not submit photos containing people, personal information, or sensitive data. HTCOACHING does not save the photo; this action uses one scan from your quota.",
     "cancel": "Go back and edit",
-    "confirm": "Agree and analyze"
+    "confirm": "I understand and agree"
   },  "result": {
     "checking_title": "Checking image quality",
     "scenario": "Serving type",
@@ -153,8 +153,8 @@
     "speed_desc": "Get calorie and macro ranges from a single photo upload.",
     "transparent_title": "Controlled estimates",
     "transparent_desc": "Always see ranges and a clear separation between your declarations and the AI estimate.",
-    "privacy_title": "Private by default",
-    "privacy_desc": "Your photo is sent temporarily for analysis and is not saved to your profile."
+    "privacy_title": "Not stored by HTCOACHING",
+    "privacy_desc": "HTCOACHING does not save the photo. Before each scan, you confirm temporary processing by the Google Gemini Free Tier."
   },
   "links": {
     "eyebrow": "Next",

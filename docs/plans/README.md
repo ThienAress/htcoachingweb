@@ -59,6 +59,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 034 | Đồng bộ quyền lợi gói HLV và mở soạn thảo bảng trong Blog | P1 | M | 033 | DONE / LOCAL VERIFIED |
 | 035 | Xây dựng Upstream Skill Radar và trang Admin Radar công nghệ | P1 | L | 017, 030 | IMPLEMENTED / LOCAL VERIFIED — AUTHENTICATED VISUAL PENDING |
 | 036 | Thích nghi các finding từ baseline Upstream Skill Radar | P1 | L | 030, 035 | IMPLEMENTED / LOCAL VERIFIED — PRERENDER ENV BLOCKED |
+| 037 | Bật provider đã phê duyệt và hoàn tất production indexes | P1 | M | 025, 028C, 033 | IN PROGRESS |
 
 ## Dependency Notes
 
@@ -122,6 +123,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   dashboard chỉ đọc snapshot đã duyệt và không cho upstream tự sửa policy hoặc skill canonical.
 - Plan 036 phụ thuộc 030 và 035 vì dùng workflow/validator hiện có cùng provenance Radar để thích nghi 13 finding có
   evidence; plan sửa đúng semantics baseline trước rồi mới thay local skill và không tự sửa canonical rules.
+- Plan 037 phụ thuộc 025, 028C và 033 vì tái sử dụng packaged lookup, SEO/conversion index contracts và quota registry
+  đã được xác minh; rollout giữ fail-closed cho provider trước khi áp production config/data operations.
 
 ## Findings Considered and Rejected
 

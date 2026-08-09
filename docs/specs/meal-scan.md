@@ -34,14 +34,19 @@ chỉnh khẩu phần, nhưng không trình bày output AI như số liệu chí
 
 - Middleware: `optionalMealScanAuth → csrfProtection → validateMealScanImage →
   mealScanAnonymousLimiter → mealScanLimiter`.
-- Request: `{ image: "data:image/...;base64,...", locale?: "vi" | "en", declaredIngredients?:
-  [{ name: string, grams: number }] }`. Middleware giới hạn tối đa 8 mục, trim tên tối đa 80 ký tự và
+- Request: `{ image: "data:image/...;base64,...", locale?: "vi" | "en", providerDataUseAccepted?: true,
+  declaredIngredients?:
+  [{ name: string, grams: number }] }`. Free/Unpaid mode bắt buộc `providerDataUseAccepted === true`; thiếu consent
+  bị chặn trước limiter/provider. Middleware giới hạn tối đa 8 mục, trim tên tối đa 80 ký tự và
   chỉ nhận gram 1–3000 trước khi request có thể tiêu quota.
 - Response: `{ success: true, data: MealScanResult, meta: { quota: { serviceKey, tier, limit, remaining,
   resetAt } } }`, header `Cache-Control: private, no-store`. Lỗi 429 trả cùng `meta.quota`.
 - Non-production Meal Scan mặc định trả mock deterministic, độc lập với AI_PROVIDER toàn cục;
   MEAL_SCAN_PROVIDER=gemini chỉ là opt-in test local có kiểm soát. Runtime production luôn dùng
-  AI_PROVIDER=gemini và fail closed nếu thiếu Paid Service/config hoặc output sai. Riêng
+  AI_PROVIDER=gemini và fail closed nếu thiếu API key, chưa xác nhận một trong hai data-use mode hoặc output sai.
+  Paid Service dùng `GEMINI_PAID_SERVICE_CONFIRMED=true`; Free/Unpaid Tier chỉ được dùng khi owner đã chấp thuận
+  điều khoản dữ liệu qua `GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED=true` và người dùng xác nhận disclosure ngay
+  trước mỗi request. Hai cờ không được đồng thời là `true`. Riêng
   APP_ENV=staging được phép đặt MEAL_SCAN_PROVIDER=mock để không gửi ảnh thử nghiệm tới Gemini khi
   project chưa có billing; override này không có hiệu lực ở production.
 - Không tạo model, collection, migration hoặc retention job.
@@ -175,11 +180,14 @@ CSRF/rate limit; persist raw ảnh/base64.
   visible attribution; they are not merged into the canonical Food collection without legal review.
 - A barcode identifies a product but is not nutrition evidence. A readable nutrition panel and serving
   basis override visual/barcode estimates when the user provides the label image.
-- Meal images may reach Gemini only through a Cloud project confirmed as a Paid Service for the alpha;
-  unpaid Gemini API is not approved for customer images. No additional OCR provider is added in Plan 025.
-- Runtime fail-closed unless `GEMINI_PAID_SERVICE_CONFIRMED=true`. Packaged lookup is separately
-  controlled by `FOOD_REFERENCE_LOOKUP_ENABLED`; USDA requires backend-only `FDC_API_KEY`, while
-  `OPEN_FOOD_FACTS_ENABLED` only enables the attributed fallback. Provider calls have timeout and
+- Meal images may reach Gemini through either a confirmed Paid Service project or an explicitly owner-approved
+  Free/Unpaid Tier project. Free/Unpaid mode requires per-request disclosure that Google may use submitted data
+  to improve products or have human reviewers process it; the UI warns against photos containing people,
+  personal information or sensitive data. No additional OCR provider is added in Plan 025.
+- Runtime fail-closed unless exactly one data-use mode is approved. Packaged lookup is separately controlled by
+  `FOOD_REFERENCE_LOOKUP_ENABLED`; USDA requires backend-only `FDC_API_KEY`, while an explicitly enabled
+  `OPEN_FOOD_FACTS_ENABLED` may operate as the only provider and always returns source/license attribution.
+  Provider calls have timeout and
   response-size caps; no provider hostname or API key is client-controlled.
 
 ## Anonymous access and presentation contract

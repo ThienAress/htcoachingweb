@@ -91,6 +91,7 @@ const mockAnalysis = async (page, { status = 200, body } = {}) => {
     expect(requestBody.declaredIngredients).toEqual([
       { name: "Dầu ô liu", grams: 15 },
     ]);
+    expect(requestBody.providerDataUseAccepted).toBe(true);
     await route.fulfill({
       status,
       contentType: "application/json",
@@ -127,9 +128,11 @@ const prepareScan = async (page) => {
 
 const confirmAnalysis = async (page) => {
   await page.getByRole("button", { name: "Phân tích món ăn" }).click();
-  const dialog = page.getByRole("dialog", { name: /Bạn còn muốn điều chỉnh/ });
+  const dialog = page.getByRole("dialog", {
+    name: /Xác nhận gửi ảnh tới Google Gemini/,
+  });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Đồng ý phân tích" }).click();
+  await dialog.getByRole("button", { name: "Tôi hiểu và đồng ý" }).click();
 };
 
 const uploadAndAnalyze = async (page) => {
@@ -146,7 +149,9 @@ test.describe("Meal Scan anonymous journey", () => {
     await prepareScan(page);
 
     await page.getByRole("button", { name: "Phân tích món ăn" }).click();
-    const dialog = page.getByRole("dialog", { name: /Bạn còn muốn điều chỉnh/ });
+    const dialog = page.getByRole("dialog", {
+      name: /Xác nhận gửi ảnh tới Google Gemini/,
+    });
     await dialog.getByRole("button", { name: "Quay lại điều chỉnh" }).click();
     expect(analysis.requests).toBe(0);
 

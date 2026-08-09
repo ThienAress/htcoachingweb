@@ -23,6 +23,8 @@
     "migrate:today-dashboard-release-g": "node src/migrations/20260729-today-dashboard-release-g.js",
     "migrate:today-dashboard-phase6": "node src/migrations/20260729-today-dashboard-phase6.js",
     "migrate:wellness-targets": "node src/migrations/20260730-wellness-targets.js",
+    "preflight:seo-conversion-indexes": "node src/migrations/20260809-seo-conversion-indexes.js --target=production --preflight",
+    "migrate:seo-conversion-indexes": "node src/migrations/20260809-seo-conversion-indexes.js --target=production --apply --confirm-production-indexes",
     "check:today-dashboard-performance": "node src/operations/todayDashboardPerformance.js",
     "reconcile:wallets": "node src/scripts/reconcileWallets.js",
     "verify:phase4-indexes": "node src/scripts/verifyPhase4Indexes.js",

@@ -46,7 +46,7 @@ export default function MealScanAnalyzeDialog({ open, onCancel, onConfirm }) {
       }}
     >
       <section
-        className="z-50 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+        className="z-50 max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl bg-white p-6 shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="meal-scan-confirm-title"

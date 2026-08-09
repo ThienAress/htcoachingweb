@@ -1,3 +1,5 @@
+import { resolveGeminiMealScanDataUseMode } from "../config/geminiMealScanDataUse.js";
+
 const SUPPORTED_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -92,6 +94,19 @@ export const validateMealScanImage = (req, res, next) => {
     });
   }
 
+  if (
+    resolveGeminiMealScanDataUseMode(process.env) === "unpaid" &&
+    req.body?.providerDataUseAccepted !== true
+  ) {
+    return res.status(400).json({
+      success: false,
+      code: "MEAL_SCAN_DATA_USE_CONSENT_REQUIRED",
+      message: locale === "en"
+        ? "Confirm Google Gemini Free Tier data use before analysis."
+        : "Vui lòng xác nhận việc Google Gemini Free Tier xử lý dữ liệu trước khi phân tích.",
+    });
+  }
+
   req.mealScanImage = {
     mimeType: match[1],
     base64: match[2],
@@ -100,5 +115,6 @@ export const validateMealScanImage = (req, res, next) => {
   };
   delete req.body.image;
   delete req.body.declaredIngredients;
+  delete req.body.providerDataUseAccepted;
   next();
 };

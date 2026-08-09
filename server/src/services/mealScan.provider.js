@@ -1,3 +1,4 @@
+import { isGeminiMealScanDataUseApproved } from "../config/geminiMealScanDataUse.js";
 import { safeLog } from "../utils/safeLogger.js";
 import {
   MEAL_SCAN_ANALYSIS_STATUSES,
@@ -172,11 +173,11 @@ export const fetchMealScanEstimate = async ({
   locale,
   declaredIngredients = [],
 }) => {
-  if (process.env.GEMINI_PAID_SERVICE_CONFIRMED !== "true") {
+  if (!isGeminiMealScanDataUseApproved(process.env)) {
     throw createMealScanError(
       "MEAL_SCAN_PROVIDER_NOT_CONFIGURED",
       503,
-      "Gemini Paid Service confirmation is required for customer images",
+      "Gemini Meal Scan data-use approval is required for customer images",
     );
   }
   const apiKey = process.env.GEMINI_API_KEY;

@@ -1,3 +1,4 @@
+import { resolveGeminiMealScanDataUseMode } from "./geminiMealScanDataUse.js";
 import { resolveMealScanProvider } from "./mealScanProvider.js";
 
 const PLACEHOLDER_PATTERN =
@@ -382,15 +383,30 @@ export const validateProductionEnvironment = (
     required: true,
   });
   const mealScanProvider = resolveMealScanProvider(env);
+  validateBooleanSetting(
+    env,
+    findings,
+    "GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED",
+    { required: mealScanProvider === "gemini" },
+  );
+  const geminiMealScanDataUseMode = resolveGeminiMealScanDataUseMode(env);
+  if (mealScanProvider === "gemini" && !geminiMealScanDataUseMode) {
+    addFinding(
+      findings,
+      "errors",
+      "GEMINI_MEAL_SCAN_DATA_USE_NOT_APPROVED",
+      "Customer Meal Scan images require explicit paid-service confirmation or unpaid-data-use acceptance.",
+    );
+  }
   if (
     mealScanProvider === "gemini" &&
-    String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() !== "true"
+    geminiMealScanDataUseMode === "ambiguous"
   ) {
     addFinding(
       findings,
       "errors",
-      "GEMINI_PAID_SERVICE_NOT_CONFIRMED",
-      "Customer Meal Scan images require an explicitly confirmed Gemini Paid Service project.",
+      "GEMINI_MEAL_SCAN_DATA_USE_MODE_AMBIGUOUS",
+      "Paid-service confirmation and unpaid-data-use acceptance cannot both be true.",
     );
   }
   validateBooleanSetting(env, findings, "FOOD_REFERENCE_LOOKUP_ENABLED", {
@@ -411,10 +427,21 @@ export const validateProductionEnvironment = (
     minimum: 1024,
     maximum: 5 * 1024 * 1024,
   });
-  if (
-    String(env.FOOD_REFERENCE_LOOKUP_ENABLED || "").toLowerCase() === "true"
-  ) {
+  const foodReferenceLookupEnabled =
+    String(env.FOOD_REFERENCE_LOOKUP_ENABLED || "").toLowerCase() === "true";
+  const openFoodFactsEnabled =
+    String(env.OPEN_FOOD_FACTS_ENABLED || "").toLowerCase() === "true";
+  const hasFdcApiKey = Boolean(String(env.FDC_API_KEY || "").trim());
+  if (foodReferenceLookupEnabled && hasFdcApiKey) {
     validateSecret(env, findings, "FDC_API_KEY", { minimum: 8 });
+  }
+  if (foodReferenceLookupEnabled && !hasFdcApiKey && !openFoodFactsEnabled) {
+    addFinding(
+      findings,
+      "errors",
+      "FOOD_REFERENCE_PROVIDER_NOT_CONFIGURED",
+      "Food reference lookup requires FDC_API_KEY or OPEN_FOOD_FACTS_ENABLED=true.",
+    );
   }
   if (
     String(env.OPEN_FOOD_FACTS_ENABLED || "").toLowerCase() === "true" &&
@@ -524,10 +551,9 @@ export const validateProductionEnvironment = (
       geminiPaidServiceConfirmed:
         String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() ===
         "true",
+      geminiMealScanDataUseMode,
       mealScanProvider,
-      foodReferenceLookupEnabled:
-        String(env.FOOD_REFERENCE_LOOKUP_ENABLED || "").toLowerCase() ===
-        "true",
+      foodReferenceLookupEnabled,
     },
   };
 };

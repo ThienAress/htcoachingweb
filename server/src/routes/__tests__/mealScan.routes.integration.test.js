@@ -20,13 +20,18 @@ vi.mock("../../services/mealScan.service.js", () => ({
 const VALID_IMAGE = "data:image/jpeg;base64,YQ==";
 const TEST_CSRF = "a".repeat(64);
 
-const anonymousScan = (app, ip, body = { image: VALID_IMAGE, locale: "vi" }) =>
+const anonymousScan = (app, ip, body = {}) =>
   request(app)
     .post("/api/meal-scans/analyze")
     .set("X-Forwarded-For", ip)
     .set("Cookie", [`csrfToken=${TEST_CSRF}`])
     .set("X-CSRF-Token", TEST_CSRF)
-    .send(body);
+    .send({
+      image: VALID_IMAGE,
+      locale: "vi",
+      providerDataUseAccepted: true,
+      ...body,
+    });
 const RESULT = {
   mealName: "Cơm gà",
   confidence: "medium",
@@ -44,8 +49,12 @@ const RESULT = {
 
 describe("POST /api/meal-scans/analyze", () => {
   let app;
+  let originalUnpaidDataUseAccepted;
 
   beforeAll(async () => {
+    originalUnpaidDataUseAccepted =
+      process.env.GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED;
+    process.env.GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED = "true";
     await setupTestDB();
     app = createTestApp({ jsonLimit: "2mb" });
     app.set("trust proxy", 1);
@@ -58,6 +67,12 @@ describe("POST /api/meal-scans/analyze", () => {
   });
 
   afterAll(async () => {
+    if (originalUnpaidDataUseAccepted === undefined) {
+      delete process.env.GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED;
+    } else {
+      process.env.GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED =
+        originalUnpaidDataUseAccepted;
+    }
     await teardownTestDB();
   });
 
@@ -72,6 +87,7 @@ describe("POST /api/meal-scans/analyze", () => {
       image: VALID_IMAGE,
       locale: "vi",
       declaredIngredients: [{ name: "  Dầu ô liu  ", grams: 15 }],
+      providerDataUseAccepted: true,
     });
 
     expect(response.status).toBe(200);
@@ -111,6 +127,7 @@ describe("POST /api/meal-scans/analyze", () => {
         image: VALID_IMAGE,
         locale: "vi",
         declaredIngredients: [{ name: "  Dầu ô liu  ", grams: 15 }],
+        providerDataUseAccepted: true,
       });
       statuses.push(response.status);
       if (attempt === 4) limitedResponse = response;
@@ -148,6 +165,19 @@ describe("POST /api/meal-scans/analyze", () => {
       .send({ image: VALID_IMAGE });
 
     expect(response.status).toBe(403);
+    expect(analyzeMealImage).not.toHaveBeenCalled();
+  });
+
+  test("requires explicit provider data-use consent before quota or provider", async () => {
+    const response = await anonymousScan(app, "198.51.100.15", {
+      providerDataUseAccepted: undefined,
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      success: false,
+      code: "MEAL_SCAN_DATA_USE_CONSENT_REQUIRED",
+    });
     expect(analyzeMealImage).not.toHaveBeenCalled();
   });
 
@@ -198,7 +228,10 @@ describe("POST /api/meal-scans/analyze", () => {
     const response = await withAuth(
       request(app).post("/api/meal-scans/analyze"),
       accessToken,
-    ).send({ image: `data:image/jpeg;base64,${base64}` });
+    ).send({
+      image: `data:image/jpeg;base64,${base64}`,
+      providerDataUseAccepted: true,
+    });
 
     expect(response.status).toBe(413);
     expect(response.headers["cache-control"]).toBe("private, no-store");
@@ -231,7 +264,11 @@ describe("POST /api/meal-scans/analyze", () => {
     const response = await withAuth(
       request(app).post("/api/meal-scans/analyze"),
       accessToken,
-    ).send({ image: VALID_IMAGE, locale: "en" });
+    ).send({
+      image: VALID_IMAGE,
+      locale: "en",
+      providerDataUseAccepted: true,
+    });
 
     expect(response.status).toBe(422);
     expect(response.body).toMatchObject({
