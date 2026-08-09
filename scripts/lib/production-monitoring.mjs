@@ -11,6 +11,18 @@ export const assert = (condition, message) => {
   if (!condition) throw new Error(message);
 };
 
+export const sitemapIncludesCanonicalPath = (
+  sitemap,
+  path,
+  origin = CANONICAL_CLIENT_ORIGIN,
+) => {
+  const normalizedPath = "/" + String(path || "").replace(/^\/+|\/+$/g, "");
+  const withoutTrailingSlash = normalizedPath === "/" ? "" : normalizedPath;
+  return [withoutTrailingSlash, withoutTrailingSlash + "/"].some((candidate) =>
+    String(sitemap || "").includes(`<loc>${origin}${candidate}</loc>`),
+  );
+};
+
 const approvedOrigin = (value, fallback, approved, name) => {
   const parsed = new URL(String(value || fallback));
   assert(parsed.protocol === "https:", `${name} must use HTTPS`);

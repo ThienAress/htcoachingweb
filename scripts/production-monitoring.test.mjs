@@ -6,10 +6,32 @@ import {
   parsePrometheusMetrics,
   productionTargets,
   retryReadOnlyOperation,
+  sitemapIncludesCanonicalPath,
   validateGoogleOAuthRedirect,
   normalizeRumBaseline,
   summarizePrometheusMetrics,
 } from "./lib/production-monitoring.mjs";
+
+test("sitemap matching accepts canonical routes with or without a trailing slash", () => {
+  const sitemap = [
+    "<urlset>",
+    "<loc>https://htcoachingweb.io.vn/blog/</loc>",
+    "<loc>https://htcoachingweb.io.vn/cong-thuc-nau-an</loc>",
+    "<loc>https://htcoachingweb.io.vn/blog/current-post/</loc>",
+    "</urlset>",
+  ].join("");
+
+  assert.equal(sitemapIncludesCanonicalPath(sitemap, "/blog"), true);
+  assert.equal(
+    sitemapIncludesCanonicalPath(sitemap, "/cong-thuc-nau-an/"),
+    true,
+  );
+  assert.equal(
+    sitemapIncludesCanonicalPath(sitemap, "/blog/current-post"),
+    true,
+  );
+  assert.equal(sitemapIncludesCanonicalPath(sitemap, "/missing"), false);
+});
 
 test("production targets accept only explicit application origins", () => {
   assert.deepEqual(productionTargets({}), {
