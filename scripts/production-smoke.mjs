@@ -1,9 +1,9 @@
 import {
-  CANONICAL_CLIENT_ORIGIN,
   assert,
   fetchTimed,
   productionTargets,
   retryReadOnlyOperation,
+  sitemapIncludesCanonicalPath,
   validateGoogleOAuthRedirect,
 } from "./lib/production-monitoring.mjs";
 
@@ -172,7 +172,7 @@ const main = async () => {
   assert(sitemap.includes("<urlset"), "Sitemap XML is invalid");
   for (const path of ["/blog", "/cong-thuc-nau-an"]) {
     assert(
-      sitemap.includes("<loc>" + CANONICAL_CLIENT_ORIGIN + path + "</loc>"),
+      sitemapIncludesCanonicalPath(sitemap, path),
       "Sitemap is missing " + path,
     );
   }
@@ -182,9 +182,7 @@ const main = async () => {
   ]) {
     if (item?.slug) {
       assert(
-        sitemap.includes(
-          "<loc>" + CANONICAL_CLIENT_ORIGIN + prefix + item.slug + "</loc>",
-        ),
+        sitemapIncludesCanonicalPath(sitemap, prefix + item.slug),
         "Sitemap is missing the current " + prefix + " detail route",
       );
     }
