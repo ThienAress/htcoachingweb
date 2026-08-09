@@ -1,0 +1,7 @@
+interface:
+  display_name: "Skill Radar"
+  short_description: "Theo dõi drift và triage upstream skill"
+  default_prompt: "Use $skill-radar để kiểm tra upstream watchlist và tạo báo cáo review."
+
+policy:
+  allow_implicit_invocation: false

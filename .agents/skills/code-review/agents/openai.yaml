@@ -1,0 +1,7 @@
+interface:
+  display_name: "Code Review"
+  short_description: "Review standards, contract, and risk"
+  default_prompt: "Use $code-review to review this change across standards, contract, and risk axes."
+
+policy:
+  allow_implicit_invocation: true

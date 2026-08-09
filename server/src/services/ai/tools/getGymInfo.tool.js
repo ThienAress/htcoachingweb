@@ -16,7 +16,10 @@ export async function getGymInfo(params) {
       query.district = { $regex: district, $options: "i" };
     }
 
-    const gyms = await Gym.find(query).sort({ sortOrder: 1 }).lean();
+    const gyms = await Gym.find(query)
+      .sort({ sortOrder: 1 })
+      .select("name address district openingHours hasKickfit googleMapsUrl note image")
+      .lean();
 
     if (gyms.length === 0) {
       if (district) {

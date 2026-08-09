@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import leadAttributionSchema from "./leadAttribution.schema.js";
 
 const bookingSchema = new mongoose.Schema(
   {
@@ -47,6 +48,10 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true,
       maxlength: 64,
+    },
+    attribution: {
+      type: leadAttributionSchema,
+      default: null,
     },
     status: {
       type: String,

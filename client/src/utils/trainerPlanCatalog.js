@@ -46,6 +46,26 @@ const hasValidPlanShape = (plan, requiredCycles) => {
   return hasExactPrices && hasValidDuration;
 };
 
+const hasValidBenefitShape = (benefit, planCodes) =>
+  Boolean(
+    benefit &&
+      typeof benefit.key === "string" &&
+      benefit.key.trim() &&
+      typeof benefit.label === "string" &&
+      benefit.label.trim() &&
+      benefit.category &&
+      typeof benefit.category.key === "string" &&
+      benefit.category.key.trim() &&
+      typeof benefit.category.label === "string" &&
+      benefit.category.label.trim() &&
+      ["capacity", "included"].includes(benefit.valueType) &&
+      Array.isArray(benefit.includedPlanCodes) &&
+      benefit.includedPlanCodes.length > 0 &&
+      new Set(benefit.includedPlanCodes).size ===
+        benefit.includedPlanCodes.length &&
+      benefit.includedPlanCodes.every((code) => planCodes.includes(code)),
+  );
+
 const CYCLE_LABELS = {
   month: "theo tháng",
   year: "theo năm",
@@ -58,6 +78,7 @@ const getCycleLabel = (plan, cycle) =>
 
 export const normalizeTrainerPlanCatalogResponse = (response) => {
   const plans = response?.data?.data;
+  const benefits = response?.data?.benefits;
   const meta = response?.data?.meta;
   if (
     !Array.isArray(plans) ||
@@ -82,8 +103,21 @@ export const normalizeTrainerPlanCatalogResponse = (response) => {
     throw new Error("Trainer plan catalog response is incomplete");
   }
 
+  const benefitKeys = Array.isArray(benefits)
+    ? benefits.map((benefit) => benefit?.key)
+    : [];
+  const hasValidBenefits =
+    Array.isArray(benefits) &&
+    benefits.length > 0 &&
+    new Set(benefitKeys).size === benefits.length &&
+    benefitKeys.includes("max_students") &&
+    benefits.every((benefit) => hasValidBenefitShape(benefit, requiredCodes));
+  if (!hasValidBenefits) {
+    throw new Error("Trainer plan catalog response is incomplete");
+  }
+
   const byCode = Object.fromEntries(plans.map((plan) => [plan.code, plan]));
-  return { plans, byCode, meta };
+  return { plans, byCode, benefits, meta };
 };
 
 export const createTrainerPlanPurchasePayload = ({

@@ -26,6 +26,7 @@
     "act_1_725": "Very active (6-7 days/week)",
     "act_1_9": "Extra active (twice a day)",
     "select_formula": "-- Select formula --",
+    "formula_recommended": "Preselected because it suits most adults. You can still choose another formula.",
     "select_goal": "-- Select goal --",
     "goal_gain_muscle": "Gain muscle",
     "goal_gain_weight": "Gain weight",

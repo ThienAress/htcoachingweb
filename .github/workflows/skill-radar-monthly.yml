@@ -1,0 +1,39 @@
+name: Skill Radar Monthly
+
+on:
+  schedule:
+    - cron: "0 2 1 * *"
+  workflow_dispatch:
+
+concurrency:
+  group: skill-radar-monthly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Validate radar contract
+        run: npm run agents:validate
+      - name: Test radar scanner
+        run: npm run test:agents:radar
+      - name: Scan upstream metadata
+        run: node .agents/scripts/skill-radar-cli.mjs --output .radar-artifacts/snapshot.json
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Upload review artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skill-radar-${{ github.run_id }}
+          path: .radar-artifacts/snapshot.json
+          if-no-files-found: warn
+          retention-days: 30

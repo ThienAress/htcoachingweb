@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import {
+  applyConversionOriginContract,
+  createConversionOriginFields,
+} from "./conversionOrigin.schema.js";
 
 const f1CustomerSchema = new mongoose.Schema(
   {
@@ -55,6 +59,7 @@ const f1CustomerSchema = new mongoose.Schema(
       enum: ["manual", "booking", "referral", "walkin"],
       default: "manual",
     },
+    ...createConversionOriginFields(),
     status: {
       type: String,
       enum: [
@@ -128,6 +133,7 @@ const f1CustomerSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+applyConversionOriginContract(f1CustomerSchema, "uniq_f1_conversion");
 
 f1CustomerSchema.index({ phone: 1 });
 f1CustomerSchema.index({ email: 1 });

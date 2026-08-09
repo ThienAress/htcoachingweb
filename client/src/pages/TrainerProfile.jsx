@@ -157,7 +157,7 @@ const CustomerCard = ({ story }) => {
 
           {/* Hover Overlay */}
           <Link
-            to={`/ket-qua-khach-hang/${story.slug}`}
+            to={`/ket-qua-khach-hang/${story.slug}/`}
             className="absolute inset-0 flex items-center justify-center bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30"
           >
             <span className="flex items-center gap-2 bg-primary text-white font-black text-xs px-5 py-2.5 rounded-lg shadow-lg transform scale-90 group-hover:scale-100 transition-all duration-300 uppercase tracking-wider border border-primary-dark">
@@ -277,7 +277,7 @@ const TrainerProfile = ({ previewData }) => {
           "jobTitle": trainer.title || "Huấn Luyện Viên Cá Nhân",
           "description": trainer.headline || trainer.bio || `Huấn luyện viên ${trainer.name} tại HTCOACHING`,
           "image": trainerImages[0] || "",
-          "url": `https://htcoachingweb.io.vn/huan-luyen-vien/${trainer.slug}`,
+          "url": `https://htcoachingweb.io.vn/huan-luyen-vien/${trainer.slug}/`,
           "worksFor": { "@type": "Organization", "name": "HTCOACHING" }
         };
         const graph = [personSchema];
@@ -587,7 +587,7 @@ const TrainerProfile = ({ previewData }) => {
             {/* Link xem tất cả */}
             <div className="text-center mt-12">
               <Link
-                to="/ket-qua-khach-hang"
+                to="/ket-qua-khach-hang/"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-xl border-2 border-primary text-white font-bold hover:bg-primary transition-colors uppercase tracking-widest"
               >
                 {t("sections.view_all_stories")} <ArrowRight size={18} />
@@ -634,7 +634,7 @@ const TrainerProfile = ({ previewData }) => {
           </p>
           <div className="grid gap-4 sm:grid-cols-3 max-w-4xl mx-auto">
             <Link
-              to="/tdee-calculator"
+              to="/tdee-calculator/"
               className="group border border-slate-200 bg-white p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Flame className="h-6 w-6 text-primary mb-3" />
@@ -646,7 +646,7 @@ const TrainerProfile = ({ previewData }) => {
               </p>
             </Link>
             <Link
-              to="/exercises"
+              to="/exercises/"
               className="group border border-slate-200 bg-white p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Dumbbell className="h-6 w-6 text-primary mb-3" />
@@ -658,7 +658,7 @@ const TrainerProfile = ({ previewData }) => {
               </p>
             </Link>
             <Link
-              to="/ket-qua-khach-hang"
+              to="/ket-qua-khach-hang/"
               className="group border border-slate-200 bg-white p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <CheckCircle2 className="h-6 w-6 text-primary mb-3" />

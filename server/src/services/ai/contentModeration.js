@@ -14,6 +14,32 @@ const VULGAR_WORDS = [
   "đụ", "dcm", "vcl", "vkl", "clgt", "cc",
 ];
 
+const inspectContent = (text) => {
+  const normalizedText = String(text || "");
+  const lower = normalizedText.toLowerCase().trim();
+  const hasBlockedUrl = BLOCKED_URL_PATTERNS.some((pattern) =>
+    pattern.test(normalizedText),
+  );
+  const hasVulgar = VULGAR_WORDS.some((word) => {
+    const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(
+      `(^|\\s|[^a-zàáảãạăắằẳẵặâấầẩẫậ])${escapedWord}($|\\s|[^a-zàáảãạăắằẳẵặâấầẩẫậ])`,
+      "i",
+    );
+    return regex.test(lower);
+  });
+  return { safe: !hasBlockedUrl && !hasVulgar };
+};
+
+export const moderateGuestContent = (text) => {
+  if (inspectContent(text).safe) return { safe: true };
+  return {
+    safe: false,
+    message:
+      "⚠️ Nội dung này không phù hợp để HT Assistant xử lý. Bạn hãy diễn đạt lại nhé.",
+  };
+};
+
 /**
  * Kiểm tra user có bị khóa không (tạm thời)
  * @returns {{ blocked: boolean, remainingMinutes?: number }}
@@ -42,18 +68,7 @@ export async function isUserLocked(userId) {
  * @returns {{ safe: boolean, warning?: boolean, message?: string }}
  */
 export async function moderateContent(userId, text) {
-  const lower = text.toLowerCase().trim();
-
-  // Check blocked URLs
-  const hasBlockedUrl = BLOCKED_URL_PATTERNS.some((p) => p.test(text));
-
-  // Check vulgar words (word boundary hoặc exact match)
-  const hasVulgar = VULGAR_WORDS.some((word) => {
-    const regex = new RegExp(`(^|\\s|[^a-zàáảãạăắằẳẵặâấầẩẫậ])${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|\\s|[^a-zàáảãạăắằẳẵặâấầẩẫậ])`, "i");
-    return regex.test(lower);
-  });
-
-  if (!hasBlockedUrl && !hasVulgar) {
+  if (inspectContent(text).safe) {
     return { safe: true };
   }
 

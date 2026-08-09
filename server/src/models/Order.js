@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import {
+  applyConversionOriginContract,
+  createConversionOriginFields,
+} from "./conversionOrigin.schema.js";
 
 const orderSchema = new mongoose.Schema(
   {
@@ -55,6 +59,7 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    ...createConversionOriginFields(),
   },
   { timestamps: true },
 );
@@ -71,6 +76,7 @@ orderSchema.pre("validate", function validateSessionBalance() {
     );
   }
 });
+applyConversionOriginContract(orderSchema, "uniq_order_conversion");
 // ✅ Indexes
 orderSchema.index({ trainerId: 1 });
 orderSchema.index({ userId: 1 });

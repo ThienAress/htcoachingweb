@@ -17,6 +17,8 @@ import {
 } from "../../__tests__/setup.js";
 import f1CustomerRoutes from "../../routes/f1Customer.routes.js";
 import { errorHandler } from "../../middlewares/errorHandler.js";
+import Booking from "../../models/Booking.js";
+import ContactMessage from "../../models/ContactMessage.js";
 import F1Customer from "../../models/F1Customer.js";
 import TrainerSubscription from "../../models/TrainerSubscription.js";
 
@@ -48,6 +50,28 @@ const customerPayload = (assignedTrainerId) => ({
   email: "f1authorization@gmail.com",
   assignedTrainerId,
 });
+
+const createContact = () =>
+  ContactMessage.create({
+    name: "Contact Origin",
+    email: "contact-origin@example.com",
+    phone: "0912345678",
+    social: "facebook",
+    package: "ONLINE",
+  });
+
+const createBooking = () =>
+  Booking.create({
+    name: "Booking Origin",
+    email: "booking-origin@example.com",
+    phone: "0912345678",
+    gym: "Home gym",
+    schedule: "Thu 2",
+    package: "ONLINE",
+    sessions: 12,
+    clientRequestId: "f1-origin-booking-request",
+    requestFingerprint: "a".repeat(64),
+  });
 
 beforeAll(async () => {
   await setupTestDB();
@@ -108,5 +132,79 @@ describe("F1 customer assignment authorization", () => {
     expect(String(response.body.data.assignedTrainerId)).toBe(
       String(target.user._id),
     );
+  });
+
+  it("allows an admin to create F1 from an existing Contact origin", async () => {
+    const admin = await createTestUser({
+      email: "f1-origin-admin@example.com",
+      role: "admin",
+    });
+    const contact = await createContact();
+
+    const response = await withAuth(
+      request(app).post("/api/f1-customers"),
+      admin.accessToken,
+    ).send({
+      ...customerPayload(null),
+      originContactMessageId: String(contact._id),
+    });
+    const created = await F1Customer.findById(response.body.data?._id)
+      .select("+originContactMessageId")
+      .lean();
+
+    expect(response.status).toBe(201);
+    expect(String(created?.originContactMessageId)).toBe(String(contact._id));
+  });
+
+  it("allows an admin to create F1 from an existing Booking origin", async () => {
+    const admin = await createTestUser({
+      email: "f1-booking-admin@example.com",
+      role: "admin",
+    });
+    const booking = await createBooking();
+
+    const response = await withAuth(
+      request(app).post("/api/f1-customers"),
+      admin.accessToken,
+    ).send({
+      ...customerPayload(null),
+      originBookingId: String(booking._id),
+    });
+
+    expect(response.status).toBe(201);
+  });
+
+  it("rejects a trainer-supplied origin because leads are admin-only", async () => {
+    const trainer = await createTrainer("f1-origin-trainer@example.com");
+    const contact = await createContact();
+
+    const response = await withAuth(
+      request(app).post("/api/f1-customers"),
+      trainer.accessToken,
+    ).send({
+      ...customerPayload(String(trainer.user._id)),
+      originContactMessageId: String(contact._id),
+    });
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("CONVERSION_ORIGIN_ADMIN_REQUIRED");
+  });
+
+  it("rejects a missing origin without creating an F1 customer", async () => {
+    const admin = await createTestUser({
+      email: "f1-origin-missing@example.com",
+      role: "admin",
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/f1-customers"),
+      admin.accessToken,
+    ).send({
+      ...customerPayload(null),
+      originBookingId: String(new F1Customer()._id),
+    });
+
+    expect(response.status).toBe(404);
+    expect(await F1Customer.countDocuments()).toBe(0);
   });
 });

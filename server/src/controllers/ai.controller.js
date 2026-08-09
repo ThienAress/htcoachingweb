@@ -7,10 +7,19 @@ import { llmStream } from "../services/ai/providers/index.js";
 import { executeTool } from "../services/ai/tools/toolEngine.js";
 import { getToolSchemas } from "../services/ai/tools/toolRegistry.js";
 import { buildSystemPrompt } from "../services/ai/systemPrompt.js";
-import { isUserLocked, moderateContent } from "../services/ai/contentModeration.js";
+import {
+  isUserLocked,
+  moderateContent,
+  moderateGuestContent,
+} from "../services/ai/contentModeration.js";
 import { searchKnowledgeBase } from "../services/ai/embedding.service.js";
 import { aiLogger } from "../services/ai/aiLogger.js";
-import { enrichContextWithDbData } from "../services/ai/contextEnricher.js";
+import { serializeRequestQuota } from "../services/serviceAccessPolicy.service.js";
+import {
+  canonicalizePageContext,
+  resolvePageContext,
+  shouldExpandPageContent,
+} from "../services/ai/contextEnricher.js";
 import {
   deriveConversationMemory,
   updateConversationMemory,
@@ -29,6 +38,7 @@ const MAX_ITERATIONS = 5;
 const MAX_HISTORY_MESSAGES = 20;
 const STREAM_STALE_MS = 10 * 60 * 1000;
 const CONVERSATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const GUEST_CONVERSATION_TTL_MS = 24 * 60 * 60 * 1000;
 const CHAT_DEADLINE_MS = 75 * 1000;
 const TOOL_TIMEOUT_MS = 15 * 1000;
 
@@ -45,7 +55,9 @@ const contextUpdate = (context) => {
 };
 
 async function acquireConversation({
-  userId,
+  ownerFilter,
+  ownerDocument,
+  conversationTtlMs,
   conversationId,
   requestId,
   message,
@@ -54,7 +66,7 @@ async function acquireConversation({
   streamId,
 }) {
   const duplicate = await ChatConversation.findOne({
-    userId,
+    ...ownerFilter,
     recentRequestIds: requestId,
   }).select("_id");
   if (duplicate) return { conversation: duplicate, duplicate: true };
@@ -71,7 +83,7 @@ async function acquireConversation({
   if (!conversationId) {
     try {
       const conversation = await ChatConversation.create({
-        userId,
+        ...ownerDocument,
         title: message.slice(0, 60),
         messages: [userMessage],
         messageCount: 1,
@@ -80,13 +92,13 @@ async function acquireConversation({
         activeStreamId: streamId,
         activeStreamStartedAt: timestamp,
         context,
-        expiresAt: new Date(Date.now() + CONVERSATION_TTL_MS),
+        expiresAt: new Date(Date.now() + conversationTtlMs),
       });
       return { conversation, duplicate: false };
     } catch (error) {
       if (error?.code !== 11000) throw error;
       const winner = await ChatConversation.findOne({
-        userId,
+        ...ownerFilter,
         recentRequestIds: requestId,
       });
       if (winner) return { conversation: winner, duplicate: true };
@@ -98,7 +110,7 @@ async function acquireConversation({
   const conversation = await ChatConversation.findOneAndUpdate(
     {
       _id: conversationId,
-      userId,
+      ...ownerFilter,
       recentRequestIds: { $ne: requestId },
       $or: [
         { activeStreamId: null },
@@ -110,7 +122,7 @@ async function acquireConversation({
       $set: {
         activeStreamId: streamId,
         activeStreamStartedAt: timestamp,
-        expiresAt: new Date(Date.now() + CONVERSATION_TTL_MS),
+        expiresAt: new Date(Date.now() + conversationTtlMs),
         ...summary,
         ...contextUpdate(context),
       },
@@ -133,7 +145,7 @@ async function acquireConversation({
 
   const existing = await ChatConversation.findOne({
     _id: conversationId,
-    userId,
+    ...ownerFilter,
   })
     .select("_id activeStreamId recentRequestIds")
     .lean();
@@ -146,7 +158,8 @@ async function acquireConversation({
 
 async function finalizeConversation({
   conversationId,
-  userId,
+  ownerFilter,
+  conversationTtlMs,
   streamId,
   generatedMessages,
   assistantPreview,
@@ -156,7 +169,7 @@ async function finalizeConversation({
     $set: {
       activeStreamId: null,
       activeStreamStartedAt: null,
-      expiresAt: new Date(Date.now() + CONVERSATION_TTL_MS),
+      expiresAt: new Date(Date.now() + conversationTtlMs),
     },
   };
 
@@ -181,7 +194,7 @@ async function finalizeConversation({
   }
 
   return ChatConversation.updateOne(
-    { _id: conversationId, userId, activeStreamId: streamId },
+    { _id: conversationId, ...ownerFilter, activeStreamId: streamId },
     update,
     { runValidators: true },
   );
@@ -189,48 +202,77 @@ async function finalizeConversation({
 
 // POST /api/ai/chat — SSE streaming chat với Agent Loop
 export const chatStream = async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user?.id || null;
+  const guestKey = req.aiActor?.guestKey || null;
+  const ownerFilter = userId ? { userId } : { guestKey };
+  const ownerDocument = userId ? { userId } : { guestKey };
+  const conversationTtlMs = userId
+    ? CONVERSATION_TTL_MS
+    : GUEST_CONVERSATION_TTL_MS;
+  const actorId = userId || guestKey;
+
+  if (!actorId) {
+    return res.status(500).json({
+      success: false,
+      message: "Không thể xác định phiên trò chuyện",
+    });
+  }
   const parsed = parseChatRequest(req.body);
 
   if (parsed.error) {
     return res.status(400).json({ success: false, message: parsed.error });
   }
   const { message, conversationId, context, image, requestId } = parsed.value;
+  if (!userId && image) {
+    return res.status(403).json({
+      success: false,
+      code: "AI_GUEST_IMAGE_UNAVAILABLE",
+      message: "Đăng nhập để gửi hình ảnh cho HT Assistant.",
+    });
+  }
   const streamId = crypto.randomUUID();
 
   let user;
   let conversation;
   try {
-    user = await User.findById(userId).select("name isAiChatBanned").lean();
-    if (user?.isAiChatBanned) {
-      aiLogger.userLocked(userId, "permanent");
-      return res.status(403).json({
-        success: false,
-        message: "🚫 Tài khoản của bạn đã bị cấm sử dụng Chat AI vĩnh viễn do vi phạm quy tắc cộng đồng nhiều lần.",
-      });
-    }
-    const lockStatus = await isUserLocked(userId);
-    if (lockStatus.blocked) {
-      aiLogger.userLocked(userId, lockStatus.remainingMinutes);
-      return res.status(403).json({
-        success: false,
-        message: `🚫 Chat AI đang bị khóa tạm thời. Còn ${lockStatus.remainingMinutes} phút.`,
-      });
+    if (userId) {
+      user = await User.findById(userId).select("name isAiChatBanned").lean();
+      if (user?.isAiChatBanned) {
+        aiLogger.userLocked(actorId, "permanent");
+        return res.status(403).json({
+          success: false,
+          message: "🚫 Tài khoản của bạn đã bị cấm sử dụng Chat AI vĩnh viễn do vi phạm quy tắc cộng đồng nhiều lần.",
+        });
+      }
+      const lockStatus = await isUserLocked(userId);
+      if (lockStatus.blocked) {
+        aiLogger.userLocked(actorId, lockStatus.remainingMinutes);
+        return res.status(403).json({
+          success: false,
+          message: `🚫 Chat AI đang bị khóa tạm thời. Còn ${lockStatus.remainingMinutes} phút.`,
+        });
+      }
     }
 
-    const moderation = await moderateContent(userId, message);
+    const moderation = userId
+      ? await moderateContent(userId, message)
+      : moderateGuestContent(message);
     if (!moderation.safe) {
-      aiLogger.moderationTrigger(userId, moderation.action || "blocked");
+      aiLogger.moderationTrigger(actorId, moderation.action || "blocked");
       return res.status(400).json({ success: false, message: moderation.message });
     }
 
+    const canonicalContext = canonicalizePageContext(context);
+
     const acquired = await acquireConversation({
-      userId,
+      ownerFilter,
+      ownerDocument,
+      conversationTtlMs,
       conversationId,
       requestId,
       message,
       image,
-      context,
+      context: canonicalContext,
       streamId,
     });
     conversation = acquired.conversation;
@@ -240,6 +282,10 @@ export const chatStream = async (req, res) => {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders();
+      const quota = serializeRequestQuota(req, "ai_chat");
+      if (quota) {
+        res.write(`data: ${JSON.stringify({ type: "quota", quota })}\n\n`);
+      }
       res.write(
         `data: ${JSON.stringify({
           type: "done",
@@ -250,7 +296,7 @@ export const chatStream = async (req, res) => {
       return res.end();
     }
   } catch (error) {
-    aiLogger.chatError(userId, error, "chatPreflight");
+    aiLogger.chatError(actorId, error, "chatPreflight");
     return res.status(error.status || 500).json({
       success: false,
       message: error.status
@@ -264,6 +310,10 @@ export const chatStream = async (req, res) => {
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
+  const quota = serializeRequestQuota(req, "ai_chat");
+  if (quota) {
+    res.write(`data: ${JSON.stringify({ type: "quota", quota })}\n\n`);
+  }
 
   const abortController = new AbortController();
   let clientDisconnected = false;
@@ -297,20 +347,18 @@ export const chatStream = async (req, res) => {
       })}\n\n`,
     );
 
-    // Enrich Context from DB
-    let pageData = null;
-    let pageType = null;
-    if (conversation.context?.page) {
-      pageType = conversation.context.pageType || 'general';
-      pageData = await enrichContextWithDbData(conversation.context);
-    }
+    const resolvedPageContext = await resolvePageContext(
+      conversation.context,
+      { expandContent: shouldExpandPageContent(message) },
+    );
 
     // Build system prompt với context
     let systemPrompt = buildSystemPrompt({
       userName: user?.name,
       currentPage: conversation.context?.page || conversation.context?.lastPage,
-      pageType,
-      pageData,
+      pageType: resolvedPageContext.pageType,
+      pageInfo: resolvedPageContext.pageInfo,
+      pageData: resolvedPageContext.pageData,
       userMetrics: conversation.context?.userMetrics,
       conversationMemory,
     });
@@ -322,7 +370,7 @@ export const chatStream = async (req, res) => {
       const kbResults = await searchKnowledgeBase(message, { limit: 3, threshold: 0.75 });
       if (kbResults.length > 0) {
         kbEntryIds = kbResults.map((r) => r._id);
-        aiLogger.kbMatch(userId, kbResults.length, kbResults[0]?.similarity);
+        aiLogger.kbMatch(actorId, kbResults.length, kbResults[0]?.similarity);
         systemPrompt += `\n\n## Kiến thức đã verified (ưu tiên dùng làm tham khảo chính):\n`;
         kbResults.forEach((r, i) => {
           const matchLabel = r.matchedQuestion && r.matchedQuestion !== r.question 
@@ -357,14 +405,14 @@ export const chatStream = async (req, res) => {
       }),
     ];
 
-    const tools = getToolSchemas();
+    const tools = getToolSchemas({ isAuthenticated: Boolean(userId) });
     let lastToolResultText = ""; // Backup: dùng khi Gemini im luôn sau tool call
 
     // === AGENT LOOP (Pattern từ Dify fc_agent_runner.py) ===
     let iteration = 0;
     let needsToolCall = true;
     let protocolRetryCount = 0;
-    aiLogger.chatStart(userId, conversation._id);
+    aiLogger.chatStart(actorId, conversation._id);
 
     while (
       needsToolCall &&
@@ -433,7 +481,7 @@ export const chatStream = async (req, res) => {
               const safeToolText = String(toolResult.text || "").slice(0, 20000);
               const toolDuration = Date.now() - toolStartTime;
               toolCallCount++;
-              aiLogger.toolCall(userId, call.name, toolDuration, !toolResult.error);
+              aiLogger.toolCall(actorId, call.name, toolDuration, !toolResult.error);
               if (
                 !toolResult.error &&
                 !toolResult.meta?.validationFailed &&
@@ -536,7 +584,8 @@ export const chatStream = async (req, res) => {
 
     await finalizeConversation({
       conversationId: conversation._id,
-      userId,
+      ownerFilter,
+      conversationTtlMs,
       streamId,
       generatedMessages,
       assistantPreview: fullResponse,
@@ -553,7 +602,7 @@ export const chatStream = async (req, res) => {
     }
 
     // Done event
-    aiLogger.chatEnd(userId, conversation._id, {
+    aiLogger.chatEnd(actorId, conversation._id, {
       iterations: iteration,
       toolCalls: toolCallCount,
       durationMs: Date.now() - chatStartTime,
@@ -564,7 +613,7 @@ export const chatStream = async (req, res) => {
       res.end();
     }
   } catch (err) {
-    aiLogger.chatError(userId, err, "chatStream");
+    aiLogger.chatError(actorId, err, "chatStream");
     if (!clientDisconnected && !res.writableEnded) {
       const message = deadlineExceeded
         ? "HT Assistant phản hồi quá lâu. Bạn vui lòng thử lại."
@@ -585,14 +634,15 @@ export const chatStream = async (req, res) => {
       try {
         await finalizeConversation({
           conversationId: conversation._id,
-          userId,
+          ownerFilter,
+          conversationTtlMs,
           streamId,
           generatedMessages,
           assistantPreview: fullResponse,
           workingMemory: conversationMemory,
         });
       } catch (error) {
-        aiLogger.chatError(userId, error, "chatFinalize");
+        aiLogger.chatError(actorId, error, "chatFinalize");
       }
     }
   }

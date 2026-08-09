@@ -196,7 +196,7 @@ const RelatedStoryCard = ({ story }) => {
 
   return (
     <Link
-      to={`/ket-qua-khach-hang/${story.slug}`}
+      to={`/ket-qua-khach-hang/${story.slug}/`}
       className="group block overflow-hidden border border-gray-200 bg-white transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
     >
       <div className="grid grid-cols-2 gap-1 bg-neutral-100 p-1">
@@ -312,7 +312,7 @@ const CustomerStoryDetail = ({ previewData }) => {
         "@type": "BreadcrumbList",
         "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "Trang chủ", "item": "https://htcoachingweb.io.vn/" },
-          { "@type": "ListItem", "position": 2, "name": "Kết Quả Khách Hàng", "item": "https://htcoachingweb.io.vn/ket-qua-khach-hang" },
+          { "@type": "ListItem", "position": 2, "name": "Kết Quả Khách Hàng", "item": "https://htcoachingweb.io.vn/ket-qua-khach-hang/" },
           { "@type": "ListItem", "position": 3, "name": story.name }
         ]
       }
@@ -541,7 +541,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                 </div>
                 <div className="mt-8 text-center">
                   <Link
-                    to="/ket-qua-khach-hang"
+                    to="/ket-qua-khach-hang/"
                     className="inline-flex items-center justify-center gap-2 bg-primary px-6 py-3 text-sm font-bold uppercase text-white transition hover:bg-orange-600 rounded-lg shadow-md shadow-primary/20"
                   >
                     {t("detail.view_all")}
@@ -560,7 +560,7 @@ const CustomerStoryDetail = ({ previewData }) => {
               </p>
               <div className="mt-6 grid gap-4 sm:grid-cols-3">
                 <Link
-                  to="/tdee-calculator"
+                  to="/tdee-calculator/"
                   className="group border border-gray-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
                 >
                   <Flame className="h-6 w-6 text-primary mb-3" />
@@ -572,7 +572,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                   </p>
                 </Link>
                 <Link
-                  to="/exercises"
+                  to="/exercises/"
                   className="group border border-gray-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
                 >
                   <Dumbbell className="h-6 w-6 text-primary mb-3" />
@@ -584,7 +584,7 @@ const CustomerStoryDetail = ({ previewData }) => {
                   </p>
                 </Link>
                 <Link
-                  to="/ket-qua-khach-hang"
+                  to="/ket-qua-khach-hang/"
                   className="group border border-gray-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
                 >
                   <CheckCircle2 className="h-6 w-6 text-primary mb-3" />

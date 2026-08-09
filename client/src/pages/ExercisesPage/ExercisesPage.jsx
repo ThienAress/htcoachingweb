@@ -145,7 +145,7 @@ const ExercisesPage = () => {
           "@type": "WebApplication",
           "name": `${t("seo_title")} - HTCOACHING`,
           "description": t("seo_desc"),
-          "url": "https://htcoachingweb.io.vn/exercises",
+          "url": "https://htcoachingweb.io.vn/exercises/",
           "applicationCategory": "HealthApplication",
           "operatingSystem": "Web",
           "offers": {
@@ -156,7 +156,7 @@ const ExercisesPage = () => {
           "provider": {
             "@type": "Organization",
             "name": "HTCOACHING",
-            "url": "https://htcoachingweb.io.vn"
+            "url": "https://htcoachingweb.io.vn/"
           }
         }}
       />
@@ -329,7 +329,7 @@ const ExercisesPage = () => {
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             <Link
-              to="/tdee-calculator"
+              to="/tdee-calculator/"
               className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Flame className="h-6 w-6 text-primary mb-3" />
@@ -341,7 +341,7 @@ const ExercisesPage = () => {
               </p>
             </Link>
             <Link
-              to="/mealplan"
+              to="/mealplan/"
               className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Calendar className="h-6 w-6 text-primary mb-3" />
@@ -353,7 +353,7 @@ const ExercisesPage = () => {
               </p>
             </Link>
             <Link
-              to="/ket-qua-khach-hang"
+              to="/ket-qua-khach-hang/"
               className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Dumbbell className="h-6 w-6 text-primary mb-3" />

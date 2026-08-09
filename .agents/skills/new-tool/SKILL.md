@@ -44,6 +44,13 @@ Sau đó xác định quyền truy cập:
 
 **Verify:** Tool này đọc hay ghi dữ liệu? Cần đăng nhập không?
 
+Đọc [LLM threat matrix](../ai-chat-system/references/llm-threat-matrix.md) và chốt thêm:
+
+- Dữ liệu nào do user/CMS/provider kiểm soát và output đi tới LLM, UI hay action sink nào.
+- Ownership nào phải enforce trong `execute`, không chỉ qua tool schema hoặc prompt.
+- Giới hạn result count/size, timeout và số lần gọi; write tool cần confirmation cùng idempotency strategy.
+- `text` và `uiCard.data` là untrusted output cho consumer, phải dùng shape/link allowlist.
+
 ---
 
 ## Bước 2: Tạo Tool File (Backend)
@@ -111,6 +118,8 @@ Sửa `server/src/services/ai/tools/toolRegistry.js`:
    - `execute`: function reference
    - `requiresAuth`: true/false
    - `requiresConfirmation`: true/false
+
+Schema chỉ mô tả và validate input; nó không thay thế auth, ownership hoặc confirmation trong execution path.
 
 **Verify:** Server restart không lỗi
 

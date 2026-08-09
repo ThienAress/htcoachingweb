@@ -28,6 +28,12 @@ const validEnvironment = () => ({
   RESEND_API_KEY: "resend-" + "g".repeat(32),
   AI_PROVIDER: "gemini",
   GEMINI_API_KEY: "gemini-" + "h".repeat(32),
+  GEMINI_PAID_SERVICE_CONFIRMED: "true",
+  FOOD_REFERENCE_LOOKUP_ENABLED: "false",
+  OPEN_FOOD_FACTS_ENABLED: "false",
+  FOOD_REFERENCE_TIMEOUT_MS: "5000",
+  FOOD_REFERENCE_RATE_LIMIT_MAX: "30",
+  FOOD_REFERENCE_MAX_RESPONSE_BYTES: "2097152",
   AI_IMAGE_PROVIDER: "openai",
   OPENAI_API_KEY: "openai-" + "i".repeat(32),
   BANK_NAME: "Production Bank",
@@ -128,6 +134,41 @@ describe("production readiness configuration", () => {
     );
   });
 
+  it("blocks production Meal Scan until Gemini Paid Service is confirmed", () => {
+    const env = validEnvironment();
+    env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "GEMINI_PAID_SERVICE_NOT_CONFIRMED",
+    );
+  });
+
+  it("allows an explicit staging Meal Scan mock without Paid Service", () => {
+    const env = validEnvironment();
+    env.APP_ENV = "staging";
+    env.MEAL_SCAN_PROVIDER = "mock";
+    env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors).toEqual([]);
+    expect(result.summary.mealScanProvider).toBe("mock");
+  });
+
+  it("does not allow the staging Meal Scan override in production", () => {
+    const env = validEnvironment();
+    env.APP_ENV = "production";
+    env.MEAL_SCAN_PROVIDER = "mock";
+    env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "GEMINI_PAID_SERVICE_NOT_CONFIRMED",
+    );
+  });
   it("throws only safe finding codes and never includes secret values", () => {
     const env = validEnvironment();
     const leakedValue = "replace-me-private-value";

@@ -8,6 +8,9 @@ description: Hướng dẫn kiến trúc hệ thống AI Chat (HT Assistant). D�
 > Skill này dành cho AI agent khi làm việc với hệ thống AI Chat của htcoachingweb.
 > Đọc file này trước khi sửa bất kỳ file nào liên quan đến AI assistant.
 
+Khi thay prompt/context, RAG, provider, tool permission, output, logging hoặc quota, đọc
+[LLM threat matrix](references/llm-threat-matrix.md) và map risk tới guard/test thật.
+
 ---
 
 ## 🛠️ MODES
@@ -27,6 +30,8 @@ Khi sửa bug hoặc update system prompt/content moderation:
 - **Thêm page public mới** → Cập nhật `systemPrompt.js` nếu AI cần biết về page đó
 - **Thêm model/service mới** → Cân nhắc có cần AI tool không (VD: thêm Booking → có tool getBookingInfo?)
 - **Sửa tool response format** → Kiểm tra card component có match data shape mới không
+- **Đưa CMS/KB/tool text vào prompt** → Coi là untrusted data và kiểm tra indirect prompt injection
+- **Thêm provider/model hoặc tăng loop/quota** → Kiểm tra supply-chain source, timeout và cost bound
 
 ---
 

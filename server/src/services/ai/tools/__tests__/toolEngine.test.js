@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { executeTool } from "../toolEngine.js";
-import { toolRegistry } from "../toolRegistry.js";
+import { getToolSchemas, toolRegistry } from "../toolRegistry.js";
 
 const originalSearchKnowledge = toolRegistry.search_knowledge.execute;
 
@@ -10,6 +10,31 @@ afterEach(() => {
 });
 
 describe("AI tool runtime validation", () => {
+  it("only exposes public, bounded-cost tools to guest chat", () => {
+    const guestToolNames = getToolSchemas({ isAuthenticated: false }).map(
+      (schema) => schema.function.name,
+    );
+
+    expect(guestToolNames).not.toContain("check_wallet");
+    expect(guestToolNames).not.toContain("get_workout_plan");
+    expect(guestToolNames).not.toContain("search_knowledge");
+    expect(guestToolNames).toContain("search_blog");
+  });
+
+  it("rejects a guest-only-disabled tool even when the provider calls it", async () => {
+    toolRegistry.search_knowledge.execute = () => {
+      throw new Error("executor must not be reached");
+    };
+
+    const result = await executeTool(
+      "search_knowledge",
+      { query: "fitness news" },
+      {},
+    );
+
+    expect(result.error).toBe("Guest tool unavailable");
+  });
+
   it("rejects out-of-range arguments before executing a tool", async () => {
     const result = await executeTool(
       "calculate_tdee",
@@ -43,7 +68,11 @@ describe("AI tool runtime validation", () => {
     toolRegistry.search_knowledge.execute = () => new Promise(() => {});
 
     const outcome = await Promise.race([
-      executeTool("search_knowledge", { query: "CBum" }, { timeoutMs: 10 }),
+      executeTool(
+        "search_knowledge",
+        { query: "CBum" },
+        { userId: "authenticated-user", timeoutMs: 10 },
+      ),
       new Promise((resolve) => setTimeout(() => resolve(null), 100)),
     ]);
 
@@ -56,7 +85,11 @@ describe("AI tool runtime validation", () => {
     const execution = executeTool(
       "search_knowledge",
       { query: "vận động viên Việt Nam" },
-      { signal: controller.signal, timeoutMs: 1000 },
+      {
+        userId: "authenticated-user",
+        signal: controller.signal,
+        timeoutMs: 1000,
+      },
     ).then(
       () => "resolved",
       (error) => error.name,

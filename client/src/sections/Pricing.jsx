@@ -2,13 +2,17 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { X, Gift, Sparkles, LogIn, ArrowRight, Wallet, CheckCircle, AlertTriangle } from "lucide-react";
+import { X, Gift, Sparkles, LogIn, ArrowRight, Wallet, CheckCircle, AlertTriangle, CalendarCheck } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { purchaseTrainerPlan } from "../services/trainerSubscription.service";
 import { useTrainerPlanCatalog } from "../hooks/useTrainerPlanCatalog";
 import { createTrainerPlanPurchasePayload } from "../utils/trainerPlanCatalog";
 import { TodayProgressPrompt } from "../components/TodayProgressPrompt";
 import { TODAY_PLATFORM_ENABLED } from "../config/featureFlags";
+import {
+  loadPricingViewMode,
+  persistPricingViewMode,
+} from "../utils/publicJourney";
 import {
   mySubscriptionQueryOptions,
   selectMySubscriptionSnapshot,
@@ -17,6 +21,7 @@ import {
   applyTrainerPlanPurchaseResponse,
   walletBalanceQueryOptions,
 } from "../queries/walletAccount.queries";
+import { buildTrainerPlanCategories } from "../utils/trainerPlanBenefits";
 
 const TODAY_PROGRESS_PROMPT_DISMISSED_KEY =
   "ht_today_progress_prompt_dismissed";
@@ -27,32 +32,37 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // View mode: "customer" | "trainer" | null
-  const [viewMode, setViewMode] = useState(() => {
-    return localStorage.getItem("pricingViewMode") || null;
-  });
-  const [showModeModal, setShowModeModal] = useState(false);
+  // View mode: "customer" | "trainer"
+  const [viewMode, setViewMode] = useState(loadPricingViewMode);
   const [progressPromptDismissed, setProgressPromptDismissed] = useState(
-    () =>
-      sessionStorage.getItem(TODAY_PROGRESS_PROMPT_DISMISSED_KEY) === "true",
+    () => {
+      try {
+        return (
+          globalThis.sessionStorage?.getItem(
+            TODAY_PROGRESS_PROMPT_DISMISSED_KEY,
+          ) === "true"
+        );
+      } catch {
+        return false;
+      }
+    },
   );
 
   const dismissProgressPrompt = useCallback(() => {
-    sessionStorage.setItem(TODAY_PROGRESS_PROMPT_DISMISSED_KEY, "true");
+    try {
+      globalThis.sessionStorage?.setItem(
+        TODAY_PROGRESS_PROMPT_DISMISSED_KEY,
+        "true",
+      );
+    } catch {
+      // Dismiss in memory when browser storage is unavailable.
+    }
     setProgressPromptDismissed(true);
   }, []);
 
-  // Chờ hero animation xong mới hiện modal chọn role
-  useEffect(() => {
-    if (!viewMode && isHeroAnimDone) {
-      setShowModeModal(true);
-    }
-  }, [viewMode, isHeroAnimDone]);
-
   const handleSelectMode = (mode) => {
     setViewMode(mode);
-    localStorage.setItem("pricingViewMode", mode);
-    setShowModeModal(false);
+    persistPricingViewMode(mode);
     dismissProgressPrompt();
   };
 
@@ -62,12 +72,10 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   };
 
   const isTrainer = viewMode === "trainer";
-  const modeModalPending = !viewMode && isHeroAnimDone;
   const showProgressPrompt =
     isHeroAnimDone &&
+    Boolean(user) &&
     viewMode === "customer" &&
-    !showModeModal &&
-    !modeModalPending &&
     !progressPromptDismissed;
 
   const [mode, setMode] = useState("1-1");
@@ -89,8 +97,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     isError: trainerCatalogError,
     refetch: refetchTrainerCatalog,
   } = useTrainerPlanCatalog();
-  const trainerCatalog = trainerCatalogData?.byCode || {};
-  const [showFreeTrialUsed, setShowFreeTrialUsed] = useState(false);
+  const [showFreeTrialNotice, setShowFreeTrialNotice] = useState(false);
   const [showAlreadySubscribed, setShowAlreadySubscribed] = useState(false);
   const purchaseRequestIdRef = useRef(null);
 
@@ -348,146 +355,41 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   };
 
   // ===== GÓI DỊCH VỤ DÀNH CHO TRAINER =====
-  const trainerPlans = trainerCatalogData ? [
-    {
-      code: "free",
-      title: t("pricing.trainer_plans.free"),
+  const trainerPlanCardMeta = {
+    free: {
+      titleKey: "free",
+      subtitleKey: "free_sub",
       icon: "🎁",
-      subtitle: t("pricing.trainer_plans.free_sub", { count: trainerCatalog.free.durationDays }),
-      priceMonth: trainerCatalog.free.prices.trial,
-      priceYear: trainerCatalog.free.prices.trial,
-      durationDays: trainerCatalog.free.durationDays,
       isFree: true,
-      categories: [
-        {
-          name: t("pricing.trainer_plans.categories.student_management"),
-          features: [
-            t("pricing.trainer_plans.features.max_students", { count: trainerCatalog.free.maxClients }),
-            t("pricing.trainer_plans.features.create_profile"),
-            t("pricing.trainer_plans.features.checkin_checkout"),
-            t("pricing.trainer_plans.features.checkin_history"),
-            t("pricing.trainer_plans.features.dashboard"),
-          ],
-        },
-        {
-          name: t("pricing.trainer_plans.categories.coaching_schedule"),
-          features: [
-            t("pricing.trainer_plans.features.coaching_feedback"),
-            t("pricing.trainer_plans.features.manage_schedule"),
-          ],
-        },
-      ],
     },
-    {
-      code: "standard",
-      title: t("pricing.trainer_plans.basic"),
-      icon: "\uD83D\uDD25",
-      subtitle: t("pricing.trainer_plans.basic_sub"),
-      priceMonth: trainerCatalog.standard.prices.month,
-      priceYear: trainerCatalog.standard.prices.year,
-      categories: [
-        {
-          name: t("pricing.trainer_plans.categories.student_management"),
-          features: [
-            t("pricing.trainer_plans.features.max_students", { count: trainerCatalog.standard.maxClients }),
-            t("pricing.trainer_plans.features.create_profile"),
-            t("pricing.trainer_plans.features.checkin_checkout"),
-            t("pricing.trainer_plans.features.checkin_history"),
-            t("pricing.trainer_plans.features.dashboard"),
-          ]
-        },
-        {
-          name: t("pricing.trainer_plans.categories.coaching_schedule"),
-          features: [
-            t("pricing.trainer_plans.features.coaching_feedback"),
-            t("pricing.trainer_plans.features.manage_schedule"),
-          ]
-        }
-      ]
-    },
-    {
-      title: t("pricing.trainer_plans.advanced"),
-      code: "professional",
-      icon: "\uD83D\uDC8E",
-      subtitle: t("pricing.trainer_plans.advanced_sub"),
-      priceMonth: trainerCatalog.professional.prices.month,
-      priceYear: trainerCatalog.professional.prices.year,
+    standard: { titleKey: "basic", subtitleKey: "basic_sub", icon: "🔥" },
+    professional: {
+      titleKey: "advanced",
+      subtitleKey: "advanced_sub",
+      icon: "💎",
       featured: true,
-      categories: [
-        {
-          name: t("pricing.trainer_plans.categories.student_management"),
-          features: [
-            t("pricing.trainer_plans.features.max_students", { count: trainerCatalog.professional.maxClients }),
-            t("pricing.trainer_plans.features.create_profile"),
-            t("pricing.trainer_plans.features.checkin_checkout"),
-            t("pricing.trainer_plans.features.checkin_history"),
-            t("pricing.trainer_plans.features.dashboard"),
-          ]
-        },
-        {
-          name: t("pricing.trainer_plans.categories.coaching_schedule"),
-          features: [
-            t("pricing.trainer_plans.features.coaching_feedback"),
-            t("pricing.trainer_plans.features.manage_schedule"),
-          ]
-        },
-        {
-          name: t("pricing.trainer_plans.categories.crm_ai"),
-          icon: "\u2728",
-          features: [
-            t("pricing.trainer_plans.features.crm_leads"),
-            t("pricing.trainer_plans.features.crm_ai_analysis"),
-            t("pricing.trainer_plans.features.crm_ai_prediction"),
-            t("pricing.trainer_plans.features.crm_ai_report"),
-          ]
-        }
-      ]
     },
-    {
-      title: t("pricing.trainer_plans.vip"),
-      icon: "\uD83D\uDC51",
-      code: "premium",
-      subtitle: t("pricing.trainer_plans.vip_sub"),
-      priceMonth: trainerCatalog.premium.prices.month,
-      priceYear: trainerCatalog.premium.prices.year,
-      categories: [
-        {
-          name: t("pricing.trainer_plans.categories.student_management"),
-          features: [
-            t("pricing.trainer_plans.features.max_students", { count: trainerCatalog.premium.maxClients }),
-            t("pricing.trainer_plans.features.create_profile"),
-            t("pricing.trainer_plans.features.checkin_checkout"),
-            t("pricing.trainer_plans.features.checkin_history"),
-            t("pricing.trainer_plans.features.dashboard"),
-          ]
-        },
-        {
-          name: t("pricing.trainer_plans.categories.coaching_schedule"),
-          features: [
-            t("pricing.trainer_plans.features.coaching_feedback"),
-            t("pricing.trainer_plans.features.manage_schedule"),
-          ]
-        },
-        {
-          name: t("pricing.trainer_plans.categories.crm_ai"),
-          icon: "\u2728",
-          features: [
-            t("pricing.trainer_plans.features.crm_leads"),
-            t("pricing.trainer_plans.features.crm_ai_analysis"),
-            t("pricing.trainer_plans.features.crm_ai_prediction"),
-            t("pricing.trainer_plans.features.crm_ai_report"),
-          ]
-        },
-        {
-          name: t("pricing.trainer_plans.categories.privilege"),
-          icon: "\uD83D\uDC51",
-          features: [
-            t("pricing.trainer_plans.features.free_updates"),
-          ]
-        }
-      ]
-    }
-  ] : [];
+    premium: { titleKey: "vip", subtitleKey: "vip_sub", icon: "👑" },
+  };
+  const trainerPlans = (trainerCatalogData?.plans || []).map((plan) => {
+    const card = trainerPlanCardMeta[plan.code];
+    const isFree = card.isFree === true;
+    return {
+      ...plan,
+      ...card,
+      title: t(`pricing.trainer_plans.${card.titleKey}`),
+      subtitle: t(`pricing.trainer_plans.${card.subtitleKey}`, {
+        count: plan.durationDays,
+      }),
+      priceMonth: isFree ? plan.prices.trial : plan.prices.month,
+      priceYear: isFree ? plan.prices.trial : plan.prices.year,
+      categories: buildTrainerPlanCategories({
+        plan,
+        benefits: trainerCatalogData.benefits,
+        t,
+      }),
+    };
+  });
 
   const plans = mode === "online" ? onlinePlans : oneOnOnePlans;
 
@@ -545,6 +447,30 @@ const Pricing = ({ isHeroAnimDone = false }) => {
         />
       )}
       <div className="container-custom mx-auto px-4">
+        <div
+          aria-label={t("pricing.audience_label")}
+          className="mx-auto mb-5 flex w-full max-w-sm rounded-xl border border-gray-700 bg-[#1a1a1a] p-1"
+          role="group"
+        >
+          {["customer", "trainer"].map((audience) => {
+            const isActive = viewMode === audience;
+            return (
+              <button
+                aria-pressed={isActive}
+                className={`min-h-11 flex-1 rounded-lg px-3 py-2 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  isActive
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-gray-300 hover:bg-white/5 hover:text-white"
+                }`}
+                key={audience}
+                onClick={() => handleSelectMode(audience)}
+                type="button"
+              >
+                {t(`pricing.audience_${audience}`)}
+              </button>
+            );
+          })}
+        </div>
         <h2 className="text-center text-primary uppercase">
           {isTrainer ? t("pricing.title_trainer") : t("pricing.title_customer")}
         </h2>
@@ -674,9 +600,14 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     </div>
                   )}
 
-                  {plan.isFree && freeTrialStatus === "used" && (
+                  {plan.isFree &&
+                    ["used", "ineligible"].includes(freeTrialStatus) && (
                     <div className="absolute -top-3 -right-3 rounded-full bg-slate-600 px-3 py-1 text-xs font-bold text-white shadow-md">
-                      {t("pricing.trainer_plans.trial_used_badge")}
+                      {t(
+                        freeTrialStatus === "ineligible"
+                          ? "pricing.trainer_plans.order_exists_badge"
+                          : "pricing.trainer_plans.trial_used_badge",
+                      )}
                     </div>
                   )}
                   <div className="mb-6">
@@ -728,8 +659,11 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                           void refetchSubscription();
                           return;
                         }
-                        if (plan.isFree && freeTrialStatus === "used") {
-                          setShowFreeTrialUsed(true);
+                        if (
+                          plan.isFree &&
+                          ["used", "ineligible"].includes(freeTrialStatus)
+                        ) {
+                          setShowFreeTrialNotice(true);
                           return;
                         }
                         if (activeSubscription && activeSubscription.planCode === plan.code) {
@@ -750,11 +684,13 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                         ? t("pricing.trainer_plans.checking_trial")
                         : plan.isFree && user && freeTrialStatus === "error"
                           ? t("pricing.trainer_plans.retry_trial_check")
-                          : plan.isFree && freeTrialStatus === "used"
-                          ? t("pricing.trainer_plans.upgrade_cta")
-                          : plan.isFree
-                            ? t("pricing.trainer_plans.start_free")
-                            : t("pricing.buy")}
+                          : plan.isFree && freeTrialStatus === "ineligible"
+                            ? t("pricing.trainer_plans.ineligible_cta")
+                            : plan.isFree && freeTrialStatus === "used"
+                              ? t("pricing.trainer_plans.upgrade_cta")
+                              : plan.isFree
+                                ? t("pricing.trainer_plans.start_free")
+                                : t("pricing.buy")}
                     </button>
                   </div>
                 </div>
@@ -782,6 +718,14 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     <span className="text-fluid-base text-gray-400">
                       {plan.durationText}
                     </span>
+                  </div>
+                  <div className="mt-4 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-primary">
+                      {t("pricing.coaching_cost_label")}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold leading-5 text-white">
+                      {t("pricing.coaching_cost_assessment")}
+                    </p>
                   </div>
                 </div>
                 <ul className="space-y-2 mb-4 text-gray-200 text-fluid-base">
@@ -827,28 +771,13 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                     e.preventDefault();
                     handleRegister(plan, mode === "trial" ? "trial" : mode);
                   }}
-                  className="group relative flex items-center justify-center w-full mt-5 py-3 2xl:py-4 font-bold uppercase tracking-wide rounded-md overflow-hidden transition-all duration-300 bg-transparent border-2 border-primary text-primary hover:text-white hover:border-transparent text-fluid-base"
+                  className="flex items-center justify-center w-full mt-5 py-3.5 2xl:py-4 bg-gradient-to-r from-primary to-primary-dark text-white font-bold uppercase tracking-wide rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 hover:brightness-110 transition-all duration-300 whitespace-nowrap text-fluid-base"
                 >
-                  <span className="relative z-10">{t("pricing.register_now")}</span>
-                  <span className="absolute inset-0 bg-primary transform -translate-y-full group-hover:translate-y-0 transition-transform duration-500 ease-out"></span>
+                  {t("pricing.book_assessment")}
                 </Link>
               </div>
             ))
           )}
-        </div>
-
-        {/* Link chuyển chế độ xem */}
-        <div className="text-center mt-10">
-          <button
-            onClick={() => setShowModeModal(true)}
-            className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary transition-colors group"
-          >
-            {isTrainer ? (
-              <>{t("pricing.switch_to_customer")} <span className="underline underline-offset-2 group-hover:text-primary">{t("pricing.view_personal_plans")}</span> <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /></>
-            ) : (
-              <>{t("pricing.switch_to_trainer")} <span className="underline underline-offset-2 group-hover:text-primary">{t("pricing.view_trainer_plans")}</span> <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" /></>
-            )}
-          </button>
         </div>
 
         {giftModalVisible && (
@@ -970,31 +899,39 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           </div>
         )}
 
-        {/* ===== MODAL ĐÃ ĐĂNG KÝ GÓI NÀY ===== */}
-        {showFreeTrialUsed && (
+        {/* ===== MODAL TRẠNG THÁI GÓI FREE ===== */}
+        {showFreeTrialNotice && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-            onClick={() => setShowFreeTrialUsed(false)}
+            onClick={() => setShowFreeTrialNotice(false)}
           >
             <div
               role="dialog"
               aria-modal="true"
-              aria-labelledby="free-trial-used-title"
+              aria-labelledby="free-trial-notice-title"
               className="w-full max-w-sm rounded-2xl border border-slate-600 bg-[#1a1a1a] p-6 text-center shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/15">
                 <AlertTriangle className="h-7 w-7 text-amber-400" aria-hidden="true" />
               </div>
-              <h3 id="free-trial-used-title" className="text-lg font-bold text-white">
-                {t("pricing.trainer_plans.trial_ended_title")}
+              <h3 id="free-trial-notice-title" className="text-lg font-bold text-white">
+                {t(
+                  freeTrialStatus === "ineligible"
+                    ? "pricing.trainer_plans.order_exists_title"
+                    : "pricing.trainer_plans.trial_ended_title",
+                )}
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-gray-400">
-                {t("pricing.trainer_plans.trial_ended_message")}
+                {t(
+                  freeTrialStatus === "ineligible"
+                    ? "pricing.trainer_plans.order_exists_message"
+                    : "pricing.trainer_plans.trial_ended_message",
+                )}
               </p>
               <button
                 type="button"
-                onClick={() => setShowFreeTrialUsed(false)}
+                onClick={() => setShowFreeTrialNotice(false)}
                 className="mt-5 w-full rounded-lg bg-primary px-4 py-3 font-bold text-white transition-colors hover:bg-orange-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
               >
                 {t("pricing.trainer_plans.choose_paid_plan")}
@@ -1298,58 +1235,6 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           );
         })()}
 
-        {/* ===== MODAL CHON CHE DO ===== */}
-        {showModeModal && (
-          <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="pricing-persona-title"
-            aria-describedby="pricing-persona-description"
-          >
-            <div
-              className="bg-[#1a1a1a] border-2 border-primary rounded-2xl max-w-md w-full shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-8 space-y-6">
-                <div className="text-center">
-                  <h3 id="pricing-persona-title" className="text-2xl font-bold text-white mb-2">Bạn là ai?</h3>
-                  <p id="pricing-persona-description" className="text-gray-400 text-sm">Chọn chế độ để xem gói phù hợp với bạn</p>
-                </div>
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={() => handleSelectMode("customer")}
-                    className="w-full py-4 text-lg font-bold rounded-xl transition-all duration-300 border-2 border-gray-700 text-white hover:border-primary hover:bg-primary/10 hover:scale-[1.02]"
-                  >
-                    Khách hàng
-                  </button>
-                  <button
-                    onClick={() => handleSelectMode("trainer")}
-                    className="w-full py-4 text-lg font-bold rounded-xl transition-all duration-300 border-2 border-gray-700 text-white hover:border-primary hover:bg-primary/10 hover:scale-[1.02]"
-                  >
-                    Huấn luyện viên
-                  </button>
-                </div>
-                <div className="border-t border-white/10 pt-5 text-center">
-                  <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-primary">
-                    {t("progress_entry.eyebrow")}
-                  </p>
-                  <button
-                    className="group flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-3 text-sm font-bold text-white transition-colors hover:border-primary hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    onClick={handleOpenTodayDashboard}
-                    type="button"
-                  >
-                    <span>{t("progress_entry.cta")}</span>
-                    <ArrowRight
-                      aria-hidden="true"
-                      className="h-4 w-4 transition-transform group-hover:translate-x-1"
-                    />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </section>
   );

@@ -18,12 +18,12 @@ import {
 
 const router = express.Router();
 
-// 🔥 Admin tạo đơn
+// Admin hoặc trainer actor tạo đơn; controller tự gắn owner cho trainer.
 router.post(
   "/",
   protect,
   csrfProtection,
-  requireRoles("admin"),
+  requireTrainerAccess,
   validateCreateOrder,
   createOrder,
 );
@@ -48,7 +48,7 @@ router.put(
   "/:id",
   protect,
   csrfProtection,
-  requireRoles("admin"),
+  requireTrainerAccess,
   validateUpdateOrder,
   updateOrder,
 );

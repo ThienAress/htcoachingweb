@@ -1,0 +1,7 @@
+interface:
+  display_name: "SEO Check"
+  short_description: "Audit public-page SEO coverage"
+  default_prompt: "Use $seo-check to audit public routes, metadata, sitemap, and prerender coverage."
+
+policy:
+  allow_implicit_invocation: true

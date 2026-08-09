@@ -26,7 +26,7 @@ describe("GET /api/recipes prerender view", () => {
       ingredients: 1,
       instructions: 1,
       nameEn: 1,
-      youtubeUrl: 1,
     });
+    expect(project).not.toHaveProperty("youtubeUrl");
   });
 });

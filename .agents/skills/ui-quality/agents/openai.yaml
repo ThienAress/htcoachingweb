@@ -1,0 +1,7 @@
+interface:
+  display_name: "UI Quality"
+  short_description: "Build polished accessible HT interfaces"
+  default_prompt: "Use $ui-quality to design or refine an HTCOACHING interface to the project quality bar."
+
+policy:
+  allow_implicit_invocation: true

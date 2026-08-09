@@ -31,7 +31,7 @@ export default function ExerciseListCard({ data }) {
       </div>
 
       <Link
-        to="/exercises"
+        to="/exercises/"
         className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors mt-1"
       >
         <ExternalLink size={12} />

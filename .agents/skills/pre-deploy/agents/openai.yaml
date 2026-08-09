@@ -1,0 +1,7 @@
+interface:
+  display_name: "Pre-deploy"
+  short_description: "Run the full release readiness pipeline"
+  default_prompt: "Use $pre-deploy to run all required release-readiness gates before push or deploy."
+
+policy:
+  allow_implicit_invocation: false

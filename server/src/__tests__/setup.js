@@ -96,10 +96,10 @@ export async function createTestUser(overrides = {}) {
  * Tạo Express app minimal cho testing
  * Chỉ mount routes cần thiết, không có cron jobs hay external services
  */
-export function createTestApp() {
+export function createTestApp({ jsonLimit = "100kb" } = {}) {
   const app = express();
 
-  app.use(express.json());
+  app.use(express.json({ limit: jsonLimit }));
   app.use(cookieParser());
 
   // CSRF middleware mock — tự tạo csrfToken nếu chưa có

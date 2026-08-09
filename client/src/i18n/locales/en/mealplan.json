@@ -8,6 +8,8 @@
     "no_remaining": "❌ You have used all {{max}} free suggestion attempts. Please subscribe to continue using unlimited.",
     "no_remaining_simple": "❌ Out of free suggestion attempts.",
     "loading_macros": "⏳ Loading macro data, please wait...",
+    "loading_foods": "⏳ Loading food data, please wait...",
+    "access_error": "We could not verify your meal-plan allowance. Please try again.",
     "select_plan_first": "❌ Please select a nutrition mode first",
     "record_failed": "Cannot record usage or no remaining attempts.",
     "added_food": "Added {{name}}",
@@ -24,6 +26,18 @@
   "active_target": "Active target:",
   "btn_generate": "Generate sample meal plan",
   "btn_regenerate": "Change meal plan",
+  "btn_login_to_regenerate": "Sign in to generate again",
+  "guest_preview": {
+    "title": "You are viewing a free sample meal plan",
+    "description": "Sign in to save it, generate another option, choose favorite foods, and continue personalizing.",
+    "cta": "Sign in to continue"
+  },
+  "login_modal": {
+    "title": "SIGN IN",
+    "description": "Sign in to save your meal plan, generate another option, and continue personalizing your nutrition journey.",
+    "google": "Sign in with Google",
+    "close": "Close sign-in dialog"
+  },
   "saved": {
     "title": "Saved meal plans",
     "description": "Save canonical food snapshots for reuse and version tracking.",

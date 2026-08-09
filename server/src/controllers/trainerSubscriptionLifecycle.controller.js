@@ -4,6 +4,7 @@ import TrainerTrialClaim from "../models/TrainerTrialClaim.js";
 import {
   getTrainerPlan,
   getTrainerPlanCatalogMeta,
+  listTrainerPlanBenefits,
   listTrainerPlans,
 } from "../services/trainerPlanCatalog.service.js";
 import { purchaseTrainerSubscription } from "../services/trainerSubscriptionPurchase.service.js";
@@ -12,7 +13,10 @@ import {
   listPendingTrainerGrants,
   revokePendingTrainerGrant,
 } from "../services/trainerSubscriptionGrant.service.js";
-import { normalizeTrainerEmail } from "../services/trainerSubscriptionLifecycle.service.js";
+import {
+  hasExistingOrderForTrainerFree,
+  normalizeTrainerEmail,
+} from "../services/trainerSubscriptionLifecycle.service.js";
 import { WalletLedgerError } from "../services/walletLedger.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 
@@ -35,6 +39,7 @@ export const getTrainerPlanCatalog = (_req, res) =>
   res.status(200).json({
     success: true,
     data: listTrainerPlans(),
+    benefits: listTrainerPlanBenefits(),
     meta: getTrainerPlanCatalogMeta(),
   });
 
@@ -79,7 +84,7 @@ export const getMySubscription = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("email").lean();
     const normalizedEmail = normalizeTrainerEmail(user?.email);
-    const [subscription, trialClaim] = await Promise.all([
+    const [subscription, trialClaim, hasOrder] = await Promise.all([
       TrainerSubscription.findOne({
         userId: req.user.id,
         isActive: true,
@@ -90,6 +95,10 @@ export const getMySubscription = async (req, res) => {
       normalizedEmail
         ? TrainerTrialClaim.findOne({ normalizedEmail }).select("claimedAt").lean()
         : null,
+      hasExistingOrderForTrainerFree({
+        userId: req.user.id,
+        email: normalizedEmail,
+      }),
     ]);
 
     const plan = getTrainerPlan(
@@ -102,12 +111,16 @@ export const getMySubscription = async (req, res) => {
         }
       : null;
     let freeTrialStatus = trialClaim ? "used" : "available";
+    if (!trialClaim && hasOrder) freeTrialStatus = "ineligible";
     if (subscription?.planCode === "free") freeTrialStatus = "active";
+    const freeTrialReason =
+      freeTrialStatus === "ineligible" ? "existing_order" : null;
     return res.status(200).json({
       success: true,
       data: subscriptionData,
       freeTrial: {
         status: freeTrialStatus,
+        reason: freeTrialReason,
         claimedAt: trialClaim?.claimedAt || null,
       },
     });

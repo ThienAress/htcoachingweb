@@ -1,0 +1,7 @@
+interface:
+  display_name: "Ask HT"
+  short_description: "Route to the right HT workflow"
+  default_prompt: "Use $ask-ht to choose the next HTCOACHINGWEB skill or workflow for this task."
+
+policy:
+  allow_implicit_invocation: false

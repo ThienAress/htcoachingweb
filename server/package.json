@@ -36,6 +36,11 @@
     "check:runtime-logging": "node src/scripts/checkRuntimeLogging.js",
     "explain:phase4": "node src/scripts/explainPhase4Queries.js",
     "load:smoke": "node src/scripts/loadSmoke.js",
+    "smoke:meal-scan:gemini": "node src/scripts/mealScanBenchmark.js --limit=1 --locale=vi",
+    "benchmark:meal-scan": "node src/scripts/mealScanBenchmark.js",
+    "benchmark:meal-scan:vi-proxy": "node src/scripts/mealScanProxyBenchmark.js",
+    "benchmark:meal-scan:global-proxy": "node src/scripts/mealScanProxyBenchmark.js --case-set=global",
+    "audit:food-provenance": "node src/scripts/auditFoodProvenance.js",
     "start": "node server.js",
     "dev": "doppler run -- nodemon server.js",
     "security:audit": "node ../scripts/check-dependency-audit.mjs server",
@@ -50,6 +55,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google-analytics/data": "^7.0.0",
     "@google/genai": "^2.12.0",
     "@pdf-lib/fontkit": "^1.1.1",
     "ajv": "^8.20.0",
@@ -65,6 +71,7 @@
     "express-rate-limit": "^8.3.1",
     "express-session": "^1.19.0",
     "express-validator": "^7.3.1",
+    "googleapis": "^174.0.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "lodash": "^4.18.1",
@@ -88,6 +95,7 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
-    "postcss": "8.5.23"
+    "postcss": "8.5.23",
+    "nanoid": "3.3.17"
   }
 }

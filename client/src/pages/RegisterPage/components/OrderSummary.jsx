@@ -52,6 +52,15 @@ function OrderSummary({
             </div>
           </div>
 
+          <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-primary">
+              {t("order.coaching_cost")}
+            </p>
+            <p className="mt-1 text-sm font-semibold leading-5 text-gray-800">
+              {t("order.cost_after_assessment")}
+            </p>
+          </div>
+
           {isLoggedIn && !hasExistingBooking && (
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
               <div className="flex items-center gap-3 mb-3">

@@ -209,3 +209,32 @@ export const cspReportLimiter = rateLimit({
   standardHeaders: false,
   legacyHeaders: false,
 });
+
+export const foodReferenceLookupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Math.min(
+    Math.max(1, Number(process.env.FOOD_REFERENCE_RATE_LIMIT_MAX) || 30),
+    100,
+  ),
+  keyGenerator: (req) => req.user?.id?.toString() ?? "anonymous",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "FOOD_REFERENCE_RATE_LIMITED",
+    message: "Bạn đã tra cứu quá nhiều sản phẩm. Vui lòng thử lại sau.",
+  },
+});
+
+export const analyticsSyncLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req) => req.user?.id?.toString() ?? "anonymous",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "ANALYTICS_SYNC_RATE_LIMITED",
+    message: "Bạn đã yêu cầu đồng bộ quá nhiều lần. Vui lòng thử lại sau.",
+  },
+});

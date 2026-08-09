@@ -32,6 +32,7 @@ Sử dụng công cụ đọc file và `rg` để:
 1. Đọc nội dung hiện tại của file skill được user chỉ định.
 2. Đọc `client/package.json` và `server/package.json` để xác định chính xác phiên bản thư viện hiện hành (Tech Stack).
 3. Quét nhanh codebase thực tế (Ví dụ: các controllers, services, hoặc UI components liên quan đến skill đó) để xem code đang viết theo pattern nào.
+4. Nếu `.agents/evals/skills/<skill-name>.json` tồn tại, đọc toàn bộ corpus và khóa baseline trước khi sửa.
 
 ## Bước 2: Phản biện (The Goading)
 Đánh giá nội bộ và chỉ ghi kết luận có bằng chứng vào bản audit:
@@ -49,6 +50,7 @@ Sử dụng công cụ đọc file và `rg` để:
    - **XÓA**: Những phần bị xóa (và tại sao — lỗi thời / sai / thừa).
    - **THÊM**: Những phần mới (và source: codebase thực tế / package.json / pattern quan sát được).
    - **VERIFY**: Lệnh hoặc kiểm tra chứng minh bản skill mới khớp codebase.
+   - **EVAL**: Case nào phải giữ xanh, case nào đang chứng minh gap và expected evidence sau sửa.
 3. Đánh tag confidence cho từng thay đổi:
    - 🟢 **Verified** — Đã xác nhận từ codebase thực tế
    - 🟡 **Assumed** — Dự đoán hợp lý nhưng chưa verify 100%
@@ -71,7 +73,10 @@ Sử dụng công cụ đọc file và `rg` để:
 1. Đọc lại target và `git diff` vì codebase có thể đã thay đổi trong lúc chờ approval. Nếu evidence hoặc phạm vi đã đổi đáng kể, cập nhật draft và xin duyệt lại.
 2. Cập nhật `SKILL.md` bằng `apply_patch` có phạm vi nhỏ khi công cụ này khả dụng; nếu runtime không cung cấp `apply_patch`, dùng cơ chế patch tương đương của runtime và tuyệt đối không ghi đè toàn file bằng shell write trick.
 3. Nếu có reference mới → tạo trong `<skill>/references/`.
-4. Verify: đọc lại file vừa ghi, chạy các kiểm tra nêu trong draft và xem `git diff -- <target> <references>` để bảo đảm không sửa ngoài phạm vi đã duyệt.
+4. Nếu skill có eval corpus, chạy `npm run test:agents:eval`, rồi đối chiếu old/new output với từng
+   `expectedEvidence`. Không gọi external model hoặc phát sinh cost nếu user chưa cấp quyền; khi chỉ có inline
+   qualitative run, ghi rõ giới hạn đó thay vì nâng thành benchmark định lượng.
+5. Verify: đọc lại file vừa ghi, chạy các kiểm tra nêu trong draft và xem `git diff -- <target> <references>` để bảo đảm không sửa ngoài phạm vi đã duyệt.
 
 ## Bước 4: Báo cáo
 In ra một Changelog ngắn gọn về những gì đã được audit và update, kèm file đã sửa, validation đã chạy và phần chưa thể kiểm chứng.
