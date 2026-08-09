@@ -169,6 +169,20 @@ describe("production readiness configuration", () => {
       "GEMINI_PAID_SERVICE_NOT_CONFIRMED",
     );
   });
+
+  it("allows production to disable Meal Scan without confirming Paid Service", () => {
+    const env = validEnvironment();
+    env.APP_ENV = "production";
+    env.MEAL_SCAN_PROVIDER = "disabled";
+    env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors).toEqual([]);
+    expect(result.summary.mealScanProvider).toBe("disabled");
+    expect(result.summary.geminiPaidServiceConfirmed).toBe(false);
+  });
+
   it("throws only safe finding codes and never includes secret values", () => {
     const env = validEnvironment();
     const leakedValue = "replace-me-private-value";

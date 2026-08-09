@@ -383,7 +383,7 @@ export const validateProductionEnvironment = (
   });
   const mealScanProvider = resolveMealScanProvider(env);
   if (
-    mealScanProvider !== "mock" &&
+    mealScanProvider === "gemini" &&
     String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() !== "true"
   ) {
     addFinding(

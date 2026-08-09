@@ -98,6 +98,8 @@ secret. Mỗi lần đổi model/prompt/schema phải tạo holdout report mới
 
 - Development runtime dùng Meal Scan mock mặc định và không gửi ảnh sang Gemini. Chỉ đặt
   MEAL_SCAN_PROVIDER=gemini cho thử nghiệm local có kiểm soát với ảnh test/public, không phải ảnh khách.
+- Production chưa xác nhận billing project/spend cap phải đặt `MEAL_SCAN_PROVIDER=disabled`;
+  request fail-closed với 503 và không gọi provider. `mock` vẫn chỉ được phép cho staging.
 - Production giữ Paid Service gate và quota server-authoritative: anonymous 2 lượt/24 giờ/IP,
   user thường 3 lượt/24 giờ/user, coaching customer và HLV 10 lượt/24 giờ/user. Response 429 không gọi
   provider và không debit ví HTCOACHING.

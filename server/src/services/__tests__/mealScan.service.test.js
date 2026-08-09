@@ -183,6 +183,29 @@ describe("mealScan.service", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  test("fails closed without a provider call when production Meal Scan is disabled", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.APP_ENV = "production";
+    process.env.AI_PROVIDER = "gemini";
+    process.env.MEAL_SCAN_PROVIDER = "disabled";
+    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(
+      analyzeMealImage({
+        mimeType: "image/jpeg",
+        base64: "YQ==",
+        locale: "vi",
+      }),
+    ).rejects.toMatchObject({
+      code: "MEAL_SCAN_PROVIDER_NOT_CONFIGURED",
+      status: 503,
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   test("fails closed when provider output has no valid ingredients", async () => {
     process.env.AI_PROVIDER = "gemini";
     process.env.MEAL_SCAN_PROVIDER = "gemini";
