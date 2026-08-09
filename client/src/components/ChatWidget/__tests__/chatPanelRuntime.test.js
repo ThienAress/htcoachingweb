@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CHAT_THEME_STORAGE_KEY,
   getChatVisualViewportBounds,
+  getChatQuotaPresentation,
   persistChatTheme,
   resolveInitialChatTheme,
 } from "../chatPanelRuntime.js";
@@ -60,5 +61,39 @@ describe("chat panel runtime", () => {
       top: 0,
       height: 844,
     });
+  });
+
+  it("presents a server quota with normal emphasis", () => {
+    expect(getChatQuotaPresentation({ remaining: 4, limit: 5 })).toEqual({
+      remaining: 4,
+      limit: 5,
+      label: "Còn 4/5 lượt hỏi",
+      compactLabel: "4/5",
+      tone: "normal",
+    });
+  });
+
+  it("warns when only two quota messages remain", () => {
+    expect(getChatQuotaPresentation({ remaining: 2, limit: 15 })).toEqual({
+      remaining: 2,
+      limit: 15,
+      label: "Còn 2/15 lượt hỏi",
+      compactLabel: "2/15",
+      tone: "low",
+    });
+  });
+
+  it("marks an exhausted quota without deriving a client-side limit", () => {
+    expect(getChatQuotaPresentation({ remaining: 0, limit: 30 })).toEqual({
+      remaining: 0,
+      limit: 30,
+      label: "Còn 0/30 lượt hỏi",
+      compactLabel: "0/30",
+      tone: "exhausted",
+    });
+  });
+
+  it("hides quota presentation when server metadata is incomplete", () => {
+    expect(getChatQuotaPresentation({ remaining: 4 })).toBeNull();
   });
 });

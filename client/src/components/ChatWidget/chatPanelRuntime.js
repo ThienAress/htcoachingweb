@@ -38,3 +38,26 @@ export const getChatVisualViewportBounds = (browser = globalThis.window) => {
       : Math.max(1, Number.isFinite(layoutHeight) ? layoutHeight : 1),
   };
 };
+
+export const getChatQuotaPresentation = (quota) => {
+  const remaining = quota?.remaining;
+  const limit = quota?.limit;
+
+  if (
+    !Number.isSafeInteger(remaining) ||
+    !Number.isSafeInteger(limit) ||
+    remaining < 0 ||
+    limit < 1 ||
+    remaining > limit
+  ) {
+    return null;
+  }
+
+  return {
+    remaining,
+    limit,
+    label: `Còn ${remaining}/${limit} lượt hỏi`,
+    compactLabel: `${remaining}/${limit}`,
+    tone: remaining === 0 ? "exhausted" : remaining <= 2 ? "low" : "normal",
+  };
+};

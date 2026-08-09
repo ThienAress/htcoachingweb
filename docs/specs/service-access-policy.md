@@ -35,14 +35,23 @@ lặp lại trong middleware hoặc trang Admin.
 ## API and UI contract
 
 - `GET /api/admin/service-access-policies` chỉ cho role `admin`, trả `version`, `columns` và danh sách service cùng
-  policy theo bốn tier. Endpoint chỉ đọc và không cần CSRF.
+  policy theo bốn tier, quyền lợi gói HLV và catalog tính năng cộng đồng/khách hàng. Endpoint chỉ đọc và không cần CSRF.
 - Trang `/admin/service-access-policies` tên “Quyền & hạn mức”, nằm trong nhóm “Hoạt động”, lazy-loaded và dùng
   TanStack Query qua service frontend.
 - Trang có loading, retry/error, empty state, bảng responsive và giải thích nguồn chính sách là registry code.
 - Meal Scan response thành công và lỗi 429 trả quota metadata gồm `serviceKey`, `tier`, `limit`, `remaining`,
   `resetAt`.
 - AI Chat gửi cùng quota metadata bằng SSE event; lỗi 429 trả metadata trong JSON để client vẫn cập nhật được.
-- Client chỉ hiển thị quota sau khi đã nhận metadata server-authoritative; không tự suy đoán số lượt còn lại.
+- Client chỉ hiển thị quota sau khi đã nhận metadata server-authoritative; không tự suy đoán số lượt còn lại. Badge quota nằm cạnh tên `HT Assistant`, chuyển trạng thái cảnh báo khi còn 1-2 lượt hoặc đã hết; thời điểm làm mới vẫn hiển thị dưới ô nhập.
+- HT Assistant chỉ hỗ trợ fitness, tập luyện, dinh dưỡng, phục hồi, sức khỏe mang tính giáo dục và dịch vụ HTCOACHING. Tên/chủ thể mơ hồ được hỏi lại một câu; yêu cầu rõ ràng ngoài phạm vi bị từ chối ngắn, được nhắc là vẫn tính hạn mức và chuyển hướng tới câu hỏi phù hợp. Model không tự nêu số quota AI Chat chính xác.
+
+### Danh mục tính năng cộng đồng và khách hàng
+
+- Cùng endpoint Admin trả `communityFeatures` từ catalog backend read-only riêng; không trộn roadmap tính năng vào registry quota.
+- Bảng hiển thị đúng 5 cột: `Tính năng`, `Nhóm`, `Giá trị chính`, `Đối tượng`, `Cơ hội cải thiện ban đầu`.
+- Chỉ cột `Nhóm` có bộ lọc. Chọn một nhóm như `Dinh dưỡng` chỉ hiển thị các tính năng thuộc nhóm đó; không thêm tìm kiếm cho cột khác.
+- Bộ lọc có lựa chọn `Tất cả nhóm`, trạng thái không có kết quả, label accessible và bảng responsive bằng cuộn ngang trên màn hình hẹp.
+- Catalog chỉ chứa mô tả sản phẩm, không chứa dữ liệu người dùng, usage history hoặc identifier.
 
 ### Ma trận quyền lợi gói huấn luyện viên
 
@@ -79,4 +88,5 @@ lặp lại trong middleware hoặc trang Admin.
 - User có gói/HLV nhận đúng hạn mức cao hơn mà không cần client truyền tier.
 - Admin thấy bảng canonical từ API; thêm service/tier policy vào registry sẽ xuất hiện thành hàng/cell tương ứng.
 - Admin thấy bốn gói HLV và quyền lợi khớp Pricing từ cùng catalog canonical; hai bảng có thể đóng/mở độc lập.
+- Admin thấy bảng tính năng cộng đồng/khách hàng đúng 5 cột và có thể lọc riêng theo `Nhóm`.
 - Response operational có `limit`, `remaining`, `resetAt` để UI giải thích quota minh bạch.

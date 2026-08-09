@@ -4,6 +4,10 @@ import {
   SERVICE_ACCESS_TIERS,
   getServiceAccessPolicy,
 } from "../constants/serviceAccessPolicies.js";
+import {
+  COMMUNITY_FEATURE_CATALOG,
+  COMMUNITY_FEATURE_CATALOG_VERSION,
+} from "../constants/communityFeatureCatalog.js";
 import Order from "../models/Order.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
 import {
@@ -105,6 +109,10 @@ export const getAdminServiceAccessPolicyMatrix = () => {
     },
     ],
     services: SERVICE_ACCESS_POLICY_REGISTRY,
+    communityFeatures: {
+      version: COMMUNITY_FEATURE_CATALOG_VERSION,
+      items: COMMUNITY_FEATURE_CATALOG,
+    },
     trainerPlans: {
       columns: trainerPlans.map((plan) => ({
         id: plan.code,

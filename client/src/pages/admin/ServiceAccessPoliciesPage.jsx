@@ -11,6 +11,7 @@ import {
 
 import SEO from "../../components/SEO";
 import { serviceAccessPoliciesQueryOptions } from "../../queries/serviceAccessPolicy.queries";
+import CommunityFeatureTable from "./service-access-policies/CommunityFeatureTable";
 import {
   enforcementLabel,
   formatPolicy,
@@ -181,6 +182,8 @@ export default function ServiceAccessPoliciesPage() {
   const matrix = query.data;
   const [toolQuotaOpen, setToolQuotaOpen] = useState(true);
   const [trainerBenefitsOpen, setTrainerBenefitsOpen] = useState(true);
+  const [communityFeaturesOpen, setCommunityFeaturesOpen] = useState(true);
+  const [selectedFeatureGroup, setSelectedFeatureGroup] = useState("all");
 
   return (
     <main className="min-h-screen bg-zinc-50 p-4 text-zinc-900 sm:p-6">
@@ -196,7 +199,7 @@ export default function ServiceAccessPoliciesPage() {
               Quyền & hạn mức
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
-              Đối chiếu hạn mức công cụ và quyền lợi bốn gói HLV đang được backend áp dụng. Dữ liệu chỉ đọc và lấy trực tiếp từ registry canonical.
+              Đối chiếu hạn mức công cụ, quyền lợi gói HLV và các tính năng phục vụ cộng đồng, khách hàng. Dữ liệu chỉ đọc và lấy trực tiếp từ registry canonical.
             </p>
           </div>
           {matrix?.version && (
@@ -231,9 +234,10 @@ export default function ServiceAccessPoliciesPage() {
 
         {matrix &&
           matrix.services.length === 0 &&
-          matrix.trainerPlans?.benefits?.length === 0 && (
+          matrix.trainerPlans?.benefits?.length === 0 &&
+          !matrix.communityFeatures?.items?.length && (
           <div className="rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
-            Registry chưa có dịch vụ hoặc quyền lợi HLV nào.
+            Registry chưa có hạn mức, quyền lợi hoặc tính năng nào.
           </div>
         )}
 
@@ -258,6 +262,22 @@ export default function ServiceAccessPoliciesPage() {
             panelId="trainer-benefits-panel"
           >
             <TrainerBenefitTable trainerPlans={matrix.trainerPlans} />
+          </CollapsibleSection>
+        )}
+
+        {matrix?.communityFeatures?.items?.length > 0 && (
+          <CollapsibleSection
+            title="Tính năng cộng đồng & khách hàng"
+            description="Giá trị chính và cơ hội cải thiện ban đầu của các tính năng đang phục vụ người dùng."
+            open={communityFeaturesOpen}
+            onToggle={() => setCommunityFeaturesOpen((current) => !current)}
+            panelId="community-features-panel"
+          >
+            <CommunityFeatureTable
+              catalog={matrix.communityFeatures}
+              selectedGroup={selectedFeatureGroup}
+              onGroupChange={setSelectedFeatureGroup}
+            />
           </CollapsibleSection>
         )}
 

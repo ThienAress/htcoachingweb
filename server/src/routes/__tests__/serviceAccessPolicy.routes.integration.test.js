@@ -89,6 +89,36 @@ describe("GET /api/admin/service-access-policies", () => {
     );
   });
 
+  it("returns the canonical community feature catalog to admin", async () => {
+    const { accessToken } = await createTestUser({
+      email: "feature-catalog-admin@example.com",
+      role: "admin",
+    });
+
+    const response = await withAuth(
+      request(app).get("/api/admin/service-access-policies"),
+      accessToken,
+    );
+
+    expect(response.body.data.communityFeatures).toEqual(
+      expect.objectContaining({
+        version: "2026-08-09",
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            featureKey: "ht_assistant",
+            label: "HT Assistant",
+            group: { key: "ai_support", label: "AI hỗ trợ" },
+            primaryValue:
+              "Trả lời và định hướng người dùng về tập luyện, dinh dưỡng, phục hồi và các dịch vụ HTCOACHING.",
+            audiences: ["Cộng đồng", "Khách hàng", "HLV"],
+            initialImprovement:
+              "Đo tỷ lệ câu hỏi ngoài phạm vi, mức hữu ích và cải thiện chuyển hướng theo phản hồi thực tế.",
+          }),
+        ]),
+      }),
+    );
+  });
+
   it("rejects non-admin users", async () => {
     const { accessToken } = await createTestUser({
       email: "policy-user@example.com",

@@ -8,6 +8,7 @@ import ChatPanelSidebar from "./ChatPanelSidebar";
 import { createChatHistoryLoadGate } from "./chatHistoryLoadGate";
 import {
   getChatVisualViewportBounds,
+  getChatQuotaPresentation,
   persistChatTheme,
   resolveInitialChatTheme,
 } from "./chatPanelRuntime";
@@ -30,6 +31,15 @@ const TOOL_LABELS = {
   suggest_meal: "Đang lên thực đơn...",
   get_trainer_info: "Đang tìm HLV...",
   search_knowledge: "Đang kiểm chứng thông tin...",
+};
+
+const QUOTA_TONE_CLASSES = {
+  normal:
+    "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200",
+  low:
+    "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200",
+  exhausted:
+    "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200",
 };
 
 export default function ChatPanel({ initiallyOpen = false, initialAction = null }) {
@@ -307,6 +317,8 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
     setChatTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
+  const quotaPresentation = getChatQuotaPresentation(quota);
+
   const renderInputArea = () => (
     <div className="relative w-full max-w-3xl mx-auto flex flex-col gap-2">
       {selectedImage && (
@@ -347,7 +359,7 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Hỏi bất kỳ điều gì..."
+          placeholder="Hỏi về tập luyện, dinh dưỡng..."
           rows={1}
           disabled={isLoading}
           className="flex-1 bg-transparent text-base text-gray-900 dark:text-white placeholder-gray-500 resize-none outline-none min-h-[24px] max-h-[200px] leading-relaxed py-1.5 disabled:opacity-50"
@@ -369,17 +381,14 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
           {isLoading ? <Square size={14} /> : <Send size={16} className="ml-1" />}
         </button>
       </div>
-      {quota && (
+      {quotaPresentation && quota.resetAt && (
         <p className="px-3 text-xs text-gray-500 dark:text-gray-400" role="status">
-          Còn {quota.remaining}/{quota.limit} tin
-          {quota.resetAt
-            ? ` · Làm mới ${new Intl.DateTimeFormat("vi-VN", {
-                day: "2-digit",
-                month: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit",
-              }).format(new Date(quota.resetAt))}`
-            : ""}
+          Hạn mức làm mới {new Intl.DateTimeFormat("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          }).format(new Date(quota.resetAt))}
         </p>
       )}
     </div>
@@ -411,7 +420,7 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
               <span className="absolute inset-0 rounded-full bg-emerald-400/20 blur-[3px]" />
             </div>
             <span className={`pill-collapsed-text text-[13.5px] text-gray-400/70 select-none truncate font-medium tracking-wide ${pillExpanded ? "pill-hide" : ""}`}>
-              Hỏi bất kỳ điều gì...
+              Hỏi về tập luyện & dinh dưỡng...
             </span>
             <input
               ref={pillInputRef}
@@ -494,8 +503,8 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
           {/* Main content */}
           <div className="relative flex flex-col flex-1 min-w-0">
             {/* Header Actions */}
-            <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10 pointer-events-none">
-              <div>
+            <div className="pointer-events-none absolute left-4 right-4 top-4 z-10 grid grid-cols-[5rem_minmax(0,1fr)_5rem] items-center gap-2">
+              <div className="flex justify-start">
                 {user && !sidebarOpen && (
                   <button
                     onClick={() => setSidebarOpen(true)}
@@ -506,7 +515,28 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-2 pointer-events-auto">
+              <div className="pointer-events-auto flex min-w-0 items-center justify-center gap-2">
+                <span className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">
+                  HT Assistant
+                </span>
+                {quotaPresentation && (
+                  <span
+                    className={`inline-flex shrink-0 items-center rounded-full border px-2 py-1 text-[11px] font-semibold leading-none ${QUOTA_TONE_CLASSES[quotaPresentation.tone]}`}
+                    role="status"
+                    aria-live="polite"
+                    aria-label={quotaPresentation.label}
+                    title={quotaPresentation.label}
+                  >
+                    <span aria-hidden="true" className="hidden sm:inline">
+                      {quotaPresentation.label}
+                    </span>
+                    <span aria-hidden="true" className="sm:hidden">
+                      {quotaPresentation.compactLabel}
+                    </span>
+                  </span>
+                )}
+              </div>
+              <div className="pointer-events-auto flex items-center justify-end gap-2">
                 <button
                   onClick={toggleTheme}
                   title="Đổi giao diện"

@@ -96,6 +96,25 @@ describe("AI conversation working memory", () => {
     expect(prompt).not.toContain("cần đăng nhập và luôn kiểm tra lại khẩu phần");
   });
 
+  it("asks one clarifying question when a person name may be fitness-related", () => {
+    const prompt = buildSystemPrompt();
+
+    expect(prompt).toContain(
+      "Nếu tên người hoặc chủ thể còn mơ hồ (ví dụ: \"Lisa là ai?\")",
+    );
+    expect(prompt).toContain("hỏi lại đúng 1 câu ngắn");
+  });
+
+  it("refuses clearly off-topic requests and points to server quota in the header", () => {
+    const prompt = buildSystemPrompt();
+
+    expect(prompt).toContain("thẩm mỹ viện này ở đâu");
+    expect(prompt).toMatch(/tin nhắn này vẫn được tính vào hạn mức/i);
+    expect(prompt).toContain("cạnh tên HT Assistant");
+    expect(prompt).toMatch(/không tự nêu số lượt AI Chat còn lại/i);
+    expect(prompt).toContain("lịch tập, tính TDEE hoặc gợi ý bữa ăn");
+  });
+
   it("invalidates an old meal plan after TDEE is recalculated", () => {
     const memoryWithMeal = updateConversationMemory(
       {},

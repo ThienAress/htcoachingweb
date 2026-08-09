@@ -37,6 +37,26 @@ export const groupColumnPolicies = (service, column) => {
   return [...groups.values()];
 };
 
+export const getCommunityFeatureGroups = (features = []) => {
+  const groups = new Map();
+  for (const feature of Array.isArray(features) ? features : []) {
+    const group = feature?.group;
+    if (group?.key && group?.label && !groups.has(group.key)) {
+      groups.set(group.key, group);
+    }
+  }
+  return [...groups.values()];
+};
+
+export const filterCommunityFeaturesByGroup = (
+  features = [],
+  selectedGroup = "all",
+) => {
+  const items = Array.isArray(features) ? features : [];
+  if (!selectedGroup || selectedGroup === "all") return items;
+  return items.filter((feature) => feature?.group?.key === selectedGroup);
+};
+
 export const enforcementLabel = (enforcement) =>
   ({
     server_rate_limit: "Rate limit server",

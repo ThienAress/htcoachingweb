@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  filterCommunityFeaturesByGroup,
   formatPolicy,
   formatTrainerBenefitValue,
   formatTrainerPlanPrice,
+  getCommunityFeatureGroups,
   groupColumnPolicies,
 } from "../serviceAccessPolicyPresentation.js";
 
@@ -73,5 +75,32 @@ describe("service access policy presentation", () => {
     expect(groupColumnPolicies(row, column)).toHaveLength(1);
     row.policies.trainer = { ...samePolicy, limit: 30 };
     expect(groupColumnPolicies(row, column)).toHaveLength(2);
+  });
+
+  it("derives unique community feature groups in catalog order", () => {
+    const features = [
+      { group: { key: "nutrition", label: "Dinh dưỡng" } },
+      { group: { key: "training", label: "Tập luyện" } },
+      { group: { key: "nutrition", label: "Dinh dưỡng" } },
+    ];
+
+    expect(getCommunityFeatureGroups(features)).toEqual([
+      { key: "nutrition", label: "Dinh dưỡng" },
+      { key: "training", label: "Tập luyện" },
+    ]);
+  });
+
+  it("filters community features only by the selected group", () => {
+    const features = [
+      { featureKey: "tdee", group: { key: "nutrition", label: "Dinh dưỡng" } },
+      { featureKey: "exercises", group: { key: "training", label: "Tập luyện" } },
+      { featureKey: "meal_plan", group: { key: "nutrition", label: "Dinh dưỡng" } },
+    ];
+
+    expect(
+      filterCommunityFeaturesByGroup(features, "nutrition").map(
+        (feature) => feature.featureKey,
+      ),
+    ).toEqual(["tdee", "meal_plan"]);
   });
 });
