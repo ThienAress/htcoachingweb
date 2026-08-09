@@ -24,7 +24,7 @@ test.describe("AI chat", () => {
     await page.goto("/");
     const historyResponse = page.waitForResponse("**/api/ai/history");
     await page.getByRole("button", { name: "Mở HT Assistant" }).click();
-    const input = page.getByPlaceholder("Hỏi bất kỳ điều gì...").first();
+    const input = page.getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...").first();
     const chatResponse = page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
