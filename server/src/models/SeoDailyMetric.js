@@ -139,7 +139,13 @@ seoDailyMetricSchema.index(
   },
   { unique: true, name: "uniq_seo_daily_metric" },
 );
-seoDailyMetricSchema.index({ dateKey: -1, dimension: 1 });
-seoDailyMetricSchema.index({ dimension: 1, dimensionKey: 1, dateKey: -1 });
+seoDailyMetricSchema.index(
+  { dateKey: -1, dimension: 1 },
+  { name: "seo_date_dimension" },
+);
+seoDailyMetricSchema.index(
+  { dimension: 1, dimensionKey: 1, dateKey: -1 },
+  { name: "seo_dimension_key_date" },
+);
 
 export default mongoose.model("SeoDailyMetric", seoDailyMetricSchema);

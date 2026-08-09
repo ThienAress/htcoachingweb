@@ -45,7 +45,7 @@
     "remove": "Xóa ảnh đã chọn",
     "choose_file": "Chọn ảnh món ăn",
     "replace": "Chọn ảnh khác",
-    "privacy": "Ảnh được nén và chỉ gửi tạm thời để phân tích. HTCOACHING không lưu ảnh này vào hồ sơ hay thư viện.",
+    "privacy": "Ảnh được nén và gửi tạm thời tới Google Gemini Free Tier để phân tích. HTCOACHING không lưu ảnh vào hồ sơ; không chọn ảnh có người hoặc thông tin nhạy cảm.",
     "anonymous_hint": "Không cần đăng ký: 2 lượt miễn phí mỗi 24 giờ.",
     "login_more": "Đăng nhập để có thêm lượt.",
     "analyze": "Phân tích món ăn",
@@ -76,10 +76,10 @@
     }
   },
   "confirm_analysis": {
-    "title": "Bạn còn muốn điều chỉnh gì không?",
-    "description": "Khi bạn đồng ý và ảnh được gửi để phân tích, hệ thống sẽ sử dụng 1 lượt quét trong quota hiện tại.",
+    "title": "Xác nhận gửi ảnh tới Google Gemini",
+    "description": "Khi bạn đồng ý, ảnh và thành phần khai báo sẽ được gửi tới Google Gemini Free Tier. Google có thể dùng dữ liệu gửi lên để cải thiện sản phẩm hoặc cho người đánh giá xử lý. Không gửi ảnh có người, thông tin cá nhân hoặc dữ liệu nhạy cảm. HTCOACHING không lưu ảnh; thao tác này dùng 1 lượt quota.",
     "cancel": "Quay lại điều chỉnh",
-    "confirm": "Đồng ý phân tích"
+    "confirm": "Tôi hiểu và đồng ý"
   },  "result": {
     "checking_title": "Đang kiểm tra chất lượng ảnh",
     "scenario": "Loại phần ăn",
@@ -152,8 +152,8 @@
     "speed_desc": "Nhận khoảng calo, chất đạm, tinh bột và chất béo sau một lần tải ảnh.",
     "transparent_title": "Ước tính có kiểm soát",
     "transparent_desc": "Luôn hiển thị theo khoảng và tách rõ thông tin bạn khai báo khỏi phần AI ước tính.",
-    "privacy_title": "Riêng tư theo mặc định",
-    "privacy_desc": "Ảnh chỉ được gửi tạm để phân tích, không lưu vào hồ sơ."
+    "privacy_title": "Không lưu tại HTCOACHING",
+    "privacy_desc": "HTCOACHING không lưu ảnh. Trước mỗi lượt, bạn xác nhận việc gửi tạm thời tới Google Gemini Free Tier."
   },
   "links": {
     "eyebrow": "Tiếp theo",

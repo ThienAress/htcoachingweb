@@ -28,6 +28,7 @@ describe("mealScan.service", () => {
       "GEMINI_API_KEY",
       "GEMINI_MODEL",
       "GEMINI_PAID_SERVICE_CONFIRMED",
+      "GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED",
     ]) {
       originalEnv[key] = process.env[key];
     }

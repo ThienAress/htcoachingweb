@@ -7,18 +7,21 @@ describe("meal scan provider calibration contract", () => {
     process.env.GEMINI_API_KEY = "test-key";
     process.env.GEMINI_MODEL = "test-model";
     process.env.GEMINI_PAID_SERVICE_CONFIRMED = "true";
+    process.env.GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED = "false";
   });
 
   afterEach(() => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.GEMINI_MODEL;
     delete process.env.GEMINI_PAID_SERVICE_CONFIRMED;
+    delete process.env.GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED;
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
-  test("does not send customer images until Paid Service is confirmed", async () => {
-    delete process.env.GEMINI_PAID_SERVICE_CONFIRMED;
+  test("does not send customer images until provider data use is approved", async () => {
+    process.env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+    process.env.GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED = "false";
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 
@@ -33,6 +36,30 @@ describe("meal scan provider calibration contract", () => {
       status: 503,
     });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  test("allows an explicitly accepted unpaid Gemini Meal Scan request", async () => {
+    process.env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+    process.env.GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED = "true";
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{ text: JSON.stringify({ mealName: "Bun bo" }) }],
+          },
+        }],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(
+      fetchMealScanEstimate({
+        mimeType: "image/jpeg",
+        base64: "YQ==",
+        locale: "vi",
+      }),
+    ).resolves.toMatchObject({ mealName: "Bun bo" });
   });
 
   test("asks Gemini for scale evidence and explicit confidence discipline", async () => {

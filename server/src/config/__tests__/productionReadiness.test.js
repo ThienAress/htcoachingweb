@@ -29,6 +29,7 @@ const validEnvironment = () => ({
   AI_PROVIDER: "gemini",
   GEMINI_API_KEY: "gemini-" + "h".repeat(32),
   GEMINI_PAID_SERVICE_CONFIRMED: "true",
+  GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED: "false",
   FOOD_REFERENCE_LOOKUP_ENABLED: "false",
   OPEN_FOOD_FACTS_ENABLED: "false",
   FOOD_REFERENCE_TIMEOUT_MS: "5000",
@@ -134,14 +135,14 @@ describe("production readiness configuration", () => {
     );
   });
 
-  it("blocks production Meal Scan until Gemini Paid Service is confirmed", () => {
+  it("blocks production Meal Scan until Gemini data use is approved", () => {
     const env = validEnvironment();
     env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
 
     const result = validateProductionEnvironment(env, { strict: true });
 
     expect(result.errors.map((finding) => finding.code)).toContain(
-      "GEMINI_PAID_SERVICE_NOT_CONFIRMED",
+      "GEMINI_MEAL_SCAN_DATA_USE_NOT_APPROVED",
     );
   });
 
@@ -166,7 +167,31 @@ describe("production readiness configuration", () => {
     const result = validateProductionEnvironment(env, { strict: true });
 
     expect(result.errors.map((finding) => finding.code)).toContain(
-      "GEMINI_PAID_SERVICE_NOT_CONFIRMED",
+      "GEMINI_MEAL_SCAN_DATA_USE_NOT_APPROVED",
+    );
+  });
+
+  it("allows explicitly accepted unpaid Gemini data use for Meal Scan", () => {
+    const env = validEnvironment();
+    env.GEMINI_PAID_SERVICE_CONFIRMED = "false";
+    env.GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED = "true";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect({
+      errors: result.errors,
+      mode: result.summary.geminiMealScanDataUseMode,
+    }).toEqual({ errors: [], mode: "unpaid" });
+  });
+
+  it("rejects an ambiguous Gemini Meal Scan data-use mode", () => {
+    const env = validEnvironment();
+    env.GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED = "true";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "GEMINI_MEAL_SCAN_DATA_USE_MODE_AMBIGUOUS",
     );
   });
 
@@ -181,6 +206,30 @@ describe("production readiness configuration", () => {
     expect(result.errors).toEqual([]);
     expect(result.summary.mealScanProvider).toBe("disabled");
     expect(result.summary.geminiPaidServiceConfirmed).toBe(false);
+  });
+
+  it("allows Open Food Facts as the only enabled food-reference provider", () => {
+    const env = validEnvironment();
+    env.FOOD_REFERENCE_LOOKUP_ENABLED = "true";
+    env.OPEN_FOOD_FACTS_ENABLED = "true";
+    delete env.FDC_API_KEY;
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it("rejects food-reference lookup when no provider is configured", () => {
+    const env = validEnvironment();
+    env.FOOD_REFERENCE_LOOKUP_ENABLED = "true";
+    env.OPEN_FOOD_FACTS_ENABLED = "false";
+    delete env.FDC_API_KEY;
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "FOOD_REFERENCE_PROVIDER_NOT_CONFIGURED",
+    );
   });
 
   it("throws only safe finding codes and never includes secret values", () => {

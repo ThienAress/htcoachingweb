@@ -9,6 +9,7 @@ export const analyzeMeal = async (
     image,
     locale: locale === "en" ? "en" : "vi",
     declaredIngredients,
+    providerDataUseAccepted: true,
   });
 
   if (!response.data?.success || !response.data?.data) {
