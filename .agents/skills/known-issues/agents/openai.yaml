@@ -1,7 +1,0 @@
-interface:
-  display_name: "Known Issues"
-  short_description: "Avoid intentional project workarounds"
-  default_prompt: "Use $known-issues to check intentional workarounds before changing a known hotspot."
-
-policy:
-  allow_implicit_invocation: true

@@ -17,8 +17,7 @@
     "trainers": "Trainers",
     "tdee": "TDEE Calculator",
     "recipes": "Recipes",
-    "mealplan": "Meal Plan",
-    "meal_scan": "Meal Scan"
+    "mealplan": "Meal Plan"
   },
   "nav_user": {
     "workspaces": "Workspaces",
@@ -55,7 +54,6 @@
     "customer_results": "Transformations",
     "exercise_system": "Exercise Library",
     "tdee": "TDEE Calculator",
-    "meal_scan": "Meal Scan",
     "meal_suggestion": "Meal Plan",
     "club": "Club",
     "training_programs": "TRAINING PROGRAMS",

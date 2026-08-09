@@ -55,10 +55,7 @@
     "exercise_cta": "View exercises",
     "mealplan_title": "MEAL PLAN",
     "mealplan_desc": "Create the perfect meal plan that fits your target calorie intake.",
-    "mealplan_cta": "Create meal plan",
-    "mealscan_title": "AI FOOD SCANNER",
-    "mealscan_desc": "Snap a photo of your meal — AI instantly analyzes Calories, protein, carbs & fat in seconds.",
-    "mealscan_cta": "Scan now"
+    "mealplan_cta": "Create meal plan"
   },
   "contact": {
     "title": "CONTACT US",
@@ -129,12 +126,6 @@
   "pricing": {
     "title_customer": "OUR TRAINING PLANS",
     "title_trainer": "OUR SERVICE PLANS",
-    "audience_label": "View pricing for",
-    "audience_customer": "Clients",
-    "audience_trainer": "Trainers",
-    "coaching_cost_label": "Coaching fee",
-    "coaching_cost_assessment": "Confirmed after your free assessment",
-    "book_assessment": "Register",
     "trial": "Trial",
     "popular": "POPULAR",
     "system_benefits": "✨ System Benefits",
@@ -190,10 +181,6 @@
       "free_sub": "All core features for {{count}} days",
       "days": "{{count}} days",
       "trial_used_badge": "Trial used",
-      "order_exists_badge": "Existing order",
-      "ineligible_cta": "NOT ELIGIBLE",
-      "order_exists_title": "Free plan is not available",
-      "order_exists_message": "This account already has a coaching order. The Free plan is only for students who have never had an order; you can still choose a paid plan.",
       "start_free": "START FREE",
       "checking_trial": "CHECKING...",
       "retry_trial_check": "CHECK AGAIN",

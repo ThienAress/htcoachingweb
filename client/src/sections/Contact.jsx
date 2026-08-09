@@ -4,8 +4,6 @@ import { MapPin, Phone, Mail, Clock, CheckCircle } from "lucide-react";
 import { sendContactMessage } from "../services/contact.service";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { trackAnalyticsEventOnce } from "../utils/analytics";
-import { getPublicAttribution } from "../utils/publicAttribution";
 
 const Contact = () => {
   const { t } = useTranslation("home");
@@ -143,10 +141,6 @@ const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    getPublicAttribution();
-  }, []);
-
-  useEffect(() => {
     let timer, interval;
     if (showSuccess) {
       document.body.style.overflow = "hidden";
@@ -211,16 +205,7 @@ const Contact = () => {
     setIsSubmitting(true);
 
     try {
-      const attribution = getPublicAttribution();
-      await sendContactMessage({
-        ...formData,
-        attribution,
-      });
-      trackAnalyticsEventOnce(
-        "generate_lead",
-        "contact:public-form",
-        { lead_type: "contact" },
-      );
+      await sendContactMessage(formData);
       setFormData({ name: "", email: "", phone: "", social: "", package: "" });
       setShowSuccess(true);
     } catch (err) {

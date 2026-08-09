@@ -1,5 +1,3 @@
-import { normalizePublicPath } from "../src/utils/publicSeoPath.js";
-
 const decodeXmlText = (value) =>
   String(value)
     .replaceAll("&amp;", "&")
@@ -7,9 +5,6 @@ const decodeXmlText = (value) =>
     .replaceAll("&gt;", ">")
     .replaceAll("&quot;", '"')
     .replaceAll("&apos;", "'");
-
-export const canonicalUrlForRoute = (route, siteUrl) =>
-  new URL(normalizePublicPath(route), siteUrl).href;
 
 export const routesFromSitemap = (sitemapXml, siteUrl) => {
   const siteOrigin = new URL(siteUrl).origin;

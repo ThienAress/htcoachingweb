@@ -5,7 +5,6 @@ import {
   createTrainerCatalogFingerprint,
   getTrainerPlanCatalogMeta,
   getTrainerPlan,
-  listTrainerPlanBenefits,
   listTrainerPlans,
   resolveTrainerPlanCode,
 } from "../trainerPlanCatalog.service.js";
@@ -59,34 +58,8 @@ describe("trainer plan catalog", () => {
     });
   });
 
-  it("keeps the published trainer benefits in one canonical matrix", () => {
-    const benefits = listTrainerPlanBenefits();
-
-    expect(benefits).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: "max_students",
-          valueType: "capacity",
-          includedPlanCodes: ["free", "standard", "professional", "premium"],
-        }),
-        expect.objectContaining({
-          key: "crm_ai_analysis",
-          includedPlanCodes: ["professional", "premium"],
-        }),
-        expect.objectContaining({
-          key: "free_updates",
-          includedPlanCodes: ["premium"],
-        }),
-      ]),
-    );
-    expect(new Set(benefits.map((benefit) => benefit.key)).size).toBe(
-      benefits.length,
-    );
-  });
-
   it("changes the deterministic fingerprint when a commercial field changes", () => {
     const plans = listTrainerPlans();
-    const benefits = listTrainerPlanBenefits();
     const baseline = createTrainerCatalogFingerprint(plans);
     const reordered = createTrainerCatalogFingerprint([...plans].reverse());
     const changed = createTrainerCatalogFingerprint(
@@ -97,16 +70,6 @@ describe("trainer plan catalog", () => {
 
     expect(reordered).toBe(baseline);
     expect(changed).not.toBe(baseline);
-    expect(
-      createTrainerCatalogFingerprint(
-        plans,
-        benefits.map((benefit) =>
-          benefit.key === "free_updates"
-            ? { ...benefit, includedPlanCodes: ["professional", "premium"] }
-            : benefit,
-        ),
-      ),
-    ).not.toBe(baseline);
     expect(getTrainerPlanCatalogMeta().catalogFingerprint).toBe(baseline);
   });
 

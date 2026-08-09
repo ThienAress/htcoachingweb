@@ -158,11 +158,6 @@ const TdeeForm = ({
             <option value="Mifflin-St Jeor">Mifflin-St Jeor</option>
             <option value="Katch-McArdle">Katch-McArdle</option>
           </select>
-          {form.formula === "Mifflin-St Jeor" && !errors.formula && (
-            <p className="mt-1.5 text-xs leading-5 text-gray-400">
-              {t("form.formula_recommended")}
-            </p>
-          )}
           {errors.formula && (
             <p className="text-red-400 text-sm mt-1 flex items-center gap-1">
               <AlertTriangle className="w-3 h-3" /> {errors.formula}

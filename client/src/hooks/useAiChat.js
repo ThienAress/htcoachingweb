@@ -40,14 +40,13 @@ export function mapAiMessages(rawMessages = []) {
   return result;
 }
 
-export default function useAiChat({ persistenceEnabled = true } = {}) {
+export default function useAiChat() {
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTool, setActiveTool] = useState(null);
   const [error, setError] = useState(null);
-  const [quota, setQuota] = useState(null);
 
   const mountedRef = useRef(true);
   const messagesRef = useRef([]);
@@ -127,7 +126,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         setIsLoading(false);
         setActiveTool(null);
       }
-      if (persistenceEnabled && flush && session) {
+      if (flush && session) {
         const expectedConversationId =
           conversationIdRef.current || session.targetConversationId;
         const expectedNavigation = navigationSequenceRef.current;
@@ -157,12 +156,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         }, 180);
       }
     },
-    [
-      clearFlushTimer,
-      flushPendingText,
-      persistenceEnabled,
-      setCurrentMessages,
-    ],
+    [clearFlushTimer, flushPendingText, setCurrentMessages],
   );
 
   useEffect(() => {
@@ -177,12 +171,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
     };
   }, []);
 
-  useEffect(() => {
-    setQuota(null);
-  }, [persistenceEnabled]);
-
   const loadHistory = useCallback(async () => {
-    if (!persistenceEnabled) return;
     const sequence = ++navigationSequenceRef.current;
     try {
       const response = await getAiHistory();
@@ -194,17 +183,16 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
     } catch {
       // Empty history is a valid state.
     }
-  }, [persistenceEnabled, setCurrentConversationId, setCurrentMessages]);
+  }, [setCurrentConversationId, setCurrentMessages]);
 
   const loadConversations = useCallback(async () => {
-    if (!persistenceEnabled) return;
     try {
       const response = await getAiConversations();
       if (mountedRef.current) setConversations(response.data || []);
     } catch {
       // The sidebar is non-critical.
     }
-  }, [persistenceEnabled]);
+  }, []);
 
   const switchConversation = useCallback(
     async (id) => {
@@ -326,7 +314,6 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         );
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          if (data.meta?.quota && mountedRef.current) setQuota(data.meta.quota);
           throw new Error(data.message || `HTTP ${response.status}`);
         }
 
@@ -349,9 +336,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
               continue;
             }
 
-            if (event.type === "quota") {
-              if (event.quota && isActive()) setQuota(event.quota);
-            } else if (event.type === "text") {
+            if (event.type === "text") {
               pendingTextRef.current += String(event.content || "");
             } else if (event.type === "conversation") {
               if (event.conversationId) setCurrentConversationId(event.conversationId);
@@ -387,7 +372,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
             } else if (event.type === "done") {
               flushPendingText(sessionId);
               if (event.conversationId) setCurrentConversationId(event.conversationId);
-              if (persistenceEnabled && event.conversationId) {
+              if (event.conversationId) {
                 const current = await getAiConversationById(event.conversationId);
                 if (isActive() && current.data) {
                   setCurrentMessages(mapAiMessages(current.data.messages));
@@ -429,7 +414,6 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
       clearFlushTimer,
       flushPendingText,
       loadConversations,
-      persistenceEnabled,
       setCurrentConversationId,
       setCurrentMessages,
       startFlushTimer,
@@ -500,7 +484,6 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
     isLoading,
     activeTool,
     error,
-    quota,
     conversationId,
     conversations,
     sendMessage,

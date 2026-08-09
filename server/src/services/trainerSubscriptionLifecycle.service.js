@@ -1,6 +1,5 @@
 import TrainerSubscription from "../models/TrainerSubscription.js";
 import TrainerTrialClaim from "../models/TrainerTrialClaim.js";
-import Order from "../models/Order.js";
 import {
   calculateTrainerPlanEndDate,
   getTrainerPlan,
@@ -9,22 +8,6 @@ import {
 
 export const normalizeTrainerEmail = (email) =>
   String(email || "").trim().toLowerCase();
-
-export const hasExistingOrderForTrainerFree = async ({
-  userId,
-  email,
-  session = null,
-}) => {
-  const normalizedEmail = normalizeTrainerEmail(email);
-  const identityFilters = [];
-  if (userId) identityFilters.push({ userId });
-  if (normalizedEmail) identityFilters.push({ email: normalizedEmail });
-  if (identityFilters.length === 0) return false;
-
-  const query = Order.exists({ $or: identityFilters });
-  if (session) query.session(session);
-  return Boolean(await query);
-};
 
 export const trainerSubscriptionError = (status, code, message) =>
   Object.assign(new Error(message), { status, code });

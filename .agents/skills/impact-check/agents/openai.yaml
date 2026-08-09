@@ -1,7 +1,7 @@
 interface:
   display_name: "Impact Check"
-  short_description: "Trace cross-layer change impact"
-  default_prompt: "Use $impact-check to trace every producer, consumer, contract, and test affected by this change."
+  short_description: "Trace toàn bộ ảnh hưởng liên đới khi sửa code"
+  default_prompt: "Dùng $impact-check để trace và kiểm tra mọi file, contract và test liên quan trước khi sửa."
 
 policy:
   allow_implicit_invocation: true

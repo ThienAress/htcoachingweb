@@ -1,25 +1,19 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import { Flame, Zap, Target, Dumbbell } from "lucide-react";
-import {
-  HOME_ABOUT_CATALOG,
-  buildCatalogMediaItems,
-} from "../config/homeSectionCatalog";
+import hero1 from "../assets/images/hero/hero1.webp";
+import hero2 from "../assets/images/hero/hero2.webp";
+import hero3 from "../assets/images/hero/hero3.webp";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const About = ({ imagesByKey, images }) => {
+const About = ({ images }) => {
   const { t } = useTranslation("home");
-  const displayImages = useMemo(
-    () => buildCatalogMediaItems(HOME_ABOUT_CATALOG, {
-      imagesByKey,
-      legacyImages: images,
-    }).map((item) => item.image).filter(Boolean),
-    [images, imagesByKey],
-  );
+  const defaultImages = [hero1, hero2, hero3];
+  const displayImages = images && images.length > 0 ? images : defaultImages;
   const leftRef = useRef(null);
   const rightRef = useRef(null);
   const slidesRef = useRef([]);

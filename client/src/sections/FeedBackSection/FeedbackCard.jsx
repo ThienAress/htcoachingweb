@@ -51,7 +51,7 @@ const FeedbackCard = ({
 
   return (
     <Link
-      to={`/ket-qua-khach-hang/${slug}/`}
+      to={`/ket-qua-khach-hang/${slug}`}
       className="feedback-card group block overflow-hidden rounded-xl shadow-md transition-transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 w-full"
       aria-label={`Xem hành trình thay đổi của ${name}`}
     >

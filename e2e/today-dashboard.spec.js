@@ -151,7 +151,7 @@ test.describe("Today Dashboard private journey", () => {
       ["Mở giáo án trực tuyến", "/online-coaching"],
       ["Xem giáo án tập luyện", "/workout-plans"],
       ["Xem lịch sử điểm danh", "/my-history"],
-      ["Hệ thống bài tập", "/exercises/"],
+      ["Hệ thống bài tập", "/exercises"],
     ]) {
       await expect(page.getByRole("link", { name, exact: true })).toHaveAttribute(
         "href",
@@ -162,7 +162,7 @@ test.describe("Today Dashboard private journey", () => {
     await page.goto("/dashboard/today/" + dateKey + "/nutrition");
     await expect(
       page.getByRole("link", { name: "Tính TDEE và tạo thực đơn" }),
-    ).toHaveAttribute("href", "/tdee-calculator/");
+    ).toHaveAttribute("href", "/tdee-calculator");
   });
 
   test("shows a saved meal plan in a fresh browser context", async ({

@@ -1,7 +1,0 @@
-interface:
-  display_name: "PDF Generation"
-  short_description: "Build Vietnamese-ready project PDFs"
-  default_prompt: "Use $pdf-generation to create or update an HTCOACHINGWEB PDF safely."
-
-policy:
-  allow_implicit_invocation: true

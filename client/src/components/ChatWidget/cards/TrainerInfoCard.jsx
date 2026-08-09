@@ -49,7 +49,7 @@ export default function TrainerInfoCard({ data }) {
             </div>
             {trainer.slug && (
               <Link
-                to={`/huan-luyen-vien/${trainer.slug}/`}
+                to={`/huan-luyen-vien/${trainer.slug}`}
                 className="text-emerald-400 hover:text-emerald-300 shrink-0"
                 title="Xem profile"
               >

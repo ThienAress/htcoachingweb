@@ -4,14 +4,13 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Draggable } from "gsap/Draggable";
 import ClassCard from "./ClassCard";
-import {
-  HOME_CLASS_CATALOG,
-  buildCatalogMediaItems,
-} from "../../config/homeSectionCatalog";
+import class1 from "../../assets/images/classes/class1.jpg";
+import class2 from "../../assets/images/classes/class2.jpg";
+import class3 from "../../assets/images/classes/class3.jpg";
 
 gsap.registerPlugin(ScrollTrigger, Draggable);
 
-const Classes = ({ imagesByKey, legacyImages }) => {
+const Classes = ({ images }) => {
   const { t } = useTranslation("home");
   const headerRef = useRef(null);
   const carouselRef = useRef(null);
@@ -21,18 +20,26 @@ const Classes = ({ imagesByKey, legacyImages }) => {
   const [isPaused, setIsPaused] = useState(false);
 
   const classItems = t("classes.items", { returnObjects: true });
-  const classes = buildCatalogMediaItems(HOME_CLASS_CATALOG, {
-    imagesByKey,
-    legacyImages,
-  }).map((item) => {
-    const content = classItems?.[item.contentIndex] || {};
-    return {
-      ...item,
-      title: content.title || item.adminLabel,
-      desc: content.desc || "",
-      benefits: Array.isArray(content.benefits) ? content.benefits : [],
-    };
-  });
+  const classes = [
+    {
+      image: images?.[0] || class1,
+      title: classItems[0].title,
+      desc: classItems[0].desc,
+      benefits: classItems[0].benefits,
+    },
+    {
+      image: images?.[1] || class2,
+      title: classItems[1].title,
+      desc: classItems[1].desc,
+      benefits: classItems[1].benefits,
+    },
+    {
+      image: images?.[2] || class3,
+      title: classItems[2].title,
+      desc: classItems[2].desc,
+      benefits: classItems[2].benefits,
+    },
+  ];
 
   // Dùng refs để truy cập hàm mới nhất bên trong Draggable (chỉ chạy 1 lần)
   const handleNextRef = useRef(null);
@@ -188,37 +195,34 @@ const Classes = ({ imagesByKey, legacyImages }) => {
         <div className="relative w-full h-[520px] sm:h-[600px] md:h-[620px] lg:h-[620px] xl:h-[720px] flex items-center justify-center perspective-[1000px] mt-4 sm:mt-8">
           
           <div ref={carouselRef} className="relative w-full max-w-[320px] sm:max-w-[400px] h-full flex items-center justify-center z-20 cursor-grab active:cursor-grabbing">
-            {classes.map((item, index) => {
-              const { key: itemKey, ...cardProps } = item;
-              return (
-                <div
-                  key={itemKey}
-                  className="absolute top-0 left-0 w-full cursor-pointer will-change-transform"
-                  onClick={() => {
-                    if (index !== currentIndex) {
-                      setPrevIndex(currentIndex);
-                      setCurrentIndex(index);
-                    }
-                  }}
-                >
-                  <ClassCard {...cardProps} />
-                </div>
-              );
-            })}
+            {classes.map((item, index) => (
+              <div 
+                key={index} 
+                className="absolute top-0 left-0 w-full cursor-pointer will-change-transform"
+                onClick={() => {
+                  if (index !== currentIndex) {
+                    setPrevIndex(currentIndex);
+                    setCurrentIndex(index);
+                  }
+                }}
+              >
+                <ClassCard {...item} />
+              </div>
+            ))}
           </div>
           
           {/* Controls - Nút điều hướng 2 bên */}
           <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 left-0 right-0 justify-between z-30 pointer-events-none px-2 sm:px-6 lg:px-12">
             <button 
               onClick={handlePrev}
-              className="pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-white shadow-xl border border-gray-100 text-primary hover:bg-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-all duration-300 transform hover:scale-110"
+              className="pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-white shadow-xl border border-gray-100 text-primary hover:bg-primary hover:text-white transition-all duration-300 transform hover:scale-110"
               aria-label="Previous"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
             </button>
             <button 
               onClick={handleNext}
-              className="pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-white shadow-xl border border-gray-100 text-primary hover:bg-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-all duration-300 transform hover:scale-110"
+              className="pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-white shadow-xl border border-gray-100 text-primary hover:bg-primary hover:text-white transition-all duration-300 transform hover:scale-110"
               aria-label="Next"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>

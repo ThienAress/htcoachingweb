@@ -17,8 +17,6 @@ import SEO from "../../components/SEO";
 import { registerSchema } from "./registerSchema";
 import OrderSummary from "./components/OrderSummary";
 import FirstTimeModal from "./components/FirstTimeModal";
-import { trackAnalyticsEventOnce } from "../../utils/analytics";
-import { getPublicAttribution } from "../../utils/publicAttribution";
 
 const createDiscountCode = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
@@ -125,10 +123,6 @@ function RegisterPage() {
   const discountCode = bookingStatus?.discountCode || "";
   const loadingCheck = isLoggedIn && loadingBookingStatus;
 
-  useEffect(() => {
-    getPublicAttribution();
-  }, []);
-
   // Redirect if no package selected
   useEffect(() => {
     if (!selectedPackage || !planMode) {
@@ -163,7 +157,6 @@ function RegisterPage() {
         sessions: selectedPackage.totalSessions,
         discountCode: isLoggedIn && !hasExistingBooking ? discountCode : null,
         gifts: gifts,
-        attribution: getPublicAttribution(),
         clientRequestId:
           bookingRequestId || window.crypto.randomUUID(),
       };
@@ -171,11 +164,6 @@ function RegisterPage() {
 
       try {
         await createBooking(bookingData);
-        trackAnalyticsEventOnce(
-          "generate_lead",
-          `booking:${bookingData.clientRequestId}`,
-          { lead_type: "booking" },
-        );
         setBookingRequestId(null);
         await fetchUserBookings();
         toast.success(t("register.success_msg"));

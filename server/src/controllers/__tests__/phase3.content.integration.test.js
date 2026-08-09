@@ -191,14 +191,12 @@ describe("Phase 3 content and option queries", () => {
         ingredients: [{ name: "Chicken", measure: "200g" }],
         instructions: ["Cook thoroughly"],
         tags: ["protein"],
-        youtubeUrl: "https://www.youtube.com/watch?v=third-party",
       }),
       accessToken,
     );
     expect(created.status).toBe(201);
     expect(created.body.data.slug).toBe("protein-bowl");
     expect(created.body.data.isPublished).toBe(false);
-    expect(created.body.data.youtubeUrl).toBe("");
     expect((await Recipe.findById(created.body.data._id)).isPublished).toBe(
       false,
     );

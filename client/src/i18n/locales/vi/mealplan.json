@@ -8,8 +8,6 @@
     "no_remaining": "❌ Bạn đã sử dụng hết {{max}} lượt gợi ý miễn phí. Vui lòng đăng ký gói dịch vụ để tiếp tục sử dụng không giới hạn.",
     "no_remaining_simple": "❌ Đã hết lượt gợi ý miễn phí.",
     "loading_macros": "⏳ Đang tải dữ liệu macro, vui lòng chờ...",
-    "loading_foods": "⏳ Đang tải dữ liệu thực phẩm, vui lòng chờ...",
-    "access_error": "Không thể xác minh lượt tạo thực đơn. Vui lòng thử lại.",
     "select_plan_first": "❌ Vui lòng chọn chế độ dinh dưỡng trước",
     "record_failed": "Không thể ghi nhận lượt sử dụng hoặc đã hết lượt.",
     "added_food": "Đã thêm {{name}}",
@@ -26,18 +24,6 @@
   "active_target": "Target đang dùng:",
   "btn_generate": "Gợi ý thực đơn mẫu",
   "btn_regenerate": "Đổi thực đơn khác",
-  "btn_login_to_regenerate": "Đăng nhập để tạo lại",
-  "guest_preview": {
-    "title": "Bạn đang xem thực đơn mẫu miễn phí",
-    "description": "Đăng nhập để lưu thực đơn, tạo phương án khác, chọn món yêu thích và tiếp tục cá nhân hóa.",
-    "cta": "Đăng nhập để tiếp tục"
-  },
-  "login_modal": {
-    "title": "ĐĂNG NHẬP",
-    "description": "Đăng nhập để lưu thực đơn, tạo lại và tiếp tục cá nhân hóa lộ trình dinh dưỡng của bạn.",
-    "google": "Đăng nhập bằng Google",
-    "close": "Đóng hộp thoại đăng nhập"
-  },
   "saved": {
     "title": "Thực đơn đã lưu",
     "description": "Lưu snapshot từ thực phẩm chuẩn để dùng lại và theo dõi phiên bản.",

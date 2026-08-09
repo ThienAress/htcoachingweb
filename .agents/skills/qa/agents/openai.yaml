@@ -1,7 +1,0 @@
-interface:
-  display_name: "Quality Assurance"
-  short_description: "Produce reusable build and test evidence"
-  default_prompt: "Use $qa to run the appropriate build and test mode and produce reusable evidence."
-
-policy:
-  allow_implicit_invocation: true

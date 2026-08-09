@@ -8,7 +8,7 @@ const TodayNutrition = () => {
   return (
     <div>
       <DashboardToolShortcut
-        to="/tdee-calculator/"
+        to="/tdee-calculator"
         icon={Calculator}
         title="Tính TDEE và tạo thực đơn"
         description="Tính nhu cầu năng lượng và tạo thực đơn phù hợp với mục tiêu của bạn."

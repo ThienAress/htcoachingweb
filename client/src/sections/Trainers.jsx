@@ -15,10 +15,6 @@ import {
 import { getPublicTrainers } from "../services/trainer.service";
 import { useNavigate } from "react-router-dom";
 import { translateData } from "../utils/localDataTranslator";
-import {
-  HOME_TRAINER_CATALOG,
-  buildCatalogMediaItems,
-} from "../config/homeSectionCatalog";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -29,14 +25,7 @@ const iconMap = {
   "heart-pulse": HeartPulse,
 };
 
-const getTrainerCardImage = (trainer, isFeatured, featuredImageOverride) => (
-  (isFeatured && featuredImageOverride)
-  || trainer.images?.[0]
-  || trainer.image
-  || "https://placehold.co/600x400/eeeeee/999999?text=No+Image"
-);
-
-const Trainers = ({ previewData, imagesByKey, legacyImage }) => {
+const Trainers = ({ previewData }) => {
   const { t, i18n } = useTranslation("home");
   const navigate = useNavigate();
   const { data: queryData, isLoading } = useQuery({
@@ -50,13 +39,6 @@ const Trainers = ({ previewData, imagesByKey, legacyImage }) => {
   });
 
   const trainersList = translateData(previewData || queryData || [], "trainer", i18n.language);
-  const featuredImageOverride = previewData
-    ? ""
-    : buildCatalogMediaItems(HOME_TRAINER_CATALOG, {
-      imagesByKey,
-      legacyImage,
-      includeDefaults: false,
-    })[0]?.image || "";
   const sectionRef = useRef(null);
   const containerRef = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -216,11 +198,11 @@ const Trainers = ({ previewData, imagesByKey, legacyImage }) => {
   if (trainersList.length === 0) return null;
 
   // Helper render 1 trainer card
-  const renderTrainerCard = (trainer, index) => (
+  const renderTrainerCard = (trainer) => (
     <div className="w-full flex-col md:flex-row flex gap-8 lg:gap-12 bg-white">
       <div className="w-full md:w-5/12 shrink-0 mt-2 mb-6 md:mb-0 flex flex-col">
         <img
-          src={getTrainerCardImage(trainer, index === 0, featuredImageOverride)}
+          src={trainer.images?.[0] || trainer.image || "https://placehold.co/600x400/eeeeee/999999?text=No+Image"}
           alt={trainer.name}
           loading="lazy"
           className="w-full aspect-[3/4] md:aspect-auto md:h-full max-h-[500px] rounded-2xl object-cover shadow-sm"
@@ -327,7 +309,7 @@ const Trainers = ({ previewData, imagesByKey, legacyImage }) => {
                 className={`row-start-1 col-start-1 w-full transition-opacity duration-300 ${index === currentIndex ? "z-10 pointer-events-auto opacity-100" : "z-0 pointer-events-none opacity-0"
                   }`}
               >
-                {renderTrainerCard(trainer, index)}
+                {renderTrainerCard(trainer)}
               </div>
             ))}
           </div>

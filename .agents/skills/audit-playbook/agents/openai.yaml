@@ -1,7 +1,0 @@
-interface:
-  display_name: "Audit Playbook"
-  short_description: "Apply evidence-backed audit coverage"
-  default_prompt: "Use $audit-playbook to review the project with evidence and category coverage."
-
-policy:
-  allow_implicit_invocation: true

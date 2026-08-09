@@ -34,31 +34,6 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 018 | Chuẩn hóa TanStack Query v5 và vòng đời server state | P1 | L | 001, 002, 003H | DONE / LOCAL VERIFIED |
 | 019 | Harden auth và F1 authorization | P1 | M | — | DONE / LOCAL VERIFIED |
 | 020 | Codify security review governance | P1 | M | 019 | DONE / LOCAL VERIFIED — STAGING PENDING |
-| 021 | Harden mobile AI chat and trainer Free eligibility | P1 | M | 001, 002, 018 | DONE / LOCAL VERIFIED — MANUAL IOS PENDING |
-| 022 | Thay chữ ký tay bằng xác nhận hợp đồng qua OTP | P1 | L | 002, 019, 020 | SUPERSEDED BY 023 / NOT DEPLOYED |
-| 023 | Khôi phục chữ ký tay và hoàn thiện trải nghiệm hợp đồng | P1 | L | 002, 019, 020, 022 | DONE / LOCAL VERIFIED — NOT DEPLOYED |
-| 024 | Thêm trang Quét món ăn với ước tính calo và macro | P1 | L | 017, 019 | DONE / LOCAL VERIFIED — ALPHA DATA GATE PENDING |
-
-| 024A | Harden Meal Scan cho món ăn toàn cầu và xác nhận có kiểm soát | P1 | L | 024 | DONE / LOCAL VERIFIED — WEIGHED HOLDOUT PENDING |
-| 025 | Thêm provenance Food DB, packaged-food lookup và authenticated Meal Scan E2E | P1 | L | 024A | COMPLETE / LOCAL VERIFIED |
-| 026 | Mở Meal Scan anonymous có quota và căn giữa hành trình sử dụng | P1 | M | 024, 024A, 025 | DONE — AUTH QUOTA SUPERSEDED BY 026A / NOT DEPLOYED |
-| 026A | Giới hạn chi phí Meal Scan và mặc định mock ở development | P1 | S | 026 | IMPLEMENTED / LOCAL VERIFIED — CAP AMOUNT PENDING |
-| 026B | Thu thập thành phần khai báo và đơn giản hóa kết quả Meal Scan | P1 | M | 026A | IMPLEMENTED / LOCAL VERIFIED |
-| 026C | Tính thành phần khai báo vào tổng Meal Scan | P1 | M | 026B | RELEASE CANDIDATE VERIFIED — STAGING PENDING |
-| 027 | Hoàn thiện hành trình public ưu tiên giá trị | P1 | M | 003C, 004, 018 | IMPLEMENTED / LOCAL VERIFIED — LIVE FOOD PREVIEW + PRERENDER PENDING |
-| 028 | Xây dựng SEO & Conversion Analytics an toàn | P1 | XL | 019, 020, 027 | IN PROGRESS — 028A–028C LOCAL VERIFIED |
-| 028A | Instrument public SEO/conversion measurement | P1 | M | 028 | DONE / LOCAL VERIFIED — LIVE GA4 PENDING |
-| 028B | Build Admin SEO analytics read model | P1 | L | 028A | DONE / NODE 22 LOCAL VERIFIED — LIVE GOOGLE + STRICT PRERENDER PENDING |
-| 028C | Link explicit business conversions | P1 | L | 028B | DONE / NODE 22 LOCAL VERIFIED — STAGING INDEX APPLY + STRICT PRERENDER PENDING |
-| 028D | Pilot OpenSEO read-only MCP | P1 | M | 028B | TASKS APPROVED — OPS APPROVALS REQUIRED |
-| 029 | Quản lý ảnh Homepage theo stable key | P1 | M | 027, 028A | COMPLETE |
-| 030 | Modernize agent workflows with composable, enforced skills | P1 | L | 017 | COMPLETE / VERIFIED |
-| 031 | Mở HT Assistant theo ngữ cảnh toàn website cho guest | P1 | L | 019, 020, 021, 026A, 027 | IMPLEMENTED / LOCAL VERIFIED — FULL SERVER + PRERENDER ENV BLOCKED |
-| 032 | Mở quản trị riêng theo từng huấn luyện viên | P1 | L | 016, 019, 023, 031 | COMPLETE / LOCAL VERIFIED |
-| 033 | Chuẩn hóa quyền truy cập và hạn mức dịch vụ | P1 | L | 026A, 027, 030, 031, 032 | COMPLETE / FOCUSED VERIFIED — FULL SERVER + PRERENDER ENV BLOCKED |
-| 034 | Đồng bộ quyền lợi gói HLV và mở soạn thảo bảng trong Blog | P1 | M | 033 | DONE / LOCAL VERIFIED |
-| 035 | Xây dựng Upstream Skill Radar và trang Admin Radar công nghệ | P1 | L | 017, 030 | IMPLEMENTED / LOCAL VERIFIED — AUTHENTICATED VISUAL PENDING |
-| 036 | Thích nghi các finding từ baseline Upstream Skill Radar | P1 | L | 030, 035 | IMPLEMENTED / LOCAL VERIFIED — PRERENDER ENV BLOCKED |
 
 ## Dependency Notes
 
@@ -83,45 +58,6 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   F1 ownership mà không đổi schema hoặc dữ liệu.
 - Plan 020 phụ thuộc 019 để biến security findings và regression evidence thành threat model, coverage
   ledger, bounded Codex Security workflow và release gates trước khi promote staging/main.
-- Plan 021 phụ thuộc 001–002 cho trainer lifecycle/commercial contract và 018 cho subscription snapshot;
-  đồng thời sửa độc lập runtime viewport/theme của AI Chat mà không đổi schema hoặc dữ liệu thật.
-- Plan 022 phụ thuộc 002 cho contract thương mại, 019 cho ownership/auth và 020 cho security evidence;
-  thay chữ ký ảnh bằng OTP nhưng giữ tương thích documents/PDF lịch sử.
-- Plan 023 thay thế Plan 022 trước khi deploy vì tài khoản cá nhân chưa đủ điều kiện SMS Brandname; khôi phục chữ ký tay hai bên nhưng giữ UI/PDF và security hardening hữu ích.
-- Plan 024 phụ thuộc 017 cho agent/AI governance và 019 cho cookie-only auth; feature
-  không lưu ảnh, không đổi schema và tách endpoint Meal Scan khỏi chat SSE.
-
-- Plan 024A phụ thuộc 024 vì nó harden provider/result contract và review workflow hiện có;
-  vẫn không lưu ảnh/kết quả hay coi benchmark synthetic là nutrition ground truth.
-- Plan 025 phụ thuộc 024A vì nó mở rộng review local-only bằng provenance và packaged-food reference;
-  không backfill dữ liệu thật, không gọi external source là canonical và không deploy.
-- Plan 026 phụ thuộc 024–025 vì nó mở anonymous access trên endpoint Meal Scan đã harden, giữ review
-  và barcode boundaries hiện có, đồng thời chỉ thay presentation của public page.
-- Plan 026A phụ thuộc 026 vì nó đổi authenticated quota sang 10 lượt/24 giờ, giữ anonymous 2 lượt/24 giờ, tách dev mock khỏi production provider và không chạm wallet.
-- Plan 026B phụ thuộc 026A vì nó thêm bước khai báo/khóa/xác nhận trước request nhưng giữ nguyên quota,
-  privacy, mock-development và cost boundaries đã harden.
-- Plan 026C phụ thuộc 026B vì nó biến dữ liệu khai báo đang chỉ hiển thị thành breakdown server-authoritative,
-  cộng vào total/macro score và đánh dấu rõ mục không có nutrition source mà không đổi schema.
-- Plan 027 phụ thuộc 003C cho lưu Meal Plan, 004 cho homepage entry và 018 cho auth/server-state;
-  thay presentation và anonymous client preview nhưng không đổi backend entitlement hoặc commercial contract.
-- Plan 028 phụ thuộc 019–020 cho auth/security boundary và 027 cho public CTA journey; bổ sung đo lường,
-  read model, admin dashboard rồi mới mở OpenSEO/MCP, không lưu raw IP hoặc làm public runtime phụ thuộc provider.
-- Plan 028A–028D là các release gate của Plan 028: measurement → read model/dashboard → explicit conversion;
-  OpenSEO chỉ pilot sau khi dashboard cache-first đã ổn định và vẫn tách khỏi core runtime.
-- Plan 030 phụ thuộc 017 vì mở rộng agent governance đã harden bằng router, invocation metadata,
-  domain memory, review và handoff có validator enforcement; không chạm product runtime.
-- Plan 031 phụ thuộc auth/security/chat/public-journey đã harden để mở guest trong quota, giữ CSRF/ownership
-  và đưa page context canonical vào cùng contract mà không làm public runtime đọc raw DOM.
-- Plan 032 phụ thuộc workspace/auth/contract đã harden để mở Order, Contract và Check-in cho trainer theo
-  owner filter backend; đồng thời giữ delete Order/Contract là quyền admin.
-- Plan 033 phụ thuộc các quota, public preview, agent workflow và entitlement đã có để gom policy vào registry
-  canonical, enforce theo tier và hiển thị cùng contract trong Admin mà không cần migration.
-- Plan 034 phụ thuộc 033 để mở rộng cùng trang Admin bằng catalog quyền lợi HLV canonical, đồng thời bổ sung
-  Tiptap TableKit độc lập với service quota và không mở mutation hoặc schema mới.
-- Plan 035 phụ thuộc 017 và 030 vì mở rộng agent governance/validator hiện có bằng external upstream drift;
-  dashboard chỉ đọc snapshot đã duyệt và không cho upstream tự sửa policy hoặc skill canonical.
-- Plan 036 phụ thuộc 030 và 035 vì dùng workflow/validator hiện có cùng provenance Radar để thích nghi 13 finding có
-  evidence; plan sửa đúng semantics baseline trước rồi mới thay local skill và không tự sửa canonical rules.
 
 ## Findings Considered and Rejected
 

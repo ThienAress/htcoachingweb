@@ -1,8 +1,4 @@
 import api from "../utils/api";
-import {
-  buildConversionOriginFields,
-  pickDefinedFields,
-} from "../utils/conversionOrigin";
 
 export const getOrders = (page = 1, limit = 5) => api.get(`/orders?page=${page}&limit=${limit}`);
 
@@ -12,23 +8,7 @@ export const getCheckinOrderOptions = (search = "", signal) =>
     signal,
   });
 
-export const createOrder = (payload) => {
-  const data = {
-    ...pickDefinedFields(payload, [
-      "name",
-      "email",
-      "phone",
-      "package",
-      "sessions",
-      "gym",
-      "schedule",
-      "note",
-      "trainerId",
-    ]),
-    ...buildConversionOriginFields(payload),
-  };
-  return api.post("/orders", data);
-};
+export const createOrder = (data) => api.post("/orders", data);
 
 export const updateOrder = (id, data) => api.put(`/orders/${id}`, data);
 

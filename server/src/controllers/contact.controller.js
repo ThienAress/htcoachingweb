@@ -1,20 +1,11 @@
 import ContactMessage from "../models/ContactMessage.js";
-import { normalizeLeadAttribution } from "../models/leadAttribution.schema.js";
 import { sendContactNotificationToAdmin } from "../utils/sendMail.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 // Tạo mới liên hệ (không cần đăng nhập)
 export const createContactMessage = async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      phone,
-      social,
-      package: packageType,
-      attribution: rawAttribution,
-    } = req.body;
-    const attribution = normalizeLeadAttribution(rawAttribution);
+    const { name, email, phone, social, package: packageType } = req.body;
 
     // Lưu vào DB
     const message = await ContactMessage.create({
@@ -23,7 +14,6 @@ export const createContactMessage = async (req, res) => {
       phone,
       social,
       package: packageType,
-      attribution,
     });
 
     // Gửi email thông báo cho admin (bất đồng bộ, không chờ)

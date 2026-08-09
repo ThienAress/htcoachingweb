@@ -2,11 +2,7 @@ import { useRef, useCallback } from "react";
 import SignaturePad from "react-signature-canvas";
 import { RotateCcw } from "lucide-react";
 
-const SignatureCanvas = ({
-  onSignatureChange,
-  disabled = false,
-  label = "Khu vực vẽ chữ ký",
-}) => {
+const SignatureCanvas = ({ onSignatureChange, disabled = false }) => {
   const sigRef = useRef(null);
 
   const handleEnd = useCallback(() => {
@@ -25,12 +21,15 @@ const SignatureCanvas = ({
 
   return (
     <div className="space-y-3">
-      <div className="relative touch-none overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 bg-white focus-within:border-emerald-600">
+      <div
+        className="relative rounded-xl border-2 border-dashed border-slate-300 bg-white overflow-hidden"
+        style={{ touchAction: "none" }}
+      >
         <SignaturePad
           ref={sigRef}
           canvasProps={{
-            className: "h-[200px] w-full",
-            "aria-label": label,
+            className: "w-full",
+            style: { width: "100%", height: 200 },
           }}
           penColor="#1a1a1a"
           minWidth={1.5}
@@ -39,22 +38,19 @@ const SignatureCanvas = ({
           onEnd={handleEnd}
         />
         {disabled && (
-          <div
-            className="absolute inset-0 cursor-not-allowed bg-white/70"
-            aria-hidden="true"
-          />
+          <div className="absolute inset-0 bg-white/60 cursor-not-allowed" />
         )}
       </div>
 
       <div className="flex items-center justify-between">
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-slate-500">
           Ký tên bằng ngón tay hoặc chuột (nhấc tay vẫn giữ nét)
         </p>
         <button
           type="button"
           onClick={handleClear}
           disabled={disabled}
-          className="flex min-h-11 items-center gap-1.5 rounded-lg bg-zinc-100 px-3 py-2 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors disabled:opacity-50"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           Xóa & ký lại

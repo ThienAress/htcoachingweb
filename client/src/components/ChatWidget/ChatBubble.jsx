@@ -280,28 +280,24 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
             >
               {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
             </button>
-            {onEdit && (
-              <button
-                onClick={handleEditOpen}
-                title="Chỉnh sửa câu hỏi"
-                className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-              >
-                <Pencil size={13} />
-              </button>
-            )}
-            {onRetry && (
-              <button
-                onClick={handleRetry}
-                title={hasRetried ? "Đã thử lại rồi" : "Gửi lại câu hỏi"}
-                className={`p-1.5 rounded-md transition-colors ${
-                  hasRetried
-                    ? "text-gray-300 dark:text-gray-600 cursor-default"
-                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
-                }`}
-              >
-                <RotateCcw size={13} />
-              </button>
-            )}
+            <button
+              onClick={handleEditOpen}
+              title="Chỉnh sửa câu hỏi"
+              className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+            >
+              <Pencil size={13} />
+            </button>
+            <button
+              onClick={handleRetry}
+              title={hasRetried ? "Đã thử lại rồi" : "Gửi lại câu hỏi"}
+              className={`p-1.5 rounded-md transition-colors ${
+                hasRetried
+                  ? "text-gray-300 dark:text-gray-600 cursor-default"
+                  : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10"
+              }`}
+            >
+              <RotateCcw size={13} />
+            </button>
             {showRetryApology && (
               <span className="text-[11px] text-gray-400 dark:text-gray-500 italic ml-1 animate-fade-in">
                 Xin lỗi bạn nhé 😊 Hãy thử hỏi theo cách khác!
@@ -322,7 +318,7 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
         })}
 
         {/* Feedback buttons (chỉ cho assistant messages có nội dung) */}
-        {!isUser && onFeedback && !isThinking && !message.isError && (message.content || message.uiCards?.length > 0) && (
+        {!isUser && !isThinking && !message.isError && (message.content || message.uiCards?.length > 0) && (
           <div className="flex items-center gap-1 mt-1">
             <button
               onClick={() => {

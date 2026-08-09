@@ -62,10 +62,6 @@ Tìm kiếm:
 - **Timing attacks**: So sánh secrets phải dùng `crypto.timingSafeEqual()`
 - **Safe logging**: `console.error(err)` trong production có thể leak PII
 
-Khi diff có URL fetch, filesystem path, object merge/query, dynamic regex, browser output, shell hoặc GitHub Actions,
-đọc [JavaScript and workflow threat routing](references/javascript-threat-routing.md). Chỉ report khi trace được
-attacker-controlled input tới sink/asset; defense-in-depth gap đứng riêng dưới hardening notes.
-
 **Canonical patterns:** đọc `../known-issues/SKILL.md`, root `SECURITY.md` và code hiện tại; không hardcode
 trạng thái “đã fix” trong playbook vì chúng có thể drift.
 
@@ -103,19 +99,12 @@ Tìm kiếm:
 
 ### 5. Tech Debt & Architecture 🏚️
 
-Khi mục tiêu là coupling, module boundary hoặc refactor leverage, đọc
-[Architecture depth review](references/architecture-depth.md) và dùng đúng vocabulary/deletion test tại đó.
-
 Tìm kiếm:
 - **Duplication**: Same logic re-implemented ở nhiều nơi
 - **Layering violations**: Component import trực tiếp từ model internals
 - **Dead code**: Unexported unused modules, commented-out blocks
 - **God objects**: Files lớn bất thường, functions nhiều parameters
 - **Inconsistent patterns**: Nhiều cách làm cùng 1 việc
-- **Shallow module**: Interface phơi gần hết complexity, không tạo locality hoặc test seam có giá trị
-- **Low locality**: Hiểu/sửa một concept phải nhảy qua nhiều module không có ownership rõ
-
-Không report file lớn hay nhiều module nhỏ như finding nếu chưa chứng minh friction, deletion test và before/after seam.
 
 ### 6. Dependencies & Migrations 📦
 

@@ -1,7 +1,0 @@
-interface:
-  display_name: "Domain Modeling"
-  short_description: "Maintain glossary and durable decisions"
-  default_prompt: "Use $domain-modeling to sharpen HTCOACHINGWEB terminology and record durable decisions."
-
-policy:
-  allow_implicit_invocation: true

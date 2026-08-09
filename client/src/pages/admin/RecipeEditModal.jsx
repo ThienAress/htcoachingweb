@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Upload, Image as ImageIcon, Video } from "lucide-react";
+import { X, Upload, Image as ImageIcon } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import {
@@ -43,6 +43,7 @@ const RecipeEditModal = ({ recipe, onClose }) => {
     tags: (recipe?.tags || []).join(", "),
     ingredients: ingredientLines(recipe?.ingredients),
     instructions: (recipe?.instructions || []).join("\n"),
+    youtubeUrl: recipe?.youtubeUrl || "",
     sourceUrl: recipe?.sourceUrl || "",
     source: recipe?.source || "manual",
     isPublished: recipe?.isPublished ?? false,
@@ -309,14 +310,17 @@ const RecipeEditModal = ({ recipe, onClose }) => {
                 />
               </div>
               <div className="space-y-2">
-                <span className="block text-sm font-medium text-gray-700">Video công thức</span>
-                <div className="flex min-h-16 items-start gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3 text-gray-600">
-                  <Video className="mt-0.5 size-5 shrink-0 text-gray-500" aria-hidden="true" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">Tạm ngừng video YouTube tham khảo</p>
-                    <p className="mt-1 text-xs leading-5">Khu vực này được giữ lại để sau này tải video nấu ăn chính chủ.</p>
-                  </div>
-                </div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Video YouTube
+                </label>
+                <input
+                  type="url"
+                  name="youtubeUrl"
+                  value={formData.youtubeUrl}
+                  onChange={handleChange}
+                  maxLength={2048}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                />
               </div>
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">

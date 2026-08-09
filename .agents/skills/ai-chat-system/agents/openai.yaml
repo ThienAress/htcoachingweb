@@ -1,7 +1,0 @@
-interface:
-  display_name: "AI Chat System"
-  short_description: "Navigate HT Assistant architecture"
-  default_prompt: "Use $ai-chat-system to inspect or change the HT Assistant architecture safely."
-
-policy:
-  allow_implicit_invocation: true

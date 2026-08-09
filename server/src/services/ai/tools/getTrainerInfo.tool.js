@@ -17,7 +17,6 @@ export async function getTrainerInfo(params) {
   const trainers = await Trainer.find(query)
     .sort({ isHeadCoach: -1, sortOrder: 1 })
     .limit(5)
-    .select("name slug title experience bio images image specialties isHeadCoach")
     .lean();
 
   if (trainers.length === 0) {

@@ -28,7 +28,6 @@ export async function searchExercises(params) {
   const exercises = await Exercise.find(query)
     .sort({ name: 1 })
     .limit(Math.min(limit, 10))
-    .select("name muscleGroup description videoUrl imageUrl")
     .lean();
 
   if (exercises.length === 0) {

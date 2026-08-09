@@ -1,7 +1,0 @@
-interface:
-  display_name: "TDD Guide"
-  short_description: "Test behavior through stable seams"
-  default_prompt: "Use $tdd-guide to implement this behavior test-first through a stable public seam."
-
-policy:
-  allow_implicit_invocation: true

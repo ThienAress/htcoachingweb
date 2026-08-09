@@ -33,13 +33,7 @@ const chatConversationSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null,
-    },
-    guestKey: {
-      type: String,
-      default: null,
-      maxlength: 64,
-      select: false,
+      required: true,
     },
     title: {
       type: String,
@@ -111,25 +105,8 @@ const chatConversationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-chatConversationSchema.pre("validate", function validateConversationOwner() {
-  const ownerCount = Number(Boolean(this.userId)) + Number(Boolean(this.guestKey));
-  if (ownerCount !== 1) {
-    this.invalidate(
-      "userId",
-      "Conversation phải thuộc đúng một user hoặc guest session",
-    );
-  }
-});
-
 // Indexes
 chatConversationSchema.index({ userId: 1, updatedAt: -1 });
-chatConversationSchema.index(
-  { guestKey: 1, updatedAt: -1 },
-  {
-    partialFilterExpression: { guestKey: { $type: "string" } },
-    name: "guest_ai_conversations",
-  },
-);
 chatConversationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 chatConversationSchema.index(
   { userId: 1, recentRequestIds: 1 },

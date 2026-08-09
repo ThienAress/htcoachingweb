@@ -199,7 +199,7 @@ export const NutritionCard = ({
         ) : plans.length === 0 ? (
           <p className="mt-2 text-sm text-slate-400">
             Chưa có thực đơn đã lưu. {" "}
-            <Link to="/mealplan/" className="font-semibold text-orange-300 underline">
+            <Link to="/mealplan" className="font-semibold text-orange-300 underline">
               Tạo và lưu thực đơn
             </Link>
           </p>

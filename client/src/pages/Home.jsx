@@ -37,7 +37,7 @@ const Home = () => {
       {
         "@type": "Organization",
         "name": "HTCOACHING",
-        "url": "https://htcoachingweb.io.vn/",
+        "url": "https://htcoachingweb.io.vn",
         "logo": "https://htcoachingweb.io.vn/og-image.png",
         "description": "Nền tảng huấn luyện cá nhân dành cho HLV freelance và học viên. Cung cấp công cụ tính TDEE, gợi ý meal plan, quản lý giáo án và theo dõi tiến độ tập luyện.",
         "sameAs": [
@@ -47,7 +47,7 @@ const Home = () => {
       {
         "@type": "ProfessionalService",
         "name": "HTCOACHING - Huấn Luyện Viên Cá Nhân",
-        "url": "https://htcoachingweb.io.vn/",
+        "url": "https://htcoachingweb.io.vn",
         "description": "Dịch vụ huấn luyện cá nhân 1 kèm 1 (Personal Training): Gym, Boxing, Cardio. Hỗ trợ online coaching, tư vấn dinh dưỡng và theo dõi tiến độ qua nền tảng web.",
         "serviceType": ["Personal Training", "Online Coaching", "Tư vấn dinh dưỡng"],
         "areaServed": {
@@ -119,31 +119,13 @@ const Home = () => {
         canonical="/" 
         jsonLd={homeSchema}
       />
-      <Hero
-        imagesByKey={settings.heroImagesByKey}
-        images={settings.heroImages}
-        avatarsByKey={settings.heroAvatarsByKey}
-        avatars={settings.heroAvatars}
-        onAnimationComplete={() => setHeroAnimDone(true)}
-      />
+      <Hero images={settings.heroImages} avatars={settings.heroAvatars} onAnimationComplete={() => setHeroAnimDone(true)} />
       <Feedback />
-      <About
-        imagesByKey={settings.aboutImagesByKey}
-        images={settings.aboutImages}
-      />
-      <Trainers
-        imagesByKey={settings.trainerImagesByKey}
-        legacyImage={settings.trainerImage}
-      />
-      <Classes
-        imagesByKey={settings.classesImagesByKey}
-        legacyImages={settings.classesImages}
-      />
+      <About images={settings.aboutImages} />
+      <Trainers />
+      <Classes images={settings.classesImages} />
       <Pricing isHeroAnimDone={heroAnimDone} />
-      <Tools
-        imagesByKey={settings.toolsImagesByKey}
-        legacyImage={settings.toolsImage}
-      />
+      <Tools image={settings.toolsImage} />
       <Contact />
       <ScrollToTop />
       <ChatIcons />

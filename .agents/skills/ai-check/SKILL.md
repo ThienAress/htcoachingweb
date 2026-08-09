@@ -90,21 +90,6 @@ client/src/services/ai.service.js
 
 ---
 
-## Bước 3.5: Kiểm tra LLM threat matrix
-
-Đọc `../ai-chat-system/references/llm-threat-matrix.md`, chọn các LLM01–LLM10 liên quan tới diff và ghi evidence:
-
-- [ ] CMS/KB/tool result vẫn là untrusted data, không thể đổi system policy hoặc quyền tool
-- [ ] Prompt/provider/log không chứa secret, raw conversation, health hoặc financial payload
-- [ ] Assistant output/link/card được sanitize/allowlist trước browser/action sink
-- [ ] Tool auth, guest eligibility, ownership, schema và confirmation được enforce khi execute
-- [ ] Vector/KB write/query provenance và access path đã trace hoặc ghi `proof_gap`
-- [ ] Rate limit, quota, iteration, context, timeout và tool-call cost vẫn bounded
-
-Không đánh dấu PASS từ checklist đơn thuần; mỗi mục cần file/test evidence hoặc `NOT APPLICABLE` có lý do.
-
----
-
 ## Bước 4: Kiểm tra Tool Registry
 
 Đọc `server/src/services/ai/tools/toolRegistry.js` và verify:

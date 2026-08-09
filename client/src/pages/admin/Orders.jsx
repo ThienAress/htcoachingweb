@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
@@ -40,32 +40,18 @@ import { createContract } from "../../services/contract.service";
 import { getTrainerAssignmentCandidates } from "../../services/trainerAssignment.service";
 import { getOrderStatusMeta } from "../../constants/orderStatus";
 import { useAuth } from "../../context/AuthContext";
-import { useConversionOriginOptions } from "../../hooks/useConversionOriginOptions";
-import ConversionOriginFields from "../../components/admin/ConversionOriginFields";
 
-const orderSchema = z
-  .object({
-    name: z.string().min(1, "Họ tên không được để trống"),
-    email: z.string().email("Email không hợp lệ"),
-    phone: z.string().optional(),
-    package: z.string().min(1, "Vui lòng chọn gói tập"),
-    sessions: z.number().min(1, "Số buổi phải lớn hơn 0"),
-    gym: z.string().min(1, "Vui lòng chọn phòng tập"),
-    schedule: z.string().min(1, "Vui lòng nhập thời gian tập"),
-    note: z.string().optional(),
-    trainerId: z.string().nullable(),
-    originType: z.enum(["", "booking", "contact"]).optional(),
-    originId: z.string().optional(),
-  })
-  .superRefine((value, context) => {
-    if (value.originType && !value.originId) {
-      context.addIssue({
-        code: "custom",
-        path: ["originId"],
-        message: "Vui lòng chọn đúng bản ghi nguồn",
-      });
-    }
-  });
+const orderSchema = z.object({
+  name: z.string().min(1, "Họ tên không được để trống"),
+  email: z.string().email("Email không hợp lệ"),
+  phone: z.string().optional(),
+  package: z.string().min(1, "Vui lòng chọn gói tập"),
+  sessions: z.number().min(1, "Số buổi phải lớn hơn 0"),
+  gym: z.string().min(1, "Vui lòng chọn phòng tập"),
+  schedule: z.string().min(1, "Vui lòng nhập thời gian tập"),
+  note: z.string().optional(),
+  trainerId: z.string().nullable(),
+});
 const ORDER_STATUS_ICONS = {
   pending: Clock,
   approved: Check,
@@ -80,10 +66,8 @@ const OrderStatusBadge = ({ status, className = "" }) => {
 };
 
 
-const Orders = ({ embedded = false }) => {
+const Orders = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
-  const orderScope = isAdmin ? "admin" : user?._id;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -91,14 +75,10 @@ const Orders = ({ embedded = false }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [editingStatus, setEditingStatus] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [createdContractOrderIds, setCreatedContractOrderIds] = useState(new Set());
   const [contractOrderTarget, setContractOrderTarget] = useState(null);
-  const conversionOrigins = useConversionOriginOptions(
-    isAdmin && showModal && !editingId,
-  );
 
   const {
     data: ordersData,
@@ -107,11 +87,7 @@ const Orders = ({ embedded = false }) => {
     error,
     refetch,
   } = useQuery({
-    queryKey: adminQueryKeys.orders.list({
-      scope: orderScope,
-      page: currentPage,
-      limit: 6,
-    }),
+    queryKey: adminQueryKeys.orders.list({ page: currentPage, limit: 6 }),
     queryFn: () => getOrders(currentPage, 6).then((res) => res.data.data),
     placeholderData: keepPreviousData,
   });
@@ -126,7 +102,7 @@ const Orders = ({ embedded = false }) => {
   } = useQuery({
     queryKey: ["trainer-assignment-candidates"],
     queryFn: () => getTrainerAssignmentCandidates().then((res) => res.data.data.trainers),
-    enabled: isAdmin,
+    enabled: user?.role === "admin",
   });
   const trainers = trainersData || [];
 
@@ -143,7 +119,6 @@ const Orders = ({ embedded = false }) => {
     handleSubmit,
     reset,
     setValue,
-    control,
     formState: { errors, isSubmitting: isFormSubmitting },
   } = useForm({
     resolver: zodResolver(orderSchema),
@@ -157,15 +132,8 @@ const Orders = ({ embedded = false }) => {
       schedule: "",
       note: "",
       trainerId: "",
-      originType: "",
-      originId: "",
     },
   });
-  const originType = useWatch({ control, name: "originType" }) || "";
-  const originId = useWatch({ control, name: "originId" }) || "";
-  const currentPackage = useWatch({ control, name: "package" }) || "";
-  const isTrainerEditingApproved =
-    !isAdmin && editingStatus === "approved";
 
   const resetForm = useCallback(() => {
     reset({
@@ -178,11 +146,8 @@ const Orders = ({ embedded = false }) => {
       schedule: "",
       note: "",
       trainerId: "",
-      originType: "",
-      originId: "",
     });
     setEditingId(null);
-    setEditingStatus(null);
     setShowModal(false);
   }, [reset]);
 
@@ -194,11 +159,7 @@ const Orders = ({ embedded = false }) => {
       resetForm();
     },
     onError: (err) =>
-      toast.error(
-        err.response?.data?.message ||
-          err.response?.data?.errors?.[0]?.msg ||
-          "Lỗi hệ thống",
-      ),
+      toast.error(err.response?.data?.message || "Lỗi hệ thống"),
   });
 
   const updateOrderMutation = useMutation({
@@ -236,21 +197,14 @@ const Orders = ({ embedded = false }) => {
     onSuccess: (_, orderId) => {
       setCreatedContractOrderIds((prev) => new Set(prev).add(orderId));
       toast.success("Tạo hợp đồng thành công!");
-      navigate(isAdmin ? "/admin/contracts" : "/trainer/contracts");
+      navigate("/admin/contracts");
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi tạo hợp đồng"),
   });
 
   const onSubmit = useCallback(
     (data) => {
-      let submitData = { ...data, sessions: Number(data.sessions) };
-      if (isTrainerEditingApproved) {
-        const safeApprovedUpdate = { ...submitData };
-        delete safeApprovedUpdate.email;
-        delete safeApprovedUpdate.package;
-        delete safeApprovedUpdate.sessions;
-        submitData = safeApprovedUpdate;
-      }
+      const submitData = { ...data, sessions: Number(data.sessions) };
       if (submitData.trainerId === "") submitData.trainerId = null;
       if (editingId) {
         updateOrderMutation.mutate({ id: editingId, data: submitData });
@@ -258,12 +212,7 @@ const Orders = ({ embedded = false }) => {
         createOrderMutation.mutate(submitData);
       }
     },
-    [
-      editingId,
-      isTrainerEditingApproved,
-      updateOrderMutation,
-      createOrderMutation,
-    ],
+    [editingId, updateOrderMutation, createOrderMutation],
   );
 
   const handleApprove = useCallback(
@@ -288,10 +237,7 @@ const Orders = ({ embedded = false }) => {
       setValue("schedule", order.schedule);
       setValue("note", order.note || "");
       setValue("trainerId", order.trainerId?._id || order.trainerId || "");
-      setValue("originType", "");
-      setValue("originId", "");
       setEditingId(order._id);
-      setEditingStatus(order.status);
       setShowModal(true);
     },
     [setValue],
@@ -309,16 +255,12 @@ const Orders = ({ embedded = false }) => {
 
   if (isError) {
     return (
-      <div
-        className={
-          embedded ? "bg-gray-50" : "min-h-screen bg-gray-50 p-4 md:p-6"
-        }
-      >
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <p className="text-red-500">Lỗi tải dữ liệu: {error?.message}</p>
           <button
             onClick={() => refetch()}
-            className="mt-4 min-h-11 rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+            className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg"
           >
             Thử lại
           </button>
@@ -329,11 +271,7 @@ const Orders = ({ embedded = false }) => {
 
   return (
     <phantom-ui loading={isLoadingOrders || undefined}>
-      <div
-        className={
-          embedded ? "bg-gray-50" : "min-h-screen bg-gray-50 p-4 md:p-6"
-        }
-      >
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
         <ToastContainer position="top-right" autoClose={3000} />
 
         {/* Header */}
@@ -360,15 +298,17 @@ const Orders = ({ embedded = false }) => {
             />
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => {
-                resetForm();
-                setShowModal(true);
-              }}
-              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-white transition hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2"
-            >
-              <Plus className="w-4 h-4" /> Tạo đơn mới
-            </button>
+            {user?.role === "admin" && (
+              <button
+                onClick={() => {
+                  resetForm();
+                  setShowModal(true);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
+              >
+                <Plus className="w-4 h-4" /> Tạo đơn mới
+              </button>
+            )}
           </div>
         </div>
 
@@ -430,7 +370,7 @@ const Orders = ({ embedded = false }) => {
                       <Clock size={16} />
                       <span>{formatDateTime(order.createdAt)}</span>
                     </div>
-                    {isAdmin && order.trainerId && (
+                    {order.trainerId && (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <User size={16} />
                         <span>Trainer: {order.trainerId.email}</span>
@@ -441,51 +381,46 @@ const Orders = ({ embedded = false }) => {
                   <div className="px-4 py-3 bg-gray-50 flex justify-between items-center">
                     <button
                       onClick={() => openDetail(order)}
-                      className="flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm text-gray-600 transition hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                      className="text-gray-600 hover:text-red-500 transition flex items-center gap-1 text-sm"
                     >
                       <Eye size={16} /> Chi tiết
                     </button>
                     <div className="flex gap-2">
-                      {isAdmin && order.status === "pending" && (
+                      {user?.role === "admin" && order.status === "pending" && (
                         <button
                           onClick={() => handleApprove(order._id)}
                           disabled={approveOrderMutation.isPending}
-                          className="inline-flex size-11 items-center justify-center rounded-lg text-green-600 hover:bg-green-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 disabled:opacity-50"
+                          className="p-1.5 text-green-500 hover:bg-green-50 rounded-lg"
                           title="Xác nhận"
-                          aria-label="Xác nhận đơn hàng"
                         >
                           <Check size={18} />
                         </button>
                       )}
-                      {(order.status === "approved" ||
-                        (!isAdmin && order.status === "pending")) && (
+                      {user?.role === "admin" && order.status === "approved" && (
                         <button
                           onClick={() => handleEdit(order)}
-                          className="inline-flex size-11 items-center justify-center rounded-lg text-purple-600 hover:bg-purple-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                          className="p-1.5 text-purple-500 hover:bg-purple-50 rounded-lg"
                           title="Sửa"
-                          aria-label="Sửa đơn hàng"
                         >
                           <Edit size={18} />
                         </button>
                       )}
-                      {order.status === "approved" && (
+                      {user?.role === "admin" && order.status === "approved" && (
                         <button
                           onClick={() => setContractOrderTarget(order)}
                           disabled={createContractMutation.isPending || createdContractOrderIds.has(order._id)}
-                          className={`inline-flex size-11 items-center justify-center rounded-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${createdContractOrderIds.has(order._id) ? "text-gray-300 cursor-not-allowed" : "text-emerald-600 hover:bg-emerald-50"}`}
+                          className={`p-1.5 rounded-lg transition ${createdContractOrderIds.has(order._id) ? "text-gray-300 cursor-not-allowed" : "text-emerald-600 hover:bg-emerald-50"}`}
                           title={createdContractOrderIds.has(order._id) ? "Đã tạo HĐ" : "Tạo hợp đồng"}
-                          aria-label={createdContractOrderIds.has(order._id) ? "Đã tạo hợp đồng" : "Tạo hợp đồng"}
                         >
                           <FileText size={18} />
                         </button>
                       )}
-                      {isAdmin && (
+                      {user?.role === "admin" && (
                         <button
                           onClick={() => handleDelete(order._id)}
                           disabled={deleteOrderMutation.isPending}
-                          className="inline-flex size-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 disabled:opacity-50"
+                          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg"
                           title="Xóa"
-                          aria-label="Xóa đơn hàng"
                         >
                           <Trash size={18} />
                         </button>
@@ -537,8 +472,7 @@ const Orders = ({ embedded = false }) => {
                 </h2>
                 <button
                   onClick={() => setShowDetail(false)}
-                  className="inline-flex size-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-                  aria-label="Đóng chi tiết đơn hàng"
+                  className="text-gray-500 hover:text-gray-700"
                 >
                   ✕
                 </button>
@@ -612,14 +546,14 @@ const Orders = ({ embedded = false }) => {
                 </div>
               </div>
               <div className="border-t px-6 py-4 flex justify-end gap-3">
-                {selectedOrder.status === "approved" && (
+                {user?.role === "admin" && selectedOrder.status === "approved" && (
                   <button
                     onClick={() => {
                       setContractOrderTarget(selectedOrder);
                       setShowDetail(false);
                     }}
                     disabled={createContractMutation.isPending || createdContractOrderIds.has(selectedOrder._id)}
-                    className="flex min-h-11 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-50"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
                   >
                     <FileText className="w-4 h-4" />
                     {createdContractOrderIds.has(selectedOrder._id) ? "Đã tạo HĐ" : "Tạo Hợp Đồng"}
@@ -627,7 +561,7 @@ const Orders = ({ embedded = false }) => {
                 )}
                 <button
                   onClick={() => setShowDetail(false)}
-                  className="min-h-11 rounded-lg bg-gray-200 px-4 py-2 hover:bg-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+                  className="px-4 py-2 bg-gray-200 rounded-lg"
                 >
                   Đóng
                 </button>
@@ -645,95 +579,73 @@ const Orders = ({ embedded = false }) => {
                   {editingId ? "Cập nhật đơn hàng" : "Tạo đơn hàng mới"}
                 </h2>
                 <button
-                  type="button"
                   onClick={resetForm}
-                  aria-label="Đóng biểu mẫu đơn hàng"
-                  className="inline-flex size-11 items-center justify-center rounded-lg hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                  className="p-1 hover:bg-gray-100 rounded-lg"
                 >
                   <X className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
               <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-                {isTrainerEditingApproved && (
-                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    Đơn đã được duyệt. Gói tập, email và số buổi do admin quản lý;
-                    bạn vẫn có thể cập nhật thông tin vận hành bên dưới.
-                  </p>
-                )}
                 {/* Các trường input giữ nguyên như cũ */}
                 <div className="space-y-1">
-                  <label htmlFor="order-name" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <User className="w-4 h-4" /> Họ tên{" "}
                     <span className="text-red-500">*</span>
                   </label>
                   <input
-                    id="order-name"
                     {...register("name")}
                     placeholder="Nhập họ tên"
-                    className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-400"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-400"
                   />
                   {errors.name && (
                     <p className="text-red-500 text-xs">{errors.name.message}</p>
                   )}
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="order-email" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Mail className="w-4 h-4" /> Email{" "}
                     <span className="text-red-500">*</span>
                   </label>
                   <input
-                    id="order-email"
                     {...register("email")}
-                    readOnly={isTrainerEditingApproved}
                     placeholder="example@email.com"
-                    className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2 read-only:cursor-not-allowed read-only:bg-gray-100"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
                   />
                   {errors.email && (
                     <p className="text-red-500 text-xs">{errors.email.message}</p>
                   )}
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="order-phone" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Phone className="w-4 h-4" /> Số điện thoại
                   </label>
                   <input
-                    id="order-phone"
                     {...register("phone")}
                     placeholder="0901234567"
-                    className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
                   />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label htmlFor="order-package" className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-gray-700">
                       <Package className="w-4 h-4 inline mr-1" /> Gói tập{" "}
                       <span className="text-red-500">*</span>
                     </label>
-                    {isTrainerEditingApproved ? (
-                      <>
-                        <input type="hidden" {...register("package")} />
-                        <p className="flex min-h-11 items-center rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-gray-700">
-                          {currentPackage}
-                        </p>
-                      </>
-                    ) : (
-                      <select
-                        id="order-package"
-                        {...register("package")}
-                        className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
-                      >
-                        <option value="">Chọn gói</option>
-                        <option value="Trail(Trải nghiệm)">
-                          Trail(Trải nghiệm)
-                        </option>
-                        <option value="Cơ Bản(1-1)">Cơ Bản(1-1)</option>
-                        <option value="Nâng Cao(1-1)">Nâng Cao(1-1)</option>
-                        <option value="Vip(1-1)">Vip(1-1)</option>
-                        <option value="Cơ Bản(Online)">Cơ Bản(Online)</option>
-                        <option value="Nâng Cao(Online)">Nâng Cao(Online)</option>
-                        <option value="Vip(Online)">Vip(Online)</option>
-                      </select>
-                    )}
+                    <select
+                      {...register("package")}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    >
+                      <option value="">Chọn gói</option>
+                      <option value="Trail(Trải nghiệm)">
+                        Trail(Trải nghiệm)
+                      </option>
+                      <option value="Cơ Bản(1-1)">Cơ Bản(1-1)</option>
+                      <option value="Nâng Cao(1-1)">Nâng Cao(1-1)</option>
+                      <option value="Vip(1-1)">Vip(1-1)</option>
+                      <option value="Cơ Bản(Online)">Cơ Bản(Online)</option>
+                      <option value="Nâng Cao(Online)">Nâng Cao(Online)</option>
+                      <option value="Vip(Online)">Vip(Online)</option>
+                    </select>
                     {errors.package && (
                       <p className="text-red-500 text-xs">
                         {errors.package.message}
@@ -741,17 +653,15 @@ const Orders = ({ embedded = false }) => {
                     )}
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="order-sessions" className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-gray-700">
                       <Calendar className="w-4 h-4 inline mr-1" /> Số buổi{" "}
                       <span className="text-red-500">*</span>
                     </label>
                     <input
-                      id="order-sessions"
                       type="number"
                       {...register("sessions", { valueAsNumber: true })}
-                      readOnly={isTrainerEditingApproved}
                       placeholder="Số buổi"
-                      className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2 read-only:cursor-not-allowed read-only:bg-gray-100"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     />
                     {errors.sessions && (
                       <p className="text-red-500 text-xs">
@@ -762,14 +672,13 @@ const Orders = ({ embedded = false }) => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label htmlFor="order-gym" className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-gray-700">
                       <MapPin className="w-4 h-4 inline mr-1" /> Phòng tập{" "}
                       <span className="text-red-500">*</span>
                     </label>
                     <select
-                      id="order-gym"
                       {...register("gym")}
-                      className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     >
                       <option value="">Chọn phòng</option>
                       <option value="Waystation Trương Văn Hải">
@@ -805,15 +714,14 @@ const Orders = ({ embedded = false }) => {
                     )}
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="order-schedule" className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-gray-700">
                       <Clock className="w-4 h-4 inline mr-1" /> Thời gian{" "}
                       <span className="text-red-500">*</span>
                     </label>
                     <input
-                      id="order-schedule"
                       {...register("schedule")}
                       placeholder="VD: Sáng 8h-10h"
-                      className="min-h-11 w-full border border-gray-300 rounded-lg px-3 py-2"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
                     />
                     {errors.schedule && (
                       <p className="text-red-500 text-xs">
@@ -823,43 +731,23 @@ const Orders = ({ embedded = false }) => {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="order-note" className="text-sm font-medium text-gray-700">
+                  <label className="text-sm font-medium text-gray-700">
                     <FileText className="w-4 h-4 inline mr-1" /> Ghi chú
                   </label>
                   <textarea
-                    id="order-note"
                     {...register("note")}
                     rows={3}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2"
                   />
                 </div>
-                {!editingId && isAdmin && (
-                  <ConversionOriginFields
-                    originType={originType}
-                    originId={originId}
-                    onTypeChange={(value) =>
-                      setValue("originType", value, { shouldValidate: true })
-                    }
-                    onIdChange={(value) =>
-                      setValue("originId", value, { shouldValidate: true })
-                    }
-                    bookings={conversionOrigins.bookings}
-                    contacts={conversionOrigins.contacts}
-                    isLoading={conversionOrigins.isLoading}
-                    isError={conversionOrigins.isError}
-                    onRetry={conversionOrigins.retry}
-                    error={errors.originId?.message}
-                  />
-                )}
-                {isAdmin && (
+                {user?.role === "admin" && (
                   <div>
-                    <label htmlFor="order-trainer" className="text-sm font-medium text-gray-700">
+                    <label className="text-sm font-medium text-gray-700">
                       Trainer phụ trách
                     </label>
                     <select
-                      id="order-trainer"
                       {...register("trainerId")}
-                      className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 mt-1"
                       disabled={trainersLoading || trainersError}
                     >
                       <option value="">-- Không có trainer --</option>
@@ -887,7 +775,7 @@ const Orders = ({ embedded = false }) => {
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="min-h-11 rounded-lg border border-gray-300 px-4 py-2 text-gray-600 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
                   >
                     Hủy
                   </button>
@@ -898,7 +786,7 @@ const Orders = ({ embedded = false }) => {
                       updateOrderMutation.isPending ||
                       isFormSubmitting
                     }
-                    className="min-h-11 rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
                   >
                     {createOrderMutation.isPending ||
                       updateOrderMutation.isPending ||
@@ -929,7 +817,7 @@ const Orders = ({ embedded = false }) => {
               <div className="border-t px-6 py-4 flex justify-end gap-3">
                 <button
                   onClick={() => setContractOrderTarget(null)}
-                  className="min-h-11 rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                  className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
                 >
                   Hủy
                 </button>
@@ -939,7 +827,7 @@ const Orders = ({ embedded = false }) => {
                     setContractOrderTarget(null);
                   }}
                   disabled={createContractMutation.isPending}
-                  className="flex min-h-11 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:opacity-50"
+                  className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
                 >
                   <FileText className="w-4 h-4" />
                   Xác nhận tạo

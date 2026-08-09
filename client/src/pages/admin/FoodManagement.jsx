@@ -26,40 +26,6 @@ import {
 } from "../../services/food.service";
 import { useDebounce } from "../../hooks/useDebounce";
 
-const createFoodForm = () => ({
-  label: "",
-  protein: "",
-  carb: "",
-  fat: "",
-  calories: "",
-  nutritionBasis: "per_100g",
-  sourceType: "manual_verified",
-  sourceProvider: "HTCOACHING",
-  sourceExternalId: "",
-  sourceDatasetVersion: "",
-  sourceLicense: "proprietary-internal",
-  sourceAttribution: "HTCOACHING manual nutrition review",
-  sourceUrl: "",
-  sourceDate: new Date().toISOString().slice(0, 10),
-});
-
-const sourcePayload = (formData) => {
-  if (formData.sourceType === "legacy_unknown") return undefined;
-  const external = formData.sourceType === "usda_fdc";
-  return {
-    type: formData.sourceType,
-    provider: formData.sourceProvider.trim(),
-    externalId: formData.sourceExternalId.trim(),
-    datasetVersion: formData.sourceDatasetVersion.trim(),
-    license: formData.sourceLicense.trim(),
-    attribution: formData.sourceAttribution.trim(),
-    sourceUrl: formData.sourceUrl.trim(),
-    ...(external
-      ? { retrievedAt: new Date(formData.sourceDate).toISOString() }
-      : { verifiedAt: new Date(formData.sourceDate).toISOString() }),
-  };
-};
-
 const FoodManagement = () => {
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
@@ -68,7 +34,13 @@ const FoodManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [editingFood, setEditingFood] = useState(null);
-  const [formData, setFormData] = useState(createFoodForm);
+  const [formData, setFormData] = useState({
+    label: "",
+    protein: "",
+    carb: "",
+    fat: "",
+    calories: "",
+  });
   const [batchJson, setBatchJson] = useState("");
   const [batchResult, setBatchResult] = useState(null);
   const limit = 10;
@@ -138,7 +110,7 @@ const FoodManagement = () => {
 
   const openCreateModal = () => {
     setEditingFood(null);
-    setFormData(createFoodForm());
+    setFormData({ label: "", protein: "", carb: "", fat: "", calories: "" });
     setShowModal(true);
   };
 
@@ -150,19 +122,6 @@ const FoodManagement = () => {
       carb: food.carb,
       fat: food.fat,
       calories: food.calories || "",
-      nutritionBasis: food.nutritionBasis || "per_100g",
-      sourceType: food.source?.type || "legacy_unknown",
-      sourceProvider: food.source?.provider || "",
-      sourceExternalId: food.source?.externalId || "",
-      sourceDatasetVersion: food.source?.datasetVersion || "",
-      sourceLicense: food.source?.license || "",
-      sourceAttribution: food.source?.attribution || "",
-      sourceUrl: food.source?.sourceUrl || "",
-      sourceDate: (
-        food.source?.retrievedAt ||
-        food.source?.verifiedAt ||
-        new Date().toISOString()
-      ).slice(0, 10),
     });
     setShowModal(true);
   };
@@ -170,7 +129,7 @@ const FoodManagement = () => {
   const closeModal = () => {
     setShowModal(false);
     setEditingFood(null);
-    setFormData(createFoodForm());
+    setFormData({ label: "", protein: "", carb: "", fat: "", calories: "" });
   };
 
   const handleSubmit = (e) => {
@@ -181,8 +140,6 @@ const FoodManagement = () => {
       carb: parseFloat(formData.carb),
       fat: parseFloat(formData.fat),
       calories: formData.calories ? parseFloat(formData.calories) : undefined,
-      nutritionBasis: formData.nutritionBasis,
-      source: sourcePayload(formData),
     };
     if (editingFood) {
       updateMutation.mutate({ id: editingFood._id, data });
@@ -211,9 +168,6 @@ const FoodManagement = () => {
           throw new Error(
             `Item ${idx + 1} thiếu trường bắt buộc (label, protein, carb, fat)`,
           );
-        }
-        if (!item.source || !item.source.type) {
-          throw new Error(`Item ${idx + 1} thiếu source provenance`);
         }
       });
       batchMutation.mutate(foods);
@@ -307,9 +261,6 @@ const FoodManagement = () => {
                     Calories
                   </th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
-                    Nguồn
-                  </th>
-                  <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                     Hành động
                   </th>
                 </tr>
@@ -335,15 +286,6 @@ const FoodManagement = () => {
                     <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
                       {food.calories}
                     </td>
-                    <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
-                      <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                        food.source?.type && food.source.type !== "legacy_unknown"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-amber-50 text-amber-700"
-                      }`}>
-                        {food.source?.type || "legacy_unknown"}
-                      </span>
-                    </td>
                     <td className="px-3 md:px-4 py-2 md:py-3">
                       <div className="flex items-center gap-2">
                         <button
@@ -367,7 +309,7 @@ const FoodManagement = () => {
                 {foods.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={6}
                       className="px-3 md:px-4 py-6 md:py-8 text-center text-slate-500"
                     >
                       Không tìm thấy thực phẩm nào.
@@ -495,99 +437,6 @@ const FoodManagement = () => {
                     />
                   </div>
                 </div>
-                <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">
-                  <legend className="px-1 text-sm font-semibold text-slate-700">
-                    Provenance dinh dưỡng
-                  </legend>
-                  {formData.sourceType === "legacy_unknown" && (
-                    <p className="text-xs text-amber-700">
-                      Record legacy phải được bổ sung nguồn trước khi sửa macro.
-                    </p>
-                  )}
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="text-sm text-slate-700">
-                      Loại nguồn
-                      <select
-                        value={formData.sourceType}
-                        onChange={(e) => setFormData({ ...formData, sourceType: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      >
-                        <option
-                          value="legacy_unknown"
-                          disabled={!editingFood}
-                        >
-                          Legacy chưa rõ nguồn
-                        </option>
-                        <option value="manual_verified">Manual đã xác minh</option>
-                        <option value="nutrition_label">Nhãn dinh dưỡng</option>
-                        <option value="usda_fdc">USDA FoodData Central</option>
-                      </select>
-                    </label>
-                    <label className="text-sm text-slate-700">
-                      Provider
-                      <input
-                        value={formData.sourceProvider}
-                        onChange={(e) => setFormData({ ...formData, sourceProvider: e.target.value })}
-                        required={formData.sourceType !== "legacy_unknown"}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700">
-                      Dataset version
-                      <input
-                        value={formData.sourceDatasetVersion}
-                        onChange={(e) => setFormData({ ...formData, sourceDatasetVersion: e.target.value })}
-                        required={formData.sourceType !== "legacy_unknown"}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700">
-                      License
-                      <input
-                        value={formData.sourceLicense}
-                        onChange={(e) => setFormData({ ...formData, sourceLicense: e.target.value })}
-                        required={formData.sourceType !== "legacy_unknown"}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700 sm:col-span-2">
-                      Attribution
-                      <input
-                        value={formData.sourceAttribution}
-                        onChange={(e) => setFormData({ ...formData, sourceAttribution: e.target.value })}
-                        required={formData.sourceType !== "legacy_unknown"}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700">
-                      External ID
-                      <input
-                        value={formData.sourceExternalId}
-                        onChange={(e) => setFormData({ ...formData, sourceExternalId: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700">
-                      Ngày xác minh/truy xuất
-                      <input
-                        type="date"
-                        value={formData.sourceDate}
-                        onChange={(e) => setFormData({ ...formData, sourceDate: e.target.value })}
-                        required={formData.sourceType !== "legacy_unknown"}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700 sm:col-span-2">
-                      Source URL
-                      <input
-                        type="url"
-                        value={formData.sourceUrl}
-                        onChange={(e) => setFormData({ ...formData, sourceUrl: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                  </div>
-                </fieldset>
                 <div className="flex justify-end gap-3 pt-2">
                   <button
                     type="button"
@@ -638,15 +487,11 @@ const FoodManagement = () => {
                   Calories là tùy chọn, sẽ tự tính nếu không có.
                 </p>
                 <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto max-h-40">
-                  {`[{
-  "label": "Ức gà", "protein": 31, "carb": 0, "fat": 3.6,
-  "source": {
-    "type": "manual_verified", "provider": "HTCOACHING",
-    "datasetVersion": "manual-2026-08", "license": "proprietary-internal",
-    "attribution": "HTCOACHING manual nutrition review",
-    "verifiedAt": "2026-08-04T00:00:00.000Z"
-  }
-}]`}
+                  {`[
+  { "label": "Ức gà", "protein": 31, "carb": 0, "fat": 3.6 },
+  { "label": "Cơm trắng", "protein": 2.7, "carb": 28, "fat": 0.3 },
+  { "label": "Bơ", "protein": 2, "carb": 8.5, "fat": 15, "calories": 160 }
+]`}
                 </pre>
                 <textarea
                   rows={12}

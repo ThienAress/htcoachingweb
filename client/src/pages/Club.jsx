@@ -90,11 +90,11 @@ const Club = () => {
           "@type": "SportsActivityLocation",
           "name": t("seo.schema_name"),
           "description": t("seo.schema_desc"),
-          "url": "https://htcoachingweb.io.vn/club/",
+          "url": "https://htcoachingweb.io.vn/club",
           "provider": {
             "@type": "Organization",
             "name": "HTCOACHING",
-            "url": "https://htcoachingweb.io.vn/"
+            "url": "https://htcoachingweb.io.vn"
           }
         }}
       />
@@ -241,17 +241,17 @@ const Club = () => {
           <div className="container-custom">
             <h2 className="text-center text-2xl font-bold mb-8 uppercase text-white">{t("explore.title")}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-              <Link to="/ket-qua-khach-hang/" className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all">
+              <Link to="/ket-qua-khach-hang" className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all">
                 <span className="text-3xl">🏆</span>
                 <span className="font-semibold text-gray-300 group-hover:text-primary transition-colors">{t("explore.customer_results")}</span>
                 <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-primary transition-colors" />
               </Link>
-              <Link to="/exercises/" className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all">
+              <Link to="/exercises" className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all">
                 <span className="text-3xl">💪</span>
                 <span className="font-semibold text-gray-300 group-hover:text-primary transition-colors">{t("explore.exercises")}</span>
                 <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-primary transition-colors" />
               </Link>
-              <Link to="/tdee-calculator/" className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all">
+              <Link to="/tdee-calculator" className="group flex flex-col items-center gap-3 p-6 rounded-xl border border-gray-700 hover:border-primary/50 hover:bg-primary/5 transition-all">
                 <span className="text-3xl">📊</span>
                 <span className="font-semibold text-gray-300 group-hover:text-primary transition-colors">{t("explore.tdee")}</span>
                 <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-primary transition-colors" />

@@ -9,7 +9,7 @@ import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
 const ALLOWED_RECIPE_FIELDS = [
   "name", "nameEn", "slug", "category", "area", "prepTime",
   "tags", "isPublished", "ingredients", "instructions",
-  "sourceUrl", "source",
+  "youtubeUrl", "sourceUrl", "source",
 ];
 
 const normalizeSlug = (value) =>
@@ -29,6 +29,7 @@ const RECIPE_STRING_FIELDS = [
   "category",
   "area",
   "prepTime",
+  "youtubeUrl",
   "sourceUrl",
 ];
 
@@ -235,6 +236,7 @@ export const getRecipes = async (req, res) => {
               source: 1,
               ingredients: 1,
               instructions: 1,
+              youtubeUrl: 1,
               sourceUrl: 1,
               updatedAt: 1,
             }
@@ -279,7 +281,7 @@ export const getRecipeBySlug = async (req, res) => {
     const recipe = await Recipe.findOne({
       slug: String(req.params.slug || "").toLowerCase().trim().slice(0, 180),
       isPublished: true,
-    }).select("-youtubeUrl").lean();
+    }).lean();
     if (!recipe) {
       return res
         .status(404)

@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import leadAttributionSchema from "./leadAttribution.schema.js";
 
 const contactMessageSchema = new mongoose.Schema(
   {
@@ -36,10 +35,6 @@ const contactMessageSchema = new mongoose.Schema(
     },
     processedAt: {
       type: Date,
-    },
-    attribution: {
-      type: leadAttributionSchema,
-      default: null,
     },
   },
   { timestamps: true },

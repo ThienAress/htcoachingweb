@@ -1,8 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
 
-import { normalizePublicPath } from '../utils/publicSeoPath.js';
-
 export default function SEO({ title, description, canonical, type = 'website', image, noindex = false, jsonLd }) {
   const { i18n } = useTranslation();
   const siteName = "HTCOACHING";
@@ -17,7 +15,7 @@ export default function SEO({ title, description, canonical, type = 'website', i
   const seoImage = image || defaultImage;
 
   // Bảo vệ Canonical Tag: Bắt buộc xóa sạch query parameters (?...) và hash (#...)
-  const cleanCanonical = canonical ? normalizePublicPath(canonical) : '';
+  const cleanCanonical = canonical ? canonical.split('?')[0].split('#')[0] : '';
 
   // og:locale dựa trên ngôn ngữ hiện tại
   const currentLocale = i18n.language === 'en' ? 'en_US' : 'vi_VN';

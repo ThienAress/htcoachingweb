@@ -7,14 +7,6 @@ description: Quét toàn bộ trang public tìm vấn đề SEO (thiếu SEO com
 
 > **Tại sao cần workflow này?** Project có nhiều trang public. Mỗi trang cần đủ SEO component, JSON-LD, internal linking, sitemap entry, prerender. Bỏ sót 1 trang = Google không index đúng. Workflow này quét TẤT CẢ và phát hiện thiếu sót.
 
-Đọc [SEO evidence modes](references/evidence-modes.md) và ghi từng kết luận là `static`, `rendered` hoặc `live`.
-
-| Mode | Khi dùng | Không được suy diễn |
-|---|---|---|
-| `$seo-check static` | Code/config, route, sitemap, prerender | Không chứng minh DOM hoặc production response |
-| `$seo-check rendered` | Browser kiểm tra meta/canonical/JSON-LD/mobile | Không chứng minh GSC/GA4/CWV field data |
-| `$seo-check live` | Production status/redirect/CWV/GA4/GSC | Thiếu credential phải SKIP/BLOCKED, không báo PASS |
-
 ---
 
 ## Bước 1: Thu thập danh sách trang public 📋
@@ -59,9 +51,6 @@ grep -rL "SEO" client/src/pages/*.jsx --include="*.jsx"
 ---
 
 ## Bước 3: Kiểm tra JSON-LD Structured Data 📊
-
-Static scan chỉ chứng minh source có JSON-LD. Trước khi báo schema thiếu/sai ở output cuối, dùng browser rendered mode và
-kiểm tra `script[type="application/ld+json"]`; text fetch/curl có thể bỏ script hoặc không chạy JavaScript.
 
 | Trang | Schema bắt buộc | Check |
 |-------|-----------------|:-----:|
@@ -128,10 +117,6 @@ Nếu khác nhau → **FAIL** — có trang bị bỏ sót.
 
 ## Bước 7: Tổng hợp kết quả & Fix
 
-Trước khi tổng hợp, nếu scope có production SEO/traffic, chạy live checks phù hợp: HTTP/redirect/soft-404, PageSpeed/CWV,
-image delivery, author/source freshness và GA4/GSC opportunity/cannibalization khi provider đã cấu hình. Ghi `SKIP`
-cho phần thiếu target/credential thay vì biến thiếu evidence thành finding.
-
 ### Output Format
 
 ```
@@ -139,7 +124,6 @@ cho phần thiếu target/credential thay vì biến thiếu evidence thành fin
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📄 TRANG PUBLIC: X trang
-Evidence: static PASS/FAIL | rendered PASS/FAIL/SKIP | live PASS/FAIL/SKIP
 ✅ SEO Component: X/X pass
 ✅ JSON-LD: X/X pass  
 ✅ Internal Links: X/X pass

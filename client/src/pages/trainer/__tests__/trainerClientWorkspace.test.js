@@ -8,16 +8,12 @@ import {
 } from "../trainerClientWorkspace.helpers";
 
 describe("trainer client workspace presentation", () => {
-  it(
-    "exposes the named page export used by the lazy route adapter",
-    async () => {
-      const pageModule = await import("../TrainerClientWorkspace.jsx");
+  it("exposes the named page export used by the lazy route adapter", async () => {
+    const pageModule = await import("../TrainerClientWorkspace.jsx");
 
-      expect(pageModule.TrainerClientWorkspace).toBeTypeOf("function");
-      expect(pageModule.default).toBe(pageModule.TrainerClientWorkspace);
-    },
-    15_000,
-  );
+    expect(pageModule.TrainerClientWorkspace).toBeTypeOf("function");
+    expect(pageModule.default).toBe(pageModule.TrainerClientWorkspace);
+  });
   it("normalizes unknown tabs to overview", () => {
     expect(normalizeTrainerClientTab("unknown")).toBe("overview");
     expect(normalizeTrainerClientTab("wellness")).toBe("wellness");

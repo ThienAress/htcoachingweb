@@ -1,28 +1,91 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { Bot, Send, X, Square, PanelLeftOpen, Plus, ArrowUp, Maximize2, Sun, Moon, ImageIcon, Wand2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import ChatPanelSidebar from "./ChatPanelSidebar";
 import { createChatHistoryLoadGate } from "./chatHistoryLoadGate";
-import {
-  getChatVisualViewportBounds,
-  persistChatTheme,
-  resolveInitialChatTheme,
-} from "./chatPanelRuntime";
 import { submitAiFeedback } from "../../services/ai.service";
 import { compressChatImage } from "../../utils/compressChatImage";
-import {
-  getAiMessageContext,
-  getAiPageContext,
-  getAiPageSuggestions,
-} from "../../config/aiPageContext";
+
+const PAGE_TYPE_MAP = {
+  "/tdee-calculator": "tdee_calculator",
+  "/mealplan": "meal_plan",
+  "/exercises": "exercises",
+  "/cong-thuc-nau-an": "recipe",
+  "/ket-qua-khach-hang": "customer_story",
+  "/huan-luyen-vien": "trainer_profile",
+  "/training-schedule": "training_schedule",
+  "/wallet": "wallet",
+  "/blog": "blog",
+  "/workout-plans": "workout_plan",
+};
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function getPageType(pathname) {
-  return getAiPageContext(pathname).pageType;
+  for (const [prefix, type] of Object.entries(PAGE_TYPE_MAP)) {
+    if (pathname.startsWith(prefix)) return type;
+  }
+  return "general";
 }
+
+// Quick actions mặc định (hiện khi ở trang không có gợi ý riêng)
+const DEFAULT_QUICK_ACTIONS = [
+  { emoji: "🌐", label: "Khám phá", value: "Giới thiệu cho tôi trang web HTCOACHING có những gì, tính năng và dịch vụ" },
+  { emoji: "🔥", label: "Tính TDEE", value: "Tính TDEE cho tôi" },
+  { emoji: "🥗", label: "Thực đơn", value: "Gợi ý thực đơn giảm mỡ tăng cơ" },
+  { emoji: "👨‍🏫", label: "Tìm HLV", value: "Cho tôi xem thông tin các HLV tại HTCOACHING" },
+];
+
+// Gợi ý câu hỏi theo trang (tương tự Gemini trên YouTube)
+// Key "detail" dùng khi URL có slug (trang chi tiết), "list" dùng cho trang danh sách
+const PAGE_SUGGESTIONS = {
+  blog: {
+    detail: [
+      { emoji: "📖", label: "Tóm tắt bài viết", value: "Tóm tắt nội dung bài viết tôi đang đọc" },
+      { emoji: "💡", label: "Ý chính là gì?", value: "Những điểm chính trong bài viết này là gì?" },
+      { emoji: "🏋️", label: "Áp dụng thế nào?", value: "Tôi nên áp dụng kiến thức trong bài viết này vào tập luyện như thế nào?" },
+    ],
+    list: [
+      { emoji: "📰", label: "Bài viết hay", value: "Gợi ý cho tôi chủ đề fitness nào đáng đọc" },
+    ],
+  },
+  recipe: {
+    detail: [
+      { emoji: "🥗", label: "Món này healthy không?", value: "Món ăn tôi đang xem có phù hợp cho người tập gym không?" },
+      { emoji: "📋", label: "Nguyên liệu cần gì?", value: "Liệt kê nguyên liệu chính của món này" },
+      { emoji: "🔄", label: "Thay thế nguyên liệu", value: "Tôi có thể thay thế nguyên liệu nào trong món này cho phù hợp hơn?" },
+    ],
+    list: [
+      { emoji: "🍳", label: "Món ăn healthy", value: "Gợi ý cho tôi vài công thức nấu ăn healthy" },
+    ],
+  },
+  customer_story: {
+    detail: [
+      { emoji: "📊", label: "Tóm tắt kết quả", value: "Tóm tắt kết quả tập luyện của học viên tôi đang xem" },
+      { emoji: "💪", label: "Phương pháp gì?", value: "Học viên này đã tập theo phương pháp gì để đạt kết quả?" },
+    ],
+  },
+  trainer_profile: {
+    detail: [
+      { emoji: "👨‍🏫", label: "Giới thiệu HLV", value: "Cho tôi biết thêm về HLV tôi đang xem" },
+      { emoji: "📅", label: "Đăng ký tập", value: "Tôi muốn đăng ký tập với HLV này" },
+    ],
+  },
+  tdee_calculator: {
+    list: [
+      { emoji: "🔥", label: "Tính TDEE", value: "Tính TDEE cho tôi" },
+      { emoji: "❓", label: "TDEE là gì?", value: "TDEE là gì và tại sao quan trọng?" },
+    ],
+  },
+  exercises: {
+    list: [
+      { emoji: "💪", label: "Gợi ý bài tập", value: "Gợi ý bài tập cho người mới bắt đầu" },
+      { emoji: "🎯", label: "Tập nhóm cơ nào?", value: "Hôm nay tôi nên tập nhóm cơ nào?" },
+    ],
+  },
+};
 
 const TOOL_LABELS = {
   calculate_tdee: "Đang tính TDEE...",
@@ -32,16 +95,13 @@ const TOOL_LABELS = {
   search_knowledge: "Đang kiểm chứng thông tin...",
 };
 
-export default function ChatPanel({ initiallyOpen = false, initialAction = null }) {
+export default function ChatPanel({ initiallyOpen = false }) {
   const { user } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [sidebarOpen, setSidebarOpen] = useState(
-    window.innerWidth >= 768 && Boolean(user),
-  );
-  const [chatTheme, setChatTheme] = useState(resolveInitialChatTheme);
-  const [mobileViewport, setMobileViewport] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
+  const [chatTheme, setChatTheme] = useState(() => localStorage.getItem("ht_chat_theme") || "dark");
   const [input, setInput] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -65,52 +125,26 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
   const hidePillPaths = ["/admin", "/trainer"];
 
   const {
-    messages, isLoading, activeTool, error, quota, conversationId,
+    messages, isLoading, activeTool, error, conversationId,
     conversations, sendMessage, loadHistory, loadConversations,
     clearHistory, switchConversation, removeConversation, cancelRequest,
     retryLastMessage, editMessage,
-  } = useAiChat({ persistenceEnabled: Boolean(user) });
+  } = useAiChat();
   const authenticatedUserId = user?._id || user?.id || null;
-  const initialActionSentRef = useRef(false);
-  const buildCurrentContext = useCallback(
-    () => getAiMessageContext(location.pathname, document.title),
-    [location.pathname],
-  );
 
   useEffect(() => {
-    persistChatTheme(chatTheme);
+    localStorage.setItem("ht_chat_theme", chatTheme);
   }, [chatTheme]);
 
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      setSidebarOpen(!mobile && Boolean(authenticatedUserId));
+      setSidebarOpen(!mobile);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [authenticatedUserId]);
-
-  useEffect(() => {
-    if (!isOpen || !isMobile) return;
-
-    const visualViewport = window.visualViewport;
-    const syncViewport = () => {
-      setMobileViewport(getChatVisualViewportBounds(window));
-    };
-
-    syncViewport();
-    visualViewport?.addEventListener("resize", syncViewport);
-    visualViewport?.addEventListener("scroll", syncViewport);
-    window.addEventListener("resize", syncViewport);
-    window.addEventListener("orientationchange", syncViewport);
-    return () => {
-      visualViewport?.removeEventListener("resize", syncViewport);
-      visualViewport?.removeEventListener("scroll", syncViewport);
-      window.removeEventListener("resize", syncViewport);
-      window.removeEventListener("orientationchange", syncViewport);
-    };
-  }, [isMobile, isOpen]);
+  }, []);
 
   useEffect(() => {
     if (
@@ -134,21 +168,6 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
     messages.length,
     user,
   ]);
-
-  useEffect(() => {
-    if (
-      !isOpen ||
-      !initialAction?.prompt ||
-      initialActionSentRef.current
-    ) {
-      return undefined;
-    }
-    initialActionSentRef.current = true;
-    const timer = window.setTimeout(() => {
-      sendMessage(initialAction.prompt, buildCurrentContext());
-    }, 50);
-    return () => window.clearTimeout(timer);
-  }, [buildCurrentContext, initialAction, isOpen, sendMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -184,35 +203,14 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
   }, [showAttachMenu]);
 
   useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    }
     if (!isOpen) return;
-
-    const body = document.body;
-    const root = document.documentElement;
-    const scrollY = window.scrollY;
-    const previousBodyStyles = {
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-      width: body.style.width,
-      overflow: body.style.overflow,
-      overscrollBehavior: body.style.overscrollBehavior,
-    };
-    const previousRootStyles = {
-      overflow: root.style.overflow,
-      overscrollBehavior: root.style.overscrollBehavior,
-    };
-
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.width = "100%";
-    body.style.overflow = "hidden";
-    body.style.overscrollBehavior = "none";
-    root.style.overflow = "hidden";
-    root.style.overscrollBehavior = "none";
-
     const handleKey = (e) => { if (e.key === "Escape") setIsOpen(false); };
     const handleClose = () => setIsOpen(false);
     document.addEventListener("keydown", handleKey);
@@ -220,9 +218,8 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
     return () => {
       document.removeEventListener("keydown", handleKey);
       window.removeEventListener("close-ai-chat", handleClose);
-      Object.assign(body.style, previousBodyStyles);
-      Object.assign(root.style, previousRootStyles);
-      window.scrollTo(0, scrollY);
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
     };
   }, [isOpen]);
 
@@ -230,14 +227,16 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
     if ((!input.trim() && !selectedImage) || isLoading) return;
 
     const context = {
-      ...buildCurrentContext(),
-      ...(selectedImage && { image: selectedImage }),
+      page: location.pathname,
+      pageType: getPageType(location.pathname),
+      pageTitle: document.title,
+      image: selectedImage
     };
 
     sendMessage(input.trim(), context);
     setInput("");
     setSelectedImage(null);
-  }, [buildCurrentContext, input, selectedImage, isLoading, sendMessage]);
+  }, [input, selectedImage, isLoading, sendMessage, location.pathname]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -263,10 +262,20 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
-  const getContextSuggestions = useCallback(
-    () => getAiPageSuggestions(location.pathname),
-    [location.pathname],
-  );
+  // Helper: lấy suggestions theo trang hiện tại
+  const getContextSuggestions = useCallback(() => {
+    const pageType = getPageType(location.pathname);
+    const slugParts = location.pathname.split('/').filter(Boolean);
+    const isDetail = slugParts.length >= 2;
+    const pageSuggestions = PAGE_SUGGESTIONS[pageType];
+    const contextActions = pageSuggestions
+      ? (isDetail ? pageSuggestions.detail : pageSuggestions.list) || []
+      : [];
+    return [
+      ...contextActions,
+      ...DEFAULT_QUICK_ACTIONS.filter(d => !contextActions.some(c => c.value === d.value)),
+    ].slice(0, 4);
+  }, [location.pathname]);
 
   const handleSwitchConversation = async (id) => {
     if (id === conversationId) return;
@@ -275,21 +284,21 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
   };
 
   const handleFeedback = useCallback(async (messageId, feedback) => {
-    if (!user || !conversationId || !messageId) return;
+    if (!conversationId || !messageId) return;
     try {
       await submitAiFeedback(conversationId, messageId, feedback);
     // eslint-disable-next-line no-unused-vars
     } catch (err) {
       // Silent fail — feedback là non-critical
     }
-  }, [conversationId, user]);
+  }, [conversationId]);
 
   const handleEditMessage = useCallback((messageId, newText) => {
     if (!newText?.trim()) return;
     editMessage(messageId, newText);
   }, [editMessage]);
 
-  if (noAuthPaths.includes(location.pathname)) return null;
+  if (!user || noAuthPaths.includes(location.pathname)) return null;
   const showPill = !hidePillPaths.some((p) => location.pathname.startsWith(p));
 
   const handlePillSend = () => {
@@ -299,7 +308,12 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
     setPillExpanded(false);
     setIsOpen(true);
     setTimeout(() => {
-      sendMessage(text, buildCurrentContext());
+      const context = {
+        page: location.pathname,
+        pageType: getPageType(location.pathname),
+        pageTitle: document.title
+      };
+      sendMessage(text, context);
     }, 200);
   };
 
@@ -322,25 +336,22 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
       )}
 
       <div className="flex items-end gap-2 bg-gray-100 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10 px-4 py-3 focus-within:border-emerald-500/40 focus-within:bg-white dark:focus-within:bg-white/10 transition-all shadow-sm">
-        {user && (
-          <>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-              title="Đính kèm ảnh"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-emerald-500 disabled:opacity-40 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-emerald-400"
-            >
-              <Plus size={20} />
-            </button>
-          </>
-        )}
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          ref={fileInputRef}
+          onChange={handleImageUpload}
+          className="hidden"
+        />
+
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isLoading}
+          title="Đính kèm ảnh"
+          className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-40 transition-colors"
+        >
+          <Plus size={20} />
+        </button>
 
         <textarea
           ref={inputRef}
@@ -369,19 +380,6 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
           {isLoading ? <Square size={14} /> : <Send size={16} className="ml-1" />}
         </button>
       </div>
-      {quota && (
-        <p className="px-3 text-xs text-gray-500 dark:text-gray-400" role="status">
-          Còn {quota.remaining}/{quota.limit} tin
-          {quota.resetAt
-            ? ` · Làm mới ${new Intl.DateTimeFormat("vi-VN", {
-                day: "2-digit",
-                month: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit",
-              }).format(new Date(quota.resetAt))}`
-            : ""}
-        </p>
-      )}
     </div>
   );
 
@@ -458,15 +456,6 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
         className={`fixed inset-0 z-[60] flex transition-transform duration-300 ease-out w-full ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
-        style={
-          isMobile && mobileViewport
-            ? {
-                top: `${mobileViewport.top}px`,
-                height: `${mobileViewport.height}px`,
-                bottom: "auto",
-              }
-            : undefined
-        }
         role="dialog"
         aria-label="HT Assistant"
       >
@@ -474,29 +463,27 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
         <div className="flex w-full h-full bg-white dark:bg-[#131314] text-gray-900 dark:text-white transition-colors duration-300 overflow-hidden">
 
           {/* Sidebar */}
-          {user && (
-            <div
-              className={`transition-all duration-300 ease-in-out overflow-hidden shrink-0 absolute md:relative z-20 h-full border-r border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e1f22] ${
-                sidebarOpen ? "w-full md:w-[260px] opacity-100" : "w-0 opacity-0"
-              }`}
-            >
-              <ChatPanelSidebar
-                conversations={conversations}
-                activeId={conversationId}
-                onNew={handleNewConversation}
-                onSwitch={handleSwitchConversation}
-                onDelete={removeConversation}
-                onToggle={() => setSidebarOpen(false)}
-              />
-            </div>
-          )}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden shrink-0 absolute md:relative z-20 h-full border-r border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e1f22] ${
+              sidebarOpen ? "w-full md:w-[260px] opacity-100" : "w-0 opacity-0"
+            }`}
+          >
+            <ChatPanelSidebar
+              conversations={conversations}
+              activeId={conversationId}
+              onNew={handleNewConversation}
+              onSwitch={handleSwitchConversation}
+              onDelete={removeConversation}
+              onToggle={() => setSidebarOpen(false)}
+            />
+          </div>
 
           {/* Main content */}
           <div className="relative flex flex-col flex-1 min-w-0">
             {/* Header Actions */}
             <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10 pointer-events-none">
               <div>
-                {user && !sidebarOpen && (
+                {!sidebarOpen && (
                   <button
                     onClick={() => setSidebarOpen(true)}
                     title="Mở menu"
@@ -533,23 +520,8 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
                     <Bot size={24} className="text-white" />
                   </div>
                   <h1 className="text-2xl md:text-3xl font-semibold mb-8 text-center text-gray-800 dark:text-gray-100">
-                    {user?.name
-                      ? `Tôi có thể giúp gì cho bạn, ${user.name}?`
-                      : "Tôi có thể giúp gì cho bạn?"}
+                    Tôi có thể giúp gì cho bạn, {user?.name}?
                   </h1>
-
-                  {!user && (
-                    <div className="mb-6 flex max-w-xl flex-wrap items-center justify-center gap-2 text-center text-sm text-gray-600 dark:text-gray-300">
-                      <span>Bạn đang dùng chế độ khách với số lượt hỏi giới hạn.</span>
-                      <Link
-                        to="/login"
-                        onClick={() => setIsOpen(false)}
-                        className="min-h-11 rounded-xl px-3 py-2 font-semibold text-emerald-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:text-emerald-300"
-                      >
-                        Đăng nhập để lưu lịch sử
-                      </Link>
-                    </div>
-                  )}
 
                   {/* Centered Input Area */}
                   <div className="w-full mb-8">
@@ -563,7 +535,7 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
                         {actions.map((a) => (
                           <button
                             key={a.value}
-                            onClick={() => sendMessage(a.value, buildCurrentContext())}
+                            onClick={() => sendMessage(a.value, { page: location.pathname, pageType: getPageType(location.pathname), pageTitle: document.title })}
                             className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 transition-all text-left"
                           >
                             <span className="text-2xl">{a.emoji}</span>
@@ -588,10 +560,10 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
                           <ChatBubble
                             key={msg._id || msg.localId || i}
                             message={msg}
-                            onRetry={user ? retryLastMessage : undefined}
-                            onEdit={user ? handleEditMessage : undefined}
+                            onRetry={retryLastMessage}
+                            onEdit={handleEditMessage}
                             isThinking={isLastAssistant}
-                            onFeedback={user ? handleFeedback : undefined}
+                            onFeedback={handleFeedback}
                           />
                         );
                       })}
@@ -613,14 +585,12 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
                       {error && (
                         <div className="flex items-center justify-between text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl px-4 py-3">
                           <span>{error}</span>
-                          {user && (
-                            <button
-                              onClick={retryLastMessage}
-                              className="px-3 py-1.5 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/40 rounded-lg transition-colors font-medium flex items-center gap-1.5"
-                            >
-                              🔄 Thử lại
-                            </button>
-                          )}
+                          <button
+                            onClick={retryLastMessage}
+                            className="px-3 py-1.5 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/40 rounded-lg transition-colors font-medium flex items-center gap-1.5"
+                          >
+                            🔄 Thử lại
+                          </button>
                         </div>
                       )}
                       <div ref={messagesEndRef} />
@@ -638,7 +608,7 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
                           {actions.map((a) => (
                             <button
                               key={a.value}
-                              onClick={() => sendMessage(a.value, buildCurrentContext())}
+                              onClick={() => sendMessage(a.value, { page: location.pathname, pageType: getPageType(location.pathname), pageTitle: document.title })}
                               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-medium bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 transition-colors shadow-sm"
                             >
                               <span>{a.emoji}</span>
@@ -651,18 +621,6 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
                     {renderInputArea()}
                     <div className="text-center text-[11px] text-gray-500 dark:text-gray-500 mt-3">
                       HT Assistant là AI và có thể mắc sai sót.
-                      {!user && (
-                        <>
-                          {" "}
-                          <Link
-                            to="/login"
-                            onClick={() => setIsOpen(false)}
-                            className="font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
-                          >
-                            Đăng nhập để hỏi thêm và lưu lịch sử.
-                          </Link>
-                        </>
-                      )}
                     </div>
                   </div>
                 </>

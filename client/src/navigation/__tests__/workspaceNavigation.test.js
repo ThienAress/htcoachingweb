@@ -59,7 +59,6 @@ describe("workspace navigation contract", () => {
       "overview",
       "trainingOperations",
       "professionalResources",
-      "administration",
     ]);
     expect(
       groups.flatMap((group) => group.items.map((item) => item.key)),
@@ -71,33 +70,7 @@ describe("workspace navigation contract", () => {
       "schedule",
       "workoutPlans",
       "exercises",
-      "orders",
-      "contracts",
-      "checkinHistory",
     ]);
-  });
-
-  it("gives every trainer exactly three scoped administration entries", () => {
-    const administration = getTrainerNavigationGroups({
-      f1Allowed: false,
-    }).find((group) => group.key === "administration");
-
-    expect(administration).toEqual(
-      expect.objectContaining({
-        label: "Quản trị",
-        items: [
-          expect.objectContaining({ key: "orders", path: "/trainer/orders" }),
-          expect.objectContaining({
-            key: "contracts",
-            path: "/trainer/contracts",
-          }),
-          expect.objectContaining({
-            key: "checkinHistory",
-            path: "/trainer/checkin-history",
-          }),
-        ],
-      }),
-    );
   });
 
   it("adds the F1 growth group only when authorized", () => {
@@ -129,9 +102,6 @@ describe("workspace navigation contract", () => {
     expect(
       isTrainerNavigationItemActive("clients", "/trainer/workout-plans"),
     ).toBe(false);
-    expect(
-      isTrainerNavigationItemActive("orders", "/trainer/orders"),
-    ).toBe(true);
   });
 
   it("keeps workout-plan navigation inside its current route family", () => {

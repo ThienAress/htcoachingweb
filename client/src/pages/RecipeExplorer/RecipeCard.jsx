@@ -23,7 +23,7 @@ const RecipeCard = ({ recipe }) => {
 
   return (
     <Link
-      to={`/cong-thuc-nau-an/${slug}/`}
+      to={`/cong-thuc-nau-an/${slug}`}
       onMouseEnter={prefetchDetail}
       onFocus={prefetchDetail}
       className="group bg-zinc-800/50 rounded-2xl border border-zinc-700 overflow-hidden transition-all hover:-translate-y-1 hover:border-primary hover:shadow-xl hover:shadow-primary/10"

@@ -1,7 +1,0 @@
-interface:
-  display_name: "Handoff"
-  short_description: "Create a concise redacted handoff"
-  default_prompt: "Use $handoff to create a concise, redacted continuation brief for the next session."
-
-policy:
-  allow_implicit_invocation: false

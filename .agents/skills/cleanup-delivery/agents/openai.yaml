@@ -1,7 +1,0 @@
-interface:
-  display_name: "Cleanup and Delivery"
-  short_description: "Clean and verify changed code"
-  default_prompt: "Use $cleanup-delivery to clean the diff and prepare an evidence-backed handoff."
-
-policy:
-  allow_implicit_invocation: true

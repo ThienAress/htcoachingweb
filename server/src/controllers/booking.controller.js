@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 
 import AuditLog from "../models/AuditLog.js";
 import Booking from "../models/Booking.js";
-import { normalizeLeadAttribution } from "../models/leadAttribution.schema.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { sendBookingNotificationToAdmin } from "../utils/sendMail.js";
 import { safeLog } from "../utils/safeLogger.js";
@@ -89,7 +88,6 @@ export const createBooking = async (req, res) => {
       gifts: req.body.gifts || [],
       clientRequestId: req.body.clientRequestId,
       requestFingerprint,
-      attribution: normalizeLeadAttribution(req.body.attribution),
     });
     sendBookingNotificationToAdmin(booking).catch((error) =>
       safeLog.error("booking.notification_failed", error),

@@ -1,7 +1,0 @@
-interface:
-  display_name: "New Public Page"
-  short_description: "Create indexed public pages safely"
-  default_prompt: "Use $new-page to add a public HTCOACHINGWEB page with complete SEO integration."
-
-policy:
-  allow_implicit_invocation: true

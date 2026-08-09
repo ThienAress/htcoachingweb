@@ -1,7 +1,0 @@
-interface:
-  display_name: "Ship"
-  short_description: "Decide release readiness from evidence"
-  default_prompt: "Use $ship to decide GO or NO-GO from valid QA, security, SEO, and cleanup evidence."
-
-policy:
-  allow_implicit_invocation: true

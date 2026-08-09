@@ -1,8 +1,4 @@
 import api from "../utils/api";
-import {
-  buildConversionOriginFields,
-  pickDefinedFields,
-} from "../utils/conversionOrigin";
 
 // =========================
 // HELPER
@@ -21,23 +17,8 @@ export const getF1Customers = (params = {}) =>
 export const getF1CustomerById = (customerId) =>
   unwrap(api.get(`/f1-customers/${customerId}`));
 
-export const createF1Customer = (payload) => {
-  const data = {
-    ...pickDefinedFields(payload, [
-      "fullName",
-      "age",
-      "gender",
-      "occupation",
-      "phone",
-      "email",
-      "assignedTrainerId",
-      "source",
-      "notesInternal",
-    ]),
-    ...buildConversionOriginFields(payload),
-  };
-  return unwrap(api.post("/f1-customers", data));
-};
+export const createF1Customer = (payload) =>
+  unwrap(api.post("/f1-customers", payload));
 
 export const updateF1Customer = (customerId, payload) =>
   unwrap(api.patch(`/f1-customers/${customerId}`, payload));

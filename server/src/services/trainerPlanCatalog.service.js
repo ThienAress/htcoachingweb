@@ -3,7 +3,6 @@ import crypto from "crypto";
 import {
   TRAINER_CATALOG_CURRENCY,
   TRAINER_CATALOG_PROTOCOL_VERSION,
-  TRAINER_PLAN_BENEFIT_DEFINITIONS,
   TRAINER_PLAN_DEFINITIONS,
 } from "../constants/trainerPlans.js";
 
@@ -22,12 +21,6 @@ const clonePlan = (plan) => ({
   prices: { ...plan.prices },
   billingCycles: [...plan.billingCycles],
   entitlements: { ...plan.entitlements },
-});
-
-const cloneBenefit = (benefit) => ({
-  ...benefit,
-  category: { ...benefit.category },
-  includedPlanCodes: [...benefit.includedPlanCodes],
 });
 
 const canonicalizePlans = (plans) =>
@@ -51,23 +44,8 @@ const canonicalizePlans = (plans) =>
     }))
     .sort((left, right) => left.code.localeCompare(right.code));
 
-const canonicalizeBenefits = (benefits) =>
-  [...benefits]
-    .map((benefit) => ({
-      key: benefit.key,
-      label: benefit.label,
-      category: {
-        key: benefit.category.key,
-        label: benefit.category.label,
-      },
-      valueType: benefit.valueType,
-      includedPlanCodes: [...benefit.includedPlanCodes].sort(),
-    }))
-    .sort((left, right) => left.key.localeCompare(right.key));
-
 export const createTrainerCatalogFingerprint = (
   plans = TRAINER_PLAN_DEFINITIONS,
-  benefits = TRAINER_PLAN_BENEFIT_DEFINITIONS,
 ) =>
   crypto
     .createHash("sha256")
@@ -76,7 +54,6 @@ export const createTrainerCatalogFingerprint = (
         currency: TRAINER_CATALOG_CURRENCY,
         protocolVersion: TRAINER_CATALOG_PROTOCOL_VERSION,
         plans: canonicalizePlans(plans),
-        benefits: canonicalizeBenefits(benefits),
       }),
     )
     .digest("hex");
@@ -103,9 +80,6 @@ export const getTrainerPlan = (value) => {
 };
 
 export const listTrainerPlans = () => TRAINER_PLAN_DEFINITIONS.map(clonePlan);
-
-export const listTrainerPlanBenefits = () =>
-  TRAINER_PLAN_BENEFIT_DEFINITIONS.map(cloneBenefit);
 
 export const getTrainerPlanAmount = (planValue, billingCycle) => {
   const plan = getTrainerPlan(planValue);

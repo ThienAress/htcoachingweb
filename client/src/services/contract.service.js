@@ -12,8 +12,8 @@ export const updateContract = (id, data) => api.put(`/contracts/${id}`, data);
 
 export const sendContractToClient = (id) => api.post(`/contracts/${id}/send`);
 
-export const signContract = (id, payload) =>
-  api.post(`/contracts/${id}/sign`, payload);
+export const signContract = (id, signatureImage) =>
+  api.post(`/contracts/${id}/sign`, { signatureImage });
 
 export const markAsViewed = (id) => api.post(`/contracts/${id}/view`);
 

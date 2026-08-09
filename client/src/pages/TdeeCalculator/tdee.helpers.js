@@ -3,37 +3,6 @@
  * Tách khỏi UI components để dễ maintain và test.
  */
 
-const DEFAULT_TDEE_FORM = Object.freeze({
-  gender: "",
-  height: "",
-  weight: "",
-  age: "",
-  activity: "",
-  formula: "Mifflin-St Jeor",
-  bodyfat: "",
-  goal: "",
-  customCalorieAdjustment: "",
-});
-
-const VALID_TDEE_FORMULAS = new Set(["Mifflin-St Jeor", "Katch-McArdle"]);
-
-export function createDefaultTdeeForm() {
-  return { ...DEFAULT_TDEE_FORM };
-}
-
-export function normalizeStoredTdeeForm(storedForm) {
-  const form = {
-    ...createDefaultTdeeForm(),
-    ...(storedForm && typeof storedForm === "object" ? storedForm : {}),
-  };
-
-  if (!VALID_TDEE_FORMULAS.has(form.formula)) {
-    form.formula = DEFAULT_TDEE_FORM.formula;
-  }
-
-  return form;
-}
-
 /**
  * Tính BMR theo công thức Mifflin-St Jeor
  */

@@ -55,10 +55,7 @@
     "exercise_cta": "Xem bài tập",
     "mealplan_title": "GỢI Ý THỰC ĐƠN",
     "mealplan_desc": "Lên thực đơn hoàn hảo phù hợp với lượng Calories mục tiêu của bạn.",
-    "mealplan_cta": "Tạo thực đơn",
-    "mealscan_title": "QUÉT MÓN ĂN AI",
-    "mealscan_desc": "Chụp ảnh món ăn — AI phân tích ngay Calories, đạm, tinh bột, chất béo chỉ trong vài giây.",
-    "mealscan_cta": "Quét ngay"
+    "mealplan_cta": "Tạo thực đơn"
   },
   "contact": {
     "title": "LIÊN HỆ VỚI CHÚNG TÔI",
@@ -129,12 +126,6 @@
   "pricing": {
     "title_customer": "GÓI TẬP CỦA CHÚNG TÔI",
     "title_trainer": "GÓI DỊCH VỤ CỦA CHÚNG TÔI",
-    "audience_label": "Xem bảng giá dành cho",
-    "audience_customer": "Khách hàng",
-    "audience_trainer": "Huấn luyện viên",
-    "coaching_cost_label": "Chi phí huấn luyện",
-    "coaching_cost_assessment": "Được xác định sau buổi đánh giá miễn phí",
-    "book_assessment": "Đăng ký",
     "trial": "Trải nghiệm",
     "popular": "PHỔ BIẾN",
     "system_benefits": "✨ Quyền lợi hệ thống",
@@ -190,10 +181,6 @@
       "free_sub": "Đầy đủ tính năng cốt lõi trong {{count}} ngày",
       "days": "{{count}} ngày",
       "trial_used_badge": "Đã dùng thử",
-      "order_exists_badge": "Đã có đơn",
-      "ineligible_cta": "KHÔNG ĐỦ ĐIỀU KIỆN",
-      "order_exists_title": "Không áp dụng gói miễn phí",
-      "order_exists_message": "Tài khoản này đã có đơn huấn luyện trước đó. Gói miễn phí chỉ dành cho học viên chưa từng có đơn; bạn vẫn có thể chọn gói trả phí.",
       "start_free": "BẮT ĐẦU MIỄN PHÍ",
       "checking_trial": "ĐANG KIỂM TRA...",
       "retry_trial_check": "THỬ KIỂM TRA LẠI",

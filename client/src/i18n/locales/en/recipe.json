@@ -12,12 +12,6 @@
   "load_error_title": "Unable to load recipes",
   "load_error_desc": "The server is not responding. Check your connection and try again.",
   "retry": "Try again",
-  "pagination": {
-    "label": "Recipe pagination",
-    "previous": "Previous page",
-    "next": "Next page",
-    "page": "Page"
-  },
   "empty_title": "No matching recipes found",
   "empty_btn": "Clear filters and try again",
   "combobox": {

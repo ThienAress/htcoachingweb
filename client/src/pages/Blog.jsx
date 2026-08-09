@@ -49,7 +49,7 @@ const BlogCard = ({ post, featured = false }) => {
 
   return (
     <Link
-      to={`/blog/${post.slug}/`}
+      to={`/blog/${post.slug}`}
       className={`group flex flex-col bg-white rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl border border-gray-100 ${
         featured ? "md:flex-row md:col-span-2" : ""
       }`}
@@ -125,7 +125,7 @@ const SidebarCard = ({ post }) => {
   // eslint-disable-next-line no-unused-vars
   const { t } = useTranslation("blog");
   return (
-    <Link to={`/blog/${post.slug}/`} className="group flex gap-3 items-start py-3 border-b border-gray-100 last:border-0">
+    <Link to={`/blog/${post.slug}`} className="group flex gap-3 items-start py-3 border-b border-gray-100 last:border-0">
       <div className="shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-100">
         {post.coverImage ? (
           <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
@@ -401,7 +401,7 @@ const Blog = () => {
 
           <div className="grid gap-6 sm:grid-cols-3">
             {/* Card 1 */}
-            <Link to="/tdee-calculator/" className="group relative bg-white/80 backdrop-blur-md border border-slate-100 p-6 sm:p-8 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:-translate-y-1.5 hover:border-primary/20 hover:shadow-[0_20px_40px_rgba(255,85,0,0.06)] transition-all duration-300 flex flex-col justify-between overflow-hidden">
+            <Link to="/tdee-calculator" className="group relative bg-white/80 backdrop-blur-md border border-slate-100 p-6 sm:p-8 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:-translate-y-1.5 hover:border-primary/20 hover:shadow-[0_20px_40px_rgba(255,85,0,0.06)] transition-all duration-300 flex flex-col justify-between overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary to-primary-light transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
               <div>
                 <div className="flex items-center justify-between">
@@ -416,7 +416,7 @@ const Blog = () => {
             </Link>
 
             {/* Card 2 */}
-            <Link to="/exercises/" className="group relative bg-white/80 backdrop-blur-md border border-slate-100 p-6 sm:p-8 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:-translate-y-1.5 hover:border-primary/20 hover:shadow-[0_20px_40px_rgba(255,85,0,0.06)] transition-all duration-300 flex flex-col justify-between overflow-hidden">
+            <Link to="/exercises" className="group relative bg-white/80 backdrop-blur-md border border-slate-100 p-6 sm:p-8 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:-translate-y-1.5 hover:border-primary/20 hover:shadow-[0_20px_40px_rgba(255,85,0,0.06)] transition-all duration-300 flex flex-col justify-between overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary to-primary-light transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
               <div>
                 <div className="flex items-center justify-between">
@@ -431,7 +431,7 @@ const Blog = () => {
             </Link>
 
             {/* Card 3 */}
-            <Link to="/ket-qua-khach-hang/" className="group relative bg-white/80 backdrop-blur-md border border-slate-100 p-6 sm:p-8 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:-translate-y-1.5 hover:border-primary/20 hover:shadow-[0_20px_40px_rgba(255,85,0,0.06)] transition-all duration-300 flex flex-col justify-between overflow-hidden">
+            <Link to="/ket-qua-khach-hang" className="group relative bg-white/80 backdrop-blur-md border border-slate-100 p-6 sm:p-8 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.02)] hover:-translate-y-1.5 hover:border-primary/20 hover:shadow-[0_20px_40px_rgba(255,85,0,0.06)] transition-all duration-300 flex flex-col justify-between overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary to-primary-light transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
               <div>
                 <div className="flex items-center justify-between">

@@ -17,7 +17,6 @@ HTCOACHING cung cấp dịch vụ huấn luyện cá nhân (Personal Training) 1
 
 - Tính TDEE (Total Daily Energy Expenditure): Tính lượng calo cần nạp mỗi ngày
 - Gợi ý thực đơn (Meal Plan): Thực đơn dinh dưỡng phù hợp mục tiêu
-- Quét món ăn (Meal Scan): Ước tính khoảng calo, protein, carb và fat từ ảnh; kết quả cần được người dùng kiểm tra lại
 - Thư viện bài tập: Hướng dẫn chi tiết các bài tập Gym, Boxing, Cardio
 
 ## Kết quả thực tế
@@ -36,7 +35,6 @@ HTCOACHING chia sẻ kiến thức fitness qua Blog với các chủ đề: Ki�
 - [Thư viện bài tập](https://htcoachingweb.io.vn/exercises)
 - [Tính TDEE](https://htcoachingweb.io.vn/tdee-calculator)
 - [Gợi ý thực đơn](https://htcoachingweb.io.vn/mealplan)
-- [Quét món ăn](https://htcoachingweb.io.vn/quet-mon-an)
 - [Câu lạc bộ](https://htcoachingweb.io.vn/club)
 
 ## Thông tin liên hệ

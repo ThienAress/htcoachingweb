@@ -1,24 +1,6 @@
 import * as contractService from "../services/contract.service.js";
 import { sendContractMail } from "../utils/sendMail.js";
 import { referencesSameDocument } from "../utils/mongooseReference.js";
-import { safeLog } from "../utils/safeLogger.js";
-
-const sendSigningError = (res, error) => {
-  if (Number.isInteger(error?.statusCode) && error?.code) {
-    return res.status(error.statusCode).json({
-      success: false,
-      message: error.message,
-      errorCode: error.code,
-    });
-  }
-
-  safeLog.error("contract.signing_failed", error);
-  return res.status(500).json({
-    success: false,
-    message: "Không thể hoàn tất ký hợp đồng lúc này",
-    errorCode: "CONTRACT_SIGNING_FAILED",
-  });
-};
 
 /**
  * POST /api/contracts — Tạo hợp đồng từ Order đã approved.
@@ -30,8 +12,7 @@ export const createContract = async (req, res) => {
       orderId,
       req.user.id,
       req.ip,
-      req.headers["user-agent"],
-      { trainerId: req.isAdmin ? null : req.user.id },
+      req.headers["user-agent"]
     );
     res.status(201).json({ success: true, data: contract });
   } catch (error) {
@@ -45,10 +26,7 @@ export const createContract = async (req, res) => {
  */
 export const getContracts = async (req, res) => {
   try {
-    const contracts = await contractService.getContracts({
-      status: req.query.status,
-      trainerId: req.isAdmin ? null : req.user.id,
-    });
+    const contracts = await contractService.getContracts(req.query);
     res.json({ success: true, data: contracts });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -60,9 +38,7 @@ export const getContracts = async (req, res) => {
  */
 export const getApprovedOrders = async (req, res) => {
   try {
-    const orders = await contractService.getApprovedOrdersWithoutContract({
-      trainerId: req.isAdmin ? null : req.user.id,
-    });
+    const orders = await contractService.getApprovedOrdersWithoutContract();
     res.json({ success: true, data: orders });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -100,11 +76,7 @@ export const getContractById = async (req, res) => {
  */
 export const updateContract = async (req, res) => {
   try {
-    const contract = await contractService.updateContractDetails(
-      req.params.id,
-      req.body,
-      { trainerId: req.isAdmin ? null : req.user.id },
-    );
+    const contract = await contractService.updateContractDetails(req.params.id, req.body);
     res.json({ success: true, data: contract });
   } catch (error) {
     const status = error.message.includes("không tồn tại") ? 404 : 400;
@@ -120,8 +92,7 @@ export const sendContract = async (req, res) => {
     const contract = await contractService.sendToClient(
       req.params.id,
       req.ip,
-      req.headers["user-agent"],
-      { trainerId: req.isAdmin ? null : req.user.id },
+      req.headers["user-agent"]
     );
 
     // Gửi email cho khách hàng
@@ -146,23 +117,31 @@ export const sendContract = async (req, res) => {
 };
 
 /**
- * POST /api/contracts/:id/sign — Ký hợp đồng bằng chữ ký vẽ tay.
- * Ownership được ràng buộc atomic trong service bằng contractId + clientId.
+ * POST /api/contracts/:id/sign — Ký hợp đồng.
+ * IDOR protection: chỉ client liên quan mới ký được.
  */
 export const signContract = async (req, res) => {
   try {
-    const { signatureImage, acceptedTerms } = req.body;
-    const contract = await contractService.signContract({
-      contractId: req.params.id,
-      clientId: req.user.id,
+    // IDOR check: chỉ client liên quan mới ký được
+    const existing = await contractService.getContractById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy hợp đồng" });
+    }
+    if (!referencesSameDocument(existing.clientId, req.user.id)) {
+      return res.status(403).json({ success: false, message: "Không có quyền ký hợp đồng này" });
+    }
+
+    const { signatureImage } = req.body;
+    const contract = await contractService.signContract(
+      req.params.id,
       signatureImage,
-      acceptedTerms,
-      ipAddress: req.ip,
-      userAgent: req.headers["user-agent"],
-    });
+      req.ip,
+      req.headers["user-agent"]
+    );
     res.json({ success: true, data: contract });
   } catch (error) {
-    return sendSigningError(res, error);
+    const status = error.message.includes("không tồn tại") ? 404 : 400;
+    res.status(status).json({ success: false, message: error.message });
   }
 };
 
@@ -203,8 +182,7 @@ export const cancelContract = async (req, res) => {
     const contract = await contractService.cancelContract(
       req.params.id,
       req.ip,
-      req.headers["user-agent"],
-      { trainerId: req.isAdmin ? null : req.user.id },
+      req.headers["user-agent"]
     );
     res.json({ success: true, data: contract });
   } catch (error) {
@@ -214,31 +192,31 @@ export const cancelContract = async (req, res) => {
 };
 
 /**
- * POST /api/contracts/:id/view — Đánh dấu khách hàng đã xem hết.
- * Ownership được kiểm tra lại trong service.
+ * POST /api/contracts/:id/view — Đánh dấu đã xem.
+ * IDOR protection: chỉ client liên quan.
  */
 export const markAsViewed = async (req, res) => {
   try {
+    // IDOR check: chỉ client liên quan
+    const existing = await contractService.getContractById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy hợp đồng" });
+    }
+    if (
+      req.user.role !== "admin" &&
+      !referencesSameDocument(existing.clientId, req.user.id)
+    ) {
+      return res.status(403).json({ success: false, message: "Không có quyền" });
+    }
+
     const contract = await contractService.markAsViewed(
       req.params.id,
-      req.user.id,
       req.ip,
-      req.headers["user-agent"],
+      req.headers["user-agent"]
     );
     res.json({ success: true, data: contract });
   } catch (error) {
-    if (Number.isInteger(error?.statusCode)) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-        errorCode: error.code,
-      });
-    }
-    safeLog.error("contract.mark_viewed_failed", error);
-    return res.status(500).json({
-      success: false,
-      message: "Không thể cập nhật trạng thái hợp đồng",
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

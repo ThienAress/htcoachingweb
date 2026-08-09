@@ -28,8 +28,7 @@ description: Quét UI toàn bộ codebase kiểm tra chất lượng design (AI 
 
 1. Đọc `client/src/App.jsx` — lấy tất cả routes
 2. Đọc `../ui-quality/SKILL.md` — nắm rules cần check
-3. Đọc [Curated web interface checks](references/web-interface-checks.md) cho semantic/form/content/perf/mobile checks.
-4. Phân loại mỗi route/page vào register:
+3. Phân loại mỗi route/page vào register:
 
 | Register | Surfaces cần quét | Files |
 |----------|-------------------|-------|
@@ -73,7 +72,7 @@ Quét TẤT CẢ files UI (JSX + CSS) tìm 12 absolute bans:
 | 11 | Text overflow | Text có thể tràn container trên mobile | 🟡 MED |
 | 12 | Dark glow/neon shadow | Colored box-shadow sáng trên nền tối | 🟡 MED |
 
-**Cách quét:** ưu tiên `rg`; các snippet `grep` legacy bên dưới chỉ mô tả pattern và không phải finding nếu chưa đọc context.
+**Cách quét:**
 
 ```bash
 # Gradient text

@@ -12,12 +12,6 @@
   "load_error_title": "Không thể tải công thức",
   "load_error_desc": "Máy chủ hiện không phản hồi. Vui lòng kiểm tra kết nối và thử lại.",
   "retry": "Thử lại",
-  "pagination": {
-    "label": "Phân trang công thức",
-    "previous": "Trang trước",
-    "next": "Trang sau",
-    "page": "Trang"
-  },
   "empty_title": "Chưa có công thức nào phù hợp",
   "empty_btn": "Xóa bộ lọc và thử lại",
   "combobox": {

@@ -21,7 +21,7 @@ const TodayTraining = () => {
         />
       ))}
       <DashboardToolShortcut
-        to="/exercises/"
+        to="/exercises"
         icon={LibraryBig}
         title="Hệ thống bài tập"
         description="Tra cứu kỹ thuật, nhóm cơ và hướng dẫn cho từng bài tập."
