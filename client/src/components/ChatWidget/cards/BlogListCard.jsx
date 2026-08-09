@@ -24,7 +24,7 @@ export default function BlogListCard({ data }) {
         {data.posts.map((post, i) => (
           <Link
             key={i}
-            to={`/blog/${post.slug}`}
+            to={`/blog/${post.slug}/`}
             className="flex gap-3 bg-black/20 rounded-lg p-2.5 hover:bg-white/5 transition-colors group"
           >
             {post.coverImage && (

@@ -14,7 +14,7 @@ description: Viết và lưu implementation plan tự chứa vào đúng taxonom
 
 - Refactor file lớn (>300 dòng, nhiều dependencies)
 - Thay đổi architecture (auth flow, payment system, data model)
-- Multi-file feature chạm >5 files
+- Feature cần nhiều behavior slice hoặc verification gate phụ thuộc nhau
 - Task cần phối hợp FE + BE + DB changes
 
 ## Khi Nào KHÔNG Dùng (feature-spec đủ)
@@ -124,17 +124,34 @@ Facts cần thiết, inline — KHÔNG "as discussed" hay "see audit":
 
 ## Steps
 
-### Step 1: <imperative title>
+### Step 1: <imperative title — behavior observable hoàn chỉnh>
 
 Mô tả chính xác. Reference exact files/symbols. Include target code
 shape khi nó load-bearing (pattern cần produce, không cần mọi dòng).
+
+**Behavior**: <scenario end-to-end có thể demo/verify sau step này>
+
+**Blast radius**: <files/layers cần chạm và lý do>
+
+**Depends on**: <step/blocker trước đó, hoặc "none">
 
 **Verify**: `cd client && npm run build` → exit 0, no errors
 
 ### Step 2: ...
 
-(Mỗi step đủ nhỏ để verify độc lập. Thứ tự sao cho codebase
-không bao giờ broken giữa các steps — VD: thêm path mới → chuyển callers → xóa path cũ.)
+(Mặc định mỗi step là một vertical tracer bullet: hoàn tất một behavior qua các layer cần thiết,
+vừa một session tập trung và verify độc lập. Không chia ngang thành "schema", "API", "UI" nếu
+từng step chưa tạo ra behavior kiểm chứng được. Số file là tín hiệu blast radius, không phải quota;
+step chạm nhiều file phải nêu impact và verification. Thứ tự theo dependency và giữ codebase chạy
+được sau mỗi step.)
+
+**Task right-sizing:** Một step là đơn vị nhỏ nhất có test/verification cycle riêng và đủ độc lập để reviewer có thể
+reject step đó nhưng vẫn approve step bên cạnh. Gộp scaffolding/config/docs vào behavior cần chúng; không tách task chỉ
+để tạo file hoặc commit nhỏ.
+
+Với wide mechanical refactor không thể tạo vertical behavior slice tự nhiên, dùng **expand-contract**:
+thêm shape/path mới tương thích → chuyển consumers theo batch có verify → xóa shape/path cũ chỉ khi
+mọi consumer đã migrate. Ghi rõ compatibility window và rollback point cho từng batch.
 
 ## Test Plan
 
@@ -209,6 +226,12 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (+ lý do 1 dòng) | REJECTED
 - [ ] AI/dev chưa biết gì có thể execute plan chỉ với file plan + repo? Nếu step nào cần knowledge từ conversation → inline knowledge đó.
 - [ ] Mọi verification là command + expected result, KHÔNG phải judgment ("make sure it works")?
 - [ ] Mọi step nêu exact files và symbols, KHÔNG "the relevant module"?
+- [ ] Mỗi step tạo một behavior end-to-end có thể demo/verify, hoặc ghi rõ vì sao phải dùng expand-contract?
+- [ ] Số file được dùng để đánh giá blast radius, không làm lý do chia task thành các horizontal layer?
 - [ ] STOP conditions cụ thể cho plan này, KHÔNG boilerplate?
 - [ ] Đọc chỉ "Why this matters" + "Done criteria" hiểu được đang approve gì?
 - [ ] Không có secret values — chỉ locations và credential types?
+- [ ] Đã đọc lại spec/request và map từng requirement vào ít nhất một step hoặc ghi rõ out-of-scope?
+- [ ] Đã quét placeholder `TBD`, `TODO marker`, `implement later`, `similar to` và chỉ dẫn mơ hồ như “handle edge cases”?
+- [ ] Tên symbol, payload, route và command có nhất quán giữa các step?
+- [ ] Mỗi task boundary có deliverable/verification riêng thay vì chỉ chia theo technical layer?

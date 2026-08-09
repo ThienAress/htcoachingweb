@@ -15,13 +15,24 @@ import {
 } from "../../../__tests__/setup.js";
 import AiModerationState from "../../../models/AiModerationState.js";
 import User from "../../../models/User.js";
-import { isUserLocked, moderateContent } from "../contentModeration.js";
+import {
+  isUserLocked,
+  moderateContent,
+  moderateGuestContent,
+} from "../contentModeration.js";
 
 beforeAll(setupTestDB);
 afterEach(clearCollections);
 afterAll(teardownTestDB);
 
 describe("persistent AI moderation", () => {
+  it("blocks unsafe guest content without creating user moderation state", async () => {
+    const result = moderateGuestContent("fuck");
+
+    expect(result.safe).toBe(false);
+    expect(await AiModerationState.countDocuments()).toBe(0);
+  });
+
   it("persists warnings and temporary locks in MongoDB", async () => {
     const { user } = await createTestUser();
 

@@ -84,6 +84,17 @@ export async function executeTool(toolName, parameters, context) {
     };
   }
 
+  // Guest capability must also be enforced at execution time. Tool schemas are
+  // advisory input to the provider; a malformed or hallucinated tool call must
+  // not bypass the guest allowlist.
+  if (!context?.userId && tool.guestEnabled === false) {
+    return {
+      text: "Bạn cần đăng nhập để sử dụng tính năng này.",
+      uiCard: null,
+      error: "Guest tool unavailable",
+    };
+  }
+
   // Auth check
   if (tool.requiresAuth && !context.userId) {
     return {

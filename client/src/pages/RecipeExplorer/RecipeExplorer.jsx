@@ -8,8 +8,6 @@ import {
   Flame,
   Calendar,
   Dumbbell,
-  ChevronLeft,
-  ChevronRight,
   CircleAlert,
   RefreshCw,
   X,
@@ -23,8 +21,10 @@ import ChatIcons from "../../components/ChatIcons";
 import ScrollToTop from "../../components/ScrollToTop";
 import SEO from "../../components/SEO";
 import RecipeCard from "./RecipeCard";
+import RecipePagination from "./RecipePagination";
 import { useDebounce } from "../../hooks/useDebounce";
 import CountryCombobox from "./CountryCombobox";
+import { buildPublicPageHref } from "../../utils/publicSeoPath.js";
 
 const RecipeExplorer = () => {
   const { t } = useTranslation("recipe");
@@ -116,6 +116,11 @@ const RecipeExplorer = () => {
 
   const hasActiveFilters = category || area || urlSearch;
   const pageNumbers = getPageNumbers(page, pagination.totalPages || 1);
+  const getPageHref = useCallback(
+    (targetPage) =>
+      buildPublicPageHref("/cong-thuc-nau-an", searchParams, targetPage),
+    [searchParams],
+  );
 
   return (
     <>
@@ -128,11 +133,11 @@ const RecipeExplorer = () => {
           "@type": "CollectionPage",
           "name": `${t("seo_title")} - HTCOACHING`,
           "description": t("seo_desc"),
-          "url": "https://htcoachingweb.io.vn/cong-thuc-nau-an",
+          "url": "https://htcoachingweb.io.vn/cong-thuc-nau-an/",
           "provider": {
             "@type": "Organization",
             "name": "HTCOACHING",
-            "url": "https://htcoachingweb.io.vn",
+            "url": "https://htcoachingweb.io.vn/",
           },
         }}
       />
@@ -273,49 +278,20 @@ const RecipeExplorer = () => {
             </div>
           )}
 
-          {/* Smart Pagination */}
+          {/* Crawlable pagination */}
           {pagination.totalPages > 1 && (
-            <div className="flex justify-center items-center gap-1.5 mt-10">
-              <button
-                onClick={() => updateParams({ page: page > 1 ? String(page - 1) : null })}
-                disabled={page <= 1}
-                className="w-10 h-10 rounded-lg flex items-center justify-center bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              {pageNumbers.map((p, idx) =>
-                p === "..." ? (
-                  <span key={`dots-${idx}`} className="w-8 text-center text-zinc-500">
-                    ···
-                  </span>
-                ) : (
-                  <button
-                    key={p}
-                    onClick={() => updateParams({ page: p === 1 ? null : String(p) })}
-                    className={`w-10 h-10 rounded-lg font-semibold text-sm transition-all ${
-                      p === page
-                        ? "bg-primary text-white shadow-lg shadow-primary/30"
-                        : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ),
-              )}
-
-              <button
-                onClick={() =>
-                  updateParams({
-                    page: page < pagination.totalPages ? String(page + 1) : String(pagination.totalPages),
-                  })
-                }
-                disabled={page >= pagination.totalPages}
-                className="w-10 h-10 rounded-lg flex items-center justify-center bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            <RecipePagination
+              page={page}
+              totalPages={pagination.totalPages}
+              pageNumbers={pageNumbers}
+              getPageHref={getPageHref}
+              labels={{
+                pagination: t("pagination.label"),
+                previous: t("pagination.previous"),
+                next: t("pagination.next"),
+                page: t("pagination.page"),
+              }}
+            />
           )}
         </div>
       </main>
@@ -331,7 +307,7 @@ const RecipeExplorer = () => {
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             <Link
-              to="/tdee-calculator"
+              to="/tdee-calculator/"
               className="group border border-zinc-700 bg-zinc-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Flame className="h-6 w-6 text-primary mb-3" />
@@ -343,7 +319,7 @@ const RecipeExplorer = () => {
               </p>
             </Link>
             <Link
-              to="/exercises"
+              to="/exercises/"
               className="group border border-zinc-700 bg-zinc-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Dumbbell className="h-6 w-6 text-primary mb-3" />
@@ -355,7 +331,7 @@ const RecipeExplorer = () => {
               </p>
             </Link>
             <Link
-              to="/ket-qua-khach-hang"
+              to="/ket-qua-khach-hang/"
               className="group border border-zinc-700 bg-zinc-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Calendar className="h-6 w-6 text-primary mb-3" />

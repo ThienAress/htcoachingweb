@@ -17,7 +17,8 @@
     "trainers": "Huấn luyện viên",
     "tdee": "Tính TDEE",
     "recipes": "Công thức nấu ăn",
-    "mealplan": "Gợi ý thực đơn"
+    "mealplan": "Gợi ý thực đơn",
+    "meal_scan": "Quét món ăn"
   },
   "nav_user": {
     "workspaces": "Không gian làm việc",
@@ -54,6 +55,7 @@
     "customer_results": "Kết quả khách hàng",
     "exercise_system": "Hệ thống bài tập",
     "tdee": "Tính TDEE",
+    "meal_scan": "Quét món ăn",
     "meal_suggestion": "Gợi ý thực đơn",
     "club": "CLB",
     "training_programs": "CHƯƠNG TRÌNH TẬP LUYỆN",

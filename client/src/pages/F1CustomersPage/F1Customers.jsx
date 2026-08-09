@@ -11,6 +11,8 @@ import {
 import { toast } from "react-toastify";
 import SEO from "../../components/SEO";
 import { useDebounce } from "../../hooks/useDebounce";
+import { useConversionOriginOptions } from "../../hooks/useConversionOriginOptions";
+import { useAuth } from "../../context/AuthContext";
 
 const F1CustomerList = lazy(
   () => import("../../components/F1/F1CustomerList"),
@@ -42,9 +44,12 @@ const initialCreateForm = {
   phone: "",
   email: "",
   assignedTrainerId: "",
+  originType: "",
+  originId: "",
 };
 
 const F1Customers = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState("list");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -52,6 +57,9 @@ const F1Customers = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [createForm, setCreateForm] = useState(initialCreateForm);
+  const conversionOrigins = useConversionOriginOptions(
+    user?.role === "admin" && viewMode === "create",
+  );
   const debouncedSearch = useDebounce(search.trim(), 350);
   const customersQuery = useQuery({
     queryKey: ["f1-customers", { search: debouncedSearch, page, limit: 10 }],
@@ -99,7 +107,11 @@ const F1Customers = () => {
       setViewMode("intake");
       await invalidateCustomers();
     } catch (error) {
-      alert(error?.response?.data?.message || "Tạo khách hàng thất bại");
+      alert(
+        error?.response?.data?.message ||
+          error?.response?.data?.errors?.[0]?.msg ||
+          "Tạo khách hàng thất bại",
+      );
     }
   };
 
@@ -325,6 +337,8 @@ const F1Customers = () => {
               createForm={createForm}
               setCreateForm={setCreateForm}
               submittingCreate={createMutation.isPending}
+              canSelectOrigin={user?.role === "admin"}
+              conversionOrigins={conversionOrigins}
               onBack={() => setViewMode("list")}
               onSubmit={handleCreateCustomer}
             />

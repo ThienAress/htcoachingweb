@@ -1,145 +1,27 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invalidateByKey } from "../../queries/invalidation";
 import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast } from "react-toastify";
-import { UploadCloud, Trash2, Loader2, Image as ImageIcon, X } from "lucide-react";
 import {
   getSiteSettings,
-  uploadSettingImage,
-  removeSettingImage,
+  removeSettingItemImage,
+  uploadSettingItemImage,
 } from "../../services/siteSetting.service";
-
-const SettingSection = ({ title, fieldName, apiPath, images, isMultiple, maxCount, onUpload, onRemove, isLoading, onPreview }) => {
-  const [selectedFiles, setSelectedFiles] = useState(null);
-  const [previewUrls, setPreviewUrls] = useState([]);
-
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-
-    if (isMultiple && images.length + files.length > maxCount) {
-      toast.error(`Chỉ được phép tối đa ${maxCount} ảnh cho phần này.`);
-      return;
-    }
-
-    setSelectedFiles(files);
-    const urls = files.map(file => URL.createObjectURL(file));
-    setPreviewUrls(urls);
-    // Reset input value to allow selecting the same files again if needed
-    e.target.value = null;
-  };
-
-  const removePreview = (indexToRemove) => {
-    setSelectedFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove));
-    setPreviewUrls((prev) => prev.filter((_, idx) => idx !== indexToRemove));
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFiles) return;
-    const formData = new FormData();
-    if (isMultiple) {
-      selectedFiles.forEach((file) => formData.append("images", file));
-    } else {
-      formData.append("image", selectedFiles[0]);
-    }
-    
-    await onUpload({ apiPath, fieldName, formData });
-    setSelectedFiles(null);
-    setPreviewUrls([]);
-  };
-
-  return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-          <ImageIcon size={20} />
-        </div>
-        <h3 className="text-lg font-bold text-slate-800">{title}</h3>
-      </div>
-      
-      {/* Current Images */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
-        {images.map((url, idx) => (
-          <div key={idx} className="relative group aspect-video md:aspect-square bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
-            <img 
-              src={url} 
-              alt="Cấu hình" 
-              className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" 
-              onClick={() => onPreview && onPreview(url)}
-            />
-            <button
-              onClick={() => onRemove({ fieldName, imageUrl: url })}
-              className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-              title="Xóa ảnh này"
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {/* Upload Area */}
-      {(!images.length || isMultiple) && (
-        <div className="flex items-center gap-4">
-          <input
-            type="file"
-            multiple={isMultiple}
-            accept="image/*"
-            onChange={handleFileChange}
-            className="block w-full text-sm text-slate-500
-              file:mr-4 file:py-2 file:px-4
-              file:rounded-full file:border-0
-              file:text-sm file:font-semibold
-              file:bg-blue-50 file:text-blue-700
-              hover:file:bg-blue-100 cursor-pointer"
-          />
-          <button
-            onClick={handleUpload}
-            disabled={!selectedFiles || selectedFiles.length === 0 || isLoading}
-            className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <UploadCloud size={18} />}
-            Tải lên
-          </button>
-        </div>
-      )}
-
-      {/* Preview */}
-      {previewUrls.length > 0 && (
-        <div className="mt-4 pt-3 flex gap-3 overflow-x-auto pb-2">
-          {previewUrls.map((url, idx) => (
-            <div key={idx} className="relative group shrink-0">
-              <img 
-                src={url} 
-                alt="Preview" 
-                className="h-20 w-20 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-sm" 
-                onClick={() => onPreview && onPreview(url)}
-                title="Nhấn để xem lớn"
-              />
-              <span className="absolute -top-2 -left-2 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10 shadow-sm pointer-events-none">
-                Mới
-              </span>
-              <button
-                type="button"
-                onClick={() => removePreview(idx)}
-                className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 z-10 shadow-sm"
-                title="Hủy chọn ảnh này"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+import {
+  HOME_ABOUT_CATALOG,
+  HOME_CLASS_CATALOG,
+  HOME_HERO_AVATAR_CATALOG,
+  HOME_HERO_CATALOG,
+  HOME_TRAINER_CATALOG,
+  HOME_TOOL_CATALOG,
+} from "../../config/homeSectionCatalog";
+import KeyedMediaSection from "../../components/admin/KeyedMediaSection";
 
 const SiteSettings = () => {
   const queryClient = useQueryClient();
 
-  const { data: settingsResponse, isLoading } = useQuery({
+  const { data: settingsResponse, isLoading, isError, refetch } = useQuery({
     queryKey: adminQueryKeys.siteSettings.all(),
     queryFn: async () => {
       const res = await getSiteSettings();
@@ -147,40 +29,79 @@ const SiteSettings = () => {
     },
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: ({ apiPath, fieldName, formData }) => uploadSettingImage(apiPath || fieldName, formData),
+  const itemUploadMutation = useMutation({
+    mutationFn: ({ section, itemKey, file }) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      return uploadSettingItemImage(section, itemKey, formData);
+    },
     onSuccess: () => {
-      toast.success("Tải ảnh lên thành công!");
+      toast.success("Đã cập nhật đúng ảnh của mục đã chọn!");
       invalidateByKey(queryClient, adminQueryKeys.siteSettings.all());
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || "Lỗi khi tải ảnh lên");
+      toast.error(error.response?.data?.message || "Không thể cập nhật ảnh. Vui lòng thử lại.");
     },
   });
 
-  const removeMutation = useMutation({
-    mutationFn: ({ fieldName, imageUrl }) => removeSettingImage(fieldName, imageUrl),
+  const itemRemoveMutation = useMutation({
+    mutationFn: ({ section, itemKey, imageUrl }) => (
+      removeSettingItemImage(section, itemKey, imageUrl)
+    ),
     onSuccess: () => {
-      toast.success("Đã xóa ảnh!");
+      toast.success("Đã xóa ảnh riêng và khôi phục ảnh mặc định!");
       invalidateByKey(queryClient, adminQueryKeys.siteSettings.all());
     },
     onError: (error) => {
-      toast.error(error.response?.data?.message || "Lỗi khi xóa ảnh");
+      toast.error(error.response?.data?.message || "Không thể xóa ảnh. Vui lòng thử lại.");
     },
   });
 
   const [previewImage, setPreviewImage] = useState(null);
 
+  useEffect(() => {
+    if (!previewImage) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setPreviewImage(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [previewImage]);
+
   if (isLoading) {
     return <div className="p-8 text-center text-slate-500">Đang tải dữ liệu...</div>;
   }
 
+  if (isError) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-white p-8 text-center">
+        <p className="font-semibold text-red-700">Không thể tải cấu hình giao diện.</p>
+        <p className="mt-2 text-sm text-slate-600">Kiểm tra kết nối rồi thử tải lại trang này.</p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="mt-5 min-h-11 rounded-xl bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+        >
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+
   const settings = settingsResponse?.data || {
     heroImages: [],
+    heroImagesByKey: {},
+    heroAvatars: [],
+    heroAvatarsByKey: {},
     aboutImages: [],
+    aboutImagesByKey: {},
     trainerImage: "",
+    trainerImagesByKey: {},
     classesImages: [],
+    classesImagesByKey: {},
     toolsImage: "",
+    toolsImagesByKey: {},
   };
 
   return (
@@ -194,75 +115,76 @@ const SiteSettings = () => {
         </div>
       </div>
 
-      <SettingSection
+      <KeyedMediaSection
         title="Hero Section (Slider Banner)"
-        fieldName="hero"
-        images={settings.heroImages}
-        isMultiple={true}
-        maxCount={5}
-        onUpload={uploadMutation.mutate}
-        onRemove={removeMutation.mutate}
-        isLoading={uploadMutation.isPending}
+        description="Quản lý riêng từng banner theo đúng vị trí hiển thị trong slider Hero. Banner 4 và 5 là tùy chọn."
+        catalog={HOME_HERO_CATALOG}
+        imagesByKey={settings.heroImagesByKey}
+        legacyImages={settings.heroImages || []}
+        onUpload={itemUploadMutation.mutateAsync}
+        onRemove={itemRemoveMutation.mutateAsync}
         onPreview={setPreviewImage}
+        defaultOpen
       />
 
-      <SettingSection
+      <KeyedMediaSection
         title="Hero Section (Avatar Học Viên Lột Xác)"
-        fieldName="heroAvatars"
-        apiPath="hero-avatars"
-        images={settings.heroAvatars || []}
-        isMultiple={true}
-        maxCount={3}
-        onUpload={uploadMutation.mutate}
-        onRemove={removeMutation.mutate}
-        isLoading={uploadMutation.isPending}
+        description="Ba vị trí avatar học viên trong thẻ thành tích Hero, mỗi vị trí có ảnh riêng."
+        catalog={HOME_HERO_AVATAR_CATALOG}
+        imagesByKey={settings.heroAvatarsByKey}
+        legacyImages={settings.heroAvatars || []}
+        onUpload={itemUploadMutation.mutateAsync}
+        onRemove={itemRemoveMutation.mutateAsync}
         onPreview={setPreviewImage}
+        defaultOpen={false}
       />
 
-      <SettingSection
+      <KeyedMediaSection
         title="About Section (Slider Giới thiệu)"
-        fieldName="about"
-        images={settings.aboutImages}
-        isMultiple={true}
-        maxCount={5}
-        onUpload={uploadMutation.mutate}
-        onRemove={removeMutation.mutate}
-        isLoading={uploadMutation.isPending}
+        description="Quản lý riêng năm vị trí trong slider giới thiệu; vị trí 4 và 5 là tùy chọn."
+        catalog={HOME_ABOUT_CATALOG}
+        imagesByKey={settings.aboutImagesByKey}
+        legacyImages={settings.aboutImages || []}
+        onUpload={itemUploadMutation.mutateAsync}
+        onRemove={itemRemoveMutation.mutateAsync}
         onPreview={setPreviewImage}
+        defaultOpen={false}
       />
 
-      <SettingSection
+      <KeyedMediaSection
         title="Trainer Section (Ảnh Huấn luyện viên)"
-        fieldName="trainer"
-        images={settings.trainerImage ? [settings.trainerImage] : []}
-        isMultiple={false}
-        onUpload={uploadMutation.mutate}
-        onRemove={removeMutation.mutate}
-        isLoading={uploadMutation.isPending}
+        description="Ảnh này chỉ thay ảnh của huấn luyện viên nổi bật đầu tiên trên trang chủ."
+        catalog={HOME_TRAINER_CATALOG}
+        imagesByKey={settings.trainerImagesByKey}
+        legacyImage={settings.trainerImage || ""}
+        onUpload={itemUploadMutation.mutateAsync}
+        onRemove={itemRemoveMutation.mutateAsync}
         onPreview={setPreviewImage}
+        defaultOpen={false}
       />
 
-      <SettingSection
-        title="Classes Section (Ảnh các khóa học)"
-        fieldName="classes"
-        images={settings.classesImages}
-        isMultiple={true}
-        maxCount={5}
-        onUpload={uploadMutation.mutate}
-        onRemove={removeMutation.mutate}
-        isLoading={uploadMutation.isPending}
+      <KeyedMediaSection
+        title="Classes Section (Ảnh từng khóa học)"
+        description="Mỗi khóa học có một ảnh riêng. Tải ảnh ngay tại đúng tên khóa học để tránh nhầm Boxing, Cardio & HIIT hoặc Personal Training."
+        catalog={HOME_CLASS_CATALOG}
+        imagesByKey={settings.classesImagesByKey}
+        legacyImages={settings.classesImages || []}
+        onUpload={itemUploadMutation.mutateAsync}
+        onRemove={itemRemoveMutation.mutateAsync}
         onPreview={setPreviewImage}
+        defaultOpen={false}
       />
 
-      <SettingSection
-        title="Tools Section (Nền Công cụ TDEE)"
-        fieldName="tools"
-        images={settings.toolsImage ? [settings.toolsImage] : []}
-        isMultiple={false}
-        onUpload={uploadMutation.mutate}
-        onRemove={removeMutation.mutate}
-        isLoading={uploadMutation.isPending}
+      <KeyedMediaSection
+        title="Tools Section (Ảnh từng công cụ)"
+        description="Danh sách này đồng bộ với các công cụ trên trang chủ. Mỗi ảnh chỉ áp dụng cho đúng công cụ được ghi tên bên dưới."
+        catalog={HOME_TOOL_CATALOG}
+        imagesByKey={settings.toolsImagesByKey}
+        legacyImage={settings.toolsImage || ""}
+        onUpload={itemUploadMutation.mutateAsync}
+        onRemove={itemRemoveMutation.mutateAsync}
         onPreview={setPreviewImage}
+        defaultOpen={false}
       />
 
       {/* Fullscreen Preview Modal */}
@@ -270,15 +192,21 @@ const SiteSettings = () => {
         <div 
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
           onClick={() => setPreviewImage(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Xem trước hình ảnh"
         >
           <img 
             src={previewImage} 
             alt="Preview Fullscreen" 
             className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
           />
           <button 
-            className="absolute top-6 right-6 text-white hover:text-red-400 bg-black/50 p-2 rounded-full"
+            type="button"
+            className="absolute right-6 top-6 min-h-11 rounded-full bg-zinc-900/80 px-4 py-2 text-white hover:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             onClick={() => setPreviewImage(null)}
+            aria-label="Đóng xem trước hình ảnh"
           >
             Đóng (X)
           </button>

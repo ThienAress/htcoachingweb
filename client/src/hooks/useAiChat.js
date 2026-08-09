@@ -40,13 +40,14 @@ export function mapAiMessages(rawMessages = []) {
   return result;
 }
 
-export default function useAiChat() {
+export default function useAiChat({ persistenceEnabled = true } = {}) {
   const [messages, setMessages] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTool, setActiveTool] = useState(null);
   const [error, setError] = useState(null);
+  const [quota, setQuota] = useState(null);
 
   const mountedRef = useRef(true);
   const messagesRef = useRef([]);
@@ -126,7 +127,7 @@ export default function useAiChat() {
         setIsLoading(false);
         setActiveTool(null);
       }
-      if (flush && session) {
+      if (persistenceEnabled && flush && session) {
         const expectedConversationId =
           conversationIdRef.current || session.targetConversationId;
         const expectedNavigation = navigationSequenceRef.current;
@@ -156,7 +157,12 @@ export default function useAiChat() {
         }, 180);
       }
     },
-    [clearFlushTimer, flushPendingText, setCurrentMessages],
+    [
+      clearFlushTimer,
+      flushPendingText,
+      persistenceEnabled,
+      setCurrentMessages,
+    ],
   );
 
   useEffect(() => {
@@ -171,7 +177,12 @@ export default function useAiChat() {
     };
   }, []);
 
+  useEffect(() => {
+    setQuota(null);
+  }, [persistenceEnabled]);
+
   const loadHistory = useCallback(async () => {
+    if (!persistenceEnabled) return;
     const sequence = ++navigationSequenceRef.current;
     try {
       const response = await getAiHistory();
@@ -183,16 +194,17 @@ export default function useAiChat() {
     } catch {
       // Empty history is a valid state.
     }
-  }, [setCurrentConversationId, setCurrentMessages]);
+  }, [persistenceEnabled, setCurrentConversationId, setCurrentMessages]);
 
   const loadConversations = useCallback(async () => {
+    if (!persistenceEnabled) return;
     try {
       const response = await getAiConversations();
       if (mountedRef.current) setConversations(response.data || []);
     } catch {
       // The sidebar is non-critical.
     }
-  }, []);
+  }, [persistenceEnabled]);
 
   const switchConversation = useCallback(
     async (id) => {
@@ -314,6 +326,7 @@ export default function useAiChat() {
         );
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
+          if (data.meta?.quota && mountedRef.current) setQuota(data.meta.quota);
           throw new Error(data.message || `HTTP ${response.status}`);
         }
 
@@ -336,7 +349,9 @@ export default function useAiChat() {
               continue;
             }
 
-            if (event.type === "text") {
+            if (event.type === "quota") {
+              if (event.quota && isActive()) setQuota(event.quota);
+            } else if (event.type === "text") {
               pendingTextRef.current += String(event.content || "");
             } else if (event.type === "conversation") {
               if (event.conversationId) setCurrentConversationId(event.conversationId);
@@ -372,7 +387,7 @@ export default function useAiChat() {
             } else if (event.type === "done") {
               flushPendingText(sessionId);
               if (event.conversationId) setCurrentConversationId(event.conversationId);
-              if (event.conversationId) {
+              if (persistenceEnabled && event.conversationId) {
                 const current = await getAiConversationById(event.conversationId);
                 if (isActive() && current.data) {
                   setCurrentMessages(mapAiMessages(current.data.messages));
@@ -414,6 +429,7 @@ export default function useAiChat() {
       clearFlushTimer,
       flushPendingText,
       loadConversations,
+      persistenceEnabled,
       setCurrentConversationId,
       setCurrentMessages,
       startFlushTimer,
@@ -484,6 +500,7 @@ export default function useAiChat() {
     isLoading,
     activeTool,
     error,
+    quota,
     conversationId,
     conversations,
     sendMessage,

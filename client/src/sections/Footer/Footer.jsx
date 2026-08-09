@@ -91,18 +91,23 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/ket-qua-khach-hang" className="hover:text-primary hover:pl-1 transition-all">
+                <Link to="/ket-qua-khach-hang/" className="hover:text-primary hover:pl-1 transition-all">
                   {t("footer.customer_results")}
                 </Link>
               </li>
               <li>
-                <Link to="/exercises" className="hover:text-primary hover:pl-1 transition-all">
+                <Link to="/exercises/" className="hover:text-primary hover:pl-1 transition-all">
                   {t("footer.exercise_system")}
                 </Link>
               </li>
               <li>
-                <Link to="/tdee-calculator" className="hover:text-primary hover:pl-1 transition-all">
+                <Link to="/tdee-calculator/" className="hover:text-primary hover:pl-1 transition-all">
                   {t("footer.tdee")}
+                </Link>
+              </li>
+              <li>
+                <Link to="/quet-mon-an/" className="hover:text-primary hover:pl-1 transition-all">
+                  {t("footer.meal_scan")}
                 </Link>
               </li>
               <li>
@@ -111,7 +116,7 @@ const Footer = () => {
                 </button>
               </li>
               <li>
-                <Link to="/club" className="hover:text-primary hover:pl-1 transition-all">
+                <Link to="/club/" className="hover:text-primary hover:pl-1 transition-all">
                   {t("footer.club")}
                 </Link>
               </li>

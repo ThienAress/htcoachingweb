@@ -57,11 +57,11 @@ const CustomerNav = ({ activeSection, dateKey, mobile = false }) => (
           className={
             mobile
               ? "flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400 " +
-                (active ? "text-orange-300" : "text-slate-400 hover:text-white")
+              (active ? "text-orange-300" : "text-slate-400 hover:text-white")
               : "group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 " +
-                (active
-                  ? "bg-orange-500 text-white shadow-[0_0_16px_-4px_rgba(249,115,22,0.5)]"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white")
+              (active
+                ? "bg-orange-500 text-white shadow-[0_0_16px_-4px_rgba(249,115,22,0.5)]"
+                : "text-slate-400 hover:bg-slate-800 hover:text-white")
           }
         >
           <span
@@ -69,9 +69,9 @@ const CustomerNav = ({ activeSection, dateKey, mobile = false }) => (
               mobile
                 ? ""
                 : "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg " +
-                  (active
-                    ? "bg-white/20"
-                    : "bg-slate-800 group-hover:bg-slate-700")
+                (active
+                  ? "bg-white/20"
+                  : "bg-slate-800 group-hover:bg-slate-700")
             }
           >
             <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />

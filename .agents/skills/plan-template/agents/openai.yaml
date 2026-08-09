@@ -1,0 +1,7 @@
+interface:
+  display_name: "Implementation Plan"
+  short_description: "Write durable executable project plans"
+  default_prompt: "Use $plan-template to write a self-contained implementation plan with verification gates."
+
+policy:
+  allow_implicit_invocation: true

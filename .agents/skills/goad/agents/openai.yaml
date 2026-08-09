@@ -1,0 +1,7 @@
+interface:
+  display_name: "Skill Drift Audit"
+  short_description: "Audit and draft safe skill updates"
+  default_prompt: "Use $goad to audit one project skill for drift and prepare an approval-gated draft."
+
+policy:
+  allow_implicit_invocation: false

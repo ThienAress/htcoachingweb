@@ -1,57 +1,15 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
-import Underline from "@tiptap/extension-underline";
-import TextAlign from "@tiptap/extension-text-align";
-import Placeholder from "@tiptap/extension-placeholder";
-import { TextStyle } from "@tiptap/extension-text-style";
-import { FontFamily } from "@tiptap/extension-font-family";
-import { Extension } from "@tiptap/core";
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading2, Heading3, List, ListOrdered,
   Quote, Minus, Image as ImageIcon, Link as LinkIcon,
   AlignLeft, AlignCenter, Undo2, Redo2, Unlink, FileText,
-  Maximize2, Minimize2, ImagePlus
+  Maximize2, Minimize2, ImagePlus, Table2, TableRowsSplit,
+  TableColumnsSplit, Rows3, Columns3, Trash2
 } from "lucide-react";
 
-const FontSize = Extension.create({
-  name: "fontSize",
-  addOptions() {
-    return {
-      types: ["textStyle"],
-    };
-  },
-  addGlobalAttributes() {
-    return [
-      {
-        types: this.options.types,
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: (element) => element.style.fontSize?.replace(/['"]+/g, ""),
-            renderHTML: (attributes) => {
-              if (!attributes.fontSize) return {};
-              return { style: `font-size: ${attributes.fontSize}` };
-            },
-          },
-        },
-      },
-    ];
-  },
-  addCommands() {
-    return {
-      setFontSize: (fontSize) => ({ chain }) => {
-        return chain().setMark("textStyle", { fontSize }).run();
-      },
-      unsetFontSize: () => ({ chain }) => {
-        return chain().setMark("textStyle", { fontSize: null }).run();
-      },
-    };
-  },
-});
+import { createTipTapExtensions } from "./tiptap/createTipTapExtensions";
 
 
 const MenuButton = ({ onClick, active, disabled, title, children }) => (
@@ -60,6 +18,8 @@ const MenuButton = ({ onClick, active, disabled, title, children }) => (
     onClick={onClick}
     disabled={disabled}
     title={title}
+    aria-label={title}
+    aria-pressed={typeof active === "boolean" ? active : undefined}
     className={`p-1.5 rounded-md transition-colors ${
       active
         ? "bg-primary text-white"
@@ -215,24 +175,7 @@ const parseMarkdownToHtml = (markdown) => {
 };
 
 const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
-  const extensions = useMemo(() => [
-    StarterKit.configure({
-      heading: { levels: [2, 3] },
-    }),
-    Underline,
-    TextStyle,
-    FontFamily,
-    FontSize,
-    Image.configure({ inline: false, allowBase64: true }),
-    Link.configure({
-      openOnClick: false,
-      HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
-    }),
-    TextAlign.configure({ types: ["heading", "paragraph"] }),
-    Placeholder.configure({
-      placeholder: "Bắt đầu viết nội dung bài viết...",
-    }),
-  ], []);
+  const extensions = useMemo(() => createTipTapExtensions(), []);
 
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [, setSelectionTick] = useState(0);
@@ -273,7 +216,8 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
           "prose-img:rounded-xl prose-img:shadow-md prose-img:mx-auto prose-img:!mb-3 [&_img+p]:!mt-2 " +
           "prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:rounded-r-xl " +
           "prose-blockquote:py-3 prose-blockquote:px-5 prose-blockquote:not-italic " +
-          "prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm",
+          "prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm " +
+          "[&_.tableWrapper]:my-5 [&_.tableWrapper]:max-w-full [&_.tableWrapper]:overflow-x-auto",
       },
       transformPastedHTML(html) {
         try {
@@ -561,6 +505,54 @@ const TipTapEditor = ({ content, coverImage, onChange, onImageUpload }) => {
         >
           <Minus className="w-4 h-4" />
         </MenuButton>
+
+        <MenuButton
+          onClick={() =>
+            editor
+              .chain()
+              .focus()
+              .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+              .run()
+          }
+          disabled={editor.isActive("table")}
+          title="Chèn bảng 3 × 3"
+        >
+          <Table2 className="w-4 h-4" />
+        </MenuButton>
+        {editor.isActive("table") && (
+          <>
+            <MenuButton
+              onClick={() => editor.chain().focus().addRowAfter().run()}
+              title="Thêm hàng bên dưới"
+            >
+              <TableRowsSplit className="w-4 h-4" />
+            </MenuButton>
+            <MenuButton
+              onClick={() => editor.chain().focus().deleteRow().run()}
+              title="Xóa hàng hiện tại"
+            >
+              <Rows3 className="w-4 h-4" />
+            </MenuButton>
+            <MenuButton
+              onClick={() => editor.chain().focus().addColumnAfter().run()}
+              title="Thêm cột bên phải"
+            >
+              <TableColumnsSplit className="w-4 h-4" />
+            </MenuButton>
+            <MenuButton
+              onClick={() => editor.chain().focus().deleteColumn().run()}
+              title="Xóa cột hiện tại"
+            >
+              <Columns3 className="w-4 h-4" />
+            </MenuButton>
+            <MenuButton
+              onClick={() => editor.chain().focus().deleteTable().run()}
+              title="Xóa bảng"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+            </MenuButton>
+          </>
+        )}
 
         <Divider />
 

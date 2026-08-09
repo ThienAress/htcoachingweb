@@ -15,12 +15,14 @@ import {
   responseForPrerenderRequest,
 } from "./prerender-content.js";
 import {
+  canonicalUrlForRoute,
   mapWithConcurrency,
   routesFromSitemap,
 } from "./prerender-routes.js";
 import { validatePrerenderSnapshot } from "./prerender-validation.js";
 import {
   getTrainerPlanCatalogMeta,
+  listTrainerPlanBenefits,
   listTrainerPlans,
 } from "../../server/src/services/trainerPlanCatalog.service.js";
 
@@ -30,12 +32,18 @@ const PORT = 5174;
 const DIST_DIR = path.resolve(__dirname, "../dist");
 const SITE_URL = "https://htcoachingweb.io.vn";
 const PRERENDER_CONCURRENCY = 4;
+const BLOCKED_PRERENDER_HOSTS = new Set([
+  "www.google-analytics.com",
+  "www.googletagmanager.com",
+]);
 
 const trainerPlanCatalog = listTrainerPlans();
+const trainerPlanBenefits = listTrainerPlanBenefits();
 const trainerPlanCatalogMeta = getTrainerPlanCatalogMeta();
 const trainerPlanCatalogResponse = JSON.stringify({
   success: true,
   data: trainerPlanCatalog,
+  benefits: trainerPlanBenefits,
   meta: trainerPlanCatalogMeta,
 });
 const expectedServiceOffers = trainerPlanCatalog.flatMap((plan) =>
@@ -50,6 +58,15 @@ const isTrainerPlanCatalogRequest = (requestUrl) => {
     return new URL(requestUrl).pathname.endsWith(
       "/trainer-subscriptions/catalog",
     );
+  } catch {
+    return false;
+  }
+};
+
+const shouldAbortPrerenderRequest = (request) => {
+  if (["image", "font", "media"].includes(request.resourceType())) return true;
+  try {
+    return BLOCKED_PRERENDER_HOSTS.has(new URL(request.url()).hostname);
   } catch {
     return false;
   }
@@ -72,7 +89,37 @@ const stopServer = (server) =>
 
 const renderRoute = async (browser, route, recipeCache) => {
   const page = await browser.newPage();
-  const expectedCanonical = new URL(route, SITE_URL).href;
+  const expectedCanonical = canonicalUrlForRoute(route, SITE_URL);
+  const diagnostics = [];
+  const recordDiagnostic = (message) => {
+    if (diagnostics.length < 12) diagnostics.push(message);
+  };
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      recordDiagnostic("console: " + message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    recordDiagnostic("pageerror: " + error.message);
+  });
+  page.on("requestfailed", (request) => {
+    let failedUrl = request.url();
+    try {
+      const parsedUrl = new URL(failedUrl);
+      failedUrl = parsedUrl.origin + parsedUrl.pathname;
+    } catch {
+      // Keep Puppeteer's original value when it is not a valid URL.
+    }
+    recordDiagnostic(
+      "requestfailed [" +
+        request.resourceType() +
+        "]: " +
+        failedUrl +
+        " (" +
+        (request.failure()?.errorText || "unknown") +
+        ")",
+    );
+  });
   try {
     await page.evaluateOnNewDocument(() => {
       sessionStorage.setItem("introDone", "true");
@@ -98,7 +145,7 @@ const renderRoute = async (browser, route, recipeCache) => {
           headers: { "Access-Control-Allow-Origin": "*" },
           body: trainerPlanCatalogResponse,
         });
-      } else if (["image", "font", "media"].includes(request.resourceType())) {
+      } else if (shouldAbortPrerenderRequest(request)) {
         void request.abort();
       } else {
         void request.continue();
@@ -169,6 +216,11 @@ const renderRoute = async (browser, route, recipeCache) => {
       console.warn(
         "Skipping " + route + ": " + validationErrors.join("; "),
       );
+      if (diagnostics.length > 0) {
+        console.warn(
+          "Diagnostics for " + route + ": " + diagnostics.join(" | "),
+        );
+      }
       return false;
     }
 

@@ -8,6 +8,8 @@ import {
   normalizeDynamicRouteApiUrl,
   resolveDynamicRoutePolicy,
 } from "./dynamic-routes.js";
+import { mergeMissingStaticRoutes } from "./sitemap-static.js";
+import { normalizePublicPath } from "../src/utils/publicSeoPath.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,6 +42,12 @@ const staticRoutes = [
     url: "/tdee-calculator",
     priority: 0.7,
     changefreq: "yearly",
+    lastmod: today,
+  },
+  {
+    url: "/quet-mon-an",
+    priority: 0.8,
+    changefreq: "monthly",
     lastmod: today,
   },
   {
@@ -86,15 +94,36 @@ const toRoutes = (items, prefix, priority) =>
       : [];
   });
 
+const routeToXml = (route) => `  <url>
+    <loc>${xmlEscape(SITE_URL + normalizePublicPath(route.url))}</loc>
+    <lastmod>${route.lastmod}</lastmod>
+    <changefreq>${route.changefreq}</changefreq>
+    <priority>${route.priority}</priority>
+  </url>`;
+
 const preserveExistingSitemap = (sitemapPath, failureCount) => {
   if (!fs.existsSync(sitemapPath)) return false;
   const existing = fs.readFileSync(sitemapPath, "utf8");
   const existingRouteCount = (existing.match(/<loc>/g) || []).length;
   if (existingRouteCount <= staticRoutes.length) return false;
+
+  const merged = mergeMissingStaticRoutes({
+    existing,
+    staticRoutes,
+    siteUrl: SITE_URL,
+    routeToXml,
+  });
+  if (!merged.content) return false;
+  if (merged.changed) {
+    fs.writeFileSync(sitemapPath, merged.content, "utf8");
+  }
+
   console.warn(
     "Preserving existing sitemap with " +
       existingRouteCount +
-      " routes because " +
+      " routes and adding " +
+      merged.missingCount +
+      " missing static route(s) because " +
       failureCount +
       " dynamic source(s) failed.",
   );
@@ -149,16 +178,7 @@ const generateSitemap = async () => {
   ];
   const sitemapContent = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${uniqueRoutes
-  .map(
-    (route) => `  <url>
-    <loc>${xmlEscape(SITE_URL + route.url)}</loc>
-    <lastmod>${route.lastmod}</lastmod>
-    <changefreq>${route.changefreq}</changefreq>
-    <priority>${route.priority}</priority>
-  </url>`,
-  )
-  .join("\n")}
+${uniqueRoutes.map(routeToXml).join("\n")}
 </urlset>
 `;
 

@@ -189,7 +189,7 @@ const StoryGridCard = ({ story }) => {
 
   return (
     <Link
-      to={`/ket-qua-khach-hang/${story.slug}`}
+      to={`/ket-qua-khach-hang/${story.slug}/`}
       className="group block overflow-hidden border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl"
     >
       <div className="flex min-h-[70px] items-center justify-between gap-4 bg-primary px-4 py-3 text-white">
@@ -256,7 +256,7 @@ const StoryGridCard = ({ story }) => {
             {trainerName && (
               <div className="mt-2">
                 <Link
-                  to={`/huan-luyen-vien/${story.trainerId?.slug}`}
+                  to={`/huan-luyen-vien/${story.trainerId?.slug}/`}
                   className="inline-flex items-center gap-1 rounded bg-slate-100 px-2.5 py-1 text-[11px] font-black uppercase text-slate-700 transition duration-200 hover:bg-primary/10 hover:text-primary"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -384,9 +384,9 @@ const CustomerStories = () => {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     "name": "Kết Quả Khách Hàng HTCOACHING",
-    "url": "https://htcoachingweb.io.vn/ket-qua-khach-hang",
+    "url": "https://htcoachingweb.io.vn/ket-qua-khach-hang/",
     "description": "Tổng hợp câu chuyện thay đổi vóc dáng thực tế của học viên tại HTCOACHING — giảm mỡ, tăng cơ với giáo án PT 1 kèm 1 cá nhân hóa.",
-    "provider": { "@type": "Organization", "name": "HTCOACHING", "url": "https://htcoachingweb.io.vn" }
+    "provider": { "@type": "Organization", "name": "HTCOACHING", "url": "https://htcoachingweb.io.vn/" }
   };
 
   return (
@@ -674,7 +674,7 @@ const CustomerStories = () => {
           </p>
           <div className="grid gap-4 sm:grid-cols-3 max-w-4xl mx-auto">
             <Link
-              to="/tdee-calculator"
+              to="/tdee-calculator/"
               className="group border border-slate-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Sparkles className="h-6 w-6 text-primary mb-3" />
@@ -686,7 +686,7 @@ const CustomerStories = () => {
               </p>
             </Link>
             <Link
-              to="/exercises"
+              to="/exercises/"
               className="group border border-slate-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Dumbbell className="h-6 w-6 text-primary mb-3" />
@@ -698,7 +698,7 @@ const CustomerStories = () => {
               </p>
             </Link>
             <Link
-              to="/huan-luyen-vien"
+              to="/huan-luyen-vien/hoang-thien/"
               className="group border border-slate-200 bg-white p-5 transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
             >
               <Trophy className="h-6 w-6 text-primary mb-3" />

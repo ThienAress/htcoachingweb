@@ -14,24 +14,14 @@ import {
   calculateTdee,
   calculateAdjustedCalories,
   calculateMacroSet,
+  createDefaultTdeeForm,
   getDefaultCalorieAdjustment,
+  normalizeStoredTdeeForm,
 } from "./tdee.helpers";
-
-const DEFAULT_FORM = {
-  gender: "",
-  height: "",
-  weight: "",
-  age: "",
-  activity: "",
-  formula: "",
-  bodyfat: "",
-  goal: "",
-  customCalorieAdjustment: "",
-};
 
 const loadStoredTdee = () => {
   const result = {
-    form: DEFAULT_FORM,
+    form: createDefaultTdeeForm(),
     tdee: null,
     bmr: null,
     adjustedCalories: null,
@@ -40,7 +30,7 @@ const loadStoredTdee = () => {
 
   try {
     const savedForm = localStorage.getItem("tdeeForm");
-    if (savedForm) result.form = { ...DEFAULT_FORM, ...JSON.parse(savedForm) };
+    if (savedForm) result.form = normalizeStoredTdeeForm(JSON.parse(savedForm));
   } catch {
     localStorage.removeItem("tdeeForm");
   }
@@ -147,17 +137,7 @@ const TdeeCalculator = () => {
   };
 
   const handleReset = () => {
-    setForm({
-      gender: "",
-      height: "",
-      weight: "",
-      age: "",
-      activity: "",
-      formula: "",
-      bodyfat: "",
-      goal: "",
-      customCalorieAdjustment: "",
-    });
+    setForm(createDefaultTdeeForm());
     setTdee(null);
     setBmr(null);
     setAdjustedCalories(null);
@@ -182,7 +162,7 @@ const TdeeCalculator = () => {
       {
         "@type": "WebApplication",
         "name": "Công cụ tính TDEE & Macro HTCOACHING",
-        "url": "https://htcoachingweb.io.vn/tdee-calculator",
+        "url": "https://htcoachingweb.io.vn/tdee-calculator/",
         "applicationCategory": "HealthApplication",
         "description": "Công cụ tính TDEE chuẩn khoa học, xác định lượng calo cần thiết để giảm mỡ hoặc tăng cơ, kèm theo phân bổ Macro chi tiết."
       },
@@ -396,7 +376,7 @@ const TdeeCalculator = () => {
         </p>
         <div className="grid gap-8 sm:grid-cols-3">
           <Link
-            to="/exercises"
+            to="/exercises/"
             className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
           >
             <Dumbbell className="h-6 w-6 text-primary mb-3" />
@@ -408,7 +388,7 @@ const TdeeCalculator = () => {
             </p>
           </Link>
           <Link
-            to="/mealplan"
+            to="/mealplan/"
             className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
           >
             <Calendar className="h-6 w-6 text-primary mb-3" />
@@ -420,7 +400,7 @@ const TdeeCalculator = () => {
             </p>
           </Link>
           <Link
-            to="/ket-qua-khach-hang"
+            to="/ket-qua-khach-hang/"
             className="group border border-gray-700 bg-gray-800/50 p-5 rounded-xl transition hover:-translate-y-1 hover:border-primary hover:shadow-lg"
           >
             <Flame className="h-6 w-6 text-primary mb-3" />

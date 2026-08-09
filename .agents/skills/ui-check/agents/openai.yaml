@@ -1,0 +1,7 @@
+interface:
+  display_name: "UI Check"
+  short_description: "Audit UI quality and accessibility"
+  default_prompt: "Use $ui-check to audit this UI for brand quality, responsiveness, and accessibility."
+
+policy:
+  allow_implicit_invocation: true

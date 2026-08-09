@@ -1,0 +1,7 @@
+interface:
+  display_name: "AI Check"
+  short_description: "Validate HT Assistant changes"
+  default_prompt: "Use $ai-check to validate HT Assistant prompts, tools, UI cards, and build impact."
+
+policy:
+  allow_implicit_invocation: true

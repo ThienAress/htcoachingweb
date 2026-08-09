@@ -140,6 +140,7 @@ export const toolRegistry = {
     },
     execute: searchKnowledge,
     requiresAuth: false,
+    guestEnabled: false,
     requiresConfirmation: false,
   },
 
@@ -304,13 +305,18 @@ export const toolRegistry = {
 };
 
 // Lấy danh sách tool schemas cho LLM API (OpenAI/Gemini format)
-export function getToolSchemas() {
-  return Object.values(toolRegistry).map((tool) => ({
-    type: "function",
-    function: {
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-    },
-  }));
+export function getToolSchemas({ isAuthenticated = true } = {}) {
+  return Object.values(toolRegistry)
+    .filter(
+      (tool) =>
+        isAuthenticated || (!tool.requiresAuth && tool.guestEnabled !== false),
+    )
+    .map((tool) => ({
+      type: "function",
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    }));
 }

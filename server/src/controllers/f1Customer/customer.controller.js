@@ -8,12 +8,28 @@ import {
   buildLifecycleSummary,
 } from "./shared.js";
 import { requestF1CustomerDeletion } from "../../services/f1PrivacyLifecycle.service.js";
+import {
+  assertConversionOriginAvailable,
+  normalizeConversionOriginPersistenceError,
+  resolveConversionOrigin,
+} from "../../services/conversionOrigin.service.js";
 
 export const createF1Customer = async (req, res, next) => {
   const session = await mongoose.startSession();
   try {
     let customer;
     await session.withTransaction(async () => {
+      const conversionOrigin = await resolveConversionOrigin({
+        originBookingId: req.body.originBookingId,
+        originContactMessageId: req.body.originContactMessageId,
+        isAdmin: req.isAdmin,
+        session,
+      });
+      await assertConversionOriginAvailable({
+        Model: F1Customer,
+        conversionOrigin,
+        session,
+      });
       const code = await generateF1Code(session);
       const created = await F1Customer.create([{
         code,
@@ -29,6 +45,7 @@ export const createF1Customer = async (req, res, next) => {
         source: req.body.source || "manual",
         createdBy: req.user.id,
         notesInternal: req.body.notesInternal || "",
+        ...conversionOrigin,
       }], { session });
       customer = created[0];
     });
@@ -39,7 +56,15 @@ export const createF1Customer = async (req, res, next) => {
       message: "Tạo khách hàng F1 thành công",
     });
   } catch (error) {
-    return next(error);
+    const normalizedError = normalizeConversionOriginPersistenceError(error);
+    if (normalizedError?.status && normalizedError?.code) {
+      return res.status(normalizedError.status).json({
+        success: false,
+        code: normalizedError.code,
+        message: normalizedError.message,
+      });
+    }
+    return next(normalizedError);
   } finally {
     await session.endSession();
   }

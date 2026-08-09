@@ -1,11 +1,11 @@
 ---
 name: debugging
-description: Debug có hệ thống. Dùng khi gặp bug, đặc biệt production bug, auth failure, CORS error, Cloudinary upload issue hoặc lỗi chưa rõ root cause.
+description: Debug có hệ thống theo Quick Triage hoặc Deep Investigation. Dùng khi gặp production bug, auth/CORS/upload failure, AI Chat issue, lỗi intermittent hoặc lỗi chưa rõ root cause; không áp workflow sâu cho typo, syntax error hay UI styling đơn giản.
 ---
 
 # Debugging — HTCoachingWeb
 
-> **"Không đoán mò. Reproduce trước, fix sau."** — Mỗi bug phải được reproduce được mới được fix.
+> **"Không đoán mò. Tạo feedback loop trước, fix sau."**
 
 ---
 
@@ -19,18 +19,20 @@ description: Debug có hệ thống. Dùng khi gặp bug, đặc biệt producti
 
 **KHÔNG dùng khi:**
 - Lỗi syntax/typo rõ ràng → fix trực tiếp
-- Build errors → xem Vite checklist bên dưới là đủ
-- UI styling issues → không cần debug workflow
+- Build error rõ nguyên nhân → xem Vite checklist bên dưới là đủ
+- UI styling đơn giản → không cần debug workflow
 
 ---
 
 ## 🛠️ MODES
 
 ### Mode 1: Quick Triage
-Khi bug có error message rõ → đọc message → LOCALIZE → FIX. Dùng checklists bên dưới.
+
+Khi error message và vị trí lỗi rõ: đọc message → chạy kiểm tra hẹp nhất sẵn có → LOCALIZE → FIX → chạy lại kiểm tra. Dùng checklist bên dưới; không lập bảng hypotheses hoặc post-mortem nếu bug đơn giản, rủi ro thấp.
 
 ### Mode 2: Deep Investigation
-Khi không biết lỗi ở đâu → dùng Binary Search Debugging hoặc 5 bước debug đầy đủ.
+
+Khi chưa biết lỗi ở đâu, bug intermittent/cross-layer/production-only, hoặc Quick Triage không giải thích được nguyên nhân: đọc và làm theo toàn bộ [Deep Investigation](references/deep-investigation.md). Không sửa code trước khi đã chạy một feedback command có khả năng RED.
 
 ---
 
@@ -42,84 +44,18 @@ Khi không biết lỗi ở đâu → dùng Binary Search Debugging hoặc 5 bư
 
 ---
 
-## 5 Bước Debug
+## Deep Investigation Contract
 
-```
-REPRODUCE → LOCALIZE → REDUCE → FIX → GUARD
-```
+Chỉ áp contract này cho Mode 2:
 
-### Bước 1: REPRODUCE
-Xác nhận bug tái hiện được một cách nhất quán:
-- Ghi lại **chính xác** các bước để trigger bug
-- Xác định: môi trường nào? (local/staging/production)
-- Xác định: luôn xảy ra hay intermittent?
-- Nếu chưa reproduce được → tiếp tục điều tra read-only bằng code, logs đã redact, tests và lịch sử thay đổi; ghi rõ confidence. Chỉ dừng hỏi trước khi một giả định chưa chứng minh sẽ làm thay đổi hành vi, dữ liệu, bảo mật hoặc phạm vi.
+1. Chạy một command có thể fail khi bug còn tồn tại và pass sau fix.
+2. Reproduce rồi reduce về fixture/flow nhỏ nhất.
+3. Lập 3–5 hypotheses có thứ hạng và có thể bác bỏ.
+4. Thử từng probe, mỗi lần chỉ đổi một biến và ghi prediction trước khi chạy.
+5. Fix tối thiểu, thêm regression test ở đúng public seam, chạy lại command RED → GREEN.
+6. Xóa instrumentation có tag và ghi post-mortem tương xứng mức độ sự cố.
 
-### Bước 2: LOCALIZE
-Thu hẹp vị trí lỗi:
-- Đọc error message và stack trace từ **trên xuống dưới**
-- Xác định layer bị lỗi: FE component → service → API → controller → DB?
-- Kiểm tra network tab (request/response format có đúng không?)
-- Kiểm tra console errors ở cả browser và server terminal
-
-### Bước 3: REDUCE
-Cô lập vấn đề nhỏ nhất có thể:
-- Loại bỏ từng yếu tố cho đến khi tìm được nguyên nhân tối thiểu
-- Đặt câu hỏi: "Nếu bỏ X đi thì bug có còn không?"
-- Không fix nhiều thứ một lúc — fix từng nguyên nhân một
-
-### Bước 4: FIX
-Implement fix tối thiểu:
-- Chỉ thay đổi code trực tiếp liên quan đến root cause
-- Không refactor hoặc "cải thiện" code bên cạnh khi đang fix bug
-- Verify fix giải quyết đúng bug đã reproduce ở Bước 1
-
-### Bước 5: GUARD
-Ngăn bug tái hiện:
-- Thêm comment nếu fix không self-evident
-- Nếu bug nghiêm trọng → ghi vào `.agents/skills/known-issues/SKILL.md`
-- Nếu project đã có test → thêm test case cover scenario này
-
----
-
-## Binary Search Debugging 🔍
-
-> Kỹ thuật từ [root-cause-tracing](https://github.com/obra/superpowers) — dùng khi **không biết lỗi ở đâu** trong 1 luồng dài.
-
-**Ý tưởng:** Thay vì kiểm tra từng bước từ đầu đến cuối, **chia đôi** luồng xử lý và kiểm tra giữa. Nếu giữa OK → lỗi ở nửa sau. Nếu giữa lỗi → lỗi ở nửa trước. Lặp lại.
-
-### Cách áp dụng
-
-```
-Luồng: A → B → C → D → E → F → G → H (8 bước)
-
-Bước 1: Kiểm tra tại D (giữa) → OK hay lỗi?
-  → Nếu D OK: lỗi ở E-H → kiểm tra F (giữa E-H)
-  → Nếu D lỗi: lỗi ở A-D → kiểm tra B (giữa A-D)
-Bước 2: Lặp lại cho đến khi tìm đúng điểm lỗi
-```
-
-### Ví dụ thực tế: API trả sai data
-
-```
-Luồng: Client gọi API → Route → Controller → Service → Mongoose query → Response
-
-1. Log tại Controller (giữa) → data có đúng tại đây không?
-   → Đúng → lỗi ở response format (Controller → Client)
-   → Sai → lỗi ở data layer (Service → Mongoose)
-   
-2. Nếu lỗi ở data layer: Log tại Service
-   → Query đúng nhưng data sai → lỗi ở Model/Schema
-   → Query sai → lỗi ở Service logic
-```
-
-### Khi nào dùng Binary Search?
-
-| Dùng | Không dùng |
-|------|------------|
-| Luồng dài (5+ bước) | Bug rõ ràng từ error message |
-| Không biết lỗi ở layer nào | Đã biết file/function lỗi |
-| Intermittent bugs | Simple typo/syntax errors |
+Chi tiết bắt buộc, mẫu evidence và Binary Search Debugging nằm trong [Deep Investigation](references/deep-investigation.md).
 
 ---
 
@@ -175,8 +111,8 @@ Checklist debug riêng cho hệ thống HT Assistant:
 ```
 Bug xảy ra
     │
-    ├── Có error message rõ ràng? 
-    │   → YES → Đọc message → LOCALIZE → FIX
+    ├── Có error message và vị trí lỗi rõ ràng?
+    │   → YES → Quick Triage → LOCALIZE → FIX → chạy lại kiểm tra
     │   → NO  ↓
     │
     ├── Biết lỗi ở layer nào?
@@ -184,8 +120,8 @@ Bug xảy ra
     │   → NO  ↓
     │
     ├── Luồng xử lý dài (5+ bước)?
-    │   → YES → Dùng Binary Search Debugging
-    │   → NO  → Dùng 5 Bước Debug (REPRODUCE → FIX)
+    │   → YES → Deep Investigation + Binary Search
+    │   → NO  → Deep Investigation (REPRODUCE → GUARD)
     │
     └── Đã thử 3 lần không fix được?
         → DỪNG → Báo cáo rõ ràng những gì đã thử

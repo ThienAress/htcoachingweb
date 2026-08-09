@@ -10,6 +10,7 @@ import {
 import { assertTrainerCatalogConfirmation } from "./trainerCatalogConfirmation.service.js";
 import {
   activateTrainerSubscription,
+  hasExistingOrderForTrainerFree,
   trainerSubscriptionError,
 } from "./trainerSubscriptionLifecycle.service.js";
 import { sendTrainerSubscriptionActivatedMail } from "../utils/sendMail.js";
@@ -93,6 +94,21 @@ export const purchaseTrainerSubscription = async ({ user, body, request }) => {
           409,
           "PURCHASE_RETRY_PENDING",
           "Yêu cầu thanh toán đang được xử lý",
+        );
+      }
+
+      if (
+        planCode === "free" &&
+        (await hasExistingOrderForTrainerFree({
+          userId: user._id,
+          email: user.email,
+          session,
+        }))
+      ) {
+        throw trainerSubscriptionError(
+          409,
+          "TRAINER_FREE_ORDER_EXISTS",
+          "Tài khoản đã có đơn huấn luyện và không đủ điều kiện dùng gói miễn phí",
         );
       }
 

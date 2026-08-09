@@ -211,7 +211,7 @@ const importPublicContent = async () => {
           measure: asString(ingredient?.measure, 100),
         })).filter((ingredient) => ingredient.name),
         instructions: asStringArray(detail.instructions, 100, 2000),
-        youtubeUrl: asString(detail.youtubeUrl, 2048),
+        youtubeUrl: "",
         sourceUrl: asString(detail.sourceUrl, 2048),
         source: ["mealdb", "ai", "manual"].includes(detail.source)
           ? detail.source

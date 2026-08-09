@@ -1,0 +1,7 @@
+interface:
+  display_name: "Schema Change"
+  short_description: "Change Mongoose schemas safely"
+  default_prompt: "Use $schema-change to change a Mongoose schema with compatibility and impact tracing."
+
+policy:
+  allow_implicit_invocation: true
