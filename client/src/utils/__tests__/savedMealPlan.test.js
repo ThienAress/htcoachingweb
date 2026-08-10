@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildSavedMealPlanPayload } from "../savedMealPlan";
+import {
+  buildSavedMealPlanPayload,
+  getSavedMealPlanErrorKey,
+} from "../savedMealPlan";
 
 const meals = [
   {
@@ -56,5 +59,23 @@ describe("buildSavedMealPlanPayload", () => {
         ],
       }),
     ).toThrowError(/canonical Food ID/i);
+  });
+});
+
+describe("getSavedMealPlanErrorKey", () => {
+  it("maps stable server codes without exposing the raw backend message", () => {
+    expect(
+      getSavedMealPlanErrorKey({
+        response: {
+          data: {
+            code: "SAVED_MEAL_PLAN_VERSION_CONFLICT",
+            message: "raw operational detail",
+          },
+        },
+      }),
+    ).toBe("saved.version_conflict");
+    expect(getSavedMealPlanErrorKey(new Error("raw"))).toBe(
+      "saved.command_error",
+    );
   });
 });

@@ -14,6 +14,22 @@ import {
   listTrainerPlanBenefits,
   listTrainerPlans,
 } from "./trainerPlanCatalog.service.js";
+import { getCommunityFeatureReportOptions } from "./communityFeatureReport.service.js";
+
+const serializeCommunityFeature = (feature) => ({
+  ...feature,
+  initialImprovement: feature.currentImprovement?.description || "",
+  deliveryUpdates: (feature.improvementHistory || []).map((record) => {
+    const latestMilestone = record.milestones?.at(-1);
+    return {
+      updateKey: record.improvementKey,
+      label: record.opportunity,
+      result: record.result,
+      status: latestMilestone?.status || null,
+      statusDate: latestMilestone?.statusDate || null,
+    };
+  }),
+});
 
 export const resolveServiceAccessTier = async (
   actor,
@@ -111,7 +127,8 @@ export const getAdminServiceAccessPolicyMatrix = () => {
     services: SERVICE_ACCESS_POLICY_REGISTRY,
     communityFeatures: {
       version: COMMUNITY_FEATURE_CATALOG_VERSION,
-      items: COMMUNITY_FEATURE_CATALOG,
+      items: COMMUNITY_FEATURE_CATALOG.map(serializeCommunityFeature),
+      reportOptions: getCommunityFeatureReportOptions(),
     },
     trainerPlans: {
       columns: trainerPlans.map((plan) => ({

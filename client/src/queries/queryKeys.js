@@ -49,6 +49,11 @@ export const adminQueryKeys = {
   },
   serviceAccessPolicies: {
     all: () => ["admin-service-access-policies"],
+    communityFeatureReport: (filters) => [
+      ...adminQueryKeys.serviceAccessPolicies.all(),
+      "community-feature-report",
+      filters,
+    ],
   },
   conversionOrigins: {
     all: () => ["admin-conversion-origins"],

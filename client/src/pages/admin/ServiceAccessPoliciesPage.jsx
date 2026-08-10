@@ -268,7 +268,7 @@ export default function ServiceAccessPoliciesPage() {
         {matrix?.communityFeatures?.items?.length > 0 && (
           <CollapsibleSection
             title="Tính năng cộng đồng & khách hàng"
-            description="Giá trị chính và cơ hội cải thiện ban đầu của các tính năng đang phục vụ người dùng."
+            description="Roadmap hiện tại, lịch sử kết quả và báo cáo cải tiến theo thời gian."
             open={communityFeaturesOpen}
             onToggle={() => setCommunityFeaturesOpen((current) => !current)}
             panelId="community-features-panel"

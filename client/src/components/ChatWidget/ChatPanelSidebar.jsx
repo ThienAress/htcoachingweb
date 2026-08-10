@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Settings, Trash2, MessageSquare, Clock, PanelLeftClose } from "lucide-react";
+import {
+  Clock,
+  LoaderCircle,
+  MessageSquare,
+  PanelLeftClose,
+  Plus,
+  Settings,
+  Trash2,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 const ROLE_LABEL = {
@@ -22,6 +30,7 @@ function formatRelativeTime(dateStr) {
 export default function ChatPanelSidebar({
   conversations,
   activeId,
+  pendingConversationIds = [],
   onNew,
   onSwitch,
   onDelete,
@@ -31,6 +40,7 @@ export default function ChatPanelSidebar({
   const navigate = useNavigate();
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const roleInfo = ROLE_LABEL[user?.role] ?? ROLE_LABEL.user;
+  const pendingIds = new Set(pendingConversationIds.map(String));
 
   return (
     <div className="flex flex-col h-full w-full md:w-[260px] md:min-w-[260px] shrink-0 border-r border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-[#0f1117] md:bg-transparent md:dark:bg-black/20">
@@ -70,33 +80,58 @@ export default function ChatPanelSidebar({
           </p>
         )}
         <div className="flex flex-col gap-1">
-          {conversations.map((conv) => (
-            <div
-              key={conv._id}
-              className={`group relative flex items-center rounded-xl cursor-pointer transition-colors px-3 py-2.5 ${
-                conv._id === activeId
-                  ? "bg-gray-200 dark:bg-white/10 text-gray-900 dark:text-white"
-                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6"
-              }`}
-              onClick={() => onSwitch(conv._id)}
-            >
-              <div className="flex-1 min-w-0 pr-6">
-                <p className="text-[13px] font-medium truncate leading-tight">
-                  {conv.title || "Cuộc trò chuyện"}
-                </p>
-                <p className="text-[11px] text-gray-500 dark:text-gray-500 truncate mt-1">
-                  {formatRelativeTime(conv.updatedAt)}
-                </p>
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(conv._id); }}
-                className="absolute right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all shrink-0"
-                title="Xóa cuộc trò chuyện"
+          {conversations.map((conv) => {
+            const title = conv.title || "Cuộc trò chuyện";
+            const isPending = pendingIds.has(String(conv._id));
+            return (
+              <div
+                key={conv._id}
+                className={`group relative flex items-center rounded-xl cursor-pointer transition-colors px-3 py-2.5 ${
+                  conv._id === activeId
+                    ? "bg-gray-200 dark:bg-white/10 text-gray-900 dark:text-white"
+                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6"
+                }`}
+                onClick={() => onSwitch(conv._id)}
               >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
+                <div className="flex-1 min-w-0 pr-12">
+                  <p className="text-[13px] font-medium truncate leading-tight">
+                    {title}
+                  </p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-500 truncate mt-1">
+                    {formatRelativeTime(conv.updatedAt)}
+                  </p>
+                </div>
+                <div className="absolute right-2 flex items-center gap-0.5">
+                  {isPending && (
+                    <span
+                      role="status"
+                      aria-label={`${title} đang nhận phản hồi`}
+                      title="Đang nhận phản hồi"
+                      className="inline-flex size-7 items-center justify-center text-emerald-600 dark:text-cyan-300"
+                    >
+                      <LoaderCircle
+                        size={15}
+                        className="animate-spin motion-reduce:animate-none"
+                        aria-hidden="true"
+                      />
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setDeleteConfirmId(conv._id);
+                    }}
+                    className="p-1.5 rounded-md text-gray-400 opacity-0 transition-[color,background-color,opacity] hover:bg-red-50 hover:text-red-500 group-hover:opacity-100 group-focus-within:opacity-100 dark:hover:bg-red-500/10"
+                    aria-label={`Xóa ${title}`}
+                    title="Xóa cuộc trò chuyện"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
           {conversations.length === 0 && (
             <p className="text-[12px] text-gray-500 px-3 py-3 text-center">Chưa có cuộc trò chuyện nào</p>
           )}

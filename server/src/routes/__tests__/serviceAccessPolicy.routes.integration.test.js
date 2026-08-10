@@ -102,21 +102,243 @@ describe("GET /api/admin/service-access-policies", () => {
 
     expect(response.body.data.communityFeatures).toEqual(
       expect.objectContaining({
-        version: "2026-08-09",
+        version: "2026-08-10.2",
+        reportOptions: {
+          statuses: [
+            { code: "in_progress", rank: 0, label: "Đang xử lý" },
+            { code: "implemented", rank: 1, label: "Đã code" },
+            { code: "verified", rank: 2, label: "Đã kiểm thử" },
+            {
+              code: "production_verified",
+              rank: 3,
+              label: "Đã xác minh production",
+            },
+          ],
+          dateRange: { from: "2026-08-10", to: "2026-08-10" },
+        },
         items: expect.arrayContaining([
           expect.objectContaining({
             featureKey: "ht_assistant",
             label: "HT Assistant",
             group: { key: "ai_support", label: "AI hỗ trợ" },
+            priority: {
+              code: "F0",
+              rank: 0,
+              label: "Cần ưu tiên ngay",
+            },
             primaryValue:
               "Trả lời và định hướng người dùng về tập luyện, dinh dưỡng, phục hồi và các dịch vụ HTCOACHING.",
             audiences: ["Cộng đồng", "Khách hàng", "HLV"],
+            currentImprovement: {
+              improvementKey: "production_background_chat_validation",
+              description:
+                "Xác minh production các luồng chạy nền, spinner và mở chat chủ động, rồi đo tỷ lệ request hoàn tất.",
+              openedAt: "2026-08-10",
+            },
+            improvementHistory: expect.arrayContaining([
+              expect.objectContaining({
+                improvementKey: "conversation_continuity",
+                opportunity: "Giữ phản hồi khi chuyển cuộc trò chuyện",
+                result:
+                  "Phản hồi tiếp tục chạy đúng conversation nguồn khi người dùng chuyển sang conversation khác.",
+              }),
+            ]),
             initialImprovement:
-              "Đo tỷ lệ câu hỏi ngoài phạm vi, mức hữu ích và cải thiện chuyển hướng theo phản hồi thực tế.",
+              "Xác minh production các luồng chạy nền, spinner và mở chat chủ động, rồi đo tỷ lệ request hoàn tất.",
+            deliveryUpdates: expect.arrayContaining([
+              expect.objectContaining({
+                updateKey: "conversation_continuity",
+                label: "Giữ phản hồi khi chuyển cuộc trò chuyện",
+                result:
+                  "Phản hồi tiếp tục chạy đúng conversation nguồn khi người dùng chuyển sang conversation khác.",
+                status: {
+                  code: "implemented",
+                  rank: 1,
+                  label: "Đã code",
+                },
+                statusDate: "2026-08-10",
+              }),
+            ]),
           }),
         ]),
       }),
     );
+  });
+
+  it("returns canonical delivery updates with date-only status history", async () => {
+    const { accessToken } = await createTestUser({
+      email: "feature-delivery-admin@example.com",
+      role: "admin",
+    });
+
+    const response = await withAuth(
+      request(app).get("/api/admin/service-access-policies"),
+      accessToken,
+    );
+
+    expect(
+      response.body.data.communityFeatures.items.flatMap((feature) =>
+        (feature.deliveryUpdates || []).map((update) => ({
+          featureKey: feature.featureKey,
+          status: update.status?.code,
+          statusDate: update.statusDate,
+        })),
+      ),
+    ).toEqual([
+      {
+        featureKey: "ht_assistant",
+        status: "implemented",
+        statusDate: "2026-08-10",
+      },
+      {
+        featureKey: "ht_assistant",
+        status: "implemented",
+        statusDate: "2026-08-10",
+      },
+      {
+        featureKey: "ht_assistant",
+        status: "implemented",
+        statusDate: "2026-08-10",
+      },
+      {
+        featureKey: "meal_plan",
+        status: "implemented",
+        statusDate: "2026-08-10",
+      },
+      {
+        featureKey: "meal_plan",
+        status: "implemented",
+        statusDate: "2026-08-10",
+      },
+    ]);
+  });
+
+  it("returns the approved F0 to F3 priority for every community feature", async () => {
+    const { accessToken } = await createTestUser({
+      email: "feature-priority-admin@example.com",
+      role: "admin",
+    });
+
+    const response = await withAuth(
+      request(app).get("/api/admin/service-access-policies"),
+      accessToken,
+    );
+
+    expect(
+      response.body.data.communityFeatures.items.map((feature) => [
+        feature.featureKey,
+        feature.priority?.code,
+      ]),
+    ).toEqual([
+      ["ht_assistant", "F0"],
+      ["tdee_calculator", "F1"],
+      ["meal_plan", "F0"],
+      ["meal_scan", "F1"],
+      ["recipes", "F2"],
+      ["exercise_library", "F1"],
+      ["workout_plans", "F1"],
+      ["today_dashboard", "F1"],
+      ["progress_tracking", "F1"],
+      ["gym_finder", "F3"],
+      ["blog_knowledge", "F2"],
+    ]);
+  });
+
+  it("returns the filtered community feature report to admin", async () => {
+    const { accessToken } = await createTestUser({
+      email: "feature-report-admin@example.com",
+      role: "admin",
+    });
+
+    const response = await withAuth(
+      request(app).get(
+        "/api/admin/service-access-policies/community-features/report?group=nutrition&status=implemented&from=2026-08-10&to=2026-08-10",
+      ),
+      accessToken,
+    );
+
+    expect({
+      status: response.status,
+      cacheControl: response.headers["cache-control"],
+      body: response.body,
+    }).toEqual({
+      status: 200,
+      cacheControl: "private, no-store",
+      body: expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({
+          summary: expect.objectContaining({ eventCount: 2 }),
+        }),
+      }),
+    });
+  });
+
+  it("rejects invalid community feature report filters", async () => {
+    const { accessToken } = await createTestUser({
+      email: "feature-report-invalid-admin@example.com",
+      role: "admin",
+    });
+
+    const response = await withAuth(
+      request(app).get(
+        "/api/admin/service-access-policies/community-features/report?group=unknown",
+      ),
+      accessToken,
+    );
+
+    expect({ status: response.status, body: response.body }).toEqual({
+      status: 400,
+      body: {
+        success: false,
+        code: "COMMUNITY_FEATURE_REPORT_GROUP_INVALID",
+        message: "Nhóm tính năng không hợp lệ",
+      },
+    });
+  });
+
+  it("downloads the same filtered report as a private PDF", async () => {
+    const { accessToken } = await createTestUser({
+      email: "feature-report-pdf-admin@example.com",
+      role: "admin",
+    });
+
+    const response = await withAuth(
+      request(app).get(
+        "/api/admin/service-access-policies/community-features/report.pdf?group=ai_support&from=2026-08-10&to=2026-08-10",
+      ),
+      accessToken,
+    );
+
+    expect({
+      status: response.status,
+      contentType: response.headers["content-type"],
+      disposition: response.headers["content-disposition"],
+      cacheControl: response.headers["cache-control"],
+      prefix: Buffer.from(response.body).subarray(0, 5).toString("ascii"),
+    }).toEqual({
+      status: 200,
+      contentType: "application/pdf",
+      disposition:
+        'attachment; filename="bao-cao-cai-tien-2026-08-10-den-2026-08-10.pdf"',
+      cacheControl: "private, no-store",
+      prefix: "%PDF-",
+    });
+  });
+
+  it("rejects PDF report downloads from non-admin users", async () => {
+    const { accessToken } = await createTestUser({
+      email: "feature-report-pdf-user@example.com",
+      role: "user",
+    });
+
+    const response = await withAuth(
+      request(app).get(
+        "/api/admin/service-access-policies/community-features/report.pdf",
+      ),
+      accessToken,
+    );
+
+    expect(response.status).toBe(403);
   });
 
   it("rejects non-admin users", async () => {

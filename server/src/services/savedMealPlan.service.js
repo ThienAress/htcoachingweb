@@ -5,7 +5,7 @@ import { incrementMetric } from "../observability/metrics.js";
 import {
   assertSavedMealPlanWritesEnabled,
   findOwnedSavedMealPlan,
-  resolveSavedMealPlanWriteAccess,
+  resolveSavedMealPlanTrainerMetadata,
   savedMealPlanError,
 } from "./savedMealPlanAccess.service.js";
 import { toSavedMealPlanDto } from "./savedMealPlanDto.service.js";
@@ -52,7 +52,7 @@ export const createSavedMealPlan = async ({ actor, input }) => {
         idempotentReplay = true;
         return;
       }
-      const assignment = await resolveSavedMealPlanWriteAccess({
+      const assignment = await resolveSavedMealPlanTrainerMetadata({
         ownerId: actor.id,
         session,
       });
@@ -126,7 +126,7 @@ export const reviseSavedMealPlan = async ({ actor, planId, input }) => {
         idempotentReplay = true;
         return;
       }
-      const assignment = await resolveSavedMealPlanWriteAccess({
+      const assignment = await resolveSavedMealPlanTrainerMetadata({
         ownerId: actor.id,
         session,
       });
@@ -211,7 +211,6 @@ export const archiveSavedMealPlan = async ({ actor, planId, input }) => {
     incrementMetric("saved_meal_plan.idempotency_hits");
     return { data: toSavedMealPlanDto(replay), idempotentReplay: true };
   }
-  await resolveSavedMealPlanWriteAccess({ ownerId: actor.id });
   const archived = await SavedMealPlan.findOneAndUpdate(
     {
       _id: planId,

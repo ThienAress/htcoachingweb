@@ -17,7 +17,7 @@ import {
 import {
   canonicalUrlForRoute,
   mapWithConcurrency,
-  routesFromSitemap,
+  routesFromPrerenderManifest,
 } from "./prerender-routes.js";
 import { validatePrerenderSnapshot } from "./prerender-validation.js";
 import {
@@ -255,9 +255,13 @@ const prerender = async () => {
       "https://api.htcoachingweb.io.vn/api",
     policy,
   );
-  let routesToPrerender = routesFromSitemap(
-    fs.readFileSync(path.join(DIST_DIR, "sitemap.xml"), "utf8"),
-    SITE_URL,
+  let routesToPrerender = routesFromPrerenderManifest(
+    JSON.parse(
+      fs.readFileSync(
+        path.resolve(__dirname, ".generated/prerender-routes.json"),
+        "utf8",
+      ),
+    ),
   );
   let recipes = [];
   if (!policy.skip) {

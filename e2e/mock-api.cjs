@@ -82,6 +82,7 @@ let todayJournal = {
   updatedAt: "2026-07-29T00:00:00.000Z",
 };
 let savedMealPlans = [];
+let aiSwitchStreamCompleted = false;
 const F1_CUSTOMER_ID = "100000000000000000000001";
 const F1_INTAKE_ID = "100000000000000000000002";
 const F1_ASSESSMENT_ID = "100000000000000000000003";
@@ -119,6 +120,7 @@ const sendJson = (res, body, status = 200) => {
 
 const handleApi = (req, res, path) => {
   const role = req.headers["x-e2e-role"];
+  const aiScenario = req.headers["x-e2e-ai-scenario"];
   const actor = ACTORS[role] || null;
   const isF1MediaUpload =
     path === "/api/f1-customers/" + F1_CUSTOMER_ID + "/media" &&
@@ -922,6 +924,125 @@ const handleApi = (req, res, path) => {
   if (path === "/api/me/wallet") {
     return sendJson(res, { success: true, data: { balance: 500000 } });
   }
+  if (aiScenario === "conversation-switch" && path === "/api/ai/history") {
+    return sendJson(res, {
+      success: true,
+      data: {
+        conversationId: "conversation-a",
+        messages: [
+          {
+            _id: "message-a-user-existing",
+            role: "user",
+            content: "Câu hỏi trước đó ở phiên A",
+          },
+        ],
+      },
+    });
+  }
+  if (
+    aiScenario === "conversation-switch" &&
+    path === "/api/ai/conversations"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: [
+        {
+          _id: "conversation-a",
+          title: "Phiên A",
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          _id: "conversation-b",
+          title: "Phiên B",
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    });
+  }
+  if (
+    aiScenario === "conversation-switch" &&
+    path === "/api/ai/conversations/conversation-a" &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: {
+        conversationId: "conversation-a",
+        title: "Phiên A",
+        messages: [
+          {
+            _id: "message-a-user",
+            role: "user",
+            content: "Tiếp tục trả lời ở phiên A",
+          },
+          ...(aiSwitchStreamCompleted
+            ? [
+                {
+                  _id: "message-a-assistant",
+                  role: "assistant",
+                  content: "Phản hồi A đã hoàn tất ở nền",
+                },
+              ]
+            : []),
+        ],
+        context: {},
+      },
+    });
+  }
+  if (
+    aiScenario === "conversation-switch" &&
+    path === "/api/ai/conversations/conversation-b" &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: {
+        conversationId: "conversation-b",
+        title: "Phiên B",
+        messages: [
+          {
+            _id: "message-b-assistant",
+            role: "assistant",
+            content: "Nội dung ổn định của phiên B",
+          },
+        ],
+        context: {},
+      },
+    });
+  }
+  if (
+    aiScenario === "conversation-switch" &&
+    path === "/api/ai/chat" &&
+    req.method === "POST"
+  ) {
+    aiSwitchStreamCompleted = false;
+    let disconnected = false;
+    res.on("close", () => {
+      if (!res.writableEnded) disconnected = true;
+    });
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    res.write(
+      [
+        'data: {"type":"conversation","conversationId":"conversation-a"}',
+        "",
+        'data: {"type":"text","content":"Phản hồi A đang chạy... "}',
+        "",
+      ].join("\n") + "\n",
+    );
+    setTimeout(() => {
+      if (disconnected) return;
+      aiSwitchStreamCompleted = true;
+      res.end(
+        [
+          'data: {"type":"text","content":"và đã hoàn tất ở nền"}',
+          "",
+          'data: {"type":"done","conversationId":"conversation-a"}',
+          "",
+        ].join("\n") + "\n",
+      );
+    }, 800);
+    return;
+  }
   if (path === "/api/ai/conversations" || path === "/api/ai/history") {
     return sendJson(res, { success: true, data: [] });
   }
@@ -984,7 +1105,7 @@ const server = http.createServer((req, res) => {
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "Content-Type, X-CSRF-Token, X-E2E-Role, X-E2E-Trainer-Access, X-Request-Id",
+      "Content-Type, X-CSRF-Token, X-E2E-Role, X-E2E-Trainer-Access, X-E2E-Ai-Scenario, X-Request-Id",
     );
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
     res.setHeader("Access-Control-Expose-Headers", "X-CSRF-Token");

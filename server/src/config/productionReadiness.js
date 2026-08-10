@@ -471,6 +471,17 @@ export const validateProductionEnvironment = (
   validateRequiredText(env, findings, "ADMIN_EMAIL", {
     minimum: 3,
   });
+  const defaultAdminTrainerId = String(
+    env.DEFAULT_ADMIN_TRAINER_ID || "",
+  ).trim();
+  if (defaultAdminTrainerId && !OBJECT_ID_PATTERN.test(defaultAdminTrainerId)) {
+    addFinding(
+      findings,
+      "errors",
+      "DEFAULT_ADMIN_TRAINER_ID_INVALID",
+      "DEFAULT_ADMIN_TRAINER_ID must be a valid explicit ObjectId when configured.",
+    );
+  }
 
   for (const name of [
     "BANK_NAME",
@@ -554,6 +565,7 @@ export const validateProductionEnvironment = (
       geminiMealScanDataUseMode,
       mealScanProvider,
       foodReferenceLookupEnabled,
+      defaultAdminTrainerMode: defaultAdminTrainerId ? "id" : "admin_email",
     },
   };
 };

@@ -1,37 +1,25 @@
 import { normalizePublicPath } from "../src/utils/publicSeoPath.js";
 
-const decodeXmlText = (value) =>
-  String(value)
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&apos;", "'");
-
 export const canonicalUrlForRoute = (route, siteUrl) =>
   new URL(normalizePublicPath(route), siteUrl).href;
 
-export const routesFromSitemap = (sitemapXml, siteUrl) => {
-  const siteOrigin = new URL(siteUrl).origin;
-  const locations = [
-    ...String(sitemapXml).matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi),
-  ];
-
-  if (locations.length === 0) {
-    throw new Error("Generated sitemap does not contain any URLs");
+export const routesFromPrerenderManifest = (manifest) => {
+  if (!Array.isArray(manifest) || manifest.length === 0) {
+    throw new Error("Prerender route manifest is empty");
   }
-
-  const routes = locations.map((match) => {
-    const url = new URL(decodeXmlText(match[1]));
-    if (url.origin !== siteOrigin) {
-      throw new Error("Sitemap URL is outside the site origin: " + url.href);
+  const routes = manifest.map((value) => {
+    const route = String(value || "").trim();
+    if (
+      !route.startsWith("/") ||
+      route.startsWith("//") ||
+      route.includes("?") ||
+      route.includes("#") ||
+      route.includes("\\")
+    ) {
+      throw new Error("Prerender route manifest contains an invalid path");
     }
-    if (url.search || url.hash) {
-      throw new Error("Sitemap URL must not contain a query or hash: " + url.href);
-    }
-    return url.pathname === "/" ? "/" : url.pathname.replace(/\/+$/, "");
+    return route === "/" ? "/" : route.replace(/\/+$/, "");
   });
-
   return [...new Set(routes)];
 };
 

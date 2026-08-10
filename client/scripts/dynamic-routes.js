@@ -33,8 +33,9 @@ const sourceDefinitions = [
   {
     key: "recipes",
     label: "recipes",
-    path: `/recipes?limit=${RECIPE_PAGE_SIZE}&page=1`,
-    pagePath: (page) => `/recipes?limit=${RECIPE_PAGE_SIZE}&page=${page}`,
+    path: `/recipes?limit=${RECIPE_PAGE_SIZE}&page=1&view=prerender`,
+    pagePath: (page) =>
+      `/recipes?limit=${RECIPE_PAGE_SIZE}&page=${page}&view=prerender`,
     extract: (response) => response?.data?.data,
     extractPagination: (response) => response?.data?.pagination,
   },

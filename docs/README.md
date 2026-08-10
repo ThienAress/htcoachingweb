@@ -33,6 +33,7 @@ nguồn canonical trước khi thay đổi code.
 - [Sitewide AI Assistant context and guest access spec](./specs/sitewide-ai-assistant.md)
 - [Service access policy spec](./specs/service-access-policy.md)
 - [Service access and quota matrix 2026-08-07](./reports/service-access-matrix-2026-08-07.md)
+- [SEO indexing remediation evidence 2026-08-10](./reports/seo-indexing-remediation-2026-08-10.md)
 - [Architecture Decision Records](./architecture/adr/README.md)
 - [Release checklist](./operations/release-checklist.md)
 - [Incident runbook](./operations/runbooks/incident-runbook.md)

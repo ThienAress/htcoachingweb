@@ -60,7 +60,7 @@ Rollback procedure: [production-rollback-runbook.md](./runbooks/production-rollb
       npm run migrate:phase6.
 - [x] Run strict npm run reconcile:wallets after Phase 6 migration and require
       totalIssues = 0.
-- [ ] Assign every approved order to a trainer, or set DEFAULT_ADMIN_TRAINER_ID
+- [ ] Approved orders without `trainerId` resolve to the canonical admin: prefer valid `DEFAULT_ADMIN_TRAINER_ID`, otherwise the first `ADMIN_EMAIL`; verify that account has role `admin`
       to a valid admin ObjectId for legacy unassigned orders.
 - [x] Back up training schedules and bookings, then set
       CONFIRM_PHASE7_SCHEDULE_MIGRATION=yes and run npm run migrate:phase7.

@@ -6,13 +6,6 @@ const DEFAULT_SUGGESTIONS = [
 ];
 
 const suggestion = (emoji, label, value) => ({ emoji, label, value });
-const proactive = (message, prompt, options = {}) => ({
-  message,
-  prompt,
-  activeThresholdMs: options.activeThresholdMs ?? 30_000,
-  scrollThreshold: options.scrollThreshold ?? 0.35,
-  detailOnly: Boolean(options.detailOnly),
-});
 
 const PAGE_DEFINITIONS = [
   {
@@ -29,11 +22,6 @@ const PAGE_DEFINITIONS = [
       suggestion("💡", "Ý chính", "Những ý chính trong bài viết này là gì?"),
       suggestion("🏋️", "Cách áp dụng", "Tôi nên áp dụng kiến thức trong bài viết này như thế nào?"),
     ],
-    proactive: proactive(
-      "Bài này khá dài — bạn muốn HT Assistant tóm tắt không?",
-      "Tóm tắt nội dung bài viết tôi đang đọc",
-      { detailOnly: true, activeThresholdMs: 30_000, scrollThreshold: 0.5 },
-    ),
   },
   {
     path: "/cong-thuc-nau-an",
@@ -44,11 +32,6 @@ const PAGE_DEFINITIONS = [
       suggestion("📋", "Các bước nấu", "Tóm tắt đầy đủ các bước nấu món này"),
       suggestion("🔄", "Thay nguyên liệu", "Gợi ý thay thế nguyên liệu lành mạnh hơn cho món này"),
     ],
-    proactive: proactive(
-      "Muốn mình rút gọn cách nấu và gợi ý phiên bản lành mạnh hơn?",
-      "Tóm tắt đầy đủ cách nấu và gợi ý điều chỉnh healthy cho món này",
-      { detailOnly: true, activeThresholdMs: 25_000 },
-    ),
   },
   {
     path: "/huan-luyen-vien",
@@ -57,11 +40,6 @@ const PAGE_DEFINITIONS = [
       suggestion("👨‍🏫", "Giới thiệu HLV", "Giới thiệu chuyên môn của HLV tôi đang xem"),
       suggestion("🎯", "Có phù hợp không?", "HLV này phù hợp với mục tiêu nào?"),
     ],
-    proactive: proactive(
-      "Bạn muốn mình giúp đánh giá HLV này có hợp mục tiêu của bạn không?",
-      "Đánh giá HLV tôi đang xem phù hợp với mục tiêu tập luyện nào",
-      { detailOnly: true, activeThresholdMs: 20_000, scrollThreshold: 0.25 },
-    ),
   },
   {
     path: "/ket-qua-khach-hang",
@@ -70,11 +48,6 @@ const PAGE_DEFINITIONS = [
       suggestion("📊", "Tóm tắt kết quả", "Tóm tắt kết quả của học viên tôi đang xem"),
       suggestion("💪", "Phương pháp", "Học viên này đã áp dụng phương pháp gì?"),
     ],
-    proactive: proactive(
-      "Muốn mình giải thích ngắn hành trình và phương pháp của học viên này?",
-      "Tóm tắt hành trình và phương pháp của học viên tôi đang xem",
-      { detailOnly: true, activeThresholdMs: 25_000, scrollThreshold: 0.4 },
-    ),
   },
   {
     path: "/tdee-calculator",
@@ -83,21 +56,11 @@ const PAGE_DEFINITIONS = [
       suggestion("🔥", "Tính TDEE", "Tính TDEE và macro cho tôi"),
       suggestion("❓", "Hiểu kết quả", "Giải thích cách đọc và áp dụng kết quả TDEE"),
     ],
-    proactive: proactive(
-      "Cần mình giải thích TDEE hoặc giúp chọn mục tiêu calo không?",
-      "Giải thích TDEE và giúp tôi chọn mục tiêu calo phù hợp",
-      { activeThresholdMs: 35_000, scrollThreshold: 0.2 },
-    ),
   },
   {
     path: "/mealplan",
     pageType: "meal_plan",
     list: [suggestion("🥗", "Cá nhân hóa", "Giúp tôi cá nhân hóa thực đơn theo mục tiêu")],
-    proactive: proactive(
-      "Bạn muốn mình giúp cá nhân hóa thực đơn theo mục tiêu không?",
-      "Giúp tôi cá nhân hóa thực đơn theo TDEE và mục tiêu",
-      { activeThresholdMs: 35_000 },
-    ),
   },
   {
     path: "/exercises",
@@ -106,19 +69,11 @@ const PAGE_DEFINITIONS = [
       suggestion("💪", "Tìm bài tập", "Gợi ý bài tập phù hợp nhóm cơ tôi muốn tập"),
       suggestion("🎯", "Lên buổi tập", "Giúp tôi chọn bài cho một buổi tập"),
     ],
-    proactive: proactive(
-      "Chưa biết chọn bài nào? Mình có thể gợi ý theo nhóm cơ.",
-      "Gợi ý bài tập theo nhóm cơ và trình độ của tôi",
-    ),
   },
   {
     path: "/club",
     pageType: "club",
     list: [suggestion("📍", "Chọn phòng tập", "Giúp tôi chọn phòng tập phù hợp vị trí và nhu cầu")],
-    proactive: proactive(
-      "Bạn muốn mình hỗ trợ chọn phòng tập phù hợp không?",
-      "Giúp tôi chọn phòng tập phù hợp vị trí và nhu cầu",
-    ),
   },
   {
     path: "/quet-mon-an",
@@ -129,11 +84,6 @@ const PAGE_DEFINITIONS = [
     path: "/book-training",
     pageType: "booking",
     list: [suggestion("📅", "Chọn lịch tập", "Hướng dẫn tôi chọn lịch và đăng ký tập")],
-    proactive: proactive(
-      "Cần mình hỗ trợ chọn lịch hoặc hình thức tập phù hợp?",
-      "Hướng dẫn tôi chọn lịch và hình thức tập phù hợp",
-      { activeThresholdMs: 25_000, scrollThreshold: 0.2 },
-    ),
   },
   { path: "/workout-plans", pageType: "workout_plan", list: [suggestion("📋", "Hiểu giáo án", "Giải thích giáo án tập của tôi")] },
   { path: "/training-schedule", pageType: "training_schedule", list: [suggestion("📅", "Xem lịch tập", "Cho tôi biết lịch tập sắp tới")] },
@@ -162,14 +112,10 @@ export const getAiPageContext = (pathname) => {
       .filter((item) => item.path !== "/" && path.startsWith(`${item.path}/`))
       .sort((left, right) => right.path.length - left.path.length)[0];
   if (!definition) {
-    return { pageType: "general", isDetail: false, proactive: null };
+    return { pageType: "general", isDetail: false };
   }
   const isDetail = path !== definition.path;
-  const proactiveConfig =
-    definition.proactive?.detailOnly && !isDetail
-      ? null
-      : definition.proactive || null;
-  return { ...definition, isDetail, proactive: proactiveConfig };
+  return { ...definition, isDetail };
 };
 
 export const getAiPageSuggestions = (pathname) => {

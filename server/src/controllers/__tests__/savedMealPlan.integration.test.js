@@ -238,7 +238,7 @@ describe("Saved Meal Plan command contract", () => {
     expect(list.body.data.items[0].version).toBe(2);
   });
 
-  it("blocks IDOR, missing CSRF, disabled writes and inactive coaching", async () => {
+  it("blocks IDOR, missing CSRF and disabled writes without requiring active coaching", async () => {
     const { client } = await createActiveClient("owner");
     const outsider = await createActiveClient("outsider");
     const foods = await createFoods();
@@ -252,6 +252,9 @@ describe("Saved Meal Plan command contract", () => {
     const noCsrf = await request(app)
       .post("/api/saved-meal-plans")
       .set("Cookie", ["accessToken=" + client.accessToken])
+      .send(payloadFor(foods, { requestId: IDS.reused }));
+    const guest = await request(app)
+      .post("/api/saved-meal-plans")
       .send(payloadFor(foods, { requestId: IDS.reused }));
     process.env.TODAY_MEAL_PLAN_WRITES_ENABLED = "false";
     const disabled = await postPlan(
@@ -270,8 +273,44 @@ describe("Saved Meal Plan command contract", () => {
 
     expect(idor.status).toBe(404);
     expect(noCsrf.status).toBe(403);
+    expect(guest.status).toBe(401);
     expect(disabled.status).toBe(503);
-    expect(inactive.status).toBe(403);
+    expect(inactive.status).toBe(201);
+    expect(inactive.body.data.trainerIdAtCreation).toBeNull();
+  });
+
+  it("allows an authenticated owner without an Order to create, revise and archive", async () => {
+    const owner = await createTestUser({
+      email: "meal-plan-owner-without-order@example.com",
+    });
+    const foods = await createFoods();
+    const created = await postPlan(owner.accessToken, payloadFor(foods));
+
+    const revised = await withAuth(
+      request(app)
+        .post("/api/saved-meal-plans/" + created.body.data._id + "/revisions")
+        .send(
+          payloadFor(foods, {
+            requestId: IDS.revise,
+            expectedVersion: 1,
+            title: "Thực đơn cá nhân đã cập nhật",
+          }),
+        ),
+      owner.accessToken,
+    );
+    const archived = await withAuth(
+      request(app)
+        .post(
+          "/api/saved-meal-plans/" + revised.body.data._id + "/archive",
+        )
+        .send({ expectedVersion: 2, requestId: IDS.archive }),
+      owner.accessToken,
+    );
+
+    expect(created.status).toBe(201);
+    expect(created.body.data.trainerIdAtCreation).toBeNull();
+    expect(revised.status).toBe(200);
+    expect(archived.body.data.status).toBe("archived");
   });
 
   it("archives only the latest owned version", async () => {

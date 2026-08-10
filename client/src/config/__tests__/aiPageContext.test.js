@@ -25,7 +25,7 @@ describe("AI page context presentation registry", () => {
   it("falls back safely for an unknown route", () => {
     expect(getAiPageContext("/unknown")).toMatchObject({
       pageType: "general",
-      proactive: null,
+      isDetail: false,
     });
   });
 });

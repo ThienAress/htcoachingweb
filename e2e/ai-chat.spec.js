@@ -37,4 +37,47 @@ test.describe("AI chat", () => {
     expect((await historyResponse).status()).toBe(200);
     await expect(page.getByText("Phản hồi AI deterministic")).toBeVisible();
   });
+
+  test("keeps conversation A streaming while the user views conversation B", async ({
+    page,
+  }) => {
+    await page.route("**/api/**", (route) =>
+      route.continue({
+        headers: {
+          ...route.request().headers(),
+          "x-e2e-role": "user",
+          "x-e2e-ai-scenario": "conversation-switch",
+        },
+      }),
+    );
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Mở HT Assistant" }).click();
+    await expect(page.getByText("Phiên A", { exact: true })).toBeVisible();
+
+    const input = page
+      .getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...")
+      .first();
+    await input.fill("Tiếp tục trả lời ở phiên A");
+    await input.press("Enter");
+    await expect(page.getByText(/Phản hồi A đang chạy/)).toBeVisible();
+    await expect(
+      page.getByLabel("Phiên A đang nhận phản hồi"),
+    ).toBeVisible();
+
+    await page.getByText("Phiên B", { exact: true }).click();
+    await expect(page.getByText("Nội dung ổn định của phiên B")).toBeVisible();
+    await expect(
+      page.getByLabel("Phiên A đang nhận phản hồi"),
+    ).toBeVisible();
+    await expect(
+      page.getByLabel("Phiên B đang nhận phản hồi"),
+    ).toHaveCount(0);
+    await expect(
+      page.getByLabel("Phiên A đang nhận phản hồi"),
+    ).toHaveCount(0);
+
+    await page.getByText("Phiên A", { exact: true }).click();
+    await expect(page.getByText("Phản hồi A đã hoàn tất ở nền")).toBeVisible();
+  });
 });

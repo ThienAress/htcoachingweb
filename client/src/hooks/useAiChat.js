@@ -7,6 +7,7 @@ import {
   getAiHistory,
   openAiChatStream,
 } from "../services/ai.service";
+import { createAiChatSessionRegistry } from "./aiChatSessionRegistry.js";
 
 const STREAM_FLUSH_MS = 80;
 
@@ -41,166 +42,196 @@ export function mapAiMessages(rawMessages = []) {
 }
 
 export default function useAiChat({ persistenceEnabled = true } = {}) {
-  const [messages, setMessages] = useState([]);
-  const [conversationId, setConversationId] = useState(null);
+  const registryRef = useRef(null);
+  if (!registryRef.current) {
+    registryRef.current = createAiChatSessionRegistry();
+  }
+
+  const [, setViewRevision] = useState(0);
   const [conversations, setConversations] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTool, setActiveTool] = useState(null);
-  const [error, setError] = useState(null);
   const [quota, setQuota] = useState(null);
-
   const mountedRef = useRef(true);
-  const messagesRef = useRef([]);
-  const conversationIdRef = useRef(null);
-  const activeSessionRef = useRef(null);
   const navigationSequenceRef = useRef(0);
-  const sendingRef = useRef(false);
-  const flushTimerRef = useRef(null);
-  const reconcileTimerRef = useRef(null);
-  const pendingTextRef = useRef("");
-  const displayedTextRef = useRef("");
+  const conversationsLoadSequenceRef = useRef(0);
+  const requestSequenceRef = useRef(0);
+  const quotaSequenceRef = useRef(0);
+  const messagesRef = useRef([]);
+  const reconcileTimersRef = useRef(new Map());
 
-  const setCurrentConversationId = useCallback((value) => {
-    conversationIdRef.current = value;
-    if (mountedRef.current) setConversationId(value);
+  const refreshViews = useCallback(() => {
+    if (mountedRef.current) setViewRevision((revision) => revision + 1);
   }, []);
 
-  const setCurrentMessages = useCallback((valueOrUpdater) => {
-    if (!mountedRef.current) return;
-    setMessages((previous) => {
-      const next =
-        typeof valueOrUpdater === "function"
-          ? valueOrUpdater(previous)
-          : valueOrUpdater;
-      messagesRef.current = next;
+  const updateView = useCallback(
+    (key, updater) => {
+      const next = registryRef.current.updateView(key, updater);
+      refreshViews();
       return next;
-    });
-  }, []);
+    },
+    [refreshViews],
+  );
 
-  const clearFlushTimer = useCallback(() => {
-    if (flushTimerRef.current) {
-      clearInterval(flushTimerRef.current);
-      flushTimerRef.current = null;
+  const selectedView = registryRef.current.getSelectedView();
+  const pendingConversationIds =
+    registryRef.current.listPendingConversationIds();
+  messagesRef.current = selectedView.messages;
+
+  const clearSessionTimer = useCallback((session) => {
+    if (session?.flushTimer) {
+      clearInterval(session.flushTimer);
+      session.flushTimer = null;
     }
   }, []);
 
   const flushPendingText = useCallback(
     (sessionId) => {
-      const session = activeSessionRef.current;
-      if (!session || session.id !== sessionId || !pendingTextRef.current) return;
-      displayedTextRef.current += pendingTextRef.current;
-      pendingTextRef.current = "";
-      const content = displayedTextRef.current;
-      setCurrentMessages((previous) =>
-        previous.map((message) =>
+      const session = registryRef.current.getSession(sessionId);
+      if (!session?.pendingText) return;
+      session.displayedText += session.pendingText;
+      session.pendingText = "";
+      const content = session.displayedText;
+      updateView(session.viewKey, (view) => ({
+        messages: view.messages.map((message) =>
           message.localId === session.assistantLocalId
             ? { ...message, content }
             : message,
         ),
-      );
+      }));
     },
-    [setCurrentMessages],
+    [updateView],
   );
 
-  const startFlushTimer = useCallback(
-    (sessionId) => {
-      clearFlushTimer();
-      flushTimerRef.current = setInterval(
-        () => flushPendingText(sessionId),
-        STREAM_FLUSH_MS,
-      );
+  const scheduleReconcile = useCallback(
+    (conversationId) => {
+      if (!persistenceEnabled || !conversationId) return;
+      const timers = reconcileTimersRef.current;
+      clearTimeout(timers.get(conversationId));
+      const timer = setTimeout(async () => {
+        timers.delete(conversationId);
+        if (
+          !mountedRef.current ||
+          registryRef.current.getSessionForView(conversationId)
+        ) {
+          return;
+        }
+        try {
+          const response = await getAiConversationById(conversationId);
+          if (
+            mountedRef.current &&
+            !registryRef.current.getSessionForView(conversationId) &&
+            response.data
+          ) {
+            updateView(conversationId, {
+              messages: mapAiMessages(response.data.messages),
+              loaded: true,
+            });
+          }
+        } catch {
+          // The user can reload the conversation from the sidebar.
+        }
+      }, 180);
+      timers.set(conversationId, timer);
     },
-    [clearFlushTimer, flushPendingText],
+    [persistenceEnabled, updateView],
+  );
+
+  const stopSession = useCallback(
+    (session, { flush = true, reconcile = true } = {}) => {
+      if (!session) return;
+      if (flush) flushPendingText(session.id);
+      session.controller.abort();
+      registryRef.current.removeSession(session.id);
+      clearSessionTimer(session);
+      updateView(session.viewKey, {
+        isLoading: false,
+        activeTool: null,
+      });
+      if (flush && reconcile) {
+        scheduleReconcile(
+          session.targetConversationId ||
+            registryRef.current.getView(session.viewKey)?.conversationId,
+        );
+      }
+    },
+    [clearSessionTimer, flushPendingText, scheduleReconcile, updateView],
   );
 
   const cancelRequest = useCallback(
     (flush = true) => {
-      const session = activeSessionRef.current;
-      if (session && flush) flushPendingText(session.id);
-      session?.controller.abort();
-      activeSessionRef.current = null;
-      clearFlushTimer();
-      pendingTextRef.current = "";
-      displayedTextRef.current = "";
-      sendingRef.current = false;
-      if (mountedRef.current) {
-        setIsLoading(false);
-        setActiveTool(null);
-      }
-      if (persistenceEnabled && flush && session) {
-        const expectedConversationId =
-          conversationIdRef.current || session.targetConversationId;
-        const expectedNavigation = navigationSequenceRef.current;
-        clearTimeout(reconcileTimerRef.current);
-        reconcileTimerRef.current = setTimeout(async () => {
-          if (
-            !expectedConversationId ||
-            !mountedRef.current ||
-            activeSessionRef.current ||
-            navigationSequenceRef.current !== expectedNavigation ||
-            conversationIdRef.current !== expectedConversationId
-          ) {
-            return;
-          }
-          try {
-            const response = await getAiConversationById(expectedConversationId);
-            if (
-              mountedRef.current &&
-              !activeSessionRef.current &&
-              navigationSequenceRef.current === expectedNavigation
-            ) {
-              setCurrentMessages(mapAiMessages(response.data?.messages));
-            }
-          } catch {
-            // The user can still reload this conversation from the sidebar.
-          }
-        }, 180);
-      }
+      const selectedKey = registryRef.current.getSelectedKey();
+      stopSession(registryRef.current.getSessionForView(selectedKey), {
+        flush,
+        reconcile: flush,
+      });
     },
-    [
-      clearFlushTimer,
-      flushPendingText,
-      persistenceEnabled,
-      setCurrentMessages,
-    ],
+    [stopSession],
   );
 
   useEffect(() => {
     mountedRef.current = true;
+    const timers = reconcileTimersRef.current;
+    const registry = registryRef.current;
     return () => {
       mountedRef.current = false;
-      activeSessionRef.current?.controller.abort();
-      activeSessionRef.current = null;
-      sendingRef.current = false;
-      if (flushTimerRef.current) clearInterval(flushTimerRef.current);
-      if (reconcileTimerRef.current) clearTimeout(reconcileTimerRef.current);
+      registry.listSessions().forEach((session) => {
+        session.controller.abort();
+        clearSessionTimer(session);
+        registry.removeSession(session.id);
+      });
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
     };
-  }, []);
+  }, [clearSessionTimer]);
 
   useEffect(() => {
     setQuota(null);
+    quotaSequenceRef.current = 0;
   }, [persistenceEnabled]);
+
+  const applySessionQuota = useCallback((session, nextQuota) => {
+    if (!nextQuota || session.requestSequence < quotaSequenceRef.current) {
+      return;
+    }
+    quotaSequenceRef.current = session.requestSequence;
+    if (mountedRef.current) setQuota(nextQuota);
+  }, []);
 
   const loadHistory = useCallback(async () => {
     if (!persistenceEnabled) return;
     const sequence = ++navigationSequenceRef.current;
     try {
       const response = await getAiHistory();
-      if (!mountedRef.current || sequence !== navigationSequenceRef.current) return;
-      if (response.data) {
-        setCurrentConversationId(response.data.conversationId);
-        setCurrentMessages(mapAiMessages(response.data.messages));
+      const data = response.data;
+      if (
+        !mountedRef.current ||
+        sequence !== navigationSequenceRef.current ||
+        !data?.conversationId
+      ) {
+        return;
       }
+      const key = registryRef.current.selectConversation(data.conversationId);
+      registryRef.current.updateView(key, {
+        messages: mapAiMessages(data.messages),
+        loaded: true,
+        error: null,
+      });
+      refreshViews();
     } catch {
       // Empty history is a valid state.
     }
-  }, [persistenceEnabled, setCurrentConversationId, setCurrentMessages]);
+  }, [persistenceEnabled, refreshViews]);
 
   const loadConversations = useCallback(async () => {
     if (!persistenceEnabled) return;
+    const sequence = ++conversationsLoadSequenceRef.current;
     try {
       const response = await getAiConversations();
-      if (mountedRef.current) setConversations(response.data || []);
+      if (
+        mountedRef.current &&
+        sequence === conversationsLoadSequenceRef.current
+      ) {
+        setConversations(response.data || []);
+      }
     } catch {
       // The sidebar is non-critical.
     }
@@ -208,111 +239,135 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
 
   const switchConversation = useCallback(
     async (id) => {
-      if (id === conversationIdRef.current) return;
-      cancelRequest(false);
-      clearTimeout(reconcileTimerRef.current);
-      const sequence = ++navigationSequenceRef.current;
+      if (id === registryRef.current.getSelectedView().conversationId) return;
+      navigationSequenceRef.current += 1;
+      const key = registryRef.current.selectConversation(id);
+      refreshViews();
+      const localView = registryRef.current.getView(key);
+      if (localView.loaded || registryRef.current.getSessionForView(key)) return;
+
       try {
         const response = await getAiConversationById(id);
-        if (!mountedRef.current || sequence !== navigationSequenceRef.current) return;
-        if (response.data) {
-          setCurrentConversationId(response.data.conversationId);
-          setCurrentMessages(mapAiMessages(response.data.messages));
-          setError(null);
+        if (!mountedRef.current || !response.data) return;
+        if (!registryRef.current.getSessionForView(key)) {
+          updateView(key, {
+            messages: mapAiMessages(response.data.messages),
+            loaded: true,
+            error: null,
+          });
         }
       } catch {
-        if (mountedRef.current) setError("Không thể tải cuộc trò chuyện");
+        if (
+          mountedRef.current &&
+          !registryRef.current.getSessionForView(key)
+        ) {
+          updateView(key, { error: "Không thể tải cuộc trò chuyện" });
+        }
       }
     },
-    [cancelRequest, setCurrentConversationId, setCurrentMessages],
+    [refreshViews, updateView],
   );
 
   const removeConversation = useCallback(
     async (id) => {
-      if (id === conversationIdRef.current) cancelRequest(false);
+      const session = registryRef.current.getSessionForView(id);
+      if (session) stopSession(session, { flush: false, reconcile: false });
       try {
         await deleteAiConversation(id);
         if (!mountedRef.current) return;
         setConversations((previous) =>
           previous.filter((conversation) => conversation._id !== id),
         );
-        if (id === conversationIdRef.current) {
-          setCurrentConversationId(null);
-          setCurrentMessages([]);
-          setError(null);
-        }
+        registryRef.current.deleteView(id);
+        navigationSequenceRef.current += 1;
+        refreshViews();
       } catch (requestError) {
-        if (mountedRef.current) {
-          setError(
+        const key = registryRef.current.getSelectedKey();
+        updateView(key, {
+          error:
             requestError.response?.data?.message ||
-              "Không thể xóa cuộc trò chuyện",
-          );
-        }
+            "Không thể xóa cuộc trò chuyện",
+        });
       }
     },
-    [cancelRequest, setCurrentConversationId, setCurrentMessages],
+    [refreshViews, stopSession, updateView],
   );
 
   const clearHistory = useCallback(() => {
-    cancelRequest(false);
     navigationSequenceRef.current += 1;
-    setCurrentConversationId(null);
-    setCurrentMessages([]);
-    setError(null);
-  }, [cancelRequest, setCurrentConversationId, setCurrentMessages]);
+    registryRef.current.selectNewConversation();
+    refreshViews();
+  }, [refreshViews]);
 
   const sendMessage = useCallback(
     async (text, context = {}, options = {}) => {
       const normalizedText =
         String(text || "").trim() ||
         (context.image ? "Hãy phân tích hình ảnh này." : "");
-      if (!normalizedText || sendingRef.current) return;
+      if (!normalizedText) return;
 
-      cancelRequest(false);
+      const registry = registryRef.current;
+      const viewKey = registry.getSelectedKey();
+      if (registry.getSessionForView(viewKey)) return;
+
       navigationSequenceRef.current += 1;
-      sendingRef.current = true;
       const sessionId = crypto.randomUUID();
       const requestId = crypto.randomUUID();
       const assistantLocalId = `assistant-${sessionId}`;
+      const selectedConversationId = registry.getSelectedView().conversationId;
       const targetConversationId =
         options.targetConversationId === undefined
-          ? conversationIdRef.current
+          ? selectedConversationId
           : options.targetConversationId;
       const controller = new AbortController();
-      activeSessionRef.current = {
+      const session = registry.registerSession({
         id: sessionId,
         controller,
         assistantLocalId,
         targetConversationId,
-      };
-      pendingTextRef.current = "";
-      displayedTextRef.current = "";
+        viewKey,
+        pendingText: "",
+        displayedText: "",
+        flushTimer: null,
+        requestSequence: ++requestSequenceRef.current,
+      });
 
       const timestamp = new Date().toISOString();
-      setCurrentMessages((previous) => [
-        ...previous,
-        {
-          localId: `user-${sessionId}`,
-          role: "user",
-          content: normalizedText,
-          image: context.image || null,
-          timestamp,
-        },
-        {
-          localId: assistantLocalId,
-          role: "assistant",
-          content: "",
-          uiCards: [],
-          timestamp,
-        },
-      ]);
-      setIsLoading(true);
-      setError(null);
-      setActiveTool(null);
-      startFlushTimer(sessionId);
+      updateView(viewKey, (view) => ({
+        messages: [
+          ...view.messages,
+          {
+            localId: `user-${sessionId}`,
+            role: "user",
+            content: normalizedText,
+            image: context.image || null,
+            timestamp,
+          },
+          {
+            localId: assistantLocalId,
+            role: "assistant",
+            content: "",
+            uiCards: [],
+            timestamp,
+          },
+        ],
+        isLoading: true,
+        activeTool: null,
+        error: null,
+        loaded: true,
+      }));
+      session.flushTimer = setInterval(
+        () => flushPendingText(sessionId),
+        STREAM_FLUSH_MS,
+      );
 
       const isActive = () =>
-        mountedRef.current && activeSessionRef.current?.id === sessionId;
+        mountedRef.current && Boolean(registry.getSession(sessionId));
+      const assignConversation = (conversationId) => {
+        if (!conversationId || !isActive()) return;
+        registry.rekeySession(sessionId, conversationId);
+        refreshViews();
+      };
 
       try {
         const response = await openAiChatStream(
@@ -326,7 +381,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         );
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
-          if (data.meta?.quota && mountedRef.current) setQuota(data.meta.quota);
+          applySessionQuota(session, data.meta?.quota);
           throw new Error(data.message || `HTTP ${response.status}`);
         }
 
@@ -349,28 +404,31 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
               continue;
             }
 
+            const activeSession = registry.getSession(sessionId);
+            if (!activeSession) break;
             if (event.type === "quota") {
-              if (event.quota && isActive()) setQuota(event.quota);
+              applySessionQuota(activeSession, event.quota);
             } else if (event.type === "text") {
-              pendingTextRef.current += String(event.content || "");
+              activeSession.pendingText += String(event.content || "");
             } else if (event.type === "conversation") {
-              if (event.conversationId) setCurrentConversationId(event.conversationId);
+              assignConversation(event.conversationId);
+              void loadConversations();
             } else if (event.type === "tool_start") {
-              pendingTextRef.current = "";
-              displayedTextRef.current = "";
-              setActiveTool(event.tool);
-              setCurrentMessages((previous) =>
-                previous.map((message) =>
+              activeSession.pendingText = "";
+              activeSession.displayedText = "";
+              updateView(activeSession.viewKey, (view) => ({
+                activeTool: event.tool,
+                messages: view.messages.map((message) =>
                   message.localId === assistantLocalId
                     ? { ...message, content: "" }
                     : message,
                 ),
-              );
+              }));
             } else if (event.type === "tool_result") {
-              setActiveTool(null);
+              updateView(activeSession.viewKey, { activeTool: null });
             } else if (event.type === "ui_card") {
-              setCurrentMessages((previous) =>
-                previous.map((message) =>
+              updateView(activeSession.viewKey, (view) => ({
+                messages: view.messages.map((message) =>
                   message.localId === assistantLocalId
                     ? {
                         ...message,
@@ -381,97 +439,108 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
                       }
                     : message,
                 ),
-              );
+              }));
             } else if (event.type === "error") {
-              setError(event.message || "Có lỗi xảy ra");
+              updateView(activeSession.viewKey, {
+                error: event.message || "Có lỗi xảy ra",
+              });
             } else if (event.type === "done") {
               flushPendingText(sessionId);
-              if (event.conversationId) setCurrentConversationId(event.conversationId);
-              if (persistenceEnabled && event.conversationId) {
-                const current = await getAiConversationById(event.conversationId);
+              assignConversation(event.conversationId);
+              const completedSession = registry.getSession(sessionId);
+              if (
+                persistenceEnabled &&
+                event.conversationId &&
+                completedSession
+              ) {
+                const current = await getAiConversationById(
+                  event.conversationId,
+                );
                 if (isActive() && current.data) {
-                  setCurrentMessages(mapAiMessages(current.data.messages));
+                  updateView(completedSession.viewKey, {
+                    messages: mapAiMessages(current.data.messages),
+                    loaded: true,
+                  });
                 }
               }
-              loadConversations();
+              void loadConversations();
             }
           }
         }
       } catch (requestError) {
-        if (requestError.name !== "AbortError" && isActive()) {
-          setError(requestError.message || "Không thể kết nối tới server");
-          setCurrentMessages((previous) =>
-            previous.filter(
+        const activeSession = registry.getSession(sessionId);
+        if (requestError.name !== "AbortError" && activeSession) {
+          updateView(activeSession.viewKey, (view) => ({
+            error: requestError.message || "Không thể kết nối tới server",
+            messages: view.messages.filter(
               (message) =>
                 message.localId !== assistantLocalId ||
                 message.content ||
                 message.uiCards?.length,
             ),
-          );
+          }));
         }
       } finally {
-        if (activeSessionRef.current?.id === sessionId) {
+        const activeSession = registry.getSession(sessionId);
+        if (activeSession) {
           flushPendingText(sessionId);
-          activeSessionRef.current = null;
-          clearFlushTimer();
-          pendingTextRef.current = "";
-          displayedTextRef.current = "";
-          sendingRef.current = false;
-          if (mountedRef.current) {
-            setIsLoading(false);
-            setActiveTool(null);
-          }
+          registry.removeSession(sessionId);
+          clearSessionTimer(activeSession);
+          updateView(activeSession.viewKey, {
+            isLoading: false,
+            activeTool: null,
+          });
         }
       }
     },
     [
-      cancelRequest,
-      clearFlushTimer,
+      clearSessionTimer,
+      applySessionQuota,
       flushPendingText,
       loadConversations,
       persistenceEnabled,
-      setCurrentConversationId,
-      setCurrentMessages,
-      startFlushTimer,
+      refreshViews,
+      updateView,
     ],
   );
 
   const branchAndSend = useCallback(
     async (messageId, text, context = {}) => {
-      const sourceConversationId = conversationIdRef.current;
+      const sourceConversationId =
+        registryRef.current.getSelectedView().conversationId;
       if (!sourceConversationId || !messageId) {
         clearHistory();
         return sendMessage(text, context, { targetConversationId: null });
       }
 
-      cancelRequest(false);
       try {
         const response = await forkAiConversation(
           sourceConversationId,
           messageId,
         );
         if (!response.data || !mountedRef.current) return;
-        setCurrentConversationId(response.data.conversationId);
-        setCurrentMessages(mapAiMessages(response.data.messages));
+        const key = registryRef.current.selectConversation(
+          response.data.conversationId,
+        );
+        registryRef.current.updateView(key, {
+          messages: mapAiMessages(response.data.messages),
+          loaded: true,
+          error: null,
+        });
+        refreshViews();
         await sendMessage(text, context, {
           targetConversationId: response.data.conversationId,
         });
       } catch (requestError) {
-        if (mountedRef.current) {
-          setError(
+        const key = registryRef.current.getSelectedKey();
+        updateView(key, {
+          error:
             requestError.response?.data?.message ||
-              "Không thể tạo nhánh cuộc trò chuyện",
-          );
-        }
+            "Không thể tạo nhánh cuộc trò chuyện",
+        });
       }
     },
-    [
-      cancelRequest,
-      clearHistory,
-      sendMessage,
-      setCurrentConversationId,
-      setCurrentMessages,
-    ],
+    [clearHistory, refreshViews, sendMessage, updateView],
   );
 
   const retryLastMessage = useCallback(
@@ -482,7 +551,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
             .reverse()
             .find((message) => message.role === "user");
       if (target) {
-        branchAndSend(target._id, target.content, { image: target.image });
+        void branchAndSend(target._id, target.content, { image: target.image });
       }
     },
     [branchAndSend],
@@ -490,19 +559,22 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
 
   const editMessage = useCallback(
     (messageId, newText) => {
-      if (newText?.trim()) branchAndSend(messageId, newText.trim());
+      if (newText?.trim()) {
+        void branchAndSend(messageId, newText.trim());
+      }
     },
     [branchAndSend],
   );
 
   return {
-    messages,
-    isLoading,
-    activeTool,
-    error,
+    messages: selectedView.messages,
+    isLoading: selectedView.isLoading,
+    activeTool: selectedView.activeTool,
+    error: selectedView.error,
     quota,
-    conversationId,
+    conversationId: selectedView.conversationId,
     conversations,
+    pendingConversationIds,
     sendMessage,
     loadHistory,
     loadConversations,

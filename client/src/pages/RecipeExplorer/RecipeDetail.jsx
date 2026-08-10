@@ -11,6 +11,7 @@ import {
   Flame,
   Dumbbell,
   Calendar,
+  ExternalLink,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -30,6 +31,15 @@ import {
   recipeDetailQueryOptions,
 } from "../../queries/recipe.queries";
 import { getFlagUrl } from "./constants";
+
+const safeHttpUrl = (value) => {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+};
 
 const RecipeDetail = () => {
   const { t, i18n } = useTranslation("recipe");
@@ -63,6 +73,7 @@ const RecipeDetail = () => {
   });
 
   const displayArea = recipe?.area ? t(`areas.${recipe.area}`, { defaultValue: recipe.area }) : "";
+  const sourceUrl = safeHttpUrl(recipe?.sourceUrl);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -153,10 +164,17 @@ const RecipeDetail = () => {
           })),
           "recipeCategory": recipe.category,
           "recipeCuisine": recipe.area,
-          "author": {
-            "@type": "Organization",
-            "name": "HTCOACHING",
-          },
+          "isBasedOn": sourceUrl || undefined,
+          "author": recipe.source === "mealdb"
+            ? {
+                "@type": "Organization",
+                "name": "TheMealDB",
+                "url": "https://www.themealdb.com/",
+              }
+            : {
+                "@type": "Organization",
+                "name": "HTCOACHING",
+              },
         }}
       />
       <Header />
@@ -322,6 +340,20 @@ const RecipeDetail = () => {
                   </div>
                 ))}
               </div>
+              {sourceUrl && (
+                <div className="mt-6 border-t border-zinc-800 pt-5 text-sm text-zinc-400">
+                  <p>{t("detail.source_note")}</p>
+                  <a
+                    href={sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 font-semibold text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    {t("detail.source_label")}
+                    <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                  </a>
+                </div>
+              )}
             </div>
 
           </div>

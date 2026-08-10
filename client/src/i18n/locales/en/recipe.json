@@ -78,6 +78,8 @@
     "btn_copy_link": "Copy link",
     "section_ingredients": "Ingredients",
     "section_instructions": "Instructions",
+    "source_note": "HTCOACHING reformats this recipe for easier reference. Check the original source before using it if you have allergies or specific nutrition needs.",
+    "source_label": "View recipe source",
     "section_video": "Video Tutorial",
     "embed_title": "Video tutorial to cook {{name}}",
     "explore_more": "Explore More",

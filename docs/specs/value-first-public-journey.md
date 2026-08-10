@@ -51,7 +51,7 @@ CTA Hero **“Nhận tư vấn miễn phí”** là entry chính và phải đư
   tạo lại, chọn món yêu thích hoặc cá nhân hóa sâu hơn.
 - Lần tạo tiếp theo của guest mở Login Modal; không gọi endpoint ghi nhận quota.
 - Người đã đăng nhập tiếp tục đi qua `useMealPlanAccess` và `recordGeneration` như hiện tại.
-- Saved Meal Plans vẫn chỉ render cho user đủ điều kiện theo feature flag.
+- Saved Meal Plans render cho user đã đăng nhập khi feature flag bật; thao tác lưu không yêu cầu Order hoặc HLV, nhưng vẫn giữ auth, CSRF và ownership backend.
 - Guest không được dùng lựa chọn món yêu thích như một đường vòng để tạo thêm preview.
 
 ### 4.3. TDEE safe default

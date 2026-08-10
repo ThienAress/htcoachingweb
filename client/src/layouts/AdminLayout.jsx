@@ -252,7 +252,7 @@ const AdminLayout = () => {
         )}
 
         {/* Nội dung chính */}
-        <div className="flex-1 flex flex-col p-6">
+        <div className="flex min-w-0 flex-1 flex-col p-6">
           <div className="flex-1">
             <Outlet />
           </div>

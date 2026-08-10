@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, BookmarkCheck, RefreshCw, Save } from "lucide-react";
+import { BookmarkCheck, BookmarkMinus, RefreshCw, Save } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -8,13 +8,13 @@ import {
   listSavedMealPlans,
   reviseSavedMealPlan,
 } from "../../services/savedMealPlan.service";
-import { buildSavedMealPlanPayload } from "../../utils/savedMealPlan";
+import {
+  buildSavedMealPlanPayload,
+  getSavedMealPlanErrorKey,
+} from "../../utils/savedMealPlan";
 
 const requestId = () => window.crypto.randomUUID();
 const queryKey = ["saved-meal-plans", "active"];
-
-const getErrorMessage = (error, fallback) =>
-  error.response?.data?.message || fallback;
 
 const SavedMealPlans = ({ meals, target, targetLabel }) => {
   const { t, i18n } = useTranslation("mealplan");
@@ -121,7 +121,7 @@ const SavedMealPlans = ({ meals, target, targetLabel }) => {
   const commandError =
     localError ||
     (command.error
-      ? getErrorMessage(command.error, t("saved.command_error"))
+      ? t(getSavedMealPlanErrorKey(command.error))
       : "");
 
   return (
@@ -199,7 +199,6 @@ const SavedMealPlans = ({ meals, target, targetLabel }) => {
                 <div>
                   <h3 className="font-semibold text-white">{plan.title}</h3>
                   <p className="mt-1 text-xs text-gray-400">
-                    {t("saved.version", { version: plan.version })} ·{" "}
                     {new Intl.DateTimeFormat(i18n.language).format(
                       new Date(plan.updatedAt),
                     )}
@@ -224,7 +223,7 @@ const SavedMealPlans = ({ meals, target, targetLabel }) => {
                   disabled={isPending}
                   className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-gray-300 transition hover:bg-gray-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
                 >
-                  <Archive className="h-4 w-4" /> {t("saved.archive")}
+                  <BookmarkMinus className="h-4 w-4" /> {t("saved.archive")}
                 </button>
               </div>
             </li>

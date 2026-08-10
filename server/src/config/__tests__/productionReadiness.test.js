@@ -68,7 +68,19 @@ describe("production readiness configuration", () => {
         hasExplicitTrustProxy: true,
         backgroundJobsExplicit: true,
         cspEnforced: true,
+        defaultAdminTrainerMode: "admin_email",
       }),
+    );
+  });
+
+  it("rejects an invalid explicit default admin trainer ID", () => {
+    const env = validEnvironment();
+    env.DEFAULT_ADMIN_TRAINER_ID = "not-an-object-id";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "DEFAULT_ADMIN_TRAINER_ID_INVALID",
     );
   });
 

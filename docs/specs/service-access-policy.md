@@ -44,14 +44,39 @@ lặp lại trong middleware hoặc trang Admin.
 - AI Chat gửi cùng quota metadata bằng SSE event; lỗi 429 trả metadata trong JSON để client vẫn cập nhật được.
 - Client chỉ hiển thị quota sau khi đã nhận metadata server-authoritative; không tự suy đoán số lượt còn lại. Badge quota nằm cạnh tên `HT Assistant`, chuyển trạng thái cảnh báo khi còn 1-2 lượt hoặc đã hết; thời điểm làm mới vẫn hiển thị dưới ô nhập.
 - HT Assistant chỉ hỗ trợ fitness, tập luyện, dinh dưỡng, phục hồi, sức khỏe mang tính giáo dục và dịch vụ HTCOACHING. Tên/chủ thể mơ hồ được hỏi lại một câu; yêu cầu rõ ràng ngoài phạm vi bị từ chối ngắn, được nhắc là vẫn tính hạn mức và chuyển hướng tới câu hỏi phù hợp. Model không tự nêu số quota AI Chat chính xác.
+- Saved Meal Plan là dữ liệu cá nhân của tài khoản đã đăng nhập: create/revise/archive phụ thuộc auth, CSRF, ownership, feature flag, canonical Food, idempotency và version conflict; không phụ thuộc Order còn buổi hoặc đã có HLV. `trainerIdAtCreation` chỉ là metadata nullable khi có phân công hiện tại.
 
 ### Danh mục tính năng cộng đồng và khách hàng
 
 - Cùng endpoint Admin trả `communityFeatures` từ catalog backend read-only riêng; không trộn roadmap tính năng vào registry quota.
-- Bảng hiển thị đúng 5 cột: `Tính năng`, `Nhóm`, `Giá trị chính`, `Đối tượng`, `Cơ hội cải thiện ban đầu`.
+- Bảng hiển thị đúng 7 cột: `Tính năng`, `Nhóm`, `Ưu tiên`, `Giá trị chính`, `Đối tượng`, `Cơ hội cải thiện hiện tại`, `Kết quả gần nhất`.
+- `Ưu tiên` là mức ưu tiên xử lý cơ hội cải thiện: `F0` cần ưu tiên ngay, sau đó lần lượt là `F1`, `F2`, `F3`. Mức ưu tiên nằm trong catalog backend canonical và UI không tự suy luận.
 - Chỉ cột `Nhóm` có bộ lọc. Chọn một nhóm như `Dinh dưỡng` chỉ hiển thị các tính năng thuộc nhóm đó; không thêm tìm kiếm cho cột khác.
 - Bộ lọc có lựa chọn `Tất cả nhóm`, trạng thái không có kết quả, label accessible và bảng responsive bằng cuộn ngang trên màn hình hẹp.
 - Catalog chỉ chứa mô tả sản phẩm, không chứa dữ liệu người dùng, usage history hoặc identifier.
+- Mỗi feature có đúng một `currentImprovement` gồm key ổn định, mô tả và ngày mở. Record theo dõi được append vào
+  `improvementHistory` từ milestone đầu tiên; khi đạt `production_verified`, record được giữ nguyên, catalog chọn cơ hội
+  tiếp theo và đánh giá lại priority.
+- `improvementHistory` là append-only theo từng hạng mục đang làm hoặc đã hoàn tất. Mỗi record lưu opportunity, result, snapshot tại thời điểm xử lý
+  (`Tính năng`, `Nhóm`, `Ưu tiên`, `Giá trị chính`, `Đối tượng`) và các milestone
+  `in_progress`/`implemented`/`verified`/`production_verified` có `statusDate` date-only `YYYY-MM-DD`.
+- `Kết quả gần nhất` hiển thị milestone cuối của từng record. API tạm thời được phép phát các alias
+  `initialImprovement`/`deliveryUpdates` suy ra từ contract mới để giữ tương thích một release; catalog không lưu hai nguồn.
+- Chỉ gắn `production_verified` sau khi behavior đã được xác minh trên production. Priority vẫn phản ánh hạng mục chưa
+  hoàn thành ở production, vì vậy một tính năng đã code local vẫn có thể giữ `F0`.
+- Priority đã duyệt cho release ổn định: HT Assistant và Meal Plan là `F0`; Meal Scan là `F1` vì journal integration và ground-truth thực tế được tách thành phase riêng.
+
+#### Báo cáo lịch sử cải tiến
+
+- `GET /api/admin/service-access-policies/community-features/report` và endpoint `.pdf` tương ứng đều admin-only,
+  read-only, `Cache-Control: private, no-store`; không cần CSRF vì không mutation.
+- Hai endpoint dùng chung một report read model và cùng hỗ trợ `from`, `to`, `group`, `status`. Date dùng
+  `YYYY-MM-DD`, `from <= to`; group/status ngoài catalog phải trả `400` bằng stable error code.
+- Report flatten từng milestone thành một event, sắp xếp theo ngày và trả summary gồm số event, số hạng mục, số tính năng,
+  số production-verified, số F0 còn mở và ngày cập nhật gần nhất.
+- UI hiển thị thống kê theo bộ lọc, loading/error/retry, khoảng ngày và trạng thái; bộ lọc `Nhóm` hiện có được tái sử dụng.
+- PDF được sinh trên server bằng `pdf-lib`, A4 ngang, embed Be Vietnam Pro, không lưu public/GridFS và không chứa dữ liệu user.
+  Bảng PDF có sáu cột: `Ngày xác nhận`, `Tính năng`, `Nhóm`, `Ưu tiên lúc xử lý`, `Cơ hội đã cải thiện`, `Kết quả xác nhận`.
 
 ### Ma trận quyền lợi gói huấn luyện viên
 
@@ -88,5 +113,6 @@ lặp lại trong middleware hoặc trang Admin.
 - User có gói/HLV nhận đúng hạn mức cao hơn mà không cần client truyền tier.
 - Admin thấy bảng canonical từ API; thêm service/tier policy vào registry sẽ xuất hiện thành hàng/cell tương ứng.
 - Admin thấy bốn gói HLV và quyền lợi khớp Pricing từ cùng catalog canonical; hai bảng có thể đóng/mở độc lập.
-- Admin thấy bảng tính năng cộng đồng/khách hàng đúng 5 cột và có thể lọc riêng theo `Nhóm`.
+- Admin thấy bảng tính năng cộng đồng/khách hàng đúng 7 cột, có priority `F0`–`F3`, lịch sử xử lý có ngày và có thể lọc riêng theo `Nhóm`.
+- Admin xem được timeline ngày → tính năng → hạng mục, thống kê cùng filter và tải PDF sáu cột từ cùng report read model.
 - Response operational có `limit`, `remaining`, `resetAt` để UI giải thích quota minh bạch.

@@ -13,6 +13,7 @@ import {
   buildSlotStarts,
   normalizeOccurrenceInput,
 } from "./trainingOccurrence.service.js";
+import { resolveDefaultAdminTrainer } from "./defaultAdminTrainer.service.js";
 
 const REQUEST_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -205,24 +206,7 @@ export const resolveClientTrainer = async ({
     return { trainerId: order.trainerId, order };
   }
 
-  const configuredId = process.env.DEFAULT_ADMIN_TRAINER_ID;
-  if (!mongoose.isValidObjectId(configuredId)) {
-    throw commandError(
-      409,
-      "Gói tập chưa được phân công huấn luyện viên",
-      "TRAINER_ASSIGNMENT_REQUIRED",
-    );
-  }
-  let trainerQuery = User.findOne({ _id: configuredId, role: "admin" });
-  if (session) trainerQuery = trainerQuery.session(session);
-  const configuredTrainer = await trainerQuery;
-  if (!configuredTrainer) {
-    throw commandError(
-      409,
-      "Huấn luyện viên mặc định chưa được cấu hình hợp lệ",
-      "INVALID_DEFAULT_TRAINER",
-    );
-  }
+  const configuredTrainer = await resolveDefaultAdminTrainer({ session });
   return { trainerId: configuredTrainer._id, order };
 };
 

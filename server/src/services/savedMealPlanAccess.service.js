@@ -1,8 +1,6 @@
 import mongoose from "mongoose";
+import Order from "../models/Order.js";
 import SavedMealPlan from "../models/SavedMealPlan.js";
-import {
-  resolveJournalWriteAccess,
-} from "./dailyJournalAccess.service.js";
 
 export const savedMealPlanError = (statusCode, message, codeName) => {
   const error = new Error(message);
@@ -21,10 +19,25 @@ export const assertSavedMealPlanWritesEnabled = () => {
   }
 };
 
-export const resolveSavedMealPlanWriteAccess = async ({
+export const resolveSavedMealPlanTrainerMetadata = async ({
   ownerId,
   session = null,
-}) => resolveJournalWriteAccess({ clientId: ownerId, session });
+}) => {
+  let query = Order.findOne({
+    userId: ownerId,
+    status: "approved",
+    sessions: { $gt: 0 },
+  })
+    .sort({ createdAt: -1 })
+    .select("trainerId")
+    .lean();
+  if (session) query = query.session(session);
+  const order = await query;
+  return {
+    trainerId: order?.trainerId || null,
+    orderId: order?._id || null,
+  };
+};
 
 export const findOwnedSavedMealPlan = async ({
   ownerId,

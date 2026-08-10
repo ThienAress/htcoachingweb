@@ -3,41 +3,33 @@ import { describe, expect, it, vi } from "vitest";
 import {
   canonicalUrlForRoute,
   mapWithConcurrency,
-  routesFromSitemap,
+  routesFromPrerenderManifest,
 } from "../prerender-routes.js";
 
 describe("prerender route planning", () => {
-  it("uses every same-origin URL from the generated sitemap", () => {
-    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-      <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-        <url><loc>https://htcoachingweb.io.vn/</loc></url>
-        <url><loc>https://htcoachingweb.io.vn/blog/bai-viet/</loc></url>
-        <url><loc>https://htcoachingweb.io.vn/cong-thuc-nau-an/recipe-747/</loc></url>
-      </urlset>`;
-
-    expect(routesFromSitemap(sitemap, "https://htcoachingweb.io.vn")).toEqual([
-      "/",
-      "/blog/bai-viet",
-      "/cong-thuc-nau-an/recipe-747",
-    ]);
-  });
-
   it("uses the Netlify trailing-slash URL as the prerender canonical", () => {
     expect(
       canonicalUrlForRoute("/blog/bai-viet", "https://htcoachingweb.io.vn"),
     ).toBe("https://htcoachingweb.io.vn/blog/bai-viet/");
   });
 
-  it("rejects an empty sitemap or URLs outside the production origin", () => {
+  it("loads only safe local paths from the prerender manifest", () => {
+    expect(
+      routesFromPrerenderManifest([
+        "/",
+        "/cong-thuc-nau-an/recipe-one/",
+        "/cong-thuc-nau-an/recipe-one",
+      ]),
+    ).toEqual(["/", "/cong-thuc-nau-an/recipe-one"]);
+  });
+
+  it("rejects an empty or external prerender manifest", () => {
     expect(() =>
-      routesFromSitemap("<urlset></urlset>", "https://htcoachingweb.io.vn"),
-    ).toThrow(/does not contain any URLs/i);
+      routesFromPrerenderManifest([]),
+    ).toThrow(/manifest is empty/i);
     expect(() =>
-      routesFromSitemap(
-        "<urlset><url><loc>https://example.com/page</loc></url></urlset>",
-        "https://htcoachingweb.io.vn",
-      ),
-    ).toThrow(/outside the site origin/i);
+      routesFromPrerenderManifest(["https://example.com/page"]),
+    ).toThrow(/invalid path/i);
   });
 
   it("keeps prerender work within the configured concurrency", async () => {

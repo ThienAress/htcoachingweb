@@ -60,6 +60,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 035 | Xây dựng Upstream Skill Radar và trang Admin Radar công nghệ | P1 | L | 017, 030 | IMPLEMENTED / LOCAL VERIFIED — AUTHENTICATED VISUAL PENDING |
 | 036 | Thích nghi các finding từ baseline Upstream Skill Radar | P1 | L | 030, 035 | IMPLEMENTED / LOCAL VERIFIED — PRERENDER ENV BLOCKED |
 | 037 | Bật provider đã phê duyệt và hoàn tất production indexes | P1 | M | 025, 028C, 033 | IN PROGRESS |
+| 038 | Ổn định HT Assistant, lưu thực đơn, HLV mặc định và SEO | P0 | L | 003C, 024A, 026C, 031, 033 | RELEASE CANDIDATE VERIFIED — STAGING PENDING |
+| 039 | Theo dõi vòng đời cải tiến và xuất báo cáo PDF | P1 | M | 033, 038 | RELEASE CANDIDATE VERIFIED — STAGING PENDING |
 
 ## Dependency Notes
 
@@ -125,6 +127,10 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   evidence; plan sửa đúng semantics baseline trước rồi mới thay local skill và không tự sửa canonical rules.
 - Plan 037 phụ thuộc 025, 028C và 033 vì tái sử dụng packaged lookup, SEO/conversion index contracts và quota registry
   đã được xác minh; rollout giữ fail-closed cho provider trước khi áp production config/data operations.
+- Plan 038 phụ thuộc Saved Meal Plan, Meal Scan, sitewide assistant và service-access policy hiện có để sửa đúng
+  lifecycle SSE/access contract; plan không đổi quota, không persist Meal Scan và không thực hiện production write.
+- Plan 039 phụ thuộc catalog Admin của 033 và các record cải tiến được thêm trong 038; plan tách current/history,
+  sinh JSON/PDF read-only và không thêm schema hoặc mutation.
 
 ## Findings Considered and Rejected
 

@@ -42,7 +42,7 @@ const QUOTA_TONE_CLASSES = {
     "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200",
 };
 
-export default function ChatPanel({ initiallyOpen = false, initialAction = null }) {
+export default function ChatPanel({ initiallyOpen = false }) {
   const { user } = useAuth();
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(initiallyOpen);
@@ -76,12 +76,11 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
 
   const {
     messages, isLoading, activeTool, error, quota, conversationId,
-    conversations, sendMessage, loadHistory, loadConversations,
+    conversations, pendingConversationIds, sendMessage, loadHistory, loadConversations,
     clearHistory, switchConversation, removeConversation, cancelRequest,
     retryLastMessage, editMessage,
   } = useAiChat({ persistenceEnabled: Boolean(user) });
   const authenticatedUserId = user?._id || user?.id || null;
-  const initialActionSentRef = useRef(false);
   const buildCurrentContext = useCallback(
     () => getAiMessageContext(location.pathname, document.title),
     [location.pathname],
@@ -144,21 +143,6 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
     messages.length,
     user,
   ]);
-
-  useEffect(() => {
-    if (
-      !isOpen ||
-      !initialAction?.prompt ||
-      initialActionSentRef.current
-    ) {
-      return undefined;
-    }
-    initialActionSentRef.current = true;
-    const timer = window.setTimeout(() => {
-      sendMessage(initialAction.prompt, buildCurrentContext());
-    }, 50);
-    return () => window.clearTimeout(timer);
-  }, [buildCurrentContext, initialAction, isOpen, sendMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -492,6 +476,7 @@ export default function ChatPanel({ initiallyOpen = false, initialAction = null 
               <ChatPanelSidebar
                 conversations={conversations}
                 activeId={conversationId}
+                pendingConversationIds={pendingConversationIds}
                 onNew={handleNewConversation}
                 onSwitch={handleSwitchConversation}
                 onDelete={removeConversation}

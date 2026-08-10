@@ -203,9 +203,9 @@ describe("dynamic route release policy", () => {
         .map(([path]) => path)
         .filter((path) => path.startsWith("/recipes")),
     ).toEqual([
-      "/recipes?limit=50&page=1",
-      "/recipes?limit=50&page=2",
-      "/recipes?limit=50&page=3",
+      "/recipes?limit=50&page=1&view=prerender",
+      "/recipes?limit=50&page=2&view=prerender",
+      "/recipes?limit=50&page=3&view=prerender",
     ]);
   });
 

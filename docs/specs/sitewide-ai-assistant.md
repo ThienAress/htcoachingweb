@@ -3,7 +3,7 @@
 ## Objective
 
 HT Assistant phải xuất hiện trên các trang public cho cả khách chưa đăng nhập, hiểu đúng trang và nội dung
-canonical mà người dùng đang xem, đồng thời đưa ra lời mời hỗ trợ nhẹ nhàng theo hành vi đọc. Thành công
+canonical mà người dùng đang xem. HT Assistant chỉ mở khi người dùng chủ động bấm launcher. Thành công
 khi guest có thể hỏi/tóm tắt nội dung public trong quota an toàn; người đã đăng nhập giữ nguyên lịch sử và
 các tool cá nhân; dữ liệu draft, dữ liệu riêng và instruction nằm trong nội dung CMS không thể vượt trust boundary.
 
@@ -14,7 +14,7 @@ các tool cá nhân; dữ liệu draft, dữ liệu riêng và instruction nằm
 2. Guest conversation được lưu tối đa 24 giờ để giữ mạch hội thoại trong phiên; không merge vào tài khoản
    sau khi đăng nhập và không xuất hiện trong màn hình Knowledge Base admin.
 3. Quota guest là 5 tin/giờ theo IP đã HMAC; user thường 15 tin/giờ; coaching customer và HLV 30 tin/giờ.
-4. Proactive assistance chỉ hiển thị local UI; chỉ gọi AI sau thao tác bấm rõ ràng của người dùng.
+4. Không hiển thị proactive assistance theo thời gian/scroll; launcher và suggestion trong panel là điểm vào duy nhất.
 5. Không thêm dependency và không sửa `client/src/utils/api.js`, JWT cookie hay CSRF middleware hiện có.
 
 ## Tech Stack liên quan
@@ -33,8 +33,7 @@ các tool cá nhân; dữ liệu draft, dữ liệu riêng và instruction nằm
 
 ## Cấu trúc file bị ảnh hưởng
 
-- `client/src/config/aiPageContext.js`: registry UI/suggestion/nudge theo route.
-- `client/src/hooks/useAiAssistantNudge.js`: active-time, scroll, frequency cap và snooze.
+- `client/src/config/aiPageContext.js`: registry UI/suggestion theo route.
 - `client/src/components/ChatWidget/{DeferredChatPanel,ChatPanel}.jsx`: guest UI và action mở chat.
 - `server/src/middlewares/{optionalAiAuth,aiGuestSession}.js`: trust boundary guest/auth.
 - `server/src/middlewares/aiRateLimit.js`: quota riêng guest/auth.
@@ -59,7 +58,7 @@ các tool cá nhân; dữ liệu draft, dữ liệu riêng và instruction nằm
 - Unit test route resolution, spoofed page type, public-status filters và expanded summary content.
 - Integration/unit test guest owner isolation, authenticated backward compatibility, quota key và moderation.
 - Unit test tool schema guest không chứa tool private/web-search.
-- Client unit test page registry, active-time/scroll trigger, session cap và snooze.
+- Client unit test page registry và suggestion theo route.
 - Chạy AI check, client/server unit suites và release build sau implementation.
 
 ## Boundaries
@@ -75,7 +74,7 @@ các tool cá nhân; dữ liệu draft, dữ liệu riêng và instruction nằm
 - Guest không thấy history/sidebar/upload/feedback và không gọi được tool private hoặc web search.
 - AI tự nhận diện mọi route customer/public chính; detail adapter chỉ đọc content published.
 - Blog summary dùng nội dung canonical mở rộng có giới hạn; recipe dùng đủ các bước trong giới hạn.
-- Nudge xuất hiện tối đa một lần/session, có dismiss/snooze và không gọi API trước click.
+- Không có nudge tự xuất hiện; launcher và suggestion chỉ hoạt động sau thao tác chủ động.
 - Authenticated chat/history/tool behavior hiện tại không bị breaking change.
 
 ## Open Questions

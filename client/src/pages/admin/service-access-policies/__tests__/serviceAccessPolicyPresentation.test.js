@@ -5,7 +5,12 @@ import {
   formatPolicy,
   formatTrainerBenefitValue,
   formatTrainerPlanPrice,
+  getCommunityFeatureDeliveryMeta,
   getCommunityFeatureGroups,
+  getCommunityFeatureHistoryDateRange,
+  getCommunityFeatureHistoryRecords,
+  getCommunityFeatureLatestMilestone,
+  getCommunityFeaturePriorityMeta,
   groupColumnPolicies,
 } from "../serviceAccessPolicyPresentation.js";
 
@@ -102,5 +107,121 @@ describe("service access policy presentation", () => {
         (feature) => feature.featureKey,
       ),
     ).toEqual(["tdee", "meal_plan"]);
+  });
+
+  it("presents canonical feature priority and fails closed for unknown values", () => {
+    expect([
+      getCommunityFeaturePriorityMeta({
+        code: "F0",
+        label: "Cần ưu tiên ngay",
+      }),
+      getCommunityFeaturePriorityMeta({ code: "F9" }),
+    ]).toEqual([
+      { code: "F0", label: "Cần ưu tiên ngay", tone: "critical" },
+      { code: "—", label: "Chưa xếp ưu tiên", tone: "unranked" },
+    ]);
+  });
+
+  it("presents delivery status with a timezone-safe Vietnamese date", () => {
+    expect(
+      getCommunityFeatureDeliveryMeta({
+        status: { code: "implemented", label: "Đã code" },
+        statusDate: "2026-08-10",
+      }),
+    ).toEqual({
+      code: "implemented",
+      label: "Đã code",
+      dateLabel: "10/08/2026",
+      tone: "implemented",
+    });
+  });
+
+  it("fails closed for unknown delivery status or an invalid date", () => {
+    expect(
+      getCommunityFeatureDeliveryMeta({
+        status: { code: "shipped" },
+        statusDate: "2026-02-31",
+      }),
+    ).toEqual({
+      code: "unknown",
+      label: "Chưa xác định",
+      dateLabel: "—",
+      tone: "unknown",
+    });
+  });
+
+  it("selects the latest milestone from immutable improvement history", () => {
+    const records = getCommunityFeatureHistoryRecords({
+      improvementHistory: [
+        {
+          improvementKey: "conversation_continuity",
+          opportunity: "Giữ phản hồi khi chuyển phiên",
+          result: "Phản hồi tiếp tục chạy nền",
+          milestones: [
+            {
+              status: { code: "implemented", label: "Đã code" },
+              statusDate: "2026-08-10",
+            },
+            {
+              status: { code: "verified", label: "Đã kiểm thử" },
+              statusDate: "2026-08-11",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(getCommunityFeatureLatestMilestone(records[0])).toEqual({
+      status: { code: "verified", label: "Đã kiểm thử" },
+      statusDate: "2026-08-11",
+    });
+  });
+
+  it("keeps a one-release fallback for legacy delivery updates", () => {
+    expect(
+      getCommunityFeatureHistoryRecords({
+        deliveryUpdates: [
+          {
+            updateKey: "legacy",
+            label: "Cơ hội cũ",
+            result: "Kết quả cũ",
+            status: { code: "implemented", label: "Đã code" },
+            statusDate: "2026-08-10",
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        improvementKey: "legacy",
+        opportunity: "Cơ hội cũ",
+        result: "Kết quả cũ",
+        milestones: [
+          {
+            status: { code: "implemented", label: "Đã code" },
+            statusDate: "2026-08-10",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("derives the report date range across all milestones", () => {
+    expect(
+      getCommunityFeatureHistoryDateRange([
+        {
+          improvementHistory: [
+            {
+              milestones: [
+                { statusDate: "2026-08-12" },
+                { statusDate: "2026-08-10" },
+              ],
+            },
+          ],
+        },
+        {
+          deliveryUpdates: [{ statusDate: "2026-08-11" }],
+        },
+      ]),
+    ).toEqual({ from: "2026-08-10", to: "2026-08-12" });
   });
 });
