@@ -1,5 +1,8 @@
 const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SAFE_DEDUPE_KEY = /^[a-z0-9:_-]+$/i;
+const SAFE_MEASUREMENT_ID = /^G-[A-Z0-9]+$/;
+const SAFE_PAGE_PATH = /^\/[a-z0-9/_%.-]*$/i;
+const DEFAULT_PRODUCTION_HOSTNAME = "htcoachingweb.io.vn";
 const trackedOnceInMemory = new Set();
 
 const EVENT_RULES = Object.freeze({
@@ -82,6 +85,82 @@ const resolveSessionStorage = () => {
     return typeof window !== "undefined" ? window.sessionStorage : null;
   } catch {
     return null;
+  }
+};
+
+export const initializeAnalytics = ({
+  measurementId = import.meta.env.VITE_GA4_MEASUREMENT_ID,
+  allowedHostname =
+    import.meta.env.VITE_GA4_HOSTNAME || DEFAULT_PRODUCTION_HOSTNAME,
+  isProduction = import.meta.env.PROD,
+  windowRef = typeof window !== "undefined" ? window : null,
+  documentRef = typeof document !== "undefined" ? document : null,
+} = {}) => {
+  const normalizedMeasurementId = String(measurementId || "")
+    .trim()
+    .toUpperCase();
+  const normalizedHostname = String(windowRef?.location?.hostname || "")
+    .trim()
+    .toLowerCase();
+  const normalizedAllowedHostname = String(allowedHostname || "")
+    .trim()
+    .toLowerCase();
+
+  if (
+    !isProduction ||
+    !windowRef ||
+    !documentRef ||
+    !SAFE_MEASUREMENT_ID.test(normalizedMeasurementId) ||
+    !normalizedAllowedHostname ||
+    normalizedHostname !== normalizedAllowedHostname
+  ) {
+    return false;
+  }
+  if (windowRef.__htGa4MeasurementId === normalizedMeasurementId) return true;
+
+  const dataLayer = Array.isArray(windowRef.dataLayer)
+    ? windowRef.dataLayer
+    : [];
+  windowRef.dataLayer = dataLayer;
+  windowRef.gtag = function gtag() {
+    dataLayer.push(arguments);
+  };
+  windowRef.__htGa4MeasurementId = normalizedMeasurementId;
+
+  const script = documentRef.createElement("script");
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(normalizedMeasurementId)}`;
+  script.dataset.htGa4 = normalizedMeasurementId;
+  documentRef.head.appendChild(script);
+
+  windowRef.gtag("js", new Date());
+  windowRef.gtag("config", normalizedMeasurementId, { send_page_view: false });
+  return true;
+};
+
+export const trackAnalyticsPageView = (
+  pathname,
+  {
+    gtag = resolveGtag(),
+    measurementId =
+      typeof window !== "undefined" ? window.__htGa4MeasurementId : "",
+  } = {},
+) => {
+  const normalizedPath = String(pathname || "").trim();
+  if (
+    typeof gtag !== "function" ||
+    !SAFE_MEASUREMENT_ID.test(String(measurementId || "")) ||
+    normalizedPath.length > 300 ||
+    !SAFE_PAGE_PATH.test(normalizedPath) ||
+    normalizedPath.startsWith("//")
+  ) {
+    return false;
+  }
+  try {
+    gtag("event", "page_view", { page_path: normalizedPath });
+    return true;
+  } catch {
+    return false;
   }
 };
 

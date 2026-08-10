@@ -57,6 +57,43 @@ export const filterCommunityFeaturesByGroup = (
   return items.filter((feature) => feature?.group?.key === selectedGroup);
 };
 
+const COMMUNITY_AUDIENCE_BY_LABEL = Object.freeze({
+  "Cộng đồng": "community",
+  "Khách hàng": "customer",
+  HLV: "trainer",
+});
+
+const getFeatureAudienceKeys = (feature) => {
+  if (Array.isArray(feature?.audienceKeys)) return feature.audienceKeys;
+  return (Array.isArray(feature?.audiences) ? feature.audiences : [])
+    .map((label) => COMMUNITY_AUDIENCE_BY_LABEL[label])
+    .filter(Boolean);
+};
+
+export const getCommunityFeatureAudiences = (features = [], options = []) => {
+  if (Array.isArray(options) && options.length > 0) return options;
+  const found = new Map();
+  (Array.isArray(features) ? features : []).forEach((feature) => {
+    const labels = Array.isArray(feature?.audiences) ? feature.audiences : [];
+    getFeatureAudienceKeys(feature).forEach((key, index) => {
+      if (!found.has(key)) found.set(key, { key, label: labels[index] || key });
+    });
+  });
+  return [...found.values()];
+};
+
+export const filterCommunityFeatures = (
+  features = [],
+  selectedGroup = "all",
+  selectedAudience = "all",
+) =>
+  filterCommunityFeaturesByGroup(features, selectedGroup).filter(
+    (feature) =>
+      !selectedAudience ||
+      selectedAudience === "all" ||
+      getFeatureAudienceKeys(feature).includes(selectedAudience),
+  );
+
 const COMMUNITY_FEATURE_PRIORITY_TONES = Object.freeze({
   F0: "critical",
   F1: "high",

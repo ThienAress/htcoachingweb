@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -26,11 +26,21 @@ import { Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import LoginModal from "./LoginModal";
 import SavedMealPlans from "./SavedMealPlans";
+import MealPlanConditions from "./MealPlanConditions";
+import MealPlanCostSummary from "./MealPlanCostSummary";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 import {
   hasUsedGuestMealPlanPreview,
   markGuestMealPlanPreviewUsed,
 } from "../../utils/publicJourney";
+import { useMealPlanPreferences } from "../../hooks/useMealPlanPreferences";
+import {
+  EMPTY_MEAL_PLAN_PREFERENCES,
+  estimateMealPlanCost,
+  filterFoodsForMealPlan,
+  hasMealPlanFoodCoverage,
+  validateMealPlanPreferences,
+} from "../../utils/mealPlanConstraints";
 
 const loadSelectedFoods = () => {
   try {
@@ -57,7 +67,35 @@ const MealPlan = () => {
   );
 
   const { user, loading: authLoading } = useAuth();
+  const preferenceQuery = useMealPlanPreferences(user?._id);
+  const [preferenceDraft, setPreferenceDraft] = useState(null);
   const { accessLevel, isChecking, accessError, retryAccess, canGenerate, remainingGenerations, recordGeneration, maxGenerations } = useMealPlanAccess();
+  const preferenceOwnerKey = user?._id || "guest";
+  const storedPreferences = useMemo(
+    () =>
+      preferenceQuery.preferences
+        ? {
+            allergyStatus: preferenceQuery.preferences.allergyStatus,
+            allergens: preferenceQuery.preferences.allergens || [],
+            otherAllergenText:
+              preferenceQuery.preferences.otherAllergenText || "",
+            budgetVndPerDay:
+              preferenceQuery.preferences.budgetVndPerDay ?? null,
+          }
+        : EMPTY_MEAL_PLAN_PREFERENCES,
+    [preferenceQuery.preferences],
+  );
+  const hasCurrentDraft = preferenceDraft?.ownerKey === preferenceOwnerKey;
+  const mealPlanPreferences = useMemo(
+    () =>
+      hasCurrentDraft
+        ? preferenceDraft.value
+        : user
+          ? storedPreferences
+          : EMPTY_MEAL_PLAN_PREFERENCES,
+    [hasCurrentDraft, preferenceDraft, storedPreferences, user],
+  );
+  const preferencesDirty = Boolean(user && hasCurrentDraft);
 
   // Đợi macroSet load xong
   const isMacroReady = macroSet !== null;
@@ -65,15 +103,24 @@ const MealPlan = () => {
   // Xác định macro đang active từ chế độ đã chọn
   const activeMacroTarget =
     selectedMacroPlan && macroSet ? macroSet[selectedMacroPlan] : null;
+  const constrainedFoodDatabase = useMemo(
+    () => filterFoodsForMealPlan(foodDatabase, mealPlanPreferences),
+    [foodDatabase, mealPlanPreferences],
+  );
 
   // Khôi phục danh sách thực phẩm yêu thích từ localStorage
   const { generateMeals, meals, totalMacros, totalCalories, isGenerating } =
     useMealGenerator({
       selectedPlan,
       targetMacros: activeMacroTarget,
-      foodDatabase,
+      foodDatabase: constrainedFoodDatabase,
       customFoods: user ? selectedFoods : null,
+      budgetVndPerDay: mealPlanPreferences.budgetVndPerDay,
     });
+  const costEstimate = useMemo(
+    () => estimateMealPlanCost(meals, mealPlanPreferences.budgetVndPerDay),
+    [meals, mealPlanPreferences.budgetVndPerDay],
+  );
 
 
 
@@ -94,9 +141,55 @@ const MealPlan = () => {
   // Xử lý tạo thực đơn (gợi ý)
   const handleGenerateMeal = async () => {
     if (selectedMacroPlan && macroSet && macroSet[selectedMacroPlan]) {
+      if (user && preferenceQuery.isLoading) {
+        toast.info("Đang tải điều kiện thực đơn đã lưu.");
+        return;
+      }
+      if (user && preferenceQuery.isError) {
+        toast.error("Không thể tải điều kiện thực đơn. Vui lòng thử lại.");
+        return;
+      }
+      const preferenceValidation = validateMealPlanPreferences(
+        mealPlanPreferences,
+      );
+      if (!preferenceValidation.valid) {
+        const messages = {
+          missing: "Vui lòng xác nhận trạng thái dị ứng trước khi tạo thực đơn.",
+          unsure:
+            "Khi chưa chắc về dị ứng, hãy kiểm tra nhãn hoặc trao đổi với chuyên gia trước khi tạo.",
+          allergens: "Vui lòng chọn ít nhất một nhóm dị ứng cần loại trừ.",
+          other:
+            "Dị ứng ở mục Khác đã được lưu để bạn theo dõi, nhưng hệ thống chưa thể tự động loại trừ chính xác. Vui lòng trao đổi với bác sĩ/chuyên gia trước khi tạo thực đơn.",
+          period_separator:
+            "Không dùng dấu chấm giữa các thực phẩm. Hãy dùng dấu phẩy hoặc khoảng trắng.",
+          too_many: "Chỉ nhập tối đa 8 thực phẩm ở mục Khác.",
+          generic_meat:
+            "Vui lòng nhập rõ loại thịt dị ứng, ví dụ: gà, bò hoặc heo.",
+          budget: "Ngân sách phải từ 30.000đ đến 2.000.000đ mỗi ngày.",
+        };
+        toast.error(messages[preferenceValidation.code]);
+        return;
+      }
       if (!foodDatabase?.length) {
         toast.info(t("toast.loading_foods"));
         return;
+      }
+      if (!hasMealPlanFoodCoverage(constrainedFoodDatabase)) {
+        toast.error(
+          "Chưa đủ thực phẩm đã kiểm duyệt để tạo thực đơn sau khi loại trừ dị ứng. Không có lượt nào bị trừ.",
+          { autoClose: 6000 },
+        );
+        return;
+      }
+
+      if (user && preferencesDirty) {
+        try {
+          await preferenceQuery.save(mealPlanPreferences);
+          setPreferenceDraft(null);
+        } catch {
+          toast.error("Không thể lưu điều kiện thực đơn. Không có lượt nào bị trừ.");
+          return;
+        }
       }
 
       if (!user) {
@@ -140,6 +233,23 @@ const MealPlan = () => {
       return;
     }
     toast.error(t("toast.select_plan_first"));
+  };
+
+  const handlePreferenceChange = (nextPreferences) => {
+    setPreferenceDraft({
+      ownerKey: preferenceOwnerKey,
+      value: nextPreferences,
+    });
+  };
+
+  const handleSavePreferences = async () => {
+    try {
+      await preferenceQuery.save(mealPlanPreferences);
+      setPreferenceDraft(null);
+      toast.success("Đã lưu điều kiện thực đơn vào tài khoản.");
+    } catch {
+      toast.error("Không thể lưu điều kiện thực đơn.");
+    }
   };
 
   const hasMeals = meals.length > 0;
@@ -243,6 +353,18 @@ const MealPlan = () => {
               </span>
             </div>
           )}
+
+          <MealPlanConditions
+            preferences={mealPlanPreferences}
+            onChange={handlePreferenceChange}
+            isAuthenticated={Boolean(user)}
+            isLoading={Boolean(user) && preferenceQuery.isLoading}
+            isError={Boolean(user) && preferenceQuery.isError}
+            onRetry={preferenceQuery.retry}
+            onSave={handleSavePreferences}
+            isSaving={preferenceQuery.isSaving}
+            isDirty={preferencesDirty}
+          />
 
           <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 mb-4">
             <MealButton
@@ -373,6 +495,7 @@ const MealPlan = () => {
 
                 {meals.length > 0 && (
                   <>
+                    <MealPlanCostSummary estimate={costEstimate} />
                     <NutritionLegend />
                     <MealSummary
                       totalMacros={totalMacros}
@@ -393,7 +516,7 @@ const MealPlan = () => {
             ) : activeTab === "custom" ? (
               <CustomMealBuilder
                 key={`${user?._id || "guest"}:${selectedPlan}`}
-                foodDatabase={foodDatabase}
+                foodDatabase={constrainedFoodDatabase}
                 targetMacros={activeMacroTarget}
                 targetLabel={selectedMacroPlan}
                 selectedPlan={selectedPlan}
@@ -409,7 +532,7 @@ const MealPlan = () => {
           onClose={() => setIsFoodModalOpen(false)}
           onSave={handleSaveSelectedFoods}
           initialSelected={selectedFoods}
-          foodDatabase={foodDatabase}
+          foodDatabase={constrainedFoodDatabase}
         />
       </main>
 

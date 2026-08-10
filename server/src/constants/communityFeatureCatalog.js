@@ -1,5 +1,28 @@
-export const COMMUNITY_FEATURE_CATALOG_VERSION = "2026-08-10.2";
+export const COMMUNITY_FEATURE_CATALOG_VERSION = "2026-08-10.3";
 const HISTORY_SNAPSHOT_VERSION_2026_08_10 = "2026-08-10.2";
+
+export const COMMUNITY_FEATURE_AUDIENCES = Object.freeze({
+  COMMUNITY: Object.freeze({ key: "community", label: "Cộng đồng" }),
+  CUSTOMER: Object.freeze({ key: "customer", label: "Khách hàng" }),
+  TRAINER: Object.freeze({ key: "trainer", label: "HLV" }),
+});
+
+export const COMMUNITY_FEATURE_AUDIENCE_OPTIONS = Object.freeze(
+  Object.values(COMMUNITY_FEATURE_AUDIENCES),
+);
+
+const AUDIENCE_KEY_BY_LABEL = new Map(
+  COMMUNITY_FEATURE_AUDIENCE_OPTIONS.map(({ key, label }) => [label, key]),
+);
+
+export const getCommunityFeatureAudienceKeys = (audiences = []) =>
+  [...new Set(
+    (Array.isArray(audiences) ? audiences : [])
+      .map((audience) => AUDIENCE_KEY_BY_LABEL.get(audience) || audience)
+      .filter((key) =>
+        COMMUNITY_FEATURE_AUDIENCE_OPTIONS.some((item) => item.key === key),
+      ),
+  )];
 
 const GROUPS = Object.freeze({
   AI_SUPPORT: Object.freeze({ key: "ai_support", label: "AI hỗ trợ" }),

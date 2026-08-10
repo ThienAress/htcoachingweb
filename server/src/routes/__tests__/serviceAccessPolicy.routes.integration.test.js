@@ -102,8 +102,13 @@ describe("GET /api/admin/service-access-policies", () => {
 
     expect(response.body.data.communityFeatures).toEqual(
       expect.objectContaining({
-        version: "2026-08-10.2",
+        version: "2026-08-10.3",
         reportOptions: {
+          audiences: [
+            { key: "community", label: "Cộng đồng" },
+            { key: "customer", label: "Khách hàng" },
+            { key: "trainer", label: "HLV" },
+          ],
           statuses: [
             { code: "in_progress", rank: 0, label: "Đang xử lý" },
             { code: "implemented", rank: 1, label: "Đã code" },
@@ -129,6 +134,7 @@ describe("GET /api/admin/service-access-policies", () => {
             primaryValue:
               "Trả lời và định hướng người dùng về tập luyện, dinh dưỡng, phục hồi và các dịch vụ HTCOACHING.",
             audiences: ["Cộng đồng", "Khách hàng", "HLV"],
+            audienceKeys: ["community", "customer", "trainer"],
             currentImprovement: {
               improvementKey: "production_background_chat_validation",
               description:
@@ -252,7 +258,7 @@ describe("GET /api/admin/service-access-policies", () => {
 
     const response = await withAuth(
       request(app).get(
-        "/api/admin/service-access-policies/community-features/report?group=nutrition&status=implemented&from=2026-08-10&to=2026-08-10",
+        "/api/admin/service-access-policies/community-features/report?group=nutrition&audience=customer&status=implemented&from=2026-08-10&to=2026-08-10",
       ),
       accessToken,
     );
@@ -296,6 +302,29 @@ describe("GET /api/admin/service-access-policies", () => {
     });
   });
 
+  it("rejects an invalid community feature audience", async () => {
+    const { accessToken } = await createTestUser({
+      email: "feature-report-invalid-audience-admin@example.com",
+      role: "admin",
+    });
+
+    const response = await withAuth(
+      request(app).get(
+        "/api/admin/service-access-policies/community-features/report?audience=unknown",
+      ),
+      accessToken,
+    );
+
+    expect({ status: response.status, body: response.body }).toEqual({
+      status: 400,
+      body: {
+        success: false,
+        code: "COMMUNITY_FEATURE_REPORT_AUDIENCE_INVALID",
+        message: "Đối tượng tính năng không hợp lệ",
+      },
+    });
+  });
+
   it("downloads the same filtered report as a private PDF", async () => {
     const { accessToken } = await createTestUser({
       email: "feature-report-pdf-admin@example.com",
@@ -304,7 +333,7 @@ describe("GET /api/admin/service-access-policies", () => {
 
     const response = await withAuth(
       request(app).get(
-        "/api/admin/service-access-policies/community-features/report.pdf?group=ai_support&from=2026-08-10&to=2026-08-10",
+        "/api/admin/service-access-policies/community-features/report.pdf?group=ai_support&audience=trainer&from=2026-08-10&to=2026-08-10",
       ),
       accessToken,
     );

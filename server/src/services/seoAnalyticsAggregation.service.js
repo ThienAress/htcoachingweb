@@ -2,6 +2,7 @@ import BlogPost from "../models/BlogPost.js";
 import Booking from "../models/Booking.js";
 import ContactMessage from "../models/ContactMessage.js";
 import SeoDailyMetric from "../models/SeoDailyMetric.js";
+import { GA4_PRODUCTION_DATA_SCOPE } from "./seoAnalytics.constants.js";
 
 const escapedRegex = (value) =>
   String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -26,6 +27,17 @@ const analyticsLookup = (startDate, endDate) => ({
           $and: [
             { $gte: ["$dateKey", startDate] },
             { $lte: ["$dateKey", endDate] },
+            {
+              $or: [
+                { $eq: ["$provider", "gsc"] },
+                {
+                  $and: [
+                    { $eq: ["$provider", "ga4"] },
+                    { $eq: ["$dataScope", GA4_PRODUCTION_DATA_SCOPE] },
+                  ],
+                },
+              ],
+            },
             {
               $or: [
                 {
@@ -57,10 +69,19 @@ const analyticsLookup = (startDate, endDate) => ({
           "activeUsers",
         ),
         engagedReads: metricSum(
-          [{ $eq: ["$dimension", "event"] }],
+          [
+            { $eq: ["$provider", "ga4"] },
+            { $eq: ["$dimension", "event"] },
+          ],
           "engagedReads",
         ),
-        ctaClicks: metricSum([{ $eq: ["$dimension", "event"] }], "ctaClicks"),
+        ctaClicks: metricSum(
+          [
+            { $eq: ["$provider", "ga4"] },
+            { $eq: ["$dimension", "event"] },
+          ],
+          "ctaClicks",
+        ),
       },
     },
   ],

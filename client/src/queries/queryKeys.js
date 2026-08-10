@@ -40,6 +40,7 @@ export const coachingKeys = {
   all: () => ["coaching"],
   foodDatabase: () => ["foods", "catalog"],
   mealPlanAccess: (userId) => ["meal-plan-access", userId],
+  mealPlanPreferences: (userId) => ["meal-plan-preferences", userId],
   trainerClients: () => ["trainer-clients"],
 };
 

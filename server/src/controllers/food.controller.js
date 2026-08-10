@@ -6,12 +6,33 @@ import {
   normalizeFoodSource,
 } from "../services/foodProvenance.js";
 import { safeLog } from "../utils/safeLogger.js";
+import FoodPriceObservation from "../models/FoodPriceObservation.js";
+import { normalizeFoodAllergenProfile } from "../services/foodAllergen.service.js";
+import { getFoodMarketPriceMap } from "../services/foodPrice.service.js";
+
+const withMarketPrices = async (foods) => {
+  const rows = foods.map((food) =>
+    typeof food.toObject === "function" ? food.toObject() : food,
+  );
+  const prices = await getFoodMarketPriceMap(rows.map(({ _id }) => _id));
+  return rows.map((food) => ({
+    ...food,
+    marketPrice: prices.get(String(food._id)),
+  }));
+};
 
 const provenanceErrorResponse = (res, error) =>
   res.status(error?.status || 400).json({
     success: false,
     code: error?.code || "FOOD_SOURCE_INVALID",
     message: error?.message || "Nguồn dữ liệu dinh dưỡng không hợp lệ",
+  });
+
+const metadataErrorResponse = (res, error) =>
+  res.status(error?.statusCode || 400).json({
+    success: false,
+    code: error?.code || "FOOD_METADATA_INVALID",
+    message: error?.message || "Metadata thực phẩm không hợp lệ",
   });
 
 // Lấy danh sách thực phẩm (có phân trang, tìm kiếm) – ai cũng xem được
@@ -28,7 +49,8 @@ export const getFoods = async (req, res) => {
 
     let foods;
     if (req.query.all === "true" || req.query.limit === "all") {
-      foods = await Food.find(query).sort({ label: 1 });
+      foods = await Food.find(query).sort({ label: 1 }).lean();
+      foods = await withMarketPrices(foods);
       res.json({
         success: true,
         data: foods,
@@ -47,7 +69,9 @@ export const getFoods = async (req, res) => {
       foods = await Food.find(query)
         .sort({ label: 1 })
         .skip(skip)
-        .limit(limit);
+        .limit(limit)
+        .lean();
+      foods = await withMarketPrices(foods);
 
       res.json({
         success: true,
@@ -69,13 +93,14 @@ export const getFoods = async (req, res) => {
 // Lấy một thực phẩm theo ID
 export const getFoodById = async (req, res) => {
   try {
-    const food = await Food.findById(req.params.id);
+    const food = await Food.findById(req.params.id).lean();
     if (!food) {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy thực phẩm" });
     }
-    res.json({ success: true, data: food });
+    const [data] = await withMarketPrices([food]);
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -84,8 +109,9 @@ export const getFoodById = async (req, res) => {
 // Tạo mới (chỉ admin)
 export const createFood = async (req, res) => {
   try {
-    let { label, protein, carb, fat, calories, nutritionBasis, source } = req.body;
+    let { label, protein, carb, fat, calories, nutritionBasis, source, allergenProfile } = req.body;
     source = normalizeFoodSource(source);
+    allergenProfile = normalizeFoodAllergenProfile(allergenProfile);
 
     // validation cơ bản
     if (
@@ -122,10 +148,12 @@ export const createFood = async (req, res) => {
       calories,
       nutritionBasis: nutritionBasis || "per_100g",
       source,
+      allergenProfile,
     });
 
     res.status(201).json({ success: true, data: food });
   } catch (err) {
+    if (err?.statusCode === 400) return metadataErrorResponse(res, err);
     if (err?.code?.startsWith("FOOD_SOURCE_")) {
       return provenanceErrorResponse(res, err);
     }
@@ -159,6 +187,7 @@ export const createManyFoods = async (req, res) => {
     for (const [index, item] of foods.entries()) {
       try {
         let { label, protein, carb, fat, calories, nutritionBasis } = item;
+        const allergenProfile = normalizeFoodAllergenProfile(item.allergenProfile);
 
         if (
           !label ||
@@ -190,6 +219,7 @@ export const createManyFoods = async (req, res) => {
           calories: parseFloat(calories),
           nutritionBasis: nutritionBasis || "per_100g",
           source: normalizedSources[index],
+          allergenProfile,
         });
         results.success.push(newFood);
       } catch (err) {
@@ -211,7 +241,7 @@ export const createManyFoods = async (req, res) => {
 // Cập nhật (chỉ admin)
 export const updateFood = async (req, res) => {
   try {
-    const { label, protein, carb, fat, calories, nutritionBasis, source } = req.body;
+    const { label, protein, carb, fat, calories, nutritionBasis, source, allergenProfile } = req.body;
     const food = await Food.findById(req.params.id);
     if (!food) {
       return res
@@ -240,9 +270,13 @@ export const updateFood = async (req, res) => {
     if (calories !== undefined) food.calories = calories;
     if (nutritionBasis !== undefined) food.nutritionBasis = nutritionBasis;
     if (source !== undefined) food.source = normalizeFoodSource(source);
+    if (allergenProfile !== undefined) {
+      food.allergenProfile = normalizeFoodAllergenProfile(allergenProfile);
+    }
     await food.save();
     res.json({ success: true, data: food });
   } catch (err) {
+    if (err?.statusCode === 400) return metadataErrorResponse(res, err);
     if (err?.code?.startsWith("FOOD_SOURCE_")) {
       return provenanceErrorResponse(res, err);
     }
@@ -260,6 +294,7 @@ export const deleteFood = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Không tìm thấy thực phẩm" });
     }
+    await FoodPriceObservation.deleteMany({ foodId: food._id });
     res.json({ success: true, message: "Xóa thực phẩm thành công" });
   } catch (err) {
     safeLog.error("food.delete_failed", err);

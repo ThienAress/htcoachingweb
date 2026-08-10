@@ -27,6 +27,7 @@ nguồn canonical trước khi thay đổi code.
 - [Meal Scan spec](./specs/meal-scan.md)
 - [Value-first public journey spec](./specs/value-first-public-journey.md)
 - [SEO & Conversion Analytics spec](./specs/seo-conversion-analytics.md)
+- [Meal Plan personalization and safety spec](./specs/meal-plan-personalization-and-safety.md)
 - [Home section media management spec](./specs/home-section-media-management.md)
 - [Agent workflow modernization spec](./specs/agent-workflow-modernization.md)
 - [Upstream Skill Radar spec](./specs/upstream-skill-radar.md)

@@ -21,8 +21,13 @@ const matrix = {
   services: [],
   trainerPlans: { columns: [], benefits: [] },
   communityFeatures: {
-    version: "2026-08-10.2",
+    version: "2026-08-10.3",
     reportOptions: {
+      audiences: [
+        { key: "community", label: "Cộng đồng" },
+        { key: "customer", label: "Khách hàng" },
+        { key: "trainer", label: "HLV" },
+      ],
       statuses: [status],
       dateRange: { from: "2026-08-10", to: "2026-08-10" },
     },
@@ -34,12 +39,24 @@ const matrix = {
         priority: snapshot.priority,
         primaryValue: snapshot.primaryValue,
         audiences: snapshot.audiences,
+        audienceKeys: ["community", "customer", "trainer"],
         currentImprovement: {
           improvementKey: "production_validation",
           description: "Xác minh production luồng chạy nền.",
           openedAt: "2026-08-10",
         },
         improvementHistory: [historyRecord],
+      },
+      {
+        featureKey: "tdee_calculator",
+        label: "TDEE Calculator",
+        group: { key: "nutrition", label: "Dinh dưỡng" },
+        priority: { code: "F1", rank: 1, label: "Ưu tiên kế tiếp" },
+        primaryValue: "Ước tính nhu cầu năng lượng.",
+        audiences: ["Cộng đồng"],
+        audienceKeys: ["community"],
+        currentImprovement: null,
+        improvementHistory: [],
       },
     ],
   },
@@ -49,6 +66,7 @@ const report = {
     from: "2026-08-10",
     to: "2026-08-10",
     group: "all",
+    audience: "all",
     status: "all",
   },
   summary: {
@@ -137,6 +155,18 @@ test.describe("Community feature improvement report", () => {
     ).toBeVisible();
     await expect(page.getByText("Cập nhật theo ngày")).toBeVisible();
     await expect(reportRegion.getByText(historyRecord.opportunity)).toBeVisible();
+
+    const filteredReportRequest = page.waitForRequest((request) => {
+      const url = new URL(request.url());
+      return (
+        url.pathname.endsWith("/community-features/report") &&
+        url.searchParams.get("audience") === "customer"
+      );
+    });
+    await page.getByLabel("Lọc theo đối tượng").selectOption("customer");
+    await filteredReportRequest;
+    await expect(page.getByRole("row", { name: /HT Assistant/ })).toBeVisible();
+    await expect(page.getByRole("row", { name: /TDEE Calculator/ })).toHaveCount(0);
 
     const download = page.waitForEvent("download");
     await page

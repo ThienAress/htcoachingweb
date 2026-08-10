@@ -7,6 +7,9 @@ import App from "./App.jsx";
 import "./i18n";
 import { HelmetProvider } from "react-helmet-async";
 import "@aejkatappaja/phantom-ui";
+import { initializeAnalytics } from "./utils/analytics";
+
+initializeAnalytics();
 
 const queryClient = new QueryClient({
   defaultOptions: {

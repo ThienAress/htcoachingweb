@@ -7,6 +7,7 @@ const percent = new Intl.NumberFormat("vi-VN", {
 });
 
 const metricValue = (key, value) => {
+  if (value === null || value === undefined) return "—";
   if (key === "ctr") return percent.format(value || 0);
   if (key === "position") return Number(value || 0).toFixed(1);
   return number.format(value || 0);
@@ -17,8 +18,8 @@ const KPI_DEFINITIONS = [
   { key: "clicks", label: "Nhấp từ tìm kiếm", source: "GSC" },
   { key: "ctr", label: "CTR", source: "GSC" },
   { key: "position", label: "Vị trí trung bình", source: "GSC" },
-  { key: "activeUsers", label: "Người dùng", source: "GA4" },
-  { key: "returningUsers", label: "Quay lại", source: "GA4" },
+  { key: "activeUsers", label: "Khách truy cập GA4", source: "GA4" },
+  { key: "returningUsers", label: "Khách quay lại GA4", source: "GA4" },
   { key: "engagedReads", label: "Đọc có tương tác", source: "GA4" },
   { key: "leads", label: "Lead thành công", source: "DB" },
   { key: "assessments", label: "Đã đánh giá", source: "DB" },
@@ -62,9 +63,10 @@ export default function AnalyticsOverview({ query }) {
   }
 
   const kpis = query.data?.kpis || {};
+  const ga4Quality = query.data?.dataQuality?.ga4;
   const hasData = KPI_DEFINITIONS.some(({ key }) => Number(kpis[key]) > 0);
   const funnel = [
-    { label: "Người dùng", value: kpis.activeUsers || 0 },
+    { label: "Khách truy cập GA4", value: kpis.activeUsers || 0 },
     { label: "Đọc có tương tác", value: kpis.engagedReads || 0 },
     { label: "Nhấp CTA", value: kpis.ctaClicks || 0 },
     { label: "Lead DB", value: kpis.leads || 0 },
@@ -81,6 +83,16 @@ export default function AnalyticsOverview({ query }) {
           <div>
             <p className="font-semibold">Chưa có aggregate trong khoảng ngày này</p>
             <p className="mt-1 text-sm text-cyan-800">Cấu hình provider rồi đồng bộ, hoặc chọn khoảng ngày khác.</p>
+          </div>
+        </div>
+      )}
+
+      {ga4Quality?.windowAggregate === "unavailable" && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950" role="status">
+          <AlertCircle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+          <div>
+            <p className="font-semibold">Chưa có aggregate GA4 chính xác cho khoảng ngày này</p>
+            <p className="mt-1 text-sm text-amber-800">Hệ thống không cộng lượt khách theo từng ngày vì cách đó có thể đếm trùng. Hãy đồng bộ lại GA4 cho đúng khoảng đã chọn.</p>
           </div>
         </div>
       )}

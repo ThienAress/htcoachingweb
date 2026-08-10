@@ -18,6 +18,7 @@ import {
   withAuth,
 } from "../../__tests__/setup.js";
 import Food from "../../models/Food.js";
+import FoodPriceObservation from "../../models/FoodPriceObservation.js";
 import foodRoutes from "../food.routes.js";
 
 const VERIFIED_SOURCE = {
@@ -47,7 +48,7 @@ describe("Food provenance contract", () => {
     await setupTestDB();
     app = createTestApp();
     app.use("/api/foods", foodRoutes);
-    await Food.init();
+    await Promise.all([Food.init(), FoodPriceObservation.init()]);
   });
 
   beforeEach(async () => {
@@ -77,6 +78,11 @@ describe("Food provenance contract", () => {
     expect(legacy.toObject()).toMatchObject({
       nutritionBasis: "per_100g",
       source: { type: "legacy_unknown" },
+      allergenProfile: {
+        reviewStatus: "unreviewed",
+        reviewedScopes: [],
+        specificContains: [],
+      },
     });
   });
 
@@ -107,6 +113,168 @@ describe("Food provenance contract", () => {
         license: "proprietary-internal",
       },
     });
+  });
+
+  test("stores reviewed allergen metadata and exposes fail-closed public metadata", async () => {
+    const response = await withAuth(
+      request(app).post("/api/foods").send({
+        ...FOOD_PAYLOAD,
+        label: "Bơ đậu phộng có nhãn",
+        allergenProfile: {
+          reviewStatus: "reviewed",
+          contains: ["peanut"],
+          mayContain: ["tree_nut"],
+          sourceType: "package_label",
+          sourceUrl: "https://example.com/label",
+          reviewedAt: "2026-08-10T00:00:00.000Z",
+        },
+      }),
+      adminToken,
+    );
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.allergenProfile).toMatchObject({
+      reviewStatus: "reviewed",
+      contains: ["peanut"],
+      mayContain: ["tree_nut"],
+    });
+  });
+
+  test("stores reviewed specific-food exclusion metadata", async () => {
+    const response = await withAuth(
+      request(app).post("/api/foods").send({
+        ...FOOD_PAYLOAD,
+        label: "Ức gà kiểm duyệt nhóm thịt",
+        allergenProfile: {
+          reviewStatus: "reviewed",
+          contains: [],
+          mayContain: [],
+          reviewedScopes: ["specific_foods"],
+          specificContains: ["chicken"],
+          sourceType: "official_database",
+          sourceUrl: "https://example.com/chicken",
+          reviewedAt: "2026-08-10T00:00:00.000Z",
+        },
+      }),
+      adminToken,
+    );
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.allergenProfile).toMatchObject({
+      reviewedScopes: ["specific_foods"],
+      specificContains: ["chicken"],
+    });
+  });
+
+  test("rejects specific-food tags without reviewed scope", async () => {
+    const response = await withAuth(
+      request(app).post("/api/foods").send({
+        ...FOOD_PAYLOAD,
+        label: "Ức gà thiếu scope",
+        allergenProfile: {
+          reviewStatus: "reviewed",
+          contains: [],
+          mayContain: [],
+          reviewedScopes: [],
+          specificContains: ["chicken"],
+          sourceType: "official_database",
+          sourceUrl: "https://example.com/chicken",
+          reviewedAt: "2026-08-10T00:00:00.000Z",
+        },
+      }),
+      adminToken,
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  test("aggregates a TP.HCM price range only after two fresh sources", async () => {
+    const food = await Food.create({
+      ...FOOD_PAYLOAD,
+      label: "Ức gà có giá",
+      allergenProfile: { reviewStatus: "unreviewed" },
+    });
+    const observedAt = new Date().toISOString();
+    const observations = [
+      {
+        sourceKey: "bach_hoa_xanh",
+        packGrams: 500,
+        regularPriceVnd: 60_000,
+        promotionalPriceVnd: null,
+        sourceUrl: "https://www.bachhoaxanh.com/thit-ga/uc-ga",
+        observedAt,
+      },
+      {
+        sourceKey: "winmart",
+        packGrams: 500,
+        regularPriceVnd: 70_000,
+        promotionalPriceVnd: 65_000,
+        sourceUrl: "https://winmart.vn/products/uc-ga",
+        observedAt,
+      },
+    ];
+
+    const created = await Promise.all(
+      observations.map((payload) =>
+        withAuth(
+          request(app).post(`/api/foods/${food._id}/prices`).send(payload),
+          adminToken,
+        ),
+      ),
+    );
+    const response = await request(app).get("/api/foods?all=true");
+
+    expect(created.map(({ status }) => status)).toEqual([201, 201]);
+    expect(response.body.data[0].marketPrice).toMatchObject({
+      region: "ho_chi_minh",
+      currency: "VND",
+      lowVndPer100g: 12_000,
+      typicalVndPer100g: 13_000,
+      highVndPer100g: 14_000,
+      sourceCount: 2,
+      coverageStatus: "sufficient",
+    });
+  });
+
+  test("rejects a price source outside the retailer allowlist", async () => {
+    const food = await Food.create({ ...FOOD_PAYLOAD, label: "Giá sai nguồn" });
+    const response = await withAuth(
+      request(app).post(`/api/foods/${food._id}/prices`).send({
+        sourceKey: "winmart",
+        packGrams: 500,
+        regularPriceVnd: 70_000,
+        promotionalPriceVnd: null,
+        sourceUrl: "https://attacker.example/price",
+        observedAt: "2026-08-10T00:00:00.000Z",
+      }),
+      adminToken,
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("FOOD_PRICE_SOURCE_INVALID");
+  });
+
+  test("does not count a manual label as an independent online retailer", async () => {
+    const food = await Food.create({
+      ...FOOD_PAYLOAD,
+      label: "Giá manual không hợp lệ",
+    });
+    const response = await withAuth(
+      request(app).post(`/api/foods/${food._id}/prices`).send({
+        sourceKey: "manual_verified",
+        packGrams: 500,
+        regularPriceVnd: 70_000,
+        promotionalPriceVnd: null,
+        sourceUrl: "https://winmart.vn/products/uc-ga",
+        observedAt: "2026-08-10T00:00:00.000Z",
+      }),
+      adminToken,
+    );
+
+    expect(response.status).toBe(400);
+    expect(await FoodPriceObservation.countDocuments({ foodId: food._id })).toBe(
+      0,
+    );
   });
 
   test("blocks macro edits on legacy data until provenance is supplied", async () => {

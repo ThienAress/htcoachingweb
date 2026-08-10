@@ -1,7 +1,9 @@
 import {
   COMMUNITY_FEATURE_CATALOG,
   COMMUNITY_FEATURE_CATALOG_VERSION,
+  COMMUNITY_FEATURE_AUDIENCE_OPTIONS,
   COMMUNITY_FEATURE_DELIVERY_STATUSES,
+  getCommunityFeatureAudienceKeys,
 } from "../constants/communityFeatureCatalog.js";
 
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -141,6 +143,16 @@ const getGroupKeys = (catalog, events) =>
     ...events.map((event) => event.group.key),
   ]);
 
+const getAudienceKeys = (catalog, events) =>
+  new Set([
+    ...catalog.flatMap((feature) =>
+      getCommunityFeatureAudienceKeys(feature.audiences),
+    ),
+    ...events.flatMap((event) =>
+      getCommunityFeatureAudienceKeys(event.audiences),
+    ),
+  ]);
+
 const buildTimeline = (rows) => {
   const days = new Map();
   rows.forEach((event) => {
@@ -184,6 +196,7 @@ export const getCommunityFeatureReportOptions = (
   const events = flattenHistory(catalog);
   return {
     statuses: DELIVERY_STATUSES,
+    audiences: COMMUNITY_FEATURE_AUDIENCE_OPTIONS,
     dateRange: getAvailableRange(events),
   };
 };
@@ -201,6 +214,7 @@ export const buildCommunityFeatureReport = (
   const from = parseDateOnly(query.from, "bắt đầu") || availableDateRange.from;
   const to = parseDateOnly(query.to, "kết thúc") || availableDateRange.to;
   const group = String(query.group || "all");
+  const audience = String(query.audience || "all");
   const status = String(query.status || "all");
 
   if (from && to && from > to) {
@@ -221,12 +235,20 @@ export const buildCommunityFeatureReport = (
       "Trạng thái xử lý không hợp lệ",
     );
   }
+  if (audience !== "all" && !getAudienceKeys(catalog, allEvents).has(audience)) {
+    throw reportError(
+      "COMMUNITY_FEATURE_REPORT_AUDIENCE_INVALID",
+      "Đối tượng tính năng không hợp lệ",
+    );
+  }
 
   const rows = allEvents.filter(
     (event) =>
       (!from || event.statusDate >= from) &&
       (!to || event.statusDate <= to) &&
       (group === "all" || event.group.key === group) &&
+      (audience === "all" ||
+        getCommunityFeatureAudienceKeys(event.audiences).includes(audience)) &&
       (status === "all" || event.status.code === status),
   );
   const improvementKeys = new Set(
@@ -243,20 +265,29 @@ export const buildCommunityFeatureReport = (
     (feature) =>
       feature.currentImprovement &&
       feature.priority?.code === "F0" &&
-      (group === "all" || feature.group?.key === group),
+      (group === "all" || feature.group?.key === group) &&
+      (audience === "all" ||
+        getCommunityFeatureAudienceKeys(feature.audiences).includes(audience)),
   ).length;
   const selectedGroupLabel =
     catalog.find((feature) => feature.group?.key === group)?.group?.label ||
     allEvents.find((event) => event.group.key === group)?.group?.label;
   const selectedStatus = DELIVERY_STATUSES.find((item) => item.code === status);
+  const selectedAudience = COMMUNITY_FEATURE_AUDIENCE_OPTIONS.find(
+    (item) => item.key === audience,
+  );
 
   return {
     catalogVersion,
     generatedAt: now.toISOString(),
     availableDateRange,
-    filters: { from, to, group, status },
+    filters: { from, to, group, audience, status },
     filterLabels: {
       group: group === "all" ? "Tất cả nhóm" : selectedGroupLabel || group,
+      audience:
+        audience === "all"
+          ? "Tất cả đối tượng"
+          : selectedAudience?.label || audience,
       status:
         status === "all" ? "Tất cả trạng thái" : selectedStatus?.label,
     },

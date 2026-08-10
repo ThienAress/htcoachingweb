@@ -62,6 +62,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 037 | Bật provider đã phê duyệt và hoàn tất production indexes | P1 | M | 025, 028C, 033 | IN PROGRESS |
 | 038 | Ổn định HT Assistant, lưu thực đơn, HLV mặc định và SEO | P0 | L | 003C, 024A, 026C, 031, 033 | RELEASE CANDIDATE VERIFIED — STAGING PENDING |
 | 039 | Theo dõi vòng đời cải tiến và xuất báo cáo PDF | P1 | M | 033, 038 | RELEASE CANDIDATE VERIFIED — STAGING PENDING |
+| 040 | Tách analytics production, lọc đối tượng và cá nhân hóa Meal Plan an toàn | P0/P1 | XL | 028A–028C, 033, 038, 039 | IMPLEMENTED / LOCAL VERIFIED — PRODUCTION DATA ROLLOUT PENDING |
 
 ## Dependency Notes
 
@@ -131,6 +132,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   lifecycle SSE/access contract; plan không đổi quota, không persist Meal Scan và không thực hiện production write.
 - Plan 039 phụ thuộc catalog Admin của 033 và các record cải tiến được thêm trong 038; plan tách current/history,
   sinh JSON/PDF read-only và không thêm schema hoặc mutation.
+- Plan 040 phụ thuộc measurement/read model của 028A–028C, quota/catalog của 033, Saved Meal Plan hardening của 038
+  và report lifecycle của 039; plan tách GA4 production, thêm bộ lọc đối tượng và Meal Plan constraints có nguồn.
 
 ## Findings Considered and Rejected
 

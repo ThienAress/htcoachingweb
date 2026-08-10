@@ -5,6 +5,7 @@ import { parseDateKey } from "../utils/dateKey.js";
 export const SEO_ANALYTICS_PROVIDERS = Object.freeze(["ga4", "gsc"]);
 export const SEO_ANALYTICS_DIMENSIONS = Object.freeze([
   "overview",
+  "overview_window",
   "page",
   "query",
   "source_medium",
@@ -33,6 +34,10 @@ const isValidDimensionKey = function validateDimensionKey(value) {
     return false;
   }
   if (this.dimension === "overview") return value === "all";
+  if (this.dimension === "overview_window") {
+    const [startDate, endDate, ...rest] = value.split("_");
+    return rest.length === 0 && isValidDateKey(startDate) && isValidDateKey(endDate);
+  }
   if (this.dimension === "page") {
     return (
       value.startsWith("/") &&
@@ -84,6 +89,11 @@ const seoDailyMetricSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: SEO_ANALYTICS_PROVIDERS,
+    },
+    dataScope: {
+      type: String,
+      enum: ["production"],
+      default: undefined,
     },
     dateKey: {
       type: String,

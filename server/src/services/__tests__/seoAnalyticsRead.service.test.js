@@ -24,6 +24,7 @@ const blogPath = "/blog/cach-tinh-macro/";
 
 const metric = (overrides) => ({
   provider: "ga4",
+  dataScope: "production",
   dateKey: "2026-08-05",
   dimension: "overview",
   dimensionKey: "all",
@@ -58,11 +59,21 @@ const seedAnalytics = async () => {
   await SeoDailyMetric.insertMany([
     metric({
       provider: "gsc",
+      dataScope: undefined,
       metrics: { impressions: 100, clicks: 12, ctr: 0.12, position: 4.5 },
     }),
-    metric({ metrics: { activeUsers: 20, newUsers: 7, returningUsers: 13 } }),
+    metric({
+      dimension: "overview_window",
+      dimensionKey: "2026-08-01_2026-08-05",
+      metrics: { activeUsers: 20, newUsers: 7, returningUsers: 13 },
+    }),
+    metric({
+      dataScope: undefined,
+      metrics: { activeUsers: 999, newUsers: 999, returningUsers: 999 },
+    }),
     metric({
       provider: "gsc",
+      dataScope: undefined,
       dimension: "page",
       dimensionKey: blogPath,
       metrics: { impressions: 80, clicks: 10, ctr: 0.125, position: 3.2 },
@@ -86,6 +97,7 @@ const seedAnalytics = async () => {
     }),
     metric({
       provider: "gsc",
+      dataScope: undefined,
       dimension: "query",
       dimensionKey: "cách tính macro",
       contentPath: blogPath,
@@ -132,6 +144,7 @@ const seedAnalytics = async () => {
 const service = () =>
   createSeoAnalyticsReadService({
     providerConfiguration: { ga4: true, gsc: false },
+    ga4Hostname: "htcoachingweb.io.vn",
     now: () => new Date("2026-08-06T12:00:00.000Z"),
   });
 
@@ -154,6 +167,22 @@ describe("SEO analytics read model", () => {
         expect.objectContaining({ provider: "gsc", health: "not_configured" }),
       ]),
     );
+    expect(result.dataQuality.ga4).toMatchObject({
+      scope: "production",
+      hostname: "htcoachingweb.io.vn",
+      windowAggregate: "exact",
+    });
+  });
+
+  it("không fallback sang tổng daily/legacy khi thiếu exact-window aggregate", async () => {
+    await seedAnalytics();
+    await SeoDailyMetric.deleteOne({ dimension: "overview_window" });
+
+    const result = await service().getOverview(dateRange);
+
+    expect(result.kpis.activeUsers).toBeNull();
+    expect(result.kpis.returningUsers).toBeNull();
+    expect(result.dataQuality.ga4.windowAggregate).toBe("unavailable");
   });
 
   it("returns server-paginated Blog metrics và legacy views riêng", async () => {

@@ -16,10 +16,28 @@ import {
 } from "../controllers/user.controller.js";
 import {
   validateDeleteUser,
+  validateMealPlanPreferencesUpdate,
 } from "../middlewares/validation.js";
+import {
+  getMyMealPlanPreferences,
+  updateMyMealPlanPreferences,
+} from "../controllers/mealPlanPreference.controller.js";
 import { getTrainerAssignmentCandidates } from "../controllers/trainerAssignment.controller.js";
 
 const router = express.Router();
+
+router.get(
+  "/me/meal-plan-preferences",
+  protect,
+  getMyMealPlanPreferences,
+);
+router.put(
+  "/me/meal-plan-preferences",
+  protect,
+  csrfProtection,
+  validateMealPlanPreferencesUpdate,
+  updateMyMealPlanPreferences,
+);
 
 // ===== GET CURRENT USER =====
 router.get("/me", protect, async (req, res) => {

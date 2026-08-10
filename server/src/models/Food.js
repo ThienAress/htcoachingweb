@@ -5,6 +5,78 @@ import {
   FOOD_NUTRITION_BASES,
   FOOD_SOURCE_TYPES,
 } from "../services/foodProvenance.js";
+import {
+  MEAL_PLAN_ALLERGEN_KEYS,
+  MEAL_PLAN_ALLERGEN_REVIEW_SCOPES,
+  MEAL_PLAN_SPECIFIC_FOOD_KEYS,
+} from "../constants/mealPlanPreferences.js";
+
+const foodAllergenSchema = new mongoose.Schema(
+  {
+    reviewStatus: {
+      type: String,
+      enum: ["unreviewed", "reviewed"],
+      default: "unreviewed",
+      required: true,
+    },
+    contains: {
+      type: [{ type: String, enum: MEAL_PLAN_ALLERGEN_KEYS }],
+      default: [],
+    },
+    mayContain: {
+      type: [{ type: String, enum: MEAL_PLAN_ALLERGEN_KEYS }],
+      default: [],
+    },
+    reviewedScopes: {
+      type: [{ type: String, enum: MEAL_PLAN_ALLERGEN_REVIEW_SCOPES }],
+      default: [],
+    },
+    specificContains: {
+      type: [{ type: String, enum: MEAL_PLAN_SPECIFIC_FOOD_KEYS }],
+      default: [],
+    },
+    sourceType: {
+      type: String,
+      enum: ["package_label", "manufacturer", "official_database", null],
+      default: null,
+    },
+    sourceUrl: { type: String, trim: true, maxlength: 500, default: "" },
+    reviewedAt: { type: Date, default: null },
+  },
+  { _id: false, strict: "throw" },
+);
+
+foodAllergenSchema.path("mayContain").validate(function validateAllergens(value) {
+  const contains = new Set(this.contains || []);
+  return (
+    new Set(value).size === value.length &&
+    new Set(this.contains || []).size === (this.contains || []).length &&
+    !value.some((item) => contains.has(item))
+  );
+}, "Metadata dị ứng không hợp lệ");
+
+foodAllergenSchema.path("specificContains").validate(function validateSpecificFoods(value) {
+  return (
+    new Set(value).size === value.length &&
+    (value.length === 0 || (this.reviewedScopes || []).includes("specific_foods"))
+  );
+}, "Metadata thực phẩm cụ thể không hợp lệ");
+
+foodAllergenSchema.path("reviewedScopes").validate(function validateReviewScopes(value) {
+  return (
+    new Set(value).size === value.length &&
+    (this.reviewStatus === "reviewed" || value.length === 0)
+  );
+}, "Scope kiểm duyệt dị ứng không hợp lệ");
+
+foodAllergenSchema.path("reviewedAt").validate(function validateReview(value) {
+  return this.reviewStatus === "reviewed"
+    ? Boolean(value && this.sourceType)
+    : value == null &&
+        this.sourceType == null &&
+        (this.reviewedScopes || []).length === 0 &&
+        (this.specificContains || []).length === 0;
+}, "Nguồn kiểm duyệt dị ứng không hợp lệ");
 
 const foodSourceSchema = new mongoose.Schema(
   {
@@ -59,6 +131,11 @@ const foodSchema = new mongoose.Schema(
     source: {
       type: foodSourceSchema,
       default: () => ({ type: "legacy_unknown" }),
+      required: true,
+    },
+    allergenProfile: {
+      type: foodAllergenSchema,
+      default: () => ({ reviewStatus: "unreviewed" }),
       required: true,
     },
   },

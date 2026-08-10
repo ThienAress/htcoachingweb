@@ -8,3 +8,5 @@
 
 [context.production.environment]
   VITE_TODAY_PLATFORM_ENABLED = "true"
+  VITE_GA4_MEASUREMENT_ID = "G-S7JEFVLP6G"
+  VITE_GA4_HOSTNAME = "htcoachingweb.io.vn"

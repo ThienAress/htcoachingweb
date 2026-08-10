@@ -20,6 +20,7 @@ import { createSeoAnalyticsSyncService } from "../seoAnalyticsSync.service.js";
 
 const metricRow = {
   provider: "ga4",
+  dataScope: "production",
   dateKey: "2026-08-05",
   dimension: "overview",
   dimensionKey: "all",
@@ -70,6 +71,7 @@ describe("SEO analytics sync service", () => {
 
     expect(await SeoDailyMetric.countDocuments()).toBe(1);
     expect((await SeoDailyMetric.findOne()).metrics.activeUsers).toBe(25);
+    expect((await SeoDailyMetric.findOne()).dataScope).toBe("production");
   });
 
   it("không xóa stale cache khi provider trả partial window", async () => {

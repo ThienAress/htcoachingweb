@@ -8,7 +8,7 @@ const analyticsEvents = (page) =>
   );
 
 test.describe("public SEO/conversion measurement", () => {
-  test("Hero consultation CTA keeps navigation and emits an allowlisted event", async ({
+  test("Hero consultation CTA keeps navigation without local GA4 emission", async ({
     page,
   }) => {
     await page.goto("/");
@@ -16,17 +16,10 @@ test.describe("public SEO/conversion measurement", () => {
     await page.locator('a[href="#contact"]').first().click();
 
     await expect(page).toHaveURL(/#contact$/);
-    await expect.poll(() => analyticsEvents(page)).toContainEqual([
-      "event",
-      "consultation_cta_click",
-      {
-        cta_placement: "hero_primary",
-        content_type: "homepage",
-      },
-    ]);
+    expect(await analyticsEvents(page)).toEqual([]);
   });
 
-  test("Contact success sends sanitized attribution and generate_lead without PII", async ({
+  test("Contact success sends sanitized attribution without local GA4 or PII", async ({
     page,
   }) => {
     let requestBody = null;
@@ -62,11 +55,7 @@ test.describe("public SEO/conversion measurement", () => {
     });
     expect(requestBody.attribution).not.toHaveProperty("rawIp");
 
-    await expect
-      .poll(async () => {
-        const events = await analyticsEvents(page);
-        return events.find(([, name]) => name === "generate_lead");
-      })
-      .toEqual(["event", "generate_lead", { lead_type: "contact" }]);
+    await expect(contact.getByPlaceholder("Họ và tên")).toHaveValue("");
+    expect(await analyticsEvents(page)).toEqual([]);
   });
 });

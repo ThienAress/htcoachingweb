@@ -5,6 +5,8 @@ import {
   validateFood,
   validateFoodBatch,
   validateFoodUpdate,
+  validateFoodPriceObservation,
+  validateFoodPriceObservationId,
   validateId,
 } from "../middlewares/validation.js";
 import {
@@ -15,11 +17,40 @@ import {
   updateFood,
   deleteFood,
 } from "../controllers/food.controller.js";
+import {
+  addFoodPriceObservation,
+  getFoodPriceObservations,
+  removeFoodPriceObservation,
+} from "../controllers/foodPrice.controller.js";
 
 const router = express.Router();
 
 // Public routes (ai cũng xem được)
 router.get("/", getFoods);
+router.get(
+  "/:id/prices",
+  protect,
+  requireRoles("admin"),
+  validateId,
+  getFoodPriceObservations,
+);
+router.post(
+  "/:id/prices",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  validateId,
+  validateFoodPriceObservation,
+  addFoodPriceObservation,
+);
+router.delete(
+  "/:id/prices/:observationId",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  validateFoodPriceObservationId,
+  removeFoodPriceObservation,
+);
 router.get("/:id", validateId, getFoodById);
 
 // Admin only

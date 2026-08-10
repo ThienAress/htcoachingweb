@@ -34,6 +34,7 @@ const SummaryItem = ({ label, value }) => (
 export default function CommunityFeatureReportToolbar({
   catalog,
   selectedGroup,
+  selectedAudience,
 }) {
   const initialRange = getCommunityFeatureHistoryDateRange(catalog?.items);
   const [from, setFrom] = useState(initialRange.from);
@@ -44,6 +45,7 @@ export default function CommunityFeatureReportToolbar({
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
     group: selectedGroup || "all",
+    audience: selectedAudience || "all",
     status,
   };
   const reportQuery = useQuery(
@@ -79,8 +81,8 @@ export default function CommunityFeatureReportToolbar({
             Báo cáo lịch sử cải tiến
           </h3>
           <p className="mt-1 text-sm leading-5 text-zinc-600">
-            Thống kê và tải PDF từ cùng lịch sử canonical. Nhóm báo cáo dùng bộ
-            lọc “Nhóm” ở phía trên.
+            Thống kê và tải PDF từ cùng lịch sử canonical. Báo cáo dùng bộ lọc
+            “Nhóm” và “Đối tượng” ở phía trên.
           </p>
         </div>
 

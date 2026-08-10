@@ -6,6 +6,14 @@ import {
 } from "../constants/trainerPlans.js";
 import { parseDateKey } from "../utils/dateKey.js";
 import { normalizeLeadAttribution } from "../models/leadAttribution.schema.js";
+import {
+  MEAL_PLAN_ALLERGEN_KEYS,
+  MEAL_PLAN_ALLERGEN_REVIEW_SCOPES,
+  MEAL_PLAN_ALLERGY_STATUSES,
+  MEAL_PLAN_BUDGET_VND,
+  MEAL_PLAN_OTHER_ALLERGEN_TEXT,
+  MEAL_PLAN_SPECIFIC_FOOD_KEYS,
+} from "../constants/mealPlanPreferences.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -28,6 +36,65 @@ const nullableObjectId = (value) => {
   if (value === null || value === undefined || value === "") return true;
   return mongoose.Types.ObjectId.isValid(value);
 };
+
+export const validateMealPlanPreferencesUpdate = [
+  body().custom((value) => {
+    const required = ["allergyStatus", "allergens", "budgetVndPerDay"];
+    const allowed = [...required, "otherAllergenText"];
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      required.some((key) => !Object.hasOwn(value, key)) ||
+      Object.keys(value).some((key) => !allowed.includes(key))
+    ) {
+      throw new Error("Payload điều kiện thực đơn không hợp lệ");
+    }
+    return true;
+  }),
+  body("allergyStatus").isIn(MEAL_PLAN_ALLERGY_STATUSES),
+  body("allergens")
+    .isArray({ max: MEAL_PLAN_ALLERGEN_KEYS.length })
+    .custom((values) => {
+      if (
+        new Set(values).size !== values.length ||
+        values.some((value) => !MEAL_PLAN_ALLERGEN_KEYS.includes(value))
+      ) {
+        throw new Error("Danh sách dị ứng không hợp lệ");
+      }
+      return true;
+    }),
+  body("otherAllergenText")
+    .optional()
+    .isString()
+    .isLength({ max: MEAL_PLAN_OTHER_ALLERGEN_TEXT.maxLength })
+    .custom(
+      (value) =>
+        !/[\u0000-\u001F\u007F<>@]|https?:\/\/|www\./iu.test(value),
+    ),
+  body().custom((value) => {
+    const hasKnown = Array.isArray(value.allergens) && value.allergens.length > 0;
+    const hasOther = Boolean(String(value.otherAllergenText || "").trim());
+    const valid =
+      value.allergyStatus === "declared"
+        ? hasKnown || hasOther
+        : !hasKnown && !hasOther;
+    if (!valid) throw new Error("Thông tin dị ứng không khớp trạng thái");
+    return true;
+  }),
+  body("budgetVndPerDay").custom((value) => {
+    if (value === null) return true;
+    if (
+      !Number.isInteger(value) ||
+      value < MEAL_PLAN_BUDGET_VND.min ||
+      value > MEAL_PLAN_BUDGET_VND.max
+    ) {
+      throw new Error("Ngân sách tham khảo không hợp lệ");
+    }
+    return true;
+  }),
+  handleValidationErrors,
+];
 
 const conversionOriginValidators = () => [
   body("originBookingId")
@@ -1513,6 +1580,31 @@ export const validateFood = [
   body("source.sourceUrl").optional().isURL().isLength({ max: 500 }),
   body("source.retrievedAt").optional().isISO8601(),
   body("source.verifiedAt").optional().isISO8601(),
+  body("allergenProfile").optional().isObject(),
+  body("allergenProfile.reviewStatus")
+    .optional()
+    .isIn(["unreviewed", "reviewed"]),
+  body("allergenProfile.contains").optional().isArray({ max: 9 }),
+  body("allergenProfile.contains.*").optional().isIn(MEAL_PLAN_ALLERGEN_KEYS),
+  body("allergenProfile.mayContain").optional().isArray({ max: 9 }),
+  body("allergenProfile.mayContain.*").optional().isIn(MEAL_PLAN_ALLERGEN_KEYS),
+  body("allergenProfile.reviewedScopes").optional().isArray({ max: 1 }),
+  body("allergenProfile.reviewedScopes.*")
+    .optional()
+    .isIn(MEAL_PLAN_ALLERGEN_REVIEW_SCOPES),
+  body("allergenProfile.specificContains")
+    .optional()
+    .isArray({ max: MEAL_PLAN_SPECIFIC_FOOD_KEYS.length }),
+  body("allergenProfile.specificContains.*")
+    .optional()
+    .isIn(MEAL_PLAN_SPECIFIC_FOOD_KEYS),
+  body("allergenProfile.sourceType")
+    .optional({ nullable: true })
+    .isIn(["package_label", "manufacturer", "official_database"]),
+  body("allergenProfile.sourceUrl")
+    .optional({ checkFalsy: true })
+    .isURL({ protocols: ["https"], require_protocol: true }),
+  body("allergenProfile.reviewedAt").optional({ nullable: true }).isISO8601(),
   handleValidationErrors,
 ];
 
@@ -1538,6 +1630,28 @@ export const validateFoodBatch = [
   body("foods.*.source.sourceUrl").optional().isURL().isLength({ max: 500 }),
   body("foods.*.source.retrievedAt").optional().isISO8601(),
   body("foods.*.source.verifiedAt").optional().isISO8601(),
+  body("foods.*.allergenProfile").optional().isObject(),
+  body("foods.*.allergenProfile.reviewStatus")
+    .optional()
+    .isIn(["unreviewed", "reviewed"]),
+  body("foods.*.allergenProfile.contains").optional().isArray({ max: 9 }),
+  body("foods.*.allergenProfile.contains.*")
+    .optional()
+    .isIn(MEAL_PLAN_ALLERGEN_KEYS),
+  body("foods.*.allergenProfile.mayContain").optional().isArray({ max: 9 }),
+  body("foods.*.allergenProfile.mayContain.*")
+    .optional()
+    .isIn(MEAL_PLAN_ALLERGEN_KEYS),
+  body("foods.*.allergenProfile.reviewedScopes").optional().isArray({ max: 1 }),
+  body("foods.*.allergenProfile.reviewedScopes.*")
+    .optional()
+    .isIn(MEAL_PLAN_ALLERGEN_REVIEW_SCOPES),
+  body("foods.*.allergenProfile.specificContains")
+    .optional()
+    .isArray({ max: MEAL_PLAN_SPECIFIC_FOOD_KEYS.length }),
+  body("foods.*.allergenProfile.specificContains.*")
+    .optional()
+    .isIn(MEAL_PLAN_SPECIFIC_FOOD_KEYS),
   handleValidationErrors,
 ];
 
@@ -1562,6 +1676,76 @@ export const validateFoodUpdate = [
   body("source.sourceUrl").optional().isURL().isLength({ max: 500 }),
   body("source.retrievedAt").optional().isISO8601(),
   body("source.verifiedAt").optional().isISO8601(),
+  body("allergenProfile").optional().isObject(),
+  body("allergenProfile.reviewStatus")
+    .optional()
+    .isIn(["unreviewed", "reviewed"]),
+  body("allergenProfile.contains").optional().isArray({ max: 9 }),
+  body("allergenProfile.contains.*").optional().isIn(MEAL_PLAN_ALLERGEN_KEYS),
+  body("allergenProfile.mayContain").optional().isArray({ max: 9 }),
+  body("allergenProfile.mayContain.*").optional().isIn(MEAL_PLAN_ALLERGEN_KEYS),
+  body("allergenProfile.reviewedScopes").optional().isArray({ max: 1 }),
+  body("allergenProfile.reviewedScopes.*")
+    .optional()
+    .isIn(MEAL_PLAN_ALLERGEN_REVIEW_SCOPES),
+  body("allergenProfile.specificContains")
+    .optional()
+    .isArray({ max: MEAL_PLAN_SPECIFIC_FOOD_KEYS.length }),
+  body("allergenProfile.specificContains.*")
+    .optional()
+    .isIn(MEAL_PLAN_SPECIFIC_FOOD_KEYS),
+  body("allergenProfile.sourceType")
+    .optional({ nullable: true })
+    .isIn(["package_label", "manufacturer", "official_database"]),
+  body("allergenProfile.sourceUrl")
+    .optional({ checkFalsy: true })
+    .isURL({ protocols: ["https"], require_protocol: true }),
+  body("allergenProfile.reviewedAt").optional({ nullable: true }).isISO8601(),
+  handleValidationErrors,
+];
+
+export const validateFoodPriceObservation = [
+  body().custom((value) => {
+    const allowed = [
+      "sourceKey",
+      "packGrams",
+      "regularPriceVnd",
+      "promotionalPriceVnd",
+      "sourceUrl",
+      "observedAt",
+    ];
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).length !== allowed.length ||
+      Object.keys(value).some((key) => !allowed.includes(key))
+    ) {
+      throw new Error("Payload quan sát giá không hợp lệ");
+    }
+    return true;
+  }),
+  body("sourceKey").isIn([
+    "bach_hoa_xanh",
+    "winmart",
+    "coop_online",
+  ]),
+  body("packGrams").isFloat({ min: 1, max: 100000 }).toFloat(),
+  body("regularPriceVnd").isInt({ min: 1, max: 100000000 }).toInt(),
+  body("promotionalPriceVnd")
+    .custom((value) => value === null || Number.isInteger(value)),
+  body("sourceUrl")
+    .isURL({ protocols: ["https"], require_protocol: true })
+    .isLength({ max: 500 }),
+  body("observedAt").isISO8601().toDate(),
+  handleValidationErrors,
+];
+
+export const validateFoodPriceObservationId = [
+  param("id").isMongoId().withMessage("ID thực phẩm không hợp lệ"),
+  param("observationId")
+    .isMongoId()
+    .withMessage("ID quan sát giá không hợp lệ"),
   handleValidationErrors,
 ];
 

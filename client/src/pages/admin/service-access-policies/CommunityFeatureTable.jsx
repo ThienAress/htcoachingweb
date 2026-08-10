@@ -1,7 +1,8 @@
-import { ListFilter } from "lucide-react";
+import { ListFilter, Users } from "lucide-react";
 
 import {
-  filterCommunityFeaturesByGroup,
+  filterCommunityFeatures,
+  getCommunityFeatureAudiences,
   getCommunityFeatureDeliveryMeta,
   getCommunityFeatureGroups,
   getCommunityFeatureHistoryRecords,
@@ -30,34 +31,72 @@ export default function CommunityFeatureTable({
   catalog,
   selectedGroup,
   onGroupChange,
+  selectedAudience,
+  onAudienceChange,
 }) {
   const items = Array.isArray(catalog?.items) ? catalog.items : [];
   const groups = getCommunityFeatureGroups(items);
-  const filteredItems = filterCommunityFeaturesByGroup(items, selectedGroup);
+  const audiences = getCommunityFeatureAudiences(
+    items,
+    catalog?.reportOptions?.audiences,
+  );
+  const filteredItems = filterCommunityFeatures(
+    items,
+    selectedGroup,
+    selectedAudience,
+  );
 
   return (
     <div>
       <div className="flex flex-col gap-3 border-b border-zinc-200 bg-zinc-50 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
-        <label className="block w-full max-w-xs" htmlFor="community-feature-group">
-          <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-800">
-            <ListFilter className="size-4 text-emerald-700" aria-hidden="true" />
-            Lọc theo nhóm
-          </span>
-          <select
-            id="community-feature-group"
-            name="community-feature-group"
-            value={selectedGroup}
-            onChange={(event) => onGroupChange(event.target.value)}
-            className="min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 outline-none transition-colors hover:border-zinc-400 focus-visible:border-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-600/20"
-          >
-            <option value="all">Tất cả nhóm</option>
-            {groups.map((group) => (
-              <option key={group.key} value={group.key}>
-                {group.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-2">
+          <label className="block" htmlFor="community-feature-group">
+            <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-800">
+              <ListFilter
+                className="size-4 text-emerald-700"
+                aria-hidden="true"
+              />
+              Lọc theo nhóm
+            </span>
+            <select
+              id="community-feature-group"
+              name="community-feature-group"
+              value={selectedGroup}
+              onChange={(event) => onGroupChange(event.target.value)}
+              className="min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 outline-none transition-colors hover:border-zinc-400 focus-visible:border-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+            >
+              <option value="all">Tất cả nhóm</option>
+              {groups.map((group) => (
+                <option key={group.key} value={group.key}>
+                  {group.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block" htmlFor="community-feature-audience">
+            <span className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-800">
+              <Users
+                className="size-4 text-emerald-700"
+                aria-hidden="true"
+              />
+              Lọc theo đối tượng
+            </span>
+            <select
+              id="community-feature-audience"
+              name="community-feature-audience"
+              value={selectedAudience}
+              onChange={(event) => onAudienceChange(event.target.value)}
+              className="min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 outline-none transition-colors hover:border-zinc-400 focus-visible:border-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-600/20"
+            >
+              <option value="all">Tất cả đối tượng</option>
+              {audiences.map((audience) => (
+                <option key={audience.key} value={audience.key}>
+                  {audience.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <div className="text-sm text-zinc-600 sm:text-right">
           <p className="font-medium" role="status">
             Hiển thị {filteredItems.length}/{items.length} tính năng
@@ -71,11 +110,12 @@ export default function CommunityFeatureTable({
       <CommunityFeatureReportToolbar
         catalog={catalog}
         selectedGroup={selectedGroup}
+        selectedAudience={selectedAudience}
       />
 
       {filteredItems.length === 0 ? (
         <p className="px-5 py-8 text-center text-sm text-zinc-600">
-          Không có tính năng thuộc nhóm đã chọn.
+          Không có tính năng phù hợp nhóm và đối tượng đã chọn.
         </p>
       ) : (
         <div className="overflow-x-auto">

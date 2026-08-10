@@ -23,6 +23,7 @@ import {
   updateFood,
   deleteFood,
   createManyFoods,
+  addFoodPriceObservation,
 } from "../../services/food.service";
 import { useDebounce } from "../../hooks/useDebounce";
 
@@ -41,7 +42,42 @@ const createFoodForm = () => ({
   sourceAttribution: "HTCOACHING manual nutrition review",
   sourceUrl: "",
   sourceDate: new Date().toISOString().slice(0, 10),
+  allergenReviewStatus: "unreviewed",
+  allergenContains: [],
+  allergenMayContain: [],
+  allergenSpecificReviewed: false,
+  allergenSpecificContains: [],
+  allergenSourceType: "package_label",
+  allergenSourceUrl: "",
+  allergenReviewedAt: new Date().toISOString().slice(0, 10),
+  priceSourceKey: "",
+  pricePackGrams: "",
+  priceRegularVnd: "",
+  pricePromotionalVnd: "",
+  priceSourceUrl: "",
+  priceObservedAt: new Date().toISOString().slice(0, 10),
 });
+
+const ALLERGEN_OPTIONS = [
+  ["milk", "Sữa"],
+  ["egg", "Trứng"],
+  ["fish", "Cá"],
+  ["crustacean_shellfish", "Giáp xác"],
+  ["tree_nut", "Hạt cây"],
+  ["peanut", "Đậu phộng"],
+  ["wheat", "Lúa mì"],
+  ["soy", "Đậu nành"],
+  ["sesame", "Mè"],
+];
+
+const SPECIFIC_FOOD_OPTIONS = [
+  ["beef", "Bò"],
+  ["chicken", "Gà"],
+  ["pork", "Heo/lợn"],
+  ["duck", "Vịt/gia cầm"],
+  ["goat", "Dê"],
+  ["lamb", "Cừu"],
+];
 
 const sourcePayload = (formData) => {
   if (formData.sourceType === "legacy_unknown") return undefined;
@@ -57,6 +93,47 @@ const sourcePayload = (formData) => {
     ...(external
       ? { retrievedAt: new Date(formData.sourceDate).toISOString() }
       : { verifiedAt: new Date(formData.sourceDate).toISOString() }),
+  };
+};
+
+const allergenPayload = (formData) =>
+  formData.allergenReviewStatus === "unreviewed"
+    ? {
+        reviewStatus: "unreviewed",
+        contains: [],
+        mayContain: [],
+        reviewedScopes: [],
+        specificContains: [],
+        sourceType: null,
+        sourceUrl: "",
+        reviewedAt: null,
+      }
+    : {
+        reviewStatus: "reviewed",
+        contains: formData.allergenContains,
+        mayContain: formData.allergenMayContain,
+        reviewedScopes: formData.allergenSpecificReviewed
+          ? ["specific_foods"]
+          : [],
+        specificContains: formData.allergenSpecificReviewed
+          ? formData.allergenSpecificContains
+          : [],
+        sourceType: formData.allergenSourceType,
+        sourceUrl: formData.allergenSourceUrl.trim(),
+        reviewedAt: new Date(formData.allergenReviewedAt).toISOString(),
+      };
+
+const pricePayload = (formData) => {
+  if (!formData.priceSourceKey) return null;
+  return {
+    sourceKey: formData.priceSourceKey,
+    packGrams: Number(formData.pricePackGrams),
+    regularPriceVnd: Number(formData.priceRegularVnd),
+    promotionalPriceVnd: formData.pricePromotionalVnd
+      ? Number(formData.pricePromotionalVnd)
+      : null,
+    sourceUrl: formData.priceSourceUrl.trim(),
+    observedAt: new Date(formData.priceObservedAt).toISOString(),
   };
 };
 
@@ -97,7 +174,11 @@ const FoodManagement = () => {
   const pagination = foodsData?.pagination || { total: 0, totalPages: 0 };
 
   const createMutation = useMutation({
-    mutationFn: createFood,
+    mutationFn: async ({ food, price }) => {
+      const response = await createFood(food);
+      if (price) await addFoodPriceObservation(response.data.data._id, price);
+      return response;
+    },
     onSuccess: () => {
       toast.success("Thêm thực phẩm thành công");
       invalidateByKey(queryClient, adminQueryKeys.foods.all());
@@ -107,7 +188,11 @@ const FoodManagement = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => updateFood(id, data),
+    mutationFn: async ({ id, data, price }) => {
+      const response = await updateFood(id, data);
+      if (price) await addFoodPriceObservation(id, price);
+      return response;
+    },
     onSuccess: () => {
       toast.success("Cập nhật thành công");
       invalidateByKey(queryClient, adminQueryKeys.foods.all());
@@ -163,6 +248,26 @@ const FoodManagement = () => {
         food.source?.verifiedAt ||
         new Date().toISOString()
       ).slice(0, 10),
+      allergenReviewStatus:
+        food.allergenProfile?.reviewStatus || "unreviewed",
+      allergenContains: food.allergenProfile?.contains || [],
+      allergenMayContain: food.allergenProfile?.mayContain || [],
+      allergenSpecificReviewed:
+        food.allergenProfile?.reviewedScopes?.includes("specific_foods") || false,
+      allergenSpecificContains:
+        food.allergenProfile?.specificContains || [],
+      allergenSourceType:
+        food.allergenProfile?.sourceType || "package_label",
+      allergenSourceUrl: food.allergenProfile?.sourceUrl || "",
+      allergenReviewedAt: (
+        food.allergenProfile?.reviewedAt || new Date().toISOString()
+      ).slice(0, 10),
+      priceSourceKey: "",
+      pricePackGrams: "",
+      priceRegularVnd: "",
+      pricePromotionalVnd: "",
+      priceSourceUrl: "",
+      priceObservedAt: new Date().toISOString().slice(0, 10),
     });
     setShowModal(true);
   };
@@ -183,11 +288,13 @@ const FoodManagement = () => {
       calories: formData.calories ? parseFloat(formData.calories) : undefined,
       nutritionBasis: formData.nutritionBasis,
       source: sourcePayload(formData),
+      allergenProfile: allergenPayload(formData),
     };
+    const price = pricePayload(formData);
     if (editingFood) {
-      updateMutation.mutate({ id: editingFood._id, data });
+      updateMutation.mutate({ id: editingFood._id, data, price });
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate({ food: data, price });
     }
   };
 
@@ -310,6 +417,12 @@ const FoodManagement = () => {
                     Nguồn
                   </th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
+                    Dị ứng
+                  </th>
+                  <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
+                    Giá TP.HCM
+                  </th>
+                  <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                     Hành động
                   </th>
                 </tr>
@@ -322,6 +435,22 @@ const FoodManagement = () => {
                   >
                     <td className="px-3 md:px-4 py-2 md:py-3 font-medium text-slate-700">
                       {food.label}
+                    </td>
+                    <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
+                      <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                        food.allergenProfile?.reviewStatus === "reviewed"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-amber-50 text-amber-700"
+                      }`}>
+                        {food.allergenProfile?.reviewStatus === "reviewed"
+                          ? "Đã duyệt"
+                          : "Chưa duyệt"}
+                      </span>
+                    </td>
+                    <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
+                      {food.marketPrice?.coverageStatus === "sufficient"
+                        ? `${food.marketPrice.typicalVndPer100g.toLocaleString("vi-VN")}đ/100g`
+                        : `${food.marketPrice?.sourceCount || 0}/2 nguồn`}
                     </td>
                     <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
                       {food.protein}
@@ -367,7 +496,7 @@ const FoodManagement = () => {
                 {foods.length === 0 && (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={9}
                       className="px-3 md:px-4 py-6 md:py-8 text-center text-slate-500"
                     >
                       Không tìm thấy thực phẩm nào.
@@ -405,7 +534,7 @@ const FoodManagement = () => {
 
         {showModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="max-h-[90vh] w-full max-w-2xl overscroll-contain overflow-y-auto rounded-xl bg-white shadow-xl">
               <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
                 <h2 className="text-fluid-lg font-bold text-slate-800 flex items-center gap-2 uppercase">
                   <Apple className="w-5 h-5 text-indigo-600" />
@@ -584,6 +713,240 @@ const FoodManagement = () => {
                         value={formData.sourceUrl}
                         onChange={(e) => setFormData({ ...formData, sourceUrl: e.target.value })}
                         className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                      />
+                    </label>
+                  </div>
+                </fieldset>
+                <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">
+                  <legend className="px-1 text-sm font-semibold text-slate-700">
+                    Kiểm duyệt dị ứng
+                  </legend>
+                  <label className="block text-sm text-slate-700">
+                    Trạng thái
+                    <select
+                      name="allergenReviewStatus"
+                      value={formData.allergenReviewStatus}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        allergenReviewStatus: e.target.value,
+                      })}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                    >
+                      <option value="unreviewed">Chưa kiểm duyệt</option>
+                      <option value="reviewed">Đã kiểm duyệt theo nhãn/nguồn</option>
+                    </select>
+                  </label>
+                  {formData.allergenReviewStatus === "reviewed" && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {[
+                        ["allergenContains", "Có chứa"],
+                        ["allergenMayContain", "Có thể chứa"],
+                      ].map(([field, label]) => (
+                        <label key={field} className="text-sm text-slate-700">
+                          {label}
+                          <select
+                            name={field}
+                            multiple
+                            value={formData[field]}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              [field]: [...e.target.selectedOptions].map(
+                                (option) => option.value,
+                              ),
+                            })}
+                            className="mt-1 min-h-32 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900"
+                          >
+                            {ALLERGEN_OPTIONS.map(([key, optionLabel]) => (
+                              <option key={key} value={key}>{optionLabel}</option>
+                            ))}
+                          </select>
+                        </label>
+                      ))}
+                      <div className="space-y-2 border-t border-slate-200 pt-3 sm:col-span-2">
+                        <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-700">
+                          <input
+                            type="checkbox"
+                            name="allergenSpecificReviewed"
+                            checked={formData.allergenSpecificReviewed}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              allergenSpecificReviewed: e.target.checked,
+                              allergenSpecificContains: e.target.checked
+                                ? formData.allergenSpecificContains
+                                : [],
+                            })}
+                            className="size-4 accent-emerald-600"
+                          />
+                          Đã kiểm duyệt nhóm thực phẩm cụ thể
+                        </label>
+                        <p className="text-xs leading-5 text-slate-500">
+                          Chỉ bật sau khi đã xác định thực phẩm có thuộc bò, gà,
+                          heo/lợn hoặc nhóm thịt tương ứng. Nếu không bật, Meal
+                          Plan sẽ loại Food này theo hướng fail-closed khi khách
+                          khai báo nhóm cụ thể.
+                        </p>
+                        {formData.allergenSpecificReviewed && (
+                          <label className="block text-sm text-slate-700">
+                            Có chứa nhóm thực phẩm cụ thể
+                            <select
+                              name="allergenSpecificContains"
+                              multiple
+                              value={formData.allergenSpecificContains}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                allergenSpecificContains: [
+                                  ...e.target.selectedOptions,
+                                ].map((option) => option.value),
+                              })}
+                              className="mt-1 min-h-32 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900"
+                            >
+                              {SPECIFIC_FOOD_OPTIONS.map(([key, optionLabel]) => (
+                                <option key={key} value={key}>{optionLabel}</option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                      </div>
+                      <label className="text-sm text-slate-700">
+                        Loại nguồn
+                        <select
+                          name="allergenSourceType"
+                          value={formData.allergenSourceType}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            allergenSourceType: e.target.value,
+                          })}
+                          className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900"
+                        >
+                          <option value="package_label">Nhãn bao bì</option>
+                          <option value="manufacturer">Nhà sản xuất</option>
+                          <option value="official_database">CSDL chính thức</option>
+                        </select>
+                      </label>
+                      <label className="text-sm text-slate-700">
+                        Ngày kiểm duyệt
+                        <input
+                          name="allergenReviewedAt"
+                          type="date"
+                          value={formData.allergenReviewedAt}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            allergenReviewedAt: e.target.value,
+                          })}
+                          required
+                          className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 px-3 py-2"
+                        />
+                      </label>
+                      <label className="text-sm text-slate-700 sm:col-span-2">
+                        URL nguồn/nhãn (nếu có)
+                        <input
+                          name="allergenSourceUrl"
+                          type="url"
+                          value={formData.allergenSourceUrl}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            allergenSourceUrl: e.target.value,
+                          })}
+                          className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 px-3 py-2"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </fieldset>
+
+                <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">
+                  <legend className="px-1 text-sm font-semibold text-slate-700">
+                    Snapshot giá online TP.HCM (tùy chọn)
+                  </legend>
+                  <p className="text-xs leading-5 text-slate-500">
+                    Mỗi lần lưu thêm một quan sát. Cần ít nhất hai nguồn còn mới để hiển thị khoảng giá.
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="text-sm text-slate-700">
+                      Nguồn giá
+                      <select
+                        name="priceSourceKey"
+                        value={formData.priceSourceKey}
+                        disabled={!editingFood}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          priceSourceKey: e.target.value,
+                        })}
+                        className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      >
+                        <option value="">Không thêm snapshot</option>
+                        <option value="bach_hoa_xanh">Bách Hóa Xanh</option>
+                        <option value="winmart">WinMart</option>
+                        <option value="coop_online">Co.op Online</option>
+                      </select>
+                      {!editingFood && (
+                        <span className="mt-1 block text-xs text-slate-500">
+                          Lưu thực phẩm trước, sau đó mở sửa để thêm snapshot giá.
+                        </span>
+                      )}
+                    </label>
+                    <label className="text-sm text-slate-700">
+                      Khối lượng gói (g)
+                      <input
+                        name="pricePackGrams"
+                        type="number"
+                        min="1"
+                        value={formData.pricePackGrams}
+                        onChange={(e) => setFormData({ ...formData, pricePackGrams: e.target.value })}
+                        required={Boolean(formData.priceSourceKey)}
+                        disabled={!formData.priceSourceKey}
+                        className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      />
+                    </label>
+                    <label className="text-sm text-slate-700">
+                      Giá thường (VND)
+                      <input
+                        name="priceRegularVnd"
+                        type="number"
+                        min="1"
+                        step="100"
+                        value={formData.priceRegularVnd}
+                        onChange={(e) => setFormData({ ...formData, priceRegularVnd: e.target.value })}
+                        required={Boolean(formData.priceSourceKey)}
+                        disabled={!formData.priceSourceKey}
+                        className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      />
+                    </label>
+                    <label className="text-sm text-slate-700">
+                      Giá khuyến mãi (VND)
+                      <input
+                        name="pricePromotionalVnd"
+                        type="number"
+                        min="1"
+                        step="100"
+                        value={formData.pricePromotionalVnd}
+                        onChange={(e) => setFormData({ ...formData, pricePromotionalVnd: e.target.value })}
+                        disabled={!formData.priceSourceKey}
+                        className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      />
+                    </label>
+                    <label className="text-sm text-slate-700">
+                      Ngày quan sát
+                      <input
+                        name="priceObservedAt"
+                        type="date"
+                        value={formData.priceObservedAt}
+                        onChange={(e) => setFormData({ ...formData, priceObservedAt: e.target.value })}
+                        required={Boolean(formData.priceSourceKey)}
+                        disabled={!formData.priceSourceKey}
+                        className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      />
+                    </label>
+                    <label className="text-sm text-slate-700 sm:col-span-2">
+                      URL sản phẩm
+                      <input
+                        name="priceSourceUrl"
+                        type="url"
+                        value={formData.priceSourceUrl}
+                        onChange={(e) => setFormData({ ...formData, priceSourceUrl: e.target.value })}
+                        required={Boolean(formData.priceSourceKey)}
+                        disabled={!formData.priceSourceKey}
+                        className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:bg-slate-100"
                       />
                     </label>
                   </div>

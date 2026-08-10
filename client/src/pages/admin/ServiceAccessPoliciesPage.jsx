@@ -184,6 +184,7 @@ export default function ServiceAccessPoliciesPage() {
   const [trainerBenefitsOpen, setTrainerBenefitsOpen] = useState(true);
   const [communityFeaturesOpen, setCommunityFeaturesOpen] = useState(true);
   const [selectedFeatureGroup, setSelectedFeatureGroup] = useState("all");
+  const [selectedFeatureAudience, setSelectedFeatureAudience] = useState("all");
 
   return (
     <main className="min-h-screen bg-zinc-50 p-4 text-zinc-900 sm:p-6">
@@ -277,6 +278,8 @@ export default function ServiceAccessPoliciesPage() {
               catalog={matrix.communityFeatures}
               selectedGroup={selectedFeatureGroup}
               onGroupChange={setSelectedFeatureGroup}
+              selectedAudience={selectedFeatureAudience}
+              onAudienceChange={setSelectedFeatureAudience}
             />
           </CollapsibleSection>
         )}

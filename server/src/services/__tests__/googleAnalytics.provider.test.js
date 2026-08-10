@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createGa4Provider } from "../googleAnalytics.provider.js";
+import {
+  createDefaultGa4Provider,
+  createGa4Provider,
+} from "../googleAnalytics.provider.js";
 
 const row = (dimensions, metrics) => ({
   dimensionValues: dimensions.map((value) => ({ value })),
@@ -9,7 +12,10 @@ const row = (dimensions, metrics) => ({
 
 const responseFor = (request) => {
   const dimensions = request.dimensions.map(({ name }) => name).join(",");
-  if (dimensions === "date") return { rows: [row(["20260805"], [20, 7])] };
+  if (dimensions === "") return { rows: [row([], [20, 7])] };
+  if (dimensions === "newVsReturning") {
+    return { rows: [row(["new"], [7]), row(["returning"], [13])] };
+  }
   if (dimensions === "date,pagePath") {
     return { rows: [row(["20260805", "/blog/cach-tinh-macro/?private=1"], [12])] };
   }
@@ -52,7 +58,11 @@ const responseFor = (request) => {
 describe("GA4 read-only provider", () => {
   it("maps bounded GA4 reports thành aggregate rows", async () => {
     const client = { runReport: vi.fn(async (request) => [responseFor(request)]) };
-    const provider = createGa4Provider({ client, propertyId: "123456" });
+    const provider = createGa4Provider({
+      client,
+      propertyId: "123456",
+      hostname: "htcoachingweb.io.vn",
+    });
 
     const result = await provider.fetchWindow({
       startDate: "2026-08-05",
@@ -63,9 +73,10 @@ describe("GA4 read-only provider", () => {
       expect.arrayContaining([
         expect.objectContaining({
           provider: "ga4",
+          dataScope: "production",
           dateKey: "2026-08-05",
-          dimension: "overview",
-          dimensionKey: "all",
+          dimension: "overview_window",
+          dimensionKey: "2026-08-05_2026-08-05",
           metrics: expect.objectContaining({
             activeUsers: 20,
             newUsers: 7,
@@ -91,11 +102,26 @@ describe("GA4 read-only provider", () => {
       ]),
     );
     expect(result.rows.some(({ dimensionKey }) => dimensionKey === "private_custom_event")).toBe(false);
+    expect(client.runReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dimensionFilter: {
+          filter: {
+            fieldName: "hostName",
+            stringFilter: {
+              matchType: "EXACT",
+              value: "htcoachingweb.io.vn",
+              caseSensitive: false,
+            },
+          },
+        },
+      }),
+      expect.any(Object),
+    );
   });
 
   it("returns empty aggregate contract khi GA4 không có rows", async () => {
     const client = { runReport: vi.fn(async () => [{ rows: [] }]) };
-    const provider = createGa4Provider({ client, propertyId: "123456" });
+    const provider = createGa4Provider({ client, propertyId: "123456", hostname: "htcoachingweb.io.vn" });
 
     const result = await provider.fetchWindow({
       startDate: "2026-08-05",
@@ -111,6 +137,7 @@ describe("GA4 read-only provider", () => {
     const provider = createGa4Provider({
       client: { runReport: vi.fn().mockRejectedValue(timeout) },
       propertyId: "123456",
+      hostname: "htcoachingweb.io.vn",
     });
 
     await expect(
@@ -126,7 +153,7 @@ describe("GA4 read-only provider", () => {
         return [responseFor(request)];
       }),
     };
-    const provider = createGa4Provider({ client, propertyId: "123456" });
+    const provider = createGa4Provider({ client, propertyId: "123456", hostname: "htcoachingweb.io.vn" });
 
     const result = await provider.fetchWindow({
       startDate: "2026-08-05",
@@ -135,5 +162,18 @@ describe("GA4 read-only provider", () => {
 
     expect(result.partial).toBe(true);
     expect(result.rows.length).toBeGreaterThan(0);
+  });
+
+  it("không cấu hình provider ngoài APP_ENV production", () => {
+    const provider = createDefaultGa4Provider({
+      env: {
+        APP_ENV: "staging",
+        GA4_PROPERTY_ID: "123456",
+        GA4_HOSTNAME: "htcoachingweb.io.vn",
+        GOOGLE_SERVICE_ACCOUNT_JSON: "private-value-must-not-be-read",
+      },
+    });
+
+    expect(provider).toEqual({ provider: "ga4", configured: false });
   });
 });

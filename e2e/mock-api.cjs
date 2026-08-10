@@ -1040,7 +1040,7 @@ const handleApi = (req, res, path) => {
           "",
         ].join("\n") + "\n",
       );
-    }, 800);
+    }, 3000);
     return;
   }
   if (path === "/api/ai/conversations" || path === "/api/ai/history") {

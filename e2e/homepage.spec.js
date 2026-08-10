@@ -64,6 +64,13 @@ test.describe("Homepage — Trang chủ", () => {
   test("trang không có lỗi console nghiêm trọng", async ({ page }) => {
     /** @type {string[]} */
     const errors = [];
+    await page.route("https://fonts.googleapis.com/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/css",
+        body: "",
+      }),
+    );
     page.on("console", (msg) => {
       if (msg.type() === "error") {
         errors.push(msg.text());

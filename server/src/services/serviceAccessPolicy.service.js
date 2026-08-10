@@ -7,6 +7,7 @@ import {
 import {
   COMMUNITY_FEATURE_CATALOG,
   COMMUNITY_FEATURE_CATALOG_VERSION,
+  getCommunityFeatureAudienceKeys,
 } from "../constants/communityFeatureCatalog.js";
 import Order from "../models/Order.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
@@ -18,6 +19,7 @@ import { getCommunityFeatureReportOptions } from "./communityFeatureReport.servi
 
 const serializeCommunityFeature = (feature) => ({
   ...feature,
+  audienceKeys: getCommunityFeatureAudienceKeys(feature.audiences),
   initialImprovement: feature.currentImprovement?.description || "",
   deliveryUpdates: (feature.improvementHistory || []).map((record) => {
     const latestMilestone = record.milestones?.at(-1);

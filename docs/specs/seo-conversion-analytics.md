@@ -58,6 +58,17 @@ thuộc vào Google/OpenSEO. OpenSEO và MCP là lớp phân tích nội bộ tr
 GSC có thể không trả toàn bộ long-tail rows; dashboard phải ghi rõ đây là top rows/provider aggregate,
 không trình bày như raw log đầy đủ.
 
+GA4 production contract:
+
+- Client chỉ khởi tạo Measurement ID từ biến môi trường production khi runtime hostname đúng canonical production;
+  localhost, deploy preview và staging phải no-op.
+- Backend GA4 provider chỉ cấu hình trong `APP_ENV=production` và mọi report filter exact production `hostName`.
+- `activeUsers` tổng quan phải lấy từ report không có dimension `date` cho đúng distinct user của toàn khoảng ngày;
+  không cộng daily distinct users.
+- Returning dùng dimension `newVsReturning`; không suy ra bằng `activeUsers - newUsers`.
+- Cache mới có production scope key. Row legacy/mixed không được dùng làm KPI production và không tự bị xóa.
+- UI dùng nhãn `Khách truy cập GA4`, không đồng nhất với tài khoản đăng nhập hoặc khẳng định con người duy nhất.
+
 ## 5. Attribution contract
 
 Release đầu dùng attribution theo browser session, không tạo long-lived cross-site fingerprint:
@@ -90,6 +101,7 @@ Quy tắc:
 
 - Date range preset 7/28/90 ngày và custom range có giới hạn.
 - KPI: impressions, clicks, CTR, average position, users, returning users, engaged reads, CTA, leads.
+- KPI GA4 hiển thị data-scope/cutover quality; thiếu exact-window aggregate phải báo unavailable thay vì fallback sang tổng daily.
 - Funnel tổng hợp và cảnh báo bước chưa có canonical linkage.
 - Hiển thị `lastSyncedAt`, provider status và nhãn stale/partial/error rõ ràng.
 

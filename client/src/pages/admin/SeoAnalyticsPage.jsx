@@ -92,7 +92,7 @@ export default function SeoAnalyticsPage() {
           <div className="max-w-2xl">
             <p className="text-sm font-semibold text-emerald-700">SEO & Conversion Analytics</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">Nội dung nào tạo ra khách hàng?</h1>
-            <p className="mt-2 text-sm leading-6 text-zinc-600">Đối chiếu GSC, GA4 và lead nghiệp vụ. “Lượt xem cũ” chỉ là request counter.</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-600">Đối chiếu GSC, GA4 và lead nghiệp vụ. Khách truy cập GA4 là browser/device activity, không đồng nghĩa tài khoản đã đăng nhập; “Lượt xem cũ” chỉ là request counter.</p>
           </div>
           <div className="flex flex-wrap items-end gap-2" aria-label="Chọn khoảng ngày">
             {[7, 28, 90].map((days) => <button key={days} type="button" onClick={() => applyPreset(days)} className="min-h-11 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:border-emerald-500 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">{days} ngày</button>)}

@@ -1,0 +1,163 @@
+import Food from "../models/Food.js";
+import FoodPriceObservation, {
+  FOOD_PRICE_SOURCE_KEYS,
+} from "../models/FoodPriceObservation.js";
+
+const FRESHNESS_DAYS = 90;
+const SOURCE_HOSTS = Object.freeze({
+  bach_hoa_xanh: ["bachhoaxanh.com", "www.bachhoaxanh.com"],
+  winmart: ["winmart.vn", "www.winmart.vn"],
+  coop_online: ["cooponline.vn", "www.cooponline.vn"],
+});
+
+const priceError = (code, message, statusCode = 400) =>
+  Object.assign(new Error(message), { code, statusCode });
+
+const assertSourceUrl = (sourceKey, value) => {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw priceError("FOOD_PRICE_SOURCE_INVALID", "URL nguồn giá không hợp lệ");
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    !SOURCE_HOSTS[sourceKey]?.includes(url.hostname.toLowerCase())
+  ) {
+    throw priceError("FOOD_PRICE_SOURCE_INVALID", "Nguồn giá không được hỗ trợ");
+  }
+  url.hash = "";
+  return url.toString();
+};
+
+export const normalizeFoodPriceObservation = (input) => {
+  const sourceKey = String(input?.sourceKey || "");
+  const packGrams = Number(input?.packGrams);
+  const regularPriceVnd = Number(input?.regularPriceVnd);
+  const promotionalPriceVnd =
+    input?.promotionalPriceVnd == null
+      ? null
+      : Number(input.promotionalPriceVnd);
+  const observedAt = new Date(input?.observedAt);
+  if (!FOOD_PRICE_SOURCE_KEYS.includes(sourceKey)) {
+    throw priceError("FOOD_PRICE_SOURCE_INVALID", "Nguồn giá không hợp lệ");
+  }
+  if (
+    !Number.isFinite(packGrams) ||
+    packGrams < 1 ||
+    packGrams > 100_000 ||
+    !Number.isInteger(regularPriceVnd) ||
+    regularPriceVnd < 1 ||
+    regularPriceVnd > 100_000_000 ||
+    (promotionalPriceVnd !== null &&
+      (!Number.isInteger(promotionalPriceVnd) ||
+        promotionalPriceVnd < 1 ||
+        promotionalPriceVnd > regularPriceVnd)) ||
+    Number.isNaN(observedAt.getTime()) ||
+    observedAt.getTime() > Date.now() + 86_400_000
+  ) {
+    throw priceError("FOOD_PRICE_INVALID", "Quan sát giá không hợp lệ");
+  }
+  return {
+    sourceKey,
+    region: "ho_chi_minh",
+    currency: "VND",
+    packGrams,
+    regularPriceVnd,
+    promotionalPriceVnd,
+    sourceUrl: assertSourceUrl(sourceKey, input?.sourceUrl),
+    observedAt,
+  };
+};
+
+const median = (values) => {
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? sorted[middle]
+    : (sorted[middle - 1] + sorted[middle]) / 2;
+};
+
+const summarize = (observations) => {
+  const sourceCount = new Set(observations.map(({ sourceKey }) => sourceKey)).size;
+  const asOf = observations
+    .map(({ observedAt }) => observedAt)
+    .sort((left, right) => right.getTime() - left.getTime())[0] || null;
+  if (sourceCount < 2) {
+    return {
+      region: "ho_chi_minh",
+      currency: "VND",
+      lowVndPer100g: null,
+      typicalVndPer100g: null,
+      highVndPer100g: null,
+      asOf,
+      sourceCount,
+      coverageStatus: "insufficient",
+    };
+  }
+  const prices = observations.map(({ regularPriceVnd, packGrams }) =>
+    Math.round((regularPriceVnd / packGrams) * 100),
+  );
+  return {
+    region: "ho_chi_minh",
+    currency: "VND",
+    lowVndPer100g: Math.min(...prices),
+    typicalVndPer100g: Math.round(median(prices)),
+    highVndPer100g: Math.max(...prices),
+    asOf,
+    sourceCount,
+    coverageStatus: "sufficient",
+  };
+};
+
+export const getFoodMarketPriceMap = async (
+  foodIds,
+  { now = new Date() } = {},
+) => {
+  if (!Array.isArray(foodIds) || foodIds.length === 0) return new Map();
+  const freshAfter = new Date(now.getTime() - FRESHNESS_DAYS * 86_400_000);
+  const observations = await FoodPriceObservation.find({
+    foodId: { $in: foodIds },
+    region: "ho_chi_minh",
+    observedAt: { $gte: freshAfter, $lte: now },
+  })
+    .select("foodId sourceKey packGrams regularPriceVnd observedAt")
+    .lean();
+  const grouped = new Map();
+  observations.forEach((observation) => {
+    const key = String(observation.foodId);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(observation);
+  });
+  return new Map(
+    foodIds.map((foodId) => {
+      const key = String(foodId);
+      return [key, summarize(grouped.get(key) || [])];
+    }),
+  );
+};
+
+export const listFoodPriceObservations = async (foodId) =>
+  FoodPriceObservation.find({ foodId }).sort({ observedAt: -1 }).lean();
+
+export const createFoodPriceObservation = async (foodId, input) => {
+  if (!(await Food.exists({ _id: foodId }))) {
+    throw priceError("FOOD_NOT_FOUND", "Không tìm thấy thực phẩm", 404);
+  }
+  return FoodPriceObservation.create({
+    foodId,
+    ...normalizeFoodPriceObservation(input),
+  });
+};
+
+export const deleteFoodPriceObservation = async (foodId, observationId) => {
+  const deleted = await FoodPriceObservation.findOneAndDelete({
+    _id: observationId,
+    foodId,
+  });
+  if (!deleted) {
+    throw priceError("FOOD_PRICE_NOT_FOUND", "Không tìm thấy quan sát giá", 404);
+  }
+};

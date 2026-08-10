@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  filterCommunityFeatures,
   filterCommunityFeaturesByGroup,
   formatPolicy,
   formatTrainerBenefitValue,
   formatTrainerPlanPrice,
   getCommunityFeatureDeliveryMeta,
+  getCommunityFeatureAudiences,
   getCommunityFeatureGroups,
   getCommunityFeatureHistoryDateRange,
   getCommunityFeatureHistoryRecords,
@@ -107,6 +109,40 @@ describe("service access policy presentation", () => {
         (feature) => feature.featureKey,
       ),
     ).toEqual(["tdee", "meal_plan"]);
+  });
+
+  it("derives stable audiences and filters by group intersection", () => {
+    const features = [
+      {
+        featureKey: "meal_plan",
+        group: { key: "nutrition", label: "Dinh dưỡng" },
+        audiences: ["Cộng đồng", "Khách hàng", "HLV"],
+        audienceKeys: ["community", "customer", "trainer"],
+      },
+      {
+        featureKey: "tdee",
+        group: { key: "nutrition", label: "Dinh dưỡng" },
+        audiences: ["Cộng đồng"],
+        audienceKeys: ["community"],
+      },
+      {
+        featureKey: "workout_plan",
+        group: { key: "training", label: "Tập luyện" },
+        audiences: ["Khách hàng", "HLV"],
+        audienceKeys: ["customer", "trainer"],
+      },
+    ];
+
+    expect(getCommunityFeatureAudiences(features)).toEqual([
+      { key: "community", label: "Cộng đồng" },
+      { key: "customer", label: "Khách hàng" },
+      { key: "trainer", label: "HLV" },
+    ]);
+    expect(
+      filterCommunityFeatures(features, "nutrition", "customer").map(
+        (feature) => feature.featureKey,
+      ),
+    ).toEqual(["meal_plan"]);
   });
 
   it("presents canonical feature priority and fails closed for unknown values", () => {

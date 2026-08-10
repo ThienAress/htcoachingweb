@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  initializeAnalytics,
   trackAnalyticsEvent,
   trackAnalyticsEventOnce,
+  trackAnalyticsPageView,
 } from "../analytics";
 
 const createStorage = () => {
@@ -14,6 +16,75 @@ const createStorage = () => {
 };
 
 describe("analytics event contract", () => {
+  it("chỉ bootstrap GA4 trên production hostname canonical", () => {
+    const appendChild = vi.fn();
+    const documentRef = {
+      createElement: vi.fn(() => ({ dataset: {} })),
+      head: { appendChild },
+    };
+    const stagingWindow = { location: { hostname: "staging--htcoachingweb.netlify.app" } };
+    const productionWindow = { location: { hostname: "htcoachingweb.io.vn" } };
+
+    expect(
+      initializeAnalytics({
+        measurementId: "G-S7JEFVLP6G",
+        allowedHostname: "htcoachingweb.io.vn",
+        isProduction: true,
+        windowRef: stagingWindow,
+        documentRef,
+      }),
+    ).toBe(false);
+    expect(stagingWindow.gtag).toBeUndefined();
+
+    expect(
+      initializeAnalytics({
+        measurementId: "G-S7JEFVLP6G",
+        allowedHostname: "htcoachingweb.io.vn",
+        isProduction: true,
+        windowRef: productionWindow,
+        documentRef,
+      }),
+    ).toBe(true);
+    expect(appendChild).toHaveBeenCalledTimes(1);
+    expect([...productionWindow.dataLayer[1]]).toEqual([
+      "config",
+      "G-S7JEFVLP6G",
+      { send_page_view: false },
+    ]);
+  });
+
+  it("không bootstrap GA4 trong local build dù hostname được giả lập", () => {
+    const windowRef = { location: { hostname: "htcoachingweb.io.vn" } };
+    expect(
+      initializeAnalytics({
+        measurementId: "G-S7JEFVLP6G",
+        isProduction: false,
+        windowRef,
+        documentRef: { createElement: vi.fn(), head: { appendChild: vi.fn() } },
+      }),
+    ).toBe(false);
+    expect(windowRef.gtag).toBeUndefined();
+  });
+
+  it("chỉ gửi SPA page view với path đã làm sạch", () => {
+    const gtag = vi.fn();
+    expect(
+      trackAnalyticsPageView("/blog/cach-tinh-macro/", {
+        gtag,
+        measurementId: "G-S7JEFVLP6G",
+      }),
+    ).toBe(true);
+    expect(gtag).toHaveBeenCalledWith("event", "page_view", {
+      page_path: "/blog/cach-tinh-macro/",
+    });
+    expect(
+      trackAnalyticsPageView("/blog?email=private@example.com", {
+        gtag,
+        measurementId: "G-S7JEFVLP6G",
+      }),
+    ).toBe(false);
+  });
+
   it("no-op khi gtag không khả dụng", () => {
     expect(
       trackAnalyticsEvent("generate_lead", { lead_type: "contact" }, { gtag: null }),

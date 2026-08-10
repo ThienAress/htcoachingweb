@@ -128,7 +128,7 @@ const drawPageHeader = (page, report, fonts) => {
     ? `${formatDateOnly(report.filters.from)} – ${formatDateOnly(report.filters.to)}`
     : "Chưa có lịch sử";
   page.drawText(
-    `Kỳ báo cáo: ${range} · ${report.filterLabels.group} · ${report.filterLabels.status}`,
+    `Kỳ báo cáo: ${range} · ${report.filterLabels.group} · ${report.filterLabels.audience} · ${report.filterLabels.status}`,
     {
       x: PAGE_MARGIN,
       y: 515,

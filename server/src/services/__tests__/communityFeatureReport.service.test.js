@@ -71,18 +71,21 @@ describe("community feature report service", () => {
     ]);
   });
 
-  it("filters inclusively by group, status and date", () => {
+  it("filters inclusively by group, audience, status and date", () => {
     const report = buildCommunityFeatureReport(
       {
         from: "2026-08-10",
         to: "2026-08-10",
         group: "nutrition",
+        audience: "customer",
         status: "implemented",
       },
       { now: NOW },
     );
 
     expect(report.summary.eventCount).toBe(2);
+    expect(report.filters.audience).toBe("customer");
+    expect(report.filterLabels.audience).toBe("Khách hàng");
   });
 
   it("keeps the historical group label when the current catalog group changed", () => {
@@ -169,6 +172,17 @@ describe("community feature report service", () => {
 
     expect({ code: error.code, statusCode: error.statusCode }).toEqual({
       code: "COMMUNITY_FEATURE_REPORT_STATUS_INVALID",
+      statusCode: 400,
+    });
+  });
+
+  it("rejects an unknown audience filter", () => {
+    const error = captureError(() =>
+      buildCommunityFeatureReport({ audience: "unknown" }, { now: NOW }),
+    );
+
+    expect({ code: error.code, statusCode: error.statusCode }).toEqual({
+      code: "COMMUNITY_FEATURE_REPORT_AUDIENCE_INVALID",
       statusCode: 400,
     });
   });

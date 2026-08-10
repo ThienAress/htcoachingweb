@@ -19,3 +19,8 @@ export const createManyFoods = (foodsArray) =>
   api.post("/foods/batch", { foods: foodsArray });
 export const updateFood = (id, data) => api.put(`/foods/${id}`, data);
 export const deleteFood = (id) => api.delete(`/foods/${id}`);
+export const getFoodPriceObservations = (id) => api.get(`/foods/${id}/prices`);
+export const addFoodPriceObservation = (id, data) =>
+  api.post(`/foods/${id}/prices`, data);
+export const deleteFoodPriceObservation = (foodId, observationId) =>
+  api.delete(`/foods/${foodId}/prices/${observationId}`);

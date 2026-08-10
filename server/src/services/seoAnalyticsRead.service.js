@@ -8,6 +8,10 @@ import {
 } from "./seoAnalyticsAggregation.service.js";
 import { aggregateKeywordPerformance } from "./seoAnalyticsKeywordAggregation.service.js";
 import { getExplicitConversionFunnel } from "./seoConversionFunnel.service.js";
+import {
+  GA4_PRODUCTION_DATA_SCOPE,
+  ga4WindowDimensionKey,
+} from "./seoAnalytics.constants.js";
 
 const STALE_AFTER_MS = 48 * 60 * 60 * 1000;
 
@@ -37,6 +41,7 @@ const groupDimension = async (dimension, contentPath, startDate, endDate) =>
     {
       $match: {
         provider: "ga4",
+        dataScope: GA4_PRODUCTION_DATA_SCOPE,
         dimension,
         contentPath,
         dateKey: { $gte: startDate, $lte: endDate },
@@ -71,6 +76,7 @@ const providerHealth = (provider, configured, state, now) => {
 
 export const createSeoAnalyticsReadService = ({
   providerConfiguration = { ga4: false, gsc: false },
+  ga4Hostname = "",
   now = () => new Date(),
   getConversionFunnel = getExplicitConversionFunnel,
 } = {}) => {
@@ -94,14 +100,19 @@ export const createSeoAnalyticsReadService = ({
 
     async getOverview({ startDate, endDate }) {
       const { start, endExclusive } = dateBounds(startDate, endDate);
-      const [aggregate, contactLeads, bookingLeads, providers, conversions] = await Promise.all([
+      const [aggregate, ga4WindowMetric, contactLeads, bookingLeads, providers, conversions] = await Promise.all([
         SeoDailyMetric.aggregate([
           {
             $match: {
               dateKey: { $gte: startDate, $lte: endDate },
               $or: [
-                { dimension: "overview" },
-                { dimension: "event", contentPath: "" },
+                { provider: "gsc", dimension: "overview" },
+                {
+                  provider: "ga4",
+                  dataScope: GA4_PRODUCTION_DATA_SCOPE,
+                  dimension: "event",
+                  contentPath: "",
+                },
               ],
             },
           },
@@ -122,6 +133,16 @@ export const createSeoAnalyticsReadService = ({
             },
           },
         ]),
+        SeoDailyMetric.findOne({
+          provider: "ga4",
+          dataScope: GA4_PRODUCTION_DATA_SCOPE,
+          dateKey: endDate,
+          dimension: "overview_window",
+          dimensionKey: ga4WindowDimensionKey(startDate, endDate),
+          contentPath: "",
+        })
+          .select("metrics syncedAt")
+          .lean(),
         ContactMessage.countDocuments({ createdAt: { $gte: start, $lt: endExclusive } }),
         Booking.countDocuments({ createdAt: { $gte: start, $lt: endExclusive } }),
         getProviders(),
@@ -130,6 +151,7 @@ export const createSeoAnalyticsReadService = ({
       const values = aggregate[0] || {};
       const impressions = values.impressions || 0;
       const clicks = values.clicks || 0;
+      const ga4Metrics = ga4WindowMetric?.metrics;
       return {
         range: { startDate, endDate },
         kpis: {
@@ -138,9 +160,9 @@ export const createSeoAnalyticsReadService = ({
           ctr: impressions > 0 ? clicks / impressions : 0,
           position:
             impressions > 0 ? (values.weightedPosition || 0) / impressions : 0,
-          activeUsers: values.activeUsers || 0,
-          newUsers: values.newUsers || 0,
-          returningUsers: values.returningUsers || 0,
+          activeUsers: ga4Metrics?.activeUsers ?? null,
+          newUsers: ga4Metrics?.newUsers ?? null,
+          returningUsers: ga4Metrics?.returningUsers ?? null,
           engagedReads: values.engagedReads || 0,
           ctaClicks: values.ctaClicks || 0,
           trackedLeads: values.trackedLeads || 0,
@@ -151,6 +173,14 @@ export const createSeoAnalyticsReadService = ({
           customers: conversions.customers,
           unattributedAssessments: conversions.unattributed.assessments,
           unattributedCustomers: conversions.unattributed.customers,
+        },
+        dataQuality: {
+          ga4: {
+            scope: GA4_PRODUCTION_DATA_SCOPE,
+            hostname: ga4Hostname || null,
+            windowAggregate: ga4WindowMetric ? "exact" : "unavailable",
+            syncedAt: ga4WindowMetric?.syncedAt || null,
+          },
         },
         providers,
       };
@@ -197,6 +227,17 @@ export const createSeoAnalyticsReadService = ({
             {
               $match: {
                 dateKey: { $gte: startDate, $lte: endDate },
+                $and: [
+                  {
+                    $or: [
+                      { provider: "gsc" },
+                      {
+                        provider: "ga4",
+                        dataScope: GA4_PRODUCTION_DATA_SCOPE,
+                      },
+                    ],
+                  },
+                ],
                 $or: [
                   { dimension: "page", dimensionKey: contentPath },
                   { dimension: "event", contentPath },

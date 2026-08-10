@@ -73,6 +73,22 @@ describe("SEO analytics models", () => {
     await expect(unsafeMetric.validate()).rejects.toThrow();
   });
 
+  it("chấp nhận exact-window aggregate có production scope", async () => {
+    const metric = await SeoDailyMetric.create({
+      ...metricFields,
+      provider: "ga4",
+      dataScope: "production",
+      dimension: "overview_window",
+      dimensionKey: "2026-08-01_2026-08-05",
+      metrics: { activeUsers: 20, returningUsers: 13 },
+    });
+
+    expect(metric.toObject()).toMatchObject({
+      dataScope: "production",
+      dimension: "overview_window",
+    });
+  });
+
   it("khởi tạo provider-disabled state không cần cursor/error", async () => {
     const state = await AnalyticsSyncState.create({ provider: "ga4" });
 

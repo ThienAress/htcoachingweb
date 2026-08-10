@@ -42,28 +42,31 @@ const validateRows = async (rows, provider, syncedAt) => {
 const writeRows = async (rows, provider, syncedAt) => {
   if (rows.length === 0) return 0;
   await SeoDailyMetric.bulkWrite(
-    rows.map((row) => ({
-      updateOne: {
-        filter: {
-          provider,
-          dateKey: row.dateKey,
-          dimension: row.dimension,
-          dimensionKey: row.dimensionKey,
-          contentPath: row.contentPath || "",
-        },
-        update: {
-          $set: { metrics: row.metrics, syncedAt },
-          $setOnInsert: {
+    rows.map((row) => {
+      const scopedFields = row.dataScope ? { dataScope: row.dataScope } : {};
+      return {
+        updateOne: {
+          filter: {
             provider,
             dateKey: row.dateKey,
             dimension: row.dimension,
             dimensionKey: row.dimensionKey,
             contentPath: row.contentPath || "",
           },
+          update: {
+            $set: { metrics: row.metrics, syncedAt, ...scopedFields },
+            $setOnInsert: {
+              provider,
+              dateKey: row.dateKey,
+              dimension: row.dimension,
+              dimensionKey: row.dimensionKey,
+              contentPath: row.contentPath || "",
+            },
+          },
+          upsert: true,
         },
-        upsert: true,
-      },
-    })),
+      };
+    }),
     { ordered: false },
   );
   return rows.length;

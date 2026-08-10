@@ -15,6 +15,7 @@ export const createSeoAnalyticsModule = ({ env = process.env } = {}) => {
         ga4: providers.ga4.configured,
         gsc: providers.gsc.configured,
       },
+      ga4Hostname: providers.ga4.configured ? env.GA4_HOSTNAME : "",
     }),
     syncService: createSeoAnalyticsSyncService({ providers }),
   };

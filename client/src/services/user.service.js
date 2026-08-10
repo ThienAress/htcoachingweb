@@ -26,3 +26,11 @@ export const getMyTransactions = async ({ signal } = {}) => {
   const res = await api.get("/user/me/transactions", { signal });
   return res.data;
 };
+export const getMyMealPlanPreferences = ({ signal } = {}) =>
+  api
+    .get("/user/me/meal-plan-preferences", { signal })
+    .then((response) => response.data.data);
+export const updateMyMealPlanPreferences = (preferences) =>
+  api
+    .put("/user/me/meal-plan-preferences", preferences)
+    .then((response) => response.data.data);
