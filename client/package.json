@@ -7,10 +7,13 @@
     "node": "22.23.1"
   },
   "scripts": {
+    "predev": "node scripts/generate-system-dependency-inventory.js",
     "dev": "vite",
+    "predev:local": "node scripts/generate-system-dependency-inventory.js",
     "dev:local": "vite",
+    "predev:doppler": "node scripts/generate-system-dependency-inventory.js",
     "dev:doppler": "doppler run -- vite",
-    "prebuild": "node scripts/generate-sitemap.js",
+    "prebuild": "node scripts/generate-system-dependency-inventory.js && node scripts/generate-sitemap.js",
     "build": "vite build",
     "postbuild": "node scripts/prerender.js && node scripts/check-bundle-budget.js",
     "lint": "eslint .",
@@ -19,6 +22,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "check:bundle": "node scripts/check-bundle-budget.js",
+    "dependencies:snapshot": "node scripts/generate-system-dependency-inventory.js",
     "security:audit": "node ../scripts/check-dependency-audit.mjs client",
     "build:netlify": "puppeteer browsers install chrome && npm run build"
   },

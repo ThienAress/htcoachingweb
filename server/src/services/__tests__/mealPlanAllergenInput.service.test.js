@@ -29,6 +29,17 @@ describe("Meal Plan other-allergen parser", () => {
     });
   });
 
+  it.each(["Ức gà", "uc ga"])(
+    "recognizes a chicken cut as the canonical chicken exclusion: %s",
+    (value) => {
+      expect(parseOtherAllergenText(value)).toMatchObject({
+        canonicalText: "Gà",
+        hasUnmapped: false,
+        specificKeys: ["chicken"],
+      });
+    },
+  );
+
   it("rejects periods used between foods", () => {
     expect(() => parseOtherAllergenText("bò.gà.heo")).toThrow(
       "Không dùng dấu chấm giữa các thực phẩm",

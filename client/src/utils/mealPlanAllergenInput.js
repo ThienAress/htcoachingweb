@@ -9,7 +9,7 @@ const DEFINITIONS = [
   ["egg", "major", "Trứng", ["trứng"]],
   ["fish", "major", "Cá", ["cá"]],
   ["beef", "specific", "Bò", ["thịt bò", "bò"]],
-  ["chicken", "specific", "Gà", ["thịt gà", "gà"]],
+  ["chicken", "specific", "Gà", ["thịt gà", "ức gà", "gà"]],
   ["pork", "specific", "Heo", ["thịt heo", "thịt lợn", "heo", "lợn"]],
   ["duck", "specific", "Vịt", ["thịt vịt", "vịt"]],
   ["goat", "specific", "Dê", ["thịt dê", "dê"]],

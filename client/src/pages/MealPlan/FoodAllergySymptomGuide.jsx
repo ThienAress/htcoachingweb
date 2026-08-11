@@ -1,4 +1,4 @@
-import { CircleAlert, HeartPulse } from "lucide-react";
+import { HeartPulse } from "lucide-react";
 
 const SYMPTOMS = [
   "Nổi mề đay, mẩn đỏ hoặc ngứa",
@@ -54,17 +54,6 @@ export default function FoodAllergySymptomGuide() {
         ))}
       </ul>
 
-      <div
-        className="mt-4 flex items-start gap-3 rounded-xl border border-red-400/40 bg-red-500/10 p-4 text-sm leading-6 text-red-100"
-        role="alert"
-      >
-        <CircleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-        <p>
-          Nếu khó thở, nghẹn hoặc sưng họng, choáng váng hay ngất sau khi ăn:
-          ngừng ăn và gọi cấp cứu 115 hoặc đến cơ sở y tế ngay.
-        </p>
-      </div>
-
       <p className="mt-3 text-xs leading-5 text-gray-400">
         Tham khảo: {" "}
         <a
@@ -83,24 +72,6 @@ export default function FoodAllergySymptomGuide() {
           className={sourceClass}
         >
           Bệnh viện Bạch Mai
-        </a>
-        {" · "}
-        <a
-          href="https://vncdc.gov.vn/cach-du-phong-va-xu-tri-khi-bi-di-ung-thuc-an-nd14930.html"
-          target="_blank"
-          rel="noreferrer"
-          className={sourceClass}
-        >
-          Cục Phòng bệnh Việt Nam
-        </a>
-        {" · "}
-        <a
-          href="https://moh.gov.vn/hoat-dong-cua-dia-phuong/-/asset_publisher/gHbla8vOQDuS/content/cap-cuu-ngoai-vien-co-the-cuu-song-ca-mang-nguoi"
-          target="_blank"
-          rel="noreferrer"
-          className={sourceClass}
-        >
-          Bộ Y tế — cấp cứu 115
         </a>
         .
       </p>

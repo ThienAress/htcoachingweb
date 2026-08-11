@@ -39,6 +39,12 @@ lặp lại trong middleware hoặc trang Admin.
 - Trang `/admin/service-access-policies` tên “Quyền & hạn mức”, nằm trong nhóm “Hoạt động”, lazy-loaded và dùng
   TanStack Query qua service frontend.
 - Trang có loading, retry/error, empty state, bảng responsive và giải thích nguồn chính sách là registry code.
+- Bốn section mặc định mở và sắp xếp cố định: `Tính năng cộng đồng & khách hàng`, `Quyền lợi gói HLV`,
+  `Hạn mức công cụ`, `Phụ thuộc & phiên bản hệ thống`; mỗi section có nút thu gọn bằng
+  `aria-expanded`/`aria-controls`.
+- `Phụ thuộc & phiên bản hệ thống` tổng hợp read-only `dependencies`/`devDependencies` từ `package.json`,
+  `client/package.json` và `server/package.json` ngay tại build time. UI hỗ trợ tìm package, lọc Workspace/Frontend/Backend
+  và không gọi npm Registry từ trình duyệt hoặc tự tuyên bố phiên bản mới nhất.
 - Meal Scan response thành công và lỗi 429 trả quota metadata gồm `serviceKey`, `tier`, `limit`, `remaining`,
   `resetAt`.
 - AI Chat gửi cùng quota metadata bằng SSE event; lỗi 429 trả metadata trong JSON để client vẫn cập nhật được.
@@ -86,8 +92,6 @@ lặp lại trong middleware hoặc trang Admin.
   khu vực Pricing không được duy trì hai danh sách quyền lợi độc lập.
 - Ma trận hiển thị đầy đủ các nhóm đang công bố tại Pricing: Quản lý học viên, Coaching & Lịch tập, F1 CRM & AI
   và Đặc quyền. Mỗi ô thể hiện giá trị số hoặc trạng thái có/không.
-- Hai khu vực trên trang Admin có tên “Hạn mức công cụ” và “Quyền lợi gói HLV”, mặc định mở và có nút thu gọn
-  bằng `aria-expanded`/`aria-controls`.
 - Phiên bản này không thêm mutation chỉnh gói trong Admin. Điều chỉnh tương lai thực hiện tại catalog canonical;
   cả Pricing và bảng Admin phải tự phản ánh thay đổi sau khi deploy.
 
@@ -117,4 +121,6 @@ lặp lại trong middleware hoặc trang Admin.
 - Admin thấy bảng tính năng cộng đồng/khách hàng đúng 7 cột, có priority `F0`–`F3`, lịch sử xử lý có ngày và có thể lọc theo
   `Nhóm`, `Đối tượng` hoặc kết hợp cả hai.
 - Admin xem được timeline ngày → tính năng → hạng mục, thống kê cùng filter và tải PDF sáu cột từ cùng report read model.
+- Admin xem được ba manifest package và danh sách phụ thuộc theo đúng phiên bản khai báo của lần build hiện tại; quyết định
+  nâng cấp vẫn phải dựa trên `npm outdated`, security audit, changelog và regression test.
 - Response operational có `limit`, `remaining`, `resetAt` để UI giải thích quota minh bạch.

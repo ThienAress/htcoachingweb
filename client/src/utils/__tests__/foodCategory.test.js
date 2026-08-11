@@ -117,6 +117,16 @@ describe("getFoodPriority", () => {
 });
 
 describe("enrichFoodDatabase", () => {
+  it("phân loại response canonical dùng label thay vì name", () => {
+    const [result] = enrichFoodDatabase([{ label: "Ức gà", calories: 165 }]);
+
+    expect(result).toMatchObject({
+      label: "Ức gà",
+      category: "animal_protein",
+      priority: 10,
+    });
+  });
+
   it("thêm category + priority vào mỗi food item", () => {
     const foods = [
       { name: "Cơm trắng", calories: 130 },

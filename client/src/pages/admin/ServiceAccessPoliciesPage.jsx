@@ -12,6 +12,8 @@ import {
 import SEO from "../../components/SEO";
 import { serviceAccessPoliciesQueryOptions } from "../../queries/serviceAccessPolicy.queries";
 import CommunityFeatureTable from "./service-access-policies/CommunityFeatureTable";
+import SystemDependencyTable from "./service-access-policies/SystemDependencyTable";
+import { SYSTEM_DEPENDENCY_INVENTORY } from "./service-access-policies/systemDependencyInventory";
 import {
   enforcementLabel,
   formatPolicy,
@@ -183,6 +185,7 @@ export default function ServiceAccessPoliciesPage() {
   const [toolQuotaOpen, setToolQuotaOpen] = useState(true);
   const [trainerBenefitsOpen, setTrainerBenefitsOpen] = useState(true);
   const [communityFeaturesOpen, setCommunityFeaturesOpen] = useState(true);
+  const [systemDependenciesOpen, setSystemDependenciesOpen] = useState(true);
   const [selectedFeatureGroup, setSelectedFeatureGroup] = useState("all");
   const [selectedFeatureAudience, setSelectedFeatureAudience] = useState("all");
 
@@ -200,7 +203,7 @@ export default function ServiceAccessPoliciesPage() {
               Quyền & hạn mức
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
-              Đối chiếu hạn mức công cụ, quyền lợi gói HLV và các tính năng phục vụ cộng đồng, khách hàng. Dữ liệu chỉ đọc và lấy trực tiếp từ registry canonical.
+              Đối chiếu tính năng cộng đồng, quyền lợi gói HLV, hạn mức công cụ và phiên bản package của hệ thống. Dữ liệu chỉ đọc và lấy từ các nguồn canonical.
             </p>
           </div>
           {matrix?.version && (
@@ -242,30 +245,6 @@ export default function ServiceAccessPoliciesPage() {
           </div>
         )}
 
-        {matrix?.services?.length > 0 && (
-          <CollapsibleSection
-            title="Hạn mức công cụ"
-            description="Quota dùng thử và quyền sử dụng theo từng nhóm tài khoản."
-            open={toolQuotaOpen}
-            onToggle={() => setToolQuotaOpen((current) => !current)}
-            panelId="tool-quota-panel"
-          >
-            <ToolQuotaTable matrix={matrix} />
-          </CollapsibleSection>
-        )}
-
-        {matrix?.trainerPlans?.benefits?.length > 0 && (
-          <CollapsibleSection
-            title="Quyền lợi gói HLV"
-            description="Bốn gói đang công bố tại Pricing, dùng chung catalog để tránh lệch quyền lợi."
-            open={trainerBenefitsOpen}
-            onToggle={() => setTrainerBenefitsOpen((current) => !current)}
-            panelId="trainer-benefits-panel"
-          >
-            <TrainerBenefitTable trainerPlans={matrix.trainerPlans} />
-          </CollapsibleSection>
-        )}
-
         {matrix?.communityFeatures?.items?.length > 0 && (
           <CollapsibleSection
             title="Tính năng cộng đồng & khách hàng"
@@ -283,6 +262,40 @@ export default function ServiceAccessPoliciesPage() {
             />
           </CollapsibleSection>
         )}
+
+        {matrix?.trainerPlans?.benefits?.length > 0 && (
+          <CollapsibleSection
+            title="Quyền lợi gói HLV"
+            description="Bốn gói đang công bố tại Pricing, dùng chung catalog để tránh lệch quyền lợi."
+            open={trainerBenefitsOpen}
+            onToggle={() => setTrainerBenefitsOpen((current) => !current)}
+            panelId="trainer-benefits-panel"
+          >
+            <TrainerBenefitTable trainerPlans={matrix.trainerPlans} />
+          </CollapsibleSection>
+        )}
+
+        {matrix?.services?.length > 0 && (
+          <CollapsibleSection
+            title="Hạn mức công cụ"
+            description="Quota dùng thử và quyền sử dụng theo từng nhóm tài khoản."
+            open={toolQuotaOpen}
+            onToggle={() => setToolQuotaOpen((current) => !current)}
+            panelId="tool-quota-panel"
+          >
+            <ToolQuotaTable matrix={matrix} />
+          </CollapsibleSection>
+        )}
+
+        <CollapsibleSection
+          title="Phụ thuộc & phiên bản hệ thống"
+          description="Tổng hợp package.json của Workspace, Frontend và Backend để theo dõi kế hoạch nâng cấp."
+          open={systemDependenciesOpen}
+          onToggle={() => setSystemDependenciesOpen((current) => !current)}
+          panelId="system-dependencies-panel"
+        >
+          <SystemDependencyTable inventory={SYSTEM_DEPENDENCY_INVENTORY} />
+        </CollapsibleSection>
 
         <p className="text-xs leading-5 text-zinc-500">
           Entitlement được backend xác định từ tài khoản, gói HLV và Order còn buổi; client không được tự khai báo tier.

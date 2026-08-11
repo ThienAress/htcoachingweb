@@ -42,6 +42,13 @@ describe("MealPlanConditions", () => {
     expect(html).toContain('maxLength="120"');
   });
 
+  it("shows a recognized chicken tag without requiring another checkbox", () => {
+    const html = renderConditions({ otherAllergenText: "thịt gà" });
+
+    expect(html).toContain("Gà");
+    expect(html).toContain("không cần tick thêm ô phía trên");
+  });
+
   it("warns against periods used between foods", () => {
     const html = renderConditions({ otherAllergenText: "bò.gà.heo" });
 
@@ -57,19 +64,31 @@ describe("MealPlanConditions", () => {
     expect(html).not.toContain("Hủy xác nhận");
   });
 
-  it("states explicitly that budget is optional", () => {
-    expect(renderConditions()).toContain(
-      "Ngân sách tham khảo mỗi ngày — không bắt buộc",
+  it("does not render the removed daily budget input", () => {
+    expect(renderConditions()).not.toContain(
+      'name="meal-plan-budget-vnd-per-day"',
     );
   });
 
-  it("shows Vietnamese symptom guidance and emergency action", () => {
+  it("shows Vietnamese symptom guidance without the removed 115 warning", () => {
     const html = renderConditions({ allergyStatus: "unsure" });
 
-    expect(html).toContain("Dấu hiệu thường gặp sau khi ăn");
-    expect(html).toContain("Nổi mề đay, mẩn đỏ hoặc ngứa");
-    expect(html).toContain("gọi cấp cứu 115");
-    expect(html).toContain("không đủ để tự chẩn đoán");
+    expect([
+      html.includes("Dấu hiệu thường gặp sau khi ăn"),
+      html.includes("Nổi mề đay, mẩn đỏ hoặc ngứa"),
+      html.includes("không đủ để tự chẩn đoán"),
+      html.includes("gọi cấp cứu 115"),
+    ]).toEqual([true, true, true, false]);
+  });
+
+  it("does not render dead health links or the removed source section", () => {
+    const html = renderConditions();
+
+    expect([
+      html.includes("vncdc.gov.vn"),
+      html.includes("moh.gov.vn"),
+      html.includes("Nguồn &amp; giới hạn tham khảo"),
+    ]).toEqual([false, false, false]);
   });
 
   it("lists exactly ten common symptoms", () => {

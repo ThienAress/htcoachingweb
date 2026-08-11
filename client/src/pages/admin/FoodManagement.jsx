@@ -26,6 +26,10 @@ import {
   addFoodPriceObservation,
 } from "../../services/food.service";
 import { useDebounce } from "../../hooks/useDebounce";
+import {
+  FOOD_ADMIN_TEXT,
+  getFoodSourceLabel,
+} from "./foodAdminPresentation";
 
 const createFoodForm = () => ({
   label: "",
@@ -39,7 +43,7 @@ const createFoodForm = () => ({
   sourceExternalId: "",
   sourceDatasetVersion: "",
   sourceLicense: "proprietary-internal",
-  sourceAttribution: "HTCOACHING manual nutrition review",
+  sourceAttribution: FOOD_ADMIN_TEXT.defaultAttribution,
   sourceUrl: "",
   sourceDate: new Date().toISOString().slice(0, 10),
   allergenReviewStatus: "unreviewed",
@@ -218,7 +222,8 @@ const FoodManagement = () => {
       toast.success(res.data.message);
       invalidateByKey(queryClient, adminQueryKeys.foods.all());
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi import"),
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "Lỗi nhập dữ liệu"),
   });
 
   const openCreateModal = () => {
@@ -316,11 +321,11 @@ const FoodManagement = () => {
           item.fat === undefined
         ) {
           throw new Error(
-            `Item ${idx + 1} thiếu trường bắt buộc (label, protein, carb, fat)`,
+            `Mục ${idx + 1} thiếu trường bắt buộc (label, protein, carb, fat)`,
           );
         }
         if (!item.source || !item.source.type) {
-          throw new Error(`Item ${idx + 1} thiếu source provenance`);
+          throw new Error(`Mục ${idx + 1} thiếu nguồn dữ liệu dinh dưỡng`);
         }
       });
       batchMutation.mutate(foods);
@@ -377,7 +382,7 @@ const FoodManagement = () => {
               className="inline-flex items-center gap-2 px-3 py-2 md:px-4 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-fluid-sm"
             >
               <Upload className="w-4 h-4" />
-              <span>Import nhiều</span>
+              <span>Nhập hàng loạt</span>
             </button>
           </div>
         </div>
@@ -402,16 +407,16 @@ const FoodManagement = () => {
                     Tên thực phẩm
                   </th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
-                    Protein (g)
+                    Đạm (g)
                   </th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
-                    Carb (g)
+                    Tinh bột (g)
                   </th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
-                    Fat (g)
+                    Chất béo (g)
                   </th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
-                    Calories
+                    Năng lượng (kcal)
                   </th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                     Nguồn
@@ -437,22 +442,6 @@ const FoodManagement = () => {
                       {food.label}
                     </td>
                     <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
-                      <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                        food.allergenProfile?.reviewStatus === "reviewed"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-amber-50 text-amber-700"
-                      }`}>
-                        {food.allergenProfile?.reviewStatus === "reviewed"
-                          ? "Đã duyệt"
-                          : "Chưa duyệt"}
-                      </span>
-                    </td>
-                    <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
-                      {food.marketPrice?.coverageStatus === "sufficient"
-                        ? `${food.marketPrice.typicalVndPer100g.toLocaleString("vi-VN")}đ/100g`
-                        : `${food.marketPrice?.sourceCount || 0}/2 nguồn`}
-                    </td>
-                    <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
                       {food.protein}
                     </td>
                     <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
@@ -470,8 +459,24 @@ const FoodManagement = () => {
                           ? "bg-emerald-50 text-emerald-700"
                           : "bg-amber-50 text-amber-700"
                       }`}>
-                        {food.source?.type || "legacy_unknown"}
+                        {getFoodSourceLabel(food.source?.type)}
                       </span>
+                    </td>
+                    <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
+                      <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                        food.allergenProfile?.reviewStatus === "reviewed"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-amber-50 text-amber-700"
+                      }`}>
+                        {food.allergenProfile?.reviewStatus === "reviewed"
+                          ? "Đã duyệt"
+                          : "Chưa duyệt"}
+                      </span>
+                    </td>
+                    <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
+                      {food.marketPrice?.coverageStatus === "sufficient"
+                        ? `${food.marketPrice.typicalVndPer100g.toLocaleString("vi-VN")}đ/100g`
+                        : "Chưa có nguồn giá"}
                     </td>
                     <td className="px-3 md:px-4 py-2 md:py-3">
                       <div className="flex items-center gap-2">
@@ -565,7 +570,7 @@ const FoodManagement = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Protein (g) *
+                      Đạm (g) *
                     </label>
                     <input
                       type="number"
@@ -580,7 +585,7 @@ const FoodManagement = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Carb (g) *
+                      Tinh bột (g) *
                     </label>
                     <input
                       type="number"
@@ -595,7 +600,7 @@ const FoodManagement = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Fat (g) *
+                      Chất béo (g) *
                     </label>
                     <input
                       type="number"
@@ -610,7 +615,7 @@ const FoodManagement = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Calories (kcal)
+                      Năng lượng (kcal)
                     </label>
                     <input
                       type="number"
@@ -626,11 +631,11 @@ const FoodManagement = () => {
                 </div>
                 <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">
                   <legend className="px-1 text-sm font-semibold text-slate-700">
-                    Provenance dinh dưỡng
+                    {FOOD_ADMIN_TEXT.provenanceLegend}
                   </legend>
                   {formData.sourceType === "legacy_unknown" && (
                     <p className="text-xs text-amber-700">
-                      Record legacy phải được bổ sung nguồn trước khi sửa macro.
+                      {FOOD_ADMIN_TEXT.legacyWarning}
                     </p>
                   )}
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -645,15 +650,21 @@ const FoodManagement = () => {
                           value="legacy_unknown"
                           disabled={!editingFood}
                         >
-                          Legacy chưa rõ nguồn
+                          {getFoodSourceLabel("legacy_unknown")}
                         </option>
-                        <option value="manual_verified">Manual đã xác minh</option>
-                        <option value="nutrition_label">Nhãn dinh dưỡng</option>
-                        <option value="usda_fdc">USDA FoodData Central</option>
+                        <option value="manual_verified">
+                          {getFoodSourceLabel("manual_verified")}
+                        </option>
+                        <option value="nutrition_label">
+                          {getFoodSourceLabel("nutrition_label")}
+                        </option>
+                        <option value="usda_fdc">
+                          {getFoodSourceLabel("usda_fdc")}
+                        </option>
                       </select>
                     </label>
                     <label className="text-sm text-slate-700">
-                      Provider
+                      {FOOD_ADMIN_TEXT.provider}
                       <input
                         value={formData.sourceProvider}
                         onChange={(e) => setFormData({ ...formData, sourceProvider: e.target.value })}
@@ -662,7 +673,7 @@ const FoodManagement = () => {
                       />
                     </label>
                     <label className="text-sm text-slate-700">
-                      Dataset version
+                      {FOOD_ADMIN_TEXT.datasetVersion}
                       <input
                         value={formData.sourceDatasetVersion}
                         onChange={(e) => setFormData({ ...formData, sourceDatasetVersion: e.target.value })}
@@ -671,7 +682,7 @@ const FoodManagement = () => {
                       />
                     </label>
                     <label className="text-sm text-slate-700">
-                      License
+                      {FOOD_ADMIN_TEXT.license}
                       <input
                         value={formData.sourceLicense}
                         onChange={(e) => setFormData({ ...formData, sourceLicense: e.target.value })}
@@ -680,7 +691,7 @@ const FoodManagement = () => {
                       />
                     </label>
                     <label className="text-sm text-slate-700 sm:col-span-2">
-                      Attribution
+                      {FOOD_ADMIN_TEXT.attribution}
                       <input
                         value={formData.sourceAttribution}
                         onChange={(e) => setFormData({ ...formData, sourceAttribution: e.target.value })}
@@ -689,7 +700,7 @@ const FoodManagement = () => {
                       />
                     </label>
                     <label className="text-sm text-slate-700">
-                      External ID
+                      {FOOD_ADMIN_TEXT.externalId}
                       <input
                         value={formData.sourceExternalId}
                         onChange={(e) => setFormData({ ...formData, sourceExternalId: e.target.value })}
@@ -707,7 +718,7 @@ const FoodManagement = () => {
                       />
                     </label>
                     <label className="text-sm text-slate-700 sm:col-span-2">
-                      Source URL
+                      {FOOD_ADMIN_TEXT.sourceUrl}
                       <input
                         type="url"
                         value={formData.sourceUrl}
@@ -856,10 +867,10 @@ const FoodManagement = () => {
 
                 <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">
                   <legend className="px-1 text-sm font-semibold text-slate-700">
-                    Snapshot giá online TP.HCM (tùy chọn)
+                    {FOOD_ADMIN_TEXT.priceLegend}
                   </legend>
                   <p className="text-xs leading-5 text-slate-500">
-                    Mỗi lần lưu thêm một quan sát. Cần ít nhất hai nguồn còn mới để hiển thị khoảng giá.
+                    Mỗi lần lưu sẽ thêm một lần ghi nhận giá. Chỉ cần một nguồn bán lẻ còn hiệu lực để hiển thị giá tham khảo.
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="text-sm text-slate-700">
@@ -874,14 +885,14 @@ const FoodManagement = () => {
                         })}
                         className="mt-1 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
                       >
-                        <option value="">Không thêm snapshot</option>
+                        <option value="">{FOOD_ADMIN_TEXT.noPriceObservation}</option>
                         <option value="bach_hoa_xanh">Bách Hóa Xanh</option>
                         <option value="winmart">WinMart</option>
                         <option value="coop_online">Co.op Online</option>
                       </select>
                       {!editingFood && (
                         <span className="mt-1 block text-xs text-slate-500">
-                          Lưu thực phẩm trước, sau đó mở sửa để thêm snapshot giá.
+                          {FOOD_ADMIN_TEXT.priceSavedFirst}
                         </span>
                       )}
                     </label>
@@ -998,7 +1009,7 @@ const FoodManagement = () => {
               <div className="p-4 md:p-6 space-y-4">
                 <p className="text-sm text-slate-600">
                   Dán mảng JSON theo mẫu (có thể copy từ Excel/Google Sheet).
-                  Calories là tùy chọn, sẽ tự tính nếu không có.
+                  Năng lượng là tùy chọn, hệ thống sẽ tự tính nếu để trống.
                 </p>
                 <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto max-h-40">
                   {`[{
@@ -1006,7 +1017,7 @@ const FoodManagement = () => {
   "source": {
     "type": "manual_verified", "provider": "HTCOACHING",
     "datasetVersion": "manual-2026-08", "license": "proprietary-internal",
-    "attribution": "HTCOACHING manual nutrition review",
+    "attribution": "HTCOACHING kiểm duyệt dinh dưỡng thủ công",
     "verifiedAt": "2026-08-04T00:00:00.000Z"
   }
 }]`}
@@ -1047,7 +1058,7 @@ const FoodManagement = () => {
                   disabled={batchMutation.isPending}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
                 >
-                  {batchMutation.isPending ? "Đang xử lý..." : "Import"}
+                  {batchMutation.isPending ? "Đang xử lý..." : "Nhập dữ liệu"}
                 </button>
               </div>
             </div>

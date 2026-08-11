@@ -100,8 +100,9 @@ export const getFoodPriority = (foodName = "", category = "") => {
 
 export const enrichFoodDatabase = (foods = []) => {
   return foods.map((food) => {
-    const category = inferCategory(food.name);
-    const priority = getFoodPriority(food.name, category);
+    const foodName = food.label || food.name || "";
+    const category = inferCategory(foodName);
+    const priority = getFoodPriority(foodName, category);
 
     return {
       ...food,

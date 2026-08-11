@@ -1,4 +1,4 @@
-import { analyzeOtherAllergenText } from "./mealPlanAllergenInput";
+import { analyzeOtherAllergenText } from "./mealPlanAllergenInput.js";
 
 export const EMPTY_MEAL_PLAN_PREFERENCES = Object.freeze({
   allergyStatus: null,
@@ -19,6 +19,79 @@ const ALLERGEN_KEYS = new Set([
   "soy",
   "sesame",
 ]);
+const MAJOR_ALLERGEN_LABEL_PHRASES = Object.freeze({
+  milk: ["sữa", "phô mai", "pho mát", "whey", "casein", "bơ sữa", "bơ động vật"],
+  egg: ["trứng", "lòng đỏ", "lòng trắng"],
+  fish: ["cá"],
+  crustacean_shellfish: ["tôm", "cua", "tép", "ghẹ"],
+  tree_nut: [
+    "hạt điều",
+    "hạt dẻ",
+    "hạnh nhân",
+    "óc chó",
+    "mắc ca",
+    "macadamia",
+    "pistachio",
+    "hazelnut",
+  ],
+  peanut: ["đậu phộng", "lạc"],
+  wheat: ["lúa mì", "bột mì", "mì"],
+  soy: ["đậu nành", "đậu tương", "đậu phụ", "đậu hũ", "tofu"],
+  sesame: ["mè", "vừng"],
+});
+const SPECIFIC_FOOD_LABEL_TOKENS = Object.freeze({
+  beef: ["bo"],
+  chicken: ["ga"],
+  pork: ["heo", "lon"],
+  duck: ["vit"],
+  goat: ["de"],
+  lamb: ["cuu"],
+});
+
+const normalizeFoodLabelTokens = (value) =>
+  String(value || "")
+    .normalize("NFKC")
+    .toLocaleLowerCase("vi")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/đ/gu, "d")
+    .split(/[^a-z0-9]+/u)
+    .filter(Boolean);
+
+const normalizeFoodLabel = (value) =>
+  String(value || "")
+    .normalize("NFKC")
+    .toLocaleLowerCase("vi")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+const inferMajorAllergenKeys = (food) => {
+  const label = normalizeFoodLabel(food?.label || food?.name || "");
+  if (!label) return new Set();
+  const paddedLabel = ` ${label} `;
+  return new Set(
+    Object.entries(MAJOR_ALLERGEN_LABEL_PHRASES)
+      .filter(([, phrases]) =>
+        phrases.some((phrase) =>
+          paddedLabel.includes(` ${normalizeFoodLabel(phrase)} `),
+        ),
+      )
+      .map(([key]) => key),
+  );
+};
+
+const inferSpecificFoodKeys = (food) => {
+  const tokens = new Set(
+    normalizeFoodLabelTokens(food?.label || food?.name || ""),
+  );
+  if (tokens.size === 0) return null;
+  return new Set(
+    Object.entries(SPECIFIC_FOOD_LABEL_TOKENS)
+      .filter(([, aliases]) => aliases.some((alias) => tokens.has(alias)))
+      .map(([key]) => key),
+  );
+};
 
 export const validateMealPlanPreferences = (preferences) => {
   const allergyStatus = preferences?.allergyStatus;
@@ -73,19 +146,21 @@ export const filterFoodsForMealPlan = (foods, preferences) => {
   const specificExcluded = new Set(otherAnalysis.specificKeys);
   return items.filter((food) => {
     const profile = food?.allergenProfile;
-    if (profile?.reviewStatus !== "reviewed") return false;
     const hasMajorRisk = [
-      ...(profile.contains || []),
-      ...(profile.mayContain || []),
+      ...(profile?.contains || []),
+      ...(profile?.mayContain || []),
+      ...inferMajorAllergenKeys(food),
     ].some(
       (allergen) => excluded.has(allergen),
     );
     if (hasMajorRisk) return false;
     if (specificExcluded.size === 0) return true;
-    if (!(profile.reviewedScopes || []).includes("specific_foods")) {
-      return false;
-    }
-    return !(profile.specificContains || []).some((key) =>
+    const specificContains = (profile?.reviewedScopes || []).includes(
+      "specific_foods",
+    )
+      ? profile?.specificContains || []
+      : [...(inferSpecificFoodKeys(food) || [])];
+    return !specificContains.some((key) =>
       specificExcluded.has(key),
     );
   });
@@ -103,59 +178,4 @@ const classifyFood = (food) => {
 export const hasMealPlanFoodCoverage = (foods) => {
   const groups = new Set((Array.isArray(foods) ? foods : []).map(classifyFood));
   return ["protein", "carb", "fat"].every((group) => groups.has(group));
-};
-
-const mealFoods = (meal) =>
-  [meal?.proteinFood, meal?.carbFood, meal?.fatFood].filter(Boolean);
-
-export const estimateMealPlanCost = (meals, budgetVndPerDay = null) => {
-  const foods = (Array.isArray(meals) ? meals : []).flatMap(mealFoods);
-  if (foods.length === 0) {
-    return { coverageStatus: "unavailable", coveredFoods: 0, totalFoods: 0 };
-  }
-  const covered = foods.filter(
-    (food) => food.marketPrice?.coverageStatus === "sufficient",
-  );
-  if (covered.length !== foods.length) {
-    return {
-      coverageStatus: "insufficient",
-      coveredFoods: covered.length,
-      totalFoods: foods.length,
-    };
-  }
-  const sum = (key) =>
-    Math.round(
-      covered.reduce(
-        (total, food) =>
-          total +
-          (Number(food.marketPrice[key]) * Number(food.amount || 0)) / 100,
-        0,
-      ),
-    );
-  const lowVndPerDay = sum("lowVndPer100g");
-  const typicalVndPerDay = sum("typicalVndPer100g");
-  const highVndPerDay = sum("highVndPer100g");
-  const budgetStatus =
-    budgetVndPerDay == null
-      ? "not_set"
-      : highVndPerDay <= budgetVndPerDay
-        ? "within"
-        : lowVndPerDay > budgetVndPerDay
-          ? "above"
-          : "uncertain";
-  const asOf = covered
-    .map((food) => food.marketPrice.asOf)
-    .filter(Boolean)
-    .sort()[0] || null;
-  return {
-    coverageStatus: "sufficient",
-    coveredFoods: covered.length,
-    totalFoods: foods.length,
-    lowVndPerDay,
-    typicalVndPerDay,
-    highVndPerDay,
-    budgetStatus,
-    asOf,
-    region: "ho_chi_minh",
-  };
 };

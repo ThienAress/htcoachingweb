@@ -27,7 +27,6 @@ import { ShieldAlert } from "lucide-react";
 import LoginModal from "./LoginModal";
 import SavedMealPlans from "./SavedMealPlans";
 import MealPlanConditions from "./MealPlanConditions";
-import MealPlanCostSummary from "./MealPlanCostSummary";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 import {
   hasUsedGuestMealPlanPreview,
@@ -36,7 +35,6 @@ import {
 import { useMealPlanPreferences } from "../../hooks/useMealPlanPreferences";
 import {
   EMPTY_MEAL_PLAN_PREFERENCES,
-  estimateMealPlanCost,
   filterFoodsForMealPlan,
   hasMealPlanFoodCoverage,
   validateMealPlanPreferences,
@@ -56,7 +54,12 @@ const MealPlan = () => {
   const { t } = useTranslation("mealplan");
   const [selectedPlan, setSelectedPlan] = useState(3);
   const { macroSet, selectedMacroPlan, setSelectedMacroPlan } = useMacroSet();
-  const { foodDatabase, isLoadingFoods } = useFoodDatabase();
+  const {
+    foodDatabase,
+    isLoadingFoods,
+    isErrorFoods,
+    retryFoods,
+  } = useFoodDatabase();
 
   const [activeTab, setActiveTab] = useState("menu");
   const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
@@ -79,8 +82,7 @@ const MealPlan = () => {
             allergens: preferenceQuery.preferences.allergens || [],
             otherAllergenText:
               preferenceQuery.preferences.otherAllergenText || "",
-            budgetVndPerDay:
-              preferenceQuery.preferences.budgetVndPerDay ?? null,
+            budgetVndPerDay: null,
           }
         : EMPTY_MEAL_PLAN_PREFERENCES,
     [preferenceQuery.preferences],
@@ -115,15 +117,7 @@ const MealPlan = () => {
       targetMacros: activeMacroTarget,
       foodDatabase: constrainedFoodDatabase,
       customFoods: user ? selectedFoods : null,
-      budgetVndPerDay: mealPlanPreferences.budgetVndPerDay,
     });
-  const costEstimate = useMemo(
-    () => estimateMealPlanCost(meals, mealPlanPreferences.budgetVndPerDay),
-    [meals, mealPlanPreferences.budgetVndPerDay],
-  );
-
-
-
   // Lưu danh sách món yêu thích
   const handleSaveSelectedFoods = (selected) => {
     setSelectedFoods(selected);
@@ -165,7 +159,7 @@ const MealPlan = () => {
           too_many: "Chỉ nhập tối đa 8 thực phẩm ở mục Khác.",
           generic_meat:
             "Vui lòng nhập rõ loại thịt dị ứng, ví dụ: gà, bò hoặc heo.",
-          budget: "Ngân sách phải từ 30.000đ đến 2.000.000đ mỗi ngày.",
+          budget: "Dữ liệu ngân sách đã lưu không hợp lệ.",
         };
         toast.error(messages[preferenceValidation.code]);
         return;
@@ -176,7 +170,7 @@ const MealPlan = () => {
       }
       if (!hasMealPlanFoodCoverage(constrainedFoodDatabase)) {
         toast.error(
-          "Chưa đủ thực phẩm đã kiểm duyệt để tạo thực đơn sau khi loại trừ dị ứng. Không có lượt nào bị trừ.",
+          "Sau khi loại thực phẩm dị ứng, dữ liệu còn lại chưa đủ nhóm đạm, tinh bột và chất béo để tạo thực đơn. Không có lượt nào bị trừ.",
           { autoClose: 6000 },
         );
         return;
@@ -495,7 +489,6 @@ const MealPlan = () => {
 
                 {meals.length > 0 && (
                   <>
-                    <MealPlanCostSummary estimate={costEstimate} />
                     <NutritionLegend />
                     <MealSummary
                       totalMacros={totalMacros}
@@ -517,6 +510,9 @@ const MealPlan = () => {
               <CustomMealBuilder
                 key={`${user?._id || "guest"}:${selectedPlan}`}
                 foodDatabase={constrainedFoodDatabase}
+                isFoodDatabaseLoading={isLoadingFoods}
+                isFoodDatabaseError={isErrorFoods}
+                onRetryFoodDatabase={retryFoods}
                 targetMacros={activeMacroTarget}
                 targetLabel={selectedMacroPlan}
                 selectedPlan={selectedPlan}

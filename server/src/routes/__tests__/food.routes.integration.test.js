@@ -188,50 +188,34 @@ describe("Food provenance contract", () => {
     expect(response.status).toBe(400);
   });
 
-  test("aggregates a TP.HCM price range only after two fresh sources", async () => {
+  test("publishes a TP.HCM reference price from one fresh retailer source", async () => {
     const food = await Food.create({
       ...FOOD_PAYLOAD,
       label: "Ức gà có giá",
       allergenProfile: { reviewStatus: "unreviewed" },
     });
     const observedAt = new Date().toISOString();
-    const observations = [
-      {
+    const created = await withAuth(
+      request(app).post(`/api/foods/${food._id}/prices`).send({
         sourceKey: "bach_hoa_xanh",
         packGrams: 500,
         regularPriceVnd: 60_000,
         promotionalPriceVnd: null,
         sourceUrl: "https://www.bachhoaxanh.com/thit-ga/uc-ga",
         observedAt,
-      },
-      {
-        sourceKey: "winmart",
-        packGrams: 500,
-        regularPriceVnd: 70_000,
-        promotionalPriceVnd: 65_000,
-        sourceUrl: "https://winmart.vn/products/uc-ga",
-        observedAt,
-      },
-    ];
-
-    const created = await Promise.all(
-      observations.map((payload) =>
-        withAuth(
-          request(app).post(`/api/foods/${food._id}/prices`).send(payload),
-          adminToken,
-        ),
-      ),
+      }),
+      adminToken,
     );
     const response = await request(app).get("/api/foods?all=true");
 
-    expect(created.map(({ status }) => status)).toEqual([201, 201]);
+    expect(created.status).toBe(201);
     expect(response.body.data[0].marketPrice).toMatchObject({
       region: "ho_chi_minh",
       currency: "VND",
       lowVndPer100g: 12_000,
-      typicalVndPer100g: 13_000,
-      highVndPer100g: 14_000,
-      sourceCount: 2,
+      typicalVndPer100g: 12_000,
+      highVndPer100g: 12_000,
+      sourceCount: 1,
       coverageStatus: "sufficient",
     });
   });

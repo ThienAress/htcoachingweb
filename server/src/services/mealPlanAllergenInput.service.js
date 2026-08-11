@@ -13,7 +13,7 @@ const DEFINITIONS = [
   { key: "egg", kind: "major", label: "Trứng", aliases: ["trứng"] },
   { key: "fish", kind: "major", label: "Cá", aliases: ["cá"] },
   { key: "beef", kind: "specific", label: "Bò", aliases: ["thịt bò", "bò"] },
-  { key: "chicken", kind: "specific", label: "Gà", aliases: ["thịt gà", "gà"] },
+  { key: "chicken", kind: "specific", label: "Gà", aliases: ["thịt gà", "ức gà", "gà"] },
   { key: "pork", kind: "specific", label: "Heo", aliases: ["thịt heo", "thịt lợn", "heo", "lợn"] },
   { key: "duck", kind: "specific", label: "Vịt", aliases: ["thịt vịt", "vịt"] },
   { key: "goat", kind: "specific", label: "Dê", aliases: ["thịt dê", "dê"] },

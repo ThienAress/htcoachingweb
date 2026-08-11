@@ -8,5 +8,7 @@ export const useFoodDatabase = () => {
   return {
     foodDatabase: query.data || [],
     isLoadingFoods: query.isLoading,
+    isErrorFoods: query.isError,
+    retryFoods: query.refetch,
   };
 };

@@ -63,6 +63,11 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 038 | Ổn định HT Assistant, lưu thực đơn, HLV mặc định và SEO | P0 | L | 003C, 024A, 026C, 031, 033 | RELEASE CANDIDATE VERIFIED — STAGING PENDING |
 | 039 | Theo dõi vòng đời cải tiến và xuất báo cáo PDF | P1 | M | 033, 038 | RELEASE CANDIDATE VERIFIED — STAGING PENDING |
 | 040 | Tách analytics production, lọc đối tượng và cá nhân hóa Meal Plan an toàn | P0/P1 | XL | 028A–028C, 033, 038, 039 | IMPLEMENTED / LOCAL VERIFIED — PRODUCTION DATA ROLLOUT PENDING |
+| 041 | Tinh gọn danh mục Food production cho Meal Plan eat-clean | P0 | M | 040 | PRODUCTION CURATED / API VERIFIED |
+| 042 | Hoàn thiện dị ứng, Food DB và giá ước tính trong Meal Plan | P0/P1 | L | 040, 041 | IN PROGRESS |
+| 043 | Đồng bộ catalog test công khai vào local và staging | P1 | M | 041, 042 | COMPLETE / LOCAL + STAGING VERIFIED |
+| 044 | Việt hóa quản trị Food và nạp giá thị trường vào local | P1 | L | 042, 043 | COMPLETE / LOCAL VERIFIED — FULL SERVER QA TIMEOUT |
+| 045 | Đơn giản hóa giá Meal Plan và theo dõi phụ thuộc hệ thống | P1 | M | 033, 042, 044 | IMPLEMENTED / PARTIAL LOCAL VERIFIED — VITEST + BUILD ENV BLOCKED |
 
 ## Dependency Notes
 
@@ -134,6 +139,10 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   sinh JSON/PDF read-only và không thêm schema hoặc mutation.
 - Plan 040 phụ thuộc measurement/read model của 028A–028C, quota/catalog của 033, Saved Meal Plan hardening của 038
   và report lifecycle của 039; plan tách GA4 production, thêm bộ lọc đối tượng và Meal Plan constraints có nguồn.
+- Plan 043 phụ thuộc catalog Food đã tinh gọn và contract Meal Plan/Food hiện tại; production chỉ là nguồn GET,
+  còn mọi mutation bị khóa vào database local hoặc staging cô lập.
+- Plan 044 phụ thuộc price contract và catalog test đã có; chỉ nạp observation có nguồn vào local, không thay macro
+  hoặc mở rộng sang staging/production.
 
 ## Findings Considered and Rejected
 

@@ -27,6 +27,17 @@ describe("Meal Plan other-allergen input", () => {
     });
   });
 
+  it.each(["Ức gà", "uc ga"])(
+    "recognizes a chicken cut as the canonical chicken exclusion: %s",
+    (value) => {
+      expect(analyzeOtherAllergenText(value)).toMatchObject({
+        canonicalText: "Gà",
+        hasUnmapped: false,
+        specificKeys: ["chicken"],
+      });
+    },
+  );
+
   it("reports a period separator instead of guessing", () => {
     expect(analyzeOtherAllergenText("bò.gà.heo").errorCode).toBe(
       "period_separator",

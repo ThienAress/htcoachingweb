@@ -6,7 +6,6 @@ export const useMealGenerator = ({
   targetMacros: propsTargetMacros,
   foodDatabase,
   customFoods = null,
-  budgetVndPerDay = null,
 }) => {
   const [meals, setMeals] = useState([]);
   const [totalMacros, setTotalMacros] = useState({
@@ -137,19 +136,12 @@ export const useMealGenerator = ({
       filtered = activeDB.filter((f) => classifyFood(f) === group);
     }
     return [...filtered].sort((a, b) => {
-      if (budgetVndPerDay !== null) {
-        const aPrice =
-          a.marketPrice?.coverageStatus === "sufficient"
-            ? a.marketPrice.typicalVndPer100g
-            : Number.POSITIVE_INFINITY;
-        const bPrice =
-          b.marketPrice?.coverageStatus === "sufficient"
-            ? b.marketPrice.typicalVndPer100g
-            : Number.POSITIVE_INFINITY;
-        if (aPrice !== bPrice) return aPrice - bPrice;
-      }
       const priorityDiff = (b.priority || 0) - (a.priority || 0);
       if (priorityDiff !== 0) return priorityDiff;
+      const priceCoverageDiff =
+        Number(b.marketPrice?.coverageStatus === "sufficient") -
+        Number(a.marketPrice?.coverageStatus === "sufficient");
+      if (priceCoverageDiff !== 0) return priceCoverageDiff;
       return Math.random() - 0.5;
     });
   };

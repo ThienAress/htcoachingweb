@@ -1,4 +1,4 @@
-import { AlertTriangle, BadgeDollarSign, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ShieldCheck } from "lucide-react";
 
 import FoodAllergySymptomGuide from "./FoodAllergySymptomGuide";
 import { analyzeOtherAllergenText } from "../../utils/mealPlanAllergenInput";
@@ -54,7 +54,7 @@ export default function MealPlanConditions({
             Điều kiện thực đơn
           </h2>
           <p className="mt-1 text-sm leading-6 text-gray-300">
-            Xác nhận dị ứng và ngân sách trước khi tạo. Dị ứng được ưu tiên loại trừ; ngân sách chỉ dùng để ước tính.
+            Xác nhận dị ứng trước khi tạo để hệ thống loại trừ thực phẩm phù hợp.
           </p>
         </div>
       </div>
@@ -121,7 +121,9 @@ export default function MealPlanConditions({
                 >
                   Có thể ngăn cách bằng dấu phẩy hoặc khoảng trắng khi hệ thống đã
                   nhận diện tên. Không dùng dấu chấm; không nhập triệu chứng hoặc
-                  thông tin cá nhân.
+                  thông tin cá nhân. Thẻ bên dưới là mục đã nhận diện, không cần
+                  tick thêm ô phía trên. Hệ thống đối chiếu metadata và tên thực
+                  phẩm hiện có; bạn vẫn nên kiểm tra nhãn sản phẩm.
                 </span>
               </label>
               {otherAnalysis.items.length > 0 && (
@@ -181,12 +183,6 @@ export default function MealPlanConditions({
 
           <FoodAllergySymptomGuide />
 
-          <label className="mt-5 block max-w-sm text-sm font-bold text-white">
-            <span className="flex items-center gap-2"><BadgeDollarSign className="size-4 text-primary" aria-hidden="true" />Ngân sách tham khảo mỗi ngày — không bắt buộc</span>
-            <input type="number" name="meal-plan-budget-vnd-per-day" inputMode="numeric" autoComplete="off" min="30000" max="2000000" step="10000" value={preferences.budgetVndPerDay ?? ""} onChange={(event) => onChange({ ...preferences, budgetVndPerDay: event.target.value ? Number(event.target.value) : null })} placeholder="Không giới hạn" className="mt-2 min-h-11 w-full rounded-lg border border-white/15 bg-gray-950 px-3 py-2 text-white outline-none placeholder:text-gray-500 focus:border-primary focus:ring-2 focus:ring-primary/20" />
-            <span className="mt-1 block text-xs font-normal leading-5 text-gray-400">Đơn vị VND. Để trống nếu bạn không muốn đặt giới hạn; nếu nhập, dùng khoảng từ 30.000đ đến 2.000.000đ/ngày.</span>
-          </label>
-
           {isAuthenticated && (
             <button type="button" onClick={onSave} disabled={!isDirty || isSaving || hasOtherFormatBlock} className="mt-5 min-h-11 rounded-lg border border-primary/60 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50">
               {isSaving ? "Đang lưu..." : isDirty ? "Lưu điều kiện vào tài khoản" : "Đã lưu vào tài khoản"}
@@ -195,16 +191,6 @@ export default function MealPlanConditions({
         </>
       )}
 
-      <details className="mt-5 border-t border-white/10 pt-3 text-sm text-gray-300">
-        <summary className="flex min-h-11 cursor-pointer items-center font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Nguồn & giới hạn tham khảo</summary>
-        <div className="mt-3 space-y-2 leading-6">
-          <p>Dựa trên dữ liệu nhãn và nguồn tham khảo hiện có; không thay thế tư vấn của bác sĩ/chuyên gia dinh dưỡng.</p>
-          <p>Không bảo đảm loại trừ cross-contact. Người có tiền sử phản ứng nặng cần kiểm tra nhãn và trao đổi với chuyên gia.</p>
-          <p>Chi phí là khoảng ước tính tại TP.HCM theo ngày cập nhật; giá thực tế thay đổi theo nơi bán và khuyến mãi.</p>
-          <p>Các dấu hiệu sau ăn chỉ giúp nhận biết phản ứng nghi ngờ, không thay thế chẩn đoán của cơ sở y tế. Nội dung tiếng Việt và nguồn y tế đã được tóm tắt trực tiếp phía trên.</p>
-          <p><a href="https://www.fao.org/fao-who-codexalimentarius/codex-texts/list-standards/en/" target="_blank" rel="noreferrer" className="rounded text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">Codex CXS 1-1985 — chuẩn ghi nhãn thực phẩm</a></p>
-        </div>
-      </details>
     </section>
   );
 }

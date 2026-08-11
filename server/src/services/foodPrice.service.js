@@ -72,42 +72,44 @@ export const normalizeFoodPriceObservation = (input) => {
   };
 };
 
-const median = (values) => {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2
-    ? sorted[middle]
-    : (sorted[middle - 1] + sorted[middle]) / 2;
-};
+const SOURCE_PRIORITY = Object.freeze({
+  bach_hoa_xanh: 0,
+  winmart: 1,
+  coop_online: 2,
+});
 
-const summarize = (observations) => {
-  const sourceCount = new Set(observations.map(({ sourceKey }) => sourceKey)).size;
-  const asOf = observations
-    .map(({ observedAt }) => observedAt)
-    .sort((left, right) => right.getTime() - left.getTime())[0] || null;
-  if (sourceCount < 2) {
+export const summarizeFoodPriceObservations = (observations) => {
+  const selected = [...observations].sort((left, right) => {
+    const dateDifference = right.observedAt.getTime() - left.observedAt.getTime();
+    if (dateDifference !== 0) return dateDifference;
+    return (
+      (SOURCE_PRIORITY[left.sourceKey] ?? Number.MAX_SAFE_INTEGER) -
+      (SOURCE_PRIORITY[right.sourceKey] ?? Number.MAX_SAFE_INTEGER)
+    );
+  })[0];
+  if (!selected) {
     return {
       region: "ho_chi_minh",
       currency: "VND",
       lowVndPer100g: null,
       typicalVndPer100g: null,
       highVndPer100g: null,
-      asOf,
-      sourceCount,
+      asOf: null,
+      sourceCount: 0,
       coverageStatus: "insufficient",
     };
   }
-  const prices = observations.map(({ regularPriceVnd, packGrams }) =>
-    Math.round((regularPriceVnd / packGrams) * 100),
+  const pricePer100g = Math.round(
+    (selected.regularPriceVnd / selected.packGrams) * 100,
   );
   return {
     region: "ho_chi_minh",
     currency: "VND",
-    lowVndPer100g: Math.min(...prices),
-    typicalVndPer100g: Math.round(median(prices)),
-    highVndPer100g: Math.max(...prices),
-    asOf,
-    sourceCount,
+    lowVndPer100g: pricePer100g,
+    typicalVndPer100g: pricePer100g,
+    highVndPer100g: pricePer100g,
+    asOf: selected.observedAt,
+    sourceCount: 1,
     coverageStatus: "sufficient",
   };
 };
@@ -134,7 +136,7 @@ export const getFoodMarketPriceMap = async (
   return new Map(
     foodIds.map((foodId) => {
       const key = String(foodId);
-      return [key, summarize(grouped.get(key) || [])];
+      return [key, summarizeFoodPriceObservations(grouped.get(key) || [])];
     }),
   );
 };

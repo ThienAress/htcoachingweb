@@ -17,6 +17,14 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
 
   const getCalories = (item) =>
     Math.round(item.protein * 4 + item.carb * 4 + item.fat * 9);
+  const getReferencePrice = (item) => {
+    const price = Number(item.marketPrice?.typicalVndPer100g);
+    return item.marketPrice?.coverageStatus === "sufficient" &&
+      Number.isFinite(price) &&
+      price > 0
+      ? `${price.toLocaleString("vi-VN")}đ`
+      : "—";
+  };
 
   const filteredData = useMemo(() => {
     const keyword = searchText.trim().toLowerCase();
@@ -86,8 +94,8 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
       </div>
 
       <div className="overflow-x-auto -mx-4 sm:mx-0">
-        <div className="min-w-[640px] md:min-w-full relative">
-          <div className="grid grid-cols-7 gap-3 bg-gray-900/80 p-3 rounded-t-xl border-b border-gray-700 text-gray-300 font-semibold text-sm">
+        <div className="min-w-[760px] md:min-w-full relative">
+          <div className="grid grid-cols-8 gap-3 bg-gray-900/80 p-3 rounded-t-xl border-b border-gray-700 text-gray-300 font-semibold text-sm">
             <div className="col-span-2">{t("table.food")}</div>
             <div>{t("table.portion")}</div>
             <div>{t("table.protein")}</div>
@@ -96,6 +104,7 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
             <div>
               <Flame className="w-4 h-4 inline mr-1 text-primary" /> {t("table.calories")}
             </div>
+            <div>{t("table.price")}</div>
           </div>
 
           {visibleData.map((item, index) => {
@@ -109,7 +118,7 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
             return (
               <div
                 key={item._id || getFoodDisplayName(item)}
-                className="grid grid-cols-7 gap-3 p-3 border-b border-gray-700 hover:bg-gray-700/30 transition text-sm"
+                className="grid grid-cols-8 gap-3 p-3 border-b border-gray-700 hover:bg-gray-700/30 transition text-sm"
                 style={isFading ? { opacity: fadingOpacity } : undefined}
               >
                 <div className="col-span-2 font-medium text-white break-words">
@@ -126,6 +135,9 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
                   {Number(item.fat || 0).toFixed(1)}
                 </div>
                 <div className="text-primary font-semibold">{calories}</div>
+                <div className="font-semibold tabular-nums text-cyan-200">
+                  {getReferencePrice(item)}
+                </div>
               </div>
             );
           })}
@@ -167,6 +179,10 @@ const FoodNutritionTable = ({ foodDatabase = [], canViewFull = true }) => {
             </div>
           )}
         </div>
+      </div>
+      <div className="mt-4 space-y-1 text-xs leading-5 text-gray-400">
+        <p>{t("table.price_note")}</p>
+        <p>{t("table.nutrition_source_note")}</p>
       </div>
     </div>
   );

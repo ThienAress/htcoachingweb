@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  estimateMealPlanCost,
   filterFoodsForMealPlan,
   hasMealPlanFoodCoverage,
   validateMealPlanPreferences,
@@ -88,7 +87,7 @@ describe("Meal Plan safety constraints", () => {
     ).toEqual({ valid: false, code: "generic_meat" });
   });
 
-  it("filters recognized specific foods only with reviewed metadata", () => {
+  it("uses reviewed specific-food metadata before label fallback", () => {
     const reviewed = (specificContains = [], contains = []) =>
       food({
         allergenProfile: {
@@ -112,7 +111,112 @@ describe("Meal Plan safety constraints", () => {
         allergens: [],
         otherAllergenText: "gà bò cá",
       }).map(({ label }) => label),
-    ).toEqual(["safe"]);
+    ).toEqual(["safe", "missing-specific-review"]);
+  });
+
+  it("loại bò và gà theo label nhưng giữ lại Food legacy không liên quan", () => {
+    const foods = [
+      food({ label: "Thịt bò nạc", allergenProfile: undefined }),
+      food({ label: "Ức gà", allergenProfile: undefined }),
+      food({ label: "Cá hồi", allergenProfile: undefined }),
+      food({ label: "Cơm trắng", protein: 2, carb: 28, allergenProfile: undefined }),
+      food({ label: "Dầu olive", protein: 0, fat: 100, allergenProfile: undefined }),
+    ];
+
+    expect(
+      filterFoodsForMealPlan(foods, {
+        allergyStatus: "declared",
+        allergens: [],
+        otherAllergenText: "bò, gà",
+      }).map(({ label }) => label),
+    ).toEqual(["Cá hồi", "Cơm trắng", "Dầu olive"]);
+  });
+
+  it("giữ đủ ba nhóm macro sau khi loại bò và gà", () => {
+    const foods = [
+      food({ label: "Cá hồi", allergenProfile: undefined }),
+      food({ label: "Cơm trắng", protein: 2, carb: 28, allergenProfile: undefined }),
+      food({ label: "Dầu olive", protein: 0, fat: 100, allergenProfile: undefined }),
+    ];
+
+    expect(
+      hasMealPlanFoodCoverage(
+        filterFoodsForMealPlan(foods, {
+          allergyStatus: "declared",
+          allergens: [],
+          otherAllergenText: "bò, gà",
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("tick Cá chỉ loại Food cá legacy và vẫn giữ đủ ba nhóm macro", () => {
+    const foods = [
+      food({ label: "Cá hồi", allergenProfile: undefined }),
+      food({ label: "Cà chua", protein: 1, carb: 4, allergenProfile: undefined }),
+      food({ label: "Ức gà", allergenProfile: undefined }),
+      food({ label: "Cơm trắng", protein: 2, carb: 28, allergenProfile: undefined }),
+      food({ label: "Dầu olive", protein: 0, fat: 100, allergenProfile: undefined }),
+    ];
+    const filtered = filterFoodsForMealPlan(foods, {
+      allergyStatus: "declared",
+      allergens: ["fish"],
+      otherAllergenText: "",
+    });
+
+    expect({
+      labels: filtered.map(({ label }) => label),
+      hasCoverage: hasMealPlanFoodCoverage(filtered),
+    }).toEqual({
+      labels: ["Cà chua", "Ức gà", "Cơm trắng", "Dầu olive"],
+      hasCoverage: true,
+    });
+  });
+
+  it.each([
+    ["milk", "Sữa bò"],
+    ["egg", "Trứng gà"],
+    ["fish", "Cá hồi"],
+    ["crustacean_shellfish", "Tôm sú"],
+    ["tree_nut", "Hạt điều"],
+    ["peanut", "Đậu phộng"],
+    ["wheat", "Bột mì"],
+    ["soy", "Đậu phụ"],
+    ["sesame", "Hạt mè"],
+  ])("tick %s loại đúng tên khớp nhưng không làm rỗng catalog", (allergen, label) => {
+    const foods = [
+      food({ label, allergenProfile: undefined }),
+      food({ label: "Ức gà", allergenProfile: undefined }),
+      food({ label: "Cơm trắng", protein: 2, carb: 28, allergenProfile: undefined }),
+      food({ label: "Dầu olive", protein: 0, fat: 100, allergenProfile: undefined }),
+    ];
+    const filtered = filterFoodsForMealPlan(foods, {
+      allergyStatus: "declared",
+      allergens: [allergen],
+      otherAllergenText: "",
+    });
+
+    expect({
+      hasExcludedMatch: filtered.some((item) => item.label === label),
+      hasCoverage: hasMealPlanFoodCoverage(filtered),
+    }).toEqual({ hasExcludedMatch: false, hasCoverage: true });
+  });
+
+  it("nhập thịt gà giữ Food reviewed chưa có scope khi label không phải gà", () => {
+    const foods = [
+      food({ label: "Ức gà", allergenProfile: undefined }),
+      food({ label: "Cá hồi" }),
+      food({ label: "Cơm trắng", protein: 2, carb: 28 }),
+      food({ label: "Dầu olive", protein: 0, fat: 100 }),
+    ];
+
+    expect(
+      filterFoodsForMealPlan(foods, {
+        allergyStatus: "declared",
+        allergens: [],
+        otherAllergenText: "thịt gà",
+      }).map(({ label }) => label),
+    ).toEqual(["Cá hồi", "Cơm trắng", "Dầu olive"]);
   });
 
   it("hides every food suggestion while the meat type is still generic", () => {
@@ -139,12 +243,13 @@ describe("Meal Plan safety constraints", () => {
     ).toEqual({ valid: true, code: null });
   });
 
-  it("fails closed for unreviewed, contains and mayContain foods", () => {
+  it("uses reviewed metadata first and exact label fallback for unreviewed foods", () => {
     const foods = [
       food({ label: "safe" }),
       food({ label: "contains", allergenProfile: { reviewStatus: "reviewed", contains: ["milk"], mayContain: [] } }),
       food({ label: "cross", allergenProfile: { reviewStatus: "reviewed", contains: [], mayContain: ["milk"] } }),
-      food({ label: "unknown", allergenProfile: { reviewStatus: "unreviewed", contains: [], mayContain: [] } }),
+      food({ label: "Sữa bò", allergenProfile: { reviewStatus: "unreviewed", contains: [], mayContain: [] } }),
+      food({ label: "Cơm trắng", allergenProfile: { reviewStatus: "unreviewed", contains: [], mayContain: [] } }),
     ];
 
     expect(
@@ -152,7 +257,7 @@ describe("Meal Plan safety constraints", () => {
         allergyStatus: "declared",
         allergens: ["milk"],
       }).map(({ label }) => label),
-    ).toEqual(["safe"]);
+    ).toEqual(["safe", "Cơm trắng"]);
   });
 
   it("requires protein, carb and fat coverage after allergy exclusion", () => {
@@ -166,36 +271,4 @@ describe("Meal Plan safety constraints", () => {
     expect(hasMealPlanFoodCoverage([food()])).toBe(false);
   });
 
-  it("estimates a TP.HCM range and never treats partial coverage as exact", () => {
-    const priced = (amount, low, typical, high) => ({
-      amount,
-      marketPrice: {
-        coverageStatus: "sufficient",
-        lowVndPer100g: low,
-        typicalVndPer100g: typical,
-        highVndPer100g: high,
-        asOf: "2026-08-10T00:00:00.000Z",
-      },
-    });
-    const meals = [
-      {
-        proteinFood: priced(100, 10_000, 12_000, 14_000),
-        carbFood: priced(200, 2_000, 3_000, 4_000),
-        fatFood: priced(20, 20_000, 25_000, 30_000),
-      },
-    ];
-
-    expect(estimateMealPlanCost(meals, 30_000)).toMatchObject({
-      coverageStatus: "sufficient",
-      lowVndPerDay: 18_000,
-      typicalVndPerDay: 23_000,
-      highVndPerDay: 28_000,
-      budgetStatus: "within",
-      region: "ho_chi_minh",
-    });
-    meals[0].fatFood.marketPrice.coverageStatus = "insufficient";
-    expect(estimateMealPlanCost(meals, 30_000).coverageStatus).toBe(
-      "insufficient",
-    );
-  });
 });

@@ -41,7 +41,10 @@ const loadMeals = (storageKey, selectedPlan) => {
 };
 
 export default function CustomMealBuilder({
-  foodDatabase,
+  foodDatabase = [],
+  isFoodDatabaseLoading = false,
+  isFoodDatabaseError = false,
+  onRetryFoodDatabase,
   targetMacros,
   targetLabel,
   selectedPlan,
@@ -70,6 +73,8 @@ export default function CustomMealBuilder({
   const [searchQuery, setSearchQuery] = useState("");
   const [customFood, setCustomFood] = useState({ name: "", protein: "", carb: "", fat: "" });
   const [isCustomMode, setIsCustomMode] = useState(false);
+  const isFoodDatabaseUnavailable =
+    isFoodDatabaseLoading || isFoodDatabaseError || foodDatabase.length === 0;
 
   const getFoodDisplayMacros = (food) => {
     if (!food) return null;
@@ -104,6 +109,18 @@ export default function CustomMealBuilder({
   const { totalMacros, totalCalories } = calculateTotal();
 
   const handleOpenModal = async (mealIndex, type) => {
+    if (isFoodDatabaseLoading) {
+      toast.info(t("toast.loading_foods"));
+      return;
+    }
+    if (isFoodDatabaseError) {
+      toast.error(t("builder.database_error"));
+      return;
+    }
+    if (foodDatabase.length === 0) {
+      toast.error(t("builder.database_empty"));
+      return;
+    }
     if (isChecking || accessError) {
       toast.error("Không thể xác minh lượt tạo thực đơn. Vui lòng thử lại.");
       return;
@@ -257,7 +274,8 @@ export default function CustomMealBuilder({
 
         <button
           onClick={() => handleOpenModal(mealIndex, type)}
-          className={`w-full ${foods.length === 0 ? 'min-h-[80px] h-full' : 'py-2 mt-auto'} border-2 border-dashed ${borderClass} ${bgClass} ${colorClass} hover:opacity-80 rounded-xl flex flex-col items-center justify-center gap-1 transition-all`}
+          disabled={isFoodDatabaseUnavailable}
+          className={`w-full ${foods.length === 0 ? 'min-h-[80px] h-full' : 'py-2 mt-auto'} border-2 border-dashed ${borderClass} ${bgClass} ${colorClass} rounded-xl flex flex-col items-center justify-center gap-1 transition-all hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40`}
         >
           {foods.length === 0 ? (
             <>
@@ -280,6 +298,29 @@ export default function CustomMealBuilder({
           <strong className="text-blue-300">{t("builder.instructions_title")}</strong> {t("builder.instructions")}
         </div>
       </div>
+
+      {isFoodDatabaseLoading && (
+        <p className="mb-6 text-sm text-gray-300" role="status">
+          {t("builder.database_loading")}
+        </p>
+      )}
+      {isFoodDatabaseError && (
+        <div className="mb-6 rounded-xl border border-red-400/30 bg-red-500/10 p-4" role="alert">
+          <p className="text-sm text-red-100">{t("builder.database_error")}</p>
+          <button
+            type="button"
+            onClick={onRetryFoodDatabase}
+            className="mt-2 min-h-11 rounded-lg px-3 py-2 text-sm font-semibold text-white underline underline-offset-4 transition hover:bg-red-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+          >
+            {t("builder.database_retry")}
+          </button>
+        </div>
+      )}
+      {!isFoodDatabaseLoading && !isFoodDatabaseError && foodDatabase.length === 0 && (
+        <p className="mb-6 rounded-xl border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100" role="status">
+          {t("builder.database_empty")}
+        </p>
+      )}
 
       <div className="overflow-x-auto -mx-4 sm:mx-0">
         <div className="min-w-[800px] sm:min-w-full">

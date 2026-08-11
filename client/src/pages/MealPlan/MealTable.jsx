@@ -42,7 +42,7 @@ const MealTable = ({ meals = [] }) => {
 
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0 mt-6">
-      <div className="min-w-[700px] sm:min-w-full">
+      <div className="min-w-[760px]">
         <table className="w-full bg-gray-800/40 rounded-2xl border border-gray-700 shadow-lg">
           <thead className="bg-gray-700/60">
             <tr>
@@ -73,7 +73,6 @@ const MealTable = ({ meals = [] }) => {
                 if (m) { mealP += m.p; mealC += m.c; mealF += m.f; }
               });
               const mealCal = calcCalories(round1(mealP), round1(mealC), round1(mealF));
-
               return (
                 <tr
                   key={idx}
