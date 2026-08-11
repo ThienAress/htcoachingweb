@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -37,6 +38,22 @@ const watchlist = {
 
 test("validateWatchlist accepts a versioned unique HTTPS watchlist", () => {
   assert.equal(validateWatchlist(watchlist).entries.length, 1);
+});
+
+test("project watchlist tracks the approved Emil animation inputs", () => {
+  const projectWatchlist = validateWatchlist(
+    JSON.parse(
+      readFileSync(
+        new URL("../upstream-skills/watchlist.json", import.meta.url),
+        "utf8",
+      ),
+    ),
+  );
+  const ids = new Set(projectWatchlist.entries.map(({ id }) => id));
+
+  assert.equal(ids.has("emilkowalski/skills/emil-design-eng"), true);
+  assert.equal(ids.has("emilkowalski/skills/review-animations"), true);
+  assert.equal(ids.has("emilkowalski/skills/improve-animations"), true);
 });
 
 test("validateWatchlist rejects duplicate ids", () => {

@@ -83,10 +83,10 @@ jobs:
                   context.repo.repo +
                   "/actions/runs/" +
                   context.runId +
-                  " and follow docs/production-rollback-runbook.md.",
+                  " and follow docs/operations/runbooks/production-rollback-runbook.md.",
               });
             }
-      - name: Resolve recovered production alert
+      - name: Record recovered production alert
         if: success()
         uses: actions/github-script@v7
         with:
@@ -108,7 +108,7 @@ jobs:
                 repo: context.repo.repo,
                 issue_number: alertIssue.number,
                 body:
-                  "Resolved automatically after successful production monitor run " +
+                  "The production monitor recovered in run " +
                   context.serverUrl +
                   "/" +
                   context.repo.owner +
@@ -116,13 +116,7 @@ jobs:
                   context.repo.repo +
                   "/actions/runs/" +
                   context.runId +
-                  ".",
-              });
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: alertIssue.number,
-                state: "closed",
-                state_reason: "completed",
+                  ". Keep this incident open until owner review confirms the " +
+                  "close criteria in docs/operations/runbooks/production-rollback-runbook.md.",
               });
             }

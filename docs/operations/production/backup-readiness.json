@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "policy": {
+    "releaseMaxAgeHours": 24,
+    "requireOffDeviceRecovery": true
+  },
+  "latestVerifiedBackup": {
+    "backupId": "production-logical-backup-20260724T051142Z",
+    "completedAt": "2026-07-24T05:11:42.000Z",
+    "backupType": "logical_mongodump",
+    "archiveIntegrityVerified": true,
+    "isolatedRestoreVerified": true,
+    "sourceFingerprintMatched": true,
+    "continuousRecoveryAvailable": false,
+    "offDeviceRecoveryVerified": false,
+    "evidence": "docs/operations/production/production-release-report-2026-07-24.md"
+  }
+}

@@ -36,10 +36,27 @@ Tài liệu reference của skill `ui-quality`.
 5. **Eyebrow spam:** Section nào cũng có text nhỏ in hoa ở trên (VỀ CHÚNG TÔI, DỊCH VỤ).
 6. **Bounce/Elastic animation:** (`ease-bounce`). Chỉ dùng exponential.
 
-## 6. Motion (GSAP)
-- **Chỉ Exponential Easing:** `power3.out`, `power4.out`, `expo.out`.
-- **Reduced Motion:** Bắt buộc có check `prefers-reduced-motion` trong React `useEffect`.
-- **Reveal Safety:** Không dùng class `opacity-0` tĩnh ở HTML. Dùng JS để animate từ 0 lên 1, đảm bảo nếu JS lỗi user vẫn thấy content.
+## 6. Motion discipline
+
+- **Frequency gate:** Không animate hành động lặp lại thường xuyên (typing, cuộn, đổi tab) nếu motion không giúp orientation,
+  feedback hoặc continuity. Recurring decoration phải tắt khi reduced motion.
+- **Purpose gate:** Mỗi animation phải trả lời được nó giúp user hiểu thay đổi trạng thái nào. Nếu chỉ để trang "sống động hơn",
+  bỏ animation.
+- **Cheapest tool:** Ưu tiên CSS transition/keyframe cho state đơn giản; chỉ dùng GSAP khi cần timeline/orchestration thật sự.
+  Không thêm thư viện motion mới cho hiệu ứng mà CSS hiện tại xử lý được.
+- **Explicit properties:** Không dùng `transition-all`; liệt kê đúng `opacity`, `transform`, `border-color`, `box-shadow`
+  hoặc property thực sự thay đổi.
+- **Duration tokens:** Product interaction dùng token trong khoảng 150–250ms; entrance brand có thể dài hơn khi có art
+  direction rõ. Dùng exponential ease-out (`power3.out`, `power4.out`, `expo.out` hoặc cubic-bezier tương đương).
+- **Transform origin:** Đặt `transform-origin` khớp với điểm phát sinh/neo của popover, drawer và scale transition.
+- **Interruptibility:** Open/close và expand/collapse phải có thể đảo chiều từ trạng thái hiện tại, không khóa input chờ
+  animation kết thúc và không dùng timer làm nguồn state chính.
+- **Reduced Motion:** Bắt buộc tôn trọng `prefers-reduced-motion`; React runtime dùng `matchMedia`, CSS có media query để
+  tắt entrance/recurring animation và chuyển smooth scroll thành `auto`.
+- **Pointer capability:** Chỉ chạy hover motion trong `@media (hover: hover) and (pointer: fine)`; touch không phụ thuộc hover
+  để thấy hoặc kích hoạt hành động.
+- **Reveal Safety:** Không dùng class `opacity-0` tĩnh ở HTML. Animate từ trạng thái đang hiển thị để nếu JS lỗi user vẫn
+  thấy content.
 
 ## 7. Giao tiếp (Copywriting)
 - **Active Voice:** "Lưu thay đổi", "Đăng ký". Cấm: "Submit", "OK".

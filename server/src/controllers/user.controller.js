@@ -6,6 +6,7 @@ import {
   deleteTodayDashboardData,
 } from "../services/todayDashboardPrivacy.service.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { deleteAiMemoryForUser } from "../services/aiMemory.service.js";
 
 export const getUsers = async (req, res) => {
   try {
@@ -70,6 +71,7 @@ export const deleteUser = async (req, res) => {
         actorRole: req.user.role,
         session,
       });
+      await deleteAiMemoryForUser(userId, { session });
       await Order.deleteMany({ userId }).session(session);
       await User.deleteOne({ _id: userId }).session(session);
     });

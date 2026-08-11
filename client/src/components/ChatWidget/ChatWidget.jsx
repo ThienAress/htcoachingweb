@@ -10,6 +10,10 @@ import ChatBubble from "./ChatBubble";
 import TdeeFormCard from "./cards/TdeeFormCard";
 import { submitAiFeedback } from "../../services/ai.service";
 import { compressChatImage } from "../../utils/compressChatImage";
+import {
+  getChatScrollBehavior,
+  prefersReducedMotion,
+} from "./chatPanelRuntime";
 
 const TOOL_LABELS = {
   calculate_tdee: "Đang tính TDEE...",
@@ -66,7 +70,11 @@ export default function ChatWidget() {
   // Đóng với animation
   const handleClose = useCallback(() => {
     setIsClosing(true);
-    const duration = mode === "sidebar" ? 300 : 200;
+    const duration = prefersReducedMotion(window)
+      ? 0
+      : mode === "sidebar"
+        ? 300
+        : 200;
     setTimeout(() => {
       setIsOpen(false);
       setIsClosing(false);
@@ -75,7 +83,11 @@ export default function ChatWidget() {
   }, [mode]);
 
   useEffect(() => {
-    if (isOpen && !isClosing) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isOpen && !isClosing) {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: getChatScrollBehavior(window),
+      });
+    }
   }, [messages, isLoading, activeTool, isOpen, isClosing]);
 
   useEffect(() => {
@@ -178,6 +190,7 @@ export default function ChatWidget() {
 
   // Animation cho mở/đóng
   const getAnimation = () => {
+    if (prefersReducedMotion(window)) return "none";
     if (mode === "sidebar") {
       return isClosing ? "chatSidebarOut 0.3s ease-in forwards" : "chatSlideIn 0.3s ease-out";
     }
@@ -201,10 +214,10 @@ export default function ChatWidget() {
           onClick={handleOpen}
           aria-label="Mở HT Assistant"
           id="ai-chat-toggle"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100vw-2rem)] sm:w-[500px] bg-gray-900/80 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2.5 shadow-2xl flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-500/30 hover:shadow-emerald-500/10 active:scale-[0.98] transition-all duration-300 group"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100vw-2rem)] sm:w-[500px] bg-gray-900/80 backdrop-blur-xl border border-white/10 rounded-full px-4 py-2.5 shadow-2xl flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-500/30 hover:shadow-emerald-500/10 active:scale-[0.98] transition-[border-color,box-shadow,transform] duration-200 motion-reduce:transition-none group"
         >
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0 group-hover:rotate-12 transition-transform duration-300">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
               <Bot size={16} className="text-white" />
             </div>
             <span className="text-sm text-gray-400 select-none truncate">
@@ -240,7 +253,7 @@ export default function ChatWidget() {
             {/* Row 1: Online status + action icons */}
             <div className="flex items-center justify-between px-4 pt-2.5 pb-1">
               <p className="text-[10px] text-emerald-400/80 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse motion-reduce:animate-none" />
                 Online
               </p>
               <div className="flex items-center gap-0.5">
@@ -289,7 +302,7 @@ export default function ChatWidget() {
                     <button
                       key={label}
                       onClick={() => handleQuickAction({ label, value })}
-                      className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-all duration-200 text-left group"
+                      className="flex items-center gap-3 w-full px-3 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-white/[0.06] rounded-xl transition-colors duration-150 motion-reduce:transition-none text-left group"
                       style={{ animationDelay: `${i * 60}ms` }}
                     >
                       <span className="text-base">{icon}</span>
@@ -316,7 +329,7 @@ export default function ChatWidget() {
             {/* Tool loading */}
             {activeTool && (
               <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/5 border border-emerald-500/10 rounded-xl w-fit chat-card-enter">
-                <Loader2 size={14} className="text-emerald-400 animate-spin" />
+                <Loader2 size={14} className="text-emerald-400 animate-spin motion-reduce:animate-none" />
                 <span className="text-xs text-emerald-400/70">{TOOL_LABELS[activeTool] || "Đang xử lý..."}</span>
               </div>
             )}
@@ -324,9 +337,9 @@ export default function ChatWidget() {
             {/* Typing dots */}
             {isLoading && !activeTool && (
               <div className="flex items-center gap-1.5 px-3 py-2 chat-card-enter">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400/50" style={{ animationDelay: "0ms" }} />
-                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400/50" style={{ animationDelay: "150ms" }} />
-                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400/50" style={{ animationDelay: "300ms" }} />
+                <span className="h-2 w-2 animate-pulse motion-reduce:animate-none rounded-full bg-emerald-400/50" style={{ animationDelay: "0ms" }} />
+                <span className="h-2 w-2 animate-pulse motion-reduce:animate-none rounded-full bg-emerald-400/50" style={{ animationDelay: "150ms" }} />
+                <span className="h-2 w-2 animate-pulse motion-reduce:animate-none rounded-full bg-emerald-400/50" style={{ animationDelay: "300ms" }} />
               </div>
             )}
 
@@ -354,7 +367,7 @@ export default function ChatWidget() {
               </div>
             )}
             
-            <div className="flex items-end gap-2 bg-white/5 border border-white/10 rounded-xl px-2 py-2 focus-within:border-emerald-500/40 focus-within:ring-1 focus-within:ring-emerald-500/10 transition-all">
+            <div className="flex items-end gap-2 bg-white/5 border border-white/10 rounded-xl px-2 py-2 focus-within:border-emerald-500/40 focus-within:ring-1 focus-within:ring-emerald-500/10 transition-[border-color,box-shadow] duration-150 motion-reduce:transition-none">
               <input 
                 type="file" 
                 accept="image/jpeg,image/png,image/webp"

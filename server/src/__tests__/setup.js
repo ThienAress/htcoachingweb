@@ -16,23 +16,27 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
 import User from "../models/User.js";
+import {
+  createMongoTestRuntime,
+  stopMongoTestRuntime,
+  testMongoDatabaseName,
+} from "./mongoRuntime.js";
 
 // ===== Constants =====
 const TEST_JWT_SECRET = "test-jwt-secret-key-for-testing";
 const TEST_REFRESH_SECRET = "test-refresh-secret-key-for-testing";
 
-let mongoServer;
+let mongoRuntime;
 
 // ===== Setup & Teardown =====
 export async function setupTestDB() {
-  mongoServer = await MongoMemoryReplSet.create({
-    replSet: {
-      count: 1,
-      storageEngine: "wiredTiger",
-    },
+  mongoRuntime = await createMongoTestRuntime({
+    sharedUri: process.env.VITEST_SHARED_MONGO_URI,
+    createReplSet: (options) => MongoMemoryReplSet.create(options),
   });
-  const uri = mongoServer.getUri();
-  await mongoose.connect(uri);
+  await mongoose.connect(mongoRuntime.uri, {
+    dbName: testMongoDatabaseName(),
+  });
 
   // Set env vars cho test
   process.env.JWT_SECRET = TEST_JWT_SECRET;
@@ -47,7 +51,8 @@ export async function setupTestDB() {
 export async function teardownTestDB() {
   await mongoose.connection.dropDatabase();
   await mongoose.disconnect();
-  if (mongoServer) await mongoServer.stop();
+  await stopMongoTestRuntime(mongoRuntime);
+  mongoRuntime = null;
 }
 
 export async function clearCollections() {

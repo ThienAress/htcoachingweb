@@ -31,7 +31,7 @@ afterEach(clearCollections);
 afterAll(teardownTestDB);
 
 describe("GET /api/admin/skill-radar", () => {
-  it("returns the sanitized 20-source read model to admin", async () => {
+  it("returns the sanitized 23-source read model to admin", async () => {
     const { accessToken } = await createTestUser({
       email: "radar-admin@example.com",
       role: "admin",
@@ -44,8 +44,8 @@ describe("GET /api/admin/skill-radar", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.data.summary.total).toBe(20);
-    expect(response.body.data.items).toHaveLength(20);
+    expect(response.body.data.summary.total).toBe(23);
+    expect(response.body.data.items).toHaveLength(23);
     expect(response.body.data.items[0]).toEqual(
       expect.objectContaining({
         id: expect.any(String),

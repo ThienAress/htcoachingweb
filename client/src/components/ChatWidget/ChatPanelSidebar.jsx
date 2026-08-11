@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Clock,
+  Brain,
   LoaderCircle,
   MessageSquare,
   PanelLeftClose,
@@ -35,6 +36,7 @@ export default function ChatPanelSidebar({
   onSwitch,
   onDelete,
   onToggle,
+  onOpenMemory,
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -156,6 +158,15 @@ export default function ChatPanelSidebar({
             </p>
             <p className={`text-[11px] font-medium truncate ${roleInfo.color}`}>{roleInfo.text}</p>
           </div>
+          <button
+            type="button"
+            onClick={onOpenMemory}
+            title="Trí nhớ AI"
+            aria-label="Mở cài đặt Trí nhớ AI"
+            className="p-2 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/8 transition-colors shrink-0"
+          >
+            <Brain size={16} />
+          </button>
           <button
             onClick={() => {
               window.dispatchEvent(new Event("close-ai-chat"));

@@ -104,3 +104,11 @@ regression assertion của 13 finding. Bảy source `defer` giữ nguyên proven
 2. Khi local skill hoặc upstream hash thay đổi, chạy lại corpus liên quan và `$goad` trước khi cập nhật decision history.
 3. Scheduled scan tiếp theo dự kiến 09:00 Việt Nam ngày 01/09/2026; nên cấu hình `GITHUB_TOKEN` read-only cho
    workflow để giảm rate-limit, nhưng không lưu token trong repo hoặc snapshot.
+
+## Addendum — 2026-08-11: emilkowalski/skills
+
+- Thêm `emil-design-eng`, `review-animations` và `improve-animations` vào watchlist active, MIT, review 30 ngày.
+- Decision chung: **adapt**. Lấy frequency/purpose gate, strict review và prioritized planning; không cài/copy nguyên repo,
+  không đổi GSAP/CSS sang Motion/Sonner/Base UI và không bulk rewrite toàn bộ `transition-all`.
+- Local targets là `ui-quality`, `ui-check`, motion references và `plan-template`; ChatWidget là pilot đầu tiên.
+- TencentDB Agent Memory được tách sang AI Technology Radar vì đó là runtime/architecture rộng hơn skill contract.

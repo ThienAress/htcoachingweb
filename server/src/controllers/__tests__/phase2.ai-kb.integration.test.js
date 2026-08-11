@@ -5,6 +5,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import request from "supertest";
 
@@ -21,8 +22,10 @@ import ChatConversation from "../../models/ChatConversation.js";
 import KnowledgeEntry from "../../models/KnowledgeEntry.js";
 import {
   chatStream,
+  clearHistory,
   forkConversation,
   getConversations,
+  getHistory,
 } from "../ai.controller.js";
 import {
   createEntry,
@@ -37,6 +40,8 @@ beforeAll(async () => {
   app = createTestApp();
   app.post("/api/ai/chat", protect, chatStream);
   app.get("/api/ai/conversations", protect, getConversations);
+  app.get("/api/ai/history", protect, getHistory);
+  app.delete("/api/ai/history", protect, clearHistory);
   app.post("/api/ai/conversations/:id/fork", protect, forkConversation);
   app.post("/api/knowledge-base", protect, createEntry);
   app.put("/api/knowledge-base/:id", protect, updateEntry);
@@ -44,6 +49,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   delete process.env.GEMINI_API_KEY;
   await clearCollections();
 });
@@ -51,6 +57,54 @@ afterEach(async () => {
 afterAll(teardownTestDB);
 
 describe("Phase 2 AI conversation integrity", () => {
+  it("does not expose internal errors from conversation list or history APIs", async () => {
+    const { accessToken } = await createTestUser();
+    const internalMessage = "INTERNAL_SENTINEL_DO_NOT_EXPOSE";
+
+    vi.spyOn(ChatConversation, "find").mockImplementationOnce(() => {
+      throw new Error(internalMessage);
+    });
+    const listResponse = await withAuth(
+      request(app).get("/api/ai/conversations"),
+      accessToken,
+    );
+    expect(listResponse.status).toBe(500);
+    expect(listResponse.body.message).toBe(
+      "Không thể tải danh sách cuộc trò chuyện",
+    );
+    expect(listResponse.text).not.toContain(internalMessage);
+
+    vi.spyOn(ChatConversation, "findOne").mockImplementationOnce(() => {
+      throw new Error(internalMessage);
+    });
+    const historyResponse = await withAuth(
+      request(app).get("/api/ai/history"),
+      accessToken,
+    );
+    expect(historyResponse.status).toBe(500);
+    expect(historyResponse.body.message).toBe(
+      "Không thể tải lịch sử trò chuyện",
+    );
+    expect(historyResponse.text).not.toContain(internalMessage);
+  });
+
+  it("does not expose internal errors when clearing history", async () => {
+    const { accessToken } = await createTestUser();
+    const internalMessage = "INTERNAL_SENTINEL_DO_NOT_EXPOSE";
+    vi.spyOn(ChatConversation, "exists").mockRejectedValueOnce(
+      new Error(internalMessage),
+    );
+
+    const response = await withAuth(
+      request(app).delete("/api/ai/history"),
+      accessToken,
+    );
+
+    expect(response.status).toBe(500);
+    expect(response.body.message).toBe("Không thể xóa lịch sử trò chuyện");
+    expect(response.text).not.toContain(internalMessage);
+  });
+
   it("persists the user turn before streaming and stores bounded summaries", async () => {
     const { user, accessToken } = await createTestUser();
     const requestId = "a26e93e8-8d21-4be2-9c6e-2ebf3cc340b1";

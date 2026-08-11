@@ -64,7 +64,7 @@ export default function TdeeFormCard({ onSubmit }) {
               <button
                 key={value}
                 onClick={() => handleChange("gender", value)}
-                className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${
+                className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors duration-150 motion-reduce:transition-none ${
                   form.gender === value
                     ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
                     : "border-white/10 text-gray-400 hover:border-white/20"
@@ -133,7 +133,7 @@ export default function TdeeFormCard({ onSubmit }) {
             <button
               key={value}
               onClick={() => handleChange("goal", value)}
-              className={`flex-1 py-2 text-[11px] rounded-lg border transition-all ${
+              className={`flex-1 py-2 text-[11px] rounded-lg border transition-colors duration-150 motion-reduce:transition-none ${
                 form.goal === value
                   ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
                   : "border-white/10 text-gray-400 hover:border-white/20"
@@ -149,7 +149,7 @@ export default function TdeeFormCard({ onSubmit }) {
       <button
         onClick={handleSubmit}
         disabled={!isValid}
-        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity duration-150 motion-reduce:transition-none flex items-center justify-center gap-2"
       >
         <Flame size={14} />
         Tính TDEE

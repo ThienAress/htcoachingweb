@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "tencentcloud/tencentdb-agent-memory",
+      "name": "TencentDB Agent Memory",
+      "sourceRepo": "TencentCloud/TencentDB-Agent-Memory",
+      "sourceBranch": "main",
+      "sourcePath": "README.md",
+      "repoUrl": "https://github.com/TencentCloud/TencentDB-Agent-Memory",
+      "category": "AI memory architecture",
+      "summary": "Layered long-term memory, symbolic context offload and traceable drill-down to raw evidence.",
+      "ring": "assess",
+      "decision": "adapt",
+      "decisionReason": "Adapt only explicit memory, provenance, correction/delete, TTL and context-budget patterns; do not import automatic persona extraction or the upstream runtime.",
+      "localTargets": [
+        "docs/specs/ai-explicit-memory.md",
+        "server/src/services/ai/",
+        "server/src/controllers/ai.controller.js"
+      ],
+      "trustTier": "official",
+      "license": "MIT",
+      "reviewedAt": "2026-08-11",
+      "nextReviewAt": "2026-09-10",
+      "autoInstall": false
+    }
+  ]
+}

@@ -6,7 +6,10 @@ import User from "../models/User.js";
 import { llmStream } from "../services/ai/providers/index.js";
 import { executeTool } from "../services/ai/tools/toolEngine.js";
 import { getToolSchemas } from "../services/ai/tools/toolRegistry.js";
-import { buildSystemPrompt } from "../services/ai/systemPrompt.js";
+import {
+  buildKnowledgeReferenceBlock,
+  buildSystemPrompt,
+} from "../services/ai/systemPrompt.js";
 import {
   isUserLocked,
   moderateContent,
@@ -33,6 +36,7 @@ import {
 } from "../utils/aiChat.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { getAiMemoryContext } from "../services/aiMemory.service.js";
 
 const MAX_ITERATIONS = 5;
 const MAX_HISTORY_MESSAGES = 20;
@@ -352,6 +356,15 @@ export const chatStream = async (req, res) => {
       { expandContent: shouldExpandPageContent(message) },
     );
 
+    let personalMemory = [];
+    if (userId) {
+      try {
+        personalMemory = await getAiMemoryContext(userId);
+      } catch (error) {
+        safeLog.error("ai.memory_context_non_blocking_failed", error);
+      }
+    }
+
     // Build system prompt với context
     let systemPrompt = buildSystemPrompt({
       userName: user?.name,
@@ -361,25 +374,18 @@ export const chatStream = async (req, res) => {
       pageData: resolvedPageContext.pageData,
       userMetrics: conversation.context?.userMetrics,
       conversationMemory,
+      personalMemory,
     });
 
     // === KNOWLEDGE BASE SEARCH ===
-    // Tìm kiến thức đã verified trước khi gọi LLM
+    // Tìm kiến thức đã review trước khi gọi LLM. KB vẫn là untrusted data.
     let kbEntryIds = [];
     try {
       const kbResults = await searchKnowledgeBase(message, { limit: 3, threshold: 0.75 });
       if (kbResults.length > 0) {
         kbEntryIds = kbResults.map((r) => r._id);
         aiLogger.kbMatch(actorId, kbResults.length, kbResults[0]?.similarity);
-        systemPrompt += `\n\n## Kiến thức đã verified (ưu tiên dùng làm tham khảo chính):\n`;
-        kbResults.forEach((r, i) => {
-          const matchLabel = r.matchedQuestion && r.matchedQuestion !== r.question 
-            ? `Q: ${r.question} (Biến thể trùng khớp: "${r.matchedQuestion}")` 
-            : `Q: ${r.question}`;
-          systemPrompt += `\n### KB #${i + 1} (${(r.similarity * 100).toFixed(0)}% match):\n`;
-          systemPrompt += `${matchLabel}\nA: ${r.answer}\n`;
-        });
-        systemPrompt += `\nHãy dùng kiến thức trên làm tham khảo CHÍNH. Có thể diễn đạt lại cho tự nhiên, nhưng KHÔNG đi ngược lại nội dung verified. QUAN TRỌNG: Khi đã có kiến thức verified ở trên, KHÔNG được gọi search_knowledge — trả lời trực tiếp từ kiến thức này.`;
+        systemPrompt += buildKnowledgeReferenceBlock(kbResults);
       }
     } catch (err) {
       // KB search lỗi không ảnh hưởng chat flow chính
@@ -667,7 +673,11 @@ export const getConversations = async (req, res) => {
 
     res.json({ success: true, data: list });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    safeLog.error("ai.conversations_list_failed", err);
+    res.status(500).json({
+      success: false,
+      message: "Không thể tải danh sách cuộc trò chuyện",
+    });
   }
 };
 
@@ -833,7 +843,11 @@ export const getHistory = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    safeLog.error("ai.history_read_failed", err);
+    res.status(500).json({
+      success: false,
+      message: "Không thể tải lịch sử trò chuyện",
+    });
   }
 };
 
@@ -853,7 +867,11 @@ export const clearHistory = async (req, res) => {
     await ChatConversation.deleteMany({ userId: req.user.id });
     res.json({ success: true, message: "Đã xóa lịch sử chat" });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    safeLog.error("ai.history_clear_failed", err);
+    res.status(500).json({
+      success: false,
+      message: "Không thể xóa lịch sử trò chuyện",
+    });
   }
 };
 

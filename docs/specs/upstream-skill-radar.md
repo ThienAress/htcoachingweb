@@ -57,6 +57,17 @@ Hệ thống gồm hai bề mặt liên kết với nhau:
 | 19 | Observability | `sentry-setup-ai-monitoring` | `getsentry/sentry-agent-skills` | AI operations/observability | Theo dõi latency, token, tool calls và PII boundaries. |
 | 20 | SEO | `seo-audit` | `coreyhaines31/marketingskills` | `seo-check` | Bổ sung crawlability, indexation, schema và content audit. |
 
+## Approved additions — 2026-08-11
+
+| # | Domain | Upstream skill | Source | Local targets chính | Decision |
+|---:|---|---|---|---|---|
+| 21 | Motion design | `emil-design-eng` | `emilkowalski/skills` | `ui-quality`, motion guidance | `adapt` — lấy decision/purpose/accessibility rules, giữ stack hiện tại. |
+| 22 | Motion audit | `review-animations` | `emilkowalski/skills` | `ui-check` | `adapt` — review focused, không copy nguyên workflow. |
+| 23 | Motion planning | `improve-animations` | `emilkowalski/skills` | `ui-check`, `plan-template` | `adapt` — inventory/prioritization, không auto-edit hoặc bulk rewrite. |
+
+TencentDB Agent Memory không phải skill workflow thuần nên được theo dõi riêng trong
+`docs/architecture/ai-technology-radar.md`, không ép vào data contract Skill Radar.
+
 ## Watchlist Data Contract
 
 Tách dữ liệu do maintainer quản lý khỏi dữ liệu scanner sinh ra:
@@ -96,7 +107,7 @@ khi đồng thời xét activity, relevance, local usage, maintainer response, s
 ## Monthly Review
 
 - Lịch dự kiến: 09:00 ngày 1 mỗi tháng theo `Asia/Saigon` (`0 2 1 * *` theo UTC).
-- Scanner deterministic kiểm tra 20 nguồn active, content hash, commit theo source path, repository state và URL health.
+- Scanner deterministic kiểm tra 23 nguồn active hiện tại, content hash, commit theo source path, repository state và URL health.
 - GitHub API `403/429` được ghi `rate_limited`, giữ last-known-good provenance và không suy diễn repository đã chết.
 - Source chưa có `lastReviewedAt` phải qua baseline content comparison; `clean` chỉ mô tả hash drift sau baseline.
 - `$skill-radar` đọc kết quả, duyệt Trending/Hot/Official/Audits trên skills.sh, tìm candidate mới và tạo
@@ -136,7 +147,7 @@ Trang phải có search, filter theo domain/lifecycle/drift và đầy đủ loa
 
 ## Success Criteria
 
-- Có đúng 20 upstream skill ban đầu, mỗi entry có provenance và local targets.
+- Giữ nguyên provenance của 20 upstream skill baseline; mọi addition phải có source path, license, local targets và decision review.
 - Scanner phát hiện content hash thay đổi và tạo snapshot/report deterministic mà không sửa local skill.
 - Lịch tháng có thể chạy tự động và thủ công; failure không làm CI/release chính thất bại.
 - `$skill-radar` và `$goad` có ranh giới rõ, validator bao phủ skill mới.

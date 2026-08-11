@@ -14,6 +14,10 @@ import {
   MEAL_PLAN_OTHER_ALLERGEN_TEXT,
   MEAL_PLAN_SPECIFIC_FOOD_KEYS,
 } from "../constants/mealPlanPreferences.js";
+import {
+  AI_MEMORY_KINDS,
+  AI_MEMORY_VALUES,
+} from "../constants/aiMemory.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -36,6 +40,40 @@ const nullableObjectId = (value) => {
   if (value === null || value === undefined || value === "") return true;
   return mongoose.Types.ObjectId.isValid(value);
 };
+
+const exactAiMemoryBody = (allowed) =>
+  body().custom((value) => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some((key) => !allowed.includes(key)) ||
+      allowed.some((key) => !Object.hasOwn(value, key))
+    ) {
+      throw new Error("Payload Trí nhớ AI không hợp lệ");
+    }
+    return true;
+  });
+
+export const validateAiMemoryConsent = [
+  exactAiMemoryBody(["enabled"]),
+  body("enabled").isBoolean({ strict: true }),
+  handleValidationErrors,
+];
+
+export const validateAiMemoryKind = [
+  param("kind").isIn(AI_MEMORY_KINDS),
+  handleValidationErrors,
+];
+
+export const validateAiMemoryUpdate = [
+  exactAiMemoryBody(["value"]),
+  param("kind").isIn(AI_MEMORY_KINDS),
+  body("value").custom((value, { req }) =>
+    AI_MEMORY_VALUES[req.params.kind]?.includes(value) === true,
+  ),
+  handleValidationErrors,
+];
 
 export const validateMealPlanPreferencesUpdate = [
   body().custom((value) => {

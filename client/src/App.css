@@ -1,3 +1,9 @@
+:root {
+  --chat-motion-fast: 150ms;
+  --chat-motion-standard: 220ms;
+  --chat-motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Header Navbar CSS */
 .nav-link-hover::after {
   content: "";
@@ -265,7 +271,7 @@
 }
 
 .chat-card-enter {
-  animation: chatCardEnter 0.3s ease-out both;
+  animation: chatCardEnter var(--chat-motion-standard) var(--chat-motion-ease-out) both;
 }
 
 /* Custom scrollbar cho chat */
@@ -338,12 +344,12 @@
   justify-content: space-between;
   gap: 10px;
   transition:
-    opacity 0.35s ease,
-    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-    max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.35s ease,
-    box-shadow 0.35s ease,
-    padding 0.35s ease;
+    opacity var(--chat-motion-fast) var(--chat-motion-ease-out),
+    transform var(--chat-motion-standard) var(--chat-motion-ease-out),
+    max-width var(--chat-motion-standard) var(--chat-motion-ease-out),
+    border-color var(--chat-motion-fast) var(--chat-motion-ease-out),
+    box-shadow var(--chat-motion-standard) var(--chat-motion-ease-out),
+    padding var(--chat-motion-standard) var(--chat-motion-ease-out);
   box-shadow:
     0 4px 6px -1px rgba(0, 0, 0, 0.15),
     0 12px 30px -4px rgba(0, 0, 0, 0.3),
@@ -375,14 +381,16 @@
   transform: translate(-50%, 0) scale(1);
 }
 
-.pill-bar-wrapper.visible-state.pill-collapsed:hover {
-  transform: translate(-50%, -3px) scale(1.02);
-  border-color: rgba(52, 211, 153, 0.25);
-  box-shadow:
-    0 10px 15px -3px rgba(0, 0, 0, 0.15),
-    0 20px 40px -10px rgba(0, 0, 0, 0.4),
-    0 0 18px 2px rgba(16, 185, 129, 0.1),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.08);
+@media (hover: hover) and (pointer: fine) {
+  .pill-bar-wrapper.visible-state.pill-collapsed:hover {
+    transform: translate(-50%, -3px) scale(1.02);
+    border-color: rgba(52, 211, 153, 0.25);
+    box-shadow:
+      0 10px 15px -3px rgba(0, 0, 0, 0.15),
+      0 20px 40px -10px rgba(0, 0, 0, 0.4),
+      0 0 18px 2px rgba(16, 185, 129, 0.1),
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.08);
+  }
 }
 
 .pill-bar-wrapper.visible-state.pill-expanded {
@@ -402,7 +410,10 @@
 .pill-collapsed-text,
 .pill-input-field,
 .pill-actions {
-  transition: opacity 0.25s ease, visibility 0.25s ease, max-width 0.3s ease;
+  transition:
+    opacity var(--chat-motion-fast) var(--chat-motion-ease-out),
+    visibility var(--chat-motion-fast) var(--chat-motion-ease-out),
+    max-width var(--chat-motion-standard) var(--chat-motion-ease-out);
 }
 
 .pill-collapsed-text {
@@ -480,7 +491,23 @@
 }
 
 .thinking-bubble-enter {
-  animation: thinkingBubbleEnter 0.25s ease-out both;
+  animation: thinkingBubbleEnter var(--chat-motion-standard) var(--chat-motion-ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-card-enter,
+  .thinking-dot,
+  .thinking-bubble-enter,
+  .chat-icons-ping-slow {
+    animation: none !important;
+  }
+
+  .pill-bar-wrapper,
+  .pill-collapsed-text,
+  .pill-input-field,
+  .pill-actions {
+    transition: none !important;
+  }
 }
 
 /* AccountPage — Tab fade animation */
@@ -499,4 +526,4 @@
 .animate-tab-fade {
   animation: tabFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
-
+

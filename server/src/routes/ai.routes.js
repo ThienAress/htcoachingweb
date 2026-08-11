@@ -17,6 +17,19 @@ import {
   forkConversation,
   submitFeedback,
 } from "../controllers/ai.controller.js";
+import {
+  exportMyAiMemory,
+  getMyAiMemory,
+  removeAllMyAiMemory,
+  removeMyAiMemory,
+  updateMyAiMemory,
+  updateMyAiMemoryConsent,
+} from "../controllers/aiMemory.controller.js";
+import {
+  validateAiMemoryConsent,
+  validateAiMemoryKind,
+  validateAiMemoryUpdate,
+} from "../middlewares/validation.js";
 
 const router = express.Router();
 
@@ -32,6 +45,32 @@ router.post(
 );
 router.get("/history", protect, getHistory);
 router.delete("/history", protect, csrfProtection, clearHistory);
+
+// Explicit, owner-controlled long-term memory. Guest access is never allowed.
+router.get("/memory", protect, getMyAiMemory);
+router.get("/memory/export", protect, exportMyAiMemory);
+router.put(
+  "/memory/consent",
+  protect,
+  csrfProtection,
+  validateAiMemoryConsent,
+  updateMyAiMemoryConsent,
+);
+router.put(
+  "/memory/:kind",
+  protect,
+  csrfProtection,
+  validateAiMemoryUpdate,
+  updateMyAiMemory,
+);
+router.delete(
+  "/memory/:kind",
+  protect,
+  csrfProtection,
+  validateAiMemoryKind,
+  removeMyAiMemory,
+);
+router.delete("/memory", protect, csrfProtection, removeAllMyAiMemory);
 
 // Multi-conversation support
 router.get("/conversations", protect, getConversations);

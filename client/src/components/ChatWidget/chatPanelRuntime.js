@@ -61,3 +61,14 @@ export const getChatQuotaPresentation = (quota) => {
     tone: remaining === 0 ? "exhausted" : remaining <= 2 ? "low" : "normal",
   };
 };
+
+export const prefersReducedMotion = (browser = globalThis.window) => {
+  try {
+    return browser?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  } catch {
+    return false;
+  }
+};
+
+export const getChatScrollBehavior = (browser = globalThis.window) =>
+  prefersReducedMotion(browser) ? "auto" : "smooth";

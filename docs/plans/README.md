@@ -68,6 +68,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 043 | Đồng bộ catalog test công khai vào local và staging | P1 | M | 041, 042 | COMPLETE / LOCAL + STAGING VERIFIED |
 | 044 | Việt hóa quản trị Food và nạp giá thị trường vào local | P1 | L | 042, 043 | COMPLETE / LOCAL VERIFIED — FULL SERVER QA TIMEOUT |
 | 045 | Đơn giản hóa giá Meal Plan và theo dõi phụ thuộc hệ thống | P1 | M | 033, 042, 044 | IMPLEMENTED / PARTIAL LOCAL VERIFIED — VITEST + BUILD ENV BLOCKED |
+| 046 | Ổn định nền tảng, AI Memory có kiểm soát và motion discipline | P0/P1 | XL | 017, 020, 030, 031, 035, 038, 040 | LOCAL VERIFIED — PRODUCTION READINESS BLOCKED |
 
 ## Dependency Notes
 

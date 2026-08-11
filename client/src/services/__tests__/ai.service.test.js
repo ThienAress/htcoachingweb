@@ -8,12 +8,25 @@ vi.mock("js-cookie", () => ({
 }));
 
 vi.mock("../../utils/api", () => ({
-  default: { post: vi.fn() },
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
 }));
 
 import Cookies from "js-cookie";
 import api from "../../utils/api";
-import { openAiChatStream } from "../ai.service.js";
+import {
+  clearAiMemory,
+  deleteAiMemoryKind,
+  getAiMemory,
+  getAiMemoryExport,
+  openAiChatStream,
+  setAiMemoryConsent,
+  upsertAiMemory,
+} from "../ai.service.js";
 
 describe("openAiChatStream", () => {
   let csrfToken;
@@ -65,5 +78,29 @@ describe("openAiChatStream", () => {
     expect(response.status).toBe(200);
     expect(api.post).toHaveBeenCalledWith("/auth/refresh", {});
     expect(fetchMock.mock.calls[1][1].headers["X-CSRF-Token"]).toBe("rotated-token");
+  });
+
+  it("uses owner-scoped AI memory routes with bounded payloads", async () => {
+    api.get.mockResolvedValue({ data: { success: true, data: {} } });
+    api.put.mockResolvedValue({ data: { success: true, data: {} } });
+    api.delete.mockResolvedValue({ data: { success: true, data: {} } });
+
+    await getAiMemory();
+    await getAiMemoryExport();
+    await setAiMemoryConsent(true);
+    await upsertAiMemory("response_style", "concise");
+    await deleteAiMemoryKind("response_style");
+    await clearAiMemory();
+
+    expect(api.get).toHaveBeenNthCalledWith(1, "/ai/memory");
+    expect(api.get).toHaveBeenNthCalledWith(2, "/ai/memory/export");
+    expect(api.put).toHaveBeenNthCalledWith(1, "/ai/memory/consent", {
+      enabled: true,
+    });
+    expect(api.put).toHaveBeenNthCalledWith(2, "/ai/memory/response_style", {
+      value: "concise",
+    });
+    expect(api.delete).toHaveBeenNthCalledWith(1, "/ai/memory/response_style");
+    expect(api.delete).toHaveBeenNthCalledWith(2, "/ai/memory");
   });
 });

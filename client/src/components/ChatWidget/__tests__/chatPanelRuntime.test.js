@@ -3,6 +3,7 @@ import {
   CHAT_THEME_STORAGE_KEY,
   getChatVisualViewportBounds,
   getChatQuotaPresentation,
+  getChatScrollBehavior,
   persistChatTheme,
   resolveInitialChatTheme,
 } from "../chatPanelRuntime.js";
@@ -95,5 +96,18 @@ describe("chat panel runtime", () => {
 
   it("hides quota presentation when server metadata is incomplete", () => {
     expect(getChatQuotaPresentation({ remaining: 4 })).toBeNull();
+  });
+
+  it("uses instant scrolling when reduced motion is requested", () => {
+    expect(
+      getChatScrollBehavior({
+        matchMedia: vi.fn(() => ({ matches: true })),
+      }),
+    ).toBe("auto");
+    expect(
+      getChatScrollBehavior({
+        matchMedia: vi.fn(() => ({ matches: false })),
+      }),
+    ).toBe("smooth");
   });
 });

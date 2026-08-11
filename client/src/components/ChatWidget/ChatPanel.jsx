@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Bot, Send, X, Square, PanelLeftOpen, Plus, ArrowUp, Maximize2, Sun, Moon, ImageIcon, Wand2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -9,6 +9,7 @@ import { createChatHistoryLoadGate } from "./chatHistoryLoadGate";
 import {
   getChatVisualViewportBounds,
   getChatQuotaPresentation,
+  getChatScrollBehavior,
   persistChatTheme,
   resolveInitialChatTheme,
 } from "./chatPanelRuntime";
@@ -42,6 +43,8 @@ const QUOTA_TONE_CLASSES = {
     "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200",
 };
 
+const AiMemorySettings = lazy(() => import("./AiMemorySettings"));
+
 export default function ChatPanel({ initiallyOpen = false }) {
   const { user } = useAuth();
   const location = useLocation();
@@ -55,6 +58,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const [input, setInput] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [memorySettingsOpen, setMemorySettingsOpen] = useState(false);
 
   const panelRef = useRef(null);
   const inputRef = useRef(null);
@@ -64,6 +68,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const messagesEndRef = useRef(null);
   const attachMenuRef = useRef(null);
   const historyLoadGateRef = useRef(null);
+  const wasOpenRef = useRef(initiallyOpen);
 
   if (historyLoadGateRef.current == null) {
     historyLoadGateRef.current = createChatHistoryLoadGate();
@@ -145,7 +150,9 @@ export default function ChatPanel({ initiallyOpen = false }) {
   ]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({
+      behavior: getChatScrollBehavior(window),
+    });
   }, [messages, activeTool]);
 
   useEffect(() => {
@@ -153,6 +160,18 @@ export default function ChatPanel({ initiallyOpen = false }) {
       const timer = setTimeout(() => inputRef.current?.focus(), 150);
       return () => clearTimeout(timer);
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      wasOpenRef.current = true;
+      return;
+    }
+    if (!wasOpenRef.current) return;
+
+    wasOpenRef.current = false;
+    const frame = window.requestAnimationFrame(() => pillRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
   }, [isOpen]);
 
   useEffect(() => {
@@ -317,7 +336,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
         </div>
       )}
 
-      <div className="flex items-end gap-2 bg-gray-100 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10 px-4 py-3 focus-within:border-emerald-500/40 focus-within:bg-white dark:focus-within:bg-white/10 transition-all shadow-sm">
+      <div className="flex items-end gap-2 bg-gray-100 dark:bg-white/5 rounded-3xl border border-gray-200 dark:border-white/10 px-4 py-3 focus-within:border-emerald-500/40 focus-within:bg-white dark:focus-within:bg-white/10 transition-[border-color,background-color,box-shadow] duration-150 motion-reduce:transition-none shadow-sm">
         {user && (
           <>
             <input
@@ -384,6 +403,16 @@ export default function ChatPanel({ initiallyOpen = false }) {
       {showPill && (
         <div
           ref={pillRef}
+          role={pillExpanded ? "group" : "button"}
+          tabIndex={pillExpanded ? -1 : 0}
+          aria-label={pillExpanded ? "Nhập câu hỏi cho HT Assistant" : "Mở ô hỏi HT Assistant"}
+          onKeyDown={(event) => {
+            if (!pillExpanded && ["Enter", " "].includes(event.key)) {
+              event.preventDefault();
+              if (isMobile) setIsOpen(true);
+              else setPillExpanded(true);
+            }
+          }}
           onClick={() => {
             if (isMobile) {
               setIsOpen(true);
@@ -394,7 +423,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
               setTimeout(() => pillInputRef.current?.focus(), 250);
             }
           }}
-          className={`pill-bar-wrapper ${
+          className={`pill-bar-wrapper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
             isOpen ? "hidden-state" : "visible-state"
           } ${pillExpanded ? "pill-expanded" : "pill-collapsed"}`}
         >
@@ -426,7 +455,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
             <button
               onClick={(e) => { e.stopPropagation(); handlePillSend(); }}
               disabled={!pillInput.trim()}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-[color,background-color,box-shadow] duration-150 motion-reduce:transition-none ${
                 pillInput.trim()
                   ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-cyan-400"
                   : "bg-white/[0.06] text-gray-500 cursor-default"
@@ -448,7 +477,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
       {/* Panel */}
       <div
         ref={panelRef}
-        className={`fixed inset-0 z-[60] flex transition-transform duration-300 ease-out w-full ${
+        className={`fixed inset-0 z-[60] flex w-full transition-transform duration-200 ease-out motion-reduce:transition-none ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
         style={
@@ -462,14 +491,17 @@ export default function ChatPanel({ initiallyOpen = false }) {
         }
         role="dialog"
         aria-label="HT Assistant"
+        aria-modal={isOpen ? "true" : undefined}
+        aria-hidden={!isOpen}
+        inert={!isOpen}
       >
         {/* Main Background */}
-        <div className="flex w-full h-full bg-white dark:bg-[#131314] text-gray-900 dark:text-white transition-colors duration-300 overflow-hidden">
+        <div className="flex w-full h-full bg-white dark:bg-[#131314] text-gray-900 dark:text-white transition-colors duration-200 motion-reduce:transition-none overflow-hidden">
 
           {/* Sidebar */}
           {user && (
             <div
-              className={`transition-all duration-300 ease-in-out overflow-hidden shrink-0 absolute md:relative z-20 h-full border-r border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e1f22] ${
+              className={`transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none overflow-hidden shrink-0 absolute md:relative z-20 h-full border-r border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1e1f22] ${
                 sidebarOpen ? "w-full md:w-[260px] opacity-100" : "w-0 opacity-0"
               }`}
             >
@@ -481,6 +513,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                 onSwitch={handleSwitchConversation}
                 onDelete={removeConversation}
                 onToggle={() => setSidebarOpen(false)}
+                onOpenMemory={() => setMemorySettingsOpen(true)}
               />
             </div>
           )}
@@ -488,13 +521,15 @@ export default function ChatPanel({ initiallyOpen = false }) {
           {/* Main content */}
           <div className="relative flex flex-col flex-1 min-w-0">
             {/* Header Actions */}
-            <div className="pointer-events-none absolute left-4 right-4 top-4 z-10 grid grid-cols-[5rem_minmax(0,1fr)_5rem] items-center gap-2">
+            <div className="pointer-events-none absolute left-4 right-4 top-4 z-10 grid grid-cols-[6rem_minmax(0,1fr)_6rem] items-center gap-2">
               <div className="flex justify-start">
                 {user && !sidebarOpen && (
                   <button
+                    type="button"
                     onClick={() => setSidebarOpen(true)}
                     title="Mở menu"
-                    className="p-2 rounded-full text-gray-600 dark:text-gray-400 bg-white/80 dark:bg-black/20 hover:bg-gray-100 dark:hover:bg-white/10 backdrop-blur-sm transition-colors pointer-events-auto shadow-sm"
+                    aria-label="Mở menu"
+                    className="inline-flex size-11 items-center justify-center rounded-full text-gray-600 dark:text-gray-400 bg-white/80 dark:bg-black/20 hover:bg-gray-100 dark:hover:bg-white/10 backdrop-blur-sm transition-colors pointer-events-auto shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
                   >
                     <PanelLeftOpen size={18} />
                   </button>
@@ -523,16 +558,20 @@ export default function ChatPanel({ initiallyOpen = false }) {
               </div>
               <div className="pointer-events-auto flex items-center justify-end gap-2">
                 <button
+                  type="button"
                   onClick={toggleTheme}
                   title="Đổi giao diện"
-                  className="p-2 rounded-full text-gray-600 dark:text-gray-400 bg-white/80 dark:bg-black/20 hover:bg-gray-100 dark:hover:bg-white/10 backdrop-blur-sm transition-colors shadow-sm"
+                  aria-label="Đổi giao diện"
+                  className="inline-flex size-11 items-center justify-center rounded-full text-gray-600 dark:text-gray-400 bg-white/80 dark:bg-black/20 hover:bg-gray-100 dark:hover:bg-white/10 backdrop-blur-sm transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
                 >
                   {chatTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsOpen(false)}
                   title="Đóng"
-                  className="p-2 rounded-full text-gray-600 dark:text-gray-400 bg-white/80 dark:bg-black/20 hover:bg-gray-100 dark:hover:bg-white/10 backdrop-blur-sm transition-colors shadow-sm"
+                  aria-label="Đóng"
+                  className="inline-flex size-11 items-center justify-center rounded-full text-gray-600 dark:text-gray-400 bg-white/80 dark:bg-black/20 hover:bg-gray-100 dark:hover:bg-white/10 backdrop-blur-sm transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
                 >
                   <X size={18} />
                 </button>
@@ -579,7 +618,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                           <button
                             key={a.value}
                             onClick={() => sendMessage(a.value, buildCurrentContext())}
-                            className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 transition-all text-left"
+                            className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 transition-colors duration-150 motion-reduce:transition-none text-left"
                           >
                             <span className="text-2xl">{a.emoji}</span>
                             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{a.label}</span>
@@ -617,7 +656,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                             {[0, 1, 2].map((i) => (
                               <span
                                 key={i}
-                                className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 dark:bg-emerald-400"
+                                className="h-1.5 w-1.5 animate-pulse motion-reduce:animate-none rounded-full bg-emerald-500 dark:bg-emerald-400"
                                 style={{ animationDelay: `${i * 0.15}s` }}
                               />
                             ))}
@@ -686,6 +725,11 @@ export default function ChatPanel({ initiallyOpen = false }) {
           </div>
         </div>
       </div>
+      {user && memorySettingsOpen && (
+        <Suspense fallback={null}>
+          <AiMemorySettings onClose={() => setMemorySettingsOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

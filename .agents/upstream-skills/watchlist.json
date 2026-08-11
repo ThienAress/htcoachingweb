@@ -346,6 +346,57 @@
       "reviewIntervalDays": 30,
       "addedAt": "2026-08-08",
       "license": "MIT"
+    },
+    {
+      "id": "emilkowalski/skills/emil-design-eng",
+      "name": "emil-design-eng",
+      "sourceRepo": "emilkowalski/skills",
+      "sourceBranch": "main",
+      "sourcePath": "skills/emil-design-eng/SKILL.md",
+      "repoUrl": "https://github.com/emilkowalski/skills",
+      "skillsShUrl": "https://www.skills.sh/emilkowalski/skills/emil-design-eng",
+      "domain": "Motion design",
+      "summary": "Animation decision framework, purpose, frequency and interaction craft.",
+      "localTargets": [".agents/skills/ui-quality/SKILL.md", ".agents/skills/ui-quality/references/ui-guidelines.md"],
+      "trustTier": "expert",
+      "lifecycle": "active",
+      "reviewIntervalDays": 30,
+      "addedAt": "2026-08-11",
+      "license": "MIT"
+    },
+    {
+      "id": "emilkowalski/skills/review-animations",
+      "name": "review-animations",
+      "sourceRepo": "emilkowalski/skills",
+      "sourceBranch": "main",
+      "sourcePath": "skills/review-animations/SKILL.md",
+      "repoUrl": "https://github.com/emilkowalski/skills",
+      "skillsShUrl": "https://www.skills.sh/emilkowalski/skills/review-animations",
+      "domain": "Motion audit",
+      "summary": "Strict animation review focused on purpose, feel, accessibility and performance.",
+      "localTargets": [".agents/skills/ui-check/SKILL.md", ".agents/skills/ui-check/references/web-interface-checks.md"],
+      "trustTier": "expert",
+      "lifecycle": "active",
+      "reviewIntervalDays": 30,
+      "addedAt": "2026-08-11",
+      "license": "MIT"
+    },
+    {
+      "id": "emilkowalski/skills/improve-animations",
+      "name": "improve-animations",
+      "sourceRepo": "emilkowalski/skills",
+      "sourceBranch": "main",
+      "sourcePath": "skills/improve-animations/SKILL.md",
+      "repoUrl": "https://github.com/emilkowalski/skills",
+      "skillsShUrl": "https://www.skills.sh/emilkowalski/skills/improve-animations",
+      "domain": "Motion planning",
+      "summary": "Prioritized animation audit and self-contained remediation planning.",
+      "localTargets": [".agents/skills/ui-check/SKILL.md", ".agents/skills/plan-template/SKILL.md"],
+      "trustTier": "expert",
+      "lifecycle": "active",
+      "reviewIntervalDays": 30,
+      "addedAt": "2026-08-11",
+      "license": "MIT"
     }
   ]
 }

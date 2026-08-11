@@ -4,6 +4,15 @@ Current staging evidence: [staging-deployment-report-2026-07-23.md](./staging/st
 Production plan: [production-release-plan-2026-07-23.md](./production/production-release-plan-2026-07-23.md).
 Rollback procedure: [production-rollback-runbook.md](./runbooks/production-rollback-runbook.md).
 
+## Current recovery gate
+
+- [ ] Run `npm run verify:backup-release` inside the approved release window and require exit code 0.
+- [ ] Run `npm run verify:disaster-recovery` before claiming workstation-loss recovery readiness.
+- [ ] Treat the 2026-07-23/24 backup entries below as historical release evidence only; do not reuse them as a current
+      recovery point or migration approval.
+- [ ] Keep archive paths, keys, checksums, connection strings and credentials outside Git. Only update the secret-free
+      readiness manifest after integrity and isolated-restore verification actually pass.
+
 ## Repository incident closure - updated 2026-07-23
 
 - [x] Correct the initial classification: `current_kb_entries.txt` held a Google

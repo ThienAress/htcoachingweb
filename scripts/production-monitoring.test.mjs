@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import {
   activeOperationalAlerts,
@@ -248,4 +249,18 @@ test("read-only retry preserves the final persistent failure", async () => {
     /persistent-2/,
   );
   assert.equal(calls, 2);
+});
+
+test("production alert workflow links the canonical runbook and requires manual closure", async () => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/production-monitor.yml", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    workflow,
+    /docs\/operations\/runbooks\/production-rollback-runbook\.md/,
+  );
+  assert.doesNotMatch(workflow, /issues\.update\([\s\S]*state:\s*"closed"/);
+  assert.match(workflow, /owner review/i);
 });

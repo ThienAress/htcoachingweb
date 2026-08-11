@@ -44,6 +44,11 @@ export const coachingKeys = {
   trainerClients: () => ["trainer-clients"],
 };
 
+export const aiMemoryKeys = {
+  all: () => ["ai-memory"],
+  mine: (userId) => [...aiMemoryKeys.all(), userId],
+};
+
 export const adminQueryKeys = {
   skillRadar: {
     all: () => ["admin-skill-radar"],

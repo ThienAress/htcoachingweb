@@ -10,6 +10,7 @@ import WorkoutPlanCard from "./cards/WorkoutPlanCard";
 import BlogListCard from "./cards/BlogListCard";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { getChatScrollBehavior } from "./chatPanelRuntime";
 
 const CARD_COMPONENTS = {
   tdee: TdeeResultCard,
@@ -112,14 +113,14 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
     if (location.pathname === targetPath) {
       setTimeout(() => {
         const el = document.getElementById(hash);
-        el?.scrollIntoView({ behavior: "smooth" });
+        el?.scrollIntoView({ behavior: getChatScrollBehavior(window) });
       }, 350);
     } else {
       setTimeout(() => {
         navigate(targetPath);
         setTimeout(() => {
           const el = document.getElementById(hash);
-          el?.scrollIntoView({ behavior: "smooth" });
+          el?.scrollIntoView({ behavior: getChatScrollBehavior(window) });
         }, 300);
       }, 350);
     }
@@ -163,7 +164,7 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
               onChange={(e) => setEditText(e.target.value)}
               onKeyDown={handleEditKeyDown}
               rows={3}
-              className="w-full bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white text-[15px] leading-relaxed px-4 py-3 rounded-2xl border-2 border-emerald-500/60 dark:border-emerald-400/50 outline-none resize-none placeholder-gray-400 transition-all shadow-sm focus:border-emerald-500 dark:focus:border-emerald-400"
+              className="w-full bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white text-[15px] leading-relaxed px-4 py-3 rounded-2xl border-2 border-emerald-500/60 dark:border-emerald-400/50 outline-none resize-none placeholder-gray-400 transition-[border-color,box-shadow] duration-150 motion-reduce:transition-none shadow-sm focus:border-emerald-500 dark:focus:border-emerald-400"
               style={{ fieldSizing: "content", minHeight: "60px" }}
             />
             <div className="flex items-center justify-end gap-2 mt-2">

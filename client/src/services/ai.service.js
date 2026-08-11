@@ -46,6 +46,36 @@ export const submitAiFeedback = async (conversationId, messageId, feedback) => {
   return res.data;
 };
 
+export const getAiMemory = async () => {
+  const res = await api.get("/ai/memory");
+  return res.data;
+};
+
+export const getAiMemoryExport = async () => {
+  const res = await api.get("/ai/memory/export");
+  return res.data;
+};
+
+export const setAiMemoryConsent = async (enabled) => {
+  const res = await api.put("/ai/memory/consent", { enabled });
+  return res.data;
+};
+
+export const upsertAiMemory = async (kind, value) => {
+  const res = await api.put(`/ai/memory/${kind}`, { value });
+  return res.data;
+};
+
+export const deleteAiMemoryKind = async (kind) => {
+  const res = await api.delete(`/ai/memory/${kind}`);
+  return res.data;
+};
+
+export const clearAiMemory = async () => {
+  const res = await api.delete("/ai/memory");
+  return res.data;
+};
+
 const syncCsrfToken = (response) => {
   const token = response.headers.get("X-CSRF-Token");
   if (token) Cookies.set("csrfToken", token, { path: "/" });
