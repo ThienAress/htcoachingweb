@@ -6,11 +6,35 @@ import {
   parsePrometheusMetrics,
   productionTargets,
   retryReadOnlyOperation,
+  sitemapIndexUrls,
   sitemapIncludesCanonicalPath,
   validateGoogleOAuthRedirect,
   normalizeRumBaseline,
   summarizePrometheusMetrics,
 } from "./lib/production-monitoring.mjs";
+
+test("split sitemap index resolves bounded same-origin child sitemaps", () => {
+  const sitemap = `
+<sitemapindex>
+  <sitemap><loc>https://htcoachingweb.io.vn/sitemap-core.xml</loc></sitemap>
+  <sitemap><loc>https://htcoachingweb.io.vn/sitemap-content.xml</loc></sitemap>
+</sitemapindex>`;
+
+  assert.deepEqual(sitemapIndexUrls(sitemap), [
+    "https://htcoachingweb.io.vn/sitemap-core.xml",
+    "https://htcoachingweb.io.vn/sitemap-content.xml",
+  ]);
+});
+
+test("split sitemap index rejects an external child sitemap", () => {
+  assert.throws(
+    () =>
+      sitemapIndexUrls(
+        "<sitemapindex><loc>https://example.com/sitemap.xml</loc></sitemapindex>",
+      ),
+    /approved production origin/,
+  );
+});
 
 test("sitemap matching accepts canonical routes with or without a trailing slash", () => {
   const sitemap = [

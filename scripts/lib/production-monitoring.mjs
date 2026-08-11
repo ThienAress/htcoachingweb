@@ -23,6 +23,37 @@ export const sitemapIncludesCanonicalPath = (
   );
 };
 
+export const sitemapIndexUrls = (
+  sitemap,
+  origin = CANONICAL_CLIENT_ORIGIN,
+) => {
+  const source = String(sitemap || "");
+  if (!/<sitemapindex(?:\s|>)/i.test(source)) return [];
+
+  const locations = [...source.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi)].map(
+    (match) => match[1],
+  );
+  assert(
+    locations.length >= 1 && locations.length <= 10,
+    "Sitemap index must contain between one and ten child sitemaps",
+  );
+
+  return locations.map((location) => {
+    const url = new URL(location);
+    assert(
+      url.origin === origin && !url.username && !url.password,
+      "Sitemap child is not on the approved production origin",
+    );
+    assert(
+      !url.search &&
+        !url.hash &&
+        /^\/sitemap(?:-[a-z0-9-]+)?\.xml$/i.test(url.pathname),
+      "Sitemap child path is invalid",
+    );
+    return url.href;
+  });
+};
+
 const approvedOrigin = (value, fallback, approved, name) => {
   const parsed = new URL(String(value || fallback));
   assert(parsed.protocol === "https:", `${name} must use HTTPS`);

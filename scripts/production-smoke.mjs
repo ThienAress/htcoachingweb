@@ -3,6 +3,7 @@ import {
   fetchTimed,
   productionTargets,
   retryReadOnlyOperation,
+  sitemapIndexUrls,
   sitemapIncludesCanonicalPath,
   validateGoogleOAuthRedirect,
 } from "./lib/production-monitoring.mjs";
@@ -169,10 +170,28 @@ const main = async () => {
     "Sitemap returned " + sitemapResult.response.status,
   );
   const sitemap = await sitemapResult.response.text();
-  assert(sitemap.includes("<urlset"), "Sitemap XML is invalid");
+  const childSitemapUrls = sitemapIndexUrls(sitemap, targets.clientOrigin);
+  const sitemapDocuments = [sitemap];
+  let sitemapDurationMs = sitemapResult.durationMs;
+  if (childSitemapUrls.length > 0) {
+    for (const childUrl of childSitemapUrls) {
+      const childResult = await fetchTimed(childUrl);
+      assert(
+        childResult.response.status === 200,
+        "Child sitemap returned " + childResult.response.status,
+      );
+      const childSitemap = await childResult.response.text();
+      assert(childSitemap.includes("<urlset"), "Child sitemap XML is invalid");
+      sitemapDocuments.push(childSitemap);
+      sitemapDurationMs += childResult.durationMs;
+    }
+  } else {
+    assert(sitemap.includes("<urlset"), "Sitemap XML is invalid");
+  }
+  const sitemapCorpus = sitemapDocuments.join("\n");
   for (const path of ["/blog", "/cong-thuc-nau-an"]) {
     assert(
-      sitemapIncludesCanonicalPath(sitemap, path),
+      sitemapIncludesCanonicalPath(sitemapCorpus, path),
       "Sitemap is missing " + path,
     );
   }
@@ -182,14 +201,15 @@ const main = async () => {
   ]) {
     if (item?.slug) {
       assert(
-        sitemapIncludesCanonicalPath(sitemap, prefix + item.slug),
+        sitemapIncludesCanonicalPath(sitemapCorpus, prefix + item.slug),
         "Sitemap is missing the current " + prefix + " detail route",
       );
     }
   }
   record("dynamic sitemap", {
     httpStatus: sitemapResult.response.status,
-    durationMs: sitemapResult.durationMs,
+    durationMs: Number(sitemapDurationMs.toFixed(2)),
+    childSitemapCount: childSitemapUrls.length,
   });
 
   process.stdout.write(
