@@ -84,6 +84,11 @@ Response 5xx dùng public message; internal error chỉ qua `safeLog`. Không nh
 
 - Local implementation and tests are approved by owner under Plan 046.
 - Production index creation, migration/backfill, rollout and real-data benchmark require separate approval.
+- Production rollout uses the guarded, idempotent `20260812-ai-memory-indexes.js`
+  preflight/apply migration. Apply requires an exact database lock, a fresh
+  backup ID, an approval ID, production confirmation and post-create verification.
+- The pilot collections are additive and require no backfill. Application
+  rollback keeps their indexes and leaves default-off data inert.
 - No automatic extraction, similarity search, embeddings, persona/L3 memory, cross-device import or Tencent runtime in v1.
 - Rollback: remove UI/routes/injection; additive collections remain inert because default-off.
 

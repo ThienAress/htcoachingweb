@@ -75,7 +75,13 @@ aiMemorySchema.index(
     name: "uniq_active_ai_memory_kind",
   },
 );
-aiMemorySchema.index({ userId: 1, status: 1, updatedAt: -1 });
-aiMemorySchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+aiMemorySchema.index(
+  { userId: 1, status: 1, updatedAt: -1 },
+  { name: "ai_memory_owner_status_updated" },
+);
+aiMemorySchema.index(
+  { expiresAt: 1 },
+  { expireAfterSeconds: 0, name: "ai_memory_expiry_ttl" },
+);
 
 export default mongoose.model("AiMemory", aiMemorySchema);

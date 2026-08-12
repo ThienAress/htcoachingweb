@@ -8,7 +8,6 @@ const aiMemoryPreferenceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true,
       immutable: true,
     },
     enabled: { type: Boolean, default: false },
@@ -21,6 +20,11 @@ const aiMemoryPreferenceSchema = new mongoose.Schema(
     disabledAt: { type: Date, default: null },
   },
   { timestamps: true },
+);
+
+aiMemoryPreferenceSchema.index(
+  { userId: 1 },
+  { unique: true, name: "uniq_ai_memory_preference_user" },
 );
 
 export default mongoose.model("AiMemoryPreference", aiMemoryPreferenceSchema);
