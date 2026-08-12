@@ -19,6 +19,7 @@ import {
   validateMealPlanPreferencesUpdate,
 } from "../middlewares/validation.js";
 import {
+  deleteMyMealPlanPreferences,
   getMyMealPlanPreferences,
   updateMyMealPlanPreferences,
 } from "../controllers/mealPlanPreference.controller.js";
@@ -37,6 +38,12 @@ router.put(
   csrfProtection,
   validateMealPlanPreferencesUpdate,
   updateMyMealPlanPreferences,
+);
+router.delete(
+  "/me/meal-plan-preferences",
+  protect,
+  csrfProtection,
+  deleteMyMealPlanPreferences,
 );
 
 // ===== GET CURRENT USER =====

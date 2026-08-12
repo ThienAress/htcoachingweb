@@ -15,12 +15,17 @@ không phải tư vấn y tế hay cam kết giá.
 
 - Đặt bước `Điều kiện thực đơn` tại `/mealplan`, sau chọn macro/số bữa và trước nút tạo; không đặt tại TDEE.
 - User trả lời câu `Bạn có dị ứng thực phẩm không?` bằng `Không có dị ứng`, chọn một hoặc nhiều nhóm, hoặc `Không chắc / cần kiểm tra` trước khi tiêu quota/tạo preview.
-- Nhóm `Khác` nhận tên thực phẩm/thành phần dạng text ngắn; không nhận mô tả triệu chứng hoặc thông tin định danh. Mục nhận diện được lọc qua metadata; mục chưa nhận diện được lưu nhưng generator dừng fail-closed.
+- Nhóm `Khác` nhận tên thực phẩm/thành phần dạng text ngắn; không nhận mô tả triệu chứng hoặc thông tin định danh. Mục nhận diện được lọc qua metadata; mục không có trong Food catalog được lưu để theo dõi nhưng không chặn generator vì bản thân catalog không thể gợi ý mục đó.
 - Ô `Khác` v2 tách nhiều mục theo dấu phẩy, chấm phẩy, xuống dòng hoặc chuỗi toàn từ khóa đã nhận diện. Ví dụ `gà bò cá` hoặc bản không dấu tiếng Việt `ga bo ca` đều được hiểu là ba mục; dấu chấm giữa thực phẩm như `bò.gà.heo` bị từ chối với hướng dẫn dùng dấu phẩy hoặc khoảng trắng.
 - Parser dùng longest-match để `thịt bò` là một mục bò. Từ mơ hồ `thịt`, `các loại thịt`, `tất cả loại thịt` hoặc `tất cả thịt trên cạn` bị từ chối và UI yêu cầu nhập rõ từng loại như gà, bò, heo, vịt, dê hoặc cừu; không có lựa chọn xác nhận dị ứng tất cả thịt.
 - Cụm phổ biến `ức gà` và bản không dấu `uc ga` được canonical hóa thành nhóm `Gà`; hard exclusion loại mọi Food thuộc nhóm gà thay vì chỉ một phần thịt.
-- Mục nhận diện được ánh xạ vào taxonomy server-authoritative. Mục chưa nhận diện vẫn được lưu để user theo dõi nhưng tiếp tục chặn generation trước quota.
+- Mục nhận diện được ánh xạ vào taxonomy server-authoritative. Mục không có trong Food catalog vẫn được lưu để user theo dõi, không suy rộng sang nhóm thực phẩm và không chặn generation.
 - Tài khoản đăng nhập lưu preference và có thể chỉnh tại Meal Plan. Guest chỉ giữ constraint trong phiên hiện tại.
+- Lần đầu xác nhận `Không có dị ứng` hoặc `Có dị ứng`, UI mở dialog Đồng ý/Hủy. Đồng ý khóa toàn bộ lựa chọn dị ứng;
+  tài khoản khóa theo snapshot owner-only đã lưu, Guest khóa trong `sessionStorage` của tab hiện tại. Trạng thái `Không chắc`
+  không được xác nhận/lưu.
+- Muốn thay đổi, user dùng `Bỏ lưu điều kiện` và xác nhận lần hai. Tài khoản gọi `DELETE` owner-only để `$unset` riêng
+  `mealPlanPreferences`; Guest xóa snapshot phiên. Sau đó form trở về chưa chọn và mở lại toàn bộ lựa chọn.
 - Sở thích là soft preference; dị ứng là hard exclusion. Ngân sách không còn xuất hiện hoặc tác động generator.
 - Giá v1 dùng aggregate online đã kiểm duyệt; không cá nhân hóa theo tỉnh và không gọi retailer runtime.
 
@@ -64,6 +69,8 @@ Không dùng các từ `an toàn tuyệt đối`, `chữa`, `điều trị`, `ch
   luôn gửi `null`; backend tiếp tục chấp nhận client cũ trong thời gian chuyển tiếp.
 - Chỉ endpoint owner-only được explicit select/return field này; generic User DTO/admin list không được lộ.
 - `PUT` thay toàn bộ object đã normalize, qua auth + CSRF + validation allowlist; client cũ chưa gửi `otherAllergenText` vẫn tương thích và được normalize thành chuỗi rỗng.
+- `DELETE /api/user/me/meal-plan-preferences` qua auth + CSRF, idempotent và trả empty preference contract; không xóa User,
+  Saved Meal Plan, Food yêu thích hoặc quota.
 - Không gửi preference vào GA4, log, error context hoặc `SavedMealPlan`.
 - Export dữ liệu tài khoản phải đặt preference trong mục dữ liệu sức khỏe; luồng xóa tài khoản tự xóa cùng User.
 
@@ -97,6 +104,9 @@ API:
 - `reviewedScopes` mặc định rỗng. Metadata `reviewed + specific_foods` là nguồn ưu tiên cho loại thịt cụ thể; khi thiếu
   scope mới fallback sang label.
 - `unsure` không tạo tuyên bố an toàn; UI hướng dẫn kiểm tra nhãn/chuyên gia và chỉ dùng flow an toàn đã định nghĩa.
+- Tên cụ thể ở mục `Khác` được đối chiếu exact, normalize dấu/case với Food catalog đang tải. Nếu `cá thu` tồn tại,
+  chỉ các Food exact-match cá thu bị loại; không suy rộng thành nhóm `fish` và không loại cá chẽm/cá diêu hồng.
+- Text không khớp taxonomy cố định hoặc Food catalog không dùng fuzzy match. Nếu không có exact match trong catalog, UI thông báo món đó không thể được gợi ý và generator giữ nguyên các Food khác.
 - Admin chỉ đánh dấu `reviewed` khi có nguồn/nhãn; mọi update qua validation allowlist.
 
 ## Food catalog eat-clean
@@ -155,6 +165,8 @@ Nếu không đủ Food sau khi loại dị ứng, generator trả trạng thái
 ## API, UI và privacy
 
 - `Điều kiện thực đơn` có loading/error/retry, save state, keyboard/focus states và nội dung tiếng Việt về 10 dấu hiệu thường gặp.
+- Với tài khoản đăng nhập, UI hiển thị riêng snapshot `Các thực phẩm dị ứng đã lưu trước đó` từ response owner-only;
+  bản nháp đang chỉnh không xuất hiện trong snapshot cho đến khi `PUT` lưu thành công và query cache được cập nhật.
 - Câu hỏi dùng copy `Bạn có dị ứng thực phẩm không?`; không hiển thị input ngân sách, cảnh báo 115, hai link chết hoặc
   khối `Nguồn & giới hạn tham khảo`.
 - Bảng Food hiển thị `Giá / 100g` sau `Calo`, `—` khi thiếu giá và hai câu ghi chú bắt buộc. Bảng kết quả Meal Plan
@@ -178,7 +190,7 @@ Nếu không đủ Food sau khi loại dị ứng, generator trả trạng thái
 - User model/route: enum, conditional validation, `otherAllergenText` safe text, backward compatibility, select:false, owner-only, CSRF, generic DTO và export/delete.
 - Food/price: enum, URL allowlist, admin ownership, normalization, stale/insufficient coverage.
 - Generator: parser nhiều mục, metadata + exact-label fallback cho nhóm có sẵn và loại thịt cụ thể, mục chưa nhận diện
-  chặn trước quota và preference không vượt allergy.
+  chỉ loại exact match trước quota và preference không vượt allergy.
 - Giá: một nguồn còn hiệu lực là đủ, chọn quan sát mới nhất với tie-break ổn định và không tạo tổng chi phí Meal Plan.
 - UI: load/save/edit preference, validation trước quota, Food DB loading/error/empty, giá/ghi chú, guest/session và accessibility.
 - Regression: quota, favorites, custom builder, save/revise và các Food consumers hiện có.
@@ -187,7 +199,7 @@ Nếu không đủ Food sau khi loại dị ứng, generator trả trạng thái
 
 - Tài khoản lưu/chỉnh được preference tại Meal Plan nhưng field không lọt generic DTO/log/GA4/saved plan.
 - Không thể tạo Meal Plan khi chưa xác nhận allergy state.
-- Có thể lưu dị ứng `Khác`; mục đã ánh xạ và có metadata Food kiểm duyệt được loại tự động, mục chưa nhận diện tiếp tục chặn generation.
+- Có thể lưu dị ứng `Khác`; mục đã ánh xạ và có metadata Food kiểm duyệt được loại tự động, mục không có trong Food catalog được thông báo rõ và không chặn generation.
 - Nhóm dị ứng có sẵn và loại thịt cụ thể loại đúng Food có metadata hoặc label khớp exact, không làm rỗng toàn bộ Food
   `unreviewed`; `Cá` không được nhầm với `Cà`.
 - Chỉ giá một nguồn đủ coverage mới được hiển thị theo `/100g`; thiếu coverage hiển thị `—`.

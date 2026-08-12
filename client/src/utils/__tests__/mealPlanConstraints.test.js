@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   filterFoodsForMealPlan,
   hasMealPlanFoodCoverage,
+  isMealPlanAllergyLocked,
+  isMealPlanPreferenceConfirmed,
   validateMealPlanPreferences,
 } from "../mealPlanConstraints";
 
@@ -19,6 +21,21 @@ const food = (overrides = {}) => ({
 });
 
 describe("Meal Plan safety constraints", () => {
+  it("locks account save, generation and favorites while allergy status is unsure", () => {
+    expect(isMealPlanAllergyLocked({ allergyStatus: "unsure" })).toBe(true);
+    expect(isMealPlanAllergyLocked({ allergyStatus: "declared" })).toBe(false);
+    expect(isMealPlanAllergyLocked({ allergyStatus: "none_known" })).toBe(false);
+  });
+
+  it("treats only resolved allergy snapshots as confirmed", () => {
+    expect([
+      isMealPlanPreferenceConfirmed({ allergyStatus: "none_known" }),
+      isMealPlanPreferenceConfirmed({ allergyStatus: "declared" }),
+      isMealPlanPreferenceConfirmed({ allergyStatus: "unsure" }),
+      isMealPlanPreferenceConfirmed({ allergyStatus: null }),
+    ]).toEqual([true, true, false, false]);
+  });
+
   it("requires a resolved allergy declaration before generation", () => {
     expect(validateMealPlanPreferences({ allergyStatus: null })).toEqual({
       valid: false,
@@ -33,7 +50,7 @@ describe("Meal Plan safety constraints", () => {
     ).toEqual({ valid: false, code: "unsure" });
   });
 
-  it("blocks automatic generation when a free-text allergen cannot be mapped safely", () => {
+  it("allows an absent free-text allergen without broadening its exclusion group", () => {
     expect(
       validateMealPlanPreferences({
         allergyStatus: "declared",
@@ -41,17 +58,69 @@ describe("Meal Plan safety constraints", () => {
         otherAllergenText: "Ốc biển",
         budgetVndPerDay: null,
       }),
-    ).toEqual({ valid: false, code: "other" });
+    ).toEqual({ valid: true, code: null });
   });
 
-  it("hides all food suggestions while another allergen is unresolved", () => {
+  it("accepts a specific free-text allergen that exact-matches the loaded Food catalog", () => {
+    const foods = [
+      food({ label: "Cá thu" }),
+      food({ label: "Cá chẽm" }),
+      food({ label: "Cá diêu hồng" }),
+    ];
+
     expect(
-      filterFoodsForMealPlan([food({ label: "reviewed-food" })], {
+      validateMealPlanPreferences(
+        {
+          allergyStatus: "declared",
+          allergens: [],
+          otherAllergenText: "ca thu",
+          budgetVndPerDay: null,
+        },
+        foods,
+      ),
+    ).toEqual({ valid: true, code: null });
+  });
+
+  it("allows a specific free-text allergen that is absent from the Food catalog", () => {
+    expect(
+      validateMealPlanPreferences(
+        {
+          allergyStatus: "declared",
+          allergens: [],
+          otherAllergenText: "cá thu",
+          budgetVndPerDay: null,
+        },
+        [food({ label: "Cá chẽm" })],
+      ),
+    ).toEqual({ valid: true, code: null });
+  });
+
+  it("only excludes the exact catalog food entered in Khác, not the whole fish group", () => {
+    const foods = [
+      food({ label: "Cá thu" }),
+      food({ label: "Cá chẽm" }),
+      food({ label: "Cá diêu hồng" }),
+      food({ label: "Cơm trắng", protein: 2, carb: 28 }),
+      food({ label: "Dầu olive", protein: 0, fat: 100 }),
+    ];
+
+    expect(
+      filterFoodsForMealPlan(foods, {
+        allergyStatus: "declared",
+        allergens: [],
+        otherAllergenText: "CÁ THU",
+      }).map(({ label }) => label),
+    ).toEqual(["Cá chẽm", "Cá diêu hồng", "Cơm trắng", "Dầu olive"]);
+  });
+
+  it("keeps catalog foods available when the entered allergen is absent from the catalog", () => {
+    expect(
+      filterFoodsForMealPlan([food({ label: "Cá chẽm" })], {
         allergyStatus: "declared",
         allergens: [],
         otherAllergenText: "ốc biển",
-      }),
-    ).toEqual([]);
+      }).map(({ label }) => label),
+    ).toEqual(["Cá chẽm"]);
   });
 
   it("accepts recognized specific foods separated only by spaces", () => {

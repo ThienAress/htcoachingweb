@@ -34,3 +34,7 @@ export const updateMyMealPlanPreferences = (preferences) =>
   api
     .put("/user/me/meal-plan-preferences", preferences)
     .then((response) => response.data.data);
+export const deleteMyMealPlanPreferences = () =>
+  api
+    .delete("/user/me/meal-plan-preferences")
+    .then((response) => response.data.data);

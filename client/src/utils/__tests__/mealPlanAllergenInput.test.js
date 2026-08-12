@@ -38,6 +38,44 @@ describe("Meal Plan other-allergen input", () => {
     },
   );
 
+  it("recognizes a specific food only when its normalized label exists in the Food catalog", () => {
+    expect(
+      analyzeOtherAllergenText("CA THU", [
+        { label: "Cá thu" },
+        { label: "Cá chẽm" },
+      ]),
+    ).toMatchObject({
+      canonicalText: "Cá thu",
+      hasUnmapped: false,
+      catalogFoodLabels: ["Cá thu"],
+      items: [{ key: null, kind: "catalog_food", label: "Cá thu" }],
+    });
+  });
+
+  it("does not collide different non-Latin Food labels during exact matching", () => {
+    expect(
+      analyzeOtherAllergenText("鯖魚", [
+        { label: "鯖魚" },
+        { label: "鮭魚" },
+      ]),
+    ).toMatchObject({
+      canonicalText: "鯖魚",
+      hasUnmapped: false,
+      catalogFoodLabels: ["鯖魚"],
+    });
+  });
+
+  it("keeps a specific food unmapped when it does not exist in the Food catalog", () => {
+    expect(
+      analyzeOtherAllergenText("cá thu", [{ label: "Cá chẽm" }]),
+    ).toMatchObject({
+      canonicalText: "Cá thu",
+      hasUnmapped: true,
+      catalogFoodLabels: [],
+      items: [{ key: null, kind: "unmapped", label: "Cá thu" }],
+    });
+  });
+
   it("reports a period separator instead of guessing", () => {
     expect(analyzeOtherAllergenText("bò.gà.heo").errorCode).toBe(
       "period_separator",

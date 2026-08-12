@@ -1,4 +1,7 @@
-import { analyzeOtherAllergenText } from "./mealPlanAllergenInput.js";
+import {
+  analyzeOtherAllergenText,
+  normalizeFoodCatalogLabel,
+} from "./mealPlanAllergenInput.js";
 
 export const EMPTY_MEAL_PLAN_PREFERENCES = Object.freeze({
   allergyStatus: null,
@@ -48,6 +51,13 @@ const SPECIFIC_FOOD_LABEL_TOKENS = Object.freeze({
   lamb: ["cuu"],
 });
 
+export const isMealPlanAllergyLocked = (preferences) =>
+  preferences?.allergyStatus === "unsure";
+
+export const isMealPlanPreferenceConfirmed = (preferences) =>
+  preferences?.allergyStatus === "none_known" ||
+  preferences?.allergyStatus === "declared";
+
 const normalizeFoodLabelTokens = (value) =>
   String(value || "")
     .normalize("NFKC")
@@ -93,7 +103,7 @@ const inferSpecificFoodKeys = (food) => {
   );
 };
 
-export const validateMealPlanPreferences = (preferences) => {
+export const validateMealPlanPreferences = (preferences, foods = []) => {
   const allergyStatus = preferences?.allergyStatus;
   const allergens = Array.isArray(preferences?.allergens)
     ? preferences.allergens
@@ -101,7 +111,7 @@ export const validateMealPlanPreferences = (preferences) => {
   const otherAllergenText = String(
     preferences?.otherAllergenText || "",
   ).trim();
-  const otherAnalysis = analyzeOtherAllergenText(otherAllergenText);
+  const otherAnalysis = analyzeOtherAllergenText(otherAllergenText, foods);
   const budget = preferences?.budgetVndPerDay ?? null;
   if (!ALLERGY_STATUSES.has(allergyStatus)) return { valid: false, code: "missing" };
   if (allergyStatus === "unsure") return { valid: false, code: "unsure" };
@@ -117,7 +127,6 @@ export const validateMealPlanPreferences = (preferences) => {
   if (otherAnalysis.errorCode) {
     return { valid: false, code: otherAnalysis.errorCode };
   }
-  if (otherAnalysis.hasUnmapped) return { valid: false, code: "other" };
   if (
     budget !== null &&
     (!Number.isInteger(budget) || budget < 30_000 || budget > 2_000_000)
@@ -132,11 +141,9 @@ export const filterFoodsForMealPlan = (foods, preferences) => {
   if (preferences?.allergyStatus !== "declared") return items;
   const otherAnalysis = analyzeOtherAllergenText(
     preferences?.otherAllergenText || "",
+    items,
   );
-  if (
-    otherAnalysis.errorCode ||
-    otherAnalysis.hasUnmapped
-  ) {
+  if (otherAnalysis.errorCode) {
     return [];
   }
   const excluded = new Set([
@@ -144,6 +151,9 @@ export const filterFoodsForMealPlan = (foods, preferences) => {
     ...otherAnalysis.majorKeys,
   ]);
   const specificExcluded = new Set(otherAnalysis.specificKeys);
+  const catalogFoodLabelsExcluded = new Set(
+    otherAnalysis.catalogFoodLabels.map(normalizeFoodCatalogLabel),
+  );
   return items.filter((food) => {
     const profile = food?.allergenProfile;
     const hasMajorRisk = [
@@ -154,6 +164,13 @@ export const filterFoodsForMealPlan = (foods, preferences) => {
       (allergen) => excluded.has(allergen),
     );
     if (hasMajorRisk) return false;
+    if (
+      catalogFoodLabelsExcluded.has(
+        normalizeFoodCatalogLabel(food?.label || food?.name || ""),
+      )
+    ) {
+      return false;
+    }
     if (specificExcluded.size === 0) return true;
     const specificContains = (profile?.reviewedScopes || []).includes(
       "specific_foods",

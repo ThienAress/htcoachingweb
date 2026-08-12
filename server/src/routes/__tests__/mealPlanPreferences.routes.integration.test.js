@@ -32,6 +32,107 @@ afterEach(clearCollections);
 afterAll(teardownTestDB);
 
 describe("Meal Plan preferences owner-only", () => {
+  it("hard-unsets only the owner's saved preferences and returns the empty contract", async () => {
+    const { user, accessToken } = await createTestUser({
+      email: "meal-pref-delete-owner@example.com",
+      mealPlanPreferences: {
+        allergyStatus: "declared",
+        allergens: ["fish"],
+        otherAllergenText: "Cá thu",
+        budgetVndPerDay: 150_000,
+        reviewedAt: new Date("2026-08-12T00:00:00.000Z"),
+      },
+    });
+    const { user: otherUser } = await createTestUser({
+      email: "meal-pref-delete-other@example.com",
+      mealPlanPreferences: {
+        allergyStatus: "none_known",
+        allergens: [],
+        otherAllergenText: "",
+        budgetVndPerDay: null,
+        reviewedAt: new Date("2026-08-12T00:00:00.000Z"),
+      },
+    });
+
+    const response = await withAuth(
+      request(app).delete("/api/user/me/meal-plan-preferences"),
+      accessToken,
+    );
+    const [ownerAfterDelete, otherAfterDelete] = await Promise.all([
+      User.findById(user._id).select("+mealPlanPreferences").lean(),
+      User.findById(otherUser._id).select("+mealPlanPreferences").lean(),
+    ]);
+
+    expect({ response: response.body, ownerAfterDelete, otherAfterDelete }).toEqual({
+      response: {
+        success: true,
+        message: "Đã bỏ lưu điều kiện thực đơn",
+        data: {
+          allergyStatus: null,
+          allergens: [],
+          otherAllergenText: "",
+          budgetVndPerDay: null,
+          reviewedAt: null,
+        },
+      },
+      ownerAfterDelete: expect.not.objectContaining({
+        mealPlanPreferences: expect.anything(),
+      }),
+      otherAfterDelete: expect.objectContaining({
+        mealPlanPreferences: expect.objectContaining({
+          allergyStatus: "none_known",
+        }),
+      }),
+    });
+  });
+
+  it("is idempotent when the owner removes preferences more than once", async () => {
+    const { accessToken } = await createTestUser({
+      email: "meal-pref-delete-idempotent@example.com",
+      mealPlanPreferences: {
+        allergyStatus: "none_known",
+        allergens: [],
+        otherAllergenText: "",
+        budgetVndPerDay: null,
+        reviewedAt: new Date("2026-08-12T00:00:00.000Z"),
+      },
+    });
+
+    const first = await withAuth(
+      request(app).delete("/api/user/me/meal-plan-preferences"),
+      accessToken,
+    );
+    const second = await withAuth(
+      request(app).delete("/api/user/me/meal-plan-preferences"),
+      accessToken,
+    );
+
+    expect(
+      [first, second].map(({ status, body }) => ({ status, data: body.data })),
+    ).toEqual([
+      {
+        status: 200,
+        data: {
+          allergyStatus: null,
+          allergens: [],
+          otherAllergenText: "",
+          budgetVndPerDay: null,
+          reviewedAt: null,
+        },
+      },
+      {
+        status: 200,
+        data: {
+          allergyStatus: null,
+          allergens: [],
+          otherAllergenText: "",
+          budgetVndPerDay: null,
+          reviewedAt: null,
+        },
+      },
+    ]);
+  });
+
   it("returns an empty contract before the owner has declared preferences", async () => {
     const { accessToken } = await createTestUser({
       email: "meal-pref-empty@example.com",
@@ -244,19 +345,31 @@ describe("Meal Plan preferences owner-only", () => {
       budgetVndPerDay: null,
     };
 
-    const [anonymousRead, anonymousWrite, missingCsrf] = await Promise.all([
+    const [
+      anonymousRead,
+      anonymousWrite,
+      missingCsrf,
+      anonymousDelete,
+      missingDeleteCsrf,
+    ] = await Promise.all([
       request(app).get("/api/user/me/meal-plan-preferences"),
       request(app).put("/api/user/me/meal-plan-preferences").send(payload),
       request(app)
         .put("/api/user/me/meal-plan-preferences")
         .set("Cookie", [`accessToken=${accessToken}`, "csrfToken=expected"])
         .send(payload),
+      request(app).delete("/api/user/me/meal-plan-preferences"),
+      request(app)
+        .delete("/api/user/me/meal-plan-preferences")
+        .set("Cookie", [`accessToken=${accessToken}`, "csrfToken=expected"]),
     ]);
 
-    expect([anonymousRead.status, anonymousWrite.status, missingCsrf.status]).toEqual([
-      401,
-      401,
-      403,
-    ]);
+    expect([
+      anonymousRead.status,
+      anonymousWrite.status,
+      missingCsrf.status,
+      anonymousDelete.status,
+      missingDeleteCsrf.status,
+    ]).toEqual([401, 401, 403, 401, 403]);
   });
 });

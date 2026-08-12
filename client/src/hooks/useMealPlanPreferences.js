@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { coachingKeys } from "../queries/queryKeys";
 import {
+  deleteMyMealPlanPreferences,
   getMyMealPlanPreferences,
   updateMyMealPlanPreferences,
 } from "../services/user.service";
@@ -19,6 +20,10 @@ export const useMealPlanPreferences = (userId) => {
     mutationFn: updateMyMealPlanPreferences,
     onSuccess: (data) => queryClient.setQueryData(queryKey, data),
   });
+  const deleteMutation = useMutation({
+    mutationFn: deleteMyMealPlanPreferences,
+    onSuccess: (data) => queryClient.setQueryData(queryKey, data),
+  });
 
   return {
     preferences: query.data,
@@ -26,7 +31,11 @@ export const useMealPlanPreferences = (userId) => {
     isError: query.isError,
     retry: query.refetch,
     save: mutation.mutateAsync,
+    clear: deleteMutation.mutateAsync,
     isSaving: mutation.isPending,
+    isClearing: deleteMutation.isPending,
+    isMutating: mutation.isPending || deleteMutation.isPending,
     saveError: mutation.error,
+    clearError: deleteMutation.error,
   };
 };

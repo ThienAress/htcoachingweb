@@ -1,4 +1,5 @@
 import {
+  deleteOwnMealPlanPreferences,
   getOwnMealPlanPreferences,
   updateOwnMealPlanPreferences,
 } from "../services/mealPlanPreference.service.js";
@@ -39,5 +40,18 @@ export const updateMyMealPlanPreferences = async (req, res) => {
     });
   } catch (error) {
     return sendError(res, error, "update");
+  }
+};
+
+export const deleteMyMealPlanPreferences = async (req, res) => {
+  try {
+    const data = await deleteOwnMealPlanPreferences(req.user.id);
+    return res.status(200).json({
+      success: true,
+      message: "Đã bỏ lưu điều kiện thực đơn",
+      data,
+    });
+  } catch (error) {
+    return sendError(res, error, "delete");
   }
 };

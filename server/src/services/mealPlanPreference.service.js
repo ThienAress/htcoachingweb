@@ -116,3 +116,17 @@ export const updateOwnMealPlanPreferences = async (
   await user.save();
   return serializePreferences(user.mealPlanPreferences);
 };
+
+export const deleteOwnMealPlanPreferences = async (userId) => {
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $unset: { mealPlanPreferences: 1 } },
+    { returnDocument: "after" },
+  )
+    .select("_id")
+    .lean();
+  if (!user) {
+    throw preferenceError("USER_NOT_FOUND", "Không tìm thấy tài khoản", 404);
+  }
+  return emptyPreferences();
+};

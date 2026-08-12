@@ -12,10 +12,10 @@ const MealButton = ({
       <button
         onClick={onGenerate}
         disabled={disabled || isGenerating}
-        className={`w-full sm:w-auto min-w-[200px] px-6 sm:px-8 py-3 rounded-full font-bold text-white transition-all transform hover:scale-105 active:scale-95 shadow-lg ${
+        className={`w-full sm:w-auto min-w-[200px] px-6 sm:px-8 py-3 rounded-full font-bold text-white shadow-lg transition-[background-color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           disabled || isGenerating
             ? "bg-gray-600 cursor-not-allowed shadow-none"
-            : "bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary-darkest"
+            : "bg-gradient-to-r from-primary to-primary-dark hover:scale-105 active:scale-95 hover:from-primary-dark hover:to-primary-darkest"
         }`}
       >
         {isGenerating ? (

@@ -40,6 +40,15 @@ describe("Meal Plan other-allergen parser", () => {
     },
   );
 
+  it("preserves a specific fish name safely without broadening it to the fish group", () => {
+    expect(parseOtherAllergenText("  cá   thu  ")).toMatchObject({
+      canonicalText: "Cá thu",
+      hasUnmapped: true,
+      majorKeys: [],
+      items: [{ key: null, kind: "unmapped", label: "Cá thu" }],
+    });
+  });
+
   it("rejects periods used between foods", () => {
     expect(() => parseOtherAllergenText("bò.gà.heo")).toThrow(
       "Không dùng dấu chấm giữa các thực phẩm",

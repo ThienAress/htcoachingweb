@@ -27,6 +27,7 @@ import { ShieldAlert } from "lucide-react";
 import LoginModal from "./LoginModal";
 import SavedMealPlans from "./SavedMealPlans";
 import MealPlanConditions from "./MealPlanConditions";
+import MealPlanPreferenceConfirmDialog from "./MealPlanPreferenceConfirmDialog";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 import {
   hasUsedGuestMealPlanPreview,
@@ -37,8 +38,15 @@ import {
   EMPTY_MEAL_PLAN_PREFERENCES,
   filterFoodsForMealPlan,
   hasMealPlanFoodCoverage,
+  isMealPlanAllergyLocked,
+  isMealPlanPreferenceConfirmed,
   validateMealPlanPreferences,
 } from "../../utils/mealPlanConstraints";
+import {
+  clearGuestMealPlanPreferences,
+  loadGuestMealPlanPreferences,
+  saveGuestMealPlanPreferences,
+} from "../../utils/mealPlanPreferenceSession";
 
 const loadSelectedFoods = () => {
   try {
@@ -65,6 +73,11 @@ const MealPlan = () => {
   const [isFoodModalOpen, setIsFoodModalOpen] = useState(false);
   const [selectedFoods, setSelectedFoods] = useState(loadSelectedFoods);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [preferenceConfirmationAction, setPreferenceConfirmationAction] =
+    useState(null);
+  const [guestConfirmedPreferences, setGuestConfirmedPreferences] = useState(
+    loadGuestMealPlanPreferences,
+  );
   const [guestPreviewUsed, setGuestPreviewUsed] = useState(
     hasUsedGuestMealPlanPreview,
   );
@@ -94,10 +107,25 @@ const MealPlan = () => {
         ? preferenceDraft.value
         : user
           ? storedPreferences
-          : EMPTY_MEAL_PLAN_PREFERENCES,
-    [hasCurrentDraft, preferenceDraft, storedPreferences, user],
+          : guestConfirmedPreferences || EMPTY_MEAL_PLAN_PREFERENCES,
+    [
+      guestConfirmedPreferences,
+      hasCurrentDraft,
+      preferenceDraft,
+      storedPreferences,
+      user,
+    ],
   );
-  const preferencesDirty = Boolean(user && hasCurrentDraft);
+  const preferencesDirty = Boolean(hasCurrentDraft);
+  const confirmedPreferences = user
+    ? preferenceQuery.preferences
+    : guestConfirmedPreferences;
+  const isPreferenceConfirmed = isMealPlanPreferenceConfirmed(
+    confirmedPreferences,
+  );
+  const isAllergySafetyLocked = isMealPlanAllergyLocked(mealPlanPreferences);
+  const areMealPlanActionsLocked =
+    isAllergySafetyLocked || !isPreferenceConfirmed;
 
   // Đợi macroSet load xong
   const isMacroReady = macroSet !== null;
@@ -134,6 +162,7 @@ const MealPlan = () => {
 
   // Xử lý tạo thực đơn (gợi ý)
   const handleGenerateMeal = async () => {
+    if (areMealPlanActionsLocked) return;
     if (selectedMacroPlan && macroSet && macroSet[selectedMacroPlan]) {
       if (user && preferenceQuery.isLoading) {
         toast.info("Đang tải điều kiện thực đơn đã lưu.");
@@ -145,6 +174,7 @@ const MealPlan = () => {
       }
       const preferenceValidation = validateMealPlanPreferences(
         mealPlanPreferences,
+        foodDatabase,
       );
       if (!preferenceValidation.valid) {
         const messages = {
@@ -174,16 +204,6 @@ const MealPlan = () => {
           { autoClose: 6000 },
         );
         return;
-      }
-
-      if (user && preferencesDirty) {
-        try {
-          await preferenceQuery.save(mealPlanPreferences);
-          setPreferenceDraft(null);
-        } catch {
-          toast.error("Không thể lưu điều kiện thực đơn. Không có lượt nào bị trừ.");
-          return;
-        }
       }
 
       if (!user) {
@@ -237,12 +257,71 @@ const MealPlan = () => {
   };
 
   const handleSavePreferences = async () => {
-    try {
-      await preferenceQuery.save(mealPlanPreferences);
+    if (isAllergySafetyLocked) return;
+    const validation = validateMealPlanPreferences(
+      mealPlanPreferences,
+      foodDatabase,
+    );
+    if (!validation.valid) {
+      const messages = {
+        missing: "Vui lòng xác nhận trạng thái dị ứng trước khi lưu.",
+        allergens: "Vui lòng chọn ít nhất một thực phẩm dị ứng.",
+        other:
+          "Thực phẩm ở mục Khác chưa có trong hệ thống nên chưa thể lưu điều kiện chính xác.",
+        period_separator:
+          "Không dùng dấu chấm giữa các thực phẩm. Hãy dùng dấu phẩy hoặc khoảng trắng.",
+        too_many: "Chỉ nhập tối đa 8 thực phẩm ở mục Khác.",
+        generic_meat:
+          "Vui lòng nhập rõ loại thịt dị ứng, ví dụ: gà, bò hoặc heo.",
+        budget: "Dữ liệu điều kiện đã lưu không hợp lệ.",
+      };
+      toast.error(messages[validation.code]);
+      return;
+    }
+    setPreferenceConfirmationAction("save");
+  };
+
+  const handleClearPreferences = () => {
+    if (!isPreferenceConfirmed) return;
+    setPreferenceConfirmationAction("clear");
+  };
+
+  const handleConfirmPreferenceAction = async () => {
+    if (preferenceConfirmationAction === "save") {
+      if (user) {
+        try {
+          await preferenceQuery.save(mealPlanPreferences);
+          toast.success("Đã lưu và khóa điều kiện thực đơn trong tài khoản.");
+        } catch {
+          toast.error("Không thể lưu điều kiện thực đơn.");
+          return;
+        }
+      } else {
+        saveGuestMealPlanPreferences(mealPlanPreferences);
+        setGuestConfirmedPreferences({ ...mealPlanPreferences });
+        toast.success("Đã xác nhận điều kiện cho phiên hiện tại.");
+      }
       setPreferenceDraft(null);
-      toast.success("Đã lưu điều kiện thực đơn vào tài khoản.");
-    } catch {
-      toast.error("Không thể lưu điều kiện thực đơn.");
+      setPreferenceConfirmationAction(null);
+      return;
+    }
+
+    if (preferenceConfirmationAction === "clear") {
+      if (user) {
+        try {
+          await preferenceQuery.clear();
+          toast.success("Đã bỏ lưu điều kiện thực đơn.");
+        } catch {
+          toast.error("Không thể bỏ lưu điều kiện thực đơn.");
+          return;
+        }
+      } else {
+        clearGuestMealPlanPreferences();
+        setGuestConfirmedPreferences(null);
+        toast.success("Đã xóa điều kiện trong phiên hiện tại.");
+      }
+      setPreferenceDraft(null);
+      setPreferenceConfirmationAction(null);
     }
   };
 
@@ -255,6 +334,7 @@ const MealPlan = () => {
         : t("btn_generate");
 
   const handleOpenFavorites = () => {
+    if (areMealPlanActionsLocked) return;
     if (!user) {
       setShowLoginModal(true);
       return;
@@ -350,14 +430,19 @@ const MealPlan = () => {
 
           <MealPlanConditions
             preferences={mealPlanPreferences}
+            savedPreferences={preferenceQuery.preferences || null}
+            foodDatabase={foodDatabase}
             onChange={handlePreferenceChange}
             isAuthenticated={Boolean(user)}
             isLoading={Boolean(user) && preferenceQuery.isLoading}
             isError={Boolean(user) && preferenceQuery.isError}
             onRetry={preferenceQuery.retry}
             onSave={handleSavePreferences}
-            isSaving={preferenceQuery.isSaving}
+            onClear={handleClearPreferences}
+            isSaving={Boolean(user) && preferenceQuery.isSaving}
+            isClearing={Boolean(user) && preferenceQuery.isClearing}
             isDirty={preferencesDirty}
+            isConfirmed={isPreferenceConfirmed}
           />
 
           <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-4 mb-4">
@@ -365,6 +450,7 @@ const MealPlan = () => {
               onGenerate={handleGenerateMeal}
               isGenerating={isGenerating}
               disabled={
+                areMealPlanActionsLocked ||
                 !isMacroReady ||
                 isLoadingFoods ||
                 (Boolean(user) && (isChecking || accessError))
@@ -373,8 +459,10 @@ const MealPlan = () => {
             />
 
             <button
+              type="button"
               onClick={handleOpenFavorites}
-              className="w-full sm:w-auto min-h-11 px-5 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-full text-white font-medium transition flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              disabled={areMealPlanActionsLocked}
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-gray-700 px-5 py-2.5 font-medium text-white transition-colors hover:bg-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-400 disabled:opacity-60 sm:w-auto"
             >
               <Heart className="w-4 h-4" /> {t("btn_select_favorites")}
             </button>
@@ -529,6 +617,12 @@ const MealPlan = () => {
           onSave={handleSaveSelectedFoods}
           initialSelected={selectedFoods}
           foodDatabase={constrainedFoodDatabase}
+        />
+        <MealPlanPreferenceConfirmDialog
+          action={preferenceConfirmationAction}
+          isPending={Boolean(user) && preferenceQuery.isMutating}
+          onCancel={() => setPreferenceConfirmationAction(null)}
+          onConfirm={handleConfirmPreferenceAction}
         />
       </main>
 

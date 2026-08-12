@@ -20,7 +20,7 @@
   "btn_reset": "Reset",
   "trial_remaining": "Bạn còn <0>{{remaining}}/{{max}}</0> lượt gợi ý miễn phí",
   "trial_expired": "Đã hết lượt miễn phí. <0>Đăng ký gói dịch vụ</0> để sử dụng không giới hạn.",
-  "tab_menu": "📋 Thực đơn",
+  "tab_menu": "📋 Hệ thống gợi ý thực đơn",
   "tab_custom": "✏️ Tự Lên Thực Đơn",
   "tab_nutrition": "Bảng Dinh dưỡng Thực Phẩm",
   "active_target": "Target đang dùng:",

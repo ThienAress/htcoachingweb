@@ -22,14 +22,16 @@ const GENERIC_MEAT_ALIASES = [
   "tất cả loại thịt",
   "tất cả thịt trên cạn",
 ];
-const lookupText = (value) =>
+export const normalizeFoodCatalogLabel = (value) =>
   String(value || "")
     .normalize("NFKC")
     .toLocaleLowerCase("vi")
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
+    .replace(/đ/gu, "d")
     .replace(/\s+/gu, " ")
     .trim();
+const lookupText = normalizeFoodCatalogLabel;
 const displayText = (value) => {
   const normalized = String(value || "").normalize("NFKC").replace(/\s+/gu, " ").trim();
   return normalized ? normalized[0].toLocaleUpperCase("vi") + normalized.slice(1) : "";
@@ -64,14 +66,16 @@ const tokenizeKnownChunk = (chunk) => {
 const dedupeItems = (items) => {
   const seen = new Set();
   return items.filter((item) => {
-    const identity = item.key ? `${item.kind}:${item.key}` : `unmapped:${lookupText(item.label)}`;
+    const identity = item.key
+      ? `${item.kind}:${item.key}`
+      : `${item.kind}:${lookupText(item.label)}`;
     if (seen.has(identity)) return false;
     seen.add(identity);
     return true;
   });
 };
 
-export const analyzeOtherAllergenText = (value) => {
+export const analyzeOtherAllergenText = (value, foods = []) => {
   const normalized = String(value || "").normalize("NFKC").replace(/\s+/gu, " ").trim();
   if (!normalized) {
     return {
@@ -79,6 +83,7 @@ export const analyzeOtherAllergenText = (value) => {
       items: [],
       majorKeys: [],
       specificKeys: [],
+      catalogFoodLabels: [],
       hasUnmapped: false,
       errorCode: null,
     };
@@ -89,15 +94,29 @@ export const analyzeOtherAllergenText = (value) => {
       items: [],
       majorKeys: [],
       specificKeys: [],
+      catalogFoodLabels: [],
       hasUnmapped: false,
       errorCode: "period_separator",
     };
   }
+  const catalogLabels = new Map(
+    (Array.isArray(foods) ? foods : [])
+      .map((food) => String(food?.label || food?.name || "").normalize("NFKC").replace(/\s+/gu, " ").trim())
+      .filter(Boolean)
+      .map((label) => [lookupText(label), label]),
+  );
   const chunks = normalized.split(/[,;\n]+/u).map((item) => item.trim()).filter(Boolean);
   let hasGenericMeat = false;
   const parsed = chunks.flatMap((chunk) => {
     const known = tokenizeKnownChunk(chunk);
-    if (!known) return [{ key: null, kind: "unmapped", label: displayText(chunk) }];
+    if (!known) {
+      const catalogLabel = catalogLabels.get(lookupText(chunk));
+      return [{
+        key: null,
+        kind: catalogLabel ? "catalog_food" : "unmapped",
+        label: catalogLabel || displayText(chunk),
+      }];
+    }
     if (known.some(({ kind }) => kind === "generic_meat")) hasGenericMeat = true;
     return known.filter(({ kind }) => kind !== "generic_meat");
   });
@@ -107,6 +126,9 @@ export const analyzeOtherAllergenText = (value) => {
     items,
     majorKeys: items.filter(({ kind }) => kind === "major").map(({ key }) => key),
     specificKeys: items.filter(({ kind }) => kind === "specific").map(({ key }) => key),
+    catalogFoodLabels: items
+      .filter(({ kind }) => kind === "catalog_food")
+      .map(({ label }) => label),
     hasUnmapped: items.some(({ kind }) => kind === "unmapped"),
     errorCode: hasGenericMeat
       ? "generic_meat"

@@ -2,6 +2,7 @@ import { AlertTriangle, ShieldCheck } from "lucide-react";
 
 import FoodAllergySymptomGuide from "./FoodAllergySymptomGuide";
 import { analyzeOtherAllergenText } from "../../utils/mealPlanAllergenInput";
+import { isMealPlanAllergyLocked } from "../../utils/mealPlanConstraints";
 
 const ALLERGEN_OPTIONS = [
   ["milk", "Sữa"],
@@ -14,6 +15,20 @@ const ALLERGEN_OPTIONS = [
   ["soy", "Đậu nành"],
   ["sesame", "Mè"],
 ];
+const ALLERGEN_LABELS = new Map(ALLERGEN_OPTIONS);
+
+const getSavedAllergenLabels = (savedPreferences) => {
+  if (savedPreferences?.allergyStatus !== "declared") return [];
+  const otherItems = analyzeOtherAllergenText(
+    savedPreferences.otherAllergenText || "",
+  ).items.map(({ label }) => label);
+  return [
+    ...(savedPreferences.allergens || []).map(
+      (key) => ALLERGEN_LABELS.get(key) || key,
+    ),
+    ...otherItems,
+  ].filter((label, index, labels) => labels.indexOf(label) === index);
+};
 
 export default function MealPlanConditions({
   preferences,
@@ -23,13 +38,21 @@ export default function MealPlanConditions({
   isError,
   onRetry,
   onSave,
+  onClear,
   isSaving,
+  isClearing,
   isDirty,
+  isConfirmed,
+  savedPreferences,
+  foodDatabase,
 }) {
   const otherAnalysis = analyzeOtherAllergenText(
     preferences.otherAllergenText || "",
+    foodDatabase,
   );
   const hasOtherFormatBlock = Boolean(otherAnalysis.errorCode);
+  const isAllergySafetyLocked = isMealPlanAllergyLocked(preferences);
+  const savedAllergenLabels = getSavedAllergenLabels(savedPreferences);
   const setStatus = (allergyStatus) =>
     onChange({
       ...preferences,
@@ -70,7 +93,7 @@ export default function MealPlanConditions({
         </div>
       ) : (
         <>
-          <fieldset className="mt-5">
+          <fieldset className="mt-5" disabled={isConfirmed}>
             <legend className="text-sm font-bold text-white">Bạn có dị ứng thực phẩm không?</legend>
             <div className="mt-3 grid gap-2 sm:grid-cols-3">
               {[
@@ -87,7 +110,7 @@ export default function MealPlanConditions({
           </fieldset>
 
           {preferences.allergyStatus === "declared" && (
-            <fieldset className="mt-5">
+            <fieldset className="mt-5" disabled={isConfirmed}>
               <legend className="text-sm font-bold text-white">Nhóm dị ứng cần loại trừ</legend>
               <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {ALLERGEN_OPTIONS.map(([key, label]) => (
@@ -133,7 +156,7 @@ export default function MealPlanConditions({
                       key={`${item.kind}:${item.key || item.label}`}
                       className={`rounded-full border px-3 py-1 text-xs font-semibold ${item.kind === "unmapped" ? "border-amber-400/30 bg-amber-500/10 text-amber-100" : "border-emerald-400/30 bg-emerald-500/10 text-emerald-100"}`}
                     >
-                      {item.label}{item.kind === "unmapped" ? " — chưa nhận diện" : ""}
+                      {item.label}{item.kind === "unmapped" ? " — không có trong hệ thống" : ""}
                     </span>
                   ))}
                 </div>
@@ -162,8 +185,8 @@ export default function MealPlanConditions({
                     className="mt-0.5 size-5 shrink-0"
                     aria-hidden="true"
                   />
-                  Mục chưa nhận diện vẫn được lưu để bạn theo dõi nhưng sẽ chặn tạo
-                  thực đơn tự động cho đến khi có metadata loại trừ chính xác.
+                  Thực phẩm này không có trong hệ thống thức ăn nên hệ thống sẽ
+                  không gợi ý trong thực đơn. Bạn yên tâm.
                 </div>
               )}
               {otherAnalysis.errorCode === "too_many" && (
@@ -177,16 +200,71 @@ export default function MealPlanConditions({
           {preferences.allergyStatus === "unsure" && (
             <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-sm leading-6 text-amber-100" role="status">
               <AlertTriangle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-              Hãy kiểm tra nhãn hoặc trao đổi với bác sĩ/chuyên gia dinh dưỡng trước khi dùng gợi ý. Hệ thống sẽ chưa tạo thực đơn khi trạng thái còn không chắc.
+              Hãy kiểm tra kĩ hoặc trao đổi với bác sĩ/chuyên gia dinh dưỡng trước khi dùng gợi ý. Hệ thống tạm khóa đến khi có kết quả chính xác
             </div>
           )}
 
           <FoodAllergySymptomGuide />
 
-          {isAuthenticated && (
-            <button type="button" onClick={onSave} disabled={!isDirty || isSaving || hasOtherFormatBlock} className="mt-5 min-h-11 rounded-lg border border-primary/60 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50">
-              {isSaving ? "Đang lưu..." : isDirty ? "Lưu điều kiện vào tài khoản" : "Đã lưu vào tài khoản"}
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button type="button" onClick={onSave} disabled={!isDirty || isSaving || isClearing || hasOtherFormatBlock || isAllergySafetyLocked || isConfirmed} className="min-h-11 rounded-lg border border-primary/60 px-4 py-2 text-sm font-bold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50">
+              {isSaving
+                ? "Đang lưu..."
+                : isConfirmed
+                  ? isAuthenticated
+                    ? "Đã lưu vào tài khoản"
+                    : "Đã xác nhận cho phiên này"
+                  : isAuthenticated
+                    ? "Lưu điều kiện vào tài khoản"
+                    : "Xác nhận điều kiện cho phiên này"}
             </button>
+            {isConfirmed && (
+              <button
+                type="button"
+                onClick={onClear}
+                disabled={isSaving || isClearing}
+                className="min-h-11 rounded-lg border border-red-400/40 px-4 py-2 text-sm font-bold text-red-200 transition-colors hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isClearing ? "Đang bỏ lưu..." : "Bỏ lưu điều kiện"}
+              </button>
+            )}
+          </div>
+
+          {isAuthenticated && (
+            <>
+              <section
+                className="mt-5 border-t border-white/10 pt-5"
+                aria-labelledby="saved-meal-plan-allergens-title"
+              >
+                <h3
+                  id="saved-meal-plan-allergens-title"
+                  className="text-sm font-bold text-white"
+                >
+                  Các thực phẩm dị ứng đã lưu trước đó
+                </h3>
+                {savedAllergenLabels.length > 0 ? (
+                  <div
+                    className="mt-3 flex flex-wrap gap-2"
+                    aria-label="Thực phẩm dị ứng đã lưu trong tài khoản"
+                  >
+                    {savedAllergenLabels.map((label) => (
+                      <span
+                        key={label}
+                        className="rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-100"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm leading-6 text-gray-400">
+                    {savedPreferences?.allergyStatus === "none_known"
+                      ? "Tài khoản đang lưu: không có dị ứng thực phẩm đã biết."
+                      : "Chưa có thực phẩm dị ứng nào được lưu vào tài khoản."}
+                  </p>
+                )}
+              </section>
+            </>
           )}
         </>
       )}

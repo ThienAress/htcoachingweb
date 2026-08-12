@@ -20,7 +20,7 @@
   "btn_reset": "Reset",
   "trial_remaining": "You have <0>{{remaining}}/{{max}}</0> free suggestion attempts left",
   "trial_expired": "No free attempts left. <0>Subscribe</0> to use unlimited.",
-  "tab_menu": "📋 Meal Plan",
+  "tab_menu": "📋 Suggested Meal Plan",
   "tab_custom": "✏️ Custom Builder",
   "tab_nutrition": "Food Nutrition Database",
   "active_target": "Active target:",

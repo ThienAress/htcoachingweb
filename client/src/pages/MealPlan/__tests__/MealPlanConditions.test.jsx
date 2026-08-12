@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import MealPlanConditions from "../MealPlanConditions";
 
-const renderConditions = (preferences = {}) =>
+const renderConditions = (preferences = {}, props = {}) =>
   renderToStaticMarkup(
     <MealPlanConditions
       preferences={{
@@ -19,8 +19,14 @@ const renderConditions = (preferences = {}) =>
       isError={false}
       onRetry={() => {}}
       onSave={() => {}}
+      onClear={() => {}}
       isSaving={false}
+      isClearing={false}
       isDirty={false}
+      isConfirmed={false}
+      foodDatabase={[]}
+      savedPreferences={null}
+      {...props}
     />,
   );
 
@@ -79,6 +85,91 @@ describe("MealPlanConditions", () => {
       html.includes("không đủ để tự chẩn đoán"),
       html.includes("gọi cấp cứu 115"),
     ]).toEqual([true, true, true, false]);
+  });
+
+  it("disables account save and shows the concise safety lock copy when unsure", () => {
+    const html = renderConditions({ allergyStatus: "unsure" }, { isDirty: true });
+
+    expect(html).toContain(
+      "Hãy kiểm tra kĩ hoặc trao đổi với bác sĩ/chuyên gia dinh dưỡng trước khi dùng gợi ý. Hệ thống tạm khóa đến khi có kết quả chính xác",
+    );
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Lưu điều kiện vào tài khoản<\/button>/);
+  });
+
+  it("shows only the account snapshot in the previously saved allergen section", () => {
+    const html = renderConditions(
+      { allergens: ["milk"], otherAllergenText: "" },
+      {
+        savedPreferences: {
+          allergyStatus: "declared",
+          allergens: ["fish"],
+          otherAllergenText: "Gà",
+        },
+      },
+    );
+    const savedSection = html.match(
+      /<section[^>]*aria-labelledby="saved-meal-plan-allergens-title"[^>]*>([\s\S]*?)<\/section>/,
+    )?.[1];
+
+    expect({
+      hasHeading: savedSection?.includes("Các thực phẩm dị ứng đã lưu trước đó"),
+      hasSavedFoods:
+        savedSection?.includes("Cá") && savedSection?.includes("Gà"),
+      excludesUnsavedDraft: !savedSection?.includes("Sữa"),
+    }).toEqual({
+      hasHeading: true,
+      hasSavedFoods: true,
+      excludesUnsavedDraft: true,
+    });
+  });
+
+  it("shows a clear empty account snapshot before the first save", () => {
+    const html = renderConditions({}, { savedPreferences: null });
+
+    expect(html).toContain("Chưa có thực phẩm dị ứng nào được lưu vào tài khoản.");
+  });
+
+  it("locks every allergy control and shows clear action after confirmation", () => {
+    const html = renderConditions(
+      { allergens: ["fish"], otherAllergenText: "Cá thu" },
+      {
+        isConfirmed: true,
+        savedPreferences: {
+          allergyStatus: "declared",
+          allergens: ["fish"],
+          otherAllergenText: "Cá thu",
+        },
+      },
+    );
+
+    expect({
+      disabledFieldsets: (html.match(/<fieldset[^>]*disabled=""/g) || []).length,
+      saveDisabled: html.includes(">Đã lưu vào tài khoản</button>"),
+      clearAction: html.includes(">Bỏ lưu điều kiện</button>"),
+    }).toEqual({ disabledFieldsets: 2, saveDisabled: true, clearAction: true });
+  });
+
+  it("recognizes cá thu from the current Food catalog in the UI", () => {
+    const html = renderConditions(
+      { otherAllergenText: "cá thu" },
+      { foodDatabase: [{ label: "Cá thu" }, { label: "Cá chẽm" }] },
+    );
+
+    expect({
+      recognized: html.includes("Cá thu"),
+      notUnmapped: !html.includes("Cá thu — chưa nhận diện"),
+    }).toEqual({ recognized: true, notUnmapped: true });
+  });
+
+  it("reassures the user when a specific allergen is absent from the Food catalog", () => {
+    const html = renderConditions(
+      { otherAllergenText: "cá thu" },
+      { foodDatabase: [{ label: "Cá chẽm" }] },
+    );
+
+    expect(html).toContain(
+      "Thực phẩm này không có trong hệ thống thức ăn nên hệ thống sẽ không gợi ý trong thực đơn. Bạn yên tâm.",
+    );
   });
 
   it("does not render dead health links or the removed source section", () => {
