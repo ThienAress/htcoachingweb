@@ -88,7 +88,7 @@
     "goal_lose_fat": "giảm mỡ",
     "goal_lose_weight": "giảm cân",
     "goal_maintain": "duy trì",
-    "estimate_guidance": "Hệ số đề xuất {{multiplier}} (band {{bandMin}}–{{bandMax}}) cho khoảng ước tính {{min}}–{{max}} kcal/ngày. Theo dõi cân nặng và mức tuân thủ ít nhất 14 ngày, sau đó chỉ điều chỉnh nhỏ nếu xu hướng thực tế khác dự kiến."
+    "estimate_guidance": "Hệ số đề xuất {{multiplier}} (khoảng hệ số {{bandMin}}–{{bandMax}}) cho mức TDEE ước tính {{min}}–{{max}} kcal/ngày. Theo dõi cân nặng và mức tuân thủ ít nhất 14 ngày, sau đó chỉ điều chỉnh nhỏ nếu xu hướng thực tế khác dự kiến."
   },
   "info": {
     "tdee_title": "1. TDEE là gì?",

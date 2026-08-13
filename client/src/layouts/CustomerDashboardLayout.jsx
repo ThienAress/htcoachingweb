@@ -8,6 +8,8 @@ import {
   Utensils,
   SidebarOpen,
   SidebarClose,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
@@ -19,6 +21,10 @@ import {
   dashboardSectionFromPath,
 } from "../utils/customerDashboardNavigation";
 import { getVietnamDateKey } from "../utils/vietnamDate";
+import {
+  persistCustomerDashboardTheme,
+  resolveInitialCustomerDashboardTheme,
+} from "../utils/customerDashboardTheme";
 
 const NAV_ITEMS = [
   { key: "today", label: "Hôm nay", icon: CalendarCheck2 },
@@ -88,6 +94,13 @@ const CustomerDashboardLayout = () => {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  const [dashboardTheme, setDashboardTheme] = useState(
+    resolveInitialCustomerDashboardTheme,
+  );
+
+  useEffect(() => {
+    persistCustomerDashboardTheme(dashboardTheme);
+  }, [dashboardTheme]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 1024px)");
@@ -104,9 +117,16 @@ const CustomerDashboardLayout = () => {
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Chào buổi sáng" : hour < 18 ? "Chào buổi chiều" : "Chào buổi tối";
+  const themeToggleLabel =
+    dashboardTheme === "dark"
+      ? "Chuyển sang giao diện sáng"
+      : "Chuyển sang giao diện tối";
 
   return (
-    <div className="min-h-screen bg-zinc-950 p-3 text-slate-100 lg:p-4">
+    <div
+      className="customer-dashboard min-h-screen bg-zinc-950 p-3 text-slate-100 transition-colors duration-200 motion-reduce:transition-none lg:p-4"
+      data-theme={dashboardTheme}
+    >
       <a
         href="#customer-dashboard-content"
         className="sr-only z-50 rounded-md bg-orange-500 px-4 py-2 font-bold text-slate-950 focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
@@ -138,7 +158,7 @@ const CustomerDashboardLayout = () => {
                 HTCOACHING
               </span>
               <span className="block text-[10px] font-medium text-slate-500">
-                Bảng theo dõi học viên
+                Theo dõi hành trình tập luyện
               </span>
             </span>
           </Link>
@@ -184,7 +204,7 @@ const CustomerDashboardLayout = () => {
         <div className="min-w-0 flex-1 rounded-2xl bg-slate-900 shadow-2xl ring-1 ring-white/[0.06]">
           {/* Topbar */}
           <header className="sticky top-0 z-20 flex h-16 items-center justify-between rounded-t-2xl border-b border-white/[0.07] bg-slate-900/95 px-4 backdrop-blur-md lg:px-6">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               {/* Desktop sidebar toggle */}
               <button
                 onClick={() => setIsCollapsed((v) => !v)}
@@ -208,7 +228,7 @@ const CustomerDashboardLayout = () => {
               </Link>
 
               {/* Desktop: greeting */}
-              <p className="hidden text-sm text-slate-400 lg:block">
+              <p className="hidden truncate text-sm text-slate-400 lg:block">
                 <span className="font-semibold text-white">
                   {greeting}, {user?.name?.split(" ").at(-1) || "bạn"}
                 </span>{" "}
@@ -217,8 +237,28 @@ const CustomerDashboardLayout = () => {
             </div>
 
             {/* Right actions */}
-            <div className="flex items-center gap-2">
-              <NotificationCenter userId={user?._id} solid />
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setDashboardTheme((theme) =>
+                    theme === "dark" ? "light" : "dark",
+                  )
+                }
+                aria-label={themeToggleLabel}
+                title={themeToggleLabel}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-slate-300 transition-colors duration-200 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+              >
+                {dashboardTheme === "dark" ? (
+                  <Sun aria-hidden="true" className="h-[19px] w-[19px]" />
+                ) : (
+                  <Moon aria-hidden="true" className="h-[19px] w-[19px]" />
+                )}
+              </button>
+              <NotificationCenter
+                userId={user?._id}
+                solid={dashboardTheme === "dark"}
+              />
               <Link
                 to="/account"
                 aria-label="Mở tài khoản"

@@ -48,7 +48,12 @@ export default function TdeeResultCard({ data }) {
           {targetCaloriesRange && (
             <p>Khoảng theo mục tiêu: {targetCaloriesRange.min.toLocaleString("vi-VN")}–{targetCaloriesRange.max.toLocaleString("vi-VN")} kcal/ngày</p>
           )}
-          {activity && <p>Hệ số đề xuất {activity.multiplier} (band {activity.range.join("–")}).</p>}
+          {activity && (
+            <p>
+              Hệ số đề xuất {activity.multiplier.toLocaleString("vi-VN")} (khoảng hệ số{" "}
+              {activity.range.map((value) => value.toLocaleString("vi-VN")).join("–")}).
+            </p>
+          )}
           <p>Theo dõi cân nặng và mức tuân thủ ít nhất {calibrationDays} ngày trước khi điều chỉnh nhỏ.</p>
         </div>
       )}

@@ -43,6 +43,8 @@ describe("HT Assistant TDEE cards", () => {
 
     expect(html).toContain("2.548–2.718");
     expect(html).toContain("14 ngày");
+    expect(html).toContain("khoảng hệ số 1,5–1,6");
+    expect(html).not.toMatch(/\bband\b/i);
     expect(html).toMatch(/ước tính/i);
   });
 
@@ -54,5 +56,7 @@ describe("HT Assistant TDEE cards", () => {
 
     expect(vi.info.macro_note).toContain("ít nhất 14 ngày");
     expect(en.info.macro_note).toContain("at least 14 days");
+    expect(vi.result.estimate_guidance).toContain("khoảng hệ số");
+    expect(vi.result.estimate_guidance).not.toMatch(/\bband\b/i);
   });
 });

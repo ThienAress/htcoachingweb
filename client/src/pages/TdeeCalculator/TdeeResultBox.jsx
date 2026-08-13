@@ -10,7 +10,10 @@ const TdeeResultBox = ({
   tdeeRange,
   activityBand,
 }) => {
-  const { t } = useTranslation("tdee");
+  const { t, i18n } = useTranslation("tdee");
+  const numberLocale = (i18n.resolvedLanguage || i18n.language)?.startsWith("vi")
+    ? "vi-VN"
+    : "en-US";
   const goalText =
     goal === "gain_muscle" ? t("result.goal_gain_muscle")
     : goal === "gain_weight" ? t("result.goal_gain_weight")
@@ -63,11 +66,11 @@ const TdeeResultBox = ({
           <Info className="mt-1 h-4 w-4 shrink-0 text-cyan-400" aria-hidden="true" />
           <p>
             {t("result.estimate_guidance", {
-              min: tdeeRange.min.toLocaleString(),
-              max: tdeeRange.max.toLocaleString(),
-              multiplier: activityBand?.multiplier,
-              bandMin: activityBand?.range?.[0],
-              bandMax: activityBand?.range?.[1],
+              min: tdeeRange.min.toLocaleString(numberLocale),
+              max: tdeeRange.max.toLocaleString(numberLocale),
+              multiplier: activityBand?.multiplier?.toLocaleString(numberLocale),
+              bandMin: activityBand?.range?.[0]?.toLocaleString(numberLocale),
+              bandMax: activityBand?.range?.[1]?.toLocaleString(numberLocale),
             })}
           </p>
         </div>

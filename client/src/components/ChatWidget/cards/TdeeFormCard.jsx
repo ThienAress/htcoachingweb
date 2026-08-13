@@ -14,11 +14,11 @@ const GENDERS = [
 
 const ACTIVITIES = [
   { value: "", label: "Chọn sau khi khai báo vận động" },
-  { value: "sedentary", label: "Ít vận động cả ngày (1.2)" },
-  { value: "light", label: "Vận động nhẹ cả ngày (1.4)" },
-  { value: "moderate", label: "Vận động vừa cả ngày (1.55)" },
-  { value: "active", label: "Vận động nhiều cả ngày (1.7)" },
-  { value: "very_active", label: "Vận động rất nhiều cả ngày (1.85)" },
+  { value: "sedentary", label: "Ít vận động cả ngày (1,2)" },
+  { value: "light", label: "Vận động nhẹ cả ngày (1,4)" },
+  { value: "moderate", label: "Vận động vừa cả ngày (1,55)" },
+  { value: "active", label: "Vận động nhiều cả ngày (1,7)" },
+  { value: "very_active", label: "Vận động rất nhiều cả ngày (1,85)" },
 ];
 
 const EVIDENCE_OPTIONS = {
@@ -241,7 +241,7 @@ export default function TdeeFormCard({ onSubmit }) {
       </div>
 
       <div>
-        <label htmlFor="chat-tdee-activity-band" className="text-[10px] text-gray-400 uppercase mb-1 block">Band hệ số đề xuất</label>
+        <label htmlFor="chat-tdee-activity-band" className="text-[10px] text-gray-400 uppercase mb-1 block">Khoảng hệ số đề xuất</label>
         <select
           id="chat-tdee-activity-band"
           value={form.activityLevel}
