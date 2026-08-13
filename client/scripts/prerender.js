@@ -11,6 +11,7 @@ import {
 } from "./dynamic-routes.js";
 import {
   createPrerenderResponseCache,
+  fetchPrerenderPageData,
   fetchPrerenderRecipes,
   responseForPrerenderRequest,
 } from "./prerender-content.js";
@@ -269,6 +270,7 @@ const prerender = async () => {
     ),
   );
   let recipes = [];
+  let pageData = {};
   if (!policy.skip) {
     try {
       recipes = await fetchPrerenderRecipes((pathName) =>
@@ -286,8 +288,23 @@ const prerender = async () => {
         (route) => !route.startsWith("/cong-thuc-nau-an/"),
       );
     }
+    try {
+      pageData = await fetchPrerenderPageData(
+        routesToPrerender,
+        (pathName) =>
+          axios.get(apiUrl + pathName, {
+            timeout: policy.requireDynamic ? 30_000 : 10_000,
+          }),
+      );
+    } catch (error) {
+      if (policy.requireDynamic) throw error;
+      console.warn(
+        "Skipping detail cache because public content could not be prefetched: " +
+          error.message,
+      );
+    }
   }
-  const recipeCache = createPrerenderResponseCache(recipes);
+  const responseCache = createPrerenderResponseCache(recipes, pageData);
   console.log(
     "Prerender dynamic route mode: " +
       (policy.requireDynamic ? "strict" : policy.skip ? "static" : "fallback"),
@@ -334,7 +351,7 @@ const prerender = async () => {
         console.log("Prerendering route: " + route);
         return {
           route,
-          success: await renderRoute(browser, route, recipeCache),
+          success: await renderRoute(browser, route, responseCache),
         };
       },
     );

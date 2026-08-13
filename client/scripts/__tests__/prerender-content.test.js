@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createPrerenderResponseCache,
+  fetchPrerenderPageData,
   fetchPrerenderRecipes,
   responseForPrerenderRequest,
 } from "../prerender-content.js";
@@ -51,5 +52,73 @@ describe("prerender content cache", () => {
         cache,
       ),
     ).toMatchObject({ status: 401 });
+  });
+
+  it("retries public detail fetches and serves deterministic prerender responses", async () => {
+    let storyAttempts = 0;
+    const fetchApi = vi.fn(async (path) => {
+      if (path === "/customer-stories/story-one?lang=vi") {
+        storyAttempts += 1;
+        if (storyAttempts === 1) {
+          const error = new Error("timeout");
+          error.code = "ECONNABORTED";
+          throw error;
+        }
+        return {
+          data: { success: true, data: { slug: "story-one", name: "Story" } },
+        };
+      }
+      if (path === "/customer-stories?limit=20&lang=vi") {
+        return {
+          data: {
+            success: true,
+            data: [{ slug: "story-one", name: "Story" }],
+          },
+        };
+      }
+      if (path === "/blog/blog-one?view=prerender") {
+        return {
+          data: {
+            success: true,
+            data: { slug: "blog-one", title: "Blog" },
+            relatedPosts: [],
+            discoveryPosts: [],
+          },
+        };
+      }
+      throw new Error(`Unexpected path: ${path}`);
+    });
+
+    const pageData = await fetchPrerenderPageData(
+      ["/ket-qua-khach-hang/story-one", "/blog/blog-one"],
+      fetchApi,
+      { retryDelayMs: 0 },
+    );
+    const cache = createPrerenderResponseCache([], pageData);
+
+    expect({
+      storyAttempts,
+      story: JSON.parse(
+        responseForPrerenderRequest(
+          "https://htcoachingweb-staging.onrender.com/api/customer-stories/story-one?lang=vi",
+          cache,
+        ).body,
+      ).data.slug,
+      blog: JSON.parse(
+        responseForPrerenderRequest(
+          "https://htcoachingweb-staging.onrender.com/api/blog/blog-one",
+          cache,
+        ).body,
+      ).data.slug,
+      documentRequest: responseForPrerenderRequest(
+        "http://localhost:5174/blog/blog-one",
+        cache,
+      ),
+    }).toEqual({
+      storyAttempts: 2,
+      story: "story-one",
+      blog: "blog-one",
+      documentRequest: null,
+    });
   });
 });

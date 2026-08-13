@@ -278,12 +278,15 @@ test("staging Netlify builds fail closed on canonical dynamic route content", as
   assert.match(stagingEnvironment, /REQUIRE_DYNAMIC_ROUTES\s*=\s*"true"/);
   assert.match(
     stagingEnvironment,
-    /SITEMAP_API_URL\s*=\s*"https:\/\/api\.htcoachingweb\.io\.vn\/api"/,
+    /VITE_API_URL\s*=\s*"https:\/\/htcoachingweb-staging\.onrender\.com\/api"/,
   );
   assert.match(
     stagingEnvironment,
-    /PRERENDER_API_URL\s*=\s*"https:\/\/api\.htcoachingweb\.io\.vn\/api"/,
+    /SITEMAP_API_URL\s*=\s*"https:\/\/htcoachingweb-staging\.onrender\.com\/api"/,
+  );
+  assert.match(
+    stagingEnvironment,
+    /PRERENDER_API_URL\s*=\s*"https:\/\/htcoachingweb-staging\.onrender\.com\/api"/,
   );
   assert.match(stagingEnvironment, /PRERENDER_CONCURRENCY\s*=\s*"6"/);
-  assert.doesNotMatch(stagingEnvironment, /VITE_API_URL\s*=/);
 });

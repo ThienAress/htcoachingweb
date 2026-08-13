@@ -123,6 +123,28 @@ describe("Phase 3 content and option queries", () => {
     ).toBe(6);
   });
 
+  it("keeps prerender blog detail reads out of view counts", async () => {
+    await BlogPost.create({
+      title: "Prerendered",
+      slug: "prerendered",
+      content: "<p>Content</p>",
+      excerpt: "Excerpt",
+      category: "tap-luyen",
+      status: "published",
+      publishedAt: new Date("2026-07-01T00:00:00.000Z"),
+      views: 5,
+    });
+
+    const detail = await request(app).get(
+      "/api/blog/prerendered?view=prerender",
+    );
+
+    expect({
+      status: detail.status,
+      views: (await BlogPost.findOne({ slug: "prerendered" }).lean()).views,
+    }).toEqual({ status: 200, views: 5 });
+  });
+
   it("filters the new tools topic and includes legacy expert-insight posts", async () => {
     const base = {
       content: "<p>Content</p>",
