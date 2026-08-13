@@ -11,6 +11,23 @@ const ALLOWED_HOSTS = new Set([
 ]);
 const MAX_RESPONSE_BYTES = 512 * 1024;
 
+const parseRateLimitRetryAt = (headers, now = new Date()) => {
+  const resetEpoch = Number(headers?.get?.("x-ratelimit-reset"));
+  if (Number.isFinite(resetEpoch) && resetEpoch > 0) {
+    return new Date(resetEpoch * 1000).toISOString();
+  }
+  const retryAfter = headers?.get?.("retry-after");
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return new Date(now.getTime() + seconds * 1000).toISOString();
+  }
+  if (retryAfter) {
+    const retryDate = new Date(retryAfter);
+    if (!Number.isNaN(retryDate.getTime())) return retryDate.toISOString();
+  }
+  return null;
+};
+
 export function computeNextMonthlyRun(now = new Date()) {
   let year = now.getUTCFullYear();
   let month = now.getUTCMonth();
@@ -48,6 +65,7 @@ const fetchWithPolicy = async ({
   fetchImpl,
   url,
   token,
+  now = new Date(),
   timeoutMs,
   maxBytes,
   retries,
@@ -63,11 +81,16 @@ const fetchWithPolicy = async ({
     const headers = { Accept: "application/vnd.github+json", "User-Agent": "HTCOACHING-skill-radar" };
     if (token && parsed.hostname === "api.github.com") headers.Authorization = `Bearer ${token}`;
     try {
-      const response = await fetchImpl(url, { headers, signal: controller.signal });
+      const response = await fetchImpl(url, {
+        headers,
+        signal: controller.signal,
+        redirect: "error",
+      });
       if (!response.ok) {
         const error = new Error(`HTTP ${response.status} from ${parsed.hostname}`);
         error.status = response.status;
         error.host = parsed.hostname;
+        error.rateLimitRetryAt = parseRateLimitRetryAt(response.headers, now);
         if ((response.status === 429 || response.status >= 500) && attempt < retries) {
           lastError = error;
           continue;
@@ -117,6 +140,9 @@ const carryPreviousObservation = (entry, previous) => ({
   decisionReason: previous.decisionReason || null,
   reportPath: previous.reportPath || null,
   ...(previous.error ? { error: sanitizeError(previous.error) } : {}),
+  ...(previous.rateLimitRetryAt
+    ? { rateLimitRetryAt: previous.rateLimitRetryAt }
+    : {}),
 });
 
 export async function scanWatchlist({
@@ -136,6 +162,7 @@ export async function scanWatchlist({
   const repositoryCache = new Map();
   const items = [];
   let failures = 0;
+  let rateLimitRetryAt = null;
 
   for (const entry of validated.entries) {
     const previous = previousById.get(entry.id) || {};
@@ -161,6 +188,19 @@ export async function scanWatchlist({
       continue;
     }
 
+    if (rateLimitRetryAt) {
+      failures += 1;
+      items.push({
+        ...carryPreviousObservation(entry, previous),
+        lastCheckedAt: checkedAt,
+        nextCheckAt,
+        drift: "rate_limited",
+        rateLimitRetryAt,
+        error: "GitHub API rate limit active; request deferred",
+      });
+      continue;
+    }
+
     try {
       let repository = repositoryCache.get(entry.sourceRepo);
       if (!repository) {
@@ -168,6 +208,7 @@ export async function scanWatchlist({
           fetchImpl,
           url: `https://api.github.com/repos/${entry.sourceRepo}`,
           token,
+          now,
           timeoutMs,
           maxBytes,
           retries,
@@ -186,8 +227,8 @@ export async function scanWatchlist({
         `https://raw.githubusercontent.com/${entry.sourceRepo}/` +
         `${encodeURIComponent(entry.sourceBranch)}/${encodedPath}`;
       const [commits, contents] = await Promise.all([
-        fetchJson({ fetchImpl, url: commitUrl, token, timeoutMs, maxBytes, retries }),
-        fetchWithPolicy({ fetchImpl, url: rawUrl, token, timeoutMs, maxBytes, retries }),
+        fetchJson({ fetchImpl, url: commitUrl, token, now, timeoutMs, maxBytes, retries }),
+        fetchWithPolicy({ fetchImpl, url: rawUrl, token, now, timeoutMs, maxBytes, retries }),
       ]);
       const contentHash = createHash("sha256").update(contents).digest("hex");
       const changed = Boolean(previous.contentHash && previous.contentHash !== contentHash);
@@ -217,11 +258,16 @@ export async function scanWatchlist({
       });
     } catch (error) {
       failures += 1;
+      const rateLimited = isRateLimitedError(error);
+      if (rateLimited) {
+        rateLimitRetryAt = error.rateLimitRetryAt || nextCheckAt;
+      }
       items.push({
         ...carryPreviousObservation(entry, previous),
         lastCheckedAt: checkedAt,
         nextCheckAt,
-        drift: isRateLimitedError(error) ? "rate_limited" : "unreachable",
+        drift: rateLimited ? "rate_limited" : "unreachable",
+        ...(rateLimited ? { rateLimitRetryAt } : {}),
         error: sanitizeError(error),
       });
     }

@@ -16,10 +16,12 @@ import {
   withAuth,
 } from "../../__tests__/setup.js";
 import { errorHandler } from "../../middlewares/errorHandler.js";
+import AuditLog from "../../models/AuditLog.js";
 import CoachingHabit from "../../models/CoachingHabit.js";
 import DailyJournal from "../../models/DailyJournal.js";
 import Order from "../../models/Order.js";
 import TrainingSchedule from "../../models/TrainingSchedule.js";
+import WeeklyCheckin from "../../models/WeeklyCheckin.js";
 import progressRoutes from "../../routes/progress.routes.js";
 import {
   getAppDayOfWeek,
@@ -63,6 +65,81 @@ afterEach(clearCollections);
 afterAll(teardownTestDB);
 
 describe("Progress Hub API", () => {
+  it("audits a direct admin read without storing body measurements", async () => {
+    const assigned = await createAssigned("admin-audit");
+    const admin = await createTestUser({
+      email: "progress-admin-audit@example.com",
+      role: "admin",
+    });
+    await WeeklyCheckin.create({
+      clientId: assigned.client.user._id,
+      trainerIdAtCreation: assigned.trainer.user._id,
+      weekStartDateKey: today,
+      body: { weightKg: 69, waistCm: 82 },
+      status: "submitted",
+      submittedAt: new Date(),
+    });
+
+    const response = await withAuth(
+      request(app).get(
+        "/api/progress/trainer/clients/" +
+          assigned.client.user._id +
+          "?days=30",
+      ),
+      admin.accessToken,
+    );
+    const audit = await AuditLog.findOne({
+      actorId: admin.user._id,
+      action: "read_client_progress",
+      targetId: assigned.client.user._id,
+    }).lean();
+
+    expect(response.status).toBe(200);
+    expect(audit).toMatchObject({
+      actorRole: "admin",
+      targetType: "user",
+      metadata: { days: 30, formulaVersion: "progress-v3" },
+    });
+    expect(JSON.stringify(audit.metadata)).not.toMatch(/69|82|weight|waist/i);
+  });
+
+  it("shares submitted waist-only body progress with the authorized trainer", async () => {
+    const assigned = await createAssigned("body-progress");
+    await WeeklyCheckin.create({
+      clientId: assigned.client.user._id,
+      trainerIdAtCreation: assigned.trainer.user._id,
+      weekStartDateKey: today,
+      body: { waistCm: 82 },
+      status: "submitted",
+      submittedAt: new Date(),
+    });
+
+    const own = await withAuth(
+      request(app).get("/api/progress?days=30"),
+      assigned.client.accessToken,
+    );
+    const trainer = await withAuth(
+      request(app).get(
+        "/api/progress/trainer/clients/" +
+          assigned.client.user._id +
+          "?days=30",
+      ),
+      assigned.trainer.accessToken,
+    );
+
+    expect(own.body.data.bodyProgress).toMatchObject({
+      waistCm: {
+        current: { dateKey: today, value: 82 },
+        delta: null,
+        series: [{ dateKey: today, value: 82 }],
+      },
+      weightKg: { current: null, delta: null, series: [] },
+    });
+    expect(trainer.body.data.bodyProgress).toEqual(
+      own.body.data.bodyProgress,
+    );
+  });
+
   it("excludes draft journals until the client submits them", async () => {
     const assigned = await createAssigned("submitted-journal");
     const journal = await DailyJournal.create({
@@ -165,7 +242,7 @@ describe("Progress Hub API", () => {
     expect(own.status).toBe(200);
     expect(own.headers["cache-control"]).toContain("private");
     expect(own.body.data).toMatchObject({
-      formulaVersion: "progress-v2",
+      formulaVersion: "progress-v3",
       range: { days: 7 },
       compliance: {
         scheduleAttendance: { percent: 100 },

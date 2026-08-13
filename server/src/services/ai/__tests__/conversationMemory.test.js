@@ -12,6 +12,11 @@ const tdeeArgs = {
   heightCm: 175,
   weightKg: 75,
   activityLevel: "moderate",
+  dailyMovement: "mostly_seated",
+  steps: "under_5000",
+  trainingFrequency: "five_plus",
+  trainingDuration: "between_45_60",
+  trainingIntensity: "moderate",
   goal: "fat_loss",
 };
 
@@ -86,6 +91,58 @@ describe("AI conversation working memory", () => {
     expect(prompt).toContain("không hỏi lại các thông số trên");
   });
 
+  it("retains all activity evidence for follow-up after tool history is truncated", () => {
+    const memory = updateConversationMemory(
+      {},
+      "calculate_tdee",
+      tdeeArgs,
+      { uiCard: tdeeCard },
+    );
+    const recentHistoryWithoutToolCall = Array.from({ length: 20 }, (_, index) => ({
+      role: index % 2 === 0 ? "user" : "assistant",
+      content: `Tin nhắn gần đây ${index + 1}`,
+    }));
+    const rebuilt = deriveConversationMemory(recentHistoryWithoutToolCall, memory);
+    const prompt = buildSystemPrompt({ conversationMemory: rebuilt });
+
+    expect([
+      "dailyMovement=mostly_seated",
+      "steps=under_5000",
+      "trainingFrequency=five_plus",
+      "trainingDuration=between_45_60",
+      "trainingIntensity=moderate",
+    ].every((evidence) => prompt.includes(evidence))).toBe(true);
+  });
+
+  it("invalidates legacy TDEE memory that lacks activity evidence", () => {
+    const legacyMemory = {
+      lastTdee: {
+        input: {
+          gender: "male",
+          age: 30,
+          heightCm: 175,
+          weightKg: 75,
+          activityLevel: "moderate",
+          goal: "fat_loss",
+        },
+        result: tdeeCard.data,
+      },
+    };
+
+    const rebuilt = deriveConversationMemory([], legacyMemory);
+    const prompt = buildSystemPrompt({ conversationMemory: rebuilt });
+
+    expect({
+      lastTdee: rebuilt.lastTdee,
+      containsUndefined: prompt.includes("undefined"),
+      reusesUnconfirmedState: prompt.includes("không hỏi lại các thông số trên"),
+    }).toEqual({
+      lastTdee: undefined,
+      containsUndefined: false,
+      reusesUnconfirmedState: false,
+    });
+  });
+
   it("describes the current anonymous Meal Scan quota", () => {
     const prompt = buildSystemPrompt({ page: "/quet-mon-an" });
 
@@ -105,12 +162,13 @@ describe("AI conversation working memory", () => {
     expect(prompt).toContain("hỏi lại đúng 1 câu ngắn");
   });
 
-  it("refuses clearly off-topic requests and points to server quota in the header", () => {
+  it("refuses clearly off-topic requests and points to quota below the input", () => {
     const prompt = buildSystemPrompt();
 
     expect(prompt).toContain("thẩm mỹ viện này ở đâu");
     expect(prompt).toMatch(/tin nhắn này vẫn được tính vào hạn mức/i);
-    expect(prompt).toContain("cạnh tên HT Assistant");
+    expect(prompt).toContain("dưới ô nhập");
+    expect(prompt).not.toContain("cạnh tên HT Assistant");
     expect(prompt).toMatch(/không tự nêu số lượt AI Chat còn lại/i);
     expect(prompt).toContain("lịch tập, tính TDEE hoặc gợi ý bữa ăn");
   });

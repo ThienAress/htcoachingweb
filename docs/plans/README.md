@@ -69,6 +69,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 044 | Việt hóa quản trị Food và nạp giá thị trường vào local | P1 | L | 042, 043 | COMPLETE / LOCAL VERIFIED — FULL SERVER QA TIMEOUT |
 | 045 | Đơn giản hóa giá Meal Plan và theo dõi phụ thuộc hệ thống | P1 | M | 033, 042, 044 | IMPLEMENTED / PARTIAL LOCAL VERIFIED — VITEST + BUILD ENV BLOCKED |
 | 046 | Ổn định nền tảng, AI Memory có kiểm soát và motion discipline | P0/P1 | XL | 017, 020, 030, 031, 035, 038, 040 | LOCAL VERIFIED — PRODUCTION READINESS BLOCKED |
+| 047 | Triển khai TDEE có độ tin cậy, độ phức tạp bài tập và Tiến trình cơ thể | P1 | L | 003F, 006, 016, 031, 046 | COMPLETED |
+| 048 | Thêm nguồn Radar động và làm rõ phục hồi GitHub rate limit | P1 | L | 035, 036 | COMPLETE / LOCAL VERIFIED — AUTH VISUAL + PRODUCTION GITHUB PENDING |
 
 ## Dependency Notes
 
@@ -144,6 +146,10 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   còn mọi mutation bị khóa vào database local hoặc staging cô lập.
 - Plan 044 phụ thuộc price contract và catalog test đã có; chỉ nạp observation có nguồn vào local, không thay macro
   hoặc mở rộng sang staging/production.
+- Plan 047 phụ thuộc Progress Hub, Customer Dashboard, trainer workspace và HT Assistant đã có; plan chuẩn hóa
+  estimate TDEE, thêm rubric Exercise optional và mở rộng read model cân nặng/vòng eo mà không backfill dữ liệu thật.
+- Plan 048 phụ thuộc Radar nền và rate-limit semantics của 035–036; thêm nguồn GitHub động qua Admin/MongoDB nhưng giữ
+  baseline Git-owned, không auto-install và không migration/backfill.
 
 ## Findings Considered and Rejected
 

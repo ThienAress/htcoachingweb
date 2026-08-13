@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { executeTool } from "../toolEngine.js";
+import { executeTool, isSuccessfulToolResult } from "../toolEngine.js";
 import { getToolSchemas, toolRegistry } from "../toolRegistry.js";
 
 const originalSearchKnowledge = toolRegistry.search_knowledge.execute;
@@ -10,6 +10,15 @@ afterEach(() => {
 });
 
 describe("AI tool runtime validation", () => {
+  it("classifies validation, timeout, and internal-error responses as unsuccessful", () => {
+    expect([
+      isSuccessfulToolResult({ error: null, meta: { validationFailed: true } }),
+      isSuccessfulToolResult({ error: null, meta: { timedOut: true } }),
+      isSuccessfulToolResult({ error: null, meta: { internalError: "synthetic" } }),
+      isSuccessfulToolResult({ error: "failed" }),
+    ]).toEqual([false, false, false, false]);
+  });
+
   it("only exposes public, bounded-cost tools to guest chat", () => {
     const guestToolNames = getToolSchemas({ isAuthenticated: false }).map(
       (schema) => schema.function.name,
@@ -44,6 +53,11 @@ describe("AI tool runtime validation", () => {
         heightCm: 175,
         weightKg: 70,
         activityLevel: "moderate",
+        dailyMovement: "mostly_seated",
+        steps: "under_5000",
+        trainingFrequency: "five_plus",
+        trainingDuration: "between_45_60",
+        trainingIntensity: "moderate",
         goal: "maintenance",
       },
       {},

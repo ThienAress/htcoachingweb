@@ -52,4 +52,10 @@ describe("prerender route planning", () => {
     expect(results).toEqual(["/ONE", "/TWO", "/THREE", "/FOUR", "/FIVE"]);
     expect(maxActive).toBe(2);
   });
+
+  it("rejects concurrency above the bounded build-time limit", async () => {
+    await expect(mapWithConcurrency(["/"], 17, async () => true)).rejects.toThrow(
+      "integer from 1 to 16",
+    );
+  });
 });

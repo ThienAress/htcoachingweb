@@ -16,9 +16,6 @@ import {
   ChevronDown,
   SidebarClose,
   SidebarOpen,
-  Package,
-  ScrollText,
-  History,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { mySubscriptionQueryOptions } from "../queries/subscription.queries";
@@ -114,9 +111,6 @@ const TrainerLayout = () => {
     workoutPlans: FileText,
     exercises: Dumbbell,
     f1Customers: TrendingUp,
-    orders: Package,
-    contracts: ScrollText,
-    checkinHistory: History,
   };
   const navGroups = getTrainerNavigationGroups({
     f1Allowed,

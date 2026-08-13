@@ -519,6 +519,17 @@ export const validateProductionEnvironment = (
   validateBooleanSetting(env, findings, "BACKGROUND_JOBS_ENABLED", {
     required: true,
   });
+  if (
+    String(env.BACKGROUND_JOBS_ENABLED || "").toLowerCase() === "true" &&
+    !String(env.SKILL_RADAR_GITHUB_TOKEN || "").trim()
+  ) {
+    addFinding(
+      findings,
+      "warnings",
+      "SKILL_RADAR_GITHUB_TOKEN_MISSING",
+      "Skill Radar background scans use the unauthenticated GitHub quota.",
+    );
+  }
   validateBooleanSetting(env, findings, "CSP_ENFORCE");
   validateBooleanSetting(env, findings, "F1_RETENTION_ENFORCE");
 

@@ -238,3 +238,16 @@ export const analyticsSyncLimiter = rateLimit({
     message: "Bạn đã yêu cầu đồng bộ quá nhiều lần. Vui lòng thử lại sau.",
   },
 });
+
+export const skillRadarMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => req.user?.id?.toString() ?? "anonymous",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "SKILL_RADAR_MUTATION_RATE_LIMITED",
+    message: "Bạn đã phân tích quá nhiều nguồn. Vui lòng thử lại sau.",
+  },
+});

@@ -219,10 +219,21 @@ test.describe("Today Dashboard private journey", () => {
 
     await expect(page).toHaveURL(/\/dashboard\/progress$/);
     await expect(
-      page.getByRole("heading", { name: "Tổng quan hoạt động của bạn" }),
+      page.getByRole("heading", {
+        name: "Tiến trình cơ thể và huấn luyện",
+      }),
     ).toBeVisible();
     await expect(page.getByText("50%").first()).toBeVisible();
-    await expect(page.getByText("Chưa có dữ liệu").first()).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Tiến trình cơ thể", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("71,8").first()).toBeVisible();
+    await expect(page.getByText("-0,7 kg").first()).toBeVisible();
+    await expect(page.getByText("81").first()).toBeVisible();
+    await expect(page.getByText("-1,5 cm").first()).toBeVisible();
+    await page.getByText("Xem lịch sử số đo (2)").click();
+    await expect(page.getByRole("cell", { name: "72,5 kg" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "82,5 cm" })).toBeVisible();
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
       "content",
       /noindex/i,

@@ -34,6 +34,7 @@ nguồn canonical trước khi thay đổi code.
 - [Sitewide AI Assistant context and guest access spec](./specs/sitewide-ai-assistant.md)
 - [Explicit AI Memory pilot spec](./specs/ai-explicit-memory.md)
 - [Service access policy spec](./specs/service-access-policy.md)
+- [TDEE, độ phức tạp bài tập và Tiến trình cơ thể spec](./specs/tdee-exercise-body-progress.md)
 - [Service access and quota matrix 2026-08-07](./reports/service-access-matrix-2026-08-07.md)
 - [SEO indexing remediation evidence 2026-08-10](./reports/seo-indexing-remediation-2026-08-10.md)
 - [Architecture Decision Records](./architecture/adr/README.md)

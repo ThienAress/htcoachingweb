@@ -15,13 +15,22 @@ trên đúng target. Runbook này không cấp quyền chạy migration, deploy 
 
 - Client: GET /api/progress?days=7|30|90.
 - Trainer: GET /api/progress/trainer/clients/:clientId?days=7|30|90.
-- Range khác 7/30/90 fail closed; response dùng formulaVersion=progress-v2, chỉ tổng hợp Daily Journal đã gửi và
+- Range khác 7/30/90 fail closed; response dùng formulaVersion=progress-v3 và
   Cache-Control: private, no-store.
+- Nguồn gồm Daily Journal đã gửi và Weekly Check-in ở trạng thái `submitted`/`reviewed`.
+  `bodyProgress` chỉ trả cân nặng/vòng eo đã có nguồn, giữ missing là `null`; `weightTrend`
+  tiếp tục tồn tại trong compatibility window cho client cũ.
+- Admin đọc trực tiếp progress của khách tạo AuditLog `read_client_progress`; audit chỉ chứa
+  actor, target, range/formula version và request metadata, không chứa số đo sức khỏe.
 - Task chưa đến hạn trong ngày hiện tại không bị tính fail; completion đã ghi hôm nay được tính ngay.
 - Denominator bằng 0 trả percent: null, không trả zero-compliance.
 - Trainer chỉ nhận habit do chính trainer tạo hoặc client chia sẻ; habit private không được suy ra qua
   aggregate. Các nguồn còn lại dùng cùng canonical formula.
 - Không đọc F1 baseline và không auto-link bằng email.
+
+Deploy backend trước frontend khi thay đổi formula/read-model. Frontend mới phải chịu được response
+chưa có `bodyProgress`; backend v3 vẫn giữ `weightTrend` để client cũ tiếp tục hoạt động. Rollback
+frontend không yêu cầu rewrite dữ liệu hoặc rollback Weekly Check-in.
 
 ## Retention và privacy
 

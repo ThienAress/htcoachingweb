@@ -25,7 +25,7 @@ const NAV_ITEMS = [
   { key: "training", label: "Tập luyện", icon: Dumbbell },
   { key: "nutrition", label: "Dinh dưỡng", icon: Utensils },
   { key: "journal", label: "Nhật ký", icon: NotebookPen },
-  { key: "progress", label: "Tổng quan", icon: TrendingUp },
+  { key: "progress", label: "Tiến trình", icon: TrendingUp },
 ];
 
 const initialsFor = (name = "Học viên") =>

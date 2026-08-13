@@ -1,4 +1,4 @@
-export const COMMUNITY_FEATURE_CATALOG_VERSION = "2026-08-10.3";
+export const COMMUNITY_FEATURE_CATALOG_VERSION = "2026-08-12.1";
 const HISTORY_SNAPSHOT_VERSION_2026_08_10 = "2026-08-10.2";
 
 export const COMMUNITY_FEATURE_AUDIENCES = Object.freeze({
@@ -103,11 +103,12 @@ const featureFromSnapshot = (featureKey, snapshot, rest) => ({
 
 export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
   featureFromSnapshot("ht_assistant", HT_ASSISTANT_2026_08_10_SNAPSHOT, {
+    priority: PRIORITIES.F1,
     currentImprovement: {
-      improvementKey: "production_background_chat_validation",
+      improvementKey: "moderation_consistency_and_concise_guidance",
       description:
-        "Xác minh production các luồng chạy nền, spinner và mở chat chủ động, rồi đo tỷ lệ request hoàn tất.",
-      openedAt: "2026-08-10",
+        "Đồng bộ moderation production, rút gọn phản hồi chuyển hướng và theo dõi tỷ lệ chặn nhầm.",
+      openedAt: "2026-08-12",
     },
     improvementHistory: [
       {
@@ -149,6 +150,20 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
           },
         ],
       },
+      {
+        improvementKey: "production_background_chat_validation",
+        opportunity:
+          "Xác minh production các luồng chạy nền, spinner và mở chat chủ động",
+        result:
+          "Các luồng chạy nền, spinner, chuyển conversation và mở chat chủ động hoạt động ổn định trên production theo xác nhận của chủ sản phẩm.",
+        snapshot: HT_ASSISTANT_2026_08_10_SNAPSHOT,
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.PRODUCTION_VERIFIED,
+            statusDate: "2026-08-12",
+          },
+        ],
+      },
     ],
   }),
   {
@@ -168,11 +183,12 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
     improvementHistory: [],
   },
   featureFromSnapshot("meal_plan", MEAL_PLAN_2026_08_10_SNAPSHOT, {
+    priority: PRIORITIES.F1,
     currentImprovement: {
-      improvementKey: "production_saved_meal_plan_validation",
+      improvementKey: "macro_adherence_and_budget_substitutions",
       description:
-        "Xác minh production luồng lưu/xem lại cho tài khoản đã đăng nhập, rồi mở rộng cá nhân hóa theo dị ứng, sở thích và ngân sách.",
-      openedAt: "2026-08-10",
+        "Đo mức bám sát macro và hỗ trợ thay món theo khẩu vị, dị ứng và ngân sách.",
+      openedAt: "2026-08-12",
     },
     improvementHistory: [
       {
@@ -198,6 +214,20 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
           {
             status: COMMUNITY_FEATURE_DELIVERY_STATUSES.IMPLEMENTED,
             statusDate: "2026-08-10",
+          },
+        ],
+      },
+      {
+        improvementKey: "production_saved_meal_plan_validation",
+        opportunity:
+          "Xác minh production luồng lưu và xem lại thực đơn cho tài khoản đã đăng nhập",
+        result:
+          "Luồng tạo, lưu và xem lại thực đơn hoạt động ổn định trên production theo xác nhận của chủ sản phẩm.",
+        snapshot: MEAL_PLAN_2026_08_10_SNAPSHOT,
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.PRODUCTION_VERIFIED,
+            statusDate: "2026-08-12",
           },
         ],
       },

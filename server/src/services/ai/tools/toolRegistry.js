@@ -13,14 +13,27 @@ import { getCheckinHistory } from "./getCheckinHistory.tool.js";
 import { getTrainingSchedule } from "./getTrainingSchedule.tool.js";
 import { getGymInfo } from "./getGymInfo.tool.js";
 
+const validateTdeeTrainingEvidence = (parameters) => {
+  const noTraining = parameters.trainingFrequency === "none";
+  const noDuration = parameters.trainingDuration === "none";
+  const noIntensity = parameters.trainingIntensity === "none";
+  return (
+    (noTraining && (!noDuration || !noIntensity)) ||
+    (!noTraining && (noDuration || noIntensity))
+  )
+    ? ["trainingFrequency", "trainingDuration", "trainingIntensity"]
+    : [];
+};
+
 export const toolRegistry = {
   calculate_tdee: {
     name: "calculate_tdee",
     description:
-      "Tính TDEE (Total Daily Energy Expenditure) và phân bổ macro dinh dưỡng (protein, carb, fat). " +
+      "Ước tính TDEE và phân bổ macro dinh dưỡng từ bằng chứng vận động cả ngày. " +
       "GỌI KHI: user muốn biết lượng calo, muốn lên thực đơn, hỏi ăn bao nhiêu, hoặc nói về giảm mỡ/tăng cơ VÀ đã cung cấp đủ thông tin. " +
       "CŨNG GỌI KHI: user muốn thay đổi mức thâm hụt/thặng dư calo (VD: 'giảm 500 calo' thay vì mặc định) — dùng calorieAdjustment. " +
-      "KHÔNG GỌI KHI: chưa có đủ thông tin cơ bản — hỏi tất cả trong 1 lần.",
+      "KHÔNG GỌI KHI: thiếu công việc/di chuyển, bước chân hoặc thời lượng/cường độ/tần suất tập — hỏi tất cả trong 1 lần. " +
+      "Không suy activityLevel chỉ từ số buổi; chọn đúng band theo toàn bộ evidence.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -33,7 +46,32 @@ export const toolRegistry = {
           type: "string",
           enum: ["sedentary", "light", "moderate", "active", "very_active"],
           description:
-            "Mức vận động: sedentary=ít vận động/ngồi văn phòng, light=tập nhẹ 1-3 ngày/tuần, moderate=tập 3-5 ngày/tuần, active=tập 6-7 ngày/tuần, very_active=tập rất nặng hoặc lao động chân tay",
+            "Band đề xuất từ toàn bộ evidence: sedentary=1.2, light=1.4, moderate=1.55, active=1.7, very_active=1.85",
+        },
+        dailyMovement: {
+          type: "string",
+          enum: ["mostly_seated", "mixed", "mostly_moving", "physical_work"],
+          description: "Vận động ngoài buổi tập: chủ yếu ngồi, xen kẽ, đi lại nhiều hoặc lao động thể chất",
+        },
+        steps: {
+          type: "string",
+          enum: ["under_5000", "between_5000_7999", "between_8000_11999", "at_least_12000"],
+          description: "Band số bước trung bình mỗi ngày",
+        },
+        trainingFrequency: {
+          type: "string",
+          enum: ["none", "one_two", "three_four", "five_plus"],
+          description: "Số buổi tập mỗi tuần",
+        },
+        trainingDuration: {
+          type: "string",
+          enum: ["none", "under_30", "between_30_45", "between_45_60", "over_60"],
+          description: "Thời lượng trung bình mỗi buổi",
+        },
+        trainingIntensity: {
+          type: "string",
+          enum: ["none", "easy", "moderate", "vigorous"],
+          description: "Cường độ trung bình của buổi tập",
         },
         goal: {
           type: "string",
@@ -47,9 +85,14 @@ export const toolRegistry = {
           description: "Mức điều chỉnh calo tùy chỉnh (VD: -500 để giảm 500 calo, +300 để tăng 300 calo). Nếu không có, dùng mặc định theo goal.",
         },
       },
-      required: ["gender", "age", "heightCm", "weightKg", "activityLevel", "goal"],
+      required: [
+        "gender", "age", "heightCm", "weightKg", "goal",
+        "dailyMovement", "steps", "trainingFrequency", "trainingDuration",
+        "trainingIntensity",
+      ],
     },
     execute: calculateTdee,
+    validateParameters: validateTdeeTrainingEvidence,
     requiresAuth: false,
     requiresConfirmation: false,
   },

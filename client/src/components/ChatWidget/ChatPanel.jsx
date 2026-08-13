@@ -5,11 +5,13 @@ import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import ChatPanelSidebar from "./ChatPanelSidebar";
+import TdeeFormCard from "./cards/TdeeFormCard";
 import { createChatHistoryLoadGate } from "./chatHistoryLoadGate";
 import {
   getChatVisualViewportBounds,
-  getChatQuotaPresentation,
+  getChatQuotaStatusLine,
   getChatScrollBehavior,
+  isTdeeQuickAction,
   persistChatTheme,
   resolveInitialChatTheme,
 } from "./chatPanelRuntime";
@@ -34,13 +36,10 @@ const TOOL_LABELS = {
   search_knowledge: "Đang kiểm chứng thông tin...",
 };
 
-const QUOTA_TONE_CLASSES = {
-  normal:
-    "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200",
-  low:
-    "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200",
-  exhausted:
-    "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200",
+const QUOTA_STATUS_TONE_CLASSES = {
+  normal: "text-gray-500 dark:text-gray-400",
+  low: "font-medium text-amber-700 dark:text-amber-300",
+  exhausted: "font-semibold text-rose-700 dark:text-rose-300",
 };
 
 const AiMemorySettings = lazy(() => import("./AiMemorySettings"));
@@ -59,6 +58,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [memorySettingsOpen, setMemorySettingsOpen] = useState(false);
+  const [showTdeeForm, setShowTdeeForm] = useState(false);
 
   const panelRef = useRef(null);
   const inputRef = useRef(null);
@@ -272,6 +272,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
 
   const handleNewConversation = () => {
     clearHistory();
+    setShowTdeeForm(false);
     if (isMobile) setSidebarOpen(false);
     setTimeout(() => inputRef.current?.focus(), 100);
   };
@@ -280,6 +281,19 @@ export default function ChatPanel({ initiallyOpen = false }) {
     () => getAiPageSuggestions(location.pathname),
     [location.pathname],
   );
+
+  const handleSuggestion = useCallback((action) => {
+    if (isTdeeQuickAction(action)) {
+      setShowTdeeForm(true);
+      return;
+    }
+    sendMessage(action.value, buildCurrentContext());
+  }, [buildCurrentContext, sendMessage]);
+
+  const handleTdeeSubmit = useCallback((text) => {
+    setShowTdeeForm(false);
+    sendMessage(text, buildCurrentContext());
+  }, [buildCurrentContext, sendMessage]);
 
   const handleSwitchConversation = async (id) => {
     if (id === conversationId) return;
@@ -320,7 +334,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
     setChatTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
-  const quotaPresentation = getChatQuotaPresentation(quota);
+  const quotaStatusLine = getChatQuotaStatusLine(quota);
 
   const renderInputArea = () => (
     <div className="relative w-full max-w-3xl mx-auto flex flex-col gap-2">
@@ -384,14 +398,13 @@ export default function ChatPanel({ initiallyOpen = false }) {
           {isLoading ? <Square size={14} /> : <Send size={16} className="ml-1" />}
         </button>
       </div>
-      {quotaPresentation && quota.resetAt && (
-        <p className="px-3 text-xs text-gray-500 dark:text-gray-400" role="status">
-          Hạn mức làm mới {new Intl.DateTimeFormat("vi-VN", {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-          }).format(new Date(quota.resetAt))}
+      {quotaStatusLine && (
+        <p
+          className={`px-3 text-xs ${QUOTA_STATUS_TONE_CLASSES[quotaStatusLine.tone]}`}
+          role="status"
+          aria-live="polite"
+        >
+          {quotaStatusLine.label}
         </p>
       )}
     </div>
@@ -535,26 +548,10 @@ export default function ChatPanel({ initiallyOpen = false }) {
                   </button>
                 )}
               </div>
-              <div className="pointer-events-auto flex min-w-0 items-center justify-center gap-2">
+              <div className="pointer-events-auto flex min-w-0 items-center justify-center">
                 <span className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">
                   HT Assistant
                 </span>
-                {quotaPresentation && (
-                  <span
-                    className={`inline-flex shrink-0 items-center rounded-full border px-2 py-1 text-[11px] font-semibold leading-none ${QUOTA_TONE_CLASSES[quotaPresentation.tone]}`}
-                    role="status"
-                    aria-live="polite"
-                    aria-label={quotaPresentation.label}
-                    title={quotaPresentation.label}
-                  >
-                    <span aria-hidden="true" className="hidden sm:inline">
-                      {quotaPresentation.label}
-                    </span>
-                    <span aria-hidden="true" className="sm:hidden">
-                      {quotaPresentation.compactLabel}
-                    </span>
-                  </span>
-                )}
               </div>
               <div className="pointer-events-auto flex items-center justify-end gap-2">
                 <button
@@ -580,7 +577,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
 
             {/* Messages area */}
             <div className="flex-1 flex flex-col min-h-0 relative">
-              {messages.length === 0 && !isLoading ? (
+              {messages.length === 0 && !isLoading && !showTdeeForm ? (
                 /* Empty state - Center aligned */
                 <div className="flex-1 flex flex-col items-center justify-center px-4 md:px-8">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 via-emerald-400 to-cyan-400 flex items-center justify-center shadow-lg mb-6">
@@ -617,7 +614,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                         {actions.map((a) => (
                           <button
                             key={a.value}
-                            onClick={() => sendMessage(a.value, buildCurrentContext())}
+                            onClick={() => handleSuggestion(a)}
                             className="flex flex-col items-start gap-2 p-4 rounded-2xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/5 transition-colors duration-150 motion-reduce:transition-none text-left"
                           >
                             <span className="text-2xl">{a.emoji}</span>
@@ -649,6 +646,10 @@ export default function ChatPanel({ initiallyOpen = false }) {
                           />
                         );
                       })}
+
+                      {showTdeeForm && (
+                        <TdeeFormCard onSubmit={handleTdeeSubmit} />
+                      )}
 
                       {activeTool && (
                         <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
@@ -692,7 +693,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                           {actions.map((a) => (
                             <button
                               key={a.value}
-                              onClick={() => sendMessage(a.value, buildCurrentContext())}
+                              onClick={() => handleSuggestion(a)}
                               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[13px] font-medium bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 transition-colors shadow-sm"
                             >
                               <span>{a.emoji}</span>

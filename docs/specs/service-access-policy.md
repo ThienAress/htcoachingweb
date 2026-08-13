@@ -71,7 +71,7 @@ lặp lại trong middleware hoặc trang Admin.
   `initialImprovement`/`deliveryUpdates` suy ra từ contract mới để giữ tương thích một release; catalog không lưu hai nguồn.
 - Chỉ gắn `production_verified` sau khi behavior đã được xác minh trên production. Priority vẫn phản ánh hạng mục chưa
   hoàn thành ở production, vì vậy một tính năng đã code local vẫn có thể giữ `F0`.
-- Priority đã duyệt cho release ổn định: HT Assistant và Meal Plan là `F0`; Meal Scan là `F1` vì journal integration và ground-truth thực tế được tách thành phase riêng.
+- HT Assistant và Meal Plan đã được chủ sản phẩm xác minh production ngày `2026-08-12`; hai cơ hội tiếp theo chuyển sang `F1`. Meal Scan giữ `F1` vì journal integration và ground-truth thực tế được tách thành phase riêng.
 
 #### Báo cáo lịch sử cải tiến
 

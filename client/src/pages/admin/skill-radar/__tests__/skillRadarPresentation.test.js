@@ -6,6 +6,7 @@ import {
   formatRadarDate,
   formatRadarRunDate,
   getDriftMeta,
+  getRadarRateLimitRetryAt,
 } from "../skillRadarPresentation.js";
 
 const items = [
@@ -61,5 +62,16 @@ describe("skill radar presentation", () => {
     expect(getDriftMeta("unexpected")).toEqual(
       expect.objectContaining({ label: "Chưa xác định" }),
     );
+  });
+
+  it("falls back to the next scheduled scan when an older rate-limit snapshot has no retry timestamp", () => {
+    expect(getRadarRateLimitRetryAt({
+      rateLimitRetryAt: "2026-08-12T13:00:00.000Z",
+      nextCheckAt: "2026-08-13T02:00:00.000Z",
+    })).toBe("2026-08-12T13:00:00.000Z");
+    expect(getRadarRateLimitRetryAt({
+      nextCheckAt: "2026-08-13T02:00:00.000Z",
+    })).toBe("2026-08-13T02:00:00.000Z");
+    expect(getRadarRateLimitRetryAt(null)).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import { Activity } from "lucide-react";
 
+import { BodyProgressReport } from "./BodyProgressReport";
 import { ProgressWellnessOverview } from "./ProgressWellnessOverview";
-import { WeightTrendChart } from "./WeightTrendChart";
 import {
   progressMetricRows,
   summarizeProgressAvailability,
@@ -96,9 +96,7 @@ export const ProgressSummary = ({ progress }) => (
       </p>
     )}
     <MetricGrid compliance={progress.compliance} />
-    <div className="grid gap-4 xl:grid-cols-2">
-      <ProgressWellnessOverview wellness={progress.wellness} />
-      <WeightTrendChart trend={progress.weightTrend} />
-    </div>
+    <BodyProgressReport bodyProgress={progress.bodyProgress} />
+    <ProgressWellnessOverview wellness={progress.wellness} />
   </div>
 );

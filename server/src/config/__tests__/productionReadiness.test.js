@@ -45,6 +45,7 @@ const validEnvironment = () => ({
   ADMIN_EMAIL: "admin@htcoachingweb.io.vn",
   TRUST_PROXY_HOPS: "1",
   BACKGROUND_JOBS_ENABLED: "true",
+  SKILL_RADAR_GITHUB_TOKEN: "github-radar-" + "j".repeat(32),
   CSP_ENFORCE: "true",
   F1_RETENTION_ENFORCE: "false",
   SERVER_HEADERS_TIMEOUT_MS: "15000",
@@ -144,6 +145,17 @@ describe("production readiness configuration", () => {
 
     expect(result.errors.map((finding) => finding.code)).toContain(
       "BACKGROUND_JOBS_ENABLED_REQUIRED",
+    );
+  });
+
+  it("warns when Radar background scans lack a dedicated GitHub token", () => {
+    const env = validEnvironment();
+    delete env.SKILL_RADAR_GITHUB_TOKEN;
+
+    const result = validateProductionEnvironment(env, { strict: false });
+
+    expect(result.warnings.map((finding) => finding.code)).toContain(
+      "SKILL_RADAR_GITHUB_TOKEN_MISSING",
     );
   });
 

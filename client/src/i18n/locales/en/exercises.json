@@ -16,6 +16,15 @@
   "toast_suggestion_error": "Failed to send, try again later.",
   "card_title": "SELECT MUSCLE GROUPS",
   "btn_view_list": "View exercise list",
+  "difficulty": {
+    "title": "Technical complexity",
+    "not_rated": "Not rated",
+    "rating_label": "{{rating}} out of 5 stars for technical complexity",
+    "tooltip": "Rates technique only; it does not reflect load or personal intensity.",
+    "filter_label": "Filter by technical complexity",
+    "filter_all": "All complexity ratings",
+    "filter_rating": "{{rating}} stars"
+  },
   "pdf": {
     "no_data": "No workout plan data available.",
     "created_date": "DATE CREATED",
@@ -53,6 +62,7 @@
   },
   "modal": {
     "title": "EXERCISE LIST",
+    "close": "Close exercise list",
     "search_by_name": "Exercise Name",
     "search_by_muscle": "Muscle Group",
     "placeholder_name": "Search by exercise name",

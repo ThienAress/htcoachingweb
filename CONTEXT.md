@@ -65,6 +65,21 @@ Habit cá nhân của Coaching Customer có visibility/lifecycle khác nhau theo
 
 Mục tiêu do Trainer/Admin thiết lập để so sánh với actual wellness data; không tự đại diện cho completion của journal.
 
+### TDEE Estimate
+
+Ước tính tổng năng lượng tiêu hao hằng ngày từ BMR và bằng chứng vận động cả ngày. Đây là điểm bắt đầu cần theo dõi,
+không phải phép đo chính xác hoặc mục tiêu calo tự động áp đặt.
+
+### Exercise Technical Complexity
+
+Độ phức tạp cố hữu của kỹ thuật một bài tập theo rubric đã duyệt. Không đồng nghĩa với mức tạ, cường độ buổi tập
+hoặc mức phù hợp của bài đó với một Coaching Customer cụ thể.
+
+### Body Progress
+
+Chuỗi phép đo cơ thể có nguồn và thời điểm rõ ràng dùng để xem giá trị hiện tại cùng xu hướng. Dữ liệu thiếu không
+được suy ra thành zero, điểm số hoặc chỉ số máy đo chưa được ghi nhận.
+
 ## Documentation vocabulary
 
 ### Spec

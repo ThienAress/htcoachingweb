@@ -69,6 +69,7 @@ import { startScheduleReminderCron } from "./src/services/scheduleReminderCron.j
 import { startContractCronJobs } from "./src/services/contractCron.js";
 import { startCleanupCronJobs } from "./src/services/cleanupCron.js";
 import { startF1LifecycleCron } from "./src/services/f1PrivacyLifecycle.service.js";
+import { startSkillRadarCron } from "./src/services/skillRadarCron.js";
 
 import { generateCsrfToken } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
@@ -340,6 +341,7 @@ const server = app.listen(PORT, () => {
   startContractCronJobs();
   startCleanupCronJobs();
   startF1LifecycleCron();
+  startSkillRadarCron();
 });
 
 server.headersTimeout = Number(

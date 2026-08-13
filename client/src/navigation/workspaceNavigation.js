@@ -73,27 +73,6 @@ const TRAINER_NAVIGATION_GROUPS = [
     ],
   },
   {
-    key: "administration",
-    label: "Quản trị",
-    items: [
-      {
-        key: "orders",
-        label: "Đơn hàng",
-        path: "/trainer/orders",
-      },
-      {
-        key: "contracts",
-        label: "Hợp đồng HLV",
-        path: "/trainer/contracts",
-      },
-      {
-        key: "checkinHistory",
-        label: "Lịch sử Check-in",
-        path: "/trainer/checkin-history",
-      },
-    ],
-  },
-  {
     key: "customerGrowth",
     label: "Tăng trưởng khách hàng",
     requiresF1: true,

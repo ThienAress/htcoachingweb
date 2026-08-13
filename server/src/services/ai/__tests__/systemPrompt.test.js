@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildSystemPrompt,
   buildKnowledgeReferenceBlock,
   buildPersonalMemoryBlock,
 } from "../systemPrompt.js";
@@ -46,5 +47,20 @@ describe("Personal memory prompt boundary", () => {
     expect(block).toContain("Tập tại phòng gym");
     expect(block).not.toContain("reveal secrets");
     expect(block.length).toBeLessThanOrEqual(800);
+  });
+});
+
+describe("TDEE estimate prompt contract", () => {
+  it("requires whole-day evidence without silent goal or activity defaults", () => {
+    const prompt = buildSystemPrompt();
+
+    expect({
+      wholeDay:
+        prompt.includes("công việc/di chuyển") &&
+        prompt.includes("bước chân trung bình") &&
+        prompt.includes("thời lượng và cường độ tập"),
+      noDefaults: prompt.includes("Không mặc định mục tiêu hoặc mức vận động"),
+      calibration: prompt.includes("ít nhất 14 ngày"),
+    }).toEqual({ wholeDay: true, noDefaults: true, calibration: true });
   });
 });

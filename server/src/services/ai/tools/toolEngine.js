@@ -18,6 +18,25 @@ const toolValidators = new Map(
 );
 const DEFAULT_TOOL_TIMEOUT_MS = 15000;
 
+const validationFailure = (toolName, invalidFields) => ({
+  text:
+    "Thông tin để thực hiện yêu cầu chưa hợp lệ. Bạn vui lòng kiểm tra và cung cấp lại.",
+  uiCard: null,
+  error: null,
+  meta: {
+    toolName,
+    validationFailed: true,
+    invalidFields: [...new Set(invalidFields)],
+  },
+});
+
+export const isSuccessfulToolResult = (result) =>
+  Boolean(result) &&
+  !result.error &&
+  !result.meta?.validationFailed &&
+  !result.meta?.timedOut &&
+  !result.meta?.internalError;
+
 const createAbortError = (reason) => {
   const error = new Error(reason?.message || "Tool execution aborted");
   error.name = "AbortError";
@@ -106,26 +125,20 @@ export async function executeTool(toolName, parameters, context) {
 
   const validate = toolValidators.get(toolName);
   if (!validate(parameters)) {
-    return {
-      text:
-        "Thông tin để thực hiện yêu cầu chưa hợp lệ. Bạn vui lòng kiểm tra và cung cấp lại.",
-      uiCard: null,
-      error: null,
-      meta: {
-        toolName,
-        validationFailed: true,
-        invalidFields: [
-          ...new Set(
-            validate.errors.map(
-              (error) =>
-                error.instancePath.replace(/^\//, "") ||
-                error.params?.missingProperty ||
-                "parameters",
-            ),
-          ),
-        ],
-      },
-    };
+    return validationFailure(
+      toolName,
+      validate.errors.map(
+        (error) =>
+          error.instancePath.replace(/^\//, "") ||
+          error.params?.missingProperty ||
+          "parameters",
+      ),
+    );
+  }
+
+  const customInvalidFields = tool.validateParameters?.(parameters) || [];
+  if (customInvalidFields.length > 0) {
+    return validationFailure(toolName, customInvalidFields);
   }
 
   // Confirmation check — trả về FE để hiện dialog
@@ -164,6 +177,12 @@ export async function executeTool(toolName, parameters, context) {
   } catch (err) {
     if (context.signal?.aborted) {
       throw createAbortError(context.signal.reason);
+    }
+    if (
+      err?.code === "TDEE_VALIDATION_FAILED" &&
+      Array.isArray(err.invalidFields)
+    ) {
+      return validationFailure(toolName, err.invalidFields);
     }
     // Trả message thân thiện thay vì lỗi kỹ thuật
     const friendlyMessages = {

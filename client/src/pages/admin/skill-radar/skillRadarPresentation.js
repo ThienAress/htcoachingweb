@@ -53,6 +53,9 @@ export const formatRadarRunDate = (value) => {
   });
 };
 
+export const getRadarRateLimitRetryAt = (item) =>
+  item?.rateLimitRetryAt || item?.nextCheckAt || null;
+
 export const filterSkillRadarItems = (
   items,
   { search = "", domain = "all", lifecycle = "all", drift = "all" },

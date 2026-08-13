@@ -310,7 +310,7 @@ const handleApi = (req, res, path) => {
     return sendJson(res, {
       success: true,
       data: {
-        formulaVersion: "progress-v1",
+        formulaVersion: "progress-v3",
         timeZone: "Asia/Ho_Chi_Minh",
         range: {
           days: 30,
@@ -329,7 +329,38 @@ const handleApi = (req, res, path) => {
           habitCompliance: unavailable,
         },
         wellness: {},
-        weightTrend: { points: [], changeKg: null },
+        weightTrend: {
+          points: [
+            { dateKey: addDays(todayKey, -14), weightKg: 72.5 },
+            { dateKey: addDays(todayKey, -7), weightKg: 71.8 },
+          ],
+          changeKg: -0.7,
+        },
+        bodyProgress: {
+          source: {
+            type: "weekly_checkin",
+            includedStatuses: ["submitted", "reviewed"],
+            dateField: "weekStartDateKey",
+          },
+          weightKg: {
+            unit: "kg",
+            current: { dateKey: addDays(todayKey, -7), value: 71.8 },
+            delta: -0.7,
+            series: [
+              { dateKey: addDays(todayKey, -14), value: 72.5 },
+              { dateKey: addDays(todayKey, -7), value: 71.8 },
+            ],
+          },
+          waistCm: {
+            unit: "cm",
+            current: { dateKey: addDays(todayKey, -7), value: 81 },
+            delta: -1.5,
+            series: [
+              { dateKey: addDays(todayKey, -14), value: 82.5 },
+              { dateKey: addDays(todayKey, -7), value: 81 },
+            ],
+          },
+        },
       },
     });
   }

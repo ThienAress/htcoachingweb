@@ -4,7 +4,10 @@ import ChatConversation from "../models/ChatConversation.js";
 import KnowledgeEntry from "../models/KnowledgeEntry.js";
 import User from "../models/User.js";
 import { llmStream } from "../services/ai/providers/index.js";
-import { executeTool } from "../services/ai/tools/toolEngine.js";
+import {
+  executeTool,
+  isSuccessfulToolResult,
+} from "../services/ai/tools/toolEngine.js";
 import { getToolSchemas } from "../services/ai/tools/toolRegistry.js";
 import {
   buildKnowledgeReferenceBlock,
@@ -487,12 +490,9 @@ export const chatStream = async (req, res) => {
               const safeToolText = String(toolResult.text || "").slice(0, 20000);
               const toolDuration = Date.now() - toolStartTime;
               toolCallCount++;
-              aiLogger.toolCall(actorId, call.name, toolDuration, !toolResult.error);
-              if (
-                !toolResult.error &&
-                !toolResult.meta?.validationFailed &&
-                !toolResult.meta?.timedOut
-              ) {
+              const toolSucceeded = isSuccessfulToolResult(toolResult);
+              aiLogger.toolCall(actorId, call.name, toolDuration, toolSucceeded);
+              if (toolSucceeded) {
                 conversationMemory = updateConversationMemory(
                   conversationMemory,
                   call.name,

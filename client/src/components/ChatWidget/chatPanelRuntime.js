@@ -62,6 +62,38 @@ export const getChatQuotaPresentation = (quota) => {
   };
 };
 
+const CHAT_QUOTA_RESET_FORMATTER = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "Asia/Ho_Chi_Minh",
+});
+
+export const getChatQuotaStatusLine = (quota) => {
+  const presentation = getChatQuotaPresentation(quota);
+  if (!presentation) return null;
+
+  const resetAt = new Date(quota?.resetAt);
+  let resetLabel = "";
+  if (!Number.isNaN(resetAt.getTime())) {
+    const parts = Object.fromEntries(
+      CHAT_QUOTA_RESET_FORMATTER.formatToParts(resetAt)
+        .filter(({ type }) => type !== "literal")
+        .map(({ type, value }) => [type, value]),
+    );
+    resetLabel = ` · Làm mới ${parts.hour}:${parts.minute} ${parts.day}/${parts.month}`;
+  }
+
+  return {
+    label: `Còn ${presentation.remaining}/${presentation.limit} lượt${resetLabel}`,
+    tone: presentation.tone,
+  };
+};
+
+export const isTdeeQuickAction = (action) => action?.label === "Tính TDEE";
+
 export const prefersReducedMotion = (browser = globalThis.window) => {
   try {
     return browser?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
