@@ -148,6 +148,30 @@ describe("production readiness configuration", () => {
     );
   });
 
+  it("keeps SePay optional but requires complete live config when enabled", () => {
+    const disabled = validateProductionEnvironment(validEnvironment(), {
+      strict: true,
+    });
+    const enabledEnv = validEnvironment();
+    enabledEnv.SEPAY_ENABLED = "true";
+    enabledEnv.SEPAY_MODE = "sandbox";
+    enabledEnv.SEPAY_RECONCILIATION_ENABLED = "true";
+
+    const enabled = validateProductionEnvironment(enabledEnv, { strict: true });
+    const codes = enabled.errors.map((finding) => finding.code);
+
+    expect(disabled.errors).toEqual([]);
+    expect(codes).toEqual(
+      expect.arrayContaining([
+        "SEPAY_MODE_LIVE_REQUIRED",
+        "SEPAY_WEBHOOK_SECRET_MISSING",
+        "SEPAY_DATA_HASH_SECRET_MISSING",
+        "SEPAY_API_TOKEN_MISSING",
+        "SEPAY_AUTOMATION_CUTOVER_AT_INVALID",
+      ]),
+    );
+  });
+
   it("warns when Radar background scans lack a dedicated GitHub token", () => {
     const env = validEnvironment();
     delete env.SKILL_RADAR_GITHUB_TOKEN;

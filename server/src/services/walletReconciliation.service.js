@@ -1,6 +1,7 @@
 import Wallet from "../models/Wallet.js";
 import WalletTransaction from "../models/WalletTransaction.js";
 import DepositRequest from "../models/DepositRequest.js";
+import IncomingBankTransaction from "../models/IncomingBankTransaction.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
 import { incrementMetric } from "../observability/metrics.js";
 
@@ -146,10 +147,27 @@ export const reconcileWallets = async ({
     .select("_id amount status")
     .limit(safeWalletLimit)
     .lean();
+  const depositIds = deposits.map((deposit) => deposit._id);
   const depositEntries = deposits.length
     ? await WalletTransaction.find({
         referenceType: "deposit_request",
-        referenceId: { $in: deposits.map((deposit) => deposit._id) },
+        referenceId: { $in: depositIds },
+      }).lean()
+    : [];
+  const incomingTransactions = deposits.length
+    ? await IncomingBankTransaction.find({
+        depositRequestId: { $in: depositIds },
+        status: { $in: ["settled", "reversed"] },
+      })
+        .select("_id depositRequestId amount status")
+        .lean()
+    : [];
+  const incomingEntries = incomingTransactions.length
+    ? await WalletTransaction.find({
+        referenceType: "incoming_bank_transaction",
+        referenceId: {
+          $in: incomingTransactions.map((incoming) => incoming._id),
+        },
       }).lean()
     : [];
   const entriesByDeposit = new Map();
@@ -160,17 +178,30 @@ export const reconcileWallets = async ({
     entriesByDeposit.set(key, values);
   }
 
-  for (const deposit of deposits) {
-    const entries = entriesByDeposit.get(asId(deposit._id)) || [];
+  const entriesByIncoming = new Map();
+  for (const entry of incomingEntries) {
+    const key = asId(entry.referenceId);
+    const values = entriesByIncoming.get(key) || [];
+    values.push(entry);
+    entriesByIncoming.set(key, values);
+  }
+  const incomingByDeposit = new Map();
+  for (const incoming of incomingTransactions) {
+    const key = asId(incoming.depositRequestId);
+    const values = incomingByDeposit.get(key) || [];
+    values.push(incoming);
+    incomingByDeposit.set(key, values);
+
+    const entries = entriesByIncoming.get(asId(incoming._id)) || [];
     const originals = entries.filter(
       (entry) =>
         entry.type === "deposit" &&
         !entry.reversalOf &&
-        entry.amount === deposit.amount,
+        entry.amount === incoming.amount,
     );
     if (originals.length !== 1) {
-      recordIssue("DEPOSIT_LEDGER_CARDINALITY", {
-        depositId: asId(deposit._id),
+      recordIssue("INCOMING_LEDGER_CARDINALITY", {
+        incomingTransactionId: asId(incoming._id),
         originalEntries: originals.length,
       });
       continue;
@@ -179,6 +210,53 @@ export const reconcileWallets = async ({
       (entry) => asId(entry.reversalOf) === asId(originals[0]._id),
     );
     if (
+      incoming.status === "reversed" &&
+      (reversals.length !== 1 ||
+        reversals[0].type !== "reversal" ||
+        reversals[0].amount !== -incoming.amount)
+    ) {
+      recordIssue("INCOMING_REVERSAL_LEDGER_MISMATCH", {
+        incomingTransactionId: asId(incoming._id),
+        reversalEntries: reversals.length,
+      });
+    }
+    if (incoming.status === "settled" && reversals.length > 0) {
+      recordIssue("INCOMING_STATUS_REVERSAL_MISMATCH", {
+        incomingTransactionId: asId(incoming._id),
+        reversalEntries: reversals.length,
+      });
+    }
+  }
+
+  for (const deposit of deposits) {
+    const entries = entriesByDeposit.get(asId(deposit._id)) || [];
+    const linkedIncoming = incomingByDeposit.get(asId(deposit._id)) || [];
+    const originals = entries.filter(
+      (entry) =>
+        entry.type === "deposit" &&
+        !entry.reversalOf &&
+        entry.amount === deposit.amount,
+    );
+    if (entries.length > 0 && originals.length !== 1) {
+      recordIssue("DEPOSIT_LEDGER_CARDINALITY", {
+        depositId: asId(deposit._id),
+        originalEntries: originals.length,
+      });
+      continue;
+    }
+    if (entries.length === 0 && linkedIncoming.length === 0) {
+      recordIssue("DEPOSIT_LEDGER_CARDINALITY", {
+        depositId: asId(deposit._id),
+        originalEntries: 0,
+      });
+      continue;
+    }
+    const reversals = entries.filter(
+      (entry) =>
+        originals[0] && asId(entry.reversalOf) === asId(originals[0]._id),
+    );
+    if (
+      entries.length > 0 &&
       deposit.status === "reversed" &&
       (reversals.length !== 1 ||
         reversals[0].type !== "reversal" ||
@@ -189,10 +267,22 @@ export const reconcileWallets = async ({
         reversalEntries: reversals.length,
       });
     }
-    if (deposit.status === "success" && reversals.length > 0) {
+    const activeSettlementCount =
+      (originals.length === 1 && reversals.length === 0 ? 1 : 0) +
+      linkedIncoming.filter((incoming) => incoming.status === "settled").length;
+    if (
+      deposit.status === "success" &&
+      activeSettlementCount === 0
+    ) {
       recordIssue("DEPOSIT_STATUS_REVERSAL_MISMATCH", {
         depositId: asId(deposit._id),
-        reversalEntries: reversals.length,
+        activeSettlementCount,
+      });
+    }
+    if (deposit.status === "reversed" && activeSettlementCount > 0) {
+      recordIssue("DEPOSIT_STATUS_REVERSAL_MISMATCH", {
+        depositId: asId(deposit._id),
+        activeSettlementCount,
       });
     }
   }

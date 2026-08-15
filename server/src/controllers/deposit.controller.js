@@ -3,6 +3,10 @@ import DepositRequest from "../models/DepositRequest.js";
 import Wallet from "../models/Wallet.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { validateDepositAmount } from "../constants/depositPolicy.js";
+import {
+  addSettlementSummary,
+  getDepositSettlementSummaryMap,
+} from "../services/depositSettlementRead.service.js";
 
 const getBankTransferConfig = () => {
   const config = {
@@ -136,7 +140,7 @@ export const createDeposit = async (req, res) => {
       return res.status(503).json({
         success: false,
         code: err.code,
-        message: "Cáº¥u hÃ¬nh chuyá»ƒn khoáº£n chÆ°a sáºµn sÃ ng",
+        message: "Cấu hình chuyển khoản chưa sẵn sàng",
       });
     }
     // Bắt lỗi Duplicate Key (Partial Unique Index chặn spam)
@@ -169,9 +173,10 @@ export const getDepositById = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      success: true,
-      data: {
+    const summaryMap = await getDepositSettlementSummaryMap([deposit._id]);
+    const data = addSettlementSummary(
+      {
+        _id: deposit._id,
         depositRequestId: deposit._id,
         amount: deposit.amount,
         depositCode: deposit.depositCode,
@@ -183,6 +188,12 @@ export const getDepositById = async (req, res) => {
         reverseReason: deposit.reverseReason,
         createdAt: deposit.createdAt,
       },
+      summaryMap,
+    );
+
+    return res.status(200).json({
+      success: true,
+      data,
     });
   } catch (err) {
     safeLog.error("financial.deposit_detail_failed", err);
@@ -205,9 +216,13 @@ export const getMyDeposits = async (req, res) => {
         "amount depositCode qrPayload status expiresAt paidAt reversedAt reverseReason createdAt",
       );
 
+    const summaryMap = await getDepositSettlementSummaryMap(
+      deposits.map((deposit) => deposit._id),
+    );
+
     return res.status(200).json({
       success: true,
-      data: deposits,
+      data: deposits.map((deposit) => addSettlementSummary(deposit, summaryMap)),
     });
   } catch (err) {
     safeLog.error("financial.deposit_history_failed", err);
@@ -252,66 +267,27 @@ export const confirmDeposit = async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
 
-    const deposit = await DepositRequest.findOneAndUpdate(
-      {
-        _id: id,
-        userId,
-        status: "pending",
-        expiresAt: { $gt: new Date() },
-      },
-      {
-        $set: {
-          status: "needs_review",
-          isOpen: true,
-        },
-      },
-      { returnDocument: "after", runValidators: true },
-    );
-
-    if (deposit) {
-      return res.status(200).json({
-        success: true,
-        message: "Đã ghi nhận thanh toán. Vui lòng chờ admin xác nhận.",
-        data: {
-          depositRequestId: deposit._id,
-          status: deposit.status,
-        },
-      });
-    }
-
-    const existing = await DepositRequest.findOne({ _id: id, userId });
-    if (!existing) {
+    const deposit = await DepositRequest.findOne({ _id: id, userId }).lean();
+    if (!deposit) {
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy yêu cầu nạp tiền",
       });
     }
-
-    if (existing.status === "pending" && existing.expiresAt <= new Date()) {
-      await DepositRequest.updateOne(
-        { _id: existing._id, status: "pending" },
-        { $set: { status: "expired", isOpen: false } },
-      );
-      return res.status(409).json({
-        success: false,
-        code: "DEPOSIT_EXPIRED",
-        message: "Mã nạp tiền đã hết hạn",
-      });
-    }
-
-    if (existing.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Không thể xác nhận yêu cầu ở trạng thái \"" +
-          existing.status +
-          "\"",
-      });
-    }
-    return res.status(409).json({
-      success: false,
-      code: "DEPOSIT_STATE_CONFLICT",
-      message: "Trạng thái deposit vừa thay đổi, vui lòng tải lại",
+    const summaryMap = await getDepositSettlementSummaryMap([deposit._id]);
+    const summary = summaryMap.get(String(deposit._id)) || {
+      settledTransactionCount: 0,
+      settledAmountTotal: 0,
+      lastSettlementAt: null,
+    };
+    return res.status(200).json({
+      success: true,
+      message: "Hệ thống đang tự động kiểm tra giao dịch ngân hàng",
+      data: {
+        depositRequestId: deposit._id,
+        status: deposit.status,
+        ...summary,
+      },
     });
   } catch (err) {
     safeLog.error("financial.deposit_confirm_failed", err);

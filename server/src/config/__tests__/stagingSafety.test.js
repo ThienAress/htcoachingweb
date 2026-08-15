@@ -61,4 +61,14 @@ describe("staging environment safety", () => {
       /STAGING_DATABASE_REQUIRED/,
     );
   });
+
+  it("requires SePay sandbox mode whenever automation is enabled", () => {
+    const env = validEnvironment();
+    env.SEPAY_ENABLED = "true";
+    env.SEPAY_MODE = "live";
+
+    expect(
+      validateStagingEnvironment(env).errors.map((finding) => finding.code),
+    ).toContain("STAGING_SEPAY_SANDBOX_REQUIRED");
+  });
 });

@@ -25,6 +25,7 @@ import {
   accountOrdersQueryOptions,
   accountTransactionsQueryOptions,
   applyTrainerPlanPurchaseResponse,
+  getDepositSettlementSignal,
   walletBalanceQueryOptions,
   walletDepositsQueryOptions,
 } from "../walletAccount.queries";
@@ -84,6 +85,17 @@ describe("Wallet and account query infrastructure", () => {
       }),
       options.refetchInterval({ state: { data: [{ status: "success" }] } }),
     ]).toEqual([15_000, false]);
+  });
+
+  test("changes the settlement signal when server-authoritative deposit state changes", () => {
+    expect([
+      getDepositSettlementSignal([
+        { _id: "deposit-1", status: "pending", settledTransactionCount: 0 },
+      ]),
+      getDepositSettlementSignal([
+        { _id: "deposit-1", status: "success", settledTransactionCount: 1 },
+      ]),
+    ]).toEqual(["deposit-1:pending:0", "deposit-1:success:1"]);
   });
 
   test("does not retry client errors and retries a server error once", () => {

@@ -20,6 +20,14 @@ const OPEN_DEPOSIT_STATUSES = new Set(["pending", "needs_review"]);
 export const hasOpenDeposit = (deposits = []) =>
   deposits.some((deposit) => OPEN_DEPOSIT_STATUSES.has(deposit.status));
 
+export const getDepositSettlementSignal = (deposits = []) =>
+  deposits
+    .map(
+      (deposit) =>
+        `${deposit._id}:${deposit.status}:${deposit.settledTransactionCount || 0}`,
+    )
+    .join("|");
+
 const privateQueryDefaults = ({ userId, enabled }) => ({
   enabled: Boolean(userId && enabled),
   retry: retryServerQueryOnce,

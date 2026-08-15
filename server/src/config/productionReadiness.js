@@ -1,5 +1,6 @@
 import { resolveGeminiMealScanDataUseMode } from "./geminiMealScanDataUse.js";
 import { resolveMealScanProvider } from "./mealScanProvider.js";
+import { parseSePayCutoverAt } from "./sepay.js";
 
 const PLACEHOLDER_PATTERN =
   /(change[-_ ]?me|replace[-_ ]?me|placeholder|example|your[-_ ]|test[-_ ]secret|local[-_ ]secret)/i;
@@ -530,6 +531,47 @@ export const validateProductionEnvironment = (
       "Skill Radar background scans use the unauthenticated GitHub quota.",
     );
   }
+
+  validateBooleanSetting(env, findings, "SEPAY_ENABLED");
+  validateBooleanSetting(env, findings, "SEPAY_RECONCILIATION_ENABLED");
+  const sePayEnabled =
+    String(env.SEPAY_ENABLED || "").trim().toLowerCase() === "true";
+  const sePayReconciliationEnabled =
+    String(env.SEPAY_RECONCILIATION_ENABLED || "").trim().toLowerCase() ===
+    "true";
+  if (sePayEnabled) {
+    if (String(env.SEPAY_MODE || "").trim().toLowerCase() !== "live") {
+      addFinding(
+        findings,
+        "errors",
+        "SEPAY_MODE_LIVE_REQUIRED",
+        "Production SePay automation must use live mode.",
+      );
+    }
+    validateSecret(env, findings, "SEPAY_WEBHOOK_SECRET", { minimum: 32 });
+    validateSecret(env, findings, "SEPAY_DATA_HASH_SECRET", { minimum: 32 });
+    const cutoverAt = parseSePayCutoverAt(
+      env.SEPAY_AUTOMATION_CUTOVER_AT,
+    );
+    if (Number.isNaN(cutoverAt.getTime())) {
+      addFinding(
+        findings,
+        "errors",
+        "SEPAY_AUTOMATION_CUTOVER_AT_INVALID",
+        "SEPAY_AUTOMATION_CUTOVER_AT must be an explicit ISO timestamp.",
+      );
+    }
+    if (sePayReconciliationEnabled) {
+      validateSecret(env, findings, "SEPAY_API_TOKEN", { minimum: 16 });
+    }
+  } else if (sePayReconciliationEnabled) {
+    addFinding(
+      findings,
+      "errors",
+      "SEPAY_RECONCILIATION_REQUIRES_SEPAY",
+      "SEPAY_RECONCILIATION_ENABLED requires SEPAY_ENABLED=true.",
+    );
+  }
   validateBooleanSetting(env, findings, "CSP_ENFORCE");
   validateBooleanSetting(env, findings, "F1_RETENTION_ENFORCE");
 
@@ -567,6 +609,8 @@ export const validateProductionEnvironment = (
       backgroundJobsExplicit: ["true", "false"].includes(
         String(env.BACKGROUND_JOBS_ENABLED || "").toLowerCase(),
       ),
+      sePayEnabled,
+      sePayReconciliationEnabled,
       cspEnforced: String(env.CSP_ENFORCE || "").toLowerCase() === "true",
       retentionEnforced:
         String(env.F1_RETENTION_ENFORCE || "").toLowerCase() === "true",

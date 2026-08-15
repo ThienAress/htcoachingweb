@@ -239,6 +239,18 @@ export const analyticsSyncLimiter = rateLimit({
   },
 });
 
+export const sepayWebhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "SEPAY_WEBHOOK_RATE_LIMITED",
+    message: "Webhook rate limit exceeded",
+  },
+});
+
 export const skillRadarMutationLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,

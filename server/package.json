@@ -37,8 +37,13 @@
     "migrate:skill-radar-indexes:staging": "node src/migrations/20260813-skill-radar-indexes.js --target=staging --apply --confirm-skill-radar-indexes",
     "preflight:skill-radar-indexes": "node src/migrations/20260813-skill-radar-indexes.js --target=production",
     "migrate:skill-radar-indexes": "node src/migrations/20260813-skill-radar-indexes.js --target=production --apply --confirm-skill-radar-indexes",
+    "preflight:sepay-wallet-indexes:staging": "node src/migrations/20260815-sepay-wallet-deposit-indexes.js --target=staging",
+    "migrate:sepay-wallet-indexes:staging": "node src/migrations/20260815-sepay-wallet-deposit-indexes.js --target=staging --apply --confirm-sepay-wallet-indexes",
+    "preflight:sepay-wallet-indexes": "node src/migrations/20260815-sepay-wallet-deposit-indexes.js --target=production",
+    "migrate:sepay-wallet-indexes": "node src/migrations/20260815-sepay-wallet-deposit-indexes.js --target=production --apply --confirm-sepay-wallet-indexes",
     "check:today-dashboard-performance": "node src/operations/todayDashboardPerformance.js",
     "reconcile:wallets": "node src/scripts/reconcileWallets.js",
+    "reconcile:sepay:staging": "node src/scripts/reconcileSePayTransactions.js",
     "verify:phase4-indexes": "node src/scripts/verifyPhase4Indexes.js",
     "verify:phase7": "node src/scripts/verifyPhase7ScheduleIntegrity.js",
     "verify:phase8": "node src/scripts/verifyPhase8F1Integrity.js",
@@ -117,6 +122,6 @@
   },
   "overrides": {
     "postcss": "8.5.23",
-    "nanoid": "3.3.17"
+    "nanoid": "3.3.18"
   }
 }

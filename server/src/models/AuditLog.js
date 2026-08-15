@@ -25,6 +25,9 @@ const auditLogSchema = new mongoose.Schema(
         "reject_deposit",
         "delete_deposit",
         "reverse_deposit",
+        "approve_incoming_bank_transaction",
+        "ignore_incoming_bank_transaction",
+        "reverse_incoming_bank_transaction",
         "manual_adjustment",
         "purchase_with_wallet",
         "purchase_trainer_plan",
@@ -83,6 +86,7 @@ const auditLogSchema = new mongoose.Schema(
       type: String,
       enum: [
         "deposit_request",
+        "incoming_bank_transaction",
         "wallet",
         "order",
         "user",

@@ -57,6 +57,7 @@ const walletTransactionSchema = new mongoose.Schema(
       type: String,
       enum: [
         "deposit_request",
+        "incoming_bank_transaction",
         "order",
         "trainer_subscription",
         "refund",
