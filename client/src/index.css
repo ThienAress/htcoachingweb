@@ -595,3 +595,321 @@ input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--color-slate-900);
   -webkit-box-shadow: 0 0 0 1000px var(--color-white) inset;
 }
+
+/* ================= LEGACY PRODUCT SURFACES — SCOPED THEMES ================= */
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"] {
+  color-scheme: light;
+  background-color: var(--color-stone-100);
+  color: var(--color-slate-900);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+.trainer-workspace[data-theme="dark"] {
+  background-color: var(--color-slate-950);
+  color: var(--color-slate-100);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(
+    .trainer-dashboard,
+    .from-gray-900,
+    .from-gray-900\/70,
+    .from-gray-900\/80,
+    .from-gray-950
+  ) {
+  background-color: var(--color-stone-100);
+  background-image: linear-gradient(
+    to bottom right,
+    var(--color-stone-100),
+    var(--color-slate-100),
+    var(--color-white)
+  );
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]:is(
+    .trainer-dashboard,
+    .from-gray-900,
+    .from-gray-900\/70,
+    .from-gray-900\/80,
+    .from-gray-950
+  ) {
+  background-color: var(--color-stone-100);
+  background-image: linear-gradient(
+    to bottom right,
+    var(--color-stone-100),
+    var(--color-slate-100),
+    var(--color-white)
+  );
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(
+    .bg-gray-950,
+    .bg-gray-950\/20,
+    .bg-gray-950\/30,
+    .bg-gray-950\/40,
+    .bg-gray-950\/60,
+    .bg-gray-950\/80,
+    .bg-gray-950\/95,
+    .bg-gray-900,
+    .bg-gray-900\/20,
+    .bg-gray-900\/30,
+    .bg-gray-900\/40,
+    .bg-gray-900\/50,
+    .bg-gray-900\/60,
+    .bg-gray-900\/80,
+    .bg-gray-900\/90,
+    .bg-slate-950,
+    .bg-slate-900
+  ) {
+  background-color: var(--color-white);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(
+    .bg-gray-850,
+    .bg-gray-800,
+    .bg-gray-800\/20,
+    .bg-gray-800\/30,
+    .bg-gray-800\/40,
+    .bg-gray-800\/50,
+    .bg-gray-800\/60,
+    .bg-gray-800\/80,
+    .bg-slate-800
+  ) {
+  background-color: var(--color-slate-100);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(
+    .bg-gray-750,
+    .bg-gray-700,
+    .bg-gray-700\/50,
+    .bg-gray-700\/80,
+    .bg-slate-700
+  ) {
+  background-color: var(--color-slate-200);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(
+    .text-white,
+    .text-white\/90,
+    .text-gray-200,
+    .text-gray-300,
+    .text-slate-50,
+    .text-slate-100,
+    .text-slate-200,
+    .text-slate-300
+  ) {
+  color: var(--color-slate-900);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(
+    .text-gray-400,
+    .text-gray-500,
+    .text-gray-600,
+    .text-slate-400,
+    .text-slate-500,
+    .text-slate-600
+  ) {
+  color: var(--color-slate-600);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(
+    .border-gray-500,
+    .border-gray-500\/30,
+    .border-gray-600,
+    .border-gray-600\/40,
+    .border-gray-700,
+    .border-gray-700\/30,
+    .border-gray-700\/40,
+    .border-gray-700\/50,
+    .border-gray-700\/60,
+    .border-gray-700\/80,
+    .border-gray-800,
+    .border-gray-800\/80,
+    .border-gray-850,
+    .border-gray-900,
+    .border-gray-900\/40,
+    .border-slate-600,
+    .border-slate-700,
+    .border-slate-800,
+    [class*="border-white/"]
+  ) {
+  border-color: var(--color-slate-300);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(.divide-gray-900\/60, .divide-slate-700, .divide-slate-800)
+  > :not(:last-child) {
+  border-color: var(--color-slate-200);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(
+    .hover\:bg-gray-700:hover,
+    .hover\:bg-gray-800:hover,
+    .hover\:bg-gray-900:hover,
+    .hover\:bg-slate-800:hover,
+    .hover\:bg-slate-900:hover
+  ) {
+  background-color: var(--color-slate-200);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  .hover\:text-white:hover,
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  .group:hover
+  .group-hover\:text-white {
+  color: var(--color-slate-900);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  #trainer-sidebar
+  a[aria-current="page"] {
+  background-color: var(--color-orange-500);
+  color: var(--color-white);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(
+    .bg-primary.text-white,
+    .bg-red-500.text-white,
+    .bg-red-600.text-white,
+    .bg-green-600.text-white,
+    [class*="from-primary"].text-white
+  ),
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(.bg-primary, [class*="from-primary"])
+  .text-white {
+  color: var(--color-white);
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(input, textarea, select) {
+  color-scheme: light;
+}
+
+:is(.trainer-workspace, .customer-tool-surface)[data-theme="light"]
+  :is(
+    .placeholder-gray-400,
+    .placeholder-gray-500,
+    .placeholder-gray-600
+  )::placeholder {
+  color: var(--color-slate-500);
+  opacity: 1;
+}
+
+.customer-tool-surface[data-theme="light"] .theme-preserve-dark {
+  color-scheme: dark;
+  background-color: var(--color-slate-950);
+  color: var(--color-white);
+}
+
+.customer-tool-surface[data-theme="light"]
+  .theme-preserve-dark
+  :is(.text-gray-400, .text-gray-500, .text-gray-600) {
+  color: var(--color-slate-400);
+}
+
+/* Light-first trainer pages need an inverse mapping in dark mode. */
+.trainer-workspace[data-theme="dark"]
+  :is(.bg-white, .bg-gray-50, .bg-slate-50, .bg-slate-50\/50) {
+  background-color: var(--color-slate-950);
+}
+
+.trainer-workspace[data-theme="dark"] :is(.bg-gray-100, .bg-slate-100) {
+  background-color: var(--color-slate-800);
+}
+
+.trainer-workspace[data-theme="dark"] .bg-gray-200 {
+  background-color: var(--color-slate-700);
+}
+
+.trainer-workspace[data-theme="dark"] .bg-gray-300 {
+  background-color: var(--color-slate-600);
+}
+
+.trainer-workspace[data-theme="dark"]
+  :is(.text-gray-900, .text-gray-800, .text-slate-950, .text-slate-800) {
+  color: var(--color-slate-100);
+}
+
+.trainer-workspace[data-theme="dark"] :is(.text-gray-700, .text-slate-700) {
+  color: var(--color-slate-200);
+}
+
+.trainer-workspace[data-theme="dark"]
+  :is(.text-gray-600, .text-gray-500, .text-slate-600, .text-slate-500) {
+  color: var(--color-slate-400);
+}
+
+.trainer-workspace[data-theme="dark"]
+  :is(
+    .border-gray-100,
+    .border-gray-300,
+    .border-slate-100,
+    .border-slate-200,
+    .border-slate-50
+  ) {
+  border-color: var(--color-slate-700);
+}
+
+.trainer-workspace[data-theme="dark"]
+  :is(
+    .hover\:bg-gray-50:hover,
+    .hover\:bg-gray-100:hover,
+    .hover\:bg-slate-50:hover
+  ) {
+  background-color: var(--color-slate-700);
+}
+
+.trainer-workspace[data-theme="dark"] :is(input, textarea, select) {
+  color-scheme: dark;
+}
+
+.trainer-workspace[data-theme="dark"]
+  :is(.theme-always-light, .theme-always-light .bg-white) {
+  color-scheme: light;
+  background-color: var(--color-white);
+  color: var(--color-slate-900);
+}
+
+.trainer-workspace[data-theme="dark"] .theme-always-light .bg-slate-50 {
+  background-color: var(--color-slate-50);
+}
+
+.trainer-workspace[data-theme="dark"]
+  .theme-always-light
+  :is(.text-black, .text-slate-800, .text-slate-950) {
+  color: var(--color-slate-950);
+}
+
+.trainer-workspace[data-theme="dark"]
+  .theme-always-light
+  :is(.text-slate-400, .text-slate-500, .text-slate-600) {
+  color: var(--color-slate-600);
+}
+
+/* Toastify renders through a portal, so bridge the active trainer theme via html. */
+html[data-trainer-theme="light"] .Toastify__toast-container {
+  --toastify-color-light: var(--color-white);
+  --toastify-color-dark: var(--color-white);
+  --toastify-text-color-light: var(--color-slate-900);
+  --toastify-text-color-dark: var(--color-slate-900);
+  color-scheme: light;
+}
+
+html[data-trainer-theme="dark"] .Toastify__toast-container {
+  --toastify-color-light: var(--color-slate-900);
+  --toastify-color-dark: var(--color-slate-900);
+  --toastify-text-color-light: var(--color-slate-100);
+  --toastify-text-color-dark: var(--color-slate-100);
+  color-scheme: dark;
+}

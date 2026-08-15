@@ -2,6 +2,15 @@
 
 Áp dụng cùng `ui-quality`; dùng `rg` để discovery và đọc context trước khi report. Không auto-fail từ text match đơn lẻ.
 
+## Deterministic evidence first
+
+- Chạy `npm.cmd run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high` trước các check thủ công; dùng report không baseline cho inventory, `--format json` khi cần xử lý machine-readable và `--format prompt` khi handoff remediation.
+- Catalog v1 bao phủ image alt, personal-input autocomplete, button type trong form, accessible name của icon button, focus visibility, nested interactive controls, `transition-all`, gradient text, extreme z-index, bounce easing và reduced-motion strategy.
+- `fail` trong report informational nghĩa là rule match có confidence đã công bố, không có nghĩa mọi debt cũ phải được sửa trong task hiện tại.
+- `advisory` là tín hiệu cần rendered/manual evidence. Không nâng mức hoặc ép pass chỉ để làm sạch số liệu.
+- Rule mới hoặc thay đổi matcher phải có regression test, tăng `rulesetVersion` và được burn-in trên `client/src` trước khi dùng làm gate.
+- Baseline update là thay đổi contract cần review; không dùng `ui:audit:baseline:update` như cách bỏ qua regression hoặc ruleset mismatch.
+
 ## Accessibility and forms
 
 - Action dùng `<button>`; navigation dùng `<a>`/`<Link>`; icon-only control có accessible name.
@@ -26,6 +35,8 @@
 ## Discovery commands
 
 ```powershell
+npm.cmd run ui:audit
+npm.cmd run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high
 rg -n -g "*.jsx" -g "*.js" "onClick|aria-live|autoComplete|inputMode|onPaste" client/src
 rg -n -g "*.jsx" -g "*.css" "transition-all|transition: all|prefers-reduced-motion" client/src
 rg -n -g "*.jsx" "<img|loading=|fetchPriority=|width=|height=" client/src

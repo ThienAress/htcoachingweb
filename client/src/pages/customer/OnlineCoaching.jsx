@@ -26,6 +26,7 @@ import Header from "../../sections/Header/Header";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
 import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
+import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
 
 const toExerciseFeedback = (exercise) => ({
   exerciseId: exercise._id,
@@ -49,6 +50,7 @@ const OnlineCoaching = () => {
   const [expandedPlans, setExpandedPlans] = useState({});
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [customerTheme] = useState(resolveInitialCustomerDashboardTheme);
 
   // Ref debounce auto-save cảm nhận bài tập
   const feedbackSaveTimers = useRef(new Map());
@@ -153,7 +155,7 @@ const OnlineCoaching = () => {
   const renderVideoPlayer = (videoUrl, title = "Coaching Video") => {
     if (!videoUrl) return null;
     return (
-      <div className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-950 shadow-2xl aspect-video relative group">
+      <div className="theme-preserve-dark overflow-hidden rounded-2xl border border-gray-800 bg-gray-950 shadow-2xl aspect-video relative group">
         {videoUrl.startsWith("/uploads/") ? (
           <video
             src={resolveMediaUrl(videoUrl)}
@@ -453,9 +455,13 @@ const OnlineCoaching = () => {
   return (
     <>
       <SEO title={t("seo_coaching")} noindex />
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      <ToastContainer position="top-right" autoClose={3000} theme={customerTheme} />
       <Header />
 
+      <div
+        className="customer-dashboard customer-tool-surface"
+        data-theme={customerTheme}
+      >
       <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black text-white pt-28 pb-24">
         {isLoadingPlans ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -593,7 +599,7 @@ const OnlineCoaching = () => {
                           )}
                         </div>
                       ) : (
-                        <div className="aspect-video w-full bg-gray-900/60 rounded-2xl border border-gray-800 border-dashed flex flex-col items-center justify-center gap-3 text-gray-500">
+                        <div className="theme-preserve-dark aspect-video w-full bg-gray-900/60 rounded-2xl border border-gray-800 border-dashed flex flex-col items-center justify-center gap-3 text-gray-500">
                           <Video className="w-12 h-12" />
                           <p className="text-sm">{t("coaching.no_video")}</p>
                         </div>
@@ -921,6 +927,7 @@ const OnlineCoaching = () => {
           </div>
         </footer>
       )}
+      </div>
 
     </>
   );

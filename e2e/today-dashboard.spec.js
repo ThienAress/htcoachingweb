@@ -42,6 +42,9 @@ test.describe("Today Dashboard private journey", () => {
     await expect(
       page.getByRole("heading", { name: "E2E Strength Session" }),
     ).toBeVisible();
+    await expect(
+      page.getByText(/Chào buổi (sáng|chiều|tối), E2E Client/),
+    ).toHaveText(/Chào buổi (sáng|chiều|tối), E2E Client/);
     await expect(page.getByLabel("Giấc ngủ (giờ)")).toHaveCount(0);
     await expect(
       page.getByRole("navigation", { name: "Điều hướng bảng theo dõi" }),
@@ -165,6 +168,39 @@ test.describe("Today Dashboard private journey", () => {
     ).toHaveAttribute("href", "/tdee-calculator/");
   });
 
+  test("keeps the customer light theme on legacy training tools", async ({
+    page,
+  }) => {
+    for (const [path, surfaceSelector] of [
+      ["/workout-plans", '[class~="bg-gray-800/50"]'],
+      ["/my-history", '[class~="bg-gray-900/60"]'],
+      ["/exercises", '[class~="bg-gray-800/50"]'],
+    ]) {
+      await page.goto(path);
+      const themeBoundary = page.locator(
+        '.customer-tool-surface[data-theme="light"]',
+      );
+      await expect(themeBoundary).toBeVisible();
+      const visualSurface = themeBoundary.locator(surfaceSelector).first();
+      await expect(visualSurface).toBeVisible();
+      const backgroundChannels = await visualSurface.evaluate((element) => {
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        context.fillStyle = getComputedStyle(element).backgroundColor;
+        context.fillRect(0, 0, 1, 1);
+        return Array.from(context.getImageData(0, 0, 1, 1).data.slice(0, 3));
+      });
+      expect(
+        backgroundChannels.reduce((sum, value) => sum + value, 0),
+      ).toBeGreaterThan(500);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+    }
+  });
+
   test("shows a saved meal plan in a fresh browser context", async ({
     browser,
   }) => {
@@ -231,6 +267,9 @@ test.describe("Today Dashboard private journey", () => {
     await expect(page.getByText("-0,7 kg").first()).toBeVisible();
     await expect(page.getByText("81").first()).toBeVisible();
     await expect(page.getByText("-1,5 cm").first()).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Dòng thời gian hoạt động" }),
+    ).toHaveCount(0);
     await page.getByText("Xem lịch sử số đo (2)").click();
     await expect(page.getByRole("cell", { name: "72,5 kg" })).toBeVisible();
     await expect(page.getByRole("cell", { name: "82,5 cm" })).toBeVisible();

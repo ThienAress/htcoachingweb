@@ -16,6 +16,7 @@ import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread"
 import { WorkoutPlanClientTargetSummary } from "./WorkoutPlanClientTargetSummary";
 import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigation";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
+import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
 
 const EMPTY_EXERCISE = {
   name: "", sets: "", reps: "", tempo: "", duration: "", coachingTips: "", maxWeight: "",
@@ -402,7 +403,9 @@ const WorkoutPlanDetail = ({ embedded = false }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [customerTheme] = useState(resolveInitialCustomerDashboardTheme);
   const isUserOnly = user?.role === "user";
+  const usesCustomerTheme = !embedded && isUserOnly;
   const [activeTab, setActiveTab] = useState("training"); // "training" or "assessment"
 
   const { data: planData, isLoading } = useQuery({
@@ -545,7 +548,10 @@ const WorkoutPlanDetail = ({ embedded = false }) => {
 
   if (isLoading || !form) {
     return (
-      <div className="min-h-screen bg-gray-900 pt-28 flex justify-center">
+      <div
+        className={`${usesCustomerTheme ? "customer-dashboard customer-tool-surface " : ""}min-h-screen bg-gray-900 pt-28 flex justify-center`}
+        data-theme={usesCustomerTheme ? customerTheme : undefined}
+      >
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
@@ -563,7 +569,10 @@ const WorkoutPlanDetail = ({ embedded = false }) => {
       <SEO title={`${t("plans.detail_title")}: ${form.title}`} noindex />
       {!embedded && <Header />}
 
-      <main className={`bg-gray-950 text-white pb-20 ${embedded ? "min-h-[calc(100vh-3rem)] overflow-hidden pt-0" : "min-h-screen pt-24"}`}>
+      <main
+        className={`${usesCustomerTheme ? "customer-dashboard customer-tool-surface " : ""}bg-gray-950 text-white pb-20 ${embedded ? "min-h-[calc(100vh-3rem)] overflow-hidden pt-0" : "min-h-screen pt-24"}`}
+        data-theme={usesCustomerTheme ? customerTheme : undefined}
+      >
         {/* Header Bar */}
         <div className={`bg-gray-900 border-b border-gray-800 sticky z-40 shadow-sm ${embedded ? "top-0" : "top-20"}`}>
           <div className="container-custom py-3 flex flex-wrap items-center justify-between gap-4">

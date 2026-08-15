@@ -9,7 +9,6 @@ import Header from "../../sections/Header/Header";
 import { getMyProgress } from "../../services/progress.service";
 import { getVietnamDateKey } from "../../utils/vietnamDate";
 import { ProgressSummary } from "./ProgressSummary";
-import { CoachingActivityPanel } from "./CoachingActivityPanel";
 import { dashboardPathFor } from "../../utils/customerDashboardNavigation";
 
 const RANGES = [7, 30, 90];
@@ -146,8 +145,6 @@ const ProgressPage = ({ embedded = false }) => {
               </p>
             </>
           )}
-
-          <CoachingActivityPanel days={days} userId={user?._id} />
         </div>
       </PageContainer>
       {!embedded && <Footer />}

@@ -19,6 +19,7 @@ import {
   addDaysToDateKey as addDays,
   getVietnamDateKey,
 } from "../../utils/vietnamDate";
+import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
 
 const DAY_KEYS = ["days.mon", "days.tue", "days.wed", "days.thu", "days.fri", "days.sat", "days.sun"];
 
@@ -182,6 +183,7 @@ const BookTraining = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [confirmEditAction, setConfirmEditAction] = useState(null);
+  const [customerTheme] = useState(resolveInitialCustomerDashboardTheme);
 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["my-bookings"],
@@ -317,6 +319,10 @@ const BookTraining = () => {
       <SEO title={t("seo.title")} description={t("seo.description")} noindex />
       <Header />
 
+      <div
+        className="customer-dashboard customer-tool-surface"
+        data-theme={customerTheme}
+      >
       <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pt-28 pb-8">
         <div className="container-custom max-w-4xl mx-auto">
           <div className="text-center mb-10">
@@ -419,9 +425,6 @@ const BookTraining = () => {
         </div>
       </main>
 
-      <ChatIcons />
-      <Footer />
-
       <BookingModal
         key={editingSchedule?._id || "create"}
         isOpen={isModalOpen}
@@ -440,6 +443,10 @@ const BookTraining = () => {
           onCancel={() => setConfirmEditAction(null)}
         />
       )}
+      </div>
+
+      <ChatIcons />
+      <Footer />
     </>
   );
 };

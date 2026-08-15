@@ -71,8 +71,15 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 046 | Ổn định nền tảng, AI Memory có kiểm soát và motion discipline | P0/P1 | XL | 017, 020, 030, 031, 035, 038, 040 | LOCAL VERIFIED — PRODUCTION READINESS BLOCKED |
 | 047 | Triển khai TDEE có độ tin cậy, độ phức tạp bài tập và Tiến trình cơ thể | P1 | L | 003F, 006, 016, 031, 046 | COMPLETED |
 | 048 | Thêm nguồn Radar động và làm rõ phục hồi GitHub rate limit | P1 | L | 035, 036 | COMPLETE / LOCAL VERIFIED — AUTH VISUAL + PRODUCTION GITHUB PENDING |
+| 049 | Đồng bộ theme HLV và các công cụ tập luyện của học viên | P1 | M | 006, 016 | LOCAL VERIFIED — STAGING BLOCKED (DEPENDENCY AUDIT) |
+| 050 | Xây UI quality gates deterministic và pilot icon morph có kiểm soát | P1 | L | 017, 030, 046 | COMPLETE / LOCAL VERIFIED — DEPENDENCY AUDIT BLOCKED |
+| 051 | Tự động đối soát SePay và cộng ví an toàn | P0 | L | 018 | IMPLEMENTED LOCALLY |
 
 ## Dependency Notes
+
+- Plan 051 phụ thuộc Plan 018 vì Wallet/Account đã có query keys, polling và
+  server-authoritative balance; plan thêm SePay webhook/API v2, transaction-specific
+  idempotency, mismatch review và không backfill lịch sử trước cutover.
 
 - Plan 001 keeps pricing, entitlements, email grants and retention in one lifecycle because all flows create or consume `TrainerSubscription` records.
 - Plan 002 depends on Plan 001 because it hardens the trainer catalog, checkout and deposit policies introduced or touched by that lifecycle.

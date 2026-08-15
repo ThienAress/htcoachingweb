@@ -1,7 +1,13 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Home, UserPlus, Users, Menu, X } from "lucide-react";
+import {
+  Home,
+  UserPlus,
+  Users,
+  SidebarClose,
+  SidebarOpen,
+} from "lucide-react";
 import {
   createF1Customer,
   deleteF1Customer as deleteF1CustomerApi,
@@ -13,6 +19,7 @@ import SEO from "../../components/SEO";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useConversionOriginOptions } from "../../hooks/useConversionOriginOptions";
 import { useAuth } from "../../context/AuthContext";
+import MorphStateIcon from "../../components/motion/MorphStateIcon";
 
 const F1CustomerList = lazy(
   () => import("../../components/F1/F1CustomerList"),
@@ -54,6 +61,8 @@ const F1Customers = () => {
   const [viewMode, setViewMode] = useState("list");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [createForm, setCreateForm] = useState(initialCreateForm);
@@ -61,6 +70,15 @@ const F1Customers = () => {
     user?.role === "admin" && viewMode === "create",
   );
   const debouncedSearch = useDebounce(search.trim(), 350);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    const updateViewport = () => setIsDesktopViewport(mediaQuery.matches);
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+    return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
+
   const customersQuery = useQuery({
     queryKey: ["f1-customers", { search: debouncedSearch, page, limit: 10 }],
     queryFn: () =>
@@ -241,28 +259,56 @@ const F1Customers = () => {
     <div className="flex min-h-screen bg-gradient-to-br from-slate-100 to-slate-200">
       {/* Mobile menu button */}
       <button
+        data-testid="f1-mobile-menu-toggle"
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         aria-label={mobileMenuOpen ? "Đóng menu F1" : "Mở menu F1"}
         aria-expanded={mobileMenuOpen}
         aria-controls="f1-navigation"
         className="fixed left-4 top-4 z-50 rounded-full bg-white p-2 shadow-lg md:hidden"
       >
-        {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        <MorphStateIcon state={mobileMenuOpen ? "close" : "menu"} size={20} />
       </button>
+
+      {desktopSidebarCollapsed && (
+        <button
+          type="button"
+          onClick={() => setDesktopSidebarCollapsed(false)}
+          aria-label="Mở menu F1"
+          aria-expanded="false"
+          aria-controls="f1-navigation"
+          className="fixed left-4 top-4 z-50 hidden h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white shadow-lg transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 md:inline-flex"
+        >
+          <SidebarOpen size={20} aria-hidden="true" />
+        </button>
+      )}
 
       {/* Sidebar - desktop & mobile overlay */}
       <aside
         id="f1-navigation"
-        className={`fixed inset-y-0 left-0 z-40 w-72 transform bg-gradient-to-b from-slate-800 to-slate-900 text-white shadow-2xl transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+        aria-hidden={isDesktopViewport && desktopSidebarCollapsed}
+        inert={isDesktopViewport && desktopSidebarCollapsed}
+        className={`fixed inset-y-0 left-0 z-40 w-72 transform bg-gradient-to-b from-slate-800 to-slate-900 text-white shadow-2xl transition-[transform,width] duration-300 ease-in-out md:relative md:translate-x-0 md:overflow-hidden md:duration-200 ${
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } ${desktopSidebarCollapsed ? "md:w-0" : "md:w-72"}`}
       >
-        <div className="flex h-full flex-col">
-          <div className="border-b border-white/10 p-6">
-            <h3 className="text-2xl font-black tracking-tight">HTCOACHING</h3>
-            <p className="mt-1 text-xs text-slate-400">
-              powered by FitAssess AI
-            </p>
+        <div className="flex h-full w-72 flex-col">
+          <div className="flex items-start justify-between gap-3 border-b border-white/10 p-6">
+            <div>
+              <h3 className="text-2xl font-black tracking-tight">HTCOACHING</h3>
+              <p className="mt-1 text-xs text-slate-400">
+                powered by FitAssess AI
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDesktopSidebarCollapsed(true)}
+              aria-label="Thu menu F1"
+              aria-expanded="true"
+              aria-controls="f1-navigation"
+              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 md:inline-flex"
+            >
+              <SidebarClose size={20} aria-hidden="true" />
+            </button>
           </div>
 
           <nav className="flex-1 space-y-1 px-4 py-8">
@@ -307,7 +353,11 @@ const F1Customers = () => {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-x-auto p-4 md:p-8">
+      <main
+        className={`flex-1 overflow-x-auto p-4 transition-[padding] duration-200 md:p-8 ${
+          desktopSidebarCollapsed ? "md:pl-20" : ""
+        }`}
+      >
         <div className="mx-auto max-w-7xl">
           <Suspense
             fallback={

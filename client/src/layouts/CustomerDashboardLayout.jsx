@@ -230,7 +230,7 @@ const CustomerDashboardLayout = () => {
               {/* Desktop: greeting */}
               <p className="hidden truncate text-sm text-slate-400 lg:block">
                 <span className="font-semibold text-white">
-                  {greeting}, {user?.name?.split(" ").at(-1) || "bạn"}
+                  {greeting}, {user?.name || "bạn"}
                 </span>{" "}
                 — chúc bạn một ngày hiệu quả 💪
               </p>
