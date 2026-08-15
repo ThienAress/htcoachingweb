@@ -539,8 +539,13 @@ export const validateProductionEnvironment = (
   const sePayReconciliationEnabled =
     String(env.SEPAY_RECONCILIATION_ENABLED || "").trim().toLowerCase() ===
     "true";
+  const isStagingEnvironment =
+    String(env.APP_ENV || "").trim().toLowerCase() === "staging";
   if (sePayEnabled) {
-    if (String(env.SEPAY_MODE || "").trim().toLowerCase() !== "live") {
+    if (
+      !isStagingEnvironment &&
+      String(env.SEPAY_MODE || "").trim().toLowerCase() !== "live"
+    ) {
       addFinding(
         findings,
         "errors",
