@@ -19,8 +19,10 @@ Production hiện có release backup đã restore-test nhưng chưa recover đư
 ngoài workstation, Atlas M0 không có cloud backup/PITR, Skill Radar đang
 chung lifecycle với các cron có thể mutation, và Render Free có thể spin down
 sau 15 phút idle. Monitor run `31925606642` đã timeout ở API liveness trong
-khi protected monitor ngay sau đó pass, nên cần harden cold-start budget mà
-không che lỗi kéo dài.
+khi protected monitor ngay sau đó pass. Sau rollout đầu, run `31932200989`
+lại gặp `fetch failed` ở client bootstrap trong khi protected monitor vẫn pass.
+Vì vậy smoke cần cả cold-start budget riêng và bounded retry cho mọi read-only
+surface mà không che lỗi kéo dài.
 
 ## Scope
 
@@ -54,11 +56,12 @@ hữu Radar cron.
 ### Step 2: Monitor cold-start regression
 
 Ghi test cho timeout policy: attempt đầu của health probe có budget 90 giây,
-các attempt sau quay lại 30 giây; tổng retry vẫn bị giới hạn. Chỉ áp
-dụng policy này cho liveness/readiness, không nới timeout toàn bộ smoke.
+các attempt sau quay lại 30 giây; tổng retry vẫn bị giới hạn. Client,
+manifest, OAuth, Blog, Recipe, detail và sitemap read-only checks đều dùng cùng
+bounded retry. Không nới timeout mặc định toàn bộ monitoring library.
 
-**Evidence**: run `31925606642` timeout `api liveness` lúc 30 giây; protected
-metrics pass trong cùng job và recovery run `31927617516` pass.
+**Evidence**: run `31925606642` timeout `api liveness` lúc 30 giây; run
+`31932200989` fail transient client fetch; protected metrics pass trong cả hai job.
 
 ### Step 3: DR/PITR readiness
 
@@ -86,7 +89,7 @@ quan sát tối thiểu 30 phút trước khi close issue #56.
 
 - [ ] Web process không còn start/stop Skill Radar cron.
 - [ ] Worker entrypoint fail closed nếu thiếu explicit enable flag/token.
-- [ ] Cold-start probe có budget phù hợp Render Free và persistent failure vẫn fail.
+- [ ] Cold-start/public probes có bounded retry phù hợp và persistent failure vẫn fail.
 - [ ] DR manifest không khai khống off-device/PITR readiness.
 - [ ] Code-only release pass QA và production read-only observation.
 - [ ] Issue #56 chỉ close sau manual recovery evidence và owner criteria.

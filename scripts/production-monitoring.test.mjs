@@ -274,6 +274,29 @@ test("production alert workflow links the canonical runbook and requires manual 
   assert.match(workflow, /owner review/i);
 });
 
+test("production smoke retries every remote read-only surface", async () => {
+  const smoke = await readFile(
+    new URL("./production-smoke.mjs", import.meta.url),
+    "utf8",
+  );
+  const expectedChecks = [
+    "client document",
+    "web manifest",
+    "Google OAuth topology",
+    "blog public API",
+    "recipe public API",
+    "recipe taxonomy API",
+    "blog detail API",
+    "recipe detail API",
+    "dynamic sitemap",
+  ];
+  const missing = expectedChecks.filter(
+    (name) => !smoke.includes(`readOnlyCheck("${name}"`),
+  );
+
+  assert.deepEqual(missing, []);
+});
+
 test("staging Netlify builds fail closed on canonical dynamic route content", async () => {
   const config = await readFile(
     new URL("../netlify.toml", import.meta.url),
