@@ -88,10 +88,6 @@ import {
   startF1LifecycleCron,
   stopF1LifecycleCron,
 } from "./src/services/f1PrivacyLifecycle.service.js";
-import {
-  startSkillRadarCron,
-  stopSkillRadarCron,
-} from "./src/services/skillRadarCron.js";
 import { startSePayReconciliationJob } from "./src/services/sepayReconciliationJob.js";
 
 import { generateCsrfToken } from "./src/middlewares/csrf.js";
@@ -369,7 +365,6 @@ const server = app.listen(PORT, () => {
   startContractCronJobs();
   startCleanupCronJobs();
   startF1LifecycleCron();
-  startSkillRadarCron();
   sePayReconciliationJob = startSePayReconciliationJob();
 });
 
@@ -397,7 +392,6 @@ const gracefulShutdown = async (signal) => {
     stopContractCronJobs(),
     stopCleanupCronJobs(),
     stopF1LifecycleCron(),
-    stopSkillRadarCron(),
     sePayReconciliationJob?.stop?.() || Promise.resolve(),
   ]);
   safeLog.info("server.shutdown_started", { signal });

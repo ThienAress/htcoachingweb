@@ -111,11 +111,15 @@ export const validateGoogleOAuthRedirect = (
 
 export const fetchTimed = async (url, options = {}) => {
   const startedAt = performance.now();
-  const { headers = {}, ...requestOptions } = options;
+  const { headers = {}, timeoutMs = 30_000, ...requestOptions } = options;
+  assert(
+    Number.isInteger(timeoutMs) && timeoutMs >= 1_000 && timeoutMs <= 120_000,
+    "Fetch timeout must be between 1000 and 120000 milliseconds",
+  );
   const response = await fetch(url, {
     redirect: "manual",
-    signal: AbortSignal.timeout(30_000),
     ...requestOptions,
+    signal: AbortSignal.timeout(timeoutMs),
     headers: {
       Accept: "*/*",
       "User-Agent": "htcoaching-production-monitor/1.0",
@@ -126,6 +130,14 @@ export const fetchTimed = async (url, options = {}) => {
     response,
     durationMs: Number((performance.now() - startedAt).toFixed(2)),
   };
+};
+
+export const productionHealthTimeoutMs = (attempt) => {
+  assert(
+    Number.isInteger(attempt) && attempt >= 1 && attempt <= 5,
+    "Health probe attempt must be between one and five",
+  );
+  return attempt === 1 ? 90_000 : 30_000;
 };
 
 export const retryReadOnlyOperation = async (

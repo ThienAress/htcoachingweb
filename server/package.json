@@ -72,6 +72,7 @@
     "preflight:test-catalog:staging": "node src/scripts/publicTestCatalogSync.js --target=staging",
     "sync:test-catalog:staging": "node src/scripts/publicTestCatalogSync.js --target=staging --apply",
     "start": "node server.js",
+    "worker:skill-radar": "node src/workers/skillRadar.worker.js",
     "dev": "doppler run -- nodemon server.js",
     "security:audit": "node ../scripts/check-dependency-audit.mjs server",
     "seed:staging": "node src/scripts/stagingSeed.js",

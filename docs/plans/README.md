@@ -76,6 +76,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 051 | Tự động đối soát SePay và cộng ví an toàn | P0 | L | 018 | IMPLEMENTED LOCALLY |
 | 052 | Harden AI evals, tool boundaries và scale readiness | P0→P1 | XL | 020, 031, 033, 038, 046 | LOCAL COMPLETE / EXTERNAL ROLLOUT PENDING |
 | 053 | Harden backend foundations và async resilience | P0→P2 | L | 052 | LOCAL COMPLETE / EXTERNAL OPS PENDING |
+| 054 | Isolate Skill Radar worker và harden production recovery/monitoring | P0→P1 | L | 053 | IN PROGRESS — PAID/OFF-DEVICE GATES PENDING |
 
 ## Dependency Notes
 

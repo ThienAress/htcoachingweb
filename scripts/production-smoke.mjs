@@ -1,6 +1,7 @@
 import {
   assert,
   fetchTimed,
+  productionHealthTimeoutMs,
   productionTargets,
   retryReadOnlyOperation,
   sitemapIndexUrls,
@@ -8,9 +9,15 @@ import {
   validateGoogleOAuthRedirect,
 } from "./lib/production-monitoring.mjs";
 
-const jsonCheck = async (url, name, validate = () => true) => {
+const jsonCheck = async (
+  url,
+  name,
+  validate = () => true,
+  requestOptions = {},
+) => {
   const { response, durationMs } = await fetchTimed(url, {
     headers: { Accept: "application/json" },
+    ...requestOptions,
   });
   assert(response.status === 200, name + " returned " + response.status);
   assert(
@@ -79,7 +86,10 @@ const main = async () => {
     ["api readiness", "/api/ops/health/ready"],
   ]) {
     const result = await retryReadOnlyOperation(
-      () => jsonCheck(targets.apiOrigin + path, name),
+      (attempt) =>
+        jsonCheck(targets.apiOrigin + path, name, () => true, {
+          timeoutMs: productionHealthTimeoutMs(attempt),
+        }),
       {
         onRetry: (error, attempt) => {
           process.stderr.write(

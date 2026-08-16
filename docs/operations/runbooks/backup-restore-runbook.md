@@ -13,6 +13,33 @@
 - Continuous/point-in-time recovery availability is reported separately. A logical backup must not be described as
   continuous coverage.
 
+## Off-device recovery gate
+
+`offDeviceRecoveryVerified=true` chỉ hợp lệ khi tất cả điều kiện sau được
+quan sát trên cùng backup ID:
+
+1. Encrypted archive được copy tới destination khác workstation nguồn và
+   destination có owner, retention, access policy rõ ràng.
+2. Recovery key được custodian độc lập giữ; key không chỉ được
+   bảo vệ bằng DPAPI/profile của workstation nguồn và không nằm cùng
+   destination với archive.
+3. Operator tải đúng off-device copy về một recovery environment, verify
+   checksum/signature, decrypt và restore vào MongoDB cô lập.
+4. Collection/document/index fingerprint của isolated restore khớp evidence nguồn;
+   production không nhận bất kỳ write nào trong drill.
+
+Không upload archive, key hoặc manifest riêng tư lên Git/public artifact.
+Nếu chưa có destination và key custodian được owner phê duyệt, giữ
+`offDeviceRecoveryVerified=false`.
+
+## PITR decision gate
+
+Atlas Free không có Cloud Backup/PITR. Chỉ đổi
+`continuousRecoveryAvailable=true` sau khi owner duyệt paid tier/backup policy,
+Atlas hiển thị backup active, retention/oplog window được ghi lại và một
+point-in-time restore đã pass trên target cô lập. Logical `mongodump` không
+được dùng thay evidence này.
+
 ## Backup
 
 1. Confirm the target cluster, database name, retention policy, encryption, and backup owner.

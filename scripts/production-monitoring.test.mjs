@@ -6,6 +6,7 @@ import {
   activeOperationalAlerts,
   parsePrometheusMetrics,
   productionTargets,
+  productionHealthTimeoutMs,
   retryReadOnlyOperation,
   sitemapIndexUrls,
   sitemapIncludesCanonicalPath,
@@ -13,6 +14,14 @@ import {
   normalizeRumBaseline,
   summarizePrometheusMetrics,
 } from "./lib/production-monitoring.mjs";
+
+test("production health probe reserves a bounded first-attempt cold-start budget", () => {
+  assert.deepEqual(
+    [1, 2, 3].map((attempt) => productionHealthTimeoutMs(attempt)),
+    [90_000, 30_000, 30_000],
+  );
+  assert.throws(() => productionHealthTimeoutMs(0), /attempt/i);
+});
 
 test("split sitemap index resolves bounded same-origin child sitemaps", () => {
   const sitemap = `
