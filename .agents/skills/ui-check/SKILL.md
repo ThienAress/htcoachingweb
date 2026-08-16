@@ -20,6 +20,38 @@ description: Quét UI toàn bộ codebase kiểm tra chất lượng design (AI 
 
 ---
 
+## Bước 0: Deterministic Source Audit
+
+Chạy scanner project-native trước phần review bằng model:
+
+```powershell
+npm.cmd run ui:audit
+```
+
+Khi cần output máy đọc hoặc handoff có remediation:
+
+```powershell
+npm.cmd run ui:audit -- --format json
+npm.cmd run ui:audit -- --format prompt
+npm.cmd run ui:audit -- --category accessibility
+```
+
+Gate canonical dùng trong CI và trước bàn giao UI:
+
+```powershell
+npm.cmd run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high
+```
+
+- Scanner không execute source của project và sắp xếp output deterministic.
+- `npm.cmd run ui:audit` không baseline vẫn là report informational; findings hiện hữu trong baseline là debt snapshot chứ không phải waiver.
+- Gate chỉ block finding mới có `status=fail` và `confidence=high`; ruleset/target/category mismatch phải dừng để review contract.
+- Đọc `ruleId`, `confidence`, `file:line` và context trước khi kết luận; không auto-fix chỉ từ text match.
+- `advisory` luôn cần rendered/manual evidence và không được sửa chỉ để làm report sạch.
+- Không chạy `ui:audit:baseline:update` chỉ để làm CI xanh. Chỉ update sau khi rule/debt change đã có test, review và lý do trong plan/handoff.
+- Nếu scanner command hoặc tests fail, dừng `$ui-check`, chẩn đoán scanner trước khi tiếp tục review thủ công.
+
+---
+
 ## Bước 1: Recon — Xác Định Surfaces 📋
 
 // turbo
@@ -73,7 +105,7 @@ Quét TẤT CẢ files UI (JSX + CSS) tìm 12 absolute bans:
 | 11 | Text overflow | Text có thể tràn container trên mobile | 🟡 MED |
 | 12 | Dark glow/neon shadow | Colored box-shadow sáng trên nền tối | 🟡 MED |
 
-**Cách quét:** ưu tiên `rg`; các snippet `grep` legacy bên dưới chỉ mô tả pattern và không phải finding nếu chưa đọc context.
+**Cách quét:** tái sử dụng evidence từ `npm.cmd run ui:audit` cho các rule đã có trong catalog; dùng `rg` cho discovery bổ sung. Các snippet `grep` legacy bên dưới chỉ mô tả pattern và không phải finding nếu chưa đọc context.
 
 ```bash
 # Gradient text

@@ -16,6 +16,15 @@
   "toast_suggestion_error": "Gửi thất bại, thử lại sau.",
   "card_title": "CHỌN NHÓM CƠ",
   "btn_view_list": "Xem danh sách bài tập",
+  "difficulty": {
+    "title": "Độ phức tạp kỹ thuật",
+    "not_rated": "Chưa đánh giá",
+    "rating_label": "{{rating}} trên 5 sao về độ phức tạp kỹ thuật",
+    "tooltip": "Đánh giá kỹ thuật, không phản ánh mức tạ hoặc cường độ cá nhân.",
+    "filter_label": "Lọc theo độ phức tạp kỹ thuật",
+    "filter_all": "Tất cả độ phức tạp",
+    "filter_rating": "{{rating}} sao"
+  },
   "pdf": {
     "no_data": "Không có dữ liệu lịch tập.",
     "created_date": "NGÀY TẠO",
@@ -53,6 +62,7 @@
   },
   "modal": {
     "title": "DANH SÁCH BÀI TẬP",
+    "close": "Đóng danh sách bài tập",
     "search_by_name": "Tên bài tập",
     "search_by_muscle": "Nhóm cơ",
     "placeholder_name": "Tìm theo tên bài tập",

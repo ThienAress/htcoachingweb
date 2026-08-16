@@ -42,6 +42,7 @@ import bookingRoutes from "./src/routes/booking.routes.js";
 import seoAnalyticsRoutes from "./src/routes/seoAnalytics.routes.js";
 import serviceAccessPolicyRoutes from "./src/routes/serviceAccessPolicy.routes.js";
 import skillRadarRoutes from "./src/routes/skillRadar.routes.js";
+import sepayWebhookRoutes from "./src/routes/sepayWebhook.routes.js";
 import exerciseRoutes from "./src/routes/exercise.routes.js";
 import exerciseSuggestionRoutes from "./src/routes/exerciseSuggestion.routes.js";
 import customerStoryRoutes from "./src/routes/customerStory.routes.js";
@@ -63,12 +64,35 @@ import notificationRoutes from "./src/routes/notification.routes.js";
 import trainerClientOverviewRoutes from "./src/routes/trainerClientOverview.routes.js";
 import coachingActivityRoutes from "./src/routes/coachingActivity.routes.js";
 import { getMyWallet } from "./src/routes/deposit.routes.js";
-import { startDepositCronJobs } from "./src/services/depositCron.js";
-import { startSubscriptionCronJobs } from "./src/services/subscriptionCron.js";
-import { startScheduleReminderCron } from "./src/services/scheduleReminderCron.js";
-import { startContractCronJobs } from "./src/services/contractCron.js";
-import { startCleanupCronJobs } from "./src/services/cleanupCron.js";
-import { startF1LifecycleCron } from "./src/services/f1PrivacyLifecycle.service.js";
+import {
+  startDepositCronJobs,
+  stopDepositCronJobs,
+} from "./src/services/depositCron.js";
+import {
+  startSubscriptionCronJobs,
+  stopSubscriptionCronJobs,
+} from "./src/services/subscriptionCron.js";
+import {
+  startScheduleReminderCron,
+  stopScheduleReminderCron,
+} from "./src/services/scheduleReminderCron.js";
+import {
+  startContractCronJobs,
+  stopContractCronJobs,
+} from "./src/services/contractCron.js";
+import {
+  startCleanupCronJobs,
+  stopCleanupCronJobs,
+} from "./src/services/cleanupCron.js";
+import {
+  startF1LifecycleCron,
+  stopF1LifecycleCron,
+} from "./src/services/f1PrivacyLifecycle.service.js";
+import {
+  startSkillRadarCron,
+  stopSkillRadarCron,
+} from "./src/services/skillRadarCron.js";
+import { startSePayReconciliationJob } from "./src/services/sepayReconciliationJob.js";
 
 import { generateCsrfToken } from "./src/middlewares/csrf.js";
 import { errorHandler } from "./src/middlewares/errorHandler.js";
@@ -149,6 +173,9 @@ app.use(cors(corsOptions));
 
 // ================= SECURITY =================
 app.use(...createSecurityHeaders({ isProduction: isProd, allowedOrigins }));
+
+// SePay HMAC ký raw bytes; route này phải đứng trước global JSON parser.
+app.use("/api/webhooks/sepay", sepayWebhookRoutes);
 
 // ================= BODY / COOKIE / PASSPORT =================
 app.use(express.json({ limit: "2mb" }));
@@ -314,6 +341,8 @@ try {
   process.exit(1);
 }
 
+let sePayReconciliationJob = null;
+
 const server = app.listen(PORT, () => {
   safeLog.info("server.started", {
     port: Number(PORT),
@@ -340,6 +369,8 @@ const server = app.listen(PORT, () => {
   startContractCronJobs();
   startCleanupCronJobs();
   startF1LifecycleCron();
+  startSkillRadarCron();
+  sePayReconciliationJob = startSePayReconciliationJob();
 });
 
 server.headersTimeout = Number(
@@ -359,6 +390,16 @@ const gracefulShutdown = async (signal) => {
   if (shuttingDown) return;
   shuttingDown = true;
   markRuntimeDraining(signal);
+  const backgroundJobsStopped = Promise.allSettled([
+    stopDepositCronJobs(),
+    stopSubscriptionCronJobs(),
+    stopScheduleReminderCron(),
+    stopContractCronJobs(),
+    stopCleanupCronJobs(),
+    stopF1LifecycleCron(),
+    stopSkillRadarCron(),
+    sePayReconciliationJob?.stop?.() || Promise.resolve(),
+  ]);
   safeLog.info("server.shutdown_started", { signal });
   const shutdownTimeoutMs = Number(
     process.env.SERVER_SHUTDOWN_TIMEOUT_MS || 15_000,
@@ -368,6 +409,8 @@ const gracefulShutdown = async (signal) => {
   server.close(async () => {
     safeLog.info("server.http_closed");
     try {
+      await backgroundJobsStopped;
+      safeLog.info("background_jobs.stopped");
       const mongoose = (await import("mongoose")).default;
       await mongoose.connection.close();
       safeLog.info("server.database_closed");

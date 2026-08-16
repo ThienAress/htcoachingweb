@@ -4,7 +4,7 @@
 const GREETING = "Chào bạn! Tôi là HT Assistant 🏋️ — trợ lý AI của HTCOACHING. Bạn cần tư vấn về dinh dưỡng, bài tập hay tìm huấn luyện viên phù hợp?";
 
 const SLOT_FILLING_RESPONSES = {
-  tdee: "Để tính lượng calo cho bạn, em cần biết thêm:\n- Giới tính?\n- Tuổi?\n- Chiều cao (cm)?\n- Cân nặng (kg)?\n- Mức vận động hàng ngày?",
+  tdee: "Để ước tính lượng calo, em cần biết trong một lần: giới tính, tuổi, chiều cao, cân nặng, mục tiêu; công việc/di chuyển ngoài buổi tập, số bước trung bình; số buổi, thời lượng và cường độ tập.",
   exercise: "Bạn muốn tìm bài tập cho nhóm cơ nào? Ví dụ: Ngực, Lưng, Chân, Vai, Tay...",
 };
 
@@ -57,21 +57,90 @@ function extractTdeeParams(message) {
   if (!height || !weight || !age) return null;
 
   // Detect gender
-  let gender = "male";
-  if (/nữ|female|chị|em gái/i.test(message)) gender = "female";
+  const isFemale = /nữ|female|chị|em gái/i.test(message);
+  const isMale = /\bnam\b|male|anh|em trai/i.test(message);
+  if (!isFemale && !isMale) return null;
+  const gender = isFemale ? "female" : "male";
 
-  // Detect activity level
-  let activityLevel = "moderate";
-  if (/văn phòng|ngồi nhiều|ít vận động|sedentary/i.test(message)) activityLevel = "sedentary";
-  else if (/tập nhẹ|light/i.test(message)) activityLevel = "light";
-  else if (/tập nặng|active|chăm tập/i.test(message)) activityLevel = "active";
+  const hasDailyMovement = /văn phòng|chủ yếu ngồi|ngồi nhiều|đi lại|đứng nhiều|lao động|physical/i.test(message);
+  const hasSteps = /\d{3,5}\s*(?:bước|steps?)/i.test(message);
+  const hasFrequency = /\d+\s*(?:buổi|ngày)\s*\/?\s*(?:tuần|week)/i.test(message);
+  const hasDuration = /\d+\s*(?:phút|minutes?)/i.test(message);
+  const intensityMatch = message.match(
+    /(?:cường độ|tập)\s*(?:rất\s*)?(không áp dụng|nhẹ|vừa|nặng|cao|easy|moderate|vigorous)/i,
+  );
+  const hasIntensity = Boolean(intensityMatch);
+  const hasGoal = /giảm mỡ|giảm cân|tăng cơ|duy trì|fat loss|muscle|maintain/i.test(message);
+  if (!hasDailyMovement || !hasSteps || !hasFrequency || !hasDuration || !hasIntensity || !hasGoal) {
+    return null;
+  }
+
+  const dailyMovement = /lao động|physical/i.test(message)
+    ? "physical_work"
+    : /đứng nhiều|đi lại nhiều/i.test(message)
+      ? "mostly_moving"
+      : /văn phòng|chủ yếu ngồi|ngồi nhiều/i.test(message)
+        ? "mostly_seated"
+        : "mixed";
+  const stepsCount = Number(message.match(/(\d{3,5})\s*(?:bước|steps?)/i)?.[1]);
+  const steps = stepsCount >= 12000
+    ? "at_least_12000"
+    : stepsCount >= 8000
+      ? "between_8000_11999"
+      : stepsCount >= 5000
+        ? "between_5000_7999"
+        : "under_5000";
+  const frequency = Number(message.match(/(\d+)\s*(?:buổi|ngày)\s*\/?\s*(?:tuần|week)/i)?.[1]);
+  const trainingFrequency = frequency === 0
+    ? "none"
+    : frequency >= 5
+      ? "five_plus"
+      : frequency >= 3
+        ? "three_four"
+        : "one_two";
+  const duration = Number(message.match(/(\d+)\s*(?:phút|minutes?)/i)?.[1]);
+  const intensityText = intensityMatch?.[1] || "";
+  const hasNoApplicableIntensity = /không áp dụng|not applicable/i.test(intensityText);
+  if (
+    (frequency === 0 && (duration !== 0 || !hasNoApplicableIntensity)) ||
+    (frequency > 0 && (duration === 0 || hasNoApplicableIntensity))
+  ) {
+    return null;
+  }
+  const trainingDuration = duration === 0
+    ? "none"
+    : duration > 60
+      ? "over_60"
+      : duration >= 45
+        ? "between_45_60"
+        : duration >= 30
+          ? "between_30_45"
+          : "under_30";
+  const trainingIntensity = hasNoApplicableIntensity
+    ? "none"
+    : /nặng|cao|vigorous/i.test(intensityText)
+      ? "vigorous"
+      : /vừa|moderate/i.test(intensityText)
+        ? "moderate"
+        : "easy";
+
+  const score = ({ mostly_seated: 0, mixed: 2, mostly_moving: 4, physical_work: 6 })[dailyMovement]
+    + ({ under_5000: 0, between_5000_7999: 1, between_8000_11999: 3, at_least_12000: 5 })[steps]
+    + ({ none: 0, one_two: 1, three_four: 2, five_plus: 3 })[trainingFrequency]
+    + ({ none: 0, under_30: 0, between_30_45: 1, between_45_60: 2, over_60: 3 })[trainingDuration]
+    + ({ none: 0, easy: 0, moderate: 1, vigorous: 2 })[trainingIntensity];
+  const activityLevel = score <= 2 ? "sedentary" : score <= 5 ? "light" : score <= 8 ? "moderate" : score <= 12 ? "active" : "very_active";
 
   // Detect goal
   let goal = "fat_loss";
   if (/tăng cơ|muscle|bulk/i.test(message)) goal = "muscle_gain";
   else if (/duy trì|maintain/i.test(message)) goal = "maintenance";
 
-  return { gender, age, heightCm: height, weightKg: weight, activityLevel, goal };
+  return {
+    gender, age, heightCm: height, weightKg: weight, activityLevel,
+    dailyMovement, steps, trainingFrequency, trainingDuration,
+    trainingIntensity, goal,
+  };
 }
 
 function extractExerciseParams(message) {

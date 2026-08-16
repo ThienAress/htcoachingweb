@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bodyProgressHistoryRows,
   progressMetricRows,
   summarizeProgressAvailability,
 } from "../progressPresentation";
@@ -41,6 +42,39 @@ describe("Progress presentation", () => {
         weightTrend: { points: [] },
       }),
     ).toBe(false);
+  });
+
+  it("merges weight and waist histories by date without inventing zeroes", () => {
+    expect(
+      bodyProgressHistoryRows({
+        weightKg: {
+          series: [
+            { dateKey: "2026-07-06", value: 70 },
+            { dateKey: "2026-07-20", value: 69 },
+          ],
+        },
+        waistCm: {
+          series: [{ dateKey: "2026-07-13", value: 78 }],
+        },
+      }),
+    ).toEqual([
+      { dateKey: "2026-07-06", weightKg: 70, waistCm: null },
+      { dateKey: "2026-07-13", weightKg: null, waistCm: 78 },
+      { dateKey: "2026-07-20", weightKg: 69, waistCm: null },
+    ]);
+  });
+
+  it("counts waist-only progress as available", () => {
+    expect(
+      summarizeProgressAvailability({
+        compliance: {},
+        wellness: {},
+        bodyProgress: {
+          weightKg: { series: [] },
+          waistCm: { series: [{ dateKey: "2026-07-20", value: 78 }] },
+        },
+      }),
+    ).toBe(true);
   });
 });
 

@@ -17,17 +17,17 @@ describe("community feature report service", () => {
     const report = buildCommunityFeatureReport({}, { now: NOW });
 
     expect(report.summary).toEqual({
-      eventCount: 5,
-      improvementCount: 5,
+      eventCount: 7,
+      improvementCount: 7,
       featureCount: 2,
-      productionVerifiedCount: 0,
-      openF0Count: 2,
-      latestDate: "2026-08-10",
+      productionVerifiedCount: 2,
+      openF0Count: 0,
+      latestDate: "2026-08-12",
       statusCounts: {
         in_progress: 0,
         implemented: 5,
         verified: 0,
-        production_verified: 0,
+        production_verified: 2,
       },
     });
   });
@@ -66,6 +66,13 @@ describe("community feature report service", () => {
         features: [
           ["ht_assistant", 3],
           ["meal_plan", 2],
+        ],
+      },
+      {
+        date: "2026-08-12",
+        features: [
+          ["ht_assistant", 1],
+          ["meal_plan", 1],
         ],
       },
     ]);

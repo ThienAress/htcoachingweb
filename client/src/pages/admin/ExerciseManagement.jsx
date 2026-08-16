@@ -25,6 +25,8 @@ import {
   updateExercise,
   deleteExercise,
 } from "../../services/exercise.service";
+import TechnicalDifficultyRating from "../ExercisesPage/TechnicalDifficultyRating";
+import ExerciseTechnicalDifficultyFields from "./ExerciseTechnicalDifficultyFields";
 
 const ExerciseManagement = () => {
   const queryClient = useQueryClient();
@@ -40,6 +42,7 @@ const ExerciseManagement = () => {
     description: "",
     videoUrl: "",
     imageUrl: "",
+    technicalDifficulty: undefined,
   });
   const [batchText, setBatchText] = useState("");
   const limit = 10;
@@ -110,10 +113,25 @@ const ExerciseManagement = () => {
       description: "",
       videoUrl: "",
       imageUrl: "",
+      technicalDifficulty: undefined,
     });
   };
   const handleSubmit = (e) => {
     e.preventDefault();
+    const technicalDifficulty = formData.technicalDifficulty;
+    const completedCriteria = [
+      "coordination",
+      "stability",
+      "mobility",
+      "setup",
+      "errorConsequence",
+    ].filter((criterion) => Number.isInteger(technicalDifficulty?.[criterion]));
+    if (completedCriteria.length > 0 && completedCriteria.length < 5) {
+      toast.warning(
+        "Cần chấm đủ 5 tiêu chí để hiển thị số sao; bạn vẫn có thể lưu bài tập ở trạng thái chưa đánh giá.",
+      );
+    }
+
     if (editingId) updateMutation.mutate({ id: editingId, data: formData });
     else createMutation.mutate(formData);
   };
@@ -124,6 +142,16 @@ const ExerciseManagement = () => {
       description: ex.description || "",
       videoUrl: ex.videoUrl || "",
       imageUrl: ex.imageUrl || "",
+      technicalDifficulty: ex.technicalDifficulty
+        ? {
+            coordination: ex.technicalDifficulty.coordination,
+            stability: ex.technicalDifficulty.stability,
+            mobility: ex.technicalDifficulty.mobility,
+            setup: ex.technicalDifficulty.setup,
+            errorConsequence: ex.technicalDifficulty.errorConsequence,
+            rationale: ex.technicalDifficulty.rationale || "",
+          }
+        : undefined,
     });
     setEditingId(ex._id);
     setShowModal(true);
@@ -248,6 +276,9 @@ const ExerciseManagement = () => {
                       Nhóm cơ
                     </th>
                     <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700">
+                      Độ phức tạp kỹ thuật
+                    </th>
+                    <th className="px-5 py-4 text-left text-sm font-semibold text-gray-700">
                       Mô tả
                     </th>
                     <th className="px-5 py-4 text-center text-sm font-semibold text-gray-700 w-24">
@@ -279,6 +310,12 @@ const ExerciseManagement = () => {
                           {ex.muscleGroup}
                         </span>
                       </td>
+                      <td className="px-5 py-3 text-sm">
+                        <TechnicalDifficultyRating
+                          rating={ex.technicalDifficultyRating}
+                          theme="light"
+                        />
+                      </td>
                       <td className="px-5 py-3 text-sm text-gray-600 max-w-md break-words whitespace-pre-wrap">
                         {ex.description || "—"}
                       </td>
@@ -305,7 +342,7 @@ const ExerciseManagement = () => {
                   {exercises.length === 0 && (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="px-5 py-12 text-center text-gray-400"
                       >
                         <FileWarning className="w-10 h-10 mx-auto mb-2 opacity-50" />
@@ -349,7 +386,7 @@ const ExerciseManagement = () => {
           onClick={resetModal}
         >
           <div
-            className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-200"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-5">
@@ -366,7 +403,9 @@ const ExerciseManagement = () => {
                 )}
               </h2>
               <button
+                type="button"
                 onClick={resetModal}
+                aria-label="Đóng biểu mẫu bài tập"
                 className="p-1 rounded-full hover:bg-gray-100 transition"
               >
                 <X size={20} className="text-gray-500" />
@@ -450,6 +489,12 @@ const ExerciseManagement = () => {
                   }
                 />
               </div>
+              <ExerciseTechnicalDifficultyFields
+                value={formData.technicalDifficulty}
+                onChange={(technicalDifficulty) =>
+                  setFormData({ ...formData, technicalDifficulty })
+                }
+              />
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
@@ -460,9 +505,14 @@ const ExerciseManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition flex items-center gap-2"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {editingId ? "Cập nhật" : "Thêm mới"}
+                  {createMutation.isPending || updateMutation.isPending
+                    ? "Đang lưu..."
+                    : editingId
+                      ? "Cập nhật"
+                      : "Thêm mới"}
                 </button>
               </div>
             </form>

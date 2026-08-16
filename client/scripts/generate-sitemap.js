@@ -159,7 +159,7 @@ const generateSitemap = async () => {
   const selectedRecipes = selectRecipesForSeo(content.recipes, {
     limit: 30,
     minimum: 20,
-    strict: policy.requireDynamic,
+    strict: policy.netlifyProduction,
   });
   const recipeRoutes = toRoutes(selectedRecipes, "/cong-thuc-nau-an/", 0.7);
   const contentRoutes = [...storyRoutes, ...trainerRoutes, ...blogRoutes];

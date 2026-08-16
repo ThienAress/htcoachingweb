@@ -15,6 +15,21 @@ const useTrainer = async (page) => {
   );
 };
 
+test("F1 desktop sidebar can be collapsed and reopened", async ({ page }) => {
+  await useTrainer(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/f1-customers");
+
+  const sidebar = page.locator("#f1-navigation");
+  await expect(sidebar).toHaveCSS("width", "288px");
+
+  await page.getByRole("button", { name: "Thu menu F1" }).click();
+  await expect(sidebar).toHaveCSS("width", "0px");
+
+  await page.getByRole("button", { name: "Mở menu F1" }).click();
+  await expect(sidebar).toHaveCSS("width", "288px");
+});
+
 test("F1 create, intake, private media, assessment command and AI report", async ({
   page,
 }) => {

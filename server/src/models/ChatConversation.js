@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { AI_TOOL_RESULT_STATUSES } from "../constants/aiToolResult.js";
 
 const chatMessageSchema = new mongoose.Schema(
   {
@@ -12,6 +13,11 @@ const chatMessageSchema = new mongoose.Schema(
     toolCalls: { type: mongoose.Schema.Types.Mixed, default: null },
     toolName: { type: String, default: null, maxlength: 100 },
     toolCallId: { type: String, default: null, maxlength: 200 },
+    toolStatus: {
+      type: String,
+      enum: [...AI_TOOL_RESULT_STATUSES, null],
+      default: null,
+    },
     uiCard: {
       type: {
         cardType: String,

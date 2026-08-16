@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../context/AuthContext";
-import { createDeposit, confirmDeposit } from "../../services/wallet.service";
+import { createDeposit } from "../../services/wallet.service";
 import { Wallet, Plus, Clock, CheckCircle, XCircle, AlertTriangle, Copy, ArrowLeft } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { useDepositPolicy } from "../../hooks/useDepositPolicy";
 import {
   invalidateDepositHistory,
+  getDepositSettlementSignal,
   walletBalanceQueryOptions,
   walletDepositsQueryOptions,
 } from "../../queries/walletAccount.queries";
@@ -110,7 +111,21 @@ const MyWallet = () => {
   );
   const balance = walletQuery.data?.balance ?? null;
   const deposits = depositsQuery.data || EMPTY_DEPOSITS;
+  const settlementSignal = getDepositSettlementSignal(deposits);
+  const previousSettlementSignal = useRef(null);
+  const refetchWallet = walletQuery.refetch;
   const loading = walletQuery.isPending || depositsQuery.isPending;
+
+  useEffect(() => {
+    if (!depositsQuery.data) return;
+    if (
+      previousSettlementSignal.current !== null &&
+      previousSettlementSignal.current !== settlementSignal
+    ) {
+      void refetchWallet();
+    }
+    previousSettlementSignal.current = settlementSignal;
+  }, [depositsQuery.data, settlementSignal, refetchWallet]);
 
   const createDepositMutation = useMutation({
     mutationFn: createDeposit,
@@ -120,16 +135,8 @@ const MyWallet = () => {
         ? invalidateDepositHistory(queryClient, userId)
         : undefined,
   });
-  const confirmDepositMutation = useMutation({
-    mutationFn: confirmDeposit,
-    onSuccess: () => invalidateDepositHistory(queryClient, userId),
-    onError: (error) =>
-      error?.response?.status === 409
-        ? invalidateDepositHistory(queryClient, userId)
-        : undefined,
-  });
   const depositLoading = createDepositMutation.isPending;
-  const confirmLoading = confirmDepositMutation.isPending;
+  const checkingStatus = walletQuery.isFetching || depositsQuery.isFetching;
 
   // Kiểm tra có giao dịch đang chờ duyệt hoặc đang pending
   const hasNeedsReview = deposits.some((d) => d.status === "needs_review");
@@ -182,27 +189,9 @@ const MyWallet = () => {
     }
   };
 
-  // Xác nhận đã thanh toán
-  const handleConfirmDeposit = async () => {
-    if (!activeDeposit) return;
-    try {
-      await confirmDepositMutation.mutateAsync(
-        activeDeposit.depositRequestId,
-      );
-      setActiveDeposit((previous) => ({
-        ...activeDeposit,
-        ...previous,
-        status: "needs_review",
-      }));
-      toast.success(t("wallet.errors.confirm_success"));
-    } catch (err) {
-      toast.error(
-        err.response?.data?.message ||
-          t("wallet.errors.confirm_failed", {
-            defaultValue: "Lỗi xác nhận thanh toán",
-          }),
-      );
-    }
+  const handleCheckStatus = async () => {
+    await Promise.all([walletQuery.refetch(), depositsQuery.refetch()]);
+    toast.info(t("wallet.check_status_done"));
   };
 
   // Copy mã nạp tiền
@@ -359,13 +348,20 @@ const MyWallet = () => {
                     ⚠️ {t("wallet.warning_alert")}
                   </div>
 
+                  <p className="text-center text-xs leading-relaxed text-gray-400">
+                    {t("wallet.automatic_note")}
+                  </p>
+
                   <button
-                    onClick={handleConfirmDeposit}
-                    disabled={confirmLoading}
-                    className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    type="button"
+                    onClick={handleCheckStatus}
+                    disabled={checkingStatus}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 font-bold text-white transition-[background-color,box-shadow] duration-200 hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-wait disabled:opacity-50"
                   >
-                    <CheckCircle className="w-5 h-5" />
-                    {confirmLoading ? t("wallet.confirm_loading") : t("wallet.confirm_btn")}
+                    <CheckCircle className="w-5 h-5" aria-hidden="true" />
+                    {checkingStatus
+                      ? t("wallet.checking_status")
+                      : t("wallet.check_status")}
                   </button>
 
                   <button
@@ -392,7 +388,7 @@ const MyWallet = () => {
               </div>
             </div>
             <h3 className="text-xl font-bold text-green-400">{t("wallet.confirmed_title")}</h3>
-            <p className="text-gray-400 text-sm" dangerouslySetInnerHTML={{ __html: t("wallet.confirmed_desc") }} />
+            <p className="text-gray-400 text-sm">{t("wallet.confirmed_desc")}</p>
             <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-green-300 text-xs">
               {t("wallet.confirmed_help")}
             </div>
@@ -470,6 +466,22 @@ const MyWallet = () => {
                     {d.reverseReason && (
                       <p className="text-xs text-blue-400 mt-1">
                         {d.reverseReason}
+                      </p>
+                    )}
+                    {d.settledTransactionCount > 0 && (
+                      <p className="mt-1 text-xs font-medium text-emerald-400">
+                        {t("wallet.settlement_summary", {
+                          count: d.settledTransactionCount,
+                          amount: formatVND(
+                            d.settledAmountTotal,
+                            i18n.language,
+                          ),
+                        })}
+                      </p>
+                    )}
+                    {d.status === "expired" && (
+                      <p className="mt-1 max-w-prose text-xs leading-relaxed text-gray-500">
+                        {t("wallet.late_payment_note")}
                       </p>
                     )}
                   </div>

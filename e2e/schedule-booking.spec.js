@@ -34,6 +34,18 @@ const getNextMonday = () => {
 
 const trainingDateKey = getNextMonday();
 
+const getBackgroundBrightness = (locator) =>
+  locator.evaluate((element) => {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    context.fillStyle = getComputedStyle(element).backgroundColor;
+    context.fillRect(0, 0, 1, 1);
+    return context
+      .getImageData(0, 0, 1, 1)
+      .data.slice(0, 3)
+      .reduce((sum, channel) => sum + channel, 0);
+  });
+
 test("client sees a concrete training occurrence and assigned trainer", async ({
   page,
 }) => {
@@ -43,6 +55,24 @@ test("client sees a concrete training occurrence and assigned trainer", async ({
   await expect(page.getByText(trainingDateKey, { exact: true })).toBeVisible();
   await expect(page.getByText(/E2E Trainer/).first()).toBeVisible();
   await expect(page.getByText("E2E concrete occurrence")).toBeVisible();
+});
+
+test("booking follows the customer dashboard theme preference", async ({ page }) => {
+  await useRole(page, "user");
+  await page.goto("/book-training");
+
+  const surface = page.locator(".customer-tool-surface");
+  await expect(surface).toHaveAttribute("data-theme", "light");
+
+  const bookingPanel = surface.locator('[class~="bg-gray-800/50"]').first();
+  await expect(bookingPanel).toBeVisible();
+  expect(await getBackgroundBrightness(bookingPanel)).toBeGreaterThan(600);
+
+  await page.evaluate(() =>
+    localStorage.setItem("ht_customer_dashboard_theme_v1", "dark"),
+  );
+  await page.reload();
+  await expect(surface).toHaveAttribute("data-theme", "dark");
 });
 
 test("trainer calendar navigates by concrete week without losing occurrences", async ({

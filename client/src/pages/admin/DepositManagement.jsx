@@ -13,7 +13,9 @@ import {
   User,
   Trash2,
   RotateCcw,
+  Landmark,
 } from "lucide-react";
+import IncomingBankTransactionPanel from "./IncomingBankTransactionPanel";
 
 import {
   getAdminDeposits,
@@ -38,9 +40,37 @@ const statusConfig = {
   reversed: { label: "Đã hoàn tác", color: "bg-blue-100 text-blue-700", icon: RotateCcw },
 };
 
+const WorkspaceSwitch = ({ value, onChange }) => (
+  <div className="mb-6 inline-flex rounded-lg border border-gray-300 bg-white p-1" role="group" aria-label="Loại dữ liệu nạp tiền">
+    {[
+      { value: "requests", label: "Yêu cầu nạp", icon: Wallet },
+      { value: "incoming", label: "Giao dịch ngân hàng", icon: Landmark },
+    ].map((option) => {
+      const Icon = option.icon;
+      return (
+        <button
+          type="button"
+          key={option.value}
+          onClick={() => onChange(option.value)}
+          aria-pressed={value === option.value}
+          className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+            value === option.value
+              ? "bg-gray-900 text-white"
+              : "text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          <Icon className="h-4 w-4" aria-hidden="true" />
+          {option.label}
+        </button>
+      );
+    })}
+  </div>
+);
+
 const DepositManagement = () => {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [workspace, setWorkspace] = useState("requests");
   const [search, setSearch] = useState("");
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -147,6 +177,24 @@ const DepositManagement = () => {
     { value: "reversed", label: "Đã hoàn tác" },
   ];
 
+  if (workspace === "incoming") {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+        <div className="mb-6">
+          <h1 className="flex items-center gap-2 text-fluid-2xl font-bold uppercase text-gray-800">
+            <Wallet className="h-6 w-6 text-red-500" />
+            Quản lý nạp tiền
+          </h1>
+          <p className="mt-1 text-gray-500">
+            Đối soát giao dịch ngân hàng và xử lý trường hợp cần xem lại
+          </p>
+        </div>
+        <WorkspaceSwitch value={workspace} onChange={setWorkspace} />
+        <IncomingBankTransactionPanel />
+      </div>
+    );
+  }
+
   return (
     <phantom-ui loading={isLoading || undefined}>
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -160,6 +208,8 @@ const DepositManagement = () => {
           Duyệt / Từ chối yêu cầu nạp tiền của người dùng
         </p>
       </div>
+
+      <WorkspaceSwitch value={workspace} onChange={setWorkspace} />
 
       {/* Filter tabs + Search */}
       <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">

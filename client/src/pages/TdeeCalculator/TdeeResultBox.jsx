@@ -1,9 +1,19 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Zap, Bed, Target } from "lucide-react";
+import { Zap, Bed, Target, Info } from "lucide-react";
 
-const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
-  const { t } = useTranslation("tdee");
+const TdeeResultBox = ({
+  tdee,
+  bmr,
+  adjustedCalories,
+  goal,
+  tdeeRange,
+  activityBand,
+}) => {
+  const { t, i18n } = useTranslation("tdee");
+  const numberLocale = (i18n.resolvedLanguage || i18n.language)?.startsWith("vi")
+    ? "vi-VN"
+    : "en-US";
   const goalText =
     goal === "gain_muscle" ? t("result.goal_gain_muscle")
     : goal === "gain_weight" ? t("result.goal_gain_weight")
@@ -12,13 +22,14 @@ const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
     : t("result.goal_maintain");
 
   return (
-    <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <section className="mt-12" aria-labelledby="tdee-estimate-title">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       <div className="group bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-6 text-center border border-gray-700 hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:shadow-primary/10">
         <div className="w-16 h-16 mx-auto bg-primary/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition">
           <Zap className="w-8 h-8 text-primary" />
         </div>
         <h4 className="font-bold text-gray-300 text-lg uppercase tracking-wide mb-2">
-          {t("result.your_tdee")}
+          <span id="tdee-estimate-title">{t("result.your_tdee")}</span>
         </h4>
         <div className="text-fluid-5xl font-black text-primary">
           {tdee} <span className="text-base text-gray-400">{t("unit_kcal")}</span>
@@ -49,7 +60,22 @@ const TdeeResultBox = ({ tdee, bmr, adjustedCalories, goal }) => {
           <span className="text-base text-gray-400">{t("unit_kcal")}</span>
         </div>
       </div>
-    </div>
+      </div>
+      {tdeeRange && (
+        <div className="mt-5 flex items-start gap-3 rounded-xl border border-cyan-900 bg-cyan-950/30 p-4 text-sm leading-6 text-cyan-100">
+          <Info className="mt-1 h-4 w-4 shrink-0 text-cyan-400" aria-hidden="true" />
+          <p>
+            {t("result.estimate_guidance", {
+              min: tdeeRange.min.toLocaleString(numberLocale),
+              max: tdeeRange.max.toLocaleString(numberLocale),
+              multiplier: activityBand?.multiplier?.toLocaleString(numberLocale),
+              bandMin: activityBand?.range?.[0]?.toLocaleString(numberLocale),
+              bandMax: activityBand?.range?.[1]?.toLocaleString(numberLocale),
+            })}
+          </p>
+        </div>
+      )}
+    </section>
   );
 };
 

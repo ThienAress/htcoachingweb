@@ -13,7 +13,7 @@ export const WellnessHeader = ({ saveState }) => (
     <div>
       <h2 className="text-lg font-bold text-white">Sức khỏe hôm nay</h2>
       <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
-        Dữ liệu được lưu nháp tự động và chỉ vào Tổng quan sau khi bạn gửi nhật ký ngày.
+        Dữ liệu được lưu nháp tự động và chỉ xuất hiện trong Tiến trình sau khi bạn gửi nhật ký ngày.
       </p>
     </div>
     <span

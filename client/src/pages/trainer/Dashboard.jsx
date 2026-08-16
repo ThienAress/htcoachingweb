@@ -7,10 +7,12 @@ import {
   Phone,
   RefreshCw,
   Search,
+  Moon,
+  Sun,
   Users,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useOutletContext } from "react-router-dom";
 import { getTrainerClients } from "../../services/coaching.service";
 import {
   buildTrainerClientWorkspacePath,
@@ -22,12 +24,17 @@ const loadClients = async () =>
 
 const TrainerDashboard = () => {
   const location = useLocation();
+  const { trainerTheme, toggleTrainerTheme } = useOutletContext();
   const [searchTerm, setSearchTerm] = useState("");
   const isHealthTracking = location.pathname.startsWith("/trainer/health");
   const PageIcon = isHealthTracking ? HeartPulse : Users;
   const buildWorkspacePath = isHealthTracking
     ? buildTrainerHealthWorkspacePath
     : buildTrainerClientWorkspacePath;
+  const themeToggleLabel =
+    trainerTheme === "dark"
+      ? "Chuyển sang giao diện sáng"
+      : "Chuyển sang giao diện tối";
   const clientsQuery = useQuery({
     queryKey: ["trainer-clients"],
     queryFn: loadClients,
@@ -48,7 +55,7 @@ const TrainerDashboard = () => {
   }, [clientsQuery.data, searchTerm]);
 
   return (
-    <div className="flex-1 flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white min-h-[calc(100vh-3rem)] p-4 md:p-8 pt-8">
+    <div className="trainer-dashboard flex-1 flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white min-h-[calc(100vh-3rem)] p-4 md:p-8 pt-8 transition-colors duration-200 motion-reduce:transition-none">
       <div className="container-custom">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
         <div>
@@ -62,9 +69,24 @@ const TrainerDashboard = () => {
               : "Quản lý tiến trình, mục tiêu sức khỏe và thói quen của từng học viên."}
           </p>
         </div>
-        <span className="text-sm font-semibold text-gray-400 bg-gray-800/50 px-4 py-2 rounded-full border border-gray-700">
-          {clientsQuery.data?.length || 0} học viên đang hoạt động
-        </span>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <span className="text-sm font-semibold text-gray-400 bg-gray-800/50 px-4 py-2 rounded-full border border-gray-700">
+            {clientsQuery.data?.length || 0} học viên đang hoạt động
+          </span>
+          <button
+            type="button"
+            onClick={toggleTrainerTheme}
+            aria-label={themeToggleLabel}
+            title={themeToggleLabel}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-gray-700 bg-gray-800/50 text-gray-300 transition-colors duration-200 hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            {trainerTheme === "dark" ? (
+              <Sun aria-hidden="true" className="h-[19px] w-[19px]" />
+            ) : (
+              <Moon aria-hidden="true" className="h-[19px] w-[19px]" />
+            )}
+          </button>
+        </div>
       </header>
 
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 md:p-6 mb-6">

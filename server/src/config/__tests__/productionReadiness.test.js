@@ -45,6 +45,7 @@ const validEnvironment = () => ({
   ADMIN_EMAIL: "admin@htcoachingweb.io.vn",
   TRUST_PROXY_HOPS: "1",
   BACKGROUND_JOBS_ENABLED: "true",
+  SKILL_RADAR_GITHUB_TOKEN: "github-radar-" + "j".repeat(32),
   CSP_ENFORCE: "true",
   F1_RETENTION_ENFORCE: "false",
   SERVER_HEADERS_TIMEOUT_MS: "15000",
@@ -144,6 +145,63 @@ describe("production readiness configuration", () => {
 
     expect(result.errors.map((finding) => finding.code)).toContain(
       "BACKGROUND_JOBS_ENABLED_REQUIRED",
+    );
+  });
+
+  it("keeps SePay optional but requires complete live config when enabled", () => {
+    const disabled = validateProductionEnvironment(validEnvironment(), {
+      strict: true,
+    });
+    const enabledEnv = validEnvironment();
+    enabledEnv.APP_ENV = "production";
+    enabledEnv.SEPAY_ENABLED = "true";
+    enabledEnv.SEPAY_MODE = "sandbox";
+    enabledEnv.SEPAY_RECONCILIATION_ENABLED = "true";
+
+    const enabled = validateProductionEnvironment(enabledEnv, { strict: true });
+    const codes = enabled.errors.map((finding) => finding.code);
+
+    expect(disabled.errors).toEqual([]);
+    expect(codes).toEqual(
+      expect.arrayContaining([
+        "SEPAY_MODE_LIVE_REQUIRED",
+        "SEPAY_WEBHOOK_SECRET_MISSING",
+        "SEPAY_DATA_HASH_SECRET_MISSING",
+        "SEPAY_API_TOKEN_MISSING",
+        "SEPAY_AUTOMATION_CUTOVER_AT_INVALID",
+      ]),
+    );
+  });
+
+  it("allows SePay sandbox mode for a production-runtime staging profile", () => {
+    const env = validEnvironment();
+    env.APP_ENV = "staging";
+    env.MONGO_URI =
+      "mongodb+srv://cluster.example/htcoaching_staging?retryWrites=true";
+    env.CLIENT_URL = "https://staging--htcoachingweb.netlify.app";
+    env.ALLOWED_ORIGINS = "https://staging--htcoachingweb.netlify.app";
+    env.PUBLIC_API_ORIGIN = "https://htcoachingweb-staging.onrender.com";
+    env.BACKGROUND_JOBS_ENABLED = "false";
+    env.SEPAY_ENABLED = "true";
+    env.SEPAY_MODE = "sandbox";
+    env.SEPAY_RECONCILIATION_ENABLED = "false";
+    env.SEPAY_WEBHOOK_SECRET = "webhook-" + "k".repeat(32);
+    env.SEPAY_DATA_HASH_SECRET = "data-hash-" + "l".repeat(32);
+    env.SEPAY_AUTOMATION_CUTOVER_AT = "2026-08-15T00:00:00.000Z";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it("warns when Radar background scans lack a dedicated GitHub token", () => {
+    const env = validEnvironment();
+    delete env.SKILL_RADAR_GITHUB_TOKEN;
+
+    const result = validateProductionEnvironment(env, { strict: false });
+
+    expect(result.warnings.map((finding) => finding.code)).toContain(
+      "SKILL_RADAR_GITHUB_TOKEN_MISSING",
     );
   });
 

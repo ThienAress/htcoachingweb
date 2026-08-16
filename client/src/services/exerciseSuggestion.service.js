@@ -1,7 +1,12 @@
 import api from "../utils/api";
 
-export const sendExerciseSuggestion = (data) =>
-  api.post("/exercise-suggestions", data);
+export const sendExerciseSuggestion = (suggestion) => {
+  const normalized = String(suggestion || "").trim();
+  return api.post("/exercise-suggestions", {
+    name: normalized,
+    description: normalized,
+  });
+};
 export const getExerciseSuggestions = (
   page = 1,
   limit = 20,

@@ -15,10 +15,12 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { getMyCheckins } from "../services/checkin.service";
+import { resolveInitialCustomerDashboardTheme } from "../utils/customerDashboardTheme";
 
 const MyHistory = () => {
   const { t, i18n } = useTranslation("account");
   const [currentPage, setCurrentPage] = useState(1);
+  const [customerTheme] = useState(resolveInitialCustomerDashboardTheme);
   const itemsPerPage = 5;
 
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -38,27 +40,41 @@ const MyHistory = () => {
 
   if (isError) {
     return (
-      <div className="p-6 text-center text-red-500 bg-red-50 rounded-xl border border-red-200">
-        {t("profile.errors.fetch_failed")}: {error?.message}
-        <button
-          onClick={() => refetch()}
-          className="ml-4 px-3 py-1 bg-blue-500 text-white rounded"
-        >
-          {t("common.retry", { defaultValue: "Thử lại" })}
-        </button>
+      <div
+        className="customer-dashboard customer-tool-surface min-h-screen p-6"
+        data-theme={customerTheme}
+      >
+        <div className="p-6 text-center text-red-500 bg-red-50 rounded-xl border border-red-200">
+          {t("profile.errors.fetch_failed")}: {error?.message}
+          <button
+            onClick={() => refetch()}
+            className="ml-4 px-3 py-1 bg-blue-500 text-white rounded"
+          >
+            {t("common.retry", { defaultValue: "Thử lại" })}
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!data || !checkins) {
     return (
-      <div className="p-6 text-center text-red-500 bg-red-50 rounded-xl border border-red-200">
-        {t("my_history.no_data", { defaultValue: "Không có dữ liệu hoặc xảy ra lỗi." })}
+      <div
+        className="customer-dashboard customer-tool-surface min-h-screen p-6"
+        data-theme={customerTheme}
+      >
+        <div className="p-6 text-center text-red-500 bg-red-50 rounded-xl border border-red-200">
+          {t("my_history.no_data", { defaultValue: "Không có dữ liệu hoặc xảy ra lỗi." })}
+        </div>
       </div>
     );
   }
 
   return (
+    <div
+      className="customer-dashboard customer-tool-surface"
+      data-theme={customerTheme}
+    >
     <phantom-ui loading={isLoading || undefined}>
       <SEO title={t("my_history.title")} noindex />
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white py-12 px-4 md:px-6">
@@ -280,6 +296,7 @@ const MyHistory = () => {
         </div>
       </div>
     </phantom-ui>
+    </div>
   );
 };
 

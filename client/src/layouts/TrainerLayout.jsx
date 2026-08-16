@@ -16,9 +16,6 @@ import {
   ChevronDown,
   SidebarClose,
   SidebarOpen,
-  Package,
-  ScrollText,
-  History,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { mySubscriptionQueryOptions } from "../queries/subscription.queries";
@@ -28,6 +25,10 @@ import {
   isTrainerNavigationItemActive,
 } from "../navigation/workspaceNavigation";
 import { TODAY_PLATFORM_ENABLED } from "../config/featureFlags";
+import {
+  persistTrainerWorkspaceTheme,
+  resolveInitialTrainerWorkspaceTheme,
+} from "../utils/trainerWorkspaceTheme";
 
 const TrainerLayout = () => {
   const location = useLocation();
@@ -49,12 +50,28 @@ const TrainerLayout = () => {
   // Desktop collapse state
   const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  const [trainerTheme, setTrainerTheme] = useState(
+    resolveInitialTrainerWorkspaceTheme,
+  );
   const isSidebarHidden = isDesktopViewport
     ? isDesktopCollapsed
     : !isSidebarOpen;
 
   const sidebarRef = useRef(null);
   const mobileMenuButtonRef = useRef(null);
+
+  useEffect(() => {
+    persistTrainerWorkspaceTheme(trainerTheme);
+  }, [trainerTheme]);
+
+  useEffect(() => {
+    document.documentElement.dataset.trainerTheme = trainerTheme;
+    return () => {
+      if (document.documentElement.dataset.trainerTheme === trainerTheme) {
+        delete document.documentElement.dataset.trainerTheme;
+      }
+    };
+  }, [trainerTheme]);
 
   const closeMobileSidebar = () => {
     setIsSidebarOpen(false);
@@ -114,9 +131,6 @@ const TrainerLayout = () => {
     workoutPlans: FileText,
     exercises: Dumbbell,
     f1Customers: TrendingUp,
-    orders: Package,
-    contracts: ScrollText,
-    checkinHistory: History,
   };
   const navGroups = getTrainerNavigationGroups({
     f1Allowed,
@@ -151,8 +165,15 @@ const TrainerLayout = () => {
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const toggleTrainerTheme = () => {
+    setTrainerTheme((theme) => (theme === "dark" ? "light" : "dark"));
+  };
+
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-950">
+    <div
+      className="trainer-workspace flex min-h-screen bg-slate-100 text-slate-950 transition-colors duration-200 motion-reduce:transition-none"
+      data-theme={trainerTheme}
+    >
       {/* ── Mobile overlay ── */}
       {isSidebarOpen && (
         <div
@@ -240,6 +261,7 @@ const TrainerLayout = () => {
                             <Link
                               to={item.path}
                               onClick={() => setIsSidebarOpen(false)}
+                              aria-current={isActive ? "page" : undefined}
                               className={`
                                 flex min-h-11 items-center gap-3 rounded-lg px-4 py-2 transition-colors
                                 ${
@@ -323,7 +345,7 @@ const TrainerLayout = () => {
             ? ''
             : 'p-4 md:p-6 xl:p-8'
         }`}>
-          <Outlet />
+          <Outlet context={{ trainerTheme, toggleTrainerTheme }} />
         </main>
       </div>
     </div>

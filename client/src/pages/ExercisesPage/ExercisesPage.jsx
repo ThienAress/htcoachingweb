@@ -26,10 +26,15 @@ import Contact from "../../sections/Contact";
 import { usePrompt } from "../../hooks/usePrompt";
 import SEO from "../../components/SEO";
 import { translateData } from "../../utils/localDataTranslator";
+import { useAuth } from "../../context/AuthContext";
+import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
 
 const ExercisesPage = () => {
   const { t, i18n } = useTranslation("exercises");
+  const { user } = useAuth();
   const logic = useExercisesLogic();
+  const [customerTheme] = useState(resolveInitialCustomerDashboardTheme);
+  const usesCustomerTheme = user?.role === "user";
 
   const translatedExercises = translateData(logic.filteredExercises, "exercise", i18n.language);
   const translatedAllExercises = translateData(logic.exerciseOptions, "exercise", i18n.language);
@@ -161,7 +166,19 @@ const ExercisesPage = () => {
         }}
       />
       <Header />
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        theme={usesCustomerTheme ? customerTheme : "dark"}
+      />
+      <div
+        className={
+          usesCustomerTheme
+            ? "customer-dashboard customer-tool-surface"
+            : undefined
+        }
+        data-theme={usesCustomerTheme ? customerTheme : undefined}
+      >
       <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pt-28 pb-8">
         <div className="container-custom">
           {/* Header section */}
@@ -367,6 +384,7 @@ const ExercisesPage = () => {
           </div>
         </div>
       </section>
+      </div>
 
       <Contact />
       <ScrollToTop />

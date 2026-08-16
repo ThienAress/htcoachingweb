@@ -1,10 +1,16 @@
 import { useCallback, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, Search } from "lucide-react";
 
 import SEO from "../../components/SEO";
-import { skillRadarQueryOptions } from "../../queries/skillRadar.queries";
+import {
+  addSkillRadarItemToCache,
+  skillRadarCreateMutationOptions,
+  skillRadarPreviewMutationOptions,
+  skillRadarQueryOptions,
+} from "../../queries/skillRadar.queries";
 import SkillRadarDetailDrawer from "./skill-radar/SkillRadarDetailDrawer";
+import SkillRadarSourceForm from "./skill-radar/SkillRadarSourceForm";
 import SkillRadarSummary from "./skill-radar/SkillRadarSummary";
 import SkillRadarTable from "./skill-radar/SkillRadarTable";
 import { filterSkillRadarItems } from "./skill-radar/skillRadarPresentation";
@@ -13,7 +19,11 @@ const selectClassName = "min-h-11 rounded-lg border border-zinc-300 bg-white px-
 const EMPTY_ITEMS = [];
 
 export default function SkillRadarPage() {
-  const query = useQuery(skillRadarQueryOptions());
+  const queryOptions = skillRadarQueryOptions();
+  const queryClient = useQueryClient();
+  const query = useQuery(queryOptions);
+  const previewMutation = useMutation(skillRadarPreviewMutationOptions());
+  const createMutation = useMutation(skillRadarCreateMutationOptions());
   const [search, setSearch] = useState("");
   const [domain, setDomain] = useState("all");
   const [lifecycle, setLifecycle] = useState("all");
@@ -30,6 +40,11 @@ export default function SkillRadarPage() {
     [items, search, domain, lifecycle, drift],
   );
   const closeDetail = useCallback(() => setSelectedItem(null), []);
+  const handleCreated = useCallback((result) => {
+    queryClient.setQueryData(queryOptions.queryKey, (current) =>
+      addSkillRadarItemToCache(current, result));
+    queryClient.invalidateQueries({ queryKey: queryOptions.queryKey });
+  }, [queryClient, queryOptions.queryKey]);
 
   return (
     <main className="min-h-screen bg-zinc-50 p-4 text-zinc-900 sm:p-6">
@@ -47,11 +62,17 @@ export default function SkillRadarPage() {
         {query.data && <>
           <SkillRadarSummary summary={query.data.summary} schedule={query.data.schedule} />
 
+          <SkillRadarSourceForm
+            previewMutation={previewMutation}
+            createMutation={createMutation}
+            onCreated={handleCreated}
+          />
+
           <section className="flex flex-col gap-3 border-y border-zinc-200 py-4 xl:flex-row xl:items-end" aria-label="Bộ lọc Radar công nghệ">
-            <label className="relative min-w-0 flex-1"><span className="text-xs font-semibold text-zinc-600">Tìm nguồn</span><Search className="pointer-events-none absolute bottom-3 left-3 size-4 text-zinc-400" aria-hidden="true" /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tên skill, repo hoặc local target" className="mt-1 min-h-11 w-full rounded-lg border border-zinc-300 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20" /></label>
-            <label><span className="block text-xs font-semibold text-zinc-600">Lĩnh vực</span><select value={domain} onChange={(event) => setDomain(event.target.value)} className={`mt-1 ${selectClassName}`}><option value="all">Tất cả</option>{domains.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-            <label><span className="block text-xs font-semibold text-zinc-600">Lifecycle</span><select value={lifecycle} onChange={(event) => setLifecycle(event.target.value)} className={`mt-1 ${selectClassName}`}><option value="all">Tất cả</option><option value="active">Đang theo dõi</option><option value="candidate">Ứng viên</option><option value="watch">Theo dõi chậm</option><option value="dormant">Ngủ đông</option><option value="archived">Đã lưu trữ</option><option value="rejected">Đã loại</option></select></label>
-            <label><span className="block text-xs font-semibold text-zinc-600">Drift</span><select value={drift} onChange={(event) => setDrift(event.target.value)} className={`mt-1 ${selectClassName}`}><option value="all">Tất cả</option><option value="changed">Có thay đổi</option><option value="review_due">Đến hạn review</option><option value="rate_limited">Giới hạn GitHub API</option><option value="clean">Đã đồng bộ</option><option value="audit_warning">Cảnh báo audit</option><option value="unreachable">Không truy cập được</option></select></label>
+            <label className="relative min-w-0 flex-1"><span className="text-xs font-semibold text-zinc-600">Tìm nguồn</span><Search className="pointer-events-none absolute bottom-3 left-3 size-4 text-zinc-400" aria-hidden="true" /><input name="search" type="search" autoComplete="off" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tên skill, repo hoặc local target" className="mt-1 min-h-11 w-full rounded-lg border border-zinc-300 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20" /></label>
+            <label><span className="block text-xs font-semibold text-zinc-600">Lĩnh vực</span><select name="domain" value={domain} onChange={(event) => setDomain(event.target.value)} className={`mt-1 ${selectClassName}`}><option value="all">Tất cả</option>{domains.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+            <label><span className="block text-xs font-semibold text-zinc-600">Lifecycle</span><select name="lifecycle" value={lifecycle} onChange={(event) => setLifecycle(event.target.value)} className={`mt-1 ${selectClassName}`}><option value="all">Tất cả</option><option value="active">Đang theo dõi</option><option value="candidate">Ứng viên</option><option value="watch">Theo dõi chậm</option><option value="dormant">Ngủ đông</option><option value="archived">Đã lưu trữ</option><option value="rejected">Đã loại</option></select></label>
+            <label><span className="block text-xs font-semibold text-zinc-600">Drift</span><select name="drift" value={drift} onChange={(event) => setDrift(event.target.value)} className={`mt-1 ${selectClassName}`}><option value="all">Tất cả</option><option value="changed">Có thay đổi</option><option value="review_due">Đến hạn review</option><option value="rate_limited">Giới hạn GitHub API</option><option value="clean">Đã đồng bộ</option><option value="audit_warning">Cảnh báo audit</option><option value="unreachable">Không truy cập được</option></select></label>
           </section>
 
           {filteredItems.length > 0 ? <SkillRadarTable items={filteredItems} nextRunAt={query.data.schedule.nextRunAt} onSelect={setSelectedItem} /> : <section className="rounded-xl border border-zinc-200 bg-white p-8 text-center"><h2 className="font-bold text-zinc-950">Không có nguồn phù hợp</h2><p className="mt-2 text-sm text-zinc-600">Thử đổi từ khóa hoặc bộ lọc hiện tại.</p></section>}

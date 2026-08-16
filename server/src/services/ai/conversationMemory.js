@@ -7,6 +7,13 @@ const ACTIVITY_LEVELS = new Set([
   "very_active",
 ]);
 const TDEE_GOALS = new Set(["fat_loss", "maintenance", "muscle_gain"]);
+const TDEE_EVIDENCE = {
+  dailyMovement: new Set(["mostly_seated", "mixed", "mostly_moving", "physical_work"]),
+  steps: new Set(["under_5000", "between_5000_7999", "between_8000_11999", "at_least_12000"]),
+  trainingFrequency: new Set(["none", "one_two", "three_four", "five_plus"]),
+  trainingDuration: new Set(["none", "under_30", "between_30_45", "between_45_60", "over_60"]),
+  trainingIntensity: new Set(["none", "easy", "moderate", "vigorous"]),
+};
 const MACRO_PLANS = ["Low-carb", "Moderate-carb", "High-carb"];
 
 const asPlainObject = (value) => {
@@ -21,18 +28,23 @@ const boundedNumber = (value, min, max) => {
     : null;
 };
 
-const sanitizeTdeeInput = (args) => {
+const sanitizeTdeeInput = (args, toolResult) => {
   const input = asPlainObject(args);
+  const cardData = asPlainObject(asPlainObject(toolResult?.uiCard).data);
+  const derivedActivity = asPlainObject(cardData.activity).key;
   const sanitized = {
     gender: TDEE_GENDERS.has(input.gender) ? input.gender : null,
     age: boundedNumber(input.age, 13, 100),
     heightCm: boundedNumber(input.heightCm, 100, 250),
     weightKg: boundedNumber(input.weightKg, 20, 350),
-    activityLevel: ACTIVITY_LEVELS.has(input.activityLevel)
-      ? input.activityLevel
+    activityLevel: ACTIVITY_LEVELS.has(input.activityLevel || derivedActivity)
+      ? input.activityLevel || derivedActivity
       : null,
     goal: TDEE_GOALS.has(input.goal) ? input.goal : null,
   };
+  for (const [key, allowed] of Object.entries(TDEE_EVIDENCE)) {
+    sanitized[key] = allowed.has(input[key]) ? input[key] : null;
+  }
   const adjustment = boundedNumber(input.calorieAdjustment, -1500, 1500);
   if (adjustment !== null) sanitized.calorieAdjustment = adjustment;
   return Object.values(sanitized).some((value) => value === null)
@@ -93,7 +105,7 @@ export function updateConversationMemory(
 ) {
   const memory = { ...asPlainObject(currentMemory) };
   if (toolName === "calculate_tdee") {
-    const input = sanitizeTdeeInput(args);
+    const input = sanitizeTdeeInput(args, toolResult);
     const result = sanitizeTdeeResult(toolResult);
     if (input && result) {
       memory.lastTdee = { input, result, updatedAt: new Date() };
@@ -108,6 +120,15 @@ export function updateConversationMemory(
 
 export function deriveConversationMemory(messages = [], initialMemory = {}) {
   let memory = { ...asPlainObject(initialMemory) };
+  const storedTdee = asPlainObject(memory.lastTdee);
+  if (memory.lastTdee) {
+    const input = sanitizeTdeeInput(storedTdee.input);
+    const result = sanitizeTdeeResult({
+      uiCard: { cardType: "tdee", data: storedTdee.result },
+    });
+    if (input && result) memory.lastTdee = { ...storedTdee, input, result };
+    else delete memory.lastTdee;
+  }
   const pendingCalls = [];
 
   for (const rawMessage of messages) {

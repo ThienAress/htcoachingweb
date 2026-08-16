@@ -19,6 +19,88 @@ describe("progressReadModel", () => {
     }
     expect(result.wellness.sleepHours).toEqual({ average: null, count: 0 });
     expect(result.weightTrend).toEqual({ points: [], changeKg: null });
+    expect(result.bodyProgress).toEqual({
+      source: {
+        type: "weekly_checkin",
+        includedStatuses: ["submitted", "reviewed"],
+        dateField: "weekStartDateKey",
+      },
+      weightKg: {
+        unit: "kg",
+        current: null,
+        delta: null,
+        series: [],
+      },
+      waistCm: {
+        unit: "cm",
+        current: null,
+        delta: null,
+        series: [],
+      },
+    });
+  });
+
+  it("builds independently ordered body histories without coercing missing values", () => {
+    const result = buildProgressReadModel({
+      range: {
+        days: 30,
+        startDateKey: "2026-07-01",
+        endDateKey: "2026-07-30",
+      },
+      weeklyCheckins: [
+        {
+          weekStartDateKey: "2026-07-20",
+          status: "reviewed",
+          weightKg: 69,
+          waistCm: null,
+        },
+        {
+          weekStartDateKey: "2026-07-06",
+          status: "submitted",
+          weightKg: 70,
+          waistCm: 80,
+        },
+        {
+          weekStartDateKey: "2026-07-13",
+          status: "submitted",
+          weightKg: undefined,
+          waistCm: 78,
+        },
+        {
+          weekStartDateKey: "2026-07-27",
+          status: "draft",
+          weightKg: 0,
+          waistCm: 0,
+        },
+        {
+          weekStartDateKey: "2026-06-29",
+          status: "submitted",
+          weightKg: 72,
+          waistCm: 82,
+        },
+      ],
+    });
+
+    expect(result.bodyProgress).toMatchObject({
+      weightKg: {
+        unit: "kg",
+        current: { dateKey: "2026-07-20", value: 69 },
+        delta: -1,
+        series: [
+          { dateKey: "2026-07-06", value: 70 },
+          { dateKey: "2026-07-20", value: 69 },
+        ],
+      },
+      waistCm: {
+        unit: "cm",
+        current: { dateKey: "2026-07-13", value: 78 },
+        delta: -2,
+        series: [
+          { dateKey: "2026-07-06", value: 80 },
+          { dateKey: "2026-07-13", value: 78 },
+        ],
+      },
+    });
   });
 
   it("calculates only due assignments and never turns missing values into zero", () => {

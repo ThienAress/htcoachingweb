@@ -174,7 +174,7 @@ describe("Phase 2 AI conversation integrity", () => {
     await withAuth(
       request(app).post("/api/ai/chat").send({
         message:
-          "Tính TDEE cho nam 30 tuổi, cao 175cm, nặng 75kg, tập 3-5 buổi, mục tiêu giảm mỡ",
+          "Tính TDEE cho nam 30 tuổi, cao 175cm, nặng 75kg, làm văn phòng ngồi nhiều, khoảng 4000 bước/ngày, tập 5 buổi/tuần, 50 phút/buổi cường độ vừa, mục tiêu giảm mỡ",
         requestId: "e26e93e8-8d21-4be2-9c6e-2ebf3cc340b5",
       }),
       accessToken,
@@ -190,6 +190,11 @@ describe("Phase 2 AI conversation integrity", () => {
         heightCm: 175,
         weightKg: 75,
         activityLevel: "moderate",
+        dailyMovement: "mostly_seated",
+        steps: "under_5000",
+        trainingFrequency: "five_plus",
+        trainingDuration: "between_45_60",
+        trainingIntensity: "moderate",
         goal: "fat_loss",
       },
     });
@@ -200,7 +205,7 @@ describe("Phase 2 AI conversation integrity", () => {
     await withAuth(
       request(app).post("/api/ai/chat").send({
         message:
-          "Tính TDEE cho nam 30 tuổi, cao 175cm, nặng 75kg, tập 3-5 buổi, mục tiêu giảm mỡ",
+          "Tính TDEE cho nam 30 tuổi, cao 175cm, nặng 75kg, làm văn phòng ngồi nhiều, khoảng 4000 bước/ngày, tập 5 buổi/tuần, 50 phút/buổi cường độ vừa, mục tiêu giảm mỡ",
         requestId: "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b6",
       }),
       accessToken,

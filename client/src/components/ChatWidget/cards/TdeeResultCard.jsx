@@ -4,7 +4,10 @@ const goalIcons = { "Giảm mỡ": TrendingDown, "Duy trì": Minus, "Tăng cơ":
 
 export default function TdeeResultCard({ data }) {
   if (!data) return null;
-  const { bmr, tdee, targetCalories, goal, activityLevel, macros } = data;
+  const {
+    bmr, tdee, tdeeRange, targetCalories, targetCaloriesRange, goal,
+    activityLevel, activity, calibrationDays = 14, macros,
+  } = data;
   const GoalIcon = goalIcons[goal] || Minus;
 
   return (
@@ -38,6 +41,22 @@ export default function TdeeResultCard({ data }) {
           {goal} • {activityLevel}
         </span>
       </div>
+
+      {tdeeRange && (
+        <div className="rounded-lg bg-cyan-950/40 p-3 text-[11px] leading-5 text-cyan-100">
+          <p className="font-semibold">Khoảng TDEE ước tính: {tdeeRange.min.toLocaleString("vi-VN")}–{tdeeRange.max.toLocaleString("vi-VN")} kcal/ngày</p>
+          {targetCaloriesRange && (
+            <p>Khoảng theo mục tiêu: {targetCaloriesRange.min.toLocaleString("vi-VN")}–{targetCaloriesRange.max.toLocaleString("vi-VN")} kcal/ngày</p>
+          )}
+          {activity && (
+            <p>
+              Hệ số đề xuất {activity.multiplier.toLocaleString("vi-VN")} (khoảng hệ số{" "}
+              {activity.range.map((value) => value.toLocaleString("vi-VN")).join("–")}).
+            </p>
+          )}
+          <p>Theo dõi cân nặng và mức tuân thủ ít nhất {calibrationDays} ngày trước khi điều chỉnh nhỏ.</p>
+        </div>
+      )}
 
       {/* Macros table */}
       {macros && (

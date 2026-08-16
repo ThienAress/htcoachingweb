@@ -17,6 +17,27 @@ const toolValidators = new Map(
   ]),
 );
 const DEFAULT_TOOL_TIMEOUT_MS = 15000;
+const CONFIRMED_TOOL_EXECUTION = Symbol("confirmedToolExecution");
+
+const validationFailure = (toolName, invalidFields) => ({
+  text:
+    "Thông tin để thực hiện yêu cầu chưa hợp lệ. Bạn vui lòng kiểm tra và cung cấp lại.",
+  uiCard: null,
+  error: null,
+  meta: {
+    toolName,
+    validationFailed: true,
+    invalidFields: [...new Set(invalidFields)],
+  },
+});
+
+export const isSuccessfulToolResult = (result) =>
+  Boolean(result) &&
+  !result.error &&
+  !result.needsConfirmation &&
+  !result.meta?.validationFailed &&
+  !result.meta?.timedOut &&
+  !result.meta?.internalError;
 
 const createAbortError = (reason) => {
   const error = new Error(reason?.message || "Tool execution aborted");
@@ -73,7 +94,7 @@ async function runToolWithDeadline(tool, parameters, context) {
  * @param {object} context - { userId, userRole }
  * @returns {{ text: string, uiCard: object|null, error: string|null }}
  */
-export async function executeTool(toolName, parameters, context) {
+export async function executeTool(toolName, parameters, context = {}) {
   const tool = toolRegistry[toolName];
 
   if (!tool) {
@@ -106,38 +127,40 @@ export async function executeTool(toolName, parameters, context) {
 
   const validate = toolValidators.get(toolName);
   if (!validate(parameters)) {
-    return {
-      text:
-        "Thông tin để thực hiện yêu cầu chưa hợp lệ. Bạn vui lòng kiểm tra và cung cấp lại.",
-      uiCard: null,
-      error: null,
-      meta: {
-        toolName,
-        validationFailed: true,
-        invalidFields: [
-          ...new Set(
-            validate.errors.map(
-              (error) =>
-                error.instancePath.replace(/^\//, "") ||
-                error.params?.missingProperty ||
-                "parameters",
-            ),
-          ),
-        ],
-      },
-    };
+    return validationFailure(
+      toolName,
+      validate.errors.map(
+        (error) =>
+          error.instancePath.replace(/^\//, "") ||
+          error.params?.missingProperty ||
+          "parameters",
+      ),
+    );
+  }
+
+  const customInvalidFields = tool.validateParameters?.(parameters) || [];
+  if (customInvalidFields.length > 0) {
+    return validationFailure(toolName, customInvalidFields);
   }
 
   // Confirmation check — trả về FE để hiện dialog
-  if (tool.requiresConfirmation) {
+  if (
+    tool.requiresConfirmation &&
+    context[CONFIRMED_TOOL_EXECUTION] !== true
+  ) {
+    if (!context.userId) {
+      return {
+        text: "Bạn cần đăng nhập để xác nhận hành động này.",
+        uiCard: null,
+        error: "Auth required for confirmation",
+      };
+    }
     return {
       text: "Hành động này cần xác nhận từ bạn.",
-      uiCard: {
-        cardType: "confirmation",
-        data: { toolName, parameters },
-      },
+      uiCard: null,
       error: null,
       needsConfirmation: true,
+      meta: { toolName },
     };
   }
 
@@ -165,6 +188,12 @@ export async function executeTool(toolName, parameters, context) {
     if (context.signal?.aborted) {
       throw createAbortError(context.signal.reason);
     }
+    if (
+      err?.code === "TDEE_VALIDATION_FAILED" &&
+      Array.isArray(err.invalidFields)
+    ) {
+      return validationFailure(toolName, err.invalidFields);
+    }
     // Trả message thân thiện thay vì lỗi kỹ thuật
     const friendlyMessages = {
       search_blog: "Hiện tại chưa có bài viết nào trong hệ thống. Bạn có thể hỏi tôi trực tiếp về chủ đề này nhé!",
@@ -188,3 +217,9 @@ export async function executeTool(toolName, parameters, context) {
     };
   }
 }
+
+export const executeConfirmedTool = (toolName, parameters, context = {}) =>
+  executeTool(toolName, parameters, {
+    ...context,
+    [CONFIRMED_TOOL_EXECUTION]: true,
+  });

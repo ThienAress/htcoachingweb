@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Send, MessageSquare } from "lucide-react";
 import { toast } from "react-toastify";
-import api from "../../utils/api";
+import { sendExerciseSuggestion } from "../../services/exerciseSuggestion.service";
 
 const ExerciseSuggestionBox = () => {
   const { t } = useTranslation("exercises");
@@ -16,7 +16,7 @@ const ExerciseSuggestionBox = () => {
     }
     setSending(true);
     try {
-      await api.post("/exercise-suggestions", { suggestion });
+      await sendExerciseSuggestion(suggestion);
       toast.success(t("toast_suggestion_success"));
       setSuggestion("");
     } catch (err) {

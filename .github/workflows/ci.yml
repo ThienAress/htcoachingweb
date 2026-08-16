@@ -30,6 +30,8 @@ jobs:
         working-directory: client
       - run: node ../scripts/check-dependency-audit.mjs client
         working-directory: client
+      - run: npm run test:ui-audit
+      - run: npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high
       - run: npm run lint
         working-directory: client
       - run: npm test
@@ -62,6 +64,7 @@ jobs:
         working-directory: server
       - run: npm run check:runtime-logging
         working-directory: server
+      - run: npm run test:ai-eval
       - run: npm test
         working-directory: server
 

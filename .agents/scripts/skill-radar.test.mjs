@@ -73,8 +73,8 @@ test("computeNextMonthlyRun returns 09:00 Asia/Saigon on the next first day", ()
 test("scanWatchlist detects content drift without retaining raw skill contents", async () => {
   const oldHash = createHash("sha256").update("old contents").digest("hex");
   const calls = [];
-  const fetchImpl = async (url) => {
-    calls.push(url);
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
     if (url.startsWith("https://raw.githubusercontent.com/")) {
       return new Response("new contents", {
         status: 200,
@@ -107,6 +107,7 @@ test("scanWatchlist detects content drift without retaining raw skill contents",
   assert.equal(result.items[0].nextCheckAt, "2026-09-01T02:00:00.000Z");
   assert.equal(JSON.stringify(result).includes("new contents"), false);
   assert.equal(calls.length, 3);
+  assert.equal(calls.every(({ options }) => options.redirect === "error"), true);
 });
 
 test("scanWatchlist marks an unchanged reviewed source as clean", async () => {
@@ -203,7 +204,10 @@ test("scanWatchlist classifies GitHub API limits without losing last-known-good 
           reportPath: "docs/audits/2026-08-skill-radar.md",
         }],
       },
-      fetchImpl: async () => new Response("limited", { status }),
+      fetchImpl: async () => new Response("limited", {
+        status,
+        headers: { "x-ratelimit-reset": "1786165200" },
+      }),
       retries: 0,
       now: new Date("2026-08-08T10:00:00.000Z"),
     });
@@ -213,8 +217,62 @@ test("scanWatchlist classifies GitHub API limits without losing last-known-good 
     assert.equal(result.items[0].contentHash, "known-hash");
     assert.equal(result.items[0].upstreamCommit, "abc123def456");
     assert.equal(result.items[0].decision, "adapt");
+    assert.equal(result.items[0].rateLimitRetryAt, "2026-08-08T05:00:00.000Z");
     assert.match(result.items[0].error, new RegExp(`HTTP ${status}`));
   }
+});
+
+test("scanWatchlist accepts HTTP-date Retry-After metadata", async () => {
+  const result = await scanWatchlist({
+    watchlist,
+    fetchImpl: async () => new Response("limited", {
+      status: 429,
+      headers: { "retry-after": "Sat, 08 Aug 2026 11:00:00 GMT" },
+    }),
+    retries: 0,
+    now: new Date("2026-08-08T10:00:00.000Z"),
+  });
+
+  assert.equal(result.items[0].rateLimitRetryAt, "2026-08-08T11:00:00.000Z");
+});
+
+test("scanWatchlist stops new GitHub calls after a repository hits the API limit", async () => {
+  const secondEntry = {
+    ...baseEntry,
+    id: "second/repository/second-skill",
+    name: "second-skill",
+    sourceRepo: "second/repository",
+    repoUrl: "https://github.com/second/repository",
+    skillsShUrl: "https://www.skills.sh/second/repository/second-skill",
+  };
+  let calls = 0;
+  const result = await scanWatchlist({
+    watchlist: { ...watchlist, entries: [baseEntry, secondEntry] },
+    previousSnapshot: {
+      schemaVersion: 1,
+      items: [{
+        id: secondEntry.id,
+        contentHash: "second-known-hash",
+        upstreamCommit: "secondcommit",
+      }],
+    },
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response("limited", {
+        status: 429,
+        headers: { "retry-after": "120" },
+      });
+    },
+    retries: 0,
+    now: new Date("2026-08-08T10:00:00.000Z"),
+  });
+
+  assert.equal(calls, 1);
+  assert.equal(result.failures, 2);
+  assert.equal(result.items[1].drift, "rate_limited");
+  assert.equal(result.items[1].contentHash, "second-known-hash");
+  assert.equal(result.items[1].upstreamCommit, "secondcommit");
+  assert.equal(result.items[1].rateLimitRetryAt, "2026-08-08T10:02:00.000Z");
 });
 
 test("scanWatchlist isolates a timed-out source", async () => {

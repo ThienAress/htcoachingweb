@@ -15,7 +15,7 @@
 | Mongoose schema | `$schema-change` + `$impact-check` → tests → `$code-review` |
 | Public page/SEO | `$new-page` → `$seo-check` → `$cleanup-delivery` |
 | AI Chat/tool | `$ai-chat-system` hoặc `$new-tool` → `$ai-check` → `$cleanup-delivery` |
-| UI component/layout | `$ui-quality` → implementation → `$ui-check` → `$cleanup-delivery` |
+| UI component/layout | `$ui-quality` → implementation → baseline regression `ui:audit` → rendered/manual `$ui-check` → `$cleanup-delivery` |
 | Dịch vụ có quota/dùng thử/paywall | `$service-access-policy` → `$impact-check` → tests → `$code-review` → `$cleanup-delivery` |
 | Codebase health/periodic review | `$audit` → findings/plan backlog; không tự sửa nếu user chỉ yêu cầu review |
 | PDF project artifact | `$pdf-generation` → focused verification → `$cleanup-delivery` |

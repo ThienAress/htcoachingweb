@@ -2129,3 +2129,185 @@ export const validateSeoAnalyticsSync = [
   ...validateAnalyticsDateRange(body),
   handleValidationErrors,
 ];
+
+const EXERCISE_TECHNICAL_DIFFICULTY_FIELDS = [
+  "coordination",
+  "stability",
+  "mobility",
+  "setup",
+  "errorConsequence",
+  "rationale",
+];
+
+const technicalDifficultyValidation = (path) => [
+  body(path)
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new Error("technicalDifficulty phải là object hoặc null");
+      }
+      if (
+        Object.keys(value).some(
+          (key) => !EXERCISE_TECHNICAL_DIFFICULTY_FIELDS.includes(key),
+        )
+      ) {
+        throw new Error("technicalDifficulty chứa field không được phép");
+      }
+      return true;
+    }),
+  ...EXERCISE_TECHNICAL_DIFFICULTY_FIELDS.slice(0, 5).map((criterion) =>
+    body(`${path}.${criterion}`)
+      .optional()
+      .isInt({ min: 0, max: 2 })
+      .withMessage(`${criterion} phải là số nguyên từ 0 đến 2`)
+      .toInt(),
+  ),
+  body(`${path}.rationale`)
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage("rationale tối đa 1000 ký tự"),
+];
+
+export const validateExerciseList = [
+  query("technicalDifficultyRating")
+    .optional()
+    .isIn(["1", "2", "3", "4", "5", "unrated"])
+    .withMessage("technicalDifficultyRating không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateExerciseWrite = [
+  ...technicalDifficultyValidation("technicalDifficulty"),
+  handleValidationErrors,
+];
+
+export const validateExerciseBatchWrite = [
+  body("exercises").isArray({ min: 1 }),
+  ...technicalDifficultyValidation("exercises.*.technicalDifficulty"),
+  handleValidationErrors,
+];
+
+const GITHUB_REPOSITORY_URL_PATTERN =
+  /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?(?:[/?#].*)?$/i;
+
+const exactSkillRadarBody = (allowedFields) =>
+  body().custom((value) => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      allowedFields.some((key) => !Object.hasOwn(value, key)) ||
+      Object.keys(value).some((key) => !allowedFields.includes(key))
+    ) {
+      throw new Error("Payload Radar công nghệ không hợp lệ");
+    }
+    return true;
+  });
+
+export const validateSkillRadarPreview = [
+  exactSkillRadarBody(["sourceUrl"]),
+  body("sourceUrl")
+    .isString()
+    .trim()
+    .isLength({ min: 20, max: 500 })
+    .matches(GITHUB_REPOSITORY_URL_PATTERN)
+    .withMessage("Chỉ chấp nhận URL GitHub repository HTTPS"),
+  handleValidationErrors,
+];
+
+export const validateSkillRadarCreate = [
+  exactSkillRadarBody([
+    "sourceUrl",
+    "sourceType",
+    "name",
+    "domain",
+    "summary",
+    "localTargets",
+    "lifecycle",
+  ]),
+  body("sourceUrl")
+    .isString()
+    .trim()
+    .isLength({ min: 20, max: 500 })
+    .matches(GITHUB_REPOSITORY_URL_PATTERN),
+  body("sourceType").isIn(["skill", "repository"]),
+  body("name").isString().trim().isLength({ min: 1, max: 120 }),
+  body("domain").isString().trim().isLength({ min: 1, max: 80 }),
+  body("summary").isString().trim().isLength({ min: 1, max: 500 }),
+  body("localTargets").isArray({ min: 1, max: 12 }),
+  body("localTargets.*").isString().trim().isLength({ min: 1, max: 120 }),
+  body("lifecycle").isIn(["candidate", "active", "watch"]),
+  handleValidationErrors,
+];
+
+export const validateAiToolConfirmation = [
+  body().custom((value) => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some((key) => key !== "token")
+    ) {
+      throw new Error("Dữ liệu xác nhận không hợp lệ");
+    }
+    return true;
+  }),
+  body("token").isString().matches(/^[A-Za-z0-9_-]{43}$/),
+  handleValidationErrors,
+];
+
+const exactExerciseSuggestionBody = body().custom((value) => {
+  const allowed = ["name", "muscleGroup", "description"];
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !allowed.includes(key))
+  ) {
+    throw new Error("Payload góp ý bài tập không hợp lệ");
+  }
+  return true;
+});
+
+export const validateCreateExerciseSuggestion = [
+  exactExerciseSuggestionBody,
+  body("name").isString().trim().isLength({ min: 2, max: 160 }),
+  body("muscleGroup").optional().isString().trim().isLength({ max: 100 }),
+  body("description").optional().isString().trim().isLength({ max: 1000 }),
+  handleValidationErrors,
+];
+
+export const validateExerciseSuggestionList = [
+  query("page").optional().isInt({ min: 1, max: 100000 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+  query("status").optional().isIn(["pending", "approved", "rejected"]),
+  query("search").optional().isString().trim().isLength({ max: 100 }),
+  handleValidationErrors,
+];
+
+export const validateExerciseSuggestionId = [
+  param("id").isMongoId().withMessage("ID góp ý không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateExerciseSuggestionUpdate = [
+  param("id").isMongoId().withMessage("ID góp ý không hợp lệ"),
+  body().custom((value) => {
+    const allowed = ["status", "adminNote"];
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      !Object.hasOwn(value, "status") ||
+      Object.keys(value).some((key) => !allowed.includes(key))
+    ) {
+      throw new Error("Payload cập nhật góp ý không hợp lệ");
+    }
+    return true;
+  }),
+  body("status").isIn(["pending", "approved", "rejected"]),
+  body("adminNote").optional().isString().trim().isLength({ max: 1000 }),
+  handleValidationErrors,
+];

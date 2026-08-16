@@ -4,8 +4,17 @@ import ChatConversation from "../models/ChatConversation.js";
 import KnowledgeEntry from "../models/KnowledgeEntry.js";
 import User from "../models/User.js";
 import { llmStream } from "../services/ai/providers/index.js";
-import { executeTool } from "../services/ai/tools/toolEngine.js";
+import {
+  executeTool,
+  isSuccessfulToolResult,
+} from "../services/ai/tools/toolEngine.js";
+import { executeToolBatch } from "../services/ai/tools/toolBatchExecutor.js";
 import { getToolSchemas } from "../services/ai/tools/toolRegistry.js";
+import {
+  normalizePublicToolText,
+  resolveToolResultStatus,
+  serializeToolResultForModel,
+} from "../services/ai/tools/toolResultBoundary.js";
 import {
   buildKnowledgeReferenceBlock,
   buildSystemPrompt,
@@ -29,6 +38,14 @@ import {
 } from "../services/ai/conversationMemory.js";
 import { sanitizeAssistantOutput } from "../services/ai/assistantOutput.js";
 import {
+  AI_RUNTIME_POLICY,
+  boundAiToolCalls,
+} from "../services/ai/runtimePolicy.js";
+import {
+  createAiToolConfirmation,
+  serializeAiToolConfirmationCard,
+} from "../services/ai/toolConfirmation.service.js";
+import {
   buildChatSummary,
   MAX_RECENT_REQUEST_IDS,
   MAX_STORED_CHAT_MESSAGES,
@@ -38,13 +55,13 @@ import { incrementMetric } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { getAiMemoryContext } from "../services/aiMemory.service.js";
 
-const MAX_ITERATIONS = 5;
-const MAX_HISTORY_MESSAGES = 20;
+const MAX_ITERATIONS = AI_RUNTIME_POLICY.maxAgentIterations;
+const MAX_HISTORY_MESSAGES = AI_RUNTIME_POLICY.maxHistoryMessages;
 const STREAM_STALE_MS = 10 * 60 * 1000;
 const CONVERSATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const GUEST_CONVERSATION_TTL_MS = 24 * 60 * 60 * 1000;
-const CHAT_DEADLINE_MS = 75 * 1000;
-const TOOL_TIMEOUT_MS = 15 * 1000;
+const CHAT_DEADLINE_MS = AI_RUNTIME_POLICY.chatDeadlineMs;
+const TOOL_TIMEOUT_MS = AI_RUNTIME_POLICY.toolTimeoutMs;
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 
@@ -221,7 +238,7 @@ export const chatStream = async (req, res) => {
       message: "Không thể xác định phiên trò chuyện",
     });
   }
-  const parsed = parseChatRequest(req.body);
+  const parsed = req.aiChatRequest || parseChatRequest(req.body);
 
   if (parsed.error) {
     return res.status(400).json({ success: false, message: parsed.error });
@@ -406,6 +423,12 @@ export const chatStream = async (req, res) => {
         if (m.role === "tool" && m.toolName) {
           mapped.name = m.toolName;
           if (m.toolCallId) mapped.id = m.toolCallId;
+          mapped.content = serializeToolResultForModel({
+            toolName: m.toolName,
+            text: m.content || "",
+            status: m.toolStatus || "success",
+          });
+          mapped.toolResultEnvelope = true;
         }
         return mapped;
       }),
@@ -450,6 +473,31 @@ export const chatStream = async (req, res) => {
             break;
 
           case "tool_call":
+            {
+            const boundedToolCalls = boundAiToolCalls(
+              chunk.toolCalls,
+              toolCallCount,
+            );
+            if (boundedToolCalls.length === 0) {
+              needsToolCall = false;
+              iterationText +=
+                "Mình đã đạt giới hạn xử lý công cụ cho yêu cầu này. Bạn hãy thử lại với một yêu cầu ngắn gọn hơn.";
+              safeLog.warn(
+                "ai.tool_call_budget_exhausted",
+                "Tool call budget exhausted",
+              );
+              break;
+            }
+            if (boundedToolCalls.length < chunk.toolCalls.length) {
+              safeLog.warn(
+                "ai.tool_calls_truncated",
+                "Provider tool calls exceeded the bounded runtime policy",
+                {
+                  received: chunk.toolCalls.length,
+                  accepted: boundedToolCalls.length,
+                },
+              );
+            }
             needsToolCall = true;
             iterationCalledTool = true;
             
@@ -462,37 +510,60 @@ export const chatStream = async (req, res) => {
             llmMessages.push({
               role: "assistant",
               content: "",
-              tool_calls: chunk.toolCalls,
+              tool_calls: boundedToolCalls,
               _thoughtParts: chunk.thoughtParts || [],
             });
             generatedMessages.push({
               role: "assistant",
               content: "",
-              toolCalls: chunk.toolCalls,
+              toolCalls: boundedToolCalls,
               timestamp: new Date(),
             });
 
-            for (const call of chunk.toolCalls) {
-              // Gửi tool_start cho FE loading
-              res.write(`data: ${JSON.stringify({ type: "tool_start", tool: call.name })}\n\n`);
-
-              // Thực thi tool
-              const toolStartTime = Date.now();
-              const toolResult = await executeTool(call.name, call.args, {
+            const toolExecutions = await executeToolBatch(
+              boundedToolCalls,
+              {
                 userId,
                 signal: abortController.signal,
                 timeoutMs: TOOL_TIMEOUT_MS,
-              });
+              },
+              {
+                executor: executeTool,
+                onStart: (call) => {
+                  res.write(
+                    `data: ${JSON.stringify({ type: "tool_start", tool: call.name })}\n\n`,
+                  );
+                },
+              },
+            );
+
+            for (const execution of toolExecutions) {
+              const { call, durationMs: toolDuration } =
+                execution;
+              let toolResult = execution.result;
               if (abortController.signal.aborted) break;
-              const safeToolText = String(toolResult.text || "").slice(0, 20000);
-              const toolDuration = Date.now() - toolStartTime;
+              if (toolResult.needsConfirmation) {
+                const challenge = await createAiToolConfirmation({
+                  userId,
+                  toolName: call.name,
+                  parameters: call.args,
+                });
+                toolResult = {
+                  ...toolResult,
+                  uiCard: serializeAiToolConfirmationCard(challenge),
+                };
+              }
+              const safeToolText = normalizePublicToolText(toolResult.text);
+              const modelToolContent = serializeToolResultForModel({
+                toolName: call.name,
+                text: safeToolText,
+                status: resolveToolResultStatus(toolResult),
+              });
+              const toolStatus = resolveToolResultStatus(toolResult);
               toolCallCount++;
-              aiLogger.toolCall(actorId, call.name, toolDuration, !toolResult.error);
-              if (
-                !toolResult.error &&
-                !toolResult.meta?.validationFailed &&
-                !toolResult.meta?.timedOut
-              ) {
+              const toolSucceeded = isSuccessfulToolResult(toolResult);
+              aiLogger.toolCall(actorId, call.name, toolDuration, toolSucceeded);
+              if (toolSucceeded) {
                 conversationMemory = updateConversationMemory(
                   conversationMemory,
                   call.name,
@@ -512,9 +583,10 @@ export const chatStream = async (req, res) => {
               // Thêm tool result vào messages cho LLM iteration tiếp.
               llmMessages.push({
                 role: "tool",
-                content: safeToolText,
+                content: modelToolContent,
                 name: call.name,
                 id: call.id,
+                toolResultEnvelope: true,
               });
               lastToolResultText = safeToolText; // Lưu backup
 
@@ -524,9 +596,14 @@ export const chatStream = async (req, res) => {
                 content: safeToolText,
                 toolName: call.name,
                 toolCallId: call.id,
-                uiCard: toolResult.uiCard,
+                toolStatus,
+                uiCard:
+                  toolResult.uiCard?.cardType === "confirmation"
+                    ? null
+                    : toolResult.uiCard,
                 timestamp: new Date(),
               });
+            }
             }
             break;
 

@@ -21,6 +21,7 @@ import {
 } from "../../services/workoutPlan.service";
 import PlanModal from "./WorkoutPlanModal";
 import { getWorkoutPlanWorkspacePath } from "../../navigation/workspaceNavigation";
+import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
 
 // ===== STATUS CONFIG =====
 const STATUS_MAP = {
@@ -41,8 +42,10 @@ const WorkoutPlan = ({ embedded = false }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [customerTheme] = useState(resolveInitialCustomerDashboardTheme);
 
   const isTrainerOrAdmin = user?.role === "admin" || user?.role === "trainer";
+  const usesCustomerTheme = !embedded && user?.role === "user";
 
   const [modalOpen, setModalOpen] = useState(
     () => searchParams.get("create") === "true",
@@ -138,7 +141,10 @@ const WorkoutPlan = ({ embedded = false }) => {
       <SEO title={t("seo_plan")} description={t("seo_plan_desc")} noindex />
       {!embedded && <Header />}
 
-      <main className={`bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pb-8 ${embedded ? "min-h-[calc(100vh-3rem)] pt-8" : "min-h-screen pt-28"}`}>
+      <main
+        className={`${usesCustomerTheme ? "customer-dashboard customer-tool-surface " : ""}bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pb-8 ${embedded ? "min-h-[calc(100vh-3rem)] pt-8" : "min-h-screen pt-28"}`}
+        data-theme={usesCustomerTheme ? customerTheme : undefined}
+      >
         <div className="container-custom">
           {/* ===== HERO ===== */}
           <div className="text-center mb-8">

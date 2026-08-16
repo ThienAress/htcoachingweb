@@ -25,6 +25,9 @@ const auditLogSchema = new mongoose.Schema(
         "reject_deposit",
         "delete_deposit",
         "reverse_deposit",
+        "approve_incoming_bank_transaction",
+        "ignore_incoming_bank_transaction",
+        "reverse_incoming_bank_transaction",
         "manual_adjustment",
         "purchase_with_wallet",
         "purchase_trainer_plan",
@@ -65,6 +68,7 @@ const auditLogSchema = new mongoose.Schema(
         "delete_today_dashboard_data",
         "export_coaching_activity",
         "read_trainer_client_overview",
+        "read_client_progress",
         "write_wellness_target",
         "delete_wellness_target_data",
         "retention_delete_wellness_target",
@@ -73,6 +77,7 @@ const auditLogSchema = new mongoose.Schema(
         "generate_f1_ai_report",
         "generate_f1_forecast",
         "generate_f1_prediction",
+        "create_skill_radar_source",
       ],
     },
 
@@ -81,6 +86,7 @@ const auditLogSchema = new mongoose.Schema(
       type: String,
       enum: [
         "deposit_request",
+        "incoming_bank_transaction",
         "wallet",
         "order",
         "user",
@@ -99,10 +105,21 @@ const auditLogSchema = new mongoose.Schema(
         "weekly_checkin",
         "coaching_comment",
         "wellness_target",
+        "skill_radar_source",
       ],
     },
     targetId: {
       type: mongoose.Schema.Types.ObjectId,
+    },
+    targetKey: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
+    outcome: {
+      type: String,
+      enum: ["succeeded", "failed"],
+      default: "succeeded",
     },
 
     // Chi tiết hành động (số dư trước/sau, lý do, v.v.)

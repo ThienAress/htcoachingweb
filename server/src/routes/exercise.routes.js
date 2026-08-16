@@ -9,21 +9,34 @@ import {
   updateExercise,
   deleteExercise,
 } from "../controllers/exercise.controller.js";
-import { validateId } from "../middlewares/validation.js";
+import {
+  validateExerciseBatchWrite,
+  validateExerciseList,
+  validateExerciseWrite,
+  validateId,
+} from "../middlewares/validation.js";
 
 const router = express.Router();
 
 // Public routes (ai cũng xem được)
-router.get("/", getExercises);
+router.get("/", validateExerciseList, getExercises);
 router.get("/:id", validateId, getExerciseById);
 
 // Admin only
-router.post("/", protect, csrfProtection, requireRoles("admin"), createExercise);
+router.post(
+  "/",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  validateExerciseWrite,
+  createExercise,
+);
 router.post(
   "/batch",
   protect,
   csrfProtection,
   requireRoles("admin"),
+  validateExerciseBatchWrite,
   createManyExercises,
 );
 router.put(
@@ -32,6 +45,7 @@ router.put(
   csrfProtection,
   requireRoles("admin"),
   validateId,
+  validateExerciseWrite,
   updateExercise,
 );
 router.delete(

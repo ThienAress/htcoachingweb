@@ -1,5 +1,52 @@
-import Exercise from "../models/Exercise.js";
+import Exercise, {
+  deriveTechnicalDifficultyRating,
+  TECHNICAL_DIFFICULTY_CRITERIA,
+} from "../models/Exercise.js";
 import { safeLog } from "../utils/safeLogger.js";
+
+const COMPLETE_TECHNICAL_DIFFICULTY_QUERY = {
+  $and: TECHNICAL_DIFFICULTY_CRITERIA.map((criterion) => ({
+    [`technicalDifficulty.${criterion}`]: { $in: [0, 1, 2] },
+  })),
+};
+
+const TECHNICAL_DIFFICULTY_RATING_RANGES = {
+  1: [0, 1],
+  2: [2, 3],
+  3: [4, 5],
+  4: [6, 7],
+  5: [8, 10],
+};
+
+const buildTechnicalDifficultyQuery = (rating) => {
+  if (!rating) return null;
+  if (rating === "unrated") {
+    return { $nor: [COMPLETE_TECHNICAL_DIFFICULTY_QUERY] };
+  }
+
+  const [minimum, maximum] = TECHNICAL_DIFFICULTY_RATING_RANGES[rating];
+  const total = {
+    $add: TECHNICAL_DIFFICULTY_CRITERIA.map(
+      (criterion) => `$technicalDifficulty.${criterion}`,
+    ),
+  };
+  return {
+    ...COMPLETE_TECHNICAL_DIFFICULTY_QUERY,
+    $expr: {
+      $and: [{ $gte: [total, minimum] }, { $lte: [total, maximum] }],
+    },
+  };
+};
+
+const serializeExercise = (exercise) => {
+  const data = exercise.toObject();
+  return {
+    ...data,
+    technicalDifficultyRating: deriveTechnicalDifficultyRating(
+      data.technicalDifficulty,
+    ),
+  };
+};
 
 // Lấy tất cả bài tập (có phân trang, tìm kiếm)
 export const getExercises = async (req, res) => {
@@ -9,6 +56,7 @@ export const getExercises = async (req, res) => {
     const skip = (page - 1) * limit;
     const search = req.query.search || "";
     const muscleGroup = req.query.muscleGroup || "";
+    const technicalDifficultyRating = req.query.technicalDifficultyRating || "";
 
     let query = {};
     if (search) {
@@ -16,6 +64,12 @@ export const getExercises = async (req, res) => {
     }
     if (muscleGroup) {
       query.muscleGroup = muscleGroup;
+    }
+    const technicalDifficultyQuery = buildTechnicalDifficultyQuery(
+      technicalDifficultyRating,
+    );
+    if (technicalDifficultyQuery) {
+      query = { $and: [query, technicalDifficultyQuery] };
     }
 
     const total = await Exercise.countDocuments(query);
@@ -26,7 +80,7 @@ export const getExercises = async (req, res) => {
 
     res.json({
       success: true,
-      data: exercises,
+      data: exercises.map(serializeExercise),
       pagination: {
         total,
         page,
@@ -49,7 +103,7 @@ export const getExerciseById = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Không tìm thấy bài tập" });
     }
-    res.json({ success: true, data: exercise });
+    res.json({ success: true, data: serializeExercise(exercise) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -58,7 +112,14 @@ export const getExerciseById = async (req, res) => {
 // Tạo bài tập mới (chỉ admin)
 export const createExercise = async (req, res) => {
   try {
-    const { name, muscleGroup, description, videoUrl, imageUrl } = req.body;
+    const {
+      name,
+      muscleGroup,
+      description,
+      videoUrl,
+      imageUrl,
+      technicalDifficulty,
+    } = req.body;
     if (!name || !muscleGroup) {
       return res
         .status(400)
@@ -76,8 +137,9 @@ export const createExercise = async (req, res) => {
       description,
       videoUrl,
       imageUrl,
+      technicalDifficulty,
     });
-    res.status(201).json({ success: true, data: exercise });
+    res.status(201).json({ success: true, data: serializeExercise(exercise) });
   } catch (err) {
     safeLog.error("exercise.create_failed", err);
     res.status(500).json({ success: false, message: err.message });
@@ -96,7 +158,14 @@ export const createManyExercises = async (req, res) => {
     const results = { success: [], failed: [] };
     for (const item of exercises) {
       try {
-        const { name, muscleGroup, description, videoUrl, imageUrl } = item;
+        const {
+          name,
+          muscleGroup,
+          description,
+          videoUrl,
+          imageUrl,
+          technicalDifficulty,
+        } = item;
         if (!name || !muscleGroup) {
           results.failed.push({ ...item, error: "Thiếu tên hoặc nhóm cơ" });
           continue;
@@ -112,8 +181,9 @@ export const createManyExercises = async (req, res) => {
           description,
           videoUrl,
           imageUrl,
+          technicalDifficulty,
         });
-        results.success.push(newExercise);
+        results.success.push(serializeExercise(newExercise));
       } catch (err) {
         results.failed.push({ ...item, error: err.message });
       }
@@ -131,7 +201,14 @@ export const createManyExercises = async (req, res) => {
 // Cập nhật bài tập (chỉ admin)
 export const updateExercise = async (req, res) => {
   try {
-    const allowed = ["name", "muscleGroup", "description", "videoUrl", "imageUrl"];
+    const allowed = [
+      "name",
+      "muscleGroup",
+      "description",
+      "videoUrl",
+      "imageUrl",
+      "technicalDifficulty",
+    ];
     const updateData = {};
     for (const key of allowed) {
       if (req.body[key] !== undefined) updateData[key] = req.body[key];
@@ -139,13 +216,14 @@ export const updateExercise = async (req, res) => {
 
     const exercise = await Exercise.findByIdAndUpdate(req.params.id, updateData, {
       returnDocument: 'after',
+      runValidators: true,
     });
     if (!exercise) {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy bài tập" });
     }
-    res.json({ success: true, data: exercise });
+    res.json({ success: true, data: serializeExercise(exercise) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -184,6 +184,19 @@ export const notificationMutationLimiter = rateLimit({
   },
 });
 
+export const aiConfirmationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => req.user?.id?.toString() ?? "anonymous",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "AI_CONFIRMATION_RATE_LIMITED",
+    message: "Quá nhiều yêu cầu xác nhận. Vui lòng thử lại sau.",
+  },
+});
+
 export const financialCommandLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
@@ -236,5 +249,30 @@ export const analyticsSyncLimiter = rateLimit({
     success: false,
     code: "ANALYTICS_SYNC_RATE_LIMITED",
     message: "Bạn đã yêu cầu đồng bộ quá nhiều lần. Vui lòng thử lại sau.",
+  },
+});
+
+export const sepayWebhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "SEPAY_WEBHOOK_RATE_LIMITED",
+    message: "Webhook rate limit exceeded",
+  },
+});
+
+export const skillRadarMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => req.user?.id?.toString() ?? "anonymous",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "SKILL_RADAR_MUTATION_RATE_LIMITED",
+    message: "Bạn đã phân tích quá nhiều nguồn. Vui lòng thử lại sau.",
   },
 });

@@ -3,7 +3,9 @@ import {
   CHAT_THEME_STORAGE_KEY,
   getChatVisualViewportBounds,
   getChatQuotaPresentation,
+  getChatQuotaStatusLine,
   getChatScrollBehavior,
+  isTdeeQuickAction,
   persistChatTheme,
   resolveInitialChatTheme,
 } from "../chatPanelRuntime.js";
@@ -96,6 +98,32 @@ describe("chat panel runtime", () => {
 
   it("hides quota presentation when server metadata is incomplete", () => {
     expect(getChatQuotaPresentation({ remaining: 4 })).toBeNull();
+  });
+
+  it("formats quota and reset time as one compact line below the composer", () => {
+    expect(
+      getChatQuotaStatusLine({
+        remaining: 22,
+        limit: 30,
+        resetAt: "2026-08-12T13:42:00.000Z",
+      }),
+    ).toEqual({
+      label: "Còn 22/30 lượt · Làm mới 20:42 12/08",
+      tone: "normal",
+    });
+  });
+
+  it("opens the TDEE form only for the calculate quick action", () => {
+    expect([
+      isTdeeQuickAction({
+        label: "Tính TDEE",
+        value: "Tính TDEE và macro cho tôi",
+      }),
+      isTdeeQuickAction({
+        label: "Hiểu kết quả",
+        value: "Giải thích cách đọc và áp dụng kết quả TDEE",
+      }),
+    ]).toEqual([true, false]);
   });
 
   it("uses instant scrolling when reduced motion is requested", () => {

@@ -1,4 +1,5 @@
 import TrainerSubscription from "../models/TrainerSubscription.js";
+import { createRecurringJob } from "../operations/recurringJob.js";
 import { calculateRetentionDeadlines } from "./trainerSubscriptionLifecycle.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 
@@ -49,8 +50,15 @@ export async function expireTrainerSubscriptions() {
   }
 }
 
+const subscriptionCron = createRecurringJob({
+  name: "subscription_cron",
+  intervalMs: INTERVAL_MS,
+  task: expireTrainerSubscriptions,
+});
+
 export function startSubscriptionCronJobs() {
   safeLog.info("subscription_cron.started", { intervalMs: INTERVAL_MS });
-  expireTrainerSubscriptions();
-  setInterval(expireTrainerSubscriptions, INTERVAL_MS);
+  return subscriptionCron.start();
 }
+
+export const stopSubscriptionCronJobs = () => subscriptionCron.stop();

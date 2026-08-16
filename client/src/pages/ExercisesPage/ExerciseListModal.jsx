@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Search, X, Dumbbell, AlertTriangle } from "lucide-react";
+import TechnicalDifficultyRating from "./TechnicalDifficultyRating";
 
 export default function ExerciseListModal({
   open,
@@ -13,6 +14,7 @@ export default function ExerciseListModal({
   const [isMobile, setIsMobile] = useState(false);
   const [searchType, setSearchType] = useState("name");
   const [searchValue, setSearchValue] = useState("");
+  const [difficultyFilter, setDifficultyFilter] = useState("");
   const modalRef = useRef(null);
 
   useEffect(() => {
@@ -22,6 +24,7 @@ export default function ExerciseListModal({
       window.addEventListener("resize", checkIsMobile);
       setSearchValue("");
       setSearchType("name");
+      setDifficultyFilter("");
     }
     return () => window.removeEventListener("resize", checkIsMobile);
   }, [open]);
@@ -32,33 +35,28 @@ export default function ExerciseListModal({
 
   const performSearch = useCallback(
     (value) => {
-      if (!value) {
-        setFilteredExercises(allExercises);
-        return;
-      }
-      if (searchType === "name") {
-        setFilteredExercises(
-          allExercises.filter((ex) =>
-            ex.name.toLowerCase().includes(value.toLowerCase()),
-          ),
-        );
-      } else {
-        setFilteredExercises(
-          allExercises.filter(
-            (ex) =>
-              ex.muscleGroup &&
-              ex.muscleGroup.toLowerCase().includes(value.toLowerCase()),
-          ),
-        );
-      }
+      const normalizedValue = value.toLowerCase();
+      setFilteredExercises(
+        allExercises.filter((exercise) => {
+          const matchesSearch = !value || (searchType === "name"
+            ? exercise.name.toLowerCase().includes(normalizedValue)
+            : exercise.muscleGroup?.toLowerCase().includes(normalizedValue));
+          const matchesDifficulty = !difficultyFilter
+            || (difficultyFilter === "unrated"
+              ? exercise.technicalDifficultyRating === null
+                || exercise.technicalDifficultyRating === undefined
+              : exercise.technicalDifficultyRating === Number(difficultyFilter));
+          return matchesSearch && matchesDifficulty;
+        }),
+      );
     },
-    [allExercises, searchType, setFilteredExercises],
+    [allExercises, difficultyFilter, searchType, setFilteredExercises],
   );
 
   useEffect(() => {
     const handler = setTimeout(() => performSearch(searchValue), 300);
     return () => clearTimeout(handler);
-  }, [searchValue, performSearch]);
+  }, [difficultyFilter, searchValue, performSearch]);
 
   if (!open) return null;
 
@@ -79,7 +77,9 @@ export default function ExerciseListModal({
             {t("modal.title")}
           </h2>
           <button
+            type="button"
             onClick={onClose}
+            aria-label={t("modal.close")}
             className="p-1 hover:bg-gray-700 rounded-full transition"
           >
             <X className="w-5 h-5 text-gray-400" />
@@ -99,6 +99,20 @@ export default function ExerciseListModal({
             >
               <option value="name">{t("modal.search_by_name")}</option>
               <option value="muscle">{t("modal.search_by_muscle")}</option>
+            </select>
+            <select
+              value={difficultyFilter}
+              onChange={(event) => setDifficultyFilter(event.target.value)}
+              aria-label={t("difficulty.filter_label")}
+              className="border border-gray-600 rounded-xl px-4 py-2.5 bg-gray-700 text-white focus:ring-2 focus:ring-primary"
+            >
+              <option value="">{t("difficulty.filter_all")}</option>
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <option key={rating} value={rating}>
+                  {t("difficulty.filter_rating", { rating })}
+                </option>
+              ))}
+              <option value="unrated">{t("difficulty.not_rated")}</option>
             </select>
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -125,6 +139,9 @@ export default function ExerciseListModal({
                   </th>
                   <th className="p-3 text-left text-sm font-semibold text-gray-300">
                     {t("modal.col_muscle")}
+                  </th>
+                  <th className="p-3 text-left text-sm font-semibold text-gray-300">
+                    {t("difficulty.title")}
                   </th>
                   <th className="p-3 text-left text-sm font-semibold text-gray-300">
                     {t("modal.col_desc")}
@@ -157,6 +174,11 @@ export default function ExerciseListModal({
                         <span className="text-gray-400">{t("modal.no_muscle")}</span>
                       )}
                     </td>
+                    <td className="p-3 text-sm">
+                      <TechnicalDifficultyRating
+                        rating={ex.technicalDifficultyRating}
+                      />
+                    </td>
                     <td className="p-3 text-sm text-gray-300">
                       {ex.description || (
                         <span className="text-gray-500">{t("modal.no_desc")}</span>
@@ -166,7 +188,7 @@ export default function ExerciseListModal({
                 ))}
                 {exercises.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-6 text-center text-gray-400">
+                    <td colSpan={5} className="p-6 text-center text-gray-400">
                       <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                       {t("modal.no_found")}
                     </td>

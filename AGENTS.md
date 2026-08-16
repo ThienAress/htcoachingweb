@@ -87,11 +87,13 @@ Chọn tập kiểm tra nhỏ nhất đủ chứng minh thay đổi; mở rộng
 - E2E: `npm run test:e2e` (cần môi trường/dev servers phù hợp)
 - Client lint: `npm run lint --prefix client`
 - Client build: `npm run build --prefix client`
+- UI source audit report: `npm run ui:audit` (informational)
+- UI regression gate: `npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high`
 - Secret scan: `npm run security:secrets`
 - Repository boundary scan: `npm run security:data-boundaries`
 - Agent instructions: `npm run agents:validate`
 
-Không tuyên bố pass nếu lệnh chưa chạy hoặc bị phụ thuộc môi trường. Với API change, kiểm tra response format và error contract; với UI change, kiểm tra loading/empty/error/disabled states và accessibility cơ bản.
+Không tuyên bố pass nếu lệnh chưa chạy hoặc bị phụ thuộc môi trường. Với API change, kiểm tra response format và error contract; với UI change, chạy regression gate trước review rendered/manual, kiểm tra loading/empty/error/disabled states và accessibility cơ bản. Text match, debt baseline hoặc advisory của scanner chỉ là evidence cần xác minh, không phải quyền tự động sửa UI ngoài scope. Không cập nhật baseline chỉ để làm CI xanh; rule/baseline change phải có test, review và lý do rõ ràng.
 
 ## Rules và Codex skills
 

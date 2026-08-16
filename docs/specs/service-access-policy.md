@@ -71,7 +71,7 @@ lặp lại trong middleware hoặc trang Admin.
   `initialImprovement`/`deliveryUpdates` suy ra từ contract mới để giữ tương thích một release; catalog không lưu hai nguồn.
 - Chỉ gắn `production_verified` sau khi behavior đã được xác minh trên production. Priority vẫn phản ánh hạng mục chưa
   hoàn thành ở production, vì vậy một tính năng đã code local vẫn có thể giữ `F0`.
-- Priority đã duyệt cho release ổn định: HT Assistant và Meal Plan là `F0`; Meal Scan là `F1` vì journal integration và ground-truth thực tế được tách thành phase riêng.
+- HT Assistant và Meal Plan đã được chủ sản phẩm xác minh production ngày `2026-08-12`; hai cơ hội tiếp theo chuyển sang `F1`. Meal Scan giữ `F1` vì journal integration và ground-truth thực tế được tách thành phase riêng.
 
 #### Báo cáo lịch sử cải tiến
 
@@ -97,10 +97,13 @@ lặp lại trong middleware hoặc trang Admin.
 
 ## Security and privacy boundaries
 
-- Guest quota tiếp tục dùng khóa IP đã HMAC; không lưu hoặc log raw IP.
+- Guest quota dùng khóa HMAC pseudonymous ổn định; không lưu hoặc log raw IP.
 - Authenticated quota dùng user ID; tier chỉ được resolver backend xác định từ role/Order/TrainerSubscription.
+- AI Chat và Meal Scan giữ limiter theo process để chống abuse, đồng thời consume atomically từ MongoDB shared ledger
+  để hạn mức thương mại nhất quán khi chạy nhiều replica. Ledger fail closed trước khi gọi provider.
 - Không tin tier do client gửi, không hạ CSRF, auth, ownership hoặc rate limit hiện có.
-- Không tạo migration/schema trong thay đổi này.
+- Shared ledger và confirmation dùng collection additive mới, không backfill document cũ; secondary indexes chỉ được
+  áp dụng qua migration có target lock sau preflight và approval riêng.
 - Endpoint Admin không trả dữ liệu user, usage history hoặc identifier; chỉ trả policy cấu hình.
 
 ## Testing strategy

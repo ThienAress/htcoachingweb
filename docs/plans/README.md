@@ -69,8 +69,19 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 044 | Việt hóa quản trị Food và nạp giá thị trường vào local | P1 | L | 042, 043 | COMPLETE / LOCAL VERIFIED — FULL SERVER QA TIMEOUT |
 | 045 | Đơn giản hóa giá Meal Plan và theo dõi phụ thuộc hệ thống | P1 | M | 033, 042, 044 | IMPLEMENTED / PARTIAL LOCAL VERIFIED — VITEST + BUILD ENV BLOCKED |
 | 046 | Ổn định nền tảng, AI Memory có kiểm soát và motion discipline | P0/P1 | XL | 017, 020, 030, 031, 035, 038, 040 | LOCAL VERIFIED — PRODUCTION READINESS BLOCKED |
+| 047 | Triển khai TDEE có độ tin cậy, độ phức tạp bài tập và Tiến trình cơ thể | P1 | L | 003F, 006, 016, 031, 046 | COMPLETED |
+| 048 | Thêm nguồn Radar động và làm rõ phục hồi GitHub rate limit | P1 | L | 035, 036 | COMPLETE / LOCAL VERIFIED — AUTH VISUAL + PRODUCTION GITHUB PENDING |
+| 049 | Đồng bộ theme HLV và các công cụ tập luyện của học viên | P1 | M | 006, 016 | LOCAL VERIFIED — STAGING BLOCKED (DEPENDENCY AUDIT) |
+| 050 | Xây UI quality gates deterministic và pilot icon morph có kiểm soát | P1 | L | 017, 030, 046 | COMPLETE / LOCAL VERIFIED — DEPENDENCY AUDIT BLOCKED |
+| 051 | Tự động đối soát SePay và cộng ví an toàn | P0 | L | 018 | IMPLEMENTED LOCALLY |
+| 052 | Harden AI evals, tool boundaries và scale readiness | P0→P1 | XL | 020, 031, 033, 038, 046 | LOCAL COMPLETE / EXTERNAL ROLLOUT PENDING |
+| 053 | Harden backend foundations và async resilience | P0→P2 | L | 052 | LOCAL COMPLETE / EXTERNAL OPS PENDING |
 
 ## Dependency Notes
+
+- Plan 051 phụ thuộc Plan 018 vì Wallet/Account đã có query keys, polling và
+  server-authoritative balance; plan thêm SePay webhook/API v2, transaction-specific
+  idempotency, mismatch review và không backfill lịch sử trước cutover.
 
 - Plan 001 keeps pricing, entitlements, email grants and retention in one lifecycle because all flows create or consume `TrainerSubscription` records.
 - Plan 002 depends on Plan 001 because it hardens the trainer catalog, checkout and deposit policies introduced or touched by that lifecycle.
@@ -144,6 +155,10 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   còn mọi mutation bị khóa vào database local hoặc staging cô lập.
 - Plan 044 phụ thuộc price contract và catalog test đã có; chỉ nạp observation có nguồn vào local, không thay macro
   hoặc mở rộng sang staging/production.
+- Plan 047 phụ thuộc Progress Hub, Customer Dashboard, trainer workspace và HT Assistant đã có; plan chuẩn hóa
+  estimate TDEE, thêm rubric Exercise optional và mở rộng read model cân nặng/vòng eo mà không backfill dữ liệu thật.
+- Plan 048 phụ thuộc Radar nền và rate-limit semantics của 035–036; thêm nguồn GitHub động qua Admin/MongoDB nhưng giữ
+  baseline Git-owned, không auto-install và không migration/backfill.
 
 ## Findings Considered and Rejected
 

@@ -264,3 +264,29 @@ test("production alert workflow links the canonical runbook and requires manual 
   assert.doesNotMatch(workflow, /issues\.update\([\s\S]*state:\s*"closed"/);
   assert.match(workflow, /owner review/i);
 });
+
+test("staging Netlify builds fail closed on canonical dynamic route content", async () => {
+  const config = await readFile(
+    new URL("../netlify.toml", import.meta.url),
+    "utf8",
+  );
+  const stagingEnvironment = config.match(
+    /\[context\.staging\.environment\]([\s\S]*?)(?=\n\[|$)/,
+  )?.[1];
+
+  assert.ok(stagingEnvironment, "missing staging environment block");
+  assert.match(stagingEnvironment, /REQUIRE_DYNAMIC_ROUTES\s*=\s*"true"/);
+  assert.match(
+    stagingEnvironment,
+    /VITE_API_URL\s*=\s*"https:\/\/htcoachingweb-staging\.onrender\.com\/api"/,
+  );
+  assert.match(
+    stagingEnvironment,
+    /SITEMAP_API_URL\s*=\s*"https:\/\/htcoachingweb-staging\.onrender\.com\/api"/,
+  );
+  assert.match(
+    stagingEnvironment,
+    /PRERENDER_API_URL\s*=\s*"https:\/\/htcoachingweb-staging\.onrender\.com\/api"/,
+  );
+  assert.match(stagingEnvironment, /PRERENDER_CONCURRENCY\s*=\s*"6"/);
+});

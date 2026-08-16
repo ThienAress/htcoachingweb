@@ -222,7 +222,9 @@ export const getPublicBlogPostBySlug = async (req, res) => {
       }),
     );
 
-    await BlogPost.updateOne({ _id: post._id }, { $inc: { views: 1 } });
+    if (req.query.view !== "prerender") {
+      await BlogPost.updateOne({ _id: post._id }, { $inc: { views: 1 } });
+    }
 
     res.json({ success: true, data: post, relatedPosts, discoveryPosts });
   } catch (err) {

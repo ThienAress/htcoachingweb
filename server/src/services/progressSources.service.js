@@ -161,15 +161,20 @@ const loadWeeklyCheckins = async (clientId, range) => {
       $lte: range.endDateKey,
     },
     status: { $in: ["submitted", "reviewed"] },
-    "body.weightKg": { $ne: null },
+    $or: [
+      { "body.weightKg": { $type: "number" } },
+      { "body.waistCm": { $type: "number" } },
+    ],
   })
-    .select("weekStartDateKey status body.weightKg")
+    .select("weekStartDateKey status body.weightKg body.waistCm")
+    .sort({ weekStartDateKey: 1 })
     .limit(20)
     .lean();
   return documents.map((item) => ({
     weekStartDateKey: item.weekStartDateKey,
     status: item.status,
     weightKg: item.body?.weightKg,
+    waistCm: item.body?.waistCm,
   }));
 };
 

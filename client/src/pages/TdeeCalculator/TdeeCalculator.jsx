@@ -11,12 +11,15 @@ import ChatIcons from "../../components/ChatIcons";
 import SEO from "../../components/SEO";
 import {
   calculateBmr,
-  calculateTdee,
+  calculateTdeeEstimate,
   calculateAdjustedCalories,
   calculateMacroSet,
   createDefaultTdeeForm,
   getDefaultCalorieAdjustment,
+  isTdeeInputWithinLimits,
   normalizeStoredTdeeForm,
+  recommendActivityBand,
+  updateTrainingEvidence,
 } from "./tdee.helpers";
 
 const loadStoredTdee = () => {
@@ -25,6 +28,8 @@ const loadStoredTdee = () => {
     tdee: null,
     bmr: null,
     adjustedCalories: null,
+    tdeeRange: null,
+    activityBand: null,
     macroSet: null,
   };
 
@@ -41,7 +46,26 @@ const loadStoredTdee = () => {
       const data = JSON.parse(savedData);
       result.bmr = data.bmr ?? null;
       result.tdee = data.tdee ?? null;
-      result.adjustedCalories = data.adjustedCalories ?? null;
+      result.adjustedCalories = isTdeeInputWithinLimits(
+        "targetCalories",
+        data.adjustedCalories,
+      )
+        ? data.adjustedCalories
+        : null;
+      result.tdeeRange = data.tdeeRange ?? null;
+      result.activityBand = data.activityBand ?? null;
+      if (
+        !result.tdeeRange ||
+        !result.activityBand ||
+        result.adjustedCalories == null
+      ) {
+        result.tdee = null;
+        result.bmr = null;
+        result.adjustedCalories = null;
+        localStorage.removeItem("tdeeData");
+        localStorage.removeItem("macroSet");
+        result.macroSet = null;
+      }
     }
   } catch {
     localStorage.removeItem("tdeeData");
@@ -49,7 +73,9 @@ const loadStoredTdee = () => {
 
   try {
     const savedMacros = localStorage.getItem("macroSet");
-    if (savedMacros) result.macroSet = JSON.parse(savedMacros);
+    if (savedMacros && result.tdeeRange && result.activityBand) {
+      result.macroSet = JSON.parse(savedMacros);
+    }
   } catch {
     localStorage.removeItem("macroSet");
   }
@@ -67,6 +93,10 @@ const TdeeCalculator = () => {
   const [tdee, setTdee] = useState(storedTdee.tdee);
   const [bmr, setBmr] = useState(storedTdee.bmr);
   const [adjustedCalories, setAdjustedCalories] = useState(storedTdee.adjustedCalories);
+  const [tdeeRange, setTdeeRange] = useState(storedTdee.tdeeRange);
+  const [calculatedActivityBand, setCalculatedActivityBand] = useState(
+    storedTdee.activityBand,
+  );
   const [macroSet, setMacroSet] = useState(storedTdee.macroSet);
   const [goalNotice, setGoalNotice] = useState(false);
   const navigate = useNavigate();
@@ -85,36 +115,69 @@ const TdeeCalculator = () => {
         const newCalorieAdjustment = getDefaultCalorieAdjustment(value) || prev.customCalorieAdjustment;
         return { ...prev, [name]: value, customCalorieAdjustment: newCalorieAdjustment };
       }
+      if (["trainingFrequency", "trainingDuration", "trainingIntensity"].includes(name)) {
+        return { ...updateTrainingEvidence(prev, name, value), activity: "" };
+      }
       return { ...prev, [name]: value };
     });
     setErrors((prev) => ({ ...prev, [name]: "" }));
+    if (["dailyMovement", "steps", "trainingFrequency", "trainingDuration", "trainingIntensity"].includes(name)) {
+      setErrors((prev) => ({ ...prev, activity: "" }));
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const { gender, height, weight, age, activity, formula, bodyfat, goal } =
+    const { gender, height, weight, age, formula, bodyfat, goal } =
       form;
+    const activityBand = recommendActivityBand(form);
     let newErrors = {};
     if (!gender) newErrors.gender = t("form.err_gender");
-    if (!height || height <= 0) newErrors.height = t("form.err_height");
-    if (!weight || weight <= 0) newErrors.weight = t("form.err_weight");
-    if (!age || age <= 0) newErrors.age = t("form.err_age");
-    if (!activity) newErrors.activity = t("form.err_activity");
+    if (!isTdeeInputWithinLimits("heightCm", height)) {
+      newErrors.height = t("form.err_height");
+    }
+    if (!isTdeeInputWithinLimits("weightKg", weight)) {
+      newErrors.weight = t("form.err_weight");
+    }
+    if (!isTdeeInputWithinLimits("age", age)) {
+      newErrors.age = t("form.err_age");
+    }
+    if (!activityBand) newErrors.activity = t("form.err_activity");
     if (!formula) newErrors.formula = t("form.err_formula");
     if (!goal) newErrors.goal = t("form.err_goal");
-    if (formula === "Katch-McArdle" && (!bodyfat || bodyfat <= 0)) {
+    if (
+      formula === "Katch-McArdle" &&
+      !isTdeeInputWithinLimits("bodyFatPercent", bodyfat)
+    ) {
       newErrors.bodyfat = t("form.err_bodyfat");
+    }
+    if (!isTdeeInputWithinLimits("calorieAdjustment", form.customCalorieAdjustment)) {
+      newErrors.calorieAdjustment = t("form.err_calorie_adjustment");
     }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       setTdee(null);
       setBmr(null);
       setAdjustedCalories(null);
+      setTdeeRange(null);
+      setCalculatedActivityBand(null);
       return;
     }
     const rawBmr = calculateBmr({ formula, weight, height, age, gender, bodyfat });
-    const rawTdee = calculateTdee(rawBmr, activity);
+    const estimate = calculateTdeeEstimate(rawBmr, activityBand);
+    const rawTdee = estimate.estimate;
     const rawAdjusted = calculateAdjustedCalories(rawTdee, form.customCalorieAdjustment);
+
+    if (rawAdjusted == null) {
+      setErrors({ calorieAdjustment: t("form.err_target_calories") });
+      setTdee(null);
+      setBmr(null);
+      setAdjustedCalories(null);
+      setTdeeRange(null);
+      setCalculatedActivityBand(null);
+      setMacroSet(null);
+      return;
+    }
 
     const roundedBmr = Math.round(rawBmr);
     const roundedTdee = Math.round(rawTdee);
@@ -122,16 +185,22 @@ const TdeeCalculator = () => {
 
     setBmr(roundedBmr);
     setTdee(roundedTdee);
+    setTdeeRange(estimate.range);
+    setCalculatedActivityBand(activityBand);
     setAdjustedCalories(roundedAdjusted);
     setMacroSet(null);
     setGoalNotice(false);
-    localStorage.setItem("tdeeForm", JSON.stringify(form));
+    const confirmedForm = { ...form, activity: activityBand.key };
+    setForm(confirmedForm);
+    localStorage.setItem("tdeeForm", JSON.stringify(confirmedForm));
     localStorage.setItem(
       "tdeeData",
       JSON.stringify({
         bmr: roundedBmr,
         tdee: roundedTdee,
         adjustedCalories: roundedAdjusted,
+        tdeeRange: estimate.range,
+        activityBand,
       }),
     );
   };
@@ -141,6 +210,8 @@ const TdeeCalculator = () => {
     setTdee(null);
     setBmr(null);
     setAdjustedCalories(null);
+    setTdeeRange(null);
+    setCalculatedActivityBand(null);
     setErrors({});
     setMacroSet(null);
     setGoalNotice(false);
@@ -164,7 +235,7 @@ const TdeeCalculator = () => {
         "name": "Công cụ tính TDEE & Macro HTCOACHING",
         "url": "https://htcoachingweb.io.vn/tdee-calculator/",
         "applicationCategory": "HealthApplication",
-        "description": "Công cụ tính TDEE chuẩn khoa học, xác định lượng calo cần thiết để giảm mỡ hoặc tăng cơ, kèm theo phân bổ Macro chi tiết."
+        "description": "Công cụ ước tính TDEE theo vận động cả ngày, hiển thị khoảng hợp lý và phân bổ Macro tham khảo."
       },
       {
         "@type": "FAQPage",
@@ -182,7 +253,7 @@ const TdeeCalculator = () => {
             "name": "BMR khác TDEE như thế nào?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "BMR (Basal Metabolic Rate) là năng lượng cơ thể tiêu hao khi nghỉ ngơi hoàn toàn. TDEE = BMR × hệ số hoạt động. Ví dụ: nếu BMR là 1500 kcal và bạn tập gym 3-5 ngày/tuần (hệ số 1.55), thì TDEE = 1500 × 1.55 = 2325 kcal/ngày."
+              "text": "BMR là năng lượng cơ thể tiêu hao khi nghỉ ngơi. TDEE là ước tính BMR nhân hệ số phản ánh cả vận động trong ngày, bước chân và tập luyện; số buổi tập đơn lẻ không đủ để chọn hệ số."
             }
           },
           {
@@ -274,7 +345,6 @@ const TdeeCalculator = () => {
               handleSubmit={handleSubmit}
               handleReset={handleReset}
               goalNotice={goalNotice}
-              setGoalNotice={setGoalNotice}
             />
 
         {tdee && bmr && (
@@ -284,6 +354,8 @@ const TdeeCalculator = () => {
               bmr={bmr}
               adjustedCalories={adjustedCalories}
               goal={form.goal}
+              tdeeRange={tdeeRange}
+              activityBand={calculatedActivityBand}
             />
           </div>
         )}

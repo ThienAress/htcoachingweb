@@ -324,7 +324,7 @@ const ContractEditModal = ({ contract, onClose }) => {
           )}
 
           {activeTab === "preview" && (
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="theme-always-light border border-slate-200 rounded-xl overflow-hidden bg-white text-slate-900">
               <div className="bg-white px-6 py-5 text-center border-b border-slate-200">
                 <p className="text-[10px] tracking-[0.2em] text-slate-400 mb-1">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
                 <p className="text-[10px] text-slate-300 mb-3">Độc lập – Tự do – Hạnh phúc</p>

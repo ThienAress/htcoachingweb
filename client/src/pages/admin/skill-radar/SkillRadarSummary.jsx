@@ -21,7 +21,9 @@ export default function SkillRadarSummary({ summary, schedule }) {
           </span>
           <div>
             <h2 id="radar-summary-heading" className="font-bold text-zinc-950">Chu kỳ theo dõi</h2>
-            <p className="mt-1 text-sm text-zinc-600">Quét dự kiến {schedule.label}; review semantic vẫn cần phê duyệt.</p>
+            <p className="mt-1 text-sm text-zinc-600">
+              Baseline quét {schedule.label}; nguồn Admin theo lịch riêng trong bảng. Review semantic vẫn cần phê duyệt.
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">

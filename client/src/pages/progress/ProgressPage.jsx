@@ -9,7 +9,6 @@ import Header from "../../sections/Header/Header";
 import { getMyProgress } from "../../services/progress.service";
 import { getVietnamDateKey } from "../../utils/vietnamDate";
 import { ProgressSummary } from "./ProgressSummary";
-import { CoachingActivityPanel } from "./CoachingActivityPanel";
 import { dashboardPathFor } from "../../utils/customerDashboardNavigation";
 
 const RANGES = [7, 30, 90];
@@ -43,7 +42,7 @@ const ProgressPage = ({ embedded = false }) => {
 
   return (
     <>
-      <SEO title="Tổng quan huấn luyện" noindex />
+      <SEO title="Tiến trình cơ thể và huấn luyện" noindex />
       {!embedded && <Header />}
       <PageContainer
         className={
@@ -57,10 +56,10 @@ const ProgressPage = ({ embedded = false }) => {
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-orange-400">
-                  <BarChart3 size={18} aria-hidden="true" /> Tổng quan
+                  <BarChart3 size={18} aria-hidden="true" /> Tiến trình
                 </p>
                 <h1 className="mt-2 text-2xl font-bold text-white sm:text-3xl">
-                  Tổng quan hoạt động của bạn
+                  Tiến trình cơ thể và huấn luyện
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
                   Tổng hợp từ lịch tập, giáo án và những nhật ký hoặc báo cáo
@@ -146,8 +145,6 @@ const ProgressPage = ({ embedded = false }) => {
               </p>
             </>
           )}
-
-          <CoachingActivityPanel days={days} userId={user?._id} />
         </div>
       </PageContainer>
       {!embedded && <Footer />}

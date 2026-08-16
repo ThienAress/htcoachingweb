@@ -25,7 +25,7 @@ const SignatureCanvas = ({
 
   return (
     <div className="space-y-3">
-      <div className="relative touch-none overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 bg-white focus-within:border-emerald-600">
+      <div className="theme-always-light relative touch-none overflow-hidden rounded-xl border-2 border-dashed border-zinc-300 bg-white focus-within:border-emerald-600">
         <SignaturePad
           ref={sigRef}
           canvasProps={{

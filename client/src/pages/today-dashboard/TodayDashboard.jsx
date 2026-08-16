@@ -107,8 +107,8 @@ const MODULE_CONFIG = {
   },
   progress: {
     icon: TrendingUp,
-    label: "Tổng quan",
-    description: "Số liệu tổng hợp và xu hướng.",
+    label: "Tiến trình cơ thể",
+    description: "Số đo cơ thể, mức độ thực hiện và xu hướng.",
     accent: "violet",
     iconBg: "bg-violet-500/15",
     iconColor: "text-violet-400",
@@ -141,7 +141,7 @@ const TodayDashboard = () => {
         ? "Chưa có thực đơn áp dụng"
         : "Tiến độ thực đơn " + nutritionProgress.percent + "%",
     journal: "Nhật ký: " + journalProgress.percent + "% hoàn thành",
-    progress: "Mở trang tổng quan",
+    progress: "Mở trang tiến trình cơ thể",
   };
   const ringColor =
     completionPercent >= 100

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import api from "../utils/api";
+import { sendExerciseSuggestion as submitExerciseSuggestion } from "../services/exerciseSuggestion.service";
+import { getExercises } from "../services/exercise.service";
 import {
   muscleGroups,
   workoutSections,
@@ -19,10 +20,9 @@ export default function useExercisesLogic() {
 
   // Lấy danh sách bài tập từ backend
   useEffect(() => {
-    api
-      .get("/exercises?limit=500")
-      .then((res) => {
-        const exercisesArray = res.data.data || [];
+    getExercises(1, 500)
+      .then((response) => {
+        const exercisesArray = response.data || [];
         setExerciseOptions(exercisesArray);
         setFilteredExercises(exercisesArray);
       })
@@ -168,10 +168,7 @@ export default function useExercisesLogic() {
   // Hàm gửi góp ý
   const sendExerciseSuggestion = async (suggestion) => {
     try {
-      await api.post("/exercise-suggestions", {
-        name: suggestion,
-        description: suggestion,
-      });
+      await submitExerciseSuggestion(suggestion);
       return true;
     } catch {
       return false;

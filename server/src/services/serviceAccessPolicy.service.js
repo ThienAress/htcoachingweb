@@ -84,6 +84,9 @@ export const resolveRequestServicePolicy = async (req, serviceKey) => {
 };
 
 export const serializeRequestQuota = (req, serviceKey) => {
+  const sharedQuota = req.serviceUsageQuota;
+  if (sharedQuota?.serviceKey === serviceKey) return { ...sharedQuota };
+
   const info = req.rateLimit;
   const resolved = req.serviceAccessPolicy;
   if (!info || !resolved || resolved.serviceKey !== serviceKey) return null;

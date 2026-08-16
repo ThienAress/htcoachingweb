@@ -212,6 +212,7 @@ export const getCommunityFeatureDeliveryMeta = (deliveryUpdate) => {
 export const enforcementLabel = (enforcement) =>
   ({
     server_rate_limit: "Rate limit server",
+    shared_usage_ledger: "Shared usage ledger",
     server_counter: "Bộ đếm tài khoản",
     client_session: "Giới hạn theo phiên",
     none: "Không giới hạn",

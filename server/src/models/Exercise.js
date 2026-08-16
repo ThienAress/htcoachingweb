@@ -1,5 +1,57 @@
 import mongoose from "mongoose";
 
+export const TECHNICAL_DIFFICULTY_CRITERIA = [
+  "coordination",
+  "stability",
+  "mobility",
+  "setup",
+  "errorConsequence",
+];
+
+export const deriveTechnicalDifficultyRating = (rubric) => {
+  if (
+    !rubric ||
+    TECHNICAL_DIFFICULTY_CRITERIA.some((criterion) => {
+      const value = rubric[criterion];
+      return !Number.isInteger(value) || value < 0 || value > 2;
+    })
+  ) {
+    return null;
+  }
+
+  const total = TECHNICAL_DIFFICULTY_CRITERIA.reduce(
+    (sum, criterion) => sum + rubric[criterion],
+    0,
+  );
+  if (total <= 1) return 1;
+  if (total <= 3) return 2;
+  if (total <= 5) return 3;
+  if (total <= 7) return 4;
+  return 5;
+};
+
+const technicalDifficultyCriterion = {
+  type: Number,
+  min: 0,
+  max: 2,
+  validate: {
+    validator: Number.isInteger,
+    message: "Tiêu chí độ phức tạp kỹ thuật phải là số nguyên",
+  },
+};
+
+const technicalDifficultySchema = new mongoose.Schema(
+  {
+    coordination: technicalDifficultyCriterion,
+    stability: technicalDifficultyCriterion,
+    mobility: technicalDifficultyCriterion,
+    setup: technicalDifficultyCriterion,
+    errorConsequence: technicalDifficultyCriterion,
+    rationale: { type: String, trim: true, maxlength: 1000, default: "" },
+  },
+  { _id: false },
+);
+
 const exerciseSchema = new mongoose.Schema(
   {
     name: {
@@ -25,8 +77,14 @@ const exerciseSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    technicalDifficulty: {
+      type: technicalDifficultySchema,
+      default: undefined,
+    },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 exerciseSchema.index({ name: "text" });

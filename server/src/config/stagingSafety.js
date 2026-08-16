@@ -53,6 +53,15 @@ export const validateStagingEnvironment = (env = process.env) => {
       "Background jobs must be disabled in staging.",
     );
   }
+  if (
+    String(env.SEPAY_ENABLED || "").toLowerCase() === "true" &&
+    String(env.SEPAY_MODE || "").toLowerCase() !== "sandbox"
+  ) {
+    addError(
+      "STAGING_SEPAY_SANDBOX_REQUIRED",
+      "Staging SePay automation must use sandbox mode.",
+    );
+  }
   if (String(env.EMAIL_DELIVERY_MODE || "").toLowerCase() !== "disabled") {
     addError(
       "STAGING_EMAIL_DELIVERY_FORBIDDEN",

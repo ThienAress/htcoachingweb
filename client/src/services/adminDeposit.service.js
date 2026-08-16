@@ -16,3 +16,23 @@ export const reverseDeposit = (id, reason) =>
 
 // Chỉ xóa yêu cầu expired/rejected chưa tạo ledger.
 export const deleteAdminDeposit = (id) => api.delete(`/admin/deposits/${id}`);
+
+export const getIncomingBankTransactions = ({
+  status = "needs_review",
+  page = 1,
+  limit = 25,
+  signal,
+} = {}) =>
+  api.get("/admin/deposits/incoming", {
+    params: { status, page, limit },
+    signal,
+  });
+
+export const approveIncomingBankTransaction = (id, payload) =>
+  api.post(`/admin/deposits/incoming/${id}/approve`, payload);
+
+export const ignoreIncomingBankTransaction = (id, reason) =>
+  api.post(`/admin/deposits/incoming/${id}/ignore`, { reason });
+
+export const reverseIncomingBankTransaction = (id, reason) =>
+  api.post(`/admin/deposits/incoming/${id}/reverse`, { reason });

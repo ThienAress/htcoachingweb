@@ -21,6 +21,7 @@ import {
 } from "../deposit.controller.js";
 
 import DepositRequest from "../../models/DepositRequest.js";
+import IncomingBankTransaction from "../../models/IncomingBankTransaction.js";
 import Wallet from "../../models/Wallet.js";
 
 // =============================================================================
@@ -137,10 +138,9 @@ describe("POST /api/deposits — Tạo yêu cầu nạp tiền", () => {
       accessToken
     );
 
-    // Confirm → chuyển sang needs_review
-    await withAuth(
-      request(app).post(`/api/deposits/${res1.body.data.depositRequestId}/confirm`).send(),
-      accessToken
+    await DepositRequest.updateOne(
+      { _id: res1.body.data.depositRequestId },
+      { $set: { status: "needs_review", isOpen: true } },
     );
 
     // Thử tạo deposit mới → phải bị chặn
@@ -202,8 +202,8 @@ describe("POST /api/deposits — Tạo yêu cầu nạp tiền", () => {
   });
 });
 
-describe("POST /api/deposits/:id/confirm — Xác nhận thanh toán", () => {
-  it("chuyển status từ pending → needs_review", async () => {
+describe("POST /api/deposits/:id/confirm — Kiểm tra tương thích", () => {
+  it("không thay đổi trạng thái hay số dư khi client cũ gọi confirm", async () => {
     const { accessToken } = await createTestUser();
 
     // Tạo deposit
@@ -220,10 +220,12 @@ describe("POST /api/deposits/:id/confirm — Xác nhận thanh toán", () => {
     );
 
     expect(confirmRes.status).toBe(200);
-    expect(confirmRes.body.data.status).toBe("needs_review");
+    expect(confirmRes.body.data.status).toBe("pending");
+    expect((await DepositRequest.findById(depositId)).status).toBe("pending");
+    expect((await Wallet.findOne()).balance).toBe(0);
   });
 
-  it("trả 400 khi deposit không ở trạng thái pending", async () => {
+  it("trả idempotent success khi client cũ gọi confirm nhiều lần", async () => {
     const { accessToken } = await createTestUser();
 
     // Tạo + confirm deposit
@@ -238,13 +240,14 @@ describe("POST /api/deposits/:id/confirm — Xác nhận thanh toán", () => {
       accessToken
     );
 
-    // Confirm lần 2 → phải lỗi
+    // Confirm lần 2 vẫn chỉ là acknowledgement, không mutation.
     const res = await withAuth(
       request(app).post(`/api/deposits/${depositId}/confirm`).send(),
       accessToken
     );
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    expect(res.body.data.status).toBe("pending");
   });
 });
 
@@ -284,6 +287,58 @@ describe("GET /api/deposits — Lịch sử nạp tiền", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(0);
+  });
+
+  it("returns active settlement count and total for each deposit", async () => {
+    const { accessToken, user } = await createTestUser();
+    const created = await withAuth(
+      request(app).post("/api/deposits").send({ amount: 50000 }),
+      accessToken,
+    );
+    const depositId = created.body.data.depositRequestId;
+    const base = {
+      provider: "sepay",
+      source: "webhook",
+      payloadDigest: "a".repeat(64),
+      fingerprintDigest: "b".repeat(64),
+      gateway: "TPBank",
+      maskedAccountNumber: "******0000",
+      transferType: "in",
+      amount: 50000,
+      transactionAt: new Date(),
+      depositCode: created.body.data.depositCode,
+      depositRequestId: depositId,
+      userId: user._id,
+      status: "settled",
+    };
+    await IncomingBankTransaction.create([
+      {
+        ...base,
+        providerTransactionId: "settlement-1",
+        sourceAliases: [
+          { source: "webhook", providerTransactionId: "settlement-1" },
+        ],
+      },
+      {
+        ...base,
+        providerTransactionId: "settlement-2",
+        sourceAliases: [
+          { source: "webhook", providerTransactionId: "settlement-2" },
+        ],
+        payloadDigest: "c".repeat(64),
+        fingerprintDigest: "d".repeat(64),
+      },
+    ]);
+
+    const response = await request(app)
+      .get("/api/deposits")
+      .set("Cookie", [`accessToken=${accessToken}`]);
+
+    expect(response.body.data[0]).toMatchObject({
+      settledTransactionCount: 2,
+      settledAmountTotal: 100000,
+    });
+    expect(response.body.data[0].lastSettlementAt).toBeTruthy();
   });
 });
 

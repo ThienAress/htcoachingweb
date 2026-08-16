@@ -102,7 +102,7 @@ describe("GET /api/admin/service-access-policies", () => {
 
     expect(response.body.data.communityFeatures).toEqual(
       expect.objectContaining({
-        version: "2026-08-10.3",
+        version: "2026-08-12.1",
         reportOptions: {
           audiences: [
             { key: "community", label: "Cộng đồng" },
@@ -119,7 +119,7 @@ describe("GET /api/admin/service-access-policies", () => {
               label: "Đã xác minh production",
             },
           ],
-          dateRange: { from: "2026-08-10", to: "2026-08-10" },
+          dateRange: { from: "2026-08-10", to: "2026-08-12" },
         },
         items: expect.arrayContaining([
           expect.objectContaining({
@@ -127,19 +127,19 @@ describe("GET /api/admin/service-access-policies", () => {
             label: "HT Assistant",
             group: { key: "ai_support", label: "AI hỗ trợ" },
             priority: {
-              code: "F0",
-              rank: 0,
-              label: "Cần ưu tiên ngay",
+              code: "F1",
+              rank: 1,
+              label: "Ưu tiên kế tiếp",
             },
             primaryValue:
               "Trả lời và định hướng người dùng về tập luyện, dinh dưỡng, phục hồi và các dịch vụ HTCOACHING.",
             audiences: ["Cộng đồng", "Khách hàng", "HLV"],
             audienceKeys: ["community", "customer", "trainer"],
             currentImprovement: {
-              improvementKey: "production_background_chat_validation",
+              improvementKey: "moderation_consistency_and_concise_guidance",
               description:
-                "Xác minh production các luồng chạy nền, spinner và mở chat chủ động, rồi đo tỷ lệ request hoàn tất.",
-              openedAt: "2026-08-10",
+                "Đồng bộ moderation production, rút gọn phản hồi chuyển hướng và theo dõi tỷ lệ chặn nhầm.",
+              openedAt: "2026-08-12",
             },
             improvementHistory: expect.arrayContaining([
               expect.objectContaining({
@@ -148,9 +148,20 @@ describe("GET /api/admin/service-access-policies", () => {
                 result:
                   "Phản hồi tiếp tục chạy đúng conversation nguồn khi người dùng chuyển sang conversation khác.",
               }),
+              expect.objectContaining({
+                improvementKey: "production_background_chat_validation",
+                milestones: [
+                  expect.objectContaining({
+                    status: expect.objectContaining({
+                      code: "production_verified",
+                    }),
+                    statusDate: "2026-08-12",
+                  }),
+                ],
+              }),
             ]),
             initialImprovement:
-              "Xác minh production các luồng chạy nền, spinner và mở chat chủ động, rồi đo tỷ lệ request hoàn tất.",
+              "Đồng bộ moderation production, rút gọn phản hồi chuyển hướng và theo dõi tỷ lệ chặn nhầm.",
             deliveryUpdates: expect.arrayContaining([
               expect.objectContaining({
                 updateKey: "conversation_continuity",
@@ -207,6 +218,11 @@ describe("GET /api/admin/service-access-policies", () => {
         statusDate: "2026-08-10",
       },
       {
+        featureKey: "ht_assistant",
+        status: "production_verified",
+        statusDate: "2026-08-12",
+      },
+      {
         featureKey: "meal_plan",
         status: "implemented",
         statusDate: "2026-08-10",
@@ -215,6 +231,11 @@ describe("GET /api/admin/service-access-policies", () => {
         featureKey: "meal_plan",
         status: "implemented",
         statusDate: "2026-08-10",
+      },
+      {
+        featureKey: "meal_plan",
+        status: "production_verified",
+        statusDate: "2026-08-12",
       },
     ]);
   });
@@ -236,9 +257,9 @@ describe("GET /api/admin/service-access-policies", () => {
         feature.priority?.code,
       ]),
     ).toEqual([
-      ["ht_assistant", "F0"],
+      ["ht_assistant", "F1"],
       ["tdee_calculator", "F1"],
-      ["meal_plan", "F0"],
+      ["meal_plan", "F1"],
       ["meal_scan", "F1"],
       ["recipes", "F2"],
       ["exercise_library", "F1"],

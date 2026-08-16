@@ -36,23 +36,23 @@ export const wellnessScoreRows = (wellness = {}) =>
     };
   });
 
-export const buildWeightChartModel = (sourcePoints = []) => {
+export const buildBodyMetricChartModel = (sourcePoints = []) => {
   const values = sourcePoints
     .filter(
       (point) =>
-        /^\d{4}-\d{2}-\d{2}$/.test(String(point?.weekStartDateKey || "")) &&
-        typeof point?.weightKg === "number" &&
-        Number.isFinite(point.weightKg) &&
-        point.weightKg > 0,
+        /^\d{4}-\d{2}-\d{2}$/.test(String(point?.dateKey || "")) &&
+        typeof point?.value === "number" &&
+        Number.isFinite(point.value) &&
+        point.value > 0,
     )
     .sort((left, right) =>
-      left.weekStartDateKey.localeCompare(right.weekStartDateKey),
+      left.dateKey.localeCompare(right.dateKey),
     );
   if (values.length === 0) return { points: [], path: "", yTicks: [] };
 
-  const weights = values.map((point) => point.weightKg);
-  const rawMin = Math.min(...weights);
-  const rawMax = Math.max(...weights);
+  const metricValues = values.map((point) => point.value);
+  const rawMin = Math.min(...metricValues);
+  const rawMax = Math.max(...metricValues);
   const domainPadding = Math.max(0.5, (rawMax - rawMin) * 0.15);
   const minWeight = rawMin - domainPadding;
   const maxWeight = rawMax + domainPadding;
@@ -62,13 +62,13 @@ export const buildWeightChartModel = (sourcePoints = []) => {
     values.length === 1
       ? CHART_WIDTH / 2
       : PADDING.left + (index / (values.length - 1)) * plotWidth;
-  const yFor = (weight) =>
-    PADDING.top + ((maxWeight - weight) / (maxWeight - minWeight)) * plotHeight;
+  const yFor = (value) =>
+    PADDING.top + ((maxWeight - value) / (maxWeight - minWeight)) * plotHeight;
   const points = values.map((point, index) => ({
     ...point,
     x: roundCoordinate(xFor(index)),
-    y: roundCoordinate(yFor(point.weightKg)),
-    dateLabel: dateLabel(point.weekStartDateKey),
+    y: roundCoordinate(yFor(point.value)),
+    dateLabel: dateLabel(point.dateKey),
   }));
   const path = points
     .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
@@ -82,4 +82,14 @@ export const buildWeightChartModel = (sourcePoints = []) => {
   return { points, path, yTicks };
 };
 
+export const buildWeightChartModel = (sourcePoints = []) =>
+  buildBodyMetricChartModel(
+    sourcePoints.map((point) => ({
+      ...point,
+      dateKey: point?.weekStartDateKey,
+      value: point?.weightKg,
+    })),
+  );
+
 export const WEIGHT_CHART_VIEWBOX = `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`;
+export const BODY_METRIC_CHART_VIEWBOX = WEIGHT_CHART_VIEWBOX;

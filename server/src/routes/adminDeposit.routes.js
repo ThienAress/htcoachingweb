@@ -10,11 +10,49 @@ import {
   reverseDeposit,
   deleteDeposit,
 } from "../controllers/adminDeposit.controller.js";
+import {
+  approveIncomingBankTransaction,
+  getIncomingBankTransactions,
+  ignoreIncomingBankTransaction,
+  reverseIncomingBankTransaction,
+} from "../controllers/adminIncomingBankTransaction.controller.js";
 
 const router = express.Router();
 
 // 📋 Danh sách yêu cầu nạp tiền (filter theo status)
 router.get("/", protect, requireRoles("admin"), getAllDeposits);
+
+router.get(
+  "/incoming",
+  protect,
+  requireRoles("admin"),
+  getIncomingBankTransactions,
+);
+
+router.post(
+  "/incoming/:id/approve",
+  protect,
+  financialCommandLimiter,
+  csrfProtection,
+  requireRoles("admin"),
+  approveIncomingBankTransaction,
+);
+router.post(
+  "/incoming/:id/ignore",
+  protect,
+  financialCommandLimiter,
+  csrfProtection,
+  requireRoles("admin"),
+  ignoreIncomingBankTransaction,
+);
+router.post(
+  "/incoming/:id/reverse",
+  protect,
+  financialCommandLimiter,
+  csrfProtection,
+  requireRoles("admin"),
+  reverseIncomingBankTransaction,
+);
 
 // ✅ Duyệt nạp tiền
 router.post("/:id/approve", protect, financialCommandLimiter, csrfProtection, requireRoles("admin"), approveDeposit);

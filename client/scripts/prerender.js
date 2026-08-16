@@ -11,6 +11,7 @@ import {
 } from "./dynamic-routes.js";
 import {
   createPrerenderResponseCache,
+  fetchPrerenderPageData,
   fetchPrerenderRecipes,
   responseForPrerenderRequest,
 } from "./prerender-content.js";
@@ -31,7 +32,10 @@ const __dirname = path.dirname(__filename);
 const PORT = 5174;
 const DIST_DIR = path.resolve(__dirname, "../dist");
 const SITE_URL = "https://htcoachingweb.io.vn";
-const PRERENDER_CONCURRENCY = 4;
+const PRERENDER_CONCURRENCY = Number.parseInt(
+  process.env.PRERENDER_CONCURRENCY || "12",
+  10,
+);
 const BLOCKED_PRERENDER_HOSTS = new Set([
   "www.google-analytics.com",
   "www.googletagmanager.com",
@@ -130,6 +134,8 @@ const renderRoute = async (browser, route, recipeCache) => {
       "Accept-Language": "vi-VN,vi;q=0.9,en;q=0.8",
     });
 
+    await page.setCacheEnabled(false);
+
     await page.setRequestInterception(true);
     page.on("request", (request) => {
       const cachedResponse = responseForPrerenderRequest(
@@ -154,7 +160,7 @@ const renderRoute = async (browser, route, recipeCache) => {
 
     try {
       await page.goto("http://localhost:" + PORT + route, {
-        waitUntil: "networkidle2",
+        waitUntil: "domcontentloaded",
         timeout: 30_000,
       });
       await page.waitForFunction(
@@ -264,6 +270,7 @@ const prerender = async () => {
     ),
   );
   let recipes = [];
+  let pageData = {};
   if (!policy.skip) {
     try {
       recipes = await fetchPrerenderRecipes((pathName) =>
@@ -281,8 +288,23 @@ const prerender = async () => {
         (route) => !route.startsWith("/cong-thuc-nau-an/"),
       );
     }
+    try {
+      pageData = await fetchPrerenderPageData(
+        routesToPrerender,
+        (pathName) =>
+          axios.get(apiUrl + pathName, {
+            timeout: policy.requireDynamic ? 30_000 : 10_000,
+          }),
+      );
+    } catch (error) {
+      if (policy.requireDynamic) throw error;
+      console.warn(
+        "Skipping detail cache because public content could not be prefetched: " +
+          error.message,
+      );
+    }
   }
-  const recipeCache = createPrerenderResponseCache(recipes);
+  const responseCache = createPrerenderResponseCache(recipes, pageData);
   console.log(
     "Prerender dynamic route mode: " +
       (policy.requireDynamic ? "strict" : policy.skip ? "static" : "fallback"),
@@ -329,7 +351,7 @@ const prerender = async () => {
         console.log("Prerendering route: " + route);
         return {
           route,
-          success: await renderRoute(browser, route, recipeCache),
+          success: await renderRoute(browser, route, responseCache),
         };
       },
     );

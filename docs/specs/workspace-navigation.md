@@ -9,19 +9,18 @@ dropdown toàn site.
 ## Quyết định đã duyệt
 
 1. Admin có hai workspace: `Quản trị hệ thống` và `Quản lý khách hàng`.
-2. HLV hoặc user có gói HLV dùng workspace `Quản lý khách hàng`; bên trong workspace có thêm nhóm
-   `Quản trị` giới hạn theo chính HLV đó.
+2. HLV hoặc user có gói HLV dùng workspace `Quản lý khách hàng`; workspace này chỉ chứa
+   nghiệp vụ khách hàng, huấn luyện và tài nguyên chuyên môn. Nghiệp vụ quản trị nằm trong
+   `Quản trị hệ thống` của admin, không lặp lại trong sidebar HLV.
 3. User thường giữ entry `Dashboard học viên`.
 4. Ví, thông báo, tài khoản, profile công khai (nếu có) và đăng xuất vẫn nằm trong
    dropdown tài khoản.
-5. `Quản lý khách hàng` chia năm nhóm:
+5. `Quản lý khách hàng` chia bốn nhóm:
    - Tổng quan: Khách hàng của tôi.
    - Nghiệp vụ huấn luyện: Theo dõi sức khỏe, Check-in khách hàng, Coach Online,
      Lịch tập khách hàng, Giáo án tập luyện.
    - Tài nguyên chuyên môn: Hệ thống bài tập.
    - Tăng trưởng khách hàng: Khách hàng F1, chỉ hiển thị khi có quyền.
-   - Quản trị: Đơn hàng, Hợp đồng HLV và Lịch sử Check-in. Ba màn hình này chỉ đọc/ghi dữ liệu có
-     `trainerId` là actor hiện tại; admin vẫn có phạm vi toàn hệ thống trong `/admin`.
 6. Route cũ tiếp tục hoạt động; route mới dưới `/trainer/...` là entry canonical trong
    workspace cho các nghiệp vụ có thể nhúng an toàn.
 7. Không thay đổi API, schema, ownership hoặc entitlement.
@@ -48,9 +47,9 @@ dropdown toàn site.
 | Chi tiết giáo án | `/trainer/workout-plans/:id` | `/workout-plans/:id` |
 | Hệ thống bài tập | `/exercises` | Giữ nguyên |
 | Khách hàng F1 | `/f1-customers` | Giữ nguyên |
-| Đơn hàng của HLV | `/trainer/orders` | Admin vẫn dùng `/admin/orders` |
-| Hợp đồng của HLV | `/trainer/contracts` | Admin vẫn dùng `/admin/contracts` |
-| Lịch sử Check-in | `/trainer/checkin-history` | Admin vẫn dùng `/admin/dashboard` |
+| Đơn hàng của HLV (route tương thích, không hiện trong sidebar) | `/trainer/orders` | Admin dùng `/admin/orders` |
+| Hợp đồng của HLV (route tương thích, không hiện trong sidebar) | `/trainer/contracts` | Admin dùng `/admin/contracts` |
+| Lịch sử Check-in (route tương thích, không hiện trong sidebar) | `/trainer/checkin-history` | Admin dùng `/admin/dashboard` |
 
 ## Security và failure states
 
@@ -77,10 +76,11 @@ dropdown toàn site.
 ## Success criteria
 
 - Admin chỉ thấy hai workspace trong phần workspace của dropdown.
-- HLV chỉ thấy `Quản lý khách hàng`; không thấy `Quản trị hệ thống`; nhóm `Quản trị` trong trainer
-  workspace chỉ có ba entry scoped.
+- HLV chỉ thấy `Quản lý khách hàng`; không thấy `Quản trị hệ thống` hoặc nhóm `Quản trị` trong
+  trainer workspace.
 - Không còn danh sách nghiệp vụ chi tiết trong account dropdown desktop/mobile.
-- Trainer sidebar hiển thị nhóm `Quản trị` với đúng ba entry: Đơn hàng, Hợp đồng HLV, Lịch sử Check-in.
+- Trainer sidebar không hiển thị Đơn hàng, Hợp đồng HLV hoặc Lịch sử Check-in; route tương thích
+  vẫn render được khi truy cập trực tiếp và tiếp tục áp dụng ownership hiện có.
 - Hai trainer không thể list, sửa, tạo hợp đồng hoặc thao tác dữ liệu thuộc trainer còn lại.
 - Trainer có thể tạo và sửa order của mình nhưng không thấy nút xóa; direct DELETE trả 403.
 - Các nghiệp vụ chính mở bên trong TrainerLayout; route cũ vẫn render được.

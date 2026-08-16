@@ -40,6 +40,7 @@ import {
 import { safeLog } from "../utils/safeLogger.js";
 import { getRuntimeState } from "../operations/runtimeState.js";
 import { getRumBaseline } from "../observability/rumBaseline.js";
+import { getSePayOperationalStatus } from "../services/sepayOperationalStatus.service.js";
 
 const router = express.Router();
 
@@ -101,6 +102,16 @@ router.get(
 router.get("/alerts", requireOpsReadAccess, (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json({ success: true, data: getOperationalAlerts() });
+});
+
+router.get("/integrations/sepay", requireOpsReadAccess, async (_req, res, next) => {
+  try {
+    const status = await getSePayOperationalStatus();
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ success: true, data: status });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get("/rum-baseline", requireOpsReadAccess, async (_req, res, next) => {

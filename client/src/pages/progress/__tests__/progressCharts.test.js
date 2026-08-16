@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildBodyMetricChartModel,
   buildWeightChartModel,
   wellnessScoreRows,
 } from "../progressCharts";
@@ -36,6 +37,19 @@ describe("progress chart presentation", () => {
     expect(chart.points.map(({ x }) => x)).toEqual([52, 320, 588]);
     expect(chart.path).toMatch(/^M 52 /);
     expect(chart.yTicks).toHaveLength(3);
+  });
+
+  it("sorts body measurement points and ignores missing values", () => {
+    const chart = buildBodyMetricChartModel([
+      { dateKey: "2026-07-20", value: 78 },
+      { dateKey: "2026-07-06", value: 80 },
+      { dateKey: "2026-07-13", value: null },
+    ]);
+
+    expect(chart.points.map(({ dateKey, value }) => [dateKey, value])).toEqual([
+      ["2026-07-06", 80],
+      ["2026-07-20", 78],
+    ]);
   });
 
   it("keeps all wellness score labels visible while rejecting invalid averages", () => {

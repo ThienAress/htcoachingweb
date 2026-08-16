@@ -8,6 +8,7 @@ import {
   mealScanLimiter,
 } from "../middlewares/aiRateLimit.js";
 import { validateMealScanImage } from "../middlewares/mealScanImage.js";
+import { enforceSharedServiceUsage } from "../middlewares/serviceUsageLedger.js";
 
 const router = express.Router();
 
@@ -23,6 +24,7 @@ router.post(
   validateMealScanImage,
   mealScanAnonymousLimiter,
   mealScanLimiter,
+  enforceSharedServiceUsage("meal_scan"),
   analyzeMealScan,
 );
 

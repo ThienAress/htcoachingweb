@@ -199,6 +199,58 @@ const weightTrend = ({ weeklyCheckins, range }) => {
   };
 };
 
+const bodyMetric = ({ weeklyCheckins, range, field, unit }) => {
+  const series = weeklyCheckins
+    .filter(
+      (item) =>
+        ["submitted", "reviewed"].includes(item.status) &&
+        typeof item[field] === "number" &&
+        Number.isFinite(item[field]) &&
+        item[field] > 0 &&
+        inRange(
+          item.weekStartDateKey,
+          range.startDateKey,
+          range.endDateKey,
+        ),
+    )
+    .sort((left, right) =>
+      left.weekStartDateKey.localeCompare(right.weekStartDateKey),
+    )
+    .map((item) => ({
+      dateKey: item.weekStartDateKey,
+      value: item[field],
+    }));
+  return {
+    unit,
+    current: series.length === 0 ? null : series.at(-1),
+    delta:
+      series.length < 2
+        ? null
+        : Number((series.at(-1).value - series[0].value).toFixed(2)),
+    series,
+  };
+};
+
+const bodyProgress = ({ weeklyCheckins, range }) => ({
+  source: {
+    type: "weekly_checkin",
+    includedStatuses: ["submitted", "reviewed"],
+    dateField: "weekStartDateKey",
+  },
+  weightKg: bodyMetric({
+    weeklyCheckins,
+    range,
+    field: "weightKg",
+    unit: "kg",
+  }),
+  waistCm: bodyMetric({
+    weeklyCheckins,
+    range,
+    field: "waistCm",
+    unit: "cm",
+  }),
+});
+
 export const buildProgressReadModel = ({
   range,
   schedules = [],
@@ -208,7 +260,7 @@ export const buildProgressReadModel = ({
   habits = [],
   weeklyCheckins = [],
 }) => ({
-  formulaVersion: "progress-v2",
+  formulaVersion: "progress-v3",
   timeZone: "Asia/Ho_Chi_Minh",
   range,
   compliance: {
@@ -235,4 +287,5 @@ export const buildProgressReadModel = ({
   },
   wellness: wellnessAverages({ journals, range }),
   weightTrend: weightTrend({ weeklyCheckins, range }),
+  bodyProgress: bodyProgress({ weeklyCheckins, range }),
 });

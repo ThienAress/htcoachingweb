@@ -5,6 +5,11 @@
 
 [context.staging.environment]
   VITE_TODAY_PLATFORM_ENABLED = "true"
+  VITE_API_URL = "https://htcoachingweb-staging.onrender.com/api"
+  REQUIRE_DYNAMIC_ROUTES = "true"
+  SITEMAP_API_URL = "https://htcoachingweb-staging.onrender.com/api"
+  PRERENDER_API_URL = "https://htcoachingweb-staging.onrender.com/api"
+  PRERENDER_CONCURRENCY = "6"
 
 [context.production.environment]
   VITE_TODAY_PLATFORM_ENABLED = "true"

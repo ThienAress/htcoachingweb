@@ -1,12 +1,21 @@
 import api from "../utils/api";
 
-export const getExercises = (page = 1, limit = 20, search = "", muscleGroup = "") => {
+export const getExercises = (
+  page = 1,
+  limit = 20,
+  search = "",
+  muscleGroup = "",
+  technicalDifficultyRating = "",
+) => {
   const params = new URLSearchParams({
     page: page.toString(),
     limit: limit.toString(),
   });
   if (search) params.append("search", search);
   if (muscleGroup) params.append("muscleGroup", muscleGroup);
+  if (technicalDifficultyRating) {
+    params.append("technicalDifficultyRating", technicalDifficultyRating);
+  }
   return api.get(`/exercises?${params.toString()}`).then((res) => res.data);
 };
 

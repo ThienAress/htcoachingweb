@@ -24,8 +24,12 @@ export const routesFromPrerenderManifest = (manifest) => {
 };
 
 export const mapWithConcurrency = async (items, concurrency, worker) => {
-  if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
-    throw new Error("Prerender concurrency must be a positive integer");
+  if (
+    !Number.isSafeInteger(concurrency) ||
+    concurrency < 1 ||
+    concurrency > 16
+  ) {
+    throw new Error("Prerender concurrency must be an integer from 1 to 16");
   }
 
   const results = new Array(items.length);
