@@ -97,10 +97,13 @@ lặp lại trong middleware hoặc trang Admin.
 
 ## Security and privacy boundaries
 
-- Guest quota tiếp tục dùng khóa IP đã HMAC; không lưu hoặc log raw IP.
+- Guest quota dùng khóa HMAC pseudonymous ổn định; không lưu hoặc log raw IP.
 - Authenticated quota dùng user ID; tier chỉ được resolver backend xác định từ role/Order/TrainerSubscription.
+- AI Chat và Meal Scan giữ limiter theo process để chống abuse, đồng thời consume atomically từ MongoDB shared ledger
+  để hạn mức thương mại nhất quán khi chạy nhiều replica. Ledger fail closed trước khi gọi provider.
 - Không tin tier do client gửi, không hạ CSRF, auth, ownership hoặc rate limit hiện có.
-- Không tạo migration/schema trong thay đổi này.
+- Shared ledger và confirmation dùng collection additive mới, không backfill document cũ; secondary indexes chỉ được
+  áp dụng qua migration có target lock sau preflight và approval riêng.
 - Endpoint Admin không trả dữ liệu user, usage history hoặc identifier; chỉ trả policy cấu hình.
 
 ## Testing strategy

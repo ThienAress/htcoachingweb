@@ -1,4 +1,5 @@
 import ExerciseSuggestion from "../models/ExerciseSuggestion.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 // Gửi góp ý (public, có thể có user)
@@ -30,18 +31,16 @@ export const createSuggestion = async (req, res) => {
 // Lấy danh sách góp ý (admin)
 export const getSuggestions = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const page = req.query.page || 1;
+    const limit = req.query.limit || 20;
     const skip = (page - 1) * limit;
     const status = req.query.status;
     const search = req.query.search || "";
 
-    let filter = {};
-    if (status && ["pending", "approved", "rejected"].includes(status)) {
-      filter.status = status;
-    }
+    const filter = {};
+    if (status) filter.status = status;
     if (search) {
-      filter.name = { $regex: search, $options: "i" };
+      filter.name = { $regex: escapeRegex(search), $options: "i" };
     }
 
     const total = await ExerciseSuggestion.countDocuments(filter);

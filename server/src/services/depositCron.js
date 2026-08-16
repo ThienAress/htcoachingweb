@@ -1,4 +1,5 @@
 import DepositRequest from "../models/DepositRequest.js";
+import { createRecurringJob } from "../operations/recurringJob.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 /**
@@ -33,12 +34,15 @@ async function expirePendingDeposits() {
   }
 }
 
+const depositCron = createRecurringJob({
+  name: "deposit_cron",
+  intervalMs: INTERVAL_MS,
+  task: expirePendingDeposits,
+});
+
 export function startDepositCronJobs() {
   safeLog.info("deposit_cron.started", { intervalMs: INTERVAL_MS });
-
-  // Chạy ngay lần đầu khi server khởi động
-  expirePendingDeposits();
-
-  // Lặp lại mỗi 1 phút
-  setInterval(expirePendingDeposits, INTERVAL_MS);
+  return depositCron.start();
 }
+
+export const stopDepositCronJobs = () => depositCron.stop();

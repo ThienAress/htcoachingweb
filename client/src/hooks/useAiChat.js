@@ -41,6 +41,33 @@ export function mapAiMessages(rawMessages = []) {
   return result;
 }
 
+export function mergeEphemeralConfirmationCards(
+  persistedMessages,
+  localMessages,
+  localAssistantId,
+) {
+  const ephemeralCards = (localMessages || [])
+    .filter((message) => message.localId === localAssistantId)
+    .flatMap((message) => message.uiCards || [])
+    .filter((card) => card.cardType === "confirmation");
+  if (ephemeralCards.length === 0) return persistedMessages;
+
+  const targetIndex = [...persistedMessages]
+    .map((message, index) => ({ message, index }))
+    .reverse()
+    .find(({ message }) => message.role === "assistant")?.index;
+  if (targetIndex === undefined) return persistedMessages;
+
+  return persistedMessages.map((message, index) =>
+    index === targetIndex
+      ? {
+          ...message,
+          uiCards: [...(message.uiCards || []), ...ephemeralCards],
+        }
+      : message,
+  );
+}
+
 export default function useAiChat({ persistenceEnabled = true } = {}) {
   const registryRef = useRef(null);
   if (!registryRef.current) {
@@ -457,8 +484,18 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
                   event.conversationId,
                 );
                 if (isActive() && current.data) {
+                  const persistedMessages = mapAiMessages(
+                    current.data.messages,
+                  );
+                  const localMessages = registry.getView(
+                    completedSession.viewKey,
+                  )?.messages;
                   updateView(completedSession.viewKey, {
-                    messages: mapAiMessages(current.data.messages),
+                    messages: mergeEphemeralConfirmationCards(
+                      persistedMessages,
+                      localMessages,
+                      completedSession.assistantLocalId,
+                    ),
                     loaded: true,
                   });
                 }

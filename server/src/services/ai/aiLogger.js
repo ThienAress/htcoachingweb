@@ -3,6 +3,7 @@ import {
   incrementMetric,
   observeMetric,
 } from "../../observability/metrics.js";
+import { getAiPromptContractMetadata } from "./promptContract.js";
 
 // AI Logger — Structured JSON logging cho AI Chat system
 // Ghi vào console với format JSON, dễ parse cho analytics sau này
@@ -54,18 +55,36 @@ const actorRef = (userId) =>
     .digest("hex")
     .slice(0, 16);
 
+const safeErrorCode = (error) => {
+  const code = String(error?.code || "");
+  return /^[A-Z0-9_]{2,80}$/.test(code) ? code : undefined;
+};
+
 export const aiLogger = {
   /** Chat session bắt đầu */
   chatStart: (userId, conversationId) => {
     incrementMetric("ai.requests");
-    log("info", "chat_start", { actorRef: actorRef(userId), conversationId });
+    const promptContract = getAiPromptContractMetadata();
+    log("info", "chat_start", {
+      actorRef: actorRef(userId),
+      conversationRef: actorRef(conversationId),
+      promptContractVersion: promptContract.version,
+      promptContractHash: promptContract.hash,
+    });
   },
 
   /** Chat session kết thúc thành công */
   chatEnd: (userId, conversationId, { iterations, toolCalls, durationMs, kbHits }) => {
     incrementMetric("ai.completed");
     observeMetric("ai.total_latency_ms", durationMs);
-    log("info", "chat_end", { actorRef: actorRef(userId), conversationId, iterations, toolCalls, durationMs, kbHits });
+    log("info", "chat_end", {
+      actorRef: actorRef(userId),
+      conversationRef: actorRef(conversationId),
+      iterations,
+      toolCalls,
+      durationMs,
+      kbHits,
+    });
   },
 
   /** Tool được gọi */
@@ -73,7 +92,12 @@ export const aiLogger = {
     incrementMetric("ai.tool_calls");
     if (!success) incrementMetric("ai.tool_failures");
     observeMetric("ai.tool_latency_ms", durationMs);
-    log("info", "tool_call", { actorRef: actorRef(userId), toolName, durationMs, success });
+    log("info", "tool_call", {
+      actorRef: actorRef(userId),
+      toolName: String(toolName || "unknown_tool").slice(0, 80),
+      durationMs,
+      success,
+    });
   },
 
   /** Knowledge Base match */
@@ -89,7 +113,13 @@ export const aiLogger = {
   /** Lỗi trong chat flow */
   chatError: (userId, error, context) => {
     incrementMetric("ai.errors");
-    log("error", "chat_error", { actorRef: actorRef(userId), error: error.message || error, context });
+    log("error", "chat_error", {
+      actorRef: actorRef(userId),
+      errorName: String(error?.name || "Error").slice(0, 80),
+      ...(safeErrorCode(error) && { errorCode: safeErrorCode(error) }),
+      ...(Number.isInteger(error?.status) && { status: error.status }),
+      context: String(context || "unknown").slice(0, 80),
+    });
   },
 
   /** User bị locked */

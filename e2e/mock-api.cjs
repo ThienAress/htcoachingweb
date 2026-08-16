@@ -955,6 +955,53 @@ const handleApi = (req, res, path) => {
   if (path === "/api/me/wallet") {
     return sendJson(res, { success: true, data: { balance: 500000 } });
   }
+  if (
+    aiScenario === "confirmation" &&
+    path === "/api/ai/tool-confirmations/confirm" &&
+    req.method === "POST"
+  ) {
+    return sendJson(res, { success: true, data: { completed: true } });
+  }
+  if (
+    aiScenario === "confirmation" &&
+    (path === "/api/ai/conversations" || path === "/api/ai/history")
+  ) {
+    return sendJson(res, { success: true, data: [] });
+  }
+  if (
+    aiScenario === "confirmation" &&
+    path === "/api/ai/conversations/conversation-confirmation" &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: {
+        conversationId: "conversation-confirmation",
+        messages: [
+          { role: "user", content: "Thực hiện hành động đã kiểm tra" },
+          { role: "assistant", content: "Vui lòng xác nhận." },
+        ],
+      },
+    });
+  }
+  if (
+    aiScenario === "confirmation" &&
+    path === "/api/ai/chat" &&
+    req.method === "POST"
+  ) {
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    res.end(
+      [
+        'data: {"type":"conversation","conversationId":"conversation-confirmation"}',
+        "",
+        'data: {"type":"ui_card","cardType":"confirmation","data":{"token":"abcdefghijklmnopqrstuvwxyzABCDEFGH123456789","expiresAt":"2099-01-01T00:00:00.000Z","title":"Xác nhận hành động","description":"Thực hiện hành động synthetic đã kiểm tra."}}',
+        "",
+        'data: {"type":"done","conversationId":"conversation-confirmation"}',
+        "",
+      ].join("\n"),
+    );
+    return;
+  }
   if (aiScenario === "conversation-switch" && path === "/api/ai/history") {
     return sendJson(res, {
       success: true,

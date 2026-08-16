@@ -4,6 +4,7 @@ import {
   filterCommunityFeatures,
   filterCommunityFeaturesByGroup,
   formatPolicy,
+  enforcementLabel,
   formatTrainerBenefitValue,
   formatTrainerPlanPrice,
   getCommunityFeatureDeliveryMeta,
@@ -17,6 +18,12 @@ import {
 } from "../serviceAccessPolicyPresentation.js";
 
 describe("service access policy presentation", () => {
+  it("labels the shared multi-replica quota enforcement", () => {
+    expect(enforcementLabel("shared_usage_ledger")).toBe(
+      "Shared usage ledger",
+    );
+  });
+
   it("formats quota and unlimited policies without hardcoded service values", () => {
     expect(
       formatPolicy({

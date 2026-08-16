@@ -1,42 +1,24 @@
 import { createHmac, randomBytes } from "node:crypto";
 
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
-import {
-  resolveRequestServicePolicy,
-  serializeRequestQuota,
-} from "../services/serviceAccessPolicy.service.js";
 
-const getQuotaLimit = (serviceKey) => async (req) => {
-  const { policy } = await resolveRequestServicePolicy(req, serviceKey);
-  if (policy.mode !== "quota" || !Number.isSafeInteger(policy.limit)) {
-    throw new Error(`Service ${serviceKey} does not define a rate-limit quota`);
-  }
-  return policy.limit;
-};
+export const AI_CHAT_ABUSE_LIMIT = 60;
+export const MEAL_SCAN_ABUSE_LIMIT = 30;
 
-const quotaHandler = ({ serviceKey, code, message }) => (req, res) => {
-  const quota = serializeRequestQuota(req, serviceKey);
-  return res.status(429).json({
-    success: false,
-    code,
-    message: message(quota),
-    meta: { quota },
-  });
-};
+const abuseHandler = ({ code, message }) => (_req, res) =>
+  res.status(429).json({ success: false, code, message });
 
 // AI Chat authenticated rate limit — per user; guest dùng limiter riêng theo IP HMAC.
 export const aiChatLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 giờ
-  limit: getQuotaLimit("ai_chat"),
+  limit: AI_CHAT_ABUSE_LIMIT,
   skip: (req) => !req.user?.id,
   keyGenerator: (req) => req.user.id.toString(),
-  handler: quotaHandler({
-    serviceKey: "ai_chat",
-    code: "AI_RATE_LIMITED",
-    message: (quota) =>
-      `Bạn đã dùng hết ${quota?.limit || 15} tin trong giờ này. Vui lòng thử lại sau.`,
+  handler: abuseHandler({
+    code: "AI_CHAT_ABUSE_RATE_LIMITED",
+    message: "Bạn gửi yêu cầu quá nhanh. Vui lòng thử lại sau.",
   }),
-  standardHeaders: true,
+  standardHeaders: false,
   legacyHeaders: false,
 });
 
@@ -55,16 +37,14 @@ const createAnonymousAiChatKey = (req) =>
 
 export const aiGuestChatLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: getQuotaLimit("ai_chat"),
+  limit: AI_CHAT_ABUSE_LIMIT,
   skip: (req) => Boolean(req.user?.id),
   keyGenerator: createAnonymousAiChatKey,
-  handler: quotaHandler({
-    serviceKey: "ai_chat",
-    code: "AI_GUEST_RATE_LIMITED",
-    message: (quota) =>
-      `Bạn đã dùng hết ${quota?.limit || 5} lượt hỏi miễn phí trong giờ này. Đăng nhập để tiếp tục.`,
+  handler: abuseHandler({
+    code: "AI_GUEST_ABUSE_RATE_LIMITED",
+    message: "Bạn gửi yêu cầu quá nhanh. Vui lòng thử lại sau.",
   }),
-  standardHeaders: true,
+  standardHeaders: false,
   legacyHeaders: false,
 });
 
@@ -77,30 +57,26 @@ const createAnonymousMealScanKey = (req) =>
 
 export const mealScanAnonymousLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
-  limit: getQuotaLimit("meal_scan"),
+  limit: MEAL_SCAN_ABUSE_LIMIT,
   skip: (req) => Boolean(req.user?.id),
   keyGenerator: createAnonymousMealScanKey,
-  handler: quotaHandler({
-    serviceKey: "meal_scan",
-    code: "MEAL_SCAN_ANONYMOUS_LIMITED",
-    message: (quota) =>
-      `Bạn đã dùng hết ${quota?.limit || 2} lượt quét miễn phí trong 24 giờ. Đăng nhập để tiếp tục.`,
+  handler: abuseHandler({
+    code: "MEAL_SCAN_ANONYMOUS_ABUSE_RATE_LIMITED",
+    message: "Bạn gửi yêu cầu quét quá nhanh. Vui lòng thử lại sau.",
   }),
-  standardHeaders: true,
+  standardHeaders: false,
   legacyHeaders: false,
 });
 
 export const mealScanLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
-  limit: getQuotaLimit("meal_scan"),
+  limit: MEAL_SCAN_ABUSE_LIMIT,
   skip: (req) => !req.user?.id,
   keyGenerator: (req) => req.user.id.toString(),
-  handler: quotaHandler({
-    serviceKey: "meal_scan",
-    code: "MEAL_SCAN_RATE_LIMITED",
-    message: (quota) =>
-      `Bạn đã dùng hết ${quota?.limit || 3} lượt quét trong 24 giờ. Vui lòng thử lại sau.`,
+  handler: abuseHandler({
+    code: "MEAL_SCAN_ABUSE_RATE_LIMITED",
+    message: "Bạn gửi yêu cầu quét quá nhanh. Vui lòng thử lại sau.",
   }),
-  standardHeaders: true,
+  standardHeaders: false,
   legacyHeaders: false,
 });

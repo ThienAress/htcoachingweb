@@ -74,6 +74,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 049 | Đồng bộ theme HLV và các công cụ tập luyện của học viên | P1 | M | 006, 016 | LOCAL VERIFIED — STAGING BLOCKED (DEPENDENCY AUDIT) |
 | 050 | Xây UI quality gates deterministic và pilot icon morph có kiểm soát | P1 | L | 017, 030, 046 | COMPLETE / LOCAL VERIFIED — DEPENDENCY AUDIT BLOCKED |
 | 051 | Tự động đối soát SePay và cộng ví an toàn | P0 | L | 018 | IMPLEMENTED LOCALLY |
+| 052 | Harden AI evals, tool boundaries và scale readiness | P0→P1 | XL | 020, 031, 033, 038, 046 | LOCAL COMPLETE / EXTERNAL ROLLOUT PENDING |
+| 053 | Harden backend foundations và async resilience | P0→P2 | L | 052 | LOCAL COMPLETE / EXTERNAL OPS PENDING |
 
 ## Dependency Notes
 

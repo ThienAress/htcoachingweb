@@ -4,9 +4,13 @@ import { executeTool, isSuccessfulToolResult } from "../toolEngine.js";
 import { getToolSchemas, toolRegistry } from "../toolRegistry.js";
 
 const originalSearchKnowledge = toolRegistry.search_knowledge.execute;
+const originalSearchKnowledgeConfirmation =
+  toolRegistry.search_knowledge.requiresConfirmation;
 
 afterEach(() => {
   toolRegistry.search_knowledge.execute = originalSearchKnowledge;
+  toolRegistry.search_knowledge.requiresConfirmation =
+    originalSearchKnowledgeConfirmation;
 });
 
 describe("AI tool runtime validation", () => {
@@ -16,7 +20,8 @@ describe("AI tool runtime validation", () => {
       isSuccessfulToolResult({ error: null, meta: { timedOut: true } }),
       isSuccessfulToolResult({ error: null, meta: { internalError: "synthetic" } }),
       isSuccessfulToolResult({ error: "failed" }),
-    ]).toEqual([false, false, false, false]);
+      isSuccessfulToolResult({ error: null, needsConfirmation: true }),
+    ]).toEqual([false, false, false, false, false]);
   });
 
   it("only exposes public, bounded-cost tools to guest chat", () => {
@@ -91,6 +96,21 @@ describe("AI tool runtime validation", () => {
     ]);
 
     expect(outcome?.meta?.timedOut).toBe(true);
+  });
+
+  it("does not trust a caller-supplied confirmation identifier", async () => {
+    toolRegistry.search_knowledge.requiresConfirmation = true;
+    toolRegistry.search_knowledge.execute = () => {
+      throw new Error("executor must not be reached");
+    };
+
+    const result = await executeTool(
+      "search_knowledge",
+      { query: "fitness research" },
+      { userId: "authenticated-user", confirmedChallengeId: "forged" },
+    );
+
+    expect(result.needsConfirmation).toBe(true);
   });
 
   it("propagates an external abort instead of swallowing it", async () => {

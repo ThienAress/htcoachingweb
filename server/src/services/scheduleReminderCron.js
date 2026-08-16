@@ -2,6 +2,7 @@ import ReminderDelivery from "../models/ReminderDelivery.js";
 import TrainingSchedule from "../models/TrainingSchedule.js";
 import User from "../models/User.js";
 import { incrementMetric } from "../observability/metrics.js";
+import { createRecurringJob } from "../operations/recurringJob.js";
 import { getAppDayOfWeek } from "./trainingOccurrence.service.js";
 import { sendScheduleReminderMail } from "../utils/sendMail.js";
 import { safeLog } from "../utils/safeLogger.js";
@@ -237,11 +238,19 @@ export async function checkAndSendReminders(now = new Date()) {
   return { sent, failed };
 }
 
+const scheduleReminderCron = createRecurringJob({
+  name: "schedule.reminder_cron",
+  intervalMs: INTERVAL_MS,
+  initialDelayMs: 10_000,
+  task: checkAndSendReminders,
+});
+
 export function startScheduleReminderCron() {
   safeLog.info("schedule.reminder_cron_started", {
     reminderMinutes: REMINDER_MINUTES,
     intervalMinutes: INTERVAL_MS / 60000,
   });
-  setTimeout(checkAndSendReminders, 10000);
-  setInterval(checkAndSendReminders, INTERVAL_MS);
+  return scheduleReminderCron.start();
 }
+
+export const stopScheduleReminderCron = () => scheduleReminderCron.stop();

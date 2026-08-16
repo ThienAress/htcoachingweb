@@ -3,6 +3,9 @@ import { protect } from "../middlewares/auth.middleware.js";
 import { ensureAiActor } from "../middlewares/aiGuestSession.js";
 import { optionalAiAuth } from "../middlewares/optionalAiAuth.js";
 import { csrfProtection } from "../middlewares/csrf.js";
+import { enforceSharedServiceUsage } from "../middlewares/serviceUsageLedger.js";
+import { aiConfirmationLimiter } from "../middlewares/rateLimit.js";
+import { prepareAiChatRequest } from "../middlewares/aiChatRequest.js";
 import {
   aiChatLimiter,
   aiGuestChatLimiter,
@@ -29,7 +32,12 @@ import {
   validateAiMemoryConsent,
   validateAiMemoryKind,
   validateAiMemoryUpdate,
+  validateAiToolConfirmation,
 } from "../middlewares/validation.js";
+import {
+  cancelAiTool,
+  confirmAiTool,
+} from "../controllers/aiToolConfirmation.controller.js";
 
 const router = express.Router();
 
@@ -39,8 +47,10 @@ router.post(
   optionalAiAuth,
   ensureAiActor,
   csrfProtection,
+  prepareAiChatRequest,
   aiGuestChatLimiter,
   aiChatLimiter,
+  enforceSharedServiceUsage("ai_chat"),
   chatStream,
 );
 router.get("/history", protect, getHistory);
@@ -71,6 +81,23 @@ router.delete(
   removeMyAiMemory,
 );
 router.delete("/memory", protect, csrfProtection, removeAllMyAiMemory);
+
+router.post(
+  "/tool-confirmations/confirm",
+  protect,
+  aiConfirmationLimiter,
+  csrfProtection,
+  validateAiToolConfirmation,
+  confirmAiTool,
+);
+router.post(
+  "/tool-confirmations/cancel",
+  protect,
+  aiConfirmationLimiter,
+  csrfProtection,
+  validateAiToolConfirmation,
+  cancelAiTool,
+);
 
 // Multi-conversation support
 router.get("/conversations", protect, getConversations);

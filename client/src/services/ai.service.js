@@ -76,6 +76,16 @@ export const clearAiMemory = async () => {
   return res.data;
 };
 
+export const confirmAiToolAction = async (token) => {
+  const res = await api.post("/ai/tool-confirmations/confirm", { token });
+  return res.data;
+};
+
+export const cancelAiToolAction = async (token) => {
+  const res = await api.post("/ai/tool-confirmations/cancel", { token });
+  return res.data;
+};
+
 const syncCsrfToken = (response) => {
   const token = response.headers.get("X-CSRF-Token");
   if (token) Cookies.set("csrfToken", token, { path: "/" });

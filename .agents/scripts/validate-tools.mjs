@@ -54,6 +54,35 @@ for (const [key, tool] of tools) {
 
   if (typeof tool.requiresAuth !== "boolean") warn("Missing 'requiresAuth' flag");
   if (typeof tool.requiresConfirmation !== "boolean") warn("Missing 'requiresConfirmation' flag");
+  if (typeof tool.readOnly !== "boolean") fail("Missing 'readOnly' capability");
+  if (typeof tool.parallelSafe !== "boolean") fail("Missing 'parallelSafe' capability");
+  if (tool.parallelSafe === true && tool.readOnly !== true) {
+    fail("parallelSafe tools must be readOnly");
+  }
+  if (tool.requiresConfirmation) {
+    const title = tool.confirmation?.title;
+    const description = tool.confirmation?.description;
+    if (
+      typeof title !== "string" ||
+      title.trim().length === 0 ||
+      title.length > 100
+    ) {
+      fail("Confirmation title must be 1-100 characters");
+    }
+    if (
+      typeof description !== "string" ||
+      description.trim().length === 0 ||
+      description.length > 300
+    ) {
+      fail("Confirmation description must be 1-300 characters");
+    }
+    if (tool.requiresAuth !== true) {
+      fail("Confirmation tools must require authentication");
+    }
+    if (tool.readOnly !== false || tool.parallelSafe !== false) {
+      fail("Confirmation tools must be mutating and sequential");
+    }
+  }
 
   // 2. Kiểm tra file tồn tại
   const toolDir = path.join(ROOT, "server/src/services/ai/tools");

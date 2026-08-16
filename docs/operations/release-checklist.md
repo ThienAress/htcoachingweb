@@ -32,6 +32,9 @@ Rollback procedure: [production-rollback-runbook.md](./runbooks/production-rollb
 
 ## Before staging
 
+- [ ] Run `npm run test:ai-eval` and require every versioned offline AI scenario to pass.
+- [ ] Run `npm run preflight:ai-hardening-indexes:staging --prefix server`; review all five index contracts before any apply.
+- [ ] Apply AI hardening indexes only in an approved window with the explicit target lock and confirmation variable; this local implementation does not apply them.
 - [x] CI is green: client lint/tests/build, server tests, Chromium E2E.
 - [x] Confirm `npm run security:secrets` reports no credential requiring
       revocation or replacement.

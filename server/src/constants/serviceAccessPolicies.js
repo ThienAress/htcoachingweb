@@ -8,7 +8,7 @@ export const SERVICE_ACCESS_TIERS = Object.freeze({
   TRAINER: "trainer",
 });
 
-export const SERVICE_ACCESS_POLICY_VERSION = "2026-08-07";
+export const SERVICE_ACCESS_POLICY_VERSION = "2026-08-13";
 
 const quota = ({
   limit,
@@ -64,7 +64,7 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         periodLabel: "24 giờ",
         scope: "ip",
         scopeLabel: "IP",
-        enforcement: "server_rate_limit",
+        enforcement: "shared_usage_ledger",
         windowMs: DAY_MS,
       }),
       user: quota({
@@ -74,7 +74,7 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         periodLabel: "24 giờ",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
+        enforcement: "shared_usage_ledger",
         windowMs: DAY_MS,
       }),
       coaching_customer: quota({
@@ -84,7 +84,7 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         periodLabel: "24 giờ",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
+        enforcement: "shared_usage_ledger",
         windowMs: DAY_MS,
       }),
       trainer: quota({
@@ -94,7 +94,7 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         periodLabel: "24 giờ",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
+        enforcement: "shared_usage_ledger",
         windowMs: DAY_MS,
       }),
     },
@@ -112,7 +112,7 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         periodLabel: "giờ",
         scope: "ip",
         scopeLabel: "IP",
-        enforcement: "server_rate_limit",
+        enforcement: "shared_usage_ledger",
         windowMs: HOUR_MS,
       }),
       user: quota({
@@ -122,7 +122,7 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         periodLabel: "giờ",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
+        enforcement: "shared_usage_ledger",
         windowMs: HOUR_MS,
       }),
       coaching_customer: quota({
@@ -132,7 +132,7 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         periodLabel: "giờ",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
+        enforcement: "shared_usage_ledger",
         windowMs: HOUR_MS,
       }),
       trainer: quota({
@@ -142,7 +142,7 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         periodLabel: "giờ",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
+        enforcement: "shared_usage_ledger",
         windowMs: HOUR_MS,
       }),
     },

@@ -168,10 +168,7 @@ export default function useExercisesLogic() {
   // Hàm gửi góp ý
   const sendExerciseSuggestion = async (suggestion) => {
     try {
-      await submitExerciseSuggestion({
-        name: suggestion,
-        description: suggestion,
-      });
+      await submitExerciseSuggestion(suggestion);
       return true;
     } catch {
       return false;

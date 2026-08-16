@@ -15,6 +15,7 @@ const MAX_FALLBACK_ENTRIES = Number(process.env.KB_MAX_SCAN_ENTRIES) || 500;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 100;
 const embeddingCache = new Map();
+const embeddingInFlight = new Map();
 
 function normalizeEmbeddingText(text) {
   return String(text || "")
@@ -65,26 +66,53 @@ function setCachedEmbedding(key, vector) {
   });
 }
 
-export async function generateEmbedding(text, options = {}) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("Embedding provider chưa được cấu hình");
+function createAbortError(reason) {
+  const error = new Error(reason?.message || "Embedding request aborted");
+  error.name = "AbortError";
+  return error;
+}
 
-  const cleanText = normalizeEmbeddingText(text);
-  if (!cleanText) throw new Error("Text rỗng, không thể tạo embedding");
-  if (cleanText.length > 1000) {
-    throw new Error("Text embedding vượt quá 1000 ký tự");
-  }
+function waitForEmbedding(promise, { signal, timeoutMs } = {}) {
+  if (signal?.aborted) return Promise.reject(createAbortError(signal.reason));
+  if (!signal && !timeoutMs) return promise;
 
-  const cached = getCachedEmbedding(cleanText);
-  if (cached) return cached;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timeout = null;
+    const cleanup = () => {
+      if (timeout) clearTimeout(timeout);
+      signal?.removeEventListener("abort", abort);
+    };
+    const settle = (handler) => (value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      handler(value);
+    };
+    const abort = () => {
+      settle(reject)(createAbortError(signal.reason));
+    };
 
-  const linked = createLinkedSignal(
-    options.signal,
-    Math.min(
-      Math.max(Number(options.timeoutMs) || EMBEDDING_TIMEOUT_MS, 3000),
-      60000,
-    ),
+    signal?.addEventListener("abort", abort, { once: true });
+    if (timeoutMs) {
+      timeout = setTimeout(
+        () => settle(reject)(new Error("Embedding request timed out")),
+        timeoutMs,
+      );
+    }
+    promise.then(settle(resolve), settle(reject));
+  });
+}
+
+async function requestEmbedding(cleanText) {
+  // The provider deadline is independent from any one caller. This lets callers
+  // stop waiting without cancelling an identical request shared by others.
+  const providerTimeoutMs = Math.min(
+    Math.max(EMBEDDING_TIMEOUT_MS, 3000),
+    60000,
   );
+  const linked = createLinkedSignal(undefined, providerTimeoutMs);
+  const apiKey = process.env.GEMINI_API_KEY;
   const url = `${EMBEDDING_BASE_URL}/models/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`;
 
   try {
@@ -100,7 +128,7 @@ export async function generateEmbedding(text, options = {}) {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
+      await response.json().catch(() => ({}));
       safeLog.warn("kb.embedding_provider_error", "Provider returned error", {
         status: response.status,
       });
@@ -120,16 +148,54 @@ export async function generateEmbedding(text, options = {}) {
     setCachedEmbedding(cleanText, values);
     return values;
   } catch (error) {
-    if (!options.signal?.aborted) {
-      incrementMetric("kb.embedding_failures");
-    }
-    if (linked.signal.aborted && !options.signal?.aborted) {
+    incrementMetric("kb.embedding_failures");
+    if (linked.signal.aborted) {
       throw new Error("Embedding provider phản hồi quá thời gian");
     }
     throw error;
   } finally {
     linked.cleanup();
   }
+}
+
+export async function generateEmbedding(text, options = {}) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("Embedding provider chưa được cấu hình");
+
+  const cleanText = normalizeEmbeddingText(text);
+  if (!cleanText) throw new Error("Text rỗng, không thể tạo embedding");
+  if (cleanText.length > 1000) {
+    throw new Error("Text embedding vượt quá 1000 ký tự");
+  }
+
+  const cached = getCachedEmbedding(cleanText);
+  if (cached) return cached;
+
+  const callerTimeoutMs = options.timeoutMs
+    ? Math.min(Math.max(Number(options.timeoutMs) || 3000, 3000), 60000)
+    : null;
+  let pending = embeddingInFlight.get(cleanText);
+  if (!pending) {
+    pending = requestEmbedding(cleanText);
+    embeddingInFlight.set(cleanText, pending);
+    pending.then(
+      () => {
+        if (embeddingInFlight.get(cleanText) === pending) {
+          embeddingInFlight.delete(cleanText);
+        }
+      },
+      () => {
+        if (embeddingInFlight.get(cleanText) === pending) {
+          embeddingInFlight.delete(cleanText);
+        }
+      },
+    );
+  }
+
+  return waitForEmbedding(pending, {
+    signal: options.signal,
+    timeoutMs: callerTimeoutMs,
+  });
 }
 
 export function cosineSimilarity(vecA, vecB) {
@@ -289,4 +355,5 @@ export async function searchKnowledgeBase(query, options = {}) {
 
 export function clearEmbeddingCacheForTests() {
   embeddingCache.clear();
+  embeddingInFlight.clear();
 }
