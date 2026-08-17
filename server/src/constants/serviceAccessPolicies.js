@@ -6,9 +6,12 @@ export const SERVICE_ACCESS_TIERS = Object.freeze({
   USER: "user",
   COACHING_CUSTOMER: "coaching_customer",
   TRAINER: "trainer",
+  FITNESS_PLUS_ESSENTIAL: "fitness_plus_essential",
+  FITNESS_PLUS_SMART: "fitness_plus_smart",
+  FITNESS_PLUS_MAX: "fitness_plus_max",
 });
 
-export const SERVICE_ACCESS_POLICY_VERSION = "2026-08-07";
+export const SERVICE_ACCESS_POLICY_VERSION = "2026-08-17";
 
 const quota = ({
   limit,
@@ -97,6 +100,36 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         enforcement: "server_rate_limit",
         windowMs: DAY_MS,
       }),
+      fitness_plus_essential: quota({
+        limit: 15,
+        unitLabel: "lượt",
+        period: "rolling_30_days",
+        periodLabel: "30 ngày",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "server_rate_limit",
+        windowMs: 30 * DAY_MS,
+      }),
+      fitness_plus_smart: quota({
+        limit: 30,
+        unitLabel: "lượt",
+        period: "rolling_30_days",
+        periodLabel: "30 ngày",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "server_rate_limit",
+        windowMs: 30 * DAY_MS,
+      }),
+      fitness_plus_max: quota({
+        limit: 60,
+        unitLabel: "lượt",
+        period: "rolling_30_days",
+        periodLabel: "30 ngày",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "server_rate_limit",
+        windowMs: 30 * DAY_MS,
+      }),
     },
   },
   {
@@ -145,6 +178,36 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         enforcement: "server_rate_limit",
         windowMs: HOUR_MS,
       }),
+      fitness_plus_essential: quota({
+        limit: 20,
+        unitLabel: "tin",
+        period: "rolling_hour",
+        periodLabel: "giờ",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "server_rate_limit",
+        windowMs: HOUR_MS,
+      }),
+      fitness_plus_smart: quota({
+        limit: 40,
+        unitLabel: "tin",
+        period: "rolling_hour",
+        periodLabel: "giờ",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "server_rate_limit",
+        windowMs: HOUR_MS,
+      }),
+      fitness_plus_max: quota({
+        limit: 60,
+        unitLabel: "tin",
+        period: "rolling_hour",
+        periodLabel: "giờ",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "server_rate_limit",
+        windowMs: HOUR_MS,
+      }),
     },
   },
   {
@@ -173,6 +236,9 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
       }),
       coaching_customer: unlimited(),
       trainer: unlimited(),
+      fitness_plus_essential: unlimited(),
+      fitness_plus_smart: unlimited(),
+      fitness_plus_max: unlimited(),
     },
   },
   {
@@ -185,6 +251,9 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
       user: unlimited(),
       coaching_customer: unlimited(),
       trainer: unlimited(),
+      fitness_plus_essential: unlimited(),
+      fitness_plus_smart: unlimited(),
+      fitness_plus_max: unlimited(),
     },
   },
 ]);

@@ -22,6 +22,7 @@ import {
   walletBalanceQueryOptions,
 } from "../queries/walletAccount.queries";
 import { buildTrainerPlanCategories } from "../utils/trainerPlanBenefits";
+import FitnessPlusPlans from "../components/Pricing/FitnessPlusPlans";
 
 const TODAY_PROGRESS_PROMPT_DISMISSED_KEY =
   "ht_today_progress_prompt_dismissed";
@@ -478,43 +479,22 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
         {!isTrainer && (
           <div className="flex justify-center items-center gap-4 flex-wrap mt-8 mb-10">
-            <div className="relative w-64 h-12 rounded-full bg-[#222] shadow-lg">
-              <div className="relative w-full h-full">
-                <input
-                  type="radio"
-                  id="oneonone-mode"
-                  name="mode-toggle"
-                  className="hidden"
-                  checked={mode === "1-1"}
-                  onChange={() => setMode("1-1")}
-                />
-                <label
-                  htmlFor="oneonone-mode"
-                  className={`absolute top-0 left-0 w-1/2 h-full flex items-center justify-center font-semibold text-base cursor-pointer z-10 transition-all ${mode === "1-1" ? "text-white" : "text-gray-400"
-                    }`}
+            <div className="grid w-full max-w-md grid-cols-3 rounded-full bg-[#222] p-1 shadow-lg">
+              {[
+                { key: "1-1", label: "1 - 1" },
+                { key: "online", label: "ONLINE" },
+                { key: "fitness-plus", label: t("pricing.fitness_plus.title_short") },
+              ].map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  aria-pressed={mode === option.key}
+                  onClick={() => setMode(option.key)}
+                  className={`min-h-11 rounded-full px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 sm:min-w-28 sm:px-4 sm:text-sm ${mode === option.key ? "bg-gradient-to-r from-primary to-primary-dark text-white" : "text-gray-400 hover:text-white"}`}
                 >
-                  1 - 1
-                </label>
-                <input
-                  type="radio"
-                  id="online-mode"
-                  name="mode-toggle"
-                  className="hidden"
-                  checked={mode === "online"}
-                  onChange={() => setMode("online")}
-                />
-                <label
-                  htmlFor="online-mode"
-                  className={`absolute top-0 right-0 w-1/2 h-full flex items-center justify-center font-semibold text-base cursor-pointer z-10 transition-all ${mode === "online" ? "text-white" : "text-gray-400"
-                    }`}
-                >
-                  ONLINE
-                </label>
-                <div
-                  className={`absolute top-0 w-1/2 h-full bg-gradient-to-r from-primary to-primary-dark rounded-full transition-all duration-500 ease-out ${mode === "1-1" ? "left-0" : "left-1/2"
-                    }`}
-                ></div>
-              </div>
+                  {option.label}
+                </button>
+              ))}
             </div>
             <button
               onClick={() => setMode("trial")}
@@ -575,6 +555,12 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           </div>
         )}
 
+        {!isTrainer && mode === "fitness-plus" ? (
+          <FitnessPlusPlans
+            billingCycle={billingCycle}
+            onBillingCycleChange={setBillingCycle}
+          />
+        ) : (
         <div className={`grid grid-cols-1 gap-6 2xl:gap-8 mx-auto ${isTrainer ? "sm:grid-cols-2 xl:grid-cols-4 max-w-7xl" : "sm:grid-cols-2 lg:grid-cols-3 max-w-5xl"}`}>
           {isTrainer ? (
             trainerPlans.map((plan, idx) => {
@@ -779,6 +765,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
             ))
           )}
         </div>
+        )}
 
         {giftModalVisible && (
           <div

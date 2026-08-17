@@ -238,6 +238,9 @@ app.use("/api/admin/deposits", adminDepositRoutes);
 import trainerSubscriptionRoutes from "./src/routes/trainerSubscription.routes.js";
 app.use("/api/trainer-subscriptions", trainerSubscriptionRoutes);
 
+import fitnessPlusSubscriptionRoutes from "./src/routes/fitnessPlusSubscription.routes.js";
+app.use("/api/fitness-plus-subscriptions", fitnessPlusSubscriptionRoutes);
+
 import trainingScheduleRoutes from "./src/routes/trainingSchedule.routes.js";
 app.use("/api/training-schedules", trainingScheduleRoutes);
 

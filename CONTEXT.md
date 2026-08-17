@@ -49,6 +49,13 @@ không suy đoán liên kết bằng email hoặc số điện thoại.
 
 Entitlement cho Trainer theo lifecycle/plan hiện hành. Không đồng nghĩa với `Order` coaching của khách hàng.
 
+### HT Fitness+ Member
+
+User có subscription HT Fitness+ đang active để tự sử dụng các công cụ số như HT Assistant, Meal Scan, Meal Plan,
+TDEE, thư viện bài tập và theo dõi tiến trình. Đây là product entitlement riêng, không phải role mới, không đồng nghĩa
+với Coaching Customer hoặc Trainer Subscription. Các plan hiển thị tiếng Việt là Nền tảng, Tăng tốc và Toàn diện;
+English locale dùng Essential, Smart và Max.
+
 ## Daily coaching data
 
 ### Today Dashboard

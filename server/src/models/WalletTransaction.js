@@ -60,6 +60,7 @@ const walletTransactionSchema = new mongoose.Schema(
         "incoming_bank_transaction",
         "order",
         "trainer_subscription",
+        "fitness_subscription",
         "refund",
         "adjustment",
       ],

@@ -10,6 +10,7 @@ describe("ChatWidget motion contract", () => {
       "../ChatPanel.jsx",
       "../ChatWidget.jsx",
       "../ChatBubble.jsx",
+      "../ConversationNavigator.jsx",
       "../cards/TdeeFormCard.jsx",
     ].map(read);
 
@@ -34,5 +35,15 @@ describe("ChatWidget motion contract", () => {
     expect(panel).toContain("aria-hidden={!isOpen}");
     expect(panel).toContain("inert={!isOpen}");
     expect(panel).toContain("size-11");
+  });
+
+  it("keeps question navigation anchored to the chat scroller", () => {
+    const panel = read("../ChatPanel.jsx");
+    const navigator = read("../ConversationNavigator.jsx");
+
+    expect(panel).toContain("scrollContainer.scrollTo");
+    expect(panel).toContain("behavior: getChatScrollBehavior(window)");
+    expect(navigator).toContain("group-hover:opacity-100");
+    expect(navigator).toContain("group-focus-within:opacity-100");
   });
 });

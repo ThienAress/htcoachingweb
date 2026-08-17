@@ -298,7 +298,7 @@ export default function ServiceAccessPoliciesPage() {
         </CollapsibleSection>
 
         <p className="text-xs leading-5 text-zinc-500">
-          Entitlement được backend xác định từ tài khoản, gói HLV và Order còn buổi; client không được tự khai báo tier.
+          Entitlement được backend xác định từ tài khoản, gói HT Fitness+, gói HLV và Order còn buổi; client không được tự khai báo tier.
         </p>
       </div>
     </main>

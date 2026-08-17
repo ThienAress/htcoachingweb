@@ -4,9 +4,11 @@ import { analyzeMealScan } from "../controllers/mealScan.controller.js";
 import { optionalMealScanAuth } from "../middlewares/optionalMealScanAuth.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import {
+  fitnessPlusMealScanLimiter,
   mealScanAnonymousLimiter,
   mealScanLimiter,
 } from "../middlewares/aiRateLimit.js";
+import { resolveServiceAccessTierMiddleware } from "../middlewares/resolveServiceAccessTier.js";
 import { validateMealScanImage } from "../middlewares/mealScanImage.js";
 
 const router = express.Router();
@@ -21,6 +23,8 @@ router.post(
   optionalMealScanAuth,
   csrfProtection,
   validateMealScanImage,
+  resolveServiceAccessTierMiddleware,
+  fitnessPlusMealScanLimiter,
   mealScanAnonymousLimiter,
   mealScanLimiter,
   analyzeMealScan,

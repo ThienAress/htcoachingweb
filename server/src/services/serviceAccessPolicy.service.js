@@ -11,11 +11,18 @@ import {
 } from "../constants/communityFeatureCatalog.js";
 import Order from "../models/Order.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
+import FitnessSubscription from "../models/FitnessSubscription.js";
 import {
   listTrainerPlanBenefits,
   listTrainerPlans,
 } from "./trainerPlanCatalog.service.js";
 import { getCommunityFeatureReportOptions } from "./communityFeatureReport.service.js";
+
+const FITNESS_PLUS_TIERS = new Set([
+  SERVICE_ACCESS_TIERS.FITNESS_PLUS_ESSENTIAL,
+  SERVICE_ACCESS_TIERS.FITNESS_PLUS_SMART,
+  SERVICE_ACCESS_TIERS.FITNESS_PLUS_MAX,
+]);
 
 const serializeCommunityFeature = (feature) => ({
   ...feature,
@@ -39,6 +46,7 @@ export const resolveServiceAccessTier = async (
     now = new Date(),
     orderModel = Order,
     trainerSubscriptionModel = TrainerSubscription,
+    fitnessSubscriptionModel = FitnessSubscription,
   } = {},
 ) => {
   if (!actor) return SERVICE_ACCESS_TIERS.GUEST;
@@ -49,7 +57,7 @@ export const resolveServiceAccessTier = async (
     return SERVICE_ACCESS_TIERS.TRAINER;
   }
 
-  const [activeTrainerSubscription, activeCoachingOrder] = await Promise.all([
+  const [activeTrainerSubscription, activeCoachingOrder, activeFitnessSubscription] = await Promise.all([
     trainerSubscriptionModel.exists({
       userId,
       status: "active",
@@ -61,10 +69,26 @@ export const resolveServiceAccessTier = async (
       status: "approved",
       sessions: { $gt: 0 },
     }),
+    fitnessSubscriptionModel
+      .findOne({
+        userId,
+        status: "active",
+        isActive: true,
+        endDate: { $gt: now },
+      })
+      .select("planCode")
+      .sort({ createdAt: -1 })
+      .lean(),
   ]);
 
   if (activeTrainerSubscription) return SERVICE_ACCESS_TIERS.TRAINER;
   if (activeCoachingOrder) return SERVICE_ACCESS_TIERS.COACHING_CUSTOMER;
+  if (
+    activeFitnessSubscription?.planCode &&
+    FITNESS_PLUS_TIERS.has(activeFitnessSubscription.planCode)
+  ) {
+    return activeFitnessSubscription.planCode;
+  }
   return SERVICE_ACCESS_TIERS.USER;
 };
 
@@ -104,27 +128,45 @@ export const getAdminServiceAccessPolicyMatrix = () => {
   return {
     version: SERVICE_ACCESS_POLICY_VERSION,
     columns: [
-    {
-      id: "guest",
-      label: "Guest",
-      tiers: [{ key: SERVICE_ACCESS_TIERS.GUEST, label: "Guest" }],
-    },
-    {
-      id: "user",
-      label: "User thường",
-      tiers: [{ key: SERVICE_ACCESS_TIERS.USER, label: "User thường" }],
-    },
-    {
-      id: "paid",
-      label: "User có gói / HLV",
-      tiers: [
-        {
-          key: SERVICE_ACCESS_TIERS.COACHING_CUSTOMER,
-          label: "User có gói",
-        },
-        { key: SERVICE_ACCESS_TIERS.TRAINER, label: "HLV" },
-      ],
-    },
+      {
+        id: "guest",
+        label: "Guest",
+        tiers: [{ key: SERVICE_ACCESS_TIERS.GUEST, label: "Guest" }],
+      },
+      {
+        id: "user",
+        label: "User thường",
+        tiers: [{ key: SERVICE_ACCESS_TIERS.USER, label: "User thường" }],
+      },
+      {
+        id: "paid",
+        label: "User có gói / HLV",
+        tiers: [
+          {
+            key: SERVICE_ACCESS_TIERS.COACHING_CUSTOMER,
+            label: "User có gói",
+          },
+          { key: SERVICE_ACCESS_TIERS.TRAINER, label: "HLV" },
+        ],
+      },
+      {
+        id: "fitness_plus",
+        label: "HT Fitness+",
+        tiers: [
+          {
+            key: SERVICE_ACCESS_TIERS.FITNESS_PLUS_ESSENTIAL,
+            label: "Nền tảng",
+          },
+          {
+            key: SERVICE_ACCESS_TIERS.FITNESS_PLUS_SMART,
+            label: "Tăng tốc",
+          },
+          {
+            key: SERVICE_ACCESS_TIERS.FITNESS_PLUS_MAX,
+            label: "Toàn diện",
+          },
+        ],
+      },
     ],
     services: SERVICE_ACCESS_POLICY_REGISTRY,
     communityFeatures: {

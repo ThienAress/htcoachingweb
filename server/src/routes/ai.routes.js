@@ -6,7 +6,9 @@ import { csrfProtection } from "../middlewares/csrf.js";
 import {
   aiChatLimiter,
   aiGuestChatLimiter,
+  fitnessPlusAiChatLimiter,
 } from "../middlewares/aiRateLimit.js";
+import { resolveServiceAccessTierMiddleware } from "../middlewares/resolveServiceAccessTier.js";
 import {
   chatStream,
   getHistory,
@@ -39,7 +41,9 @@ router.post(
   optionalAiAuth,
   ensureAiActor,
   csrfProtection,
+  resolveServiceAccessTierMiddleware,
   aiGuestChatLimiter,
+  fitnessPlusAiChatLimiter,
   aiChatLimiter,
   chatStream,
 );

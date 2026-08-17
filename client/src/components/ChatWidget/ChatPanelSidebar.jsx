@@ -103,7 +103,7 @@ export default function ChatPanelSidebar({
                     {formatRelativeTime(conv.updatedAt)}
                   </p>
                 </div>
-                <div className="absolute right-2 flex items-center gap-0.5">
+                <div className="absolute right-2 top-1.5 flex items-center gap-0.5">
                   {isPending && (
                     <span
                       role="status"

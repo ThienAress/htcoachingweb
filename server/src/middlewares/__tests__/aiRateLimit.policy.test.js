@@ -16,8 +16,15 @@ import {
   setupTestDB,
   teardownTestDB,
 } from "../../__tests__/setup.js";
-import { aiChatLimiter, aiGuestChatLimiter } from "../aiRateLimit.js";
+import {
+  aiChatLimiter,
+  aiGuestChatLimiter,
+  fitnessPlusAiChatLimiter,
+  fitnessPlusMealScanLimiter,
+} from "../aiRateLimit.js";
 import { serializeRequestQuota } from "../../services/serviceAccessPolicy.service.js";
+import FitnessSubscription from "../../models/FitnessSubscription.js";
+import { resolveServiceAccessTierMiddleware } from "../resolveServiceAccessTier.js";
 
 let app;
 
@@ -31,11 +38,28 @@ beforeAll(async () => {
     (req, res) => res.json({ quota: serializeRequestQuota(req, "ai_chat") }),
   );
   app.post(
+    "/fitness-meal/:id",
+    (req, _res, next) => {
+      req.user = { id: req.params.id, role: "user" };
+      if (req.get("X-Test-Tier")) {
+        req.serviceAccessTier = req.get("X-Test-Tier");
+      }
+      next();
+    },
+    resolveServiceAccessTierMiddleware,
+    fitnessPlusMealScanLimiter,
+    (req, res) => res.json({ quota: serializeRequestQuota(req, "meal_scan") }),
+  );
+  app.post(
     "/user/:id",
     (req, _res, next) => {
       req.user = { id: req.params.id, role: req.get("X-Test-Role") || "user" };
+      if (req.get("X-Test-Tier")) {
+        req.serviceAccessTier = req.get("X-Test-Tier");
+      }
       next();
     },
+    fitnessPlusAiChatLimiter,
     aiChatLimiter,
     (req, res) => res.json({ quota: serializeRequestQuota(req, "ai_chat") }),
   );
@@ -97,4 +121,96 @@ describe("AI Chat policy limiter", () => {
 
     expect(statuses).toEqual([...Array(30).fill(200), 429]);
   });
+
+  it("uses the Fitness+ plan tier for AI Chat and its 30-day Meal Scan window", async () => {
+    const { user } = await createTestUser({ email: "ai-limit-fitness-plus@example.com" });
+    await FitnessSubscription.create({
+      userId: user._id,
+      planCode: "fitness_plus_essential",
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+      isActive: true,
+    });
+
+    const aiStatuses = [];
+    let aiLimited;
+    for (let attempt = 1; attempt <= 21; attempt += 1) {
+      const response = await request(app).post(`/user/${user._id}`);
+      aiStatuses.push(response.status);
+      if (attempt === 21) aiLimited = response;
+    }
+    expect(aiStatuses).toEqual([...Array(20).fill(200), 429]);
+    expect(aiLimited.body).toMatchObject({
+      code: "AI_RATE_LIMITED",
+      meta: {
+        quota: {
+          tier: "fitness_plus_essential",
+          limit: 20,
+          remaining: 0,
+        },
+      },
+    });
+
+    const mealStatuses = [];
+    let mealLimited;
+    for (let attempt = 1; attempt <= 16; attempt += 1) {
+      const response = await request(app).post(`/fitness-meal/${user._id}`);
+      mealStatuses.push(response.status);
+      if (attempt === 16) mealLimited = response;
+    }
+    expect(mealStatuses).toEqual([...Array(15).fill(200), 429]);
+    expect(mealLimited.body).toMatchObject({
+      code: "MEAL_SCAN_RATE_LIMITED",
+      meta: {
+        quota: {
+          tier: "fitness_plus_essential",
+          limit: 15,
+          remaining: 0,
+        },
+      },
+    });
+  });
+
+  it.each([
+    {
+      tier: "fitness_plus_smart",
+      aiLimit: 40,
+      mealScanLimit: 30,
+    },
+    {
+      tier: "fitness_plus_max",
+      aiLimit: 60,
+      mealScanLimit: 60,
+    },
+  ])(
+    "enforces the $tier boundaries from the policy registry",
+    async ({ tier, aiLimit, mealScanLimit }) => {
+      const userId = new mongoose.Types.ObjectId();
+      const aiStatuses = [];
+      for (let attempt = 1; attempt <= aiLimit + 1; attempt += 1) {
+        const response = await request(app)
+          .post(`/user/${userId}`)
+          .set("X-Test-Tier", tier);
+        aiStatuses.push(response.status);
+      }
+
+      const mealStatuses = [];
+      for (let attempt = 1; attempt <= mealScanLimit + 1; attempt += 1) {
+        const response = await request(app)
+          .post(`/fitness-meal/${userId}`)
+          .set("X-Test-Tier", tier);
+        mealStatuses.push(response.status);
+      }
+
+      expect(aiStatuses).toEqual([...Array(aiLimit).fill(200), 429]);
+      expect(mealStatuses).toEqual([
+        ...Array(mealScanLimit).fill(200),
+        429,
+      ]);
+    },
+  );
 });

@@ -5,6 +5,49 @@ import {
   resolveRequestServicePolicy,
   serializeRequestQuota,
 } from "../services/serviceAccessPolicy.service.js";
+import {
+  SERVICE_ACCESS_TIERS,
+  getServiceAccessPolicy,
+} from "../constants/serviceAccessPolicies.js";
+import { FitnessPlusQuotaStore } from "./fitnessPlusQuotaStore.js";
+
+const FITNESS_PLUS_TIERS = new Set([
+  SERVICE_ACCESS_TIERS.FITNESS_PLUS_ESSENTIAL,
+  SERVICE_ACCESS_TIERS.FITNESS_PLUS_SMART,
+  SERVICE_ACCESS_TIERS.FITNESS_PLUS_MAX,
+]);
+
+const isFitnessPlusRequest = (req) =>
+  FITNESS_PLUS_TIERS.has(req.serviceAccessTier);
+
+const getFitnessPlusQuotaStoreConfig = (serviceKey) => {
+  const policies = [...FITNESS_PLUS_TIERS].map((tier) =>
+    getServiceAccessPolicy(serviceKey, tier),
+  );
+  const [windowMs] = policies.map((policy) => policy.windowMs);
+  if (
+    !Number.isSafeInteger(windowMs) ||
+    policies.some(
+      (policy) =>
+        policy.mode !== "quota" ||
+        policy.windowMs !== windowMs ||
+        !Number.isSafeInteger(policy.limit),
+    )
+  ) {
+    throw new Error(
+      `HT Fitness+ ${serviceKey} tiers require one shared bounded quota window`,
+    );
+  }
+  return {
+    serviceKey,
+    windowMs,
+    maxHits: Math.max(...policies.map((policy) => policy.limit)) + 1,
+  };
+};
+
+const FITNESS_PLUS_AI_CHAT_STORE = getFitnessPlusQuotaStoreConfig("ai_chat");
+const FITNESS_PLUS_MEAL_SCAN_STORE =
+  getFitnessPlusQuotaStoreConfig("meal_scan");
 
 const getQuotaLimit = (serviceKey) => async (req) => {
   const { policy } = await resolveRequestServicePolicy(req, serviceKey);
@@ -24,11 +67,27 @@ const quotaHandler = ({ serviceKey, code, message }) => (req, res) => {
   });
 };
 
-// AI Chat authenticated rate limit — per user; guest dùng limiter riêng theo IP HMAC.
+export const fitnessPlusAiChatLimiter = rateLimit({
+  windowMs: FITNESS_PLUS_AI_CHAT_STORE.windowMs,
+  store: new FitnessPlusQuotaStore(FITNESS_PLUS_AI_CHAT_STORE),
+  limit: getQuotaLimit("ai_chat"),
+  skip: (req) => !isFitnessPlusRequest(req),
+  keyGenerator: (req) => req.user.id.toString(),
+  handler: quotaHandler({
+    serviceKey: "ai_chat",
+    code: "AI_RATE_LIMITED",
+    message: (quota) =>
+      `Bạn đã dùng hết ${quota?.limit || 20} tin HT Assistant trong giờ này.`,
+  }),
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// AI Chat authenticated legacy tiers; Fitness+ dùng shared durable store phía trên.
 export const aiChatLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 giờ
   limit: getQuotaLimit("ai_chat"),
-  skip: (req) => !req.user?.id,
+  skip: (req) => !req.user?.id || isFitnessPlusRequest(req),
   keyGenerator: (req) => req.user.id.toString(),
   handler: quotaHandler({
     serviceKey: "ai_chat",
@@ -90,10 +149,26 @@ export const mealScanAnonymousLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+export const fitnessPlusMealScanLimiter = rateLimit({
+  windowMs: FITNESS_PLUS_MEAL_SCAN_STORE.windowMs,
+  store: new FitnessPlusQuotaStore(FITNESS_PLUS_MEAL_SCAN_STORE),
+  limit: getQuotaLimit("meal_scan"),
+  skip: (req) => !isFitnessPlusRequest(req),
+  keyGenerator: (req) => req.user.id.toString(),
+  handler: quotaHandler({
+    serviceKey: "meal_scan",
+    code: "MEAL_SCAN_RATE_LIMITED",
+    message: (quota) =>
+      `Bạn đã dùng hết ${quota?.limit || 15} lượt Meal Scan trong 30 ngày.`,
+  }),
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export const mealScanLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
   limit: getQuotaLimit("meal_scan"),
-  skip: (req) => !req.user?.id,
+  skip: (req) => !req.user?.id || isFitnessPlusRequest(req),
   keyGenerator: (req) => req.user.id.toString(),
   handler: quotaHandler({
     serviceKey: "meal_scan",

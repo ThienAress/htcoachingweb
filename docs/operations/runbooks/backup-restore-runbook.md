@@ -34,6 +34,17 @@
 5. Run server integration tests and critical E2E against the restored environment.
 6. Record restore duration, data recovery point, failed checks, and cleanup owner.
 
+## Source repository recovery
+
+1. Use an owner-selected directory outside this repository. A cloud-synced directory only counts as off-device after the artifact is visible and downloadable from a separate provider session or device.
+2. Run `node scripts/source-backup.mjs --target-dir <external-directory>`. The command captures all Git refs, the tracked working-tree diff and non-ignored untracked files; ignored files and secrets are excluded.
+3. The command performs `git bundle verify`, isolated clone, `git fsck`, worktree overlay restore and per-file SHA-256 comparison before publishing the backup directory.
+4. Re-verify a copied package with `node scripts/source-backup.mjs --verify <backup-package-directory>`.
+5. On Windows, register the weekly Sunday 03:00 task with `powershell -File scripts/register-source-backup-task.ps1 -TargetDirectory <external-directory>`. The installer requires a successful initial backup before registering the task.
+6. GitHub Actions artifacts do not count as independent source recovery because GitHub is already the canonical repository provider.
+
+The source backup manifest may contain source-relative paths and checksums. It must remain with the external backup package and must not be committed. Database connection strings, archives, keys and private database manifests remain prohibited from source backup packages because ignored files are excluded.
+
 ## Production recovery
 
 - Require incident lead and database owner approval.
@@ -42,5 +53,6 @@
 - Rotate credentials used during recovery.
 - Re-enable traffic gradually and observe integrity counters and critical workflows.
 
-No backup or restore drill was executed as part of the local code changes. This
-document defines the required controlled procedure.
+A source archive restore drill was executed against an isolated temporary clone.
+No database archive was restored into production, and no failed or unverified
+database package is treated as recovery evidence.

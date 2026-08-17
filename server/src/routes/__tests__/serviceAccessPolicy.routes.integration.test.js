@@ -50,6 +50,7 @@ describe("GET /api/admin/service-access-policies", () => {
         id: "paid",
         label: "User có gói / HLV",
       }),
+      expect.objectContaining({ id: "fitness_plus", label: "HT Fitness+" }),
     ]);
     expect(response.body.data.services).toEqual(
       expect.arrayContaining([
@@ -60,6 +61,9 @@ describe("GET /api/admin/service-access-policies", () => {
             user: expect.objectContaining({ limit: 3 }),
             coaching_customer: expect.objectContaining({ limit: 10 }),
             trainer: expect.objectContaining({ limit: 10 }),
+            fitness_plus_essential: expect.objectContaining({ limit: 15 }),
+            fitness_plus_smart: expect.objectContaining({ limit: 30 }),
+            fitness_plus_max: expect.objectContaining({ limit: 60 }),
           }),
         }),
       ]),

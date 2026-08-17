@@ -8,7 +8,7 @@ middleware bị lệch nhau.
 
 ## Audience tiers
 
-Backend giữ bốn tier độc lập:
+Backend giữ bảy tier độc lập:
 
 | Tier | Điều kiện |
 |---|---|
@@ -16,26 +16,29 @@ Backend giữ bốn tier độc lập:
 | `user` | User đã xác thực nhưng không có entitlement đang hoạt động |
 | `coaching_customer` | Có Order `approved` và còn `sessions > 0` |
 | `trainer` | Role `admin`/`trainer` hoặc có TrainerSubscription đang hoạt động và chưa hết hạn |
+| `fitness_plus_essential` | Có HT Fitness+ Nền tảng đang hoạt động và chưa hết hạn |
+| `fitness_plus_smart` | Có HT Fitness+ Tăng tốc đang hoạt động và chưa hết hạn |
+| `fitness_plus_max` | Có HT Fitness+ Toàn diện đang hoạt động và chưa hết hạn |
 
 Trang Admin được phép gộp `coaching_customer` và `trainer` thành cột “User có gói / HLV” khi policy giống nhau,
 nhưng API vẫn phải giữ hai tier để có thể tách chính sách sau này.
 
 ## Canonical policy
 
-| Dịch vụ | Guest | User thường | User có gói / HLV |
-|---|---|---|---|
-| Meal Scan | 2 lượt / 24 giờ / IP | 3 lượt / 24 giờ / user | 10 lượt / 24 giờ / user |
-| AI Chat | 5 tin / giờ / IP | 15 tin / giờ / user | 30 tin / giờ / user |
-| Meal Plan | 1 preview / session | 1 lượt / lifetime | Không giới hạn |
-| TDEE | Không giới hạn | Không giới hạn | Không giới hạn |
+| Dịch vụ | Guest | User thường | User có gói / HLV | HT Fitness+ Nền tảng | HT Fitness+ Tăng tốc | HT Fitness+ Toàn diện |
+|---|---|---|---|---|---|---|
+| Meal Scan | 2 lượt / 24 giờ / IP | 3 lượt / 24 giờ / user | 10 lượt / 24 giờ / user | 15 lượt / 30 ngày / user | 30 lượt / 30 ngày / user | 60 lượt / 30 ngày / user |
+| AI Chat | 5 tin / giờ / IP | 15 tin / giờ / user | 30 tin / giờ / user | 20 tin / giờ / user | 40 tin / giờ / user | 60 tin / giờ / user |
+| Meal Plan | 1 preview / session | 1 lượt / lifetime | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
+| TDEE | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
 
-Không thêm daily cap phụ cho AI Chat trong phiên bản này. Các giá trị trên là product policy, không được hardcode
+Không thêm monthly fair-use cap phụ cho AI Chat trong phiên bản này. Các giá trị trên là product policy, không được hardcode
 lặp lại trong middleware hoặc trang Admin.
 
 ## API and UI contract
 
 - `GET /api/admin/service-access-policies` chỉ cho role `admin`, trả `version`, `columns` và danh sách service cùng
-  policy theo bốn tier, quyền lợi gói HLV và catalog tính năng cộng đồng/khách hàng. Endpoint chỉ đọc và không cần CSRF.
+  policy theo bảy tier, quyền lợi gói HLV và catalog tính năng cộng đồng/khách hàng. Endpoint chỉ đọc và không cần CSRF.
 - Trang `/admin/service-access-policies` tên “Quyền & hạn mức”, nằm trong nhóm “Hoạt động”, lazy-loaded và dùng
   TanStack Query qua service frontend.
 - Trang có loading, retry/error, empty state, bảng responsive và giải thích nguồn chính sách là registry code.
@@ -98,24 +101,24 @@ lặp lại trong middleware hoặc trang Admin.
 ## Security and privacy boundaries
 
 - Guest quota tiếp tục dùng khóa IP đã HMAC; không lưu hoặc log raw IP.
-- Authenticated quota dùng user ID; tier chỉ được resolver backend xác định từ role/Order/TrainerSubscription.
+- Authenticated quota dùng user ID; tier chỉ được resolver backend xác định từ role/Order/TrainerSubscription/FitnessSubscription. Hai quota HT Fitness+ dùng shared Mongo rolling store atomic, bounded và TTL để không reset theo process/deploy; các tier legacy giữ store hiện tại.
 - Không tin tier do client gửi, không hạ CSRF, auth, ownership hoặc rate limit hiện có.
-- Không tạo migration/schema trong thay đổi này.
+- Registry quota không cần migration; HT Fitness+ có collection subscription và quota usage riêng, không backfill document cũ. Sáu production indexes active/idempotency/query/quota-unique/quota-TTL được quản lý bằng script guarded `20260817-fitness-plus-subscription-indexes.js` vì production tắt `autoIndex`; script chỉ chạy sau preflight, target lock và xác nhận vận hành riêng.
 - Endpoint Admin không trả dữ liệu user, usage history hoặc identifier; chỉ trả policy cấu hình.
 
 ## Testing strategy
 
-- Unit/integration test registry và tier resolver cho guest, user, coaching customer và trainer.
+- Unit/integration test registry và tier resolver cho guest, user, coaching customer, trainer và ba plan HT Fitness+.
 - Integration test Admin API fail closed với non-admin.
-- Integration test Meal Scan 2/3/10 và quota metadata.
-- Middleware test AI Chat 5/15/30 từ registry, cộng với client test mapping/format metadata.
+- Integration test Meal Scan 2/3/10/15/30/60 và quota metadata.
+- Middleware test AI Chat 5/15/30/20/40/60 từ registry; quota-store test cross-instance persistence, rolling trim và growth bound; client test mapping/format metadata.
 - Chạy AI check, UI check phạm vi trang mới, client/server tests, build và security gates trước bàn giao.
 
 ## Success criteria
 
 - Không còn quota AI Chat/Meal Scan hardcode tách khỏi registry.
 - User thường thực tế bị giới hạn Meal Scan 3 lượt/24 giờ và AI Chat 15 tin/giờ.
-- User có gói/HLV nhận đúng hạn mức cao hơn mà không cần client truyền tier.
+- User có gói/HLV và ba plan HT Fitness+ nhận đúng hạn mức mà không cần client truyền tier.
 - Admin thấy bảng canonical từ API; thêm service/tier policy vào registry sẽ xuất hiện thành hàng/cell tương ứng.
 - Admin thấy bốn gói HLV và quyền lợi khớp Pricing từ cùng catalog canonical; hai bảng có thể đóng/mở độc lập.
 - Admin thấy bảng tính năng cộng đồng/khách hàng đúng 7 cột, có priority `F0`–`F3`, lịch sử xử lý có ngày và có thể lọc theo

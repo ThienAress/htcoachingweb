@@ -122,6 +122,7 @@ describe("Wallet and account query infrastructure", () => {
     expect({ orders, transactions, contracts }).toEqual({
       orders: {
         trainerSubscriptions: [],
+        fitnessSubscriptions: [],
         trainerOrders: [{ _id: "order-1" }],
         clientOrders: [],
       },
