@@ -12,7 +12,7 @@
 - **Depends on**: 020, 046, 052
 - **Category**: security / operations
 - **Planned at**: 2026-08-17
-- **Status**: IN PROGRESS — GITHUB OWNER AUTH AND DATABASE CLOUD APPROVAL REQUIRED
+- **Status**: IN PROGRESS — OFF-DEVICE DATABASE RECOVERY AND CONTINUOUS RECOVERY DECISION PENDING
 
 ## Why This Matters
 
@@ -20,11 +20,11 @@ Source code hiện chỉ có một remote GitHub, hai branch quan trọng chưa 
 
 ## Current State
 
-- HEAD khi lập plan: `2276611fac870ec970c3c1dd43e9b7be37634dbc`; working tree đang dirty vì Chat UI và HT Fitness+ chưa commit, phải được snapshot mà không stash/commit/reset.
+- HEAD của recovery evidence hiện tại: `7b5b6177c655ff9cf13eb7135be1118b99ec364c` trên `staging`.
 - `origin` là `https://github.com/ThienAress/htcoachingweb.git`; default branch public là `main`, local branch là `staging`.
-- GitHub CLI đã cài nhưng device authorization chưa hoàn tất với owner `ThienAress`; browser hiện đăng nhập account `ThienHermec`, không có bằng chứng quyền admin để áp ruleset.
-- `docs/operations/production/backup-readiness.json` trỏ tới logical backup hoàn tất `2026-08-12T10:55:16.609Z`; integrity và isolated restore pass nhưng `offDeviceRecoveryVerified=false`, `continuousRecoveryAvailable=false`.
-- `npm run audit:backup-readiness` báo backup quá 24 giờ và chưa có bản off-device độc lập.
+- GitHub owner session đã áp branch protection cho `main` và `staging`: required checks `client`, `server`, `secrets`, `e2e`; strict/up-to-date; chặn force-push/xóa branch và áp dụng cho admin.
+- `docs/operations/production/backup-readiness.json` trỏ tới logical backup hoàn tất `2026-08-17T13:51:58.030Z`; integrity, isolated restore và source fingerprint pass; `offDeviceRecoveryVerified=false`, `continuousRecoveryAvailable=false`.
+- `npm run verify:backup-release` pass; disaster-recovery vẫn blocked cho tới khi có bản archive + key khôi phục được ngoài máy này.
 - MongoDB Atlas CLI xác nhận đang signed out. Render CLI đã xác minh owner email, workspace `tea-d1mahp2li9vc7399j8d0` và production service `srv-d70gd0fafjfc73csn9ag` (`htcoachingweb`, branch `main`) mà không in giá trị env.
 - MongoDB Database Tools 100.17.0, 7-Zip 26.02 và MongoDB Community 8.2.12 portable đã sẵn sàng; Community ZIP khớp SHA-256 công bố bởi MongoDB.
 - Source backup `htcoachingweb-source-20260817T102325Z` đã được tạo trong OneDrive sync directory và pass isolated clone, `git fsck`, overlay restore cùng fingerprint. OneDrive client đang chạy, nhưng chưa có retrieval từ provider session/device độc lập.
@@ -135,11 +135,11 @@ Source code hiện chỉ có một remote GitHub, hai branch quan trọng chưa 
 - [ ] Weekly local schedule exists and has one successful run to the selected sync directory.
 - [ ] Independent source copy has been downloaded/read from a separate provider session or device and restore-tested (local OneDrive sync copy đã restore-test, nhưng chưa đủ điều kiện độc lập).
 - [x] Daily recovery-readiness workflow is valid and ready to run after push.
-- [ ] GitHub `main` and `staging` show force-push/delete protection and required CI checks.
-- [ ] Fresh production database backup passes integrity and isolated restore verification.
+- [x] GitHub `main` and `staging` show force-push/delete protection and required CI checks.
+- [x] Fresh production database backup passes integrity and isolated restore verification.
 - [ ] Database archive and portable recovery key pass independent off-device recovery.
-- [ ] `verify:backup-release` and `verify:disaster-recovery` pass.
-- [ ] Atlas continuous recovery status is documented accurately; any paid upgrade has owner approval.
+- [x] `verify:backup-release` passes; `verify:disaster-recovery` remains correctly blocked until independent off-device recovery is tested.
+- [x] Atlas continuous recovery is documented accurately as unavailable; no paid tier change was made.
 - [ ] Ops tests, secret/data-boundary scans, agent validation and `git diff --check` pass.
 - [x] `docs/plans/README.md` reflects the current truthful status.
 
@@ -150,7 +150,9 @@ Source code hiện chỉ có một remote GitHub, hai branch quan trọng chưa 
 - Source backup `htcoachingweb-source-20260817T102325Z` của dirty `staging` working tree đã hoàn tất isolated clone, `git fsck`, overlay restore và file fingerprint comparison trong OneDrive sync directory.
 - Workflow YAML parsed successfully with the installed `js-yaml` dependency; both PowerShell files passed parser validation.
 - Scheduled Task chưa được đăng ký vì owner chưa xác nhận lịch chạy. OneDrive source copy đã có nhưng chưa được xem là off-device verified cho tới khi tải lại từ session/device độc lập.
-- Live GitHub rules vẫn pending vì device flow chưa xác thực owner `ThienAress`. Atlas signed out; Render production target đã được xác minh. Thử nghiệm fresh logical backup đã fail closed ở bước kiểm tra encrypted archive, mọi plaintext/package chưa xác minh đã được xóa và readiness manifest không bị cập nhật sai.
+- GitHub rules for `main` and `staging` are active with the four required CI checks, strict status checks, delete/force-push blocking and admin enforcement.
+- Fresh backup `production-logical-backup-20260817T135121Z` completed at `2026-08-17T13:51:58.030Z`: 69 collections, 3,925 documents, AES-256 archive integrity, isolated restore and source/index fingerprints all passed. Production writes were zero.
+- `npm run verify:backup-release` passes. `npm run verify:disaster-recovery` correctly remains blocked until an archive and its recovery key can be retrieved and restore-tested from independent off-device storage.
 
 ## STOP Conditions
 
