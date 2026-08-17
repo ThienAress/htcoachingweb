@@ -101,9 +101,10 @@ lặp lại trong middleware hoặc trang Admin.
 ## Security and privacy boundaries
 
 - Guest quota tiếp tục dùng khóa IP đã HMAC; không lưu hoặc log raw IP.
-- Authenticated quota dùng user ID; tier chỉ được resolver backend xác định từ role/Order/TrainerSubscription/FitnessSubscription. Hai quota HT Fitness+ dùng shared Mongo rolling store atomic, bounded và TTL để không reset theo process/deploy; các tier legacy giữ store hiện tại.
+- Authenticated quota dùng user ID; tier chỉ được resolver backend xác định từ role/Order/TrainerSubscription/FitnessSubscription.
+- AI Chat và Meal Scan của tier legacy consume atomically từ MongoDB shared ledger để nhất quán khi chạy nhiều replica; HT Fitness+ dùng shared Mongo rolling store atomic, bounded và TTL. Các limiter abuse chỉ là lớp chống flood.
 - Không tin tier do client gửi, không hạ CSRF, auth, ownership hoặc rate limit hiện có.
-- Registry quota không cần migration; HT Fitness+ có collection subscription và quota usage riêng, không backfill document cũ. Sáu production indexes active/idempotency/query/quota-unique/quota-TTL được quản lý bằng script guarded `20260817-fitness-plus-subscription-indexes.js` vì production tắt `autoIndex`; script chỉ chạy sau preflight, target lock và xác nhận vận hành riêng.
+- Registry quota không cần migration; shared ledger, confirmation và HT Fitness+ có collection additive riêng, không backfill document cũ. Sáu production indexes HT Fitness+ và các secondary indexes AI hardening được quản lý bằng migration guarded vì production tắt `autoIndex`; chỉ chạy sau preflight, target lock và xác nhận vận hành riêng.
 - Endpoint Admin không trả dữ liệu user, usage history hoặc identifier; chỉ trả policy cấu hình.
 
 ## Testing strategy

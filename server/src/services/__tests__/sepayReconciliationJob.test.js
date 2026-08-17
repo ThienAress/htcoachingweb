@@ -46,4 +46,34 @@ describe("SePay reconciliation background job", () => {
       retryDelay: setTimer.mock.calls[1][1],
     }).toEqual({ started: true, firstDelay: 0, retryDelay: 2400 });
   });
+
+  it("stops future schedules and lets shutdown await the active run", async () => {
+    process.env.SEPAY_ENABLED = "true";
+    process.env.SEPAY_RECONCILIATION_ENABLED = "true";
+    const callbacks = [];
+    const setTimer = vi.fn((callback, delay) => {
+      callbacks.push(callback);
+      return { delay, unref: vi.fn() };
+    });
+    let releaseRun;
+    const run = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          releaseRun = () =>
+            resolve({ imported: 0, processed: 0, deferred: 0, locked: 0 });
+        }),
+    );
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const job = startSePayReconciliationJob({ run, setTimer });
+    const activeRun = callbacks[0]();
+    await Promise.resolve();
+    const stopped = job.stop();
+
+    releaseRun();
+    await Promise.all([activeRun, stopped]);
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(setTimer).toHaveBeenCalledTimes(1);
+  });
 });

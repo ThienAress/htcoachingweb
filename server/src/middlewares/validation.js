@@ -2267,3 +2267,73 @@ export const validateSkillRadarCreate = [
   body("lifecycle").isIn(["candidate", "active", "watch"]),
   handleValidationErrors,
 ];
+
+export const validateAiToolConfirmation = [
+  body().custom((value) => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some((key) => key !== "token")
+    ) {
+      throw new Error("Dữ liệu xác nhận không hợp lệ");
+    }
+    return true;
+  }),
+  body("token").isString().matches(/^[A-Za-z0-9_-]{43}$/),
+  handleValidationErrors,
+];
+
+const exactExerciseSuggestionBody = body().custom((value) => {
+  const allowed = ["name", "muscleGroup", "description"];
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).some((key) => !allowed.includes(key))
+  ) {
+    throw new Error("Payload góp ý bài tập không hợp lệ");
+  }
+  return true;
+});
+
+export const validateCreateExerciseSuggestion = [
+  exactExerciseSuggestionBody,
+  body("name").isString().trim().isLength({ min: 2, max: 160 }),
+  body("muscleGroup").optional().isString().trim().isLength({ max: 100 }),
+  body("description").optional().isString().trim().isLength({ max: 1000 }),
+  handleValidationErrors,
+];
+
+export const validateExerciseSuggestionList = [
+  query("page").optional().isInt({ min: 1, max: 100000 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+  query("status").optional().isIn(["pending", "approved", "rejected"]),
+  query("search").optional().isString().trim().isLength({ max: 100 }),
+  handleValidationErrors,
+];
+
+export const validateExerciseSuggestionId = [
+  param("id").isMongoId().withMessage("ID góp ý không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateExerciseSuggestionUpdate = [
+  param("id").isMongoId().withMessage("ID góp ý không hợp lệ"),
+  body().custom((value) => {
+    const allowed = ["status", "adminNote"];
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      !Object.hasOwn(value, "status") ||
+      Object.keys(value).some((key) => !allowed.includes(key))
+    ) {
+      throw new Error("Payload cập nhật góp ý không hợp lệ");
+    }
+    return true;
+  }),
+  body("status").isIn(["pending", "approved", "rejected"]),
+  body("adminNote").optional().isString().trim().isLength({ max: 1000 }),
+  handleValidationErrors,
+];

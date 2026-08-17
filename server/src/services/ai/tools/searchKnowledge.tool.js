@@ -7,6 +7,46 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash";
 import { safeLog } from "../../../utils/safeLogger.js";
 
+const MAX_GROUNDING_SOURCES = 3;
+const MAX_GROUNDING_URL_CHARACTERS = 2048;
+const MAX_GROUNDING_TITLE_CHARACTERS = 160;
+
+const escapeMarkdownLabel = (value) =>
+  String(value || "")
+    .slice(0, MAX_GROUNDING_TITLE_CHARACTERS)
+    .replace(/[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069]/g, " ")
+    .replace(/([\\[\]])/g, "\\$1")
+    .replace(/[\r\n]+/g, " ")
+    .trim();
+
+export const normalizeGroundingSources = (chunks) => {
+  if (!Array.isArray(chunks)) return [];
+  const seen = new Set();
+  const sources = [];
+
+  for (const chunk of chunks) {
+    const source = chunk?.web;
+    if (!source?.uri || String(source.uri).length > MAX_GROUNDING_URL_CHARACTERS) {
+      continue;
+    }
+    try {
+      const url = new URL(String(source.uri));
+      if (url.protocol !== "https:" || url.username || url.password) continue;
+      url.hash = "";
+      const href = url.href;
+      if (seen.has(href)) continue;
+      seen.add(href);
+      const title = escapeMarkdownLabel(source.title) || escapeMarkdownLabel(url.hostname);
+      if (!title) continue;
+      sources.push({ title, uri: href });
+      if (sources.length === MAX_GROUNDING_SOURCES) break;
+    } catch {
+      // Provider URLs are untrusted data; malformed entries are ignored.
+    }
+  }
+  return sources;
+};
+
 /**
  * Tra cứu thông tin thực tế bằng Google Search Grounding
  * @param {{ query: string }} params
@@ -70,17 +110,16 @@ export async function searchKnowledge({ query }, context = {}) {
       ?.join("") || "Không tìm thấy thông tin phù hợp.";
 
     // Lấy nguồn (URLs) từ grounding metadata — tối đa 3 nguồn
-    const sources = candidate?.groundingMetadata?.groundingChunks
-      ?.map((c) => c.web)
-      ?.filter(Boolean)
-      ?.slice(0, 3) || [];
+    const sources = normalizeGroundingSources(
+      candidate?.groundingMetadata?.groundingChunks,
+    );
 
     let result = text;
     if (sources.length === 0) {
       result = "Xin lỗi, hiện tại mình chưa tìm thấy thông tin chính xác về vấn đề này. Bạn có câu hỏi nào khác về tập luyện hay dinh dưỡng không?";
     } else {
       const sourceLinks = sources
-        .map((s) => `[${s.title || s.uri}](${s.uri})`)
+        .map((s) => `[${s.title}](<${s.uri}>)`)
         .join(" · ");
       result += `\n\n📎 *Nguồn: ${sourceLinks}*`;
     }

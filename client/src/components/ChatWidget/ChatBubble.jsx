@@ -8,6 +8,7 @@ import TrainerInfoCard from "./cards/TrainerInfoCard";
 import WalletSummaryCard from "./cards/WalletSummaryCard";
 import WorkoutPlanCard from "./cards/WorkoutPlanCard";
 import BlogListCard from "./cards/BlogListCard";
+import ConfirmationCard from "./cards/ConfirmationCard";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { getChatScrollBehavior } from "./chatPanelRuntime";
@@ -20,6 +21,7 @@ const CARD_COMPONENTS = {
   wallet: WalletSummaryCard,
   workoutPlan: WorkoutPlanCard,
   blogList: BlogListCard,
+  confirmation: ConfirmationCard,
 };
 
 const ThinkingDots = () => (

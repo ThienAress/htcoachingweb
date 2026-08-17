@@ -1,5 +1,6 @@
 import DepositRequest from "../models/DepositRequest.js";
 import ContactMessage from "../models/ContactMessage.js";
+import { createRecurringJob } from "../operations/recurringJob.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 giờ
@@ -47,16 +48,18 @@ async function cleanupOldContactMessages() {
   }
 }
 
+const runCleanupJobs = () =>
+  Promise.all([cleanupOldDepositRequests(), cleanupOldContactMessages()]);
+
+const cleanupCron = createRecurringJob({
+  name: "cleanup_cron",
+  intervalMs: INTERVAL_MS,
+  task: runCleanupJobs,
+});
+
 export function startCleanupCronJobs() {
   safeLog.info("cleanup_cron.started", { intervalMs: INTERVAL_MS });
-
-  // Chạy ngay lần đầu khi server khởi động
-  cleanupOldDepositRequests();
-  cleanupOldContactMessages();
-
-  // Lặp lại mỗi 24 giờ
-  setInterval(() => {
-    cleanupOldDepositRequests();
-    cleanupOldContactMessages();
-  }, INTERVAL_MS);
+  return cleanupCron.start();
 }
+
+export const stopCleanupCronJobs = () => cleanupCron.stop();

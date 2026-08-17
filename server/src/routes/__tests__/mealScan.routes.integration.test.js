@@ -10,6 +10,7 @@ import {
   withAuth,
 } from "../../__tests__/setup.js";
 import WalletTransaction from "../../models/WalletTransaction.js";
+import ServiceUsageBucket from "../../models/ServiceUsageBucket.js";
 import mealScanRoutes from "../mealScan.routes.js";
 import { analyzeMealImage } from "../../services/mealScan.service.js";
 
@@ -134,7 +135,7 @@ describe("POST /api/meal-scans/analyze", () => {
     }
 
     expect(statuses).toEqual([200, 200, 200, 429]);
-    expect(limitedResponse.headers["ratelimit-policy"]).toMatch(/3;w=86400/);
+    expect(limitedResponse.headers["ratelimit-policy"]).toBeUndefined();
     expect(limitedResponse.body).toMatchObject({
       success: false,
       code: "MEAL_SCAN_RATE_LIMITED",
@@ -177,6 +178,22 @@ describe("POST /api/meal-scans/analyze", () => {
     expect(response.body).toMatchObject({
       success: false,
       code: "MEAL_SCAN_DATA_USE_CONSENT_REQUIRED",
+    });
+    expect(analyzeMealImage).not.toHaveBeenCalled();
+  });
+
+  test("fails closed before the provider when the shared ledger is unavailable", async () => {
+    analyzeMealImage.mockResolvedValue(RESULT);
+    vi.spyOn(ServiceUsageBucket, "findOneAndUpdate").mockRejectedValueOnce(
+      new Error("synthetic ledger outage"),
+    );
+
+    const response = await anonymousScan(app, "198.51.100.16");
+
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({
+      success: false,
+      code: "SERVICE_USAGE_UNAVAILABLE",
     });
     expect(analyzeMealImage).not.toHaveBeenCalled();
   });

@@ -33,6 +33,7 @@ nguồn canonical trước khi thay đổi code.
 - [Upstream Skill Radar spec](./specs/upstream-skill-radar.md)
 - [Sitewide AI Assistant context and guest access spec](./specs/sitewide-ai-assistant.md)
 - [Explicit AI Memory pilot spec](./specs/ai-explicit-memory.md)
+- [HT Assistant hardening và scale readiness spec](./specs/ai-assistant-hardening-and-scale-readiness.md)
 - [Service access policy spec](./specs/service-access-policy.md)
 - [TDEE, độ phức tạp bài tập và Tiến trình cơ thể spec](./specs/tdee-exercise-body-progress.md)
 - [Tự động đối soát chuyển khoản và cộng ví qua SePay spec](./specs/automatic-wallet-deposit-settlement.md)
@@ -51,6 +52,7 @@ nguồn canonical trước khi thay đổi code.
 - [Security coverage ledger 2026-08-02](./audits/security-coverage-ledger-2026-08-02.md)
 - [Codex Security scan runbook](./operations/runbooks/codex-security-scan.md)
 - [Security workflow skill drift audit 2026-08-02](./audits/2026-08-02-security-workflow-skill-drift.md)
+- [Backend foundations and advanced concepts audit 2026-08-13](./audits/backend-foundations-and-advanced-concepts-2026-08-13.md)
 - [Skill Radar audit 2026-08](./audits/2026-08-skill-radar.md)
 - [Production rollback](./operations/runbooks/production-rollback-runbook.md)
 

@@ -1,4 +1,5 @@
 import { expireOldContracts } from "./contract.service.js";
+import { createRecurringJob } from "../operations/recurringJob.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 // Chạy mỗi 24 giờ — expire HĐ chưa ký sau 7 ngày
@@ -15,12 +16,15 @@ async function runExpireContracts() {
   }
 }
 
+const contractCron = createRecurringJob({
+  name: "contract_cron",
+  intervalMs: INTERVAL_MS,
+  task: runExpireContracts,
+});
+
 export function startContractCronJobs() {
   safeLog.info("contract_cron.started", { intervalMs: INTERVAL_MS });
-
-  // Chạy ngay lần đầu
-  runExpireContracts();
-
-  // Lặp lại mỗi 24 giờ
-  setInterval(runExpireContracts, INTERVAL_MS);
+  return contractCron.start();
 }
+
+export const stopContractCronJobs = () => contractCron.stop();

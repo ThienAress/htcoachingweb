@@ -17,6 +17,7 @@ import {
   teardownTestDB,
 } from "../../__tests__/setup.js";
 import ChatConversation from "../../models/ChatConversation.js";
+import ServiceUsageBucket from "../../models/ServiceUsageBucket.js";
 import { getAllConversations } from "../knowledgeBase.controller.js";
 
 const TEST_CSRF = "test-csrf-token";
@@ -126,6 +127,35 @@ describe("AI guest access", () => {
       .send({ message: "Xin chào" });
 
     expect(response.status).toBe(403);
+  });
+
+  it("enforces the shared five-message quota across guest sessions", async () => {
+    const responses = [];
+    for (let attempt = 1; attempt <= 6; attempt += 1) {
+      responses.push(
+        await guestRequest({
+          message: `Câu hỏi fitness ${attempt}`,
+          requestId: `a26e93e8-8d21-4be2-9c6e-2ebf3cc340b${attempt}`,
+        }),
+      );
+    }
+
+    expect(responses.map(({ status }) => status)).toEqual([
+      200, 200, 200, 200, 200, 429,
+    ]);
+    expect(responses[4].text).toContain('"remaining":0');
+    expect(responses[5].body).toMatchObject({
+      code: "AI_GUEST_RATE_LIMITED",
+      meta: { quota: { tier: "guest", limit: 5, remaining: 0 } },
+    });
+    expect(await ServiceUsageBucket.countDocuments()).toBe(1);
+  });
+
+  it("rejects malformed chat before consuming shared quota", async () => {
+    const response = await guestRequest({ message: "" });
+
+    expect(response.status).toBe(400);
+    expect(await ServiceUsageBucket.countDocuments()).toBe(0);
   });
 
   it("rejects image input for guest mode", async () => {

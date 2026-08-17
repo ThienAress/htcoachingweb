@@ -11,6 +11,12 @@ import {
 } from "../constants/serviceAccessPolicies.js";
 import { FitnessPlusQuotaStore } from "./fitnessPlusQuotaStore.js";
 
+export const AI_CHAT_ABUSE_LIMIT = 60;
+export const MEAL_SCAN_ABUSE_LIMIT = 30;
+
+const abuseHandler = ({ code, message }) => (_req, res) =>
+  res.status(429).json({ success: false, code, message });
+
 const FITNESS_PLUS_TIERS = new Set([
   SERVICE_ACCESS_TIERS.FITNESS_PLUS_ESSENTIAL,
   SERVICE_ACCESS_TIERS.FITNESS_PLUS_SMART,
@@ -83,19 +89,33 @@ export const fitnessPlusAiChatLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// AI Chat authenticated legacy tiers; Fitness+ dùng shared durable store phía trên.
-export const aiChatLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 giờ
-  limit: getQuotaLimit("ai_chat"),
-  skip: (req) => !req.user?.id || isFitnessPlusRequest(req),
+export const fitnessPlusMealScanLimiter = rateLimit({
+  windowMs: FITNESS_PLUS_MEAL_SCAN_STORE.windowMs,
+  store: new FitnessPlusQuotaStore(FITNESS_PLUS_MEAL_SCAN_STORE),
+  limit: getQuotaLimit("meal_scan"),
+  skip: (req) => !isFitnessPlusRequest(req),
   keyGenerator: (req) => req.user.id.toString(),
   handler: quotaHandler({
-    serviceKey: "ai_chat",
-    code: "AI_RATE_LIMITED",
+    serviceKey: "meal_scan",
+    code: "MEAL_SCAN_RATE_LIMITED",
     message: (quota) =>
-      `Bạn đã dùng hết ${quota?.limit || 15} tin trong giờ này. Vui lòng thử lại sau.`,
+      `Bạn đã dùng hết ${quota?.limit || 15} lượt Meal Scan trong 30 ngày.`,
   }),
   standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Operational flood ceiling; commercial legacy quotas are enforced by the shared ledger.
+export const aiChatLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: AI_CHAT_ABUSE_LIMIT,
+  skip: (req) => !req.user?.id || isFitnessPlusRequest(req),
+  keyGenerator: (req) => req.user.id.toString(),
+  handler: abuseHandler({
+    code: "AI_CHAT_ABUSE_RATE_LIMITED",
+    message: "Bạn gửi yêu cầu quá nhanh. Vui lòng thử lại sau.",
+  }),
+  standardHeaders: false,
   legacyHeaders: false,
 });
 
@@ -114,16 +134,14 @@ const createAnonymousAiChatKey = (req) =>
 
 export const aiGuestChatLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: getQuotaLimit("ai_chat"),
+  limit: AI_CHAT_ABUSE_LIMIT,
   skip: (req) => Boolean(req.user?.id),
   keyGenerator: createAnonymousAiChatKey,
-  handler: quotaHandler({
-    serviceKey: "ai_chat",
-    code: "AI_GUEST_RATE_LIMITED",
-    message: (quota) =>
-      `Bạn đã dùng hết ${quota?.limit || 5} lượt hỏi miễn phí trong giờ này. Đăng nhập để tiếp tục.`,
+  handler: abuseHandler({
+    code: "AI_GUEST_ABUSE_RATE_LIMITED",
+    message: "Bạn gửi yêu cầu quá nhanh. Vui lòng thử lại sau.",
   }),
-  standardHeaders: true,
+  standardHeaders: false,
   legacyHeaders: false,
 });
 
@@ -136,46 +154,26 @@ const createAnonymousMealScanKey = (req) =>
 
 export const mealScanAnonymousLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
-  limit: getQuotaLimit("meal_scan"),
+  limit: MEAL_SCAN_ABUSE_LIMIT,
   skip: (req) => Boolean(req.user?.id),
   keyGenerator: createAnonymousMealScanKey,
-  handler: quotaHandler({
-    serviceKey: "meal_scan",
-    code: "MEAL_SCAN_ANONYMOUS_LIMITED",
-    message: (quota) =>
-      `Bạn đã dùng hết ${quota?.limit || 2} lượt quét miễn phí trong 24 giờ. Đăng nhập để tiếp tục.`,
+  handler: abuseHandler({
+    code: "MEAL_SCAN_ANONYMOUS_ABUSE_RATE_LIMITED",
+    message: "Bạn gửi yêu cầu quét quá nhanh. Vui lòng thử lại sau.",
   }),
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-export const fitnessPlusMealScanLimiter = rateLimit({
-  windowMs: FITNESS_PLUS_MEAL_SCAN_STORE.windowMs,
-  store: new FitnessPlusQuotaStore(FITNESS_PLUS_MEAL_SCAN_STORE),
-  limit: getQuotaLimit("meal_scan"),
-  skip: (req) => !isFitnessPlusRequest(req),
-  keyGenerator: (req) => req.user.id.toString(),
-  handler: quotaHandler({
-    serviceKey: "meal_scan",
-    code: "MEAL_SCAN_RATE_LIMITED",
-    message: (quota) =>
-      `Bạn đã dùng hết ${quota?.limit || 15} lượt Meal Scan trong 30 ngày.`,
-  }),
-  standardHeaders: true,
+  standardHeaders: false,
   legacyHeaders: false,
 });
 
 export const mealScanLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
-  limit: getQuotaLimit("meal_scan"),
+  limit: MEAL_SCAN_ABUSE_LIMIT,
   skip: (req) => !req.user?.id || isFitnessPlusRequest(req),
   keyGenerator: (req) => req.user.id.toString(),
-  handler: quotaHandler({
-    serviceKey: "meal_scan",
-    code: "MEAL_SCAN_RATE_LIMITED",
-    message: (quota) =>
-      `Bạn đã dùng hết ${quota?.limit || 3} lượt quét trong 24 giờ. Vui lòng thử lại sau.`,
+  handler: abuseHandler({
+    code: "MEAL_SCAN_ABUSE_RATE_LIMITED",
+    message: "Bạn gửi yêu cầu quét quá nhanh. Vui lòng thử lại sau.",
   }),
-  standardHeaders: true,
+  standardHeaders: false,
   legacyHeaders: false,
 });

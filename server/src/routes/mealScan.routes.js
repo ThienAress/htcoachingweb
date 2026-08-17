@@ -10,6 +10,7 @@ import {
 } from "../middlewares/aiRateLimit.js";
 import { resolveServiceAccessTierMiddleware } from "../middlewares/resolveServiceAccessTier.js";
 import { validateMealScanImage } from "../middlewares/mealScanImage.js";
+import { enforceSharedServiceUsage } from "../middlewares/serviceUsageLedger.js";
 
 const router = express.Router();
 
@@ -27,6 +28,7 @@ router.post(
   fitnessPlusMealScanLimiter,
   mealScanAnonymousLimiter,
   mealScanLimiter,
+  enforceSharedServiceUsage("meal_scan"),
   analyzeMealScan,
 );
 

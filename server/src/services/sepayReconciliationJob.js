@@ -37,38 +37,38 @@ export const startSePayReconciliationJob = ({
   );
   let timer = null;
   let stopped = false;
-  let active = false;
+  let activeRun = null;
   const schedule = (delayMs) => {
     if (stopped) return;
     timer = setTimer(execute, delayMs);
     timer?.unref?.();
   };
-  const execute = async () => {
-    if (stopped) return;
-    if (active) {
-      schedule(intervalMs);
-      return;
-    }
-    active = true;
+  const execute = () => {
+    if (stopped) return Promise.resolve();
+    if (activeRun) return activeRun;
     let nextDelay = intervalMs;
-    try {
-      const result = await run();
-      safeLog.info("financial.sepay_reconciliation_completed", {
-        imported: result.imported,
-        processed: result.processed,
-        deferred: result.deferred,
-        locked: result.locked,
+    activeRun = Promise.resolve()
+      .then(run)
+      .then((result) => {
+        safeLog.info("financial.sepay_reconciliation_completed", {
+          imported: result.imported,
+          processed: result.processed,
+          deferred: result.deferred,
+          locked: result.locked,
+        });
+      })
+      .catch((error) => {
+        nextDelay = retryDelay(error, intervalMs);
+        safeLog.error("financial.sepay_reconciliation_job_failed", error, {
+          errorCode: error?.code || "UNKNOWN_ERROR",
+          retryInMs: nextDelay,
+        });
+      })
+      .finally(() => {
+        activeRun = null;
+        schedule(nextDelay);
       });
-    } catch (error) {
-      nextDelay = retryDelay(error, intervalMs);
-      safeLog.error("financial.sepay_reconciliation_job_failed", error, {
-        errorCode: error?.code || "UNKNOWN_ERROR",
-        retryInMs: nextDelay,
-      });
-    } finally {
-      active = false;
-      schedule(nextDelay);
-    }
+    return activeRun;
   };
 
   safeLog.info("financial.sepay_reconciliation_job_started", { intervalMs });
@@ -78,6 +78,7 @@ export const startSePayReconciliationJob = ({
     stop: () => {
       stopped = true;
       if (timer) clearTimeout(timer);
+      return activeRun || Promise.resolve();
     },
   };
 };

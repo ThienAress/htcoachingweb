@@ -10,6 +10,7 @@ import F1MediaDeletionJob from "../models/F1MediaDeletionJob.js";
 import F1OutcomeForecast from "../models/F1OutcomeForecast.js";
 import F1ResultPrediction from "../models/F1ResultPrediction.js";
 import { incrementMetric } from "../observability/metrics.js";
+import { createRecurringJob } from "../operations/recurringJob.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { processF1MediaDeletionBatch } from "./f1MediaLifecycle.service.js";
 
@@ -358,29 +359,30 @@ export const runF1RetentionSweep = async ({
   return { dryRun: false, candidates: candidates.length, queued };
 };
 
-let lifecycleTimer = null;
+let lifecycleJob = null;
 
 export const startF1LifecycleCron = () => {
-  if (lifecycleTimer) return lifecycleTimer;
-  const intervalMs = Math.max(
-    Number(process.env.F1_LIFECYCLE_INTERVAL_MS || 5 * 60 * 1000),
-    30_000,
-  );
-  const run = async () => {
-    try {
-      await processF1DataDeletionBatch();
-      await runF1RetentionSweep();
-    } catch (error) {
-      safeLog.error("f1.lifecycle.tick_failed", error);
-    }
-  };
-  lifecycleTimer = setInterval(run, intervalMs);
-  lifecycleTimer.unref?.();
-  run();
-  return lifecycleTimer;
+  if (!lifecycleJob) {
+    const intervalMs = Math.max(
+      Number(process.env.F1_LIFECYCLE_INTERVAL_MS || 5 * 60 * 1000),
+      30_000,
+    );
+    lifecycleJob = createRecurringJob({
+      name: "f1.lifecycle",
+      intervalMs,
+      task: async () => {
+        await processF1DataDeletionBatch();
+        await runF1RetentionSweep();
+      },
+    });
+  }
+  return lifecycleJob.start();
 };
 
-export const stopF1LifecycleCronForTests = () => {
-  if (lifecycleTimer) clearInterval(lifecycleTimer);
-  lifecycleTimer = null;
+export const stopF1LifecycleCron = () => {
+  const stopped = lifecycleJob?.stop() || Promise.resolve();
+  lifecycleJob = null;
+  return stopped;
 };
+
+export const stopF1LifecycleCronForTests = stopF1LifecycleCron;

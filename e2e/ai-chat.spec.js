@@ -80,4 +80,41 @@ test.describe("AI chat", () => {
     await page.getByText("Phiên A", { exact: true }).click();
     await expect(page.getByText("Phản hồi A đã hoàn tất ở nền")).toBeVisible();
   });
+
+  test("submits an opaque confirmation token and settles the card", async ({
+    page,
+  }) => {
+    let confirmationBody;
+    await page.route("**/api/**", (route) =>
+      route.continue({
+        headers: {
+          ...route.request().headers(),
+          "x-e2e-role": "user",
+          "x-e2e-ai-scenario": "confirmation",
+        },
+      }),
+    );
+    page.on("request", (request) => {
+      if (request.url().endsWith("/api/ai/tool-confirmations/confirm")) {
+        confirmationBody = request.postDataJSON();
+      }
+    });
+
+    await page.goto("/");
+    await page.getByRole("button", { name: "Mở HT Assistant" }).click();
+    const input = page
+      .getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...")
+      .first();
+    await input.fill("Thực hiện hành động đã kiểm tra");
+    await input.press("Enter");
+    await page.getByRole("button", { name: "Xác nhận", exact: true }).click();
+
+    await expect(page.getByText("Đã xác nhận và xử lý hành động.")).toBeVisible();
+    expect(confirmationBody).toEqual({
+      token: "abcdefghijklmnopqrstuvwxyzABCDEFGH123456789",
+    });
+    await expect(
+      page.getByRole("button", { name: "Xác nhận", exact: true }),
+    ).toHaveCount(0);
+  });
 });

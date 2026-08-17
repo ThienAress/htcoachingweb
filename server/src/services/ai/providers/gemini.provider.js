@@ -2,6 +2,10 @@
 // Model: gemini-3.1-flash-lite (Free: 15 RPM, 250K TPM, 500 RPD)
 // Hỗ trợ: Function Calling + Streaming
 import { safeLog } from "../../../utils/safeLogger.js";
+import {
+  canonicalizeToolResultForModel,
+  serializeToolResultForModel,
+} from "../tools/toolResultBoundary.js";
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
@@ -113,15 +117,22 @@ function convertMessages(messages) {
       }
       if (parts.length > 0) rawContents.push({ role: "model", parts });
     } else if (msg.role === "tool") {
-      let responseData;
-      try {
-        responseData = typeof msg.content === "string" ? JSON.parse(msg.content) : msg.content;
-      } catch {
-        responseData = { result: msg.content };
-      }
-      if (typeof responseData !== "object" || responseData === null) {
-         responseData = { result: String(responseData) };
-      }
+      const content =
+        typeof msg.content === "string"
+          ? msg.content
+          : JSON.stringify(msg.content ?? "");
+      const responseData = JSON.parse(
+        msg.toolResultEnvelope === true
+          ? canonicalizeToolResultForModel({
+              toolName: msg.name,
+              content,
+            })
+          : serializeToolResultForModel({
+              toolName: msg.name,
+              text: content,
+              status: "success",
+            }),
+      );
 
       rawContents.push({
         role: "user",
