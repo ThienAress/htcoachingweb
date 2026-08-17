@@ -129,9 +129,11 @@ export const verifySourceBackup = async ({ packageDirectory }) => {
       ["clone", "--branch", manifest.branch, bundlePath, restoredRepo],
       { cwd: restoreRoot },
     );
-    await run("git", ["apply", "--binary", "--whitespace=nowarn", patchPath], {
-      cwd: restoredRepo,
-    });
+    if ((await stat(patchPath)).size > 0) {
+      await run("git", ["apply", "--binary", "--whitespace=nowarn", patchPath], {
+        cwd: restoredRepo,
+      });
+    }
     for (const entry of manifest.files) {
       const source = path.join(packageRoot, "worktree", entry.path);
       const relativePath = entry.path;

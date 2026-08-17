@@ -68,6 +68,26 @@ test("source backup restores refs and a dirty non-ignored working tree", async (
   }
 });
 
+test("source backup verifies a clean working tree with an empty patch", async () => {
+  const current = await fixture();
+  try {
+    await runGit(current.repo, ["restore", "tracked.txt"]);
+    await rm(path.join(current.repo, "binary.bin"));
+
+    const result = await createSourceBackup({
+      repoRoot: current.repo,
+      targetDirectory: current.target,
+      now: new Date("2026-08-17T08:30:00.000Z"),
+    });
+
+    assert.equal(result.verified, true);
+    assert.equal(result.dirty, false);
+    assert.equal(result.untrackedFileCount, 0);
+  } finally {
+    await rm(current.root, { recursive: true, force: true });
+  }
+});
+
 test("source backup rejects targets inside the repository", async () => {
   const current = await fixture();
   try {
