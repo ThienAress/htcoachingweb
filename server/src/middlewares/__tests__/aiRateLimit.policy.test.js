@@ -14,9 +14,6 @@ import {
   AI_CHAT_ABUSE_LIMIT,
   aiChatLimiter,
   aiGuestChatLimiter,
-  fitnessPlusAiChatLimiter,
-  fitnessPlusMealScanLimiter,
-  mealScanAnonymousLimiter,
   mealScanLimiter,
   MEAL_SCAN_ABUSE_LIMIT,
 } from "../aiRateLimit.js";
@@ -64,7 +61,6 @@ beforeAll(async () => {
       next();
     },
     resolveServiceAccessTierMiddleware,
-    fitnessPlusMealScanLimiter,
     mealScanLimiter,
     enforceSharedServiceUsage("meal_scan"),
     (req, res) => res.json({ quota: serializeRequestQuota(req, "meal_scan") }),
@@ -77,7 +73,6 @@ beforeAll(async () => {
       next();
     },
     resolveServiceAccessTierMiddleware,
-    fitnessPlusAiChatLimiter,
     aiChatLimiter,
     enforceSharedServiceUsage("ai_chat"),
     (req, res) => res.json({ quota: serializeRequestQuota(req, "ai_chat") }),
@@ -130,11 +125,21 @@ describe("commercial quota ledger and Fitness+ quota", () => {
       );
     }
     expect(responses.slice(0, 5).map((response) => response.status)).toEqual([200, 200, 200, 200, 200]);
-    expect(responses[4].body.quota).toMatchObject({ limit: 5, remaining: 0 });
+    expect(responses[4].body.quota).toMatchObject({
+      limit: 5,
+      remaining: 0,
+      windows: [
+        expect.objectContaining({
+          key: "rolling_24_hours",
+          limit: 5,
+          remaining: 0,
+        }),
+      ],
+    });
     expect(responses[5].body).toMatchObject({ code: "AI_GUEST_RATE_LIMITED" });
   });
 
-  it("limits regular users to fifteen AI messages and trainers to thirty", async () => {
+  it("limits regular users to fifteen daily AI messages and trainers to thirty per hour", async () => {
     const regularId = new mongoose.Types.ObjectId();
     const regular = [];
     for (let attempt = 1; attempt <= 16; attempt += 1) {
@@ -171,15 +176,15 @@ describe("commercial quota ledger and Fitness+ quota", () => {
     expect(ai).toEqual([...Array(20).fill(200), 429]);
 
     const meal = [];
-    for (let attempt = 1; attempt <= 16; attempt += 1) {
+    for (let attempt = 1; attempt <= 6; attempt += 1) {
       meal.push((await request(app).post(`/fitness-meal/${user._id}`)).status);
     }
-    expect(meal).toEqual([...Array(15).fill(200), 429]);
+    expect(meal).toEqual([...Array(5).fill(200), 429]);
   });
 
   it.each([
-    { tier: "fitness_plus_smart", aiLimit: 40, mealLimit: 30 },
-    { tier: "fitness_plus_max", aiLimit: 60, mealLimit: 60 },
+    { tier: "fitness_plus_smart", aiLimit: 40, mealLimit: 10 },
+    { tier: "fitness_plus_max", aiLimit: 60, mealLimit: 15 },
   ])("enforces $tier boundaries from the registry", async ({ tier, aiLimit, mealLimit }) => {
     const userId = new mongoose.Types.ObjectId();
     const ai = [];

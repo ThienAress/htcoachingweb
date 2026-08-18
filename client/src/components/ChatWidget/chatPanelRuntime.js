@@ -39,9 +39,33 @@ export const getChatVisualViewportBounds = (browser = globalThis.window) => {
   };
 };
 
+const normalizeQuotaWindows = (quota) => {
+  const candidates =
+    Array.isArray(quota?.windows) && quota.windows.length > 0
+      ? quota.windows
+      : [quota];
+  return candidates.filter(
+    (window) =>
+      Number.isSafeInteger(window?.remaining) &&
+      Number.isSafeInteger(window?.limit) &&
+      window.remaining >= 0 &&
+      window.limit >= 1 &&
+      window.remaining <= window.limit,
+  );
+};
+
+const selectBindingQuotaWindow = (quota) =>
+  [...normalizeQuotaWindows(quota)].sort((left, right) => {
+    const ratioDifference =
+      left.remaining / left.limit - right.remaining / right.limit;
+    if (ratioDifference !== 0) return ratioDifference;
+    return left.remaining - right.remaining;
+  })[0];
+
 export const getChatQuotaPresentation = (quota) => {
-  const remaining = quota?.remaining;
-  const limit = quota?.limit;
+  const bindingWindow = selectBindingQuotaWindow(quota);
+  const remaining = bindingWindow?.remaining;
+  const limit = bindingWindow?.limit;
 
   if (
     !Number.isSafeInteger(remaining) ||
@@ -75,7 +99,9 @@ export const getChatQuotaStatusLine = (quota) => {
   const presentation = getChatQuotaPresentation(quota);
   if (!presentation) return null;
 
-  const resetAt = new Date(quota?.resetAt);
+  const windows = normalizeQuotaWindows(quota);
+  const bindingWindow = selectBindingQuotaWindow(quota);
+  const resetAt = new Date(bindingWindow?.resetAt);
   let resetLabel = "";
   if (!Number.isNaN(resetAt.getTime())) {
     const parts = Object.fromEntries(
@@ -86,8 +112,18 @@ export const getChatQuotaStatusLine = (quota) => {
     resetLabel = ` · Làm mới ${parts.hour}:${parts.minute} ${parts.day}/${parts.month}`;
   }
 
+  const remainingLabel =
+    windows.length > 1
+      ? windows
+          .map(
+            (window) =>
+              `${window.remaining}/${window.limit}${window.periodLabel ? ` ${window.periodLabel}` : ""}`,
+          )
+          .join(" · ")
+      : `${presentation.remaining}/${presentation.limit} lượt`;
+
   return {
-    label: `Còn ${presentation.remaining}/${presentation.limit} lượt${resetLabel}`,
+    label: `Còn ${remainingLabel}${resetLabel}`,
     tone: presentation.tone,
   };
 };

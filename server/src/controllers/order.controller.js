@@ -21,6 +21,11 @@ import {
   normalizeConversionOriginPersistenceError,
   resolveConversionOrigin,
 } from "../services/conversionOrigin.service.js";
+import {
+  SERVICE_ACCESS_POLICY_VERSION,
+  SERVICE_ACCESS_TIERS,
+  createServiceEntitlementSnapshot,
+} from "../constants/serviceAccessPolicies.js";
 
 const orderError = (status, code, message) =>
   Object.assign(new Error(message), { status, code });
@@ -251,10 +256,20 @@ export const getCheckinOrderOptions = async (req, res) => {
 
 export const approveOrder = async (req, res) => {
   try {
+    const entitlementPolicySnapshot = createServiceEntitlementSnapshot(
+      SERVICE_ACCESS_TIERS.COACHING_CUSTOMER,
+    );
     // Atomic: chỉ approve nếu đang pending
     const order = await Order.findOneAndUpdate(
       { _id: req.params.id, status: "pending" },
-      { $set: { status: "approved", approvedAt: new Date() } },
+      {
+        $set: {
+          status: "approved",
+          approvedAt: new Date(),
+          entitlementPolicyVersion: SERVICE_ACCESS_POLICY_VERSION,
+          entitlementPolicySnapshot,
+        },
+      },
       { returnDocument: "after" },
     );
 
@@ -371,6 +386,10 @@ export const updateOrder = async (req, res) => {
     }
     if (order.status === "pending" && updateData.status === "approved") {
       updateData.approvedAt = new Date();
+      updateData.entitlementPolicyVersion = SERVICE_ACCESS_POLICY_VERSION;
+      updateData.entitlementPolicySnapshot = createServiceEntitlementSnapshot(
+        SERVICE_ACCESS_TIERS.COACHING_CUSTOMER,
+      );
     }
     if (isTodayPlatformEnabled()) {
       const lifecycleAt = new Date();

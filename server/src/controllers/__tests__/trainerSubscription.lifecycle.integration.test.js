@@ -149,13 +149,24 @@ describe("trainer subscription lifecycle", () => {
 
     const subscription = await TrainerSubscription.findOne({
       userId: actor.user._id,
-    });
+    }).select("+entitlementPolicyVersion +entitlementPolicySnapshot");
     const durationDays =
       (subscription.endDate - subscription.startDate) / (24 * 60 * 60 * 1000);
 
     expect(activated.status).toBe(201);
     expect(subscription.planCode).toBe("free");
     expect(subscription.amount).toBe(0);
+    expect(subscription).toMatchObject({
+      entitlementPolicyVersion: "2026-08-18.2",
+      entitlementPolicySnapshot: {
+        ai_chat: expect.objectContaining({
+          windows: [
+            expect.objectContaining({ key: "burst", limit: 30 }),
+            expect.objectContaining({ key: "monthly", limit: 1200 }),
+          ],
+        }),
+      },
+    });
     expect(durationDays).toBe(30);
     expect(
       await TrainerTrialClaim.countDocuments({

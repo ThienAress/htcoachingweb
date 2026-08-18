@@ -9,7 +9,6 @@ import { prepareAiChatRequest } from "../middlewares/aiChatRequest.js";
 import {
   aiChatLimiter,
   aiGuestChatLimiter,
-  fitnessPlusAiChatLimiter,
 } from "../middlewares/aiRateLimit.js";
 import { resolveServiceAccessTierMiddleware } from "../middlewares/resolveServiceAccessTier.js";
 import {
@@ -52,7 +51,6 @@ router.post(
   prepareAiChatRequest,
   resolveServiceAccessTierMiddleware,
   aiGuestChatLimiter,
-  fitnessPlusAiChatLimiter,
   aiChatLimiter,
   enforceSharedServiceUsage("ai_chat"),
   chatStream,

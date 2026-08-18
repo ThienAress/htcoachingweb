@@ -2,9 +2,9 @@ import express from "express";
 
 import { analyzeMealScan } from "../controllers/mealScan.controller.js";
 import { optionalMealScanAuth } from "../middlewares/optionalMealScanAuth.js";
+import { ensureMealScanActor } from "../middlewares/mealScanGuestSession.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import {
-  fitnessPlusMealScanLimiter,
   mealScanAnonymousLimiter,
   mealScanLimiter,
 } from "../middlewares/aiRateLimit.js";
@@ -22,10 +22,10 @@ router.use((_req, res, next) => {
 router.post(
   "/analyze",
   optionalMealScanAuth,
+  ensureMealScanActor,
   csrfProtection,
   validateMealScanImage,
   resolveServiceAccessTierMiddleware,
-  fitnessPlusMealScanLimiter,
   mealScanAnonymousLimiter,
   mealScanLimiter,
   enforceSharedServiceUsage("meal_scan"),

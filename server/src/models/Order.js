@@ -59,6 +59,17 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    entitlementPolicyVersion: {
+      type: String,
+      default: null,
+      maxlength: 40,
+      select: false,
+    },
+    entitlementPolicySnapshot: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+      select: false,
+    },
     ...createConversionOriginFields(),
   },
   { timestamps: true },
@@ -86,5 +97,13 @@ orderSchema.index({ trainerId: 1, status: 1 });
 orderSchema.index({ trainerId: 1, status: 1, sessions: 1 });
 orderSchema.index({ trainerId: 1, createdAt: -1 });
 orderSchema.index({ userId: 1, createdAt: -1 });
+
+orderSchema.set("toJSON", {
+  transform: (_document, result) => {
+    delete result.entitlementPolicyVersion;
+    delete result.entitlementPolicySnapshot;
+    return result;
+  },
+});
 
 export default mongoose.model("Order", orderSchema);

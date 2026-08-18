@@ -20,36 +20,47 @@ Backend giữ bảy tier độc lập:
 | `fitness_plus_smart` | Có HT Fitness+ Tăng tốc đang hoạt động và chưa hết hạn |
 | `fitness_plus_max` | Có HT Fitness+ Toàn diện đang hoạt động và chưa hết hạn |
 
-Trang Admin được phép gộp `coaching_customer` và `trainer` thành cột “User có gói / HLV” khi policy giống nhau,
-nhưng API vẫn phải giữ hai tier để có thể tách chính sách sau này.
+Trang Admin giữ `coaching_customer` và `trainer` thành hai nhãn riêng trong cùng nhóm trình bày; API và runtime
+không được gộp policy vì hai tier có quota khác nhau. Khi một user có nhiều entitlement active, backend chọn policy
+mạnh nhất theo từng service; mua thêm entitlement không được làm quota hiện có thấp đi.
 
 ## Canonical policy
 
-| Dịch vụ | Guest | User thường | User có gói / HLV | HT Fitness+ Nền tảng | HT Fitness+ Tăng tốc | HT Fitness+ Toàn diện |
-|---|---|---|---|---|---|---|
-| Meal Scan | 2 lượt / 24 giờ / IP | 3 lượt / 24 giờ / user | 10 lượt / 24 giờ / user | 15 lượt / 30 ngày / user | 30 lượt / 30 ngày / user | 60 lượt / 30 ngày / user |
-| AI Chat | 5 tin / giờ / IP | 15 tin / giờ / user | 30 tin / giờ / user | 20 tin / giờ / user | 40 tin / giờ / user | 60 tin / giờ / user |
-| Meal Plan | 1 preview / session | 1 lượt / lifetime | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
-| TDEE | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
+| Dịch vụ | Guest | User thường | Khách coaching | HLV | HT Fitness+ Nền tảng | HT Fitness+ Tăng tốc | HT Fitness+ Toàn diện |
+|---|---|---|---|---|---|---|---|
+| Meal Scan | 1 lượt / lifetime / trình duyệt | 1 lượt / lifetime / tài khoản | 10 lượt/ngày + 300 lượt/30 ngày | 20 lượt/ngày + 600 lượt/30 ngày | 5 lượt/ngày + 120 lượt/30 ngày | 10 lượt/ngày + 210 lượt/30 ngày | 15 lượt/ngày + 300 lượt/30 ngày |
+| AI Chat | 5 tin/24 giờ / IP | 15 tin/24 giờ + 60 tin/30 ngày | 30 tin/giờ + 600 tin/30 ngày | 30 tin/giờ + 1.200 tin/30 ngày | 20 tin/giờ + 120 tin/30 ngày | 40 tin/giờ + 300 tin/30 ngày | 60 tin/giờ + 600 tin/30 ngày |
+| Meal Plan | 1 preview / session | 1 lượt / lifetime | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
+| TDEE | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
 
-Không thêm monthly fair-use cap phụ cho AI Chat trong phiên bản này. Các giá trị trên là product policy, không được hardcode
-lặp lại trong middleware hoặc trang Admin.
+Burst/daily window là lớp kiểm soát tốc độ sử dụng; cửa sổ 30 ngày là quyền lợi thương mại. Guest Meal Scan được nhận
+diện bằng opaque httpOnly browser cookie và vẫn nằm sau flood limiter theo IP; xóa cookie/đổi trình duyệt không phải
+security boundary tuyệt đối. Các giá trị trên là product policy, không được hardcode lặp lại trong middleware hoặc UI.
+
+Order/subscription mới phải lưu policy version và snapshot allowlisted tại thời điểm entitlement bắt đầu. Runtime dùng
+giá trị lớn hơn giữa snapshot và registry hiện tại để khách cũ chỉ được giữ nguyên hoặc tăng quyền lợi, không bị giảm.
+Document cũ chưa có snapshot fallback về registry hiện tại; rollout này không backfill dữ liệu production.
 
 ## API and UI contract
 
 - `GET /api/admin/service-access-policies` chỉ cho role `admin`, trả `version`, `columns` và danh sách service cùng
-  policy theo bảy tier, quyền lợi gói HLV và catalog tính năng cộng đồng/khách hàng. Endpoint chỉ đọc và không cần CSRF.
+  policy theo bảy tier, quyền lợi gói HLV, catalog tính năng cộng đồng/khách hàng và inventory email tự động.
+  Endpoint chỉ đọc và không cần CSRF.
 - Trang `/admin/service-access-policies` tên “Quyền & hạn mức”, nằm trong nhóm “Hoạt động”, lazy-loaded và dùng
   TanStack Query qua service frontend.
 - Trang có loading, retry/error, empty state, bảng responsive và giải thích nguồn chính sách là registry code.
-- Bốn section mặc định mở và sắp xếp cố định: `Tính năng cộng đồng & khách hàng`, `Quyền lợi gói HLV`,
-  `Hạn mức công cụ`, `Phụ thuộc & phiên bản hệ thống`; mỗi section có nút thu gọn bằng
+- Năm section mặc định mở và sắp xếp cố định: `Tính năng cộng đồng & khách hàng`, `Quyền lợi gói HLV`,
+  `Hạn mức công cụ`, `Thông báo email tự động`, `Phụ thuộc & phiên bản hệ thống`; mỗi section có nút thu gọn bằng
   `aria-expanded`/`aria-controls`.
+- `Thông báo email tự động` lấy catalog read-only từ backend và liệt kê tính năng, sự kiện kích hoạt, người nhận,
+  điều kiện gửi, cơ chế delivery cùng template/sender. Catalog chỉ mô tả capability hệ thống, không chứa địa chỉ email,
+  lịch sử gửi hoặc dữ liệu người dùng.
 - `Phụ thuộc & phiên bản hệ thống` tổng hợp read-only `dependencies`/`devDependencies` từ `package.json`,
   `client/package.json` và `server/package.json` ngay tại build time. UI hỗ trợ tìm package, lọc Workspace/Frontend/Backend
   và không gọi npm Registry từ trình duyệt hoặc tự tuyên bố phiên bản mới nhất.
-- Meal Scan response thành công và lỗi 429 trả quota metadata gồm `serviceKey`, `tier`, `limit`, `remaining`,
-  `resetAt`.
+- Meal Scan response thành công và lỗi 429 trả quota metadata gồm các field tương thích `serviceKey`, `tier`, `limit`,
+  `remaining`, `resetAt` và mảng `windows[]` (`key`, `limit`, `remaining`, `resetAt`, `periodLabel`). Lifetime window có
+  `resetAt: null`.
 - AI Chat gửi cùng quota metadata bằng SSE event; lỗi 429 trả metadata trong JSON để client vẫn cập nhật được.
 - Client chỉ hiển thị quota sau khi đã nhận metadata server-authoritative; không tự suy đoán số lượt còn lại. Badge quota nằm cạnh tên `HT Assistant`, chuyển trạng thái cảnh báo khi còn 1-2 lượt hoặc đã hết; thời điểm làm mới vẫn hiển thị dưới ô nhập.
 - HT Assistant chỉ hỗ trợ fitness, tập luyện, dinh dưỡng, phục hồi, sức khỏe mang tính giáo dục và dịch vụ HTCOACHING. Tên/chủ thể mơ hồ được hỏi lại một câu; yêu cầu rõ ràng ngoài phạm vi bị từ chối ngắn, được nhắc là vẫn tính hạn mức và chuyển hướng tới câu hỏi phù hợp. Model không tự nêu số quota AI Chat chính xác.
@@ -100,31 +111,33 @@ lặp lại trong middleware hoặc trang Admin.
 
 ## Security and privacy boundaries
 
-- Guest quota tiếp tục dùng khóa IP đã HMAC; không lưu hoặc log raw IP.
+- Guest AI Chat tiếp tục dùng khóa IP đã HMAC; Guest Meal Scan dùng khóa browser cookie đã HMAC. Không lưu hoặc log raw IP/cookie.
 - Authenticated quota dùng user ID; tier chỉ được resolver backend xác định từ role/Order/TrainerSubscription/FitnessSubscription.
-- AI Chat và Meal Scan của tier legacy consume atomically từ MongoDB shared ledger để nhất quán khi chạy nhiều replica; HT Fitness+ dùng shared Mongo rolling store atomic, bounded và TTL. Các limiter abuse chỉ là lớp chống flood.
+- AI Chat và Meal Scan của mọi tier consume atomically từ MongoDB shared ledger đa cửa sổ để nhất quán khi chạy nhiều replica. Các limiter abuse chỉ là lớp chống flood.
+- Lỗi provider 5xx hoặc timeout hoàn reservation quota tương ứng một cách idempotent; validation/moderation bị từ chối trước provider không được tạo thêm provider cost.
 - Không tin tier do client gửi, không hạ CSRF, auth, ownership hoặc rate limit hiện có.
-- Registry quota không cần migration; shared ledger, confirmation và HT Fitness+ có collection additive riêng, không backfill document cũ. Sáu production indexes HT Fitness+ và các secondary indexes AI hardening được quản lý bằng migration guarded vì production tắt `autoIndex`; chỉ chạy sau preflight, target lock và xác nhận vận hành riêng.
+- Registry và field snapshot additive không cần migration bắt buộc; document cũ fallback an toàn. Không chạy backfill/index production trong implementation này.
 - Endpoint Admin không trả dữ liệu user, usage history hoặc identifier; chỉ trả policy cấu hình.
 
 ## Testing strategy
 
 - Unit/integration test registry và tier resolver cho guest, user, coaching customer, trainer và ba plan HT Fitness+.
 - Integration test Admin API fail closed với non-admin.
-- Integration test Meal Scan 2/3/10/15/30/60 và quota metadata.
-- Middleware test AI Chat 5/15/30/20/40/60 từ registry; quota-store test cross-instance persistence, rolling trim và growth bound; client test mapping/format metadata.
+- Integration test Meal Scan trial 1/1 cùng daily/monthly 10/300, 20/600, 5/120, 10/210, 15/300 và quota metadata.
+- Middleware test AI Chat 5/24h, 15/24h+60/30d, 30/h+600/30d, 30/h+1.200/30d, 20/h+120/30d, 40/h+300/30d, 60/h+600/30d; ledger test concurrency, rolling trim, refund và growth bound.
 - Chạy AI check, UI check phạm vi trang mới, client/server tests, build và security gates trước bàn giao.
 
 ## Success criteria
 
 - Không còn quota AI Chat/Meal Scan hardcode tách khỏi registry.
-- User thường thực tế bị giới hạn Meal Scan 3 lượt/24 giờ và AI Chat 15 tin/giờ.
-- User có gói/HLV và ba plan HT Fitness+ nhận đúng hạn mức mà không cần client truyền tier.
+- Guest thực tế chỉ dùng được 1 Meal Scan trước CTA đăng nhập; User thường chỉ có thêm 1 lượt lifetime theo tài khoản.
+- User thường, khách coaching, HLV và ba plan HT Fitness+ nhận đúng dual-window quota mà không cần client truyền tier.
 - Admin thấy bảng canonical từ API; thêm service/tier policy vào registry sẽ xuất hiện thành hàng/cell tương ứng.
+- Admin thấy inventory email tự động khớp toàn bộ sender export hiện tại mà không lộ địa chỉ nhận hoặc lịch sử gửi.
 - Admin thấy bốn gói HLV và quyền lợi khớp Pricing từ cùng catalog canonical; hai bảng có thể đóng/mở độc lập.
 - Admin thấy bảng tính năng cộng đồng/khách hàng đúng 7 cột, có priority `F0`–`F3`, lịch sử xử lý có ngày và có thể lọc theo
   `Nhóm`, `Đối tượng` hoặc kết hợp cả hai.
 - Admin xem được timeline ngày → tính năng → hạng mục, thống kê cùng filter và tải PDF sáu cột từ cùng report read model.
 - Admin xem được ba manifest package và danh sách phụ thuộc theo đúng phiên bản khai báo của lần build hiện tại; quyết định
   nâng cấp vẫn phải dựa trên `npm outdated`, security audit, changelog và regression test.
-- Response operational có `limit`, `remaining`, `resetAt` để UI giải thích quota minh bạch.
+- Response operational có field tương thích cùng `windows[]` để UI giải thích quota minh bạch.

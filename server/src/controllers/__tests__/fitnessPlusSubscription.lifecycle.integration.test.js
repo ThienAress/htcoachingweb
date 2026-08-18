@@ -79,6 +79,20 @@ describe("HT Fitness+ subscription lifecycle", () => {
     expect(response.body.data.planCode).toBe("fitness_plus_smart");
     expect(response.body.data.newBalance).toBe(51000);
     expect(await FitnessSubscription.countDocuments({ userId: actor.user._id })).toBe(1);
+    const stored = await FitnessSubscription.findOne({ userId: actor.user._id })
+      .select("+entitlementPolicyVersion +entitlementPolicySnapshot")
+      .lean();
+    expect(stored).toMatchObject({
+      entitlementPolicyVersion: "2026-08-18.2",
+      entitlementPolicySnapshot: {
+        meal_scan: expect.objectContaining({
+          windows: [
+            expect.objectContaining({ key: "daily", limit: 10 }),
+            expect.objectContaining({ key: "monthly", limit: 210 }),
+          ],
+        }),
+      },
+    });
     expect(
       await WalletTransaction.countDocuments({
         userId: actor.user._id,
@@ -96,6 +110,7 @@ describe("HT Fitness+ subscription lifecycle", () => {
       entitlements: { digitalTracking: true },
     });
     expect(current.body.data).not.toHaveProperty("purchaseRequestId");
+    expect(current.body.data).not.toHaveProperty("entitlementPolicySnapshot");
   });
 
   it("replays a duplicate request without debiting the wallet twice", async () => {

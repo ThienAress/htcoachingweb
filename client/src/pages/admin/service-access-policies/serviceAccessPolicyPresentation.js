@@ -8,6 +8,7 @@ const policySignature = (policy) =>
     scope: policy?.scope,
     scopeLabel: policy?.scopeLabel,
     enforcement: policy?.enforcement,
+    windows: policy?.windows,
   });
 
 export const formatPolicy = (policy) => {
@@ -18,8 +19,17 @@ export const formatPolicy = (policy) => {
     return { primary: "Không giới hạn", secondary: "" };
   }
 
+  const windows =
+    Array.isArray(policy.windows) && policy.windows.length > 0
+      ? policy.windows
+      : [policy];
   return {
-    primary: `${policy.limit} ${policy.unitLabel} / ${policy.periodLabel}`,
+    primary: windows
+      .map(
+        (window) =>
+          `${window.limit} ${policy.unitLabel} / ${window.periodLabel}`,
+      )
+      .join(" + "),
     secondary: policy.scopeLabel ? `Theo ${policy.scopeLabel}` : "",
   };
 };

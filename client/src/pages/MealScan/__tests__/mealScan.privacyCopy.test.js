@@ -13,4 +13,18 @@ describe("Meal Scan unpaid provider disclosure", () => {
       en: expect.stringMatching(/Google Gemini.*may.*improve/i),
     });
   });
+
+  test("describes the one guest scan plus one account scan funnel", () => {
+    expect({
+      viHint: vi.uploader.anonymous_hint,
+      viLogin: vi.uploader.login_more,
+      enHint: en.uploader.anonymous_hint,
+      enLogin: en.uploader.login_more,
+    }).toEqual({
+      viHint: expect.stringMatching(/1 lượt/i),
+      viLogin: expect.stringMatching(/thêm 1 lượt/i),
+      enHint: expect.stringMatching(/1 trial scan/i),
+      enLogin: expect.stringMatching(/1 additional scan/i),
+    });
+  });
 });

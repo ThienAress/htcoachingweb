@@ -1,0 +1,82 @@
+name: htcoaching-local
+
+services:
+  mongo:
+    image: mongo:8.2.12-noble@sha256:dc23b0dde2221277b581dd76933f39f8a765fee9dbd99b9deb19184c063c061f
+    command: ["mongod", "--bind_ip_all", "--quiet"]
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "quit(db.adminCommand({ ping: 1 }).ok ? 0 : 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  api:
+    image: ${HTCOACHING_API_IMAGE:-htcoaching-api:local}
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    init: true
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      APP_ENV: development
+      PORT: "5000"
+      MONGO_URI: mongodb://mongo:27017/htcoaching_local
+      CLIENT_URL: http://localhost:5173
+      PUBLIC_API_ORIGIN: http://localhost:5000
+      ALLOWED_ORIGINS: http://localhost:5173
+      PREVIEW_ORIGINS: ""
+      JWT_SECRET: ${JWT_SECRET:-local-only-jwt-not-a-secret-local-only-jwt-not-a-secret}
+      REFRESH_SECRET: ${REFRESH_SECRET:-local-only-refresh-not-a-secret-local-only-refresh}
+      LOG_HASH_SECRET: ${LOG_HASH_SECRET:-local-only-log-hash-not-a-secret-local-only-log-hash}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-docker-local-client-id}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-docker-local-not-a-secret}
+      GOOGLE_CALLBACK_URL: http://localhost:5000/api/auth/google/callback
+      AI_PROVIDER: mock
+      MEAL_SCAN_PROVIDER: mock
+      AI_IMAGE_PROVIDER: mock
+      EMAIL_DELIVERY_MODE: disabled
+      F1_MEDIA_STORAGE_PROVIDER: local_private
+      BACKGROUND_JOBS_ENABLED: "false"
+      CSP_ENFORCE: "false"
+      F1_RETENTION_ENFORCE: "false"
+      TODAY_PLATFORM_PRODUCTION_APPROVED: "false"
+    ports:
+      - "127.0.0.1:${HTCOACHING_API_PORT:-5000}:5000"
+    volumes:
+      - private_media:/app/server/.private
+      - local_uploads:/app/server/uploads
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5000/api/ops/health/ready').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    stop_grace_period: 20s
+
+volumes:
+  mongo_data:
+  mongo_config:
+  private_media:
+  local_uploads:

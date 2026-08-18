@@ -25,8 +25,24 @@ describe("HT Fitness+ catalog", () => {
     expect(getFitnessPlusCatalogMeta().catalogFingerprint).toBe(
       createFitnessPlusCatalogFingerprint(),
     );
-    expect(plans.map(({ quotas }) => quotas.aiChat.limit)).toEqual([20, 40, 60]);
-    expect(plans.map(({ quotas }) => quotas.mealScan.limit)).toEqual([15, 30, 60]);
+    expect(
+      plans.map(({ quotas }) =>
+        quotas.aiChat.windows.map(({ key, limit }) => [key, limit]),
+      ),
+    ).toEqual([
+      [["burst", 20], ["monthly", 120]],
+      [["burst", 40], ["monthly", 300]],
+      [["burst", 60], ["monthly", 600]],
+    ]);
+    expect(
+      plans.map(({ quotas }) =>
+        quotas.mealScan.windows.map(({ key, limit }) => [key, limit]),
+      ),
+    ).toEqual([
+      [["daily", 5], ["monthly", 120]],
+      [["daily", 10], ["monthly", 210]],
+      [["daily", 15], ["monthly", 300]],
+    ]);
   });
 
   it("includes quota policy in the checkout catalog fingerprint", () => {

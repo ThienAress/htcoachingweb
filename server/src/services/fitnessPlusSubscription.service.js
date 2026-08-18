@@ -3,6 +3,10 @@ import mongoose from "mongoose";
 import AuditLog from "../models/AuditLog.js";
 import FitnessSubscription from "../models/FitnessSubscription.js";
 import WalletTransaction from "../models/WalletTransaction.js";
+import {
+  SERVICE_ACCESS_POLICY_VERSION,
+  createServiceEntitlementSnapshot,
+} from "../constants/serviceAccessPolicies.js";
 import { applyWalletEntry } from "./walletLedger.service.js";
 import {
   calculateFitnessPlusPlanEndDate,
@@ -134,6 +138,8 @@ export const activateFitnessPlusSubscription = async ({
         source: "self_purchase",
         purchaseRequestId,
         previousSubscriptionId: previousSubscription?._id || null,
+        entitlementPolicyVersion: SERVICE_ACCESS_POLICY_VERSION,
+        entitlementPolicySnapshot: createServiceEntitlementSnapshot(plan.code),
       },
     ],
     { session },

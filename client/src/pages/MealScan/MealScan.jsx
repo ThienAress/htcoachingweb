@@ -66,6 +66,7 @@ export default function MealScan() {
   const [ingredientErrorCode, setIngredientErrorCode] = useState("");
   const [confirmAnalysisOpen, setConfirmAnalysisOpen] = useState(false);
   const [quota, setQuota] = useState(null);
+  const [scanErrorCode, setScanErrorCode] = useState("");
 
   useEffect(
     () => () => {
@@ -131,6 +132,7 @@ export default function MealScan() {
 
   const handleFile = (candidate) => {
     setError("");
+    setScanErrorCode("");
 
     if (!SUPPORTED_TYPES.has(candidate?.type)) {
       setError(t("errors.type"));
@@ -158,6 +160,7 @@ export default function MealScan() {
     setAdjustments({});
     setImageQuality(null);
     setError("");
+    setScanErrorCode("");
     resetIngredientSetup();
     setStatus("idle");
   };
@@ -211,6 +214,7 @@ export default function MealScan() {
     if (!file || !ingredientsLocked) return;
 
     setError("");
+    setScanErrorCode("");
     try {
       setStatus("checking");
       const quality = await inspectMealImageFile(file);
@@ -241,12 +245,14 @@ export default function MealScan() {
       const responseQuota = scanError.response?.data?.meta?.quota;
       if (responseQuota) setQuota(responseQuota);
       const errorCode = scanError.response?.data?.code;
-      const errorKey = SCAN_ERROR_KEYS[errorCode];
-      const quotaLimit =
-        responseQuota?.limit ??
-        (errorCode === "MEAL_SCAN_ANONYMOUS_LIMITED" ? 2 : 3);
+      setScanErrorCode(errorCode || "");
+      const errorKey =
+        errorCode === "MEAL_SCAN_RATE_LIMITED" &&
+        responseQuota?.tier !== "user"
+          ? null
+          : SCAN_ERROR_KEYS[errorCode];
       setError(
-        (errorKey && t(errorKey, { limit: quotaLimit })) ||
+        (errorKey && t(errorKey)) ||
           scanError.response?.data?.message ||
           scanError.message ||
           t("errors.generic"),
@@ -358,28 +364,37 @@ export default function MealScan() {
                 </span>
               </p>
               {quota && (
-                <p
-                  className="mb-3 text-center text-sm font-semibold text-slate-700"
+                <div
+                  className="mb-3 flex flex-wrap justify-center gap-x-3 gap-y-1 text-center text-sm font-semibold text-slate-700"
                   role="status"
                 >
-                  {t("quota.remaining", {
-                    remaining: quota.remaining,
-                    limit: quota.limit,
-                  })}
-                  {quota.resetAt && (
-                    <span className="font-normal text-slate-500">
-                      {" · "}
-                      {t("quota.reset", {
-                        time: new Intl.DateTimeFormat(i18n.language, {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }).format(new Date(quota.resetAt)),
-                      })}
-                    </span>
+                  {(quota.windows?.length ? quota.windows : [quota]).map(
+                    (window) => (
+                      <span key={window.key || window.period || "primary"}>
+                        {t("quota.remaining_window", {
+                          remaining: window.remaining,
+                          limit: window.limit,
+                          period: t(`quota.periods.${window.period}`, {
+                            defaultValue: window.periodLabel || "",
+                          }),
+                        })}
+                        {window.resetAt && (
+                          <span className="font-normal text-slate-500">
+                            {" · "}
+                            {t("quota.reset", {
+                              time: new Intl.DateTimeFormat(i18n.language, {
+                                day: "2-digit",
+                                month: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }).format(new Date(window.resetAt)),
+                            })}
+                          </span>
+                        )}
+                      </span>
+                    ),
                   )}
-                </p>
+                </div>
               )}
               <MealScanUploader
                 user={user}
@@ -421,6 +436,14 @@ export default function MealScan() {
                   declaredIngredients={declaredIngredients}
                   onPortionChange={handlePortionChange}
                   onRetry={requestAnalyze}
+                  quotaAction={
+                    scanErrorCode === "MEAL_SCAN_ANONYMOUS_LIMITED"
+                      ? "login"
+                      : scanErrorCode === "MEAL_SCAN_RATE_LIMITED" &&
+                          quota?.tier === "user"
+                        ? "plans"
+                        : null
+                  }
                 />
               )}
             </div>

@@ -57,13 +57,38 @@ describe("GET /api/admin/service-access-policies", () => {
         expect.objectContaining({
           serviceKey: "meal_scan",
           policies: expect.objectContaining({
-            guest: expect.objectContaining({ limit: 2 }),
-            user: expect.objectContaining({ limit: 3 }),
-            coaching_customer: expect.objectContaining({ limit: 10 }),
-            trainer: expect.objectContaining({ limit: 10 }),
-            fitness_plus_essential: expect.objectContaining({ limit: 15 }),
-            fitness_plus_smart: expect.objectContaining({ limit: 30 }),
-            fitness_plus_max: expect.objectContaining({ limit: 60 }),
+            guest: expect.objectContaining({ limit: 1, period: "lifetime" }),
+            user: expect.objectContaining({ limit: 1, period: "lifetime" }),
+            coaching_customer: expect.objectContaining({
+              windows: [
+                expect.objectContaining({ key: "daily", limit: 10 }),
+                expect.objectContaining({ key: "monthly", limit: 300 }),
+              ],
+            }),
+            trainer: expect.objectContaining({
+              windows: [
+                expect.objectContaining({ key: "daily", limit: 20 }),
+                expect.objectContaining({ key: "monthly", limit: 600 }),
+              ],
+            }),
+            fitness_plus_essential: expect.objectContaining({
+              windows: [
+                expect.objectContaining({ key: "daily", limit: 5 }),
+                expect.objectContaining({ key: "monthly", limit: 120 }),
+              ],
+            }),
+            fitness_plus_smart: expect.objectContaining({
+              windows: [
+                expect.objectContaining({ key: "daily", limit: 10 }),
+                expect.objectContaining({ key: "monthly", limit: 210 }),
+              ],
+            }),
+            fitness_plus_max: expect.objectContaining({
+              windows: [
+                expect.objectContaining({ key: "daily", limit: 15 }),
+                expect.objectContaining({ key: "monthly", limit: 300 }),
+              ],
+            }),
           }),
         }),
       ]),
@@ -91,6 +116,32 @@ describe("GET /api/admin/service-access-policies", () => {
         }),
       ]),
     );
+  });
+
+  it("returns the canonical outbound email inventory to admin", async () => {
+    const { accessToken } = await createTestUser({
+      email: "email-inventory-admin@example.com",
+      role: "admin",
+    });
+
+    const response = await withAuth(
+      request(app).get("/api/admin/service-access-policies"),
+      accessToken,
+    );
+
+    expect(response.body.data.emailNotifications).toEqual({
+      version: "2026-08-18",
+      items: [
+        expect.objectContaining({ notificationKey: "order_approved", sender: "sendMail" }),
+        expect.objectContaining({ notificationKey: "checkin_recorded", sender: "sendCheckinMail" }),
+        expect.objectContaining({ notificationKey: "contact_created", sender: "sendContactNotificationToAdmin" }),
+        expect.objectContaining({ notificationKey: "booking_created", sender: "sendBookingNotificationToAdmin" }),
+        expect.objectContaining({ notificationKey: "schedule_reminder", sender: "sendScheduleReminderMail" }),
+        expect.objectContaining({ notificationKey: "contract_sent", sender: "sendContractMail" }),
+        expect.objectContaining({ notificationKey: "trainer_grant_invitation", sender: "sendTrainerGrantInvitationMail" }),
+        expect.objectContaining({ notificationKey: "trainer_subscription_activated", sender: "sendTrainerSubscriptionActivatedMail" }),
+      ],
+    });
   });
 
   it("returns the canonical community feature catalog to admin", async () => {

@@ -2,7 +2,12 @@ import { Resend } from "resend";
 import escapeHtml from "escape-html";
 import { safeLog } from "./safeLogger.js";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient;
+
+const getResendClient = () => {
+  resendClient ||= new Resend(process.env.RESEND_API_KEY);
+  return resendClient;
+};
 
 const deliverEmail = async (message) => {
   if (
@@ -13,7 +18,7 @@ const deliverEmail = async (message) => {
     });
     return { data: { id: "" } };
   }
-  return resend.emails.send(message);
+  return getResendClient().emails.send(message);
 };
 
 const formatDate = (t) => {

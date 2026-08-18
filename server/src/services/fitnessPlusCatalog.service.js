@@ -18,9 +18,14 @@ const planByTitle = new Map(
   ]),
 );
 
+const cloneQuotaPolicy = (policy) => ({
+  ...policy,
+  windows: (policy.windows || []).map((window) => ({ ...window })),
+});
+
 const getPlanQuotas = (planCode, resolvePolicy = getServiceAccessPolicy) => ({
-  aiChat: { ...resolvePolicy("ai_chat", planCode) },
-  mealScan: { ...resolvePolicy("meal_scan", planCode) },
+  aiChat: cloneQuotaPolicy(resolvePolicy("ai_chat", planCode)),
+  mealScan: cloneQuotaPolicy(resolvePolicy("meal_scan", planCode)),
 });
 
 const clonePlan = (plan, resolvePolicy = getServiceAccessPolicy) => ({

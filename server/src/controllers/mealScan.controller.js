@@ -63,6 +63,14 @@ export const analyzeMealScan = async (req, res) => {
     const status = Number(error?.status) || 500;
     const code = error?.code || "MEAL_SCAN_FAILED";
     safeLog.error("meal_scan.analyze_failed", error, { code, status });
+    let quota = serializeRequestQuota(req, "meal_scan");
+    if (status >= 500 && req.refundServiceUsage) {
+      try {
+        quota = await req.refundServiceUsage();
+      } catch (refundError) {
+        safeLog.error("meal_scan.quota_refund_failed", refundError, { code });
+      }
+    }
 
     return res.status(status).json({
       success: false,
@@ -70,6 +78,7 @@ export const analyzeMealScan = async (req, res) => {
       message:
         errorMessageFor(code, req.mealScanImage?.locale) ||
         "Không thể phân tích ảnh lúc này. Vui lòng thử lại.",
+      ...(quota ? { meta: { quota } } : {}),
     });
   }
 };
