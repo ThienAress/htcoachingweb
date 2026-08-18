@@ -13,6 +13,7 @@ import WalletTransaction from "../../models/WalletTransaction.js";
 import ServiceUsageBucket from "../../models/ServiceUsageBucket.js";
 import mealScanRoutes from "../mealScan.routes.js";
 import { analyzeMealImage } from "../../services/mealScan.service.js";
+import { MEAL_SCAN_GUEST_COOKIE_NAME } from "../../middlewares/mealScanGuestSession.js";
 
 vi.mock("../../services/mealScan.service.js", () => ({
   analyzeMealImage: vi.fn(),
@@ -21,11 +22,14 @@ vi.mock("../../services/mealScan.service.js", () => ({
 const VALID_IMAGE = "data:image/jpeg;base64,YQ==";
 const TEST_CSRF = "a".repeat(64);
 
-const anonymousScan = (app, ip, body = {}) =>
+const anonymousScan = (app, ip, body = {}, guestCookie = null) =>
   request(app)
     .post("/api/meal-scans/analyze")
     .set("X-Forwarded-For", ip)
-    .set("Cookie", [`csrfToken=${TEST_CSRF}`])
+    .set(
+      "Cookie",
+      [`csrfToken=${TEST_CSRF}`, guestCookie].filter(Boolean),
+    )
     .set("X-CSRF-Token", TEST_CSRF)
     .send({
       image: VALID_IMAGE,
@@ -33,6 +37,11 @@ const anonymousScan = (app, ip, body = {}) =>
       providerDataUseAccepted: true,
       ...body,
     });
+
+const getMealScanGuestCookie = (response) =>
+  response.headers["set-cookie"]
+    ?.map((cookie) => cookie.split(";")[0])
+    .find((cookie) => cookie.startsWith(`${MEAL_SCAN_GUEST_COOKIE_NAME}=`));
 const RESULT = {
   mealName: "Cơm gà",
   confidence: "medium",
@@ -63,7 +72,8 @@ describe("POST /api/meal-scans/analyze", () => {
   });
 
   afterEach(async () => {
-    vi.resetAllMocks();
+    vi.restoreAllMocks();
+    analyzeMealImage.mockReset();
     await clearCollections();
   });
 
@@ -100,9 +110,17 @@ describe("POST /api/meal-scans/analyze", () => {
         quota: {
           serviceKey: "meal_scan",
           tier: "user",
-          limit: 3,
-          remaining: 2,
-          resetAt: expect.any(String),
+          limit: 1,
+          remaining: 0,
+          resetAt: null,
+          windows: [
+            expect.objectContaining({
+              key: "lifetime",
+              limit: 1,
+              remaining: 0,
+              resetAt: null,
+            }),
+          ],
         },
       },
     });
@@ -114,13 +132,13 @@ describe("POST /api/meal-scans/analyze", () => {
     });
   });
 
-  test("limits a regular authenticated user to three scans per 24 hours without debiting wallet", async () => {
+  test("gives a regular authenticated user one additional lifetime scan", async () => {
     const { accessToken } = await createTestUser();
     analyzeMealImage.mockResolvedValue(RESULT);
     const statuses = [];
     let limitedResponse;
 
-    for (let attempt = 1; attempt <= 4; attempt += 1) {
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
       const response = await withAuth(
         request(app).post("/api/meal-scans/analyze"),
         accessToken,
@@ -131,17 +149,24 @@ describe("POST /api/meal-scans/analyze", () => {
         providerDataUseAccepted: true,
       });
       statuses.push(response.status);
-      if (attempt === 4) limitedResponse = response;
+      if (attempt === 2) limitedResponse = response;
     }
 
-    expect(statuses).toEqual([200, 200, 200, 429]);
+    expect(statuses).toEqual([200, 429]);
     expect(limitedResponse.headers["ratelimit-policy"]).toBeUndefined();
     expect(limitedResponse.body).toMatchObject({
       success: false,
       code: "MEAL_SCAN_RATE_LIMITED",
-      meta: { quota: { tier: "user", limit: 3, remaining: 0 } },
+      meta: {
+        quota: {
+          tier: "user",
+          limit: 1,
+          remaining: 0,
+          resetAt: null,
+        },
+      },
     });
-    expect(analyzeMealImage).toHaveBeenCalledTimes(3);
+    expect(analyzeMealImage).toHaveBeenCalledTimes(1);
     expect(await WalletTransaction.countDocuments()).toBe(0);
   });
 
@@ -155,8 +180,18 @@ describe("POST /api/meal-scans/analyze", () => {
     expect(response.body).toMatchObject({
       success: true,
       data: RESULT,
-      meta: { quota: { tier: "guest", limit: 2, remaining: 1 } },
+      meta: {
+        quota: {
+          tier: "guest",
+          limit: 1,
+          remaining: 0,
+          resetAt: null,
+        },
+      },
     });
+    expect(getMealScanGuestCookie(response)).toMatch(
+      new RegExp(`^${MEAL_SCAN_GUEST_COOKIE_NAME}=`),
+    );
   });
 
   test("keeps CSRF mandatory for anonymous scans", async () => {
@@ -198,19 +233,24 @@ describe("POST /api/meal-scans/analyze", () => {
     expect(analyzeMealImage).not.toHaveBeenCalled();
   });
 
-  test("limits anonymous provider-bound scans to two per 24 hours", async () => {
+  test("limits a guest browser to one provider-bound scan before login", async () => {
     analyzeMealImage.mockResolvedValue(RESULT);
 
     const first = await anonymousScan(app, "198.51.100.12");
-    const second = await anonymousScan(app, "198.51.100.12");
-    const third = await anonymousScan(app, "198.51.100.12");
+    const guestCookie = getMealScanGuestCookie(first);
+    const second = await anonymousScan(
+      app,
+      "198.51.100.12",
+      {},
+      guestCookie,
+    );
 
-    expect([first.status, second.status, third.status]).toEqual([200, 200, 429]);
-    expect(third.body).toMatchObject({
+    expect([first.status, second.status]).toEqual([200, 429]);
+    expect(second.body).toMatchObject({
       success: false,
       code: "MEAL_SCAN_ANONYMOUS_LIMITED",
     });
-    expect(analyzeMealImage).toHaveBeenCalledTimes(2);
+    expect(analyzeMealImage).toHaveBeenCalledTimes(1);
   });
 
   test("rejects a missing CSRF token", async () => {
@@ -260,12 +300,46 @@ describe("POST /api/meal-scans/analyze", () => {
     const invalid = await anonymousScan(app, ip, {
       image: "data:image/gif;base64,YQ==",
     });
+    const guestCookie = getMealScanGuestCookie(invalid);
     analyzeMealImage.mockResolvedValue(RESULT);
-    const firstValid = await anonymousScan(app, ip);
-    const secondValid = await anonymousScan(app, ip);
+    const firstValid = await anonymousScan(app, ip, {}, guestCookie);
+    const secondValid = await anonymousScan(app, ip, {}, guestCookie);
 
     expect(invalid.status).toBe(400);
-    expect([firstValid.status, secondValid.status]).toEqual([200, 200]);
+    expect([firstValid.status, secondValid.status]).toEqual([200, 429]);
+    expect(analyzeMealImage).toHaveBeenCalledTimes(1);
+  });
+
+  test("refunds the authenticated scan when the provider returns 5xx", async () => {
+    const { accessToken } = await createTestUser();
+    analyzeMealImage
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Provider busy"), {
+          code: "MEAL_SCAN_PROVIDER_BUSY",
+          status: 503,
+        }),
+      )
+      .mockResolvedValueOnce(RESULT);
+
+    const scan = () =>
+      withAuth(
+        request(app).post("/api/meal-scans/analyze"),
+        accessToken,
+      ).send({
+        image: VALID_IMAGE,
+        locale: "vi",
+        providerDataUseAccepted: true,
+      });
+    const failed = await scan();
+    const retried = await scan();
+    const exhausted = await scan();
+
+    expect([
+      failed.status,
+      failed.body.meta?.quota?.remaining,
+      retried.status,
+      exhausted.status,
+    ]).toEqual([503, 1, 200, 429]);
     expect(analyzeMealImage).toHaveBeenCalledTimes(2);
   });
 

@@ -5,6 +5,18 @@ const REQUIRED_PLAN_CODES = [
   "fitness_plus_max",
 ];
 
+const hasQuotaWindows = (policy, requiredKeys) => {
+  if (!Array.isArray(policy?.windows)) return false;
+  const byKey = new Map(policy.windows.map((window) => [window?.key, window]));
+  return (
+    byKey.size === requiredKeys.length &&
+    requiredKeys.every((key) => {
+      const window = byKey.get(key);
+      return Number.isSafeInteger(window?.limit) && window.limit > 0;
+    })
+  );
+};
+
 const hasValidPlanShape = (plan) => {
   if (
     !plan ||
@@ -33,6 +45,8 @@ const hasValidPlanShape = (plan) => {
     ) &&
     Number.isSafeInteger(plan.quotas.aiChat.limit) &&
     Number.isSafeInteger(plan.quotas.mealScan.limit) &&
+    hasQuotaWindows(plan.quotas.aiChat, ["burst", "monthly"]) &&
+    hasQuotaWindows(plan.quotas.mealScan, ["daily", "monthly"]) &&
     plan.features.every((feature) => typeof feature === "string")
   );
 };

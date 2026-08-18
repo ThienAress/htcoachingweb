@@ -103,8 +103,8 @@ secret. Mỗi lần đổi model/prompt/schema phải tạo holdout report mới
   đặt `GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED=true`, giữ disclosure theo từng request ở UI và bắt buộc
   `providerDataUseAccepted=true` tại middleware trước limiter/provider;
   request fail-closed với 503 và không gọi provider. `mock` vẫn chỉ được phép cho staging.
-- Production giữ data-use gate và quota server-authoritative: anonymous 2 lượt/24 giờ/IP,
-  user thường 3 lượt/24 giờ/user, coaching customer và HLV 10 lượt/24 giờ/user. Response 429 không gọi
+- Production giữ data-use gate và quota server-authoritative: anonymous 1 lượt lifetime/browser,
+  user thường thêm 1 lượt lifetime/account; coaching 10/ngày + 300/30 ngày và HLV 20/ngày + 600/30 ngày. Response 429 không gọi
   provider và không debit ví HTCOACHING.
 - Trước deploy, owner phải xác nhận đúng AI Studio project/billing account và phê duyệt project-level
   monthly spend cap bằng USD. Không tự suy ra cap từ app wallet hoặc tier limit.

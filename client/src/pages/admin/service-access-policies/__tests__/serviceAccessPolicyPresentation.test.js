@@ -39,6 +39,21 @@ describe("service access policy presentation", () => {
       primary: "Không giới hạn",
       secondary: "",
     });
+
+    expect(
+      formatPolicy({
+        mode: "quota",
+        unitLabel: "lượt",
+        scopeLabel: "user",
+        windows: [
+          { limit: 10, periodLabel: "ngày" },
+          { limit: 300, periodLabel: "30 ngày" },
+        ],
+      }),
+    ).toEqual({
+      primary: "10 lượt / ngày + 300 lượt / 30 ngày",
+      secondary: "Theo user",
+    });
   });
 
   it("formats trainer plan headers and benefit values", () => {

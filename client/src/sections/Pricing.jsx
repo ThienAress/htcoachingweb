@@ -23,6 +23,7 @@ import {
 } from "../queries/walletAccount.queries";
 import { buildTrainerPlanCategories } from "../utils/trainerPlanBenefits";
 import FitnessPlusPlans from "../components/Pricing/FitnessPlusPlans";
+import PricingSegmentedControl from "../components/Pricing/PricingSegmentedControl";
 
 const TODAY_PROGRESS_PROMPT_DISMISSED_KEY =
   "ht_today_progress_prompt_dismissed";
@@ -478,60 +479,51 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
 
         {!isTrainer && (
-          <div className="flex justify-center items-center gap-4 flex-wrap mt-8 mb-10">
-            <div className="grid w-full max-w-md grid-cols-3 rounded-full bg-[#222] p-1 shadow-lg">
-              {[
-                { key: "1-1", label: "1 - 1" },
-                { key: "online", label: "ONLINE" },
-                { key: "fitness-plus", label: t("pricing.fitness_plus.title_short") },
-              ].map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  aria-pressed={mode === option.key}
-                  onClick={() => setMode(option.key)}
-                  className={`min-h-11 rounded-full px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 sm:min-w-28 sm:px-4 sm:text-sm ${mode === option.key ? "bg-gradient-to-r from-primary to-primary-dark text-white" : "text-gray-400 hover:text-white"}`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+          <div className="mt-8 mb-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+            <PricingSegmentedControl
+              ariaLabel={t("pricing.title_customer")}
+              className="w-full max-w-md"
+              onChange={setMode}
+              options={[
+                { value: "1-1", label: "1-1" },
+                { value: "online", label: "ONLINE" },
+                { value: "trial", label: t("pricing.trial") },
+              ]}
+              value={mode}
+            />
             <button
-              onClick={() => setMode("trial")}
-              className={`h-12 px-6 rounded-full font-semibold text-base transition-all duration-300 shadow-md ${mode === "trial"
-                ? "bg-gradient-to-r from-primary to-primary-dark text-white"
-                : "bg-[#222] text-white hover:-translate-y-0.5 hover:shadow-lg"
-                }`}
+              aria-pressed={mode === "fitness-plus"}
+              onClick={() => setMode("fitness-plus")}
+              className={`group relative isolate h-12 w-full overflow-hidden rounded-full bg-[#222] px-6 text-base font-semibold shadow-lg transition-[color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 motion-reduce:transition-none sm:w-auto ${
+                mode === "fitness-plus" ? "text-white" : "text-gray-400 hover:text-white"
+              }`}
+              type="button"
             >
-              {t("pricing.trial")}
+              <span
+                aria-hidden="true"
+                className={`absolute inset-1 z-0 rounded-full bg-primary shadow-md shadow-black/20 transition-opacity duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+                  mode === "fitness-plus" ? "opacity-100" : "opacity-0"
+                }`}
+              />
+              <span className="relative z-10">
+                {t("pricing.fitness_plus.title_short")}
+              </span>
             </button>
           </div>
         )}
 
         {isTrainer && (
-          <div className="flex justify-center items-center mt-8 mb-10">
-            <div className="relative w-64 h-12 rounded-full bg-[#222] shadow-lg">
-              <div className="relative w-full h-full flex">
-                <button
-                  className={`relative z-10 w-1/2 h-full rounded-full font-semibold text-base transition-colors duration-300 ${billingCycle === "month" ? "text-white" : "text-gray-400"
-                    }`}
-                  onClick={() => setBillingCycle("month")}
-                >
-                  {t("pricing.month")}
-                </button>
-                <button
-                  className={`relative z-10 w-1/2 h-full rounded-full font-semibold text-base transition-colors duration-300 ${billingCycle === "year" ? "text-white" : "text-gray-400"
-                    }`}
-                  onClick={() => setBillingCycle("year")}
-                >
-                  {t("pricing.year")}
-                </button>
-                <div
-                  className={`absolute top-0 w-1/2 h-full bg-gradient-to-r from-primary to-primary-dark rounded-full transition-all duration-500 ease-out ${billingCycle === "month" ? "left-0" : "left-1/2"
-                    }`}
-                ></div>
-              </div>
-            </div>
+          <div className="mt-8 mb-10 flex items-center justify-center">
+            <PricingSegmentedControl
+              ariaLabel={`${t("pricing.month")} / ${t("pricing.year")}`}
+              className="w-full max-w-64"
+              onChange={setBillingCycle}
+              options={[
+                { value: "month", label: t("pricing.month") },
+                { value: "year", label: t("pricing.year") },
+              ]}
+              value={billingCycle}
+            />
           </div>
         )}
 
@@ -555,13 +547,17 @@ const Pricing = ({ isHeroAnimDone = false }) => {
           </div>
         )}
 
-        {!isTrainer && mode === "fitness-plus" ? (
-          <FitnessPlusPlans
-            billingCycle={billingCycle}
-            onBillingCycleChange={setBillingCycle}
-          />
-        ) : (
-        <div className={`grid grid-cols-1 gap-6 2xl:gap-8 mx-auto ${isTrainer ? "sm:grid-cols-2 xl:grid-cols-4 max-w-7xl" : "sm:grid-cols-2 lg:grid-cols-3 max-w-5xl"}`}>
+        <div
+          className="pricing-panel-enter"
+          key={isTrainer ? "trainer" : `customer-${mode}`}
+        >
+          {!isTrainer && mode === "fitness-plus" ? (
+            <FitnessPlusPlans
+              billingCycle={billingCycle}
+              onBillingCycleChange={setBillingCycle}
+            />
+          ) : (
+          <div className={`grid grid-cols-1 gap-6 2xl:gap-8 mx-auto ${isTrainer ? "sm:grid-cols-2 xl:grid-cols-4 max-w-7xl" : "sm:grid-cols-2 lg:grid-cols-3 max-w-5xl"}`}>
           {isTrainer ? (
             trainerPlans.map((plan, idx) => {
               const currentPrice = plan.isFree
@@ -764,8 +760,9 @@ const Pricing = ({ isHeroAnimDone = false }) => {
               </div>
             ))
           )}
+          </div>
+          )}
         </div>
-        )}
 
         {giftModalVisible && (
           <div
@@ -1028,8 +1025,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
               {/* Drawer */}
               <div
-                className="absolute top-0 right-0 h-full w-full max-w-md bg-[#1a1a1a] border-l border-gray-700 shadow-2xl overflow-y-auto"
-                style={{ animation: 'slideInRight 0.35s ease-out forwards' }}
+                className="pricing-checkout-drawer absolute top-0 right-0 h-full w-full max-w-md bg-[#1a1a1a] border-l border-gray-700 shadow-2xl overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Nút đóng */}

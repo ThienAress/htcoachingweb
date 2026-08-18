@@ -2,10 +2,11 @@ import { safeLog } from "../utils/safeLogger.js";
 import { resolveRequestServicePolicy } from "../services/serviceAccessPolicy.service.js";
 import {
   consumeServiceUsage,
+  refundServiceUsage,
   resolveServiceUsageActor,
 } from "../services/serviceUsageLedger.service.js";
 
-const limitedResponse = (serviceKey, authenticated) => {
+const limitedResponse = (serviceKey, { authenticated, tier }) => {
   if (serviceKey === "ai_chat") {
     return authenticated
       ? {
@@ -16,6 +17,13 @@ const limitedResponse = (serviceKey, authenticated) => {
           code: "AI_GUEST_RATE_LIMITED",
           message: "Bạn đã dùng hết lượt hỏi miễn phí hiện tại. Đăng nhập để tiếp tục.",
         };
+  }
+  if (authenticated && tier === "user") {
+    return {
+      code: "MEAL_SCAN_RATE_LIMITED",
+      message:
+        "Bạn đã dùng hết lượt Meal Scan dùng thử của tài khoản. Hãy chọn gói phù hợp để tiếp tục.",
+    };
   }
   return authenticated
     ? {
@@ -31,23 +39,42 @@ const limitedResponse = (serviceKey, authenticated) => {
 export const enforceSharedServiceUsage = (serviceKey) => async (req, res, next) => {
   try {
     const { tier, policy } = await resolveRequestServicePolicy(req, serviceKey);
-    if (policy.enforcement === "server_rate_limit") {
-      return next();
-    }
+    const operationKey =
+      serviceKey === "ai_chat"
+        ? req.aiChatRequest?.value?.requestId || req.body?.requestId
+        : undefined;
     const usage = await consumeServiceUsage({
       serviceKey,
       tier,
       policy,
       actor: resolveServiceUsageActor(req),
-      operationKey:
-        serviceKey === "ai_chat"
-          ? req.aiChatRequest?.value?.requestId || req.body?.requestId
-          : undefined,
+      operationKey,
     });
     req.serviceUsageQuota = usage.quota;
-    if (usage.allowed) return next();
+    if (usage.allowed) {
+      let reservation = usage.consumed ? usage.reservation : null;
+      req.refundServiceUsage = async () => {
+        if (!reservation) return req.serviceUsageQuota;
+        const currentReservation = reservation;
+        reservation = null;
+        try {
+          const quota = await refundServiceUsage({
+            reservation: currentReservation,
+          });
+          req.serviceUsageQuota = quota;
+          return quota;
+        } catch (error) {
+          reservation = currentReservation;
+          throw error;
+        }
+      };
+      return next();
+    }
 
-    const limited = limitedResponse(serviceKey, Boolean(req.user?.id));
+    const limited = limitedResponse(serviceKey, {
+      authenticated: Boolean(req.user?.id),
+      tier,
+    });
     return res.status(429).json({
       success: false,
       code: limited.code,

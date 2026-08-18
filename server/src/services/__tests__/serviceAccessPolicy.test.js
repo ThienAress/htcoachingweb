@@ -20,7 +20,10 @@ import {
 import Order from "../../models/Order.js";
 import TrainerSubscription from "../../models/TrainerSubscription.js";
 import FitnessSubscription from "../../models/FitnessSubscription.js";
-import { resolveServiceAccessTier } from "../serviceAccessPolicy.service.js";
+import {
+  resolveRequestServicePolicy,
+  resolveServiceAccessTier,
+} from "../serviceAccessPolicy.service.js";
 
 beforeAll(setupTestDB);
 afterEach(clearCollections);
@@ -28,27 +31,51 @@ afterAll(teardownTestDB);
 
 describe("service access policy registry", () => {
   it("keeps the approved Meal Scan and AI Chat limits in one registry", () => {
-    expect(getServiceAccessPolicy("meal_scan", "guest").limit).toBe(2);
-    expect(getServiceAccessPolicy("meal_scan", "user").limit).toBe(3);
-    expect(
-      getServiceAccessPolicy("meal_scan", "coaching_customer").limit,
-    ).toBe(10);
-    expect(getServiceAccessPolicy("meal_scan", "trainer").limit).toBe(10);
+    const limits = (serviceKey, tier) =>
+      getServiceAccessPolicy(serviceKey, tier).windows.map((window) => [
+        window.key,
+        window.limit,
+      ]);
 
-    expect(getServiceAccessPolicy("ai_chat", "guest").limit).toBe(5);
-    expect(getServiceAccessPolicy("ai_chat", "user").limit).toBe(15);
-    expect(
-      getServiceAccessPolicy("ai_chat", "coaching_customer").limit,
-    ).toBe(30);
-    expect(getServiceAccessPolicy("ai_chat", "trainer").limit).toBe(30);
-    expect(
-      getServiceAccessPolicy("meal_scan", "fitness_plus_essential"),
-    ).toMatchObject({ limit: 15, period: "rolling_30_days" });
-    expect(getServiceAccessPolicy("meal_scan", "fitness_plus_smart").limit).toBe(30);
-    expect(getServiceAccessPolicy("meal_scan", "fitness_plus_max").limit).toBe(60);
-    expect(getServiceAccessPolicy("ai_chat", "fitness_plus_essential").limit).toBe(20);
-    expect(getServiceAccessPolicy("ai_chat", "fitness_plus_smart").limit).toBe(40);
-    expect(getServiceAccessPolicy("ai_chat", "fitness_plus_max").limit).toBe(60);
+    expect({
+      mealScan: {
+        guest: limits("meal_scan", "guest"),
+        user: limits("meal_scan", "user"),
+        coaching: limits("meal_scan", "coaching_customer"),
+        trainer: limits("meal_scan", "trainer"),
+        essential: limits("meal_scan", "fitness_plus_essential"),
+        smart: limits("meal_scan", "fitness_plus_smart"),
+        max: limits("meal_scan", "fitness_plus_max"),
+      },
+      aiChat: {
+        guest: limits("ai_chat", "guest"),
+        user: limits("ai_chat", "user"),
+        coaching: limits("ai_chat", "coaching_customer"),
+        trainer: limits("ai_chat", "trainer"),
+        essential: limits("ai_chat", "fitness_plus_essential"),
+        smart: limits("ai_chat", "fitness_plus_smart"),
+        max: limits("ai_chat", "fitness_plus_max"),
+      },
+    }).toEqual({
+      mealScan: {
+        guest: [["lifetime", 1]],
+        user: [["lifetime", 1]],
+        coaching: [["daily", 10], ["monthly", 300]],
+        trainer: [["daily", 20], ["monthly", 600]],
+        essential: [["daily", 5], ["monthly", 120]],
+        smart: [["daily", 10], ["monthly", 210]],
+        max: [["daily", 15], ["monthly", 300]],
+      },
+      aiChat: {
+        guest: [["rolling_24_hours", 5]],
+        user: [["daily", 15], ["monthly", 60]],
+        coaching: [["burst", 30], ["monthly", 600]],
+        trainer: [["burst", 30], ["monthly", 1200]],
+        essential: [["burst", 20], ["monthly", 120]],
+        smart: [["burst", 40], ["monthly", 300]],
+        max: [["burst", 60], ["monthly", 600]],
+      },
+    });
   });
 
   it("keeps Meal Plan and TDEE access in the same matrix", () => {
@@ -148,5 +175,76 @@ describe("resolveServiceAccessTier", () => {
     expect(
       await resolveServiceAccessTier({ id: user._id, role: "user" }),
     ).toBe(SERVICE_ACCESS_TIERS.COACHING_CUSTOMER);
+  });
+
+  it("selects the strongest active entitlement for each service", async () => {
+    const { user } = await createTestUser({ email: "tier-strongest@example.com" });
+    await Order.create({
+      userId: user._id,
+      status: "approved",
+      sessions: 2,
+      totalSessions: 2,
+    });
+    await FitnessSubscription.create({
+      userId: user._id,
+      planCode: SERVICE_ACCESS_TIERS.FITNESS_PLUS_MAX,
+      planTitle: "Toàn diện",
+      billingCycle: "month",
+      amount: 299000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+      isActive: true,
+    });
+
+    const ai = await resolveRequestServicePolicy(
+      { user: { id: user._id, role: "user" } },
+      "ai_chat",
+    );
+    const meal = await resolveRequestServicePolicy(
+      { user: { id: user._id, role: "user" } },
+      "meal_scan",
+    );
+
+    expect({ ai: ai.tier, meal: meal.tier }).toEqual({
+      ai: SERVICE_ACCESS_TIERS.FITNESS_PLUS_MAX,
+      meal: SERVICE_ACCESS_TIERS.FITNESS_PLUS_MAX,
+    });
+  });
+
+  it("uses an entitlement snapshot as a no-downgrade floor", async () => {
+    const { user } = await createTestUser({ email: "tier-floor@example.com" });
+    const snapshot = {
+      ai_chat: {
+        ...getServiceAccessPolicy("ai_chat", SERVICE_ACCESS_TIERS.FITNESS_PLUS_ESSENTIAL),
+        windows: [
+          { key: "burst", limit: 25, period: "rolling_hour", periodLabel: "giờ", windowMs: 3600000 },
+          { key: "monthly", limit: 240, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: 2592000000 },
+        ],
+      },
+    };
+    await FitnessSubscription.create({
+      userId: user._id,
+      planCode: SERVICE_ACCESS_TIERS.FITNESS_PLUS_ESSENTIAL,
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+      isActive: true,
+      entitlementPolicyVersion: "legacy-test",
+      entitlementPolicySnapshot: snapshot,
+    });
+
+    const resolved = await resolveRequestServicePolicy(
+      { user: { id: user._id, role: "user" } },
+      "ai_chat",
+    );
+
+    expect(resolved.policy.windows.map(({ key, limit }) => [key, limit])).toEqual([
+      ["burst", 25],
+      ["monthly", 240],
+    ]);
   });
 });

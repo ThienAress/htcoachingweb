@@ -108,6 +108,17 @@ const trainerSubscriptionSchema = new mongoose.Schema(
     },
     structuredRetentionExpiresAt: { type: Date, default: null },
     mediaRetentionExpiresAt: { type: Date, default: null },
+    entitlementPolicyVersion: {
+      type: String,
+      default: null,
+      maxlength: 40,
+      select: false,
+    },
+    entitlementPolicySnapshot: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+      select: false,
+    },
   },
   { timestamps: true }
 );
@@ -137,6 +148,14 @@ trainerSubscriptionSchema.index(
 
 trainerSubscriptionSchema.pre("validate", function syncActiveState() {
   this.isActive = this.status === "active";
+});
+
+trainerSubscriptionSchema.set("toJSON", {
+  transform: (_document, result) => {
+    delete result.entitlementPolicyVersion;
+    delete result.entitlementPolicySnapshot;
+    return result;
+  },
 });
 
 export default mongoose.model("TrainerSubscription", trainerSubscriptionSchema);

@@ -75,6 +75,17 @@ const fitnessSubscriptionSchema = new mongoose.Schema(
       ref: "FitnessSubscription",
       default: null,
     },
+    entitlementPolicyVersion: {
+      type: String,
+      default: null,
+      maxlength: 40,
+      select: false,
+    },
+    entitlementPolicySnapshot: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+      select: false,
+    },
   },
   { timestamps: true },
 );
@@ -106,6 +117,14 @@ fitnessSubscriptionSchema.index(
 
 fitnessSubscriptionSchema.pre("validate", function syncActiveState() {
   this.isActive = this.status === "active";
+});
+
+fitnessSubscriptionSchema.set("toJSON", {
+  transform: (_document, result) => {
+    delete result.entitlementPolicyVersion;
+    delete result.entitlementPolicySnapshot;
+    return result;
+  },
 });
 
 export default mongoose.model("FitnessSubscription", fitnessSubscriptionSchema);

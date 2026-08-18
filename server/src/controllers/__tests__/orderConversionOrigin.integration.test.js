@@ -82,6 +82,37 @@ describe("Order explicit conversion origin", () => {
     });
   });
 
+  it("captures the coaching entitlement policy when an Order is approved", async () => {
+    const admin = await createTestUser({ role: "admin" });
+    const created = await withAuth(
+      request(app).post("/api/orders"),
+      admin.accessToken,
+    ).send(orderPayload());
+
+    const approved = await withAuth(
+      request(app).put(`/api/orders/${created.body.data._id}/approve`),
+      admin.accessToken,
+    );
+    const stored = await Order.findById(created.body.data._id)
+      .select("+entitlementPolicyVersion +entitlementPolicySnapshot")
+      .lean();
+
+    expect(approved.status).toBe(200);
+    expect(approved.body.data).not.toHaveProperty("entitlementPolicySnapshot");
+    expect(stored).toMatchObject({
+      status: "approved",
+      entitlementPolicyVersion: "2026-08-18.2",
+      entitlementPolicySnapshot: {
+        meal_scan: expect.objectContaining({
+          windows: [
+            expect.objectContaining({ key: "daily", limit: 10 }),
+            expect.objectContaining({ key: "monthly", limit: 300 }),
+          ],
+        }),
+      },
+    });
+  });
+
   it("persists a validated Booking origin for an admin-created Order", async () => {
     const admin = await createTestUser({ role: "admin" });
     const booking = await createBooking();

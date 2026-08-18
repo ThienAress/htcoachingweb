@@ -18,8 +18,8 @@ const catalogResponse = {
         billingCycles: ["month", "year"],
         features: ["core_tools"],
         quotas: {
-          aiChat: { limit: 20 },
-          mealScan: { limit: 15 },
+          aiChat: { limit: 20, windows: [{ key: "burst", limit: 20 }, { key: "monthly", limit: 120 }] },
+          mealScan: { limit: 5, windows: [{ key: "daily", limit: 5 }, { key: "monthly", limit: 120 }] },
         },
       },
       {
@@ -32,8 +32,8 @@ const catalogResponse = {
         billingCycles: ["month", "year"],
         features: ["core_tools"],
         quotas: {
-          aiChat: { limit: 40 },
-          mealScan: { limit: 30 },
+          aiChat: { limit: 40, windows: [{ key: "burst", limit: 40 }, { key: "monthly", limit: 300 }] },
+          mealScan: { limit: 10, windows: [{ key: "daily", limit: 10 }, { key: "monthly", limit: 210 }] },
         },
       },
       {
@@ -46,8 +46,8 @@ const catalogResponse = {
         billingCycles: ["month", "year"],
         features: ["core_tools"],
         quotas: {
-          aiChat: { limit: 60 },
-          mealScan: { limit: 60 },
+          aiChat: { limit: 60, windows: [{ key: "burst", limit: 60 }, { key: "monthly", limit: 600 }] },
+          mealScan: { limit: 15, windows: [{ key: "daily", limit: 15 }, { key: "monthly", limit: 300 }] },
         },
       },
     ],
@@ -87,6 +87,15 @@ describe("HT Fitness+ catalog adapter", () => {
   it("fails closed when localized catalog copy is empty", () => {
     const response = structuredClone(catalogResponse);
     response.data.data[0].subtitle = "   ";
+
+    expect(() => normalizeFitnessPlusCatalogResponse(response)).toThrow(
+      "HT Fitness+ catalog response is incomplete",
+    );
+  });
+
+  it("fails closed when a commercial quota window is missing", () => {
+    const response = structuredClone(catalogResponse);
+    response.data.data[0].quotas.aiChat.windows.pop();
 
     expect(() => normalizeFitnessPlusCatalogResponse(response)).toThrow(
       "HT Fitness+ catalog response is incomplete",

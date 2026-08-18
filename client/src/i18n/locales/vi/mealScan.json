@@ -1,7 +1,7 @@
 {
   "seo": {
     "title": "Quét món ăn - Ước tính calo và macro từ ảnh",
-    "description": "Tải ảnh món ăn để AI ước tính khoảng calo, protein, carb và fat. Thử 2 lượt mỗi 24 giờ không cần tài khoản, sau đó kiểm tra thành phần và điều chỉnh khẩu phần.",
+    "description": "Tải ảnh món ăn để AI ước tính calo, protein, carb và fat. Dùng thử 1 lượt không cần tài khoản, đăng nhập nhận thêm 1 lượt, rồi kiểm tra thành phần, khẩu phần.",
     "app_name": "Quét món ăn HTCOACHING",
     "feature_calories": "Ước tính khoảng calo từ ảnh món ăn",
     "feature_macros": "Ước tính chất đạm, tinh bột và chất béo",
@@ -33,7 +33,14 @@
   },
   "quota": {
     "remaining": "Còn {{remaining}}/{{limit}} lượt quét",
-    "reset": "Làm mới {{time}}"
+    "remaining_window": "Còn {{remaining}}/{{limit}} lượt · {{period}}",
+    "reset": "Làm mới {{time}}",
+    "periods": {
+      "lifetime": "dùng thử một lần",
+      "rolling_day": "trong ngày",
+      "rolling_24_hours": "trong 24 giờ",
+      "rolling_30_days": "trong 30 ngày"
+    }
   },
   "uploader": {
     "checking": "Đang kiểm tra chất lượng ảnh...",
@@ -46,8 +53,8 @@
     "choose_file": "Chọn ảnh món ăn",
     "replace": "Chọn ảnh khác",
     "privacy": "Ảnh được nén và gửi tạm thời tới Google Gemini Free Tier để phân tích. HTCOACHING không lưu ảnh vào hồ sơ; không chọn ảnh có người hoặc thông tin nhạy cảm.",
-    "anonymous_hint": "Không cần đăng ký: 2 lượt miễn phí mỗi 24 giờ.",
-    "login_more": "Đăng nhập để có thêm lượt.",
+    "anonymous_hint": "Không cần đăng ký: 1 lượt quét dùng thử.",
+    "login_more": "Đăng nhập để nhận thêm 1 lượt.",
     "analyze": "Phân tích món ăn",
     "lock_first": "Hãy khóa thông tin thành phần trước khi phân tích.",
     "compressing": "Đang tối ưu ảnh...",
@@ -120,6 +127,8 @@
     "processing_desc": "Quá trình thường mất vài giây. Kết quả sẽ luôn được trình bày theo khoảng để phản ánh độ không chắc chắn.",
     "error_title": "Chưa thể phân tích ảnh",
     "retry": "Thử phân tích lại",
+    "login_to_continue": "Đăng nhập để quét tiếp",
+    "view_plans": "Xem gói để tiếp tục",
     "ingredients": "Thành phần ước tính",
     "adjust_hint": "Chỉnh gram để cập nhật tổng",
     "needs_confirmation": "Cần xác nhận",
@@ -139,8 +148,8 @@
     "quality_unreadable": "Không thể đọc ảnh này. Hãy chọn hoặc chụp một ảnh khác.",
     "type": "Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.",
     "size": "Ảnh gốc không được vượt quá 10 MB.",
-    "MEAL_SCAN_ANONYMOUS_LIMITED": "Bạn đã dùng hết {{limit}} lượt quét không cần tài khoản trong 24 giờ. Hãy đăng nhập để có thêm lượt hoặc thử lại sau.",
-    "MEAL_SCAN_RATE_LIMITED": "Bạn đã dùng hết {{limit}} lượt quét trong 24 giờ. Vui lòng thử lại khi quota được làm mới.",
+    "MEAL_SCAN_ANONYMOUS_LIMITED": "Bạn đã dùng hết 1 lượt quét không cần tài khoản. Hãy đăng nhập để nhận thêm 1 lượt.",
+    "MEAL_SCAN_RATE_LIMITED": "Bạn đã dùng hết hạn mức Meal Scan hiện tại. Hãy xem gói phù hợp để tiếp tục.",
     "generic": "Không thể phân tích ảnh lúc này. Vui lòng thử lại."
   },
 

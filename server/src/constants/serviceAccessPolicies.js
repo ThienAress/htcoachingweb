@@ -1,5 +1,6 @@
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
+const THIRTY_DAYS_MS = 30 * DAY_MS;
 
 export const SERVICE_ACCESS_TIERS = Object.freeze({
   GUEST: "guest",
@@ -11,7 +12,15 @@ export const SERVICE_ACCESS_TIERS = Object.freeze({
   FITNESS_PLUS_MAX: "fitness_plus_max",
 });
 
-export const SERVICE_ACCESS_POLICY_VERSION = "2026-08-17";
+export const SERVICE_ACCESS_POLICY_VERSION = "2026-08-18.2";
+
+const quotaWindow = ({ key, limit, period, periodLabel, windowMs = null }) => ({
+  key,
+  limit,
+  period,
+  periodLabel,
+  windowMs,
+});
 
 const quota = ({
   limit,
@@ -22,17 +31,25 @@ const quota = ({
   scopeLabel,
   enforcement,
   windowMs = null,
-}) => ({
-  mode: "quota",
-  limit,
-  unitLabel,
-  period,
-  periodLabel,
-  scope,
-  scopeLabel,
-  enforcement,
-  windowMs,
-});
+  windows = null,
+}) => {
+  const normalizedWindows =
+    windows || [quotaWindow({ key: period, limit, period, periodLabel, windowMs })];
+  const primary = normalizedWindows[0];
+  return {
+    mode: "quota",
+    // Compatibility fields remain the primary/shortest policy window.
+    limit: primary.limit,
+    unitLabel,
+    period: primary.period,
+    periodLabel: primary.periodLabel,
+    scope,
+    scopeLabel,
+    enforcement,
+    windowMs: primary.windowMs,
+    windows: normalizedWindows,
+  };
+};
 
 const unlimited = () => ({
   mode: "unlimited",
@@ -44,6 +61,7 @@ const unlimited = () => ({
   scopeLabel: null,
   enforcement: "none",
   windowMs: null,
+  windows: [],
 });
 
 const deepFreeze = (value) => {
@@ -61,74 +79,72 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
     description: "Phân tích ảnh món ăn và ước tính calo, macro.",
     policies: {
       guest: quota({
-        limit: 2,
+        limit: 1,
         unitLabel: "lượt",
-        period: "rolling_24_hours",
-        periodLabel: "24 giờ",
-        scope: "ip",
-        scopeLabel: "IP",
+        period: "lifetime",
+        periodLabel: "lifetime",
+        scope: "browser",
+        scopeLabel: "trình duyệt",
         enforcement: "shared_usage_ledger",
-        windowMs: DAY_MS,
       }),
       user: quota({
-        limit: 3,
+        limit: 1,
         unitLabel: "lượt",
-        period: "rolling_24_hours",
-        periodLabel: "24 giờ",
+        period: "lifetime",
+        periodLabel: "lifetime",
         scope: "user",
-        scopeLabel: "user",
+        scopeLabel: "tài khoản",
         enforcement: "shared_usage_ledger",
-        windowMs: DAY_MS,
       }),
       coaching_customer: quota({
-        limit: 10,
         unitLabel: "lượt",
-        period: "rolling_24_hours",
-        periodLabel: "24 giờ",
         scope: "user",
         scopeLabel: "user",
         enforcement: "shared_usage_ledger",
-        windowMs: DAY_MS,
+        windows: [
+          quotaWindow({ key: "daily", limit: 10, period: "rolling_day", periodLabel: "ngày", windowMs: DAY_MS }),
+          quotaWindow({ key: "monthly", limit: 300, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
       trainer: quota({
-        limit: 10,
         unitLabel: "lượt",
-        period: "rolling_24_hours",
-        periodLabel: "24 giờ",
         scope: "user",
         scopeLabel: "user",
         enforcement: "shared_usage_ledger",
-        windowMs: DAY_MS,
+        windows: [
+          quotaWindow({ key: "daily", limit: 20, period: "rolling_day", periodLabel: "ngày", windowMs: DAY_MS }),
+          quotaWindow({ key: "monthly", limit: 600, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
       fitness_plus_essential: quota({
-        limit: 15,
         unitLabel: "lượt",
-        period: "rolling_30_days",
-        periodLabel: "30 ngày",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
-        windowMs: 30 * DAY_MS,
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "daily", limit: 5, period: "rolling_day", periodLabel: "ngày", windowMs: DAY_MS }),
+          quotaWindow({ key: "monthly", limit: 120, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
       fitness_plus_smart: quota({
-        limit: 30,
         unitLabel: "lượt",
-        period: "rolling_30_days",
-        periodLabel: "30 ngày",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
-        windowMs: 30 * DAY_MS,
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "daily", limit: 10, period: "rolling_day", periodLabel: "ngày", windowMs: DAY_MS }),
+          quotaWindow({ key: "monthly", limit: 210, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
       fitness_plus_max: quota({
-        limit: 60,
         unitLabel: "lượt",
-        period: "rolling_30_days",
-        periodLabel: "30 ngày",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
-        windowMs: 30 * DAY_MS,
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "daily", limit: 15, period: "rolling_day", periodLabel: "ngày", windowMs: DAY_MS }),
+          quotaWindow({ key: "monthly", limit: 300, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
     },
   },
@@ -141,72 +157,72 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
       guest: quota({
         limit: 5,
         unitLabel: "tin",
-        period: "rolling_hour",
-        periodLabel: "giờ",
+        period: "rolling_24_hours",
+        periodLabel: "24 giờ",
         scope: "ip",
         scopeLabel: "IP",
         enforcement: "shared_usage_ledger",
-        windowMs: HOUR_MS,
+        windowMs: DAY_MS,
       }),
       user: quota({
-        limit: 15,
         unitLabel: "tin",
-        period: "rolling_hour",
-        periodLabel: "giờ",
         scope: "user",
         scopeLabel: "user",
         enforcement: "shared_usage_ledger",
-        windowMs: HOUR_MS,
+        windows: [
+          quotaWindow({ key: "daily", limit: 15, period: "rolling_24_hours", periodLabel: "24 giờ", windowMs: DAY_MS }),
+          quotaWindow({ key: "monthly", limit: 60, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
       coaching_customer: quota({
-        limit: 30,
         unitLabel: "tin",
-        period: "rolling_hour",
-        periodLabel: "giờ",
         scope: "user",
         scopeLabel: "user",
         enforcement: "shared_usage_ledger",
-        windowMs: HOUR_MS,
+        windows: [
+          quotaWindow({ key: "burst", limit: 30, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 600, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
       trainer: quota({
-        limit: 30,
         unitLabel: "tin",
-        period: "rolling_hour",
-        periodLabel: "giờ",
         scope: "user",
         scopeLabel: "user",
         enforcement: "shared_usage_ledger",
-        windowMs: HOUR_MS,
+        windows: [
+          quotaWindow({ key: "burst", limit: 30, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 1200, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
       fitness_plus_essential: quota({
-        limit: 20,
         unitLabel: "tin",
-        period: "rolling_hour",
-        periodLabel: "giờ",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
-        windowMs: HOUR_MS,
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "burst", limit: 20, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 120, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
       fitness_plus_smart: quota({
-        limit: 40,
         unitLabel: "tin",
-        period: "rolling_hour",
-        periodLabel: "giờ",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
-        windowMs: HOUR_MS,
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "burst", limit: 40, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 300, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
       fitness_plus_max: quota({
-        limit: 60,
         unitLabel: "tin",
-        period: "rolling_hour",
-        periodLabel: "giờ",
         scope: "user",
         scopeLabel: "user",
-        enforcement: "server_rate_limit",
-        windowMs: HOUR_MS,
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "burst", limit: 60, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 600, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
       }),
     },
   },
@@ -271,4 +287,32 @@ export const getServiceAccessPolicy = (serviceKey, tier) => {
   const policy = service.policies[tier];
   if (!policy) throw new Error(`Unknown service access tier: ${tier}`);
   return policy;
+};
+
+export const getServicePolicyWindows = (policy) => {
+  if (policy?.mode !== "quota") return [];
+  if (Array.isArray(policy.windows) && policy.windows.length > 0) {
+    return policy.windows;
+  }
+  return [
+    {
+      key: policy.period,
+      limit: policy.limit,
+      period: policy.period,
+      periodLabel: policy.periodLabel,
+      windowMs: policy.windowMs ?? null,
+    },
+  ];
+};
+
+export const createServiceEntitlementSnapshot = (tier) => {
+  if (!Object.values(SERVICE_ACCESS_TIERS).includes(tier)) {
+    throw new Error(`Unknown service access tier: ${tier}`);
+  }
+  return Object.fromEntries(
+    SERVICE_ACCESS_POLICY_REGISTRY.map(({ serviceKey, policies }) => [
+      serviceKey,
+      JSON.parse(JSON.stringify(policies[tier])),
+    ]),
+  );
 };

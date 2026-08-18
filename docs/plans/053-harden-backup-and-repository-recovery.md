@@ -12,7 +12,7 @@
 - **Depends on**: 020, 046, 052
 - **Category**: security / operations
 - **Planned at**: 2026-08-17
-- **Status**: IN PROGRESS — OFF-DEVICE DATABASE RECOVERY AND CONTINUOUS RECOVERY DECISION PENDING
+- **Status**: IN PROGRESS — DATABASE DR VERIFIED / SOURCE SCHEDULE PENDING
 
 ## Why This Matters
 
@@ -20,11 +20,11 @@ Source code hiện chỉ có một remote GitHub, hai branch quan trọng chưa 
 
 ## Current State
 
-- HEAD của recovery evidence hiện tại: `7b5b6177c655ff9cf13eb7135be1118b99ec364c` trên `staging`.
+- HEAD của recovery evidence hiện tại: `ffe11a72fc05acbc55e08b332b8a37aa236c091f` trên `staging`.
 - `origin` là `https://github.com/ThienAress/htcoachingweb.git`; default branch public là `main`, local branch là `staging`.
 - GitHub owner session đã áp branch protection cho `main` và `staging`: required checks `client`, `server`, `secrets`, `e2e`; strict/up-to-date; chặn force-push/xóa branch và áp dụng cho admin.
-- `docs/operations/production/backup-readiness.json` trỏ tới logical backup hoàn tất `2026-08-17T13:51:58.030Z`; integrity, isolated restore và source fingerprint pass; `offDeviceRecoveryVerified=false`, `continuousRecoveryAvailable=false`.
-- `npm run verify:backup-release` pass; disaster-recovery vẫn blocked cho tới khi có bản archive + key khôi phục được ngoài máy này.
+- `docs/operations/production/backup-readiness.json` trỏ tới logical backup hoàn tất `2026-08-18T03:34:58.343Z`; integrity, isolated restore, source fingerprint và independent Google Drive/Bitwarden recovery đều pass; `offDeviceRecoveryVerified=true`, `continuousRecoveryAvailable=false`.
+- `npm run verify:backup-release` và `npm run verify:disaster-recovery` đều pass; warning còn lại phản ánh đúng việc chưa có snapshot/PITR liên tục.
 - MongoDB Atlas CLI xác nhận đang signed out. Render CLI đã xác minh owner email, workspace `tea-d1mahp2li9vc7399j8d0` và production service `srv-d70gd0fafjfc73csn9ag` (`htcoachingweb`, branch `main`) mà không in giá trị env.
 - MongoDB Database Tools 100.17.0, 7-Zip 26.02 và MongoDB Community 8.2.12 portable đã sẵn sàng; Community ZIP khớp SHA-256 công bố bởi MongoDB.
 - Source backup `htcoachingweb-source-20260817T102325Z` đã được tạo trong OneDrive sync directory và pass isolated clone, `git fsck`, overlay restore cùng fingerprint. OneDrive client đang chạy, nhưng chưa có retrieval từ provider session/device độc lập.
@@ -137,22 +137,24 @@ Source code hiện chỉ có một remote GitHub, hai branch quan trọng chưa 
 - [x] Daily recovery-readiness workflow is valid and ready to run after push.
 - [x] GitHub `main` and `staging` show force-push/delete protection and required CI checks.
 - [x] Fresh production database backup passes integrity and isolated restore verification.
-- [ ] Database archive and portable recovery key pass independent off-device recovery.
-- [x] `verify:backup-release` passes; `verify:disaster-recovery` remains correctly blocked until independent off-device recovery is tested.
+- [x] Database archive and portable recovery key pass independent off-device recovery.
+- [x] `verify:backup-release` and `verify:disaster-recovery` both pass with truthful continuous-recovery warning.
 - [x] Atlas continuous recovery is documented accurately as unavailable; no paid tier change was made.
-- [ ] Ops tests, secret/data-boundary scans, agent validation and `git diff --check` pass.
+- [x] Ops tests, secret/data-boundary scans, agent validation and `git diff --check` pass.
 - [x] `docs/plans/README.md` reflects the current truthful status.
 
 ## Local Verification Evidence
 
 - `npm run test:source-backup`: `4/4` tests passed after fixture restore, target-boundary and corruption checks.
-- `npm run test:ops`: `31/31` operations tests passed.
+- `npm run test:ops`: `32/32` operations tests passed.
 - Source backup `htcoachingweb-source-20260817T102325Z` của dirty `staging` working tree đã hoàn tất isolated clone, `git fsck`, overlay restore và file fingerprint comparison trong OneDrive sync directory.
 - Workflow YAML parsed successfully with the installed `js-yaml` dependency; both PowerShell files passed parser validation.
 - Scheduled Task chưa được đăng ký vì owner chưa xác nhận lịch chạy. OneDrive source copy đã có nhưng chưa được xem là off-device verified cho tới khi tải lại từ session/device độc lập.
 - GitHub rules for `main` and `staging` are active with the four required CI checks, strict status checks, delete/force-push blocking and admin enforcement.
-- Fresh backup `production-logical-backup-20260817T135121Z` completed at `2026-08-17T13:51:58.030Z`: 69 collections, 3,925 documents, AES-256 archive integrity, isolated restore and source/index fingerprints all passed. Production writes were zero.
-- `npm run verify:backup-release` passes. `npm run verify:disaster-recovery` correctly remains blocked until an archive and its recovery key can be retrieved and restore-tested from independent off-device storage.
+- Fresh backup `production-logical-backup-20260818T033437Z` completed at `2026-08-18T03:34:58.343Z`: 69 collections, 3,925 documents, AES-256 archive integrity, isolated restore and source/index fingerprints all passed. Production writes were zero.
+- The encrypted archive was uploaded to Google Drive, downloaded again, unlocked with the separately stored Bitwarden recovery key and restored to isolated MongoDB. SHA-256, byte size, data/index fingerprints and per-collection counts matched without reconnecting to production.
+- `npm run verify:backup-release` and `npm run verify:disaster-recovery` both pass. `continuousRecoveryAvailable=false` remains explicit because no paid Atlas snapshot/PITR feature was enabled.
+- Secret scan, repository data-boundary scan, agent validation and `git diff --check` all pass; the diff check reports only the repository's existing Windows line-ending conversion notices.
 
 ## STOP Conditions
 
@@ -161,7 +163,7 @@ Source code hiện chỉ có một remote GitHub, hai branch quan trọng chưa 
 - Isolated restore cannot be guaranteed; never restore into production or the developer database.
 - Browser session lacks GitHub/Atlas/Render owner privileges.
 - Atlas asks for a paid upgrade or billing confirmation not explicitly approved by the owner.
-- Cloud sync visibility cannot be verified independently; retain `offDeviceRecoveryVerified=false`.
+- Independent source-backup provider visibility cannot be verified; do not mark the source-copy schedule/recovery criteria complete.
 
 ## Maintenance Notes
 

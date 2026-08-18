@@ -42,15 +42,15 @@ Không dùng “VIP” cho HT Fitness+ vì plan không bao gồm HLV riêng. Kh�
 
 | Plan | AI Chat | Meal Scan |
 |---|---:|---:|
-| Nền tảng | 20 tin / rolling hour / user | 15 lượt / rolling 30 days / user |
-| Tăng tốc | 40 tin / rolling hour / user | 30 lượt / rolling 30 days / user |
-| Toàn diện | 60 tin / rolling hour / user | 60 lượt / rolling 30 days / user |
+| Nền tảng | 20 tin/giờ + 120 tin/30 ngày | 5 lượt/ngày + 120 lượt/30 ngày |
+| Tăng tốc | 40 tin/giờ + 300 tin/30 ngày | 10 lượt/ngày + 210 lượt/30 ngày |
+| Toàn diện | 60 tin/giờ + 600 tin/30 ngày | 15 lượt/ngày + 300 lượt/30 ngày |
 
-Meal Plan dùng cùng entitlement nhưng quota hiện tại được mô tả riêng trong registry; TDEE và thư viện bài tập không giới hạn. Quota server trả `serviceKey`, `tier`, `limit`, `remaining`, `resetAt`.
+Meal Plan dùng cùng entitlement nhưng quota hiện tại được mô tả riêng trong registry; TDEE và thư viện bài tập không giới hạn. Quota server trả field tương thích `serviceKey`, `tier`, `limit`, `remaining`, `resetAt` và `windows[]`.
 
-AI Chat và Meal Scan của HT Fitness+ dùng shared Mongo rolling-window store theo `userId + serviceKey`, update atomic giữa nhiều instance. Store trim timestamp cũ và giữ tối đa `max(plan limits) + 1` phần tử để request đã bị chặn không làm state tăng vô hạn; TTL xóa document sau cửa sổ không hoạt động. Guest/User/Coaching/Trainer tiếp tục limiter legacy hiện tại.
+AI Chat và Meal Scan của mọi tier dùng shared Mongo event ledger theo `userId/guest + serviceKey + policyGroup`, update atomic giữa nhiều instance. Ledger trim event ngoài cửa sổ dài nhất; request bị chặn không làm state tăng. Lifetime trial không có TTL reset.
 
-Nếu user đồng thời có Trainer Subscription hoặc Order coaching đang hợp lệ, resolver giữ precedence hiện tại của Trainer/Coaching Customer để không làm giảm quyền đã có; HT Fitness+ vẫn được lưu và hiển thị trong tài khoản.
+Nếu user đồng thời có nhiều entitlement, resolver chọn policy mạnh nhất theo từng service. Subscription lưu policy version/snapshot và runtime lấy max giữa snapshot với registry hiện tại để không giảm quyền lợi đã mua.
 
 ### Pricing UX
 
@@ -116,10 +116,10 @@ Nếu user đồng thời có Trainer Subscription hoặc Order coaching đang h
 
 - Unit catalog: plan codes, locale labels, fingerprint, amount/date, invalid cycle.
 - Model/migration: sáu-index manifest, duplicate preflight, idempotent apply, explicit target lock và confirmation guard.
-- Quota store: rolling trim, cross-instance persistence, bounded blocked requests, reset và TTL contract.
+- Quota ledger: dual-window rolling trim, cross-instance persistence, bounded blocked requests, refund và TTL/lifetime contract.
 - Purchase integration: happy path, insufficient wallet, catalog mismatch, invalid plan/cycle, retry idempotency, active supersede.
 - Access policy: resolver precedence, three Fitness+ tiers, registry limits, Admin columns.
-- Rate limit: Meal Scan 30-day window for Fitness+ and existing 24-hour behavior for Guest/User/Coaching/Trainer.
+- Rate limit: AI Chat burst + monthly và Meal Scan daily + monthly cho Fitness+; Guest/User trial theo contract canonical.
 - Frontend: catalog loading/error/empty, locale labels, wallet states, purchase success/failure, cache invalidation and responsive card layout.
 - Verification gates: focused server/client tests, lint, client build, AI check, UI check, security/data boundary scans and `git diff --check`.
 
@@ -134,7 +134,7 @@ Nếu user đồng thời có Trainer Subscription hoặc Order coaching đang h
 
 - User sees HT Fitness+ in Pricing with Vietnamese/English plan names and can open an authenticated Wallet checkout.
 - Successful purchase creates only a `FitnessSubscription`, one wallet purchase ledger entry and a server-authoritative active entitlement.
-- Active Fitness+ plan changes Meal Scan and AI Chat limits without changing existing Guest/User/Coaching/Trainer behavior.
+- Active Fitness+ plan changes Meal Scan and AI Chat limits; resolver không làm giảm entitlement coaching/HLV mạnh hơn.
 - Admin “Hạn mức công cụ” renders three Fitness+ columns from backend registry.
 - Account orders include Fitness+ subscription history.
 - Existing Trainer Subscription and Coaching Customer flows remain contract-compatible.

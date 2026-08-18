@@ -21,6 +21,11 @@ describe("HT Fitness+ subscription index migration", () => {
         }),
       ),
     );
+    // Wait for Mongoose's automatic index build before tests intentionally
+    // drop indexes, otherwise a slower runner can recreate one mid-test.
+    await Promise.all(
+      [FitnessSubscription, FitnessPlusQuotaUsage].map((model) => model.init()),
+    );
   });
 
   afterAll(async () => {

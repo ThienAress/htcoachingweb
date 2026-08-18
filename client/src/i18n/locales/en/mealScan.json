@@ -1,7 +1,7 @@
 {
   "seo": {
     "title": "Meal Scan - Estimate calories and macros from a photo",
-    "description": "Upload a meal photo for estimated calorie, protein, carb and fat ranges. Try 2 scans every 24 hours without an account, then review ingredients and adjust portions.",
+    "description": "Upload a meal photo to estimate calories, protein, carbs and fat. Try 1 scan without an account, log in for 1 more, then review ingredients and portion sizes.",
     "app_name": "HTCOACHING Meal Scan",
     "feature_calories": "Estimate a calorie range from a meal photo",
     "feature_macros": "Estimate protein, carbs and fat",
@@ -33,7 +33,14 @@
   },
   "quota": {
     "remaining": "{{remaining}}/{{limit}} scans remaining",
-    "reset": "Resets {{time}}"
+    "remaining_window": "{{remaining}}/{{limit}} remaining · {{period}}",
+    "reset": "Resets {{time}}",
+    "periods": {
+      "lifetime": "one-time trial",
+      "rolling_day": "per day",
+      "rolling_24_hours": "within 24 hours",
+      "rolling_30_days": "within 30 days"
+    }
   },
   "uploader": {
     "checking": "Checking image quality...",
@@ -46,8 +53,8 @@
     "choose_file": "Choose a meal photo",
     "replace": "Choose another photo",
     "privacy": "The photo is compressed and sent temporarily to the Google Gemini Free Tier for analysis. HTCOACHING does not save it to your profile; do not select photos containing people or sensitive information.",
-    "anonymous_hint": "No sign-up required: 2 free scans every 24 hours.",
-    "login_more": "Log in for more scans.",
+    "anonymous_hint": "No sign-up required: 1 trial scan.",
+    "login_more": "Log in to receive 1 additional scan.",
 
     "analyze": "Analyze meal",
     "lock_first": "Lock the ingredient information before analyzing.",
@@ -121,6 +128,8 @@
     "processing_desc": "This usually takes a few seconds. Results are shown as ranges to reflect uncertainty.",
     "error_title": "The photo could not be analyzed",
     "retry": "Try again",
+    "login_to_continue": "Log in to scan again",
+    "view_plans": "View plans to continue",
     "ingredients": "Estimated ingredients",
     "adjust_hint": "Edit grams to update totals",
     "needs_confirmation": "Confirm",
@@ -140,8 +149,8 @@
     "quality_unreadable": "This image cannot be read. Choose or take another photo.",
     "type": "Only JPEG, PNG or WebP images are supported.",
     "size": "The source image must be no larger than 10 MB.",
-    "MEAL_SCAN_ANONYMOUS_LIMITED": "You have used all {{limit}} no-account scans for this 24-hour period. Log in for more scans or try again later.",
-    "MEAL_SCAN_RATE_LIMITED": "You have used all {{limit}} scans for this 24-hour period. Please try again when your quota resets.",
+    "MEAL_SCAN_ANONYMOUS_LIMITED": "You have used your one no-account scan. Log in to receive one additional scan.",
+    "MEAL_SCAN_RATE_LIMITED": "You have used your current Meal Scan allowance. View a suitable plan to continue.",
     "generic": "The photo cannot be analyzed right now. Please try again."
   },
 

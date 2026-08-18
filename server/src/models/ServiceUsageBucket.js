@@ -2,6 +2,18 @@ import mongoose from "mongoose";
 
 import { SERVICE_ACCESS_TIERS } from "../constants/serviceAccessPolicies.js";
 
+const serviceUsageEventSchema = new mongoose.Schema(
+  {
+    operationHash: {
+      type: String,
+      required: true,
+      match: /^[a-f0-9]{64}$/,
+    },
+    consumedAt: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
 const serviceUsageBucketSchema = new mongoose.Schema(
   {
     _id: {
@@ -38,15 +50,29 @@ const serviceUsageBucketSchema = new mongoose.Schema(
       enum: Object.values(SERVICE_ACCESS_TIERS),
       required: true,
     },
-    limit: { type: Number, required: true, min: 1 },
-    count: { type: Number, required: true, min: 0 },
+    policyGroup: {
+      type: String,
+      default: "legacy",
+      maxlength: 32,
+    },
+    usageEvents: {
+      type: [serviceUsageEventSchema],
+      default: [],
+      select: false,
+    },
+    // Compatibility/debug summary fields. Enforcement reads usageEvents only.
+    limit: { type: Number, default: null, min: 1 },
+    count: { type: Number, default: 0, min: 0 },
     operationHashes: {
       type: [String],
       default: [],
       select: false,
     },
-    windowStartedAt: { type: Date, required: true },
-    resetAt: { type: Date, required: true },
+    windowStartedAt: { type: Date, default: null },
+    resetAt: { type: Date, default: null },
+    lastOperationHash: { type: String, default: null, select: false },
+    lastOperationAccepted: { type: Boolean, default: false, select: false },
+    lastOperationConsumed: { type: Boolean, default: false, select: false },
   },
   { timestamps: true },
 );

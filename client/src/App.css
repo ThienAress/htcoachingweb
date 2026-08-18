@@ -186,6 +186,45 @@
   }
 }
 
+.pricing-checkout-drawer {
+  animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fitness-plus-plan-card {
+  transition:
+    transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms ease-out,
+    box-shadow 300ms ease-out;
+}
+
+.fitness-plus-plan-card:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.25);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fitness-plus-plan-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.25);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .fitness-plus-plan-card:hover {
+    transform: translateY(-0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pricing-checkout-drawer {
+    animation: none;
+  }
+
+  .fitness-plus-plan-card {
+    transition: none;
+  }
+}
+
 /* ChatIcon CSS */
 @keyframes ping-slow {
   0% {

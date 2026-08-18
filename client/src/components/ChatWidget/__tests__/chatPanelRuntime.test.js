@@ -113,6 +113,44 @@ describe("chat panel runtime", () => {
     });
   });
 
+  it("shows burst and monthly windows and emphasizes the binding allowance", () => {
+    const quota = {
+      windows: [
+        {
+          key: "burst",
+          limit: 20,
+          remaining: 19,
+          periodLabel: "giờ",
+          resetAt: "2026-08-12T13:42:00.000Z",
+        },
+        {
+          key: "monthly",
+          limit: 120,
+          remaining: 2,
+          periodLabel: "30 ngày",
+          resetAt: "2026-09-11T13:00:00.000Z",
+        },
+      ],
+    };
+
+    expect({
+      presentation: getChatQuotaPresentation(quota),
+      status: getChatQuotaStatusLine(quota),
+    }).toEqual({
+      presentation: {
+        remaining: 2,
+        limit: 120,
+        label: "Còn 2/120 lượt hỏi",
+        compactLabel: "2/120",
+        tone: "low",
+      },
+      status: {
+        label: "Còn 19/20 giờ · 2/120 30 ngày · Làm mới 20:00 11/09",
+        tone: "low",
+      },
+    });
+  });
+
   it("opens the TDEE form only for the calculate quick action", () => {
     expect([
       isTdeeQuickAction({

@@ -65,6 +65,16 @@ const TOOL_TIMEOUT_MS = AI_RUNTIME_POLICY.toolTimeoutMs;
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 
+const refundAiQuota = async (req, stage) => {
+  if (!req.refundServiceUsage) return serializeRequestQuota(req, "ai_chat");
+  try {
+    return await req.refundServiceUsage();
+  } catch (error) {
+    safeLog.error("ai.quota_refund_failed", error, { stage });
+    return serializeRequestQuota(req, "ai_chat");
+  }
+};
+
 const contextUpdate = (context) => {
   const update = {};
   for (const key of ["page", "pageType", "pageTitle", "lastPage", "userMetrics"]) {
@@ -233,6 +243,7 @@ export const chatStream = async (req, res) => {
   const actorId = userId || guestKey;
 
   if (!actorId) {
+    await refundAiQuota(req, "actor_missing");
     return res.status(500).json({
       success: false,
       message: "Không thể xác định phiên trò chuyện",
@@ -241,10 +252,12 @@ export const chatStream = async (req, res) => {
   const parsed = req.aiChatRequest || parseChatRequest(req.body);
 
   if (parsed.error) {
+    await refundAiQuota(req, "request_invalid");
     return res.status(400).json({ success: false, message: parsed.error });
   }
   const { message, conversationId, context, image, requestId } = parsed.value;
   if (!userId && image) {
+    await refundAiQuota(req, "guest_image_rejected");
     return res.status(403).json({
       success: false,
       code: "AI_GUEST_IMAGE_UNAVAILABLE",
@@ -260,6 +273,7 @@ export const chatStream = async (req, res) => {
       user = await User.findById(userId).select("name isAiChatBanned").lean();
       if (user?.isAiChatBanned) {
         aiLogger.userLocked(actorId, "permanent");
+        await refundAiQuota(req, "user_banned");
         return res.status(403).json({
           success: false,
           message: "🚫 Tài khoản của bạn đã bị cấm sử dụng Chat AI vĩnh viễn do vi phạm quy tắc cộng đồng nhiều lần.",
@@ -268,6 +282,7 @@ export const chatStream = async (req, res) => {
       const lockStatus = await isUserLocked(userId);
       if (lockStatus.blocked) {
         aiLogger.userLocked(actorId, lockStatus.remainingMinutes);
+        await refundAiQuota(req, "user_locked");
         return res.status(403).json({
           success: false,
           message: `🚫 Chat AI đang bị khóa tạm thời. Còn ${lockStatus.remainingMinutes} phút.`,
@@ -280,6 +295,7 @@ export const chatStream = async (req, res) => {
       : moderateGuestContent(message);
     if (!moderation.safe) {
       aiLogger.moderationTrigger(actorId, moderation.action || "blocked");
+      await refundAiQuota(req, "moderation_rejected");
       return res.status(400).json({ success: false, message: moderation.message });
     }
 
@@ -318,11 +334,13 @@ export const chatStream = async (req, res) => {
     }
   } catch (error) {
     aiLogger.chatError(actorId, error, "chatPreflight");
+    const quota = await refundAiQuota(req, "chat_preflight");
     return res.status(error.status || 500).json({
       success: false,
       message: error.status
         ? error.message
         : "Lỗi hệ thống khi chuẩn bị cuộc trò chuyện",
+      ...(quota ? { meta: { quota } } : {}),
     });
   }
 
@@ -697,10 +715,19 @@ export const chatStream = async (req, res) => {
     }
   } catch (err) {
     aiLogger.chatError(actorId, err, "chatStream");
+    const refundedQuota = await refundAiQuota(
+      req,
+      deadlineExceeded ? "provider_deadline" : "provider_stream",
+    );
     if (!clientDisconnected && !res.writableEnded) {
       const message = deadlineExceeded
         ? "HT Assistant phản hồi quá lâu. Bạn vui lòng thử lại."
         : "Có lỗi xảy ra, vui lòng thử lại";
+      if (refundedQuota) {
+        res.write(
+          `data: ${JSON.stringify({ type: "quota", quota: refundedQuota })}\n\n`,
+        );
+      }
       res.write(`data: ${JSON.stringify({ type: "error", message })}\n\n`);
       res.end();
     }

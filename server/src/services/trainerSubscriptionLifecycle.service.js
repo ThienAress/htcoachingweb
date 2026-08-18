@@ -2,6 +2,11 @@ import TrainerSubscription from "../models/TrainerSubscription.js";
 import TrainerTrialClaim from "../models/TrainerTrialClaim.js";
 import Order from "../models/Order.js";
 import {
+  SERVICE_ACCESS_POLICY_VERSION,
+  SERVICE_ACCESS_TIERS,
+  createServiceEntitlementSnapshot,
+} from "../constants/serviceAccessPolicies.js";
+import {
   calculateTrainerPlanEndDate,
   getTrainerPlan,
   getTrainerPlanAmount,
@@ -128,6 +133,10 @@ export const activateTrainerSubscription = async ({
         source,
         purchaseRequestId,
         previousSubscriptionId: active?._id || null,
+        entitlementPolicyVersion: SERVICE_ACCESS_POLICY_VERSION,
+        entitlementPolicySnapshot: createServiceEntitlementSnapshot(
+          SERVICE_ACCESS_TIERS.TRAINER,
+        ),
       },
     ],
     { session },
