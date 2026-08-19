@@ -230,7 +230,7 @@ HTCOACHING cung cấp: Gym (PT cá nhân), Boxing, Cardio HIIT, Stretching/Yoga.
 ## Công cụ miễn phí trên website:
 - **Tính TDEE & Macro:** [TDEE Calculator](/tdee-calculator) — tính lượng calo hàng ngày và phân bổ macro tự động
 - **Gợi ý thực đơn thông minh:** [Thực đơn](/mealplan) — tạo thực đơn từ database 500+ món ăn Việt Nam
-- **Quét món ăn:** [Quét món ăn](/quet-mon-an) — ước tính khoảng calo và macro từ ảnh; guest có 2 lượt/24 giờ, user thường 3 lượt/24 giờ, user có gói/HLV 10 lượt/24 giờ và luôn kiểm tra lại khẩu phần
+- **Quét món ăn:** [Quét món ăn](/quet-mon-an) — ước tính khoảng calo và macro từ ảnh; guest có 1 lượt dùng thử rồi đăng nhập để nhận thêm 1 lượt theo tài khoản; khách coaching có 10 lượt/ngày + 300 lượt/30 ngày, HLV có 20 lượt/ngày + 600 lượt/30 ngày; các gói HT Fitness+ dùng hạn mức hiển thị tại [Bảng giá](/#pricing). Luôn kiểm tra lại khẩu phần
 - **Thư viện bài tập (400+ bài):** [Bài tập](/exercises) — có ảnh/video minh họa kỹ thuật
 - **Tạo giáo án tập luyện:** [Giáo án](/workout-plans) — thiết kế chương trình tập cá nhân hóa
 - **Tìm phòng tập gần nhà:** [Phòng tập](/club)

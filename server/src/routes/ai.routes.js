@@ -10,6 +10,7 @@ import {
   aiChatLimiter,
   aiGuestChatLimiter,
 } from "../middlewares/aiRateLimit.js";
+import { resolveServiceAccessTierMiddleware } from "../middlewares/resolveServiceAccessTier.js";
 import {
   chatStream,
   getHistory,
@@ -48,6 +49,7 @@ router.post(
   ensureAiActor,
   csrfProtection,
   prepareAiChatRequest,
+  resolveServiceAccessTierMiddleware,
   aiGuestChatLimiter,
   aiChatLimiter,
   enforceSharedServiceUsage("ai_chat"),

@@ -7,6 +7,7 @@ import User from "../models/User.js";
 import Order from "../models/Order.js";
 import WalletTransaction from "../models/WalletTransaction.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
+import FitnessSubscription from "../models/FitnessSubscription.js";
 import CustomerStory from "../models/CustomerStory.js";
 import { uploadAvatar } from "../middlewares/avatarUpload.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
@@ -130,8 +131,16 @@ router.put("/me/avatar", protect, csrfProtection, uploadAvatar.single("avatar"),
 router.get("/me/orders", protect, async (req, res) => {
   try {
     // Đơn hàng HLV: những người mua gói HLV để quản lý học viên
-    const trainerSubscriptions = await TrainerSubscription.find({ userId: req.user.id })
-      .sort({ createdAt: -1 });
+    const [trainerSubscriptions, fitnessSubscriptions] = await Promise.all([
+      TrainerSubscription.find({ userId: req.user.id })
+        .sort({ createdAt: -1 }),
+      FitnessSubscription.find({ userId: req.user.id })
+        .select(
+          "_id planCode planTitle billingCycle amount startDate endDate status createdAt",
+        )
+        .sort({ createdAt: -1 })
+        .lean(),
+    ]);
 
     // Đơn hàng Khách PT: khách hàng mua gói PT (userId là user hiện tại)
     const trainerOrders = await Order.find({ userId: req.user.id })
@@ -146,11 +155,12 @@ router.get("/me/orders", protect, async (req, res) => {
     res.json({
       success: true,
       trainerSubscriptions,
+      fitnessSubscriptions,
       trainerOrders,
       clientOrders,
     });
   } catch (err) {
-    safeLog.error("user_route.password_update_failed", err);
+    safeLog.error("user_route.orders_read_failed", err);
     res.status(500).json({ success: false, message: "Lỗi lấy danh sách đơn hàng" });
   }
 });

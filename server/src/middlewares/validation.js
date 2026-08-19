@@ -4,6 +4,11 @@ import {
   TRAINER_BILLING_CYCLES,
   TRAINER_PLAN_CODES,
 } from "../constants/trainerPlans.js";
+import {
+  FITNESS_PLUS_BILLING_CYCLES,
+  FITNESS_PLUS_CATALOG_PROTOCOL_VERSION,
+  FITNESS_PLUS_PLAN_CODES,
+} from "../constants/fitnessPlusPlans.js";
 import { parseDateKey } from "../utils/dateKey.js";
 import { normalizeLeadAttribution } from "../models/leadAttribution.schema.js";
 import {
@@ -2127,6 +2132,27 @@ export const validateSeoAnalyticsSync = [
   }),
   body("provider").isIn(["ga4", "gsc"]),
   ...validateAnalyticsDateRange(body),
+  handleValidationErrors,
+];
+
+export const validateFitnessPlusPlanPurchase = [
+  body("planCode")
+    .isIn(FITNESS_PLUS_PLAN_CODES)
+    .withMessage("planCode HT Fitness+ không hợp lệ"),
+  body("billingCycle")
+    .isIn(FITNESS_PLUS_BILLING_CYCLES)
+    .withMessage("billingCycle HT Fitness+ không hợp lệ"),
+  body("requestId").isUUID(4).withMessage("requestId không hợp lệ"),
+  body("expectedAmount")
+    .custom((value) => Number.isSafeInteger(value) && value >= 0)
+    .withMessage("expectedAmount không hợp lệ"),
+  body("catalogFingerprint")
+    .isString()
+    .matches(/^[a-f0-9]{64}$/)
+    .withMessage("catalogFingerprint không hợp lệ"),
+  body("protocolVersion")
+    .custom((value) => value === FITNESS_PLUS_CATALOG_PROTOCOL_VERSION)
+    .withMessage("protocolVersion không hợp lệ"),
   handleValidationErrors,
 ];
 

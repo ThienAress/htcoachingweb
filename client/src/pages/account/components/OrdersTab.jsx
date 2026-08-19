@@ -69,6 +69,18 @@ function OrdersTab({ filteredOrders, orderFilter, setOrderFilter, orderSearch, s
         >
           {t("orders.orders_pt_pill")}
         </button>
+
+        <button
+          type="button"
+          aria-pressed={orderFilter === "fitness_plus"}
+          onClick={() => setOrderFilter("fitness_plus")}
+          className={`cursor-pointer rounded-full px-4 py-2 font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 ${orderFilter === "fitness_plus"
+            ? "bg-slate-700 text-white shadow-md"
+            : "bg-white/5 text-gray-400 hover:text-white hover:bg-white/10"
+            }`}
+        >
+          {t("orders.orders_fitness_plus_pill")}
+        </button>
       </div>
 
       {/* Orders rows list */}

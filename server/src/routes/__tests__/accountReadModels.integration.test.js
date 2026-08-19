@@ -22,6 +22,7 @@ import {
   withAuth,
 } from "../../__tests__/setup.js";
 import Contract from "../../models/Contract.js";
+import FitnessSubscription from "../../models/FitnessSubscription.js";
 import Order from "../../models/Order.js";
 import TrainerSubscription from "../../models/TrainerSubscription.js";
 import Wallet from "../../models/Wallet.js";
@@ -38,6 +39,7 @@ beforeAll(async () => {
   app.use("/api/contracts", contractRoutes);
   await Promise.all([
     Contract.init(),
+    FitnessSubscription.init(),
     Order.init(),
     TrainerSubscription.init(),
     Wallet.init(),
@@ -85,6 +87,28 @@ describe("Account read models", () => {
       startDate: new Date(),
       endDate: new Date(Date.now() + 30 * 24 * 60 * 60_000),
     });
+    await FitnessSubscription.create([
+      {
+        userId: actor._id,
+        planCode: "fitness_plus_smart",
+        planTitle: "Tăng tốc",
+        billingCycle: "month",
+        amount: 199_000,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60_000),
+        purchaseRequestId: "22222222-2222-4222-8222-222222222222",
+      },
+      {
+        userId: other._id,
+        planCode: "fitness_plus_essential",
+        planTitle: "Nền tảng",
+        billingCycle: "month",
+        amount: 99_000,
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60_000),
+        purchaseRequestId: "33333333-3333-4333-8333-333333333333",
+      },
+    ]);
     const [actorWallet, otherWallet] = await Wallet.create([
       { userId: actor._id, balance: 100_000 },
       { userId: other._id, balance: 100_000 },
@@ -130,6 +154,12 @@ describe("Account read models", () => {
       subscriptionUserIds: ordersResponse.body.trainerSubscriptions.map(
         (subscription) => subscription.userId,
       ),
+      fitnessPlanCodes: ordersResponse.body.fitnessSubscriptions.map(
+        (subscription) => subscription.planCode,
+      ),
+      fitnessPurchaseRequestIds: ordersResponse.body.fitnessSubscriptions.map(
+        (subscription) => subscription.purchaseRequestId,
+      ),
       transactionStatus: transactionsResponse.status,
       transactionEnvelope: transactionsResponse.body.success,
       transactionIds: transactionsResponse.body.transactions.map(
@@ -141,6 +171,8 @@ describe("Account read models", () => {
       trainerOrderIds: [actorOrder._id.toString()],
       clientOrders: [],
       subscriptionUserIds: [actor._id.toString()],
+      fitnessPlanCodes: ["fitness_plus_smart"],
+      fitnessPurchaseRequestIds: [undefined],
       transactionStatus: 200,
       transactionEnvelope: true,
       transactionIds: [actorTransaction._id.toString()],

@@ -8,9 +8,9 @@ export const MEAL_SCAN_ABUSE_LIMIT = 30;
 const abuseHandler = ({ code, message }) => (_req, res) =>
   res.status(429).json({ success: false, code, message });
 
-// AI Chat authenticated rate limit — per user; guest dùng limiter riêng theo IP HMAC.
+// Operational flood ceiling; commercial quotas are enforced by the shared ledger.
 export const aiChatLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 giờ
+  windowMs: 60 * 60 * 1000,
   limit: AI_CHAT_ABUSE_LIMIT,
   skip: (req) => !req.user?.id,
   keyGenerator: (req) => req.user.id.toString(),

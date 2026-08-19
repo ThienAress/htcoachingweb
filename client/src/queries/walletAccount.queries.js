@@ -79,6 +79,7 @@ export const accountOrdersQueryOptions = ({
     queryFn: ({ signal }) =>
       getMyOrders({ signal }).then((data) => ({
         trainerSubscriptions: data.trainerSubscriptions || [],
+        fitnessSubscriptions: data.fitnessSubscriptions || [],
         trainerOrders: data.trainerOrders || [],
         clientOrders: data.clientOrders || [],
       })),

@@ -5,6 +5,12 @@ export const subscriptionKeys = {
   mine: (userId) => [...subscriptionKeys.all(), userId],
 };
 
+export const fitnessPlusKeys = {
+  all: () => ["fitness-plus"],
+  catalog: () => [...fitnessPlusKeys.all(), "catalog"],
+  mine: (userId) => [...fitnessPlusKeys.all(), "mine", userId],
+};
+
 export const walletAccountKeys = {
   wallet: {
     all: () => ["wallet"],

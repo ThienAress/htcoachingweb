@@ -28,6 +28,21 @@ const matrix = {
   communityFeatures: {
     items: [{ featureKey: "meal_plan" }],
   },
+  emailNotifications: {
+    version: "test",
+    items: [
+      {
+        notificationKey: "order_approved",
+        feature: "Duyệt đơn hàng",
+        trigger: "Admin duyệt đơn",
+        recipient: "Khách hàng",
+        condition: "Đơn có email",
+        delivery: "Best-effort",
+        templateKey: "order",
+        sender: "sendMail",
+      },
+    ],
+  },
 };
 
 vi.mock("@tanstack/react-query", () => ({
@@ -42,12 +57,13 @@ vi.mock("../service-access-policies/CommunityFeatureTable", () => ({
 import ServiceAccessPoliciesPage from "../ServiceAccessPoliciesPage";
 
 describe("ServiceAccessPoliciesPage section order", () => {
-  it("renders community, trainer, quota and dependency sections in product order", () => {
+  it("renders community, trainer, quota, email and dependency sections in product order", () => {
     const html = renderToStaticMarkup(<ServiceAccessPoliciesPage />);
     const headings = [
       "Tính năng cộng đồng &amp; khách hàng",
       "Quyền lợi gói HLV",
       "Hạn mức công cụ",
+      "Thông báo email tự động",
       "Phụ thuộc &amp; phiên bản hệ thống",
     ];
     const positions = headings.map((heading) => html.indexOf(heading));

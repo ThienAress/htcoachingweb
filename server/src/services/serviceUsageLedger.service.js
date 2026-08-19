@@ -9,6 +9,14 @@ import { ipKeyGenerator } from "express-rate-limit";
 import mongoose from "mongoose";
 
 import ServiceUsageBucket from "../models/ServiceUsageBucket.js";
+import {
+  buildServiceUsageBucketUpdate,
+  buildServiceUsageRefundUpdate,
+  normalizeServiceQuotaWindows,
+  resolveServiceUsagePolicyGroup,
+  serializeServiceUsageQuota,
+  updateServiceUsageBucket,
+} from "./serviceUsageLedgerRuntime.js";
 
 const fallbackGuestSecret = randomBytes(32);
 const SERVICE_KEYS = new Set(["ai_chat", "meal_scan"]);
@@ -32,6 +40,12 @@ export const hashServiceUsageGuestNetwork = (ip) =>
 export const resolveServiceUsageActor = (req) => {
   if (req.user?.id) {
     return { kind: "user", userId: req.user.id };
+  }
+  if (
+    req.mealScanActor?.kind === "guest" &&
+    HASH_PATTERN.test(req.mealScanActor.guestKey || "")
+  ) {
+    return { kind: "guest", guestKey: req.mealScanActor.guestKey };
   }
   return {
     kind: "guest",
@@ -63,96 +77,6 @@ const normalizeActor = (actor) => {
   throw new Error("Service usage actor is invalid");
 };
 
-const buildBucketUpdate = ({
-  actor,
-  serviceKey,
-  tier,
-  limit,
-  windowMs,
-  operationHash,
-  now,
-}) => {
-  const activeWindow = {
-    $gt: [{ $ifNull: ["$resetAt", new Date(0)] }, now],
-  };
-  const operationHashes = { $ifNull: ["$operationHashes", []] };
-  const currentCount = { $ifNull: ["$count", 0] };
-  const duplicateOperation = {
-    $and: [activeWindow, { $in: [operationHash, operationHashes] }],
-  };
-  const hasCapacity = {
-    $or: [{ $not: [activeWindow] }, { $lt: [currentCount, limit] }],
-  };
-  const nextCount = {
-    $cond: [
-      duplicateOperation,
-      currentCount,
-      {
-        $cond: [
-          activeWindow,
-          {
-            $cond: [
-              { $lt: [currentCount, limit] },
-              { $add: [currentCount, 1] },
-              currentCount,
-            ],
-          },
-          1,
-        ],
-      },
-    ],
-  };
-  const nextOperationHashes = {
-    $cond: [
-      duplicateOperation,
-      operationHashes,
-      {
-        $cond: [
-          activeWindow,
-          {
-            $cond: [
-              hasCapacity,
-              {
-                $slice: [
-                  { $concatArrays: [operationHashes, [operationHash]] },
-                  -limit,
-                ],
-              },
-              operationHashes,
-            ],
-          },
-          [operationHash],
-        ],
-      },
-    ],
-  };
-
-  return [
-    {
-      $set: {
-        serviceKey,
-        actorKind: actor.actorKind,
-        userId: actor.userId,
-        guestKey: actor.guestKey,
-        tier,
-        limit,
-        count: nextCount,
-        operationHashes: nextOperationHashes,
-        windowStartedAt: { $cond: [activeWindow, "$windowStartedAt", now] },
-        resetAt: {
-          $cond: [
-            activeWindow,
-            "$resetAt",
-            new Date(now.getTime() + windowMs),
-          ],
-        },
-        createdAt: { $ifNull: ["$createdAt", now] },
-        updatedAt: now,
-      },
-    },
-  ];
-};
-
 export async function consumeServiceUsage({
   serviceKey,
   tier,
@@ -165,62 +89,90 @@ export async function consumeServiceUsage({
   if (!SERVICE_KEYS.has(serviceKey)) {
     throw new Error(`Unsupported shared usage service: ${serviceKey}`);
   }
-  if (
-    policy?.mode !== "quota" ||
-    !Number.isSafeInteger(policy.limit) ||
-    policy.limit < 1 ||
-    !Number.isSafeInteger(policy.windowMs) ||
-    policy.windowMs < 1
-  ) {
-    throw new Error(`Service ${serviceKey} requires a bounded quota policy`);
-  }
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
     throw new Error("Service usage timestamp is invalid");
   }
 
+  const windows = normalizeServiceQuotaWindows(serviceKey, policy);
   const actor = normalizeActor(rawActor);
-  const bucketId = digest(`v1|${serviceKey}|${actor.actorKind}|${actor.actorKey}`);
+  const policyGroup = resolveServiceUsagePolicyGroup(tier);
+  const bucketId = digest(
+    `v2|${serviceKey}|${policyGroup}|${actor.actorKind}|${actor.actorKey}`,
+  );
   const operationHash = digest(
     String(operationKey || randomUUID()).slice(0, 200),
   );
-  const update = buildBucketUpdate({
-    actor,
-    serviceKey,
-    tier,
-    limit: policy.limit,
-    windowMs: policy.windowMs,
-    operationHash,
-    now,
-  });
-
-  let bucket;
-  try {
-    bucket = await model.findOneAndUpdate({ _id: bucketId }, update, {
-      upsert: true,
-      returnDocument: "after",
-      lean: true,
-      updatePipeline: true,
-      projection: { count: 1, operationHashes: 1, resetAt: 1 },
-    });
-  } catch (error) {
-    if (error?.code !== 11000) throw error;
-    bucket = await model.findOneAndUpdate({ _id: bucketId }, update, {
-      returnDocument: "after",
-      lean: true,
-      updatePipeline: true,
-      projection: { count: 1, operationHashes: 1, resetAt: 1 },
-    });
-  }
-  if (!bucket) throw new Error("Service usage bucket update returned no state");
-
-  return {
-    allowed: bucket.operationHashes?.includes(operationHash) === true,
-    quota: {
+  const bucket = await updateServiceUsageBucket({
+    model,
+    bucketId,
+    upsert: true,
+    update: buildServiceUsageBucketUpdate({
+      actor,
       serviceKey,
       tier,
-      limit: policy.limit,
-      remaining: Math.max(policy.limit - bucket.count, 0),
-      resetAt: new Date(bucket.resetAt).toISOString(),
+      policyGroup,
+      windows,
+      operationHash,
+      now,
+    }),
+  });
+  if (!bucket || bucket.lastOperationHash !== operationHash) {
+    throw new Error("Service usage bucket update returned no operation state");
+  }
+
+  const allowed = bucket.lastOperationAccepted === true;
+  return {
+    allowed,
+    consumed: bucket.lastOperationConsumed === true,
+    quota: serializeServiceUsageQuota({
+      serviceKey,
+      tier,
+      windows,
+      events: bucket.usageEvents || [],
+      allowed,
+      now,
+    }),
+    reservation: {
+      bucketId,
+      operationHash,
+      serviceKey,
+      tier,
+      windows,
     },
   };
+}
+
+export async function refundServiceUsage({
+  reservation,
+  now = new Date(),
+  model = ServiceUsageBucket,
+}) {
+  if (
+    !reservation?.bucketId ||
+    !HASH_PATTERN.test(reservation.operationHash || "")
+  ) {
+    throw new Error("Service usage reservation is invalid");
+  }
+  const windows = normalizeServiceQuotaWindows(reservation.serviceKey, {
+    mode: "quota",
+    windows: reservation.windows,
+  });
+  const bucket = await updateServiceUsageBucket({
+    model,
+    bucketId: reservation.bucketId,
+    update: buildServiceUsageRefundUpdate({
+      operationHash: reservation.operationHash,
+      windows,
+      now,
+    }),
+    upsert: false,
+  });
+  return serializeServiceUsageQuota({
+    serviceKey: reservation.serviceKey,
+    tier: reservation.tier,
+    windows,
+    events: bucket?.usageEvents || [],
+    allowed: true,
+    now,
+  });
 }

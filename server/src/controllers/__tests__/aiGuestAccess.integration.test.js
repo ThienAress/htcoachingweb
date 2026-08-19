@@ -9,6 +9,12 @@ import {
 } from "vitest";
 import request from "supertest";
 
+vi.mock("../../services/ai/providers/index.js", () => ({
+  llmStream: vi.fn(async function* streamMockResponse() {
+    yield { type: "text", content: "Phản hồi fitness thử nghiệm" };
+  }),
+}));
+
 import {
   clearCollections,
   createTestApp,
@@ -19,6 +25,7 @@ import {
 import ChatConversation from "../../models/ChatConversation.js";
 import ServiceUsageBucket from "../../models/ServiceUsageBucket.js";
 import { getAllConversations } from "../knowledgeBase.controller.js";
+import { llmStream } from "../../services/ai/providers/index.js";
 
 const TEST_CSRF = "test-csrf-token";
 const GUEST_COOKIE_NAME = "htAiGuest";
@@ -47,7 +54,10 @@ beforeAll(async () => {
   app.use("/api/ai", aiRoutes);
 });
 
-afterEach(clearCollections);
+afterEach(async () => {
+  vi.clearAllMocks();
+  await clearCollections();
+});
 
 afterAll(async () => {
   await teardownTestDB();
@@ -168,5 +178,30 @@ describe("AI guest access", () => {
 
     expect(response.status).toBe(403);
     expect(response.body.code).toBe("AI_GUEST_IMAGE_UNAVAILABLE");
+    expect(await ServiceUsageBucket.countDocuments()).toBe(0);
+  });
+
+  it("refunds the AI message when the provider stream fails", async () => {
+    llmStream.mockImplementationOnce(async function* failedProviderStream() {
+      throw new Error("synthetic provider failure");
+    });
+
+    const failed = await guestRequest({
+      message: "Lập lịch tập cho tôi",
+      requestId: "c26e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
+    });
+    const bucketAfterFailure = await ServiceUsageBucket.findOne()
+      .select("+usageEvents")
+      .lean();
+    const retried = await guestRequest({
+      message: "Lập lịch tập cho tôi lần nữa",
+      requestId: "c26e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
+    });
+
+    expect(failed.status).toBe(200);
+    expect(failed.text).toContain('"type":"error"');
+    expect(failed.text).toContain('"remaining":5');
+    expect(bucketAfterFailure.usageEvents).toHaveLength(0);
+    expect(retried.text).toContain('"remaining":4');
   });
 });

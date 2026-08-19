@@ -1,4 +1,4 @@
-# Plan 054: Isolate Skill Radar và harden production recovery/monitoring
+# Plan 056: Isolate Skill Radar và harden production recovery/monitoring
 
 > Triển khai code theo fail-closed contract. Không bật worker, mua hạ tầng,
 > upload backup hay restore production khi chưa có phê duyệt target/chi phí riêng.

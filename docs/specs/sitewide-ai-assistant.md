@@ -13,7 +13,9 @@ các tool cá nhân; dữ liệu draft, dữ liệu riêng và instruction nằm
    hoặc web-search tốn chi phí.
 2. Guest conversation được lưu tối đa 24 giờ để giữ mạch hội thoại trong phiên; không merge vào tài khoản
    sau khi đăng nhập và không xuất hiện trong màn hình Knowledge Base admin.
-3. Quota guest là 5 tin/giờ theo IP đã HMAC; user thường 15 tin/giờ; coaching customer và HLV 30 tin/giờ.
+3. Quota guest là 5 tin/24 giờ theo IP đã HMAC; user thường 15 tin/24 giờ + 60 tin/30 ngày;
+   coaching customer 30 tin/giờ + 600 tin/30 ngày; HLV 30 tin/giờ + 1.200 tin/30 ngày.
+   Ba tier HT Fitness+ lần lượt là 20/120, 40/300 và 60/600 theo cửa sổ giờ/30 ngày.
 4. Không hiển thị proactive assistance theo thời gian/scroll; launcher và suggestion trong panel là điểm vào duy nhất.
 5. Không thêm dependency và không sửa `client/src/utils/api.js`, JWT cookie hay CSRF middleware hiện có.
 

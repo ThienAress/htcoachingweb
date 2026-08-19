@@ -1,4 +1,5 @@
 import TrainerSubscription from "../models/TrainerSubscription.js";
+import FitnessSubscription from "../models/FitnessSubscription.js";
 import { createRecurringJob } from "../operations/recurringJob.js";
 import { calculateRetentionDeadlines } from "./trainerSubscriptionLifecycle.service.js";
 import { safeLog } from "../utils/safeLogger.js";
@@ -50,10 +51,34 @@ export async function expireTrainerSubscriptions() {
   }
 }
 
+export async function expireFitnessPlusSubscriptions() {
+  try {
+    const result = await FitnessSubscription.updateMany(
+      {
+        status: "active",
+        endDate: { $lte: new Date() },
+      },
+      {
+        $set: {
+          status: "expired",
+          isActive: false,
+        },
+      },
+    );
+    return result.modifiedCount || 0;
+  } catch (error) {
+    safeLog.error("fitness_plus_subscription_cron.failed", error);
+    return 0;
+  }
+}
+
 const subscriptionCron = createRecurringJob({
   name: "subscription_cron",
   intervalMs: INTERVAL_MS,
-  task: expireTrainerSubscriptions,
+  task: async () => {
+    await expireTrainerSubscriptions();
+    await expireFitnessPlusSubscriptions();
+  },
 });
 
 export function startSubscriptionCronJobs() {

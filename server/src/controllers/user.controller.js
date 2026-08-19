@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import Checkin from "../models/Checkin.js";
+import FitnessSubscription from "../models/FitnessSubscription.js";
+import FitnessPlusQuotaUsage from "../models/FitnessPlusQuotaUsage.js";
 import {
   deleteTodayDashboardData,
 } from "../services/todayDashboardPrivacy.service.js";
@@ -72,6 +74,8 @@ export const deleteUser = async (req, res) => {
         session,
       });
       await deleteAiMemoryForUser(userId, { session });
+      await FitnessPlusQuotaUsage.deleteMany({ userId }).session(session);
+      await FitnessSubscription.deleteMany({ userId }).session(session);
       await Order.deleteMany({ userId }).session(session);
       await User.deleteOne({ _id: userId }).session(session);
     });

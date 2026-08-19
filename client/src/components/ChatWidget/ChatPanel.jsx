@@ -1,12 +1,17 @@
-import { lazy, Suspense, useState, useEffect, useRef, useCallback } from "react";
+import { lazy, Suspense, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Bot, Send, X, Square, PanelLeftOpen, Plus, ArrowUp, Maximize2, Sun, Moon, ImageIcon, Wand2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
 import ChatPanelSidebar from "./ChatPanelSidebar";
+import ConversationNavigator from "./ConversationNavigator";
 import TdeeFormCard from "./cards/TdeeFormCard";
 import { createChatHistoryLoadGate } from "./chatHistoryLoadGate";
+import {
+  buildConversationQuestionItems,
+  getConversationMessageKey,
+} from "./conversationNavigatorRuntime";
 import {
   getChatVisualViewportBounds,
   getChatQuotaStatusLine,
@@ -66,6 +71,9 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const pillRef = useRef(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const messagesScrollRef = useRef(null);
+  const messagesContentRef = useRef(null);
+  const questionTargetRefs = useRef(new Map());
   const attachMenuRef = useRef(null);
   const historyLoadGateRef = useRef(null);
   const wasOpenRef = useRef(initiallyOpen);
@@ -86,6 +94,29 @@ export default function ChatPanel({ initiallyOpen = false }) {
     retryLastMessage, editMessage,
   } = useAiChat({ persistenceEnabled: Boolean(user) });
   const authenticatedUserId = user?._id || user?.id || null;
+  const conversationQuestionItems = useMemo(
+    () => buildConversationQuestionItems(messages),
+    [messages],
+  );
+  const getQuestionTarget = useCallback(
+    (key) => questionTargetRefs.current.get(key) || null,
+    [],
+  );
+  const handleNavigateToQuestion = useCallback((key) => {
+    const scrollContainer = messagesScrollRef.current;
+    const target = questionTargetRefs.current.get(key);
+    if (!scrollContainer || !target) return;
+
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    scrollContainer.scrollTo({
+      top: Math.max(
+        0,
+        scrollContainer.scrollTop + targetRect.top - containerRect.top - 24,
+      ),
+      behavior: getChatScrollBehavior(window),
+    });
+  }, []);
   const buildCurrentContext = useCallback(
     () => getAiMessageContext(location.pathname, document.title),
     [location.pathname],
@@ -534,7 +565,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
           {/* Main content */}
           <div className="relative flex flex-col flex-1 min-w-0">
             {/* Header Actions */}
-            <div className="pointer-events-none absolute left-4 right-4 top-4 z-10 grid grid-cols-[6rem_minmax(0,1fr)_6rem] items-center gap-2">
+            <div className="pointer-events-none absolute left-4 right-4 top-4 z-10 flex items-center justify-between gap-2">
               <div className="flex justify-start">
                 {user && !sidebarOpen && (
                   <button
@@ -547,11 +578,6 @@ export default function ChatPanel({ initiallyOpen = false }) {
                     <PanelLeftOpen size={18} />
                   </button>
                 )}
-              </div>
-              <div className="pointer-events-auto flex min-w-0 items-center justify-center">
-                <span className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">
-                  HT Assistant
-                </span>
               </div>
               <div className="pointer-events-auto flex items-center justify-end gap-2">
                 <button
@@ -590,7 +616,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                   </h1>
 
                   {!user && (
-                    <div className="mb-6 flex max-w-xl flex-wrap items-center justify-center gap-2 text-center text-sm text-gray-600 dark:text-gray-300">
+                    <div className="mb-6 flex max-w-xl flex-col items-center justify-center gap-1 text-center text-sm text-gray-600 dark:text-gray-300">
                       <span>Bạn đang dùng chế độ khách với số lượt hỏi giới hạn.</span>
                       <Link
                         to="/login"
@@ -628,22 +654,36 @@ export default function ChatPanel({ initiallyOpen = false }) {
               ) : (
                 /* Chat state */
                 <>
-                  <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-6 py-6 pt-20">
-                    <div className="flex flex-col gap-4 max-w-4xl mx-auto">
+                  <div
+                    ref={messagesScrollRef}
+                    className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-6 py-6 pt-20"
+                  >
+                    <div
+                      ref={messagesContentRef}
+                      className="flex flex-col gap-4 max-w-4xl mx-auto"
+                    >
                       {messages.map((msg, i) => {
+                        const messageKey = getConversationMessageKey(msg, i);
                         const isLastAssistant =
                           msg.role === "assistant" &&
                           i === messages.length - 1 &&
                           isLoading;
                         return (
-                          <ChatBubble
-                            key={msg._id || msg.localId || i}
-                            message={msg}
-                            onRetry={user ? retryLastMessage : undefined}
-                            onEdit={user ? handleEditMessage : undefined}
-                            isThinking={isLastAssistant}
-                            onFeedback={user ? handleFeedback : undefined}
-                          />
+                          <div
+                            key={messageKey}
+                            ref={msg.role === "user" ? (node) => {
+                              if (node) questionTargetRefs.current.set(messageKey, node);
+                              else questionTargetRefs.current.delete(messageKey);
+                            } : undefined}
+                          >
+                            <ChatBubble
+                              message={msg}
+                              onRetry={user ? retryLastMessage : undefined}
+                              onEdit={user ? handleEditMessage : undefined}
+                              isThinking={isLastAssistant}
+                              onFeedback={user ? handleFeedback : undefined}
+                            />
+                          </div>
                         );
                       })}
 
@@ -681,6 +721,13 @@ export default function ChatPanel({ initiallyOpen = false }) {
                       <div ref={messagesEndRef} />
                     </div>
                   </div>
+                  <ConversationNavigator
+                    items={conversationQuestionItems}
+                    scrollContainerRef={messagesScrollRef}
+                    contentRef={messagesContentRef}
+                    getTarget={getQuestionTarget}
+                    onNavigate={handleNavigateToQuestion}
+                  />
 
                   {/* Bottom Suggestions + Input Area */}
                   <div className="shrink-0 px-4 md:px-6 pb-6 pt-2 bg-gradient-to-t from-white via-white to-transparent dark:from-[#131314] dark:via-[#131314] z-10">

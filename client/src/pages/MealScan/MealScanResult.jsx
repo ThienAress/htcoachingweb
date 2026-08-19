@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertCircle,
   BarChart3,
@@ -24,6 +25,7 @@ export default function MealScanResult({
   declaredIngredients,
   onPortionChange,
   onRetry,
+  quotaAction = null,
 }) {
   const { t } = useTranslation("mealScan");
   const firstPortionRef = useRef(null);
@@ -70,13 +72,29 @@ export default function MealScanResult({
             {t("result.error_title")}
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            {t("result.retry")}
-          </button>
+          {quotaAction ? (
+            <Link
+              to={quotaAction === "login" ? "/login" : "/#pricing"}
+              state={
+                quotaAction === "login" ? { from: "/quet-mon-an" } : undefined
+              }
+              className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {t(
+                quotaAction === "login"
+                  ? "result.login_to_continue"
+                  : "result.view_plans",
+              )}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {t("result.retry")}
+            </button>
+          )}
         </div>
       </section>
     );

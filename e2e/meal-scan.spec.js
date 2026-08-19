@@ -174,7 +174,7 @@ test.describe("Meal Scan anonymous journey", () => {
     ).toBe(true);
   });
 
-  test("localizes the anonymous daily limit response", async ({ page }) => {
+  test("prompts an exhausted guest trial to log in", async ({ page }) => {
     await mockAnalysis(page, {
       status: 429,
       body: {
@@ -186,8 +186,11 @@ test.describe("Meal Scan anonymous journey", () => {
     await uploadAndAnalyze(page);
 
     await expect(page.getByRole("alert")).toContainText(
-      "Bạn đã dùng hết 2 lượt quét không cần tài khoản trong 24 giờ.",
+      "Bạn đã dùng hết 1 lượt quét không cần tài khoản.",
     );
+    await expect(
+      page.getByRole("link", { name: "Đăng nhập để quét tiếp" }),
+    ).toBeVisible();
   });
 });
 
@@ -225,7 +228,7 @@ test.describe("Meal Scan authenticated local journey", () => {
     await expect(page.getByText("Kiểm tra trước khi xác nhận")).toHaveCount(0);
   });
 
-  test("localizes the authenticated daily quota response", async ({ page }) => {
+  test("localizes the authenticated trial quota response", async ({ page }) => {
     await mockAnalysis(page, {
       status: 429,
       body: {
@@ -236,9 +239,19 @@ test.describe("Meal Scan authenticated local journey", () => {
           quota: {
             serviceKey: "meal_scan",
             tier: "user",
-            limit: 3,
+            limit: 1,
             remaining: 0,
-            resetAt: "2026-08-08T00:00:00.000Z",
+            resetAt: null,
+            windows: [
+              {
+                key: "lifetime",
+                limit: 1,
+                remaining: 0,
+                resetAt: null,
+                period: "lifetime",
+                periodLabel: "lifetime",
+              },
+            ],
           },
         },
       },
@@ -246,8 +259,62 @@ test.describe("Meal Scan authenticated local journey", () => {
     await uploadAndAnalyze(page);
 
     await expect(page.getByRole("alert")).toContainText(
-      "Bạn đã dùng hết 3 lượt quét trong 24 giờ.",
+      "Bạn đã dùng hết hạn mức Meal Scan hiện tại.",
     );
+    await expect(
+      page.getByRole("link", { name: "Xem gói để tiếp tục" }),
+    ).toBeVisible();
+  });
+
+  test("does not send an entitled user back to pricing on quota exhaustion", async ({
+    page,
+  }) => {
+    await mockAnalysis(page, {
+      status: 429,
+      body: {
+        success: false,
+        code: "MEAL_SCAN_RATE_LIMITED",
+        message: "Bạn đã dùng hết hạn mức Meal Scan hiện tại. Vui lòng thử lại sau.",
+        meta: {
+          quota: {
+            serviceKey: "meal_scan",
+            tier: "trainer",
+            limit: 20,
+            remaining: 0,
+            resetAt: "2026-08-19T00:00:00.000Z",
+            windows: [
+              {
+                key: "daily",
+                limit: 20,
+                remaining: 0,
+                resetAt: "2026-08-19T00:00:00.000Z",
+                period: "rolling_day",
+                periodLabel: "ngày",
+              },
+              {
+                key: "monthly",
+                limit: 600,
+                remaining: 580,
+                resetAt: "2026-09-17T00:00:00.000Z",
+                period: "rolling_30_days",
+                periodLabel: "30 ngày",
+              },
+            ],
+          },
+        },
+      },
+    });
+    await uploadAndAnalyze(page);
+
+    await expect(page.getByRole("alert")).toContainText(
+      "Vui lòng thử lại sau.",
+    );
+    await expect(
+      page.getByRole("link", { name: "Xem gói để tiếp tục" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Thử phân tích lại" }),
+    ).toBeVisible();
   });
 
   test("shows the stable 422 retake error", async ({ page }) => {

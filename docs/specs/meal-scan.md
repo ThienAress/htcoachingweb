@@ -11,9 +11,10 @@ chỉnh khẩu phần, nhưng không trình bày output AI như số liệu chí
 ## Product contract
 
 - Navbar: `Công cụ → Quét món ăn`; tiếng Anh là `Meal Scan`.
-- Trang và thao tác phân tích ảnh đều public. Anonymous được 2 lượt/24 giờ theo IP; user thường được
-  3 lượt/24 giờ; coaching customer và HLV được 10 lượt/24 giờ theo user. Vượt quota trả 429, không gọi
-  provider và không debit ví.
+- Trang và thao tác phân tích ảnh đều public. Anonymous có 1 lượt lifetime theo browser cookie; sau đăng nhập,
+  user thường có thêm 1 lượt lifetime theo tài khoản. Coaching customer có 10 lượt/ngày + 300 lượt/30 ngày;
+  HLV có 20 lượt/ngày + 600 lượt/30 ngày; ba gói HT Fitness+ lần lượt là 5/120, 10/210 và 15/300 theo
+  cửa sổ ngày/30 ngày. Vượt quota trả 429, không gọi provider và không debit ví.
 - Desktop: upload 5/12, kết quả 7/12; mobile xếp dọc.
 - Ảnh nén tại browser, chỉ xử lý tạm thời, không lưu DB/Cloudinary/log/chat.
 - JPEG/PNG/WebP; tối đa 280 KB client và 300 KB API sau nén.
@@ -32,15 +33,16 @@ chỉnh khẩu phần, nhưng không trình bày output AI như số liệu chí
 
 `POST /api/meal-scans/analyze`
 
-- Middleware: `optionalMealScanAuth → csrfProtection → validateMealScanImage →
-  mealScanAnonymousLimiter → mealScanLimiter`.
+- Middleware: `optionalMealScanAuth → ensureMealScanActor → csrfProtection → validateMealScanImage →
+  resolveServiceAccessTierMiddleware → mealScanAnonymousLimiter → mealScanLimiter → enforceSharedServiceUsage`.
 - Request: `{ image: "data:image/...;base64,...", locale?: "vi" | "en", providerDataUseAccepted?: true,
   declaredIngredients?:
   [{ name: string, grams: number }] }`. Free/Unpaid mode bắt buộc `providerDataUseAccepted === true`; thiếu consent
   bị chặn trước limiter/provider. Middleware giới hạn tối đa 8 mục, trim tên tối đa 80 ký tự và
   chỉ nhận gram 1–3000 trước khi request có thể tiêu quota.
 - Response: `{ success: true, data: MealScanResult, meta: { quota: { serviceKey, tier, limit, remaining,
-  resetAt } } }`, header `Cache-Control: private, no-store`. Lỗi 429 trả cùng `meta.quota`.
+  resetAt, windows[] } } }`, header `Cache-Control: private, no-store`. Lỗi 429 trả cùng `meta.quota`;
+  provider 5xx/timeout hoàn reservation và trả quota sau hoàn nếu có.
 - Non-production Meal Scan mặc định trả mock deterministic, độc lập với AI_PROVIDER toàn cục;
   MEAL_SCAN_PROVIDER=gemini chỉ là opt-in test local có kiểm soát. Runtime production luôn dùng
   AI_PROVIDER=gemini và fail closed nếu thiếu API key, chưa xác nhận một trong hai data-use mode hoặc output sai.
@@ -119,13 +121,12 @@ compressing/analyzing; result; error/retry.
 
 ### Always
 
-Optional auth, CSRF, anonymous per-IP + authenticated per-user rate limit, payload bound, no-store,
+Optional auth, CSRF, anonymous browser trial + per-IP abuse limit, authenticated per-user quota, payload bound, no-store,
 không log/lưu ảnh, hiển thị range/confidence và page chỉ gọi API qua `client/src/services/`.
 
 ### Ask first
 
-Persist ảnh/kết quả, Daily Journal/history, quota theo gói,
-tính phí, provider mới hoặc dùng ảnh cho training/human review.
+Persist ảnh/kết quả, Daily Journal/history, tính phí, provider mới hoặc dùng ảnh cho training/human review.
 
 ### Never trong MVP
 
@@ -194,10 +195,10 @@ CSRF/rate limit; persist raw ảnh/base64.
 
 - Anonymous analysis requires the existing CSRF mechanism and server image validation. Invalid
   payloads do not spend quota; every provider-bound request, including a `422` non-food result, does.
-- Anonymous limit là 2 requests/24 giờ theo normalized IP; user thường 3 requests/24 giờ; coaching customer
-  và HLV 10 requests/24 giờ theo user ID. Lượt vượt quota dừng trước controller/provider và không tạo wallet ledger. Limiter dùng
-  ephemeral in-memory store và không persist/log raw IP; horizontal scaling cần shared privacy-reviewed
-  store.
+- Anonymous trial là 1 request lifetime theo opaque httpOnly browser cookie; user thường có thêm 1 request lifetime
+  theo user ID. Paid/coaching/trainer dùng daily + monthly windows từ registry canonical. Lượt vượt quota dừng trước
+  controller/provider và không tạo wallet ledger. Shared Mongo ledger chỉ lưu HMAC guest key/user ID cùng usage event;
+  abuse limiter theo IP không persist/log raw IP.
 - Barcode/external packaged-food lookup remains authenticated and is not rendered in the simplified result;
   anonymous users may declare ingredients before analysis and adjust portions locally afterward.
 - Hero highlights calories/macros with the solid brand accent. The unified guide appears before the

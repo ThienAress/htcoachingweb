@@ -12,6 +12,7 @@ import {
 import SEO from "../../components/SEO";
 import { serviceAccessPoliciesQueryOptions } from "../../queries/serviceAccessPolicy.queries";
 import CommunityFeatureTable from "./service-access-policies/CommunityFeatureTable";
+import EmailNotificationTable from "./service-access-policies/EmailNotificationTable";
 import SystemDependencyTable from "./service-access-policies/SystemDependencyTable";
 import { SYSTEM_DEPENDENCY_INVENTORY } from "./service-access-policies/systemDependencyInventory";
 import {
@@ -185,6 +186,7 @@ export default function ServiceAccessPoliciesPage() {
   const [toolQuotaOpen, setToolQuotaOpen] = useState(true);
   const [trainerBenefitsOpen, setTrainerBenefitsOpen] = useState(true);
   const [communityFeaturesOpen, setCommunityFeaturesOpen] = useState(true);
+  const [emailNotificationsOpen, setEmailNotificationsOpen] = useState(true);
   const [systemDependenciesOpen, setSystemDependenciesOpen] = useState(true);
   const [selectedFeatureGroup, setSelectedFeatureGroup] = useState("all");
   const [selectedFeatureAudience, setSelectedFeatureAudience] = useState("all");
@@ -203,7 +205,7 @@ export default function ServiceAccessPoliciesPage() {
               Quyền & hạn mức
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
-              Đối chiếu tính năng cộng đồng, quyền lợi gói HLV, hạn mức công cụ và phiên bản package của hệ thống. Dữ liệu chỉ đọc và lấy từ các nguồn canonical.
+              Đối chiếu tính năng cộng đồng, quyền lợi gói HLV, hạn mức công cụ, email tự động và phiên bản package của hệ thống. Dữ liệu chỉ đọc và lấy từ các nguồn canonical.
             </p>
           </div>
           {matrix?.version && (
@@ -239,7 +241,8 @@ export default function ServiceAccessPoliciesPage() {
         {matrix &&
           matrix.services.length === 0 &&
           matrix.trainerPlans?.benefits?.length === 0 &&
-          !matrix.communityFeatures?.items?.length && (
+          !matrix.communityFeatures?.items?.length &&
+          !matrix.emailNotifications?.items?.length && (
           <div className="rounded-xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
             Registry chưa có hạn mức, quyền lợi hoặc tính năng nào.
           </div>
@@ -287,6 +290,18 @@ export default function ServiceAccessPoliciesPage() {
           </CollapsibleSection>
         )}
 
+        {matrix?.emailNotifications?.items?.length > 0 && (
+          <CollapsibleSection
+            title="Thông báo email tự động"
+            description={`Danh sách ${matrix.emailNotifications.items.length} luồng gửi mail đang hoạt động · catalog ${matrix.emailNotifications.version}.`}
+            open={emailNotificationsOpen}
+            onToggle={() => setEmailNotificationsOpen((current) => !current)}
+            panelId="email-notifications-panel"
+          >
+            <EmailNotificationTable catalog={matrix.emailNotifications} />
+          </CollapsibleSection>
+        )}
+
         <CollapsibleSection
           title="Phụ thuộc & phiên bản hệ thống"
           description="Tổng hợp package.json của Workspace, Frontend và Backend để theo dõi kế hoạch nâng cấp."
@@ -298,7 +313,7 @@ export default function ServiceAccessPoliciesPage() {
         </CollapsibleSection>
 
         <p className="text-xs leading-5 text-zinc-500">
-          Entitlement được backend xác định từ tài khoản, gói HLV và Order còn buổi; client không được tự khai báo tier.
+          Entitlement được backend xác định từ tài khoản, gói HT Fitness+, gói HLV và Order còn buổi; client không được tự khai báo tier.
         </p>
       </div>
     </main>

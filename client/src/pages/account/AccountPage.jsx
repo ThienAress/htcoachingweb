@@ -31,9 +31,16 @@ import {
 
 const EMPTY_ORDERS = {
   trainerSubscriptions: [],
+  fitnessSubscriptions: [],
   trainerOrders: [],
   clientOrders: [],
 };
+
+const FITNESS_PLUS_PLAN_KEYS = Object.freeze({
+  fitness_plus_essential: "essential",
+  fitness_plus_smart: "smart",
+  fitness_plus_max: "max",
+});
 
 const AccountQueryState = ({
   query,
@@ -270,6 +277,26 @@ function AccountPage() {
       createdAt: s.createdAt
     }));
 
+    const taggedFitnessPlus = (orders.fitnessSubscriptions || []).map((s) => {
+      const planKey = FITNESS_PLUS_PLAN_KEYS[s.planCode];
+      const localizedPlanTitle = planKey
+        ? t(`orders.fitness_plus_plan_names.${planKey}`)
+        : s.planTitle;
+      return {
+        _id: s._id,
+        title: t("orders.plan_fitness_plus", { name: localizedPlanTitle }),
+        subtitle: t("orders.fitness_plus_cycle_desc", {
+          cycle:
+            s.billingCycle === "month"
+              ? t("orders.cycle_month")
+              : t("orders.cycle_year"),
+        }),
+        typeLabel: t("orders.type_fitness_plus"),
+        status: s.status === "active" ? "approved" : "cancelled",
+        createdAt: s.createdAt,
+      };
+    });
+
     const taggedHlv = orders.trainerOrders.map(o => ({
       _id: o._id,
       title: t("orders.plan_pt", { name: o.package || "N/A" }),
@@ -289,11 +316,13 @@ function AccountPage() {
     }));
 
     if (orderFilter === "all") {
-      combined = [...taggedSub, ...taggedHlv, ...taggedPt];
+      combined = [...taggedSub, ...taggedFitnessPlus, ...taggedHlv, ...taggedPt];
     } else if (orderFilter === "hlv") {
       combined = taggedSub;
     } else if (orderFilter === "pt") {
       combined = [...taggedHlv, ...taggedPt];
+    } else if (orderFilter === "fitness_plus") {
+      combined = taggedFitnessPlus;
     }
 
     if (orderSearch.trim()) {
