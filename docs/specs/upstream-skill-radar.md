@@ -182,6 +182,22 @@ Trang phải có search, filter theo domain/lifecycle/drift và đầy đủ loa
 
 ## Security and Operations Boundaries
 
+### Dedicated worker isolation
+
+- Web API process không được start/stop Skill Radar qua
+  `BACKGROUND_JOBS_ENABLED`; global cron lifecycle chỉ sở hữu các job nghiệp vụ
+  đã được chỉ định cho process đó.
+- Skill Radar chạy qua entrypoint `npm run worker:skill-radar --prefix server` trên
+  một process/service riêng. Entrypoint chỉ được start khi
+  `SKILL_RADAR_WORKER_ENABLED=true`, `BACKGROUND_JOBS_ENABLED=false` và có
+  `SKILL_RADAR_GITHUB_TOKEN`; thiếu một điều kiện phải fail closed.
+- Worker chỉ connect Mongo, start/stop `skillRadarCron` và disconnect khi shutdown;
+  không import/start deposit, subscription, reminder, contract, cleanup, F1 hoặc
+  SePay job.
+- Deploy code không đồng nghĩa bật worker. Bật worker là production data
+  operation riêng vì recurring job chạy ngay khi start và có thể ghi Radar
+  snapshot; cần owner duyệt target, token, cost và observation window.
+
 - Route API bắt buộc `protect` + `requireRoles("admin")`.
 - Backend chỉ trả allowlisted metadata; không trả raw third-party content hoặc filesystem paths tuyệt đối.
 - Endpoint preview/lưu là mutation Admin-only, bắt buộc `protect` + `requireRoles("admin")` + CSRF + validation và limiter

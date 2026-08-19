@@ -520,16 +520,26 @@ export const validateProductionEnvironment = (
   validateBooleanSetting(env, findings, "BACKGROUND_JOBS_ENABLED", {
     required: true,
   });
+  validateBooleanSetting(env, findings, "SKILL_RADAR_WORKER_ENABLED");
   if (
-    String(env.BACKGROUND_JOBS_ENABLED || "").toLowerCase() === "true" &&
-    !String(env.SKILL_RADAR_GITHUB_TOKEN || "").trim()
+    String(env.SKILL_RADAR_WORKER_ENABLED || "").toLowerCase() === "true"
   ) {
-    addFinding(
-      findings,
-      "warnings",
-      "SKILL_RADAR_GITHUB_TOKEN_MISSING",
-      "Skill Radar background scans use the unauthenticated GitHub quota.",
-    );
+    if (String(env.BACKGROUND_JOBS_ENABLED || "").toLowerCase() !== "false") {
+      addFinding(
+        findings,
+        "errors",
+        "SKILL_RADAR_WORKER_NOT_ISOLATED",
+        "Skill Radar worker requires BACKGROUND_JOBS_ENABLED=false.",
+      );
+    }
+    if (!String(env.SKILL_RADAR_GITHUB_TOKEN || "").trim()) {
+      addFinding(
+        findings,
+        "errors",
+        "SKILL_RADAR_GITHUB_TOKEN_MISSING",
+        "Skill Radar worker requires a dedicated read-only GitHub token.",
+      );
+    }
   }
 
   validateBooleanSetting(env, findings, "SEPAY_ENABLED");
