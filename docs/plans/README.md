@@ -80,6 +80,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 053A | Harden production backup and repository recovery | P0 | L | 020, 046, 052A | IN PROGRESS — DATABASE DR VERIFIED / SOURCE SCHEDULE PENDING |
 | 054 | Mở rộng quota AI Chat và Meal Scan theo entitlement | P1 | L | 033, 052, 052A | LOCAL COMPLETE / STAGING DEPLOY PENDING |
 | 055 | Containerize backend runtime and pilot Docker staging | P1 | L | 020, 053 | LOCAL DOCKER + FULL QA VERIFIED / RENDER PILOT PENDING |
+| 056 | Isolate Skill Radar worker và harden production recovery/monitoring | P0→P1 | L | 053 | IN PROGRESS — PAID/OFF-DEVICE GATES PENDING |
 
 ## Dependency Notes
 

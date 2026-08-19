@@ -6,6 +6,7 @@ import {
   activeOperationalAlerts,
   parsePrometheusMetrics,
   productionTargets,
+  productionHealthTimeoutMs,
   retryReadOnlyOperation,
   sitemapIndexUrls,
   sitemapIncludesCanonicalPath,
@@ -13,6 +14,14 @@ import {
   normalizeRumBaseline,
   summarizePrometheusMetrics,
 } from "./lib/production-monitoring.mjs";
+
+test("production health probe reserves a bounded first-attempt cold-start budget", () => {
+  assert.deepEqual(
+    [1, 2, 3].map((attempt) => productionHealthTimeoutMs(attempt)),
+    [90_000, 30_000, 30_000],
+  );
+  assert.throws(() => productionHealthTimeoutMs(0), /attempt/i);
+});
 
 test("split sitemap index resolves bounded same-origin child sitemaps", () => {
   const sitemap = `
@@ -263,6 +272,29 @@ test("production alert workflow links the canonical runbook and requires manual 
   );
   assert.doesNotMatch(workflow, /issues\.update\([\s\S]*state:\s*"closed"/);
   assert.match(workflow, /owner review/i);
+});
+
+test("production smoke retries every remote read-only surface", async () => {
+  const smoke = await readFile(
+    new URL("./production-smoke.mjs", import.meta.url),
+    "utf8",
+  );
+  const expectedChecks = [
+    "client document",
+    "web manifest",
+    "Google OAuth topology",
+    "blog public API",
+    "recipe public API",
+    "recipe taxonomy API",
+    "blog detail API",
+    "recipe detail API",
+    "dynamic sitemap",
+  ];
+  const missing = expectedChecks.filter(
+    (name) => !smoke.includes(`readOnlyCheck("${name}"`),
+  );
+
+  assert.deepEqual(missing, []);
 });
 
 test("staging Netlify builds fail closed on canonical dynamic route content", async () => {

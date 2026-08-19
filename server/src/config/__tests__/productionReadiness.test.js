@@ -194,14 +194,18 @@ describe("production readiness configuration", () => {
     expect(result.errors).toEqual([]);
   });
 
-  it("warns when Radar background scans lack a dedicated GitHub token", () => {
+  it("rejects a Radar worker that is not isolated or lacks its token", () => {
     const env = validEnvironment();
+    env.SKILL_RADAR_WORKER_ENABLED = "true";
     delete env.SKILL_RADAR_GITHUB_TOKEN;
 
     const result = validateProductionEnvironment(env, { strict: false });
 
-    expect(result.warnings.map((finding) => finding.code)).toContain(
-      "SKILL_RADAR_GITHUB_TOKEN_MISSING",
+    expect(result.errors.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining([
+        "SKILL_RADAR_WORKER_NOT_ISOLATED",
+        "SKILL_RADAR_GITHUB_TOKEN_MISSING",
+      ]),
     );
   });
 
