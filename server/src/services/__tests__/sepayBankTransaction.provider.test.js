@@ -98,6 +98,68 @@ describe("SePay transaction normalization", () => {
     });
   });
 
+  it("restores separators when TPBank removes them from a deposit code", () => {
+    const result = normalizeSePayWebhook({
+      ...webhookPayload,
+      code: null,
+      content: "HTCE445DDDC FT26231604698561",
+    });
+
+    expect(result.depositCode).toBe("HTC-E445-DDDC");
+  });
+
+  it("keeps the legacy canonical deposit code unchanged", () => {
+    const result = normalizeSePayWebhook({
+      ...webhookPayload,
+      code: "HTC-E445-DDDC",
+      content: "chuyen tien",
+    });
+
+    expect(result).toMatchObject({
+      depositCode: "HTC-E445-DDDC",
+      depositCodeAmbiguous: false,
+    });
+  });
+
+  it("treats canonical and compact forms of the same code as one candidate", () => {
+    const result = normalizeSePayWebhook({
+      ...webhookPayload,
+      code: "HTC-E445-DDDC",
+      content: "HTCE445DDDC FT26231604698561",
+    });
+
+    expect(result).toMatchObject({
+      depositCode: "HTC-E445-DDDC",
+      depositCodeAmbiguous: false,
+    });
+  });
+
+  it("marks two different compact deposit codes as ambiguous", () => {
+    const result = normalizeSePayWebhook({
+      ...webhookPayload,
+      code: null,
+      content: "HTCE445DDDC HTCAB12CD34",
+    });
+
+    expect(result).toMatchObject({
+      depositCode: "HTC-E445-DDDC",
+      depositCodeAmbiguous: true,
+    });
+  });
+
+  it("does not match embedded or overlong deposit-code tokens", () => {
+    const result = normalizeSePayWebhook({
+      ...webhookPayload,
+      code: null,
+      content: "XHTCE445DDDC HTCE445DDDC1 HTC-E445-DDDC-FFFF",
+    });
+
+    expect(result).toMatchObject({
+      depositCode: null,
+      depositCodeAmbiguous: false,
+    });
+  });
+
   it("normalizes an API v2 transaction without treating its UUID as a webhook id", () => {
     const result = normalizeSePayApiTransaction({
       id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
