@@ -1,6 +1,9 @@
 import crypto from "crypto";
 
-const DEPOSIT_CODE_PATTERN = /\bHTC-[A-F0-9]{4}-[A-F0-9]{4}\b/i;
+const DEPOSIT_CODE_PATTERN =
+  /\bHTC(?:-[A-F0-9]{4}-[A-F0-9]{4}|[A-F0-9]{8})\b(?!-)/i;
+const DEPOSIT_CODE_PATTERN_GLOBAL =
+  /\bHTC(?:-[A-F0-9]{4}-[A-F0-9]{4}|[A-F0-9]{8})\b(?!-)/gi;
 const TRANSACTION_DATE_PATTERN =
   /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
 
@@ -88,14 +91,22 @@ const normalizeTransferType = (value) => {
   return transferType;
 };
 
+const canonicalizeDepositCode = (value) => {
+  const compact = value.toUpperCase().replaceAll("-", "");
+  return `HTC-${compact.slice(3, 7)}-${compact.slice(7)}`;
+};
+
 const normalizeDepositCode = (code, content) => {
   const direct = String(code ?? "").trim().match(DEPOSIT_CODE_PATTERN)?.[0];
-  const contentCodes = String(content ?? "").match(
-    /\bHTC-[A-F0-9]{4}-[A-F0-9]{4}\b/gi,
-  ) || [];
-  const candidates = [...new Set([direct, ...contentCodes]
-    .filter(Boolean)
-    .map((value) => value.toUpperCase()))];
+  const contentCodes =
+    String(content ?? "").match(DEPOSIT_CODE_PATTERN_GLOBAL) || [];
+  const candidates = [
+    ...new Set(
+      [direct, ...contentCodes]
+        .filter(Boolean)
+        .map(canonicalizeDepositCode),
+    ),
+  ];
   return {
     depositCode: candidates[0] || null,
     depositCodeAmbiguous: candidates.length > 1,
