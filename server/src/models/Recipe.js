@@ -9,6 +9,55 @@ const ingredientSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const additionalNutritionSchema = new mongoose.Schema(
+  {
+    label: { type: String, required: true, trim: true, maxlength: 80 },
+    unit: {
+      type: String,
+      enum: ["kcal", "g", "mg", "mcg"],
+      required: true,
+    },
+    value: { type: Number, min: 0, required: true },
+  },
+  { _id: false },
+);
+
+const recipeNutritionSchema = new mongoose.Schema(
+  {
+    scope: {
+      type: String,
+      enum: ["whole_recipe"],
+      default: "whole_recipe",
+      required: true,
+    },
+    source: {
+      type: String,
+      enum: ["admin_manual"],
+      default: "admin_manual",
+      required: true,
+    },
+    calories: { type: Number, min: 0, default: null },
+    protein: { type: Number, min: 0, default: null },
+    fat: { type: Number, min: 0, default: null },
+    carb: { type: Number, min: 0, default: null },
+    sugars: { type: Number, min: 0, default: null },
+    salt: { type: Number, min: 0, default: null },
+    additional: {
+      type: [additionalNutritionSchema],
+      validate: {
+        validator: (items) =>
+          items.length <= 20 &&
+          new Set(
+            items.map((item) => item.label.trim().toLocaleLowerCase("vi")),
+          ).size === items.length,
+        message: "Tối đa 20 thành phần dinh dưỡng bổ sung, không trùng tên",
+      },
+      default: () => [],
+    },
+  },
+  { _id: false },
+);
+
 const recipeSchema = new mongoose.Schema(
   {
     name: {
@@ -58,6 +107,10 @@ const recipeSchema = new mongoose.Schema(
       maxlength: 100,
     },
     ingredients: [ingredientSchema],
+    nutrition: {
+      type: recipeNutritionSchema,
+      default: null,
+    },
     instructions: [String],
     youtubeUrl: {
       type: String,

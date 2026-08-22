@@ -313,33 +313,6 @@
   animation: chatCardEnter var(--chat-motion-standard) var(--chat-motion-ease-out) both;
 }
 
-/* Custom scrollbar cho chat */
-.chat-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
-}
-
-.chat-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-
-.chat-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-}
-
-.chat-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.chat-scrollbar:hover {
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
-}
-
 /* Kalodata Slide Up & Down */
 @keyframes chatSlideUp {
   from {

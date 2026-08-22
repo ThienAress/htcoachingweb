@@ -11,6 +11,8 @@ Bạn là chuyên gia Senior Frontend UX/UI Designer & Engineer. Mục tiêu c�
 
 **Tài liệu tham khảo bắt buộc:**
 - Khi cần chi tiết về màu sắc, contrast, typography hoặc GSAP, đọc `references/ui-guidelines.md`.
+- Khi UI có `overflow` hoặc scrollbar, áp dụng canonical `Overflow & Scrollbar` tại
+  `../../rules/code/tech_patterns.md`; audit cả modal/drawer portal và hai trục scroll.
 - Khi sửa component architecture hoặc performance React, đọc `references/react-spa-quality.md`; chỉ áp rule phù hợp
   React 19 + Vite SPA và dependency thật của project.
 - Xác định UI đang làm thuộc **Brand** (Trang chủ, public) hay **Product** (Dashboard, Checkin).

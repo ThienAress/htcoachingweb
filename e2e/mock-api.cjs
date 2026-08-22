@@ -77,6 +77,7 @@ let todayJournal = {
   habitCompletions: [],
   status: "draft",
   submittedAt: null,
+  correctionCount: 0,
   revision: 1,
   completion: { filled: 0, total: 8, percent: 0 },
   updatedAt: "2026-07-29T00:00:00.000Z",
@@ -254,6 +255,22 @@ const handleApi = (req, res, path) => {
         partialErrors: [],
       },
     });
+  }
+  if (
+    path === "/api/daily-journals/" + todayKey + "/submit" &&
+    req.method === "POST"
+  ) {
+    const submittedAt = new Date().toISOString();
+    todayJournal = {
+      ...todayJournal,
+      wellness: { ...todayJournal.wellness, sleepHours: 7.5 },
+      status: "submitted",
+      submittedAt,
+      revision: todayJournal.revision + 1,
+      completion: { filled: 1, total: 8, percent: 13 },
+      updatedAt: submittedAt,
+    };
+    return sendJson(res, { success: true, data: todayJournal });
   }
   if (
     path === "/api/daily-journals/" + todayKey &&

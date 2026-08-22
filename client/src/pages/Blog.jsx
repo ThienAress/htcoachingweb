@@ -223,7 +223,7 @@ const Blog = () => {
       {/* ===== CATEGORY TABS ===== */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-lg border-b border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] md:overflow-visible">
         <div className="container-custom md:overflow-visible">
-          <div className="flex items-center gap-1 overflow-x-auto md:overflow-visible py-2.5 scrollbar-hide">
+          <div className="flex items-center gap-1 overflow-x-auto py-2.5 md:overflow-visible">
             {CATEGORIES.map((cat) => {
               const hasSubs = cat.value && SUB_CATEGORIES[cat.value];
               return (

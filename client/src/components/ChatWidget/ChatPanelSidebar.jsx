@@ -75,7 +75,7 @@ export default function ChatPanelSidebar({
       </div>
 
       {/* Conversation list */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-3 min-h-0">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3">
         {conversations.length > 0 && (
           <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-2 mb-2 flex items-center gap-1.5">
             <Clock size={12} /> Gần đây

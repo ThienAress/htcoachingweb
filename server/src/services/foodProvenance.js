@@ -1,3 +1,5 @@
+import { FOOD_NUTRIENTS } from "../constants/foodNutrition.js";
+
 export const FOOD_NUTRITION_BASES = ["per_100g"];
 export const FOOD_SOURCE_TYPES = [
   "legacy_unknown",
@@ -92,6 +94,6 @@ export const hasKnownFoodSource = (source) =>
   Boolean(source?.type && source.type !== "legacy_unknown");
 
 export const hasFoodMacroMutation = (payload = {}) =>
-  ["protein", "carb", "fat", "calories", "nutritionBasis"].some(
+  [...FOOD_NUTRIENTS, "nutritionBasis"].some(
     (field) => payload[field] !== undefined,
   );

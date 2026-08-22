@@ -37,6 +37,10 @@ const createFoodForm = () => ({
   carb: "",
   fat: "",
   calories: "",
+  saturates: "",
+  sugars: "",
+  fibre: "",
+  salt: "",
   nutritionBasis: "per_100g",
   sourceType: "manual_verified",
   sourceProvider: "HTCOACHING",
@@ -240,6 +244,10 @@ const FoodManagement = () => {
       carb: food.carb,
       fat: food.fat,
       calories: food.calories || "",
+      saturates: food.saturates ?? "",
+      sugars: food.sugars ?? "",
+      fibre: food.fibre ?? "",
+      salt: food.salt ?? "",
       nutritionBasis: food.nutritionBasis || "per_100g",
       sourceType: food.source?.type || "legacy_unknown",
       sourceProvider: food.source?.provider || "",
@@ -291,6 +299,10 @@ const FoodManagement = () => {
       carb: parseFloat(formData.carb),
       fat: parseFloat(formData.fat),
       calories: formData.calories ? parseFloat(formData.calories) : undefined,
+      saturates: formData.saturates === "" ? undefined : parseFloat(formData.saturates),
+      sugars: formData.sugars === "" ? undefined : parseFloat(formData.sugars),
+      fibre: formData.fibre === "" ? undefined : parseFloat(formData.fibre),
+      salt: formData.salt === "" ? undefined : parseFloat(formData.salt),
       nutritionBasis: formData.nutritionBasis,
       source: sourcePayload(formData),
       allergenProfile: allergenPayload(formData),
@@ -419,9 +431,6 @@ const FoodManagement = () => {
                     Năng lượng (kcal)
                   </th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
-                    Nguồn
-                  </th>
-                  <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
                     Dị ứng
                   </th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-left font-semibold text-slate-600">
@@ -452,15 +461,6 @@ const FoodManagement = () => {
                     </td>
                     <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
                       {food.calories}
-                    </td>
-                    <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
-                      <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                        food.source?.type && food.source.type !== "legacy_unknown"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-amber-50 text-amber-700"
-                      }`}>
-                        {getFoodSourceLabel(food.source?.type)}
-                      </span>
                     </td>
                     <td className="px-3 md:px-4 py-2 md:py-3 text-slate-600">
                       <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
@@ -501,7 +501,7 @@ const FoodManagement = () => {
                 {foods.length === 0 && (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={8}
                       className="px-3 md:px-4 py-6 md:py-8 text-center text-slate-500"
                     >
                       Không tìm thấy thực phẩm nào.
@@ -629,6 +629,32 @@ const FoodManagement = () => {
                     />
                   </div>
                 </div>
+                <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">
+                  <legend className="px-1 text-sm font-semibold text-slate-700">
+                    Dinh dưỡng bổ sung (g/100g)
+                  </legend>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      ["saturates", "Chất béo bão hòa"],
+                      ["sugars", "Đường"],
+                      ["fibre", "Chất xơ"],
+                      ["salt", "Muối"],
+                    ].map(([key, label]) => (
+                      <label key={key} className="text-sm font-medium text-slate-700">
+                        {label}
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={formData[key]}
+                          onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                          placeholder="Không bắt buộc"
+                          className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
                 <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">
                   <legend className="px-1 text-sm font-semibold text-slate-700">
                     {FOOD_ADMIN_TEXT.provenanceLegend}

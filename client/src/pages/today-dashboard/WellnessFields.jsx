@@ -28,6 +28,8 @@ const RatingField = ({
   error,
   disabled,
   includeZero = false,
+  lowLabel,
+  highLabel,
 }) => (
   <label className="text-sm font-medium text-slate-300">
     {label}
@@ -44,6 +46,9 @@ const RatingField = ({
         </option>
       ))}
     </select>
+    <span className="mt-1 block text-xs leading-5 text-slate-500">
+      {includeZero ? "0" : "1"} = {lowLabel} · 10 = {highLabel}
+    </span>
     {error && <span role="alert" className="mt-1 block text-xs text-red-300">{error}</span>}
   </label>
 );
@@ -89,11 +94,11 @@ export const WellnessFields = ({
     </div>
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       {[
-        ["Năng lượng", "energy"],
-        ["Cảm giác đói", "hunger"],
-        ["Căng thẳng", "stress"],
-        ["Đau mỏi", "soreness"],
-      ].map(([label, name]) => (
+        ["Năng lượng", "energy", "Cạn kiệt", "Rất sung sức"],
+        ["Cảm giác đói", "hunger", "Không đói", "Rất đói"],
+        ["Căng thẳng", "stress", "Rất thư giãn", "Căng thẳng cực độ"],
+        ["Đau mỏi", "soreness", "Không đáng kể", "Rất đau mỏi"],
+      ].map(([label, name, lowLabel, highLabel]) => (
         <RatingField
           key={name}
           label={label}
@@ -101,6 +106,8 @@ export const WellnessFields = ({
           register={register}
           error={errors[name]?.message}
           disabled={disabled}
+          lowLabel={lowLabel}
+          highLabel={highLabel}
         />
       ))}
       <RatingField
@@ -110,6 +117,8 @@ export const WellnessFields = ({
         error={errors.pain?.message}
         disabled={disabled}
         includeZero
+        lowLabel="Không đau"
+        highLabel="Đau dữ dội"
       />
     </div>
     {Number(painValue) > 0 && (

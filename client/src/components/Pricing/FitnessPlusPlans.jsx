@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -10,6 +11,7 @@ import { walletBalanceQueryOptions } from "../../queries/walletAccount.queries";
 import { applyFitnessPlusPurchaseResponse, fitnessPlusCatalogQueryOptions, myFitnessPlusSubscriptionQueryOptions } from "../../queries/fitnessPlus.queries";
 import { createFitnessPlusPurchasePayload } from "../../utils/fitnessPlusCatalog";
 import PricingSegmentedControl from "./PricingSegmentedControl";
+import { useModalScrollLock } from "../../hooks/useModalScrollLock";
 
 const FITNESS_PLUS_CATALOG_CHANGED_CODE = "FITNESS_PLUS_CATALOG_CHANGED";
 
@@ -43,11 +45,10 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
     mutationFn: purchaseFitnessPlusPlan,
     onSuccess: (response) => applyFitnessPlusPurchaseResponse({ queryClient, userId, response }),
   });
+  useModalScrollLock(Boolean(checkoutPlan));
 
   useEffect(() => {
     if (!checkoutPlan) return undefined;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     closeButtonRef.current?.focus();
 
     const handleKeyDown = (event) => {
@@ -59,7 +60,6 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [checkoutPlan, purchaseMutation.isPending]);
@@ -254,7 +254,7 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
         })}
       </div>
 
-      {checkoutPlan && (
+      {checkoutPlan && createPortal((
         <div
           className="fixed inset-0 z-50"
           role="dialog"
@@ -452,7 +452,7 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
             )}
           </div>
         </div>
-      )}
+      ), document.body)}
     </>
   );
 }

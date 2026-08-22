@@ -167,4 +167,5 @@ export const publicRecipeKeys = {
   list: (filters) => listKey(publicRecipeKeys.all(), filters),
   detail: (slug, language) => ["recipe", slug, language],
   bookmarks: (userId) => ["recipe-bookmarks", userId || "anonymous"],
+  reviews: (recipeId) => ["recipe-reviews", recipeId],
 };

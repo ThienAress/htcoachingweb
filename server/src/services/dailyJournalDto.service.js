@@ -76,6 +76,7 @@ export const toDailyJournalDto = (
     status: value.status,
     submittedAt: iso(value.submittedAt),
     revision: value.revision,
+    correctionCount: value.correctionCount ?? 0,
     completion: {
       filled,
       total: completionFields.length,

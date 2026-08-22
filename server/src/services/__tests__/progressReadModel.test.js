@@ -176,6 +176,18 @@ describe("progressReadModel", () => {
     expect(result.compliance.habitCompliance.percent).toBe(50);
     expect(result.wellness.sleepHours).toEqual({ average: 7, count: 2 });
     expect(result.wellness.energy).toEqual({ average: 7, count: 1 });
+    expect(result.wellness.daily).toEqual([
+      expect.objectContaining({
+        dateKey: "2026-07-23",
+        sleepHours: 8,
+        energy: 7,
+      }),
+      expect.objectContaining({
+        dateKey: "2026-07-24",
+        sleepHours: 6,
+        energy: null,
+      }),
+    ]);
     expect(result.weightTrend.changeKg).toBe(-1);
     expect(result.weightTrend.points).toHaveLength(2);
   });
@@ -234,6 +246,11 @@ describe("progressReadModel", () => {
     });
     expect(createProgressRange(30, now).startDateKey).toBe("2026-06-30");
     expect(createProgressRange(90, now).startDateKey).toBe("2026-05-01");
+    expect(createProgressRange(7, now, "2026-07-20")).toEqual({
+      days: 7,
+      startDateKey: "2026-07-14",
+      endDateKey: "2026-07-20",
+    });
     expect(() => createProgressRange(365, now)).toThrow(/7, 30 hoặc 90/);
   });
 });

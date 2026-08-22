@@ -19,6 +19,7 @@ export const getClientProgress = async ({
   days,
   now = new Date(),
   trainerId = null,
+  endDateKey = null,
 }) => {
   const startedAt = Date.now();
   const client = await User.findById(clientId).select("_id email").lean();
@@ -27,7 +28,7 @@ export const getClientProgress = async ({
   }
   let range;
   try {
-    range = createProgressRange(days, now);
+    range = createProgressRange(days, now, endDateKey);
   } catch {
     throw progressError(
       400,
@@ -51,6 +52,7 @@ export const getTrainerClientProgress = async ({
   clientId,
   days,
   now = new Date(),
+  endDateKey = null,
 }) => {
   await assertTrainerWeeklyCheckinRead({ actor, clientId });
   return getClientProgress({
@@ -58,5 +60,6 @@ export const getTrainerClientProgress = async ({
     days,
     now,
     trainerId: actor.id,
+    endDateKey,
   });
 };

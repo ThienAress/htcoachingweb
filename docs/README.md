@@ -25,6 +25,7 @@ nguồn canonical trước khi thay đổi code.
 - [Workspace navigation spec](./specs/workspace-navigation.md)
 - [Wallet/Account Query migration spec](./specs/wallet-account-query-migration.md)
 - [Meal Scan spec](./specs/meal-scan.md)
+- [Recipe community và nutrition mở rộng spec](./specs/recipe-community-and-nutrition.md)
 - [Value-first public journey spec](./specs/value-first-public-journey.md)
 - [SEO & Conversion Analytics spec](./specs/seo-conversion-analytics.md)
 - [Meal Plan personalization and safety spec](./specs/meal-plan-personalization-and-safety.md)

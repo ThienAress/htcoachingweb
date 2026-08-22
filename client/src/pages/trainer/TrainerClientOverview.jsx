@@ -55,7 +55,6 @@ export const TrainerClientOverview = ({ clientId, dateKey }) => {
   };
 
   const today = query.data?.today;
-  const journal = today?.sections?.journal?.day;
   const coaching = today?.sections?.coaching?.day;
 
   return (
@@ -158,7 +157,10 @@ export const TrainerClientOverview = ({ clientId, dateKey }) => {
             </div>
 
             <TrainerAttentionPanel items={query.data.attention.items} />
-            <ProgressSummary progress={query.data.progress} />
+            <ProgressSummary
+              progress={query.data.progress}
+              selectedDateKey={dateKey}
+            />
             <TrainerWeeklyReview
               key={
                 (query.data.weeklyCheckin?._id || "missing") +
@@ -169,13 +171,6 @@ export const TrainerClientOverview = ({ clientId, dateKey }) => {
               checkin={query.data.weeklyCheckin}
               onChanged={setWeekly}
             />
-            {journal?._id && (
-              <CoachingCommentThread
-                targetType="daily_journal"
-                targetId={journal._id}
-                title="Trao đổi về nhật ký ngày"
-              />
-            )}
             {coaching?._id && (
               <CoachingCommentThread
                 targetType="coaching_day"

@@ -1,9 +1,13 @@
 import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
+import { optionalAuth } from "../middlewares/optionalAuth.js";
 import { csrfProtection } from "../middlewares/csrf.js";
+import { recipeReviewMutationLimiter } from "../middlewares/rateLimit.js";
 import {
   validateId,
   validateRecipeId,
+  validateRecipeReview,
+  validateRecipeNutrition,
 } from "../middlewares/validation.js";
 import upload from "../middlewares/recipeUpload.js";
 import {
@@ -22,6 +26,11 @@ import {
   uploadThumbnail,
   loadRecipeForUpload,
 } from "../controllers/recipe.controller.js";
+import {
+  getReviews,
+  removeReview,
+  upsertReview,
+} from "../controllers/recipeReview.controller.js";
 
 const router = express.Router();
 
@@ -30,6 +39,28 @@ router.get("/", getRecipes);
 router.get("/categories", getRecipeCategories);
 router.get("/areas", getRecipeAreas);
 router.get("/detail/:slug", getRecipeBySlug);
+router.get(
+  "/:recipeId/reviews",
+  optionalAuth,
+  validateRecipeId,
+  getReviews,
+);
+router.put(
+  "/:recipeId/reviews",
+  protect,
+  csrfProtection,
+  recipeReviewMutationLimiter,
+  validateRecipeReview,
+  upsertReview,
+);
+router.delete(
+  "/:recipeId/reviews",
+  protect,
+  csrfProtection,
+  recipeReviewMutationLimiter,
+  validateRecipeId,
+  removeReview,
+);
 
 // User routes (cần đăng nhập)
 router.get("/bookmarks", protect, getBookmarkedRecipes);
@@ -68,6 +99,7 @@ router.post(
   protect,
   csrfProtection,
   requireRoles("admin"),
+  validateRecipeNutrition,
   createRecipe,
 );
 router.put(
@@ -76,6 +108,7 @@ router.put(
   csrfProtection,
   requireRoles("admin"),
   validateId,
+  validateRecipeNutrition,
   updateRecipe,
 );
 router.delete(

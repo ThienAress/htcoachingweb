@@ -24,6 +24,7 @@ import {
 import { buildTrainerPlanCategories } from "../utils/trainerPlanBenefits";
 import FitnessPlusPlans from "../components/Pricing/FitnessPlusPlans";
 import PricingSegmentedControl from "../components/Pricing/PricingSegmentedControl";
+import { useModalScrollLock } from "../hooks/useModalScrollLock";
 
 const TODAY_PROGRESS_PROMPT_DISMISSED_KEY =
   "ht_today_progress_prompt_dismissed";
@@ -140,39 +141,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
     : subscriptionError
       ? "error"
       : subscriptionSnapshot?.freeTrial?.status || "unknown";
-
-  // Khóa scroll khi drawer mở
-  useEffect(() => {
-    if (checkoutPlan) {
-      const scrollY = window.scrollY;
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.left = "0";
-      document.body.style.right = "0";
-      document.body.style.overflow = "hidden";
-    } else {
-      const scrollY = document.body.style.top;
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.left = "";
-      document.body.style.right = "";
-      document.body.style.overflow = "";
-      if (scrollY) {
-        window.scrollTo(0, parseInt(scrollY || "0") * -1);
-      }
-    }
-    return () => {
-      const scrollY = document.body.style.top;
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.left = "";
-      document.body.style.right = "";
-      document.body.style.overflow = "";
-      if (scrollY) {
-        window.scrollTo(0, parseInt(scrollY || "0") * -1);
-      }
-    };
-  }, [checkoutPlan]);
+  useModalScrollLock(Boolean(checkoutPlan));
 
   // Đếm ngược và reload sau thanh toán thành công
   useEffect(() => {
@@ -1025,7 +994,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
               {/* Drawer */}
               <div
-                className="pricing-checkout-drawer absolute top-0 right-0 h-full w-full max-w-md bg-[#1a1a1a] border-l border-gray-700 shadow-2xl overflow-y-auto"
+                className="pricing-checkout-drawer absolute top-0 right-0 h-full w-full max-w-md overflow-y-auto overscroll-contain border-l border-gray-700 bg-[#1a1a1a] shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Nút đóng */}

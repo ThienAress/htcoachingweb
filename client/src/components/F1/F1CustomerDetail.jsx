@@ -267,7 +267,7 @@ const F1CustomerDetail = ({
             </div>
           </div>
 
-          <div className="mt-8 flex w-full flex-nowrap gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="mt-8 flex w-full flex-nowrap gap-3 overflow-x-auto pb-2">
             <button
               onClick={onStartIntake}
               className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 px-5 py-3 font-bold text-white shadow-md transition hover:shadow-lg"

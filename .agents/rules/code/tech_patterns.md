@@ -89,6 +89,20 @@ const schema = z.object({
 if (!email.includes("@")) { ... }
 ```
 
+### Pattern 6: Overflow & Scrollbar
+
+- Mọi vùng dùng `overflow-auto`, `overflow-scroll`, `overflow-x-auto` hoặc
+  `overflow-y-auto` phải nhận shared native scrollbar tokens trong
+  `client/src/index.css`; không tạo màu/kích thước scrollbar cục bộ lệch hệ thống.
+- Shared style phải bao phủ cả trục dọc/ngang, Firefox (`scrollbar-width`,
+  `scrollbar-color`) và Chromium/WebKit (`::-webkit-scrollbar*`).
+- Modal/drawer/portal phải lock document scroll theo hook hiện có, dùng
+  `overscroll-contain` khi phù hợp và đặt `color-scheme` đúng với surface để tránh
+  double scroll hoặc native control sai theme.
+- Scrollbar không được che nội dung hoặc vô hiệu hóa keyboard, wheel, trackpad và
+  touch scrolling. Chỉ ẩn scrollbar khi affordance thay thế rõ ràng và đã kiểm tra
+  accessibility/responsive.
+
 ---
 
 ## Mandatory Backend Patterns
