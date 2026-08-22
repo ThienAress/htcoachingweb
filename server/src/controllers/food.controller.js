@@ -9,6 +9,19 @@ import { safeLog } from "../utils/safeLogger.js";
 import FoodPriceObservation from "../models/FoodPriceObservation.js";
 import { normalizeFoodAllergenProfile } from "../services/foodAllergen.service.js";
 import { getFoodMarketPriceMap } from "../services/foodPrice.service.js";
+import { FOOD_OPTIONAL_NUTRIENTS } from "../constants/foodNutrition.js";
+
+const optionalNutritionFields = (payload) =>
+  Object.fromEntries(
+    FOOD_OPTIONAL_NUTRIENTS
+      .filter((field) => payload[field] !== undefined)
+      .map((field) => [
+        field,
+        payload[field] === null || payload[field] === ""
+          ? null
+          : Number(payload[field]),
+      ]),
+  );
 
 const withMarketPrices = async (foods) => {
   const rows = foods.map((food) =>
@@ -146,6 +159,7 @@ export const createFood = async (req, res) => {
       carb: parseFloat(carb),
       fat: parseFloat(fat),
       calories,
+      ...optionalNutritionFields(req.body),
       nutritionBasis: nutritionBasis || "per_100g",
       source,
       allergenProfile,
@@ -217,6 +231,7 @@ export const createManyFoods = async (req, res) => {
           carb: parseFloat(carb),
           fat: parseFloat(fat),
           calories: parseFloat(calories),
+          ...optionalNutritionFields(item),
           nutritionBasis: nutritionBasis || "per_100g",
           source: normalizedSources[index],
           allergenProfile,
@@ -268,6 +283,9 @@ export const updateFood = async (req, res) => {
     if (carb !== undefined) food.carb = carb;
     if (fat !== undefined) food.fat = fat;
     if (calories !== undefined) food.calories = calories;
+    for (const [field, value] of Object.entries(optionalNutritionFields(req.body))) {
+      food[field] = value;
+    }
     if (nutritionBasis !== undefined) food.nutritionBasis = nutritionBasis;
     if (source !== undefined) food.source = normalizeFoodSource(source);
     if (allergenProfile !== undefined) {

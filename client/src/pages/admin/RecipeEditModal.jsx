@@ -7,6 +7,11 @@ import {
   updateRecipe,
   uploadRecipeThumbnail,
 } from "../../services/recipe.service";
+import RecipeNutritionEditor from "./RecipeNutritionEditor";
+import {
+  recipeNutritionFormValues,
+  recipeNutritionPayload,
+} from "./recipeNutritionForm";
 
 const ingredientLines = (ingredients = []) =>
   ingredients
@@ -46,6 +51,7 @@ const RecipeEditModal = ({ recipe, onClose }) => {
     sourceUrl: recipe?.sourceUrl || "",
     source: recipe?.source || "manual",
     isPublished: recipe?.isPublished ?? false,
+    nutrition: recipeNutritionFormValues(recipe?.nutrition),
   });
 
   const [selectedImage, setSelectedImage] = useState(null);
@@ -122,6 +128,7 @@ const RecipeEditModal = ({ recipe, onClose }) => {
           .split("\n")
           .map((step) => step.trim())
           .filter(Boolean),
+        nutrition: recipeNutritionPayload(formData.nutrition),
       };
       const savedRecipe = await saveMutation.mutateAsync(payload);
       const recipeId = savedRecipe.data._id;
@@ -386,6 +393,14 @@ const RecipeEditModal = ({ recipe, onClose }) => {
                 />
               </div>
             </div>
+
+            <RecipeNutritionEditor
+              value={formData.nutrition}
+              onChange={(nutrition) =>
+                setFormData((previous) => ({ ...previous, nutrition }))
+              }
+              disabled={isSaving}
+            />
 
           </form>
         </div>

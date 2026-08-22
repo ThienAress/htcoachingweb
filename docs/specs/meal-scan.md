@@ -21,7 +21,8 @@ chỉnh khẩu phần, nhưng không trình bày output AI như số liệu chí
 - Sau khi chọn ảnh, người dùng có thể khai báo tối đa 8 thành phần đã biết bằng tên + gram. Danh sách
   rỗng vẫn được phép khóa để không buộc người dùng đoán; hàng nhập dở dang hoặc gram ngoài 1–3000 bị chặn.
 - Nút phân tích chỉ mở sau khi danh sách khai báo được khóa. Mọi chỉnh sửa thành phần hoặc đổi ảnh mở
-  khóa lại. Trước request provider-bound, UI phải xác nhận rõ một lượt quota sẽ được dùng; hủy không gọi API.
+  khóa lại. Trước request provider-bound, UI phải xác nhận rõ thao tác sẽ dùng 1 lượt phân tích ảnh;
+  hủy không gọi API.
 - Kết quả gồm tên món, range calo/P/C/F, điểm cân bằng macro 1–10, thành phần người dùng khai báo tách
   riêng và thành phần AI ước tính với range khẩu phần.
 - Gram từng thành phần có thể chỉnh và tổng được tính lại local; không auto-save
@@ -47,7 +48,7 @@ chỉnh khẩu phần, nhưng không trình bày output AI như số liệu chí
   MEAL_SCAN_PROVIDER=gemini chỉ là opt-in test local có kiểm soát. Runtime production luôn dùng
   AI_PROVIDER=gemini và fail closed nếu thiếu API key, chưa xác nhận một trong hai data-use mode hoặc output sai.
   Paid Service dùng `GEMINI_PAID_SERVICE_CONFIRMED=true`; Free/Unpaid Tier chỉ được dùng khi owner đã chấp thuận
-  điều khoản dữ liệu qua `GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED=true` và người dùng xác nhận disclosure ngay
+  điều khoản dữ liệu qua `GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED=true` và người dùng xác nhận gửi ảnh ngay
   trước mỗi request. Hai cờ không được đồng thời là `true`. Riêng
   APP_ENV=staging được phép đặt MEAL_SCAN_PROVIDER=mock để không gửi ảnh thử nghiệm tới Gemini khi
   project chưa có billing; override này không có hiệu lực ở production.

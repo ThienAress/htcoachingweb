@@ -88,7 +88,7 @@ const MetricGrid = ({ compliance }) => {
   );
 };
 
-export const ProgressSummary = ({ progress }) => (
+export const ProgressSummary = ({ progress, selectedDateKey }) => (
   <div className="space-y-4">
     {!summarizeProgressAvailability(progress) && (
       <p className="rounded-xl border border-gray-700 bg-gray-800/50 p-4 text-sm text-gray-400">
@@ -97,6 +97,11 @@ export const ProgressSummary = ({ progress }) => (
     )}
     <MetricGrid compliance={progress.compliance} />
     <BodyProgressReport bodyProgress={progress.bodyProgress} />
-    <ProgressWellnessOverview wellness={progress.wellness} />
+    <ProgressWellnessOverview
+      key={`${progress.range?.startDateKey}:${progress.range?.endDateKey}:${selectedDateKey || "end"}`}
+      wellness={progress.wellness}
+      range={progress.range}
+      dateKey={selectedDateKey || progress.range?.endDateKey}
+    />
   </div>
 );

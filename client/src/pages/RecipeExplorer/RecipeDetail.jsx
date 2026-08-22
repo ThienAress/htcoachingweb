@@ -12,6 +12,8 @@ import {
   Dumbbell,
   Calendar,
   ExternalLink,
+  List,
+  BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -31,6 +33,8 @@ import {
   recipeDetailQueryOptions,
 } from "../../queries/recipe.queries";
 import { getFlagUrl } from "./constants";
+import RecipeNutritionPanel from "./RecipeNutritionPanel";
+import RecipeReviews from "./RecipeReviews";
 
 const safeHttpUrl = (value) => {
   try {
@@ -47,6 +51,7 @@ const RecipeDetail = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
+  const [detailTab, setDetailTab] = useState("ingredients");
 
   const { data, isLoading, error } = useQuery(
     recipeDetailQueryOptions({ slug, language: i18n.language }),
@@ -290,28 +295,62 @@ const RecipeDetail = () => {
 
               </div>
 
-              {/* Ingredients */}
+              {/* Ingredients / Nutrition */}
               <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-2xl p-6 shadow-xl backdrop-blur-sm flex-1">
-                <h2 className="font-bold text-white text-lg mb-5 flex items-center gap-3">
-                  <span className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center text-xl">
-                    📝
-                  </span>
-                  {t("detail.section_ingredients")}
-                </h2>
-              <ul className="space-y-2.5">
-                {recipe.ingredients?.map((ing, idx) => (
-                  <li
-                    key={idx}
-                    className="flex justify-between items-start text-sm border-b border-zinc-700/50 pb-2 last:border-0"
-                  >
-                    <span className="text-zinc-200">{ing.name}</span>
-                    <span className="text-zinc-400 text-right ml-3 shrink-0">
-                      {ing.measure}
+                <div
+                  aria-label={t("detail.tabs.ingredients")}
+                  className="mb-6 flex rounded-xl border border-zinc-700/70 bg-zinc-900/60 p-1"
+                  role="tablist"
+                >
+                  {[
+                    { key: "ingredients", Icon: List },
+                    { key: "nutrition", Icon: BarChart3 },
+                  ].map(({ key, Icon }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      aria-selected={detailTab === key}
+                      aria-controls={`recipe-${key}-panel`}
+                      onClick={() => setDetailTab(key)}
+                      className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                        detailTab === key
+                          ? "bg-primary text-white shadow-sm"
+                          : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                      {t(`detail.tabs.${key}`)}
+                    </button>
+                  ))}
+                </div>
+
+                <div id="recipe-ingredients-panel" role="tabpanel" hidden={detailTab !== "ingredients"}>
+                  <h2 className="mb-5 flex items-center gap-3 font-bold text-lg text-white">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20 text-primary">
+                      <List className="h-5 w-5" aria-hidden="true" />
                     </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                    {t("detail.section_ingredients")}
+                  </h2>
+                  <ul className="space-y-2.5">
+                    {recipe.ingredients?.map((ing, idx) => (
+                      <li
+                        key={idx}
+                        className="flex items-start justify-between border-b border-zinc-700/50 pb-2 text-sm last:border-0"
+                      >
+                        <span className="text-zinc-200">{ing.name}</span>
+                        <span className="ml-3 shrink-0 text-right text-zinc-400">
+                          {ing.measure}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div id="recipe-nutrition-panel" role="tabpanel" hidden={detailTab !== "nutrition"}>
+                  <RecipeNutritionPanel nutrition={recipe.nutrition} />
+                </div>
+              </div>
           </div>
         </div>
 
@@ -355,6 +394,8 @@ const RecipeDetail = () => {
                 </div>
               )}
             </div>
+
+            <RecipeReviews recipeId={recipe._id} />
 
           </div>
         </div>

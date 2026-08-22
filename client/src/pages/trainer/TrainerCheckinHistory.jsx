@@ -17,6 +17,11 @@ import { adminQueryKeys } from "../../queries/queryKeys";
 import { toast, ToastContainer } from "react-toastify";
 import { getCheckins, updateCheckin } from "../../services/checkin.service";
 import { utcToLocalDateTime, localDateTimeToUTC } from "../../utils/date";
+import {
+  CHECKIN_PAGE_SIZE_OPTIONS,
+  readCheckinPageSize,
+  saveCheckinPageSize,
+} from "./checkinPageSize";
 const TrainerCheckinHistory = () => {
   const queryClient = useQueryClient();
 
@@ -32,10 +37,16 @@ const TrainerCheckinHistory = () => {
   })();
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState(readCheckinPageSize);
   const [editing, setEditing] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const limit = 10;
+
+  const handlePageSizeChange = (value) => {
+    setLimit(value);
+    setCurrentPage(1);
+    saveCheckinPageSize(value);
+  };
 
   const {
     data: checkinsData,
@@ -294,29 +305,55 @@ const TrainerCheckinHistory = () => {
         )}
       </div>
 
-      {pagination.totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2 pt-2">
+      <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2" role="group" aria-label="Số check-in mỗi trang">
+          <span className="text-sm font-medium text-slate-600">Hiển thị</span>
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+            {CHECKIN_PAGE_SIZE_OPTIONS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => handlePageSizeChange(value)}
+                aria-pressed={limit === value}
+                className={
+                  "min-h-9 min-w-10 rounded-md px-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 " +
+                  (limit === value
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-100")
+                }
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+          <span className="text-sm text-slate-500">lượt / trang</span>
+        </div>
+        <div className="flex items-center justify-center gap-2 sm:justify-end">
           <button
+            type="button"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={pagination.page === 1}
-            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            disabled={pagination.page <= 1}
+            aria-label="Trang check-in trước"
+            className="min-h-10 min-w-10 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="mx-auto w-4 h-4" />
           </button>
-          <span className="text-sm text-slate-600">
-            Trang {pagination.page} / {pagination.totalPages}
+          <span className="min-w-24 text-center text-sm text-slate-600">
+            Trang {pagination.page || 1} / {Math.max(pagination.totalPages || 0, 1)}
           </span>
           <button
+            type="button"
             onClick={() =>
               setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))
             }
-            disabled={pagination.page === pagination.totalPages}
-            className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            disabled={!pagination.totalPages || pagination.page >= pagination.totalPages}
+            aria-label="Trang check-in sau"
+            className="min-h-10 min-w-10 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="mx-auto w-4 h-4" />
           </button>
         </div>
-      )}
+      </div>
 
       {showModal && editing && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

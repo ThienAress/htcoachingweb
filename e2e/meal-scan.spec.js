@@ -129,7 +129,7 @@ const prepareScan = async (page) => {
 const confirmAnalysis = async (page) => {
   await page.getByRole("button", { name: "Phân tích món ăn" }).click();
   const dialog = page.getByRole("dialog", {
-    name: /Xác nhận gửi ảnh tới Google Gemini/,
+    name: /Xác nhận gửi ảnh tới HT COACHING/,
   });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Tôi hiểu và đồng ý" }).click();
@@ -150,7 +150,7 @@ test.describe("Meal Scan anonymous journey", () => {
 
     await page.getByRole("button", { name: "Phân tích món ăn" }).click();
     const dialog = page.getByRole("dialog", {
-      name: /Xác nhận gửi ảnh tới Google Gemini/,
+      name: /Xác nhận gửi ảnh tới HT COACHING/,
     });
     await dialog.getByRole("button", { name: "Quay lại điều chỉnh" }).click();
     expect(analysis.requests).toBe(0);

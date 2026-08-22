@@ -98,7 +98,7 @@ describe("Progress Hub API", () => {
     expect(audit).toMatchObject({
       actorRole: "admin",
       targetType: "user",
-      metadata: { days: 30, formulaVersion: "progress-v3" },
+      metadata: { days: 30, formulaVersion: "progress-v4" },
     });
     expect(JSON.stringify(audit.metadata)).not.toMatch(/69|82|weight|waist/i);
   });
@@ -242,7 +242,7 @@ describe("Progress Hub API", () => {
     expect(own.status).toBe(200);
     expect(own.headers["cache-control"]).toContain("private");
     expect(own.body.data).toMatchObject({
-      formulaVersion: "progress-v3",
+      formulaVersion: "progress-v4",
       range: { days: 7 },
       compliance: {
         scheduleAttendance: { percent: 100 },

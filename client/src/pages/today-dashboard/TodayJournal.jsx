@@ -3,7 +3,6 @@ import { useAuth } from "../../context/AuthContext";
 
 import { WeeklyCheckinCard } from "../progress/WeeklyCheckinCard";
 import { ActivityTimeline } from "./ActivityTimeline";
-import { CoachingCommentThread } from "./CoachingCommentThread";
 import { HabitCard } from "./HabitCard";
 import { WellnessCard } from "./WellnessCard";
 
@@ -16,6 +15,7 @@ const TodayJournal = () => {
   return (
     <div>
       <WellnessCard
+        key={`${dateKey}:${journal?._id || "new"}:${journal?.revision || 0}`}
         dateKey={dateKey}
         journal={journal}
         canEdit={data.capabilities.canEditJournal}
@@ -33,15 +33,6 @@ const TodayJournal = () => {
           userId={user?._id}
         />
       </div>
-      {journal?._id && (
-        <div className="my-4">
-          <CoachingCommentThread
-            targetType="daily_journal"
-            targetId={journal._id}
-            title="Trao đổi về ngày này"
-          />
-        </div>
-      )}
       <ActivityTimeline dateKey={dateKey} enabled />
     </div>
   );

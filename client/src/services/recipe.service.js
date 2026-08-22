@@ -26,6 +26,15 @@ export const addBookmark = (recipeId) =>
 export const removeBookmark = (recipeId) =>
   api.delete(`/recipes/bookmarks/${recipeId}`).then((r) => r.data);
 
+export const getRecipeReviews = (recipeId, signal) =>
+  api.get(`/recipes/${recipeId}/reviews`, { signal }).then((r) => r.data);
+
+export const saveRecipeReview = (recipeId, data) =>
+  api.put(`/recipes/${recipeId}/reviews`, data).then((r) => r.data);
+
+export const deleteRecipeReview = (recipeId) =>
+  api.delete(`/recipes/${recipeId}/reviews`).then((r) => r.data);
+
 // Admin
 export const getAdminRecipes = (params = {}, signal) =>
   api.get("/recipes/admin/list", { params, signal }).then((r) => r.data);

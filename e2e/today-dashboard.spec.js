@@ -60,14 +60,17 @@ test.describe("Today Dashboard private journey", () => {
     ).toBe(true);
   });
 
-  test("persists wellness after reload", async ({ page }) => {
+  test("submits wellness and persists it after reload", async ({ page }) => {
     await page.goto(
       "/dashboard/today/" + getVietnamDateKey() + "/journal",
     );
     const sleep = page.getByLabel("Giấc ngủ (giờ)");
 
     await sleep.fill("7.5");
-    await expect(page.getByText("Đã lưu", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Gửi nhật ký ngày" }).click();
+    await expect(
+      page.getByText(/Nhật ký đã gửi và đang được khóa/),
+    ).toBeVisible();
     await page.reload();
 
     await expect(page.getByLabel("Giấc ngủ (giờ)")).toHaveValue("7.5");

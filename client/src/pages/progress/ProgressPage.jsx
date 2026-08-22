@@ -139,7 +139,10 @@ const ProgressPage = ({ embedded = false }) => {
             </section>
           ) : (
             <>
-              <ProgressSummary progress={query.data} />
+              <ProgressSummary
+                progress={query.data}
+                selectedDateKey={getVietnamDateKey()}
+              />
               <p className="text-right text-xs text-slate-500">
                 Phiên bản tổng hợp {query.data.formulaVersion.replace("progress-", "")} · múi giờ Việt Nam
               </p>

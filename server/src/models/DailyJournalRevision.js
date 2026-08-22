@@ -22,6 +22,7 @@ const changeSchema = new mongoose.Schema(
         "habitCompletions",
         "status",
         "submittedAt",
+        "correctionCount",
       ],
     },
     before: {

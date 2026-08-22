@@ -35,6 +35,7 @@ const requestIds = {
   stale: "b3333333-3333-4333-8333-333333333333",
   submit: "b4444444-4444-4444-8444-444444444444",
   correction: "b5555555-5555-4555-8555-555555555555",
+  correctionSecond: "b6666666-6666-4666-8666-666666666666",
 };
 
 const createActiveClient = async (suffix) => {
@@ -156,35 +157,28 @@ describe("Daily Journal mutation contract", () => {
     expect(await DailyJournalRevision.countDocuments()).toBe(1);
   });
 
-  it("submits idempotently and requires a reason for post-submit correction", async () => {
+  it("atomically submits form data and allows exactly one correction", async () => {
     const { client } = await createActiveClient("submit");
     const dateKey = getVietnamDateKey();
-    await putJournal(client.accessToken, dateKey, {
-      expectedRevision: 0,
-      requestId: requestIds.create,
-      patch: { wellness: { energy: 5, pain: 7 } },
-    });
 
     const submitted = await postAction(
       client.accessToken,
       dateKey,
       "submit",
-      { expectedRevision: 1, requestId: requestIds.submit },
+      {
+        expectedRevision: 0,
+        requestId: requestIds.submit,
+        patch: { wellness: { energy: 5, pain: 7 } },
+      },
     );
     const replayed = await postAction(
       client.accessToken,
       dateKey,
       "submit",
-      { expectedRevision: 1, requestId: requestIds.submit },
-    );
-    const missingReason = await postAction(
-      client.accessToken,
-      dateKey,
-      "corrections",
       {
-        expectedRevision: 2,
-        requestId: requestIds.correction,
-        patch: { wellness: { pain: 4 } },
+        expectedRevision: 0,
+        requestId: requestIds.submit,
+        patch: { wellness: { energy: 5, pain: 7 } },
       },
     );
     const corrected = await postAction(
@@ -192,10 +186,19 @@ describe("Daily Journal mutation contract", () => {
       dateKey,
       "corrections",
       {
-        expectedRevision: 2,
+        expectedRevision: 1,
         requestId: requestIds.correction,
-        reason: "Cập nhật sau khi theo dõi lại",
         patch: { wellness: { pain: 4 } },
+      },
+    );
+    const secondCorrection = await postAction(
+      client.accessToken,
+      dateKey,
+      "corrections",
+      {
+        expectedRevision: 2,
+        requestId: requestIds.correctionSecond,
+        patch: { wellness: { pain: 3 } },
       },
     );
     const revisions = await withAuth(
@@ -212,26 +215,28 @@ describe("Daily Journal mutation contract", () => {
     );
 
     expect(submitted.body.data).toMatchObject({
-      revision: 2,
+      revision: 1,
       status: "submitted",
+      correctionCount: 0,
+      wellness: { energy: 5, pain: 7 },
     });
     expect(replayed.body.idempotentReplay).toBe(true);
-    expect(missingReason.status).toBe(400);
     expect(corrected.body.data).toMatchObject({
-      revision: 3,
+      revision: 2,
       status: "submitted",
+      correctionCount: 1,
       wellness: { pain: 4 },
     });
-    expect(await DailyJournalRevision.countDocuments()).toBe(3);
+    expect(secondCorrection.status).toBe(409);
+    expect(secondCorrection.body.code).toBe("JOURNAL_CORRECTION_LIMIT_REACHED");
+    expect(await DailyJournalRevision.countDocuments()).toBe(2);
     expect(revisions.body.data.items.map((item) => item.action)).toEqual([
       "correction",
       "submit",
-      "create",
     ]);
     expect(timeline.body.data.map((item) => item.action)).toEqual([
       "correction",
       "submit",
-      "create",
     ]);
   });
 

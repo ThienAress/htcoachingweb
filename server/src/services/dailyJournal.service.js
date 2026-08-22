@@ -58,20 +58,19 @@ const applyCommand = async ({
   assertJournalWritesEnabled();
   assertJournalEditWindow(dateKey, now);
   assertCommandInput({ expectedRevision, requestId });
-  const normalizedReason = String(reason || "").trim();
-  if (action === "correction" && normalizedReason.length < 3) {
-    throw journalError(
-      400,
-      "Chỉnh sửa sau khi gửi cần lý do từ 3 đến 500 ký tự",
-      "CORRECTION_REASON_REQUIRED",
-    );
-  }
+  const providedReason = String(reason || "").trim();
+  const normalizedReason =
+    action === "correction" && !providedReason
+      ? "Khách hàng cập nhật nhật ký"
+      : providedReason;
   if (normalizedReason.length > 500) {
     throw journalError(400, "Lý do quá dài", "INVALID_REASON");
   }
 
   const patchFields =
-    action === "submit" ? {} : normalizeJournalPatch(patch);
+    action === "submit" && patch === undefined
+      ? {}
+      : normalizeJournalPatch(patch);
   const payloadFingerprint = journalFingerprint({
     action,
     dateKey,
@@ -116,7 +115,11 @@ const applyCommand = async ({
         clientId: actor.id,
         dateKey,
       }).session(session);
-      if (!journal && action !== "update") {
+      if (
+        !journal &&
+        (action === "correction" ||
+          (action === "submit" && Object.keys(patchFields).length === 0))
+      ) {
         throw journalError(
           404,
           "Chưa có nhật ký để thực hiện thao tác",
@@ -146,14 +149,21 @@ const applyCommand = async ({
           "JOURNAL_SUBMITTED",
         );
       }
-      if (action === "correction" && journal.status !== "submitted") {
+      if (action === "correction" && journal?.status !== "submitted") {
         throw journalError(
           409,
           "Chỉ có thể chỉnh sửa nhật ký đã gửi",
           "JOURNAL_NOT_SUBMITTED",
         );
       }
-      if (action === "submit" && journal.status === "submitted") {
+      if (action === "correction" && (journal?.correctionCount || 0) >= 1) {
+        throw journalError(
+          409,
+          "Nhật ký này đã dùng lượt cập nhật sau khi gửi",
+          "JOURNAL_CORRECTION_LIMIT_REACHED",
+        );
+      }
+      if (action === "submit" && journal?.status === "submitted") {
         throw journalError(
           409,
           "Nhật ký đã được submit",
@@ -168,27 +178,30 @@ const applyCommand = async ({
           trainerIdAtCreation: assignment.trainerId,
           dateKey,
         });
-      const nutritionFields =
-        action === "submit"
+      const commandFields = {
+        ...patchFields,
+        ...(action === "submit"
           ? { status: "submitted", submittedAt: now }
-          : await canonicalizeNutritionFields({
-              clientId: actor.id,
-              journal,
-              setFields: patchFields,
-              session,
-              now,
-            });
-      const setFields =
-        action === "submit"
-          ? nutritionFields
-          : await canonicalizeHabitCompletions({
-              clientId: actor.id,
-              dateKey,
-              journal,
-              setFields: nutritionFields,
-              session,
-              now,
-            });
+          : {}),
+        ...(action === "correction"
+          ? { correctionCount: (journal.correctionCount || 0) + 1 }
+          : {}),
+      };
+      const nutritionFields = await canonicalizeNutritionFields({
+        clientId: actor.id,
+        journal,
+        setFields: commandFields,
+        session,
+        now,
+      });
+      const setFields = await canonicalizeHabitCompletions({
+        clientId: actor.id,
+        dateKey,
+        journal,
+        setFields: nutritionFields,
+        session,
+        now,
+      });
       const changes = buildJournalChanges(base, setFields);
       if (changes.length === 0) {
         result = { journal: base, idempotentReplay: false };
@@ -203,10 +216,17 @@ const applyCommand = async ({
         }
         base.revision = 1;
         updated = await base.save({ session });
-        revisionAction = "create";
+        revisionAction = action === "update" ? "create" : action;
       } else {
+        const updateFilter = { _id: journal._id, revision: expectedRevision };
+        if (action === "correction") {
+          updateFilter.$or = [
+            { correctionCount: { $exists: false } },
+            { correctionCount: { $lt: 1 } },
+          ];
+        }
         updated = await DailyJournal.findOneAndUpdate(
-          { _id: journal._id, revision: expectedRevision },
+          updateFilter,
           { $set: setFields, $inc: { revision: 1 } },
           {
             returnDocument: "after",
