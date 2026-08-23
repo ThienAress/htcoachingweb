@@ -1,9 +1,6 @@
 import { Scale } from "lucide-react";
 
-import {
-  buildWeightChartModel,
-  WEIGHT_CHART_VIEWBOX,
-} from "./progressCharts";
+import { buildWeightChartModel } from "./progressCharts";
 
 const formatDate = (dateKey) =>
   new Intl.DateTimeFormat("vi-VN", {
@@ -16,6 +13,7 @@ const formatDate = (dateKey) =>
 export const WeightTrendChart = ({ trend }) => {
   const chart = buildWeightChartModel(trend?.points || []);
   const labelEvery = Math.max(1, Math.ceil(chart.points.length / 5));
+  const { dimensions } = chart;
 
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6">
@@ -33,24 +31,29 @@ export const WeightTrendChart = ({ trend }) => {
         <figure className="mt-5" aria-labelledby="empty-weight-chart-caption">
           <div className="relative overflow-hidden rounded-xl border border-dashed border-slate-700">
             <svg
-              viewBox={WEIGHT_CHART_VIEWBOX}
+              viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
               className="h-auto w-full"
               role="img"
               aria-label="Biểu đồ cân nặng chưa có dữ liệu"
             >
-              {[24, 103, 182].map((y) => (
-                <line
-                  key={y}
-                  x1="52"
-                  x2="588"
-                  y1={y}
-                  y2={y}
-                  stroke="currentColor"
-                  strokeWidth="1"
-                  className="text-slate-800"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
+              {[0, 1, 2, 3].map((index) => {
+                const y =
+                  dimensions.padding.top +
+                  (index / 3) * dimensions.plotHeight;
+                return (
+                  <line
+                    key={index}
+                    x1={dimensions.padding.left}
+                    x2={dimensions.width - dimensions.padding.right}
+                    y1={y}
+                    y2={y}
+                    stroke="currentColor"
+                    strokeWidth="1"
+                    className="text-slate-800"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                );
+              })}
             </svg>
             <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-medium text-slate-400">
               Chưa có dữ liệu cân nặng
@@ -77,7 +80,7 @@ export const WeightTrendChart = ({ trend }) => {
 
           <figure className="mt-4" aria-labelledby="weight-trend-caption">
             <svg
-              viewBox={WEIGHT_CHART_VIEWBOX}
+              viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
               className="h-auto w-full overflow-visible"
               role="img"
               aria-label="Biểu đồ đường thể hiện cân nặng theo từng tuần"
@@ -85,15 +88,20 @@ export const WeightTrendChart = ({ trend }) => {
               {chart.yTicks.map((tick) => (
                 <g key={`${tick.weight}-${tick.y}`} className="text-slate-800">
                   <line
-                    x1="52"
-                    x2="588"
+                    x1={dimensions.padding.left}
+                    x2={dimensions.width - dimensions.padding.right}
                     y1={tick.y}
                     y2={tick.y}
                     stroke="currentColor"
                     strokeWidth="1"
                     vectorEffect="non-scaling-stroke"
                   />
-                  <text x="44" y={tick.y + 4} textAnchor="end" className="fill-slate-500 text-[11px]">
+                  <text
+                    x={dimensions.padding.left - 10}
+                    y={tick.y + 4}
+                    textAnchor="end"
+                    className="fill-slate-500 text-xs"
+                  >
                     {tick.weight}
                   </text>
                 </g>
@@ -127,9 +135,9 @@ export const WeightTrendChart = ({ trend }) => {
                     {showLabel && (
                       <text
                         x={point.x}
-                        y="207"
+                        y={dimensions.height - 28}
                         textAnchor="middle"
-                        className="fill-slate-500 text-[11px]"
+                        className="fill-slate-500 text-xs"
                       >
                         {point.dateLabel}
                       </text>

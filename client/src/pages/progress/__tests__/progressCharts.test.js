@@ -7,8 +7,9 @@ import {
 
 describe("progress chart presentation", () => {
   it("keeps an empty weight series empty", () => {
-    expect(buildWeightChartModel([])).toEqual({
+    expect(buildWeightChartModel([])).toMatchObject({
       points: [],
+      measuredPoints: [],
       path: "",
       yTicks: [],
     });
@@ -20,8 +21,7 @@ describe("progress chart presentation", () => {
     ]);
 
     expect(chart.points[0]).toMatchObject({
-      x: 320,
-      y: 103,
+      x: 344,
       dateLabel: "27/07",
       weightKg: 70,
     });
@@ -34,9 +34,9 @@ describe("progress chart presentation", () => {
       { weekStartDateKey: "2026-07-27", weightKg: 69.5 },
     ]);
 
-    expect(chart.points.map(({ x }) => x)).toEqual([52, 320, 588]);
-    expect(chart.path).toMatch(/^M 52 /);
-    expect(chart.yTicks).toHaveLength(3);
+    expect(chart.points.map(({ x }) => x)).toEqual([72, 344, 616]);
+    expect(chart.path).toMatch(/^M 72 /);
+    expect(chart.yTicks).toHaveLength(4);
   });
 
   it("sorts body measurement points and ignores missing values", () => {
@@ -44,12 +44,50 @@ describe("progress chart presentation", () => {
       { dateKey: "2026-07-20", value: 78 },
       { dateKey: "2026-07-06", value: 80 },
       { dateKey: "2026-07-13", value: null },
+      { dateKey: "2026-02-30", value: 79 },
     ]);
 
     expect(chart.points.map(({ dateKey, value }) => [dateKey, value])).toEqual([
       ["2026-07-06", 80],
       ["2026-07-20", 78],
     ]);
+  });
+
+  it("breaks the path across a missing monthly report period", () => {
+    const chart = buildBodyMetricChartModel(
+      [
+        { dateKey: "2026-07-06", value: 80 },
+        { dateKey: "2026-07-20", value: 78 },
+      ],
+      {
+        startDateKey: "2026-07-01",
+        endDateKey: "2026-07-31",
+      },
+    );
+
+    expect(chart.points.map(({ dateKey, value }) => [dateKey, value])).toEqual([
+      ["2026-07-01", null],
+      ["2026-07-06", 80],
+      ["2026-07-13", null],
+      ["2026-07-20", 78],
+      ["2026-07-27", null],
+    ]);
+    expect(chart.path.match(/M /g)).toHaveLength(2);
+    expect(chart.path).not.toContain("L");
+  });
+
+  it("builds chart geometry from the rendered width", () => {
+    const chart = buildBodyMetricChartModel(
+      [
+        { dateKey: "2026-07-06", value: 80 },
+        { dateKey: "2026-07-13", value: 79 },
+      ],
+      { width: 320 },
+    );
+
+    expect(chart.dimensions).toMatchObject({ width: 320, height: 300 });
+    expect(chart.points.map(({ x }) => x)).toEqual([64, 300]);
+    expect(chart.xTicks).toHaveLength(2);
   });
 
   it("keeps all wellness score labels visible while rejecting invalid averages", () => {

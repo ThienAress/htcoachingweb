@@ -4,6 +4,8 @@ import { weeklyCheckinError } from "./weeklyCheckinAccess.service.js";
 const BODY_RULES = {
   weightKg: { min: 30, max: 350 },
   waistCm: { min: 30, max: 300 },
+  bodyFatPercent: { min: 1, max: 80 },
+  skeletalMusclePercent: { min: 1, max: 80 },
   energy: { min: 1, max: 10, integer: true },
   adherence: { min: 1, max: 10, integer: true },
 };

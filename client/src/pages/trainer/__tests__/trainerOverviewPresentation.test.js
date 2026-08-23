@@ -13,16 +13,16 @@ describe("trainerOverviewPresentation", () => {
       ]),
     ).toEqual([
       expect.objectContaining({
-        label: "Có pain flag cần xem",
+        label: "Có cảnh báo đau cần xem",
         detail: "Xem nhật ký được chia sẻ",
       }),
       expect.objectContaining({
-        label: "Thiếu Weekly Check-in tuần trước",
+        label: "Thiếu báo cáo tuần trước",
       }),
     ]);
   });
 
-  it("maps canonical Today statuses without inventing a second formula", () => {
+  it("maps canonical daily statuses without inventing a second formula", () => {
     expect(todayStatusLabel("completed")).toBe("Đã hoàn thành");
     expect(todayStatusLabel("rest_day")).toBe("Ngày nghỉ");
     expect(todayStatusLabel("unknown")).toBe("Chưa xác định");

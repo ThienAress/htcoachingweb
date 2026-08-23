@@ -5,7 +5,7 @@ import {
   parseDateKey,
 } from "../utils/dateKey.js";
 
-const ALLOWED_DAYS = new Set([7, 30, 90]);
+const ALLOWED_DAYS = new Set([7, 30, 90, 180]);
 const WELLNESS_FIELDS = [
   "sleepHours",
   "waterMl",
@@ -24,7 +24,7 @@ export const createProgressRange = (
 ) => {
   const normalizedDays = Number(days);
   if (!ALLOWED_DAYS.has(normalizedDays)) {
-    throw new Error("Progress range chỉ hỗ trợ 7, 30 hoặc 90 ngày");
+    throw new Error("Khoảng tiến trình chỉ hỗ trợ 7, 30, 90 hoặc 180 ngày");
   }
   const endDateKey = requestedEndDateKey || getVietnamDateKey(now);
   parseDateKey(endDateKey);
@@ -272,6 +272,18 @@ const bodyProgress = ({ weeklyCheckins, range }) => ({
     range,
     field: "waistCm",
     unit: "cm",
+  }),
+  bodyFatPercent: bodyMetric({
+    weeklyCheckins,
+    range,
+    field: "bodyFatPercent",
+    unit: "%",
+  }),
+  skeletalMusclePercent: bodyMetric({
+    weeklyCheckins,
+    range,
+    field: "skeletalMusclePercent",
+    unit: "%",
   }),
 });
 

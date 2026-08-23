@@ -1,5 +1,5 @@
 const isSafeInternalPath = (value) =>
-  typeof value === "string" && /^\/(?!\/)/.test(value);
+  typeof value === "string" && /^\/(?![\\/])[^\s\\]*$/.test(value);
 
 export const notificationDestination = (notification) => {
   if (isSafeInternalPath(notification?.deepLink)) {
@@ -7,6 +7,6 @@ export const notificationDestination = (notification) => {
   }
 
   return notification?.targetType === "weekly_checkin"
-    ? "/progress"
-    : "/today";
+    ? "/dashboard/progress"
+    : "/dashboard";
 };

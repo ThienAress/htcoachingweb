@@ -19,6 +19,7 @@ import {
   markNotificationRead,
 } from "../../services/notification.service";
 import { notificationDestination } from "../../utils/notificationDestination";
+import { notificationMissingFieldsLabel } from "../../utils/notificationMissingFields";
 
 const formatTime = (value) =>
   new Intl.DateTimeFormat("vi-VN", {
@@ -68,7 +69,7 @@ const NotificationsPage = () => {
 
   return (
     <>
-      <SEO title="Thông báo coaching" noindex />
+      <SEO title="Thông báo huấn luyện" noindex />
       <Header />
       <main className="min-h-screen bg-slate-900 px-4 pb-16 pt-28 text-slate-100 sm:px-6">
         <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -76,13 +77,13 @@ const NotificationsPage = () => {
             <header className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 p-5 sm:p-6">
               <div>
                 <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-orange-400">
-                  <Bell size={18} aria-hidden="true" /> In-app
+                  <Bell size={18} aria-hidden="true" /> Trong ứng dụng
                 </p>
                 <h1 className="mt-2 text-2xl font-bold text-white">
-                  Thông báo coaching
+                  Thông báo huấn luyện
                 </h1>
                 <p className="mt-2 text-sm text-slate-400">
-                  Chỉ hiển thị tiêu đề chung, không chứa nội dung sức khỏe hay bình luận riêng tư.
+                  Chỉ hiển thị ngữ cảnh cần thiết và trường chưa nhập, không chứa giá trị sức khỏe hay bình luận riêng tư.
                 </p>
               </div>
               <button
@@ -153,6 +154,11 @@ const NotificationsPage = () => {
                         <span className="block text-sm font-semibold text-slate-200">
                           {item.title}
                         </span>
+                        {notificationMissingFieldsLabel(item.missingFields) && (
+                          <span className="mt-1 block text-xs leading-5 text-amber-200">
+                            {notificationMissingFieldsLabel(item.missingFields)}
+                          </span>
+                        )}
                         <time
                           dateTime={item.createdAt}
                           className="mt-1 block text-xs text-slate-500"

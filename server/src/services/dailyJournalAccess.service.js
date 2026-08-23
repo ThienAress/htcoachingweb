@@ -51,10 +51,15 @@ export const resolveJournalWriteAccess = async ({
   clientId,
   session = null,
 }) => {
-  const assignment = await resolveClientTrainer({ clientId, session });
+  const assignment = await resolveClientTrainer({
+    clientId,
+    session,
+    includeClientName: true,
+  });
   return {
     trainerId: assignment.trainerId,
     orderId: assignment.order._id,
+    clientName: assignment.clientName,
   };
 };
 

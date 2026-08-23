@@ -7,10 +7,10 @@ import {
 } from "../services/notification.service";
 
 const OPTIONS = [
-  ["inAppEnabled", "Bật thông báo in-app"],
-  ["comments", "Bình luận coaching"],
+  ["inAppEnabled", "Bật thông báo trong ứng dụng"],
+  ["comments", "Bình luận huấn luyện"],
   ["journal", "Nhật ký ngày"],
-  ["weekly", "Weekly Check-in"],
+  ["weekly", "Báo cáo tuần"],
 ];
 
 const PreferenceToggle = ({ label, checked, onChange, disabled }) => (

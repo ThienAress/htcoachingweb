@@ -5,24 +5,31 @@ describe("notificationDestination", () => {
   it("ưu tiên deepLink nội bộ canonical từ API", () => {
     expect(
       notificationDestination({
-        deepLink: "/trainer/coaching",
+        deepLink:
+          "/trainer/clients/client-123?date=2026-08-23#journal",
         targetType: "weekly_checkin",
       }),
-    ).toBe("/trainer/coaching");
+    ).toBe("/trainer/clients/client-123?date=2026-08-23#journal");
   });
 
-  it.each(["https://example.com", "//example.com", "javascript:alert(1)"])(
+  it.each([
+    "https://example.com",
+    "//example.com",
+    "/\\example.com",
+    "javascript:alert(1)",
+    "/trainer/clients/client-123\nmalicious",
+  ])(
     "không điều hướng tới deepLink không an toàn: %s",
     (deepLink) => {
       expect(
         notificationDestination({ deepLink, targetType: "weekly_checkin" }),
-      ).toBe("/progress");
+      ).toBe("/dashboard/progress");
     },
   );
 
-  it("fallback về Today cho notification không thuộc weekly check-in", () => {
+  it("fallback về bảng điều khiển cho thông báo không thuộc báo cáo tuần", () => {
     expect(notificationDestination({ targetType: "daily_journal" })).toBe(
-      "/today",
+      "/dashboard",
     );
   });
 });

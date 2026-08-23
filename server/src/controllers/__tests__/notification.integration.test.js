@@ -43,8 +43,8 @@ beforeEach(() => {
 });
 afterAll(teardownTestDB);
 
-describe("In-app notifications", () => {
-  it("deduplicates delivery and stores only a generic non-sensitive title", async () => {
+describe("Thông báo trong ứng dụng", () => {
+  it("deduplicates delivery and stores only a non-sensitive title", async () => {
     const recipient = await createTestUser({
       email: "notification-recipient@example.com",
     });
@@ -69,10 +69,137 @@ describe("In-app notifications", () => {
     expect(first.created).toBe(true);
     expect(second.created).toBe(false);
     expect(await InAppNotification.countDocuments()).toBe(1);
-    expect(stored.title).toBe("Có bình luận coaching mới");
+    expect(stored.title).toBe("Có bình luận huấn luyện mới");
     expect(stored.retentionExpiresAt).toBeNull();
     expect(JSON.stringify(stored)).not.toContain("pain");
     expect(JSON.stringify(stored)).not.toContain("weight");
+  });
+
+  it.each([
+    {
+      type: "journal_submitted",
+      title: "Khách hàng Hoàng Thiện đã gửi nhật ký ngày",
+      deepLink:
+        "/trainer/clients/507f1f77bcf86cd799439011?date=2026-08-23#journal",
+      contextDateKey: "2026-08-23",
+    },
+    {
+      type: "weekly_submitted",
+      title: "Khách hàng Hoàng Thiện đã gửi báo cáo tuần",
+      deepLink:
+        "/trainer/clients/507f1f77bcf86cd799439011?date=2026-08-18#weekly-report",
+      contextDateKey: "2026-08-18",
+    },
+    {
+      type: "weekly_corrected",
+      title: "Khách hàng Hoàng Thiện đã cập nhật báo cáo tuần",
+      deepLink:
+        "/trainer/clients/507f1f77bcf86cd799439011?date=2026-08-18#weekly-report",
+      contextDateKey: "2026-08-18",
+    },
+  ])(
+    "builds Vietnamese trainer context for $type",
+    async ({ type, title, deepLink, contextDateKey }) => {
+      const trainer = await createTestUser({
+        email: type + "-trainer@example.com",
+        role: "trainer",
+      });
+      const clientId = "507f1f77bcf86cd799439011";
+
+      const result = await createInAppNotification({
+        recipientId: trainer.user._id,
+        actorId: clientId,
+        clientId,
+        clientName: "  Hoàng   Thiện  ",
+        type,
+        targetType:
+          type === "journal_submitted" ? "daily_journal" : "weekly_checkin",
+        targetId: clientId,
+        contextDateKey,
+        dedupeKey: "context:" + type,
+      });
+
+      expect(result.notification.toObject()).toMatchObject({ title, deepLink });
+    },
+  );
+
+  it("stores and returns only allowlisted missing-field keys", async () => {
+    const trainer = await createTestUser({
+      email: "notification-missing-fields@example.com",
+      role: "trainer",
+    });
+    const clientId = "507f1f77bcf86cd799439011";
+    await createInAppNotification({
+      recipientId: trainer.user._id,
+      actorId: clientId,
+      clientId,
+      clientName: "Hoàng Thiện",
+      type: "journal_submitted",
+      targetType: "daily_journal",
+      targetId: clientId,
+      contextDateKey: "2026-08-23",
+      dedupeKey: "context:missing-fields",
+      missingFields: ["energy", "unknownField", "pain", "energy"],
+    });
+
+    const listed = await withAuth(
+      request(app).get("/api/notifications?status=unread"),
+      trainer.accessToken,
+    );
+
+    expect(listed.body.data.items[0].missingFields).toEqual([
+      "energy",
+      "pain",
+    ]);
+  });
+
+  it("routes a trainer review to the customer's report module in Vietnamese", async () => {
+    const client = await createTestUser({
+      email: "weekly-reviewed-client@example.com",
+    });
+    const trainer = await createTestUser({
+      email: "weekly-reviewed-trainer@example.com",
+      role: "trainer",
+    });
+
+    const result = await createInAppNotification({
+      recipientId: client.user._id,
+      actorId: trainer.user._id,
+      clientId: client.user._id,
+      type: "weekly_reviewed",
+      targetType: "weekly_checkin",
+      targetId: client.user._id,
+      contextDateKey: "2026-08-18",
+      dedupeKey: "context:weekly-reviewed",
+    });
+
+    expect(result.notification.toObject()).toMatchObject({
+      title: "Huấn luyện viên đã nhận xét báo cáo tuần",
+      deepLink:
+        "/dashboard/today/2026-08-18/journal#weekly-report",
+    });
+  });
+
+  it("rejects a non-canonical internal notification link", async () => {
+    const recipient = await createTestUser({
+      email: "notification-unsafe-link@example.com",
+    });
+
+    await expect(
+      createInAppNotification({
+        recipientId: recipient.user._id,
+        actorId: recipient.user._id,
+        clientId: recipient.user._id,
+        type: "coaching_comment_created",
+        targetType: "coaching_comment",
+        targetId: recipient.user._id,
+        dedupeKey: "unsafe-link",
+        deepLink: "/\\example.com",
+        allowSelf: true,
+      }),
+    ).rejects.toMatchObject({
+      codeName: "INVALID_NOTIFICATION_DEEP_LINK",
+    });
   });
 
   it("honors category preference opt-out before creating delivery", async () => {

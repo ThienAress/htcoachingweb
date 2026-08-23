@@ -20,6 +20,7 @@ import {
 import { errorHandler } from "../../middlewares/errorHandler.js";
 import DailyJournal from "../../models/DailyJournal.js";
 import DailyJournalRevision from "../../models/DailyJournalRevision.js";
+import InAppNotification from "../../models/InAppNotification.js";
 import Order from "../../models/Order.js";
 import dailyJournalRoutes from "../../routes/dailyJournal.routes.js";
 import {
@@ -36,6 +37,7 @@ const requestIds = {
   submit: "b4444444-4444-4444-8444-444444444444",
   correction: "b5555555-5555-4555-8555-555555555555",
   correctionSecond: "b6666666-6666-4666-8666-666666666666",
+  correctionNoop: "b7777777-7777-4777-8777-777777777777",
 };
 
 const createActiveClient = async (suffix) => {
@@ -81,6 +83,7 @@ beforeAll(async () => {
   await Promise.all([
     DailyJournal.init(),
     DailyJournalRevision.init(),
+    InAppNotification.init(),
     Order.init(),
   ]);
 });
@@ -238,6 +241,44 @@ describe("Daily Journal mutation contract", () => {
       "correction",
       "submit",
     ]);
+  });
+
+  it("does not consume the correction or notify the trainer when nothing changed", async () => {
+    const { client } = await createActiveClient("correction-noop");
+    const dateKey = getVietnamDateKey();
+
+    await postAction(client.accessToken, dateKey, "submit", {
+      expectedRevision: 0,
+      requestId: requestIds.submit,
+      patch: { wellness: { energy: 5, pain: 2 } },
+    });
+    const response = await postAction(
+      client.accessToken,
+      dateKey,
+      "corrections",
+      {
+        expectedRevision: 1,
+        requestId: requestIds.correctionNoop,
+        patch: { wellness: { energy: 5, pain: 2 } },
+      },
+    );
+    const stored = await DailyJournal.findOne({ dateKey }).lean();
+
+    expect({
+      status: response.status,
+      code: response.body.code,
+      revision: stored.revision,
+      correctionCount: stored.correctionCount,
+      revisions: await DailyJournalRevision.countDocuments(),
+      notifications: await InAppNotification.countDocuments(),
+    }).toEqual({
+      status: 400,
+      code: "EMPTY_DAILY_JOURNAL_CORRECTION",
+      revision: 1,
+      correctionCount: 0,
+      revisions: 1,
+      notifications: 1,
+    });
   });
 
   it("fails closed for missing CSRF, disabled writes, invalid values and edit window", async () => {

@@ -11,6 +11,16 @@ const range = {
 };
 
 describe("progressReadModel", () => {
+  it("creates a bounded six-month progress range", () => {
+    expect(
+      createProgressRange(180, new Date("2026-08-23T12:00:00+07:00")),
+    ).toEqual({
+      days: 180,
+      startDateKey: "2026-02-25",
+      endDateKey: "2026-08-23",
+    });
+  });
+
   it("keeps every missing denominator and average explicitly unavailable", () => {
     const result = buildProgressReadModel({ range });
 
@@ -37,6 +47,18 @@ describe("progressReadModel", () => {
         delta: null,
         series: [],
       },
+      bodyFatPercent: {
+        unit: "%",
+        current: null,
+        delta: null,
+        series: [],
+      },
+      skeletalMusclePercent: {
+        unit: "%",
+        current: null,
+        delta: null,
+        series: [],
+      },
     });
   });
 
@@ -53,18 +75,24 @@ describe("progressReadModel", () => {
           status: "reviewed",
           weightKg: 69,
           waistCm: null,
+          bodyFatPercent: 18,
+          skeletalMusclePercent: 43,
         },
         {
           weekStartDateKey: "2026-07-06",
           status: "submitted",
           weightKg: 70,
           waistCm: 80,
+          bodyFatPercent: 20,
+          skeletalMusclePercent: null,
         },
         {
           weekStartDateKey: "2026-07-13",
           status: "submitted",
           weightKg: undefined,
           waistCm: 78,
+          bodyFatPercent: undefined,
+          skeletalMusclePercent: 42,
         },
         {
           weekStartDateKey: "2026-07-27",
@@ -98,6 +126,24 @@ describe("progressReadModel", () => {
         series: [
           { dateKey: "2026-07-06", value: 80 },
           { dateKey: "2026-07-13", value: 78 },
+        ],
+      },
+      bodyFatPercent: {
+        unit: "%",
+        current: { dateKey: "2026-07-20", value: 18 },
+        delta: -2,
+        series: [
+          { dateKey: "2026-07-06", value: 20 },
+          { dateKey: "2026-07-20", value: 18 },
+        ],
+      },
+      skeletalMusclePercent: {
+        unit: "%",
+        current: { dateKey: "2026-07-20", value: 43 },
+        delta: 1,
+        series: [
+          { dateKey: "2026-07-13", value: 42 },
+          { dateKey: "2026-07-20", value: 43 },
         ],
       },
     });
@@ -236,7 +282,7 @@ describe("progressReadModel", () => {
     });
   });
 
-  it("creates exact bounded 7/30/90-day Vietnam ranges", () => {
+  it("creates exact bounded Vietnam progress ranges", () => {
     const now = new Date("2026-07-29T08:00:00.000Z");
 
     expect(createProgressRange(7, now)).toEqual({
@@ -251,6 +297,8 @@ describe("progressReadModel", () => {
       startDateKey: "2026-07-14",
       endDateKey: "2026-07-20",
     });
-    expect(() => createProgressRange(365, now)).toThrow(/7, 30 hoặc 90/);
+    expect(() => createProgressRange(365, now)).toThrow(
+      /7, 30, 90 hoặc 180/,
+    );
   });
 });

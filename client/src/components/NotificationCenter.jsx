@@ -3,6 +3,7 @@ import { Bell, CheckCheck, Settings2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { notificationDestination } from "../utils/notificationDestination";
+import { notificationMissingFieldsLabel } from "../utils/notificationMissingFields";
 import { NotificationPreferences } from "./NotificationPreferences";
 import {
   listNotifications,
@@ -159,6 +160,15 @@ export const NotificationCenter = ({ userId, solid = false }) => {
                     <span className="block text-sm font-semibold text-slate-200">
                       {notification.title}
                     </span>
+                    {notificationMissingFieldsLabel(
+                      notification.missingFields,
+                    ) && (
+                      <span className="mt-1 block text-xs leading-5 text-amber-200">
+                        {notificationMissingFieldsLabel(
+                          notification.missingFields,
+                        )}
+                      </span>
+                    )}
                     <time
                       dateTime={notification.createdAt}
                       className="mt-1 block text-xs text-slate-500"
@@ -183,7 +193,7 @@ export const NotificationCenter = ({ userId, solid = false }) => {
           </Link>
           <details className="border-t border-slate-800 px-4 py-3">
             <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
-              <Settings2 size={16} aria-hidden="true" /> Tùy chọn in-app
+              <Settings2 size={16} aria-hidden="true" /> Tùy chọn trong ứng dụng
             </summary>
             <NotificationPreferences userId={userId} compact />
           </details>

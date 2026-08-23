@@ -140,15 +140,15 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
       aria-labelledby="daily-habits-title"
       aria-busy={isPending}
     >
-      <div className="flex items-start gap-3">
-        <Flame className="mt-0.5 text-orange-400" size={22} aria-hidden="true" />
+      <div className="flex items-center gap-3">
+        <Flame className="text-orange-400" size={24} aria-hidden="true" />
         <div>
-          <h2 id="daily-habits-title" className="text-lg font-bold text-white">
+          <h2
+            id="daily-habits-title"
+            className="text-xl font-bold text-white sm:text-2xl"
+          >
             Thói quen hôm nay
           </h2>
-          <p className="mt-1 text-sm leading-6 text-slate-400">
-            Chuỗi ngày được tính từ lịch sử hoàn thành, không lưu bộ đếm riêng để tránh sai lệch.
-          </p>
         </div>
       </div>
 

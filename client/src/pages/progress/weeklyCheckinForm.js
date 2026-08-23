@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+export const WEEKLY_SUBMISSION_FIELDS = [
+  { key: "weightKg", label: "Cân nặng" },
+  { key: "waistCm", label: "Vòng eo" },
+  { key: "bodyFatPercent", label: "Tỷ lệ mỡ cơ thể" },
+  { key: "skeletalMusclePercent", label: "Tỷ lệ cơ xương" },
+];
+
+const hasSubmittedValue = (value) =>
+  value !== "" && value !== null && value !== undefined;
+
+export const getMissingWeeklyFields = (values = {}) =>
+  WEEKLY_SUBMISSION_FIELDS.filter(
+    ({ key }) => !hasSubmittedValue(values[key]),
+  );
+
 const optionalNumber = (min, max, integer = false) =>
   z.preprocess(
     (value) => {
@@ -13,11 +28,8 @@ const optionalNumber = (min, max, integer = false) =>
 export const weeklyFormSchema = z.object({
   weightKg: optionalNumber(30, 350),
   waistCm: optionalNumber(30, 300),
-  energy: optionalNumber(1, 10, true),
-  adherence: optionalNumber(1, 10, true),
-  wins: z.string().trim().max(2000),
-  challenges: z.string().trim().max(2000),
-  note: z.string().trim().max(2000),
+  bodyFatPercent: optionalNumber(1, 80),
+  skeletalMusclePercent: optionalNumber(1, 80),
 });
 
 export const weeklyCheckinSchema = weeklyFormSchema.extend({
@@ -27,22 +39,16 @@ export const weeklyCheckinSchema = weeklyFormSchema.extend({
 export const weeklyFormDefaults = {
   weightKg: "",
   waistCm: "",
-  energy: "",
-  adherence: "",
-  wins: "",
-  challenges: "",
-  note: "",
+  bodyFatPercent: "",
+  skeletalMusclePercent: "",
 };
 
 export const weeklyValuesToPatch = (values) => ({
   body: {
     weightKg: values.weightKg,
     waistCm: values.waistCm,
-    energy: values.energy,
-    adherence: values.adherence,
-    wins: values.wins.trim(),
-    challenges: values.challenges.trim(),
-    note: values.note.trim(),
+    bodyFatPercent: values.bodyFatPercent,
+    skeletalMusclePercent: values.skeletalMusclePercent,
   },
 });
 
@@ -59,12 +65,25 @@ export const checkinToWeeklyValues = (checkin) =>
 
 export const weeklyCheckinPayload = weeklyValuesToPatch;
 
-export const getAdherenceLevel = (score) => {
-  if (score === "" || score === null || score === undefined) return null;
-  const value = Number(score);
-  if (!Number.isFinite(value) || value < 1 || value > 10) return null;
-  if (value <= 3) return { label: "Cần hỗ trợ thêm", range: "1–3" };
-  if (value <= 6) return { label: "Chưa ổn định", range: "4–6" };
-  if (value <= 8) return { label: "Bám khá tốt", range: "7–8" };
-  return { label: "Bám rất tốt", range: "9–10" };
+export const deriveWeeklyCheckinEditState = ({
+  checkin,
+  canEdit,
+  isCorrectionOpen,
+  hasChanges = false,
+  busy = false,
+}) => {
+  const submitted = ["submitted", "reviewed"].includes(checkin?.status);
+  const correctionUsed = (checkin?.correctionCount || 0) >= 1;
+  const correctionOpen =
+    submitted && !correctionUsed && Boolean(isCorrectionOpen);
+
+  return {
+    submitted,
+    correctionUsed,
+    correctionOpen,
+    fieldsDisabled: busy || !canEdit || (submitted && !correctionOpen),
+    canOpenCorrection:
+      canEdit && submitted && !correctionUsed && !correctionOpen && !busy,
+    canSubmitCorrection: correctionOpen && hasChanges && !busy,
+  };
 };
