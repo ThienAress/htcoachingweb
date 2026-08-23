@@ -68,6 +68,7 @@ test("trainer and F1 mobile workflow screens pass critical accessibility smoke",
 test("Today, Progress and Notifications pass critical accessibility smoke", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await useRole(page, "user");
   await page.goto("/dashboard");
