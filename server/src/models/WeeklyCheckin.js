@@ -19,6 +19,8 @@ const bodySchema = new mongoose.Schema(
   {
     weightKg: boundedNumber(30, 350),
     waistCm: boundedNumber(30, 300),
+    bodyFatPercent: boundedNumber(1, 80),
+    skeletalMusclePercent: boundedNumber(1, 80),
     energy: boundedNumber(1, 10, true),
     adherence: boundedNumber(1, 10, true),
     wins: { type: String, trim: true, maxlength: 2000, default: "" },
@@ -75,6 +77,17 @@ const weeklyCheckinSchema = new mongoose.Schema(
     submittedAt: { type: Date, default: null },
     trainerReview: { type: trainerReviewSchema, default: null },
     revision: { type: Number, min: 0, default: 0, required: true },
+    correctionCount: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: 0,
+      required: true,
+      validate: {
+        validator: Number.isInteger,
+        message: "Số lượt cập nhật phải là số nguyên",
+      },
+    },
     retentionExpiresAt: { type: Date, default: null },
   },
   { timestamps: true },

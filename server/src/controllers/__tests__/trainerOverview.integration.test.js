@@ -99,6 +99,8 @@ const seed = async (data) => {
       dateKey: today,
       wellness: { pain: 4, energy: 7 },
       notes: { private: "Không được lộ", shared: "Có thể chia sẻ" },
+      status: "submitted",
+      submittedAt: new Date(),
       habitCompletions: [privateHabit, sharedHabit].map((item) => ({
         habitId: item._id,
         lineageKey: item.lineageKey,

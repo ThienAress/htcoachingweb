@@ -1348,8 +1348,8 @@ export const validateProgressRead = [
   query("days")
     .isInt()
     .toInt()
-    .isIn([7, 30, 90])
-    .withMessage("days chỉ hỗ trợ 7, 30 hoặc 90"),
+    .isIn([7, 30, 90, 180])
+    .withMessage("days chỉ hỗ trợ 7, 30, 90 hoặc 180"),
   handleValidationErrors,
 ];
 
@@ -1370,8 +1370,8 @@ export const validateTrainerOverview = [
   query("days")
     .isInt()
     .toInt()
-    .isIn([7, 30, 90])
-    .withMessage("days chỉ hỗ trợ 7, 30 hoặc 90"),
+    .isIn([7, 30, 90, 180])
+    .withMessage("days chỉ hỗ trợ 7, 30, 90 hoặc 180"),
   handleValidationErrors,
 ];
 

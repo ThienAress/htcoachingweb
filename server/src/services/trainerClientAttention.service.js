@@ -18,6 +18,7 @@ export const getTrainerClientAttention = async ({
   const [painJournals, weeklyCheckins] = await Promise.all([
     DailyJournal.find({
       clientId,
+      status: "submitted",
       dateKey: { $gte: recentStart, $lte: dateKey },
       "wellness.pain": { $gt: 0 },
     })

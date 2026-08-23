@@ -24,6 +24,7 @@ import {
   canonicalizeHabitCompletions,
 } from "./dailyJournalHabit.service.js";
 import { createInAppNotification } from "./inAppNotification.service.js";
+import { getMissingDailyJournalFieldKeys } from "./coachingSubmissionCompleteness.service.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -183,9 +184,6 @@ const applyCommand = async ({
         ...(action === "submit"
           ? { status: "submitted", submittedAt: now }
           : {}),
-        ...(action === "correction"
-          ? { correctionCount: (journal.correctionCount || 0) + 1 }
-          : {}),
       };
       const nutritionFields = await canonicalizeNutritionFields({
         clientId: actor.id,
@@ -194,7 +192,7 @@ const applyCommand = async ({
         session,
         now,
       });
-      const setFields = await canonicalizeHabitCompletions({
+      let setFields = await canonicalizeHabitCompletions({
         clientId: actor.id,
         dateKey,
         journal,
@@ -202,6 +200,22 @@ const applyCommand = async ({
         session,
         now,
       });
+      if (
+        action === "correction" &&
+        buildJournalChanges(base, setFields).length === 0
+      ) {
+        throw journalError(
+          400,
+          "Hãy thay đổi ít nhất một mục trước khi gửi cập nhật",
+          "EMPTY_DAILY_JOURNAL_CORRECTION",
+        );
+      }
+      if (action === "correction") {
+        setFields = {
+          ...setFields,
+          correctionCount: (journal.correctionCount || 0) + 1,
+        };
+      }
       const changes = buildJournalChanges(base, setFields);
       if (changes.length === 0) {
         result = { journal: base, idempotentReplay: false };
@@ -253,16 +267,20 @@ const applyCommand = async ({
         changes,
         session,
       });
-      if (action === "submit") {
+      if (action === "submit" || action === "correction") {
         await createInAppNotification({
           recipientId: assignment.trainerId,
           actorId: actor.id,
           clientId: actor.id,
-          type: "journal_submitted",
+          type:
+            action === "submit" ? "journal_submitted" : "journal_corrected",
           targetType: "daily_journal",
           targetId: updated._id,
+          clientName: assignment.clientName,
+          contextDateKey: dateKey,
+          missingFields: getMissingDailyJournalFieldKeys(updated),
           dedupeKey:
-            "daily-journal:submitted:" +
+            "daily-journal:" + action + ":" +
             updated._id +
             ":" +
             updated.revision,

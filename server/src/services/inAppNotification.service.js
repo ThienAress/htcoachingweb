@@ -2,32 +2,90 @@ import mongoose from "mongoose";
 import InAppNotification from "../models/InAppNotification.js";
 import NotificationPreference from "../models/NotificationPreference.js";
 import { incrementMetric } from "../observability/metrics.js";
+import { COACHING_SUBMISSION_FIELD_KEYS } from "../constants/coachingSubmissionFields.js";
+
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const SAFE_INTERNAL_PATH_PATTERN = /^\/(?![\\/])[^\s\\]*$/;
+const MISSING_FIELD_KEYS = new Set(COACHING_SUBMISSION_FIELD_KEYS);
+
+const normalizedMissingFields = (values) => [
+  ...new Set(
+    (Array.isArray(values) ? values : []).filter((value) =>
+      MISSING_FIELD_KEYS.has(value),
+    ),
+  ),
+];
+
+const normalizedClientName = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 70);
+
+const clientEventTitle = (clientName, action) => {
+  const name = normalizedClientName(clientName);
+  return name
+    ? "Khách hàng " + name + " " + action
+    : "Khách hàng " + action;
+};
+
+const trainerClientDeepLink = ({
+  clientId,
+  contextDateKey,
+  section,
+}) => {
+  const base = "/trainer/clients/" + encodeURIComponent(String(clientId));
+  const dateQuery = DATE_KEY_PATTERN.test(String(contextDateKey || ""))
+    ? "?date=" + encodeURIComponent(contextDateKey)
+    : "";
+  return base + dateQuery + "#" + section;
+};
+
+const clientWeeklyDeepLink = ({ contextDateKey }) =>
+  DATE_KEY_PATTERN.test(String(contextDateKey || ""))
+    ? "/dashboard/today/" +
+      encodeURIComponent(contextDateKey) +
+      "/journal#weekly-report"
+    : "/dashboard";
 
 const TYPE_CONFIG = {
   journal_submitted: {
     category: "journal",
-    title: "Có nhật ký ngày mới",
-    deepLink: "/trainer/coaching",
+    title: ({ clientName }) =>
+      clientEventTitle(clientName, "đã gửi nhật ký ngày"),
+    deepLink: (context) =>
+      trainerClientDeepLink({ ...context, section: "journal" }),
+  },
+  journal_corrected: {
+    category: "journal",
+    title: ({ clientName }) =>
+      clientEventTitle(clientName, "đã cập nhật nhật ký ngày"),
+    deepLink: (context) =>
+      trainerClientDeepLink({ ...context, section: "journal" }),
   },
   coaching_comment_created: {
     category: "comments",
-    title: "Có bình luận coaching mới",
+    title: () => "Có bình luận huấn luyện mới",
     deepLink: "/today",
   },
   weekly_submitted: {
     category: "weekly",
-    title: "Có Weekly Check-in mới",
-    deepLink: "/trainer/coaching",
+    title: ({ clientName }) =>
+      clientEventTitle(clientName, "đã gửi báo cáo tuần"),
+    deepLink: (context) =>
+      trainerClientDeepLink({ ...context, section: "weekly-report" }),
   },
   weekly_corrected: {
     category: "weekly",
-    title: "Weekly Check-in đã được cập nhật",
-    deepLink: "/trainer/coaching",
+    title: ({ clientName }) =>
+      clientEventTitle(clientName, "đã cập nhật báo cáo tuần"),
+    deepLink: (context) =>
+      trainerClientDeepLink({ ...context, section: "weekly-report" }),
   },
   weekly_reviewed: {
     category: "weekly",
-    title: "HLV đã review Weekly Check-in",
-    deepLink: "/progress",
+    title: () => "Huấn luyện viên đã nhận xét báo cáo tuần",
+    deepLink: clientWeeklyDeepLink,
   },
 };
 
@@ -59,12 +117,15 @@ export const createInAppNotification = async ({
   session = null,
   allowSelf = false,
   deepLink = null,
+  clientName = "",
+  contextDateKey = "",
+  missingFields = [],
 }) => {
   const config = TYPE_CONFIG[type];
   if (!config) {
     throw notificationError(
       400,
-      "Notification type không hợp lệ",
+      "Loại thông báo không hợp lệ",
       "INVALID_NOTIFICATION_TYPE",
     );
   }
@@ -93,6 +154,23 @@ export const createInAppNotification = async ({
     return { created: false, suppressed: false, notification: existing };
   }
   try {
+    const notificationContext = {
+      clientId,
+      clientName,
+      contextDateKey,
+    };
+    const resolvedDeepLink =
+      deepLink ||
+      (typeof config.deepLink === "function"
+        ? config.deepLink(notificationContext)
+        : config.deepLink);
+    if (!SAFE_INTERNAL_PATH_PATTERN.test(resolvedDeepLink)) {
+      throw notificationError(
+        400,
+        "Đường dẫn thông báo không hợp lệ",
+        "INVALID_NOTIFICATION_DEEP_LINK",
+      );
+    }
     const payload = {
       recipientId,
       actorId,
@@ -101,8 +179,12 @@ export const createInAppNotification = async ({
       category: config.category,
       targetType,
       targetId,
-      title: config.title,
-      deepLink: deepLink || config.deepLink,
+      title:
+        typeof config.title === "function"
+          ? config.title(notificationContext)
+          : config.title,
+      missingFields: normalizedMissingFields(missingFields),
+      deepLink: resolvedDeepLink,
       dedupeKey: String(dedupeKey).slice(0, 180),
     };
     const notification = session
@@ -127,6 +209,7 @@ const dto = (notification) => ({
   targetType: notification.targetType,
   targetId: notification.targetId,
   title: notification.title,
+  missingFields: notification.missingFields || [],
   deepLink: notification.deepLink,
   readAt: notification.readAt || null,
   createdAt: notification.createdAt,
@@ -164,7 +247,11 @@ export const markNotificationRead = async ({
   now = new Date(),
 }) => {
   if (!mongoose.isValidObjectId(notificationId)) {
-    throw notificationError(400, "notificationId không hợp lệ", "INVALID_NOTIFICATION_ID");
+    throw notificationError(
+      400,
+      "Mã thông báo không hợp lệ",
+      "INVALID_NOTIFICATION_ID",
+    );
   }
   const notification = await InAppNotification.findOneAndUpdate(
     { _id: notificationId, recipientId },
@@ -172,7 +259,11 @@ export const markNotificationRead = async ({
     { returnDocument: "after" },
   );
   if (!notification) {
-    throw notificationError(404, "Không tìm thấy notification", "NOTIFICATION_NOT_FOUND");
+    throw notificationError(
+      404,
+      "Không tìm thấy thông báo",
+      "NOTIFICATION_NOT_FOUND",
+    );
   }
   incrementMetric("notification.read");
   return dto(notification);

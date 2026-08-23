@@ -32,7 +32,7 @@ export const getClientProgress = async ({
   } catch {
     throw progressError(
       400,
-      "Progress range chỉ hỗ trợ 7, 30 hoặc 90 ngày",
+      "Khoảng tiến trình chỉ hỗ trợ 7, 30, 90 hoặc 180 ngày",
       "INVALID_PROGRESS_RANGE",
     );
   }
