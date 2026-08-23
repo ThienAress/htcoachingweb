@@ -1,0 +1,55 @@
+name: Single Test Account Pull Sync
+
+on:
+  push:
+    branches:
+      - staging
+    paths:
+      - ".github/workflows/single-account-sync.yml"
+      - "server/package.json"
+      - "server/package-lock.json"
+      - "server/src/scripts/singleAccountSync*.js"
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: single-test-account-pull-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  production-to-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install server dependencies
+        run: npm ci --prefix server
+      - name: Preflight pinned account graph
+        run: npm run preflight:account-sync:staging --prefix server
+        env:
+          ACCOUNT_SYNC_EMAIL: ${{ secrets.ACCOUNT_SYNC_EMAIL }}
+          PRODUCTION_ACCOUNT_SYNC_READONLY_URI: ${{ secrets.PRODUCTION_ACCOUNT_SYNC_READONLY_URI }}
+          STAGING_ACCOUNT_SYNC_URI: ${{ secrets.STAGING_ACCOUNT_SYNC_URI }}
+          ACCOUNT_SYNC_SOURCE_ENV: production
+          ACCOUNT_SYNC_SOURCE_READ_ONLY: "yes"
+          ACCOUNT_SYNC_TARGET_ENV: staging
+          CONFIRM_STAGING_ACCOUNT_SYNC: "yes"
+      - name: Pull production account graph into staging
+        run: npm run sync:account:staging --prefix server
+        env:
+          ACCOUNT_SYNC_EMAIL: ${{ secrets.ACCOUNT_SYNC_EMAIL }}
+          PRODUCTION_ACCOUNT_SYNC_READONLY_URI: ${{ secrets.PRODUCTION_ACCOUNT_SYNC_READONLY_URI }}
+          STAGING_ACCOUNT_SYNC_URI: ${{ secrets.STAGING_ACCOUNT_SYNC_URI }}
+          ACCOUNT_SYNC_SOURCE_ENV: production
+          ACCOUNT_SYNC_SOURCE_READ_ONLY: "yes"
+          ACCOUNT_SYNC_TARGET_ENV: staging
+          CONFIRM_STAGING_ACCOUNT_SYNC: "yes"

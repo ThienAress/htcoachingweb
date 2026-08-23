@@ -51,6 +51,9 @@ export const validatePrerenderSnapshot = (
   if (!Number.isFinite(snapshot?.rootLength) || snapshot.rootLength <= 100) {
     errors.push("rendered root is empty");
   }
+  if (Number(snapshot?.fatalFallbackCount || 0) > 0) {
+    errors.push("fatal application fallback rendered");
+  }
   if (titles.length !== 1 || !String(titles[0] || "").trim()) {
     errors.push(`expected one non-empty title, received ${titles.length}`);
   }

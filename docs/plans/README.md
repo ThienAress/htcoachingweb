@@ -86,6 +86,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 058A | Đồng bộ 10 công thức production vào local và staging | P1 | S | 043, 057, 058 | DONE / LOCAL + STAGING VERIFIED |
 | 059 | Chuẩn hóa scrollbar và hoàn thiện quy đổi nutrition công thức | P1 | L | 057, 058, 058A | DONE / FOCUSED VERIFIED — FULL SERVER SUITE BLOCKED |
 | 060 | Tinh gọn nhật ký coaching, nutrition thủ công và wellness theo ngày | P1 | XL | 003F, 011, 016, 059 | IMPLEMENTED / LOCAL VERIFIED — FULL SERVER + PRERENDER BLOCKED |
+| 061 | Harden SEO fallback và đồng bộ một chiều một tài khoản test | P0/P1 | L | 008, 038, 053A, 060 | IN PROGRESS |
 
 ## Dependency Notes
 

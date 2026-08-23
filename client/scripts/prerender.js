@@ -187,6 +187,9 @@ const renderRoute = async (browser, route, recipeCache) => {
     const snapshot = await page.evaluate(() => ({
       rootLength:
         document.querySelector("#root")?.innerHTML.trim().length || 0,
+      fatalFallbackCount: document.querySelectorAll(
+        "[data-app-fatal-error]",
+      ).length,
       titles: [...document.querySelectorAll("title")].map((element) =>
         element.textContent.trim(),
       ),
