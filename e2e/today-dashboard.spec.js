@@ -69,6 +69,10 @@ test.describe("Today Dashboard private journey", () => {
     await sleep.fill("7.5");
     await page.getByRole("button", { name: "Gửi nhật ký ngày" }).click();
     await expect(
+      page.getByRole("alertdialog", { name: "Còn 5 mục bạn chưa điền" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Vẫn gửi" }).click();
+    await expect(
       page.getByText(/Nhật ký đã gửi và đang được khóa/),
     ).toBeVisible();
     await page.reload();
@@ -262,14 +266,19 @@ test.describe("Today Dashboard private journey", () => {
         name: "Tiến trình cơ thể và huấn luyện",
       }),
     ).toBeVisible();
+    await page.getByRole("button", { name: /Mức độ thực hiện/ }).click();
     await expect(page.getByText("50%").first()).toBeVisible();
+    await page
+      .getByRole("button", { name: "Quay lại danh sách Tiến trình" })
+      .click();
+    await page.getByRole("button", { name: /Tiến trình cơ thể/ }).click();
     await expect(
       page.getByRole("heading", { name: "Tiến trình cơ thể", exact: true }),
     ).toBeVisible();
     await expect(page.getByText("71,8").first()).toBeVisible();
-    await expect(page.getByText("-0,7 kg").first()).toBeVisible();
+    await expect(page.getByText(/Thay đổi −0,7 kg/).first()).toBeVisible();
     await expect(page.getByText("81").first()).toBeVisible();
-    await expect(page.getByText("-1,5 cm").first()).toBeVisible();
+    await expect(page.getByText(/Thay đổi −1,5 cm/).first()).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Dòng thời gian hoạt động" }),
     ).toHaveCount(0);

@@ -1,8 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Send, ShieldCheck } from "lucide-react";
+import {
+  LockKeyhole,
+  Pencil,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+} from "lucide-react";
 import { useEffect, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
+import { IncompleteSubmissionConfirm } from "../../components/IncompleteSubmissionConfirm";
 import {
   getMonthWeekPeriod,
   getMonthWeekPeriods,
@@ -19,6 +26,8 @@ import { WeeklyCheckinFields } from "./WeeklyCheckinFields";
 import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread";
 import {
   checkinToWeeklyValues,
+  deriveWeeklyCheckinEditState,
+  getMissingWeeklyFields,
   weeklyFormDefaults,
   weeklyFormSchema,
   weeklyValuesToPatch,
@@ -48,8 +57,10 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
   const [weekStartDateKey, setWeekStartDateKey] = useState(() =>
     periodStartFor(dateKey),
   );
+  const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
   const [correctionReason, setCorrectionReason] = useState("");
   const [failedCommand, setFailedCommand] = useState(null);
+  const [incompleteSubmission, setIncompleteSubmission] = useState(null);
   const [message, setMessage] = useState("");
   const queryKey = ["weekly-checkin", userId, weekStartDateKey];
   const query = useQuery({
@@ -63,19 +74,14 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
     register,
     reset,
     handleSubmit,
-    control,
     formState: { errors, isDirty },
   } = useForm({
     resolver: zodResolver(weeklyFormSchema),
     defaultValues: weeklyFormDefaults,
   });
-
-
   useEffect(() => {
     if (!query.isLoading) reset(checkinToWeeklyValues(query.data));
   }, [query.data, query.isLoading, reset]);
-
-  const adherence = useWatch({ control, name: "adherence" });
 
   const mutation = useMutation({
     mutationFn: ({ kind, payload }) => {
@@ -96,6 +102,8 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
       const next = response.data.data;
       queryClient.setQueryData(queryKey, next);
       reset(checkinToWeeklyValues(next));
+      setIsCorrectionOpen(false);
+      setIncompleteSubmission(null);
       setFailedCommand(null);
       void queryClient.invalidateQueries({ queryKey: ["progress"] });
       return next;
@@ -121,7 +129,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
     if (next) setMessage("Đã lưu bản nháp.");
   });
 
-  const submit = handleSubmit(async (values) => {
+  const submitValues = async (values) => {
     const saved = await execute({
       kind: "save",
       payload: {
@@ -141,9 +149,19 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
     if (submittedCheckin) {
       setMessage("Báo cáo tuần đã được gửi cho HLV.");
     }
+  };
+
+  const submit = handleSubmit(async (values) => {
+    const missingFields = getMissingWeeklyFields(values);
+    if (missingFields.length > 0) {
+      setIncompleteSubmission({ kind: "submit", values, missingFields });
+      return;
+    }
+    await submitValues(values);
   });
 
-  const correct = handleSubmit(async (values) => {
+  const correctValues = async (values) => {
+    if (!isCorrectionOpen || (query.data?.correctionCount || 0) >= 1) return;
     if (correctionReason.trim().length < 3) {
       setMessage("Vui lòng nhập lý do chỉnh sửa từ 3 ký tự.");
       return;
@@ -161,7 +179,25 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
       setCorrectionReason("");
       setMessage("Đã lưu chỉnh sửa và gửi lại cho HLV.");
     }
+  };
+
+  const correct = handleSubmit(async (values) => {
+    const missingFields = getMissingWeeklyFields(values);
+    if (missingFields.length > 0) {
+      setIncompleteSubmission({ kind: "correction", values, missingFields });
+      return;
+    }
+    await correctValues(values);
   });
+
+  const cancelCorrection = () => {
+    reset(checkinToWeeklyValues(query.data));
+    setIsCorrectionOpen(false);
+    setCorrectionReason("");
+    setFailedCommand(null);
+    setIncompleteSubmission(null);
+    setMessage("");
+  };
 
   const selectPeriod = (nextStartDateKey) => {
     if (nextStartDateKey === weekStartDateKey) return;
@@ -172,8 +208,10 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
       return;
     }
     setWeekStartDateKey(nextStartDateKey);
+    setIsCorrectionOpen(false);
     setCorrectionReason("");
     setFailedCommand(null);
+    setIncompleteSubmission(null);
     setMessage("");
     reset(weeklyFormDefaults);
   };
@@ -186,25 +224,41 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
   const previousPeriod = getPreviousMonthWeekPeriod(today);
   const canEdit = [currentPeriod?.startDateKey, previousPeriod?.startDateKey]
     .includes(weekStartDateKey);
-  const disabled = query.isLoading || mutation.isPending || !canEdit;
-  const submitted = ["submitted", "reviewed"].includes(query.data?.status);
+  const {
+    submitted,
+    correctionUsed,
+    correctionOpen,
+    fieldsDisabled: disabled,
+    canOpenCorrection,
+    canSubmitCorrection,
+  } = deriveWeeklyCheckinEditState({
+    checkin: query.data,
+    canEdit,
+    isCorrectionOpen,
+    hasChanges: isDirty,
+    busy:
+      query.isLoading || mutation.isPending || Boolean(incompleteSubmission),
+  });
   const monthLabel = dateKey
     ? `Tháng ${Number(dateKey.slice(5, 7))}/${dateKey.slice(0, 4)}`
     : "";
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6">
+      <section
+        id="weekly-report"
+        className="rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6"
+      >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-400">
-              Báo cáo tuần · {monthLabel}
-            </p>
-            <h2 className="mt-2 text-xl font-bold text-white">
-              {selectedPeriod ? periodLabel(selectedPeriod) : "Báo cáo tuần"}
+            <h2 className="text-xl font-bold text-white sm:text-2xl">
+              Báo cáo tuần
             </h2>
+            <p className="mt-2 text-sm font-semibold text-orange-300">
+              {selectedPeriod ? periodLabel(selectedPeriod) : monthLabel}
+            </p>
             <p className="mt-1 text-sm text-slate-400">
-              Mỗi tuần gửi một báo cáo. Cân nặng và vòng eo là tùy chọn.
+              Mỗi tuần gửi một báo cáo
             </p>
           </div>
           <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
@@ -273,27 +327,62 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
             className="mt-6 space-y-5"
             onSubmit={(event) => event.preventDefault()}
           >
+            {submitted && !correctionOpen && (
+              <p className="flex items-start gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm leading-6 text-slate-300">
+                <LockKeyhole
+                  size={17}
+                  className="mt-1 shrink-0 text-orange-300"
+                  aria-hidden="true"
+                />
+                {correctionUsed
+                  ? "Báo cáo đã khóa. Bạn đã sử dụng lượt cập nhật duy nhất cho tuần này."
+                  : "Báo cáo đã gửi và đang được khóa. Bạn còn một lượt cập nhật cho tuần này."}
+              </p>
+            )}
             <WeeklyCheckinFields
               register={register}
               errors={errors}
               disabled={disabled}
-              adherence={adherence}
             />
-            {submitted && canEdit && (
-              <label
-                htmlFor="weekly-correction-reason"
-                className="block text-sm font-medium text-slate-300"
-              >
-                Lý do chỉnh sửa sau khi gửi
-                <input
-                  id="weekly-correction-reason"
-                  value={correctionReason}
-                  onChange={(event) => setCorrectionReason(event.target.value)}
-                  maxLength={500}
-                  disabled={disabled}
-                  className="mt-2 min-h-11 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm text-white outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30 disabled:opacity-50"
-                />
-              </label>
+            <IncompleteSubmissionConfirm
+              missingFields={
+                incompleteSubmission?.missingFields.map(({ label }) => label) || []
+              }
+              onCancel={() => setIncompleteSubmission(null)}
+              onConfirm={() => {
+                const pending = incompleteSubmission;
+                setIncompleteSubmission(null);
+                if (!pending) return;
+                if (pending.kind === "correction") {
+                  void correctValues(pending.values);
+                } else {
+                  void submitValues(pending.values);
+                }
+              }}
+              isPending={mutation.isPending}
+            />
+            {submitted && canEdit && correctionOpen && (
+              <div className="space-y-2">
+                <label
+                  htmlFor="weekly-correction-reason"
+                  className="block text-sm font-medium text-slate-300"
+                >
+                  Lý do chỉnh sửa sau khi gửi
+                  <input
+                    id="weekly-correction-reason"
+                    value={correctionReason}
+                    onChange={(event) => setCorrectionReason(event.target.value)}
+                    maxLength={500}
+                    disabled={disabled}
+                    className="mt-2 min-h-11 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm text-white outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30 disabled:opacity-50"
+                  />
+                </label>
+                {!isDirty && (
+                  <p className="text-xs text-amber-200" role="status">
+                    Hãy thay đổi ít nhất một số đo để gửi cập nhật.
+                  </p>
+                )}
+              </div>
             )}
             {query.data?.trainerReview && (
               <aside className="rounded-xl border border-emerald-800/60 bg-emerald-950/20 p-4">
@@ -324,16 +413,36 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
             )}
             {canEdit && (
               <div className="flex flex-wrap gap-3">
-                {submitted ? (
+                {canOpenCorrection ? (
                   <button
                     type="button"
-                    onClick={correct}
-                    disabled={disabled}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-orange-500 px-4 text-sm font-bold text-slate-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-40"
+                    onClick={() => setIsCorrectionOpen(true)}
+                    disabled={!canEdit || mutation.isPending}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-orange-400 px-4 text-sm font-bold text-orange-200 hover:bg-orange-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-40"
                   >
-                    <Send size={16} aria-hidden="true" /> Lưu chỉnh sửa
+                    <Pencil size={16} aria-hidden="true" /> Cập nhật
                   </button>
-                ) : (
+                ) : submitted && correctionOpen ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={correct}
+                      disabled={!canSubmitCorrection}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-orange-500 px-4 text-sm font-bold text-slate-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-40"
+                    >
+                      <Send size={16} aria-hidden="true" />
+                      {mutation.isPending ? "Đang cập nhật..." : "Gửi cập nhật"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelCorrection}
+                      disabled={mutation.isPending}
+                      className="min-h-11 rounded-lg border border-slate-700 px-4 text-sm font-semibold text-slate-300 hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-40"
+                    >
+                      Hủy
+                    </button>
+                  </>
+                ) : !submitted ? (
                   <>
                     <button
                       type="button"
@@ -352,7 +461,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
                       <Send size={16} aria-hidden="true" /> Gửi cho HLV
                     </button>
                   </>
-                )}
+                ) : null}
                 {failedCommand && (
                   <button
                     type="button"

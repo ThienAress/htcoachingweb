@@ -12,13 +12,12 @@ export const WellnessTargetSummary = ({
 
   return (
     <div className="mb-5 border-y border-slate-800 py-4">
-      <div className="flex items-start gap-3">
-        <Target className="mt-0.5 h-5 w-5 shrink-0 text-cyan-400" aria-hidden="true" />
+      <div className="flex items-center gap-3">
+        <Target className="h-5 w-5 shrink-0 text-cyan-400" aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-white">Mục tiêu do HLV thiết lập</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            Chỉ dùng để so sánh với số bạn tự ghi, không ảnh hưởng phần trăm hoàn thành và không phải đánh giá y khoa.
-          </p>
+          <h3 className="text-base font-semibold text-white">
+            Mục tiêu do HLV thiết lập
+          </h3>
         </div>
       </div>
 

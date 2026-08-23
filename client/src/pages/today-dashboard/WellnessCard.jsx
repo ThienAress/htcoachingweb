@@ -4,6 +4,7 @@ import { LockKeyhole, Pencil, Send, ShieldAlert } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
+import { IncompleteSubmissionConfirm } from "../../components/IncompleteSubmissionConfirm";
 import {
   correctDailyJournal,
   submitDailyJournal,
@@ -14,6 +15,7 @@ import { WellnessHeader } from "./WellnessHeader";
 import { WellnessSaveError } from "./WellnessSaveError";
 import { WellnessTargetSummary } from "./WellnessTargetSummary";
 import {
+  getMissingWellnessFields,
   journalToWellnessValues,
   wellnessFormSchema,
   wellnessValuesToPatch,
@@ -26,13 +28,14 @@ export const WellnessCard = ({ dateKey, journal, canEdit, onChanged }) => {
   const [localJournal, setLocalJournal] = useState(journal);
   const [saveState, setSaveState] = useState("idle");
   const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
+  const [incompleteSubmission, setIncompleteSubmission] = useState(null);
   const failedRef = useRef(null);
   const {
     register,
     control,
     reset,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm({
     resolver: zodResolver(wellnessFormSchema),
     defaultValues: journalToWellnessValues(journal),
@@ -65,6 +68,7 @@ export const WellnessCard = ({ dateKey, journal, canEdit, onChanged }) => {
       const nextJournal = response.data.data;
       setLocalJournal(nextJournal);
       setIsCorrectionOpen(false);
+      setIncompleteSubmission(null);
       setSaveState("saved");
       failedRef.current = null;
       reset(journalToWellnessValues(nextJournal));
@@ -90,10 +94,15 @@ export const WellnessCard = ({ dateKey, journal, canEdit, onChanged }) => {
     [acceptResponse, command],
   );
 
-  const submitValues = async (values) => {
+  const sendValues = async (values) => {
     if (!canEdit || command.isPending) return;
     const kind = submitted ? "correction" : "submit";
-    if (kind === "correction" && (!isCorrectionOpen || correctionUsed)) return;
+    if (
+      kind === "correction" &&
+      (!isCorrectionOpen || correctionUsed || !isDirty)
+    ) {
+      return;
+    }
     await runCommand({
       kind,
       payload: {
@@ -104,14 +113,27 @@ export const WellnessCard = ({ dateKey, journal, canEdit, onChanged }) => {
     });
   };
 
+  const submitValues = async (values) => {
+    const missingFields = getMissingWellnessFields(values);
+    if (missingFields.length > 0) {
+      setIncompleteSubmission({ values, missingFields });
+      return;
+    }
+    await sendValues(values);
+  };
+
   const cancelCorrection = () => {
     reset(journalToWellnessValues(localJournal));
     setIsCorrectionOpen(false);
+    setIncompleteSubmission(null);
     setSaveState("idle");
   };
 
   const disabled =
-    !canEdit || command.isPending || (submitted && !isCorrectionOpen);
+    !canEdit ||
+    command.isPending ||
+    Boolean(incompleteSubmission) ||
+    (submitted && !isCorrectionOpen);
 
   return (
     <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6">
@@ -151,6 +173,19 @@ export const WellnessCard = ({ dateKey, journal, canEdit, onChanged }) => {
           painValue={painValue}
         />
 
+        <IncompleteSubmissionConfirm
+          missingFields={
+            incompleteSubmission?.missingFields.map(({ label }) => label) || []
+          }
+          onCancel={() => setIncompleteSubmission(null)}
+          onConfirm={() => {
+            const values = incompleteSubmission?.values;
+            setIncompleteSubmission(null);
+            if (values) void sendValues(values);
+          }}
+          isPending={command.isPending}
+        />
+
         {!submitted ? (
           <button
             type="submit"
@@ -171,9 +206,14 @@ export const WellnessCard = ({ dateKey, journal, canEdit, onChanged }) => {
           </button>
         ) : isCorrectionOpen ? (
           <div className="flex flex-wrap gap-3">
+            {!isDirty && (
+              <p className="w-full text-xs text-amber-200" role="status">
+                Hãy thay đổi ít nhất một mục để gửi cập nhật.
+              </p>
+            )}
             <button
               type="submit"
-              disabled={command.isPending}
+              disabled={command.isPending || !isDirty}
               className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send size={16} aria-hidden="true" />

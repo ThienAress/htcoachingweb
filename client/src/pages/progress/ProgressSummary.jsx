@@ -1,107 +1,174 @@
-import { Activity } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  BarChart3,
+  HeartPulse,
+  Ruler,
+} from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import { BodyProgressReport } from "./BodyProgressReport";
+import { ComplianceProgressReport } from "./ComplianceProgressReport";
 import { ProgressWellnessOverview } from "./ProgressWellnessOverview";
-import {
-  progressMetricRows,
-  summarizeProgressAvailability,
-} from "./progressPresentation";
+import { normalizeProgressSection } from "./progressPresentation";
 
-const STATUS_COLORS = {
-  high: { bar: "bg-emerald-400", text: "text-emerald-300", bg: "bg-emerald-400/10" },
-  mid: { bar: "bg-orange-400", text: "text-orange-300", bg: "bg-orange-400/10" },
-  low: { bar: "bg-rose-400", text: "text-rose-300", bg: "bg-rose-400/10" },
-  none: { bar: "bg-slate-700", text: "text-slate-400", bg: "bg-slate-800" },
-};
+const PROGRESS_SECTIONS = [
+  {
+    key: "compliance",
+    label: "Mức độ thực hiện",
+    description: "So sánh mức hoàn thành lịch tập, giáo án, bữa ăn và thói quen.",
+    icon: Activity,
+    iconClass: "bg-orange-400/10 text-orange-300",
+  },
+  {
+    key: "body",
+    label: "Tiến trình cơ thể",
+    description: "Theo dõi thay đổi số đo từ những báo cáo tuần đã gửi.",
+    icon: Ruler,
+    iconClass: "bg-cyan-400/10 text-cyan-300",
+  },
+  {
+    key: "wellness",
+    label: "Sức khỏe trung bình",
+    description: "Xem xu hướng những chỉ số sức khỏe từ nhật ký đã gửi.",
+    icon: HeartPulse,
+    iconClass: "bg-emerald-400/10 text-emerald-300",
+  },
+];
 
-const getStatusKey = (percent) => {
-  if (percent === null) return "none";
-  if (percent >= 80) return "high";
-  if (percent >= 40) return "mid";
-  return "low";
-};
+const ProgressHeader = ({ actions, headingLevel: Heading = "h2" }) => (
+  <header className="flex flex-col gap-5 border-b border-slate-800 pb-5 lg:flex-row lg:items-start lg:justify-between">
+    <div>
+      <Heading
+        id="progress-navigation-title"
+        className="flex items-center gap-3 text-2xl font-bold text-white sm:text-3xl"
+      >
+        <BarChart3
+          className="h-6 w-6 shrink-0 text-orange-400"
+          aria-hidden="true"
+        />
+        Tiến trình cơ thể và huấn luyện
+      </Heading>
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+        Tổng hợp từ lịch tập, giáo án và những nhật ký hoặc báo cáo tuần bạn đã
+        gửi. Bản nháp không được tính vào số liệu.
+      </p>
+    </div>
+    {actions}
+  </header>
+);
 
-const MetricGrid = ({ compliance }) => {
-  const rows = progressMetricRows(compliance);
-  return (
-    <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-slate-800 px-5 py-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-400/10">
-          <Activity className="h-4 w-4 text-orange-300" aria-hidden="true" />
-        </div>
-        <div>
-          <h2 className="text-sm font-bold text-slate-50">Mức độ thực hiện</h2>
-          <p className="mt-0.5 text-xs text-slate-400">
-            Chỉ tính lịch, kế hoạch và thói quen thực sự áp dụng.
-          </p>
-        </div>
-      </div>
-
-      {/* Metric rows */}
-      <div className="divide-y divide-slate-800">
-        {rows.map((row) => {
-          const statusKey = getStatusKey(row.percent);
-          const colors = STATUS_COLORS[statusKey];
-          return (
-            <div
-              key={row.key}
-              className="grid gap-2 px-5 py-4 sm:grid-cols-[minmax(160px,0.8fr)_minmax(220px,2fr)_auto] sm:items-center sm:gap-4"
+const ProgressLanding = ({ buttonRefs, onSectionChange }) => (
+  <section
+    className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950"
+    aria-labelledby="progress-navigation-title"
+  >
+    <div className="divide-y divide-slate-800">
+      {PROGRESS_SECTIONS.map((section) => {
+        const Icon = section.icon;
+        return (
+          <button
+            key={section.key}
+            ref={(node) => {
+              buttonRefs.current[section.key] = node;
+            }}
+            type="button"
+            onClick={() => onSectionChange(section.key)}
+            className="group grid min-h-24 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400 sm:px-6"
+          >
+            <span
+              className={`flex h-11 w-11 items-center justify-center rounded-xl ${section.iconClass}`}
             >
-              {/* Label */}
-              <h3 className="text-sm font-semibold text-slate-200">
-                {row.label}
-              </h3>
+              <Icon size={21} aria-hidden="true" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-bold text-slate-100">
+                {section.label}
+              </span>
+              <span className="mt-1 block text-sm leading-5 text-slate-400">
+                {section.description}
+              </span>
+            </span>
+            <ArrowRight
+              size={19}
+              className="text-slate-500 transition-colors group-hover:text-orange-300"
+              aria-hidden="true"
+            />
+          </button>
+        );
+      })}
+    </div>
+  </section>
+);
 
-              {/* Progress bar */}
-              <div>
-                {row.percent === null ? (
-                  <p className="text-xs text-slate-400">
-                    Chưa áp dụng trong khoảng này
-                  </p>
-                ) : (
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                    <div
-                      className={`h-full rounded-full ${colors.bar} transition-[width] duration-200`}
-                      style={{ width: `${row.percent}%` }}
-                      role="progressbar"
-                      aria-valuenow={row.percent}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label={`${row.label}: ${row.displayPercent}`}
-                    />
-                  </div>
-                )}
-              </div>
+export const ProgressSummary = ({
+  activeSection,
+  landingActions,
+  landingHeadingLevel = "h2",
+  onSectionChange = () => {},
+  progress,
+  rangeControls,
+}) => {
+  const buttonRefs = useRef({});
+  const headingRef = useRef(null);
+  const lastSectionRef = useRef(null);
+  const hasOpenedRef = useRef(false);
+  const sectionKey = normalizeProgressSection(activeSection);
+  const section = PROGRESS_SECTIONS.find(({ key }) => key === sectionKey);
 
-              {/* Value badge */}
-              <div className={`w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${colors.bg} ${colors.text}`}>
-                {row.percent === null
-                  ? "Chưa áp dụng"
-                  : `${row.displayPercent} · ${row.numerator}/${row.denominator}`}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+  useEffect(() => {
+    if (sectionKey) {
+      lastSectionRef.current = sectionKey;
+      hasOpenedRef.current = true;
+      headingRef.current?.focus();
+      return;
+    }
+    if (hasOpenedRef.current && lastSectionRef.current) {
+      buttonRefs.current[lastSectionRef.current]?.focus();
+    }
+  }, [sectionKey]);
+
+  const onBack = () => onSectionChange(null);
+
+  return (
+    <div className="space-y-5">
+      <ProgressHeader
+        actions={landingActions}
+        headingLevel={landingHeadingLevel}
+      />
+
+      {!section && (
+        <ProgressLanding
+          buttonRefs={buttonRefs}
+          onSectionChange={onSectionChange}
+        />
+      )}
+      {sectionKey === "compliance" && (
+        <ComplianceProgressReport
+          compliance={progress.compliance}
+          headingRef={headingRef}
+          onBack={onBack}
+          rangeControls={rangeControls}
+        />
+      )}
+      {sectionKey === "body" && (
+        <BodyProgressReport
+          bodyProgress={progress.bodyProgress}
+          headingRef={headingRef}
+          onBack={onBack}
+          range={progress.range}
+          rangeControls={rangeControls}
+        />
+      )}
+      {sectionKey === "wellness" && (
+        <ProgressWellnessOverview
+          headingRef={headingRef}
+          onBack={onBack}
+          range={progress.range}
+          rangeControls={rangeControls}
+          wellness={progress.wellness}
+        />
+      )}
+    </div>
   );
 };
-
-export const ProgressSummary = ({ progress, selectedDateKey }) => (
-  <div className="space-y-4">
-    {!summarizeProgressAvailability(progress) && (
-      <p className="rounded-xl border border-gray-700 bg-gray-800/50 p-4 text-sm text-gray-400">
-        Chưa có dữ liệu trong khoảng này. Các chỉ số sẽ xuất hiện khi bạn có lịch hoặc ghi nhật ký.
-      </p>
-    )}
-    <MetricGrid compliance={progress.compliance} />
-    <BodyProgressReport bodyProgress={progress.bodyProgress} />
-    <ProgressWellnessOverview
-      key={`${progress.range?.startDateKey}:${progress.range?.endDateKey}:${selectedDateKey || "end"}`}
-      wellness={progress.wellness}
-      range={progress.range}
-      dateKey={selectedDateKey || progress.range?.endDateKey}
-    />
-  </div>
-);

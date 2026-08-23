@@ -1,26 +1,26 @@
 const ATTENTION = {
   missed_weekly_checkin: {
-    label: "Thiếu Weekly Check-in tuần trước",
-    detail: "Nhắc học viên check-in khi phù hợp",
+    label: "Thiếu báo cáo tuần trước",
+    detail: "Nhắc học viên gửi báo cáo khi phù hợp",
   },
   weekly_checkin_missing: {
-    label: "Thiếu Weekly Check-in tuần trước",
-    detail: "Nhắc học viên check-in khi phù hợp",
+    label: "Thiếu báo cáo tuần trước",
+    detail: "Nhắc học viên gửi báo cáo khi phù hợp",
   },
   pain_reported: {
-    label: "Có pain flag cần xem",
+    label: "Có cảnh báo đau cần xem",
     detail: "Xem nhật ký được chia sẻ",
   },
   pain_flag: {
-    label: "Có pain flag cần xem",
+    label: "Có cảnh báo đau cần xem",
     detail: "Xem nhật ký được chia sẻ",
   },
   pending_feedback: {
-    label: "Có buổi coaching chờ phản hồi",
+    label: "Có buổi huấn luyện chờ phản hồi",
     detail: "Kiểm tra tiến độ bài tập",
   },
   weekly_review_pending: {
-    label: "Có buổi coaching chờ phản hồi",
+    label: "Có báo cáo tuần chờ nhận xét",
     detail: "Kiểm tra tiến độ bài tập",
   },
 };

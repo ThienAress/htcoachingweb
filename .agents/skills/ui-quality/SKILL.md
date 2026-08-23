@@ -13,6 +13,8 @@ Bạn là chuyên gia Senior Frontend UX/UI Designer & Engineer. Mục tiêu c�
 - Khi cần chi tiết về màu sắc, contrast, typography hoặc GSAP, đọc `references/ui-guidelines.md`.
 - Khi UI có `overflow` hoặc scrollbar, áp dụng canonical `Overflow & Scrollbar` tại
   `../../rules/code/tech_patterns.md`; audit cả modal/drawer portal và hai trục scroll.
+- Khi viết hoặc rà copy user-visible, áp dụng canonical `Ngôn ngữ UI ưu tiên tiếng Việt` tại
+  `../../rules/code/tech_patterns.md`; không đổi code identifier hoặc locale tiếng Anh để Việt hóa.
 - Khi sửa component architecture hoặc performance React, đọc `references/react-spa-quality.md`; chỉ áp rule phù hợp
   React 19 + Vite SPA và dependency thật của project.
 - Xác định UI đang làm thuộc **Brand** (Trang chủ, public) hay **Product** (Dashboard, Checkin).
