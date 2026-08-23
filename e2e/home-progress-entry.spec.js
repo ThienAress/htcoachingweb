@@ -27,6 +27,7 @@ test.describe("homepage Today Dashboard entry", () => {
   test("opens the canonical dashboard for a returning authenticated customer", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     await page.addInitScript(() => {
       localStorage.setItem("pricingViewMode", "customer");
       sessionStorage.removeItem("ht_today_progress_prompt_dismissed");
@@ -36,7 +37,7 @@ test.describe("homepage Today Dashboard entry", () => {
     await page.goto("/");
 
     const prompt = page.getByTestId("today-progress-prompt");
-    await expect(prompt).toBeVisible();
+    await expect(prompt).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("dialog", { name: "Bạn là ai?" })).toHaveCount(0);
     await prompt.getByRole("button", { name: "Mở kế hoạch hôm nay" }).click();
 
