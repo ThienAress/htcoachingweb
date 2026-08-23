@@ -161,7 +161,10 @@ Thứ tự fail-closed:
 3. `accountNumber` khớp chính xác `BANK_ACCOUNT` sau normalization.
 4. Transaction không trước cutover.
 5. Code được normalize uppercase, ưu tiên field `code`, sau đó mới tìm exact
-   pattern `HTC-[A-F0-9]{4}-[A-F0-9]{4}` trong content. Không fuzzy match.
+   pattern canonical `HTC-[A-F0-9]{4}-[A-F0-9]{4}` hoặc compact
+   `HTC[A-F0-9]{8}` trong content. TPBank có thể bỏ dấu `-`; dạng compact chỉ
+   được chấp nhận khi có đúng 8 ký tự hex và phải canonicalize về dạng có dấu
+   gạch trước ambiguity check. Không fuzzy match.
 6. Tìm `DepositRequest` bằng unique `depositCode`, không yêu cầu deposit vẫn
    `pending`; deposit `expired` hoặc `success` vẫn có thể nhận thêm giao dịch
    thật trong grace window.
