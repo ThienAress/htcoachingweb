@@ -18,6 +18,7 @@ import {
   weeklyCheckinFingerprint,
 } from "./weeklyCheckinPatch.service.js";
 import { createInAppNotification } from "./inAppNotification.service.js";
+import { getMissingWeeklyCheckinFieldKeys } from "./coachingSubmissionCompleteness.service.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -34,7 +35,7 @@ const assertCommandInput = ({ expectedRevision, requestId }) => {
 const stale = () =>
   weeklyCheckinError(
     409,
-    "Weekly Check-in đã thay đổi, vui lòng tải bản mới",
+    "Báo cáo tuần đã thay đổi, vui lòng tải bản mới",
     "STALE_WEEKLY_CHECKIN_REVISION",
   );
 
@@ -55,7 +56,11 @@ const applyClientCommand = async ({
 }) => {
   assertWeeklyCheckinWritesEnabled();
   if (actor.role !== "user") {
-    throw weeklyCheckinError(403, "Chỉ khách hàng được sửa check-in", "CLIENT_ONLY");
+    throw weeklyCheckinError(
+      403,
+      "Chỉ khách hàng được sửa báo cáo tuần",
+      "CLIENT_ONLY",
+    );
   }
   assertWeeklyCheckinEditWindow(weekStartDateKey, now);
   assertCommandInput({ expectedRevision, requestId });
@@ -63,7 +68,7 @@ const applyClientCommand = async ({
   if (action === "correction" && normalizedReason.length < 3) {
     throw weeklyCheckinError(
       400,
-      "Correction cần lý do từ 3 đến 500 ký tự",
+      "Lý do cập nhật cần từ 3 đến 500 ký tự",
       "CORRECTION_REASON_REQUIRED",
     );
   }
@@ -112,7 +117,7 @@ const applyClientCommand = async ({
         weekStartDateKey,
       }).session(session);
       if (!checkin && action !== "update") {
-        throw weeklyCheckinError(404, "Chưa có Weekly Check-in", "CHECKIN_NOT_FOUND");
+        throw weeklyCheckinError(404, "Chưa có báo cáo tuần", "CHECKIN_NOT_FOUND");
       }
       if ((checkin && checkin.revision !== expectedRevision) ||
           (!checkin && expectedRevision !== 0)) {
@@ -122,21 +127,28 @@ const applyClientCommand = async ({
       if (checkin && checkin.status !== "draft" && action === "update") {
         throw weeklyCheckinError(
           409,
-          "Check-in đã gửi, hãy dùng correction có lý do",
+          "Báo cáo tuần đã gửi, hãy dùng chức năng cập nhật có lý do",
           "WEEKLY_CHECKIN_SUBMITTED",
         );
       }
       if (action === "correction" && !["submitted", "reviewed"].includes(checkin.status)) {
         throw weeklyCheckinError(
           409,
-          "Chỉ có thể correction check-in đã gửi",
+          "Chỉ có thể cập nhật báo cáo tuần đã gửi",
           "WEEKLY_CHECKIN_NOT_SUBMITTED",
+        );
+      }
+      if (action === "correction" && (checkin.correctionCount || 0) >= 1) {
+        throw weeklyCheckinError(
+          409,
+          "Báo cáo tuần này đã dùng lượt cập nhật sau khi gửi",
+          "WEEKLY_CHECKIN_CORRECTION_LIMIT_REACHED",
         );
       }
       if (action === "submit" && checkin.status !== "draft") {
         throw weeklyCheckinError(
           409,
-          "Weekly Check-in đã được gửi",
+          "Báo cáo tuần đã được gửi",
           "WEEKLY_CHECKIN_ALREADY_SUBMITTED",
         );
       }
@@ -147,16 +159,35 @@ const applyClientCommand = async ({
           trainerIdAtCreation: assignment.trainerId,
           weekStartDateKey,
         });
+      if (
+        action === "correction" &&
+        buildWeeklyCheckinChanges(base, patchFields).length === 0
+      ) {
+        throw weeklyCheckinError(
+          400,
+          "Hãy thay đổi ít nhất một số đo trước khi gửi cập nhật",
+          "EMPTY_WEEKLY_CHECKIN_CORRECTION",
+        );
+      }
       const setFields =
         action === "submit"
           ? { status: "submitted", submittedAt: now }
-          : { ...patchFields };
+          : {
+              ...patchFields,
+              ...(action === "correction"
+                ? { correctionCount: (checkin.correctionCount || 0) + 1 }
+                : {}),
+            };
       if (action === "correction" && checkin.status === "reviewed") {
         setFields.status = "submitted";
         setFields.trainerReview = null;
       }
       const changes = buildWeeklyCheckinChanges(base, setFields);
-      if (changes.length === 0) {
+      const revisionChanges =
+        !checkin && changes.length === 0
+          ? [{ path: "status", before: null, after: "draft" }]
+          : changes;
+      if (checkin && revisionChanges.length === 0) {
         result = { checkin: base, idempotentReplay: false };
         return;
       }
@@ -168,8 +199,15 @@ const applyClientCommand = async ({
         updated = await base.save({ session });
         revisionAction = "create";
       } else {
+        const updateFilter = { _id: checkin._id, revision: expectedRevision };
+        if (action === "correction") {
+          updateFilter.$or = [
+            { correctionCount: { $exists: false } },
+            { correctionCount: { $lt: 1 } },
+          ];
+        }
         updated = await WeeklyCheckin.findOneAndUpdate(
-          { _id: checkin._id, revision: expectedRevision },
+          updateFilter,
           { $set: setFields, $inc: { revision: 1 } },
           { returnDocument: "after", runValidators: true, session },
         );
@@ -185,7 +223,7 @@ const applyClientCommand = async ({
         reason: normalizedReason,
         requestId,
         payloadFingerprint,
-        changes,
+        changes: revisionChanges,
         session,
       });
       if (action === "submit" || action === "correction") {
@@ -199,6 +237,9 @@ const applyClientCommand = async ({
               : "weekly_corrected",
           targetType: "weekly_checkin",
           targetId: updated._id,
+          clientName: assignment.clientName,
+          contextDateKey: weekStartDateKey,
+          missingFields: getMissingWeeklyCheckinFieldKeys(updated),
           dedupeKey:
             "weekly-checkin:" +
             action +

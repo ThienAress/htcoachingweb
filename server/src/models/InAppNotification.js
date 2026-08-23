@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { COACHING_SUBMISSION_FIELD_KEYS } from "../constants/coachingSubmissionFields.js";
 
 const inAppNotificationSchema = new mongoose.Schema(
   {
@@ -21,6 +22,7 @@ const inAppNotificationSchema = new mongoose.Schema(
       type: String,
       enum: [
         "journal_submitted",
+        "journal_corrected",
         "coaching_comment_created",
         "weekly_submitted",
         "weekly_corrected",
@@ -47,11 +49,24 @@ const inAppNotificationSchema = new mongoose.Schema(
       required: true,
     },
     title: { type: String, trim: true, maxlength: 120, required: true },
+    missingFields: {
+      type: [
+        {
+          type: String,
+          enum: COACHING_SUBMISSION_FIELD_KEYS,
+        },
+      ],
+      default: () => [],
+      validate: {
+        validator: (items) => items.length <= COACHING_SUBMISSION_FIELD_KEYS.length,
+        message: "Danh sách trường thiếu vượt giới hạn",
+      },
+    },
     deepLink: {
       type: String,
       trim: true,
       maxlength: 220,
-      match: /^\/(?!\/)/,
+      match: /^\/(?![\\/])[^\s\\]*$/,
       required: true,
     },
     dedupeKey: { type: String, maxlength: 180, required: true },

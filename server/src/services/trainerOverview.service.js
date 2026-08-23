@@ -59,7 +59,7 @@ export const getTrainerClientOverview = async ({
     .select("_id name email avatar")
     .lean();
   const [rawToday, progress, attentionResult] = await Promise.all([
-    getTodayDashboard({ userId: clientId, dateKey }),
+    getTodayDashboard({ userId: clientId, dateKey, actorScope: "trainer" }),
     getTrainerClientProgress({ actor, clientId, days, endDateKey: dateKey }),
     getTrainerClientAttention({ clientId, dateKey }),
   ]);

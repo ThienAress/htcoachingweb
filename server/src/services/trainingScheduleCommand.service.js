@@ -187,6 +187,7 @@ const requireTrainerClientRelationship = async ({
 export const resolveClientTrainer = async ({
   clientId,
   session = null,
+  includeClientName = false,
 }) => {
   let query = Order.findOne({
     userId: clientId,
@@ -202,12 +203,21 @@ export const resolveClientTrainer = async ({
       "NO_ACTIVE_ORDER",
     );
   }
-  if (order.trainerId) {
-    return { trainerId: order.trainerId, order };
+  let trainerId = order.trainerId;
+  if (!trainerId) {
+    const configuredTrainer = await resolveDefaultAdminTrainer({ session });
+    trainerId = configuredTrainer._id;
   }
+  if (!includeClientName) return { trainerId, order };
 
-  const configuredTrainer = await resolveDefaultAdminTrainer({ session });
-  return { trainerId: configuredTrainer._id, order };
+  let clientQuery = User.findById(clientId).select("name");
+  if (session) clientQuery = clientQuery.session(session);
+  const client = await clientQuery.lean();
+  return {
+    trainerId,
+    order,
+    clientName: String(client?.name || order.name || "").trim(),
+  };
 };
 
 const normalizeTextFields = (input, current = {}) => {

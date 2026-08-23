@@ -24,6 +24,7 @@ import TrainingSchedule from "../../models/TrainingSchedule.js";
 import WeeklyCheckin from "../../models/WeeklyCheckin.js";
 import progressRoutes from "../../routes/progress.routes.js";
 import {
+  addDaysToDateKey,
   getAppDayOfWeek,
   getVietnamDateKey,
   getVietnamDayRangeUtc,
@@ -65,6 +66,39 @@ afterEach(clearCollections);
 afterAll(teardownTestDB);
 
 describe("Progress Hub API", () => {
+  it("accepts a six-month range for the authenticated client", async () => {
+    const assigned = await createAssigned("six-month-range");
+
+    const response = await withAuth(
+      request(app).get("/api/progress?days=180"),
+      assigned.client.accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.range.days).toBe(180);
+  });
+
+  it("keeps the complete six-month body series beyond the old 20-report cap", async () => {
+    const assigned = await createAssigned("six-month-series");
+    const reports = Array.from({ length: 25 }, (_, index) => ({
+      clientId: assigned.client.user._id,
+      trainerIdAtCreation: assigned.trainer.user._id,
+      weekStartDateKey: addDaysToDateKey(today, -7 * (24 - index)),
+      body: { weightKg: 80 - index * 0.2 },
+      status: "submitted",
+      submittedAt: new Date(),
+    }));
+    await WeeklyCheckin.create(reports);
+
+    const response = await withAuth(
+      request(app).get("/api/progress?days=180"),
+      assigned.client.accessToken,
+    );
+
+    expect(response.body.data.bodyProgress.weightKg.series).toHaveLength(25);
+    expect(response.body.data.bodyProgress.weightKg.current.dateKey).toBe(today);
+  });
+
   it("audits a direct admin read without storing body measurements", async () => {
     const assigned = await createAssigned("admin-audit");
     const admin = await createTestUser({

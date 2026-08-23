@@ -19,7 +19,7 @@ export const assertWeeklyCheckinWritesEnabled = () => {
   if (process.env.TODAY_WEEKLY_CHECKIN_WRITES_ENABLED !== "true") {
     throw weeklyCheckinError(
       503,
-      "Weekly Check-in đang tạm dừng ghi dữ liệu",
+      "Báo cáo tuần đang tạm dừng ghi dữ liệu",
       "WEEKLY_CHECKIN_WRITES_DISABLED",
     );
   }
@@ -60,8 +60,16 @@ export const resolveWeeklyCheckinWriteAccess = async ({
   clientId,
   session = null,
 }) => {
-  const assignment = await resolveClientTrainer({ clientId, session });
-  return { trainerId: assignment.trainerId, orderId: assignment.order._id };
+  const assignment = await resolveClientTrainer({
+    clientId,
+    session,
+    includeClientName: true,
+  });
+  return {
+    trainerId: assignment.trainerId,
+    orderId: assignment.order._id,
+    clientName: assignment.clientName,
+  };
 };
 
 export const assertTrainerWeeklyCheckinRead = async ({

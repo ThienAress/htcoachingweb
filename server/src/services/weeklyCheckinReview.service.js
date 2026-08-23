@@ -28,7 +28,7 @@ const resultDto = (result) => ({
 const stale = () =>
   weeklyCheckinError(
     409,
-    "Weekly Check-in đã thay đổi, vui lòng tải bản mới",
+    "Báo cáo tuần đã thay đổi, vui lòng tải bản mới",
     "STALE_WEEKLY_CHECKIN_REVISION",
   );
 
@@ -87,14 +87,14 @@ export const reviewWeeklyCheckin = async ({
         weekStartDateKey,
       }).session(session);
       if (!checkin) {
-        throw weeklyCheckinError(404, "Không tìm thấy Weekly Check-in", "CHECKIN_NOT_FOUND");
+        throw weeklyCheckinError(404, "Không tìm thấy báo cáo tuần", "CHECKIN_NOT_FOUND");
       }
       if (checkin.revision !== expectedRevision) {
         incrementMetric("weekly_checkin.revision_conflicts");
         throw stale();
       }
       if (!["submitted", "reviewed"].includes(checkin.status)) {
-        throw weeklyCheckinError(409, "Check-in chưa được gửi", "CHECKIN_NOT_SUBMITTED");
+        throw weeklyCheckinError(409, "Báo cáo tuần chưa được gửi", "CHECKIN_NOT_SUBMITTED");
       }
       const setFields = {
         status: "reviewed",
@@ -128,6 +128,7 @@ export const reviewWeeklyCheckin = async ({
         type: "weekly_reviewed",
         targetType: "weekly_checkin",
         targetId: updated._id,
+        contextDateKey: weekStartDateKey,
         dedupeKey:
           "weekly-checkin:reviewed:" +
           updated._id +

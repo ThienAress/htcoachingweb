@@ -207,6 +207,26 @@ describe("POST /api/webhooks/sepay", () => {
     });
   });
 
+  it("settles when TPBank removes separators from the deposit code", async () => {
+    const { user } = await createDepositFixture({
+      amount: 5000,
+      depositCode: "HTC-E445-DDDC",
+    });
+
+    await signedRequest(app, {
+      ...payload,
+      code: null,
+      content: "HTCE445DDDC FT26231604698561",
+      transferAmount: 5000,
+    });
+
+    expect({
+      balance: (await Wallet.findOne({ userId: user._id }).lean())?.balance,
+      incomingStatus: (await IncomingBankTransaction.findOne().lean())?.status,
+      ledgerCount: await WalletTransaction.countDocuments(),
+    }).toEqual({ balance: 5000, incomingStatus: "settled", ledgerCount: 1 });
+  });
+
   it("does not credit the same provider transaction again on webhook replay", async () => {
     const { user } = await createDepositFixture();
 
