@@ -68,6 +68,11 @@ khi đổi và không ghi giá trị secret vào log hoặc ticket.
 Endpoint xác minh raw body, `X-SePay-Signature`, `X-SePay-Timestamp` ±5 phút,
 account, direction, amount và mã nạp trước khi tác động ví.
 
+TPBank có thể bỏ dấu `-` khỏi nội dung chuyển khoản. Parser chỉ chấp nhận hai
+dạng exact `HTC-[A-F0-9]{4}-[A-F0-9]{4}` và `HTC[A-F0-9]{8}`; dạng compact phải
+có đúng 8 ký tự hex sau `HTC` và được canonicalize về dạng có dấu gạch trước
+ambiguity check. Không dùng fuzzy match hoặc chấp nhận token dài/embedded.
+
 ## Index preflight và apply
 
 Các lệnh chỉ chạy khi target/database lock và confirmation hợp lệ. Không chạy
