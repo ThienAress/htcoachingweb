@@ -158,7 +158,11 @@ const loadAttendance = async ({ orderIds, range }) => {
 };
 
 const loadJournal = async ({ userId, dateKey, actorScope = "client" }) => {
-  const journal = await DailyJournal.findOne({ clientId: userId, dateKey })
+  const journal = await DailyJournal.findOne({
+    clientId: userId,
+    dateKey,
+    ...(actorScope === "trainer" ? { status: "submitted" } : {}),
+  })
     .lean();
   const dto = toDailyJournalDto(journal, {
     includePrivate: actorScope !== "trainer",

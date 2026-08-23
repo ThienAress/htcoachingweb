@@ -12,6 +12,48 @@ const event = ({ id, type, action, at, label, metadata = {} }) => ({
   metadata,
 });
 
+const WELLNESS_LABELS = {
+  "wellness.sleepHours": "giấc ngủ",
+  "wellness.waterMl": "nước uống",
+  "wellness.steps": "số bước",
+  "wellness.energy": "năng lượng",
+  "wellness.hunger": "cảm giác đói",
+  "wellness.stress": "căng thẳng",
+  "wellness.soreness": "đau mỏi",
+  "wellness.pain": "mức đau",
+  "wellness.painArea": "vị trí đau",
+};
+
+const summarizeChangedWellness = (changes = []) => {
+  const labels = [
+    ...new Set(changes.map((change) => WELLNESS_LABELS[change.path]).filter(Boolean)),
+  ];
+  if (labels.length <= 2) return labels.join(" và ");
+  return labels.slice(0, 2).join(", ") + ` và ${labels.length - 2} chỉ số khác`;
+};
+
+export const journalRevisionLabel = (revision) => {
+  const wellnessSummary = summarizeChangedWellness(revision.changes);
+  if (revision.action === "submit") {
+    return wellnessSummary
+      ? "Đã gửi nhật ký: " + wellnessSummary
+      : "Đã gửi nhật ký ngày";
+  }
+  if (revision.action === "correction") {
+    return wellnessSummary
+      ? "Đã cập nhật " + wellnessSummary
+      : "Đã cập nhật nhật ký";
+  }
+  if (wellnessSummary) return "Đã cập nhật " + wellnessSummary;
+  if (revision.changes?.some((change) => change.path.startsWith("nutrition."))) {
+    return "Đã cập nhật dinh dưỡng trong ngày";
+  }
+  if (revision.changes?.some((change) => change.path === "habitCompletions")) {
+    return "Đã cập nhật thói quen trong ngày";
+  }
+  return "Đã cập nhật nhật ký";
+};
+
 export const getDailyJournalTimeline = async ({
   clientId,
   dateKey,
@@ -44,27 +86,12 @@ export const getDailyJournalTimeline = async ({
   ]);
 
   const events = revisions.map((revision) => {
-    const changedNutrition = revision.changes?.some((change) =>
-      change.path.startsWith("nutrition."),
-    );
-    const changedHabits = revision.changes?.some(
-      (change) => change.path === "habitCompletions",
-    );
     return event({
       id: "journal-" + revision._id,
       type: "journal",
       action: revision.action,
       at: revision.changedAt,
-      label:
-        revision.action === "submit"
-          ? "Đã gửi nhật ký ngày"
-          : revision.action === "correction"
-            ? "Đã chỉnh sửa nhật ký"
-            : changedNutrition
-              ? "Đã cập nhật dinh dưỡng trong ngày"
-              : changedHabits
-                ? "Đã cập nhật habit trong ngày"
-              : "Đã cập nhật wellness",
+      label: journalRevisionLabel(revision),
       metadata: {
         revision: revision.revision,
         actorRole: revision.actorRole,

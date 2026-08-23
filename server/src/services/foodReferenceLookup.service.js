@@ -1,5 +1,6 @@
 const GTIN_LENGTHS = new Set([8, 12, 13, 14]);
 const REQUIRED_NUTRIENTS = ["calories", "protein", "carb", "fat"];
+const OPTIONAL_NUTRIENTS = ["saturates", "sugars", "fibre", "salt"];
 const FDC_SEARCH_URL = "https://api.nal.usda.gov/fdc/v1/foods/search";
 const OFF_PRODUCT_URL = "https://world.openfoodfacts.org/api/v2/product";
 const enabled = (value) => String(value || "").toLowerCase() === "true";
@@ -31,13 +32,19 @@ const completeNutrition = (nutrition) => REQUIRED_NUTRIENTS.every(
   (key) => finiteNonNegative(nutrition[key]) !== null,
 );
 
-const normalizeNutrition = (nutrition) =>
-  Object.fromEntries(
+const normalizeNutrition = (nutrition) => {
+  const normalized = Object.fromEntries(
     REQUIRED_NUTRIENTS.map((key) => [
       key,
       roundNutrition(finiteNonNegative(nutrition[key])),
     ]),
   );
+  for (const key of OPTIONAL_NUTRIENTS) {
+    const value = finiteNonNegative(nutrition[key]);
+    if (value !== null) normalized[key] = roundNutrition(value);
+  }
+  return normalized;
+};
 
 const readJsonWithLimit = async (response, maximumBytes) => {
   const declaredBytes = Number(response.headers?.get?.("content-length"));
@@ -96,6 +103,12 @@ const fdcNutrients = (food) => {
     protein: byNumber.get("203"),
     carb: byNumber.get("205"),
     fat: byNumber.get("204"),
+    saturates: byNumber.get("606"),
+    sugars: byNumber.get("269"),
+    fibre: byNumber.get("291"),
+    salt: finiteNonNegative(byNumber.get("307")) === null
+      ? null
+      : Number(byNumber.get("307")) * 0.0025,
   };
 };
 
@@ -193,6 +206,10 @@ const lookupOpenFoodFacts = async (gtin, options) => {
     protein: product.nutriments?.proteins_100g,
     carb: product.nutriments?.carbohydrates_100g,
     fat: product.nutriments?.fat_100g,
+    saturates: product.nutriments?.["saturated-fat_100g"],
+    sugars: product.nutriments?.sugars_100g,
+    fibre: product.nutriments?.fiber_100g,
+    salt: product.nutriments?.salt_100g,
   };
   const label = cleanText(product.product_name, 200);
   if (!label || !completeNutrition(nutrition)) {

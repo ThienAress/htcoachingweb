@@ -119,6 +119,8 @@ describe("Trainer client overview", () => {
       dateKey: today,
       wellness: { energy: 8, pain: 4, painArea: "Vai trái" },
       notes: { private: "Không chia sẻ", shared: "Có thể xem" },
+      status: "submitted",
+      submittedAt: new Date(),
       habitCompletions: habits.map((habit) => ({
         habitId: habit._id,
         lineageKey: habit.lineageKey,
@@ -204,6 +206,38 @@ describe("Trainer client overview", () => {
     ).toBe(1);
   });
 
+  it("does not return draft wellness or draft pain attention to a trainer", async () => {
+    const data = await createAssigned("draft-private");
+    await DailyJournal.create({
+      clientId: data.client.user._id,
+      trainerIdAtCreation: data.trainer.user._id,
+      dateKey: today,
+      wellness: { energy: 9, pain: 8 },
+      notes: { private: "Bản nháp riêng", shared: "Chưa gửi cho HLV" },
+      status: "draft",
+      revision: 1,
+    });
+
+    const response = await withAuth(
+      request(app).get(
+        "/api/trainer-client-overview/" +
+          data.client.user._id +
+          "?dateKey=" +
+          today +
+          "&days=7",
+      ),
+      data.trainer.accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.today.sections.journal.day).toBeNull();
+    expect(response.body.data.attention.items).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "pain_reported" })]),
+    );
+    expect(JSON.stringify(response.body.data)).not.toContain("Chưa gửi cho HLV");
+    expect(JSON.stringify(response.body.data)).not.toContain("Bản nháp riêng");
+  });
+
   it("lets an admin read the overview for any active client", async () => {
     const data = await createAssigned("admin");
     const admin = await createTestUser({
@@ -216,13 +250,14 @@ describe("Trainer client overview", () => {
           data.client.user._id +
           "?dateKey=" +
           today +
-          "&days=30",
+          "&days=180",
       ),
       admin.accessToken,
     );
 
     expect(response.status).toBe(200);
     expect(response.body.data.clientId).toBe(String(data.client.user._id));
+    expect(response.body.data.progress.range.days).toBe(180);
   });
 
   it("blocks other trainers and revokes current trainer immediately", async () => {

@@ -220,6 +220,13 @@ const dailyJournalSchema = new mongoose.Schema(
       default: 0,
       required: true,
     },
+    correctionCount: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: 0,
+      required: true,
+    },
     retentionExpiresAt: {
       type: Date,
       default: null,

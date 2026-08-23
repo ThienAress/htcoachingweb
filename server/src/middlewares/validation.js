@@ -177,6 +177,53 @@ export const validateRecipeId = [
   handleValidationErrors,
 ];
 
+export const validateRecipeReview = [
+  param("recipeId").isMongoId().withMessage("ID công thức không hợp lệ"),
+  body("rating")
+    .exists({ checkFalsy: true })
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Rating phải là số nguyên từ 1 đến 5"),
+  body("comment")
+    .optional({ nullable: true })
+    .isString()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage("Bình luận tối đa 1000 ký tự"),
+  handleValidationErrors,
+];
+
+export const validateRecipeNutrition = [
+  body("nutrition")
+    .optional()
+    .isObject()
+    .withMessage("nutrition phải là object"),
+  ...["calories", "protein", "fat", "carb", "sugars", "salt"].map(
+    (field) =>
+      body("nutrition." + field)
+        .if(body("nutrition").exists())
+        .isFloat({ min: 0 })
+        .withMessage(field + " phải là số không âm")
+        .toFloat(),
+  ),
+  body("nutrition.additional")
+    .optional()
+    .isArray({ max: 20 })
+    .withMessage("Tối đa 20 thành phần dinh dưỡng bổ sung"),
+  body("nutrition.additional.*.label")
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 80 })
+    .withMessage("Tên thành phần phải từ 1 đến 80 ký tự"),
+  body("nutrition.additional.*.unit")
+    .isIn(["kcal", "g", "mg", "mcg"])
+    .withMessage("Đơn vị dinh dưỡng không hợp lệ"),
+  body("nutrition.additional.*.value")
+    .isFloat({ min: 0 })
+    .withMessage("Giá trị dinh dưỡng phải là số không âm")
+    .toFloat(),
+  handleValidationErrors,
+];
+
 // ============================================================================
 // F1 CUSTOMER VALIDATIONS
 // ============================================================================
@@ -851,8 +898,10 @@ const journalCommandFields = () => [
   body("requestId").isUUID().withMessage("requestId không hợp lệ"),
 ];
 
-const journalPatchFields = () => [
-  body("patch").isObject().withMessage("patch phải là object"),
+const journalPatchFields = (patchOptional = false) => [
+  (patchOptional ? body("patch").optional() : body("patch"))
+    .isObject()
+    .withMessage("patch phải là object"),
   body("patch.wellness.sleepHours")
     .optional({ nullable: true })
     .isFloat({ min: 0, max: 24 })
@@ -962,6 +1011,7 @@ export const validateSaveDailyJournal = [
 export const validateSubmitDailyJournal = [
   journalDate(),
   ...journalCommandFields(),
+  ...journalPatchFields(true),
   handleValidationErrors,
 ];
 
@@ -970,10 +1020,11 @@ export const validateCorrectDailyJournal = [
   ...journalCommandFields(),
   ...journalPatchFields(),
   body("reason")
+    .optional()
     .isString()
     .trim()
-    .isLength({ min: 3, max: 500 })
-    .withMessage("Chỉnh sửa sau khi gửi cần lý do từ 3 đến 500 ký tự"),
+    .isLength({ max: 500 })
+    .withMessage("Lý do chỉnh sửa tối đa 500 ký tự"),
   handleValidationErrors,
 ];
 
@@ -1297,8 +1348,8 @@ export const validateProgressRead = [
   query("days")
     .isInt()
     .toInt()
-    .isIn([7, 30, 90])
-    .withMessage("days chỉ hỗ trợ 7, 30 hoặc 90"),
+    .isIn([7, 30, 90, 180])
+    .withMessage("days chỉ hỗ trợ 7, 30, 90 hoặc 180"),
   handleValidationErrors,
 ];
 
@@ -1319,8 +1370,8 @@ export const validateTrainerOverview = [
   query("days")
     .isInt()
     .toInt()
-    .isIn([7, 30, 90])
-    .withMessage("days chỉ hỗ trợ 7, 30 hoặc 90"),
+    .isIn([7, 30, 90, 180])
+    .withMessage("days chỉ hỗ trợ 7, 30, 90 hoặc 180"),
   handleValidationErrors,
 ];
 
@@ -1602,6 +1653,9 @@ export const validateFood = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Calories phải >=0"),
+  ...["saturates", "sugars", "fibre", "salt"].map((field) =>
+    body(field).optional({ nullable: true }).isFloat({ min: 0 }).withMessage(`${field} phải >=0`),
+  ),
   body("nutritionBasis")
     .optional()
     .isIn(["per_100g"])
@@ -1658,6 +1712,9 @@ export const validateFoodBatch = [
   body("foods.*.carb").isFloat({ min: 0 }),
   body("foods.*.fat").isFloat({ min: 0 }),
   body("foods.*.calories").optional().isFloat({ min: 0 }),
+  ...["saturates", "sugars", "fibre", "salt"].map((field) =>
+    body(`foods.*.${field}`).optional({ nullable: true }).isFloat({ min: 0 }),
+  ),
   body("foods.*.nutritionBasis").optional().isIn(["per_100g"]),
   body("foods.*.source").optional().isObject(),
   body("foods.*.source.type").optional().isIn([
@@ -1704,6 +1761,9 @@ export const validateFoodUpdate = [
   body("carb").optional().isFloat({ min: 0 }),
   body("fat").optional().isFloat({ min: 0 }),
   body("calories").optional().isFloat({ min: 0 }),
+  ...["saturates", "sugars", "fibre", "salt"].map((field) =>
+    body(field).optional({ nullable: true }).isFloat({ min: 0 }).withMessage(`${field} phải >=0`),
+  ),
   body("nutritionBasis").optional().isIn(["per_100g"]),
   body("source").optional().isObject(),
   body("source.type").optional().isIn([

@@ -2,9 +2,10 @@ import {
   addDaysToDateKey,
   getAppDayOfWeek,
   getVietnamDateKey,
+  parseDateKey,
 } from "../utils/dateKey.js";
 
-const ALLOWED_DAYS = new Set([7, 30, 90]);
+const ALLOWED_DAYS = new Set([7, 30, 90, 180]);
 const WELLNESS_FIELDS = [
   "sleepHours",
   "waterMl",
@@ -16,12 +17,17 @@ const WELLNESS_FIELDS = [
   "pain",
 ];
 
-export const createProgressRange = (days, now = new Date()) => {
+export const createProgressRange = (
+  days,
+  now = new Date(),
+  requestedEndDateKey = null,
+) => {
   const normalizedDays = Number(days);
   if (!ALLOWED_DAYS.has(normalizedDays)) {
-    throw new Error("Progress range chỉ hỗ trợ 7, 30 hoặc 90 ngày");
+    throw new Error("Khoảng tiến trình chỉ hỗ trợ 7, 30, 90 hoặc 180 ngày");
   }
-  const endDateKey = getVietnamDateKey(now);
+  const endDateKey = requestedEndDateKey || getVietnamDateKey(now);
+  parseDateKey(endDateKey);
   return {
     days: normalizedDays,
     startDateKey: addDaysToDateKey(endDateKey, -(normalizedDays - 1)),
@@ -172,6 +178,24 @@ const wellnessAverages = ({ journals, range }) =>
     }),
   );
 
+const wellnessDaily = ({ journals, range }) =>
+  journals
+    .filter((journal) =>
+      inRange(journal.dateKey, range.startDateKey, range.endDateKey),
+    )
+    .sort((left, right) => left.dateKey.localeCompare(right.dateKey))
+    .map((journal) => ({
+      dateKey: journal.dateKey,
+      ...Object.fromEntries(
+        WELLNESS_FIELDS.map((field) => [
+          field,
+          typeof journal.wellness?.[field] === "number"
+            ? journal.wellness[field]
+            : null,
+        ]),
+      ),
+    }));
+
 const weightTrend = ({ weeklyCheckins, range }) => {
   const lookbackStart = addDaysToDateKey(range.startDateKey, -14);
   const points = weeklyCheckins
@@ -249,6 +273,18 @@ const bodyProgress = ({ weeklyCheckins, range }) => ({
     field: "waistCm",
     unit: "cm",
   }),
+  bodyFatPercent: bodyMetric({
+    weeklyCheckins,
+    range,
+    field: "bodyFatPercent",
+    unit: "%",
+  }),
+  skeletalMusclePercent: bodyMetric({
+    weeklyCheckins,
+    range,
+    field: "skeletalMusclePercent",
+    unit: "%",
+  }),
 });
 
 export const buildProgressReadModel = ({
@@ -260,7 +296,7 @@ export const buildProgressReadModel = ({
   habits = [],
   weeklyCheckins = [],
 }) => ({
-  formulaVersion: "progress-v3",
+  formulaVersion: "progress-v4",
   timeZone: "Asia/Ho_Chi_Minh",
   range,
   compliance: {
@@ -285,7 +321,10 @@ export const buildProgressReadModel = ({
     mealCompliance: mealCompliance({ journals, range }),
     habitCompliance: habitCompliance({ habits, journals, range }),
   },
-  wellness: wellnessAverages({ journals, range }),
+  wellness: {
+    ...wellnessAverages({ journals, range }),
+    daily: wellnessDaily({ journals, range }),
+  },
   weightTrend: weightTrend({ weeklyCheckins, range }),
   bodyProgress: bodyProgress({ weeklyCheckins, range }),
 });

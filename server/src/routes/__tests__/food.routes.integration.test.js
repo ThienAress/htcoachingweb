@@ -36,6 +36,10 @@ const FOOD_PAYLOAD = {
   carb: 0,
   fat: 3.6,
   calories: 165,
+  saturates: 1,
+  sugars: 0,
+  fibre: 0,
+  salt: 0.2,
   nutritionBasis: "per_100g",
   source: VERIFIED_SOURCE,
 };
@@ -106,6 +110,10 @@ describe("Food provenance contract", () => {
     expect(response.status).toBe(201);
     expect(response.body.data).toMatchObject({
       nutritionBasis: "per_100g",
+      saturates: 1,
+      sugars: 0,
+      fibre: 0,
+      salt: 0.2,
       source: {
         type: "manual_verified",
         provider: "HTCOACHING",

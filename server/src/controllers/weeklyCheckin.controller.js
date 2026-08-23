@@ -31,7 +31,7 @@ const sendError = (res, error, event) => {
     code: error.codeName || error.code || "WEEKLY_CHECKIN_FAILED",
     message:
       status >= 500
-        ? "Không thể xử lý Weekly Check-in lúc này"
+        ? "Không thể xử lý báo cáo tuần lúc này"
         : error.message,
   });
 };

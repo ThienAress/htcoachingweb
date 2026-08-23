@@ -122,6 +122,10 @@ const foodSchema = new mongoose.Schema(
       min: 0,
     },
     calories: { type: Number, required: true, min: 0 },
+    saturates: { type: Number, min: 0, default: null },
+    sugars: { type: Number, min: 0, default: null },
+    fibre: { type: Number, min: 0, default: null },
+    salt: { type: Number, min: 0, default: null },
     nutritionBasis: {
       type: String,
       enum: FOOD_NUTRITION_BASES,
