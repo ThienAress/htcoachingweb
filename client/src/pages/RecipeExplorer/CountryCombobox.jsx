@@ -46,7 +46,7 @@ const CountryCombobox = ({ value, onChange, areas }) => {
       </div>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto z-50 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-600 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-500">
+        <div className="absolute top-[calc(100%+8px)] left-0 right-0 z-50 max-h-60 overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-800 shadow-2xl">
           <div
             className="px-4 py-2.5 hover:bg-zinc-700 cursor-pointer text-zinc-300 transition-colors border-b border-zinc-700/50"
             onClick={() => {

@@ -52,7 +52,7 @@
     "remove": "Remove selected photo",
     "choose_file": "Choose a meal photo",
     "replace": "Choose another photo",
-    "privacy": "The photo is compressed and sent temporarily to the Google Gemini Free Tier for analysis. HTCOACHING does not save it to your profile; do not select photos containing people or sensitive information.",
+    "privacy": "HTCOACHING does not save the photo to your profile; do not select photos containing people or sensitive information.",
     "anonymous_hint": "No sign-up required: 1 trial scan.",
     "login_more": "Log in to receive 1 additional scan.",
 
@@ -84,8 +84,8 @@
     }
   },
   "confirm_analysis": {
-    "title": "Confirm sending the photo to Google Gemini",
-    "description": "When you agree, the photo and declared ingredients are sent to the Google Gemini Free Tier. Google may use submitted data to improve its products or have human reviewers process it. Do not submit photos containing people, personal information, or sensitive data. HTCOACHING does not save the photo; this action uses one scan from your quota.",
+    "title": "Confirm sending the photo to HT COACHING",
+    "description": "Confirming will use 1 photo analysis. HT COACHING does not save the photo to your profile; do not submit photos containing people, personal information, or sensitive data.",
     "cancel": "Go back and edit",
     "confirm": "I understand and agree"
   },  "result": {
@@ -163,7 +163,7 @@
     "transparent_title": "Controlled estimates",
     "transparent_desc": "Always see ranges and a clear separation between your declarations and the AI estimate.",
     "privacy_title": "Not stored by HTCOACHING",
-    "privacy_desc": "HTCOACHING does not save the photo. Before each scan, you confirm temporary processing by the Google Gemini Free Tier."
+    "privacy_desc": "HTCOACHING does not save the photo. Before each scan, you confirm sending the photo and using 1 photo analysis."
   },
   "links": {
     "eyebrow": "Next",

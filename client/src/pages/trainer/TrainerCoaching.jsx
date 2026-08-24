@@ -447,7 +447,7 @@ const TrainerCoaching = ({ embedded = false }) => {
                 ) : filteredClients.length === 0 ? (
                   <p className="text-gray-500 text-xs text-center py-6">Không tìm thấy khách hàng nào</p>
                 ) : (
-                  <div className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+                  <div className="max-h-[40vh] space-y-1.5 overflow-y-auto pr-1">
                     {filteredClients.map((client) => {
                       const isSelected = selectedClient?._id === client._id;
                       return (
@@ -505,7 +505,7 @@ const TrainerCoaching = ({ embedded = false }) => {
                   ) : timeline.length === 0 ? (
                     <p className="text-gray-500 text-xs text-center py-6">Chưa có giáo án nào được soạn</p>
                   ) : (
-                    <div className="space-y-1.5 max-h-[30vh] overflow-y-auto pr-1 custom-scrollbar">
+                    <div className="max-h-[30vh] space-y-1.5 overflow-y-auto pr-1">
                       {timeline.map((plan) => {
                         const isCurrent = plan.dateString === selectedDate;
                         const displayDate = new Date(plan.dateString).toLocaleDateString("vi-VN");
@@ -938,7 +938,7 @@ const TrainerCoaching = ({ embedded = false }) => {
                         Tiến độ hoàn thành:
                       </h4>
 
-                      <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+                      <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
                         {exercises.map((ex, idx) => {
                           const isActive = activeReviewExerciseIndex === idx;
                           return (

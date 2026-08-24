@@ -27,8 +27,8 @@ export const ActivityTimeline = ({ dateKey, enabled }) => {
 
   return (
     <section className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-5">
-      <h2 className="flex items-center gap-2 text-base font-bold text-white">
-        <Clock3 size={18} className="text-orange-400" />
+      <h2 className="flex items-center gap-3 text-xl font-bold text-white sm:text-2xl">
+        <Clock3 size={22} className="text-orange-400" />
         Hoạt động trong ngày
       </h2>
       {query.isLoading ? (

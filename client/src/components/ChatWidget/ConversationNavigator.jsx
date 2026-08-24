@@ -121,7 +121,7 @@ export default function ConversationNavigator({
           <p className="border-b border-gray-100 px-4 py-3 text-xs font-semibold text-gray-500 dark:border-white/8 dark:text-gray-400">
             Câu hỏi trong cuộc trò chuyện
           </p>
-          <div className="custom-scrollbar max-h-[min(60vh,28rem)] overflow-y-auto p-2">
+          <div className="max-h-[min(60vh,28rem)] overflow-y-auto p-2">
             {items.map((item, index) => {
               const isActive = item.key === activeKey;
               return (

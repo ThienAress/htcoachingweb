@@ -250,7 +250,7 @@ Nhóm field:
 - Nutrition execution: trạng thái bữa ăn và ghi chú ngắn.
 - Habit completion: tham chiếu habit và trạng thái.
 - Notes: private/shared có giới hạn độ dài.
-- Lifecycle: `status`, `submittedAt`, `reviewedAt`.
+- Lifecycle: `status`, `submittedAt`, `correctionCount` (tối đa 1).
 - Concurrency: `revision`.
 - Audit timestamps.
 
@@ -388,6 +388,14 @@ Mutation gửi:
 - `requestId` cho idempotency.
 - Patch theo allowlist.
 
+Contract chốt 2026-08-22:
+
+- Form wellness không autosave theo từng field; dữ liệu ở local form cho tới khi khách bấm gửi.
+- `submit` nhận `patch` và lưu nội dung + chuyển `submitted` trong cùng transaction; journal chưa tồn tại được tạo ngay trong lệnh này.
+- Sau lần gửi đầu, form khóa và hiển thị nút `Cập nhật`. Khách được mở form và gửi đúng một correction; sau đó khóa vĩnh viễn.
+- `correctionCount` do server kiểm soát, mặc định `0` cho document cũ; lượt thứ hai trả `409 JOURNAL_CORRECTION_LIMIT_REACHED`.
+- UI không bắt khách nhập lý do kỹ thuật; server ghi reason audit trung tính cho correction của khách.
+
 Server:
 
 - Validate date/window/value range.
@@ -430,7 +438,7 @@ Completion là chỉ báo hỗ trợ, không phải điểm sức khỏe.
 Đề xuất để duyệt:
 
 - Khách sửa ngày hiện tại và 7 ngày gần nhất.
-- Sau khi submit, chỉnh sửa yêu cầu lý do.
+- Sau khi submit, khách được chỉnh sửa đúng một lần trong edit window; form khóa trước và sau lượt cập nhật này.
 - HLV không sửa dữ liệu actual của khách; chỉ review/comment.
 - Admin correction đặc biệt phải có reason và audit.
 
@@ -478,6 +486,9 @@ Quy tắc:
 - Missing data không được biến thành zero.
 - Formula/version do server cung cấp.
 - Weekly snapshot giữ nguyên dữ liệu tại thời điểm submit để lịch sử không đổi ngoài ý muốn.
+- `wellness.overview` giữ số trung bình cho khoảng 7/30/90 ngày; `wellness.daily` trả actual theo từng `dateKey` đã gửi.
+- UI mặc định hiển thị đúng ngày đang chọn, có nút lùi/tiến ngày; mode `Tổng quan` mới hiển thị số trung bình của toàn khoảng.
+- Ngày không có journal submitted là trạng thái thiếu dữ liệu, không lấy trung bình của ngày khác thay thế.
 
 ## 13. Notifications
 

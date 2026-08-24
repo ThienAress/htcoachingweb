@@ -89,6 +89,32 @@ const schema = z.object({
 if (!email.includes("@")) { ... }
 ```
 
+### Pattern 6: Overflow & Scrollbar
+
+- Mọi vùng dùng `overflow-auto`, `overflow-scroll`, `overflow-x-auto` hoặc
+  `overflow-y-auto` phải nhận shared native scrollbar tokens trong
+  `client/src/index.css`; không tạo màu/kích thước scrollbar cục bộ lệch hệ thống.
+- Shared style phải bao phủ cả trục dọc/ngang, Firefox (`scrollbar-width`,
+  `scrollbar-color`) và Chromium/WebKit (`::-webkit-scrollbar*`).
+- Modal/drawer/portal phải lock document scroll theo hook hiện có, dùng
+  `overscroll-contain` khi phù hợp và đặt `color-scheme` đúng với surface để tránh
+  double scroll hoặc native control sai theme.
+- Scrollbar không được che nội dung hoặc vô hiệu hóa keyboard, wheel, trackpad và
+  touch scrolling. Chỉ ẩn scrollbar khi affordance thay thế rõ ràng và đã kiểm tra
+  accessibility/responsive.
+
+### Pattern 7: Ngôn ngữ UI ưu tiên tiếng Việt
+
+- Mọi copy user-visible trong giao diện tiếng Việt phải ưu tiên tiếng Việt: heading, label,
+  trạng thái loading/empty/error/disabled, toast, dialog, notification và CTA.
+- Chỉ giữ tiếng Anh khi là thuật ngữ chuyên ngành phổ biến mà bản dịch làm giảm độ rõ, ví dụ
+  `sets`, `reps`, `tempo`, `RPE`, `RIR`; lần xuất hiện đầu nên có ngữ cảnh tiếng Việt khi cần.
+- Dùng `Báo cáo tuần`, `nhận xét`, `thông báo trong ứng dụng`; không dùng `Weekly Check-in`,
+  `review`, `notification`, `in-app` trong copy tiếng Việt nếu có cách diễn đạt tự nhiên.
+- Quy tắc này không cho phép đổi identifier, API field, enum, route, metric/log key, test fixture
+  hoặc nội dung locale tiếng Anh. Rà copy theo surface đang sửa; thay đổi diện rộng phải có spec
+  và test để tránh làm sai thuật ngữ nghiệp vụ.
+
 ---
 
 ## Mandatory Backend Patterns

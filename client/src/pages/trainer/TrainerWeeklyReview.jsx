@@ -5,6 +5,35 @@ import { reviewTrainerWeeklyCheckin } from "../../services/weeklyCheckin.service
 import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread";
 
 const requestId = () => window.crypto.randomUUID();
+const STATUS_LABELS = {
+  submitted: "Đã gửi",
+  reviewed: "Đã nhận xét",
+};
+const WEEKLY_MEASUREMENTS = [
+  ["weightKg", "Cân nặng", "kg"],
+  ["waistCm", "Vòng eo", "cm"],
+  ["bodyFatPercent", "Tỷ lệ mỡ cơ thể", "%"],
+  ["skeletalMusclePercent", "Tỷ lệ cơ xương", "%"],
+];
+
+export const TrainerWeeklyMeasurements = ({ body = {} }) => (
+  <dl className="mt-4 grid gap-px overflow-hidden rounded-xl bg-slate-800 sm:grid-cols-2 lg:grid-cols-4">
+    {WEEKLY_MEASUREMENTS.map(([key, label, unit]) => {
+      const value = Number(body[key]);
+      const available = body[key] !== null && body[key] !== undefined && Number.isFinite(value);
+      return (
+        <div key={key} className="bg-slate-950 px-4 py-3">
+          <dt className="text-xs font-semibold text-slate-500">{label}</dt>
+          <dd className="mt-1 text-sm font-bold text-slate-100">
+            {available
+              ? `${value.toLocaleString("vi-VN", { maximumFractionDigits: 2 })} ${unit}`
+              : "Chưa ghi"}
+          </dd>
+        </div>
+      );
+    })}
+  </dl>
+);
 
 export const TrainerWeeklyReview = ({ clientId, checkin, onChanged }) => {
   const [message, setMessage] = useState(
@@ -31,9 +60,9 @@ export const TrainerWeeklyReview = ({ clientId, checkin, onChanged }) => {
   if (!checkin) {
     return (
       <section className="rounded-2xl border border-gray-700/50 bg-gray-950/40 p-5">
-        <h3 className="font-bold text-white">Weekly Check-in</h3>
+        <h3 className="font-bold text-white">Báo cáo tuần</h3>
         <p className="mt-2 text-sm text-gray-400">
-          Học viên chưa gửi check-in tuần hiện tại.
+          Học viên chưa gửi báo cáo tuần hiện tại.
         </p>
       </section>
     );
@@ -57,15 +86,16 @@ export const TrainerWeeklyReview = ({ clientId, checkin, onChanged }) => {
       <section className="rounded-2xl border border-gray-700/50 bg-gray-950/40 p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="font-bold text-white">Review Weekly Check-in</h3>
+            <h3 className="font-bold text-white">Nhận xét báo cáo tuần</h3>
             <p className="mt-1 text-xs text-gray-500">
-              Tuần {checkin.weekStartDateKey} · revision {checkin.revision}
+              Tuần {checkin.weekStartDateKey} · phiên bản {checkin.revision}
             </p>
           </div>
           <span className="rounded-full border border-gray-700 px-3 py-1 text-xs text-gray-300">
-            {checkin.status}
+            {STATUS_LABELS[checkin.status] || "Bản nháp"}
           </span>
         </div>
+        <TrainerWeeklyMeasurements body={checkin.body} />
         <label htmlFor="trainer-weekly-review" className="mt-4 block text-sm text-gray-300">
           Phản hồi cho học viên
           <textarea
@@ -92,7 +122,7 @@ export const TrainerWeeklyReview = ({ clientId, checkin, onChanged }) => {
         {mutation.isError && (
           <p className="mt-3 text-sm text-red-300" role="status">
             {mutation.error?.response?.data?.message ||
-              "Không thể lưu review."}
+              "Không thể lưu nhận xét."}
           </p>
         )}
         <div className="mt-4 flex flex-wrap gap-2">
@@ -102,7 +132,7 @@ export const TrainerWeeklyReview = ({ clientId, checkin, onChanged }) => {
             disabled={!message.trim() || mutation.isPending}
             className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-orange-500 px-4 text-sm font-bold text-gray-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-40"
           >
-            <Send size={16} aria-hidden="true" /> Lưu review
+            <Send size={16} aria-hidden="true" /> Lưu nhận xét
           </button>
           {failedPayload && (
             <button
@@ -119,7 +149,7 @@ export const TrainerWeeklyReview = ({ clientId, checkin, onChanged }) => {
       <CoachingCommentThread
         targetType="weekly_checkin"
         targetId={checkin._id}
-        title="Trao đổi về check-in tuần"
+        title="Trao đổi về báo cáo tuần"
       />
     </div>
   );

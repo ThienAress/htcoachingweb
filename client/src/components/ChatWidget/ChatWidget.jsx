@@ -288,8 +288,7 @@ export default function ChatWidget() {
             </div>
           </div>
 
-          {/* Messages — custom scrollbar */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 overscroll-contain chat-scrollbar min-h-[200px]">
+          <div className="min-h-[200px] flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4">
             {/* Empty state */}
             {messages.length === 0 && !isLoading && (
               <div className="flex flex-col items-start pt-6 px-1 chat-card-enter">

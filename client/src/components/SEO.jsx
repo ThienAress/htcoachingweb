@@ -2,6 +2,7 @@ import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
 
 import { normalizePublicPath } from '../utils/publicSeoPath.js';
+import { formatSeoTitle } from '../utils/seoTitle.js';
 
 export default function SEO({ title, description, canonical, type = 'website', image, noindex = false, jsonLd }) {
   const { i18n } = useTranslation();
@@ -12,7 +13,7 @@ export default function SEO({ title, description, canonical, type = 'website', i
   const defaultImage = `${domain}/og-image.png`;
 
   // Tự động thêm brand vào title nếu có title truyền vào
-  const seoTitle = title ? `${title} | ${siteName}` : defaultTitle;
+  const seoTitle = formatSeoTitle({ title, siteName, defaultTitle });
   const seoDescription = description || defaultDescription;
   const seoImage = image || defaultImage;
 

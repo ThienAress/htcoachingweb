@@ -1,10 +1,9 @@
-import { Ruler, Scale } from "lucide-react";
+import { Dumbbell, Percent, Ruler, Scale } from "lucide-react";
+import { useRef, useState } from "react";
 
-import {
-  BODY_METRIC_CHART_VIEWBOX,
-  buildBodyMetricChartModel,
-} from "./progressCharts";
+import { BodyMetricChart } from "./BodyMetricChart";
 import { bodyProgressHistoryRows } from "./progressPresentation";
+import { ProgressSectionHeader } from "./ProgressSectionHeader";
 
 const formatDate = (dateKey) =>
   new Intl.DateTimeFormat("vi-VN", {
@@ -14,224 +13,239 @@ const formatDate = (dateKey) =>
     timeZone: "Asia/Ho_Chi_Minh",
   }).format(new Date(`${dateKey}T12:00:00+07:00`));
 
-const formatValue = (value) =>
+const formatNumber = (value) =>
   Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
 
-const Delta = ({ value, unit }) => (
-  <p className="mt-2 text-sm text-slate-400">
-    Thay đổi trong khoảng: {" "}
-    {value === null || value === undefined ? (
-      <span className="font-medium text-slate-300">Cần ít nhất 2 lần đo</span>
-    ) : (
-      <strong className="font-semibold text-white">
-        {value > 0 ? "+" : ""}
-        {formatValue(value)} {unit}
-      </strong>
-    )}
-  </p>
-);
+const METRICS = [
+  { key: "weightKg", label: "Cân nặng", icon: Scale, unit: "kg" },
+  { key: "waistCm", label: "Vòng eo", icon: Ruler, unit: "cm" },
+  { key: "bodyFatPercent", label: "Tỷ lệ mỡ cơ thể", icon: Percent, unit: "%" },
+  {
+    key: "skeletalMusclePercent",
+    label: "Tỷ lệ cơ xương",
+    icon: Dumbbell,
+    unit: "%",
+  },
+];
 
-const MetricChart = ({ metric, label, colorClass }) => {
-  const chart = buildBodyMetricChartModel(metric?.series || []);
-  const labelEvery = Math.max(1, Math.ceil(chart.points.length / 4));
+const valueLabel = (value, unit) =>
+  unit === "%" ? `${formatNumber(value)}%` : `${formatNumber(value)} ${unit}`;
+
+const deltaLabel = (delta, unit) => {
+  if (delta === null || delta === undefined) return "Cần ít nhất 2 lần đo";
+  const deltaUnit = unit === "%" ? "điểm %" : unit;
+  const prefix = delta > 0 ? "+" : delta < 0 ? "−" : "";
+  return `${prefix}${formatNumber(Math.abs(delta))} ${deltaUnit}`;
+};
+
+const initialMetricKey = (bodyProgress) =>
+  METRICS.find(({ key }) => bodyProgress?.[key]?.current)?.key || "weightKg";
+
+const MetricSelector = ({ activeKey, bodyProgress, onSelect }) => {
+  const buttonRefs = useRef([]);
+  const moveSelection = (event, currentIndex) => {
+    const keyTargets = {
+      ArrowRight: (currentIndex + 1) % METRICS.length,
+      ArrowLeft: (currentIndex - 1 + METRICS.length) % METRICS.length,
+      Home: 0,
+      End: METRICS.length - 1,
+    };
+    const nextIndex = keyTargets[event.key];
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    onSelect(METRICS[nextIndex].key);
+    buttonRefs.current[nextIndex]?.focus();
+  };
+
   return (
-    <figure className="mt-5" aria-label={`Lịch sử ${label.toLowerCase()}`}>
-      {chart.points.length === 0 ? (
-        <div className="flex min-h-36 items-center justify-center border-y border-dashed border-slate-800 px-4 text-center text-sm text-slate-500">
-          Chưa có lịch sử {label.toLowerCase()}
-        </div>
-      ) : (
-        <svg
-          viewBox={BODY_METRIC_CHART_VIEWBOX}
-          className="h-auto w-full overflow-visible"
-          role="img"
-          aria-label={`Biểu đồ đường ${label.toLowerCase()} theo báo cáo tuần`}
-        >
-          {chart.yTicks.map((tick) => (
-            <g key={`${tick.weight}-${tick.y}`}>
-              <line
-                x1="52"
-                x2="588"
-                y1={tick.y}
-                y2={tick.y}
-                stroke="currentColor"
-                strokeWidth="1"
-                vectorEffect="non-scaling-stroke"
-                className="text-slate-800"
+    <div
+      className="grid border-b border-slate-800 sm:grid-cols-2 lg:grid-cols-4"
+      role="tablist"
+      aria-label="Chỉ số cơ thể"
+    >
+      {METRICS.map(({ key, label, icon: Icon, unit }, index) => {
+        const metric = bodyProgress[key];
+        const active = key === activeKey;
+        return (
+          <button
+            ref={(node) => {
+              buttonRefs.current[index] = node;
+            }}
+            key={key}
+            id={`body-metric-tab-${key}`}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            aria-controls="body-metric-panel"
+            tabIndex={active ? 0 : -1}
+            onClick={() => onSelect(key)}
+            onKeyDown={(event) => moveSelection(event, index)}
+            className={
+              "min-h-28 border-b-2 px-5 py-4 text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400 sm:px-6 lg:border-r lg:last:border-r-0 " +
+              (active
+                ? "border-b-orange-400 bg-orange-500/5 text-white"
+                : "border-b-slate-800 text-slate-400 hover:bg-slate-900 hover:text-white")
+            }
+          >
+            <span className="flex items-center gap-2 text-xs font-semibold">
+              <Icon
+                size={17}
+                className={active ? "text-orange-300" : "text-slate-500"}
+                aria-hidden="true"
               />
-              <text
-                x="44"
-                y={tick.y + 4}
-                textAnchor="end"
-                className="fill-slate-500 text-[11px]"
-              >
-                {tick.weight}
-              </text>
-            </g>
-          ))}
-          <path
-            d={chart.path}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-            className={colorClass}
-          />
-          {chart.points.map((point, index) => {
-            const showLabel =
-              index === 0 ||
-              index === chart.points.length - 1 ||
-              index % labelEvery === 0;
-            return (
-              <g key={point.dateKey}>
-                <circle
-                  cx={point.x}
-                  cy={point.y}
-                  r="5"
-                  fill="currentColor"
-                  className={colorClass}
-                >
-                  <title>{`${formatDate(point.dateKey)}: ${formatValue(point.value)} ${metric.unit}`}</title>
-                </circle>
-                {showLabel && (
-                  <text
-                    x={point.x}
-                    y="207"
-                    textAnchor="middle"
-                    className="fill-slate-500 text-[11px]"
-                  >
-                    {point.dateLabel}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-      )}
-      <figcaption className="mt-2 text-xs leading-5 text-slate-500">
-        Mỗi điểm dùng ngày bắt đầu tuần của báo cáo, không phải thời điểm đo
-        chính xác.
-      </figcaption>
-    </figure>
+              {label}
+            </span>
+            <span className="mt-2 block text-xl font-bold tabular-nums text-white">
+              {metric?.current
+                ? valueLabel(metric.current.value, metric.unit || unit)
+                : "Chưa có dữ liệu"}
+            </span>
+            {!metric?.current && (
+              <span className="sr-only">
+                Chưa có số đo {label.toLowerCase()}
+              </span>
+            )}
+            <span className="mt-1 block text-xs text-slate-400">
+              {metric?.current
+                ? metric.delta === null || metric.delta === undefined
+                  ? "Cần ít nhất 2 lần đo"
+                  : `Thay đổi ${deltaLabel(metric.delta, metric.unit || unit)}`
+                : "Chưa có báo cáo phù hợp"}
+            </span>
+            <span className="sr-only">Lựa chọn {index + 1} trong 4</span>
+          </button>
+        );
+      })}
+    </div>
   );
 };
 
-const BodyMetric = ({ metric, label, emptyLabel, icon: Icon, colorClass }) => (
-  <div className="min-w-0 px-5 py-6 sm:px-6">
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-          <Icon size={18} className={colorClass} aria-hidden="true" />
-          <h3>{label}</h3>
-        </div>
-        {metric?.current ? (
-          <p className="mt-3 text-3xl font-bold tabular-nums text-white">
-            {formatValue(metric.current.value)}{" "}
-            <span className="text-base font-semibold text-slate-400">
-              {metric.unit}
-            </span>
-          </p>
-        ) : (
-          <p className="mt-3 text-sm font-medium text-slate-400">{emptyLabel}</p>
-        )}
+const HistoryTable = ({ history }) => (
+  <details className="border-t border-slate-800 px-5 py-4 sm:px-6">
+    <summary className="cursor-pointer text-sm font-semibold text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
+      Xem lịch sử số đo ({history.length})
+    </summary>
+    {history.length === 0 ? (
+      <p className="mt-3 text-sm text-slate-500">
+        Chưa có số đo trong khoảng thời gian này.
+      </p>
+    ) : (
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[680px] text-left text-sm">
+          <caption className="sr-only">
+            Lịch sử số đo cơ thể theo báo cáo tuần
+          </caption>
+          <thead className="border-b border-slate-800 text-slate-400">
+            <tr>
+              <th className="px-3 py-3 font-medium">Kỳ bắt đầu</th>
+              {METRICS.map(({ key, label }) => (
+                <th key={key} className="px-3 py-3 font-medium">
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((row) => (
+              <tr key={row.dateKey} className="border-b border-slate-900">
+                <td className="px-3 py-3 text-slate-300">
+                  <time dateTime={row.dateKey}>{formatDate(row.dateKey)}</time>
+                </td>
+                {METRICS.map(({ key, unit }) => (
+                  <td
+                    key={key}
+                    className="px-3 py-3 tabular-nums text-white"
+                  >
+                    {row[key] === null ? "—" : valueLabel(row[key], unit)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      {metric?.current && (
-        <time
-          dateTime={metric.current.dateKey}
-          className="shrink-0 text-xs text-slate-500"
-        >
-          {formatDate(metric.current.dateKey)}
-        </time>
-      )}
-    </div>
-    {metric?.current && <Delta value={metric.delta} unit={metric.unit} />}
-    <MetricChart metric={metric} label={label} colorClass={colorClass} />
-  </div>
+    )}
+  </details>
 );
 
-export const BodyProgressReport = ({ bodyProgress = {} }) => {
+export const BodyProgressReport = ({
+  bodyProgress = {},
+  headingRef,
+  onBack,
+  range,
+  rangeControls,
+}) => {
+  const [activeKey, setActiveKey] = useState(() =>
+    initialMetricKey(bodyProgress),
+  );
+  const activeConfig =
+    METRICS.find(({ key }) => key === activeKey) || METRICS[0];
+  const activeMetric = bodyProgress[activeConfig.key] || {
+    unit: activeConfig.unit,
+    current: null,
+    delta: null,
+    series: [],
+  };
+  const firstPoint = activeMetric.series?.[0];
   const history = bodyProgressHistoryRows(bodyProgress);
+
   return (
     <section
       className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-sm"
       aria-labelledby="body-progress-title"
+      data-progress-section-card="body"
     >
-      <header className="border-b border-slate-800 px-5 py-5 sm:px-6">
-        <h2 id="body-progress-title" className="text-lg font-bold text-white">
-          Tiến trình cơ thể
-        </h2>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
-          Cân nặng và vòng eo từ báo cáo tuần đã gửi hoặc được duyệt. Đây là
-          dữ liệu theo dõi, không phải kết luận y khoa.
-        </p>
-        <p className="mt-2 text-xs font-medium text-slate-500">
-          Nguồn: Báo cáo tuần đã gửi hoặc được duyệt
-        </p>
-      </header>
+      <ProgressSectionHeader
+        title="Tiến trình cơ thể"
+        titleId="body-progress-title"
+        description="Theo dõi xu hướng từ các báo cáo tuần đã gửi. Chọn một chỉ số để xem rõ thay đổi theo thời gian. Đây là dữ liệu theo dõi, không phải kết luận y khoa."
+        source="Nguồn: Báo cáo tuần đã gửi hoặc được duyệt"
+        headingRef={headingRef}
+        onBack={onBack}
+        rangeControls={rangeControls}
+      />
 
-      <div className="divide-y divide-slate-800 md:grid md:grid-cols-2 md:divide-x md:divide-y-0">
-        <BodyMetric
-          metric={bodyProgress.weightKg}
-          label="Cân nặng"
-          emptyLabel="Chưa có số đo cân nặng"
-          icon={Scale}
-          colorClass="text-orange-400"
-        />
-        <BodyMetric
-          metric={bodyProgress.waistCm}
-          label="Vòng eo"
-          emptyLabel="Chưa có số đo vòng eo"
-          icon={Ruler}
-          colorClass="text-cyan-400"
+      <MetricSelector
+        activeKey={activeConfig.key}
+        bodyProgress={bodyProgress}
+        onSelect={setActiveKey}
+      />
+
+      <div
+        id="body-metric-panel"
+        role="tabpanel"
+        aria-labelledby={`body-metric-tab-${activeConfig.key}`}
+        className="px-5 py-5 sm:px-6"
+      >
+        <div>
+          <h3 className="text-base font-bold text-white">
+            Xu hướng {activeConfig.label.toLowerCase()}
+          </h3>
+          <p className="mt-1 text-sm text-slate-400">
+            {activeMetric.current && firstPoint
+              ? `Từ ${valueLabel(firstPoint.value, activeMetric.unit)} đến ${valueLabel(
+                  activeMetric.current.value,
+                  activeMetric.unit,
+                )} · ${
+                  activeMetric.delta === null || activeMetric.delta === undefined
+                    ? "Cần ít nhất 2 lần đo"
+                    : `Thay đổi ${deltaLabel(
+                        activeMetric.delta,
+                        activeMetric.unit,
+                      )}`
+                }`
+              : "Không có điểm đo trong khoảng đang chọn"}
+          </p>
+        </div>
+
+        <BodyMetricChart
+          label={activeConfig.label}
+          metric={activeMetric}
+          range={range}
         />
       </div>
 
-      <details className="border-t border-slate-800 px-5 py-4 sm:px-6">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
-          Xem lịch sử số đo ({history.length})
-        </summary>
-        {history.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">
-            Chưa có số đo trong khoảng thời gian này.
-          </p>
-        ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[420px] text-left text-sm">
-              <caption className="sr-only">
-                Lịch sử cân nặng và vòng eo theo báo cáo tuần
-              </caption>
-              <thead className="border-b border-slate-800 text-slate-400">
-                <tr>
-                  <th className="px-3 py-3 font-medium">Tuần bắt đầu</th>
-                  <th className="px-3 py-3 font-medium">Cân nặng</th>
-                  <th className="px-3 py-3 font-medium">Vòng eo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((row) => (
-                  <tr key={row.dateKey} className="border-b border-slate-900">
-                    <td className="px-3 py-3 text-slate-300">
-                      <time dateTime={row.dateKey}>{formatDate(row.dateKey)}</time>
-                    </td>
-                    <td className="px-3 py-3 tabular-nums text-white">
-                      {row.weightKg === null
-                        ? "—"
-                        : `${formatValue(row.weightKg)} kg`}
-                    </td>
-                    <td className="px-3 py-3 tabular-nums text-white">
-                      {row.waistCm === null
-                        ? "—"
-                        : `${formatValue(row.waistCm)} cm`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </details>
+      <HistoryTable history={history} />
     </section>
   );
 };

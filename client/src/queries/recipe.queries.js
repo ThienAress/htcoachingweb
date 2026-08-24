@@ -3,6 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   getBookmarkedRecipes,
   getRecipeBySlug,
+  getRecipeReviews,
 } from "../services/recipe.service";
 import { invalidateByKey } from "./invalidation";
 import { publicRecipeKeys } from "./queryKeys";
@@ -20,6 +21,14 @@ export const recipeBookmarksQueryOptions = (userId) =>
     queryKey: publicRecipeKeys.bookmarks(userId),
     queryFn: ({ signal }) => getBookmarkedRecipes(signal),
     enabled: Boolean(userId),
+    staleTime: 60_000,
+  });
+
+export const recipeReviewsQueryOptions = (recipeId) =>
+  queryOptions({
+    queryKey: publicRecipeKeys.reviews(recipeId),
+    queryFn: ({ signal }) => getRecipeReviews(recipeId, signal),
+    enabled: Boolean(recipeId),
     staleTime: 60_000,
   });
 

@@ -1,129 +1,208 @@
-import { Footprints, HeartPulse, Moon, Waves } from "lucide-react";
+import {
+  Activity,
+  BatteryMedium,
+  Brain,
+  Footprints,
+  HeartPulse,
+  Moon,
+  Utensils,
+  Waves,
+} from "lucide-react";
+import { useRef, useState } from "react";
 
-import { wellnessScoreRows } from "./progressCharts";
+import { ProgressSectionHeader } from "./ProgressSectionHeader";
+import { WellnessMetricChart } from "./WellnessMetricChart";
 
-const FOUNDATIONS = [
+const METRICS = [
   { key: "sleepHours", label: "Giấc ngủ", unit: "giờ", icon: Moon },
   { key: "waterMl", label: "Nước uống", unit: "ml", icon: Waves },
   { key: "steps", label: "Số bước", unit: "bước", icon: Footprints },
+  {
+    key: "energy",
+    label: "Năng lượng",
+    unit: "/10",
+    icon: BatteryMedium,
+    domain: [0, 10],
+  },
+  {
+    key: "hunger",
+    label: "Cảm giác đói",
+    unit: "/10",
+    icon: Utensils,
+    domain: [0, 10],
+  },
+  {
+    key: "stress",
+    label: "Căng thẳng",
+    unit: "/10",
+    icon: Brain,
+    domain: [0, 10],
+  },
+  {
+    key: "soreness",
+    label: "Đau mỏi",
+    unit: "/10",
+    icon: Activity,
+    domain: [0, 10],
+  },
+  {
+    key: "pain",
+    label: "Mức đau",
+    unit: "/10",
+    icon: HeartPulse,
+    domain: [0, 10],
+  },
 ];
 
-const formatAverage = (value) =>
-  new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(value);
+const formatNumber = (value) =>
+  Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 1 });
 
-export const ProgressWellnessOverview = ({ wellness = {} }) => {
-  const scoreRows = wellnessScoreRows(wellness);
-  const hasScoreData = scoreRows.some((row) => row.average !== null);
+const valueLabel = (value, unit) =>
+  unit === "/10"
+    ? `${formatNumber(value)}/10`
+    : `${formatNumber(value)} ${unit}`;
+
+const initialMetricKey = (wellness) =>
+  METRICS.find(
+    ({ key }) =>
+      wellness?.[key]?.average !== null &&
+      wellness?.[key]?.average !== undefined,
+  )?.key || "sleepHours";
+
+const WellnessMetricSelector = ({ activeKey, onSelect, wellness }) => {
+  const buttonRefs = useRef([]);
+  const moveSelection = (event, currentIndex) => {
+    const keyTargets = {
+      ArrowRight: (currentIndex + 1) % METRICS.length,
+      ArrowLeft: (currentIndex - 1 + METRICS.length) % METRICS.length,
+      Home: 0,
+      End: METRICS.length - 1,
+    };
+    const nextIndex = keyTargets[event.key];
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    onSelect(METRICS[nextIndex].key);
+    buttonRefs.current[nextIndex]?.focus();
+  };
 
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6">
-      <div className="flex items-center gap-3">
-        <HeartPulse className="text-orange-400" size={22} aria-hidden="true" />
-        <div>
-          <h2 className="font-bold text-white">Sức khỏe trung bình</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Chỉ tính những ngày bạn có ghi nhận; ô trống không bị tính thành 0.
-          </p>
-        </div>
-      </div>
-
-      <dl className="mt-5 grid divide-y divide-slate-800 border-y border-slate-800 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        {FOUNDATIONS.map(({ key, label, unit, icon: Icon }) => {
-          const metric = wellness?.[key] || { average: null, count: 0 };
-          return (
-            <div key={key} className="py-4 sm:px-4 sm:first:pl-0 sm:last:pr-0">
-              <dt className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-                <Icon size={15} aria-hidden="true" /> {label}
-              </dt>
-              <dd className="mt-2 text-xl font-bold text-white">
-                {metric.average === null
-                  ? "Chưa có dữ liệu"
-                  : formatAverage(metric.average) + " " + unit}
-              </dd>
-              <dd className="mt-1 text-xs text-slate-500">
-                {metric.count || 0} ngày ghi nhận
-              </dd>
-            </div>
-          );
-        })}
-      </dl>
-      <p className="mt-3 text-xs leading-5 text-slate-500">
-        Giấc ngủ, nước uống và số bước có đơn vị riêng nên không gộp chung vào
-        biểu đồ thang điểm.
-      </p>
-
-      <figure className="mt-5" aria-labelledby="wellness-score-chart-title">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <h3
-            id="wellness-score-chart-title"
-            className="text-sm font-semibold text-slate-200"
+    <div
+      className="grid grid-cols-2 border-b border-slate-800 sm:grid-cols-4 xl:grid-cols-8"
+      role="tablist"
+      aria-label="Chỉ số sức khỏe"
+    >
+      {METRICS.map((config, index) => {
+        const metric = wellness?.[config.key];
+        const hasValue =
+          metric?.average !== null && metric?.average !== undefined;
+        const active = config.key === activeKey;
+        const Icon = config.icon;
+        return (
+          <button
+            ref={(node) => {
+              buttonRefs.current[index] = node;
+            }}
+            key={config.key}
+            id={`wellness-metric-tab-${config.key}`}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            aria-controls="wellness-metric-panel"
+            tabIndex={active ? 0 : -1}
+            onClick={() => onSelect(config.key)}
+            onKeyDown={(event) => moveSelection(event, index)}
+            className={
+              "min-h-24 border-b-2 px-3 py-3 text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400 " +
+              (active
+                ? "border-b-orange-400 bg-orange-500/5 text-white"
+                : "border-b-slate-800 text-slate-400 hover:bg-slate-900 hover:text-white")
+            }
           >
-            Biểu đồ sức khỏe theo thang 0–10
-          </h3>
-          <p className="text-xs text-slate-500">
+            <span className="flex items-center gap-2 text-xs font-semibold">
+              <Icon
+                size={16}
+                className={active ? "text-orange-300" : "text-slate-500"}
+                aria-hidden="true"
+              />
+              {config.label}
+            </span>
+            <strong className="mt-2 block text-base font-bold tabular-nums text-white">
+              {hasValue
+                ? valueLabel(metric.average, config.unit)
+                : "Chưa có dữ liệu"}
+            </strong>
+            <span className="mt-1 block text-xs text-slate-500">
+              {hasValue
+                ? `${metric.count || 0} ngày ghi nhận`
+                : "Chưa ghi nhận"}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+export const ProgressWellnessOverview = ({
+  headingRef,
+  onBack,
+  range = {},
+  rangeControls,
+  wellness = {},
+}) => {
+  const [activeKey, setActiveKey] = useState(() => initialMetricKey(wellness));
+  const activeConfig =
+    METRICS.find(({ key }) => key === activeKey) || METRICS[0];
+  const activeMetric = wellness?.[activeConfig.key];
+  const hasAverage =
+    activeMetric?.average !== null && activeMetric?.average !== undefined;
+
+  return (
+    <section
+      className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-sm"
+      aria-labelledby="wellness-progress-title"
+      data-progress-section-card="wellness"
+    >
+      <ProgressSectionHeader
+        title="Sức khỏe trung bình"
+        titleId="wellness-progress-title"
+        description="Theo dõi xu hướng từ những nhật ký đã gửi; ngày không ghi dữ liệu không bị tính thành 0."
+        headingRef={headingRef}
+        onBack={onBack}
+        rangeControls={rangeControls}
+      />
+
+      <WellnessMetricSelector
+        activeKey={activeConfig.key}
+        onSelect={setActiveKey}
+        wellness={wellness}
+      />
+
+      <div
+        id="wellness-metric-panel"
+        role="tabpanel"
+        aria-labelledby={`wellness-metric-tab-${activeConfig.key}`}
+        className="px-5 py-5 sm:px-6"
+      >
+        <h3 className="text-base font-bold text-white">
+          Xu hướng {activeConfig.label.toLowerCase()}
+        </h3>
+        <p className="mt-1 text-sm text-slate-400">
+          {hasAverage
+            ? `Trung bình ${valueLabel(activeMetric.average, activeConfig.unit)} từ ${activeMetric.count || 0} ngày ghi nhận.`
+            : "Chưa có giá trị trong khoảng đang chọn."}
+        </p>
+        {activeConfig.domain && (
+          <p className="mt-2 text-xs text-slate-500">
             Điểm cao hơn không phải lúc nào cũng tốt hơn.
           </p>
-        </div>
-        <div className="mt-4 space-y-4">
-          {scoreRows.map((row) => {
-            const hasData = row.average !== null;
-            return (
-              <div
-                key={row.key}
-                className="grid gap-2 sm:grid-cols-[130px_1fr_auto] sm:items-center"
-              >
-                <div>
-                  <p className="text-sm font-medium text-slate-200">{row.label}</p>
-                  <p className="text-xs text-slate-500">
-                    {hasData ? row.count + " ngày ghi nhận" : "Chưa ghi nhận"}
-                  </p>
-                </div>
-                {hasData ? (
-                  <progress
-                    value={row.average}
-                    max="10"
-                    className={"h-2 w-full " + row.color}
-                    aria-label={
-                      row.label +
-                      ": " +
-                      formatAverage(row.average) +
-                      " trên 10"
-                    }
-                  />
-                ) : (
-                  <div
-                    className="h-2 w-full rounded-full bg-slate-800"
-                    aria-hidden="true"
-                  />
-                )}
-                <p
-                  className={
-                    hasData
-                      ? "text-sm font-bold text-white"
-                      : "text-sm text-slate-500"
-                  }
-                >
-                  {hasData ? (
-                    <>
-                      {formatAverage(row.average)}
-                      <span className="text-xs font-normal text-slate-500">
-                        /10
-                      </span>
-                    </>
-                  ) : (
-                    "Chưa có dữ liệu"
-                  )}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-        <figcaption className="mt-4 text-xs leading-5 text-slate-500">
-          {hasScoreData
-            ? "Chiều dài mỗi thanh thể hiện mức trung bình từ các nhật ký đã gửi."
-            : "Chưa có nhật ký đã gửi trong khoảng này; khung biểu đồ được giữ lại để bạn biết dữ liệu sẽ xuất hiện ở đâu."}
-        </figcaption>
-      </figure>
+        )}
+        <WellnessMetricChart
+          config={activeConfig}
+          range={range}
+          wellness={wellness}
+        />
+      </div>
     </section>
   );
 };

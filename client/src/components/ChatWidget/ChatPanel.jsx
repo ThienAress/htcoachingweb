@@ -656,7 +656,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                 <>
                   <div
                     ref={messagesScrollRef}
-                    className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-6 py-6 pt-20"
+                    className="flex-1 overflow-y-auto px-4 py-6 pt-20 md:px-6"
                   >
                     <div
                       ref={messagesContentRef}

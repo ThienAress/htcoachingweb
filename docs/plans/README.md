@@ -81,6 +81,15 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 054 | Mở rộng quota AI Chat và Meal Scan theo entitlement | P1 | L | 033, 052, 052A | LOCAL COMPLETE / STAGING DEPLOY PENDING |
 | 055 | Containerize backend runtime and pilot Docker staging | P1 | L | 020, 053 | LOCAL DOCKER + FULL QA VERIFIED / RENDER PILOT PENDING |
 | 056 | Isolate Skill Radar worker và harden production recovery/monitoring | P0→P1 | L | 053 | IN PROGRESS — PAID/OFF-DEVICE GATES PENDING |
+| 057 | Hiển thị nutrition ước tính cho toàn bộ công thức | P1 | M | 025 | DONE / LOCAL VERIFIED |
+| 058 | Ổn định Pricing và hoàn thiện Recipe community/nutrition | P1 | L | 025, 052A, 057 | DONE / LOCAL VERIFIED |
+| 058A | Đồng bộ 10 công thức production vào local và staging | P1 | S | 043, 057, 058 | DONE / LOCAL + STAGING VERIFIED |
+| 059 | Chuẩn hóa scrollbar và hoàn thiện quy đổi nutrition công thức | P1 | L | 057, 058, 058A | DONE / FOCUSED VERIFIED — FULL SERVER SUITE BLOCKED |
+| 060 | Tinh gọn nhật ký coaching, nutrition thủ công và wellness theo ngày | P1 | XL | 003F, 011, 016, 059 | IMPLEMENTED / LOCAL VERIFIED — FULL SERVER + PRERENDER BLOCKED |
+| 061 | Harden SEO fallback và đồng bộ một chiều một tài khoản test | P0/P1 | L | 008, 038, 053A, 060 | IN PROGRESS |
+| 062 | Tinh gọn báo cáo coaching, tiến trình và thông báo đúng ngữ cảnh | P1 | XL | 003F, 011, 016, 047, 060 | IMPLEMENTED / LOCAL VERIFIED — PRERENDER + MANUAL AUTH BLOCKED |
+| 063 | Xây biểu đồ Tiến trình cơ thể rõ xu hướng | P1 | M | 047, 062 | IMPLEMENTED / LOCAL VERIFIED — POSTBUILD + MANUAL AUTH BLOCKED |
+| 064 | Thống nhất biểu đồ và điều khiển Tiến trình | P1 | M | 062, 063 | IMPLEMENTED / LOCAL VERIFIED — MANUAL AUTH BLOCKED |
 
 ## Dependency Notes
 

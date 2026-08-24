@@ -25,6 +25,7 @@ describe("SEO app shell", () => {
 describe("prerender SEO validation", () => {
   const validSnapshot = {
     rootLength: 500,
+    fatalFallbackCount: 0,
     titles: ["Bài viết | HTCOACHING"],
     descriptions: ["Mô tả duy nhất"],
     canonicals: ["https://htcoachingweb.io.vn/blog/bai-viet/"],
@@ -77,6 +78,15 @@ describe("prerender SEO validation", () => {
         expect.stringMatching(/^canonical mismatch:/),
       ]),
     );
+  });
+
+  it("rejects a route snapshot captured from the fatal app fallback", () => {
+    expect(
+      validatePrerenderSnapshot(
+        { ...validSnapshot, fatalFallbackCount: 1 },
+        "https://htcoachingweb.io.vn/blog/bai-viet/",
+      ),
+    ).toContain("fatal application fallback rendered");
   });
 
   it("rejects homepage JSON-LD when trainer plan offers are missing", () => {
