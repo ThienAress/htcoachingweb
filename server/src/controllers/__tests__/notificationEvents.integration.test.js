@@ -44,7 +44,7 @@ const createAssigned = async () => {
   await Order.create({
     userId: client.user._id,
     trainerId: trainer.user._id,
-    name: client.user.name,
+    name: "Tên cũ trong đơn hàng",
     email: client.user.email,
     package: "PT",
     sessions: 5,
@@ -77,7 +77,7 @@ afterEach(async () => {
 afterAll(teardownTestDB);
 
 describe("Notification domain events", () => {
-  it("emits generic deduplicated journal/comment/weekly notifications to the other party", async () => {
+  it("emits contextual deduplicated journal/comment/weekly notifications to the other party", async () => {
     const data = await createAssigned();
     const savedJournal = await withAuth(
       request(app)
@@ -103,6 +103,16 @@ describe("Notification domain events", () => {
       request(app)
         .post("/api/daily-journals/" + today + "/submit")
         .send(submitPayload),
+      data.client.accessToken,
+    );
+    const correctedJournal = await withAuth(
+      request(app)
+        .post("/api/daily-journals/" + today + "/corrections")
+        .send({
+          expectedRevision: 2,
+          requestId: "92333333-2222-4222-8222-222222222222",
+          patch: { wellness: { energy: 7 } },
+        }),
       data.client.accessToken,
     );
     const comment = await withAuth(
@@ -172,22 +182,68 @@ describe("Notification domain events", () => {
       request(app).get("/api/notifications?status=unread"),
       data.client.accessToken,
     );
+    const trainerNotifications = trainerInbox.body.data.items;
+    const clientNotifications = clientInbox.body.data.items;
 
     expect(submittedJournal.status).toBe(200);
     expect(replayJournal.body.idempotentReplay).toBe(true);
+    expect(correctedJournal.status).toBe(200);
     expect(comment.status).toBe(201);
     expect(reviewed.status).toBe(200);
     expect(corrected.status).toBe(200);
     expect(
-      trainerInbox.body.data.items.map((item) => item.type).sort(),
+      trainerNotifications.map((item) => item.type).sort(),
     ).toEqual([
       "coaching_comment_created",
+      "journal_corrected",
       "journal_submitted",
       "weekly_corrected",
       "weekly_submitted",
     ]);
-    expect(clientInbox.body.data.items.map((item) => item.type)).toEqual([
+    expect(clientNotifications.map((item) => item.type)).toEqual([
       "weekly_reviewed",
     ]);
+    expect(
+      trainerNotifications.find((item) => item.type === "journal_submitted"),
+    ).toMatchObject({
+      title: "Khách hàng Test User đã gửi nhật ký ngày",
+      missingFields: [
+        "hunger",
+        "stress",
+        "soreness",
+        "pain",
+      ],
+      deepLink:
+        "/trainer/clients/" + data.client.user._id + "?date=" + today + "#journal",
+    });
+    expect(
+      trainerNotifications.find((item) => item.type === "journal_corrected"),
+    ).toMatchObject({
+      title: "Khách hàng Test User đã cập nhật nhật ký ngày",
+      deepLink:
+        "/trainer/clients/" + data.client.user._id + "?date=" + today + "#journal",
+    });
+    expect(
+      trainerNotifications.find((item) => item.type === "weekly_submitted"),
+    ).toMatchObject({
+      title: "Khách hàng Test User đã gửi báo cáo tuần",
+      missingFields: [
+        "weightKg",
+        "waistCm",
+        "bodyFatPercent",
+        "skeletalMusclePercent",
+      ],
+      deepLink:
+        "/trainer/clients/" +
+        data.client.user._id +
+        "?date=" +
+        currentWeek +
+        "#weekly-report",
+    });
+    expect(clientNotifications[0]).toMatchObject({
+      title: "Huấn luyện viên đã nhận xét báo cáo tuần",
+      deepLink:
+        "/dashboard/today/" + currentWeek + "/journal#weekly-report",
+    });
   });
 });

@@ -11,6 +11,10 @@ import {
   getVietnamDayRangeUtc,
 } from "../utils/dateKey.js";
 
+const MAX_PROGRESS_ACTIVITY_DOCUMENTS = 400;
+const MAX_PROGRESS_DAILY_DOCUMENTS = 200;
+const MAX_PROGRESS_WEEKLY_CHECKINS = 40;
+
 const utcBounds = (range) => ({
   start: getVietnamDayRangeUtc(range.startDateKey).start,
   end: getVietnamDayRangeUtc(range.endDateKey).end,
@@ -34,7 +38,7 @@ const loadSchedules = async (clientId, range, bounds) => {
     ],
   })
     .select("occurrenceDateKey startAt status")
-    .limit(200)
+    .limit(MAX_PROGRESS_ACTIVITY_DOCUMENTS)
     .lean();
   return documents.map((item) => ({
     dateKey: item.occurrenceDateKey || getVietnamDateKey(item.startAt),
@@ -51,7 +55,7 @@ const loadWorkouts = async (clientId, email, bounds) => {
     status: { $in: ["published", "completed"] },
   })
     .select("planDate status")
-    .limit(200)
+    .limit(MAX_PROGRESS_ACTIVITY_DOCUMENTS)
     .lean();
   return documents.map((item) => ({
     dateKey: getVietnamDateKey(item.planDate),
@@ -65,7 +69,7 @@ const loadCoachingDays = async (clientId, range) => {
     dateString: { $gte: range.startDateKey, $lte: range.endDateKey },
   })
     .select("dateString clientStatus")
-    .limit(100)
+    .limit(MAX_PROGRESS_DAILY_DOCUMENTS)
     .lean();
   return documents.map((item) => ({
     dateKey: item.dateString,
@@ -80,7 +84,7 @@ const loadJournals = async (clientId, range) => {
     dateKey: { $gte: range.startDateKey, $lte: range.endDateKey },
   })
     .select("dateKey wellness nutrition habitCompletions")
-    .limit(100)
+    .limit(MAX_PROGRESS_DAILY_DOCUMENTS)
     .lean();
   const planIds = [
     ...new Set(
@@ -164,17 +168,23 @@ const loadWeeklyCheckins = async (clientId, range) => {
     $or: [
       { "body.weightKg": { $type: "number" } },
       { "body.waistCm": { $type: "number" } },
+      { "body.bodyFatPercent": { $type: "number" } },
+      { "body.skeletalMusclePercent": { $type: "number" } },
     ],
   })
-    .select("weekStartDateKey status body.weightKg body.waistCm")
+    .select(
+      "weekStartDateKey status body.weightKg body.waistCm body.bodyFatPercent body.skeletalMusclePercent",
+    )
     .sort({ weekStartDateKey: 1 })
-    .limit(20)
+    .limit(MAX_PROGRESS_WEEKLY_CHECKINS)
     .lean();
   return documents.map((item) => ({
     weekStartDateKey: item.weekStartDateKey,
     status: item.status,
     weightKg: item.body?.weightKg,
     waistCm: item.body?.waistCm,
+    bodyFatPercent: item.body?.bodyFatPercent,
+    skeletalMusclePercent: item.body?.skeletalMusclePercent,
   }));
 };
 

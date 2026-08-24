@@ -16,6 +16,7 @@ export const toWeeklyCheckinDto = (document) => {
     submittedAt: value.submittedAt || null,
     trainerReview: value.trainerReview || null,
     revision: value.revision,
+    correctionCount: value.correctionCount ?? 0,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt,
   };

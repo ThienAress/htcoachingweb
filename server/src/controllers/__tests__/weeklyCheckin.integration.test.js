@@ -45,6 +45,9 @@ const IDS = {
   submit: "93333333-3333-4333-8333-333333333333",
   correction: "94444444-4444-4444-8444-444444444444",
   review: "95555555-5555-4555-8555-555555555555",
+  correctionSecond: "96666666-6666-4666-8666-666666666666",
+  invalid: "97777777-7777-4777-8777-777777777777",
+  correctionNoop: "98888888-8888-4888-8888-888888888888",
 };
 
 const createAssigned = async (suffix) => {
@@ -72,11 +75,8 @@ const bodyPatch = (overrides = {}) => ({
   body: {
     weightKg: 72.5,
     waistCm: 82,
-    energy: 8,
-    adherence: 7,
-    wins: "Tập đủ lịch",
-    challenges: "Ngủ muộn một hôm",
-    note: "Tuần này cảm thấy ổn",
+    bodyFatPercent: 18.5,
+    skeletalMusclePercent: 42,
     ...overrides,
   },
 });
@@ -134,7 +134,7 @@ describe("Weekly Check-in lifecycle", () => {
       currentWeek,
       0,
       IDS.stale,
-      bodyPatch({ energy: 4 }),
+      bodyPatch({ bodyFatPercent: 19 }),
     );
 
     expect(created.status, JSON.stringify(created.body)).toBe(200);
@@ -142,7 +142,12 @@ describe("Weekly Check-in lifecycle", () => {
       weekStartDateKey: currentWeek,
       revision: 1,
       status: "draft",
-      body: { weightKg: 72.5, energy: 8 },
+      correctionCount: 0,
+      body: {
+        weightKg: 72.5,
+        bodyFatPercent: 18.5,
+        skeletalMusclePercent: 42,
+      },
     });
     expect(replay.body.idempotentReplay).toBe(true);
     expect(stale.status).toBe(409);
@@ -175,7 +180,7 @@ describe("Weekly Check-in lifecycle", () => {
     expect(old.status).toBe(422);
   });
 
-  it("protects submitted client fields and records correction reason", async () => {
+  it("allows exactly one correction, preserves its audit reason and replays it idempotently", async () => {
     const { client } = await createAssigned("correction");
     await saveCheckin(client.accessToken, currentWeek, 0, IDS.save);
     const submitted = await withAuth(
@@ -189,7 +194,7 @@ describe("Weekly Check-in lifecycle", () => {
       currentWeek,
       2,
       IDS.stale,
-      bodyPatch({ note: "Overwrite" }),
+      bodyPatch({ bodyFatPercent: 20 }),
     );
     const corrected = await withAuth(
       request(app)
@@ -197,8 +202,30 @@ describe("Weekly Check-in lifecycle", () => {
         .send({
           expectedRevision: 2,
           requestId: IDS.correction,
-          reason: "Correct weekly note",
-          patch: bodyPatch({ note: "Corrected note" }),
+          reason: "Điều chỉnh kết quả đo InBody",
+          patch: bodyPatch({ bodyFatPercent: 18 }),
+        }),
+      client.accessToken,
+    );
+    const replay = await withAuth(
+      request(app)
+        .post(`/api/weekly-checkins/${currentWeek}/corrections`)
+        .send({
+          expectedRevision: 2,
+          requestId: IDS.correction,
+          reason: "Điều chỉnh kết quả đo InBody",
+          patch: bodyPatch({ bodyFatPercent: 18 }),
+        }),
+      client.accessToken,
+    );
+    const secondCorrection = await withAuth(
+      request(app)
+        .post(`/api/weekly-checkins/${currentWeek}/corrections`)
+        .send({
+          expectedRevision: 3,
+          requestId: IDS.correctionSecond,
+          reason: "Thử chỉnh sửa thêm một lần",
+          patch: bodyPatch({ bodyFatPercent: 17.5 }),
         }),
       client.accessToken,
     );
@@ -212,11 +239,160 @@ describe("Weekly Check-in lifecycle", () => {
     expect(corrected.body.data).toMatchObject({
       revision: 3,
       status: "submitted",
-      body: { note: "Corrected note" },
+      correctionCount: 1,
+      body: { bodyFatPercent: 18 },
     });
+    expect(replay.body).toMatchObject({
+      idempotentReplay: true,
+      data: { revision: 3, correctionCount: 1 },
+    });
+    expect(secondCorrection.status).toBe(409);
+    expect(secondCorrection.body.code).toBe(
+      "WEEKLY_CHECKIN_CORRECTION_LIMIT_REACHED",
+    );
     expect(revisions.body.data.items[0]).toMatchObject({
       action: "correction",
-      reason: "Correct weekly note",
+      reason: "Điều chỉnh kết quả đo InBody",
+    });
+  });
+
+  it("persists and submits an empty report because every measurement is optional", async () => {
+    const { client } = await createAssigned("empty-optional");
+    const saved = await saveCheckin(
+      client.accessToken,
+      currentWeek,
+      0,
+      IDS.save,
+      {
+        body: {
+          weightKg: null,
+          waistCm: null,
+          bodyFatPercent: null,
+          skeletalMusclePercent: null,
+        },
+      },
+    );
+    const submitted = await withAuth(
+      request(app)
+        .post(`/api/weekly-checkins/${currentWeek}/submit`)
+        .send({ expectedRevision: 1, requestId: IDS.submit }),
+      client.accessToken,
+    );
+
+    expect(saved.body.data).toMatchObject({ revision: 1, status: "draft" });
+    expect(submitted.body.data).toMatchObject({
+      revision: 2,
+      status: "submitted",
+      body: {
+        weightKg: null,
+        waistCm: null,
+        bodyFatPercent: null,
+        skeletalMusclePercent: null,
+      },
+    });
+    expect(await WeeklyCheckin.countDocuments()).toBe(1);
+  });
+
+  it("rejects body composition values outside the 1–80 percent range", async () => {
+    const { client } = await createAssigned("body-composition-bounds");
+
+    const belowMinimum = await saveCheckin(
+      client.accessToken,
+      currentWeek,
+      0,
+      IDS.save,
+      bodyPatch({ bodyFatPercent: 0 }),
+    );
+    const aboveMaximum = await saveCheckin(
+      client.accessToken,
+      currentWeek,
+      0,
+      IDS.invalid,
+      bodyPatch({ skeletalMusclePercent: 81 }),
+    );
+
+    expect(belowMinimum.status).toBe(400);
+    expect(aboveMaximum.status).toBe(400);
+    expect(await WeeklyCheckin.countDocuments()).toBe(0);
+  });
+
+  it("does not consume the correction when no body measurement changed", async () => {
+    const { client } = await createAssigned("correction-noop");
+    await saveCheckin(client.accessToken, currentWeek, 0, IDS.save);
+    await withAuth(
+      request(app)
+        .post(`/api/weekly-checkins/${currentWeek}/submit`)
+        .send({ expectedRevision: 1, requestId: IDS.submit }),
+      client.accessToken,
+    );
+
+    const response = await withAuth(
+      request(app)
+        .post(`/api/weekly-checkins/${currentWeek}/corrections`)
+        .send({
+          expectedRevision: 2,
+          requestId: IDS.correctionNoop,
+          reason: "Kiểm tra cập nhật không thay đổi",
+          patch: bodyPatch(),
+        }),
+      client.accessToken,
+    );
+    const stored = await WeeklyCheckin.findOne({
+      clientId: client.user._id,
+      weekStartDateKey: currentWeek,
+    }).lean();
+
+    expect({
+      status: response.status,
+      code: response.body.code,
+      correctionCount: stored.correctionCount,
+      revision: stored.revision,
+    }).toEqual({
+      status: 400,
+      code: "EMPTY_WEEKLY_CHECKIN_CORRECTION",
+      correctionCount: 0,
+      revision: 2,
+    });
+  });
+
+  it("enforces correctionCount as an integer from zero to one at schema level", async () => {
+    const { client } = await createAssigned("invalid-correction-count");
+    const invalid = new WeeklyCheckin({
+      clientId: client.user._id,
+      weekStartDateKey: currentWeek,
+      correctionCount: 0.5,
+    });
+
+    await expect(invalid.validate()).rejects.toThrow(
+      /Số lượt cập nhật phải là số nguyên/,
+    );
+  });
+
+  it("keeps legacy body fields readable without requiring a data migration", async () => {
+    const { client } = await createAssigned("legacy-read");
+    await WeeklyCheckin.collection.insertOne({
+      clientId: client.user._id,
+      weekStartDateKey: currentWeek,
+      timeZone: "Asia/Ho_Chi_Minh",
+      body: { energy: 7, adherence: 8, wins: "Dữ liệu cũ" },
+      status: "submitted",
+      submittedAt: new Date(),
+      trainerReview: null,
+      revision: 2,
+      retentionExpiresAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const response = await withAuth(
+      request(app).get(`/api/weekly-checkins/${currentWeek}`),
+      client.accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({
+      correctionCount: 0,
+      body: { energy: 7, adherence: 8, wins: "Dữ liệu cũ" },
     });
   });
 
