@@ -66,4 +66,25 @@ describe("MealTable", () => {
     expect(html).toContain("table.no_menu_yet");
     expect(html).not.toContain("Tổng ngày");
   });
+
+  it("places the save action in the table footer after the last meal", () => {
+    const html = renderToStaticMarkup(
+      <MealTable
+        meals={[
+          {
+            mealName: "Bữa 1",
+            carbFood: food("Cơm", 100),
+            proteinFood: food("Ức gà", 150),
+            fatFood: food("Dầu olive", 10),
+          },
+        ]}
+        footerAction={<button type="button">Lưu thực đơn hiện tại</button>}
+      />,
+    );
+
+    expect(html.indexOf("Bữa 1")).toBeLessThan(
+      html.indexOf("Lưu thực đơn hiện tại"),
+    );
+    expect(html).toContain("<tfoot>");
+  });
 });

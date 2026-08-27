@@ -219,7 +219,7 @@ export const BodyProgressReport = ({
       >
         <div>
           <h3 className="text-base font-bold text-white">
-            Xu hướng {activeConfig.label.toLowerCase()}
+            Biểu đồ {activeConfig.label.toLowerCase()} ({activeMetric.unit})
           </h3>
           <p className="mt-1 text-sm text-slate-400">
             {activeMetric.current && firstPoint
@@ -243,6 +243,18 @@ export const BodyProgressReport = ({
           metric={activeMetric}
           range={range}
         />
+        {activeMetric.current && (
+          <aside className="mt-5 border-t border-slate-800 pt-4 text-sm leading-6 text-slate-400">
+            <h4 className="font-semibold text-slate-200">Giải thích biểu đồ</h4>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Biểu đồ chỉ hiển thị những kỳ đã có số đo.</li>
+              <li>
+                Đường nét đứt thể hiện lần đo đầu tiên trong khoảng đang xem.
+              </li>
+              <li>Ngày trên biểu đồ là ngày bắt đầu kỳ báo cáo.</li>
+            </ul>
+          </aside>
+        )}
       </div>
 
       <HistoryTable history={history} />

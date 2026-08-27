@@ -163,42 +163,23 @@ export const WellnessFields = ({ register, errors, disabled, painValue }) => {
           phù hợp. Thông báo này không phải chẩn đoán.
         </p>
       )}
-      <div className="grid gap-4 md:grid-cols-2">
-        <label className="text-sm font-medium text-slate-300">
-          Ghi chú riêng
-          <textarea
-            {...register("privateNote")}
-            disabled={disabled}
-            aria-invalid={Boolean(errors.privateNote)}
-            rows={3}
-            maxLength={2000}
-            className={fieldClass}
-            placeholder="Chỉ bạn nhìn thấy"
-          />
-          {errors.privateNote && (
-            <span role="alert" className="mt-1 block text-xs text-red-300">
-              {errors.privateNote.message}
-            </span>
-          )}
-        </label>
-        <label className="text-sm font-medium text-slate-300">
-          Chia sẻ với HLV
-          <textarea
-            {...register("sharedNote")}
-            disabled={disabled}
-            aria-invalid={Boolean(errors.sharedNote)}
-            rows={3}
-            maxLength={2000}
-            className={fieldClass}
-            placeholder="Thông tin bạn muốn HLV biết"
-          />
-          {errors.sharedNote && (
-            <span role="alert" className="mt-1 block text-xs text-red-300">
-              {errors.sharedNote.message}
-            </span>
-          )}
-        </label>
-      </div>
+      <label className="block text-sm font-medium text-slate-300">
+        Chia sẻ với HLV
+        <textarea
+          {...register("sharedNote")}
+          disabled={disabled}
+          aria-invalid={Boolean(errors.sharedNote)}
+          rows={3}
+          maxLength={2000}
+          className={fieldClass}
+          placeholder="Thông tin bạn muốn HLV biết"
+        />
+        {errors.sharedNote && (
+          <span role="alert" className="mt-1 block text-xs text-red-300">
+            {errors.sharedNote.message}
+          </span>
+        )}
+      </label>
     </>
   );
 };

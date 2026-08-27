@@ -26,6 +26,7 @@ import { Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import LoginModal from "./LoginModal";
 import SavedMealPlans from "./SavedMealPlans";
+import SaveCurrentMealPlanButton from "./SaveCurrentMealPlanButton";
 import MealPlanConditions from "./MealPlanConditions";
 import MealPlanPreferenceConfirmDialog from "./MealPlanPreferenceConfirmDialog";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
@@ -81,6 +82,8 @@ const MealPlan = () => {
   const [guestPreviewUsed, setGuestPreviewUsed] = useState(
     hasUsedGuestMealPlanPreview,
   );
+  const [generationId, setGenerationId] = useState(0);
+  const [savedGenerationId, setSavedGenerationId] = useState(null);
 
   const { user, loading: authLoading } = useAuth();
   const preferenceQuery = useMealPlanPreferences(user?._id);
@@ -162,15 +165,15 @@ const MealPlan = () => {
 
   // Xử lý tạo thực đơn (gợi ý)
   const handleGenerateMeal = async () => {
-    if (areMealPlanActionsLocked) return;
+    if (areMealPlanActionsLocked) return false;
     if (selectedMacroPlan && macroSet && macroSet[selectedMacroPlan]) {
       if (user && preferenceQuery.isLoading) {
         toast.info("Đang tải điều kiện thực đơn đã lưu.");
-        return;
+        return false;
       }
       if (user && preferenceQuery.isError) {
         toast.error("Không thể tải điều kiện thực đơn. Vui lòng thử lại.");
-        return;
+        return false;
       }
       const preferenceValidation = validateMealPlanPreferences(
         mealPlanPreferences,
@@ -192,61 +195,66 @@ const MealPlan = () => {
           budget: "Dữ liệu ngân sách đã lưu không hợp lệ.",
         };
         toast.error(messages[preferenceValidation.code]);
-        return;
+        return false;
       }
       if (!foodDatabase?.length) {
         toast.info(t("toast.loading_foods"));
-        return;
+        return false;
       }
       if (!hasMealPlanFoodCoverage(constrainedFoodDatabase)) {
         toast.error(
           "Sau khi loại thực phẩm dị ứng, dữ liệu còn lại chưa đủ nhóm đạm, tinh bột và chất béo để tạo thực đơn. Không có lượt nào bị trừ.",
           { autoClose: 6000 },
         );
-        return;
+        return false;
       }
 
       if (!user) {
         if (guestPreviewUsed) {
           setShowLoginModal(true);
-          return;
+          return false;
         }
 
-        generateMeals(macroSet[selectedMacroPlan]);
-        markGuestMealPlanPreviewUsed();
-        setGuestPreviewUsed(true);
-        return;
+        const generated = generateMeals(macroSet[selectedMacroPlan]);
+        if (generated) {
+          markGuestMealPlanPreviewUsed();
+          setGuestPreviewUsed(true);
+          setGenerationId((current) => current + 1);
+        }
+        return generated;
       }
 
       if (isChecking) {
         toast.info(t("toast.loading_macros"));
-        return;
+        return false;
       }
       if (accessError) {
         toast.error(t("toast.access_error"));
-        return;
+        return false;
       }
       if (!canGenerate) {
         toast.error(t("toast.no_remaining", { max: maxGenerations }), {
           autoClose: 5000,
         });
-        return;
+        return false;
       }
 
       // Ghi nhận lượt lên server trước
       const recorded = await recordGeneration();
       if ((!recorded) && accessLevel === "trial") {
         toast.error(t("toast.no_remaining_simple"));
-        return;
+        return false;
       }
-      generateMeals(macroSet[selectedMacroPlan]);
-      return;
+      const generated = generateMeals(macroSet[selectedMacroPlan]);
+      if (generated) setGenerationId((current) => current + 1);
+      return generated;
     }
     if (!macroSet || !isMacroReady) {
       toast.info(t("toast.loading_macros"));
-      return;
+      return false;
     }
     toast.error(t("toast.select_plan_first"));
+    return false;
   };
 
   const handlePreferenceChange = (nextPreferences) => {
@@ -573,7 +581,21 @@ const MealPlan = () => {
           <div>
             {activeTab === "menu" ? (
               <>
-                <MealTable meals={meals} />
+                <MealTable
+                  meals={meals}
+                  footerAction={
+                    user && TODAY_PLATFORM_ENABLED && meals.length > 0 ? (
+                      <SaveCurrentMealPlanButton
+                        alreadySaved={savedGenerationId === generationId}
+                        generationId={generationId}
+                        meals={meals}
+                        onSaved={setSavedGenerationId}
+                        target={activeMacroTarget}
+                        targetLabel={selectedMacroPlan}
+                      />
+                    ) : null
+                  }
+                />
 
                 {meals.length > 0 && (
                   <>
@@ -589,6 +611,7 @@ const MealPlan = () => {
                 {user && TODAY_PLATFORM_ENABLED && (
                   <SavedMealPlans
                     meals={meals}
+                    onGenerateAnother={handleGenerateMeal}
                     target={activeMacroTarget}
                     targetLabel={selectedMacroPlan}
                   />

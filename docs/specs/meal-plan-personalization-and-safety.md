@@ -206,3 +206,42 @@ Nếu không đủ Food sau khi loại dị ứng, generator trả trạng thái
 - Không có câu chữ chẩn đoán, điều trị, bảo đảm dị ứng hoặc cam kết giá.
 - TDEE không chứa trường allergy/budget và luồng TDEE → Meal Plan vẫn hoạt động.
 - Không production data write/backfill trước approval riêng của owner.
+
+## Saved Meal Plan refinement — 2026-08-25
+
+- Người dùng có thể lưu nhiều thực đơn độc lập. CTA lưu thực đơn mới nằm ở cuối bảng
+  gợi ý hiện tại; sau khi lưu thành công, CTA bị khóa cho đúng lần gợi ý đó cho đến
+  khi người dùng chọn `Đổi thực đơn khác`.
+- Sau khi lưu mới, UI hỏi người dùng có muốn chuyển tới mục Dinh dưỡng trong
+  Customer Dashboard hay tiếp tục ở Meal Plan. Đóng hoặc hủy hộp thoại không đổi route.
+- Tên thực đơn mặc định tiếp tục lấy từ chế độ dinh dưỡng. Người dùng có thể đổi tên
+  qua nút bút chì; tên sau trim dài 1–30 ký tự và không chứa từ tục tĩu. Backend là
+  nguồn validation cuối cùng.
+- `Chỉnh sửa thực đơn` mở snapshot đã lưu trong bảng năm cột Bữa ăn, Tinh bột,
+  Đạm, Chất béo và Calo. `Lưu thực đơn` chỉ bật sau khi người dùng đã chủ động tạo
+  một phương án khác; thao tác này tạo revision bất biến trong cùng lineage.
+- `Lưu thực đơn hiện tại` luôn tạo lineage mới; không được ghi đè một thực đơn đã lưu.
+- `version`, `revision` và hậu tố `Vn` vẫn được giữ trong contract kỹ thuật nhưng
+  không hiển thị trên giao diện khách hàng hoặc HLV.
+- Giới hạn title giảm từ 100 xuống 30 ký tự cho mutation mới. Document cũ dài hơn
+  vẫn đọc được; khi chỉnh sửa, người dùng phải đặt lại tên hợp lệ. Không cần migration
+  hoặc backfill dữ liệu thật.
+
+## Kho từ ngữ không phù hợp cho tên thực đơn — 2026-08-26
+
+- Backend dùng snapshot `vn_offensive_words.txt` từ repository
+  `blue-eyes-vn/vietnamese-offensive-words`, license MIT, ghim tại commit
+  `684b568e4d54ce47b743d7c564447e29a02cc260` và lưu kèm attribution/license.
+- Runtime chỉ đọc snapshot trong repository; không gọi GitHub, không cài package và
+  không tự cập nhật theo nhánh upstream. Mọi lần nâng snapshot phải review diff cùng
+  false-positive tests.
+- Matcher normalize Unicode/whitespace và dùng ranh giới chữ/số Unicode. Một từ chỉ
+  bị chặn khi xuất hiện như token/cụm hoàn chỉnh, không vì là substring của từ sạch.
+  Token ASCII đơn dài tối đa ba ký tự bị xem là mơ hồ và chỉ dùng khi đã được dự án
+  review/allowlist rõ ràng; nhờ đó câu không dấu như `cac mon ga` hoặc `ngu ngon`
+  không bị chặn nhầm.
+- Backend là nguồn validation cuối cùng và tiếp tục trả
+  `INVALID_SAVED_MEAL_PLAN_TITLE`; frontend giữ subset nhỏ để phản hồi sớm nhưng
+  không chứa toàn bộ kho từ trong browser bundle.
+- Snapshot chưa áp vào AI Chat. AI moderation có lifecycle cảnh báo/khóa tài khoản
+  riêng và phải có đánh giá false-positive trước khi thay đổi.

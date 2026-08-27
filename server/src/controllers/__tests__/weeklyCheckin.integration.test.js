@@ -24,7 +24,6 @@ import weeklyCheckinRoutes from "../../routes/weeklyCheckin.routes.js";
 import {
   addDaysToDateKey,
   getMonthWeekPeriod,
-  getPreviousMonthWeekPeriod,
   getVietnamDateKey,
 } from "../../utils/dateKey.js";
 
@@ -35,10 +34,13 @@ const currentWeek = currentPeriod.startDateKey;
 const futurePeriodStart = getMonthWeekPeriod(
   addDaysToDateKey(currentPeriod.endDateKey, 1),
 ).startDateKey;
-const previousPeriod = getPreviousMonthWeekPeriod(today);
-const expiredPeriodStart = getPreviousMonthWeekPeriod(
-  previousPeriod.startDateKey,
-).startDateKey;
+const monthDateKey = (offset) => {
+  const [year, month] = today.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1 + offset, 15));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-15`;
+};
+const historicalPeriodStart = getMonthWeekPeriod(monthDateKey(-2)).startDateKey;
+const tooOldPeriodStart = getMonthWeekPeriod(monthDateKey(-4)).startDateKey;
 const IDS = {
   save: "91111111-1111-4111-8111-111111111111",
   stale: "92222222-2222-4222-8222-222222222222",
@@ -48,6 +50,9 @@ const IDS = {
   correctionSecond: "96666666-6666-4666-8666-666666666666",
   invalid: "97777777-7777-4777-8777-777777777777",
   correctionNoop: "98888888-8888-4888-8888-888888888888",
+  historicalSave: "99999999-9999-4999-8999-999999999999",
+  historicalSubmit: "9aaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  historicalCorrection: "9bbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
 };
 
 const createAssigned = async (suffix) => {
@@ -154,7 +159,7 @@ describe("Weekly Check-in lifecycle", () => {
     expect(await WeeklyCheckin.countDocuments()).toBe(1);
   });
 
-  it("requires a canonical period start and bounds writes to the current or previous period", async () => {
+  it("requires a canonical period key and bounds writes to four reporting months", async () => {
     const { client } = await createAssigned("window");
     const nonMonday = await saveCheckin(
       client.accessToken,
@@ -168,16 +173,57 @@ describe("Weekly Check-in lifecycle", () => {
       0,
       IDS.stale,
     );
-    const old = await saveCheckin(
+    const historical = await saveCheckin(
       client.accessToken,
-      expiredPeriodStart,
+      historicalPeriodStart,
       0,
       IDS.submit,
+    );
+    const tooOld = await saveCheckin(
+      client.accessToken,
+      tooOldPeriodStart,
+      0,
+      IDS.invalid,
     );
 
     expect(nonMonday.status).toBe(400);
     expect(future.status).toBe(422);
-    expect(old.status).toBe(422);
+    expect(historical.status).toBe(200);
+    expect(tooOld.status).toBe(422);
+  });
+
+  it("allows one historical submission and rejects every later correction", async () => {
+    const { client } = await createAssigned("historical-once");
+    const saved = await saveCheckin(
+      client.accessToken,
+      historicalPeriodStart,
+      0,
+      IDS.historicalSave,
+    );
+    const submitted = await withAuth(
+      request(app)
+        .post(`/api/weekly-checkins/${historicalPeriodStart}/submit`)
+        .send({
+          expectedRevision: saved.body.data.revision,
+          requestId: IDS.historicalSubmit,
+        }),
+      client.accessToken,
+    );
+    const corrected = await withAuth(
+      request(app)
+        .post(`/api/weekly-checkins/${historicalPeriodStart}/corrections`)
+        .send({
+          expectedRevision: submitted.body.data.revision,
+          requestId: IDS.historicalCorrection,
+          reason: "Thử thay đổi báo cáo lịch sử",
+          patch: bodyPatch({ weightKg: 71 }),
+        }),
+      client.accessToken,
+    );
+
+    expect(submitted.body.data.status).toBe("submitted");
+    expect(corrected.status).toBe(409);
+    expect(corrected.body.code).toBe("WEEKLY_CHECKIN_HISTORICAL_LOCKED");
   });
 
   it("allows exactly one correction, preserves its audit reason and replays it idempotently", async () => {

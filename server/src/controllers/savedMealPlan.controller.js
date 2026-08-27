@@ -3,6 +3,7 @@ import {
   createSavedMealPlan,
   getOwnedSavedMealPlan,
   listOwnedSavedMealPlans,
+  renameSavedMealPlan,
   reviseSavedMealPlan,
 } from "../services/savedMealPlan.service.js";
 import {
@@ -59,6 +60,20 @@ export const reviseMySavedMealPlan = async (req, res) => {
     return res.json({ success: true, ...result });
   } catch (error) {
     return sendError(res, error, "saved_meal_plan.revise_failed");
+  }
+};
+
+export const renameMySavedMealPlan = async (req, res) => {
+  privateResponse(res);
+  try {
+    const result = await renameSavedMealPlan({
+      actor: actor(req),
+      planId: req.params.id,
+      input: req.body,
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    return sendError(res, error, "saved_meal_plan.rename_failed");
   }
 };
 

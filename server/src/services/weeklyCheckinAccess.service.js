@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import {
   getMonthWeekPeriod,
-  getPreviousMonthWeekPeriod,
   getVietnamDateKey,
   parseDateKey,
 } from "../utils/dateKey.js";
@@ -43,17 +42,25 @@ export const assertWeeklyCheckinEditWindow = (
   assertMonthWeekPeriodKey(weekStartDateKey);
   const today = getVietnamDateKey(now);
   const currentPeriod = getMonthWeekPeriod(today);
-  const previousPeriod = getPreviousMonthWeekPeriod(today);
-  if (
-    weekStartDateKey !== currentPeriod.startDateKey &&
-    weekStartDateKey !== previousPeriod.startDateKey
-  ) {
-    throw weeklyCheckinError(
-      422,
-      "Chỉ có thể ghi báo cáo của kỳ hiện tại hoặc kỳ liền trước",
-      "WEEKLY_CHECKIN_EDIT_WINDOW_CLOSED",
-    );
-  }
+  if (weekStartDateKey === currentPeriod.startDateKey) return "current";
+
+  const selectedPeriod = getMonthWeekPeriod(weekStartDateKey);
+  const currentMonth =
+    Number(today.slice(0, 4)) * 12 + Number(today.slice(5, 7));
+  const selectedMonth =
+    Number(selectedPeriod.rangeStartDateKey.slice(0, 4)) * 12 +
+    Number(selectedPeriod.rangeStartDateKey.slice(5, 7));
+  const monthAge = currentMonth - selectedMonth;
+  const isHistorical =
+    selectedPeriod.endDateKey < currentPeriod.rangeStartDateKey;
+
+  if (isHistorical && monthAge >= 0 && monthAge <= 3) return "historical";
+
+  throw weeklyCheckinError(
+    422,
+    "Chỉ có thể ghi kỳ hiện tại hoặc kỳ đã qua trong ba tháng gần nhất",
+    "WEEKLY_CHECKIN_EDIT_WINDOW_CLOSED",
+  );
 };
 
 export const resolveWeeklyCheckinWriteAccess = async ({

@@ -63,7 +63,7 @@ const ProgressPage = ({ embedded = false }) => {
 
   return (
     <>
-      <SEO title="Tiến trình cơ thể và huấn luyện" noindex />
+      <SEO title="Tiến trình cơ thể và tập luyện" noindex />
       {!embedded && <Header />}
       <PageContainer
         className={
@@ -139,9 +139,6 @@ const ProgressPage = ({ embedded = false }) => {
                   </div>
                 }
               />
-              <p className="text-right text-xs text-slate-500">
-                Phiên bản tổng hợp {query.data.formulaVersion.replace("progress-", "")} · múi giờ Việt Nam
-              </p>
             </>
           )}
         </div>

@@ -3,6 +3,7 @@ import {
   correctDailyJournal,
   saveDailyJournal,
   submitDailyJournal,
+  submitDailyJournalNutrition,
 } from "../services/dailyJournal.service.js";
 import {
   getMyDailyJournal,
@@ -81,6 +82,10 @@ export const submitMyJournal = mutate(
 export const correctMyJournal = mutate(
   correctDailyJournal,
   "daily_journal.correction_failed",
+);
+export const submitMyJournalNutrition = mutate(
+  submitDailyJournalNutrition,
+  "daily_journal.nutrition_submit_failed",
 );
 
 export const getMyJournalRevisions = async (req, res) => {

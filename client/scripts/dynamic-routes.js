@@ -1,13 +1,15 @@
 const PRODUCTION_API_BASE = "https://api.htcoachingweb.io.vn/api";
 const RECIPE_PAGE_SIZE = 50;
-const RECIPE_PAGE_CONCURRENCY = 4;
-const MAX_RECIPE_PAGES = 1_000;
+const EXERCISE_PAGE_SIZE = 500;
+const DYNAMIC_PAGE_CONCURRENCY = 4;
+const MAX_DYNAMIC_PAGES = 1_000;
 
 const emptyContent = () => ({
   stories: [],
   trainers: [],
   blogs: [],
   recipes: [],
+  exercises: [],
 });
 
 const sourceDefinitions = [
@@ -38,6 +40,17 @@ const sourceDefinitions = [
       `/recipes?limit=${RECIPE_PAGE_SIZE}&page=${page}&view=prerender`,
     extract: (response) => response?.data?.data,
     extractPagination: (response) => response?.data?.pagination,
+    itemIdentity: (item) => String(item?.slug || ""),
+  },
+  {
+    key: "exercises",
+    label: "exercises",
+    path: `/exercises?limit=${EXERCISE_PAGE_SIZE}&page=1`,
+    pagePath: (page) =>
+      `/exercises?limit=${EXERCISE_PAGE_SIZE}&page=${page}`,
+    extract: (response) => response?.data?.data,
+    extractPagination: (response) => response?.data?.pagination,
+    itemIdentity: (item) => String(item?._id || ""),
   },
 ];
 
@@ -111,7 +124,7 @@ const parsePagination = (source, response) => {
     parsed.limit < 1 ||
     !Number.isSafeInteger(parsed.totalPages) ||
     parsed.totalPages < 0 ||
-    parsed.totalPages > MAX_RECIPE_PAGES ||
+    parsed.totalPages > MAX_DYNAMIC_PAGES ||
     parsed.totalPages !== Math.ceil(parsed.total / parsed.limit)
   ) {
     throw new TypeError("Dynamic route pagination is invalid");
@@ -143,10 +156,10 @@ const fetchSourceContent = async ({
   for (
     let batchStart = 2;
     batchStart <= firstPagination.totalPages;
-    batchStart += RECIPE_PAGE_CONCURRENCY
+    batchStart += DYNAMIC_PAGE_CONCURRENCY
   ) {
     const batchEnd = Math.min(
-      batchStart + RECIPE_PAGE_CONCURRENCY - 1,
+      batchStart + DYNAMIC_PAGE_CONCURRENCY - 1,
       firstPagination.totalPages,
     );
     const pages = Array.from(
@@ -182,9 +195,12 @@ const fetchSourceContent = async ({
     throw new TypeError("Dynamic route pagination is incomplete");
   }
 
-  const slugs = items.map((item) => String(item?.slug || ""));
-  if (slugs.some((slug) => !slug) || new Set(slugs).size !== slugs.length) {
-    throw new TypeError("Dynamic route pagination contains invalid slugs");
+  const identities = items.map((item) => source.itemIdentity?.(item) || "");
+  if (
+    identities.some((identity) => !identity) ||
+    new Set(identities).size !== identities.length
+  ) {
+    throw new TypeError("Dynamic route pagination contains invalid identities");
   }
 
   return items;

@@ -57,35 +57,65 @@ export const getMonthWeekPeriods = (dateKey) => {
   const { year, month } = parseDateKey(dateKey);
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const monthPrefix = `${year}-${pad(month)}`;
-  const periods = [];
+  const rawPeriods = [];
   let startDay = 1;
 
   while (startDay <= lastDay) {
     const startDateKey = `${monthPrefix}-${pad(startDay)}`;
     const daysUntilSunday = 6 - getAppDayOfWeek(startDateKey);
     const endDay = Math.min(lastDay, startDay + daysUntilSunday);
-    periods.push({
-      index: periods.length + 1,
+    rawPeriods.push({
       startDateKey,
+      rangeStartDateKey: startDateKey,
       endDateKey: `${monthPrefix}-${pad(endDay)}`,
     });
     startDay = endDay + 1;
   }
 
-  return periods;
+  if (rawPeriods.length > 1) {
+    const first = rawPeriods[0];
+    const firstLength = Number(first.endDateKey.slice(-2));
+    if (firstLength < 7) {
+      rawPeriods.splice(0, 2, {
+        ...rawPeriods[1],
+        rangeStartDateKey: first.rangeStartDateKey,
+      });
+    }
+  }
+
+  if (rawPeriods.length > 1) {
+    const last = rawPeriods.at(-1);
+    const lastLength =
+      Number(last.endDateKey.slice(-2)) -
+      Number(last.rangeStartDateKey.slice(-2)) +
+      1;
+    if (lastLength < 7) {
+      rawPeriods.splice(-2, 2, {
+        ...rawPeriods.at(-2),
+        endDateKey: last.endDateKey,
+      });
+    }
+  }
+
+  return rawPeriods.map((period, index) => ({
+    index: index + 1,
+    ...period,
+  }));
 };
 
 export const getMonthWeekPeriod = (dateKey) => {
   parseDateKey(dateKey);
   return getMonthWeekPeriods(dateKey).find(
-    ({ startDateKey, endDateKey }) =>
-      dateKey >= startDateKey && dateKey <= endDateKey,
+    ({ rangeStartDateKey, endDateKey }) =>
+      dateKey >= rangeStartDateKey && dateKey <= endDateKey,
   );
 };
 
 export const getPreviousMonthWeekPeriod = (dateKey) => {
   const currentPeriod = getMonthWeekPeriod(dateKey);
-  return getMonthWeekPeriod(addDaysToDateKey(currentPeriod.startDateKey, -1));
+  return getMonthWeekPeriod(
+    addDaysToDateKey(currentPeriod.rangeStartDateKey, -1),
+  );
 };
 
 export const getVietnamDayRangeUtc = (dateKey) => {

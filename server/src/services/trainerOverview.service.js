@@ -25,6 +25,8 @@ const sanitizeToday = async ({ today, trainerId, clientId }) => {
   const journal = today.sections.journal?.day;
   if (!journal) return today;
   const visibleLineages = await allowedHabitLineages({ trainerId, clientId });
+  const journalSubmitted = journal.status === "submitted";
+  const nutritionSubmitted = Boolean(journal.nutrition?.submittedAt);
   return {
     ...today,
     capabilities: {
@@ -38,10 +40,40 @@ const sanitizeToday = async ({ today, trainerId, clientId }) => {
         ...today.sections.journal,
         day: {
           ...journal,
-          notes: { shared: journal.notes?.shared || "" },
-          habitCompletions: (journal.habitCompletions || []).filter(
-            (item) => visibleLineages.has(item.lineageKey),
-          ),
+          wellness: journalSubmitted
+            ? journal.wellness
+            : {
+                sleepHours: null,
+                waterMl: null,
+                steps: null,
+                energy: null,
+                hunger: null,
+                stress: null,
+                soreness: null,
+                pain: null,
+                painArea: "",
+              },
+          notes: {
+            shared: journalSubmitted ? journal.notes?.shared || "" : "",
+          },
+          habitCompletions: journalSubmitted
+            ? (journal.habitCompletions || []).filter((item) =>
+                visibleLineages.has(item.lineageKey),
+              )
+            : [],
+          nutrition: nutritionSubmitted
+            ? journal.nutrition
+            : {
+                assignment: null,
+                entries: [],
+                dailyTotals: {
+                  protein: 0,
+                  carb: 0,
+                  fat: 0,
+                  calories: 0,
+                },
+                submittedAt: null,
+              },
         },
       },
     },

@@ -7,6 +7,7 @@ import { COACHING_SUBMISSION_FIELD_KEYS } from "../constants/coachingSubmissionF
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const SAFE_INTERNAL_PATH_PATTERN = /^\/(?![\\/])[^\s\\]*$/;
 const MISSING_FIELD_KEYS = new Set(COACHING_SUBMISSION_FIELD_KEYS);
+const TASK_REPORT_SECTIONS = new Set(["journal", "nutrition-report"]);
 
 const normalizedMissingFields = (values) => [
   ...new Set(
@@ -35,10 +36,13 @@ const trainerClientDeepLink = ({
   section,
 }) => {
   const base = "/trainer/clients/" + encodeURIComponent(String(clientId));
-  const dateQuery = DATE_KEY_PATTERN.test(String(contextDateKey || ""))
-    ? "?date=" + encodeURIComponent(contextDateKey)
-    : "";
-  return base + dateQuery + "#" + section;
+  const params = new URLSearchParams();
+  if (TASK_REPORT_SECTIONS.has(section)) params.set("tab", "tasks");
+  if (DATE_KEY_PATTERN.test(String(contextDateKey || ""))) {
+    params.set("date", contextDateKey);
+  }
+  const query = params.toString();
+  return base + (query ? "?" + query : "") + "#" + section;
 };
 
 const clientWeeklyDeepLink = ({ contextDateKey }) =>
@@ -62,6 +66,13 @@ const TYPE_CONFIG = {
       clientEventTitle(clientName, "đã cập nhật nhật ký ngày"),
     deepLink: (context) =>
       trainerClientDeepLink({ ...context, section: "journal" }),
+  },
+  nutrition_submitted: {
+    category: "journal",
+    title: ({ clientName }) =>
+      clientEventTitle(clientName, "đã gửi báo cáo dinh dưỡng"),
+    deepLink: (context) =>
+      trainerClientDeepLink({ ...context, section: "nutrition-report" }),
   },
   coaching_comment_created: {
     category: "comments",

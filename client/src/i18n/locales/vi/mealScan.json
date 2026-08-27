@@ -239,7 +239,7 @@
     "q1": "Quét món ăn có cho kết quả chính xác tuyệt đối không?",
     "a1": "Không. Kết quả là khoảng ước tính từ hình ảnh và có thể sai do khẩu phần, dầu, sốt hoặc nguyên liệu bị che khuất.",
     "q2": "HTCOACHING có lưu ảnh món ăn không?",
-    "a2": "Trong phiên bản này, ảnh chỉ được nén và gửi tạm thời để phân tích, không lưu vào hồ sơ, cơ sở dữ liệu hoặc Cloudinary.",
+    "a2": "Trong tính năng này, ảnh chỉ được nén và gửi tạm thời để phân tích, không lưu vào hồ sơ, cơ sở dữ liệu hoặc Cloudinary.",
     "q3": "Tôi nên làm gì để ước tính sát hơn?",
     "a3": "Hãy chụp đủ sáng, lấy trọn phần ăn, dùng góc nhìn rõ và chỉnh lại gram khi bạn biết khẩu phần thực tế."
   }

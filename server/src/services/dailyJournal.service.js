@@ -18,6 +18,7 @@ import {
   normalizeJournalPatch,
 } from "./dailyJournalPatch.service.js";
 import {
+  buildNutritionSubmissionFields,
   canonicalizeNutritionFields,
 } from "./dailyJournalNutrition.service.js";
 import {
@@ -69,7 +70,8 @@ const applyCommand = async ({
   }
 
   const patchFields =
-    action === "submit" && patch === undefined
+    (action === "submit" || action === "nutrition_submit") &&
+    patch === undefined
       ? {}
       : normalizeJournalPatch(patch);
   const payloadFingerprint = journalFingerprint({
@@ -119,6 +121,7 @@ const applyCommand = async ({
       if (
         !journal &&
         (action === "correction" ||
+          action === "nutrition_submit" ||
           (action === "submit" && Object.keys(patchFields).length === 0))
       ) {
         throw journalError(
@@ -143,7 +146,27 @@ const applyCommand = async ({
           "STALE_REVISION",
         );
       }
-      if (journal?.status === "submitted" && action === "update") {
+      const nutritionPatch = Object.keys(patchFields).some((path) =>
+        path.startsWith("nutrition."),
+      );
+      const nutritionOnlyPatch =
+        Object.keys(patchFields).length > 0 &&
+        Object.keys(patchFields).every((path) => path.startsWith("nutrition."));
+      if (
+        journal?.nutrition?.submittedAt &&
+        (nutritionPatch || action === "nutrition_submit")
+      ) {
+        throw journalError(
+          409,
+          "Báo cáo dinh dưỡng đã gửi cho HLV và không thể chỉnh sửa",
+          "NUTRITION_ALREADY_SUBMITTED",
+        );
+      }
+      if (
+        journal?.status === "submitted" &&
+        action === "update" &&
+        !nutritionOnlyPatch
+      ) {
         throw journalError(
           409,
           "Nhật ký đã submit, hãy dùng correction có lý do",
@@ -179,12 +202,15 @@ const applyCommand = async ({
           trainerIdAtCreation: assignment.trainerId,
           dateKey,
         });
-      const commandFields = {
-        ...patchFields,
-        ...(action === "submit"
-          ? { status: "submitted", submittedAt: now }
-          : {}),
-      };
+      const commandFields =
+        action === "nutrition_submit"
+          ? buildNutritionSubmissionFields({ journal, now })
+          : {
+              ...patchFields,
+              ...(action === "submit"
+                ? { status: "submitted", submittedAt: now }
+                : {}),
+            };
       const nutritionFields = await canonicalizeNutritionFields({
         clientId: actor.id,
         journal,
@@ -267,18 +293,29 @@ const applyCommand = async ({
         changes,
         session,
       });
-      if (action === "submit" || action === "correction") {
+      if (
+        action === "submit" ||
+        action === "correction" ||
+        action === "nutrition_submit"
+      ) {
         await createInAppNotification({
           recipientId: assignment.trainerId,
           actorId: actor.id,
           clientId: actor.id,
           type:
-            action === "submit" ? "journal_submitted" : "journal_corrected",
+            action === "submit"
+              ? "journal_submitted"
+              : action === "nutrition_submit"
+                ? "nutrition_submitted"
+                : "journal_corrected",
           targetType: "daily_journal",
           targetId: updated._id,
           clientName: assignment.clientName,
           contextDateKey: dateKey,
-          missingFields: getMissingDailyJournalFieldKeys(updated),
+          missingFields:
+            action === "nutrition_submit"
+              ? []
+              : getMissingDailyJournalFieldKeys(updated),
           dedupeKey:
             "daily-journal:" + action + ":" +
             updated._id +
@@ -328,3 +365,6 @@ export const submitDailyJournal = (input) =>
 
 export const correctDailyJournal = (input) =>
   applyCommand({ ...input, action: "correction" });
+
+export const submitDailyJournalNutrition = (input) =>
+  applyCommand({ ...input, action: "nutrition_submit" });

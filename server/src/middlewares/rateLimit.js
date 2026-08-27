@@ -289,3 +289,16 @@ export const recipeReviewMutationLimiter = rateLimit({
     message: "Bạn đã thao tác đánh giá quá nhiều lần. Vui lòng thử lại sau.",
   },
 });
+
+export const exerciseReviewMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => req.user?.id?.toString() ?? "anonymous",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "EXERCISE_REVIEW_RATE_LIMITED",
+    message: "Bạn đã thao tác đánh giá quá nhiều lần. Vui lòng thử lại sau.",
+  },
+});

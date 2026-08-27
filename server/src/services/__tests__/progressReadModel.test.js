@@ -28,6 +28,11 @@ describe("progressReadModel", () => {
       expect(metric).toEqual({ numerator: 0, denominator: 0, percent: null });
     }
     expect(result.wellness.sleepHours).toEqual({ average: null, count: 0 });
+    expect(result.wellness.energy).toEqual({
+      latest: null,
+      latestDateKey: null,
+      count: 0,
+    });
     expect(result.weightTrend).toEqual({ points: [], changeKg: null });
     expect(result.bodyProgress).toEqual({
       source: {
@@ -221,7 +226,11 @@ describe("progressReadModel", () => {
     expect(result.compliance.mealCompliance.percent).toBe(50);
     expect(result.compliance.habitCompliance.percent).toBe(50);
     expect(result.wellness.sleepHours).toEqual({ average: 7, count: 2 });
-    expect(result.wellness.energy).toEqual({ average: 7, count: 1 });
+    expect(result.wellness.energy).toEqual({
+      latest: 7,
+      latestDateKey: "2026-07-23",
+      count: 1,
+    });
     expect(result.wellness.daily).toEqual([
       expect.objectContaining({
         dateKey: "2026-07-23",

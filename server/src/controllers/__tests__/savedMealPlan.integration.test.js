@@ -28,6 +28,7 @@ const IDS = {
   create: "d1111111-1111-4111-8111-111111111111",
   reused: "d2222222-2222-4222-8222-222222222222",
   revise: "d3333333-3333-4333-8333-333333333333",
+  rename: "d3333333-3333-4333-8333-333333333334",
   archive: "d4444444-4444-4444-8444-444444444444",
 };
 
@@ -120,6 +121,27 @@ afterAll(async () => {
 });
 
 describe("Saved Meal Plan command contract", () => {
+  it("enforces the 30-character clean title policy", async () => {
+    const { client } = await createActiveClient("title-policy");
+    const foods = await createFoods();
+
+    const tooLong = await postPlan(
+      client.accessToken,
+      payloadFor(foods, { title: "a".repeat(31) }),
+    );
+    const prohibited = await postPlan(
+      client.accessToken,
+      payloadFor(foods, {
+        requestId: IDS.reused,
+        title: "Thực đơn xhct",
+      }),
+    );
+
+    expect(tooLong.status).toBe(400);
+    expect(prohibited.status).toBe(400);
+    expect(prohibited.body.code).toBe("INVALID_SAVED_MEAL_PLAN_TITLE");
+  });
+
   it("recalculates canonical nutrition and replays create exactly once", async () => {
     const { client, trainer } = await createActiveClient("create");
     const foods = await createFoods();
@@ -236,6 +258,51 @@ describe("Saved Meal Plan command contract", () => {
     });
     expect(list.body.data.items).toHaveLength(1);
     expect(list.body.data.items[0].version).toBe(2);
+  });
+
+  it("renames through an immutable snapshot even when a Food was removed", async () => {
+    const { client } = await createActiveClient("rename");
+    const foods = await createFoods();
+    const created = await postPlan(client.accessToken, payloadFor(foods));
+    await Food.deleteMany({});
+
+    const renamed = await withAuth(
+      request(app)
+        .patch(`/api/saved-meal-plans/${created.body.data._id}/title`)
+        .send({
+          requestId: IDS.rename,
+          expectedVersion: 1,
+          title: "Ngày tập chân",
+        }),
+      client.accessToken,
+    );
+    const replayed = await withAuth(
+      request(app)
+        .patch(`/api/saved-meal-plans/${created.body.data._id}/title`)
+        .send({
+          requestId: IDS.rename,
+          expectedVersion: 1,
+          title: "Ngày tập chân",
+        }),
+      client.accessToken,
+    );
+    const oldSnapshot = await withAuth(
+      request(app).get(`/api/saved-meal-plans/${created.body.data._id}`),
+      client.accessToken,
+    );
+
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.data).toMatchObject({
+      title: "Ngày tập chân",
+      version: 2,
+      totals: created.body.data.totals,
+    });
+    expect(replayed.status).toBe(200);
+    expect(replayed.body).toMatchObject({
+      idempotentReplay: true,
+      data: { _id: renamed.body.data._id, version: 2 },
+    });
+    expect(oldSnapshot.body.data.status).toBe("superseded");
   });
 
   it("blocks IDOR, missing CSRF and disabled writes without requiring active coaching", async () => {

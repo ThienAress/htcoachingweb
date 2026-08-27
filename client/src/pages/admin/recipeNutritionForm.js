@@ -7,6 +7,8 @@ export const CORE_NUTRITION_FIELDS = [
   { key: "salt", label: "Muối", unit: "g", step: "0.1" },
 ];
 
+export const MAX_ADDITIONAL_RECIPE_NUTRIENTS = 60;
+
 export const createAdditionalNutritionRow = (item = {}) => ({
   rowId: globalThis.crypto?.randomUUID?.() || String(Date.now() + Math.random()),
   label: item.label || "",

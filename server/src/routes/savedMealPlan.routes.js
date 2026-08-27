@@ -6,6 +6,7 @@ import {
   exportMySavedMealPlans,
   getMySavedMealPlan,
   listMySavedMealPlans,
+  renameMySavedMealPlan,
   reviseMySavedMealPlan,
 } from "../controllers/savedMealPlan.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
@@ -17,6 +18,7 @@ import {
   validateArchiveSavedMealPlan,
   validateCreateSavedMealPlan,
   validateDeleteSavedMealPlans,
+  validateRenameSavedMealPlan,
   validateReviseSavedMealPlan,
   validateSavedMealPlanExport,
   validateSavedMealPlanId,
@@ -47,6 +49,13 @@ router.post(
   createMySavedMealPlan,
 );
 router.get("/:id", validateSavedMealPlanId, getMySavedMealPlan);
+router.patch(
+  "/:id/title",
+  savedMealPlanMutationLimiter,
+  csrfProtection,
+  validateRenameSavedMealPlan,
+  renameMySavedMealPlan,
+);
 router.post(
   "/:id/revisions",
   savedMealPlanMutationLimiter,

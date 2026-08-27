@@ -42,12 +42,18 @@ nguồn canonical trước khi thay đổi code.
 - [Báo cáo coaching, điều hướng tiến trình và thông báo đúng ngữ cảnh](./specs/coaching-reports-progress-and-notifications.md)
 - [Biểu đồ Tiến trình cơ thể theo báo cáo tuần](./specs/body-progress-chart.md)
 - [Biểu đồ Mức độ thực hiện và Sức khỏe trung bình](./specs/progress-compliance-wellness-charts.md)
+- [Ảnh chữ ký Bên A và kỳ báo cáo tuần linh hoạt](./specs/contract-signature-upload-and-reporting-periods.md)
+- [Promotion release và acceptance staging có ghi dữ liệu an toàn](./specs/release-promotion-and-staging-acceptance.md)
 - [Tự động đối soát chuyển khoản và cộng ví qua SePay spec](./specs/automatic-wallet-deposit-settlement.md)
 - [Service access and quota matrix 2026-08-07](./reports/service-access-matrix-2026-08-07.md)
 - [SEO indexing remediation evidence 2026-08-10](./reports/seo-indexing-remediation-2026-08-10.md)
 - [Architecture Decision Records](./architecture/adr/README.md)
 - [AI Technology Radar](./architecture/ai-technology-radar.md)
 - [Release checklist](./operations/release-checklist.md)
+- [Quy định JSON hướng dẫn và độ phức tạp bài tập](./operations/exercise-setup-json-rules.md)
+- [Danh sách bài tập và mô tả trên production](./operations/production-exercises-for-setup.md)
+- [Quy định JSON dinh dưỡng công thức](./operations/recipe-nutrition-json-rules.md)
+- [Danh sách công thức và nguyên liệu trên production](./operations/production-recipes-for-nutrition.md)
 - [Incident runbook](./operations/runbooks/incident-runbook.md)
 - [SePay wallet settlement runbook](./operations/runbooks/sepay-wallet-deposit-settlement.md)
 - [Single-account environment sync runbook](./operations/runbooks/single-account-environment-sync.md)
@@ -63,6 +69,7 @@ nguồn canonical trước khi thay đổi code.
 - [Backend foundations and advanced concepts audit 2026-08-13](./audits/backend-foundations-and-advanced-concepts-2026-08-13.md)
 - [Skill Radar audit 2026-08](./audits/2026-08-skill-radar.md)
 - [Production rollback](./operations/runbooks/production-rollback-runbook.md)
+- [Release promotion và live staging acceptance](./operations/runbooks/release-promotion.md)
 
 ## Quy ước
 

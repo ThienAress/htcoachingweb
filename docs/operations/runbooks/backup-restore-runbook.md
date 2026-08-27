@@ -32,6 +32,19 @@ Không upload archive, key hoặc manifest riêng tư lên Git/public artifact.
 Nếu chưa có destination và key custodian được owner phê duyệt, giữ
 `offDeviceRecoveryVerified=false`.
 
+### Canonical HTCOACHING off-device destination
+
+- Google Drive owner bắt buộc: `hoangthiengym1999@gmail.com`.
+- Destination: `My Drive/htcoachingweb/production-backups`.
+- Operator phải xác minh email đầy đủ trên Google Drive account chip ngay trước
+  mỗi upload. Nếu đang ở tài khoản khác, kể cả tài khoản gần giống
+  `hoangthiengym99@gmail.com`, dừng trước khi chọn file.
+- Chỉ encrypted `.7z` archive được upload. Recovery password nằm riêng trong
+  Bitwarden; DPAPI key, private manifest, checksum, database URI và plaintext
+  archive không được upload lên Drive.
+- Off-device drill phải dùng recovery password tải/lấy lại từ Bitwarden. Local
+  DPAPI key không được dùng thay cho bằng chứng independent key custody.
+
 ## PITR decision gate
 
 Atlas Free không có Cloud Backup/PITR. Chỉ đổi

@@ -1,5 +1,9 @@
 import crypto from "node:crypto";
-import { parseDateKey } from "../utils/dateKey.js";
+import {
+  addDaysToDateKey,
+  getAppDayOfWeek,
+  parseDateKey,
+} from "../utils/dateKey.js";
 import { habitError } from "./coachingHabitAccess.service.js";
 
 const UUID_PATTERN =
@@ -29,7 +33,29 @@ export const assertHabitRequestId = (requestId) => {
   }
 };
 
-export const normalizeHabitInput = (input, { createdByRole, scheduleOverride = null }) => {
+const normalizeSchedule = (schedule, createdByRole) => {
+  const daysOfWeek = [...schedule.daysOfWeek].sort(
+    (left, right) => left - right,
+  );
+  if (createdByRole !== "trainer") {
+    return {
+      daysOfWeek,
+      startDateKey: schedule.startDateKey,
+      endDateKey: schedule.endDateKey || null,
+    };
+  }
+  const startDateKey = addDaysToDateKey(
+    schedule.startDateKey,
+    -getAppDayOfWeek(schedule.startDateKey),
+  );
+  return {
+    daysOfWeek,
+    startDateKey,
+    endDateKey: addDaysToDateKey(startDateKey, 6),
+  };
+};
+
+export const normalizeHabitInput = (input, { createdByRole }) => {
   assertHabitRequestId(input?.requestId);
   const allowed = new Set([
     "requestId",
@@ -99,11 +125,10 @@ export const normalizeHabitInput = (input, { createdByRole, scheduleOverride = n
         ? ""
         : text(input.description, { field: "description", max: 500 }),
     category: input.category,
-    schedule: scheduleOverride || {
-      daysOfWeek: [...days].sort((left, right) => left - right),
-      startDateKey: schedule.startDateKey,
-      endDateKey,
-    },
+    schedule: normalizeSchedule(
+      { ...schedule, daysOfWeek: days, endDateKey },
+      createdByRole,
+    ),
     target,
     unit:
       input.unit === undefined

@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import mongoose from "mongoose";
 import CoachingHabit from "../models/CoachingHabit.js";
-import { getVietnamDateKey } from "../utils/dateKey.js";
 import { incrementMetric } from "../observability/metrics.js";
 import {
   assertHabitWritesEnabled,
@@ -61,17 +60,7 @@ export const createCoachingHabit = async ({ actor, clientId, input }) => {
   assertHabitWritesEnabled();
   const createdByRole = actor.role === "user" ? "user" : "trainer";
   const ownerId = createdByRole === "trainer" ? clientId : actor.id;
-  const normalized = normalizeHabitInput(input, {
-    createdByRole,
-    scheduleOverride:
-      createdByRole === "trainer"
-        ? {
-            daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-            startDateKey: getVietnamDateKey(),
-            endDateKey: null,
-          }
-        : null,
-  });
+  const normalized = normalizeHabitInput(input, { createdByRole });
   const payloadFingerprint = habitFingerprint({
     commandType: "create",
     ownerId: String(ownerId),
@@ -145,17 +134,14 @@ export const createCoachingHabit = async ({ actor, clientId, input }) => {
   return { data: toCoachingHabitDto(result), idempotentReplay };
 };
 
-const normalizeUpdateInput = (input, { createdByRole, scheduleOverride }) => {
+const normalizeUpdateInput = (input, { createdByRole }) => {
   if (!Number.isInteger(input?.expectedVersion) || input.expectedVersion < 1) {
     throw habitError(400, "expectedVersion không hợp lệ", "INVALID_HABIT_VERSION");
   }
   const { expectedVersion, ...definitionInput } = input;
   return {
     expectedVersion,
-    definition: normalizeHabitInput(definitionInput, {
-      createdByRole,
-      scheduleOverride,
-    }),
+    definition: normalizeHabitInput(definitionInput, { createdByRole }),
   };
 };
 
@@ -164,14 +150,6 @@ export const updateCoachingHabit = async ({ actor, habitId, input }) => {
   const baseline = await findHabitForMutation({ actor, habitId });
   const normalized = normalizeUpdateInput(input, {
     createdByRole: baseline.createdByRole,
-    scheduleOverride:
-      baseline.createdByRole === "trainer"
-        ? {
-            daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-            startDateKey: baseline.schedule.startDateKey,
-            endDateKey: null,
-          }
-        : null,
   });
   const payloadFingerprint = habitFingerprint({
     commandType: "update",

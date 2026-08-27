@@ -17,11 +17,13 @@
 | AI Chat/tool | `$ai-chat-system` hoặc `$new-tool` → `$ai-check` → `$cleanup-delivery` |
 | UI component/layout | `$ui-quality` → implementation → baseline regression `ui:audit` → rendered/manual `$ui-check` → `$cleanup-delivery` |
 | Dịch vụ có quota/dùng thử/paywall | `$service-access-policy` → `$impact-check` → tests → `$code-review` → `$cleanup-delivery` |
+| Production database backup/off-device restore | `$production-backup` → backup/restore runbook → recovery gates → `$cleanup-delivery` |
 | Codebase health/periodic review | `$audit` → findings/plan backlog; không tự sửa nếu user chỉ yêu cầu review |
 | PDF project artifact | `$pdf-generation` → focused verification → `$cleanup-delivery` |
 | Theo dõi upstream skill/repo | user gọi `$skill-radar`; scan + audit draft, không tự sửa local canonical source |
 | Skill/rule có dấu hiệu stale | user gọi `$goad`; audit draft trước, apply chỉ sau approval |
 | Release candidate | user gọi `$pre-deploy`; pipeline điều phối `$qa`, checks và `$ship` |
+| Production promotion | `$pre-deploy` target production → candidate manifest/recovery gate → protected approval → read-only post-deploy observation |
 | Chuyển session/agent | user gọi `$handoff` sau khi cập nhật artifact canonical |
 
 ## Invocation catalog
@@ -49,6 +51,7 @@
 | `$pdf-generation` | model | project PDF reference |
 | `$plan-template` | model | durable implementation planning |
 | `$pre-deploy` | user | full release orchestrator |
+| `$production-backup` | model | production backup và off-device recovery workflow |
 | `$qa` | model | build/test evidence owner |
 | `$schema-change` | model | Mongoose schema workflow |
 | `$service-access-policy` | model | access, quota và entitlement workflow |

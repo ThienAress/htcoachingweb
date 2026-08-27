@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  getMonthWeekPeriod,
+  getMonthWeekPeriods,
+} from "../../utils/vietnamDate";
 
 export const WEEKLY_SUBMISSION_FIELDS = [
   { key: "weightKg", label: "Cân nặng" },
@@ -64,6 +68,42 @@ export const checkinToWeeklyValues = (checkin) =>
   );
 
 export const weeklyCheckinPayload = weeklyValuesToPatch;
+
+export const getWeeklyPeriodWriteMode = ({ period, currentPeriod }) => {
+  if (!period || !currentPeriod) return "closed";
+  if (period.startDateKey === currentPeriod.startDateKey) return "current";
+  return period.endDateKey < currentPeriod.rangeStartDateKey
+    ? "historical"
+    : "closed";
+};
+
+export const getInitialWeeklyPeriodStart = ({
+  dateKey = "",
+  monthDateKey,
+  today,
+}) => {
+  const selectedMonth = String(monthDateKey || "").slice(0, 7);
+  if (String(dateKey || "").slice(0, 7) === selectedMonth) {
+    const requestedPeriod = getMonthWeekPeriod(dateKey);
+    if (requestedPeriod) return requestedPeriod.startDateKey;
+  }
+  if (String(today || "").slice(0, 7) === selectedMonth) {
+    return getMonthWeekPeriod(today)?.startDateKey || "";
+  }
+  return getMonthWeekPeriods(monthDateKey).at(-1)?.startDateKey || "";
+};
+
+export const getWeeklySubmittedLockMessage = ({
+  periodMode,
+  correctionUsed,
+}) => {
+  if (periodMode === "historical") {
+    return "Báo cáo của kỳ đã qua đã được gửi và khóa. Bạn có thể xem lại nhưng không thể cập nhật lần nữa.";
+  }
+  return correctionUsed
+    ? "Báo cáo đã khóa. Bạn đã sử dụng lượt cập nhật duy nhất cho tuần này."
+    : "Báo cáo đã gửi và đang được khóa. Bạn còn một lượt cập nhật cho tuần này.";
+};
 
 export const deriveWeeklyCheckinEditState = ({
   checkin,

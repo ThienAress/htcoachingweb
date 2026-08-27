@@ -7,6 +7,14 @@ const calcCalories = (p, c, f) => round1(p * 4 + c * 4 + f * 9);
 
 const getFoodDisplayMacros = (food) => {
   if (!food) return null;
+  if (food.nutrition) {
+    return {
+      p: round1(Number(food.nutrition.protein || 0)),
+      c: round1(Number(food.nutrition.carb || 0)),
+      f: round1(Number(food.nutrition.fat || 0)),
+      cal: round1(Number(food.nutrition.calories || 0)),
+    };
+  }
   const p = round1(((food.protein || 0) * (food.amount || 0)) / 100);
   const c = round1(((food.carb || 0) * (food.amount || 0)) / 100);
   const f = round1(((food.fat || 0) * (food.amount || 0)) / 100);
@@ -29,7 +37,7 @@ const FoodCell = ({ food, colorClass }) => {
   );
 };
 
-const MealTable = ({ meals = [] }) => {
+const MealTable = ({ footerAction = null, meals = [] }) => {
   const { t } = useTranslation("mealplan");
 
   if (!meals.length) {
@@ -97,6 +105,15 @@ const MealTable = ({ meals = [] }) => {
               );
             })}
           </tbody>
+          {footerAction && (
+            <tfoot>
+              <tr>
+                <td colSpan={5} className="border-t border-gray-700 px-3 py-3 sm:px-5">
+                  <div className="flex justify-end">{footerAction}</div>
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

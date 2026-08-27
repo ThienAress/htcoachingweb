@@ -9,6 +9,7 @@ import {
   getTrainerClientJournal,
   saveMyJournal,
   submitMyJournal,
+  submitMyJournalNutrition,
 } from "../controllers/dailyJournal.controller.js";
 import {
   protect,
@@ -24,6 +25,7 @@ import {
   validateDeleteDailyJournalData,
   validateSaveDailyJournal,
   validateSubmitDailyJournal,
+  validateSubmitDailyJournalNutrition,
   validateTrainerDailyJournalRead,
 } from "../middlewares/validation.js";
 
@@ -65,6 +67,13 @@ router.put(
   csrfProtection,
   validateSaveDailyJournal,
   saveMyJournal,
+);
+router.post(
+  "/:dateKey/nutrition/submit",
+  dailyJournalMutationLimiter,
+  csrfProtection,
+  validateSubmitDailyJournalNutrition,
+  submitMyJournalNutrition,
 );
 router.post(
   "/:dateKey/submit",

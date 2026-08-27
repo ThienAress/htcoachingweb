@@ -159,6 +159,94 @@ const handleApi = (req, res, path) => {
   if (path === "/api/site-settings") {
     return sendJson(res, { success: true, data: {} });
   }
+  if (path === "/api/exercises" && req.method === "GET") {
+    const muscleGroups = ["Chân", "Ngực", "Lưng"];
+    const exercises = Array.from({ length: 30 }, (_, index) => ({
+      _id: `exercise-library-e2e-${index + 1}`,
+      name: index === 0 ? "Goblet Squat" : `Bài tập mẫu ${index + 1}`,
+      imageUrl: "/og-image.png",
+      muscleGroup: muscleGroups[index % muscleGroups.length],
+      description:
+        index === 0
+          ? "Giữ ngực thẳng và hạ hông có kiểm soát."
+          : "Mô tả kỹ thuật bài tập dùng cho kiểm thử giao diện.",
+      technicalDifficultyRating: (index % 5) + 1,
+    }));
+    return sendJson(res, {
+      success: true,
+      data: exercises,
+      pagination: {
+        page: 1,
+        limit: 500,
+        total: exercises.length,
+        totalPages: 1,
+      },
+    });
+  }
+  if (
+    path === "/api/exercises/exercise-library-e2e-1/reviews" &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: {
+        items: [
+          {
+            id: "exercise-review-e2e-1",
+            displayName: "Người tập HT",
+            rating: 5,
+            comment: "Setup rõ ràng, dễ đối chiếu khi tập.",
+            isOwner: false,
+          },
+        ],
+        summary: { total: 1, averageRating: 5 },
+        myReview: null,
+        pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      },
+    });
+  }
+  if (
+    path === "/api/exercises/exercise-library-e2e-1" &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: {
+        _id: "exercise-library-e2e-1",
+        name: "Goblet Squat",
+        imageUrl: "/og-image.png",
+        muscleGroup: "Chân",
+        description: "Giữ ngực thẳng và hạ hông có kiểm soát.",
+        technicalDifficultyRating: 3,
+        videoUrl: "data:video/mp4;base64,AAAA",
+        instructions: [
+          {
+            title: "Chỉnh vị trí chân",
+            description: "Đứng rộng bằng vai và xoay mũi chân nhẹ ra ngoài.",
+          },
+          {
+            title: "Giữ tạ trước ngực",
+            description: "Giữ cổ tay trung lập và khuỷu tay hướng xuống.",
+          },
+        ],
+      },
+    });
+  }
+  if (
+    path === "/api/today-dashboard/prompt-eligibility" &&
+    req.method === "GET"
+  ) {
+    const eligible =
+      actor?.role === "user" &&
+      req.headers["x-e2e-trainer-access"] !== "true";
+    return actor
+      ? sendJson(res, { success: true, data: { eligible } })
+      : sendJson(
+          res,
+          { success: false, message: "Bạn chưa đăng nhập" },
+          401,
+        );
+  }
   if (path === "/api/checkin/me" && req.method === "GET") {
     return sendJson(res, {
       success: true,
@@ -176,10 +264,10 @@ const handleApi = (req, res, path) => {
       },
     });
   }
-  if (
-    path === "/api/today-dashboard/day/" + todayKey &&
-    req.method === "GET"
-  ) {
+  const todayDashboardMatch =
+    /^\/api\/today-dashboard\/day\/(\d{4}-\d{2}-\d{2})$/.exec(path);
+  if (todayDashboardMatch && req.method === "GET") {
+    const dashboardDateKey = todayDashboardMatch[1];
     const emptyItems = (source, deepLink) => ({
       status: "empty",
       source,
@@ -191,7 +279,7 @@ const handleApi = (req, res, path) => {
       success: true,
       data: {
         contractVersion: 2,
-        dateKey: todayKey,
+        dateKey: dashboardDateKey,
         timeZone: "Asia/Ho_Chi_Minh",
         eligibility: {
           status: "active",
@@ -225,7 +313,7 @@ const handleApi = (req, res, path) => {
             source: "training_schedule",
             items: [{
               _id: "schedule-today-e2e",
-              occurrenceDateKey: todayKey,
+              occurrenceDateKey: dashboardDateKey,
               startTime: "09:00",
               endTime: "10:00",
               exerciseType: "E2E Strength Session",
@@ -247,7 +335,7 @@ const handleApi = (req, res, path) => {
           journal: {
             status: "ready",
             source: "daily_journal",
-            day: todayJournal,
+            day: { ...todayJournal, dateKey: dashboardDateKey },
             deepLink: "/today",
             error: null,
           },

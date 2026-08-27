@@ -111,6 +111,13 @@ if (!email.includes("@")) { ... }
   `sets`, `reps`, `tempo`, `RPE`, `RIR`; lần xuất hiện đầu nên có ngữ cảnh tiếng Việt khi cần.
 - Dùng `Báo cáo tuần`, `nhận xét`, `thông báo trong ứng dụng`; không dùng `Weekly Check-in`,
   `review`, `notification`, `in-app` trong copy tiếng Việt nếu có cách diễn đạt tự nhiên.
+- Copy giải thích user-visible chỉ mô tả ý nghĩa của thành phần, dữ liệu hoặc hành động mà
+  khách hàng có thể quan sát. Ví dụ: `Đường nét đứt thể hiện mức trung bình.`
+- Không đưa reasoning thiết kế, chi tiết triển khai, version kỹ thuật hoặc quyết định nội bộ
+  lên UI nếu thông tin đó không cần cho consent, pháp lý, bảo mật hoặc tránh hiểu sai.
+- Giao diện khách hàng và HLV không hiển thị số `version`, `revision`, hậu tố `V1/V2`
+  hoặc nhãn `phiên bản N`. Chỉ ngoại lệ khi pháp lý, audit hoặc xử lý xung đột bắt buộc
+  người dùng phân biệt hai bản ghi; metadata kỹ thuật vẫn được giữ trong API ngầm.
 - Quy tắc này không cho phép đổi identifier, API field, enum, route, metric/log key, test fixture
   hoặc nội dung locale tiếng Anh. Rà copy theo surface đang sửa; thay đổi diện rộng phải có spec
   và test để tránh làm sai thuật ngữ nghiệp vụ.

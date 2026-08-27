@@ -80,7 +80,7 @@ describe("Thông báo trong ứng dụng", () => {
       type: "journal_submitted",
       title: "Khách hàng Hoàng Thiện đã gửi nhật ký ngày",
       deepLink:
-        "/trainer/clients/507f1f77bcf86cd799439011?date=2026-08-23#journal",
+        "/trainer/clients/507f1f77bcf86cd799439011?tab=tasks&date=2026-08-23#journal",
       contextDateKey: "2026-08-23",
     },
     {

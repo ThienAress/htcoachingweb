@@ -40,7 +40,7 @@
   },
   "saved": {
     "title": "Thực đơn đã lưu",
-    "description": "Lưu thực đơn hiện tại để xem lại và dùng khi cần.",
+    "description": "Lưu nhiều thực đơn để dễ dàng xem lại và sử dụng khi cần.",
     "save_current": "Lưu thực đơn hiện tại",
     "saving": "Đang xử lý...",
     "generated_title": "Thực đơn {{target}}",
@@ -51,13 +51,15 @@
     "writes_disabled": "Tính năng lưu thực đơn đang tạm dừng. Vui lòng quay lại sau.",
     "version_conflict": "Thực đơn này vừa được thay đổi. Vui lòng tải lại rồi thử lại.",
     "not_found": "Không tìm thấy thực đơn đã lưu này.",
+    "invalid_title": "Tên thực đơn phải từ 1 đến 30 ký tự và không chứa từ ngữ không phù hợp.",
     "invalid_generated": "Thực đơn hiện tại thiếu dữ liệu thực phẩm chuẩn. Vui lòng tạo lại thực đơn.",
     "empty": "Bạn chưa có thực đơn nào được lưu.",
     "retry": "Thử lại",
-    "update_with_current": "Thay bằng thực đơn hiện tại",
+    "edit": "Chỉnh sửa thực đơn",
     "archive": "Bỏ lưu",
     "create_success": "Đã lưu thực đơn.",
-    "revise_success": "Đã thay bằng thực đơn hiện tại.",
+    "revise_success": "Đã cập nhật thực đơn.",
+    "rename_success": "Đã đổi tên thực đơn.",
     "archive_success": "Đã bỏ lưu thực đơn."
   },
   "selector": {

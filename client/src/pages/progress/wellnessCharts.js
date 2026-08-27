@@ -1,7 +1,4 @@
-import {
-  addDaysToDateKey,
-  isValidDateKey,
-} from "../../utils/vietnamDate";
+import { isValidDateKey } from "../../utils/vietnamDate";
 
 const DEFAULT_WIDTH = 640;
 const WIDE_HEIGHT = 330;
@@ -9,13 +6,20 @@ const COMPACT_HEIGHT = 300;
 
 const roundCoordinate = (value) => Number(value.toFixed(2));
 
-const chartDimensions = (requestedWidth) => {
+const chartDimensions = (requestedWidth, requestedPaddingLeft) => {
   const width = Math.max(280, Number(requestedWidth) || DEFAULT_WIDTH);
   const compact = width < 520;
   const height = compact ? COMPACT_HEIGHT : WIDE_HEIGHT;
-  const padding = compact
+  const defaultPadding = compact
     ? { top: 24, right: 20, bottom: 52, left: 64 }
     : { top: 24, right: 24, bottom: 52, left: 72 };
+  const padding = {
+    ...defaultPadding,
+    left: Math.max(
+      defaultPadding.left,
+      Number(requestedPaddingLeft) || defaultPadding.left,
+    ),
+  };
   return {
     width,
     height,
@@ -27,24 +31,7 @@ const chartDimensions = (requestedWidth) => {
 
 const dateLabel = (dateKey) => {
   const [, month, day] = String(dateKey || "").split("-");
-  return month && day ? `${day}/${month}` : "";
-};
-
-const dailyKeys = (startDateKey, endDateKey) => {
-  if (
-    !isValidDateKey(startDateKey) ||
-    !isValidDateKey(endDateKey) ||
-    startDateKey > endDateKey
-  ) {
-    return [];
-  }
-  const result = [];
-  let cursor = startDateKey;
-  while (cursor <= endDateKey && result.length < 366) {
-    result.push(cursor);
-    cursor = addDaysToDateKey(cursor, 1);
-  }
-  return result;
+  return month && day ? `${Number(day)}/${Number(month)}` : "";
 };
 
 const tickIndexes = (length, maximum) => {
@@ -103,9 +90,12 @@ export const buildWellnessMetricChartModel = (
     endDateKey = null,
     width = DEFAULT_WIDTH,
     domain: fixedDomain = null,
+    includeAverage = true,
+    tickValues = null,
+    paddingLeft = null,
   } = {},
 ) => {
-  const dimensions = chartDimensions(width);
+  const dimensions = chartDimensions(width, paddingLeft);
   const normalizedFixedDomain = normalizeFixedDomain(fixedDomain);
   const measurements = sourcePoints
     .filter(
@@ -123,21 +113,10 @@ export const buildWellnessMetricChartModel = (
     .sort((left, right) => left.dateKey.localeCompare(right.dateKey));
   if (measurements.length === 0) return emptyChart(dimensions);
 
-  const measurementByDate = new Map(
-    measurements.map((point) => [point.dateKey, point]),
-  );
-  const canonicalKeys = dailyKeys(startDateKey, endDateKey);
-  const timelineKeys = [
-    ...new Set([
-      ...(canonicalKeys.length
-        ? canonicalKeys
-        : measurements.map((point) => point.dateKey)),
-      ...measurements.map((point) => point.dateKey),
-    ]),
-  ].sort();
-  const values = timelineKeys.map(
-    (key) => measurementByDate.get(key) || { dateKey: key, value: null },
-  );
+  const values = [
+    ...new Map(measurements.map((point) => [point.dateKey, point])).values(),
+  ];
+  const timelineKeys = values.map((point) => point.dateKey);
   const metricValues = measurements.map(({ value }) => value);
   const domain = resolveDomain(metricValues, normalizedFixedDomain);
   const [domainMin, domainMax] = domain;
@@ -174,13 +153,27 @@ export const buildWellnessMetricChartModel = (
     })
     .filter(Boolean)
     .join(" ");
-  const yTicks = Array.from({ length: 5 }, (_, index) => {
-    const value = domainMax - (index / 4) * (domainMax - domainMin);
-    return {
-      value: Number(value.toFixed(1)),
-      y: roundCoordinate(yFor(value)),
-    };
-  });
+  const normalizedTickValues = Array.isArray(tickValues)
+    ? [
+        ...new Set(
+          tickValues.filter(
+            (value) =>
+              Number.isFinite(value) && value >= domainMin && value <= domainMax,
+          ),
+        ),
+      ].sort((left, right) => right - left)
+    : [];
+  const yTicks = (
+    normalizedTickValues.length > 0
+      ? normalizedTickValues
+      : Array.from(
+          { length: 5 },
+          (_, index) => domainMax - (index / 4) * (domainMax - domainMin),
+        )
+  ).map((value) => ({
+    value: Number(value.toFixed(1)),
+    y: roundCoordinate(yFor(value)),
+  }));
   const xTicks = tickIndexes(points.length, dimensions.width < 520 ? 4 : 6).map(
     (index) => points[index],
   );
@@ -200,9 +193,11 @@ export const buildWellnessMetricChartModel = (
     path,
     yTicks,
     xTicks,
-    average: {
-      value: averageValue,
-      y: roundCoordinate(yFor(averageValue)),
-    },
+    average: includeAverage
+      ? {
+          value: averageValue,
+          y: roundCoordinate(yFor(averageValue)),
+        }
+      : null,
   };
 };

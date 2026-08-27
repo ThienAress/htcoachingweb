@@ -43,11 +43,16 @@ const initialsFor = (name = "Học viên") =>
     .join("") || "HV";
 
 /* ── Sidebar nav ── */
-const CustomerNav = ({ activeSection, dateKey, mobile = false }) => (
+const CustomerNav = ({
+  activeSection,
+  ariaLabel = "Điều hướng bảng theo dõi",
+  compact = false,
+  dateKey,
+}) => (
   <nav
-    aria-label="Điều hướng bảng theo dõi"
+    aria-label={ariaLabel}
     className={
-      mobile
+      compact
         ? "grid grid-cols-5"
         : "space-y-0.5"
     }
@@ -61,10 +66,10 @@ const CustomerNav = ({ activeSection, dateKey, mobile = false }) => (
           to={dashboardPathFor(item.key, dateKey)}
           aria-current={active ? "page" : undefined}
           className={
-            mobile
+            compact
               ? "flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-orange-400 " +
               (active ? "text-orange-300" : "text-slate-400 hover:text-white")
-              : "group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 " +
+              : "group flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 " +
               (active
                 ? "bg-orange-500 text-white shadow-[0_0_16px_-4px_rgba(249,115,22,0.5)]"
                 : "text-slate-400 hover:bg-slate-800 hover:text-white")
@@ -72,7 +77,7 @@ const CustomerNav = ({ activeSection, dateKey, mobile = false }) => (
         >
           <span
             className={
-              mobile
+              compact
                 ? ""
                 : "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg " +
                 (active
@@ -285,7 +290,10 @@ const CustomerDashboardLayout = () => {
 
           <main
             id="customer-dashboard-content"
-            className="product-surface mx-auto max-w-7xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pb-12 lg:pt-8"
+            className={[
+              "product-surface mx-auto max-w-7xl px-4 pb-28 pt-6 sm:px-6 lg:px-8 lg:pt-8",
+              isCollapsed ? "lg:pb-28" : "lg:pb-12",
+            ].join(" ")}
           >
             <Outlet />
           </main>
@@ -295,9 +303,22 @@ const CustomerDashboardLayout = () => {
       {/* Mobile bottom nav */}
       <div className="fixed inset-x-3 bottom-4 z-20 pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div className="overflow-hidden rounded-2xl border border-white/[0.15] bg-slate-950/95 shadow-2xl backdrop-blur-xl">
-          <CustomerNav activeSection={activeSection} dateKey={dateKey} mobile />
+          <CustomerNav activeSection={activeSection} compact dateKey={dateKey} />
         </div>
       </div>
+
+      {isCollapsed && (
+        <div className="fixed bottom-5 left-1/2 z-30 hidden w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 lg:block">
+          <div className="overflow-hidden rounded-2xl border border-orange-400/30 bg-slate-950 shadow-2xl shadow-black/40">
+            <CustomerNav
+              activeSection={activeSection}
+              ariaLabel="Điều hướng nhanh bảng theo dõi"
+              dateKey={dateKey}
+              compact
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

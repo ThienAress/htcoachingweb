@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Salad, Unlink } from "lucide-react";
+import { RefreshCw, Salad, Send, Unlink } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  correctDailyJournal,
   saveDailyJournal,
+  submitDailyJournalNutrition,
 } from "../../services/dailyJournal.service";
 import {
   getSavedMealPlan,
@@ -12,7 +12,8 @@ import {
 } from "../../services/savedMealPlan.service";
 import {
   appendNutritionEntry,
-  toNutritionCommandEntries,
+  updateManualMealEntry,
+  updatePlannedMealAdjustments,
   upsertPlannedMealEntry,
 } from "./dailyNutrition";
 import { PlannedMealExecution } from "./PlannedMealExecution";
@@ -30,13 +31,13 @@ export const NutritionCard = ({
 }) => {
   const queryClient = useQueryClient();
   const [selectedPlanId, setSelectedPlanId] = useState("");
-  const [correctionReason, setCorrectionReason] = useState("");
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [notice, setNotice] = useState("");
   const [localError, setLocalError] = useState("");
   const [failedCommand, setFailedCommand] = useState(null);
   const assignment = journal?.nutrition?.assignment || null;
   const entries = journal?.nutrition?.entries || [];
-  const isSubmitted = journal?.status === "submitted";
+  const nutritionSubmitted = Boolean(journal?.nutrition?.submittedAt);
   const plansQuery = useQuery({
     queryKey: ["saved-meal-plans", "active"],
     queryFn: async () => {
@@ -61,14 +62,18 @@ export const NutritionCard = ({
 
   const command = useMutation({
     mutationFn: ({ kind, payload }) =>
-      kind === "correction"
-        ? correctDailyJournal(dateKey, payload)
+      kind === "nutrition-submit"
+        ? submitDailyJournalNutrition(dateKey, payload)
         : saveDailyJournal(dateKey, payload),
-    onSuccess: (response) => {
+    onSuccess: (response, variables) => {
       setFailedCommand(null);
       setLocalError("");
-      setNotice("Đã cập nhật dinh dưỡng trong ngày.");
-      setCorrectionReason("");
+      setNotice(
+        variables.kind === "nutrition-submit"
+          ? "Đã gửi báo cáo dinh dưỡng cho HLV."
+          : "Đã cập nhật dinh dưỡng trong ngày.",
+      );
+      setConfirmSubmit(false);
       onChanged?.(response.data.data);
       void queryClient.invalidateQueries({
         queryKey: ["daily-journal-timeline", dateKey],
@@ -80,22 +85,17 @@ export const NutritionCard = ({
     },
   });
 
-  const correctionReady =
-    !isSubmitted || correctionReason.trim().length >= 3;
-  const mutationDisabled = !canEdit || !correctionReady || command.isPending;
+  const mutationDisabled =
+    !canEdit || nutritionSubmitted || command.isPending;
   const persistNutrition = (nutrition) => {
     setNotice("");
     setLocalError("");
-    const kind = isSubmitted ? "correction" : "update";
     const payload = {
       expectedRevision: journal?.revision || 0,
       requestId: newRequestId(),
       patch: { nutrition },
-      ...(kind === "correction"
-        ? { reason: correctionReason.trim() }
-        : {}),
     };
-    command.mutate({ kind, payload });
+    command.mutate({ kind: "update", payload });
   };
   const assignPlan = () => {
     if (!selectedPlanId) return;
@@ -121,12 +121,37 @@ export const NutritionCard = ({
       setLocalError(error.message);
     }
   };
-  const removeEntry = (entryId) =>
-    persistNutrition({
-      entries: toNutritionCommandEntries(entries).filter(
-        (entry) => entry.entryId !== entryId,
-      ),
+  const adjustPlannedMeal = (mealKey, adjustments) => {
+    try {
+      persistNutrition({
+        entries: updatePlannedMealAdjustments(entries, {
+          mealKey,
+          adjustments,
+          entryId: newRequestId(),
+        }),
+      });
+    } catch (error) {
+      setLocalError(error.message);
+    }
+  };
+  const submitNutrition = () => {
+    command.mutate({
+      kind: "nutrition-submit",
+      payload: {
+        expectedRevision: journal?.revision || 0,
+        requestId: newRequestId(),
+      },
     });
+  };
+  const updateQuickEntry = (values) => {
+    try {
+      persistNutrition({
+        entries: updateManualMealEntry(entries, values),
+      });
+    } catch (error) {
+      setLocalError(error.message);
+    }
+  };
 
   const plans = plansQuery.data?.items || [];
   const apiError = command.error ? errorMessage(command.error) : "";
@@ -144,27 +169,11 @@ export const NutritionCard = ({
             Dinh dưỡng trong ngày
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-400">
-            Gắn đúng phiên bản của thực đơn hoặc ghi nhanh những gì bạn đã ăn.
+            Chọn một thực đơn đã lưu hoặc ghi lại bữa ăn phát sinh trong ngày.
           </p>
         </div>
       </div>
 
-      {isSubmitted && (
-        <div className="mt-4">
-          <label htmlFor="nutrition-correction-reason" className="text-sm text-slate-300">
-            Lý do chỉnh sửa sau khi gửi
-          </label>
-          <input
-            id="nutrition-correction-reason"
-            value={correctionReason}
-            onChange={(event) => setCorrectionReason(event.target.value)}
-            maxLength={500}
-            disabled={!canEdit || command.isPending}
-            placeholder="Nhập ít nhất 3 ký tự"
-            className="mt-2 min-h-11 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm text-white outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30 disabled:opacity-50"
-          />
-        </div>
-      )}
       <div className="mt-5 rounded-xl border border-slate-700 bg-slate-900/60 p-4">
         <h3 className="font-semibold text-white">Thực đơn áp dụng</h3>
         {assignment ? (
@@ -172,9 +181,6 @@ export const NutritionCard = ({
             <div>
               <p className="text-sm font-semibold text-orange-200">
                 {assignment.titleSnapshot}
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                Phiên bản {assignment.version}
               </p>
             </div>
             <button
@@ -218,7 +224,7 @@ export const NutritionCard = ({
               <option value="">Chọn thực đơn</option>
               {plans.map((plan) => (
                 <option key={plan._id} value={plan._id}>
-                  {plan.title} · v{plan.version}
+                  {plan.title}
                 </option>
               ))}
             </select>
@@ -234,7 +240,7 @@ export const NutritionCard = ({
         )}
       </div>
       {assignment && assignedPlanQuery.isLoading && (
-        <p className="mt-4 text-sm text-slate-400">Đang tải exact plan version...</p>
+        <p className="mt-4 text-sm text-slate-400">Đang tải thực đơn đã áp dụng...</p>
       )}
       {assignment && assignedPlanQuery.isError && (
         <button
@@ -242,7 +248,7 @@ export const NutritionCard = ({
           onClick={() => assignedPlanQuery.refetch()}
           className="mt-4 min-h-11 rounded-lg px-3 py-2 text-sm font-semibold text-red-300 hover:bg-red-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
         >
-          Không thể tải plan. Thử lại
+          Không thể tải thực đơn. Thử lại
         </button>
       )}
       <PlannedMealExecution
@@ -250,17 +256,82 @@ export const NutritionCard = ({
         entries={entries}
         disabled={mutationDisabled}
         onStatus={setPlannedStatus}
+        onAdjust={adjustPlannedMeal}
       />
       <QuickMealHistory
         entries={entries}
         disabled={mutationDisabled}
-        onRemove={removeEntry}
+        onUpdate={updateQuickEntry}
       />
       <QuickMealLogger
         entryCount={entries.length}
         disabled={mutationDisabled}
         onAdd={addQuickEntry}
       />
+
+      <div className="mt-5 border-t border-slate-800 pt-5">
+        {nutritionSubmitted ? (
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+            <p className="text-sm font-bold text-emerald-200">
+              Báo cáo dinh dưỡng đã được gửi cho HLV
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-400">
+              Dữ liệu dinh dưỡng của ngày này đã khóa và không thể chỉnh sửa thêm.
+            </p>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmSubmit(true)}
+            disabled={
+              mutationDisabled || !entries.some((entry) => entry.status === "eaten")
+            }
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Send size={16} aria-hidden="true" /> Gửi báo cáo dinh dưỡng cho HLV
+          </button>
+        )}
+        {!nutritionSubmitted && !entries.some((entry) => entry.status === "eaten") && (
+          <p className="mt-2 text-xs text-slate-500">
+            Hãy xác nhận ít nhất một bữa đã ăn trước khi gửi.
+          </p>
+        )}
+      </div>
+
+      {confirmSubmit && !nutritionSubmitted && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="nutrition-submit-confirm-title"
+          className="mt-4 rounded-xl border border-orange-400/30 bg-slate-900 p-4 shadow-xl"
+        >
+          <h3 id="nutrition-submit-confirm-title" className="font-bold text-white">
+            Xác nhận gửi báo cáo dinh dưỡng
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            Báo cáo chỉ được gửi một lần. Sau khi gửi, bạn sẽ không thể điều chỉnh
+            bữa ăn hoặc khối lượng thực phẩm của ngày này.
+          </p>
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmSubmit(false)}
+              disabled={command.isPending}
+              className="min-h-11 rounded-lg px-4 text-sm font-semibold text-slate-300 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-40"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={submitNutrition}
+              disabled={command.isPending}
+              className="min-h-11 rounded-lg bg-orange-500 px-4 text-sm font-black text-slate-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-40"
+            >
+              {command.isPending ? "Đang gửi..." : "Gửi cho HLV"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4" aria-live="polite">
         {notice && <p className="text-sm text-green-300">{notice}</p>}

@@ -1,12 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  BarChart3,
+  ArrowLeft,
+  ArrowRight,
   BookOpenText,
+  HeartPulse,
   RefreshCw,
-  TrendingUp,
+  Salad,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { getTrainerClientOverview } from "../../services/trainerOverview.service";
 import { purgeTrainerPrivateQueries } from "../../utils/trainerPrivateCache";
 import { ProgressSummary } from "../progress/ProgressSummary";
@@ -18,24 +20,16 @@ import {
 import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread";
 import { wellnessSemanticLabel } from "../today-dashboard/wellness";
 import { TrainerAttentionPanel } from "./TrainerAttentionPanel";
+import {
+  customerReportFromHash,
+  getTrainerClientOverviewSurface,
+} from "./trainerCustomerReports";
 import { TrainerWeeklyReview } from "./TrainerWeeklyReview";
-import { todayStatusLabel } from "./trainerOverviewPresentation";
-
-const formatJournalDate = (dateKey) => {
-  const [year, month, day] = String(dateKey || "").split("-").map(Number);
-  if (!year || !month || !day) return "ngày đã chọn";
-  return new Intl.DateTimeFormat("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(year, month - 1, day)));
-};
 
 const formatNumber = (value) =>
   Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 1 });
 
-export const TrainerJournalSummary = ({ dateKey, journal, sectionRef }) => {
+export const TrainerJournalSummary = ({ journal, sectionRef }) => {
   const isSubmitted = journal?.status === "submitted";
   const wellness = journal?.wellness || {};
   const metrics = [
@@ -89,15 +83,15 @@ export const TrainerJournalSummary = ({ dateKey, journal, sectionRef }) => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-300">
-            <BookOpenText size={19} aria-hidden="true" />
+            <HeartPulse size={19} aria-hidden="true" />
           </span>
           <div>
-            <h2 id="trainer-journal-title" className="font-bold text-white">
-              Nhật ký ngày {formatJournalDate(dateKey)}
+            <h2
+              id="trainer-journal-title"
+              className="text-lg font-bold text-white"
+            >
+              Sức khỏe
             </h2>
-            <p className="mt-0.5 text-xs text-slate-400">
-              Thông tin khách hàng đã chia sẻ với HLV.
-            </p>
           </div>
         </div>
         <span className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold text-slate-300">
@@ -115,7 +109,7 @@ export const TrainerJournalSummary = ({ dateKey, journal, sectionRef }) => {
             {metrics.map((metric) => (
               <div
                 key={metric.key}
-                className="border-b border-slate-800 py-3 sm:px-3 sm:first:pl-0"
+                className="border-b border-slate-800 px-3 py-3"
               >
                 <dt className="text-xs font-semibold text-slate-500">
                   {metric.label}
@@ -131,11 +125,265 @@ export const TrainerJournalSummary = ({ dateKey, journal, sectionRef }) => {
               Ghi chú chia sẻ
             </h3>
             <p className="mt-1 text-sm leading-6 text-slate-300">
-              {journal.notes?.shared || "Khách hàng chưa chia sẻ ghi chú."}
+              {journal.notes?.shared || "Khách hàng không ghi chú."}
             </p>
           </div>
         </>
       )}
+    </section>
+  );
+};
+
+const nutritionLabels = {
+  calories: ["Kcal", "kcal"],
+  protein: ["Protein", "g"],
+  carb: ["Carb", "g"],
+  fat: ["Fat", "g"],
+};
+
+export const TrainerNutritionReport = ({
+  nutrition,
+  sectionRef,
+}) => {
+  const isSubmitted = Boolean(nutrition?.submittedAt);
+  const eatenEntries = (nutrition?.entries || []).filter(
+    (entry) => entry.status === "eaten",
+  );
+  return (
+    <section
+      id="nutrition-report"
+      ref={sectionRef}
+      tabIndex={-1}
+      className="scroll-mt-24 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+      aria-labelledby="trainer-nutrition-report-title"
+    >
+      <header className="flex items-center gap-3 border-b border-slate-800 px-5 py-4 sm:px-6">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-400/10 text-orange-300">
+          <Salad size={19} aria-hidden="true" />
+        </span>
+        <div>
+          <h2
+            id="trainer-nutrition-report-title"
+            className="text-lg font-bold text-white"
+          >
+            Dinh dưỡng
+          </h2>
+          <p
+            className={`mt-1 text-xs font-semibold ${
+              isSubmitted ? "text-emerald-300" : "text-slate-500"
+            }`}
+          >
+            {isSubmitted ? "Đã gửi" : "Chưa gửi"}
+          </p>
+        </div>
+      </header>
+
+      {!isSubmitted ? (
+        <p className="px-5 py-5 text-sm text-slate-400 sm:px-6">
+          Khách hàng chưa gửi báo cáo dinh dưỡng cho ngày này.
+        </p>
+      ) : (
+        <div className="grid gap-3 p-5 lg:grid-cols-2 sm:p-6">
+          {eatenEntries.map((entry) => (
+          <article
+            key={entry.entryId}
+            className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"
+          >
+            <h3 className="border-b border-slate-700 pb-2 font-bold text-slate-100">
+              {entry.mealName || entry.labelSnapshot || "Bữa ăn"}
+            </h3>
+            {entry.mode === "follow_plan" && entry.actualFoods?.length > 0 ? (
+              <ul className="mt-3 space-y-1.5">
+                {entry.actualFoods.map((food) => (
+                  <li
+                    key={food.foodId}
+                    className="text-sm leading-6 text-slate-300"
+                  >
+                    <span className="font-semibold text-slate-100">
+                      {formatNumber(food.actualAmountGrams)}g {food.labelSnapshot}
+                    </span>{" "}
+                    <span className="text-slate-400">
+                      ({formatNumber(food.nutrition?.protein)}P/
+                      {formatNumber(food.nutrition?.carb)}C/
+                      {formatNumber(food.nutrition?.fat)}F) -{" "}
+                      {Math.round(Number(food.nutrition?.calories || 0)).toLocaleString(
+                        "vi-VN",
+                      )}{" "}
+                      kcal
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                {entry.description || entry.labelSnapshot}
+              </p>
+            )}
+          </article>
+          ))}
+        </div>
+      )}
+
+      {isSubmitted && (
+        <dl className="grid border-t border-slate-800 sm:grid-cols-2 lg:grid-cols-4">
+        {Object.entries(nutritionLabels).map(([key, [label, unit]]) => (
+          <div key={key} className="border-b border-slate-800 px-5 py-4 lg:border-b-0">
+            <dt className="text-xs font-semibold text-slate-500">{label}</dt>
+            <dd className="mt-1 text-sm font-black tabular-nums text-orange-200">
+              {key === "calories"
+                ? Math.round(Number(nutrition.dailyTotals?.[key] || 0)).toLocaleString(
+                    "vi-VN",
+                  )
+                : formatNumber(nutrition.dailyTotals?.[key] || 0)}{" "}
+              {unit}
+            </dd>
+          </div>
+        ))}
+        </dl>
+      )}
+    </section>
+  );
+};
+
+const CUSTOMER_REPORT_SECTIONS = [
+  {
+    key: "health",
+    label: "Sức khỏe",
+    description: "Giấc ngủ, nước uống, số bước và cảm nhận trong ngày.",
+    Icon: HeartPulse,
+    iconClass: "bg-cyan-400/10 text-cyan-300",
+  },
+  {
+    key: "nutrition",
+    label: "Dinh dưỡng",
+    description: "Những bữa đã ăn và tổng dinh dưỡng khách hàng đã gửi.",
+    Icon: Salad,
+    iconClass: "bg-orange-400/10 text-orange-300",
+  },
+];
+
+const CustomerReportHeader = ({ clientName, active, onBack, headingRef }) => (
+  <header
+    className={`flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between ${
+      active ? "border-b border-slate-800 pb-5" : ""
+    }`}
+  >
+    <div>
+      <h2
+        ref={headingRef}
+        tabIndex={active ? -1 : undefined}
+        id="customer-reports-title"
+        className="flex items-center gap-3 text-2xl font-bold text-white sm:text-3xl"
+      >
+        <BookOpenText
+          className="h-6 w-6 shrink-0 text-cyan-300"
+          aria-hidden="true"
+        />
+        Báo cáo khách hàng
+      </h2>
+      {clientName && (
+        <p className="mt-2 text-sm font-semibold text-slate-400">
+          {clientName}
+        </p>
+      )}
+    </div>
+    {active && (
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex min-h-11 items-center gap-2 self-start rounded-lg border border-slate-700 px-4 text-sm font-semibold text-slate-200 transition-colors hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+      >
+        <ArrowLeft size={17} aria-hidden="true" /> Quay lại
+      </button>
+    )}
+  </header>
+);
+
+export const TrainerCustomerReports = ({
+  activeReport,
+  clientName,
+  headingRef,
+  journal,
+  journalRef,
+  nutrition,
+  nutritionRef,
+  onReportChange = () => {},
+}) => {
+  const activeSection = CUSTOMER_REPORT_SECTIONS.find(
+    ({ key }) => key === activeReport,
+  );
+  const statusBySection = {
+    health: journal?.status === "submitted" ? "Đã gửi" : "Chưa gửi",
+    nutrition: nutrition?.submittedAt ? "Đã gửi" : "Chưa gửi",
+  };
+
+  if (activeSection) {
+    return (
+      <div className="space-y-5">
+        <CustomerReportHeader
+          active
+          clientName={clientName}
+          headingRef={headingRef}
+          onBack={() => onReportChange(null)}
+        />
+        {activeSection.key === "health" ? (
+          <TrainerJournalSummary journal={journal} sectionRef={journalRef} />
+        ) : (
+          <TrainerNutritionReport
+            nutrition={nutrition}
+            sectionRef={nutritionRef}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <section
+      data-customer-report-navigation="true"
+      className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950"
+      aria-labelledby="customer-reports-title"
+    >
+      <div className="p-5 sm:p-6">
+        <CustomerReportHeader clientName={clientName} />
+      </div>
+      <div className="divide-y divide-slate-800 border-t border-slate-800">
+        {CUSTOMER_REPORT_SECTIONS.map((section) => {
+          const Icon = section.Icon;
+          return (
+            <button
+              key={section.key}
+              type="button"
+              onClick={() => onReportChange(section.key)}
+              className="group grid min-h-24 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400 sm:px-6"
+            >
+              <span
+                className={`flex h-11 w-11 items-center justify-center rounded-xl ${section.iconClass}`}
+              >
+                <Icon size={21} aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-slate-100">
+                    {section.label}
+                  </span>
+                  <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs font-semibold text-slate-400">
+                    {statusBySection[section.key]}
+                  </span>
+                </span>
+                <span className="mt-1 block text-sm leading-5 text-slate-400">
+                  {section.description}
+                </span>
+              </span>
+              <ArrowRight
+                size={19}
+                className="text-slate-500 transition-colors group-hover:text-cyan-300"
+                aria-hidden="true"
+              />
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 };
@@ -151,19 +399,44 @@ export const TrainerWeeklyReviewAnchor = ({ sectionRef, children }) => (
   </div>
 );
 
-export const TrainerClientOverview = ({ clientId, dateKey }) => {
+export const TrainerClientOverview = ({
+  clientId,
+  clientName,
+  dateKey,
+  surface = "overview",
+}) => {
   const queryClient = useQueryClient();
   const location = useLocation();
+  const navigate = useNavigate();
   const [days, setDays] = useState(30);
   const [activeProgressSection, setActiveProgressSection] = useState(null);
+  const activeCustomerReport = customerReportFromHash(location.hash);
   const purgedForbiddenKeyRef = useRef(null);
   const journalAnchorRef = useRef(null);
+  const nutritionAnchorRef = useRef(null);
+  const customerReportHeadingRef = useRef(null);
   const weeklyAnchorRef = useRef(null);
   const queryKey = ["trainer-client-overview", clientId, dateKey, days];
   const progressRanges = progressRangeOptions(activeProgressSection);
   const handleProgressSectionChange = (section) => {
     setDays((current) => normalizeProgressDaysForSection(section, current));
     setActiveProgressSection(section);
+  };
+  const handleCustomerReportChange = (section) => {
+    const hash =
+      section === "health"
+        ? "#journal"
+        : section === "nutrition"
+          ? "#nutrition-report"
+          : "";
+    void navigate(
+      {
+        pathname: location.pathname,
+        search: location.search,
+        hash,
+      },
+      { replace: true },
+    );
   };
   const query = useQuery({
     queryKey,
@@ -201,6 +474,8 @@ export const TrainerClientOverview = ({ clientId, dateKey }) => {
     const targetRef =
       location.hash === "#journal"
         ? journalAnchorRef
+        : location.hash === "#nutrition-report"
+          ? nutritionAnchorRef
         : location.hash === "#weekly-report"
           ? weeklyAnchorRef
           : null;
@@ -210,34 +485,22 @@ export const TrainerClientOverview = ({ clientId, dateKey }) => {
       targetRef.current?.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [location.hash, query.isSuccess, clientId, dateKey]);
-
-  const setWeekly = (weeklyCheckin) => {
-    queryClient.setQueryData(queryKey, (current) =>
-      current ? { ...current, weeklyCheckin } : current,
-    );
-    void queryClient.invalidateQueries({ queryKey: ["progress"] });
-  };
+  }, [
+    activeCustomerReport,
+    location.hash,
+    query.isSuccess,
+    clientId,
+    dateKey,
+  ]);
 
   const today = query.data?.today;
   const journal = today?.sections?.journal?.day;
   const coaching = today?.sections?.coaching?.day;
+  const nutrition = journal?.nutrition;
+  const surfaceConfig = getTrainerClientOverviewSurface(surface);
 
   return (
     <section className="space-y-4">
-      {/* Section header */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-sm sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/20">
-            <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-white uppercase tracking-wide">Hôm nay và tiến trình</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Theo dõi kết quả luyện tập</p>
-          </div>
-        </div>
-      </div>
-
       <div>
         {query.isLoading ? (
           <div className="space-y-3" role="status">
@@ -264,47 +527,24 @@ export const TrainerClientOverview = ({ clientId, dateKey }) => {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Today status card */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <TrendingUp className="h-5 w-5 shrink-0 text-orange-300" aria-hidden="true" />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-100">Trạng thái hôm nay</p>
-                    <p className="mt-1 text-sm text-slate-400">
-                      {todayStatusLabel(today.summary.dayStatus)}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <strong className="text-3xl font-bold tabular-nums text-orange-300">
-                    {today.summary.completionPercent}
-                    <span className="text-base font-bold text-orange-400/60">%</span>
-                  </strong>
-                </div>
-              </div>
-
-              {/* Progress bar */}
-              <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                <div
-                  className="h-full rounded-full bg-orange-400 transition-[width] duration-200"
-                  style={{ width: `${today.summary.completionPercent}%` }}
-                  role="progressbar"
-                  aria-valuenow={today.summary.completionPercent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={"Tiến độ hôm nay: " + today.summary.completionPercent + "%"}
-                />
-              </div>
-            </div>
-
-            <TrainerAttentionPanel items={query.data.attention.items} />
-            <TrainerJournalSummary
-              dateKey={dateKey}
-              journal={journal}
-              sectionRef={journalAnchorRef}
-            />
-            <ProgressSummary
+            {surfaceConfig.showCustomerReports && (
+              <TrainerCustomerReports
+                activeReport={activeCustomerReport}
+                clientName={clientName}
+                headingRef={customerReportHeadingRef}
+                journal={journal}
+                journalRef={journalAnchorRef}
+                nutrition={nutrition}
+                nutritionRef={nutritionAnchorRef}
+                onReportChange={handleCustomerReportChange}
+              />
+            )}
+            {surfaceConfig.showAttention && (
+              <TrainerAttentionPanel items={query.data.attention.items} />
+            )}
+            {surfaceConfig.showOverview && (
+              <>
+                <ProgressSummary
               progress={query.data.progress}
               activeSection={activeProgressSection}
               onSectionChange={handleProgressSectionChange}
@@ -347,25 +587,25 @@ export const TrainerClientOverview = ({ clientId, dateKey }) => {
                   ))}
                 </div>
               }
-            />
-            <TrainerWeeklyReviewAnchor sectionRef={weeklyAnchorRef}>
-              <TrainerWeeklyReview
+                />
+                <TrainerWeeklyReviewAnchor sectionRef={weeklyAnchorRef}>
+                  <TrainerWeeklyReview
                 key={
                   (query.data.weeklyCheckin?._id || "missing") +
                   ":" +
                   (query.data.weeklyCheckin?.revision || 0)
                 }
-                clientId={clientId}
                 checkin={query.data.weeklyCheckin}
-                onChanged={setWeekly}
-              />
-            </TrainerWeeklyReviewAnchor>
-            {coaching?._id && (
-              <CoachingCommentThread
-                targetType="coaching_day"
-                targetId={coaching._id}
-                title="Trao đổi về ngày huấn luyện"
-              />
+                  />
+                </TrainerWeeklyReviewAnchor>
+                {coaching?._id && (
+                  <CoachingCommentThread
+                    targetType="coaching_day"
+                    targetId={coaching._id}
+                    title="Trao đổi về ngày huấn luyện"
+                  />
+                )}
+              </>
             )}
           </div>
         )}

@@ -117,8 +117,13 @@ const SUMMARY_NAMES = new Set([
 const counters = new Map([...COUNTER_NAMES].map((name) => [name, 0]));
 const summaries = new Map();
 const httpRoutes = new Map();
+const rollingCounterEvents = new Map();
+const rollingSummaryEvents = new Map();
+const rollingHttpEvents = [];
 const MAX_SAMPLES = 500;
 const MAX_HTTP_ROUTES = 200;
+const MAX_ROLLING_EVENTS = 5_000;
+const ROLLING_WINDOW_MS = 5 * 60 * 1_000;
 
 const percentile = (values, ratio) => {
   if (values.length === 0) return 0;
@@ -126,24 +131,63 @@ const percentile = (values, ratio) => {
   return sorted[Math.min(Math.ceil(sorted.length * ratio) - 1, sorted.length - 1)];
 };
 
-export const incrementMetric = (name, amount = 1) => {
-  if (!COUNTER_NAMES.has(name)) throw new Error(`Unknown counter metric: ${name}`);
-  counters.set(name, (counters.get(name) || 0) + amount);
+const appendBounded = (items, value) => {
+  items.push(value);
+  if (items.length > MAX_ROLLING_EVENTS) items.shift();
 };
 
-export const observeMetric = (name, value) => {
+const eventTimestamp = (value) => {
+  const parsed = Number(value ?? Date.now());
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : Date.now();
+};
+
+const rollingValues = (events, nowMs) => {
+  const fromMs = nowMs - ROLLING_WINDOW_MS;
+  return events.filter(({ recordedAt }) => recordedAt > fromMs && recordedAt <= nowMs);
+};
+
+export const incrementMetric = (name, amount = 1, options = {}) => {
+  if (!COUNTER_NAMES.has(name)) throw new Error(`Unknown counter metric: ${name}`);
+  counters.set(name, (counters.get(name) || 0) + amount);
+  const events = rollingCounterEvents.get(name) || [];
+  appendBounded(events, {
+    amount,
+    recordedAt: eventTimestamp(options.recordedAt),
+  });
+  rollingCounterEvents.set(name, events);
+};
+
+export const observeMetric = (name, value, options = {}) => {
   if (!SUMMARY_NAMES.has(name)) throw new Error(`Unknown summary metric: ${name}`);
   if (!Number.isFinite(value) || value < 0) return;
   const samples = summaries.get(name) || [];
   samples.push(value);
   if (samples.length > MAX_SAMPLES) samples.shift();
   summaries.set(name, samples);
+  const events = rollingSummaryEvents.get(name) || [];
+  appendBounded(events, {
+    value,
+    recordedAt: eventTimestamp(options.recordedAt),
+  });
+  rollingSummaryEvents.set(name, events);
 };
 
-export const recordHttpRequest = ({ method, route, status, durationMs }) => {
-  incrementMetric("http.requests");
-  if (status >= 500) incrementMetric("http.errors");
-  observeMetric("http.duration_ms", durationMs);
+export const recordHttpRequest = ({
+  method,
+  route,
+  status,
+  durationMs,
+  recordedAt,
+}) => {
+  const timestamp = eventTimestamp(recordedAt);
+  incrementMetric("http.requests", 1, { recordedAt: timestamp });
+  if (status >= 500) incrementMetric("http.errors", 1, { recordedAt: timestamp });
+  observeMetric("http.duration_ms", durationMs, { recordedAt: timestamp });
+  appendBounded(rollingHttpEvents, {
+    status,
+    durationMs,
+    recordedAt: timestamp,
+  });
 
   const normalizedRoute = String(route || "unmatched").slice(0, 160);
   const key = `${method} ${normalizedRoute} ${Math.floor(status / 100)}xx`;
@@ -155,12 +199,63 @@ export const recordHttpRequest = ({ method, route, status, durationMs }) => {
   httpRoutes.set(key, current);
 };
 
-export const getMetricsSnapshot = () => ({
-  generatedAt: new Date().toISOString(),
+const rollingCounterValue = (name, nowMs) =>
+  rollingValues(rollingCounterEvents.get(name) || [], nowMs).reduce(
+    (total, event) => total + event.amount,
+    0,
+  );
+
+const rollingSummary = (name, nowMs) => {
+  const values = rollingValues(rollingSummaryEvents.get(name) || [], nowMs).map(
+    ({ value }) => value,
+  );
+  return {
+    samples: values.length,
+    p95: percentile(values, 0.95),
+  };
+};
+
+const getRollingSnapshot = (nowMs) => {
+  const http = rollingValues(rollingHttpEvents, nowMs);
+  const httpErrors5xx = http.filter(({ status }) => status >= 500).length;
+  const memory = process.memoryUsage();
+  const db = rollingSummary("db.query_latency_ms", nowMs);
+  const provider = rollingSummary("ai.total_latency_ms", nowMs);
+  return {
+    windowSeconds: ROLLING_WINDOW_MS / 1_000,
+    from: new Date(nowMs - ROLLING_WINDOW_MS).toISOString(),
+    to: new Date(nowMs).toISOString(),
+    httpRequests: http.length,
+    httpErrors5xx,
+    httpErrorRate: http.length
+      ? Number((httpErrors5xx / http.length).toFixed(4))
+      : 0,
+    httpP95Ms: percentile(
+      http.map(({ durationMs }) => durationMs),
+      0.95,
+    ),
+    dbSamples: db.samples,
+    dbP95Ms: db.p95,
+    providerSamples: provider.samples,
+    providerP95Ms: provider.p95,
+    providerFailures:
+      rollingCounterValue("ai.errors", nowMs) +
+      rollingCounterValue("kb.embedding_failures", nowMs),
+    heapUsedBytes: memory.heapUsed,
+    heapTotalBytes: memory.heapTotal,
+    heapUtilization: memory.heapTotal
+      ? Number((memory.heapUsed / memory.heapTotal).toFixed(4))
+      : 0,
+  };
+};
+
+export const getMetricsSnapshot = ({ nowMs = Date.now() } = {}) => ({
+  generatedAt: new Date(nowMs).toISOString(),
   uptimeSeconds: Math.round(process.uptime()),
   memory: {
     rssBytes: process.memoryUsage().rss,
     heapUsedBytes: process.memoryUsage().heapUsed,
+    heapTotalBytes: process.memoryUsage().heapTotal,
   },
   counters: Object.fromEntries(counters),
   summaries: Object.fromEntries(
@@ -189,6 +284,7 @@ export const getMetricsSnapshot = () => ({
       },
     ]),
   ),
+  rolling: getRollingSnapshot(nowMs),
 });
 
 const prometheusName = (value) =>
@@ -218,11 +314,22 @@ export const getPrometheusMetrics = () => {
   lines.push(
     `htcoaching_process_heap_used_bytes ${snapshot.memory.heapUsedBytes}`,
   );
+  lines.push(`htcoaching_process_heap_total_bytes ${snapshot.memory.heapTotalBytes}`);
+  lines.push(`htcoaching_window_seconds ${snapshot.rolling.windowSeconds}`);
+  lines.push(`htcoaching_window_http_requests ${snapshot.rolling.httpRequests}`);
+  lines.push(`htcoaching_window_http_5xx ${snapshot.rolling.httpErrors5xx}`);
+  lines.push(`htcoaching_window_http_5xx_rate ${snapshot.rolling.httpErrorRate}`);
+  lines.push(`htcoaching_window_http_p95_ms ${snapshot.rolling.httpP95Ms}`);
+  lines.push(`htcoaching_window_db_p95_ms ${snapshot.rolling.dbP95Ms}`);
+  lines.push(`htcoaching_window_provider_p95_ms ${snapshot.rolling.providerP95Ms}`);
+  lines.push(`htcoaching_window_provider_failures ${snapshot.rolling.providerFailures}`);
+  lines.push(`htcoaching_process_heap_utilization ${snapshot.rolling.heapUtilization}`);
   return `${lines.join("\n")}\n`;
 };
 
-export const getOperationalAlerts = () => {
+export const getOperationalAlerts = ({ nowMs = Date.now() } = {}) => {
   const countersSnapshot = Object.fromEntries(counters);
+  const rolling = getRollingSnapshot(nowMs);
   return [
     {
       code: "financial_reconciliation_mismatch",
@@ -258,9 +365,40 @@ export const getOperationalAlerts = () => {
     {
       code: "http_5xx",
       severity: "high",
-      active: countersSnapshot["http.errors"] > 0,
-      value: countersSnapshot["http.errors"],
+      active:
+        rolling.httpRequests >= 20 &&
+        rolling.httpErrors5xx >= 2 &&
+        rolling.httpErrorRate >= 0.05,
+      value: rolling.httpErrorRate,
       runbook: "docs/operations/runbooks/incident-runbook.md#http-errors",
+    },
+    {
+      code: "http_latency",
+      severity: "high",
+      active: rolling.httpRequests >= 20 && rolling.httpP95Ms >= 2_000,
+      value: rolling.httpP95Ms,
+      runbook: "docs/operations/runbooks/incident-runbook.md#http-errors",
+    },
+    {
+      code: "database_latency",
+      severity: "high",
+      active: rolling.dbSamples >= 20 && rolling.dbP95Ms >= 1_000,
+      value: rolling.dbP95Ms,
+      runbook: "docs/operations/runbooks/incident-runbook.md#database",
+    },
+    {
+      code: "provider_failures",
+      severity: "high",
+      active: rolling.providerFailures >= 3,
+      value: rolling.providerFailures,
+      runbook: "docs/operations/runbooks/incident-runbook.md#external-providers",
+    },
+    {
+      code: "heap_pressure",
+      severity: "high",
+      active: rolling.heapUtilization >= 0.9,
+      value: rolling.heapUtilization,
+      runbook: "docs/operations/runbooks/incident-runbook.md#memory",
     },
   ];
 };
@@ -269,4 +407,7 @@ export const resetMetricsForTests = () => {
   for (const name of COUNTER_NAMES) counters.set(name, 0);
   summaries.clear();
   httpRoutes.clear();
+  rollingCounterEvents.clear();
+  rollingSummaryEvents.clear();
+  rollingHttpEvents.length = 0;
 };

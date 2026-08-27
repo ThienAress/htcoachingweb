@@ -37,7 +37,7 @@ Mọi copy mới ưu tiên tiếng Việt, trừ thuật ngữ chuyên ngành kh
 
 ### Tiến trình
 
-- Landing Tiến trình dùng một card lớn duy nhất có heading `Tiến trình cơ thể và huấn luyện`, mô tả
+- Landing Tiến trình dùng một card lớn duy nhất có heading `Tiến trình cơ thể và tập luyện`, mô tả
   nguồn dữ liệu và ba lựa chọn con: `Mức độ thực hiện`, `Tiến trình cơ thể`, `Sức khỏe theo ngày`.
 - Chọn card nào chỉ render nội dung của chức năng đó, có hành động quay lại danh sách.
 - Cùng component/semantics được dùng cho khách và trong `Tổng quan` của HLV; range selector chỉ
@@ -51,6 +51,9 @@ Mọi copy mới ưu tiên tiếng Việt, trừ thuật ngữ chuyên ngành kh
 - Thông báo nhật ký/báo cáo gửi tới HLV phải có tên khách hàng trong title.
 - Nhật ký ngày deep-link tới `/trainer/clients/:clientId` với đúng `date` và anchor/section nhật ký;
   báo cáo tuần deep-link tới đúng workspace khách hàng và phần báo cáo tuần.
+- Nhật ký ngày và báo cáo dinh dưỡng của HLV thêm `tab=tasks` vì hai báo cáo nằm trong
+  `Theo dõi và hỗ trợ`; báo cáo tuần tiếp tục ở `Tổng quan`. Client nâng link cũ thiếu
+  tab khi người dùng bấm thông báo để notification đã lưu trước đây không bị hỏng.
 - Thông báo gửi tới khách deep-link tới đúng ngày/module tương ứng.
 - Các title user-visible dùng tiếng Việt: `Báo cáo tuần`, `đã nhận xét`, `đã cập nhật`; không dùng
   `Weekly Check-in`, `review`, `notification` hoặc `in-app` trong UI tiếng Việt.

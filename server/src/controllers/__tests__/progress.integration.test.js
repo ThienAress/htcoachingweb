@@ -185,22 +185,22 @@ describe("Progress Hub API", () => {
       revision: 1,
     });
 
-    const readEnergyAverage = async () => {
+    const readLatestEnergy = async () => {
       const response = await withAuth(
         request(app).get("/api/progress?days=7"),
         assigned.client.accessToken,
       );
-      return response.body.data.wellness.energy.average;
+      return response.body.data.wellness.energy.latest;
     };
 
-    const draftAverage = await readEnergyAverage();
+    const draftEnergy = await readLatestEnergy();
     await DailyJournal.updateOne(
       { _id: journal._id },
       { $set: { status: "submitted", submittedAt: new Date() } },
     );
-    const submittedAverage = await readEnergyAverage();
+    const submittedEnergy = await readLatestEnergy();
 
-    expect([draftAverage, submittedAverage]).toEqual([null, 8]);
+    expect([draftEnergy, submittedEnergy]).toEqual([null, 8]);
   });
 
   it("shares canonical metrics while excluding client-private habits from trainer input", async () => {

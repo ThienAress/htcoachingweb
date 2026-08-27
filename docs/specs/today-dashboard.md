@@ -185,7 +185,15 @@ trong module đó; route con giữ nguyên `dateKey` khi người dùng chuyển
 5. **Dinh dưỡng**
    - Mục tiêu calo/macro.
    - Meal plan đã lưu/được giao cho ngày.
-   - Trạng thái từng bữa: planned, eaten, skipped, substituted.
+   - Trạng thái từng bữa: planned, eaten, skipped; khách có thể điều chỉnh gram thực
+     phẩm trước khi xác nhận đã ăn.
+   - Backend tính lại macro từ snapshot thực đơn canonical; client không được gửi totals,
+     label hoặc macro tự tính.
+   - Tổng dinh dưỡng ngày chỉ cộng những bữa đã xác nhận ăn và so sánh với tổng thực
+     đơn gốc bằng trạng thái còn thiếu, đã đạt hoặc vượt.
+   - Khách gửi báo cáo dinh dưỡng cho HLV đúng một lần. Sau khi gửi, toàn bộ chỉnh sửa
+     dinh dưỡng trong ngày bị khóa ở cả API và UI; lifecycle này độc lập với submit
+     wellness/habit của Daily Journal.
    - Quick log ghi chú thực tế; không tự khẳng định độ chính xác dinh dưỡng.
 
 6. **Wellness**
@@ -200,9 +208,8 @@ trong module đó; route con giữ nguyên `dateKey` khi người dùng chuyển
    - Không phạt streak khi habit không được lên lịch ngày đó.
 
 8. **Ghi chú và trao đổi**
-   - Ghi chú riêng của khách.
+   - Ghi chú khách chủ động chia sẻ với HLV.
    - Comment theo context: workout, meal, wellness hoặc toàn ngày.
-   - Phân biệt note cá nhân với nội dung chia sẻ cho HLV.
 
 9. **Timeline hoạt động**
    - Ai thay đổi gì, lúc nào.
@@ -578,3 +585,37 @@ Feature chỉ được xem là hoàn thành khi:
   period giữa theo Thứ Hai–Chủ Nhật, period cuối kết thúc ngày cuối tháng.
 - `weekStartDateKey` tiếp tục là storage key nhưng mang nghĩa ngày đầu period trong tháng.
 - Điểm Bám kế hoạch vẫn lưu 1–10; UI diễn giải thành bốn mức coaching-friendly.
+
+## 20. Trình bày thực đơn và bữa ăn phát sinh — 2026-08-25
+
+- Mỗi món trong bữa ăn theo kế hoạch hiển thị khối lượng, phần đóng góp P/C/F và
+  kcal từ snapshot canonical; cuối bữa hiển thị tổng P/C/F. Client không tự lấy lại
+  Food hiện tại để tránh làm thay đổi lịch sử.
+- Khu vực `Ghi bữa ăn nhanh` đổi thành `Ghi bữa ăn phát sinh`; không còn hai chế độ
+  Mô tả/Công thức trong UI. Form chỉ mở sau CTA `Thêm bữa ăn`, gồm `Bữa ăn` và
+  `Đồ ăn`, cùng hai hành động `Lưu` và `Hủy`.
+- Entry manual mới lưu `mealName` và `description`. `mealName` mặc định tương thích
+  cho client/document cũ; không bắt buộc migration/backfill.
+- Mỗi entry manual được cập nhật nội dung đúng một lần. `editCount` do server quản lý,
+  mặc định 0; client không được gửi hoặc tự tăng field này. Lần cập nhật thứ hai trả
+  conflict và giữ nguyên dữ liệu.
+- Luồng recipe cũ vẫn được backend đọc để tương thích dữ liệu/client cũ nhưng không còn
+  entry point trong Customer Dashboard.
+- UI không hiển thị version của thực đơn đã gắn; title snapshot và trạng thái là đủ
+  để khách hàng nhận biết.
+
+## 21. Lịch thói quen HLV theo tuần — 2026-08-26
+
+- Quyết định này thay thế riêng quy tắc thói quen HLV áp dụng đủ bảy ngày vô thời hạn
+  tại mục 19. Thói quen cá nhân của học viên giữ nguyên contract hiện có.
+- Khi tạo hoặc cập nhật thói quen, HLV nhập tên, mô tả tùy chọn tối đa 500 ký tự và
+  chọn ít nhất một ngày áp dụng.
+- Mỗi thói quen HLV mới áp dụng trong đúng một tuần Thứ Hai–Chủ Nhật chứa ngày đang
+  được chọn trong workspace. `daysOfWeek` dùng quy ước Thứ Hai = 0, Chủ Nhật = 6.
+- Trong tuần áp dụng, học viên luôn nhìn thấy thói quen. Vào ngày HLV không chọn,
+  các hành động hoàn thành/bỏ qua bị khóa và có giải thích ngắn; ngoài khoảng tuần,
+  thói quen không xuất hiện trong danh sách của ngày.
+- Backend tiếp tục là nguồn canonical và từ chối ghi completion ngoài lịch bằng
+  `HABIT_NOT_SCHEDULED`; trạng thái disabled trên client không thay thế validation.
+- Dữ liệu HLV cũ có lịch vô hạn không bị backfill. Khi HLV cập nhật definition,
+  phiên bản mới nhận lịch tuần đang chọn; snapshot completion cũ vẫn được bảo toàn.

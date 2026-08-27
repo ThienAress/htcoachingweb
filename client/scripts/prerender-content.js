@@ -5,10 +5,15 @@ const PAGE_CONCURRENCY = 4;
 const MAX_PAGES = 1_000;
 const DETAIL_CONCURRENCY = 2;
 const DETAIL_MAX_ATTEMPTS = 3;
+const EXERCISE_PAGE_SIZE = 500;
 
 const STORY_ROUTE_PREFIX = "/ket-qua-khach-hang/";
 const BLOG_ROUTE_PREFIX = "/blog/";
+const EXERCISE_ROUTE_PREFIX = "/exercises/";
 const STORY_RELATED_PATH = "/customer-stories?limit=20&lang=vi";
+
+const exercisePagePath = (page) =>
+  `/exercises?limit=${EXERCISE_PAGE_SIZE}&page=${page}`;
 
 const recipePagePath = (page) =>
   `/recipes?limit=${PAGE_SIZE}&page=${page}&view=prerender`;
@@ -118,6 +123,18 @@ const detailDescriptorForRoute = (route) => {
         }
       : null;
   }
+  if (route.startsWith(EXERCISE_ROUTE_PREFIX)) {
+    const [exerciseId] = route
+      .slice(EXERCISE_ROUTE_PREFIX.length)
+      .split("/");
+    return /^[a-f0-9]{24}$/i.test(exerciseId)
+      ? {
+          kind: "exercise",
+          id: exerciseId,
+          path: `/exercises/${encodeURIComponent(exerciseId)}`,
+        }
+      : null;
+  }
   return null;
 };
 
@@ -126,11 +143,95 @@ const assertDetailResponse = (response, descriptor) => {
   if (
     body?.success !== true ||
     !body.data ||
-    String(body.data.slug || "") !== descriptor.slug
+    (descriptor.kind === "exercise"
+      ? String(body.data._id || "") !== descriptor.id
+      : String(body.data.slug || "") !== descriptor.slug)
   ) {
     throw new Error(`Invalid prerender ${descriptor.kind} detail response`);
   }
   return body;
+};
+
+const parseExercisePage = (response, expectedPage) => {
+  const body = response?.data;
+  const items = body?.data;
+  const pagination = body?.pagination;
+  const parsed = {
+    total: Number(pagination?.total),
+    page: Number(pagination?.page),
+    limit: Number(pagination?.limit),
+    totalPages: Number(pagination?.totalPages),
+  };
+  if (
+    body?.success !== true ||
+    !Array.isArray(items) ||
+    !Number.isSafeInteger(parsed.total) ||
+    parsed.total < 0 ||
+    parsed.page !== expectedPage ||
+    parsed.limit !== EXERCISE_PAGE_SIZE ||
+    !Number.isSafeInteger(parsed.totalPages) ||
+    parsed.totalPages < 0 ||
+    parsed.totalPages > MAX_PAGES ||
+    parsed.totalPages !== Math.ceil(parsed.total / parsed.limit) ||
+    items.length > parsed.limit
+  ) {
+    throw new Error("Prerender exercise pagination is invalid");
+  }
+  return { items, pagination: parsed };
+};
+
+const fetchPrerenderExercises = async (
+  descriptors,
+  fetchApi,
+  retryOptions,
+) => {
+  if (descriptors.length === 0) return [];
+
+  const first = parseExercisePage(
+    await fetchWithRetry(fetchApi, exercisePagePath(1), retryOptions),
+    1,
+  );
+  const remainingPages = Array.from(
+    { length: Math.max(first.pagination.totalPages - 1, 0) },
+    (_, index) => index + 2,
+  );
+  const remaining = await mapWithConcurrency(
+    remainingPages,
+    PAGE_CONCURRENCY,
+    async (page) =>
+      parseExercisePage(
+        await fetchWithRetry(fetchApi, exercisePagePath(page), retryOptions),
+        page,
+      ),
+  );
+  const exercises = [first, ...remaining].flatMap((entry) => entry.items);
+  const exerciseIds = exercises.map((exercise) =>
+    String(exercise?._id || ""),
+  );
+  const byId = new Map(
+    exercises.map((exercise, index) => [exerciseIds[index], exercise]),
+  );
+  const requiredIds = descriptors.map(({ id }) => id);
+
+  if (
+    exercises.length !== first.pagination.total ||
+    remaining.some(
+      ({ pagination }) =>
+        pagination.total !== first.pagination.total ||
+        pagination.limit !== first.pagination.limit ||
+        pagination.totalPages !== first.pagination.totalPages,
+    ) ||
+    exerciseIds.some((id) => !/^[a-f0-9]{24}$/i.test(id)) ||
+    byId.size !== exercises.length ||
+    requiredIds.some((id) => !byId.has(id))
+  ) {
+    throw new Error("Prerender exercise content is incomplete");
+  }
+
+  return requiredIds.map((id) => ({
+    descriptor: { kind: "exercise", id },
+    body: { success: true, data: byId.get(id) },
+  }));
 };
 
 export const fetchPrerenderPageData = async (
@@ -144,7 +245,7 @@ export const fetchPrerenderPageData = async (
   const uniqueDescriptors = [
     ...new Map(
       descriptors.map((descriptor) => [
-        `${descriptor.kind}:${descriptor.slug}`,
+        `${descriptor.kind}:${descriptor.id || descriptor.slug}`,
         descriptor,
       ]),
     ).values(),
@@ -163,17 +264,26 @@ export const fetchPrerenderPageData = async (
     throw new Error("Invalid prerender customer story list response");
   }
 
-  const details = await mapWithConcurrency(
-    uniqueDescriptors,
-    DETAIL_CONCURRENCY,
-    async (descriptor) => ({
-      descriptor,
-      body: assertDetailResponse(
-        await fetchWithRetry(fetchApi, descriptor.path, retryOptions),
-        descriptor,
-      ),
-    }),
+  const exerciseDescriptors = uniqueDescriptors.filter(
+    ({ kind }) => kind === "exercise",
   );
+  const contentDescriptors = uniqueDescriptors.filter(
+    ({ kind }) => kind !== "exercise",
+  );
+  const [contentDetails, exerciseDetails] = await Promise.all([
+    mapWithConcurrency(
+      contentDescriptors,
+      DETAIL_CONCURRENCY,
+      async (descriptor) => ({
+        descriptor,
+        body: assertDetailResponse(
+          await fetchWithRetry(fetchApi, descriptor.path, retryOptions),
+          descriptor,
+        ),
+      })),
+    fetchPrerenderExercises(exerciseDescriptors, fetchApi, retryOptions),
+  ]);
+  const details = [...contentDetails, ...exerciseDetails];
 
   return {
     storyList: storyListResponse?.data || null,
@@ -187,6 +297,11 @@ export const fetchPrerenderPageData = async (
         .filter(({ descriptor }) => descriptor.kind === "blog")
         .map(({ descriptor, body }) => [descriptor.slug, body]),
     ),
+    exercises: new Map(
+      details
+        .filter(({ descriptor }) => descriptor.kind === "exercise")
+        .map(({ descriptor, body }) => [descriptor.id, body]),
+    ),
   };
 };
 
@@ -198,6 +313,7 @@ export const createPrerenderResponseCache = (
   storyList: pageData.storyList || null,
   stories: pageData.stories || new Map(),
   blogs: pageData.blogs || new Map(),
+  exercises: pageData.exercises || new Map(),
 });
 
 const jsonResponse = (status, body) => ({
@@ -247,6 +363,45 @@ export const responseForPrerenderRequest = (requestUrl, cache) => {
     );
     const blog = cache.blogs.get(slug);
     if (blog) return jsonResponse(200, blog);
+  }
+
+  const exerciseMarker = "/api/exercises/";
+  const exerciseMarkerIndex = pathname.lastIndexOf(exerciseMarker);
+  if (exerciseMarkerIndex !== -1) {
+    const suffix = pathname.slice(
+      exerciseMarkerIndex + exerciseMarker.length,
+    );
+    const [exerciseId, child] = suffix.split("/");
+    const exercise = cache.exercises.get(decodeURIComponent(exerciseId));
+    if (child === "reviews") {
+      return exercise
+        ? jsonResponse(200, {
+            success: true,
+            data: {
+              items: [],
+              summary: { total: 0, averageRating: 0 },
+              myReview: null,
+              pagination: {
+                page: 1,
+                limit: 10,
+                total: 0,
+                totalPages: 0,
+              },
+            },
+          })
+        : jsonResponse(404, {
+            success: false,
+            message: "Exercise not found",
+          });
+    }
+    if (!child) {
+      return exercise
+        ? jsonResponse(200, exercise)
+        : jsonResponse(404, {
+            success: false,
+            message: "Exercise not found",
+          });
+    }
   }
 
   const marker = "/api/recipes/detail/";

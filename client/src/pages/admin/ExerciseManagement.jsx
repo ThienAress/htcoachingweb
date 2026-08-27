@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Loader2,
   FileWarning,
+  FileJson2,
 } from "lucide-react";
 import {
   getExercises,
@@ -24,9 +25,14 @@ import {
   createManyExercises,
   updateExercise,
   deleteExercise,
+  deleteExerciseVideo,
+  uploadExerciseVideo,
 } from "../../services/exercise.service";
 import TechnicalDifficultyRating from "../ExercisesPage/TechnicalDifficultyRating";
+import ExerciseInstructionsEditor from "./ExerciseInstructionsEditor";
 import ExerciseTechnicalDifficultyFields from "./ExerciseTechnicalDifficultyFields";
+import ExerciseVideoUploadField from "./ExerciseVideoUploadField";
+import ExerciseInstructionsImportModal from "./ExerciseInstructionsImportModal";
 
 const ExerciseManagement = () => {
   const queryClient = useQueryClient();
@@ -35,13 +41,14 @@ const ExerciseManagement = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [showInstructionsImportModal, setShowInstructionsImportModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     muscleGroup: "",
     description: "",
-    videoUrl: "",
     imageUrl: "",
+    instructions: [],
     technicalDifficulty: undefined,
   });
   const [batchText, setBatchText] = useState("");
@@ -103,6 +110,29 @@ const ExerciseManagement = () => {
     onError: (err) =>
       toast.error(err.response?.data?.message || "Lỗi thêm hàng loạt"),
   });
+  const videoUploadMutation = useMutation({
+    mutationFn: ({ id, file }) => uploadExerciseVideo(id, file),
+    onSuccess: (result) => {
+      setFormData((current) => ({
+        ...current,
+        videoUrl: result.data?.videoUrl || "",
+      }));
+      toast.success("Upload video bài tập thành công");
+      invalidateByKey(queryClient, adminQueryKeys.exercises.all());
+    },
+    onError: (error) =>
+      toast.error(error.response?.data?.message || "Lỗi upload video"),
+  });
+  const videoDeleteMutation = useMutation({
+    mutationFn: deleteExerciseVideo,
+    onSuccess: () => {
+      setFormData((current) => ({ ...current, videoUrl: "" }));
+      toast.success("Đã xóa video bài tập");
+      invalidateByKey(queryClient, adminQueryKeys.exercises.all());
+    },
+    onError: (error) =>
+      toast.error(error.response?.data?.message || "Lỗi xóa video"),
+  });
 
   const resetModal = () => {
     setShowModal(false);
@@ -111,14 +141,16 @@ const ExerciseManagement = () => {
       name: "",
       muscleGroup: "",
       description: "",
-      videoUrl: "",
       imageUrl: "",
+      instructions: [],
       technicalDifficulty: undefined,
     });
   };
   const handleSubmit = (e) => {
     e.preventDefault();
     const technicalDifficulty = formData.technicalDifficulty;
+    const exercisePayload = { ...formData };
+    delete exercisePayload.videoUrl;
     const completedCriteria = [
       "coordination",
       "stability",
@@ -132,16 +164,23 @@ const ExerciseManagement = () => {
       );
     }
 
-    if (editingId) updateMutation.mutate({ id: editingId, data: formData });
-    else createMutation.mutate(formData);
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, data: exercisePayload });
+    } else {
+      createMutation.mutate(exercisePayload);
+    }
   };
   const handleEdit = (ex) => {
     setFormData({
       name: ex.name,
       muscleGroup: ex.muscleGroup,
       description: ex.description || "",
-      videoUrl: ex.videoUrl || "",
       imageUrl: ex.imageUrl || "",
+      videoUrl: ex.videoUrl || "",
+      instructions: (ex.instructions || []).map((step) => ({
+        title: step.title,
+        description: step.description || "",
+      })),
       technicalDifficulty: ex.technicalDifficulty
         ? {
             coordination: ex.technicalDifficulty.coordination,
@@ -232,14 +271,23 @@ const ExerciseManagement = () => {
             Danh sách các bài tập thể dục
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
+            type="button"
             onClick={() => setShowBatchModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm transition-all active:scale-95"
           >
-            <Upload size={18} /> Thêm nhiều
+            <Upload size={18} /> Thêm nhiều bài tập
           </button>
           <button
+            type="button"
+            onClick={() => setShowInstructionsImportModal(true)}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-700 bg-white px-4 py-2 font-semibold text-emerald-800 transition-[background-color,color] duration-200 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 motion-reduce:transition-none"
+          >
+            <FileJson2 size={18} aria-hidden="true" /> Thêm nhiều bước bài tập
+          </button>
+          <button
+            type="button"
             onClick={() => setShowModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-all active:scale-95"
           >
@@ -461,20 +509,26 @@ const ExerciseManagement = () => {
                   }
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  URL video (không bắt buộc)
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://youtube.com/..."
-                  className="w-full p-2.5 border border-gray-300 rounded-xl"
-                  value={formData.videoUrl}
-                  onChange={(e) =>
-                    setFormData({ ...formData, videoUrl: e.target.value })
+              <ExerciseInstructionsEditor
+                value={formData.instructions}
+                onChange={(instructions) =>
+                  setFormData({ ...formData, instructions })
+                }
+              />
+              <ExerciseVideoUploadField
+                exerciseId={editingId}
+                videoUrl={formData.videoUrl || ""}
+                isUploading={videoUploadMutation.isPending}
+                isDeleting={videoDeleteMutation.isPending}
+                onUpload={(file) =>
+                  videoUploadMutation.mutate({ id: editingId, file })
+                }
+                onDelete={() => {
+                  if (window.confirm("Bạn có chắc muốn xóa video bài tập này?")) {
+                    videoDeleteMutation.mutate(editingId);
                   }
-                />
-              </div>
+                }}
+              />
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   URL ảnh (không bắt buộc)
@@ -578,6 +632,13 @@ const ExerciseManagement = () => {
           </div>
         </div>
       )}
+      <ExerciseInstructionsImportModal
+        isOpen={showInstructionsImportModal}
+        onClose={() => setShowInstructionsImportModal(false)}
+        onImported={() =>
+          invalidateByKey(queryClient, adminQueryKeys.exercises.all())
+        }
+      />
     </div>
     </phantom-ui>
   );

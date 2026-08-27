@@ -97,7 +97,7 @@ const seed = async (data) => {
       clientId: data.client.user._id,
       trainerIdAtCreation: data.trainer.user._id,
       dateKey: today,
-      wellness: { pain: 4, energy: 7 },
+      wellness: { pain: 7, energy: 7 },
       notes: { private: "Không được lộ", shared: "Có thể chia sẻ" },
       status: "submitted",
       submittedAt: new Date(),
@@ -188,11 +188,7 @@ describe("Trainer client overview", () => {
     ).toHaveLength(1);
     expect(overview.body.data.weeklyCheckin.status).toBe("submitted");
     expect(overview.body.data.attention.map((item) => item.code)).toEqual(
-      expect.arrayContaining([
-        "weekly_checkin_missing",
-        "pain_reported",
-        "weekly_review_pending",
-      ]),
+      ["pain_high"],
     );
   });
 

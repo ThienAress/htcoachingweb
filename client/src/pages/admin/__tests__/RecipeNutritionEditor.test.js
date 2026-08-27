@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MAX_ADDITIONAL_RECIPE_NUTRIENTS,
   recipeNutritionFormValues,
   recipeNutritionPayload,
 } from "../recipeNutritionForm";
@@ -25,5 +26,9 @@ describe("RecipeNutritionEditor helpers", () => {
       salt: 1.2,
       additional: [{ label: "Chất xơ", unit: "g", value: 7 }],
     });
+  });
+
+  it("đồng bộ giới hạn 60 thành phần dinh dưỡng bổ sung", () => {
+    expect(MAX_ADDITIONAL_RECIPE_NUTRIENTS).toBe(60);
   });
 });

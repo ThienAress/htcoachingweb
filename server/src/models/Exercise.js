@@ -52,6 +52,24 @@ const technicalDifficultySchema = new mongoose.Schema(
   { _id: false },
 );
 
+const exerciseInstructionSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 160,
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: 2000,
+      default: "",
+    },
+  },
+  { _id: false },
+);
+
 const exerciseSchema = new mongoose.Schema(
   {
     name: {
@@ -73,9 +91,22 @@ const exerciseSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    videoPublicId: {
+      type: String,
+      default: "",
+      select: false,
+    },
     imageUrl: {
       type: String,
       default: "",
+    },
+    instructions: {
+      type: [exerciseInstructionSchema],
+      default: [],
+      validate: {
+        validator: (steps) => steps.length <= 30,
+        message: "Hướng dẫn setup tối đa 30 bước",
+      },
     },
     technicalDifficulty: {
       type: technicalDifficultySchema,

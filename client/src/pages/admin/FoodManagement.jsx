@@ -27,8 +27,8 @@ import {
 } from "../../services/food.service";
 import { useDebounce } from "../../hooks/useDebounce";
 import {
+  createAdminVerifiedFoodSource,
   FOOD_ADMIN_TEXT,
-  getFoodSourceLabel,
 } from "./foodAdminPresentation";
 
 const createFoodForm = () => ({
@@ -42,14 +42,6 @@ const createFoodForm = () => ({
   fibre: "",
   salt: "",
   nutritionBasis: "per_100g",
-  sourceType: "manual_verified",
-  sourceProvider: "HTCOACHING",
-  sourceExternalId: "",
-  sourceDatasetVersion: "",
-  sourceLicense: "proprietary-internal",
-  sourceAttribution: FOOD_ADMIN_TEXT.defaultAttribution,
-  sourceUrl: "",
-  sourceDate: new Date().toISOString().slice(0, 10),
   allergenReviewStatus: "unreviewed",
   allergenContains: [],
   allergenMayContain: [],
@@ -86,23 +78,6 @@ const SPECIFIC_FOOD_OPTIONS = [
   ["goat", "Dê"],
   ["lamb", "Cừu"],
 ];
-
-const sourcePayload = (formData) => {
-  if (formData.sourceType === "legacy_unknown") return undefined;
-  const external = formData.sourceType === "usda_fdc";
-  return {
-    type: formData.sourceType,
-    provider: formData.sourceProvider.trim(),
-    externalId: formData.sourceExternalId.trim(),
-    datasetVersion: formData.sourceDatasetVersion.trim(),
-    license: formData.sourceLicense.trim(),
-    attribution: formData.sourceAttribution.trim(),
-    sourceUrl: formData.sourceUrl.trim(),
-    ...(external
-      ? { retrievedAt: new Date(formData.sourceDate).toISOString() }
-      : { verifiedAt: new Date(formData.sourceDate).toISOString() }),
-  };
-};
 
 const allergenPayload = (formData) =>
   formData.allergenReviewStatus === "unreviewed"
@@ -249,18 +224,6 @@ const FoodManagement = () => {
       fibre: food.fibre ?? "",
       salt: food.salt ?? "",
       nutritionBasis: food.nutritionBasis || "per_100g",
-      sourceType: food.source?.type || "legacy_unknown",
-      sourceProvider: food.source?.provider || "",
-      sourceExternalId: food.source?.externalId || "",
-      sourceDatasetVersion: food.source?.datasetVersion || "",
-      sourceLicense: food.source?.license || "",
-      sourceAttribution: food.source?.attribution || "",
-      sourceUrl: food.source?.sourceUrl || "",
-      sourceDate: (
-        food.source?.retrievedAt ||
-        food.source?.verifiedAt ||
-        new Date().toISOString()
-      ).slice(0, 10),
       allergenReviewStatus:
         food.allergenProfile?.reviewStatus || "unreviewed",
       allergenContains: food.allergenProfile?.contains || [],
@@ -304,7 +267,7 @@ const FoodManagement = () => {
       fibre: formData.fibre === "" ? undefined : parseFloat(formData.fibre),
       salt: formData.salt === "" ? undefined : parseFloat(formData.salt),
       nutritionBasis: formData.nutritionBasis,
-      source: sourcePayload(formData),
+      source: createAdminVerifiedFoodSource(),
       allergenProfile: allergenPayload(formData),
     };
     const price = pricePayload(formData);
@@ -653,105 +616,6 @@ const FoodManagement = () => {
                         />
                       </label>
                     ))}
-                  </div>
-                </fieldset>
-                <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">
-                  <legend className="px-1 text-sm font-semibold text-slate-700">
-                    {FOOD_ADMIN_TEXT.provenanceLegend}
-                  </legend>
-                  {formData.sourceType === "legacy_unknown" && (
-                    <p className="text-xs text-amber-700">
-                      {FOOD_ADMIN_TEXT.legacyWarning}
-                    </p>
-                  )}
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="text-sm text-slate-700">
-                      Loại nguồn
-                      <select
-                        value={formData.sourceType}
-                        onChange={(e) => setFormData({ ...formData, sourceType: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      >
-                        <option
-                          value="legacy_unknown"
-                          disabled={!editingFood}
-                        >
-                          {getFoodSourceLabel("legacy_unknown")}
-                        </option>
-                        <option value="manual_verified">
-                          {getFoodSourceLabel("manual_verified")}
-                        </option>
-                        <option value="nutrition_label">
-                          {getFoodSourceLabel("nutrition_label")}
-                        </option>
-                        <option value="usda_fdc">
-                          {getFoodSourceLabel("usda_fdc")}
-                        </option>
-                      </select>
-                    </label>
-                    <label className="text-sm text-slate-700">
-                      {FOOD_ADMIN_TEXT.provider}
-                      <input
-                        value={formData.sourceProvider}
-                        onChange={(e) => setFormData({ ...formData, sourceProvider: e.target.value })}
-                        required={formData.sourceType !== "legacy_unknown"}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700">
-                      {FOOD_ADMIN_TEXT.datasetVersion}
-                      <input
-                        value={formData.sourceDatasetVersion}
-                        onChange={(e) => setFormData({ ...formData, sourceDatasetVersion: e.target.value })}
-                        required={formData.sourceType !== "legacy_unknown"}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700">
-                      {FOOD_ADMIN_TEXT.license}
-                      <input
-                        value={formData.sourceLicense}
-                        onChange={(e) => setFormData({ ...formData, sourceLicense: e.target.value })}
-                        required={formData.sourceType !== "legacy_unknown"}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700 sm:col-span-2">
-                      {FOOD_ADMIN_TEXT.attribution}
-                      <input
-                        value={formData.sourceAttribution}
-                        onChange={(e) => setFormData({ ...formData, sourceAttribution: e.target.value })}
-                        required={formData.sourceType !== "legacy_unknown"}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700">
-                      {FOOD_ADMIN_TEXT.externalId}
-                      <input
-                        value={formData.sourceExternalId}
-                        onChange={(e) => setFormData({ ...formData, sourceExternalId: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700">
-                      Ngày xác minh/truy xuất
-                      <input
-                        type="date"
-                        value={formData.sourceDate}
-                        onChange={(e) => setFormData({ ...formData, sourceDate: e.target.value })}
-                        required={formData.sourceType !== "legacy_unknown"}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
-                    <label className="text-sm text-slate-700 sm:col-span-2">
-                      {FOOD_ADMIN_TEXT.sourceUrl}
-                      <input
-                        type="url"
-                        value={formData.sourceUrl}
-                        onChange={(e) => setFormData({ ...formData, sourceUrl: e.target.value })}
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                      />
-                    </label>
                   </div>
                 </fieldset>
                 <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">

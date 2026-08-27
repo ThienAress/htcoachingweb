@@ -7,6 +7,16 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MODES = new Set(["follow_plan", "recipe", "manual"]);
 const STATUSES = new Set(["eaten", "changed", "skipped"]);
+const round1 = (value) =>
+  Math.round((Number(value || 0) + Number.EPSILON) * 10) / 10;
+const zeroTotals = () => ({ protein: 0, carb: 0, fat: 0, calories: 0 });
+const sumTotals = (items) =>
+  Object.fromEntries(
+    Object.keys(zeroTotals()).map((key) => [
+      key,
+      round1(items.reduce((total, item) => total + Number(item?.[key] || 0), 0)),
+    ]),
+  );
 
 const fail = (message) => {
   throw journalError(400, message, "INVALID_JOURNAL_NUTRITION");
@@ -40,9 +50,9 @@ const normalizeEntry = (entry) => {
     fail("Meal entry mode/status không hợp lệ");
   }
   const modeFields = {
-    follow_plan: ["plannedMealKey"],
+    follow_plan: ["plannedMealKey", "adjustments"],
     recipe: ["recipeId"],
-    manual: ["description"],
+    manual: ["mealName", "description"],
   }[mode];
   assertKeys(
     entry,
@@ -70,6 +80,38 @@ const normalizeEntry = (entry) => {
       min: 1,
       max: 40,
     });
+    if (entry.adjustments !== undefined) {
+      if (
+        !Array.isArray(entry.adjustments) ||
+        entry.adjustments.length < 1 ||
+        entry.adjustments.length > 8
+      ) {
+        fail("adjustments cần từ 1 đến 8 thực phẩm");
+      }
+      const foodIds = new Set();
+      normalized.adjustments = entry.adjustments.map((adjustment) => {
+        assertObject(adjustment, "adjustments item");
+        assertKeys(
+          adjustment,
+          new Set(["foodId", "amountGrams"]),
+          "adjustments item",
+        );
+        const foodId = String(adjustment.foodId || "");
+        const amountGrams = Number(adjustment.amountGrams);
+        if (!mongoose.isValidObjectId(foodId) || foodIds.has(foodId)) {
+          fail("adjustments foodId không hợp lệ hoặc bị trùng");
+        }
+        if (
+          !Number.isFinite(amountGrams) ||
+          amountGrams < 1 ||
+          amountGrams > 1000
+        ) {
+          fail("Khối lượng thực tế phải từ 1 đến 1000g");
+        }
+        foodIds.add(foodId);
+        return { foodId, amountGrams: round1(amountGrams) };
+      });
+    }
   }
   if (mode === "recipe") {
     if (!mongoose.isValidObjectId(entry.recipeId)) {
@@ -78,6 +120,14 @@ const normalizeEntry = (entry) => {
     normalized.recipeId = String(entry.recipeId);
   }
   if (mode === "manual") {
+    normalized.mealName =
+      entry.mealName === undefined
+        ? "Bữa ăn phát sinh"
+        : text(entry.mealName, {
+            field: "mealName",
+            min: 1,
+            max: 80,
+          });
     normalized.description = text(entry.description, {
       field: "description",
       min: 1,
@@ -134,7 +184,103 @@ const assignmentSnapshot = (plan, assignedAt) => ({
   version: plan.version,
   titleSnapshot: plan.title,
   assignedAt,
+  totalsSnapshot: {
+    protein: plan.totals.protein,
+    carb: plan.totals.carb,
+    fat: plan.totals.fat,
+    calories: plan.totals.calories,
+  },
 });
+
+const scaledNutrition = (food, actualAmountGrams) => {
+  const ratio = actualAmountGrams / Number(food.amountGrams);
+  return Object.fromEntries(
+    Object.keys(zeroTotals()).map((key) => [
+      key,
+      round1(Number(food.nutrition?.[key] || 0) * ratio),
+    ]),
+  );
+};
+
+const actualMealSnapshot = ({ meal, entry, existing }) => {
+  const requested = new Map(
+    (entry.adjustments || []).map((item) => [String(item.foodId), item.amountGrams]),
+  );
+  const previous = new Map(
+    (existing?.actualFoods || []).map((item) => [
+      String(item.foodId),
+      Number(item.actualAmountGrams),
+    ]),
+  );
+  const mealFoodIds = new Set(meal.foods.map((food) => String(food.foodId)));
+  if ([...requested.keys()].some((foodId) => !mealFoodIds.has(foodId))) {
+    throw journalError(
+      422,
+      "Thực phẩm điều chỉnh không thuộc bữa ăn đã chọn",
+      "MEAL_PLAN_FOOD_NOT_FOUND",
+    );
+  }
+  const actualFoods = meal.foods.map((food) => {
+    const foodId = String(food.foodId);
+    const actualAmountGrams = round1(
+      requested.get(foodId) ?? previous.get(foodId) ?? food.amountGrams,
+    );
+    return {
+      foodId: food.foodId,
+      labelSnapshot: food.label,
+      plannedAmountGrams: food.amountGrams,
+      actualAmountGrams,
+      nutrition: scaledNutrition(food, actualAmountGrams),
+    };
+  });
+  return { actualFoods, actualTotals: sumTotals(actualFoods.map((food) => food.nutrition)) };
+};
+
+const storedEntryCommand = (entry) => {
+  const common = {
+    entryId: entry.entryId,
+    mode: entry.mode,
+    status: entry.status,
+    note: entry.note || "",
+  };
+  if (entry.mode === "follow_plan") {
+    return {
+      ...common,
+      plannedMealKey: entry.plannedMealKey,
+      ...((entry.actualFoods || []).length > 0
+        ? {
+            adjustments: entry.actualFoods.map((food) => ({
+              foodId: String(food.foodId),
+              amountGrams: Number(food.actualAmountGrams),
+            })),
+          }
+        : {}),
+    };
+  }
+  if (entry.mode === "recipe") {
+    return { ...common, recipeId: String(entry.recipeId) };
+  }
+  return {
+    ...common,
+    mealName: entry.mealName || "Bữa ăn phát sinh",
+    description: entry.description,
+  };
+};
+
+export const buildNutritionSubmissionFields = ({ journal, now }) => {
+  const entries = journal?.nutrition?.entries || [];
+  if (!entries.some((entry) => entry.status === "eaten")) {
+    throw journalError(
+      422,
+      "Hãy xác nhận ít nhất một bữa đã ăn trước khi gửi cho HLV",
+      "NUTRITION_EATEN_MEAL_REQUIRED",
+    );
+  }
+  return {
+    "nutrition.entries": entries.map(storedEntryCommand),
+    "nutrition.submittedAt": now,
+  };
+};
 
 export const canonicalizeNutritionFields = async ({
   clientId,
@@ -227,6 +373,7 @@ export const canonicalizeNutritionFields = async ({
     ]),
   );
   result["nutrition.entries"] = entries.map((entry) => {
+    const existing = existingById.get(entry.entryId);
     const base = {
       entryId: entry.entryId,
       mode: entry.mode,
@@ -237,8 +384,12 @@ export const canonicalizeNutritionFields = async ({
       version: null,
       recipeId: null,
       recipeSlugSnapshot: "",
+      mealName: "",
       description: "",
-      recordedAt: existingById.get(entry.entryId)?.recordedAt || now,
+      actualFoods: [],
+      actualTotals: null,
+      editCount: Number(existing?.editCount || 0),
+      recordedAt: existing?.recordedAt || now,
     };
     if (entry.mode === "follow_plan") {
       const meal = assignedPlan.meals.find(
@@ -257,6 +408,7 @@ export const canonicalizeNutritionFields = async ({
         savedMealPlanId: assignedPlan._id,
         version: assignedPlan.version,
         labelSnapshot: meal.name,
+        ...actualMealSnapshot({ meal, entry, existing }),
       };
     }
     if (entry.mode === "recipe") {
@@ -268,10 +420,25 @@ export const canonicalizeNutritionFields = async ({
         labelSnapshot: recipe.name,
       };
     }
+    const previousMealName = existing?.mealName || "Bữa ăn phát sinh";
+    const contentChanged = Boolean(
+      existing &&
+        (previousMealName !== entry.mealName ||
+          String(existing.description || "") !== entry.description),
+    );
+    if (contentChanged && Number(existing.editCount || 0) >= 1) {
+      throw journalError(
+        409,
+        "Bữa ăn phát sinh này chỉ được cập nhật một lần",
+        "MEAL_ENTRY_UPDATE_LIMIT_REACHED",
+      );
+    }
     return {
       ...base,
+      mealName: entry.mealName,
       description: entry.description,
       labelSnapshot: entry.description,
+      editCount: contentChanged ? 1 : Number(existing?.editCount || 0),
     };
   });
   return result;

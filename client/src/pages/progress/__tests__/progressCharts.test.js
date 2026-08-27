@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildBodyMetricChartModel,
   buildWeightChartModel,
-  wellnessScoreRows,
 } from "../progressCharts";
 
 describe("progress chart presentation", () => {
@@ -53,7 +52,7 @@ describe("progress chart presentation", () => {
     ]);
   });
 
-  it("breaks the path across a missing monthly report period", () => {
+  it("connects only report periods that contain a measurement", () => {
     const chart = buildBodyMetricChartModel(
       [
         { dateKey: "2026-07-06", value: 80 },
@@ -66,14 +65,11 @@ describe("progress chart presentation", () => {
     );
 
     expect(chart.points.map(({ dateKey, value }) => [dateKey, value])).toEqual([
-      ["2026-07-01", null],
       ["2026-07-06", 80],
-      ["2026-07-13", null],
       ["2026-07-20", 78],
-      ["2026-07-27", null],
     ]);
-    expect(chart.path.match(/M /g)).toHaveLength(2);
-    expect(chart.path).not.toContain("L");
+    expect(chart.path.match(/M /g)).toHaveLength(1);
+    expect(chart.path).toContain("L");
   });
 
   it("builds chart geometry from the rendered width", () => {
@@ -88,23 +84,5 @@ describe("progress chart presentation", () => {
     expect(chart.dimensions).toMatchObject({ width: 320, height: 300 });
     expect(chart.points.map(({ x }) => x)).toEqual([64, 300]);
     expect(chart.xTicks).toHaveLength(2);
-  });
-
-  it("keeps all wellness score labels visible while rejecting invalid averages", () => {
-    const rows = wellnessScoreRows({
-      energy: { average: 7.4, count: 4 },
-      hunger: { average: 11, count: 2 },
-      stress: { average: null, count: 0 },
-      soreness: { average: 3, count: 5 },
-      pain: { average: -1, count: 2 },
-    });
-
-    expect(rows.map(({ key, average }) => [key, average])).toEqual([
-      ["energy", 7.4],
-      ["hunger", null],
-      ["stress", null],
-      ["soreness", 3],
-      ["pain", null],
-    ]);
   });
 });

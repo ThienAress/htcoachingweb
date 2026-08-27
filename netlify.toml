@@ -9,7 +9,7 @@
   REQUIRE_DYNAMIC_ROUTES = "true"
   SITEMAP_API_URL = "https://htcoachingweb-staging.onrender.com/api"
   PRERENDER_API_URL = "https://htcoachingweb-staging.onrender.com/api"
-  PRERENDER_CONCURRENCY = "6"
+  PRERENDER_CONCURRENCY = "8"
 
 [context.production.environment]
   VITE_TODAY_PLATFORM_ENABLED = "true"

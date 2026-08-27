@@ -76,7 +76,7 @@ export const TrainerWellnessTargetCard = ({ clientId }) => {
     },
     onError: (error) => {
       if (error.response?.status === 409) {
-        toast.error("Mục tiêu vừa được cập nhật. Đang tải phiên bản mới nhất");
+        toast.error("Mục tiêu vừa được cập nhật. Đang tải dữ liệu mới nhất");
         void query.refetch();
         return;
       }
@@ -91,14 +91,14 @@ export const TrainerWellnessTargetCard = ({ clientId }) => {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-sm">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-slate-800 px-5 py-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10">
-          <Target className="h-4 w-4 text-cyan-300" aria-hidden="true" />
+      <div className="flex items-start gap-4 border-b border-slate-800 p-5 sm:p-6">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10">
+          <Target className="h-6 w-6 text-cyan-300" aria-hidden="true" />
         </div>
         <div>
-          <h2 className="text-sm font-bold text-slate-50">Mục tiêu sức khỏe</h2>
-          <p className="mt-0.5 text-xs leading-5 text-slate-400">
-            Đặt mục tiêu tham chiếu; học viên vẫn tự nhập số thực tế mỗi ngày.
+          <h2 className="text-2xl font-bold text-slate-50 sm:text-3xl">Mục tiêu sức khỏe</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Đặt mục tiêu và gửi cho khách hàng
           </p>
         </div>
       </div>

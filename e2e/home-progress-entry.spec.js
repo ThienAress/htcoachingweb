@@ -1,9 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-const useActor = async (page, role) => {
+const useActor = async (page, role, extraHeaders = {}) => {
   await page.route("**/api/**", (route) =>
     route.continue({
-      headers: { ...route.request().headers(), "x-e2e-role": role },
+      headers: {
+        ...route.request().headers(),
+        "x-e2e-role": role,
+        ...extraHeaders,
+      },
     }),
   );
 };
@@ -90,5 +94,35 @@ test.describe("homepage Today Dashboard entry", () => {
 
     await expect(page.getByTestId("today-progress-prompt")).toHaveCount(0);
     await expect(page.getByRole("dialog", { name: "Bạn là ai?" })).toHaveCount(0);
+  });
+
+  test("does not show the customer prompt for an authenticated trainer role", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("pricingViewMode", "customer");
+      sessionStorage.removeItem("ht_today_progress_prompt_dismissed");
+    });
+    await useActor(page, "trainer");
+
+    await page.goto("/");
+    await page.waitForTimeout(8000);
+
+    await expect(page.getByTestId("today-progress-prompt")).toHaveCount(0);
+  });
+
+  test("does not show the customer prompt for a user with trainer plan access", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("pricingViewMode", "customer");
+      sessionStorage.removeItem("ht_today_progress_prompt_dismissed");
+    });
+    await useActor(page, "user", { "x-e2e-trainer-access": "true" });
+
+    await page.goto("/");
+    await page.waitForTimeout(8000);
+
+    await expect(page.getByTestId("today-progress-prompt")).toHaveCount(0);
   });
 });

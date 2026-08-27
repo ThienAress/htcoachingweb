@@ -19,6 +19,7 @@ const changeSchema = new mongoose.Schema(
         "notes.shared",
         "nutrition.assignment",
         "nutrition.entries",
+        "nutrition.submittedAt",
         "habitCompletions",
         "status",
         "submittedAt",
@@ -66,7 +67,7 @@ const dailyJournalRevisionSchema = new mongoose.Schema(
     },
     action: {
       type: String,
-      enum: ["create", "update", "submit", "correction"],
+      enum: ["create", "update", "submit", "correction", "nutrition_submit"],
       required: true,
     },
     changedAt: {

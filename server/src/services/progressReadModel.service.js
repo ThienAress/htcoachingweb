@@ -6,15 +6,17 @@ import {
 } from "../utils/dateKey.js";
 
 const ALLOWED_DAYS = new Set([7, 30, 90, 180]);
-const WELLNESS_FIELDS = [
-  "sleepHours",
-  "waterMl",
-  "steps",
+const NUMERIC_WELLNESS_FIELDS = ["sleepHours", "waterMl", "steps"];
+const QUALITATIVE_WELLNESS_FIELDS = [
   "energy",
   "hunger",
   "stress",
   "soreness",
   "pain",
+];
+const WELLNESS_FIELDS = [
+  ...NUMERIC_WELLNESS_FIELDS,
+  ...QUALITATIVE_WELLNESS_FIELDS,
 ];
 
 export const createProgressRange = (
@@ -151,9 +153,9 @@ const habitCompliance = ({ habits, journals, range }) => {
   return percentMetric(numerator, denominator);
 };
 
-const wellnessAverages = ({ journals, range }) =>
-  Object.fromEntries(
-    WELLNESS_FIELDS.map((field) => {
+const wellnessSummaries = ({ journals, range }) => ({
+  ...Object.fromEntries(
+    NUMERIC_WELLNESS_FIELDS.map((field) => {
       const values = journals
         .filter((journal) =>
           inRange(journal.dateKey, range.startDateKey, range.endDateKey),
@@ -176,7 +178,29 @@ const wellnessAverages = ({ journals, range }) =>
         },
       ];
     }),
-  );
+  ),
+  ...Object.fromEntries(
+    QUALITATIVE_WELLNESS_FIELDS.map((field) => {
+      const observations = journals
+        .filter(
+          (journal) =>
+            inRange(journal.dateKey, range.startDateKey, range.endDateKey) &&
+            typeof journal.wellness?.[field] === "number" &&
+            Number.isFinite(journal.wellness[field]),
+        )
+        .sort((left, right) => left.dateKey.localeCompare(right.dateKey));
+      const latest = observations.at(-1) || null;
+      return [
+        field,
+        {
+          latest: latest?.wellness?.[field] ?? null,
+          latestDateKey: latest?.dateKey || null,
+          count: observations.length,
+        },
+      ];
+    }),
+  ),
+});
 
 const wellnessDaily = ({ journals, range }) =>
   journals
@@ -322,7 +346,7 @@ export const buildProgressReadModel = ({
     habitCompliance: habitCompliance({ habits, journals, range }),
   },
   wellness: {
-    ...wellnessAverages({ journals, range }),
+    ...wellnessSummaries({ journals, range }),
     daily: wellnessDaily({ journals, range }),
   },
   weightTrend: weightTrend({ weeklyCheckins, range }),

@@ -1,11 +1,15 @@
 ---
 name: pre-deploy
-description: Pipeline điều phối 7 gates trước push/deploy; gom findings, tái sử dụng evidence giữa QA và ship, và chỉ cho READY khi mọi gate bắt buộc pass.
+description: Pipeline điều phối 7 gates trước push/deploy; gom findings, tái sử dụng QA evidence và áp release-promotion contract trước khi kết luận READY theo target.
 ---
 
 # $pre-deploy — Full Release Pipeline
 
 `$pre-deploy` điều phối các workflow chuyên trách. Nó không chép hoặc chạy trùng logic build/test của `$qa`, và không thay quyền quyết định cuối của `$ship`.
+
+Trước khi chạy, khai báo target `staging` hoặc `production` và đọc policy canonical
+`.agents/rules/workflow/release-promotion.md`. Commands/evidence lifecycle nằm tại
+`docs/operations/runbooks/release-promotion.md`.
 
 Các gate độc lập có thể chạy song song khi không phụ thuộc nhau. Gate 7 chỉ chạy sau khi đã gom evidence. Nếu một gate fail, vẫn có thể hoàn tất các kiểm tra read-only an toàn để báo cáo đầy đủ; tuyệt đối không deploy.
 
@@ -148,7 +152,15 @@ Chạy `$ship` với QA evidence từ Gate 3, SEO report từ Gate 5 và toàn b
 
 `$ship` validate evidence rồi chạy security, cleanup và release decision. Nếu `$ship` chạy lại build/tests dù evidence còn hợp lệ, đó là lỗi workflow.
 
-**Output gate:** `GO`, `GO WITH WARNINGS` hoặc `NO-GO`.
+- Target `staging`: chưa yêu cầu live acceptance; kết quả tối đa là `GO FOR STAGING`.
+- Target `production`: bắt buộc có per-release candidate manifest từ
+  `Staging Live Acceptance`, exact SHA/deploy IDs, cleanup residue `0`, current
+  release + off-device recovery và rollback IDs. Chạy candidate verifier theo
+  release runbook; thiếu evidence là `NO-GO FOR PRODUCTION`.
+- Không chạy acceptance mutating lên production và không coi report lịch sử là
+  candidate evidence hiện tại.
+
+**Output gate:** `GO FOR STAGING`, `GO`, `GO WITH WARNINGS` hoặc `NO-GO`, tùy target.
 
 - Gate bắt buộc `FAIL`/`BLOCKED`, hoặc còn `BLOCK`/`HIGH` → `NO-GO`.
 - MED chỉ được chấp nhận khi gate vẫn pass và có evidence, residual risk, lý do, owner, follow-up.
@@ -170,7 +182,9 @@ Sau khi chạy xong 7 gates, tổng hợp:
 [Gate 4/7] UI Check (?/40)  ✅ Pass / ⚠️ X findings / ⏭️ SKIP
 [Gate 5/7] SEO Check        ✅ Pass / ⚠️ X findings / ⏭️ SKIP
 [Gate 6/7] Agent Validation ✅ PASS / ⚠️ PASS WITH WARNINGS / ❌ FAIL
-[Gate 7/7] Ship             ✅ GO / ⚠️ GO WITH WARNINGS / ❌ NO-GO
+[Gate 7/7] Ship             ✅ GO FOR STAGING / GO / ⚠️ GO WITH WARNINGS / ❌ NO-GO
+Release target              staging | production
+Promotion evidence          ⏳ post-staging / ✅ current candidate / ❌ missing-stale-mismatch
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -256,8 +270,9 @@ RESULT: ❌ NOT READY — Gate fail hoặc còn BLOCK/HIGH
 
 | Tình huống | Lệnh |
 |------------|-------|
-| Trước khi push code lên remote | `$pre-deploy` |
-| Trước khi deploy Netlify/Render | `$pre-deploy` |
+| Trước khi push code lên remote | `$pre-deploy` target `staging` |
+| Trước khi deploy staging | `$pre-deploy` target `staging`; sau deploy chạy Staging Live Acceptance |
+| Trước khi deploy production | `$pre-deploy` target `production` với candidate artifact hiện tại |
 | Chỉ sửa backend, muốn nhanh | `$pre-deploy skip-ui` |
 | Vừa chạy audit xong, muốn tiếp | `$pre-deploy skip-audit` |
 | Chỉ muốn check 1 thứ | `$audit`, `$ui-check`, `$seo-check`, `$ship` riêng lẻ |

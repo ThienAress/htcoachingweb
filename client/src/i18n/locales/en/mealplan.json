@@ -40,7 +40,7 @@
   },
   "saved": {
     "title": "Saved meal plans",
-    "description": "Save your current plan so you can review and reuse it later.",
+    "description": "Save multiple meal plans so you can review and reuse them whenever needed.",
     "save_current": "Save current plan",
     "saving": "Working...",
     "generated_title": "{{target}} meal plan",
@@ -51,13 +51,15 @@
     "writes_disabled": "Saving meal plans is temporarily unavailable. Please try again later.",
     "version_conflict": "This saved plan changed recently. Reload it and try again.",
     "not_found": "This saved plan could not be found.",
+    "invalid_title": "Meal plan names must be 1 to 30 characters and cannot contain inappropriate language.",
     "invalid_generated": "The current plan is missing canonical food data. Please generate it again.",
     "empty": "You have no saved meal plans yet.",
     "retry": "Retry",
-    "update_with_current": "Replace with current plan",
+    "edit": "Edit meal plan",
     "archive": "Remove saved plan",
     "create_success": "Meal plan saved.",
-    "revise_success": "The saved plan was replaced with your current plan.",
+    "revise_success": "Meal plan updated.",
+    "rename_success": "Meal plan renamed.",
     "archive_success": "The plan was removed from your saved list."
   },
   "selector": {

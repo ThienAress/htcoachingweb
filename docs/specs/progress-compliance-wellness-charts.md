@@ -35,7 +35,7 @@ mỗi section chỉ còn một card nội dung không lặp tiêu đề hay đi�
 
 ### Điều khiển và bố cục
 
-- Header `Tiến trình cơ thể và huấn luyện` luôn hiện trên landing và khi mở section.
+- Header `Tiến trình cơ thể và tập luyện` luôn hiện trên landing và khi mở section.
 - Chỉ header chung có `Cập nhật dữ liệu`. Section không render thêm nút làm mới.
 - Mỗi section tích hợp nút quay lại, tiêu đề và range control vào card nội dung; không có toolbar card
   đứng riêng lặp lại tiêu đề.

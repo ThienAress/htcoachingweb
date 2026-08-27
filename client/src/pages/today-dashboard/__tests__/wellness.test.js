@@ -34,7 +34,6 @@ describe("wellness form contract", () => {
       soreness: "",
       pain: "",
       painArea: "",
-      privateNote: "",
       sharedNote: "",
     });
 
@@ -64,7 +63,7 @@ describe("wellness form contract", () => {
         pain: 2,
         painArea: "Vai",
       },
-      notes: { private: "Riêng", shared: "Chia sẻ" },
+      notes: { private: "Dữ liệu cũ", shared: "Chia sẻ" },
     });
     const patch = wellnessValuesToPatch(values);
 
@@ -80,8 +79,10 @@ describe("wellness form contract", () => {
         pain: 2,
         painArea: "Vai",
       },
-      notes: { private: "Riêng", shared: "Chia sẻ" },
+      notes: { shared: "Chia sẻ" },
     });
+    expect(values).not.toHaveProperty("privateNote");
+    expect(patch.notes).not.toHaveProperty("private");
   });
 
   it("groups legacy ratings into three semantic choices", () => {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { sendExerciseSuggestion as submitExerciseSuggestion } from "../services/exerciseSuggestion.service";
 import { getExercises } from "../services/exercise.service";
 import {
@@ -7,29 +8,25 @@ import {
 } from "../pages/ExercisesPage/constants";
 
 export default function useExercisesLogic() {
-  const [exerciseOptions, setExerciseOptions] = useState([]);
   const [workoutData, setWorkoutData] = useState([]);
   const [selectedMuscleGroups, setSelectedMuscleGroups] = useState([]);
-  const [showExerciseList, setShowExerciseList] = useState(false);
-  const [filteredExercises, setFilteredExercises] = useState([]);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [windowWidth, setWindowWidth] = useState(
+    () => globalThis.window?.innerWidth ?? 1024,
+  );
   const [showCustomGroupModal, setShowCustomGroupModal] = useState(false);
   const [tempSelectedGroups, setTempSelectedGroups] = useState([]);
   const [customGroups, setCustomGroups] = useState([]);
   const [customGroupName, setCustomGroupName] = useState("");
 
-  // Lấy danh sách bài tập từ backend
-  useEffect(() => {
-    getExercises(1, 500)
-      .then((response) => {
-        const exercisesArray = response.data || [];
-        setExerciseOptions(exercisesArray);
-        setFilteredExercises(exercisesArray);
-      })
-      .catch(() => undefined);
-  }, []);
+  const exercisesQuery = useQuery({
+    queryKey: ["exercises", "catalog"],
+    queryFn: () => getExercises(1, 500),
+    staleTime: 5 * 60 * 1000,
+  });
+  const exerciseOptions = exercisesQuery.data?.data || [];
 
   useEffect(() => {
+    if (!globalThis.window) return undefined;
     const onResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -181,12 +178,11 @@ export default function useExercisesLogic() {
     muscleGroups,
     workoutSections,
     exerciseOptions,
+    isExercisesLoading: exercisesQuery.isPending,
+    isExercisesError: exercisesQuery.isError,
+    retryExercises: exercisesQuery.refetch,
     workoutData,
     selectedMuscleGroups,
-    showExerciseList,
-    setShowExerciseList,
-    filteredExercises,
-    setFilteredExercises,
     isMobile,
     toggleMuscleGroup,
     handleAddExercise,

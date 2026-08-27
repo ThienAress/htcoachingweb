@@ -23,6 +23,7 @@ import {
   AI_MEMORY_KINDS,
   AI_MEMORY_VALUES,
 } from "../constants/aiMemory.js";
+import { MAX_ADDITIONAL_RECIPE_NUTRIENTS } from "../constants/recipeNutrition.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -207,8 +208,10 @@ export const validateRecipeNutrition = [
   ),
   body("nutrition.additional")
     .optional()
-    .isArray({ max: 20 })
-    .withMessage("Tối đa 20 thành phần dinh dưỡng bổ sung"),
+    .isArray({ max: MAX_ADDITIONAL_RECIPE_NUTRIENTS })
+    .withMessage(
+      `Tối đa ${MAX_ADDITIONAL_RECIPE_NUTRIENTS} thành phần dinh dưỡng bổ sung`,
+    ),
   body("nutrition.additional.*.label")
     .isString()
     .trim()
@@ -970,6 +973,17 @@ const journalPatchFields = (patchOptional = false) => [
     .optional()
     .isString()
     .isLength({ min: 1, max: 40 }),
+  body("patch.nutrition.entries.*.adjustments")
+    .optional()
+    .isArray({ min: 1, max: 8 })
+    .withMessage("adjustments cần từ 1 đến 8 thực phẩm"),
+  body("patch.nutrition.entries.*.adjustments.*.foodId")
+    .isMongoId()
+    .withMessage("adjustments foodId không hợp lệ"),
+  body("patch.nutrition.entries.*.adjustments.*.amountGrams")
+    .isFloat({ min: 1, max: 1000 })
+    .withMessage("Khối lượng thực tế phải từ 1 đến 1000g")
+    .toFloat(),
   body("patch.nutrition.entries.*.recipeId")
     .optional()
     .isMongoId()
@@ -979,6 +993,12 @@ const journalPatchFields = (patchOptional = false) => [
     .isString()
     .trim()
     .isLength({ min: 1, max: 240 }),
+  body("patch.nutrition.entries.*.mealName")
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 80 })
+    .withMessage("Tên bữa ăn phải từ 1 đến 80 ký tự"),
   body("patch.nutrition.entries.*.note")
     .optional()
     .isString()
@@ -1062,8 +1082,8 @@ const savedMealPlanContentFields = () => [
   body("title")
     .isString()
     .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage("title phải có từ 1 đến 100 ký tự"),
+    .isLength({ min: 1, max: 30 })
+    .withMessage("title phải có từ 1 đến 30 ký tự"),
   body("target")
     .optional({ nullable: true })
     .isObject()
@@ -1119,6 +1139,60 @@ export const validateReviseSavedMealPlan = [
     .withMessage("expectedVersion không hợp lệ")
     .toInt(),
   ...savedMealPlanContentFields(),
+  handleValidationErrors,
+];
+
+export const validateSubmitDailyJournalNutrition = [
+  journalDate(),
+  ...journalCommandFields(),
+  handleValidationErrors,
+];
+
+export const validateExerciseReviewId = [
+  param("exerciseId").isMongoId().withMessage("ID bài tập không hợp lệ"),
+  handleValidationErrors,
+];
+
+export const validateExerciseReview = [
+  param("exerciseId").isMongoId().withMessage("ID bài tập không hợp lệ"),
+  body().custom((value) => {
+    const allowed = ["rating", "comment"];
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some((key) => !allowed.includes(key))
+    ) {
+      throw new Error("Payload đánh giá bài tập không hợp lệ");
+    }
+    return true;
+  }),
+  body("rating")
+    .exists({ checkFalsy: true })
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Rating phải là số nguyên từ 1 đến 5")
+    .toInt(),
+  body("comment")
+    .optional({ nullable: true })
+    .isString()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage("Bình luận tối đa 1000 ký tự"),
+  handleValidationErrors,
+];
+
+export const validateRenameSavedMealPlan = [
+  param("id").isMongoId().withMessage("Saved Meal Plan ID không hợp lệ"),
+  body("requestId").isUUID().withMessage("requestId không hợp lệ"),
+  body("expectedVersion")
+    .isInt({ min: 1 })
+    .withMessage("expectedVersion không hợp lệ")
+    .toInt(),
+  body("title")
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 30 })
+    .withMessage("title phải có từ 1 đến 30 ký tự"),
   handleValidationErrors,
 ];
 
@@ -2256,7 +2330,82 @@ const technicalDifficultyValidation = (path) => [
     .withMessage("rationale tối đa 1000 ký tự"),
 ];
 
+const EXERCISE_WRITE_FIELDS = [
+  "name",
+  "muscleGroup",
+  "description",
+  "imageUrl",
+  "instructions",
+  "technicalDifficulty",
+];
+
+const exactExerciseWriteBody = (path = "") =>
+  body(path).custom((value) => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some((key) => !EXERCISE_WRITE_FIELDS.includes(key))
+    ) {
+      throw new Error("Payload bài tập không hợp lệ");
+    }
+    return true;
+  });
+
+const exerciseInstructionValidation = (path) => [
+  body(path)
+    .optional()
+    .isArray({ max: 30 })
+    .withMessage("Hướng dẫn setup tối đa 30 bước"),
+  body(`${path}.*`).custom((value) => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some(
+        (key) => !["title", "description"].includes(key),
+      )
+    ) {
+      throw new Error("Bước setup không hợp lệ");
+    }
+    return true;
+  }),
+  body(`${path}.*.title`)
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 160 })
+    .withMessage("Tiêu đề bước phải từ 1 đến 160 ký tự"),
+  body(`${path}.*.description`)
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage("Mô tả bước tối đa 2000 ký tự"),
+];
+
 export const validateExerciseList = [
+  query("page")
+    .optional()
+    .isInt({ min: 1, max: 10000 })
+    .withMessage("page phải là số nguyên từ 1 đến 10000")
+    .toInt(),
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 500 })
+    .withMessage("limit phải là số nguyên từ 1 đến 500")
+    .toInt(),
+  query("search")
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ max: 120 })
+    .withMessage("search tối đa 120 ký tự"),
+  query("muscleGroup")
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("muscleGroup tối đa 100 ký tự"),
   query("technicalDifficultyRating")
     .optional()
     .isIn(["1", "2", "3", "4", "5", "unrated"])
@@ -2265,12 +2414,41 @@ export const validateExerciseList = [
 ];
 
 export const validateExerciseWrite = [
+  exactExerciseWriteBody(),
+  body("name").optional().isString().trim().isLength({ min: 1, max: 160 }),
+  body("muscleGroup")
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 100 }),
+  body("description").optional().isString().isLength({ max: 5000 }),
+  body("imageUrl").optional().isString().trim().isLength({ max: 2000 }),
+  ...exerciseInstructionValidation("instructions"),
   ...technicalDifficultyValidation("technicalDifficulty"),
   handleValidationErrors,
 ];
 
 export const validateExerciseBatchWrite = [
   body("exercises").isArray({ min: 1 }),
+  exactExerciseWriteBody("exercises.*"),
+  body("exercises.*.name")
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 160 }),
+  body("exercises.*.muscleGroup")
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 100 }),
+  body("exercises.*.description")
+    .optional()
+    .isString()
+    .isLength({ max: 5000 }),
+  body("exercises.*.imageUrl")
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ max: 2000 }),
+  ...exerciseInstructionValidation("exercises.*.instructions"),
   ...technicalDifficultyValidation("exercises.*.technicalDifficulty"),
   handleValidationErrors,
 ];

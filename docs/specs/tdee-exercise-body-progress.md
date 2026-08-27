@@ -29,6 +29,24 @@ Thành công nghĩa là web, AI Chat, Admin và read model dùng cùng semantics
 - Chỉ có rating khi đủ cả năm tiêu chí. Bài cũ hoặc rubric chưa hoàn tất trả `null` và hiển thị `Chưa đánh giá`.
 - Sets, reps, tempo, tải, RPE/RIR và mức phù hợp với một khách cụ thể không nằm trong số sao này.
 
+### Exercise detail, setup guide, video và community reviews
+
+- Mỗi bài tập có trang chi tiết public riêng tại `/exercises/:id/:slug?`; API và quyền truy cập dùng MongoDB ID, slug chỉ phục vụ URL dễ đọc và SEO.
+- Trang chi tiết giữ nguyên tên, nhóm cơ chính, mô tả, hình ảnh và `Độ phức tạp kỹ thuật`; nhãn độ phức tạp phải nói rõ đây là đánh giá của HTCOACHING/Admin, không trộn với điểm cộng đồng.
+- `instructions` là danh sách có thứ tự gồm tối đa 30 bước `{ title, description }`. UI hiển thị toàn bộ bước theo chiều dọc, không có carousel hoặc nút `Bước trước`/`Bước tiếp`.
+- Video là tài sản tùy chọn do Admin upload trực tiếp. Server kiểm tra loại/kích thước file, upload lên Cloudinary và chỉ lưu URL public cùng public ID không public trong Exercise. Video không autoplay và phải dùng controls native.
+- `Đánh giá từ người tập` là section full-width độc lập phía dưới nội dung chuyên môn. Public được đọc điểm trung bình và bình luận an toàn; user đăng nhập được tạo/cập nhật một đánh giá 1–5 sao cho mỗi bài tập và xóa đánh giá của chính mình.
+- Bài tập cũ không có hướng dẫn/video vẫn hợp lệ; UI hiển thị trạng thái thiếu dữ liệu trung thực, không dựng bước hoặc video giả.
+
+### Admin bulk import cho hướng dẫn và độ phức tạp kỹ thuật
+
+- Admin có thể tải một file JSON UTF-8 tại trang `Quản lý bài tập`, xem trước kết quả ghép tên rồi mới xác nhận cập nhật.
+- File dùng `schemaVersion: 1`; mỗi phần tử chỉ gồm tên bài tập canonical, danh sách `instructions` và rubric `technicalDifficulty` đầy đủ năm tiêu chí 0–2. `rationale` là giải thích tùy chọn.
+- Backend ghép theo tên chính xác sau khi loại khoảng trắng đầu/cuối, vẫn phân biệt hoa/thường. Tên trùng trong file, field lạ, rubric thiếu/sai khoảng hoặc bước setup không hợp lệ phải bị từ chối.
+- Preview không ghi dữ liệu. Commit phải kiểm tra lại toàn bộ tên trong transaction; nếu có dù chỉ một tên không tồn tại thì không bài nào được cập nhật.
+- Import chỉ được phép thay `instructions` và `technicalDifficulty`; không được đổi tên, nhóm cơ, mô tả, ảnh, video hoặc đánh giá cộng đồng.
+- Route import là Admin-only, có CSRF, upload middleware riêng, chỉ nhận file `.json` đúng MIME và giới hạn kích thước. Không có migration/backfill hoặc tác vụ ghi production tự động.
+
 ### Body progress
 
 - Tên UI canonical: `Tiến trình cơ thể`.
@@ -42,7 +60,7 @@ Thành công nghĩa là web, AI Chat, Admin và read model dùng cùng semantics
 - TDEE public page và HT Assistant tool/card; tool schema vẫn yêu cầu input rõ ràng và fail closed.
 - `Exercise` Mongoose model, controller allowlist/query, Admin editor và public exercise library.
 - Progress source/read model và presentation dùng chung cho khách hàng cùng góc nhìn trainer/admin hiện có.
-- Không thêm dependency, public route, entitlement, migration ghi dữ liệu thật hoặc external provider.
+- Không thêm dependency, entitlement, migration ghi dữ liệu thật hoặc external provider. Thêm public detail route, review API và dùng Cloudinary provider hiện có cho video.
 
 ## UX brief
 
@@ -55,6 +73,8 @@ Thành công nghĩa là web, AI Chat, Admin và read model dùng cùng semantics
 ## Compatibility và data policy
 
 - `technicalDifficulty` là optional/null; document Exercise cũ không cần backfill và không fail validation.
+- `instructions`, `videoUrl` và `videoPublicId` là additive/optional; không backfill. `videoPublicId` không xuất hiện trong public DTO.
+- Review nằm trong collection riêng, unique theo `(exercise, user)`; không ghi rating cộng đồng vào Exercise và không thay đổi rubric Admin.
 - API Exercise hiện có giữ response envelope và route/method; filter mới là additive.
 - Progress response thêm `bodyProgress` theo version mới nhưng giữ `weightTrend` trong compatibility window cho consumer cũ.
 - WeeklyCheckin schema không đổi; chỉ mở projection/read model cho `waistCm` đã tồn tại.
@@ -64,6 +84,8 @@ Thành công nghĩa là web, AI Chat, Admin và read model dùng cùng semantics
 
 - TDD cho activity recommendation/uncertainty, AI tool invalid activity và no-default UI state.
 - Model/controller/service tests cho rubric đầy đủ, incomplete → null, filter và backward compatibility.
+- Model/API tests cho thứ tự hướng dẫn, upload/xóa video, review authorization, validation, moderation và public-safe DTO.
+- Client tests cho trang detail hiển thị toàn bộ bước, không có điều hướng step, video optional và review là section độc lập.
 - Progress read-model/presentation tests cho weight + waist, một điểm đo, missing data và date ordering.
 - Focused tests mỗi phase, sau đó client/server unit, lint, compile/release build phù hợp, AI tool validation, UI check và code review độc lập.
 
@@ -73,6 +95,9 @@ Thành công nghĩa là web, AI Chat, Admin và read model dùng cùng semantics
 - [ ] Kết quả TDEE nói rõ đây là ước tính, hiển thị khoảng hợp lý và hướng dẫn hiệu chỉnh sau 14 ngày.
 - [ ] Exercise rating chỉ xuất hiện khi đủ rubric; Admin sửa được rubric; public list lọc/đọc được 1–5 sao hoặc `Chưa đánh giá`.
 - [ ] Exercise cũ không cần migration và vẫn đọc/sửa bình thường.
+- [ ] Trang chi tiết giữ đủ dữ liệu canonical, hiển thị toàn bộ setup steps, video Admin upload và section đánh giá người tập tách riêng.
+- [ ] Admin import được JSON hướng dẫn + rubric bằng tên chính xác, bắt buộc preview trước commit và fail toàn bộ khi có tên không khớp.
+- [ ] Mỗi user chỉ có một review/bài tập; public không nhận PII hoặc `videoPublicId`; technical difficulty không bị trộn với community rating.
 - [ ] Progress trả và hiển thị cân nặng + vòng eo với current/delta/history; không bịa chỉ số khi thiếu nguồn.
 - [ ] Khách và góc nhìn trainer/admin hiện có dùng cùng read model và ownership guard.
 - [ ] Không regress sidebar HLV đang thay đổi trong working tree.
@@ -80,5 +105,6 @@ Thành công nghĩa là web, AI Chat, Admin và read model dùng cùng semantics
 ## Boundaries
 
 - Always: server-authoritative validation, service/API patterns hiện có, noindex/private route hiện có, test trước behavior.
+- Always: route detail public có SEO/JSON-LD, upload video admin-only + CSRF, review mutation có auth + CSRF + rate limit, media cũ được cleanup an toàn khi thay/xóa.
 - Ask first: migration/backfill dữ liệu thật, thêm body-composition field mới, tự động thay đổi mục tiêu calo.
 - Never: chẩn đoán y khoa, InBody score giả, default Exercise thành 1 sao, default TDEE thành 1.55, log raw health data.

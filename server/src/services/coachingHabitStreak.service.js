@@ -1,10 +1,17 @@
 import { addDaysToDateKey, getAppDayOfWeek } from "../utils/dateKey.js";
 
-export const isHabitScheduledForDate = (habit, dateKey) => {
+export const isHabitWithinScheduleRange = (habit, dateKey) => {
   const schedule = habit.schedule;
   return (
     dateKey >= schedule.startDateKey &&
-    (!schedule.endDateKey || dateKey <= schedule.endDateKey) &&
+    (!schedule.endDateKey || dateKey <= schedule.endDateKey)
+  );
+};
+
+export const isHabitScheduledForDate = (habit, dateKey) => {
+  const schedule = habit.schedule;
+  return (
+    isHabitWithinScheduleRange(habit, dateKey) &&
     schedule.daysOfWeek.includes(getAppDayOfWeek(dateKey))
   );
 };

@@ -207,6 +207,68 @@ export const summarizePrometheusMetrics = (source) => {
     rumInpP95Ms: value('htcoaching_rum_inp_ms{quantile="0.95"}'),
     rumClsP95: value('htcoaching_rum_cls_score{quantile="0.95"}'),
     uptimeSeconds: value("htcoaching_process_uptime_seconds"),
+    rssBytes: value("htcoaching_process_rss_bytes"),
+    heapUsedBytes: value("htcoaching_process_heap_used_bytes"),
+    heapTotalBytes: value("htcoaching_process_heap_total_bytes"),
+    heapUtilization: value("htcoaching_process_heap_utilization"),
+    rollingWindowSeconds: value("htcoaching_window_seconds"),
+    rollingHttpRequests: value("htcoaching_window_http_requests"),
+    rollingHttpErrors5xx: value("htcoaching_window_http_5xx"),
+    rollingHttpErrorRate: value("htcoaching_window_http_5xx_rate"),
+    rollingHttpP95Ms: value("htcoaching_window_http_p95_ms"),
+    rollingDbP95Ms: value("htcoaching_window_db_p95_ms"),
+    rollingProviderP95Ms: value("htcoaching_window_provider_p95_ms"),
+    rollingProviderFailures: value("htcoaching_window_provider_failures"),
+  };
+};
+
+const nullableIsoTimestamp = (value, name) => {
+  if (value === null || value === undefined) return null;
+  const date = new Date(value);
+  assert(
+    Number.isFinite(date.getTime()) && date.toISOString() === value,
+    `${name} is invalid`,
+  );
+  return value;
+};
+
+export const normalizeReadiness = (payload) => {
+  assert(payload?.success === true, "Production readiness is not healthy");
+  assert(payload.database === "ready", "Production database is not ready");
+  assert(payload.lifecycle === "ready", "Production lifecycle is not ready");
+  return { database: payload.database, lifecycle: payload.lifecycle };
+};
+
+export const normalizeProviderStatus = (payload) => {
+  assert(payload?.success === true, "Provider status returned an unsuccessful payload");
+  const data = payload.data;
+  assert(data && typeof data === "object", "Provider status payload is invalid");
+  assert(typeof data.configured === "boolean", "Provider configured state is invalid");
+  assert(
+    ["disabled", "misconfigured", "webhook_only", "degraded", "ready", "pending"].includes(
+      data.status,
+    ),
+    "Provider status is invalid",
+  );
+  assert(
+    typeof data.reconciliationEnabled === "boolean",
+    "Provider reconciliation state is invalid",
+  );
+  const lastErrorCode = data.lastErrorCode === null ? null : String(data.lastErrorCode || "");
+  assert(
+    lastErrorCode === null || /^[A-Z0-9_]{1,80}$/.test(lastErrorCode),
+    "Provider error code is invalid",
+  );
+  return {
+    configured: data.configured,
+    status: data.status,
+    reconciliationEnabled: data.reconciliationEnabled,
+    lastRunAt: nullableIsoTimestamp(data.lastRunAt, "Provider lastRunAt"),
+    lastSuccessAt: nullableIsoTimestamp(
+      data.lastSuccessAt,
+      "Provider lastSuccessAt",
+    ),
+    lastErrorCode,
   };
 };
 

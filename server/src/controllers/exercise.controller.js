@@ -2,6 +2,8 @@ import Exercise, {
   deriveTechnicalDifficultyRating,
   TECHNICAL_DIFFICULTY_CRITERIA,
 } from "../models/Exercise.js";
+import ExerciseReview from "../models/ExerciseReview.js";
+import { destroyCloudinaryAsset } from "../utils/cloudinaryUpload.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 const COMPLETE_TECHNICAL_DIFFICULTY_QUERY = {
@@ -9,6 +11,9 @@ const COMPLETE_TECHNICAL_DIFFICULTY_QUERY = {
     [`technicalDifficulty.${criterion}`]: { $in: [0, 1, 2] },
   })),
 };
+
+const escapeRegex = (value) =>
+  String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const TECHNICAL_DIFFICULTY_RATING_RANGES = {
   1: [0, 1],
@@ -40,6 +45,7 @@ const buildTechnicalDifficultyQuery = (rating) => {
 
 const serializeExercise = (exercise) => {
   const data = exercise.toObject();
+  delete data.videoPublicId;
   return {
     ...data,
     technicalDifficultyRating: deriveTechnicalDifficultyRating(
@@ -51,8 +57,8 @@ const serializeExercise = (exercise) => {
 // Lấy tất cả bài tập (có phân trang, tìm kiếm)
 export const getExercises = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const page = req.query.page || 1;
+    const limit = req.query.limit || 50;
     const skip = (page - 1) * limit;
     const search = req.query.search || "";
     const muscleGroup = req.query.muscleGroup || "";
@@ -60,7 +66,7 @@ export const getExercises = async (req, res) => {
 
     let query = {};
     if (search) {
-      query.name = { $regex: search, $options: "i" };
+      query.name = { $regex: escapeRegex(search), $options: "i" };
     }
     if (muscleGroup) {
       query.muscleGroup = muscleGroup;
@@ -116,8 +122,8 @@ export const createExercise = async (req, res) => {
       name,
       muscleGroup,
       description,
-      videoUrl,
       imageUrl,
+      instructions,
       technicalDifficulty,
     } = req.body;
     if (!name || !muscleGroup) {
@@ -135,8 +141,8 @@ export const createExercise = async (req, res) => {
       name,
       muscleGroup,
       description,
-      videoUrl,
       imageUrl,
+      instructions,
       technicalDifficulty,
     });
     res.status(201).json({ success: true, data: serializeExercise(exercise) });
@@ -162,8 +168,8 @@ export const createManyExercises = async (req, res) => {
           name,
           muscleGroup,
           description,
-          videoUrl,
           imageUrl,
+          instructions,
           technicalDifficulty,
         } = item;
         if (!name || !muscleGroup) {
@@ -179,8 +185,8 @@ export const createManyExercises = async (req, res) => {
           name,
           muscleGroup,
           description,
-          videoUrl,
           imageUrl,
+          instructions,
           technicalDifficulty,
         });
         results.success.push(serializeExercise(newExercise));
@@ -205,8 +211,8 @@ export const updateExercise = async (req, res) => {
       "name",
       "muscleGroup",
       "description",
-      "videoUrl",
       "imageUrl",
+      "instructions",
       "technicalDifficulty",
     ];
     const updateData = {};
@@ -232,11 +238,25 @@ export const updateExercise = async (req, res) => {
 // Xóa bài tập (chỉ admin)
 export const deleteExercise = async (req, res) => {
   try {
-    const exercise = await Exercise.findByIdAndDelete(req.params.id);
+    const exercise = await Exercise.findByIdAndDelete(req.params.id).select(
+      "+videoPublicId",
+    );
     if (!exercise) {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy bài tập" });
+    }
+    try {
+      await ExerciseReview.deleteMany({ exerciseId: exercise._id });
+    } catch (cleanupError) {
+      safeLog.error("exercise.review_cleanup_after_delete_failed", cleanupError);
+    }
+    if (exercise.videoPublicId) {
+      try {
+        await destroyCloudinaryAsset(exercise.videoPublicId, "video");
+      } catch (cleanupError) {
+        safeLog.error("exercise.video_cleanup_after_delete_failed", cleanupError);
+      }
     }
     res.json({ success: true, message: "Xóa thành công" });
   } catch (err) {

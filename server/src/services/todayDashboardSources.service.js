@@ -161,12 +161,57 @@ const loadJournal = async ({ userId, dateKey, actorScope = "client" }) => {
   const journal = await DailyJournal.findOne({
     clientId: userId,
     dateKey,
-    ...(actorScope === "trainer" ? { status: "submitted" } : {}),
+    ...(actorScope === "trainer"
+      ? {
+          $or: [
+            { status: "submitted" },
+            { "nutrition.submittedAt": { $type: "date" } },
+          ],
+        }
+      : {}),
   })
     .lean();
-  const dto = toDailyJournalDto(journal, {
+  const rawDto = toDailyJournalDto(journal, {
     includePrivate: actorScope !== "trainer",
   });
+  const dto =
+    actorScope !== "trainer" || !rawDto
+      ? rawDto
+      : {
+          ...rawDto,
+          ...(rawDto.status === "submitted"
+            ? {}
+            : {
+                wellness: {
+                  sleepHours: null,
+                  waterMl: null,
+                  steps: null,
+                  energy: null,
+                  hunger: null,
+                  stress: null,
+                  soreness: null,
+                  pain: null,
+                  painArea: "",
+                },
+                notes: { shared: "" },
+                habitCompletions: [],
+              }),
+          ...(!rawDto.nutrition?.submittedAt
+            ? {
+                nutrition: {
+                  assignment: null,
+                  entries: [],
+                  dailyTotals: {
+                    protein: 0,
+                    carb: 0,
+                    fat: 0,
+                    calories: 0,
+                  },
+                  submittedAt: null,
+                },
+              }
+            : {}),
+        };
   const assignment = dto?.nutrition?.assignment;
   if (!assignment?.savedMealPlanId) return dto;
 

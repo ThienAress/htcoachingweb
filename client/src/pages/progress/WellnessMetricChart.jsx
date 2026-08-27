@@ -1,5 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 
+import {
+  wellnessSemanticLabel,
+  wellnessSemanticValue,
+} from "../../utils/wellnessSemantics";
 import { buildWellnessMetricChartModel } from "./wellnessCharts";
 
 const formatDate = (dateKey) =>
@@ -10,13 +14,15 @@ const formatDate = (dateKey) =>
     timeZone: "Asia/Ho_Chi_Minh",
   }).format(new Date(`${dateKey}T12:00:00+07:00`));
 
-const formatNumber = (value) =>
-  Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 1 });
+const formatNumber = (config, value) =>
+  Number(value).toLocaleString("vi-VN", {
+    maximumFractionDigits: config.key === "sleepHours" ? 1 : 0,
+  });
 
-const valueLabel = (value, unit) =>
-  unit === "/10"
-    ? `${formatNumber(value)}/10`
-    : `${formatNumber(value)} ${unit}`;
+const valueLabel = (config, value) =>
+  config.kind === "qualitative"
+    ? wellnessSemanticLabel(config.key, value)
+    : `${formatNumber(config, value)} ${config.unit}`;
 
 const useChartWidth = () => {
   const containerRef = useRef(null);
@@ -46,13 +52,20 @@ export const WellnessMetricChart = ({ config, range, wellness }) => {
   const chart = buildWellnessMetricChartModel(
     (wellness?.daily || []).map((day) => ({
       dateKey: day.dateKey,
-      value: day?.[config.key],
+      value:
+        config.kind === "qualitative"
+          ? wellnessSemanticValue(config.key, day?.[config.key])
+          : day?.[config.key],
     })),
     {
       startDateKey: range?.startDateKey,
       endDateKey: range?.endDateKey,
       width,
       domain: config.domain,
+      includeAverage: config.kind !== "qualitative",
+      tickValues: config.semanticOptions?.map(({ value }) => value),
+      paddingLeft:
+        config.kind === "qualitative" ? (width < 520 ? 122 : 136) : null,
     },
   );
   const activePoint = chart.measuredPoints.find(
@@ -68,20 +81,10 @@ export const WellnessMetricChart = ({ config, range, wellness }) => {
   }
 
   const { dimensions } = chart;
-  const selectNearestPoint = (event) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.max(
-      0,
-      Math.min(1, (event.clientX - bounds.left) / bounds.width),
-    );
-    const chartX = dimensions.padding.left + ratio * dimensions.plotWidth;
-    const nearest = chart.measuredPoints.reduce((closest, point) =>
-      Math.abs(point.x - chartX) < Math.abs(closest.x - chartX)
-        ? point
-        : closest,
-    );
-    setActiveDateKey(nearest.dateKey);
-  };
+  const axisLabel =
+    config.kind === "qualitative"
+      ? config.label
+      : `${config.label} (${config.unit})`;
 
   return (
     <figure ref={containerRef} className="mt-5 min-w-0">
@@ -93,10 +96,11 @@ export const WellnessMetricChart = ({ config, range, wellness }) => {
           aria-labelledby={`${titleId} ${descriptionId}`}
           data-wellness-metric-chart="true"
         >
-          <title id={titleId}>{`Biểu đồ xu hướng ${config.label.toLowerCase()}`}</title>
+          <title id={titleId}>{`Biểu đồ ${axisLabel.toLowerCase()}`}</title>
           <desc id={descriptionId}>
-            Mỗi điểm là một nhật ký đã gửi. Đường bị ngắt ở ngày không có giá
-            trị và đường nét đứt là mức trung bình.
+            {config.kind === "qualitative"
+              ? "Mỗi điểm là trạng thái được chọn trong một nhật ký đã gửi."
+              : "Mỗi điểm là một nhật ký đã gửi và đường nét đứt là mức trung bình."}
           </desc>
           <rect
             x={dimensions.padding.left}
@@ -123,27 +127,33 @@ export const WellnessMetricChart = ({ config, range, wellness }) => {
                 textAnchor="end"
                 className="fill-slate-400 text-xs"
               >
-                {formatNumber(tick.value)}
+                {config.kind === "qualitative"
+                  ? wellnessSemanticLabel(config.key, tick.value)
+                  : formatNumber(config, tick.value)}
               </text>
             </g>
           ))}
-          <line
-            x1={dimensions.padding.left}
-            x2={dimensions.width - dimensions.padding.right}
-            y1={chart.average.y}
-            y2={chart.average.y}
-            className="stroke-cyan-400"
-            strokeDasharray="5 5"
-            vectorEffect="non-scaling-stroke"
-          />
-          <text
-            x={dimensions.width - dimensions.padding.right - 5}
-            y={Math.max(dimensions.padding.top + 14, chart.average.y - 7)}
-            textAnchor="end"
-            className="fill-cyan-300 text-xs"
-          >
-            Trung bình {valueLabel(chart.average.value, config.unit)}
-          </text>
+          {chart.average && (
+            <>
+              <line
+                x1={dimensions.padding.left}
+                x2={dimensions.width - dimensions.padding.right}
+                y1={chart.average.y}
+                y2={chart.average.y}
+                className="stroke-cyan-400"
+                strokeDasharray="5 5"
+                vectorEffect="non-scaling-stroke"
+              />
+              <text
+                x={dimensions.width - dimensions.padding.right - 5}
+                y={Math.max(dimensions.padding.top + 14, chart.average.y - 7)}
+                textAnchor="end"
+                className="fill-cyan-300 text-xs"
+              >
+                Trung bình {valueLabel(config, chart.average.value)}
+              </text>
+            </>
+          )}
           <path
             d={chart.path}
             fill="none"
@@ -153,40 +163,48 @@ export const WellnessMetricChart = ({ config, range, wellness }) => {
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"
           />
-          {chart.measuredPoints.map((point) => (
-            <g key={point.dateKey}>
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r="5"
-                className="fill-slate-950 stroke-orange-400"
-                strokeWidth="3"
-                vectorEffect="non-scaling-stroke"
-              />
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r="16"
-                fill="transparent"
-                role="button"
-                tabIndex="0"
-                aria-label={`${formatDate(point.dateKey)}: ${valueLabel(
-                  point.value,
-                  config.unit,
-                )}`}
-                onFocus={() => setActiveDateKey(point.dateKey)}
-                onBlur={() => setActiveDateKey(null)}
-                onPointerDown={() => setActiveDateKey(point.dateKey)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setActiveDateKey(point.dateKey);
+          {chart.measuredPoints.map((point) => {
+            const active = point.dateKey === activeDateKey;
+            return (
+              <g key={point.dateKey}>
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={active ? 8 : 5}
+                  className={
+                    active
+                      ? "fill-orange-500 stroke-none drop-shadow-[0_0_8px_rgba(249,115,22,0.85)]"
+                      : "fill-slate-950 stroke-orange-400"
                   }
-                }}
-                className="cursor-pointer focus:outline-none focus-visible:stroke-cyan-300"
-              />
-            </g>
-          ))}
+                  strokeWidth={active ? 0 : 3}
+                  vectorEffect="non-scaling-stroke"
+                />
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r="16"
+                  fill="transparent"
+                  role="button"
+                  tabIndex="0"
+                  aria-label={`${formatDate(point.dateKey)}: ${valueLabel(config, point.value)}`}
+                  onPointerEnter={() => setActiveDateKey(point.dateKey)}
+                  onPointerLeave={(event) => {
+                    if (event.pointerType !== "touch") setActiveDateKey(null);
+                  }}
+                  onFocus={() => setActiveDateKey(point.dateKey)}
+                  onBlur={() => setActiveDateKey(null)}
+                  onPointerDown={() => setActiveDateKey(point.dateKey)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setActiveDateKey(point.dateKey);
+                    }
+                  }}
+                  className="cursor-pointer focus:outline-none focus-visible:stroke-orange-300"
+                />
+              </g>
+            );
+          })}
           {chart.xTicks.map((tick) => (
             <text
               key={tick.dateKey}
@@ -198,36 +216,6 @@ export const WellnessMetricChart = ({ config, range, wellness }) => {
               {tick.dateLabel}
             </text>
           ))}
-          <text
-            x={dimensions.padding.left + dimensions.plotWidth / 2}
-            y={dimensions.height - 6}
-            textAnchor="middle"
-            className="fill-slate-400 text-xs"
-          >
-            Ngày ghi nhật ký
-          </text>
-          <text
-            transform={`translate(16 ${
-              dimensions.padding.top + dimensions.plotHeight / 2
-            }) rotate(-90)`}
-            textAnchor="middle"
-            className="fill-slate-400 text-xs"
-          >
-            {config.label} ({config.unit})
-          </text>
-          <rect
-            x={dimensions.padding.left}
-            y={dimensions.padding.top}
-            width={dimensions.plotWidth}
-            height={dimensions.plotHeight}
-            fill="transparent"
-            onPointerMove={selectNearestPoint}
-            onPointerDown={selectNearestPoint}
-            onPointerLeave={(event) => {
-              if (event.pointerType !== "touch") setActiveDateKey(null);
-            }}
-            aria-hidden="true"
-          />
         </svg>
 
         {activePoint && (
@@ -239,18 +227,11 @@ export const WellnessMetricChart = ({ config, range, wellness }) => {
               {formatDate(activePoint.dateKey)}
             </time>
             <strong className="block text-sm font-semibold text-white">
-              {valueLabel(activePoint.value, config.unit)}
+              {valueLabel(config, activePoint.value)}
             </strong>
-            <span className="block text-slate-400">
-              Trung bình: {valueLabel(chart.average.value, config.unit)}
-            </span>
           </div>
         )}
       </div>
-      <figcaption className="mt-2 flex flex-wrap justify-between gap-2 text-xs leading-5 text-slate-500">
-        <span>Khoảng trống là ngày chưa có giá trị được gửi.</span>
-        <span>Đường nét đứt là trung bình của những ngày có dữ liệu.</span>
-      </figcaption>
     </figure>
   );
 };

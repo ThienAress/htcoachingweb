@@ -17,6 +17,19 @@ const responseFor = (path) => {
   if (path.startsWith("/blog")) {
     return { data: { data: [{ slug: "blog-one" }] } };
   }
+  if (path.startsWith("/exercises")) {
+    return {
+      data: {
+        data: [
+          {
+            _id: "64b000000000000000000001",
+            name: "Goblet Squat",
+          },
+        ],
+        pagination: { total: 1, page: 1, limit: 500, totalPages: 1 },
+      },
+    };
+  }
   return {
     data: {
       data: [{ slug: "recipe-one" }],
@@ -206,6 +219,45 @@ describe("dynamic route release policy", () => {
       "/recipes?limit=50&page=1&view=prerender",
       "/recipes?limit=50&page=2&view=prerender",
       "/recipes?limit=50&page=3&view=prerender",
+    ]);
+  });
+
+  it("fetches every exercise page so sitemap generation covers production", async () => {
+    const fetchApi = vi.fn(async (path) => {
+      if (!path.startsWith("/exercises")) return responseFor(path);
+
+      const page = Number(
+        new URL(path, "https://example.test").searchParams.get("page"),
+      );
+      const pageSize = page === 3 ? 374 : 500;
+      return {
+        data: {
+          data: Array.from({ length: pageSize }, (_, index) => ({
+            _id: `${String(page).padStart(2, "0")}${String(index + 1).padStart(22, "0")}`,
+            name: `Exercise ${page}-${index + 1}`,
+          })),
+          pagination: { total: 1374, page, limit: 500, totalPages: 3 },
+        },
+      };
+    });
+
+    const result = await fetchDynamicRouteContent({
+      fetchApi,
+      policy: resolveDynamicRoutePolicy({ REQUIRE_DYNAMIC_ROUTES: "true" }),
+      logger: { error: vi.fn() },
+      retryDelayMs: 0,
+      fetchAllPages: true,
+    });
+
+    expect(result.content.exercises).toHaveLength(1374);
+    expect(
+      fetchApi.mock.calls
+        .map(([path]) => path)
+        .filter((path) => path.startsWith("/exercises")),
+    ).toEqual([
+      "/exercises?limit=500&page=1",
+      "/exercises?limit=500&page=2",
+      "/exercises?limit=500&page=3",
     ]);
   });
 

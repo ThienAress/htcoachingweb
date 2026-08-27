@@ -36,8 +36,16 @@ const PROGRESS_SECTIONS = [
   },
 ];
 
-const ProgressHeader = ({ actions, headingLevel: Heading = "h2" }) => (
-  <header className="flex flex-col gap-5 border-b border-slate-800 pb-5 lg:flex-row lg:items-start lg:justify-between">
+const ProgressHeader = ({
+  actions,
+  contained = false,
+  headingLevel: Heading = "h2",
+}) => (
+  <header
+    className={`flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between ${
+      contained ? "" : "border-b border-slate-800 pb-5"
+    }`}
+  >
     <div>
       <Heading
         id="progress-navigation-title"
@@ -47,23 +55,15 @@ const ProgressHeader = ({ actions, headingLevel: Heading = "h2" }) => (
           className="h-6 w-6 shrink-0 text-orange-400"
           aria-hidden="true"
         />
-        Tiến trình cơ thể và huấn luyện
+        Tiến trình cơ thể và tập luyện
       </Heading>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-        Tổng hợp từ lịch tập, giáo án và những nhật ký hoặc báo cáo tuần bạn đã
-        gửi. Bản nháp không được tính vào số liệu.
-      </p>
     </div>
     {actions}
   </header>
 );
 
 const ProgressLanding = ({ buttonRefs, onSectionChange }) => (
-  <section
-    className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950"
-    aria-labelledby="progress-navigation-title"
-  >
-    <div className="divide-y divide-slate-800">
+    <div className="divide-y divide-slate-800 border-t border-slate-800">
       {PROGRESS_SECTIONS.map((section) => {
         const Icon = section.icon;
         return (
@@ -98,7 +98,6 @@ const ProgressLanding = ({ buttonRefs, onSectionChange }) => (
         );
       })}
     </div>
-  </section>
 );
 
 export const ProgressSummary = ({
@@ -132,15 +131,28 @@ export const ProgressSummary = ({
 
   return (
     <div className="space-y-5">
-      <ProgressHeader
-        actions={landingActions}
-        headingLevel={landingHeadingLevel}
-      />
-
-      {!section && (
-        <ProgressLanding
-          buttonRefs={buttonRefs}
-          onSectionChange={onSectionChange}
+      {!section ? (
+        <section
+          data-progress-navigation-card="true"
+          className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950"
+          aria-labelledby="progress-navigation-title"
+        >
+          <div className="p-5 sm:p-6">
+            <ProgressHeader
+              actions={landingActions}
+              contained
+              headingLevel={landingHeadingLevel}
+            />
+          </div>
+          <ProgressLanding
+            buttonRefs={buttonRefs}
+            onSectionChange={onSectionChange}
+          />
+        </section>
+      ) : (
+        <ProgressHeader
+          actions={landingActions}
+          headingLevel={landingHeadingLevel}
         />
       )}
       {sectionKey === "compliance" && (

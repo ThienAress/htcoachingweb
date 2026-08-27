@@ -3,6 +3,17 @@
 Current staging evidence: [staging-deployment-report-2026-07-23.md](./staging/staging-deployment-report-2026-07-23.md).
 Production plan: [production-release-plan-2026-07-23.md](./production/production-release-plan-2026-07-23.md).
 Rollback procedure: [production-rollback-runbook.md](./runbooks/production-rollback-runbook.md).
+Canonical promotion workflow: [release-promotion.md](./runbooks/release-promotion.md).
+
+## Per-release promotion gate
+
+- [ ] Local/CI `$ship` result states target; pre-staging result is only `GO FOR STAGING`.
+- [ ] Netlify and Render staging deploy IDs are provider-verified against the exact candidate SHA.
+- [ ] Live acceptance writes only `htcoaching_staging`, uses a run marker, cleans in `finally` and reports residue `0`.
+- [ ] Candidate artifact links successful CI, staging deploy IDs, acceptance run, current backup ID and rollback IDs.
+- [ ] `verify:backup-release` and `verify:disaster-recovery` pass at promotion time.
+- [ ] Production uses protected manual approval; no write acceptance targets production.
+- [ ] Post-deploy artifact verifies exact production deploy IDs/SHA and at least 30 minutes of read-only observation.
 
 ## Current recovery gate
 

@@ -12,6 +12,12 @@ export const submitDailyJournal = (dateKey, data) =>
     data,
   );
 
+export const submitDailyJournalNutrition = (dateKey, data) =>
+  api.post(
+    "/daily-journals/" + encodeURIComponent(dateKey) + "/nutrition/submit",
+    data,
+  );
+
 export const correctDailyJournal = (dateKey, data) =>
   api.post(
     "/daily-journals/" + encodeURIComponent(dateKey) + "/corrections",

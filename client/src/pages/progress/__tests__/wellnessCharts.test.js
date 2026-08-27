@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import { buildWellnessMetricChartModel } from "../wellnessCharts";
 
 describe("wellness trend chart model", () => {
-  it("breaks the path when a day has no selected metric value", () => {
+  it("only plots submitted values and sorts dates from oldest to newest", () => {
     const chart = buildWellnessMetricChartModel(
       [
-        { dateKey: "2026-08-21", value: 6 },
         { dateKey: "2026-08-23", value: 8 },
+        { dateKey: "2026-08-21", value: 6 },
       ],
       {
         startDateKey: "2026-08-21",
@@ -16,19 +16,46 @@ describe("wellness trend chart model", () => {
     );
 
     expect({
-      values: chart.points.map(({ dateKey, value }) => [dateKey, value]),
+      values: chart.points.map(({ dateKey, dateLabel, value }) => [
+        dateKey,
+        dateLabel,
+        value,
+      ]),
       moveCommands: chart.path.match(/M /g)?.length,
       hasLine: chart.path.includes("L"),
       average: chart.average.value,
     }).toEqual({
       values: [
-        ["2026-08-21", 6],
-        ["2026-08-22", null],
-        ["2026-08-23", 8],
+        ["2026-08-21", "21/8", 6],
+        ["2026-08-23", "23/8", 8],
       ],
-      moveCommands: 2,
-      hasLine: false,
+      moveCommands: 1,
+      hasLine: true,
       average: 7,
+    });
+  });
+
+  it("does not calculate an average for qualitative observations", () => {
+    const chart = buildWellnessMetricChartModel(
+      [
+        { dateKey: "2026-08-01", value: 3 },
+        { dateKey: "2026-08-07", value: 9 },
+      ],
+      {
+        domain: [0, 9],
+        includeAverage: false,
+        tickValues: [0, 3, 6, 9],
+      },
+    );
+
+    expect({
+      dates: chart.xTicks.map(({ dateKey }) => dateKey),
+      yTicks: chart.yTicks.map(({ value }) => value),
+      average: chart.average,
+    }).toEqual({
+      dates: ["2026-08-01", "2026-08-07"],
+      yTicks: [9, 6, 3, 0],
+      average: null,
     });
   });
 

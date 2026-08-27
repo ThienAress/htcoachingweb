@@ -3,6 +3,15 @@ import { describe, expect, it } from "vitest";
 import { journalRevisionLabel } from "../dailyJournalTimeline.service.js";
 
 describe("daily journal timeline labels", () => {
+  it("nêu rõ báo cáo dinh dưỡng đã được gửi", () => {
+    expect(
+      journalRevisionLabel({
+        action: "nutrition_submit",
+        changes: [{ path: "nutrition.submittedAt" }],
+      }),
+    ).toBe("Đã gửi báo cáo dinh dưỡng cho HLV");
+  });
+
   it("nêu rõ field wellness đã cập nhật", () => {
     expect(
       journalRevisionLabel({

@@ -15,6 +15,7 @@ import {
   ChefHat,
   Cpu,
   Edit2,
+  FileJson2,
 } from "lucide-react";
 import {
   getAdminRecipes,
@@ -22,6 +23,7 @@ import {
   deleteRecipe,
 } from "../../services/recipe.service";
 import RecipeEditModal from "./RecipeEditModal";
+import RecipeNutritionImportModal from "./RecipeNutritionImportModal";
 
 const RecipeManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,6 +31,7 @@ const RecipeManagement = () => {
   const [page, setPage] = useState(1);
   const [filterPublished, setFilterPublished] = useState("");
   const [editingRecipe, setEditingRecipe] = useState(null);
+  const [isNutritionImportOpen, setIsNutritionImportOpen] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -100,14 +103,24 @@ const RecipeManagement = () => {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setEditingRecipe({})}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition"
-        >
-          <Plus size={18} />
-          Thêm công thức
-        </button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <button
+            type="button"
+            onClick={() => setIsNutritionImportOpen(true)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-orange-300 px-4 py-2.5 font-semibold text-orange-800 transition-colors duration-200 hover:bg-orange-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700 motion-reduce:transition-none"
+          >
+            <FileJson2 size={18} aria-hidden="true" />
+            Nhập Giá trị dinh dưỡng
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditingRecipe({})}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-semibold text-white transition-colors duration-200 hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+          >
+            <Plus size={18} aria-hidden="true" />
+            Thêm công thức
+          </button>
+        </div>
       </div>
 
       {/* Filters & Actions */}
@@ -319,6 +332,15 @@ const RecipeManagement = () => {
           onClose={() => setEditingRecipe(null)}
         />
       )}
+      <RecipeNutritionImportModal
+        isOpen={isNutritionImportOpen}
+        onClose={() => setIsNutritionImportOpen(false)}
+        onImported={() => {
+          queryClient.invalidateQueries({ queryKey: ["adminRecipes"] });
+          queryClient.invalidateQueries({ queryKey: ["recipes"] });
+          queryClient.invalidateQueries({ queryKey: ["recipe"] });
+        }}
+      />
     </div>
   );
 };

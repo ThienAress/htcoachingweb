@@ -4,6 +4,7 @@ import {
   upsertHabitCompletion,
 } from "../dailyHabits";
 import {
+  getHabitWeekRange,
   habitFormSchema,
   habitFormToPayload,
   habitToFormValues,
@@ -71,6 +72,7 @@ describe("dailyHabits adapter", () => {
     expect(
       habitFormSchema.safeParse({
         title: "Walk",
+        description: "",
         category: "movement",
         daysOfWeek: [],
         shared: false,
@@ -80,6 +82,7 @@ describe("dailyHabits adapter", () => {
       habitFormToPayload(
         {
           title: " Walk ",
+          description: " Sau bữa tối ",
           category: "movement",
           daysOfWeek: [2, 0],
           shared: false,
@@ -88,37 +91,47 @@ describe("dailyHabits adapter", () => {
       ),
     ).toMatchObject({
       title: "Walk",
+      description: "Sau bữa tối",
       visibility: "private",
       schedule: { daysOfWeek: [0, 2] },
     });
   });
 
-  it("giao habit HLV cho đủ bảy ngày từ ngày tạo thực tế", () => {
+  it("giao habit HLV theo các ngày đã chọn trong tuần workspace", () => {
     expect(
       habitFormToPayload(
         {
           title: "Đi bộ",
+          description: "Đi bộ sau bữa tối",
           category: "movement",
-          daysOfWeek: [2],
+          daysOfWeek: [4, 2],
           shared: false,
         },
-        "2026-06-01",
-        { trainer: true, todayDateKey: "2026-07-31" },
+        "2026-08-21",
+        { trainer: true },
       ),
     ).toMatchObject({
+      description: "Đi bộ sau bữa tối",
       visibility: "shared",
       schedule: {
-        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-        startDateKey: "2026-07-31",
-        endDateKey: null,
+        daysOfWeek: [2, 4],
+        startDateKey: "2026-08-17",
+        endDateKey: "2026-08-23",
       },
+    });
+  });
+
+  it("tính tuần từ Thứ Hai đến Chủ Nhật qua ranh giới tháng", () => {
+    expect(getHabitWeekRange("2026-09-01")).toEqual({
+      startDateKey: "2026-08-31",
+      endDateKey: "2026-09-06",
     });
   });
   it("prefills and preserves hidden definition fields when updating a habit", () => {
     const habit = {
       title: "Đi bộ",
-      category: "movement",
       description: "Sau bữa tối",
+      category: "movement",
       target: 30,
       unit: "phút",
       visibility: "shared",
@@ -131,6 +144,7 @@ describe("dailyHabits adapter", () => {
 
     expect(habitToFormValues(habit)).toMatchObject({
       title: "Đi bộ",
+      description: "Sau bữa tối",
       daysOfWeek: [0, 2, 4],
       shared: true,
     });
@@ -138,7 +152,6 @@ describe("dailyHabits adapter", () => {
       habitFormToPayload(habitToFormValues(habit), "2026-07-31", {
         trainer: true,
         habit,
-        todayDateKey: "2026-07-31",
       }),
     ).toMatchObject({
       description: "Sau bữa tối",
@@ -146,9 +159,9 @@ describe("dailyHabits adapter", () => {
       unit: "phút",
       visibility: "shared",
       schedule: {
-        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-        startDateKey: "2026-07-01",
-        endDateKey: null,
+        daysOfWeek: [0, 2, 4],
+        startDateKey: "2026-07-27",
+        endDateKey: "2026-08-02",
       },
     });
   });

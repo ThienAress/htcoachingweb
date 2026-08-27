@@ -1,0 +1,7 @@
+interface:
+  display_name: "Production Backup"
+  short_description: "Create and verify production recovery backups"
+  default_prompt: "Use $production-backup to create or verify a production backup safely."
+
+policy:
+  allow_implicit_invocation: true

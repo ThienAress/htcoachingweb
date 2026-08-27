@@ -86,11 +86,30 @@ describe("prerender content cache", () => {
           },
         };
       }
+      if (path === "/exercises?limit=500&page=1") {
+        return {
+          data: {
+            success: true,
+            data: [
+              {
+                _id: "64b000000000000000000001",
+                name: "Goblet Squat",
+                instructions: [],
+              },
+            ],
+            pagination: { total: 1, page: 1, limit: 500, totalPages: 1 },
+          },
+        };
+      }
       throw new Error(`Unexpected path: ${path}`);
     });
 
     const pageData = await fetchPrerenderPageData(
-      ["/ket-qua-khach-hang/story-one", "/blog/blog-one"],
+      [
+        "/ket-qua-khach-hang/story-one",
+        "/blog/blog-one",
+        "/exercises/64b000000000000000000001/goblet-squat",
+      ],
       fetchApi,
       { retryDelayMs: 0 },
     );
@@ -110,6 +129,18 @@ describe("prerender content cache", () => {
           cache,
         ).body,
       ).data.slug,
+      exercise: JSON.parse(
+        responseForPrerenderRequest(
+          "https://htcoachingweb-staging.onrender.com/api/exercises/64b000000000000000000001",
+          cache,
+        ).body,
+      ).data.name,
+      exerciseReviews: JSON.parse(
+        responseForPrerenderRequest(
+          "https://htcoachingweb-staging.onrender.com/api/exercises/64b000000000000000000001/reviews",
+          cache,
+        ).body,
+      ).data.summary,
       documentRequest: responseForPrerenderRequest(
         "http://localhost:5174/blog/blog-one",
         cache,
@@ -118,7 +149,44 @@ describe("prerender content cache", () => {
       storyAttempts: 2,
       story: "story-one",
       blog: "blog-one",
+      exercise: "Goblet Squat",
+      exerciseReviews: { total: 0, averageRating: 0 },
       documentRequest: null,
     });
+  });
+
+  it("prefetches a large exercise catalog through paginated list requests", async () => {
+    const total = 1_374;
+    const exercises = Array.from({ length: total }, (_, index) => ({
+      _id: index.toString(16).padStart(24, "0"),
+      name: `Exercise ${index + 1}`,
+      instructions: [],
+    }));
+    const routes = exercises.map(
+      (exercise) => `/exercises/${exercise._id}/exercise`,
+    );
+    const fetchApi = vi.fn(async (path) => {
+      const page = Number(
+        new URL(path, "https://example.test").searchParams.get("page"),
+      );
+      return {
+        data: {
+          success: true,
+          data: exercises.slice((page - 1) * 500, page * 500),
+          pagination: { total, page, limit: 500, totalPages: 3 },
+        },
+      };
+    });
+
+    const pageData = await fetchPrerenderPageData(routes, fetchApi, {
+      retryDelayMs: 0,
+    });
+
+    expect(pageData.exercises.size).toBe(total);
+    expect(fetchApi.mock.calls.map(([path]) => path)).toEqual([
+      "/exercises?limit=500&page=1",
+      "/exercises?limit=500&page=2",
+      "/exercises?limit=500&page=3",
+    ]);
   });
 });

@@ -2,6 +2,7 @@ import { Plus, Trash2 } from "lucide-react";
 import {
   CORE_NUTRITION_FIELDS,
   createAdditionalNutritionRow,
+  MAX_ADDITIONAL_RECIPE_NUTRIENTS,
 } from "./recipeNutritionForm";
 
 const inputClass =
@@ -61,7 +62,10 @@ const RecipeNutritionEditor = ({ value, onChange, disabled = false }) => {
               additional: [...value.additional, createAdditionalNutritionRow()],
             })
           }
-          disabled={disabled || value.additional.length >= 20}
+          disabled={
+            disabled ||
+            value.additional.length >= MAX_ADDITIONAL_RECIPE_NUTRIENTS
+          }
           className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-primary px-3 text-sm font-semibold text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={16} aria-hidden="true" /> Thêm thành phần

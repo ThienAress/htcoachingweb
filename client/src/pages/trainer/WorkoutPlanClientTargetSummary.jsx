@@ -23,7 +23,7 @@ export const WorkoutPlanClientTargetSummary = ({ clientId }) => {
   if (!normalizedClientId) return null;
   const items = buildWellnessTargetSummary(query.data);
   const workspacePath = buildTrainerHealthWorkspacePath(normalizedClientId, {
-    tab: "wellness",
+    tab: "tasks",
   });
 
   return (

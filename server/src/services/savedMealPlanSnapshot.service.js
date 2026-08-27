@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import mongoose from "mongoose";
 import Food from "../models/Food.js";
 import { savedMealPlanError } from "./savedMealPlanAccess.service.js";
+import { normalizeSavedMealPlanTitle } from "./savedMealPlanTitlePolicy.service.js";
 
 const MEAL_TYPES = new Set([
   "breakfast",
@@ -189,7 +190,7 @@ export const normalizeSavedMealPlanInput = (input) => {
     );
   }
   return {
-    title: text(input?.title, { field: "title", max: 100 }),
+    title: normalizeSavedMealPlanTitle(input?.title),
     target: normalizeTarget(input?.target),
     meals: normalizedMeals,
   };

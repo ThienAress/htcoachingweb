@@ -35,3 +35,31 @@
 2. Keep enhanced observation for at least 30 minutes.
 3. Document root cause, impact window, request IDs, remediation, and follow-up owner.
 4. Add a regression test and alert before closing a SEV-1/SEV-2 incident.
+
+## Operational alert playbooks
+
+### HTTP errors
+
+- Use the rolling five-minute request count, 5xx count/rate and P95; lifetime
+  counters are forensic context only.
+- Correlate request IDs and deploy SHA, stop promotion, then prefer application
+  rollback when the threshold stays active.
+
+### Database
+
+- Confirm `/api/ops/health/ready`, DB P95 and connection state without issuing a
+  mutation. Stop rollout if readiness is unavailable or rolling DB P95 remains high.
+- Do not restore production unless corruption is confirmed and restore approval exists.
+
+### External providers
+
+- Check bounded provider status/error code and rolling failure/P95 signals. Do
+  not log provider payloads or tokens.
+- Disable the affected optional integration or roll back; never bypass provider
+  authentication or switch production to a mock provider.
+
+### Memory
+
+- Correlate heap utilization, RSS, traffic and deploy timestamp. Capture a
+  metrics snapshot, then restart/rollback through the platform if pressure is sustained.
+- Do not raise memory limits or add paid capacity without owner approval.

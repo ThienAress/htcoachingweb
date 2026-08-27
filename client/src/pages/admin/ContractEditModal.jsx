@@ -45,6 +45,7 @@ const ContractEditModal = ({ contract, onClose }) => {
   const [activeTab, setActiveTab] = useState("info");
   const [showConfirmSend, setShowConfirmSend] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isSignatureProcessing, setIsSignatureProcessing] = useState(false);
   const [trainerSignature, setTrainerSignature] = useState(
     contract.trainerSignature ?? null,
   );
@@ -153,11 +154,17 @@ const ContractEditModal = ({ contract, onClose }) => {
   });
 
   const handleSave = () => {
+    if (isSignatureProcessing) {
+      return toast.info("Đang xử lý ảnh chữ ký, vui lòng chờ một chút");
+    }
     if (!validate()) return;
     updateMut.mutate(buildPayload());
   };
 
   const handleSendClick = () => {
+    if (isSignatureProcessing) {
+      return toast.info("Đang xử lý ảnh chữ ký, vui lòng chờ một chút");
+    }
     if (isLoadingContractDetail) {
       return toast.info("Đang tải dữ liệu hợp đồng, vui lòng chờ một chút");
     }
@@ -171,6 +178,7 @@ const ContractEditModal = ({ contract, onClose }) => {
   };
 
   const handleConfirmSend = () => {
+    if (isSignatureProcessing) return;
     setShowConfirmSend(false);
     updateMut.mutate(buildPayload(), { onSuccess: () => sendMut.mutate(contract._id) });
   };
@@ -214,8 +222,8 @@ const ContractEditModal = ({ contract, onClose }) => {
 
         <div className="flex overflow-x-auto border-b border-zinc-100 px-4">
           {TABS.map(t => (
-            <button type="button" key={t.key} onClick={() => setActiveTab(t.key)}
-              className={`min-h-11 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 ${activeTab === t.key ? "border-emerald-700 text-emerald-800" : "border-transparent text-slate-400 hover:text-slate-600"}`}>
+            <button type="button" key={t.key} onClick={() => setActiveTab(t.key)} disabled={isSignatureProcessing}
+              className={`min-h-11 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-wait disabled:opacity-50 ${activeTab === t.key ? "border-emerald-700 text-emerald-800" : "border-transparent text-slate-400 hover:text-slate-600"}`}>
               {t.label}
             </button>
           ))}
@@ -301,24 +309,16 @@ const ContractEditModal = ({ contract, onClose }) => {
                 </div>
               </div>
 
-              {effectiveTrainerSignature && (
-                <div className="rounded-xl border border-zinc-200 bg-white p-4">
-                  <p className="mb-2 text-xs font-medium text-zinc-500">
-                    Chữ ký hiện tại
-                  </p>
-                  <img
-                    src={effectiveTrainerSignature}
-                    alt="Chữ ký hiện tại của Bên A"
-                    className="h-24 w-full object-contain"
-                  />
-                </div>
-              )}
-
               <div>
                 <p className="mb-2 text-sm font-semibold text-zinc-800">
                   {effectiveTrainerSignature ? "Vẽ lại chữ ký" : "Vẽ chữ ký"}
                 </p>
-                <SignatureCanvas onSignatureChange={setTrainerSignature} />
+                <SignatureCanvas
+                  onSignatureChange={setTrainerSignature}
+                  allowImageUpload
+                  previewValue={effectiveTrainerSignature}
+                  onProcessingChange={setIsSignatureProcessing}
+                />
               </div>
             </section>
           )}
@@ -374,8 +374,8 @@ const ContractEditModal = ({ contract, onClose }) => {
         <div className="flex flex-col-reverse gap-3 border-t border-zinc-200 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
           <button type="button" onClick={onClose} className="min-h-11 rounded-lg px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-emerald-700">Đóng</button>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <button type="button" onClick={handleSave} disabled={updateMut.isPending} className="min-h-11 rounded-lg border border-zinc-200 px-4 py-2 text-sm hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:opacity-50">Lưu nháp</button>
-            <button type="button" onClick={handleSendClick} disabled={isLoadingContractDetail || updateMut.isPending || sendMut.isPending}
+            <button type="button" onClick={handleSave} disabled={isSignatureProcessing || updateMut.isPending} className="min-h-11 rounded-lg border border-zinc-200 px-4 py-2 text-sm hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:opacity-50">Lưu nháp</button>
+            <button type="button" onClick={handleSendClick} disabled={isSignatureProcessing || isLoadingContractDetail || updateMut.isPending || sendMut.isPending}
               className="flex min-h-11 items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm text-white hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50">
               <Send className="w-4 h-4" />{sendMut.isPending ? "Đang gửi..." : "Lưu & Gửi"}
             </button>
@@ -394,7 +394,7 @@ const ContractEditModal = ({ contract, onClose }) => {
             <p className="text-xs text-slate-400">Vui lòng kiểm tra kỹ thông tin trước khi xác nhận.</p>
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => setShowConfirmSend(false)} className="min-h-11 rounded-lg px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-emerald-700">Hủy</button>
-              <button type="button" onClick={handleConfirmSend} disabled={sendMut.isPending}
+              <button type="button" onClick={handleConfirmSend} disabled={isSignatureProcessing || updateMut.isPending || sendMut.isPending}
                 className="flex min-h-11 items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm text-white hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50">
                 <Send className="w-4 h-4" /> Xác nhận gửi
               </button>

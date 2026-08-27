@@ -15,6 +15,7 @@ import {
   extractSitemapRoutes,
 } from "./sitemap-files.js";
 import { normalizePublicPath } from "../src/utils/publicSeoPath.js";
+import { slugifyExerciseName } from "../src/pages/ExercisesPage/exerciseDetailPath.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,6 +58,20 @@ const toRoutes = (items, prefix, priority) =>
           lastmod: lastModified(item?.updatedAt),
         }]
       : [];
+  });
+
+const toExerciseRoutes = (items) =>
+  items.flatMap((item) => {
+    const id = String(item?._id || "").trim();
+    if (!/^[a-f0-9]{24}$/i.test(id)) return [];
+    return [
+      {
+        url: `/exercises/${id}/${slugifyExerciseName(item?.name)}`,
+        priority: 0.6,
+        changefreq: "monthly",
+        lastmod: lastModified(item?.updatedAt),
+      },
+    ];
   });
 
 const uniqueRoutes = (routes) => [
@@ -155,6 +170,7 @@ const generateSitemap = async () => {
   const storyRoutes = toRoutes(content.stories, "/ket-qua-khach-hang/", 0.8);
   const trainerRoutes = toRoutes(content.trainers, "/huan-luyen-vien/", 0.8);
   const blogRoutes = toRoutes(content.blogs, "/blog/", 0.7);
+  const exerciseRoutes = toExerciseRoutes(content.exercises);
   const allRecipeRoutes = toRoutes(content.recipes, "/cong-thuc-nau-an/", 0.6);
   const selectedRecipes = selectRecipesForSeo(content.recipes, {
     limit: 30,
@@ -162,7 +178,12 @@ const generateSitemap = async () => {
     strict: policy.netlifyProduction,
   });
   const recipeRoutes = toRoutes(selectedRecipes, "/cong-thuc-nau-an/", 0.7);
-  const contentRoutes = [...storyRoutes, ...trainerRoutes, ...blogRoutes];
+  const contentRoutes = [
+    ...storyRoutes,
+    ...trainerRoutes,
+    ...blogRoutes,
+    ...exerciseRoutes,
+  ];
   writeOutputs({
     coreRoutes: staticRoutes,
     contentRoutes,

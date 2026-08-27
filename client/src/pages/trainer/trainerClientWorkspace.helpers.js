@@ -1,7 +1,12 @@
 export const TRAINER_CLIENT_TABS = Object.freeze([
   { id: "overview", label: "Tổng quan" },
-  { id: "wellness", label: "Mục tiêu sức khỏe" },
-  { id: "habits", label: "Thói quen hằng ngày" },
+  { id: "tasks", label: "Theo dõi và hỗ trợ" },
+]);
+
+export const TRAINER_SUPPORT_SECTION_ORDER = Object.freeze([
+  "wellness",
+  "habits",
+  "reports",
 ]);
 
 const VALID_TAB_IDS = new Set(TRAINER_CLIENT_TABS.map((tab) => tab.id));
@@ -17,7 +22,16 @@ export const getTrainerClientId = (client) => {
 };
 
 export const normalizeTrainerClientTab = (value) =>
-  VALID_TAB_IDS.has(value) ? value : "overview";
+  value === "wellness" || value === "habits"
+    ? "tasks"
+    : VALID_TAB_IDS.has(value)
+      ? value
+      : "overview";
+
+export const normalizeTrainerClientTabForHash = (value, hash) =>
+  hash === "#journal" || hash === "#nutrition-report"
+    ? "tasks"
+    : normalizeTrainerClientTab(value);
 
 const buildTrainerWorkspacePath = (
   basePath,

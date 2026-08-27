@@ -89,7 +89,7 @@ const savedMealPlanSchema = new mongoose.Schema(
       default: "active",
       required: true,
     },
-    title: { type: String, trim: true, maxlength: 100, required: true },
+    title: { type: String, trim: true, maxlength: 30, required: true },
     source: {
       type: String,
       enum: ["meal_generator"],
@@ -108,7 +108,7 @@ const savedMealPlanSchema = new mongoose.Schema(
     totals: { type: nutritionSchema, required: true },
     commandType: {
       type: String,
-      enum: ["create", "revise"],
+      enum: ["create", "revise", "rename"],
       required: true,
       select: false,
     },

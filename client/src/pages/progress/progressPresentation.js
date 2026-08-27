@@ -45,8 +45,8 @@ export const progressSectionHasData = (section, progress = {}) => {
       Object.entries(progress.wellness || {}).some(
         ([key, metric]) =>
           key !== "daily" &&
-          metric?.average !== null &&
-          metric?.average !== undefined,
+          ((metric?.average !== null && metric?.average !== undefined) ||
+            (metric?.latest !== null && metric?.latest !== undefined)),
       )
     );
   }
@@ -103,7 +103,9 @@ export const summarizeProgressAvailability = (progress) =>
     (metric) => metric?.percent !== null && metric?.percent !== undefined,
   ) ||
   Object.values(progress?.wellness || {}).some(
-    (metric) => metric?.average !== null && metric?.average !== undefined,
+    (metric) =>
+      (metric?.average !== null && metric?.average !== undefined) ||
+      (metric?.latest !== null && metric?.latest !== undefined),
   ) ||
   ["weightKg", "waistCm", "bodyFatPercent", "skeletalMusclePercent"].some(
     (key) => (progress?.bodyProgress?.[key]?.series || []).length > 0,

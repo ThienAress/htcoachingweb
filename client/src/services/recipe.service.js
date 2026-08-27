@@ -45,6 +45,20 @@ export const createRecipe = (data) =>
 export const updateRecipe = (id, data) =>
   api.put(`/recipes/${id}`, data).then((r) => r.data);
 
+const importRecipeNutrition = (file, dryRun, previewToken) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("dryRun", String(dryRun));
+  if (previewToken) formData.append("previewToken", previewToken);
+  return api.post("/recipes/nutrition/import", formData).then((r) => r.data);
+};
+
+export const previewRecipeNutritionImport = (file) =>
+  importRecipeNutrition(file, true);
+
+export const commitRecipeNutritionImport = (file, previewToken) =>
+  importRecipeNutrition(file, false, previewToken);
+
 export const uploadRecipeThumbnail = (id, formData) =>
   api
     .post(`/recipes/${id}/thumbnail`, formData, {

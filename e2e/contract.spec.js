@@ -23,6 +23,69 @@ test.describe("contract administration", () => {
     await page.getByTitle("Hủy").click();
     await expect.poll(() => cancelCalls).toBe(1);
   });
+
+  test("previews an uploaded Party A signature image without saving", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      const sourceDescriptor = Object.getOwnPropertyDescriptor(
+        HTMLImageElement.prototype,
+        "src",
+      );
+      Object.defineProperty(HTMLImageElement.prototype, "src", {
+        configurable: true,
+        get: sourceDescriptor.get,
+        set(value) {
+          const pendingOnLoad = this.onload;
+          if (
+            typeof pendingOnLoad === "function" &&
+            String(value).startsWith("data:image/")
+          ) {
+            this.onload = null;
+            this.addEventListener(
+              "load",
+              () => window.setTimeout(() => pendingOnLoad.call(this), 250),
+              { once: true },
+            );
+          }
+          sourceDescriptor.set.call(this, value);
+        },
+      });
+    });
+    await page.goto("/admin/contracts");
+    await page
+      .getByRole("button", { name: "Chỉnh sửa và gửi hợp đồng" })
+      .click();
+    const editor = page.getByRole("dialog", { name: "Soạn Hợp Đồng" });
+    await editor.getByRole("button", { name: "Chữ ký Bên A" }).click();
+
+    await editor
+      .getByLabel("Tải ảnh chữ ký")
+      .setInputFiles("client/public/favicon/favicon-96x96.png");
+
+    await expect(
+      editor.getByRole("button", { name: "Lưu nháp" }),
+    ).toBeDisabled();
+    await expect(
+      editor.getByRole("button", { name: "Lưu & Gửi" }),
+    ).toBeDisabled();
+    await expect(
+      editor.getByRole("button", { name: "Nội quy" }),
+    ).toBeDisabled();
+
+    await expect(
+      editor.getByRole("img", { name: "Xem trước chữ ký Bên A" }),
+    ).toBeVisible();
+    await expect(
+      editor.getByText("Chữ ký sẽ dùng trên hợp đồng"),
+    ).toBeVisible();
+    await expect(
+      editor.getByRole("button", { name: "Lưu nháp" }),
+    ).toBeEnabled();
+    await expect(
+      editor.getByRole("button", { name: "Nội quy" }),
+    ).toBeEnabled();
+  });
 });
 
 test.describe("contract handwritten signing", () => {

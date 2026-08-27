@@ -15,6 +15,12 @@ export const reviseSavedMealPlan = (id, data) =>
     data,
   );
 
+export const renameSavedMealPlan = (id, data) =>
+  api.patch(
+    "/saved-meal-plans/" + encodeURIComponent(id) + "/title",
+    data,
+  );
+
 export const archiveSavedMealPlan = (id, data) =>
   api.post(
     "/saved-meal-plans/" + encodeURIComponent(id) + "/archive",

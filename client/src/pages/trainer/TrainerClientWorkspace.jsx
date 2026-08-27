@@ -6,8 +6,8 @@ import {
   RefreshCw,
   UserRound,
   BarChart3,
-  Target,
-  Repeat2,
+  BellRing,
+  ListChecks,
 } from "lucide-react";
 import {
   Link,
@@ -15,6 +15,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
+import { Fragment, useEffect } from "react";
 import { getTrainerClients } from "../../services/coaching.service";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 import {
@@ -26,8 +27,9 @@ import { TrainerHabitManager } from "./TrainerHabitManager";
 import { TrainerWellnessTargetCard } from "./TrainerWellnessTargetCard";
 import {
   getTrainerClientId,
-  normalizeTrainerClientTab,
+  normalizeTrainerClientTabForHash,
   TRAINER_CLIENT_TABS,
+  TRAINER_SUPPORT_SECTION_ORDER,
 } from "./trainerClientWorkspace.helpers";
 
 const queryClients = async () =>
@@ -38,9 +40,21 @@ const formatPackageLabel = (label) =>
 
 const TAB_ICONS = {
   overview: BarChart3,
-  wellness: Target,
-  habits: Repeat2,
+  tasks: ListChecks,
 };
+
+export const TrainerSupportReminder = () => (
+  <aside
+    role="note"
+    aria-label="Nhắc kiểm tra báo cáo"
+    className="flex items-start gap-3 rounded-xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-amber-100"
+  >
+    <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" />
+    <p className="text-sm font-semibold leading-6">
+      Nhớ kiểm tra báo cáo từ khách hàng mỗi ngày bạn nhé.
+    </p>
+  </aside>
+);
 
 export const TrainerClientWorkspace = () => {
   const { clientId = "" } = useParams();
@@ -51,11 +65,27 @@ export const TrainerClientWorkspace = () => {
   );
   const backPath = isHealthTracking ? "/trainer/health" : "/trainer";
   const backLabel = isHealthTracking ? "Theo dõi sức khỏe" : "Khách của tôi";
-  const activeTab = normalizeTrainerClientTab(searchParams.get("tab"));
+  const activeTab = normalizeTrainerClientTabForHash(
+    searchParams.get("tab"),
+    location.hash,
+  );
   const requestedDate = searchParams.get("date");
   const dateKey = isValidDateKey(requestedDate)
     ? requestedDate
     : getVietnamDateKey();
+
+  useEffect(() => {
+    if (
+      activeTab !== "tasks" ||
+      searchParams.get("tab") === "tasks" ||
+      (location.hash !== "#journal" && location.hash !== "#nutrition-report")
+    ) {
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", "tasks");
+    setSearchParams(next, { replace: true });
+  }, [activeTab, location.hash, searchParams, setSearchParams]);
 
   const clientsQuery = useQuery({
     queryKey: ["trainer-clients"],
@@ -243,16 +273,36 @@ export const TrainerClientWorkspace = () => {
         </section>
       )}
       {TODAY_PLATFORM_ENABLED && activeTab === "overview" && (
-        <TrainerClientOverview clientId={clientId} dateKey={dateKey} />
-      )}
-      {TODAY_PLATFORM_ENABLED && activeTab === "wellness" && (
-        <TrainerWellnessTargetCard
-          key={"wellness-target:" + clientId}
+        <TrainerClientOverview
           clientId={clientId}
+          clientName={client.name}
+          dateKey={dateKey}
+          surface="overview"
         />
       )}
-      {TODAY_PLATFORM_ENABLED && activeTab === "habits" && (
-        <TrainerHabitManager clientId={clientId} dateKey={dateKey} />
+      {TODAY_PLATFORM_ENABLED && activeTab === "tasks" && (
+        <div className="space-y-4">
+          <TrainerSupportReminder />
+          {TRAINER_SUPPORT_SECTION_ORDER.map((section) => {
+            const content =
+              section === "wellness" ? (
+                <TrainerWellnessTargetCard
+                  key={"wellness-target:" + clientId}
+                  clientId={clientId}
+                />
+              ) : section === "habits" ? (
+                <TrainerHabitManager clientId={clientId} dateKey={dateKey} />
+              ) : (
+                <TrainerClientOverview
+                  clientId={clientId}
+                  clientName={client.name}
+                  dateKey={dateKey}
+                  surface="reports"
+                />
+              );
+            return <Fragment key={section}>{content}</Fragment>;
+          })}
+        </div>
       )}
       </div>
     </div>

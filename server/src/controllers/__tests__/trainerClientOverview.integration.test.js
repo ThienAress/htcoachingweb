@@ -7,6 +7,7 @@ import {
   it,
 } from "vitest";
 import request from "supertest";
+import mongoose from "mongoose";
 import {
   clearCollections,
   createTestApp,
@@ -27,7 +28,6 @@ import {
   addDaysToDateKey,
   getAppDayOfWeek,
   getMonthWeekPeriod,
-  getPreviousMonthWeekPeriod,
   getVietnamDateKey,
   getVietnamDayRangeUtc,
 } from "../../utils/dateKey.js";
@@ -35,7 +35,6 @@ import {
 let app;
 const today = getVietnamDateKey();
 const currentWeek = getMonthWeekPeriod(today).startDateKey;
-const previousWeek = getPreviousMonthWeekPeriod(today).startDateKey;
 const dayRange = getVietnamDayRangeUtc(today);
 
 const createAssigned = async (suffix) => {
@@ -117,7 +116,7 @@ describe("Trainer client overview", () => {
       clientId: data.client.user._id,
       trainerIdAtCreation: data.trainer.user._id,
       dateKey: today,
-      wellness: { energy: 8, pain: 4, painArea: "Vai trái" },
+      wellness: { energy: 8, stress: 8, pain: 4, painArea: "Vai trái" },
       notes: { private: "Không chia sẻ", shared: "Có thể xem" },
       status: "submitted",
       submittedAt: new Date(),
@@ -186,16 +185,17 @@ describe("Trainer client overview", () => {
     );
     expect(response.body.data.attention.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ code: "pain_reported" }),
-        expect.objectContaining({
-          code: "weekly_review_pending",
-          targetId: String(weekly._id),
-        }),
-        expect.objectContaining({
-          code: "weekly_checkin_missing",
-          dateKey: previousWeek,
-        }),
+        expect.objectContaining({ code: "stress_high" }),
       ]),
+    );
+    expect(response.body.data.attention.items).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "weekly_review_pending" }),
+        expect.objectContaining({ code: "weekly_checkin_missing" }),
+      ]),
+    );
+    expect(response.body.data.attention.items).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: "pain_high" })]),
     );
     expect(
       await AuditLog.countDocuments({
@@ -232,10 +232,138 @@ describe("Trainer client overview", () => {
     expect(response.status).toBe(200);
     expect(response.body.data.today.sections.journal.day).toBeNull();
     expect(response.body.data.attention.items).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: "pain_reported" })]),
+      expect.arrayContaining([expect.objectContaining({ code: "pain_high" })]),
     );
     expect(JSON.stringify(response.body.data)).not.toContain("Chưa gửi cho HLV");
     expect(JSON.stringify(response.body.data)).not.toContain("Bản nháp riêng");
+  });
+
+  it("returns submitted nutrition without leaking a draft wellness journal", async () => {
+    const data = await createAssigned("nutrition-only");
+    const foodId = new mongoose.Types.ObjectId();
+    await DailyJournal.create({
+      clientId: data.client.user._id,
+      trainerIdAtCreation: data.trainer.user._id,
+      dateKey: today,
+      wellness: { energy: 9, stress: 9 },
+      notes: { private: "Bản nháp riêng", shared: "Ghi chú chưa gửi" },
+      status: "draft",
+      nutrition: {
+        submittedAt: new Date(),
+        entries: [
+          {
+            entryId: "d1111111-1111-4111-8111-111111111111",
+            mode: "follow_plan",
+            status: "eaten",
+            plannedMealKey: "meal-1",
+            savedMealPlanId: new mongoose.Types.ObjectId(),
+            version: 1,
+            labelSnapshot: "Bữa 1",
+            actualFoods: [
+              {
+                foodId,
+                labelSnapshot: "Gan gà",
+                plannedAmountGrams: 250,
+                actualAmountGrams: 150,
+                nutrition: { protein: 30, carb: 0, fat: 7.5, calories: 187.5 },
+              },
+            ],
+            actualTotals: { protein: 30, carb: 0, fat: 7.5, calories: 187.5 },
+            recordedAt: new Date(),
+          },
+        ],
+      },
+      revision: 2,
+    });
+
+    const response = await withAuth(
+      request(app).get(
+        "/api/trainer-client-overview/" +
+          data.client.user._id +
+          "?dateKey=" +
+          today +
+          "&days=7",
+      ),
+      data.trainer.accessToken,
+    );
+
+    const journal = response.body.data.today.sections.journal.day;
+    expect(response.status).toBe(200);
+    expect(journal.status).toBe("draft");
+    expect(journal.wellness).toEqual({
+      sleepHours: null,
+      waterMl: null,
+      steps: null,
+      energy: null,
+      hunger: null,
+      stress: null,
+      soreness: null,
+      pain: null,
+      painArea: "",
+    });
+    expect(journal.notes).toEqual({ shared: "" });
+    expect(journal.habitCompletions).toEqual([]);
+    expect(journal.nutrition.submittedAt).toBeTruthy();
+    expect(journal.nutrition.dailyTotals).toEqual({
+      protein: 30,
+      carb: 0,
+      fat: 7.5,
+      calories: 187.5,
+    });
+    expect(response.body.data.today.summary.moduleProgress.journal.completed).toBe(0);
+    expect(JSON.stringify(response.body.data)).not.toContain("Bản nháp riêng");
+    expect(JSON.stringify(response.body.data)).not.toContain("Ghi chú chưa gửi");
+  });
+
+  it("only creates wellness attention at the severe thresholds", async () => {
+    const data = await createAssigned("attention-thresholds");
+    await DailyJournal.create([
+      {
+        clientId: data.client.user._id,
+        dateKey: addDaysToDateKey(today, -3),
+        wellness: { stress: 7, soreness: 7, pain: 6 },
+        status: "submitted",
+        submittedAt: new Date(),
+      },
+      {
+        clientId: data.client.user._id,
+        dateKey: addDaysToDateKey(today, -2),
+        wellness: { stress: 8 },
+        status: "submitted",
+        submittedAt: new Date(),
+      },
+      {
+        clientId: data.client.user._id,
+        dateKey: addDaysToDateKey(today, -1),
+        wellness: { soreness: 8 },
+        status: "submitted",
+        submittedAt: new Date(),
+      },
+      {
+        clientId: data.client.user._id,
+        dateKey: today,
+        wellness: { pain: 7 },
+        status: "submitted",
+        submittedAt: new Date(),
+      },
+    ]);
+
+    const response = await withAuth(
+      request(app).get(
+        "/api/trainer-client-overview/" +
+          data.client.user._id +
+          "?dateKey=" +
+          today +
+          "&days=7",
+      ),
+      data.trainer.accessToken,
+    );
+    const codes = response.body.data.attention.items.map((item) => item.code);
+
+    expect(codes.filter((code) => code === "stress_high")).toHaveLength(1);
+    expect(codes.filter((code) => code === "soreness_high")).toHaveLength(1);
+    expect(codes.filter((code) => code === "pain_high")).toHaveLength(1);
+    expect(codes).not.toContain("pain_reported");
   });
 
   it("lets an admin read the overview for any active client", async () => {

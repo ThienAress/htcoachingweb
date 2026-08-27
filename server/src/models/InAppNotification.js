@@ -23,6 +23,7 @@ const inAppNotificationSchema = new mongoose.Schema(
       enum: [
         "journal_submitted",
         "journal_corrected",
+        "nutrition_submitted",
         "coaching_comment_created",
         "weekly_submitted",
         "weekly_corrected",

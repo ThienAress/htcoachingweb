@@ -9,6 +9,7 @@ import {
 } from "../../services/coachingHabit.service";
 import { CreateHabitForm } from "../today-dashboard/CreateHabitForm";
 import { HabitDefinitionActions } from "../today-dashboard/HabitDefinitionActions";
+import { habitScheduleLabel } from "../today-dashboard/habitForm";
 
 const requestId = () => window.crypto.randomUUID();
 
@@ -102,15 +103,15 @@ export const TrainerHabitManager = ({ clientId, dateKey }) => {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-sm">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-5 py-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10">
-            <Repeat2 className="h-4 w-4 text-cyan-300" aria-hidden="true" />
+      <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-5 sm:p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10">
+            <Repeat2 className="h-6 w-6 text-cyan-300" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-slate-50">Thói quen hằng ngày</h2>
-            <p className="mt-0.5 max-w-2xl text-xs leading-5 text-slate-400">
-              Thói quen HLV giao được áp dụng mỗi ngày cho đến khi xóa hoặc gói tập kết thúc.
+            <h2 className="text-2xl font-bold text-slate-50 sm:text-3xl">Thói quen hằng ngày</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+              Giao thói quen theo từng ngày trong tuần để học viên thực hiện đúng lịch.
             </p>
           </div>
         </div>
@@ -173,6 +174,14 @@ export const TrainerHabitManager = ({ clientId, dateKey }) => {
                 <p className="mt-1 text-xs text-slate-400">
                   {habit.createdByRole === "trainer" ? "HLV giao" : "Học viên chia sẻ"}
                   {habit.currentStreak > 0 && ` · ${habit.currentStreak} ngày liên tiếp`}
+                </p>
+                {habit.description && (
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    {habit.description}
+                  </p>
+                )}
+                <p className="mt-2 text-xs leading-5 text-cyan-200/80">
+                  {habitScheduleLabel(habit.schedule)}
                 </p>
                 {habit.createdByRole === "trainer" && (
                   <div className="mt-2.5">

@@ -663,11 +663,11 @@ export const useMealGenerator = ({
       target.fat == null
     ) {
       toast.error("Vui lòng chọn hoặc tinh chỉnh macro trước");
-      return;
+      return false;
     }
     if (!foodDatabase || foodDatabase.length === 0) {
       toast.error("Chưa có dữ liệu thực phẩm");
-      return;
+      return false;
     }
     setIsGenerating(true);
     try {
@@ -797,8 +797,10 @@ export const useMealGenerator = ({
       // Tính toán Calo chuẩn chỉnh theo Macro để giao diện khớp 100%
       setTotalCalories(calcCalories(finalProtein, finalCarb, finalFat));
       toast.success("Tạo thực đơn thành công!");
+      return true;
     } catch (err) {
       toast.error("Lỗi tạo thực đơn: " + err.message);
+      return false;
     } finally {
       setIsGenerating(false);
     }

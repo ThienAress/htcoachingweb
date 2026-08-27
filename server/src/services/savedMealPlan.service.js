@@ -13,6 +13,7 @@ import {
   buildCanonicalSavedMealPlan,
   savedMealPlanFingerprint,
 } from "./savedMealPlanSnapshot.service.js";
+import { normalizeSavedMealPlanTitle } from "./savedMealPlanTitlePolicy.service.js";
 import {
   assertSavedMealPlanExpectedVersion,
   assertSavedMealPlanRequestId,
@@ -143,7 +144,7 @@ export const reviseSavedMealPlan = async ({ actor, planId, input }) => {
         incrementMetric("saved_meal_plan.conflicts");
         throw savedMealPlanError(
           409,
-          "Meal plan đã có phiên bản mới hơn hoặc không còn hoạt động",
+          "Thực đơn đã thay đổi hoặc không còn hoạt động",
           "SAVED_MEAL_PLAN_VERSION_CONFLICT",
         );
       }
@@ -177,6 +178,103 @@ export const reviseSavedMealPlan = async ({ actor, planId, input }) => {
       error,
       ownerId: actor.id,
       commandType: "revise",
+      ...prepared,
+    });
+    idempotentReplay = true;
+  } finally {
+    await session.endSession();
+  }
+  if (!idempotentReplay) incrementMetric("saved_meal_plan.saves");
+  return { data: toSavedMealPlanDto(result), idempotentReplay };
+};
+
+export const renameSavedMealPlan = async ({ actor, planId, input }) => {
+  assertSavedMealPlanWritesEnabled();
+  assertSavedMealPlanRequestId(input?.requestId);
+  assertSavedMealPlanExpectedVersion(input?.expectedVersion);
+  const title = normalizeSavedMealPlanTitle(input?.title);
+  const prepared = {
+    requestId: input.requestId,
+    payloadFingerprint: savedMealPlanFingerprint({
+      commandType: "rename",
+      planId,
+      expectedVersion: input.expectedVersion,
+      title,
+    }),
+  };
+  const prior = await findSavedMealPlanCommandReplay({
+    ownerId: actor.id,
+    commandType: "rename",
+    ...prepared,
+  });
+  if (prior) {
+    return { data: toSavedMealPlanDto(prior), idempotentReplay: true };
+  }
+
+  const session = await mongoose.startSession();
+  let result;
+  let idempotentReplay = false;
+  try {
+    await session.withTransaction(async () => {
+      const replay = await findSavedMealPlanCommandReplay({
+        ownerId: actor.id,
+        commandType: "rename",
+        session,
+        ...prepared,
+      });
+      if (replay) {
+        result = replay;
+        idempotentReplay = true;
+        return;
+      }
+      const current = await findOwnedSavedMealPlan({
+        ownerId: actor.id,
+        planId,
+        session,
+      });
+      if (
+        !current.isLatest ||
+        current.status !== "active" ||
+        current.version !== input.expectedVersion
+      ) {
+        incrementMetric("saved_meal_plan.conflicts");
+        throw savedMealPlanError(
+          409,
+          "Thực đơn đã thay đổi hoặc không còn hoạt động",
+          "SAVED_MEAL_PLAN_VERSION_CONFLICT",
+        );
+      }
+      const snapshot = current.toObject();
+      current.isLatest = false;
+      current.status = "superseded";
+      await current.save({ session });
+      [result] = await SavedMealPlan.create(
+        [
+          {
+            ownerId: actor.id,
+            trainerIdAtCreation: current.trainerIdAtCreation,
+            lineageKey: current.lineageKey,
+            version: current.version + 1,
+            isLatest: true,
+            status: "active",
+            title,
+            source: current.source,
+            target: snapshot.target || null,
+            meals: snapshot.meals,
+            totals: snapshot.totals,
+            commandType: "rename",
+            createdByRequestId: prepared.requestId,
+            payloadFingerprint: prepared.payloadFingerprint,
+          },
+        ],
+        { session },
+      );
+    });
+  } catch (error) {
+    result = await handleSavedMealPlanDuplicateCommand({
+      error,
+      ownerId: actor.id,
+      commandType: "rename",
       ...prepared,
     });
     idempotentReplay = true;
@@ -234,7 +332,7 @@ export const archiveSavedMealPlan = async ({ actor, planId, input }) => {
     incrementMetric("saved_meal_plan.conflicts");
     throw savedMealPlanError(
       409,
-      "Meal plan đã có phiên bản mới hơn hoặc đã archive",
+      "Thực đơn đã thay đổi hoặc đã được bỏ lưu",
       "SAVED_MEAL_PLAN_VERSION_CONFLICT",
     );
   }

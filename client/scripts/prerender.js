@@ -33,9 +33,13 @@ const PORT = 5174;
 const DIST_DIR = path.resolve(__dirname, "../dist");
 const SITE_URL = "https://htcoachingweb.io.vn";
 const PRERENDER_CONCURRENCY = Number.parseInt(
-  process.env.PRERENDER_CONCURRENCY || "12",
+  process.env.PRERENDER_CONCURRENCY || "8",
   10,
 );
+const NAVIGATION_TIMEOUT_MS = 5_000;
+const SNAPSHOT_POLL_INTERVAL_MS = 500;
+const SNAPSHOT_MAX_WAIT_MS = 30_000;
+const HOME_SNAPSHOT_MAX_WAIT_MS = 30_000;
 const BLOCKED_PRERENDER_HOSTS = new Set([
   "www.google-analytics.com",
   "www.googletagmanager.com",
@@ -161,30 +165,14 @@ const renderRoute = async (browser, route, recipeCache) => {
     try {
       await page.goto("http://localhost:" + PORT + route, {
         waitUntil: "domcontentloaded",
-        timeout: 30_000,
+        timeout: NAVIGATION_TIMEOUT_MS,
       });
-      await page.waitForFunction(
-        (canonical) => {
-          const root = document.querySelector("#root");
-          const canonicals = [
-            ...document.querySelectorAll('link[rel="canonical"]'),
-          ];
-          return (
-            root &&
-            root.innerHTML.trim().length > 100 &&
-            canonicals.length === 1 &&
-            canonicals[0].href === canonical
-          );
-        },
-        { timeout: 30_000 },
-        expectedCanonical,
-      );
-      await new Promise((resolve) => setTimeout(resolve, 500));
     } catch (error) {
       console.warn("Navigation warning for " + route + ": " + error.message);
     }
 
-    const snapshot = await page.evaluate(() => ({
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const captureSnapshot = () => page.evaluate(() => ({
       rootLength:
         document.querySelector("#root")?.innerHTML.trim().length || 0,
       fatalFallbackCount: document.querySelectorAll(
@@ -214,13 +202,34 @@ const renderRoute = async (browser, route, recipeCache) => {
         })
         .filter(Boolean),
     }));
-    const validationErrors = validatePrerenderSnapshot(
+    const validationOptions = route === "/"
+      ? { expectedServiceOffers }
+      : undefined;
+    let snapshot = await captureSnapshot();
+    let validationErrors = validatePrerenderSnapshot(
       snapshot,
       expectedCanonical,
-      route === "/"
-        ? { expectedServiceOffers }
-        : undefined,
+      validationOptions,
     );
+    const snapshotAttempts = Math.ceil(
+      (route === "/" ? HOME_SNAPSHOT_MAX_WAIT_MS : SNAPSHOT_MAX_WAIT_MS) /
+        SNAPSHOT_POLL_INTERVAL_MS,
+    );
+    for (
+      let attempt = 0;
+      validationErrors.length > 0 && attempt < snapshotAttempts;
+      attempt += 1
+    ) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, SNAPSHOT_POLL_INTERVAL_MS),
+      );
+      snapshot = await captureSnapshot();
+      validationErrors = validatePrerenderSnapshot(
+        snapshot,
+        expectedCanonical,
+        validationOptions,
+      );
+    }
     if (validationErrors.length > 0) {
       console.warn(
         "Skipping " + route + ": " + validationErrors.join("; "),

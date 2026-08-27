@@ -105,6 +105,62 @@ describe("Exercise technical difficulty contract", () => {
     expect(response.body.data.technicalDifficultyRating).toBeNull();
   });
 
+  test("keeps setup steps ordered and never exposes private video metadata", async () => {
+    const response = await withAuth(
+      request(app).post("/api/exercises").send({
+        ...exercisePayload,
+        instructions: [
+          { title: "Chỉnh ghế", description: "Đặt ngực sát đệm." },
+          { title: "Nắm tay cầm", description: "Giữ cổ tay thẳng." },
+        ],
+      }),
+      adminToken,
+    );
+    await Exercise.updateOne(
+      { _id: response.body.data._id },
+      {
+        videoUrl: "https://cdn.example.test/exercise.mp4",
+        videoPublicId: "private/exercise-video",
+      },
+    );
+
+    const detail = await request(app).get(
+      `/api/exercises/${response.body.data._id}`,
+    );
+
+    expect(detail.body.data.instructions.map((step) => step.title)).toEqual([
+      "Chỉnh ghế",
+      "Nắm tay cầm",
+    ]);
+    expect(detail.body.data.videoUrl).toContain("exercise.mp4");
+    expect(detail.body.data).not.toHaveProperty("videoPublicId");
+  });
+
+  test("rejects direct video URL writes because video is uploaded separately", async () => {
+    const response = await withAuth(
+      request(app).post("/api/exercises").send({
+        ...exercisePayload,
+        videoUrl: "https://untrusted.example.test/video.mp4",
+      }),
+      adminToken,
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  test("protects the dedicated video upload route before parsing a file", async () => {
+    const exercise = await Exercise.create(exercisePayload);
+    const userToken = (await createTestUser({
+      email: "exercise-video-user@example.test",
+      role: "user",
+    })).accessToken;
+    const endpoint = `/api/exercises/${exercise._id}/video`;
+
+    expect((await request(app).post(endpoint)).status).toBe(401);
+    expect((await withAuth(request(app).post(endpoint), userToken)).status).toBe(403);
+    expect((await withAuth(request(app).post(endpoint), adminToken)).status).toBe(400);
+  });
+
   test("rejects a criterion outside the zero-to-two integer range", async () => {
     const response = await withAuth(
       request(app).post("/api/exercises").send({
@@ -166,6 +222,26 @@ describe("Exercise technical difficulty contract", () => {
     );
 
     expect(response.status).toBe(400);
+  });
+
+  test("bounds public list pagination used by sitemap generation", async () => {
+    const response = await request(app).get("/api/exercises?limit=501&page=0");
+
+    expect(response.status).toBe(400);
+  });
+
+  test("treats search metacharacters as literal text", async () => {
+    await Exercise.create({
+      ...exercisePayload,
+      name: "Literal [ Press",
+    });
+
+    const response = await request(app).get("/api/exercises?search=%5B");
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.map((exercise) => exercise.name)).toEqual([
+      "Literal [ Press",
+    ]);
   });
 
   test("filters the public list by derived rating", async () => {

@@ -16,6 +16,8 @@ khách chưa đăng nhập vẫn xem được điểm tổng hợp và bình lu�
   phải được tạo qua migration/preflight riêng trước khi mở ghi thật.
 - Admin nhập tổng dinh dưỡng cho toàn bộ công thức, không chia khẩu phần và không dùng
   estimator từ nguyên liệu ở public read path.
+- Chuyên gia tính dinh dưỡng từ đúng tên món và danh sách nguyên liệu production được
+  bàn giao; hệ thống không tự suy diễn hoặc đổi định lượng nguyên liệu khi nhập JSON.
 
 ## Related stack and conventions
 
@@ -47,6 +49,30 @@ khách chưa đăng nhập vẫn xem được điểm tổng hợp và bình lu�
 - Warning nói rõ số liệu do admin tổng hợp cho toàn bộ công thức và có thể khác theo
   nguyên liệu/cách chế biến thực tế.
 
+## Bulk nutrition import contract
+
+- Admin có action `Nhập Giá trị dinh dưỡng` cạnh `Thêm công thức`; luồng bắt buộc là
+  chọn file `.json` → xem trước không ghi → xác nhận cập nhật.
+- Endpoint `POST /api/recipes/nutrition/import` dùng multipart, chỉ Admin, giữ CSRF hiện
+  có và giới hạn file 8MB. `dryRun=true` chỉ trả kết quả ghép; commit phải có preview
+  token còn hạn, thuộc đúng Admin và đúng SHA-256 của file đã xem trước.
+- Root JSON là `{ schemaVersion: 1, recipes: [...] }`. Mỗi item chỉ có `name`,
+  `ingredients` và `nutrition`; mọi field lạ đều bị từ chối.
+- `ingredients` phải trả lại nguyên danh sách `{ name, measure }` từ catalog. Một item
+  chỉ khớp khi tên sau trim phân biệt hoa/thường và toàn bộ danh sách nguyên liệu theo
+  đúng thứ tự đều giống dữ liệu hiện tại. Tên thiếu, nguyên liệu lệch hoặc nhiều bản ghi
+  cùng khớp đều chặn toàn bộ import.
+- `nutrition` bắt buộc đủ sáu field core và cho phép tối đa 60 nutrient trong
+  `additional`. Mỗi nutrient có `label`, `unit` thuộc `kcal | g | mg | mcg` và `value`
+  là số hữu hạn không âm; label không được trùng core hoặc trùng nhau.
+- Chuyên gia phải tính tất cả chất có thể xác định hợp lý từ nguyên liệu, không chỉ sáu
+  nhóm core. Vitamin, khoáng chất, chất xơ, chất béo thành phần và các chất khác phải
+  nằm trong `additional`; không bịa số liệu khi nguồn/định lượng không đủ.
+- Commit chạy trong Mongo transaction, lặp lại bước ghép và chỉ `$set nutrition`.
+  Không sửa tên, slug, nguyên liệu, hướng dẫn, ảnh, publish state, nguồn hoặc review.
+- Nới giới hạn `additional` từ 20 lên 60 là tương thích ngược với document cũ; không
+  đổi type/default, không bắt buộc migration hoặc backfill.
+
 ## Review API contract
 
 - `GET /api/recipes/:recipeId/reviews?page=1&limit=10`: public + optional auth, trả
@@ -64,6 +90,9 @@ khách chưa đăng nhập vẫn xem được điểm tổng hợp và bình lu�
 - Recipe review integration test cho public read, auth/CSRF write, one-review upsert,
   ownership delete, validation và projection không lộ email.
 - Client lint/build, focused tests, UI audit và browser desktop/mobile.
+- Recipe importer integration test cho Admin/CSRF, strict JSON, preview no-write,
+  name + ingredients matching, token/file mismatch, transaction rollback và bảo toàn
+  mọi field ngoài `nutrition`; client test cho file guard, service multipart và CTA.
 
 ## Success criteria
 
@@ -73,3 +102,5 @@ khách chưa đăng nhập vẫn xem được điểm tổng hợp và bình lu�
   bảo vệ độ tin cậy dữ liệu.
 - Nutrition chỉ còn một giá trị estimate và optional nutrients không bị cộng thiếu như 0.
 - Rating/comment xuất hiện ngay trong code local; không phụ thuộc việc lên production mới render.
+- Admin chỉ commit được file dinh dưỡng đã preview và khớp toàn bộ công thức; mọi chất
+  bổ sung hợp lệ trong giới hạn được lưu và public detail tự hiển thị qua `additional`.

@@ -169,3 +169,18 @@ export const publicRecipeKeys = {
   bookmarks: (userId) => ["recipe-bookmarks", userId || "anonymous"],
   reviews: (recipeId) => ["recipe-reviews", recipeId],
 };
+
+export const publicExerciseKeys = {
+  all: () => ["public-exercises"],
+  detail: (exerciseId, language) => [
+    ...publicExerciseKeys.all(),
+    "detail",
+    exerciseId,
+    language,
+  ],
+  reviews: (exerciseId) => [
+    ...publicExerciseKeys.all(),
+    "reviews",
+    exerciseId,
+  ],
+};

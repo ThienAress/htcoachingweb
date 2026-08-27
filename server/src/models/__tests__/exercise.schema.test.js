@@ -52,4 +52,38 @@ describe("Exercise technical difficulty rating", () => {
       name: "ValidationError",
     });
   });
+
+  test("keeps ordered setup instructions and allows legacy exercises without them", async () => {
+    const legacy = new Exercise({ name: "Legacy Row", muscleGroup: "Lưng" });
+    const guided = new Exercise({
+      name: "Guided Row",
+      muscleGroup: "Lưng",
+      instructions: [
+        { title: "Chỉnh ghế", description: "Đặt ngực tựa chắc vào đệm." },
+        { title: "Nắm tay cầm", description: "Giữ cổ tay thẳng." },
+      ],
+    });
+
+    await expect(legacy.validate()).resolves.toBeUndefined();
+    await expect(guided.validate()).resolves.toBeUndefined();
+    expect(guided.instructions.map((step) => step.title)).toEqual([
+      "Chỉnh ghế",
+      "Nắm tay cầm",
+    ]);
+  });
+
+  test("rejects more than thirty setup instructions", async () => {
+    const exercise = new Exercise({
+      name: "Too many steps",
+      muscleGroup: "Core",
+      instructions: Array.from({ length: 31 }, (_, index) => ({
+        title: `Bước ${index + 1}`,
+        description: "Thực hiện có kiểm soát.",
+      })),
+    });
+
+    await expect(exercise.validate()).rejects.toMatchObject({
+      name: "ValidationError",
+    });
+  });
 });

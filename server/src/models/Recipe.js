@@ -1,5 +1,6 @@
 // models/Recipe.js
 import mongoose from "mongoose";
+import { MAX_ADDITIONAL_RECIPE_NUTRIENTS } from "../constants/recipeNutrition.js";
 
 const ingredientSchema = new mongoose.Schema(
   {
@@ -46,11 +47,11 @@ const recipeNutritionSchema = new mongoose.Schema(
       type: [additionalNutritionSchema],
       validate: {
         validator: (items) =>
-          items.length <= 20 &&
+          items.length <= MAX_ADDITIONAL_RECIPE_NUTRIENTS &&
           new Set(
             items.map((item) => item.label.trim().toLocaleLowerCase("vi")),
           ).size === items.length,
-        message: "Tối đa 20 thành phần dinh dưỡng bổ sung, không trùng tên",
+        message: `Tối đa ${MAX_ADDITIONAL_RECIPE_NUTRIENTS} thành phần dinh dưỡng bổ sung, không trùng tên`,
       },
       default: () => [],
     },

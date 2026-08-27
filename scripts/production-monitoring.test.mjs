@@ -12,6 +12,8 @@ import {
   sitemapIncludesCanonicalPath,
   validateGoogleOAuthRedirect,
   normalizeRumBaseline,
+  normalizeReadiness,
+  normalizeProviderStatus,
   summarizePrometheusMetrics,
 } from "./lib/production-monitoring.mjs";
 
@@ -122,6 +124,18 @@ htcoaching_rum_lcp_ms{quantile="0.95"} 2400
 htcoaching_rum_inp_ms{quantile="0.95"} 180
 htcoaching_rum_cls_score{quantile="0.95"} 0.08
 htcoaching_process_uptime_seconds 3600
+htcoaching_process_rss_bytes 104857600
+htcoaching_process_heap_used_bytes 52428800
+htcoaching_process_heap_total_bytes 104857600
+htcoaching_process_heap_utilization 0.5
+htcoaching_window_seconds 300
+htcoaching_window_http_requests 80
+htcoaching_window_http_5xx 2
+htcoaching_window_http_5xx_rate 0.025
+htcoaching_window_http_p95_ms 310
+htcoaching_window_db_p95_ms 140
+htcoaching_window_provider_p95_ms 950
+htcoaching_window_provider_failures 0
 `;
   const metrics = parsePrometheusMetrics(source);
   assert.equal(metrics.get("htcoaching_http_requests"), 120);
@@ -139,7 +153,54 @@ htcoaching_process_uptime_seconds 3600
     rumInpP95Ms: 180,
     rumClsP95: 0.08,
     uptimeSeconds: 3600,
+    rssBytes: 104857600,
+    heapUsedBytes: 52428800,
+    heapTotalBytes: 104857600,
+    heapUtilization: 0.5,
+    rollingWindowSeconds: 300,
+    rollingHttpRequests: 80,
+    rollingHttpErrors5xx: 2,
+    rollingHttpErrorRate: 0.025,
+    rollingHttpP95Ms: 310,
+    rollingDbP95Ms: 140,
+    rollingProviderP95Ms: 950,
+    rollingProviderFailures: 0,
   });
+});
+
+test("readiness and provider signals keep a bounded read-only contract", () => {
+  assert.deepEqual(
+    normalizeReadiness({
+      success: true,
+      service: "htcoaching-api",
+      database: "ready",
+      lifecycle: "ready",
+      privateField: "discarded",
+    }),
+    { database: "ready", lifecycle: "ready" },
+  );
+  assert.deepEqual(
+    normalizeProviderStatus({
+      success: true,
+      data: {
+        configured: true,
+        status: "ready",
+        reconciliationEnabled: true,
+        lastRunAt: "2026-08-24T08:00:00.000Z",
+        lastSuccessAt: "2026-08-24T08:00:00.000Z",
+        lastErrorCode: null,
+        token: "discarded",
+      },
+    }),
+    {
+      configured: true,
+      status: "ready",
+      reconciliationEnabled: true,
+      lastRunAt: "2026-08-24T08:00:00.000Z",
+      lastSuccessAt: "2026-08-24T08:00:00.000Z",
+      lastErrorCode: null,
+    },
+  );
 });
 
 test("RUM baseline normalization keeps only bounded aggregate fields", () => {
@@ -272,6 +333,10 @@ test("production alert workflow links the canonical runbook and requires manual 
   );
   assert.doesNotMatch(workflow, /issues\.update\([\s\S]*state:\s*"closed"/);
   assert.match(workflow, /owner review/i);
+  assert.match(workflow, /cron:\s*"7,22,37,52 \* \* \* \*"/);
+  assert.match(workflow, /production-monitor-state:failure/);
+  assert.match(workflow, /production-monitor-state:recovered/);
+  assert.match(workflow, /latestState !== "failure"/);
 });
 
 test("production smoke retries every remote read-only surface", async () => {
@@ -320,5 +385,5 @@ test("staging Netlify builds fail closed on canonical dynamic route content", as
     stagingEnvironment,
     /PRERENDER_API_URL\s*=\s*"https:\/\/htcoachingweb-staging\.onrender\.com\/api"/,
   );
-  assert.match(stagingEnvironment, /PRERENDER_CONCURRENCY\s*=\s*"6"/);
+  assert.match(stagingEnvironment, /PRERENDER_CONCURRENCY\s*=\s*"8"/);
 });

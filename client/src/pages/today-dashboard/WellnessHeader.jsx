@@ -4,7 +4,7 @@ const saveLabel = {
   saving: "Đang gửi...",
   saved: "Đã cập nhật",
   error: "Chưa gửi được",
-  conflict: "Có phiên bản mới hơn",
+  conflict: "Dữ liệu vừa thay đổi",
 };
 
 export const WellnessHeader = ({ saveState, submitted = false }) => (

@@ -27,8 +27,8 @@ về workspace để chỉnh sửa.
    `GET /api/coaching/trainer/clients`; HLV chỉ nhận client thuộc Order approved,
    còn buổi và có `trainerId` là chính họ; admin giữ phạm vi toàn hệ thống.
 3. Chọn một client mở `/trainer/health/clients/:clientId`.
-4. Workspace giữ ba tab `Tổng quan`, `Mục tiêu sức khỏe` và
-   `Thói quen hằng ngày`.
+4. Workspace giữ hai tab `Tổng quan` và `Theo dõi và hỗ trợ`; các công cụ mục tiêu,
+   thói quen, báo cáo và cảnh báo được sắp theo thứ tự trong tab thứ hai.
 5. Route cũ `/trainer/clients/:clientId` tiếp tục hoạt động để không phá deep link.
 
 ### HLV/admin quản lý học viên
@@ -36,7 +36,7 @@ về workspace để chỉnh sửa.
 1. Vào Khách của tôi.
 2. Chọn Quản lý tại một client active.
 3. Chọn ngày Việt Nam cần xem.
-4. Chuyển giữa Tổng quan, Mục tiêu sức khỏe và Thói quen hằng ngày.
+4. Chuyển giữa `Tổng quan` và `Theo dõi và hỗ trợ`.
 5. Có quick actions sang Giáo án tập luyện hoặc Coach Online khi phù hợp.
 
 ### HLV soạn giáo án
@@ -44,7 +44,7 @@ về workspace để chỉnh sửa.
 1. Chọn client trong modal tạo giáo án hoặc mở giáo án đã có.
 2. Xem tóm tắt mục tiêu hiện tại: ngủ, nước, bước.
 3. Chọn `Chỉnh sửa mục tiêu` để mở đúng client tại
-   `/trainer/health/clients/:clientId?tab=wellness`.
+   `/trainer/health/clients/:clientId?tab=tasks`.
 4. WorkoutPlan không lưu bản sao mục tiêu.
 
 ## UI states và accessibility
@@ -88,3 +88,55 @@ về workspace để chỉnh sửa.
   Daily Journal completion history.
 - Archived Habit không có màn hình quản lý trong scope hiện tại và không xuất hiện trong
   danh sách active của trainer/học viên.
+
+## Tinh gọn workspace HLV — 2026-08-25
+
+- Workspace chỉ còn hai tab: `Tổng quan` và `Theo dõi và hỗ trợ`.
+  Ngay đầu tab theo dõi/hỗ trợ hiển thị lời nhắc HLV kiểm tra báo cáo mỗi ngày;
+  các khối bên dưới theo đúng thứ tự `Mục tiêu sức khỏe`, `Thói quen hằng ngày`,
+  `Báo cáo khách hàng`, rồi `Cần chú ý`.
+- Deep link cũ `tab=wellness` hoặc `tab=habits` được chuyển về tab việc cần làm;
+  helper tạo link mới dùng `tab=tasks` để không phá bookmark cũ.
+- Tổng quan bỏ khối `Hôm nay và tiến trình`, trạng thái phần trăm hôm nay,
+  `Trao đổi về báo cáo tuần` và `Cần chú ý`; dữ liệu báo cáo tuần và tiến trình còn
+  lại giữ nguyên contract/ownership.
+- `Báo cáo khách hàng` được chuyển khỏi Tổng quan vào sau `Thói quen hằng ngày`,
+  với hai mục điều hướng `Sức khỏe` và `Dinh dưỡng`; mỗi lần chỉ mở một báo cáo,
+  tương tự navigation của Tiến trình.
+- `Cần chú ý` được đặt cuối tab, ngay sau `Báo cáo khách hàng`. Heading và icon của
+  `Mục tiêu sức khỏe`, `Thói quen hằng ngày`, `Báo cáo khách hàng` và `Cần chú ý`
+  dùng cùng một cấp kích thước để thể hiện đây là các khối ngang hàng.
+- Mô tả dưới `Mục tiêu sức khỏe` dùng copy hướng hành động
+  `Đặt mục tiêu và gửi cho khách hàng`.
+- Báo cáo sức khỏe không đưa ngày vào heading. Khi không có shared note, copy là
+  `Khách hàng không ghi chú.`.
+- Heading, mô tả và ba lựa chọn của `Tiến trình cơ thể và tập luyện` nằm trong cùng
+  một card. Khi mở một lựa chọn, hành vi quay lại và focus management hiện có được giữ.
+- Version/revision kỹ thuật không xuất hiện trong copy dành cho HLV; các field vẫn được
+  gửi ngầm để optimistic concurrency hoạt động.
+
+## Báo cáo dinh dưỡng thực tế — 2026-08-25
+
+- Tab `Theo dõi và hỗ trợ` đặt báo cáo dinh dưỡng trong mục `Dinh dưỡng` của card
+  `Báo cáo khách hàng`; mục vẫn xuất hiện khi chưa gửi để HLV thấy trạng thái rõ ràng.
+- Card chỉ hiển thị bữa `Đã ăn`, snapshot thực phẩm/lượng gram/macro thực tế và tổng
+  kcal, protein, carb, fat của các bữa đó; dữ liệu không thay đổi theo Saved Meal Plan
+  sau thời điểm gửi.
+- HLV nhận thông báo không chứa số liệu nhạy cảm; deep link mở đúng khách hàng, ngày và
+  mục `Dinh dưỡng` trong card `Báo cáo khách hàng` tại `tab=tasks`.
+- Nếu khách chỉ gửi nutrition nhưng Daily Journal wellness còn draft, API không trả
+  wellness, shared note hoặc habit completion draft cho HLV.
+- `Cần chú ý` chỉ tạo cảnh báo sức khỏe khi stress >= 8, đau mỏi >= 8 hoặc mức đau >= 7;
+  mức trung bình và hơi đau không tạo cảnh báo tự động.
+
+## Lịch thói quen và báo cáo tuần — 2026-08-26
+
+- Form `Giao thói quen mới` có tên, mô tả và bảy nút chọn ngày; phía trên lịch hiển
+  thị rõ khoảng Thứ Hai–Chủ Nhật của tuần chứa ngày workspace đang chọn.
+- HLV chọn tối thiểu một ngày. Lịch được gửi qua service hiện có và API chuẩn hóa
+  khoảng thành đúng một tuần; không thêm endpoint, model hoặc index.
+- Danh sách HLV hiển thị mô tả và lịch để có thể kiểm tra trước khi cập nhật/xóa.
+- Khu vực báo cáo tuần giữ số đo học viên ở chế độ chỉ đọc và bỏ toàn bộ form phản hồi,
+  đánh giá, retry lệnh nhận xét; endpoint review cũ vẫn tồn tại để tương thích.
+- Heading tiến trình dành cho cả học viên và HLV dùng copy
+  `Tiến trình cơ thể và tập luyện`.

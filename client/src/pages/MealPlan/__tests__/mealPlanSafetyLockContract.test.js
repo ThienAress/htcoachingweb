@@ -22,7 +22,7 @@ describe("Meal Plan safety lock wiring", () => {
 
   it("guards both generation and favorites until preferences are confirmed", () => {
     expect(source).toMatch(
-      /const handleGenerateMeal = async \(\) => \{\s*if \(areMealPlanActionsLocked\) return;/,
+      /const handleGenerateMeal = async \(\) => \{\s*if \(areMealPlanActionsLocked\) return false;/,
     );
     expect(source).toMatch(
       /const handleOpenFavorites = \(\) => \{\s*if \(areMealPlanActionsLocked\) return;/,

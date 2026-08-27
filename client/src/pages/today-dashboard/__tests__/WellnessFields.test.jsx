@@ -39,4 +39,13 @@ describe("WellnessFields", () => {
       (html.match(/Chọn mô tả gần nhất với cảm nhận của bạn\./g) || []),
     ).toHaveLength(1);
   });
+
+  it("only shows the note shared with the trainer", () => {
+    const html = renderFields();
+
+    expect(html).not.toContain("Ghi chú riêng");
+    expect(html).not.toContain('name="privateNote"');
+    expect(html).toContain("Chia sẻ với HLV");
+    expect((html.match(/<textarea/g) || [])).toHaveLength(1);
+  });
 });

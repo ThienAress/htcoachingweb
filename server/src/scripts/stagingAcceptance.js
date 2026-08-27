@@ -1,9 +1,12 @@
 import "../config/env.js";
 import crypto from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
 import { assertStagingOperation } from "../config/stagingOperationSafety.js";
+import AuditLog from "../models/AuditLog.js";
 import BlogPost from "../models/BlogPost.js";
 import Booking from "../models/Booking.js";
 import Checkin from "../models/Checkin.js";
@@ -18,6 +21,11 @@ import User from "../models/User.js";
 import Wallet from "../models/Wallet.js";
 import WalletTransaction from "../models/WalletTransaction.js";
 import { reconcileWallets } from "../services/walletReconciliation.service.js";
+import {
+  createAcceptanceIdentity,
+  reconciliationIssueDelta,
+  runWithVerifiedCleanup,
+} from "./stagingAcceptanceSafety.js";
 
 const STAGING_API_ORIGIN = "https://htcoachingweb-staging.onrender.com";
 const FIXTURE_EMAILS = {
@@ -27,18 +35,41 @@ const FIXTURE_EMAILS = {
 };
 
 const csrfToken = crypto.randomBytes(32).toString("hex");
-const runSuffix = crypto.randomBytes(5).toString("hex");
+const { runId, marker } = createAcceptanceIdentity();
+const runSuffix = runId.replaceAll("-", "").slice(-10);
+const runStartedAt = new Date();
 const flows = [];
 const cleanup = {
   blogSlugs: new Set(),
   recipeSlugs: new Set(),
+  recipeIds: new Set(),
   coachingKeys: [],
   checkins: [],
   scheduleRequestIds: new Set(),
+  scheduleIds: new Set(),
+  bookingRequestIds: new Set(),
+  bookingIds: new Set(),
+  depositIds: new Set(),
+  depositWindows: [],
+  walletBaselines: new Map(),
+  auditTargetIds: new Set(),
+  walletReconciliationBaseline: null,
 };
 
 const assert = (condition, message) => {
   if (!condition) throw new Error(message);
+};
+
+const writeEvidence = async (evidence) => {
+  const output = String(process.env.STAGING_ACCEPTANCE_OUTPUT || "").trim();
+  if (!output) return;
+  const resolved = path.resolve(output);
+  assert(resolved.toLowerCase().endsWith(".json"), "Acceptance output must be JSON");
+  await mkdir(path.dirname(resolved), { recursive: true });
+  await writeFile(resolved, `${JSON.stringify(evidence, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
 };
 
 const addFlow = (name, checks) => flows.push({ name, checks });
@@ -92,6 +123,32 @@ const request = async (
 const dateKeyIn = (days) => {
   const date = new Date(Date.now() + days * 86_400_000);
   return date.toISOString().slice(0, 10);
+};
+
+const findAvailableCoachingDateKey = async (userId) => {
+  const offset = Number.parseInt(runSuffix.slice(0, 2), 16) % 20;
+  for (let days = 20 + offset; days <= 80; days += 1) {
+    const dateString = dateKeyIn(days);
+    if (!(await CoachingDay.exists({ userId, dateString }))) return dateString;
+  }
+  throw new Error("No isolated staging coaching date is available");
+};
+
+const findAvailableScheduleDateKey = async ({ trainerId, clientIds }) => {
+  const offset = Number.parseInt(runSuffix.slice(2, 4), 16) % 20;
+  for (let days = 10 + offset; days <= 70; days += 1) {
+    const occurrenceDateKey = dateKeyIn(days);
+    const occupied = await TrainingSchedule.exists({
+      occurrenceDateKey,
+      status: "scheduled",
+      $or: [
+        { clientId: { $in: clientIds } },
+        { trainerId, startTime: "09:00" },
+      ],
+    });
+    if (!occupied) return occurrenceDateKey;
+  }
+  throw new Error("No isolated staging schedule date is available");
 };
 
 const loadActors = async () => {
@@ -165,8 +222,8 @@ const testBlog = async ({ tokens }) => {
     body: {
       title: "Staging Acceptance Blog",
       slug,
-      content: "<p>Staging acceptance content</p><script>blocked()</script>",
-      excerpt: "Synthetic staging acceptance article.",
+      content: `<p>Staging acceptance content ${marker}</p><script>blocked()</script>`,
+      excerpt: `Synthetic staging acceptance article. ${marker}`,
       category: "tap-luyen",
       tags: ["staging", "acceptance"],
       status: "published",
@@ -174,6 +231,7 @@ const testBlog = async ({ tokens }) => {
   });
   const id = created.data?.data?._id;
   assert(id, "Blog create response is missing an id");
+  cleanup.auditTargetIds.add(id);
 
   const detail = await request(`/api/blog/${slug}`, { label: "blog detail" });
   assert(!detail.data?.data?.content?.includes("<script"), "Blog XSS sanitization failed");
@@ -216,13 +274,15 @@ const testRecipe = async ({ client, tokens }) => {
       category: "High Protein",
       area: "Viet Nam",
       ingredients: [{ name: "Synthetic ingredient", measure: "100g" }],
-      instructions: ["Validate the staging workflow."],
-      tags: ["staging"],
+      instructions: [`Validate the staging workflow. ${marker}`],
+      tags: ["staging", marker],
       source: "manual",
     },
   });
   const id = created.data?.data?._id;
   assert(id && created.data.data.isPublished === false, "Recipe must start as a draft");
+  cleanup.recipeIds.add(id);
+  cleanup.auditTargetIds.add(id);
 
   const published = await request(`/api/recipes/${id}`, {
     method: "PUT",
@@ -269,13 +329,23 @@ const testRecipe = async ({ client, tokens }) => {
 const testCheckin = async ({ firstOrder, tokens }) => {
   const requestId = crypto.randomUUID();
   const baselineSessions = firstOrder.sessions;
-  cleanup.checkins.push({ orderId: firstOrder._id, requestId, baselineSessions });
+  assert(
+    Number.isSafeInteger(baselineSessions) && baselineSessions >= 2,
+    "Synthetic order must keep at least one session after acceptance check-in",
+  );
+  cleanup.checkins.push({
+    orderId: firstOrder._id,
+    requestId,
+    baselineSessions,
+    baselineSessionsExhaustedAt: firstOrder.sessionsExhaustedAt,
+    baselineUpdatedAt: firstOrder.updatedAt,
+  });
   const body = {
     orderId: firstOrder._id.toString(),
     clientRequestId: requestId,
     time: new Date().toISOString(),
     muscle: "Staging full body",
-    note: "Synthetic acceptance check-in",
+    note: `Synthetic acceptance check-in ${marker}`,
   };
   const created = await request("/api/checkin", {
     method: "POST",
@@ -299,7 +369,6 @@ const testCheckin = async ({ firstOrder, tokens }) => {
   });
   const afterDelete = await Order.findById(firstOrder._id).lean();
   assert(afterDelete.sessions === baselineSessions, "Check-in delete did not restore the session");
-  cleanup.checkins = cleanup.checkins.filter((item) => item.requestId !== requestId);
   addFlow("checkin-idempotency-and-session-restore", [
     created.status,
     replayed.status,
@@ -308,13 +377,16 @@ const testCheckin = async ({ firstOrder, tokens }) => {
 };
 
 const testCoaching = async ({ client, tokens }) => {
-  const dateString = dateKeyIn(20);
+  const dateString = await findAvailableCoachingDateKey(client._id);
   cleanup.coachingKeys.push({ userId: client._id, dateString });
-  await CoachingDay.deleteOne({ userId: client._id, dateString });
+  assert(
+    !(await CoachingDay.exists({ userId: client._id, dateString })),
+    "Synthetic coaching date is already occupied",
+  );
   const baseBody = {
     dateString,
     title: "Staging Acceptance Training Day",
-    note: "Synthetic coaching plan",
+    note: `Synthetic coaching plan ${marker}`,
     videoUrl: "",
     exercises: [
       { name: "Staging Squat", sets: 3, reps: "8", weight: "Light" },
@@ -331,7 +403,7 @@ const testCoaching = async ({ client, tokens }) => {
   const updateBody = {
     ...baseBody,
     revision: 0,
-    note: "Synthetic coaching plan updated",
+    note: `Synthetic coaching plan updated ${marker}`,
     exercises: [{ ...baseBody.exercises[0], _id: exercise._id }],
   };
   const updated = await request(`/api/coaching/trainer/clients/${client._id}`, {
@@ -372,9 +444,6 @@ const testCoaching = async ({ client, tokens }) => {
       label: "coaching delete",
     },
   );
-  cleanup.coachingKeys = cleanup.coachingKeys.filter(
-    (item) => item.dateString !== dateString,
-  );
   addFlow("coaching-revision-feedback-crud", [
     created.status,
     updated.status,
@@ -384,14 +453,17 @@ const testCoaching = async ({ client, tokens }) => {
   ]);
 };
 
-const testScheduleConflict = async ({ client, secondClient, tokens }) => {
-  const occurrenceDateKey = dateKeyIn(10);
+const testScheduleConflict = async ({ trainer, client, secondClient, tokens }) => {
+  const occurrenceDateKey = await findAvailableScheduleDateKey({
+    trainerId: trainer._id,
+    clientIds: [client._id, secondClient._id],
+  });
   const shared = {
     occurrenceDateKey,
     startTime: "09:00",
     endTime: "10:00",
     exerciseType: "Gym",
-    notes: "Synthetic conflict test",
+    notes: `Synthetic conflict test ${marker}`,
     color: "#3b82f6",
   };
   const firstRequestId = crypto.randomUUID();
@@ -423,6 +495,7 @@ const testScheduleConflict = async ({ client, secondClient, tokens }) => {
     "Concurrent schedule claims did not produce exactly one winner",
   );
   const winner = responses.find((response) => response.status === 201);
+  cleanup.scheduleIds.add(winner.data?.data?._id);
   const cancelRequestId = crypto.randomUUID();
   cleanup.scheduleRequestIds.add(cancelRequestId);
   const cancelled = await request(`/api/training-schedules/${winner.data?.data?._id}`, {
@@ -446,17 +519,19 @@ const testScheduleConflict = async ({ client, secondClient, tokens }) => {
 };
 
 const testBooking = async ({ tokens }) => {
+  const clientRequestId = crypto.randomUUID();
+  cleanup.bookingRequestIds.add(clientRequestId);
   const body = {
     name: "Staging Acceptance Client",
     phone: "0900000000",
     email: "staging.acceptance.fixture@gmail.com",
     gym: "Staging Demo Gym",
     schedule: "Monday 09:00",
-    note: "Synthetic staging lead",
+    note: `Synthetic staging lead ${marker}`,
     package: "1-1 - Staging",
     sessions: 10,
     gifts: [],
-    clientRequestId: crypto.randomUUID(),
+    clientRequestId,
   };
   const created = await request("/api/bookings", {
     method: "POST",
@@ -471,6 +546,9 @@ const testBooking = async ({ tokens }) => {
   });
   assert(replayed.data?.idempotentReplay === true, "Booking replay was not idempotent");
   const id = created.data?.data?._id;
+  assert(id, "Booking create response is missing an id");
+  cleanup.bookingIds.add(id);
+  cleanup.auditTargetIds.add(id);
   const invalid = await request(`/api/bookings/${id}/status`, {
     method: "PATCH",
     token: tokens.admin,
@@ -501,17 +579,31 @@ const testBooking = async ({ tokens }) => {
 };
 
 const testDeposit = async ({ client, tokens }) => {
-  const before = await Wallet.findOne({ userId: client._id }).lean();
+  const [before, openDeposits] = await Promise.all([
+    Wallet.findOne({ userId: client._id }).lean(),
+    DepositRequest.countDocuments({ userId: client._id, isOpen: true }),
+  ]);
   assert(before?.balance === 0, "Synthetic wallet must begin the deposit test at zero");
+  assert(openDeposits === 0, "Synthetic client must not have an open deposit");
+  cleanup.walletBaselines.set(before._id.toString(), {
+    _id: before._id,
+    balance: before.balance,
+    version: before.version,
+    updatedAt: before.updatedAt,
+  });
+  const amount = 5000;
+  cleanup.depositWindows.push({ userId: client._id, amount });
   const created = await request("/api/deposits", {
     method: "POST",
     token: tokens.client,
-    body: { amount: 5000 },
+    body: { amount },
     expected: [201],
     label: "deposit create",
   });
   const id = created.data?.data?.depositRequestId;
   assert(id, "Deposit create response is missing an id");
+  cleanup.depositIds.add(id);
+  cleanup.auditTargetIds.add(id);
   const approved = await request(`/api/admin/deposits/${id}/approve`, {
     method: "POST",
     token: tokens.admin,
@@ -551,7 +643,13 @@ const testDeposit = async ({ client, tokens }) => {
   assert(deposit?.status === "reversed", "Deposit did not reach reversed state");
   assert(ledgerCount === 2, "Deposit ledger must contain credit and reversal entries");
   const reconciliation = await reconcileWallets();
-  assert(reconciliation.totalIssues === 0, "Wallet reconciliation found staging issues");
+  assert(
+    reconciliationIssueDelta(
+      reconciliation.totalIssues,
+      cleanup.walletReconciliationBaseline,
+    ) === 0,
+    "Acceptance introduced new wallet reconciliation issues",
+  );
   addFlow("deposit-ledger-idempotency-and-reversal", [
     created.status,
     approved.status,
@@ -562,12 +660,86 @@ const testDeposit = async ({ client, tokens }) => {
   ]);
 };
 
-const cleanupFailedRun = async () => {
-  for (const { orderId, requestId, baselineSessions } of cleanup.checkins) {
+const asObjectIds = (values) =>
+  [...values]
+    .filter((value) => mongoose.isValidObjectId(value))
+    .map((value) => new mongoose.Types.ObjectId(value));
+
+const discoverTrackedIds = async () => {
+  if (cleanup.recipeSlugs.size) {
+    const recipes = await Recipe.collection
+      .find({ slug: { $in: [...cleanup.recipeSlugs] } })
+      .project({ _id: 1 })
+      .toArray();
+    for (const recipe of recipes) cleanup.recipeIds.add(recipe._id.toString());
+  }
+
+  if (cleanup.bookingRequestIds.size) {
+    const bookings = await Booking.collection
+      .find({ clientRequestId: { $in: [...cleanup.bookingRequestIds] } })
+      .project({ _id: 1 })
+      .toArray();
+    for (const booking of bookings) {
+      cleanup.bookingIds.add(booking._id.toString());
+      cleanup.auditTargetIds.add(booking._id.toString());
+    }
+  }
+
+  if (cleanup.depositWindows.length) {
+    const deposits = await DepositRequest.collection
+      .find({
+        $or: cleanup.depositWindows.map(({ userId, amount }) => ({
+          userId,
+          amount,
+          createdAt: { $gte: runStartedAt },
+        })),
+      })
+      .project({ _id: 1 })
+      .toArray();
+    for (const deposit of deposits) {
+      cleanup.depositIds.add(deposit._id.toString());
+      cleanup.auditTargetIds.add(deposit._id.toString());
+    }
+  }
+
+  if (cleanup.scheduleRequestIds.size) {
+    const requestIds = [...cleanup.scheduleRequestIds];
+    const [schedules, commands] = await Promise.all([
+      TrainingSchedule.collection
+        .find({ requestId: { $in: requestIds } })
+        .project({ _id: 1 })
+        .toArray(),
+      TrainingScheduleCommand.collection
+        .find({ requestId: { $in: requestIds } })
+        .project({ scheduleId: 1 })
+        .toArray(),
+    ]);
+    for (const item of [...schedules, ...commands]) {
+      const id = item._id || item.scheduleId;
+      if (id) cleanup.scheduleIds.add(id.toString());
+    }
+  }
+};
+
+const cleanupRun = async () => {
+  await discoverTrackedIds();
+  for (const {
+    orderId,
+    requestId,
+    baselineSessions,
+    baselineSessionsExhaustedAt,
+    baselineUpdatedAt,
+  } of cleanup.checkins) {
     await Checkin.collection.deleteMany({ orderId, clientRequestId: requestId });
     await Order.collection.updateOne(
       { _id: orderId },
-      { $set: { sessions: baselineSessions } },
+      {
+        $set: {
+          sessions: baselineSessions,
+          sessionsExhaustedAt: baselineSessionsExhaustedAt || null,
+          updatedAt: baselineUpdatedAt,
+        },
+      },
     );
   }
   for (const { userId, dateString } of cleanup.coachingKeys) {
@@ -576,33 +748,188 @@ const cleanupFailedRun = async () => {
   if (cleanup.blogSlugs.size) {
     await BlogPost.collection.deleteMany({ slug: { $in: [...cleanup.blogSlugs] } });
   }
-  if (cleanup.recipeSlugs.size) {
-    const recipes = await Recipe.collection
-      .find({ slug: { $in: [...cleanup.recipeSlugs] } })
-      .project({ _id: 1 })
-      .toArray();
-    const ids = recipes.map((recipe) => recipe._id);
-    await Recipe.collection.deleteMany({ _id: { $in: ids } });
-    if (ids.length) {
-      await User.collection.updateMany({}, { $pull: { savedRecipes: { $in: ids } } });
-    }
+
+  const recipeIds = asObjectIds(cleanup.recipeIds);
+  if (recipeIds.length) {
+    await User.collection.updateMany(
+      { savedRecipes: { $in: recipeIds } },
+      { $pull: { savedRecipes: { $in: recipeIds } } },
+    );
+    await Recipe.collection.deleteMany({ _id: { $in: recipeIds } });
   }
-  if (cleanup.scheduleRequestIds.size) {
+
+  const scheduleIds = asObjectIds(cleanup.scheduleIds);
+  if (scheduleIds.length || cleanup.scheduleRequestIds.size) {
     const requestIds = [...cleanup.scheduleRequestIds];
-    const schedules = await TrainingSchedule.collection
-      .find({ requestId: { $in: requestIds } })
-      .project({ _id: 1 })
-      .toArray();
-    const scheduleIds = schedules.map((schedule) => schedule._id);
-    await TrainingSlotClaim.collection.deleteMany({ scheduleId: { $in: scheduleIds } });
+    if (scheduleIds.length) {
+      await TrainingSlotClaim.collection.deleteMany({ scheduleId: { $in: scheduleIds } });
+    }
     await TrainingScheduleCommand.collection.deleteMany({
       $or: [
         { requestId: { $in: requestIds } },
-        { scheduleId: { $in: scheduleIds } },
+        ...(scheduleIds.length ? [{ scheduleId: { $in: scheduleIds } }] : []),
       ],
     });
-    await TrainingSchedule.collection.deleteMany({ _id: { $in: scheduleIds } });
+    await TrainingSchedule.collection.deleteMany({
+      $or: [
+        { requestId: { $in: requestIds } },
+        ...(scheduleIds.length ? [{ _id: { $in: scheduleIds } }] : []),
+      ],
+    });
   }
+
+  const bookingIds = asObjectIds(cleanup.bookingIds);
+  if (cleanup.bookingRequestIds.size) {
+    await Booking.collection.deleteMany({
+      clientRequestId: { $in: [...cleanup.bookingRequestIds] },
+    });
+  }
+
+  const depositIds = asObjectIds(cleanup.depositIds);
+  if (depositIds.length) {
+    await WalletTransaction.collection.deleteMany({ referenceId: { $in: depositIds } });
+    await DepositRequest.collection.deleteMany({ _id: { $in: depositIds } });
+  }
+  for (const baseline of cleanup.walletBaselines.values()) {
+    await Wallet.collection.updateOne(
+      { _id: baseline._id },
+      {
+        $set: {
+          balance: baseline.balance,
+          version: baseline.version,
+          updatedAt: baseline.updatedAt,
+        },
+      },
+    );
+  }
+
+  const auditTargetIds = asObjectIds(
+    new Set([
+      ...cleanup.auditTargetIds,
+      ...bookingIds,
+      ...depositIds,
+      ...scheduleIds,
+    ]),
+  );
+  if (auditTargetIds.length) {
+    await AuditLog.collection.deleteMany({ targetId: { $in: auditTargetIds } });
+  }
+};
+
+const verifyCleanup = async () => {
+  await discoverTrackedIds();
+  const recipeIds = asObjectIds(cleanup.recipeIds);
+  const scheduleIds = asObjectIds(cleanup.scheduleIds);
+  const bookingIds = asObjectIds(cleanup.bookingIds);
+  const depositIds = asObjectIds(cleanup.depositIds);
+  const auditTargetIds = asObjectIds(
+    new Set([
+      ...cleanup.auditTargetIds,
+      ...bookingIds,
+      ...depositIds,
+      ...scheduleIds,
+    ]),
+  );
+  const counts = {
+    blogs: cleanup.blogSlugs.size
+      ? await BlogPost.collection.countDocuments({ slug: { $in: [...cleanup.blogSlugs] } })
+      : 0,
+    recipes: recipeIds.length
+      ? await Recipe.collection.countDocuments({ _id: { $in: recipeIds } })
+      : 0,
+    recipeBookmarks: recipeIds.length
+      ? await User.collection.countDocuments({ savedRecipes: { $in: recipeIds } })
+      : 0,
+    checkins: cleanup.checkins.length
+      ? await Checkin.collection.countDocuments({
+          $or: cleanup.checkins.map(({ orderId, requestId }) => ({
+            orderId,
+            clientRequestId: requestId,
+          })),
+        })
+      : 0,
+    coachingDays: cleanup.coachingKeys.length
+      ? await CoachingDay.collection.countDocuments({
+          $or: cleanup.coachingKeys.map(({ userId, dateString }) => ({
+            userId,
+            dateString,
+          })),
+        })
+      : 0,
+    schedules: scheduleIds.length
+      ? await TrainingSchedule.collection.countDocuments({ _id: { $in: scheduleIds } })
+      : 0,
+    scheduleCommands: cleanup.scheduleRequestIds.size
+      ? await TrainingScheduleCommand.collection.countDocuments({
+          requestId: { $in: [...cleanup.scheduleRequestIds] },
+        })
+      : 0,
+    slotClaims: scheduleIds.length
+      ? await TrainingSlotClaim.collection.countDocuments({ scheduleId: { $in: scheduleIds } })
+      : 0,
+    bookings: bookingIds.length
+      ? await Booking.collection.countDocuments({ _id: { $in: bookingIds } })
+      : 0,
+    deposits: depositIds.length
+      ? await DepositRequest.collection.countDocuments({ _id: { $in: depositIds } })
+      : 0,
+    walletTransactions: depositIds.length
+      ? await WalletTransaction.collection.countDocuments({ referenceId: { $in: depositIds } })
+      : 0,
+    auditLogs: auditTargetIds.length
+      ? await AuditLog.collection.countDocuments({ targetId: { $in: auditTargetIds } })
+      : 0,
+    fixtureStateMismatches: 0,
+  };
+
+  for (const item of cleanup.checkins) {
+    const order = await Order.findById(item.orderId)
+      .select("sessions sessionsExhaustedAt updatedAt")
+      .lean();
+    if (
+      !order ||
+      order.sessions !== item.baselineSessions ||
+      String(order.sessionsExhaustedAt || "") !==
+        String(item.baselineSessionsExhaustedAt || "")
+    ) {
+      counts.fixtureStateMismatches += 1;
+    }
+  }
+  for (const baseline of cleanup.walletBaselines.values()) {
+    const wallet = await Wallet.findById(baseline._id)
+      .select("balance version")
+      .lean();
+    if (
+      !wallet ||
+      wallet.balance !== baseline.balance ||
+      wallet.version !== baseline.version
+    ) {
+      counts.fixtureStateMismatches += 1;
+    }
+  }
+  const reconciliation = await reconcileWallets();
+  counts.walletReconciliationIssueDelta = reconciliationIssueDelta(
+    reconciliation.totalIssues,
+    cleanup.walletReconciliationBaseline,
+  );
+
+  return {
+    residue: Object.values(counts).reduce((total, count) => total + count, 0),
+    collections: counts,
+  };
+};
+
+const executeFlows = async () => {
+  const actors = await loadActors();
+  await testPermissions(actors);
+  await testBlog(actors);
+  await testRecipe(actors);
+  await testCheckin(actors);
+  await testCoaching(actors);
+  await testScheduleConflict(actors);
+  await testBooking(actors);
+  await testDeposit(actors);
+  return { passed: flows.length, flows };
 };
 
 const main = async () => {
@@ -615,35 +942,53 @@ const main = async () => {
     mongoose.connection.db?.databaseName === "htcoaching_staging",
     "Acceptance connection is not using the staging database",
   );
+  cleanup.walletReconciliationBaseline = (
+    await reconcileWallets()
+  ).totalIssues;
 
-  const actors = await loadActors();
-  await testPermissions(actors);
-  await testBlog(actors);
-  await testRecipe(actors);
-  await testCheckin(actors);
-  await testCoaching(actors);
-  await testScheduleConflict(actors);
-  await testBooking(actors);
-  await testDeposit(actors);
-
-  console.log(
-    JSON.stringify(
-      {
-        operation: "staging-acceptance",
-        database: mongoose.connection.db.databaseName,
-        passed: flows.length,
-        flows,
-      },
-      null,
-      2,
-    ),
-  );
+  const result = await runWithVerifiedCleanup({
+    execute: executeFlows,
+    cleanup: cleanupRun,
+    verify: verifyCleanup,
+  });
+  return {
+    success: true,
+    operation: "staging-acceptance",
+    runId,
+    marker,
+    database: mongoose.connection.db.databaseName,
+    startedAt: runStartedAt.toISOString(),
+    completedAt: new Date().toISOString(),
+    preexistingFindings: {
+      walletReconciliationIssues: cleanup.walletReconciliationBaseline,
+    },
+    ...result.value,
+    cleanup: result.cleanup,
+  };
 };
 
 try {
-  await main();
+  const evidence = await main();
+  await writeEvidence(evidence);
+  process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
 } catch (error) {
-  if (mongoose.connection.readyState === 1) await cleanupFailedRun();
+  const evidence = {
+    success: false,
+    operation: "staging-acceptance",
+    runId,
+    database: mongoose.connection.db?.databaseName || "not-connected",
+    startedAt: runStartedAt.toISOString(),
+    completedAt: new Date().toISOString(),
+    cleanup: error.cleanup || null,
+    error: {
+      code: error.code || "STAGING_ACCEPTANCE_FAILED",
+      message: error.message,
+    },
+  };
+  await writeEvidence(evidence);
+  process.stderr.write(
+    `${JSON.stringify(evidence, null, 2)}\n`,
+  );
   throw error;
 } finally {
   await mongoose.disconnect();

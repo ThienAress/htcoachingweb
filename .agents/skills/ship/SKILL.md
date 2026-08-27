@@ -7,6 +7,10 @@ description: Release gate cuối cho HTCOACHINGWEB; tái sử dụng QA evidence
 
 `$ship` ra quyết định phát hành, không phải một QA pipeline thứ hai. `GO` không tự cấp quyền push/deploy; chỉ thực hiện khi user yêu cầu rõ.
 
+Luôn khai báo target `staging` hoặc `production` và áp policy canonical tại
+`.agents/rules/workflow/release-promotion.md` cùng runbook
+`docs/operations/runbooks/release-promotion.md`.
+
 ---
 
 ## Cách chạy
@@ -106,14 +110,27 @@ Nếu diff chạm public route, metadata, sitemap hoặc prerender, chạy `$seo
 
 ---
 
-## Gate 5: Release decision
+## Gate 5: Promotion evidence
+
+- Target `staging`: ghi `PENDING (created only after live staging acceptance)`;
+  gate này không block `GO FOR STAGING`.
+- Target `production`: tải per-release candidate artifact và chạy
+  `scripts/release-gate.mjs --mode=candidate` với recovery manifest hiện tại.
+- PASS chỉ khi exact CI/client/server/candidate SHA trùng nhau, acceptance PASS,
+  cleanup verified với residue `0`, release + off-device recovery ready và hai
+  rollback deploy IDs có mặt.
+- Evidence thiếu/stale/mismatch hoặc artifact của SHA khác là FAIL. Production
+  không được dùng QA/local evidence thay live staging evidence.
+
+## Gate 6: Release decision
 
 | Điều kiện | Kết quả |
 |---|---|
 | Bất kỳ gate bắt buộc `FAIL`/`BLOCKED` | `NO-GO` |
 | Còn finding `BLOCK` hoặc `HIGH` | `NO-GO` |
 | Mọi gate pass, không còn `BLOCK`/`HIGH`, có MED được document | `GO WITH WARNINGS` |
-| Mọi gate pass, không còn finding đáng kể | `GO` |
+| Target staging, mọi gate local pass | `GO FOR STAGING` |
+| Target production, mọi gate kể cả promotion evidence pass | `GO` |
 
 Mỗi MED được chấp nhận phải có bằng chứng, rủi ro còn lại, lý do chưa sửa, owner và follow-up. MED không được dùng để hạ cấp build/test/security failure. LOW là tùy chọn nhưng vẫn ghi trong report.
 
@@ -124,16 +141,18 @@ Mỗi MED được chấp nhận phải có bằng chứng, rủi ro còn lại,
 ```
 SHIP REPORT — HTCoachingWeb
 
+Target: staging | production
 QA evidence: PASS (reused | generated once) | FAIL
 Security: PASS | FAIL
 SEO: PASS | SKIP (<evidence>) | FAIL
 Cleanup: PASS | FAIL
 Coverage ledger: PASS | SKIP (not security-sensitive) | FAIL
 Codex Security: COMPLETE | PREFLIGHT ONLY | SKIP (<policy>) | PARTIAL/BLOCKED
+Promotion evidence: PENDING (staging) | PASS (<SHA + candidate run>) | FAIL
 
 BLOCK/HIGH: 0 | <findings>
 MED accepted: 0 | <finding + risk + owner + follow-up>
 
-RESULT: GO | GO WITH WARNINGS | NO-GO
+RESULT: GO FOR STAGING | GO | GO WITH WARNINGS | NO-GO
 Reason: <evidence-backed conclusion>
 ```

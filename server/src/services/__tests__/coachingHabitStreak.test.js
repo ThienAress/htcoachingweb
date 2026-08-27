@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { deriveHabitStreak } from "../coachingHabitStreak.service.js";
+import {
+  deriveHabitStreak,
+  isHabitWithinScheduleRange,
+} from "../coachingHabitStreak.service.js";
 
 const habit = (daysOfWeek) => ({
   lineageKey: "habit-lineage",
@@ -15,6 +18,21 @@ const journal = (dateKey, status = "completed") => ({
 });
 
 describe("deriveHabitStreak", () => {
+  it("phân biệt ngày trong khoảng tuần với ngày được chọn", () => {
+    const weeklyHabit = {
+      schedule: {
+        daysOfWeek: [1, 3, 5],
+        startDateKey: "2026-08-17",
+        endDateKey: "2026-08-23",
+      },
+    };
+
+    expect([
+      isHabitWithinScheduleRange(weeklyHabit, "2026-08-17"),
+      isHabitWithinScheduleRange(weeklyHabit, "2026-08-23"),
+      isHabitWithinScheduleRange(weeklyHabit, "2026-08-24"),
+    ]).toEqual([true, true, false]);
+  });
   it("continues across the Sunday/Monday week boundary", () => {
     expect(
       deriveHabitStreak({

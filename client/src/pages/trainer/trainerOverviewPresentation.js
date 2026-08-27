@@ -7,6 +7,18 @@ const ATTENTION = {
     label: "Thiếu báo cáo tuần trước",
     detail: "Nhắc học viên gửi báo cáo khi phù hợp",
   },
+  stress_high: {
+    label: "Căng thẳng ở mức cao",
+    detail: "Xem nhật ký được chia sẻ",
+  },
+  soreness_high: {
+    label: "Đau mỏi ở mức cao",
+    detail: "Xem nhật ký được chia sẻ",
+  },
+  pain_high: {
+    label: "Mức đau cần được chú ý",
+    detail: "Xem nhật ký được chia sẻ",
+  },
   pain_reported: {
     label: "Có cảnh báo đau cần xem",
     detail: "Xem nhật ký được chia sẻ",

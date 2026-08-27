@@ -64,6 +64,9 @@ const BookTraining = lazy(() => import("./pages/customer/BookTraining"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage/RegisterPage"));
 const Club = lazy(() => import("./pages/Club"));
 const ExercisesPage = lazy(() => import("./pages/ExercisesPage/ExercisesPage"));
+const ExerciseDetailPage = lazy(() =>
+  import("./pages/ExercisesPage/ExerciseDetailPage"),
+);
 const F1Customers = lazy(() => import("./pages/F1CustomersPage/F1Customers"));
 const CustomerStories = lazy(() => import("./pages/CustomerStories"));
 const CustomerStoryDetail = lazy(() => import("./pages/CustomerStoryDetail"));
@@ -166,6 +169,7 @@ function AppContent() {
         <Route path="/blog/:slug" element={<BlogDetail />} />
         <Route path="/club" element={<Club />} />
         <Route path="/exercises" element={<ExercisesPage />} />
+        <Route path="/exercises/:id/:slug?" element={<ExerciseDetailPage />} />
         <Route
           path="/f1-customers"
           element={

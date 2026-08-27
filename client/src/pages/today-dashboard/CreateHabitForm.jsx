@@ -3,13 +3,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import {
+  HABIT_DAY_LABELS,
+  getHabitWeekRange,
   habitFormDefaults,
   habitFormSchema,
   habitFormToPayload,
   habitToFormValues,
 } from "./habitForm";
 
-const DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+const formatDateKey = (dateKey) => {
+  const [year, month, day] = String(dateKey || "").split("-");
+  return year && month && day ? `${day}/${month}/${year}` : "";
+};
 
 export const CreateHabitForm = ({
   dateKey,
@@ -36,6 +41,8 @@ export const CreateHabitForm = ({
       : habitFormDefaults,
   });
   const daysOfWeek = useWatch({ control, name: "daysOfWeek" }) || [];
+  const description = useWatch({ control, name: "description" }) || "";
+  const trainerWeek = trainerMode ? getHabitWeekRange(dateKey) : null;
 
   useEffect(() => {
     reset(isEditing ? habitToFormValues(initialHabit) : habitFormDefaults);
@@ -80,6 +87,26 @@ export const CreateHabitForm = ({
         placeholder="Ví dụ: Đi bộ 20 phút"
         className="mt-2 min-h-11 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-white outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30 disabled:opacity-50"
       />
+      {trainerMode && (
+        <label
+          htmlFor={`habit-description-${idSuffix}`}
+          className="mt-4 block text-sm text-slate-300"
+        >
+          Mô tả
+          <textarea
+            id={`habit-description-${idSuffix}`}
+            {...register("description")}
+            maxLength={500}
+            rows={3}
+            disabled={disabled}
+            placeholder="Ví dụ: Đi bộ sau bữa tối với nhịp độ vừa phải"
+            className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm leading-6 text-white outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30 disabled:opacity-50"
+          />
+          <span className="mt-1 block text-right text-xs tabular-nums text-slate-500">
+            {description.length}/500
+          </span>
+        </label>
+      )}
       <label
         htmlFor={`habit-category-${idSuffix}`}
         className="mt-4 block text-sm text-slate-300"
@@ -98,21 +125,23 @@ export const CreateHabitForm = ({
         <option value="mindset">Tinh thần</option>
         <option value="other">Khác</option>
       </select>
-      {trainerMode ? (
-        <div className="mt-4 rounded-xl border border-orange-400/30 bg-orange-500/10 p-4">
+      {trainerMode && (
+        <div className="mt-4 border-l-2 border-orange-400 bg-orange-500/5 px-4 py-3">
           <p className="text-sm font-semibold text-orange-200">
-            Áp dụng hằng ngày · 7 ngày/tuần
+            Tuần áp dụng
           </p>
-          <p className="mt-1 text-xs leading-5 text-slate-400">
-            Bắt đầu từ ngày giao và duy trì đến khi HLV xóa hoặc gói tập của
-            học viên hết buổi.
+          <p className="mt-1 text-sm tabular-nums text-slate-300">
+            Thứ Hai {formatDateKey(trainerWeek.startDateKey)} – Chủ Nhật{" "}
+            {formatDateKey(trainerWeek.endDateKey)}
           </p>
         </div>
-      ) : (
-        <fieldset className="mt-4">
-          <legend className="text-sm text-slate-300">Ngày áp dụng</legend>
+      )}
+      <fieldset className="mt-4">
+          <legend className="text-sm text-slate-300">
+            {trainerMode ? "Chọn ngày học viên thực hiện" : "Ngày áp dụng"}
+          </legend>
           <div className="mt-2 flex flex-wrap gap-2">
-            {DAYS.map((label, day) => {
+            {HABIT_DAY_LABELS.map((label, day) => {
               const selected = daysOfWeek.includes(day);
               return (
                 <button
@@ -132,8 +161,13 @@ export const CreateHabitForm = ({
               );
             })}
           </div>
+          {trainerMode && (
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Ngày không được chọn vẫn hiện trong tuần nhưng học viên không thể
+              đánh dấu hoàn thành.
+            </p>
+          )}
         </fieldset>
-      )}
       {!trainerMode && (
         <label className="mt-4 flex min-h-11 items-center gap-3 text-sm text-slate-300">
           <input
@@ -145,10 +179,10 @@ export const CreateHabitForm = ({
           Chia sẻ thói quen này với HLV
         </label>
       )}
-      {(errors.title || errors.daysOfWeek) && (
+      {(errors.title || errors.description || errors.daysOfWeek) && (
         <p className="mt-2 text-sm text-red-300">
           {trainerMode
-            ? "Nhập tên thói quen."
+            ? "Nhập tên, giữ mô tả trong 500 ký tự và chọn ít nhất một ngày."
             : "Nhập tên thói quen và chọn ít nhất một ngày."}
         </p>
       )}

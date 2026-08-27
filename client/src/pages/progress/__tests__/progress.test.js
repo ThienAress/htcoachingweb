@@ -11,7 +11,10 @@ import {
 import {
   checkinToWeeklyValues,
   deriveWeeklyCheckinEditState,
+  getInitialWeeklyPeriodStart,
   getMissingWeeklyFields,
+  getWeeklyPeriodWriteMode,
+  getWeeklySubmittedLockMessage,
   weeklyFormSchema,
   weeklyValuesToPatch,
 } from "../weeklyCheckinForm";
@@ -57,7 +60,7 @@ describe("Progress presentation", () => {
           scheduleAttendance: { percent: null },
           mealCompliance: { percent: null },
         },
-        wellness: { energy: { average: null, count: 0 } },
+        wellness: { energy: { latest: null, count: 0 } },
         weightTrend: { points: [] },
       }),
     ).toBe(false);
@@ -147,7 +150,7 @@ describe("Progress presentation", () => {
           bodyProgress: { weightKg: { series: [] }, waistCm: { series: [] } },
         }),
         progressSectionHasData("wellness", {
-          wellness: { energy: { average: null }, daily: [] },
+          wellness: { energy: { latest: null }, daily: [] },
         }),
       ],
     ).toEqual([false, false, false]);
@@ -256,11 +259,68 @@ describe("Weekly Check-in form", () => {
 
   it("chia tháng thành các kỳ tuần rõ ràng", () => {
     expect(getMonthWeekPeriods("2026-07-15")).toEqual([
-      { index: 1, startDateKey: "2026-07-01", endDateKey: "2026-07-05" },
-      { index: 2, startDateKey: "2026-07-06", endDateKey: "2026-07-12" },
-      { index: 3, startDateKey: "2026-07-13", endDateKey: "2026-07-19" },
-      { index: 4, startDateKey: "2026-07-20", endDateKey: "2026-07-26" },
-      { index: 5, startDateKey: "2026-07-27", endDateKey: "2026-07-31" },
+      {
+        index: 1,
+        startDateKey: "2026-07-06",
+        rangeStartDateKey: "2026-07-01",
+        endDateKey: "2026-07-12",
+      },
+      {
+        index: 2,
+        startDateKey: "2026-07-13",
+        rangeStartDateKey: "2026-07-13",
+        endDateKey: "2026-07-19",
+      },
+      {
+        index: 3,
+        startDateKey: "2026-07-20",
+        rangeStartDateKey: "2026-07-20",
+        endDateKey: "2026-07-31",
+      },
+    ]);
+  });
+
+  it("chỉ mở correction cho kỳ hiện tại và coi kỳ đã qua là historical", () => {
+    const currentPeriod = getMonthWeekPeriods("2026-08-24").at(-1);
+    expect([
+      getWeeklyPeriodWriteMode({
+        period: currentPeriod,
+        currentPeriod,
+      }),
+      getWeeklyPeriodWriteMode({
+        period: getMonthWeekPeriods("2026-07-15").at(-1),
+        currentPeriod,
+      }),
+      getWeeklyPeriodWriteMode({
+        period: getMonthWeekPeriods("2026-09-15")[0],
+        currentPeriod,
+      }),
+    ]).toEqual(["current", "historical", "closed"]);
+  });
+
+  it("mở đúng kỳ chứa ngày trên deep-link thay vì tự chọn kỳ cuối tháng", () => {
+    expect(
+      getInitialWeeklyPeriodStart({
+        dateKey: "2026-08-10",
+        monthDateKey: "2026-08-01",
+        today: "2026-08-24",
+      }),
+    ).toBe("2026-08-10");
+  });
+
+  it("không quảng bá lượt cập nhật cho báo cáo lịch sử đã khóa", () => {
+    expect([
+      getWeeklySubmittedLockMessage({
+        periodMode: "historical",
+        correctionUsed: false,
+      }),
+      getWeeklySubmittedLockMessage({
+        periodMode: "current",
+        correctionUsed: false,
+      }),
+    ]).toEqual([
+      "Báo cáo của kỳ đã qua đã được gửi và khóa. Bạn có thể xem lại nhưng không thể cập nhật lần nữa.",
+      "Báo cáo đã gửi và đang được khóa. Bạn còn một lượt cập nhật cho tuần này.",
     ]);
   });
 

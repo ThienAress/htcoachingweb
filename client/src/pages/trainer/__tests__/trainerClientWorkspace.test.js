@@ -5,6 +5,9 @@ import {
   buildWellnessTargetSummary,
   getTrainerClientId,
   normalizeTrainerClientTab,
+  normalizeTrainerClientTabForHash,
+  TRAINER_SUPPORT_SECTION_ORDER,
+  TRAINER_CLIENT_TABS,
 } from "../trainerClientWorkspace.helpers";
 
 describe("trainer client workspace presentation", () => {
@@ -20,7 +23,34 @@ describe("trainer client workspace presentation", () => {
   );
   it("normalizes unknown tabs to overview", () => {
     expect(normalizeTrainerClientTab("unknown")).toBe("overview");
-    expect(normalizeTrainerClientTab("wellness")).toBe("wellness");
+    expect(normalizeTrainerClientTab("tasks")).toBe("tasks");
+    expect(normalizeTrainerClientTab("wellness")).toBe("tasks");
+    expect(normalizeTrainerClientTab("habits")).toBe("tasks");
+  });
+
+  it("names the combined report and coaching tab clearly", () => {
+    expect(TRAINER_CLIENT_TABS).toEqual([
+      { id: "overview", label: "Tổng quan" },
+      { id: "tasks", label: "Theo dõi và hỗ trợ" },
+    ]);
+  });
+
+  it("orders support work before reports and attention", () => {
+    expect(TRAINER_SUPPORT_SECTION_ORDER).toEqual([
+      "wellness",
+      "habits",
+      "reports",
+    ]);
+  });
+
+  it("opens direct legacy report bookmarks in the tracking tab", () => {
+    expect(normalizeTrainerClientTabForHash(null, "#journal")).toBe("tasks");
+    expect(
+      normalizeTrainerClientTabForHash("overview", "#nutrition-report"),
+    ).toBe("tasks");
+    expect(normalizeTrainerClientTabForHash(null, "#weekly-report")).toBe(
+      "overview",
+    );
   });
 
   it("reads client ids without coercing opaque objects", () => {
@@ -35,11 +65,11 @@ describe("trainer client workspace presentation", () => {
   it("builds an encoded deep link with valid tab and date", () => {
     expect(
       buildTrainerClientWorkspacePath("client/123", {
-        tab: "habits",
+        tab: "tasks",
         dateKey: "2026-07-30",
       }),
     ).toBe(
-      "/trainer/clients/client%2F123?tab=habits&date=2026-07-30",
+      "/trainer/clients/client%2F123?tab=tasks&date=2026-07-30",
     );
   });
 
@@ -50,7 +80,7 @@ describe("trainer client workspace presentation", () => {
         dateKey: "2026-07-30",
       }),
     ).toBe(
-      "/trainer/health/clients/client%2F123?tab=wellness&date=2026-07-30",
+      "/trainer/health/clients/client%2F123?tab=tasks&date=2026-07-30",
     );
     expect(
       buildTrainerHealthWorkspacePath("client-id", {

@@ -1,5 +1,6 @@
 import Order from "../models/Order.js";
 import User from "../models/User.js";
+import { SERVICE_ACCESS_TIERS } from "../constants/serviceAccessPolicies.js";
 import {
   incrementMetric,
   observeMetric,
@@ -10,6 +11,7 @@ import { calculateTodaySummary } from "./todayDashboardSummary.service.js";
 import {
   isJournalDateEditable,
 } from "./dailyJournalAccess.service.js";
+import { resolveServiceAccessCandidates } from "./serviceAccessPolicy.service.js";
 import {
   TODAY_SOURCE_DEFINITIONS,
   errorTodaySection,
@@ -19,6 +21,16 @@ import {
 } from "./todayDashboardSources.service.js";
 
 const id = (value) => (value ? String(value) : null);
+
+export const getTodayProgressPromptEligibility = async (actor) => {
+  const candidates = await resolveServiceAccessCandidates(actor);
+  const tiers = new Set(candidates.map(({ tier }) => tier));
+  return {
+    eligible:
+      tiers.has(SERVICE_ACCESS_TIERS.COACHING_CUSTOMER) &&
+      !tiers.has(SERVICE_ACCESS_TIERS.TRAINER),
+  };
+};
 
 const resolveEligibility = async (userId) => {
   const [user, orders] = await Promise.all([

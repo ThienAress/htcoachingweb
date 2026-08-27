@@ -34,6 +34,9 @@ const summarizeChangedWellness = (changes = []) => {
 
 export const journalRevisionLabel = (revision) => {
   const wellnessSummary = summarizeChangedWellness(revision.changes);
+  if (revision.action === "nutrition_submit") {
+    return "Đã gửi báo cáo dinh dưỡng cho HLV";
+  }
   if (revision.action === "submit") {
     return wellnessSummary
       ? "Đã gửi nhật ký: " + wellnessSummary

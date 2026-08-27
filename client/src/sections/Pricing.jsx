@@ -9,6 +9,7 @@ import { useTrainerPlanCatalog } from "../hooks/useTrainerPlanCatalog";
 import { createTrainerPlanPurchasePayload } from "../utils/trainerPlanCatalog";
 import { TodayProgressPrompt } from "../components/TodayProgressPrompt";
 import { TODAY_PLATFORM_ENABLED } from "../config/featureFlags";
+import { getTodayProgressPromptEligibility } from "../services/todayDashboard.service";
 import {
   loadPricingViewMode,
   persistPricingViewMode,
@@ -75,11 +76,6 @@ const Pricing = ({ isHeroAnimDone = false }) => {
   };
 
   const isTrainer = viewMode === "trainer";
-  const showProgressPrompt =
-    isHeroAnimDone &&
-    Boolean(user) &&
-    viewMode === "customer" &&
-    !progressPromptDismissed;
 
   const [mode, setMode] = useState("1-1");
   const [billingCycle, setBillingCycle] = useState("month");
@@ -106,6 +102,28 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
 
   const userId = user?._id;
+  const progressPromptEligibilityQuery = useQuery({
+    queryKey: ["today-dashboard", "prompt-eligibility", userId],
+    queryFn: () =>
+      getTodayProgressPromptEligibility().then(
+        (response) => response.data.data,
+      ),
+    enabled: Boolean(
+      TODAY_PLATFORM_ENABLED &&
+      userId &&
+      isHeroAnimDone &&
+      viewMode === "customer" &&
+      !progressPromptDismissed,
+    ),
+    staleTime: 60_000,
+    retry: (count, error) =>
+      count < 1 && Number(error.response?.status || 500) >= 500,
+  });
+  const showProgressPrompt =
+    isHeroAnimDone &&
+    viewMode === "customer" &&
+    !progressPromptDismissed &&
+    progressPromptEligibilityQuery.data?.eligible === true;
   const walletQuery = useQuery(
     walletBalanceQueryOptions({ userId }),
   );

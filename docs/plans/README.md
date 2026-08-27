@@ -90,6 +90,16 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 062 | Tinh gọn báo cáo coaching, tiến trình và thông báo đúng ngữ cảnh | P1 | XL | 003F, 011, 016, 047, 060 | IMPLEMENTED / LOCAL VERIFIED — PRERENDER + MANUAL AUTH BLOCKED |
 | 063 | Xây biểu đồ Tiến trình cơ thể rõ xu hướng | P1 | M | 047, 062 | IMPLEMENTED / LOCAL VERIFIED — POSTBUILD + MANUAL AUTH BLOCKED |
 | 064 | Thống nhất biểu đồ và điều khiển Tiến trình | P1 | M | 062, 063 | IMPLEMENTED / LOCAL VERIFIED — MANUAL AUTH BLOCKED |
+| 065 | Thêm ảnh chữ ký Bên A và kỳ báo cáo tuần linh hoạt | P1 | L | 023, 060, 062 | IMPLEMENTED / LOCAL VERIFIED — FULL SERVER SUITE BLOCKED |
+| 066 | Harden promotion release và live acceptance staging | P0 | L | 053A, 055, 056, 065 | IMPLEMENTED / LOCAL + LIVE STAGING ACCEPTANCE VERIFIED — DEPLOY WORKFLOWS PENDING |
+| 067 | Hoàn thiện lưu thực đơn, bữa ăn phát sinh và workspace HLV | P1 | L | 003C, 003D, 012, 064 | IMPLEMENTED / LOCAL VERIFIED — FULL SERVER RUNNER BLOCKED |
+| 068 | Ghi và gửi dinh dưỡng thực tế trong ngày | P1 | L | 003C, 003D, 060, 067 | IMPLEMENTED / LOCAL VERIFIED — PRERENDER ENV BLOCKED |
+| 069 | Lập lịch thói quen theo tuần và tinh gọn báo cáo HLV | P1 | M | 062, 065, 068 | DONE / LOCAL VERIFIED |
+| 070 | Ghim kho từ ngữ không phù hợp và chuyển báo cáo sang khu vực hỗ trợ | P1 | M | 067, 068, 069 | DONE / LOCAL VERIFIED |
+| 071 | Ưu tiên thư viện bài tập và chỉ nhắc kế hoạch cho học viên có gói | P1 | L | 004, 033, 047, 049 | DONE / LOCAL VERIFIED |
+| 071A | Thêm chi tiết bài tập, hướng dẫn setup, video và đánh giá | P1 | L | 047, 071 | DONE / LOCAL VERIFIED — LIVE CLOUDINARY + STRICT PRERENDER PENDING |
+| 072 | Nhập hàng loạt hướng dẫn và độ phức tạp kỹ thuật bài tập | P1 | M | 047, 071A | DONE / LOCAL VERIFIED — FULL SERVER + AUTH E2E BLOCKED |
+| 073 | Nhập dinh dưỡng công thức từ catalog production | P1 | L | 058A, 059, 072 | DONE / LOCAL VERIFIED — ADMIN DRAFT EXPORT + FULL SERVER SUITE BLOCKED |
 
 ## Dependency Notes
 
@@ -173,6 +183,10 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   estimate TDEE, thêm rubric Exercise optional và mở rộng read model cân nặng/vòng eo mà không backfill dữ liệu thật.
 - Plan 048 phụ thuộc Radar nền và rate-limit semantics của 035–036; thêm nguồn GitHub động qua Admin/MongoDB nhưng giữ
   baseline Git-owned, không auto-install và không migration/backfill.
+- Plan 072 phụ thuộc 047 và 071A vì tái sử dụng rubric, setup steps và Admin Exercise
+  editor đã có; production chỉ là nguồn GET cho catalog bàn giao, không có mutation.
+- Plan 073 phụ thuộc 058A/059 cho catalog và nutrition contract, cùng 072 cho pattern
+  import JSON preview/commit; production tiếp tục chỉ là nguồn GET công khai.
 
 ## Findings Considered and Rejected
 

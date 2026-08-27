@@ -22,7 +22,9 @@ import Checkin from "../../models/Checkin.js";
 import CoachingDay from "../../models/CoachingDay.js";
 import DailyJournal from "../../models/DailyJournal.js";
 import SavedMealPlan from "../../models/SavedMealPlan.js";
+import FitnessSubscription from "../../models/FitnessSubscription.js";
 import Order from "../../models/Order.js";
+import TrainerSubscription from "../../models/TrainerSubscription.js";
 import TrainingSchedule from "../../models/TrainingSchedule.js";
 import WorkoutPlan from "../../models/WorkoutPlan.js";
 import {
@@ -38,6 +40,12 @@ const DATE_KEY = "2030-01-02";
 const getDay = (token, dateKey = DATE_KEY) =>
   withAuth(
     request(app).get("/api/today-dashboard/day/" + dateKey),
+    token,
+  );
+
+const getPromptEligibility = (token) =>
+  withAuth(
+    request(app).get("/api/today-dashboard/prompt-eligibility"),
     token,
   );
 
@@ -506,5 +514,98 @@ describe("Today Dashboard read-only aggregation", () => {
       canEditJournal: true,
       canSubmitDay: true,
     });
+  });
+});
+
+describe("Today Dashboard homepage prompt eligibility", () => {
+  it("requires authentication", async () => {
+    const response = await request(app).get(
+      "/api/today-dashboard/prompt-eligibility",
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  it("allows only a coaching customer without trainer entitlement", async () => {
+    const customer = await createTestUser({
+      email: "today-prompt-customer@example.com",
+    });
+    await createOrder({
+      userId: customer.user._id,
+      sessions: 3,
+    });
+
+    const response = await getPromptEligibility(customer.accessToken);
+
+    expect(response.body).toMatchObject({
+      success: true,
+      data: { eligible: true },
+    });
+  });
+
+  it("fails closed for regular, trainer/admin-role, trainer-plan and Fitness+ accounts", async () => {
+    const regular = await createTestUser({
+      email: "today-prompt-regular@example.com",
+    });
+    const trainerRole = await createTestUser({
+      email: "today-prompt-trainer-role@example.com",
+      role: "trainer",
+    });
+    await createOrder({
+      userId: trainerRole.user._id,
+      sessions: 3,
+    });
+    const adminRole = await createTestUser({
+      email: "today-prompt-admin-role@example.com",
+      role: "admin",
+    });
+    await createOrder({
+      userId: adminRole.user._id,
+      sessions: 3,
+    });
+
+    const trainerPlan = await createTestUser({
+      email: "today-prompt-trainer-plan@example.com",
+    });
+    await Promise.all([
+      createOrder({ userId: trainerPlan.user._id, sessions: 3 }),
+      TrainerSubscription.create({
+        userId: trainerPlan.user._id,
+        planTitle: "Test trainer plan",
+        billingCycle: "month",
+        amount: 0,
+        startDate: new Date(Date.now() - 60_000),
+        endDate: new Date(Date.now() + 86_400_000),
+        status: "active",
+        isActive: true,
+      }),
+    ]);
+
+    const fitnessPlus = await createTestUser({
+      email: "today-prompt-fitness@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: fitnessPlus.user._id,
+      planCode: "fitness_plus_smart",
+      planTitle: "Tăng tốc",
+      billingCycle: "month",
+      amount: 199000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+      isActive: true,
+    });
+
+    const responses = await Promise.all([
+      getPromptEligibility(regular.accessToken),
+      getPromptEligibility(trainerRole.accessToken),
+      getPromptEligibility(adminRole.accessToken),
+      getPromptEligibility(trainerPlan.accessToken),
+      getPromptEligibility(fitnessPlus.accessToken),
+    ]);
+
+    expect(
+      responses.map((response) => response.body.data?.eligible),
+    ).toEqual([false, false, false, false, false]);
   });
 });

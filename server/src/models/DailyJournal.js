@@ -53,6 +53,16 @@ const notesSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const nutritionTotalsSchema = new mongoose.Schema(
+  {
+    protein: { type: Number, min: 0, max: 10000, required: true },
+    carb: { type: Number, min: 0, max: 10000, required: true },
+    fat: { type: Number, min: 0, max: 10000, required: true },
+    calories: { type: Number, min: 0, max: 100000, required: true },
+  },
+  { _id: false },
+);
+
 const mealPlanAssignmentSchema = new mongoose.Schema(
   {
     savedMealPlanId: {
@@ -69,6 +79,37 @@ const mealPlanAssignmentSchema = new mongoose.Schema(
       required: true,
     },
     assignedAt: { type: Date, required: true },
+    totalsSnapshot: { type: nutritionTotalsSchema, default: null },
+  },
+  { _id: false },
+);
+
+const actualFoodSchema = new mongoose.Schema(
+  {
+    foodId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Food",
+      required: true,
+    },
+    labelSnapshot: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+      required: true,
+    },
+    plannedAmountGrams: {
+      type: Number,
+      min: 1,
+      max: 1000,
+      required: true,
+    },
+    actualAmountGrams: {
+      type: Number,
+      min: 1,
+      max: 1000,
+      required: true,
+    },
+    nutrition: { type: nutritionTotalsSchema, required: true },
   },
   { _id: false },
 );
@@ -110,8 +151,36 @@ const nutritionEntrySchema = new mongoose.Schema(
       maxlength: 240,
       required: true,
     },
+    mealName: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+      default: "",
+    },
     description: { type: String, trim: true, maxlength: 240, default: "" },
     note: { type: String, trim: true, maxlength: 240, default: "" },
+    actualFoods: {
+      type: [actualFoodSchema],
+      validate: {
+        validator: (items) =>
+          items.length <= 8 &&
+          new Set(items.map((item) => String(item.foodId))).size === items.length,
+        message: "Tối đa 8 thực phẩm thực tế không trùng trong một bữa",
+      },
+      default: () => [],
+    },
+    actualTotals: { type: nutritionTotalsSchema, default: null },
+    editCount: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: 0,
+      required: true,
+      validate: {
+        validator: Number.isInteger,
+        message: "Số lần cập nhật bữa ăn phải là số nguyên",
+      },
+    },
     recordedAt: { type: Date, required: true },
   },
   { _id: false },
@@ -130,6 +199,7 @@ const nutritionSchema = new mongoose.Schema(
       },
       default: () => [],
     },
+    submittedAt: { type: Date, default: null },
   },
   { _id: false },
 );

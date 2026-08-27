@@ -1,0 +1,96 @@
+name: Post-deploy Observation Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Staging Live Acceptance workflow run ID
+        required: true
+      release_sha:
+        description: Exact production Git SHA
+        required: true
+      production_client_deploy_id:
+        description: Netlify production deploy ID
+        required: true
+      production_server_deploy_id:
+        description: Render production deploy ID
+        required: true
+      observation_started_at:
+        description: Canonical ISO timestamp when production observation began
+        required: true
+      production_monitor_run_url:
+        description: Successful Production Monitor Actions run URL at window end
+        required: true
+
+concurrency:
+  group: post-deploy-observation-gate
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify-observation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production-observation
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-candidate-${{ inputs.candidate_run_id }}
+          path: artifacts
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_run_id }}
+      - name: Verify production monitor run succeeded
+        uses: actions/github-script@v7
+        env:
+          MONITOR_RUN_URL: ${{ inputs.production_monitor_run_url }}
+        with:
+          script: |
+            const url = new URL(process.env.MONITOR_RUN_URL);
+            if (url.hostname !== "github.com") throw new Error("Monitor run must be on GitHub");
+            if (!url.pathname.startsWith(`/${context.repo.owner}/${context.repo.repo}/actions/runs/`)) {
+              throw new Error("Monitor run must belong to this repository");
+            }
+            const match = /\/actions\/runs\/(\d+)\/?$/.exec(url.pathname);
+            if (!match) throw new Error("Invalid Production Monitor run URL");
+            const { data } = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: Number(match[1]),
+            });
+            if (data.name !== "Production Monitor" || data.conclusion !== "success") {
+              throw new Error("Production Monitor run is not successful");
+            }
+      - name: Verify production deploy identities and build observation evidence
+        run: node scripts/create-production-observation.mjs
+        env:
+          RELEASE_CANDIDATE_MANIFEST: artifacts/release-candidate.json
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_PRODUCTION_SITE_ID: ${{ secrets.NETLIFY_PRODUCTION_SITE_ID }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_PRODUCTION_SERVICE_ID: ${{ secrets.RENDER_PRODUCTION_SERVICE_ID }}
+          PRODUCTION_CLIENT_DEPLOY_ID: ${{ inputs.production_client_deploy_id }}
+          PRODUCTION_SERVER_DEPLOY_ID: ${{ inputs.production_server_deploy_id }}
+          OBSERVATION_STARTED_AT: ${{ inputs.observation_started_at }}
+          PRODUCTION_MONITOR_RUN_URL: ${{ inputs.production_monitor_run_url }}
+          PRODUCTION_MONITOR_STATUS: passed
+          PRODUCTION_RELEASE_DECISION: keep
+          PRODUCTION_OBSERVATION_OUTPUT: artifacts/production-observation.json
+      - name: Verify post-deploy evidence contract
+        run: node scripts/release-gate.mjs --mode=post-deploy --manifest=artifacts/production-observation.json --candidate=artifacts/release-candidate.json
+      - name: Retain current release observation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-observation-${{ github.run_id }}
+          path: artifacts/*.json
+          if-no-files-found: error
+          retention-days: 30

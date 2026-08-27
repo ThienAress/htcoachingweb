@@ -1,0 +1,52 @@
+name: Production Promotion Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Staging Live Acceptance workflow run ID
+        required: true
+      release_sha:
+        description: Exact candidate Git SHA
+        required: true
+
+concurrency:
+  group: production-promotion-gate
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production-approval
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Download exact staging candidate artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-candidate-${{ inputs.candidate_run_id }}
+          path: artifacts
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_run_id }}
+      - name: Verify checkout and current recovery gate
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ inputs.release_sha }}"
+          node scripts/release-gate.mjs --mode=candidate --manifest=artifacts/release-candidate.json --backup-manifest=docs/operations/production/backup-readiness.json
+      - name: Retain promotion gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-promotion-gate-${{ github.run_id }}
+          path: artifacts/release-candidate.json
+          if-no-files-found: error
+          retention-days: 30

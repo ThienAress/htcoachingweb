@@ -43,6 +43,19 @@ describe("BodyProgressReport", () => {
     expect((html.match(/data-body-metric-chart="true"/g) || [])).toHaveLength(1);
     expect((html.match(/role="tab"/g) || [])).toHaveLength(4);
     expect(html).toContain('aria-selected="true"');
+    expect(html).toContain("Giải thích biểu đồ");
+    expect(html).toContain("Biểu đồ chỉ hiển thị những kỳ đã có số đo");
+    expect(html).toContain(
+      "Đường nét đứt thể hiện lần đo đầu tiên trong khoảng đang xem",
+    );
+    expect(html).toContain(
+      '<h3 class="text-base font-bold text-white">Biểu đồ cân nặng (kg)</h3>',
+    );
+    expect(html).not.toContain(
+      'class="mb-2 text-center text-sm font-semibold text-slate-300"',
+    );
+    expect(html).not.toContain("rotate(-90)");
+    expect(html).not.toContain(">Kỳ báo cáo<");
   });
 
   it("shows missing waist data as unavailable instead of zero", () => {

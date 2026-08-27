@@ -3,6 +3,8 @@ import {
   assert,
   fetchTimed,
   productionTargets,
+  normalizeProviderStatus,
+  normalizeReadiness,
   normalizeRumBaseline,
   summarizePrometheusMetrics,
 } from "./lib/production-monitoring.mjs";
@@ -22,6 +24,15 @@ const main = async () => {
   const targets = productionTargets();
   const headers = { "X-Ops-Token": token };
 
+  const readinessResult = await fetchTimed(
+    targets.apiOrigin + "/api/ops/health/ready",
+  );
+  assert(
+    readinessResult.response.status === 200,
+    "Production readiness returned " + readinessResult.response.status,
+  );
+  const readiness = normalizeReadiness(await readinessResult.response.json());
+
   const metricsResult = await fetchTimed(
     targets.apiOrigin + "/api/ops/metrics/prometheus",
     { headers },
@@ -39,6 +50,21 @@ const main = async () => {
   );
   assert(metrics.httpRequests !== null, "HTTP request metric is missing");
   assert(metrics.httpErrors !== null, "HTTP error metric is missing");
+  for (const [name, value] of Object.entries({
+    rollingWindowSeconds: metrics.rollingWindowSeconds,
+    rollingHttpRequests: metrics.rollingHttpRequests,
+    rollingHttpErrors5xx: metrics.rollingHttpErrors5xx,
+    rollingHttpErrorRate: metrics.rollingHttpErrorRate,
+    rollingHttpP95Ms: metrics.rollingHttpP95Ms,
+    rollingDbP95Ms: metrics.rollingDbP95Ms,
+    rollingProviderP95Ms: metrics.rollingProviderP95Ms,
+    rollingProviderFailures: metrics.rollingProviderFailures,
+    heapUsedBytes: metrics.heapUsedBytes,
+    heapTotalBytes: metrics.heapTotalBytes,
+    heapUtilization: metrics.heapUtilization,
+  })) {
+    assert(value !== null, `${name} metric is missing`);
+  }
 
   const alertsResult = await fetchTimed(
     targets.apiOrigin + "/api/ops/alerts",
@@ -50,6 +76,19 @@ const main = async () => {
   );
   const alertsPayload = await alertsResult.response.json();
   const activeAlerts = activeOperationalAlerts(alertsPayload);
+  const providerResult = await fetchTimed(
+    targets.apiOrigin + "/api/ops/integrations/sepay",
+    { headers: { ...headers, Accept: "application/json" } },
+  );
+  assert(
+    providerResult.response.status === 200,
+    "Provider status returned " + providerResult.response.status,
+  );
+  const provider = normalizeProviderStatus(await providerResult.response.json());
+  assert(
+    !["misconfigured", "degraded"].includes(provider.status),
+    `Provider is ${provider.status}`,
+  );
   const rumResult = await fetchTimed(
     targets.apiOrigin + "/api/ops/rum-baseline",
     { headers: { ...headers, Accept: "application/json" } },
@@ -64,11 +103,15 @@ const main = async () => {
     success: activeAlerts.length === 0,
     checkedAt: new Date().toISOString(),
     metrics,
+    readiness,
+    provider,
     rumBaseline,
     activeAlerts,
     durationsMs: {
       prometheus: metricsResult.durationMs,
+      readiness: readinessResult.durationMs,
       alerts: alertsResult.durationMs,
+      provider: providerResult.durationMs,
       rumBaseline: rumResult.durationMs,
     },
   };

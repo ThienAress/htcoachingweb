@@ -7,6 +7,11 @@ import { incrementMetric } from "../observability/metrics.js";
 
 const asId = (value) => String(value || "");
 
+export const subscriptionRequiresPurchaseLedger = (subscription = {}) =>
+  Number.isSafeInteger(subscription.amount) &&
+  subscription.amount > 0 &&
+  !["admin_grant", "pending_grant"].includes(subscription.source);
+
 const boundedInteger = (value, fallback, maximum) => {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isSafeInteger(parsed) || parsed < 1) return fallback;
@@ -288,7 +293,7 @@ export const reconcileWallets = async ({
   }
 
   const subscriptions = await TrainerSubscription.find({})
-    .select("_id amount purchaseRequestId")
+    .select("_id amount source purchaseRequestId")
     .limit(safeWalletLimit)
     .lean();
   const subscriptionEntries = subscriptions.length
@@ -308,6 +313,7 @@ export const reconcileWallets = async ({
   }
 
   for (const subscription of subscriptions) {
+    if (!subscriptionRequiresPurchaseLedger(subscription)) continue;
     const entries = (
       entriesBySubscription.get(asId(subscription._id)) || []
     ).filter(

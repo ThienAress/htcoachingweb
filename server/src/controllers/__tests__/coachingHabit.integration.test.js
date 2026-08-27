@@ -29,6 +29,12 @@ import {
 
 let app;
 const today = getVietnamDateKey();
+const trainerInputStart = addDaysToDateKey(today, -30);
+const trainerWeekStart = addDaysToDateKey(
+  trainerInputStart,
+  -getAppDayOfWeek(trainerInputStart),
+);
+const trainerWeekEnd = addDaysToDateKey(trainerWeekStart, 6);
 const UUIDS = {
   create: "f1111111-1111-4111-8111-111111111111",
   second: "f2222222-2222-4222-8222-222222222222",
@@ -193,9 +199,9 @@ describe("Coaching Habit contract", () => {
 
     expect(trainerCreated.status).toBe(201);
     expect(trainerCreated.body.data.schedule).toEqual({
-      daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-      startDateKey: today,
-      endDateKey: null,
+      daysOfWeek: [2],
+      startDateKey: trainerWeekStart,
+      endDateKey: trainerWeekEnd,
     });
     expect(visible.body.data.items.map((item) => item.title).sort()).toEqual([
       "Coach habit",
@@ -383,9 +389,18 @@ describe("Coaching Habit contract", () => {
       version: 3,
       isLatest: true,
       schedule: {
-        daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-        startDateKey: today,
-        endDateKey: null,
+        daysOfWeek: [4],
+        startDateKey: addDaysToDateKey(
+          addDaysToDateKey(today, -60),
+          -getAppDayOfWeek(addDaysToDateKey(today, -60)),
+        ),
+        endDateKey: addDaysToDateKey(
+          addDaysToDateKey(
+            addDaysToDateKey(today, -60),
+            -getAppDayOfWeek(addDaysToDateKey(today, -60)),
+          ),
+          6,
+        ),
       },
     });
     expect(clientView.body.data.items[0].title).toBe("Đi bộ 30 phút");
@@ -469,6 +484,7 @@ describe("Coaching Habit contract", () => {
     expect(listed.status).toBe(200);
     expect(listed.body.data.items[0]).toMatchObject({
       scheduledToday: true,
+      withinScheduleRange: true,
       currentStreak: 3,
       formulaVersion: "habit-streak-v1",
     });

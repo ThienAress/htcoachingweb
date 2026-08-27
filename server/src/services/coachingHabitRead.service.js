@@ -7,6 +7,7 @@ import { toCoachingHabitDto } from "./coachingHabitDto.service.js";
 import {
   deriveHabitStreak,
   isHabitScheduledForDate,
+  isHabitWithinScheduleRange,
 } from "./coachingHabitStreak.service.js";
 
 const readJournals = (clientId, dateKey) =>
@@ -24,6 +25,7 @@ const withDerivedState = (habits, journals, dateKey) =>
   habits.map((habit) =>
     toCoachingHabitDto(habit, {
       scheduledToday: isHabitScheduledForDate(habit, dateKey),
+      withinScheduleRange: isHabitWithinScheduleRange(habit, dateKey),
       currentStreak:
         habit.status === "active"
           ? deriveHabitStreak({ habit, journals, dateKey })

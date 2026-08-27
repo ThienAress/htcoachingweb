@@ -12,7 +12,7 @@
     "isolatedRestoreVerified": true,
     "sourceFingerprintMatched": true,
     "continuousRecoveryAvailable": false,
-    "offDeviceRecoveryVerified": false,
+    "offDeviceRecoveryVerified": true,
     "evidence": "docs/operations/production/production-backup-record-2026-08-24.md"
   }
 }

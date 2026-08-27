@@ -23,3 +23,15 @@ export const upsertHabitCompletion = (
   }
   return next;
 };
+
+export const isHabitWithinDateRange = (habit, dateKey) => {
+  if (typeof habit?.withinScheduleRange === "boolean") {
+    return habit.withinScheduleRange;
+  }
+  const schedule = habit?.schedule;
+  return Boolean(
+    schedule?.startDateKey &&
+      dateKey >= schedule.startDateKey &&
+      (!schedule.endDateKey || dateKey <= schedule.endDateKey),
+  );
+};

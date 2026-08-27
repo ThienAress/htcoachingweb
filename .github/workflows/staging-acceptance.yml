@@ -1,0 +1,127 @@
+name: Staging Live Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact 40-character Git SHA deployed to staging
+        required: true
+      ci_run_url:
+        description: Successful CI Actions run URL for the same SHA
+        required: true
+      staging_client_deploy_id:
+        description: Netlify staging deploy ID
+        required: true
+      staging_server_deploy_id:
+        description: Render staging deploy ID
+        required: true
+      rollback_client_deploy_id:
+        description: Known-good production Netlify deploy ID
+        required: true
+      rollback_server_deploy_id:
+        description: Known-good production Render deploy ID
+        required: true
+  repository_dispatch:
+    types: [staging-deployed]
+
+concurrency:
+  group: staging-live-acceptance
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  live-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging-live-acceptance
+    env:
+      RELEASE_SHA: ${{ inputs.release_sha || github.event.client_payload.release_sha }}
+      CI_RUN_URL: ${{ inputs.ci_run_url || github.event.client_payload.ci_run_url }}
+      STAGING_CLIENT_DEPLOY_ID: ${{ inputs.staging_client_deploy_id || github.event.client_payload.staging_client_deploy_id }}
+      STAGING_SERVER_DEPLOY_ID: ${{ inputs.staging_server_deploy_id || github.event.client_payload.staging_server_deploy_id }}
+      ROLLBACK_CLIENT_DEPLOY_ID: ${{ inputs.rollback_client_deploy_id || github.event.client_payload.rollback_client_deploy_id }}
+      ROLLBACK_SERVER_DEPLOY_ID: ${{ inputs.rollback_server_deploy_id || github.event.client_payload.rollback_server_deploy_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Verify checked-out SHA
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+      - name: Verify CI identity
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = process.env.RELEASE_SHA;
+            if (!/^[0-9a-f]{40}$/.test(sha || "")) throw new Error("Invalid RELEASE_SHA");
+            const url = new URL(process.env.CI_RUN_URL);
+            if (url.hostname !== "github.com") throw new Error("CI run must be on GitHub");
+            if (!url.pathname.startsWith(`/${context.repo.owner}/${context.repo.repo}/actions/runs/`)) {
+              throw new Error("CI run must belong to this repository");
+            }
+            const match = /\/actions\/runs\/(\d+)\/?$/.exec(url.pathname);
+            if (!match) throw new Error("Invalid CI run URL");
+            const { data } = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: Number(match[1]),
+            });
+            if (data.head_sha !== sha || data.conclusion !== "success") {
+              throw new Error("CI run is not successful for RELEASE_SHA");
+            }
+      - name: Install server dependencies
+        run: npm ci --prefix server
+      - name: Verify exact Netlify and Render staging deploys
+        run: npm run verify:staging-deploys
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_STAGING_SITE_ID: ${{ secrets.NETLIFY_STAGING_SITE_ID }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+          DEPLOY_IDENTITY_OUTPUT: artifacts/staging-deploy-identity.json
+      - name: Run write-enabled staging acceptance with mandatory cleanup
+        working-directory: server
+        run: npm run acceptance:staging
+        env:
+          APP_ENV: staging
+          MONGO_URI: ${{ secrets.STAGING_MONGO_URI }}
+          JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
+          ADMIN_EMAIL: ${{ secrets.STAGING_ADMIN_EMAIL }}
+          CLIENT_URL: https://staging--htcoachingweb.netlify.app
+          PUBLIC_API_ORIGIN: https://htcoachingweb-staging.onrender.com
+          ALLOWED_ORIGINS: https://staging--htcoachingweb.netlify.app
+          BACKGROUND_JOBS_ENABLED: "false"
+          EMAIL_DELIVERY_MODE: disabled
+          F1_RETENTION_ENFORCE: "false"
+          CONFIRM_STAGING_ACCEPTANCE: "yes"
+          STAGING_ACCEPTANCE_OUTPUT: ../artifacts/staging-acceptance.json
+      - name: Verify current release and off-device recovery evidence
+        run: |
+          npm run verify:backup-release
+          npm run verify:disaster-recovery
+      - name: Create exact release candidate manifest
+        run: npm run create:release-candidate
+        env:
+          RELEASE_BRANCH: staging
+          CI_STATUS: passed
+          CI_SHA: ${{ env.RELEASE_SHA }}
+          ACCEPTANCE_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ACCEPTANCE_ARTIFACT_NAME: staging-acceptance-${{ github.run_id }}
+          STAGING_ACCEPTANCE_EVIDENCE: artifacts/staging-acceptance.json
+          STAGING_DEPLOY_IDENTITY_EVIDENCE: artifacts/staging-deploy-identity.json
+          BACKUP_READINESS_MANIFEST: docs/operations/production/backup-readiness.json
+          RELEASE_CANDIDATE_OUTPUT: artifacts/release-candidate.json
+      - name: Retain per-release acceptance and candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-${{ github.run_id }}
+          path: artifacts/*.json
+          if-no-files-found: error
+          retention-days: 30

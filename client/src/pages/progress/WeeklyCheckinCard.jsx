@@ -1,11 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  CalendarDays,
+  ChevronDown,
   LockKeyhole,
   Pencil,
   RefreshCw,
   Send,
   ShieldCheck,
+  TriangleAlert,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -13,7 +16,7 @@ import { IncompleteSubmissionConfirm } from "../../components/IncompleteSubmissi
 import {
   getMonthWeekPeriod,
   getMonthWeekPeriods,
-  getPreviousMonthWeekPeriod,
+  getRecentMonthDateKeys,
   getVietnamDateKey,
 } from "../../utils/vietnamDate";
 import {
@@ -27,7 +30,10 @@ import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread"
 import {
   checkinToWeeklyValues,
   deriveWeeklyCheckinEditState,
+  getInitialWeeklyPeriodStart,
   getMissingWeeklyFields,
+  getWeeklyPeriodWriteMode,
+  getWeeklySubmittedLockMessage,
   weeklyFormDefaults,
   weeklyFormSchema,
   weeklyValuesToPatch,
@@ -45,18 +51,34 @@ const formatDayMonth = (dateKey) => {
   return `${Number(day)}/${Number(month)}`;
 };
 
-const periodLabel = (period) =>
-  `Tuần ${period.index}: ${formatDayMonth(period.startDateKey)} - ${formatDayMonth(period.endDateKey)}`;
+const monthStartFor = (dateKey) => `${String(dateKey).slice(0, 7)}-01`;
 
-const periodStartFor = (dateKey) =>
-  getMonthWeekPeriod(dateKey)?.startDateKey || "";
+const monthLabelFor = (dateKey) =>
+  dateKey
+    ? `Tháng ${Number(dateKey.slice(5, 7))}/${dateKey.slice(0, 4)}`
+    : "";
+
+const periodLabelFor = (period) =>
+  `Tuần ${period.index} · ${formatDayMonth(period.rangeStartDateKey)}–${formatDayMonth(period.endDateKey)}`;
 
 const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
   const queryClient = useQueryClient();
-  const periods = getMonthWeekPeriods(dateKey);
+  const today = getVietnamDateKey();
+  const monthOptions = getRecentMonthDateKeys(today);
+  const requestedMonth = monthStartFor(dateKey);
+  const initialMonth = monthOptions.includes(requestedMonth)
+    ? requestedMonth
+    : monthOptions[0];
+  const [monthDateKey, setMonthDateKey] = useState(initialMonth);
+  const periods = getMonthWeekPeriods(monthDateKey);
   const [weekStartDateKey, setWeekStartDateKey] = useState(() =>
-    periodStartFor(dateKey),
+    getInitialWeeklyPeriodStart({
+      dateKey,
+      monthDateKey: initialMonth,
+      today,
+    }),
   );
+  const [historicalAcknowledged, setHistoricalAcknowledged] = useState(false);
   const [isCorrectionOpen, setIsCorrectionOpen] = useState(false);
   const [correctionReason, setCorrectionReason] = useState("");
   const [failedCommand, setFailedCommand] = useState(null);
@@ -208,6 +230,30 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
       return;
     }
     setWeekStartDateKey(nextStartDateKey);
+    setHistoricalAcknowledged(false);
+    setIsCorrectionOpen(false);
+    setCorrectionReason("");
+    setFailedCommand(null);
+    setIncompleteSubmission(null);
+    setMessage("");
+    reset(weeklyFormDefaults);
+  };
+
+  const selectMonth = (nextMonthDateKey) => {
+    if (nextMonthDateKey === monthDateKey) return;
+    if (isDirty) {
+      setMessage(
+        "Bạn đang có thay đổi chưa lưu. Hãy hoàn tất trước khi chuyển tháng.",
+      );
+      return;
+    }
+    const nextPeriodStart = getInitialWeeklyPeriodStart({
+      monthDateKey: nextMonthDateKey,
+      today,
+    });
+    setMonthDateKey(nextMonthDateKey);
+    setWeekStartDateKey(nextPeriodStart);
+    setHistoricalAcknowledged(false);
     setIsCorrectionOpen(false);
     setCorrectionReason("");
     setFailedCommand(null);
@@ -218,12 +264,22 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
 
   const selectedPeriod =
     periods.find((period) => period.startDateKey === weekStartDateKey) ||
-    getMonthWeekPeriod(dateKey);
-  const today = getVietnamDateKey();
+    getMonthWeekPeriod(monthDateKey);
   const currentPeriod = getMonthWeekPeriod(today);
-  const previousPeriod = getPreviousMonthWeekPeriod(today);
-  const canEdit = [currentPeriod?.startDateKey, previousPeriod?.startDateKey]
-    .includes(weekStartDateKey);
+  const periodMode = getWeeklyPeriodWriteMode({
+    period: selectedPeriod,
+    currentPeriod,
+  });
+  const hasSubmitted = ["submitted", "reviewed"].includes(query.data?.status);
+  const historicalNeedsAcknowledgement =
+    periodMode === "historical" &&
+    !hasSubmitted &&
+    !historicalAcknowledged;
+  const canEdit =
+    periodMode === "current" ||
+    (periodMode === "historical" &&
+      !hasSubmitted &&
+      historicalAcknowledged);
   const {
     submitted,
     correctionUsed,
@@ -239,9 +295,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
     busy:
       query.isLoading || mutation.isPending || Boolean(incompleteSubmission),
   });
-  const monthLabel = dateKey
-    ? `Tháng ${Number(dateKey.slice(5, 7))}/${dateKey.slice(0, 4)}`
-    : "";
+  const monthLabel = monthLabelFor(monthDateKey);
 
   return (
     <div className="space-y-4">
@@ -252,11 +306,8 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-white sm:text-2xl">
-              Báo cáo tuần
+              Kết quả tuần
             </h2>
-            <p className="mt-2 text-sm font-semibold text-orange-300">
-              {selectedPeriod ? periodLabel(selectedPeriod) : monthLabel}
-            </p>
             <p className="mt-1 text-sm text-slate-400">
               Mỗi tuần gửi một báo cáo
             </p>
@@ -266,40 +317,100 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
           </span>
         </div>
 
-        <div
-          className="mt-5 flex gap-2 overflow-x-auto pb-1"
-          role="tablist"
-          aria-label={`Các tuần trong ${monthLabel}`}
-        >
-          {periods.map((period) => {
-            const active = period.startDateKey === weekStartDateKey;
-            return (
-              <button
-                key={period.startDateKey}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => selectPeriod(period.startDateKey)}
-                className={
-                  active
-                    ? "min-h-11 shrink-0 rounded-xl bg-orange-500 px-4 text-sm font-bold text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
-                    : "min-h-11 shrink-0 rounded-xl border border-slate-700 px-4 text-sm font-semibold text-slate-300 hover:border-slate-500 hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
-                }
-              >
-                Tuần {period.index}
-                <span className="ml-2 font-normal opacity-80">
-                  {formatDayMonth(period.startDateKey)}–
-                  {formatDayMonth(period.endDateKey)}
-                </span>
-              </button>
-            );
-          })}
+        <div className="mt-5 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+            <CalendarDays
+              size={17}
+              className="text-orange-300"
+              aria-hidden="true"
+            />
+            Chọn kỳ báo cáo
+          </p>
+          <p id="weekly-period-help" className="mt-1 text-xs leading-5 text-slate-400">
+            Bạn có thể chọn tháng hiện tại và 3 tháng trước đó.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-medium text-slate-300">
+              Tháng
+              <span className="relative mt-1.5 block">
+                <select
+                  value={monthDateKey}
+                  onChange={(event) => selectMonth(event.target.value)}
+                  aria-describedby="weekly-period-help"
+                  className="min-h-11 w-full appearance-none rounded-lg border border-slate-700 bg-slate-950 px-3 pr-10 text-sm font-semibold text-white outline-none transition hover:border-slate-600 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30"
+                >
+                  {monthOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {monthLabelFor(option)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={17}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  aria-hidden="true"
+                />
+              </span>
+            </label>
+            <label className="text-sm font-medium text-slate-300">
+              Tuần
+              <span className="relative mt-1.5 block">
+                <select
+                  value={weekStartDateKey}
+                  onChange={(event) => selectPeriod(event.target.value)}
+                  aria-describedby="weekly-period-help"
+                  aria-label={`Tuần báo cáo trong ${monthLabel}`}
+                  className="min-h-11 w-full appearance-none rounded-lg border border-slate-700 bg-slate-950 px-3 pr-10 text-sm font-semibold text-white outline-none transition hover:border-slate-600 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30"
+                >
+                  {periods.map((period) => (
+                    <option key={period.startDateKey} value={period.startDateKey}>
+                      {periodLabelFor(period)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={17}
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  aria-hidden="true"
+                />
+              </span>
+            </label>
+          </div>
         </div>
 
-        {!canEdit && (
+        {historicalNeedsAcknowledgement && (
+          <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+            <p className="flex items-start gap-2 text-sm leading-6 text-amber-100">
+              <TriangleAlert
+                size={18}
+                className="mt-1 shrink-0 text-amber-300"
+                aria-hidden="true"
+              />
+              Đây là kỳ đã qua. Báo cáo chỉ được gửi một lần và sẽ khóa ngay
+              sau khi gửi cho HLV.
+            </p>
+            <button
+              type="button"
+              onClick={() => setHistoricalAcknowledged(true)}
+              className="mt-3 min-h-11 rounded-lg border border-amber-400 px-4 text-sm font-bold text-amber-100 transition-colors hover:bg-amber-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            >
+              Tôi hiểu, bắt đầu nhập
+            </button>
+          </div>
+        )}
+
+        {periodMode === "historical" && hasSubmitted && (
           <p className="mt-4 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300">
-            Kỳ này đã khóa chỉnh sửa. Bạn vẫn có thể xem báo cáo đã lưu; chỉ kỳ
-            hiện tại và kỳ liền trước được nhập hoặc cập nhật.
+            {getWeeklySubmittedLockMessage({
+              periodMode,
+              correctionUsed,
+            })}
+          </p>
+        )}
+
+        {periodMode === "closed" && (
+          <p className="mt-4 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300">
+            Kỳ này chưa thể nhập vì thời gian báo cáo chưa bắt đầu.
           </p>
         )}
 
@@ -327,16 +438,17 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
             className="mt-6 space-y-5"
             onSubmit={(event) => event.preventDefault()}
           >
-            {submitted && !correctionOpen && (
+            {submitted && !correctionOpen && periodMode !== "historical" && (
               <p className="flex items-start gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm leading-6 text-slate-300">
                 <LockKeyhole
                   size={17}
                   className="mt-1 shrink-0 text-orange-300"
                   aria-hidden="true"
                 />
-                {correctionUsed
-                  ? "Báo cáo đã khóa. Bạn đã sử dụng lượt cập nhật duy nhất cho tuần này."
-                  : "Báo cáo đã gửi và đang được khóa. Bạn còn một lượt cập nhật cho tuần này."}
+                {getWeeklySubmittedLockMessage({
+                  periodMode,
+                  correctionUsed,
+                })}
               </p>
             )}
             <WeeklyCheckinFields

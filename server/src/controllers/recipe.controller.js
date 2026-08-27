@@ -5,6 +5,10 @@ import { trackDbQuery } from "../observability/queryTelemetry.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
 import RecipeReview from "../models/RecipeReview.js";
+import {
+  CORE_RECIPE_NUTRITION_FIELDS,
+} from "../constants/recipeNutrition.js";
+import { normalizeManualRecipeNutrition } from "../services/recipeNutrition.service.js";
 
 // Whitelist fields cho admin update/create
 const ALLOWED_RECIPE_FIELDS = [
@@ -13,76 +17,10 @@ const ALLOWED_RECIPE_FIELDS = [
   "sourceUrl", "source", "nutrition",
 ];
 
-const CORE_NUTRITION_FIELDS = [
-  "calories",
-  "protein",
-  "fat",
-  "carb",
-  "sugars",
-  "salt",
-];
-const NUTRITION_UNITS = new Set(["kcal", "g", "mg", "mcg"]);
-const RESERVED_NUTRITION_LABELS = new Set([
-  "calories", "năng lượng", "protein", "đạm", "chất đạm", "fat",
-  "chất béo", "carb", "tinh bột", "sugars", "đường", "salt", "muối",
-]);
-
-const normalizeManualNutrition = (value) => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new TypeError("nutrition must be an object");
-  }
-  const nutrition = { scope: "whole_recipe", source: "admin_manual" };
-  for (const field of CORE_NUTRITION_FIELDS) {
-    if (
-      typeof value[field] !== "number" ||
-      !Number.isFinite(value[field]) ||
-      value[field] < 0
-    ) {
-      throw new TypeError(`${field} must be a non-negative number`);
-    }
-    nutrition[field] = value[field];
-  }
-  if (value.additional !== undefined && !Array.isArray(value.additional)) {
-    throw new TypeError("nutrition.additional must be an array");
-  }
-  const labels = new Set();
-  nutrition.additional = (value.additional || []).map((item) => {
-    if (!item || typeof item !== "object") {
-      throw new TypeError("additional nutrition item is invalid");
-    }
-    const label = String(item.label || "").trim();
-    const normalizedLabel = label.toLocaleLowerCase("vi");
-    if (
-      !label ||
-      label.length > 80 ||
-      labels.has(normalizedLabel) ||
-      RESERVED_NUTRITION_LABELS.has(normalizedLabel)
-    ) {
-      throw new TypeError("additional nutrition label is invalid or duplicated");
-    }
-    if (!NUTRITION_UNITS.has(item.unit)) {
-      throw new TypeError("additional nutrition unit is invalid");
-    }
-    if (
-      typeof item.value !== "number" ||
-      !Number.isFinite(item.value) ||
-      item.value < 0
-    ) {
-      throw new TypeError("additional nutrition value is invalid");
-    }
-    labels.add(normalizedLabel);
-    return { label, unit: item.unit, value: item.value };
-  });
-  if (nutrition.additional.length > 20) {
-    throw new TypeError("nutrition.additional supports at most 20 items");
-  }
-  return nutrition;
-};
-
 const toPublicNutrition = (nutrition) => {
   if (
     !nutrition ||
-    CORE_NUTRITION_FIELDS.some((field) => nutrition[field] == null)
+    CORE_RECIPE_NUTRITION_FIELDS.some((field) => nutrition[field] == null)
   ) {
     return {
       status: "unavailable",
@@ -97,7 +35,7 @@ const toPublicNutrition = (nutrition) => {
     source: "admin_manual",
     scope: "whole_recipe",
     values: Object.fromEntries(
-      CORE_NUTRITION_FIELDS.map((field) => [field, nutrition[field]]),
+      CORE_RECIPE_NUTRITION_FIELDS.map((field) => [field, nutrition[field]]),
     ),
     additional: (nutrition.additional || []).map(({ label, unit, value }) => ({
       label,
@@ -209,7 +147,7 @@ const normalizeRecipeData = (rawData, { forCreate = false } = {}) => {
   }
 
   if (data.nutrition !== undefined) {
-    data.nutrition = normalizeManualNutrition(data.nutrition);
+    data.nutrition = normalizeManualRecipeNutrition(data.nutrition);
   }
 
   return data;

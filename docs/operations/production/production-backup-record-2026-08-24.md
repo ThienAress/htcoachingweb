@@ -1,7 +1,7 @@
 # Production Backup Record
 
 Date: 2026-08-24
-Status: completed and locally verified; current backup not yet independently recovered off-device
+Status: completed, locally verified and independently recovered off-device
 Base release candidate: `9d419d464e1194c143a1276a75b058490d693a41`
 
 ## Scope
@@ -26,23 +26,38 @@ Base release candidate: `9d419d464e1194c143a1276a75b058490d693a41`
 - The isolated MongoDB process, temporary database and plaintext archive were
   removed after verification.
 
-## Encryption And Local Recovery
+## Encryption And Independent Key Custody
 
 - The archive was encrypted as an AES-256 7-Zip archive with encrypted headers.
 - A cryptographically random 48-byte password was protected by Windows DPAPI in a
-  separate local recovery file.
+  separate local recovery file, while the portable recovery password was stored
+  separately in Bitwarden as
+  `HTCOACHING Production Backup Recovery - 2026-08-24` with master-password
+  re-prompt enabled.
 - The encrypted archive passed `7z t` before the plaintext archive was removed.
 - No connection string, password, checksum, archive path or private fingerprint is
   recorded in Git.
 
-## Off-Device Status
+## Independent Off-Device Recovery
 
-- This backup has not yet been copied to and recovered from an independent off-device
-  destination, so `offDeviceRecoveryVerified=false` remains explicit.
-- The independently recovered 2026-08-18 backup remains available as an older
-  disaster-recovery point; it is not represented as the latest release recovery point.
-- A separate destination and independent key custodian are still required before this
-  backup can satisfy the disaster-recovery gate.
+- Only the encrypted `.7z` archive was uploaded to Google Drive account
+  `hoangthiengym1999@gmail.com` under
+  `My Drive/htcoachingweb/production-backups`. No key, connection string, checksum,
+  private manifest or plaintext archive was uploaded beside it.
+- The encrypted archive was downloaded again from Google Drive rather than read from
+  the source backup path. Its SHA-256 and byte size matched the private manifest, and
+  it passed an AES integrity test using the recovery password retrieved from the
+  Bitwarden item. The local DPAPI recovery file was not used for this drill.
+- The downloaded archive was restored to a new MongoDB 8.2.6 process bound only to
+  `127.0.0.1:27019`. The TTL monitor was disabled during the snapshot comparison so
+  expired TTL documents could not mutate the restored recovery point.
+- The independently restored copy contained 71 collections and 4,323 documents.
+  Per-collection counts, the canonical BSON data fingerprint and the semantic index
+  fingerprint all matched the private source fingerprint exactly.
+- The drill did not receive a production URI and performed zero production writes.
+  The isolated MongoDB process, plaintext archive, temporary database and downloaded
+  verification copy were removed after the comparison; the encrypted source archive,
+  private manifest and local DPAPI recovery file were preserved.
 
 ## Recovery Limitations
 

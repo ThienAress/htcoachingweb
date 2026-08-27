@@ -130,4 +130,52 @@ describe("GET /api/recipes/detail/:slug manual nutrition", () => {
       additional: [],
     });
   });
+
+  it("accepts 60 additional nutrients and rejects the 61st", async () => {
+    const admin = await createTestUser({
+      email: "recipe-nutrition-limit-admin@example.com",
+      role: "admin",
+    });
+    const additional = Array.from({ length: 60 }, (_, index) => ({
+      label: `Vi chất ${index + 1}`,
+      unit: "mcg",
+      value: index / 10,
+    }));
+    const nutrition = {
+      calories: 500,
+      protein: 30,
+      fat: 20,
+      carb: 45,
+      sugars: 8,
+      salt: 1.5,
+      additional,
+    };
+
+    const accepted = await withAuth(
+      request(app).post("/api/recipes"),
+      admin.accessToken,
+    ).send({
+      name: "Món đủ vi chất",
+      slug: "mon-du-vi-chat",
+      nutrition,
+    });
+    const rejected = await withAuth(
+      request(app).post("/api/recipes"),
+      admin.accessToken,
+    ).send({
+      name: "Món quá giới hạn",
+      slug: "mon-qua-gioi-han",
+      nutrition: {
+        ...nutrition,
+        additional: [
+          ...additional,
+          { label: "Vi chất 61", unit: "mg", value: 1 },
+        ],
+      },
+    });
+
+    expect(accepted.status).toBe(201);
+    expect(accepted.body.data.nutrition.additional).toHaveLength(60);
+    expect(rejected.status).toBe(400);
+  });
 });

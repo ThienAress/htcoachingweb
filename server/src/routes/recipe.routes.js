@@ -31,6 +31,8 @@ import {
   removeReview,
   upsertReview,
 } from "../controllers/recipeReview.controller.js";
+import { importRecipeNutrition } from "../controllers/recipeNutritionImport.controller.js";
+import { uploadRecipeNutritionJson } from "../middlewares/recipeNutritionJsonUpload.js";
 
 const router = express.Router();
 
@@ -92,6 +94,15 @@ router.get(
   protect,
   requireRoles("admin"),
   getAdminRecipes
+);
+
+router.post(
+  "/nutrition/import",
+  protect,
+  csrfProtection,
+  requireRoles("admin"),
+  uploadRecipeNutritionJson,
+  importRecipeNutrition,
 );
 
 router.post(

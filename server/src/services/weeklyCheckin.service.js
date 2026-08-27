@@ -62,7 +62,7 @@ const applyClientCommand = async ({
       "CLIENT_ONLY",
     );
   }
-  assertWeeklyCheckinEditWindow(weekStartDateKey, now);
+  const writeMode = assertWeeklyCheckinEditWindow(weekStartDateKey, now);
   assertCommandInput({ expectedRevision, requestId });
   const normalizedReason = String(reason || "").trim();
   if (action === "correction" && normalizedReason.length < 3) {
@@ -136,6 +136,13 @@ const applyClientCommand = async ({
           409,
           "Chỉ có thể cập nhật báo cáo tuần đã gửi",
           "WEEKLY_CHECKIN_NOT_SUBMITTED",
+        );
+      }
+      if (action === "correction" && writeMode === "historical") {
+        throw weeklyCheckinError(
+          409,
+          "Báo cáo của kỳ đã qua chỉ được gửi một lần và không thể cập nhật",
+          "WEEKLY_CHECKIN_HISTORICAL_LOCKED",
         );
       }
       if (action === "correction" && (checkin.correctionCount || 0) >= 1) {

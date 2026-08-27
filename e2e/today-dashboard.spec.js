@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { getMonthWeekPeriod } from "../client/src/utils/vietnamDate.js";
 
 const getVietnamDateKey = () => {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -13,6 +14,17 @@ const getVietnamDateKey = () => {
       .map((part) => [part.type, part.value]),
   );
   return values.year + "-" + values.month + "-" + values.day;
+};
+
+const getPreviousMonthMidpoint = () => {
+  const today = getVietnamDateKey();
+  const [year, month] = today.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 2, 15));
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    "15",
+  ].join("-");
 };
 
 test.describe("Today Dashboard private journey", () => {
@@ -105,6 +117,71 @@ test.describe("Today Dashboard private journey", () => {
     await expect(page.getByLabel("Giấc ngủ (giờ)")).toBeVisible();
   });
 
+  test("separates daily and weekly journal reports", async ({ page }) => {
+    const dateKey = getVietnamDateKey();
+    await page.goto(`/dashboard/today/${dateKey}/journal`);
+
+    const reportTabs = page.getByRole("navigation", {
+      name: "Loại nhật ký báo cáo",
+    });
+    const dailyTab = reportTabs.getByRole("tab", {
+      name: /Nhật ký báo cáo ngày/,
+    });
+    const weeklyTab = reportTabs.getByRole("tab", {
+      name: /Nhật ký báo cáo tuần/,
+    });
+
+    await expect(dailyTab).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByLabel("Giấc ngủ (giờ)")).toBeVisible();
+    await weeklyTab.click();
+
+    await expect(weeklyTab).toHaveAttribute("aria-selected", "true");
+    await expect(
+      page.getByRole("heading", { name: "Kết quả tuần" }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole("combobox", { name: "Tháng", exact: true })
+        .locator("option"),
+    ).toHaveCount(4);
+    await expect(page.getByText(/^Tuần \d+:/)).toHaveCount(0);
+    await expect(page.getByLabel("Giấc ngủ (giờ)")).toHaveCount(0);
+
+    await dailyTab.click();
+    await expect(page.getByLabel("Giấc ngủ (giờ)")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Kết quả tuần" }),
+    ).toHaveCount(0);
+  });
+
+  test("opens the weekly period that contains the deep-link date", async ({
+    page,
+  }) => {
+    const dateKey = getPreviousMonthMidpoint();
+    const period = getMonthWeekPeriod(dateKey);
+    const monthLabel = `Tháng ${Number(dateKey.slice(5, 7))}/${dateKey.slice(0, 4)}`;
+
+    await page.goto(`/dashboard/today/${dateKey}/journal#weekly-report`);
+
+    await expect(
+      page.getByRole("tab", { name: /Nhật ký báo cáo tuần/ }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(
+      page.getByRole("combobox", { name: "Tháng", exact: true }),
+    ).toHaveValue(
+      `${dateKey.slice(0, 7)}-01`,
+    );
+    const weekSelect = page.getByRole("combobox", {
+      name: `Tuần báo cáo trong ${monthLabel}`,
+    });
+    await expect(weekSelect).toHaveValue(period.startDateKey);
+    const activePeriod = weekSelect.locator("option:checked");
+    await expect(activePeriod).toContainText(`Tuần ${period.index}`);
+    await expect(activePeriod).toContainText(
+      `${Number(period.rangeStartDateKey.slice(-2))}/${Number(period.rangeStartDateKey.slice(5, 7))}–${Number(period.endDateKey.slice(-2))}/${Number(period.endDateKey.slice(5, 7))}`,
+    );
+  });
+
   test("keeps the desktop sidebar visible while opening training", async ({
     page,
   }) => {
@@ -124,6 +201,32 @@ test.describe("Today Dashboard private journey", () => {
       page.getByRole("heading", { name: "Lịch & bài tập", level: 1 }),
     ).toBeVisible();
     await expect(navigation).toBeVisible();
+  });
+
+  test("shows compact navigation only while the desktop sidebar is collapsed", async ({
+    page,
+  }) => {
+    const dateKey = getVietnamDateKey();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/dashboard/today/" + dateKey);
+
+    const compactNavigation = page.getByRole("navigation", {
+      name: "Điều hướng nhanh bảng theo dõi",
+    });
+    await expect(compactNavigation).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Thu sidebar" }).click();
+    await expect(compactNavigation).toBeVisible();
+    await compactNavigation.getByRole("link", { name: "Dinh dưỡng" }).click();
+    await expect(page).toHaveURL(
+      new RegExp("/dashboard/today/" + dateKey + "/nutrition$"),
+    );
+
+    await page.getByRole("button", { name: "Mở sidebar" }).click();
+    await expect(compactNavigation).toHaveCount(0);
+    await expect(
+      page.getByRole("navigation", { name: "Điều hướng bảng theo dõi" }),
+    ).toBeVisible();
   });
 
   test("keeps only the Customer Dashboard entry in the account menu", async ({
@@ -175,13 +278,31 @@ test.describe("Today Dashboard private journey", () => {
     ).toHaveAttribute("href", "/tdee-calculator/");
   });
 
+  test("opens the structured extra-meal form without legacy mode switches", async ({
+    page,
+  }) => {
+    const dateKey = getVietnamDateKey();
+    await page.goto(`/dashboard/today/${dateKey}/nutrition`);
+
+    await expect(
+      page.getByRole("heading", { name: "Ghi bữa ăn phát sinh" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Thêm bữa ăn" }).click();
+    await expect(page.getByLabel("Bữa ăn")).toBeVisible();
+    await expect(page.getByLabel("Đồ ăn")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Lưu", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Hủy", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Mô tả" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Công thức" })).toHaveCount(0);
+  });
+
   test("keeps the customer light theme on legacy training tools", async ({
     page,
   }) => {
     for (const [path, surfaceSelector] of [
       ["/workout-plans", '[class~="bg-gray-800/50"]'],
       ["/my-history", '[class~="bg-gray-900/60"]'],
-      ["/exercises", '[class~="bg-gray-800/50"]'],
+      ["/exercises", '[data-exercise-library="true"] article'],
     ]) {
       await page.goto(path);
       const themeBoundary = page.locator(
@@ -249,6 +370,15 @@ test.describe("Today Dashboard private journey", () => {
       );
       await secondPage.goto("/mealplan");
       await expect(secondPage.getByText("Thực đơn E2E đã lưu")).toBeVisible();
+      await expect(
+        secondPage.getByRole("button", {
+          name: "Đổi tên Thực đơn E2E đã lưu",
+        }),
+      ).toBeVisible();
+      await expect(
+        secondPage.getByRole("button", { name: "Chỉnh sửa thực đơn" }),
+      ).toBeVisible();
+      await expect(secondPage.getByText(/phiên bản/i)).toHaveCount(0);
     } finally {
       await firstContext.close().catch(() => {});
       await secondContext.close().catch(() => {});
@@ -263,7 +393,7 @@ test.describe("Today Dashboard private journey", () => {
     await expect(page).toHaveURL(/\/dashboard\/progress$/);
     await expect(
       page.getByRole("heading", {
-        name: "Tiến trình cơ thể và huấn luyện",
+        name: "Tiến trình cơ thể và tập luyện",
       }),
     ).toBeVisible();
     await page.getByRole("button", { name: /Mức độ thực hiện/ }).click();

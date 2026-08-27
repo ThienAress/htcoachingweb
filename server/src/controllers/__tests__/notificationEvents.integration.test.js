@@ -214,14 +214,14 @@ describe("Notification domain events", () => {
         "pain",
       ],
       deepLink:
-        "/trainer/clients/" + data.client.user._id + "?date=" + today + "#journal",
+        "/trainer/clients/" + data.client.user._id + "?tab=tasks&date=" + today + "#journal",
     });
     expect(
       trainerNotifications.find((item) => item.type === "journal_corrected"),
     ).toMatchObject({
       title: "Khách hàng Test User đã cập nhật nhật ký ngày",
       deepLink:
-        "/trainer/clients/" + data.client.user._id + "?date=" + today + "#journal",
+        "/trainer/clients/" + data.client.user._id + "?tab=tasks&date=" + today + "#journal",
     });
     expect(
       trainerNotifications.find((item) => item.type === "weekly_submitted"),
