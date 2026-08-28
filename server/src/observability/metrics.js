@@ -1,3 +1,5 @@
+import { getHeapStatistics } from "node:v8";
+
 const COUNTER_NAMES = new Set([
   "http.requests",
   "http.errors",
@@ -215,10 +217,25 @@ const rollingSummary = (name, nowMs) => {
   };
 };
 
-const getRollingSnapshot = (nowMs) => {
+const getMemorySnapshot = ({
+  memoryUsage = process.memoryUsage(),
+  heapStatistics = getHeapStatistics(),
+} = {}) => {
+  const heapSizeLimitBytes = Number(heapStatistics?.heap_size_limit) || 0;
+  return {
+    rssBytes: memoryUsage.rss,
+    heapUsedBytes: memoryUsage.heapUsed,
+    heapTotalBytes: memoryUsage.heapTotal,
+    heapSizeLimitBytes,
+    heapUtilization: heapSizeLimitBytes
+      ? Number((memoryUsage.heapUsed / heapSizeLimitBytes).toFixed(4))
+      : 0,
+  };
+};
+
+const getRollingSnapshot = (nowMs, memory = getMemorySnapshot()) => {
   const http = rollingValues(rollingHttpEvents, nowMs);
   const httpErrors5xx = http.filter(({ status }) => status >= 500).length;
-  const memory = process.memoryUsage();
   const db = rollingSummary("db.query_latency_ms", nowMs);
   const provider = rollingSummary("ai.total_latency_ms", nowMs);
   return {
@@ -241,57 +258,61 @@ const getRollingSnapshot = (nowMs) => {
     providerFailures:
       rollingCounterValue("ai.errors", nowMs) +
       rollingCounterValue("kb.embedding_failures", nowMs),
-    heapUsedBytes: memory.heapUsed,
-    heapTotalBytes: memory.heapTotal,
-    heapUtilization: memory.heapTotal
-      ? Number((memory.heapUsed / memory.heapTotal).toFixed(4))
-      : 0,
+    heapUsedBytes: memory.heapUsedBytes,
+    heapTotalBytes: memory.heapTotalBytes,
+    heapSizeLimitBytes: memory.heapSizeLimitBytes,
+    heapUtilization: memory.heapUtilization,
   };
 };
 
-export const getMetricsSnapshot = ({ nowMs = Date.now() } = {}) => ({
-  generatedAt: new Date(nowMs).toISOString(),
-  uptimeSeconds: Math.round(process.uptime()),
-  memory: {
-    rssBytes: process.memoryUsage().rss,
-    heapUsedBytes: process.memoryUsage().heapUsed,
-    heapTotalBytes: process.memoryUsage().heapTotal,
-  },
-  counters: Object.fromEntries(counters),
-  summaries: Object.fromEntries(
-    [...SUMMARY_NAMES].map((name) => {
-      const values = summaries.get(name) || [];
-      const total = values.reduce((sum, value) => sum + value, 0);
-      return [
-        name,
+export const getMetricsSnapshot = ({
+  nowMs = Date.now(),
+  memoryUsage,
+  heapStatistics,
+} = {}) => {
+  const memory = getMemorySnapshot({ memoryUsage, heapStatistics });
+  return {
+    generatedAt: new Date(nowMs).toISOString(),
+    uptimeSeconds: Math.round(process.uptime()),
+    memory,
+    counters: Object.fromEntries(counters),
+    summaries: Object.fromEntries(
+      [...SUMMARY_NAMES].map((name) => {
+        const values = summaries.get(name) || [];
+        const total = values.reduce((sum, value) => sum + value, 0);
+        return [
+          name,
+          {
+            samples: values.length,
+            average: values.length
+              ? Number((total / values.length).toFixed(2))
+              : 0,
+            p50: percentile(values, 0.5),
+            p95: percentile(values, 0.95),
+            max: values.length ? Math.max(...values) : 0,
+          },
+        ];
+      }),
+    ),
+    httpRoutes: Object.fromEntries(
+      [...httpRoutes].map(([key, value]) => [
+        key,
         {
-          samples: values.length,
-          average: values.length ? Number((total / values.length).toFixed(2)) : 0,
-          p50: percentile(values, 0.5),
-          p95: percentile(values, 0.95),
-          max: values.length ? Math.max(...values) : 0,
+          count: value.count,
+          averageMs: Number((value.totalMs / value.count).toFixed(2)),
+          maxMs: value.maxMs,
         },
-      ];
-    }),
-  ),
-  httpRoutes: Object.fromEntries(
-    [...httpRoutes].map(([key, value]) => [
-      key,
-      {
-        count: value.count,
-        averageMs: Number((value.totalMs / value.count).toFixed(2)),
-        maxMs: value.maxMs,
-      },
-    ]),
-  ),
-  rolling: getRollingSnapshot(nowMs),
-});
+      ]),
+    ),
+    rolling: getRollingSnapshot(nowMs, memory),
+  };
+};
 
 const prometheusName = (value) =>
   `htcoaching_${String(value).replace(/[^a-zA-Z0-9_]/g, "_")}`;
 
-export const getPrometheusMetrics = () => {
-  const snapshot = getMetricsSnapshot();
+export const getPrometheusMetrics = (options = {}) => {
+  const snapshot = getMetricsSnapshot(options);
   const lines = [];
   for (const [name, value] of Object.entries(snapshot.counters)) {
     const metric = prometheusName(name);
@@ -315,6 +336,9 @@ export const getPrometheusMetrics = () => {
     `htcoaching_process_heap_used_bytes ${snapshot.memory.heapUsedBytes}`,
   );
   lines.push(`htcoaching_process_heap_total_bytes ${snapshot.memory.heapTotalBytes}`);
+  lines.push(
+    `htcoaching_process_heap_size_limit_bytes ${snapshot.memory.heapSizeLimitBytes}`,
+  );
   lines.push(`htcoaching_window_seconds ${snapshot.rolling.windowSeconds}`);
   lines.push(`htcoaching_window_http_requests ${snapshot.rolling.httpRequests}`);
   lines.push(`htcoaching_window_http_5xx ${snapshot.rolling.httpErrors5xx}`);
@@ -327,9 +351,14 @@ export const getPrometheusMetrics = () => {
   return `${lines.join("\n")}\n`;
 };
 
-export const getOperationalAlerts = ({ nowMs = Date.now() } = {}) => {
+export const getOperationalAlerts = ({
+  nowMs = Date.now(),
+  memoryUsage,
+  heapStatistics,
+} = {}) => {
   const countersSnapshot = Object.fromEntries(counters);
-  const rolling = getRollingSnapshot(nowMs);
+  const memory = getMemorySnapshot({ memoryUsage, heapStatistics });
+  const rolling = getRollingSnapshot(nowMs, memory);
   return [
     {
       code: "financial_reconciliation_mismatch",

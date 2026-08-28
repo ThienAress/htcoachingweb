@@ -138,6 +138,51 @@ describe("bounded application metrics", () => {
     ).toMatchObject({ active: true, value: 0.1 });
   });
 
+  it("measures heap pressure against the V8 heap size limit", () => {
+    const mebibyte = 1024 ** 2;
+    const falsePositiveOptions = {
+      nowMs: 61_000,
+      memoryUsage: {
+        rss: 250 * mebibyte,
+        heapUsed: 95 * mebibyte,
+        heapTotal: 100 * mebibyte,
+      },
+      heapStatistics: { heap_size_limit: 512 * mebibyte },
+    };
+
+    const snapshot = getMetricsSnapshot(falsePositiveOptions);
+    expect(snapshot.memory).toMatchObject({
+      heapUsedBytes: 95 * mebibyte,
+      heapTotalBytes: 100 * mebibyte,
+      heapSizeLimitBytes: 512 * mebibyte,
+    });
+    expect(snapshot.rolling.heapUtilization).toBe(0.1855);
+    expect(
+      getOperationalAlerts(falsePositiveOptions).find(
+        ({ code }) => code === "heap_pressure",
+      ),
+    ).toMatchObject({ active: false, value: 0.1855 });
+    const prometheus = getPrometheusMetrics(falsePositiveOptions);
+    expect(prometheus).toContain(
+      `htcoaching_process_heap_size_limit_bytes ${512 * mebibyte}`,
+    );
+    expect(prometheus).toContain("htcoaching_process_heap_utilization 0.1855");
+
+    const truePressureOptions = {
+      ...falsePositiveOptions,
+      memoryUsage: {
+        ...falsePositiveOptions.memoryUsage,
+        heapUsed: 470 * mebibyte,
+        heapTotal: 480 * mebibyte,
+      },
+    };
+    expect(
+      getOperationalAlerts(truePressureOptions).find(
+        ({ code }) => code === "heap_pressure",
+      ),
+    ).toMatchObject({ active: true, value: 0.918 });
+  });
+
   it("exports rolling, latency and heap signals to Prometheus", () => {
     recordHttpRequest({
       method: "GET",
@@ -152,6 +197,7 @@ describe("bounded application metrics", () => {
       "htcoaching_window_db_p95_ms",
       "htcoaching_window_provider_p95_ms",
       "htcoaching_process_heap_total_bytes",
+      "htcoaching_process_heap_size_limit_bytes",
       "htcoaching_process_heap_utilization",
     ];
     expect(metrics.every((metric) => source.includes(metric))).toBe(true);

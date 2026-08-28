@@ -61,6 +61,7 @@ const main = async () => {
     rollingProviderFailures: metrics.rollingProviderFailures,
     heapUsedBytes: metrics.heapUsedBytes,
     heapTotalBytes: metrics.heapTotalBytes,
+    heapSizeLimitBytes: metrics.heapSizeLimitBytes,
     heapUtilization: metrics.heapUtilization,
   })) {
     assert(value !== null, `${name} metric is missing`);
