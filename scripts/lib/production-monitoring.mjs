@@ -210,6 +210,7 @@ export const summarizePrometheusMetrics = (source) => {
     rssBytes: value("htcoaching_process_rss_bytes"),
     heapUsedBytes: value("htcoaching_process_heap_used_bytes"),
     heapTotalBytes: value("htcoaching_process_heap_total_bytes"),
+    heapSizeLimitBytes: value("htcoaching_process_heap_size_limit_bytes"),
     heapUtilization: value("htcoaching_process_heap_utilization"),
     rollingWindowSeconds: value("htcoaching_window_seconds"),
     rollingHttpRequests: value("htcoaching_window_http_requests"),

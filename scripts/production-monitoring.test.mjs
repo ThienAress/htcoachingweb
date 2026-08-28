@@ -127,6 +127,7 @@ htcoaching_process_uptime_seconds 3600
 htcoaching_process_rss_bytes 104857600
 htcoaching_process_heap_used_bytes 52428800
 htcoaching_process_heap_total_bytes 104857600
+htcoaching_process_heap_size_limit_bytes 536870912
 htcoaching_process_heap_utilization 0.5
 htcoaching_window_seconds 300
 htcoaching_window_http_requests 80
@@ -156,6 +157,7 @@ htcoaching_window_provider_failures 0
     rssBytes: 104857600,
     heapUsedBytes: 52428800,
     heapTotalBytes: 104857600,
+    heapSizeLimitBytes: 536870912,
     heapUtilization: 0.5,
     rollingWindowSeconds: 300,
     rollingHttpRequests: 80,
