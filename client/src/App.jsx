@@ -42,6 +42,10 @@ const FoodManagement = lazy(() => import("./pages/admin/FoodManagement"));
 const BookingManagement = lazy(() => import("./pages/admin/BookingManagement"));
 const SeoAnalyticsPage = lazy(() => import("./pages/admin/SeoAnalyticsPage"));
 const ServiceAccessPoliciesPage = lazy(() => import("./pages/admin/ServiceAccessPoliciesPage"));
+const TrainerCoordinationPage = lazy(() =>
+  import("./pages/admin/trainer-coordination/TrainerCoordinationPage"),
+);
+const PracticeCenter = lazy(() => import("./pages/shared/PracticeCenter"));
 const SkillRadarPage = lazy(() => import("./pages/admin/SkillRadarPage"));
 const ExerciseManagement = lazy(() => import("./pages/admin/ExerciseManagement"));
 const ExerciseSuggestionsManagement = lazy(() => import("./pages/admin/ExerciseSuggestionsManagement"));
@@ -299,6 +303,7 @@ function AppContent() {
           <Route path="orders" element={<Orders embedded />} />
           <Route path="contracts" element={<ContractManagement />} />
           <Route path="checkin-history" element={<TrainerCheckinHistory />} />
+          <Route path="practice-center" element={<PracticeCenter />} />
         </Route>
 
 
@@ -322,6 +327,8 @@ function AppContent() {
           <Route path="bookings" element={<BookingManagement />} />
           <Route path="seo-analytics" element={<SeoAnalyticsPage />} />
           <Route path="service-access-policies" element={<ServiceAccessPoliciesPage />} />
+          <Route path="trainer-coordination" element={<TrainerCoordinationPage />} />
+          <Route path="practice-center" element={<PracticeCenter />} />
           <Route path="skill-radar" element={<SkillRadarPage />} />
           <Route path="exercises" element={<ExerciseManagement />} />
           <Route path="f1-ai-rules" element={<F1AiRuleManagement />} />
@@ -346,7 +353,17 @@ function AppContent() {
       </Routes>
       </Suspense>
       )}
-      <ToastContainer position="top-right" autoClose={2500} />
+      <ToastContainer
+        className="app-toast-container"
+        position="top-right"
+        autoClose={5000}
+        newestOnTop
+        limit={4}
+        closeOnClick
+        pauseOnFocusLoss
+        pauseOnHover
+        theme="colored"
+      />
       <DeferredChatPanel />
       <WebVitalsReporter />
     </>

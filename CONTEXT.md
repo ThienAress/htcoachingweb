@@ -67,6 +67,8 @@ cho Workout, Meal Plan, Check-in, Habit hoặc Wellness data.
 
 Thói quen hằng ngày có definition/lifecycle riêng và completion theo ngày. Habit do Trainer/Admin giao và
 Habit cá nhân của Coaching Customer có visibility/lifecycle khác nhau theo spec canonical.
+Trong UI sức khỏe cho HLV và Coaching Customer, dùng nhãn `Thói quen khách hàng`; tên domain/API
+`Coaching Habit` và semantics dữ liệu không đổi.
 
 ### Wellness Target
 

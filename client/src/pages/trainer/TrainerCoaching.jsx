@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   Users,
@@ -100,6 +100,7 @@ const TrainerCoaching = ({ embedded = false }) => {
   const isComposing = useRef(false);
   const timelineRequestRef = useRef(0);
   const selectedDateRef = useRef(selectedDate);
+  const failedFeedbackVideoUrlsRef = useRef(new Set());
 
   // 1. Tải danh sách khách hàng & database bài tập
   const fetchClients = async () => {
@@ -173,8 +174,8 @@ const TrainerCoaching = ({ embedded = false }) => {
   };
 
   // Load giáo án
-  const loadPlanData = (plan) => {
-    setActiveReviewExerciseIndex(0);
+  const loadPlanData = (plan, { preserveReviewIndex = false } = {}) => {
+    if (!preserveReviewIndex) setActiveReviewExerciseIndex(0);
     if (plan) {
       setPlanTitle(plan.title || "");
       setPlanNote(plan.note || "");
@@ -199,6 +200,28 @@ const TrainerCoaching = ({ embedded = false }) => {
       setClientFeedbackText("");
       setClientFeedbackVideo("");
       setClientStatus("pending");
+    }
+  };
+
+  const refreshExpiredFeedbackVideo = async (event) => {
+    if (!selectedClient?._id) return;
+    const failedUrl = event?.currentTarget?.src;
+    if (!failedUrl || failedFeedbackVideoUrlsRef.current.has(failedUrl)) return;
+    failedFeedbackVideoUrlsRef.current.add(failedUrl);
+    const requestId = ++timelineRequestRef.current;
+    try {
+      const res = await getClientTimeline(selectedClient._id);
+      if (requestId !== timelineRequestRef.current) return;
+      const timelineData = res.data.data || [];
+      setTimeline(timelineData);
+      const refreshedPlan = timelineData.find(
+        (plan) => plan.dateString === selectedDateRef.current,
+      );
+      loadPlanData(refreshedPlan, { preserveReviewIndex: true });
+    } catch {
+      if (requestId === timelineRequestRef.current) {
+        toast.error("Phiên xem video đã hết hạn, vui lòng thử lại");
+      }
     }
   };
 
@@ -395,7 +418,6 @@ const TrainerCoaching = ({ embedded = false }) => {
   return (
     <>
       <SEO title="Setup Bài Tập Coach Online - HT Coaching" noindex />
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       {!embedded && <Header />}
 
       <main className={`${embedded ? "min-h-[calc(100vh-3rem)] pt-8" : "min-h-screen pt-28"} bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white pb-16`}>
@@ -1000,6 +1022,7 @@ const TrainerCoaching = ({ embedded = false }) => {
                                 controls
                                 className="w-full h-full object-contain"
                                 key={exercises[activeReviewExerciseIndex].clientFeedbackVideo}
+                                onError={refreshExpiredFeedbackVideo}
                               ></video>
                             </div>
                           </div>

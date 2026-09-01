@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invalidateByKey } from "../../queries/invalidation";
 import { adminQueryKeys } from "../../queries/queryKeys";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   BookOpenText,
@@ -732,7 +732,6 @@ const CustomerStoryManagement = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
-      <ToastContainer position="top-right" autoClose={2500} />
 
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>

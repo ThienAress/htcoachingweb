@@ -112,7 +112,6 @@ vi.mock("react-router-dom", () => ({
 }));
 vi.mock("react-toastify", () => ({
   toast: { error: vi.fn(), success: vi.fn(), warning: vi.fn() },
-  ToastContainer: ({ theme }) => <div data-toast-theme={theme} />,
 }));
 vi.mock("../../../components/SEO", () => ({ default: () => null }));
 vi.mock("../../../components/ChatIcons", () => ({ default: () => null }));
@@ -190,7 +189,6 @@ describe("ExercisesPage library-first experience", () => {
 
     expect(html).toContain('class="customer-dashboard customer-tool-surface"');
     expect(html).toContain('data-theme="light"');
-    expect(html).toContain('data-toast-theme="light"');
   });
 
   it("does not render the contact section or site footer on the exercise tool", () => {

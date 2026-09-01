@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Download, RefreshCw, TimerReset } from "lucide-react";
 import { saveAs } from "file-saver";
+import { toast } from "react-toastify";
 import {
   exportCoachingActivity,
   getCoachingActivity,
@@ -47,7 +48,12 @@ export const CoachingActivityPanel = ({ days, userId }) => {
               type: "application/json;charset=utf-8",
             });
       saveAs(blob, "coaching-activity-" + days + "d." + format);
+      toast.success(`Đã xuất hoạt động dạng ${format.toUpperCase()}`);
     },
+    onError: (error) =>
+      toast.error(
+        error.response?.data?.message || "Không thể xuất dữ liệu hoạt động",
+      ),
   });
 
   return (

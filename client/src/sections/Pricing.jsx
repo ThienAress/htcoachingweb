@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
 import { X, Gift, Sparkles, LogIn, ArrowRight, Wallet, CheckCircle, AlertTriangle, CalendarCheck } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { purchaseTrainerPlan } from "../services/trainerSubscription.service";
@@ -980,6 +981,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 message: res.data.message,
                 data: res.data.data,
               });
+              toast.success(res.data.message || "Đã kích hoạt gói HLV");
               setCountdown(5);
             } catch (err) {
               if (err.response?.data?.code === "CATALOG_CHANGED") {
@@ -991,6 +993,9 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 message: err.response?.data?.message || "Có lỗi xảy ra",
                 code: err.response?.data?.code,
               });
+              toast.error(
+                err.response?.data?.message || "Không thể kích hoạt gói HLV",
+              );
             }
           };
 

@@ -7,12 +7,13 @@ export const SERVICE_ACCESS_TIERS = Object.freeze({
   USER: "user",
   COACHING_CUSTOMER: "coaching_customer",
   TRAINER: "trainer",
+  ADMIN: "admin",
   FITNESS_PLUS_ESSENTIAL: "fitness_plus_essential",
   FITNESS_PLUS_SMART: "fitness_plus_smart",
   FITNESS_PLUS_MAX: "fitness_plus_max",
 });
 
-export const SERVICE_ACCESS_POLICY_VERSION = "2026-08-18.2";
+export const SERVICE_ACCESS_POLICY_VERSION = "2026-08-28.1";
 
 const quotaWindow = ({ key, limit, period, periodLabel, windowMs = null }) => ({
   key,
@@ -53,6 +54,19 @@ const quota = ({
 
 const unlimited = () => ({
   mode: "unlimited",
+  limit: null,
+  unitLabel: null,
+  period: null,
+  periodLabel: null,
+  scope: null,
+  scopeLabel: null,
+  enforcement: "none",
+  windowMs: null,
+  windows: [],
+});
+
+const unavailable = () => ({
+  mode: "unavailable",
   limit: null,
   unitLabel: null,
   period: null,
@@ -107,6 +121,16 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
         ],
       }),
       trainer: quota({
+        unitLabel: "lượt",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "daily", limit: 20, period: "rolling_day", periodLabel: "ngày", windowMs: DAY_MS }),
+          quotaWindow({ key: "monthly", limit: 600, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
+      }),
+      admin: quota({
         unitLabel: "lượt",
         scope: "user",
         scopeLabel: "user",
@@ -194,6 +218,16 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
           quotaWindow({ key: "monthly", limit: 1200, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
         ],
       }),
+      admin: quota({
+        unitLabel: "tin",
+        scope: "user",
+        scopeLabel: "user",
+        enforcement: "shared_usage_ledger",
+        windows: [
+          quotaWindow({ key: "burst", limit: 30, period: "rolling_hour", periodLabel: "giờ", windowMs: HOUR_MS }),
+          quotaWindow({ key: "monthly", limit: 1200, period: "rolling_30_days", periodLabel: "30 ngày", windowMs: THIRTY_DAYS_MS }),
+        ],
+      }),
       fitness_plus_essential: quota({
         unitLabel: "tin",
         scope: "user",
@@ -252,6 +286,7 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
       }),
       coaching_customer: unlimited(),
       trainer: unlimited(),
+      admin: unlimited(),
       fitness_plus_essential: unlimited(),
       fitness_plus_smart: unlimited(),
       fitness_plus_max: unlimited(),
@@ -267,9 +302,44 @@ export const SERVICE_ACCESS_POLICY_REGISTRY = deepFreeze([
       user: unlimited(),
       coaching_customer: unlimited(),
       trainer: unlimited(),
+      admin: unlimited(),
       fitness_plus_essential: unlimited(),
       fitness_plus_smart: unlimited(),
       fitness_plus_max: unlimited(),
+    },
+  },
+  {
+    serviceKey: "practice_email",
+    label: "Trung tâm thực hành",
+    category: "Vận hành HLV",
+    description: "Gửi email mô phỏng quy trình Order và Check-in cho chính tài khoản đăng nhập.",
+    policies: {
+      guest: unavailable(),
+      user: unavailable(),
+      coaching_customer: unavailable(),
+      trainer: quota({
+        limit: 2,
+        unitLabel: "email",
+        period: "rolling_24_hours",
+        periodLabel: "24 giờ",
+        scope: "user",
+        scopeLabel: "tài khoản",
+        enforcement: "shared_usage_ledger",
+        windowMs: DAY_MS,
+      }),
+      admin: quota({
+        limit: 10,
+        unitLabel: "email",
+        period: "rolling_24_hours",
+        periodLabel: "24 giờ",
+        scope: "user",
+        scopeLabel: "tài khoản",
+        enforcement: "shared_usage_ledger",
+        windowMs: DAY_MS,
+      }),
+      fitness_plus_essential: unavailable(),
+      fitness_plus_smart: unavailable(),
+      fitness_plus_max: unavailable(),
     },
   },
 ]);

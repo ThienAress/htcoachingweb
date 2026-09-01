@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LockKeyhole, Pencil, Send, ShieldAlert } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
+import { toast } from "react-toastify";
 
 import { IncompleteSubmissionConfirm } from "../../components/IncompleteSubmissionConfirm";
 import {
@@ -86,9 +87,17 @@ export const WellnessCard = ({ dateKey, journal, canEdit, onChanged }) => {
       setSaveState("saving");
       try {
         acceptResponse(await command.mutateAsync(pending));
+        toast.success(
+          pending.kind === "correction"
+            ? "Đã cập nhật và gửi lại sức khỏe hôm nay"
+            : "Đã gửi sức khỏe hôm nay",
+        );
       } catch (error) {
         failedRef.current = pending;
         setSaveState(error.response?.status === 409 ? "conflict" : "error");
+        toast.error(
+          error.response?.data?.message || "Không thể gửi sức khỏe hôm nay",
+        );
       }
     },
     [acceptResponse, command],
@@ -136,7 +145,7 @@ export const WellnessCard = ({ dateKey, journal, canEdit, onChanged }) => {
     (submitted && !isCorrectionOpen);
 
   return (
-    <section className="mb-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6">
+    <section className="rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6">
       <WellnessHeader saveState={saveState} submitted={submitted} />
       <WellnessTargetSummary
         target={targetQuery.data}

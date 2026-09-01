@@ -23,6 +23,7 @@ import FitnessSubscription from "../../models/FitnessSubscription.js";
 import {
   resolveRequestServicePolicy,
   resolveServiceAccessTier,
+  getAdminServiceAccessPolicyMatrix,
 } from "../serviceAccessPolicy.service.js";
 
 beforeAll(setupTestDB);
@@ -30,6 +31,81 @@ afterEach(clearCollections);
 afterAll(teardownTestDB);
 
 describe("service access policy registry", () => {
+  it("keeps separate canonical Practice Center quotas for trainers and admins", () => {
+    const windows = (tier) =>
+      getServiceAccessPolicy("practice_email", tier).windows.map((window) => [
+        window.key,
+        window.limit,
+      ]);
+
+    expect({ trainer: windows("trainer"), admin: windows("admin") }).toEqual({
+      trainer: [["rolling_24_hours", 2]],
+      admin: [["rolling_24_hours", 10]],
+    });
+  });
+
+  it("exposes the Practice Center admin tier in the canonical Admin matrix", () => {
+    const matrix = getAdminServiceAccessPolicyMatrix();
+    const paidColumn = matrix.columns.find(({ id }) => id === "paid");
+    const practice = matrix.services.find(
+      ({ serviceKey }) => serviceKey === "practice_email",
+    );
+
+    expect({
+      paidTiers: paidColumn.tiers.map(({ key }) => key),
+      trainerLimit: practice.policies.trainer.limit,
+      adminLimit: practice.policies.admin.limit,
+      unavailableTiers: [
+        "guest",
+        "user",
+        "coaching_customer",
+        "fitness_plus_essential",
+        "fitness_plus_smart",
+        "fitness_plus_max",
+      ].filter((tier) => practice.policies[tier].mode === "unavailable"),
+    }).toEqual({
+      paidTiers: ["coaching_customer", "trainer", "admin"],
+      trainerLimit: 2,
+      adminLimit: 10,
+      unavailableTiers: [
+        "guest",
+        "user",
+        "coaching_customer",
+        "fitness_plus_essential",
+        "fitness_plus_smart",
+        "fitness_plus_max",
+      ],
+    });
+  });
+
+  it("resolves admins to their own tier without changing trainer policy semantics", async () => {
+    const admin = await createTestUser({
+      email: "service-policy-admin-tier@example.com",
+      role: "admin",
+    });
+    const trainer = await createTestUser({
+      email: "service-policy-trainer-tier@example.com",
+      role: "trainer",
+    });
+
+    const [adminTier, trainerTier] = await Promise.all([
+      resolveServiceAccessTier(admin.user),
+      resolveServiceAccessTier(trainer.user),
+    ]);
+
+    expect({ adminTier, trainerTier }).toEqual({
+      adminTier: "admin",
+      trainerTier: "trainer",
+    });
+    expect(
+      ["meal_scan", "ai_chat", "meal_plan", "tdee"].every(
+        (serviceKey) =>
+          JSON.stringify(getServiceAccessPolicy(serviceKey, adminTier)) ===
+          JSON.stringify(getServiceAccessPolicy(serviceKey, trainerTier)),
+      ),
+    ).toBe(true);
+  });
+
   it("keeps the approved Meal Scan and AI Chat limits in one registry", () => {
     const limits = (serviceKey, tier) =>
       getServiceAccessPolicy(serviceKey, tier).windows.map((window) => [
@@ -124,7 +200,7 @@ describe("resolveServiceAccessTier", () => {
     ).toBe(SERVICE_ACCESS_TIERS.USER);
   });
 
-  it("resolves active subscription and trainer roles as trainer tier", async () => {
+  it("resolves active subscription, trainer and admin roles to their canonical tiers", async () => {
     const { user } = await createTestUser({ email: "tier-trainer@example.com" });
     await TrainerSubscription.create({
       userId: user._id,
@@ -145,7 +221,7 @@ describe("resolveServiceAccessTier", () => {
     ).toBe(SERVICE_ACCESS_TIERS.TRAINER);
     expect(
       await resolveServiceAccessTier({ id: user._id, role: "admin" }),
-    ).toBe(SERVICE_ACCESS_TIERS.TRAINER);
+    ).toBe(SERVICE_ACCESS_TIERS.ADMIN);
   });
 
   it("resolves the active HT Fitness+ plan without changing coaching precedence", async () => {

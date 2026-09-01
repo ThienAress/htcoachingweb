@@ -235,7 +235,47 @@ describe("Thông báo trong ứng dụng", () => {
     expect(preference.body.data.revision).toBe(1);
     expect(result).toMatchObject({ created: false, suppressed: true });
     expect(loaded.body.data.comments).toBe(false);
+    expect(loaded.body.data.morningHealthEmail).toBe(false);
     expect(await InAppNotification.countDocuments()).toBe(0);
+  });
+
+  it("persists morning health email opt-in while keeping old clients compatible", async () => {
+    const recipient = await createTestUser({
+      email: "notification-morning-health@example.com",
+    });
+    const initial = await withAuth(
+      request(app).get("/api/notifications/preferences"),
+      recipient.accessToken,
+    );
+    const enabled = await withAuth(
+      request(app).put("/api/notifications/preferences").send({
+        expectedRevision: 0,
+        inAppEnabled: true,
+        comments: true,
+        journal: true,
+        weekly: true,
+        morningHealthEmail: true,
+      }),
+      recipient.accessToken,
+    );
+    const legacyUpdate = await withAuth(
+      request(app).put("/api/notifications/preferences").send({
+        expectedRevision: 1,
+        inAppEnabled: true,
+        comments: true,
+        journal: false,
+        weekly: true,
+      }),
+      recipient.accessToken,
+    );
+
+    expect(initial.body.data.morningHealthEmail).toBe(false);
+    expect(enabled.body.data.morningHealthEmail).toBe(true);
+    expect(legacyUpdate.body.data).toMatchObject({
+      morningHealthEmail: true,
+      journal: false,
+      revision: 2,
+    });
   });
 
   it("lists only recipient data and marks one or all notifications read", async () => {

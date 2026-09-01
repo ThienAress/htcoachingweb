@@ -130,7 +130,7 @@ describe("GET /api/admin/service-access-policies", () => {
     );
 
     expect(response.body.data.emailNotifications).toEqual({
-      version: "2026-08-18",
+      version: "2026-08-29",
       items: [
         expect.objectContaining({ notificationKey: "order_approved", sender: "sendMail" }),
         expect.objectContaining({ notificationKey: "checkin_recorded", sender: "sendCheckinMail" }),
@@ -140,6 +140,8 @@ describe("GET /api/admin/service-access-policies", () => {
         expect.objectContaining({ notificationKey: "contract_sent", sender: "sendContractMail" }),
         expect.objectContaining({ notificationKey: "trainer_grant_invitation", sender: "sendTrainerGrantInvitationMail" }),
         expect.objectContaining({ notificationKey: "trainer_subscription_activated", sender: "sendTrainerSubscriptionActivatedMail" }),
+        expect.objectContaining({ notificationKey: "practice_center_simulation", sender: "sendPracticeCenterMail" }),
+        expect.objectContaining({ notificationKey: "morning_health_reminder", sender: "sendMorningHealthReminderMail" }),
       ],
     });
   });
@@ -157,7 +159,7 @@ describe("GET /api/admin/service-access-policies", () => {
 
     expect(response.body.data.communityFeatures).toEqual(
       expect.objectContaining({
-        version: "2026-08-12.1",
+        version: "2026-08-29.2",
         reportOptions: {
           audiences: [
             { key: "community", label: "Cộng đồng" },
@@ -174,7 +176,7 @@ describe("GET /api/admin/service-access-policies", () => {
               label: "Đã xác minh production",
             },
           ],
-          dateRange: { from: "2026-08-10", to: "2026-08-12" },
+          dateRange: { from: "2026-08-10", to: "2026-08-29" },
         },
         items: expect.arrayContaining([
           expect.objectContaining({
@@ -278,6 +280,11 @@ describe("GET /api/admin/service-access-policies", () => {
         statusDate: "2026-08-12",
       },
       {
+        featureKey: "tdee_calculator",
+        status: "verified",
+        statusDate: "2026-08-12",
+      },
+      {
         featureKey: "meal_plan",
         status: "implemented",
         statusDate: "2026-08-10",
@@ -291,6 +298,51 @@ describe("GET /api/admin/service-access-policies", () => {
         featureKey: "meal_plan",
         status: "production_verified",
         statusDate: "2026-08-12",
+      },
+      {
+        featureKey: "meal_plan",
+        status: "verified",
+        statusDate: "2026-08-25",
+      },
+      {
+        featureKey: "meal_scan",
+        status: "verified",
+        statusDate: "2026-08-18",
+      },
+      {
+        featureKey: "recipes",
+        status: "verified",
+        statusDate: "2026-08-27",
+      },
+      {
+        featureKey: "exercise_library",
+        status: "verified",
+        statusDate: "2026-08-27",
+      },
+      {
+        featureKey: "today_dashboard",
+        status: "verified",
+        statusDate: "2026-08-25",
+      },
+      {
+        featureKey: "today_dashboard",
+        status: "verified",
+        statusDate: "2026-08-29",
+      },
+      {
+        featureKey: "today_dashboard",
+        status: "verified",
+        statusDate: "2026-08-29",
+      },
+      {
+        featureKey: "progress_tracking",
+        status: "verified",
+        statusDate: "2026-08-23",
+      },
+      {
+        featureKey: "practice_center",
+        status: "verified",
+        statusDate: "2026-08-28",
       },
     ]);
   });
@@ -319,8 +371,9 @@ describe("GET /api/admin/service-access-policies", () => {
       ["recipes", "F2"],
       ["exercise_library", "F1"],
       ["workout_plans", "F1"],
-      ["today_dashboard", "F1"],
+      ["today_dashboard", "F0"],
       ["progress_tracking", "F1"],
+      ["practice_center", "F2"],
       ["gym_finder", "F3"],
       ["blog_knowledge", "F2"],
     ]);

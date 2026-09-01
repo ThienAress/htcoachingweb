@@ -124,8 +124,9 @@ const F1Customers = () => {
       setSelectedCustomer(createdCustomer);
       setViewMode("intake");
       await invalidateCustomers();
+      toast.success("Đã tạo hồ sơ khách hàng F1");
     } catch (error) {
-      alert(
+      toast.error(
         error?.response?.data?.message ||
           error?.response?.data?.errors?.[0]?.msg ||
           "Tạo khách hàng thất bại",

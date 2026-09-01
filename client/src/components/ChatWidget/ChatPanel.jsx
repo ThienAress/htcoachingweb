@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Bot, Send, X, Square, PanelLeftOpen, Plus, ArrowUp, Maximize2, Sun, Moon, ImageIcon, Wand2 } from "lucide-react";
+import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
@@ -289,7 +290,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
     try {
       setSelectedImage(await compressChatImage(file));
     } catch (imageError) {
-      alert(imageError.message);
+      toast.error(imageError.message);
     }
     e.target.value = "";
   };

@@ -30,6 +30,7 @@ const FITNESS_PLUS_TIERS = new Set([
 ]);
 
 const GENERIC_TIER_PRIORITY = Object.freeze([
+  SERVICE_ACCESS_TIERS.ADMIN,
   SERVICE_ACCESS_TIERS.TRAINER,
   SERVICE_ACCESS_TIERS.FITNESS_PLUS_MAX,
   SERVICE_ACCESS_TIERS.COACHING_CUSTOMER,
@@ -209,7 +210,9 @@ export const resolveServiceAccessCandidates = async (
   ]);
 
   const candidates = [];
-  if (actor.role === "admin" || actor.role === "trainer") {
+  if (actor.role === "admin") {
+    candidates.push(entitlementCandidate(SERVICE_ACCESS_TIERS.ADMIN, "role"));
+  } else if (actor.role === "trainer") {
     candidates.push(entitlementCandidate(SERVICE_ACCESS_TIERS.TRAINER, "role"));
   }
   if (activeTrainerSubscription) {
@@ -338,6 +341,7 @@ export const getAdminServiceAccessPolicyMatrix = () => {
             label: "User có gói",
           },
           { key: SERVICE_ACCESS_TIERS.TRAINER, label: "HLV" },
+          { key: SERVICE_ACCESS_TIERS.ADMIN, label: "Admin" },
         ],
       },
       {

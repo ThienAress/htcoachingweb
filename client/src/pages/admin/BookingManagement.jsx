@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import {
   updateBookingStatus,
   archiveBooking,
@@ -66,8 +67,9 @@ const BookingManagement = () => {
       return;
     try {
       await statusMutation.mutateAsync({ booking, status });
+      toast.success("Đã cập nhật trạng thái booking");
     } catch (err) {
-      alert(err.response?.data?.message || "Lỗi cập nhật");
+      toast.error(err.response?.data?.message || "Không thể cập nhật booking");
       if (err.response?.status === 409) {
         await invalidateByKey(queryClient, adminQueryKeys.bookings.all());
       }
@@ -78,8 +80,9 @@ const BookingManagement = () => {
     if (!window.confirm("Lưu trữ booking này?")) return;
     try {
       await archiveMutation.mutateAsync(booking);
+      toast.success("Đã lưu trữ booking");
     } catch (err) {
-      alert(err.response?.data?.message || "Lỗi lưu trữ");
+      toast.error(err.response?.data?.message || "Không thể lưu trữ booking");
       if (err.response?.status === 409) {
         await invalidateByKey(queryClient, adminQueryKeys.bookings.all());
       }

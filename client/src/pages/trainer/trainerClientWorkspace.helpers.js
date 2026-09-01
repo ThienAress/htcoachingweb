@@ -4,8 +4,7 @@ export const TRAINER_CLIENT_TABS = Object.freeze([
 ]);
 
 export const TRAINER_SUPPORT_SECTION_ORDER = Object.freeze([
-  "wellness",
-  "habits",
+  "health_goals",
   "reports",
 ]);
 

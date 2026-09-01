@@ -20,6 +20,7 @@ import { errorHandler } from "../../middlewares/errorHandler.js";
 import Booking from "../../models/Booking.js";
 import ContactMessage from "../../models/ContactMessage.js";
 import F1Customer from "../../models/F1Customer.js";
+import F1Intake from "../../models/F1Intake.js";
 import TrainerSubscription from "../../models/TrainerSubscription.js";
 
 let app;
@@ -206,5 +207,150 @@ describe("F1 customer assignment authorization", () => {
 
     expect(response.status).toBe(404);
     expect(await F1Customer.countDocuments()).toBe(0);
+  });
+});
+
+describe("F1 intake draft field boundaries", () => {
+  const createCustomer = (trainerId, suffix) =>
+    F1Customer.create({
+      code: `F1-DRAFT-${suffix}`,
+      ...customerPayload(String(trainerId)),
+      email: `f1-draft-${suffix}@example.com`,
+      createdBy: trainerId,
+    });
+
+  it("rejects protected and wrong-step roots without mutating the draft", async () => {
+    const trainer = await createTrainer("f1-draft-protected@example.com");
+    const customer = await createCustomer(trainer.user._id, "PROTECTED");
+
+    const response = await withAuth(
+      request(app).post(`/api/f1-customers/${customer._id}/intake/draft`),
+      trainer.accessToken,
+    ).send({
+      step: 1,
+      data: {
+        customerInfo: { fullName: "Tên hợp lệ" },
+        healthScreening: { painLevel: 10 },
+        systemFlags: { testPermission: "full_test" },
+        version: 999,
+        isDraft: false,
+      },
+    });
+
+    expect(response.status).toBe(400);
+    const draft = await F1Intake.findOne({ customerId: customer._id }).lean();
+    expect(draft).toBeNull();
+  });
+
+  it("rejects protected nested consent and derived biometric fields", async () => {
+    const trainer = await createTrainer("f1-draft-nested@example.com");
+    const customer = await createCustomer(trainer.user._id, "NESTED");
+
+    const consentResponse = await withAuth(
+      request(app).post(`/api/f1-customers/${customer._id}/intake/draft`),
+      trainer.accessToken,
+    ).send({
+      step: 6,
+      data: {
+        consent: {
+          allowDataStorage: true,
+          version: "attacker-controlled",
+          collectedBy: trainer.user._id,
+        },
+      },
+    });
+    const metricsResponse = await withAuth(
+      request(app).post(`/api/f1-customers/${customer._id}/intake/draft`),
+      trainer.accessToken,
+    ).send({
+      step: 4,
+      data: { bodyMetrics: { heightCm: 180, weightKg: 81, bmi: 1 } },
+    });
+
+    expect([consentResponse.status, metricsResponse.status]).toEqual([400, 400]);
+  });
+
+  it("runs Mongoose validators for the allowed step root", async () => {
+    const trainer = await createTrainer("f1-draft-validator@example.com");
+    const customer = await createCustomer(trainer.user._id, "VALIDATOR");
+
+    const response = await withAuth(
+      request(app).post(`/api/f1-customers/${customer._id}/intake/draft`),
+      trainer.accessToken,
+    ).send({
+      step: 3,
+      data: { lifestyleNutrition: { mealsPerDay: 99 } },
+    });
+
+    expect(response.status).toBe(400);
+    expect(
+      await F1Intake.countDocuments({ customerId: customer._id }),
+    ).toBe(0);
+  });
+
+  it("persists only the canonical root for a valid draft step", async () => {
+    const trainer = await createTrainer("f1-draft-valid@example.com");
+    const customer = await createCustomer(trainer.user._id, "VALID");
+
+    const response = await withAuth(
+      request(app).post(`/api/f1-customers/${customer._id}/intake/draft`),
+      trainer.accessToken,
+    ).send({
+      step: 4,
+      data: { bodyMetrics: { heightCm: 180, weightKg: 81 } },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.bodyMetrics.bmi).toBe(25);
+    expect(response.body.data.draftStep).toBe(4);
+  });
+
+  it("does not retain a newly-created PII draft when submission consent fails", async () => {
+    const trainer = await createTrainer("f1-submit-consent@example.com");
+    const customer = await createCustomer(trainer.user._id, "CONSENT");
+
+    const response = await withAuth(
+      request(app).post(`/api/f1-customers/${customer._id}/intake/submit`),
+      trainer.accessToken,
+    ).send({
+      customerInfo: {
+        fullName: "Khách chưa đồng ý",
+        age: 30,
+        gender: "female",
+      },
+      healthScreening: {
+        hasPainNow: false,
+        painLevel: 0,
+      },
+      lifestyleNutrition: {
+        mealsPerDay: 3,
+        usuallyEatOut: false,
+        drinkEnoughWater: true,
+        sleepHours: 8,
+        stressLevel: "low",
+        workActivityLevel: "active",
+      },
+      bodyMetrics: {
+        heightCm: 165,
+        weightKg: 55,
+      },
+      trainingProfileGoal: {
+        currentlyTraining: false,
+        trainingDaysPerWeek: 0,
+        sessionDurationMinutes: 0,
+        trainingExperience: "none",
+        primaryGoal: "maintenance",
+      },
+      consent: {
+        allowDataStorage: false,
+        allowMediaStorage: false,
+        allowAiAnalysis: false,
+      },
+    });
+
+    expect(response.status).toBe(400);
+    expect(
+      await F1Intake.countDocuments({ customerId: customer._id }),
+    ).toBe(0);
   });
 });

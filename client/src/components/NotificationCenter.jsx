@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck, Settings2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { notificationDestination } from "../utils/notificationDestination";
 import { notificationMissingFieldsLabel } from "../utils/notificationMissingFields";
 import { NotificationPreferences } from "./NotificationPreferences";
@@ -66,7 +67,14 @@ export const NotificationCenter = ({ userId, solid = false }) => {
   });
   const readAllMutation = useMutation({
     mutationFn: markAllNotificationsRead,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      toast.success("Đã đánh dấu tất cả thông báo là đã đọc");
+      return queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (error) =>
+      toast.error(
+        error.response?.data?.message || "Không thể cập nhật thông báo",
+      ),
   });
   const openNotification = async (notification) => {
     try {

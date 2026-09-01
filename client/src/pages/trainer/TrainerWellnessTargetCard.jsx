@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BedDouble, Droplets, Footprints, RefreshCw, Save, Target } from "lucide-react";
+import { BedDouble, Droplets, Footprints, RefreshCw, Save } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
@@ -90,13 +90,9 @@ export const TrainerWellnessTargetCard = ({ clientId }) => {
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-sm">
-      {/* Header */}
       <div className="flex items-start gap-4 border-b border-slate-800 p-5 sm:p-6">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10">
-          <Target className="h-6 w-6 text-cyan-300" aria-hidden="true" />
-        </div>
         <div>
-          <h2 className="text-2xl font-bold text-slate-50 sm:text-3xl">Mục tiêu sức khỏe</h2>
+          <h3 className="text-xl font-bold text-slate-50 sm:text-2xl">Chỉ số mục tiêu</h3>
           <p className="mt-2 text-sm leading-6 text-slate-400">
             Đặt mục tiêu và gửi cho khách hàng
           </p>

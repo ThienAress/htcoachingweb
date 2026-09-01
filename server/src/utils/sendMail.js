@@ -9,7 +9,7 @@ const getResendClient = () => {
   return resendClient;
 };
 
-const deliverEmail = async (message) => {
+const deliverEmail = async (message, options = {}) => {
   if (
     String(process.env.EMAIL_DELIVERY_MODE || "").toLowerCase() === "disabled"
   ) {
@@ -18,7 +18,7 @@ const deliverEmail = async (message) => {
     });
     return { data: { id: "" } };
   }
-  return getResendClient().emails.send(message);
+  return getResendClient().emails.send(message, options);
 };
 
 const formatDate = (t) => {
@@ -581,5 +581,166 @@ export const sendTrainerSubscriptionActivatedMail = async (to, data) => {
     });
   } catch (error) {
     safeLog.error("mail.trainer_subscription_activated_failed", error);
+  }
+};
+
+const practiceMailContent = Object.freeze({
+  order: {
+    subject: "[MÔ PHỎNG] Order đã được duyệt",
+    heading: "ORDER ĐÃ ĐƯỢC DUYỆT",
+    description:
+      "Đây là email khách hàng nhận được khi gói tập được duyệt và hành trình huấn luyện bắt đầu.",
+    rows: [
+      ["Gói tập", "Gói huấn luyện mô phỏng"],
+      ["Số buổi", "12 buổi"],
+      ["Trạng thái", "Đã duyệt"],
+    ],
+  },
+  checkin: {
+    subject: "[MÔ PHỎNG] Check-in buổi tập thành công",
+    heading: "CHECK-IN THÀNH CÔNG",
+    description:
+      "Đây là email xác nhận sau khi khách hàng hoàn tất check-in một buổi tập.",
+    rows: [
+      ["Buổi vừa check-in", "Buổi mô phỏng"],
+      ["Số buổi còn lại", "11 buổi"],
+      ["Trạng thái", "Đã ghi nhận"],
+    ],
+  },
+});
+
+export const sendPracticeCenterMail = async (to, data) => {
+  const content = practiceMailContent[data?.scenario];
+  const requestId = String(data?.requestId || "");
+  if (!content || !/^[0-9a-f-]{36}$/i.test(requestId)) {
+    throw Object.assign(new Error("Practice email scenario is invalid"), {
+      code: "PRACTICE_SCENARIO_INVALID",
+      statusCode: 400,
+    });
+  }
+  const rows = content.rows
+    .map(
+      ([label, value]) =>
+        `<tr><td style="padding:10px 0;color:#64748b">${safe(label)}</td><td style="padding:10px 0;text-align:right;font-weight:700;color:#172033">${safe(value)}</td></tr>`,
+    )
+    .join("");
+  const html = `
+    <!DOCTYPE html>
+    <html lang="vi">
+      <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+      <body style="margin:0;padding:24px;background:#f4f7f6;font-family:'Segoe UI',Arial,sans-serif;color:#172033">
+        <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+          <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:20px;overflow:hidden">
+            <tr><td style="padding:14px 24px;background:#065f46;color:#fff;text-align:center;font-weight:800;letter-spacing:.04em">[MÔ PHỎNG] — KHÔNG PHẢI GIAO DỊCH THẬT</td></tr>
+            <tr><td style="padding:30px 28px">
+              <p style="margin:0 0 8px;color:#0f766e;font-size:13px;font-weight:800">TRUNG TÂM THỰC HÀNH</p>
+              <h1 style="margin:0 0 14px;font-size:25px">${safe(content.heading)}</h1>
+              <p style="font-size:17px">Chào <strong>${safe(data.name || "HLV")}</strong>,</p>
+              <p style="line-height:1.6;color:#475569">${safe(content.description)}</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border-top:1px solid #dbe7e4">${rows}</table>
+              <p style="margin:24px 0 0;padding:14px;border-radius:12px;background:#ecfdf5;color:#065f46;font-size:13px"><strong>Lưu ý:</strong> Email này chỉ dùng để thực hành. Hệ thống không tạo Order, Check-in, hợp đồng hoặc trừ buổi thật.</p>
+            </td></tr>
+          </table>
+        </td></tr></table>
+      </body>
+    </html>`;
+
+  try {
+    const response = await deliverEmail(
+      {
+        from: "HT Coaching <noreply@htcoachingweb.io.vn>",
+        to,
+        subject: content.subject,
+        html,
+      },
+      {
+        idempotencyKey: `practice-${requestId}-${data.scenario}`,
+      },
+    );
+    if (response?.error || !response?.data?.id) {
+      throw Object.assign(new Error("Practice email provider did not confirm delivery"), {
+        code: "PRACTICE_EMAIL_PROVIDER_FAILED",
+      });
+    }
+    const providerMessageId = response?.data?.id || "";
+    safeLog.info("mail.sent", {
+      template: `practice_${data.scenario}`,
+      providerMessageId,
+    });
+    return { providerMessageId };
+  } catch (error) {
+    safeLog.error("mail.practice_delivery_failed", error, {
+      scenario: data.scenario,
+    });
+    throw error;
+  }
+};
+
+export const sendMorningHealthReminderMail = async (to, data) => {
+  const dateKey = String(data?.dateKey || "");
+  const deliveryKey = String(data?.deliveryKey || "");
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(dateKey) ||
+    !/^[a-f0-9]{64}$/.test(deliveryKey)
+  ) {
+    throw Object.assign(new Error("Morning health email data is invalid"), {
+      code: "MORNING_HEALTH_EMAIL_DATA_INVALID",
+    });
+  }
+
+  const clientUrl = String(
+    process.env.CLIENT_URL || "https://htcoachingweb.io.vn",
+  ).replace(/\/$/, "");
+  const healthGoalsUrl = `${clientUrl}/dashboard/today/${dateKey}/journal#customer-health-goals-title`;
+  const html = `
+    <!DOCTYPE html>
+    <html lang="vi">
+      <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+      <body style="margin:0;padding:24px;background:#f6f7f9;font-family:'Segoe UI',Arial,sans-serif;color:#172033">
+        <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+          <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fff;border-radius:22px;overflow:hidden">
+            <tr><td style="padding:30px 28px;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;text-align:center">
+              <div style="font-size:42px;margin-bottom:8px">☀️</div>
+              <h1 style="margin:0;font-size:26px">CHÀO NGÀY MỚI</h1>
+              <p style="margin:8px 0 0;color:#fff7ed">Một ngày khỏe mạnh bắt đầu từ những điều nhỏ nhất.</p>
+            </td></tr>
+            <tr><td style="padding:30px 28px">
+              <p style="margin:0 0 14px;font-size:17px">Chào <strong>${safe(data?.name || "bạn")}</strong>,</p>
+              <p style="margin:0 0 20px;line-height:1.65;color:#475569">Chúc bạn một buổi sáng nhiều năng lượng. Hãy dành ít phút cập nhật <strong>Mục tiêu sức khỏe</strong> để bạn và HLV cùng theo dõi hành trình hôm nay nhé.</p>
+              <p style="margin:26px 0;text-align:center">
+                <a href="${safe(healthGoalsUrl)}" style="display:inline-block;padding:14px 22px;border-radius:12px;background:#f97316;color:#fff;text-decoration:none;font-weight:800">Cập nhật Mục tiêu sức khỏe</a>
+              </p>
+              <p style="margin:0;padding:14px;border-radius:12px;background:#fff7ed;color:#9a3412;font-size:13px;line-height:1.5">Bạn nhận email này vì đã bật Email nhắc sức khỏe trong mục Tài khoản. Bạn có thể tắt bất cứ lúc nào.</p>
+            </td></tr>
+          </table>
+        </td></tr></table>
+      </body>
+    </html>`;
+
+  try {
+    const response = await deliverEmail(
+      {
+        from: "HT Coaching <noreply@htcoachingweb.io.vn>",
+        to,
+        subject: "Chào ngày mới — nhớ cập nhật Mục tiêu sức khỏe",
+        html,
+      },
+      { idempotencyKey: `morning-health-${deliveryKey}` },
+    );
+    if (response?.error || !response?.data?.id) {
+      throw Object.assign(
+        new Error("Morning health email provider did not confirm delivery"),
+        { code: "MORNING_HEALTH_EMAIL_PROVIDER_FAILED" },
+      );
+    }
+    const providerMessageId = response.data.id;
+    safeLog.info("mail.sent", {
+      template: "morning_health_reminder",
+      providerMessageId,
+    });
+    return { providerMessageId };
+  } catch (error) {
+    safeLog.error("mail.morning_health_reminder_failed", error, { dateKey });
+    throw error;
   }
 };

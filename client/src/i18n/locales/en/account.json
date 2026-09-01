@@ -4,8 +4,18 @@
     "orders": "My Orders",
     "history": "Payment History",
     "contracts": "My Contracts",
+    "email_reminders": "Health reminder email",
     "title": "Account Settings",
-    "desc": "Manage your profile, security, orders, and transaction history."
+    "desc": "Manage your profile, notifications, orders, and transaction history."
+  },
+  "email_reminders": {
+    "group": "Notifications",
+    "title": "Health reminder email",
+    "desc": "Choose whether to receive a morning greeting and a reminder to update your Health Goals.",
+    "morning_title": "Start the day with your Health Goals",
+    "morning_desc": "The system plans one email between 07:00 and 08:59 Vietnam time and skips it after you have submitted today's health update.",
+    "recipient_note": "The email is sent to this account's sign-in address.",
+    "eligibility_note": "Email is only sent while you have an active coaching package and an assigned trainer. You can turn it off at any time."
   },
   "profile": {
     "title": "Personal Information",

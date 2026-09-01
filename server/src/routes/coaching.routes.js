@@ -5,7 +5,11 @@ import {
   requireTrainerAccess,
 } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
-import { uploadCoachingVideo } from "../middlewares/coachingUpload.js";
+import {
+  coachingFeedbackUploadLimiter,
+  uploadClientFeedbackVideoStream,
+  uploadCoachingVideo,
+} from "../middlewares/coachingUpload.js";
 import {
   getMyPlans,
   getMyPlanDetails,
@@ -16,6 +20,9 @@ import {
   deleteCoachingDay,
   uploadCoachingDemoVideo,
   uploadClientFeedbackVideo,
+  authorizeClientFeedbackVideoUpload,
+  removeClientFeedbackVideo,
+  retireLegacyClientFeedbackUpload,
 } from "../controllers/coaching.controller.js";
 
 const router = express.Router();
@@ -27,22 +34,39 @@ router.get("/my-plans", protect, getMyPlans);
 // 2. Lấy chi tiết giáo án ngày tập cụ thể
 router.get("/my-plans/:dateString", protect, getMyPlanDetails);
 
-// 3. Khách tích chọn hoàn thành bài, gửi text feedback + file video phản hồi
+// 3. Khách tích chọn hoàn thành bài và gửi text feedback.
 router.put(
   "/my-plans/:dateString/feedback",
   protect,
   csrfProtection,
-  uploadCoachingVideo.single("video"),
   submitFeedback
 );
 
-// 3.b Khách hàng tải lên video phản hồi cho một bài tập cụ thể
+// 3.b Route cũ trả response trước khi bất kỳ multipart parser nào chạy.
 router.post(
   "/my-plans/upload-feedback-video",
   protect,
   csrfProtection,
-  uploadCoachingVideo.single("video"),
+  retireLegacyClientFeedbackUpload,
+);
+
+// 3.c Ownership phải pass trước khi stream file trực tiếp đến private storage.
+router.post(
+  "/my-plans/:dateString/exercises/:exerciseId/feedback-video",
+  protect,
+  csrfProtection,
+  authorizeClientFeedbackVideoUpload,
+  coachingFeedbackUploadLimiter,
+  uploadClientFeedbackVideoStream.single("video"),
   uploadClientFeedbackVideo
+);
+
+router.delete(
+  "/my-plans/:dateString/exercises/:exerciseId/feedback-video",
+  protect,
+  csrfProtection,
+  authorizeClientFeedbackVideoUpload,
+  removeClientFeedbackVideo,
 );
 
 // ================= ROUTES CHO HUẤN LUYỆN VIÊN (TRAINER) =================

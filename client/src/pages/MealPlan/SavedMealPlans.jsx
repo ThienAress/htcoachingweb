@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
 import {
   archiveSavedMealPlan,
   listSavedMealPlans,
@@ -54,7 +55,9 @@ const SavedMealPlans = ({ meals, onGenerateAnother, target, targetLabel }) => {
     onSuccess: (_response, variables) => {
       setFailedCommand(null);
       setLocalError("");
-      setNotice(t(`saved.${variables.kind}_success`));
+      const successMessage = t(`saved.${variables.kind}_success`);
+      setNotice(successMessage);
+      toast.success(successMessage);
       if (variables.kind === "revise") setEditingPlanId(null);
       if (variables.kind === "rename") setRenamingPlanId(null);
       if (variables.kind === "archive" && variables.planId === editingPlanId) {
@@ -62,9 +65,12 @@ const SavedMealPlans = ({ meals, onGenerateAnother, target, targetLabel }) => {
       }
       void queryClient.invalidateQueries({ queryKey });
     },
-    onError: (_error, variables) => {
+    onError: (error, variables) => {
       setNotice("");
       setFailedCommand(variables);
+      toast.error(
+        error.response?.data?.message || "Không thể cập nhật thực đơn đã lưu",
+      );
     },
   });
 
@@ -98,6 +104,7 @@ const SavedMealPlans = ({ meals, onGenerateAnother, target, targetLabel }) => {
       });
     } catch {
       setLocalError(t("saved.invalid_generated"));
+      toast.error(t("saved.invalid_generated"));
     }
   };
 

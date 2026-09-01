@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 import WorkoutPlan from "../models/WorkoutPlan.js";
 import User from "../models/User.js";
 import {
+  isWorkoutPlanRelationshipError,
+  resolveWorkoutPlanRelationship,
+} from "../services/workoutPlanRelationship.service.js";
+import {
   deleteCoachingCommentsForTargets,
 } from "../services/coachingCommentPrivacy.service.js";
 import { safeLog } from "../utils/safeLogger.js";
@@ -14,6 +18,18 @@ const DEFAULT_SECTIONS = [
   { name: "ISOLATION TRAINING", icon: "🍑", sortOrder: 2, exercises: [] },
   { name: "COOLDOWN / STRETCHING", icon: "🧘", sortOrder: 3, exercises: [] },
 ];
+
+const respondWorkoutPlanError = (res, err, event) => {
+  if (isWorkoutPlanRelationshipError(err)) {
+    return res.status(err.statusCode).json({
+      success: false,
+      code: err.code,
+      message: err.message,
+    });
+  }
+  safeLog.error(event, err);
+  return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+};
 
 // ===== GET /api/workout-plans — Danh sách plans =====
 export const getWorkoutPlans = async (req, res) => {
@@ -92,12 +108,21 @@ export const getWorkoutPlanById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy giáo án" });
     }
 
-    // Check quyền: trainer sở hữu hoặc admin hoặc client
+    // Check quyền: trainer sở hữu hoặc admin; client chỉ xem bản đã công bố.
     const isAdmin = req.user.role === "admin";
-    if (!isAdmin && plan.trainerId._id.toString() !== req.user.id.toString()) {
-      // Cho phép client xem plan của mình
-      const user = await User.findById(req.user.id).select("email").lean();
-      if (!user || user.email !== plan.clientEmail) {
+    const actorId = String(req.user.id);
+    const trainerId = String(plan.trainerId?._id || plan.trainerId || "");
+    if (!isAdmin && trainerId !== actorId) {
+      const populatedClientId = String(plan.clientId?._id || plan.clientId || "");
+      let isClientOwner = populatedClientId === actorId;
+      if (!populatedClientId) {
+        const user = await User.findById(req.user.id).select("email").lean();
+        isClientOwner = Boolean(user && user.email === plan.clientEmail);
+      }
+      if (
+        !isClientOwner ||
+        !["published", "completed"].includes(plan.status)
+      ) {
         return res.status(403).json({ success: false, message: "Không có quyền truy cập" });
       }
     }
@@ -112,7 +137,6 @@ export const getWorkoutPlanById = async (req, res) => {
 // ===== POST /api/workout-plans — Tạo plan mới =====
 export const createWorkoutPlan = async (req, res) => {
   try {
-    const trainerId = req.user.id;
     const { title, planDate, clientName, clientEmail, sections, trainerNote } = req.body;
 
     if (!title || !planDate || !clientName) {
@@ -122,18 +146,17 @@ export const createWorkoutPlan = async (req, res) => {
       });
     }
 
-    // Tìm clientId từ email
-    let clientId = null;
-    if (clientEmail) {
-      const client = await User.findOne({ email: clientEmail.toLowerCase().trim() });
-      if (client) clientId = client._id;
-    }
+    const relationship = await resolveWorkoutPlanRelationship({
+      actorId: req.user.id,
+      isAdmin: req.isAdmin,
+      clientEmail,
+    });
 
     const plan = await WorkoutPlan.create({
-      trainerId,
-      clientId,
+      trainerId: relationship.trainerId,
+      clientId: relationship.clientId,
       clientName: clientName.trim(),
-      clientEmail: clientEmail ? clientEmail.toLowerCase().trim() : "",
+      clientEmail: relationship.clientEmail,
       title: title.trim(),
       planDate: new Date(planDate),
       sections: sections && sections.length > 0 ? sections : DEFAULT_SECTIONS,
@@ -147,8 +170,7 @@ export const createWorkoutPlan = async (req, res) => {
       message: "Tạo giáo án thành công",
     });
   } catch (err) {
-    safeLog.error("workout_plan.create_failed", err);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+    return respondWorkoutPlanError(res, err, "workout_plan.create_failed");
   }
 };
 
@@ -165,14 +187,33 @@ export const updateWorkoutPlan = async (req, res) => {
       return res.status(403).json({ success: false, message: "Không có quyền chỉnh sửa" });
     }
 
+    const requestedEmail =
+      req.body.clientEmail !== undefined
+        ? String(req.body.clientEmail).trim().toLowerCase()
+        : plan.clientEmail;
+    const changesClient =
+      req.body.clientEmail !== undefined && requestedEmail !== plan.clientEmail;
+    const publishesDraft =
+      req.body.status === "published" && plan.status !== "published";
+    let relationship = null;
+    if (changesClient || publishesDraft) {
+      relationship = await resolveWorkoutPlanRelationship({
+        actorId: req.user.id,
+        isAdmin: req.isAdmin,
+        clientId: changesClient ? null : plan.clientId,
+        clientEmail: requestedEmail,
+        trainerId: plan.trainerId,
+      });
+    }
+
     const allowed = ["title", "planDate", "clientName", "clientEmail", "sections", "trainerNote", "status", "overallAssessment"];
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
         if (key === "clientEmail") {
-          plan[key] = req.body[key].toLowerCase().trim();
-          // Cập nhật clientId
-          const client = await User.findOne({ email: plan.clientEmail });
-          plan.clientId = client ? client._id : null;
+          plan.clientEmail = relationship
+            ? relationship.clientEmail
+            : requestedEmail;
+          if (relationship) plan.clientId = relationship.clientId;
         } else if (key === "planDate") {
           plan[key] = new Date(req.body[key]);
         } else {
@@ -189,8 +230,7 @@ export const updateWorkoutPlan = async (req, res) => {
       message: "Cập nhật giáo án thành công",
     });
   } catch (err) {
-    safeLog.error("workout_plan.update_failed", err);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+    return respondWorkoutPlanError(res, err, "workout_plan.update_failed");
   }
 };
 
@@ -245,6 +285,14 @@ export const duplicateWorkoutPlan = async (req, res) => {
       return res.status(403).json({ success: false, message: "Không có quyền nhân bản" });
     }
 
+    const relationship = await resolveWorkoutPlanRelationship({
+      actorId: req.user.id,
+      isAdmin: req.isAdmin,
+      clientId: original.clientId,
+      clientEmail: original.clientEmail,
+      trainerId: original.trainerId,
+    });
+
     // Reset assessment cho tất cả exercises
     const resetSections = original.sections.map((section) => ({
       ...section,
@@ -257,10 +305,10 @@ export const duplicateWorkoutPlan = async (req, res) => {
     }));
 
     const newPlan = await WorkoutPlan.create({
-      trainerId: original.trainerId,
-      clientId: original.clientId,
+      trainerId: relationship.trainerId,
+      clientId: relationship.clientId,
       clientName: original.clientName,
-      clientEmail: original.clientEmail,
+      clientEmail: relationship.clientEmail,
       title: `${original.title} (Bản sao)`,
       planDate: req.body.planDate ? new Date(req.body.planDate) : new Date(),
       sections: resetSections,
@@ -275,7 +323,6 @@ export const duplicateWorkoutPlan = async (req, res) => {
       message: "Nhân bản giáo án thành công",
     });
   } catch (err) {
-    safeLog.error("workout_plan.duplicate_failed", err);
-    return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
+    return respondWorkoutPlanError(res, err, "workout_plan.duplicate_failed");
   }
 };

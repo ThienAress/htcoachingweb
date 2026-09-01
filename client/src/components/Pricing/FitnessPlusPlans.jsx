@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
 import { AlertTriangle, ArrowRight, CheckCircle, Sparkles, Wallet, X } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
@@ -87,6 +88,7 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
         message: response.data.message,
         data: response.data.data,
       });
+      toast.success(response.data.message || "Đã kích hoạt gói HT Fitness+");
     } catch (error) {
       const errorCode = error.response?.data?.code;
       setCheckoutResult({
@@ -96,6 +98,10 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
           error.response?.data?.message ||
           t("pricing.fitness_plus.checkout_failed"),
       });
+      toast.error(
+        error.response?.data?.message ||
+          t("pricing.fitness_plus.checkout_failed"),
+      );
       if (errorCode === FITNESS_PLUS_CATALOG_CHANGED_CODE) {
         requestIdRef.current = null;
         await catalogQuery.refetch();

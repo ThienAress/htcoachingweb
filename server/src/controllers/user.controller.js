@@ -1,14 +1,6 @@
-import mongoose from "mongoose";
 import User from "../models/User.js";
-import Order from "../models/Order.js";
-import Checkin from "../models/Checkin.js";
-import FitnessSubscription from "../models/FitnessSubscription.js";
-import FitnessPlusQuotaUsage from "../models/FitnessPlusQuotaUsage.js";
-import {
-  deleteTodayDashboardData,
-} from "../services/todayDashboardPrivacy.service.js";
+import { deleteAccountData } from "../services/accountDeletion.service.js";
 import { safeLog } from "../utils/safeLogger.js";
-import { deleteAiMemoryForUser } from "../services/aiMemory.service.js";
 
 export const getUsers = async (req, res) => {
   try {
@@ -48,39 +40,14 @@ export const getUsers = async (req, res) => {
 };
 
 export const deleteUser = async (req, res) => {
-  const session = await mongoose.startSession();
   try {
-    const userId = req.params.id;
-    let user = null;
-    await session.withTransaction(async () => {
-      user = await User.findById(userId).session(session);
-      if (!user) return;
-
-      const orders = await Order.find({ userId })
-        .select("_id")
-        .session(session);
-      const orderIds = orders.map((order) => order._id);
-
-      if (orderIds.length > 0) {
-        await Checkin.deleteMany({
-          orderId: { $in: orderIds },
-        }).session(session);
-      }
-
-      await deleteTodayDashboardData({
-        clientId: userId,
-        actorId: req.user.id,
-        actorRole: req.user.role,
-        session,
-      });
-      await deleteAiMemoryForUser(userId, { session });
-      await FitnessPlusQuotaUsage.deleteMany({ userId }).session(session);
-      await FitnessSubscription.deleteMany({ userId }).session(session);
-      await Order.deleteMany({ userId }).session(session);
-      await User.deleteOne({ _id: userId }).session(session);
+    const deletion = await deleteAccountData({
+      userId: req.params.id,
+      actorId: req.user.id,
+      actorRole: req.user.role,
     });
 
-    if (!user) {
+    if (!deletion) {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy người dùng" });
@@ -88,15 +55,18 @@ export const deleteUser = async (req, res) => {
 
     res.json({
       success: true,
+      data: deletion,
       message: "Xóa người dùng và dữ liệu liên quan thành công",
     });
   } catch (err) {
     safeLog.error("user.delete_failed", err);
-    res.status(500).json({
+    res.status(err.status || 500).json({
       success: false,
-      message: "Không thể xóa người dùng lúc này",
+      ...(err.code ? { code: err.code } : {}),
+      message:
+        err.status && err.message
+          ? err.message
+          : "Không thể xóa người dùng lúc này",
     });
-  } finally {
-    await session.endSession();
   }
 };

@@ -53,103 +53,134 @@ const buildDeletionJobWrites = (mediaList, actorId) =>
       },
     }));
 
+const queueF1CustomerDeletion = async ({
+  customer,
+  actorId,
+  actorRole,
+  reason = "admin_request",
+  requestContext = {},
+  session,
+}) => {
+  const mediaList = await F1Media.find({
+    customerId: customer._id,
+    status: { $ne: "deleted" },
+  }).session(session);
+  const withObject = mediaList.filter(
+    (media) => media.storageKey || media.publicId,
+  );
+  const withoutObject = mediaList.filter(
+    (media) => !media.storageKey && !media.publicId,
+  );
+
+  if (withObject.length > 0) {
+    await F1Media.updateMany(
+      { _id: { $in: withObject.map((media) => media._id) } },
+      {
+        $set: {
+          status: "delete_pending",
+          deleteRequestedAt: new Date(),
+        },
+        $inc: { revision: 1 },
+      },
+      { session },
+    );
+    const writes = buildDeletionJobWrites(withObject, actorId);
+    if (writes.length > 0) {
+      await F1MediaDeletionJob.bulkWrite(writes, { session });
+    }
+  }
+  if (withoutObject.length > 0) {
+    await F1Media.updateMany(
+      { _id: { $in: withoutObject.map((media) => media._id) } },
+      {
+        $set: { status: "deleted", deletedAt: new Date() },
+        $inc: { revision: 1 },
+      },
+      { session },
+    );
+  }
+
+  const job = await F1DataDeletionJob.findOneAndUpdate(
+    { customerId: customer._id },
+    {
+      $setOnInsert: {
+        requestedBy: actorId,
+        requestedByRole: normalizeActorRole(actorRole),
+        reason,
+      },
+      $set: {
+        status: "pending_media_cleanup",
+        nextAttemptAt: new Date(),
+        lastErrorCode: "",
+      },
+    },
+    { upsert: true, returnDocument: "after", session },
+  );
+
+  await F1Customer.updateOne(
+    { _id: customer._id },
+    {
+      $set: {
+        status: "archived",
+        archivedAt: customer.archivedAt || new Date(),
+        deletionRequestedAt: new Date(),
+      },
+    },
+    { session },
+  );
+  await AuditLog.create(
+    [
+      {
+        actorId,
+        actorRole: normalizeActorRole(actorRole),
+        action: "request_f1_data_deletion",
+        targetType: "f1_customer",
+        targetId: customer._id,
+        metadata: {
+          reason,
+          mediaCount: mediaList.length,
+          requestId: requestContext.requestId || "",
+        },
+        ipAddress: requestContext.ipAddress || "",
+        userAgent: requestContext.userAgent || "",
+      },
+    ],
+    { session },
+  );
+  return job;
+};
+
 export const requestF1CustomerDeletion = async ({
   customer,
   actorId,
   actorRole,
   reason = "admin_request",
   requestContext = {},
+  session: externalSession = null,
 }) => {
+  if (externalSession) {
+    return queueF1CustomerDeletion({
+      customer,
+      actorId,
+      actorRole,
+      reason,
+      requestContext,
+      session: externalSession,
+    });
+  }
+
   const session = await mongoose.startSession();
   let job;
   try {
     await session.withTransaction(async () => {
-      const mediaList = await F1Media.find({
-        customerId: customer._id,
-        status: { $ne: "deleted" },
-      }).session(session);
-      const withObject = mediaList.filter(
-        (media) => media.storageKey || media.publicId,
-      );
-      const withoutObject = mediaList.filter(
-        (media) => !media.storageKey && !media.publicId,
-      );
-
-      if (withObject.length > 0) {
-        await F1Media.updateMany(
-          { _id: { $in: withObject.map((media) => media._id) } },
-          {
-            $set: {
-              status: "delete_pending",
-              deleteRequestedAt: new Date(),
-            },
-            $inc: { revision: 1 },
-          },
-          { session },
-        );
-        const writes = buildDeletionJobWrites(withObject, actorId);
-        if (writes.length > 0) {
-          await F1MediaDeletionJob.bulkWrite(writes, { session });
-        }
-      }
-      if (withoutObject.length > 0) {
-        await F1Media.updateMany(
-          { _id: { $in: withoutObject.map((media) => media._id) } },
-          {
-            $set: { status: "deleted", deletedAt: new Date() },
-            $inc: { revision: 1 },
-          },
-          { session },
-        );
-      }
-
-      job = await F1DataDeletionJob.findOneAndUpdate(
-        { customerId: customer._id },
-        {
-          $setOnInsert: {
-            requestedBy: actorId,
-            requestedByRole: normalizeActorRole(actorRole),
-            reason,
-          },
-          $set: {
-            status: "pending_media_cleanup",
-            nextAttemptAt: new Date(),
-            lastErrorCode: "",
-          },
-        },
-        { upsert: true, returnDocument: "after", session },
-      );
-
-      await F1Customer.updateOne(
-        { _id: customer._id },
-        {
-          $set: {
-            status: "archived",
-            archivedAt: customer.archivedAt || new Date(),
-            deletionRequestedAt: new Date(),
-          },
-        },
-        { session },
-      );
-      await AuditLog.create(
-        [
-          {
-            actorId,
-            actorRole: normalizeActorRole(actorRole),
-            action: "request_f1_data_deletion",
-            targetType: "f1_customer",
-            targetId: customer._id,
-            metadata: {
-              reason,
-              mediaCount: mediaList.length,
-              requestId: requestContext.requestId || "",
-            },
-            ipAddress: requestContext.ipAddress || "",
-            userAgent: requestContext.userAgent || "",
-          },
-        ],
-        { session },
-      );
+      job = await queueF1CustomerDeletion({
+        customer,
+        actorId,
+        actorRole,
+        reason,
+        requestContext,
+        session,
+      });
     });
     return job;
   } finally {

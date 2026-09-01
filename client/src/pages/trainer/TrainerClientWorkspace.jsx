@@ -15,7 +15,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { Fragment, useEffect } from "react";
+import { useEffect } from "react";
 import { getTrainerClients } from "../../services/coaching.service";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 import {
@@ -23,8 +23,7 @@ import {
   isValidDateKey,
 } from "../../utils/vietnamDate";
 import { TrainerClientOverview } from "./TrainerClientOverview";
-import { TrainerHabitManager } from "./TrainerHabitManager";
-import { TrainerWellnessTargetCard } from "./TrainerWellnessTargetCard";
+import { TrainerHealthGoalsSection } from "./TrainerHealthGoalsSection";
 import {
   getTrainerClientId,
   normalizeTrainerClientTabForHash,
@@ -51,7 +50,7 @@ export const TrainerSupportReminder = () => (
   >
     <BellRing className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden="true" />
     <p className="text-sm font-semibold leading-6">
-      Nhớ kiểm tra báo cáo từ khách hàng mỗi ngày bạn nhé.
+      Báo cáo từ khách hàng rất quan trọng. Bạn nhớ kiểm tra mỗi ngày để kịp thời lưu ý và hỗ trợ khách hàng nhé.
     </p>
   </aside>
 );
@@ -283,25 +282,23 @@ export const TrainerClientWorkspace = () => {
       {TODAY_PLATFORM_ENABLED && activeTab === "tasks" && (
         <div className="space-y-4">
           <TrainerSupportReminder />
-          {TRAINER_SUPPORT_SECTION_ORDER.map((section) => {
-            const content =
-              section === "wellness" ? (
-                <TrainerWellnessTargetCard
-                  key={"wellness-target:" + clientId}
-                  clientId={clientId}
-                />
-              ) : section === "habits" ? (
-                <TrainerHabitManager clientId={clientId} dateKey={dateKey} />
-              ) : (
-                <TrainerClientOverview
-                  clientId={clientId}
-                  clientName={client.name}
-                  dateKey={dateKey}
-                  surface="reports"
-                />
-              );
-            return <Fragment key={section}>{content}</Fragment>;
-          })}
+          {TRAINER_SUPPORT_SECTION_ORDER.map((section) =>
+            section === "health_goals" ? (
+              <TrainerHealthGoalsSection
+                key={"health-goals:" + clientId}
+                clientId={clientId}
+                dateKey={dateKey}
+              />
+            ) : (
+              <TrainerClientOverview
+                key={section}
+                clientId={clientId}
+                clientName={client.name}
+                dateKey={dateKey}
+                surface="reports"
+              />
+            ),
+          )}
         </div>
       )}
       </div>

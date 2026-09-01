@@ -1,4 +1,4 @@
-export const EMAIL_NOTIFICATION_CATALOG_VERSION = "2026-08-18";
+export const EMAIL_NOTIFICATION_CATALOG_VERSION = "2026-08-29";
 
 const deepFreeze = (value) => {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) {
@@ -88,5 +88,26 @@ export const EMAIL_NOTIFICATION_CATALOG = deepFreeze([
     delivery: "Best-effort sau transaction",
     templateKey: "trainer_subscription_activated",
     sender: "sendTrainerSubscriptionActivatedMail",
+  },
+  {
+    notificationKey: "practice_center_simulation",
+    feature: "Trung tâm thực hành",
+    trigger: "Admin/HLV chủ động chạy kịch bản Order hoặc Check-in mô phỏng",
+    recipient: "Tài khoản đang đăng nhập",
+    condition: "Đủ entitlement, quota và delivery unit chưa hoàn tất",
+    delivery: "Fail-closed · per-delivery idempotency và quota refund",
+    templateKey: "practice_order_or_checkin",
+    sender: "sendPracticeCenterMail",
+  },
+  {
+    notificationKey: "morning_health_reminder",
+    feature: "Nhắc Mục tiêu sức khỏe buổi sáng",
+    trigger: "Cron chạy trong khung 07:00–08:59 giờ Việt Nam",
+    recipient: "Khách coaching đã chủ động bật trong Tài khoản",
+    condition:
+      "Còn buổi, có HLV, Today Dashboard khả dụng và chưa submit nhật ký ngày",
+    delivery: "Fail-closed · một delivery/người/ngày, có claim và retry",
+    templateKey: "morning_health_reminder",
+    sender: "sendMorningHealthReminderMail",
   },
 ]);

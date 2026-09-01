@@ -8,7 +8,7 @@ middleware bị lệch nhau.
 
 ## Audience tiers
 
-Backend giữ bảy tier độc lập:
+Backend giữ tám tier độc lập:
 
 | Tier | Điều kiện |
 |---|---|
@@ -16,22 +16,24 @@ Backend giữ bảy tier độc lập:
 | `user` | User đã xác thực nhưng không có entitlement đang hoạt động |
 | `coaching_customer` | Có Order `approved` và còn `sessions > 0` |
 | `trainer` | Role `admin`/`trainer` hoặc có TrainerSubscription đang hoạt động và chưa hết hạn |
+| `admin` | Role `admin`; policy tách khỏi HLV khi dịch vụ vận hành có hạn mức riêng |
 | `fitness_plus_essential` | Có HT Fitness+ Nền tảng đang hoạt động và chưa hết hạn |
 | `fitness_plus_smart` | Có HT Fitness+ Tăng tốc đang hoạt động và chưa hết hạn |
 | `fitness_plus_max` | Có HT Fitness+ Toàn diện đang hoạt động và chưa hết hạn |
 
-Trang Admin giữ `coaching_customer` và `trainer` thành hai nhãn riêng trong cùng nhóm trình bày; API và runtime
+Trang Admin giữ `coaching_customer`, `trainer` và `admin` thành các nhãn riêng trong cùng nhóm trình bày; API và runtime
 không được gộp policy vì hai tier có quota khác nhau. Khi một user có nhiều entitlement active, backend chọn policy
 mạnh nhất theo từng service; mua thêm entitlement không được làm quota hiện có thấp đi.
 
 ## Canonical policy
 
-| Dịch vụ | Guest | User thường | Khách coaching | HLV | HT Fitness+ Nền tảng | HT Fitness+ Tăng tốc | HT Fitness+ Toàn diện |
-|---|---|---|---|---|---|---|---|
-| Meal Scan | 1 lượt / lifetime / trình duyệt | 1 lượt / lifetime / tài khoản | 10 lượt/ngày + 300 lượt/30 ngày | 20 lượt/ngày + 600 lượt/30 ngày | 5 lượt/ngày + 120 lượt/30 ngày | 10 lượt/ngày + 210 lượt/30 ngày | 15 lượt/ngày + 300 lượt/30 ngày |
-| AI Chat | 5 tin/24 giờ / IP | 15 tin/24 giờ + 60 tin/30 ngày | 30 tin/giờ + 600 tin/30 ngày | 30 tin/giờ + 1.200 tin/30 ngày | 20 tin/giờ + 120 tin/30 ngày | 40 tin/giờ + 300 tin/30 ngày | 60 tin/giờ + 600 tin/30 ngày |
-| Meal Plan | 1 preview / session | 1 lượt / lifetime | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
-| TDEE | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
+| Dịch vụ | Guest | User thường | Khách coaching | HLV | Admin | HT Fitness+ Nền tảng | HT Fitness+ Tăng tốc | HT Fitness+ Toàn diện |
+|---|---|---|---|---|---|---|---|---|
+| Meal Scan | 1 lượt / lifetime / trình duyệt | 1 lượt / lifetime / tài khoản | 10 lượt/ngày + 300 lượt/30 ngày | 20 lượt/ngày + 600 lượt/30 ngày | 20 lượt/ngày + 600 lượt/30 ngày | 5 lượt/ngày + 120 lượt/30 ngày | 10 lượt/ngày + 210 lượt/30 ngày | 15 lượt/ngày + 300 lượt/30 ngày |
+| AI Chat | 5 tin/24 giờ / IP | 15 tin/24 giờ + 60 tin/30 ngày | 30 tin/giờ + 600 tin/30 ngày | 30 tin/giờ + 1.200 tin/30 ngày | 30 tin/giờ + 1.200 tin/30 ngày | 20 tin/giờ + 120 tin/30 ngày | 40 tin/giờ + 300 tin/30 ngày | 60 tin/giờ + 600 tin/30 ngày |
+| Meal Plan | 1 preview / session | 1 lượt / lifetime | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
+| TDEE | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn | Không giới hạn |
+| Trung tâm thực hành | Không truy cập | Không truy cập | Không truy cập | 2 email/24 giờ | 10 email/24 giờ | Không truy cập | Không truy cập | Không truy cập |
 
 Burst/daily window là lớp kiểm soát tốc độ sử dụng; cửa sổ 30 ngày là quyền lợi thương mại. Guest Meal Scan được nhận
 diện bằng opaque httpOnly browser cookie và vẫn nằm sau flood limiter theo IP; xóa cookie/đổi trình duyệt không phải
@@ -55,6 +57,9 @@ Document cũ chưa có snapshot fallback về registry hiện tại; rollout nà
 - `Thông báo email tự động` lấy catalog read-only từ backend và liệt kê tính năng, sự kiện kích hoạt, người nhận,
   điều kiện gửi, cơ chế delivery cùng template/sender. Catalog chỉ mô tả capability hệ thống, không chứa địa chỉ email,
   lịch sử gửi hoặc dữ liệu người dùng.
+- Email nhắc `Mục tiêu sức khỏe` là opt-in tại `Tài khoản`, chỉ gửi cho khách coaching còn buổi và có HLV trong
+  khung 07:00–08:59 giờ Việt Nam. Hệ thống bỏ qua ngày khách đã submit nhật ký, chống gửi trùng theo người/ngày,
+  retry lỗi provider và giữ feature flag production ở trạng thái tắt mặc định.
 - `Phụ thuộc & phiên bản hệ thống` tổng hợp read-only `dependencies`/`devDependencies` từ `package.json`,
   `client/package.json` và `server/package.json` ngay tại build time. UI hỗ trợ tìm package, lọc Workspace/Frontend/Backend
   và không gọi npm Registry từ trình duyệt hoặc tự tuyên bố phiên bản mới nhất.
@@ -85,7 +90,12 @@ Document cũ chưa có snapshot fallback về registry hiện tại; rollout nà
   `initialImprovement`/`deliveryUpdates` suy ra từ contract mới để giữ tương thích một release; catalog không lưu hai nguồn.
 - Chỉ gắn `production_verified` sau khi behavior đã được xác minh trên production. Priority vẫn phản ánh hạng mục chưa
   hoàn thành ở production, vì vậy một tính năng đã code local vẫn có thể giữ `F0`.
-- HT Assistant và Meal Plan đã được chủ sản phẩm xác minh production ngày `2026-08-12`; hai cơ hội tiếp theo chuyển sang `F1`. Meal Scan giữ `F1` vì journal integration và ground-truth thực tế được tách thành phase riêng.
+- HT Assistant và luồng lưu Meal Plan nền đã được chủ sản phẩm xác minh production ngày `2026-08-12`.
+  Snapshot `2026-08-29.2` bổ sung các kết quả local-verified của TDEE, Meal Scan, Recipe, thư viện bài tập,
+  Today Dashboard, email nhắc sức khỏe buổi sáng, tiến trình và Trung tâm thực hành; không nâng chúng thành
+  `production_verified` khi chưa có live evidence.
+- Today Dashboard giữ `F0` cho cơ hội tổng hợp mức bám mục tiêu sức khỏe và next action; Trung tâm thực hành
+  giữ `F2` vì luồng mô phỏng cốt lõi đã hoàn tất và phần tiếp theo là preview/diagnostics.
 
 #### Báo cáo lịch sử cải tiến
 
@@ -113,8 +123,12 @@ Document cũ chưa có snapshot fallback về registry hiện tại; rollout nà
 
 - Guest AI Chat tiếp tục dùng khóa IP đã HMAC; Guest Meal Scan dùng khóa browser cookie đã HMAC. Không lưu hoặc log raw IP/cookie.
 - Authenticated quota dùng user ID; tier chỉ được resolver backend xác định từ role/Order/TrainerSubscription/FitnessSubscription.
+  Admin có tier riêng; các dịch vụ cũ giữ policy tương đương HLV, còn `practice_email` dùng hạn mức 10 thay vì 2.
 - AI Chat và Meal Scan của mọi tier consume atomically từ MongoDB shared ledger đa cửa sổ để nhất quán khi chạy nhiều replica. Các limiter abuse chỉ là lớp chống flood.
 - Lỗi provider 5xx hoặc timeout hoàn reservation quota tương ứng một cách idempotent; validation/moderation bị từ chối trước provider không được tạo thêm provider cost.
+- `practice_email` ghi một ledger event cho từng email thực sự cần gửi; journey vì vậy tiêu thụ hai
+  unit nhưng retry phần còn thiếu chỉ consume unit còn thiếu. Provider idempotency key gắn với
+  `requestId` + delivery key; trạng thái refund không xác nhận phải fail closed và không báo đã hoàn lượt.
 - Không tin tier do client gửi, không hạ CSRF, auth, ownership hoặc rate limit hiện có.
 - Registry và field snapshot additive không cần migration bắt buộc; document cũ fallback an toàn. Không chạy backfill/index production trong implementation này.
 - Endpoint Admin không trả dữ liệu user, usage history hoặc identifier; chỉ trả policy cấu hình.

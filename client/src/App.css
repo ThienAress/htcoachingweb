@@ -539,3 +539,9 @@
   animation: tabFadeIn 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-tab-fade {
+    animation: none;
+  }
+}
+

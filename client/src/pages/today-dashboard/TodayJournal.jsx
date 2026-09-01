@@ -5,15 +5,14 @@ import { useAuth } from "../../context/AuthContext";
 
 import { WeeklyCheckinCard } from "../progress/WeeklyCheckinCard";
 import { ActivityTimeline } from "./ActivityTimeline";
-import { HabitCard } from "./HabitCard";
-import { WellnessCard } from "./WellnessCard";
-
+import { HealthGoalsSection } from "./HealthGoalsSection";
 
 const TodayJournal = () => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const weeklyReportRef = useRef(null);
+  const healthGoalsRef = useRef(null);
   const [selectedReport, setSelectedReport] = useState(() =>
     location.hash === "#weekly-report" ? "weekly" : "daily",
   );
@@ -21,6 +20,23 @@ const TodayJournal = () => {
     location.hash === "#weekly-report" ? "weekly" : selectedReport;
   const { data, dateKey, handleJournalChanged } = useOutletContext();
   const journal = data.sections.journal.day;
+
+  useEffect(() => {
+    if (
+      location.hash !== "#customer-health-goals-title" ||
+      activeReport !== "daily"
+    ) {
+      return undefined;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      healthGoalsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      healthGoalsRef.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeReport, location.hash, dateKey]);
 
   useEffect(() => {
     if (location.hash !== "#weekly-report" || activeReport !== "weekly") {
@@ -116,14 +132,8 @@ const TodayJournal = () => {
           aria-labelledby="journal-daily-tab"
           className="space-y-4"
         >
-          <WellnessCard
-            key={`${dateKey}:${journal?._id || "new"}:${journal?.revision || 0}`}
-            dateKey={dateKey}
-            journal={journal}
-            canEdit={data.capabilities.canEditJournal}
-            onChanged={handleJournalChanged}
-          />
-          <HabitCard
+          <HealthGoalsSection
+            sectionRef={healthGoalsRef}
             dateKey={dateKey}
             journal={journal}
             canEdit={data.capabilities.canEditJournal}

@@ -19,7 +19,7 @@ import {
 } from "./serviceUsageLedgerRuntime.js";
 
 const fallbackGuestSecret = randomBytes(32);
-const SERVICE_KEYS = new Set(["ai_chat", "meal_scan"]);
+const SERVICE_KEYS = new Set(["ai_chat", "meal_scan", "practice_email"]);
 const HASH_PATTERN = /^[a-f0-9]{64}$/;
 
 const digest = (value) =>
@@ -83,6 +83,7 @@ export async function consumeServiceUsage({
   policy,
   actor: rawActor,
   operationKey = randomUUID(),
+  cost = 1,
   now = new Date(),
   model = ServiceUsageBucket,
 }) {
@@ -94,6 +95,13 @@ export async function consumeServiceUsage({
   }
 
   const windows = normalizeServiceQuotaWindows(serviceKey, policy);
+  if (
+    !Number.isSafeInteger(cost) ||
+    cost < 1 ||
+    windows.some((window) => cost > window.limit)
+  ) {
+    throw new Error("Service usage cost is invalid for the quota policy");
+  }
   const actor = normalizeActor(rawActor);
   const policyGroup = resolveServiceUsagePolicyGroup(tier);
   const bucketId = digest(
@@ -113,6 +121,7 @@ export async function consumeServiceUsage({
       policyGroup,
       windows,
       operationHash,
+      cost,
       now,
     }),
   });
@@ -170,6 +179,37 @@ export async function refundServiceUsage({
   return serializeServiceUsageQuota({
     serviceKey: reservation.serviceKey,
     tier: reservation.tier,
+    windows,
+    events: bucket?.usageEvents || [],
+    allowed: true,
+    now,
+  });
+}
+
+export async function getServiceUsageQuota({
+  serviceKey,
+  tier,
+  policy,
+  actor: rawActor,
+  now = new Date(),
+  model = ServiceUsageBucket,
+}) {
+  if (!SERVICE_KEYS.has(serviceKey)) {
+    throw new Error(`Unsupported shared usage service: ${serviceKey}`);
+  }
+  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) {
+    throw new Error("Service usage timestamp is invalid");
+  }
+  const windows = normalizeServiceQuotaWindows(serviceKey, policy);
+  const actor = normalizeActor(rawActor);
+  const policyGroup = resolveServiceUsagePolicyGroup(tier);
+  const bucketId = digest(
+    `v2|${serviceKey}|${policyGroup}|${actor.actorKind}|${actor.actorKey}`,
+  );
+  const bucket = await model.findById(bucketId).select("+usageEvents").lean();
+  return serializeServiceUsageQuota({
+    serviceKey,
+    tier,
     windows,
     events: bucket?.usageEvents || [],
     allowed: true,

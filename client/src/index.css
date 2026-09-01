@@ -962,6 +962,10 @@ input:-webkit-autofill:focus {
 }
 
 /* Toastify renders through a portal, so bridge the active trainer theme via html. */
+.Toastify__toast-container.app-toast-container {
+  z-index: 10000;
+}
+
 html[data-trainer-theme="light"] .Toastify__toast-container {
   --toastify-color-light: var(--color-white);
   --toastify-color-dark: var(--color-white);

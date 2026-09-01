@@ -28,7 +28,8 @@ export const getTodayProgressPromptEligibility = async (actor) => {
   return {
     eligible:
       tiers.has(SERVICE_ACCESS_TIERS.COACHING_CUSTOMER) &&
-      !tiers.has(SERVICE_ACCESS_TIERS.TRAINER),
+      !tiers.has(SERVICE_ACCESS_TIERS.TRAINER) &&
+      !tiers.has(SERVICE_ACCESS_TIERS.ADMIN),
   };
 };
 

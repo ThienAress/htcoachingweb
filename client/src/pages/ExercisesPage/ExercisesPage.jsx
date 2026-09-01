@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Calendar, Dumbbell, Flame } from "lucide-react";
 
@@ -175,12 +175,6 @@ const ExercisesPage = () => {
         }}
       />
       <Header />
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        theme={usesCustomerTheme ? customerTheme : "dark"}
-      />
-
       <div
         className={usesCustomerTheme ? "customer-dashboard customer-tool-surface" : undefined}
         data-theme={usesCustomerTheme ? customerTheme : undefined}

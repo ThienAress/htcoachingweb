@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, Salad, Send, Unlink } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   saveDailyJournal,
   submitDailyJournalNutrition,
@@ -68,20 +69,24 @@ export const NutritionCard = ({
     onSuccess: (response, variables) => {
       setFailedCommand(null);
       setLocalError("");
-      setNotice(
+      const successMessage =
         variables.kind === "nutrition-submit"
           ? "Đã gửi báo cáo dinh dưỡng cho HLV."
-          : "Đã cập nhật dinh dưỡng trong ngày.",
-      );
+          : "Đã cập nhật dinh dưỡng trong ngày.";
+      setNotice(successMessage);
+      toast.success(successMessage);
       setConfirmSubmit(false);
       onChanged?.(response.data.data);
       void queryClient.invalidateQueries({
         queryKey: ["daily-journal-timeline", dateKey],
       });
     },
-    onError: (_error, variables) => {
+    onError: (error, variables) => {
       setNotice("");
       setFailedCommand(variables);
+      toast.error(
+        error.response?.data?.message || "Không thể cập nhật dinh dưỡng",
+      );
     },
   });
 
@@ -132,6 +137,7 @@ export const NutritionCard = ({
       });
     } catch (error) {
       setLocalError(error.message);
+      toast.error(error.message);
     }
   };
   const submitNutrition = () => {

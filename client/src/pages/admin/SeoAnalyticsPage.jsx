@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, RefreshCw } from "lucide-react";
+import { toast } from "react-toastify";
 
 import SEO from "../../components/SEO";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -74,7 +75,14 @@ export default function SeoAnalyticsPage() {
   const detailQuery = useQuery({ ...analyticsBlogDetailQueryOptions({ slug: selectedSlug, ...range }), enabled: Boolean(selectedSlug) && validRange });
   const syncMutation = useMutation({
     mutationFn: (provider) => syncAnalyticsProvider({ provider, ...range }),
-    onSuccess: async () => invalidateByKey(queryClient, adminQueryKeys.seoAnalytics.all()),
+    onSuccess: async () => {
+      await invalidateByKey(queryClient, adminQueryKeys.seoAnalytics.all());
+      toast.success("Đã đồng bộ dữ liệu analytics");
+    },
+    onError: (error) =>
+      toast.error(
+        error.response?.data?.message || "Không thể đồng bộ provider",
+      ),
   });
 
   const applyPreset = (days) => {

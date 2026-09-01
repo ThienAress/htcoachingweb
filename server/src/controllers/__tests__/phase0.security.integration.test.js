@@ -267,9 +267,7 @@ describe("Phase 0 security boundaries", () => {
     expect(savedExercise.videoUrl).toBe("");
     expect(savedExercise.completed).toBe(true);
     expect(savedExercise.clientFeedbackNote).toBe("Good form");
-    expect(savedExercise.clientFeedbackVideo).toContain(
-      "/htcoaching/coaching-videos/",
-    );
+    expect(savedExercise.clientFeedbackVideo).toBe("");
   });
 
   it("makes check-in creation idempotent and refunds with an atomic increment", async () => {

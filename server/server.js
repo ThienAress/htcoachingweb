@@ -41,6 +41,8 @@ import foodReferenceRoutes from "./src/routes/foodReference.routes.js";
 import bookingRoutes from "./src/routes/booking.routes.js";
 import seoAnalyticsRoutes from "./src/routes/seoAnalytics.routes.js";
 import serviceAccessPolicyRoutes from "./src/routes/serviceAccessPolicy.routes.js";
+import practiceCenterRoutes from "./src/routes/practiceCenter.routes.js";
+import trainerTransferRoutes from "./src/routes/trainerTransfer.routes.js";
 import skillRadarRoutes from "./src/routes/skillRadar.routes.js";
 import sepayWebhookRoutes from "./src/routes/sepayWebhook.routes.js";
 import exerciseRoutes from "./src/routes/exercise.routes.js";
@@ -77,6 +79,10 @@ import {
   stopScheduleReminderCron,
 } from "./src/services/scheduleReminderCron.js";
 import {
+  startMorningHealthReminderCron,
+  stopMorningHealthReminderCron,
+} from "./src/services/morningHealthReminderCron.js";
+import {
   startContractCronJobs,
   stopContractCronJobs,
 } from "./src/services/contractCron.js";
@@ -88,6 +94,10 @@ import {
   startF1LifecycleCron,
   stopF1LifecycleCron,
 } from "./src/services/f1PrivacyLifecycle.service.js";
+import {
+  startAccountDeletionMediaCron,
+  stopAccountDeletionMediaCron,
+} from "./src/services/accountDeletionMedia.service.js";
 import { startSePayReconciliationJob } from "./src/services/sepayReconciliationJob.js";
 
 import { generateCsrfToken } from "./src/middlewares/csrf.js";
@@ -248,7 +258,9 @@ app.use("/api/trainer-client-overview", trainerClientOverviewRoutes);
 app.use("/api/coaching-activity", coachingActivityRoutes);
 app.use("/api/admin/analytics", seoAnalyticsRoutes);
 app.use("/api/admin/service-access-policies", serviceAccessPolicyRoutes);
+app.use("/api/admin/trainer-coordination", trainerTransferRoutes);
 app.use("/api/admin/skill-radar", skillRadarRoutes);
+app.use("/api/practice-center", practiceCenterRoutes);
 import adminDepositRoutes from "./src/routes/adminDeposit.routes.js";
 app.use("/api/admin/deposits", adminDepositRoutes);
 
@@ -365,9 +377,11 @@ const server = app.listen(PORT, () => {
   startDepositCronJobs();
   startSubscriptionCronJobs();
   startScheduleReminderCron();
+  startMorningHealthReminderCron();
   startContractCronJobs();
   startCleanupCronJobs();
   startF1LifecycleCron();
+  startAccountDeletionMediaCron();
   sePayReconciliationJob = startSePayReconciliationJob();
 });
 
@@ -392,9 +406,11 @@ const gracefulShutdown = async (signal) => {
     stopDepositCronJobs(),
     stopSubscriptionCronJobs(),
     stopScheduleReminderCron(),
+    stopMorningHealthReminderCron(),
     stopContractCronJobs(),
     stopCleanupCronJobs(),
     stopF1LifecycleCron(),
+    stopAccountDeletionMediaCron(),
     sePayReconciliationJob?.stop?.() || Promise.resolve(),
   ]);
   safeLog.info("server.shutdown_started", { signal });

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { MessageCircle, Send, Star, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
 
 import { deleteRecipeReview, saveRecipeReview } from "../../services/recipe.service";
 import { useAuth } from "../../context/AuthContext";
@@ -41,14 +42,26 @@ const RecipeReviews = ({ recipeId }) => {
     onSuccess: () => {
       setDraft(null);
       queryClient.invalidateQueries({ queryKey: recipeReviewsQueryOptions(recipeId).queryKey });
+      toast.success(
+        viewerReview ? "Đã cập nhật đánh giá công thức" : "Đã gửi đánh giá công thức",
+      );
     },
+    onError: (error) =>
+      toast.error(
+        error.response?.data?.message || t("detail.reviews.save_error"),
+      ),
   });
   const deleteMutation = useMutation({
     mutationFn: () => deleteRecipeReview(recipeId),
     onSuccess: () => {
       setDraft(null);
       queryClient.invalidateQueries({ queryKey: recipeReviewsQueryOptions(recipeId).queryKey });
+      toast.success("Đã xóa đánh giá công thức");
     },
+    onError: (error) =>
+      toast.error(
+        error.response?.data?.message || "Không thể xóa đánh giá công thức",
+      ),
   });
 
   return (

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
 import {
   Package,
   FileText,
@@ -28,6 +27,8 @@ import {
   SidebarClose,
   SidebarOpen,
   RadioTower,
+  FlaskConical,
+  ArrowRightLeft,
 } from "lucide-react";
 
 const SidebarContent = ({
@@ -88,6 +89,8 @@ const SidebarContent = ({
         { path: "/admin/dashboard", label: "Lịch sử Check-in", icon: FileText },
         { path: "/admin/seo-analytics", label: "SEO & Chuyển đổi", icon: ChartNoAxesCombined },
         { path: "/admin/service-access-policies", label: "Quyền & hạn mức", icon: ShieldCheck },
+        { path: "/admin/trainer-coordination", label: "Điều phối HLV", icon: ArrowRightLeft },
+        { path: "/admin/practice-center", label: "Trung tâm thực hành", icon: FlaskConical },
         { path: "/admin/skill-radar", label: "Radar công nghệ", icon: RadioTower },
       ],
     },
@@ -306,7 +309,6 @@ const AdminLayout = () => {
           <Outlet />
         </div>
       </div>
-      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 };

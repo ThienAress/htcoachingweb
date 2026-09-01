@@ -1,16 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { toast } from "react-toastify";
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
 } from "../services/notification.service";
 
-const OPTIONS = [
+const IN_APP_OPTIONS = [
   ["inAppEnabled", "Bật thông báo trong ứng dụng"],
   ["comments", "Bình luận huấn luyện"],
   ["journal", "Nhật ký ngày"],
   ["weekly", "Báo cáo tuần"],
+];
+const EMAIL_OPTIONS = [
+  ["morningHealthEmail", "Nhắc cập nhật Mục tiêu sức khỏe mỗi sáng"],
 ];
 
 const PreferenceToggle = ({ label, checked, onChange, disabled }) => (
@@ -26,9 +30,15 @@ const PreferenceToggle = ({ label, checked, onChange, disabled }) => (
   </label>
 );
 
-export const NotificationPreferences = ({ userId, compact = false }) => {
+export const NotificationPreferences = ({
+  userId,
+  compact = false,
+  channel = "in_app",
+}) => {
   const queryClient = useQueryClient();
   const queryKey = ["notification-preferences", userId];
+  const isEmailChannel = channel === "email";
+  const options = isEmailChannel ? EMAIL_OPTIONS : IN_APP_OPTIONS;
   const [draft, setDraft] = useState(null);
   const [saved, setSaved] = useState(false);
   const query = useQuery({
@@ -45,6 +55,11 @@ export const NotificationPreferences = ({ userId, compact = false }) => {
       setDraft(next);
       setSaved(true);
       queryClient.setQueryData(queryKey, next);
+      toast.success(
+        isEmailChannel
+          ? "Đã lưu tùy chọn email"
+          : "Đã lưu tùy chọn thông báo",
+      );
     },
     onError: (error) => {
       setSaved(false);
@@ -52,6 +67,12 @@ export const NotificationPreferences = ({ userId, compact = false }) => {
         setDraft(null);
         void queryClient.invalidateQueries({ queryKey });
       }
+      toast.error(
+        error.response?.data?.message ||
+          (isEmailChannel
+            ? "Không thể lưu tùy chọn email"
+            : "Không thể lưu tùy chọn thông báo"),
+      );
     },
   });
 
@@ -65,6 +86,7 @@ export const NotificationPreferences = ({ userId, compact = false }) => {
       comments: preferences.comments,
       journal: preferences.journal,
       weekly: preferences.weekly,
+      morningHealthEmail: preferences.morningHealthEmail === true,
     });
   };
 
@@ -86,7 +108,7 @@ export const NotificationPreferences = ({ userId, compact = false }) => {
 
   return (
     <div className={compact ? "space-y-1" : "mt-4 space-y-2"}>
-      {OPTIONS.map(([key, label]) => (
+      {options.map(([key, label]) => (
         <PreferenceToggle
           key={key}
           label={label}
@@ -108,7 +130,11 @@ export const NotificationPreferences = ({ userId, compact = false }) => {
           disabled={mutation.isPending}
           className="min-h-11 rounded-lg bg-orange-500 px-4 text-sm font-bold text-slate-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-40"
         >
-          {mutation.isPending ? "Đang lưu..." : "Lưu tùy chọn"}
+          {mutation.isPending
+            ? "Đang lưu..."
+            : isEmailChannel
+              ? "Lưu tùy chọn email"
+              : "Lưu tùy chọn"}
         </button>
         <span className="text-xs text-slate-400" aria-live="polite">
           {saved

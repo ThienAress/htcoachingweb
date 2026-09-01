@@ -17,16 +17,16 @@ describe("community feature report service", () => {
     const report = buildCommunityFeatureReport({}, { now: NOW });
 
     expect(report.summary).toEqual({
-      eventCount: 7,
-      improvementCount: 7,
-      featureCount: 2,
+      eventCount: 17,
+      improvementCount: 17,
+      featureCount: 9,
       productionVerifiedCount: 2,
-      openF0Count: 0,
-      latestDate: "2026-08-12",
+      openF0Count: 1,
+      latestDate: "2026-08-29",
       statusCounts: {
         in_progress: 0,
         implemented: 5,
-        verified: 0,
+        verified: 10,
         production_verified: 2,
       },
     });
@@ -73,7 +73,38 @@ describe("community feature report service", () => {
         features: [
           ["ht_assistant", 1],
           ["meal_plan", 1],
+          ["tdee_calculator", 1],
         ],
+      },
+      {
+        date: "2026-08-18",
+        features: [["meal_scan", 1]],
+      },
+      {
+        date: "2026-08-23",
+        features: [["progress_tracking", 1]],
+      },
+      {
+        date: "2026-08-25",
+        features: [
+          ["meal_plan", 1],
+          ["today_dashboard", 1],
+        ],
+      },
+      {
+        date: "2026-08-27",
+        features: [
+          ["recipes", 1],
+          ["exercise_library", 1],
+        ],
+      },
+      {
+        date: "2026-08-28",
+        features: [["practice_center", 1]],
+      },
+      {
+        date: "2026-08-29",
+        features: [["today_dashboard", 2]],
       },
     ]);
   });

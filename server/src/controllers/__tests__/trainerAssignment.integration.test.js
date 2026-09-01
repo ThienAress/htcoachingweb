@@ -38,6 +38,9 @@ describe("GET /api/user/trainer-assignment-candidates", () => {
       email: "legacy-trainer@test.com",
     });
     const subscriber = await createTestUser({ email: "subscriber@test.com" });
+    const cancelledSubscriber = await createTestUser({
+      email: "cancelled-subscriber@test.com",
+    });
     const regularUser = await createTestUser({ email: "regular@test.com" });
     await TrainerSubscription.create({
       userId: subscriber.user._id,
@@ -51,6 +54,21 @@ describe("GET /api/user/trainer-assignment-candidates", () => {
       isActive: true,
       source: "admin_grant",
     });
+    const cancelled = await TrainerSubscription.create({
+      userId: cancelledSubscriber.user._id,
+      planTitle: "Tiêu chuẩn",
+      planCode: "standard",
+      billingCycle: "month",
+      amount: 200000,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      status: "active",
+      source: "admin_grant",
+    });
+    await TrainerSubscription.updateOne(
+      { _id: cancelled._id },
+      { $set: { status: "cancelled", isActive: true } },
+    );
 
     const response = await withAuth(
       request(app).get("/api/user/trainer-assignment-candidates?limit=100"),
@@ -64,6 +82,9 @@ describe("GET /api/user/trainer-assignment-candidates", () => {
     expect(response.body.data.trainers).toHaveLength(2);
     expect(response.body.data.trainers).not.toContainEqual(
       expect.objectContaining({ email: regularUser.user.email }),
+    );
+    expect(response.body.data.trainers).not.toContainEqual(
+      expect.objectContaining({ email: cancelledSubscriber.user.email }),
     );
   });
 

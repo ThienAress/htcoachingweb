@@ -3,6 +3,7 @@ import { Check, RefreshCw, Save } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { createSavedMealPlan } from "../../services/savedMealPlan.service";
 import {
   buildSavedMealPlanPayload,
@@ -35,9 +36,15 @@ export default function SaveCurrentMealPlanButton({
       setLocalError("");
       onSaved(generationId);
       setDialogOpen(true);
+      toast.success("Đã lưu thực đơn vào tài khoản");
       void queryClient.invalidateQueries({ queryKey });
     },
-    onError: (_error, payload) => setFailedPayload(payload),
+    onError: (error, payload) => {
+      setFailedPayload(payload);
+      toast.error(
+        error.response?.data?.message || "Không thể lưu thực đơn lúc này",
+      );
+    },
   });
 
   const runSave = () => {
@@ -62,6 +69,7 @@ export default function SaveCurrentMealPlanButton({
       command.mutate(payload);
     } catch {
       setLocalError(t("saved.invalid_generated"));
+      toast.error(t("saved.invalid_generated"));
     }
   };
 

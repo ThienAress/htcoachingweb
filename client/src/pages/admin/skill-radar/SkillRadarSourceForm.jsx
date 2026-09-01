@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from "react";
 import { CheckCircle2, Github, LoaderCircle, RotateCcw, ScanSearch } from "lucide-react";
+import { toast } from "react-toastify";
 
 import { formatRadarDate, formatRadarRunDate, getDriftMeta } from "./skillRadarPresentation";
 import {
@@ -69,9 +70,12 @@ export default function SkillRadarSourceForm({ previewMutation, createMutation, 
         setPreview(data);
         setForm(previewToForm(data));
         setRepoUrl(data.repoUrl || data.canonicalUrl || repoUrl.trim());
+        toast.success("Đã phân tích nguồn GitHub");
       },
       onError: (error) => {
-        setRequestError(getSkillRadarMutationError(error, "Không thể phân tích repository lúc này. Vui lòng thử lại."));
+        const nextError = getSkillRadarMutationError(error, "Không thể phân tích repository lúc này. Vui lòng thử lại.");
+        setRequestError(nextError);
+        toast.error(nextError.message);
       },
     });
   };
@@ -93,9 +97,12 @@ export default function SkillRadarSourceForm({ previewMutation, createMutation, 
         setPreview(null);
         setForm(null);
         setRepoUrl("");
+        toast.success(`Đã thêm ${saved.name} vào Radar công nghệ`);
       },
       onError: (error) => {
-        setRequestError(getSkillRadarMutationError(error, "Không thể lưu nguồn lúc này. Vui lòng thử lại."));
+        const nextError = getSkillRadarMutationError(error, "Không thể lưu nguồn lúc này. Vui lòng thử lại.");
+        setRequestError(nextError);
+        toast.error(nextError.message);
       },
     });
   };

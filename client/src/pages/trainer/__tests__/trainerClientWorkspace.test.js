@@ -37,8 +37,7 @@ describe("trainer client workspace presentation", () => {
 
   it("orders support work before reports and attention", () => {
     expect(TRAINER_SUPPORT_SECTION_ORDER).toEqual([
-      "wellness",
-      "habits",
+      "health_goals",
       "reports",
     ]);
   });
