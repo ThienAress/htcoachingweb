@@ -564,6 +564,11 @@ test("collector rejects a literal backslash filename on POSIX", (context) => {
     assert.equal(result.status, 0);
   };
   runGit(["init", "--quiet"]);
+  runGit(["config", "user.email", "fixture@example.com"]);
+  runGit(["config", "user.name", "Fixture"]);
+  fs.writeFileSync(path.join(root, "tracked.txt"), "baseline\n", "utf8");
+  runGit(["add", "tracked.txt"]);
+  runGit(["commit", "--quiet", "-m", "fixture"]);
   fs.writeFileSync(path.join(root, "literal\\name.txt"), "fixture\n", "utf8");
 
   assert.throws(
