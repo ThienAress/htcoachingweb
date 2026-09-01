@@ -54,6 +54,14 @@ export const validateStagingEnvironment = (env = process.env) => {
     );
   }
   if (
+    String(env.MORNING_HEALTH_REMINDER_ENABLED || "").toLowerCase() === "true"
+  ) {
+    addError(
+      "STAGING_MORNING_HEALTH_REMINDER_FORBIDDEN",
+      "Morning health reminder scheduling must remain disabled in staging.",
+    );
+  }
+  if (
     String(env.SEPAY_ENABLED || "").toLowerCase() === "true" &&
     String(env.SEPAY_MODE || "").toLowerCase() !== "sandbox"
   ) {

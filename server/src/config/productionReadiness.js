@@ -1,6 +1,8 @@
 import { resolveGeminiMealScanDataUseMode } from "./geminiMealScanDataUse.js";
 import { resolveMealScanProvider } from "./mealScanProvider.js";
 import { parseSePayCutoverAt } from "./sepay.js";
+import { getMorningHealthReminderMode } from "./backgroundJobs.js";
+import { isTodayPlatformEnabled } from "./todayPlatform.js";
 
 const PLACEHOLDER_PATTERN =
   /(change[-_ ]?me|replace[-_ ]?me|placeholder|example|your[-_ ]|test[-_ ]secret|local[-_ ]secret)/i;
@@ -520,6 +522,39 @@ export const validateProductionEnvironment = (
   validateBooleanSetting(env, findings, "BACKGROUND_JOBS_ENABLED", {
     required: true,
   });
+  validateBooleanSetting(env, findings, "MORNING_HEALTH_REMINDER_ENABLED");
+  const morningHealthReminderRequested =
+    String(env.MORNING_HEALTH_REMINDER_ENABLED || "").toLowerCase() === "true";
+  const morningHealthReminderMode = getMorningHealthReminderMode(env);
+  if (morningHealthReminderRequested) {
+    if (!isTodayPlatformEnabled(env)) {
+      addFinding(
+        findings,
+        "errors",
+        "MORNING_HEALTH_REMINDER_TODAY_PLATFORM_REQUIRED",
+        "Morning health reminders require the approved Today platform.",
+      );
+    }
+    if (
+      String(env.TODAY_JOURNAL_WRITES_ENABLED || "").toLowerCase() !== "true"
+    ) {
+      addFinding(
+        findings,
+        "errors",
+        "MORNING_HEALTH_REMINDER_JOURNAL_WRITES_REQUIRED",
+        "Morning health reminders require Today journal writes.",
+      );
+    }
+    if (String(env.EMAIL_DELIVERY_MODE || "").toLowerCase() !== "live") {
+      addFinding(
+        findings,
+        "errors",
+        "MORNING_HEALTH_REMINDER_LIVE_EMAIL_REQUIRED",
+        "Morning health reminders require EMAIL_DELIVERY_MODE=live.",
+      );
+    }
+    validateSecret(env, findings, "RESEND_API_KEY", { minimum: 20 });
+  }
   validateBooleanSetting(env, findings, "SKILL_RADAR_WORKER_ENABLED");
   if (
     String(env.SKILL_RADAR_WORKER_ENABLED || "").toLowerCase() === "true"
@@ -624,6 +659,7 @@ export const validateProductionEnvironment = (
       backgroundJobsExplicit: ["true", "false"].includes(
         String(env.BACKGROUND_JOBS_ENABLED || "").toLowerCase(),
       ),
+      morningHealthReminderEnabled: morningHealthReminderMode.enabled,
       sePayEnabled,
       sePayReconciliationEnabled,
       cspEnforced: String(env.CSP_ENFORCE || "").toLowerCase() === "true",
