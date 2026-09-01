@@ -32,6 +32,8 @@ nguồn canonical trước khi thay đổi code.
 - [Meal Plan personalization and safety spec](./specs/meal-plan-personalization-and-safety.md)
 - [Home section media management spec](./specs/home-section-media-management.md)
 - [Agent workflow modernization spec](./specs/agent-workflow-modernization.md)
+- [Agent harness reliability và Search quality spec](./specs/agent-harness-reliability-and-search-quality.md)
+- [Agent harness supervision và Search pilot spec](./specs/agent-harness-supervision-and-search-pilot.md)
 - [Upstream Skill Radar spec](./specs/upstream-skill-radar.md)
 - [Sitewide AI Assistant context and guest access spec](./specs/sitewide-ai-assistant.md)
 - [Explicit AI Memory pilot spec](./specs/ai-explicit-memory.md)

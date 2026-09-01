@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "planId": "078",
+  "specPath": "docs/specs/agent-harness-supervision-and-search-pilot.md",
+  "planPath": "docs/plans/078-build-supervised-agent-harness-and-search-pilot.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Build bounded context manifest", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Validate reusable QA evidence", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Check leases and supervised checkpoints", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Compare offline Search pilot", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Integrate review and verification", "planStep": "Step 5" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "test", "path": ".agents/scripts/context-build.test.mjs" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "test", "path": ".agents/scripts/context-build.test.mjs" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-002", "TASK-005"], "verifications": [{ "type": "test", "path": ".agents/scripts/qa-evidence-contract.test.mjs" }] },
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-002", "TASK-005"], "verifications": [{ "type": "test", "path": ".agents/scripts/qa-evidence-contract.test.mjs" }] },
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-002", "TASK-005"], "verifications": [{ "type": "command", "command": "npm run agents:validate" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": ".agents/scripts/agent-supervision-contract.test.mjs" }] },
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": ".agents/scripts/agent-supervision-contract.test.mjs" }] }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": ".agents/scripts/agent-supervision-run.test.mjs" }] },
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": ".agents/scripts/agent-supervision-run.test.mjs" }] },
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": ".agents/scripts/agent-supervision-run.test.mjs" }] }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-004", "TASK-005"], "verifications": [{ "type": "test", "path": "scripts/search-quality/pilot.test.mjs" }] },
+        { "id": "AC-012", "mustHave": true, "taskIds": ["TASK-004", "TASK-005"], "verifications": [{ "type": "test", "path": "scripts/search-quality/pilot.test.mjs" }, { "type": "command", "command": "npm run search:pilot" }] }
+      ]
+    }
+  ]
+}

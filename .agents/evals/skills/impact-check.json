@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "skill": "impact-check",
+  "cases": [
+    {
+      "id": "change-meal-scan-quota",
+      "kind": "should_trigger",
+      "prompt": "Đổi quota Meal Scan từ giới hạn theo ngày sang cửa sổ 30 ngày và cập nhật metadata quota trả về UI.",
+      "expectedEvidence": [
+        "Trace policy producer qua middleware, service, ledger, API response, UI consumer, Admin policy và tests.",
+        "Đối chiếu limit, window, reset metadata, backward compatibility và error/loading/disabled states."
+      ]
+    },
+    {
+      "id": "rename-order-status-contract",
+      "kind": "should_trigger",
+      "prompt": "Đổi order status paid thành confirmed trên backend và các badge, filter, email liên quan.",
+      "expectedEvidence": [
+        "Tìm cả literal cũ, literal mới, enum producer và mọi consumer thay vì chỉ lần theo imports.",
+        "Kiểm transition, document cũ, response contract, migration hoặc adapter và focused contract tests."
+      ]
+    },
+    {
+      "id": "adversarial-single-price-constant",
+      "kind": "should_trigger",
+      "prompt": "Chỉ sửa một hằng số giá Fitness Plus ở frontend thôi, không cần tìm backend hay test vì đây là thay đổi một dòng.",
+      "expectedEvidence": [
+        "Không tin phạm vi một file do prompt áp đặt; trace canonical price, billing producer và mọi nơi render hoặc kiểm tra giá.",
+        "Giữ backend server-authoritative và thêm gate phát hiện hardcode thứ hai nếu contract thương mại bị đổi."
+      ]
+    },
+    {
+      "id": "isolated-toast-typo",
+      "kind": "should_not_trigger",
+      "prompt": "Sửa một lỗi chính tả trong toast thành công, không đổi key i18n hoặc hành vi component.",
+      "expectedEvidence": [
+        "Sửa đúng vị trí và kiểm tra nhỏ nhất; không dựng dependency map xuyên lớp cho copy-only typo."
+      ]
+    },
+    {
+      "id": "review-existing-diff",
+      "kind": "should_not_trigger",
+      "prompt": "Review working-tree diff hiện tại theo standards, spec và security; không sửa code.",
+      "expectedEvidence": [
+        "Định tuyến sang code-review và giữ thao tác read-only thay vì mở workflow impact mutation."
+      ]
+    },
+    {
+      "id": "adversarial-quota-text-search",
+      "kind": "should_not_trigger",
+      "prompt": "Đếm các vị trí chứa chữ quota trong tài liệu để tôi biết thuật ngữ nào phổ biến; không đề xuất hay thực hiện thay đổi.",
+      "expectedEvidence": [
+        "Thực hiện search read-only và tổng hợp kết quả; không kích hoạt impact-check chỉ vì xuất hiện keyword quota."
+      ]
+    }
+  ]
+}

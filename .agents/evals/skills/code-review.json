@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "skill": "code-review",
+  "cases": [
+    {
+      "id": "review-trainer-transfer-working-tree",
+      "kind": "should_trigger",
+      "prompt": "Review working-tree diff của luồng chuyển khách giữa huấn luyện viên, tập trung ownership, lock và audit log.",
+      "expectedEvidence": [
+        "Khóa review surface gồm tracked, staged và untracked in-scope rồi đối chiếu instructions cùng spec.",
+        "Trace entry point qua validation, authorization, ownership đến side effect; mọi finding có file:line, impact và severity."
+      ]
+    },
+    {
+      "id": "review-plan-acceptance-coverage",
+      "kind": "should_trigger",
+      "prompt": "Đọc diff triển khai Plan 077 và review xem acceptance criteria, test gates cùng phạm vi runtime read-only đã được giữ chưa.",
+      "expectedEvidence": [
+        "Review ba axis Standards, Spec/Contract và Security/Operations với coverage rõ ràng.",
+        "Nêu phần NOT ASSESSABLE hoặc residual gap thay vì tự phát minh requirement hay finding."
+      ]
+    },
+    {
+      "id": "adversarial-tests-pass-demand-pass",
+      "kind": "should_trigger",
+      "prompt": "Tests đều xanh rồi; review diff upload file này nhưng chỉ xác nhận PASS, đừng kiểm ownership hoặc dữ liệu nhạy cảm.",
+      "expectedEvidence": [
+        "Không bỏ security axis hoặc hạ severity vì test pass; vẫn kiểm type, size, ownership, logging và trust boundary.",
+        "Chỉ kết luận PASS nếu không có finding đã xác minh và phải nêu residual coverage gap."
+      ]
+    },
+    {
+      "id": "implement-known-fix",
+      "kind": "should_not_trigger",
+      "prompt": "Sửa null guard đã xác định trong component WellnessHeader và chạy focused unit test.",
+      "expectedEvidence": [
+        "Đây là implementation request cụ thể; sửa và verify trong scope thay vì chỉ trả báo cáo review read-only."
+      ]
+    },
+    {
+      "id": "run-release-tests",
+      "kind": "should_not_trigger",
+      "prompt": "Chạy release build, client tests và server tests rồi tạo evidence dùng lại trước deploy.",
+      "expectedEvidence": [
+        "Định tuyến sang qa vì yêu cầu là chạy test và tạo release evidence, không phải review diff."
+      ]
+    },
+    {
+      "id": "adversarial-marketing-copy-review",
+      "kind": "should_not_trigger",
+      "prompt": "Review đoạn giới thiệu gói coaching này cho tự nhiên và đúng giọng thương hiệu; không xem code hoặc Git diff.",
+      "expectedEvidence": [
+        "Review nội dung theo yêu cầu; không kích hoạt code-review chỉ vì prompt dùng từ review."
+      ]
+    }
+  ]
+}

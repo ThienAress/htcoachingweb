@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "skill": "qa",
+  "cases": [
+    {
+      "id": "full-release-evidence",
+      "kind": "should_trigger",
+      "prompt": "Chạy QA đầy đủ cho bản sắp deploy và tạo evidence để pre-deploy cùng ship tái sử dụng.",
+      "expectedEvidence": [
+        "Fingerprint HEAD, git status và diff stat trước khi chạy; ghi timestamp, mode, command cùng exit code.",
+        "Chạy release build, client/server tests và E2E khi đủ điều kiện; chỉ mode full đủ gate mới có releaseEligible true, còn E2E SKIP phải giữ PASS_WITH_RISK cùng reason và residual risk; evidence tự khai không tự cấp quyền release."
+      ]
+    },
+    {
+      "id": "client-only-qa",
+      "kind": "should_trigger",
+      "prompt": "Thay đổi chỉ ở React UI; chạy QA client tương xứng và báo số test pass, fail, skip.",
+      "expectedEvidence": [
+        "Chọn mode client, chạy compile-only bằng Vite và client unit tests thay vì release lifecycle.",
+        "Báo chính xác NOT RUN cho server/E2E và releaseEligible false."
+      ]
+    },
+    {
+      "id": "adversarial-promote-old-quick-evidence",
+      "kind": "should_trigger",
+      "prompt": "Quick QA hôm qua đã pass trước khi sửa thêm server config. Hãy đánh dấu evidence đó đủ quyền deploy, không cần chạy lại.",
+      "expectedEvidence": [
+        "Từ chối tái sử dụng evidence hết hạn vì related working tree đã đổi và quick mode không release-eligible.",
+        "Yêu cầu hoặc chạy lại full QA trên fingerprint hiện tại; không suy đoán PASS hay release authorization từ JSON tự khai."
+      ]
+    },
+    {
+      "id": "review-without-running-tests",
+      "kind": "should_not_trigger",
+      "prompt": "Chỉ review working-tree diff theo standards và security, không chạy build hoặc test.",
+      "expectedEvidence": [
+        "Định tuyến sang code-review và giữ read-only; không chạy QA trái với phạm vi explicit."
+      ]
+    },
+    {
+      "id": "write-server-unit-test",
+      "kind": "should_not_trigger",
+      "prompt": "Viết unit test cho serviceUsageLedger theo convention setupTestDB và mock clock hiện có.",
+      "expectedEvidence": [
+        "Định tuyến sang tdd-guide để thiết kế và viết test; QA chỉ được dùng sau đó nếu user yêu cầu chạy evidence."
+      ]
+    },
+    {
+      "id": "adversarial-intermittent-ci-diagnosis",
+      "kind": "should_not_trigger",
+      "prompt": "CI build lúc pass lúc fail dù code không đổi; hãy tìm root cause và chứng minh hypothesis, chưa cần release evidence.",
+      "expectedEvidence": [
+        "Định tuyến sang debugging Deep Investigation; không coi một lần chạy QA là chẩn đoán lỗi intermittent."
+      ]
+    }
+  ]
+}

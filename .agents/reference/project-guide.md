@@ -594,43 +594,21 @@ Mỗi trang public PHẢI có **internal links đến ≥2 trang public khác**:
 
 ## 14. Testing Conventions
 
-> Project có **160 tests** chạy qua 3 layers: Unit, Integration, E2E.
+Không ghi tổng số test hoặc snapshot file trong reference này. Inventory hiện tại được
+sinh deterministic từ repository:
 
-### Test Stack Hiện Tại
-
-| Layer | Tool | Files | Tests |
-|-------|------|:-----:|:-----:|
-| **Unit (FE)** | Vitest | 3 | 80 |
-| **Unit (BE)** | Vitest | 2 | 17 |
-| **Integration (BE)** | Vitest + Supertest + mongodb-memory-server | 3 | 35 |
-| **E2E** | Playwright (Chromium) | 3 | 28 |
-
-### Cấu Trúc Test Files
-
+```bash
+npm run agents:inventory          # cập nhật artifact generated khi inventory đổi
+npm run agents:inventory:check    # fail nếu artifact stale
 ```
-client/src/
-├── utils/
-│   └── __tests__/
-│       ├── date.test.js              ← UTC ↔ Local conversion
-│       ├── assessment.helpers.test.js ← Đánh giá thể chất
-│       └── foodCategory.test.js       ← Meal plan logic
 
-server/src/
-├── __tests__/
-│   └── setup.js                       ← Test infrastructure (DB, helpers)
-├── controllers/
-│   └── __tests__/
-│       ├── auth.controller.test.js    ← Unit: sanitize, cookies
-│       ├── deposit.controller.test.js ← Unit: generateDepositCode
-│       └── deposit.integration.test.js ← Integration: full deposit flow
-└── middlewares/
-    └── __tests__/
-        ├── auth.middleware.test.js     ← Integration: JWT + role check
-        └── csrf.test.js               ← Integration: CSRF validation
+Artifact machine-readable: [project-inventory.json](./project-inventory.json).
+Inventory tính skill/eval từ candidate governance hiện tại; test và server module từ
+Git index để file scratch/untracked của task khác không làm artifact landing bị stale.
+Tìm exemplar gần domain bằng:
 
-e2e/                                    ← Playwright E2E (root level)
-├── homepage.spec.js
-└── public-pages.spec.js
+```bash
+rg --files client/src server/src e2e | rg "(test|spec)\.(js|jsx|ts|tsx)$"
 ```
 
 ### Chạy Tests
@@ -662,6 +640,9 @@ cd server && npx vitest
 | **No test-only code** | KHÔNG thêm methods/exports vào production code chỉ để phục vụ test |
 | **Assertion** | Mỗi test PHẢI có ít nhất 1 assertion rõ ràng |
 | **Coverage** | Ưu tiên: `utils > middleware > controllers > services > components` |
+
+Workflow, helper và pattern test canonical nằm trong
+[TDD Guide](../skills/tdd-guide/SKILL.md); reference này không lặp lại inventory mutable.
 
 ### TDD Workflow Cho Feature Mới
 
@@ -701,66 +682,12 @@ cd server && npx vitest
 
 ## 16. Tham Chiếu Skills Chi Tiết
 
-Agent phải tham chiếu quy tắc chi tiết trong `.agents/`:
+Rules canonical nằm trong `AGENTS.md` và `.agents/rules/`. Skill routing, invocation
+mode và flow hiện hành chỉ được duy trì tại
+[agent-workflow-map.md](./agent-workflow-map.md); không nhân bản catalog vào guide này.
 
-### Rules (Luật cứng — AI PHẢI tuân thủ)
-
-- [Tech & Patterns](../rules/code/tech_patterns.md) — Mandatory patterns, code style, naming conventions
-- [Anti-Patterns](../rules/code/anti_patterns.md) — Bảng ❌/✅ những gì KHÔNG được làm
-- [Security](../rules/security/security.md) — Auth flow, CSRF, JWT, lệnh CẤM
-- [SEO](../rules/seo/seo.md) — SEO component, JSON-LD, sitemap, prerender, URL slug
-
-### Skills (Kỹ năng — Kích hoạt khi cần)
-
-**Quy trình và chất lượng:**
-- [Feature Spec](../skills/feature-spec/SKILL.md) — Viết spec trước khi code feature lớn
-- [Plan Template](../skills/plan-template/SKILL.md) — Implementation plan cho task phức tạp
-- [Debugging](../skills/debugging/SKILL.md) — Debug có hệ thống
-- [Cleanup & Delivery](../skills/cleanup-delivery/SKILL.md) — Checklist trước khi deliver
-- [TDD Guide](../skills/tdd-guide/SKILL.md) — Quy tắc viết test
-- [Audit Playbook](../skills/audit-playbook/SKILL.md) — Audit 7 danh mục với evidence
-- [UI Quality](../skills/ui-quality/SKILL.md) — UI, accessibility và anti-slop
-- [Known Issues](../skills/known-issues/SKILL.md) — Vấn đề by-design
-- [PDF Generation](../skills/pdf-generation/SKILL.md) — PDF, font Việt và GridFS
-
-### Workflow skills (gọi bằng `$skill-name`)
-
-- [$audit](../skills/audit/SKILL.md) — Audit codebase, findings, plan và backlog reconcile
-- [$ship](../skills/ship/SKILL.md) — Pre-deploy gate
-- [$seo-check](../skills/seo-check/SKILL.md) — Kiểm tra SEO toàn bộ public pages
-- [$new-page](../skills/new-page/SKILL.md) — Thêm public page đầy đủ SEO
-- [$schema-change](../skills/schema-change/SKILL.md) — Thay đổi Mongoose schema an toàn
-- [$ui-check](../skills/ui-check/SKILL.md) — Audit chất lượng UI
-- [$pre-deploy](../skills/pre-deploy/SKILL.md) — Full pipeline trước push/deploy
-- [$qa](../skills/qa/SKILL.md), [$ai-check](../skills/ai-check/SKILL.md), [$new-tool](../skills/new-tool/SKILL.md), [$goad](../skills/goad/SKILL.md)
-
-### Skill Routing — AI dùng skill/workflow nào khi nào
-
-| Tình huống | Skill / Workflow kích hoạt |
-|------------|--------------------------|
-| Muốn quét toàn bộ codebase tìm bugs/security/perf | `$audit` skill |
-| Quét nhanh trước push feature lớn | `$audit quick` |
-| Chỉ quét 1 danh mục (security, perf, tests...) | `$audit <category>` |
-| Cần viết plan chi tiết cho task phức tạp/refactor | `plan-template` skill |
-| Check lại backlog plans (done/blocked/drifted) | `$audit reconcile` |
-| Trước khi code feature mới/lớn hoặc yêu cầu chưa rõ | `feature-spec` skill |
-| Gặp bug, lỗi không rõ nguyên nhân | `debugging` skill |
-| Trước khi deliver / báo cáo task hoàn thành | `cleanup-delivery` skill |
-| Hỏi về test structure hoặc cần setup test | `tdd-guide` skill |
-| Làm việc với file lớn hoặc code có workaround | `known-issues` skill |
-| Trước khi deploy lên Netlify/Render | `$ship` skill |
-| Kiểm tra SEO trang public trước deploy | `$seo-check` skill |
-| Thêm trang public mới cần SEO | `$new-page` skill |
-| Thay đổi Mongoose schema | `$schema-change` skill |
-| Code component UI mới hoặc sửa giao diện | `ui-quality` skill |
-| Quét chất lượng UI toàn bộ hoặc 1 surface | `$ui-check` skill |
-| Quét UI chỉ Brand surfaces (landing, public) | `$ui-check public` |
-| Quét UI chỉ Product surfaces (admin, trainer) | `$ui-check admin` |
-| Làm việc với **e-contract** (hợp đồng, ký, contract) | `pdf-generation` skill → đọc trước khi code |
-| Tạo/sinh/xuất **file PDF** (hợp đồng, báo cáo, hóa đơn) | `pdf-generation` skill |
-| **Full pipeline trước push/deploy** | **`$pre-deploy` skill** |
-| Full pipeline nhưng bỏ qua audit | `$pre-deploy skip-audit` |
-| Full pipeline nhưng bỏ qua UI (chỉ sửa BE) | `$pre-deploy skip-ui` |
+Inventory skill/eval hiện tại lấy từ [project-inventory.json](./project-inventory.json)
+và được `npm run agents:validate` kiểm tra drift.
 
 ---
 

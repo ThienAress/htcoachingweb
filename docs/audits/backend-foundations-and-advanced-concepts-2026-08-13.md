@@ -3,7 +3,7 @@
 ## Phạm vi và kết luận
 
 - **Target**: `staging` tại `4a5897a3d773668e6f69e729deb3b4eef59b28aa` cộng working tree P0/P1 AI đang phát triển.
-- **Nguồn đối chiếu**: `C:/Users/Admin/Desktop/10_video_backend.txt`, 10 backend concepts và các nhóm nâng cao.
+- **Nguồn đối chiếu**: file phân tích local do user cung cấp (đường dẫn máy cá nhân đã redact), 10 backend concepts và các nhóm nâng cao.
 - **Đã audit**: Express routes/controllers/services/models, security/operations, AI provider/tool/RAG, tests và runbooks liên quan.
 - **Ngoài phạm vi**: benchmark dữ liệu production, Atlas/Render/Netlify live configuration, paid external scan, migration/index apply, deploy, backup/restore và mọi production write/delete.
 

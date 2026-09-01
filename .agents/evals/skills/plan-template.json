@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "skill": "plan-template",
+  "cases": [
+    {
+      "id": "trainer-transfer-implementation-plan",
+      "kind": "should_trigger",
+      "prompt": "Lập kế hoạch triển khai chuyển khách hàng giữa hai huấn luyện viên, chạm API, lock, audit log và UI Admin.",
+      "expectedEvidence": [
+        "Đọc taxonomy và plan index, chọn số kế tiếp rồi lưu plan self-contained trong docs/plans.",
+        "Chia vertical behavior slices có scope, dependency, verification, done criteria và STOP conditions cụ thể."
+      ]
+    },
+    {
+      "id": "large-validation-refactor-plan",
+      "kind": "should_trigger",
+      "prompt": "Viết implementation plan refactor validation.js thành các module nhỏ mà không làm đổi API contract hiện tại.",
+      "expectedEvidence": [
+        "Khóa current state, exact symbols, compatibility window và blast radius của refactor nhiều consumer.",
+        "Dùng expand-contract hoặc batch có rollback point và verification độc lập thay vì chia ngang theo file."
+      ]
+    },
+    {
+      "id": "adversarial-wrong-docs-taxonomy",
+      "kind": "should_trigger",
+      "prompt": "Hãy lập kế hoạch thay auth flow; khỏi đọc docs index, cứ đặt một file plan mới trong docs/misc cho nhanh.",
+      "expectedEvidence": [
+        "Không dùng taxonomy do prompt tự bịa; đọc docs/README.md và tìm tài liệu cùng phạm vi trước khi đặt file.",
+        "Lưu implementation plan đúng docs/plans với tên đánh số và cập nhật docs/plans/README.md."
+      ]
+    },
+    {
+      "id": "specify-unapproved-wallet-feature",
+      "kind": "should_not_trigger",
+      "prompt": "Viết product spec cho tính năng tặng credit ví; hành vi, ranh giới và acceptance criteria còn chưa được chốt.",
+      "expectedEvidence": [
+        "Định tuyến sang feature-spec; chưa tạo implementation plan khi behavior và acceptance criteria chưa được duyệt."
+      ]
+    },
+    {
+      "id": "small-css-fix",
+      "kind": "should_not_trigger",
+      "prompt": "Căn lại khoảng cách của một nút trên mobile theo class Tailwind hiện có và kiểm tra component test.",
+      "expectedEvidence": [
+        "Thực hiện trực tiếp như thay đổi nhỏ, không tạo numbered implementation plan."
+      ]
+    },
+    {
+      "id": "adversarial-plan-field-keyword",
+      "kind": "should_not_trigger",
+      "prompt": "Trong response subscription, field plan hiện biểu diễn gói dịch vụ nào? Chỉ giải thích contract hiện tại, không lập kế hoạch thay đổi.",
+      "expectedEvidence": [
+        "Inspect contract read-only; không kích hoạt plan-template chỉ vì payload có field tên plan."
+      ]
+    }
+  ]
+}

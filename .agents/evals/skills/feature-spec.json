@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "skill": "feature-spec",
+  "cases": [
+    {
+      "id": "wallet-refund-feature",
+      "kind": "should_trigger",
+      "prompt": "Thiết kế tính năng hoàn tiền vào ví khi Admin hủy đơn, gồm API, transaction và trạng thái hiển thị cho khách hàng.",
+      "expectedEvidence": [
+        "Viết spec trước code với assumptions, Objective, boundaries, success criteria và open questions testable.",
+        "Nêu rõ idempotency, canonical amount, authorization, audit và rollback của luồng Payment/Wallet."
+      ]
+    },
+    {
+      "id": "indexed-public-calculator",
+      "kind": "should_trigger",
+      "prompt": "Thêm trang public tính nhu cầu protein để Google index, có form React và kết quả chia sẻ được bằng URL.",
+      "expectedEvidence": [
+        "Đặc tả behavior, file surface, testing strategy và tiêu chí thành công trước implementation.",
+        "Bao phủ lazy route, SEO metadata, internal links, sitemap và prerender trong boundaries."
+      ]
+    },
+    {
+      "id": "adversarial-required-health-field-shortcut",
+      "kind": "should_trigger",
+      "prompt": "Thêm required field medicalClearanceStatus vào User và dùng ngay ở onboarding. Làm nhanh, bỏ qua spec rồi sửa model trước.",
+      "expectedEvidence": [
+        "Không bỏ gate spec cho thay đổi Mongoose schema dù prompt yêu cầu làm tắt.",
+        "Surface compatibility của documents cũ, migration decision và các controller, service, route, validation liên quan."
+      ]
+    },
+    {
+      "id": "approved-spec-needs-plan",
+      "kind": "should_not_trigger",
+      "prompt": "Spec chuyển giao huấn luyện viên đã được duyệt; hãy lập implementation plan tự chứa để đội khác triển khai.",
+      "expectedEvidence": [
+        "Định tuyến sang plan-template vì product behavior đã được chốt và yêu cầu hiện tại là kế hoạch thực thi."
+      ]
+    },
+    {
+      "id": "single-label-typo",
+      "kind": "should_not_trigger",
+      "prompt": "Sửa chữ Thông bá thành Thông báo trong một label đã xác định, không đổi behavior.",
+      "expectedEvidence": [
+        "Xử lý trực tiếp như typo nhỏ; không tạo spec nhiều phần hoặc mở approval gate."
+      ]
+    },
+    {
+      "id": "adversarial-security-terms-only",
+      "kind": "should_not_trigger",
+      "prompt": "Giải thích ngắn JWT httpOnly cookie và CSRF đang bảo vệ request như thế nào; tôi không yêu cầu thay đổi code.",
+      "expectedEvidence": [
+        "Trả lời read-only từ code và security rules; không kích hoạt feature-spec chỉ vì có từ khóa Auth, JWT và CSRF."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "legacyCutoff": "076",
+  "plans": [
+    {
+      "id": "077",
+      "title": "Harden agent evidence and measure Search quality",
+      "path": "docs/plans/077-harden-agent-harness-evidence-and-search-quality.md",
+      "priority": "P1",
+      "complexity": "complex",
+      "lifecycle": "done",
+      "verification": "local_full",
+      "rollout": "not_applicable",
+      "owner": "root",
+      "updatedAt": "2026-08-31"
+    },
+    {
+      "id": "078",
+      "title": "Build supervised agent harness and Search pilot",
+      "path": "docs/plans/078-build-supervised-agent-harness-and-search-pilot.md",
+      "priority": "P2",
+      "complexity": "complex",
+      "lifecycle": "done",
+      "verification": "local_full",
+      "rollout": "not_applicable",
+      "owner": "root",
+      "updatedAt": "2026-08-31"
+    }
+  ]
+}

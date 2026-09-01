@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "basis": {
+    "agentGovernance": "working_tree_candidates",
+    "productSurfaces": "git_index"
+  },
+  "skills": 29,
+  "evalCorpora": 10,
+  "evalScenarios": 52,
+  "testFiles": {
+    "client": 119,
+    "server": 193,
+    "e2e": 24
+  },
+  "serverModules": {
+    "models": 70,
+    "controllers": 57,
+    "routes": 48
+  }
+}

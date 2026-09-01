@@ -5,12 +5,12 @@
 ## 1. Boi canh du an
 
 - Repository: `ThienAress/htcoachingweb`.
-- Workspace local: `D:\htcoachingweb`.
+- Workspace local: duong dan cu the da duoc redact khoi tai lieu ban giao.
 - Frontend: React 19, Vite, deploy tren Netlify.
 - Backend: Express 5, Mongoose/MongoDB, deploy tren Render.
 - Database production: MongoDB Atlas.
 - Quy trinh trien khai: phat trien va kiem tra tren `staging`, sau do merge/push sang `main`.
-- Chu du an lam solo; email quan ly du an: `hoangthiengym99@gmail.com`.
+- Chu du an lam solo; email quan ly da duoc redact khoi tai lieu ban giao.
 
 ## 2. Muc tieu audit ban dau
 
