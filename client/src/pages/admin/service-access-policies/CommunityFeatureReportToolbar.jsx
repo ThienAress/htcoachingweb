@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { FileDown, RefreshCw } from "lucide-react";
+import { toast } from "react-toastify";
 
 import { communityFeatureReportQueryOptions } from "../../../queries/serviceAccessPolicy.queries";
 import { downloadCommunityFeatureReportPdf } from "../../../services/serviceAccessPolicy.service";
@@ -56,7 +57,12 @@ export default function CommunityFeatureReportToolbar({
     onSuccess: (response) => {
       const range = from && to ? `${from}-den-${to}` : "toan-bo-lich-su";
       downloadBlob(response, `bao-cao-cai-tien-${range}.pdf`);
+      toast.success("Đã tạo báo cáo cải tiến PDF");
     },
+    onError: (error) =>
+      toast.error(
+        error.response?.data?.message || "Không thể tải báo cáo PDF",
+      ),
   });
   const summary = reportQuery.data?.summary;
   const statuses = Array.isArray(catalog?.reportOptions?.statuses)

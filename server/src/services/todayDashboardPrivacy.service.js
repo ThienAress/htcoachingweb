@@ -6,6 +6,7 @@ import CoachingHabit from "../models/CoachingHabit.js";
 import DailyJournal from "../models/DailyJournal.js";
 import DailyJournalRevision from "../models/DailyJournalRevision.js";
 import InAppNotification from "../models/InAppNotification.js";
+import MorningHealthReminderDelivery from "../models/MorningHealthReminderDelivery.js";
 import NotificationPreference from "../models/NotificationPreference.js";
 import SavedMealPlan from "../models/SavedMealPlan.js";
 import WeeklyCheckin from "../models/WeeklyCheckin.js";
@@ -42,6 +43,11 @@ const deleteDashboardCollections = async ({
     [
       "notificationPreferences",
       NotificationPreference,
+      { recipientId: clientId },
+    ],
+    [
+      "morningHealthReminderDeliveries",
+      MorningHealthReminderDelivery,
       { recipientId: clientId },
     ],
   ];

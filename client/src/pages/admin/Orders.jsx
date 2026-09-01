@@ -7,7 +7,7 @@ import { z } from "zod";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invalidateByKey } from "../../queries/invalidation";
 import { adminQueryKeys } from "../../queries/queryKeys";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   Search,
@@ -92,6 +92,7 @@ const Orders = ({ embedded = false }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editingStatus, setEditingStatus] = useState(null);
+  const [editingTrainerId, setEditingTrainerId] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [createdContractOrderIds, setCreatedContractOrderIds] = useState(new Set());
@@ -183,6 +184,7 @@ const Orders = ({ embedded = false }) => {
     });
     setEditingId(null);
     setEditingStatus(null);
+    setEditingTrainerId(null);
     setShowModal(false);
   }, [reset]);
 
@@ -292,6 +294,7 @@ const Orders = ({ embedded = false }) => {
       setValue("originId", "");
       setEditingId(order._id);
       setEditingStatus(order.status);
+      setEditingTrainerId(order.trainerId?._id || order.trainerId || null);
       setShowModal(true);
     },
     [setValue],
@@ -334,7 +337,6 @@ const Orders = ({ embedded = false }) => {
           embedded ? "bg-gray-50" : "min-h-screen bg-gray-50 p-4 md:p-6"
         }
       >
-        <ToastContainer position="top-right" autoClose={3000} />
 
         {/* Header */}
         <div className="mb-6">
@@ -860,7 +862,7 @@ const Orders = ({ embedded = false }) => {
                       id="order-trainer"
                       {...register("trainerId")}
                       className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3 py-2"
-                      disabled={trainersLoading || trainersError}
+                      disabled={Boolean(editingId && editingTrainerId) || trainersLoading || trainersError}
                     >
                       <option value="">-- Không có trainer --</option>
                       {trainers.map((t) => (
@@ -869,6 +871,12 @@ const Orders = ({ embedded = false }) => {
                         </option>
                       ))}
                     </select>
+                    {editingId && editingTrainerId && (
+                      <p className="mt-2 text-xs text-amber-700">
+                        Đổi HLV được thực hiện tại mục Điều phối HLV để có bước
+                        xem trước và nhật ký chuyển giao.
+                      </p>
+                    )}
                     {trainersError && (
                       <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
                         <span>Không thể tải danh sách HLV.</span>

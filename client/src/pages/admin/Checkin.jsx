@@ -9,7 +9,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import {
@@ -234,7 +234,6 @@ const Checkin = () => {
   return (
     <>
       <SEO title="Check-in khách hàng" noindex />
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
       <phantom-ui loading={isLoading || undefined}>
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white py-12 px-4 md:px-6">
           <div className="container-custom space-y-6">

@@ -17,7 +17,7 @@ import {
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invalidateByKey } from "../../queries/invalidation";
 import { adminQueryKeys } from "../../queries/queryKeys";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   getCheckins,
@@ -159,7 +159,6 @@ const CheckinHistory = () => {
   return (
     <phantom-ui loading={isLoading || undefined}>
     <div className="space-y-4 md:space-y-6 h-full">
-      <ToastContainer position="top-right" autoClose={3000} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-fluid-xl font-bold text-slate-800 flex items-center gap-2 uppercase">

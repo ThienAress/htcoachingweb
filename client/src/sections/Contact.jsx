@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { MapPin, Phone, Mail, Clock, CheckCircle } from "lucide-react";
 import { sendContactMessage } from "../services/contact.service";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { trackAnalyticsEventOnce } from "../utils/analytics";
 import { getPublicAttribution } from "../utils/publicAttribution";

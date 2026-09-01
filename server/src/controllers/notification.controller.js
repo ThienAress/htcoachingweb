@@ -85,6 +85,9 @@ export const updateMyNotificationPreference = async (req, res) => {
         comments: req.body.comments,
         journal: req.body.journal,
         weekly: req.body.weekly,
+        ...(req.body.morningHealthEmail !== undefined
+          ? { morningHealthEmail: req.body.morningHealthEmail }
+          : {}),
       },
     });
     return res.json({ success: true, data });

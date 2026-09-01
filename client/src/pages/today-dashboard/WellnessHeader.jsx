@@ -10,9 +10,9 @@ const saveLabel = {
 export const WellnessHeader = ({ saveState, submitted = false }) => (
   <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
     <div>
-      <h2 className="text-xl font-bold text-white sm:text-2xl">
+      <h3 className="text-xl font-bold text-white sm:text-2xl">
         Sức khỏe hôm nay
-      </h2>
+      </h3>
       <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-400">
         Điền các chỉ số phù hợp rồi nhấn gửi một lần. Dữ liệu chỉ xuất hiện
         trong Tiến trình sau khi gửi nhật ký ngày.

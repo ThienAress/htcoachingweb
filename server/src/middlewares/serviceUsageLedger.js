@@ -7,6 +7,12 @@ import {
 } from "../services/serviceUsageLedger.service.js";
 
 const limitedResponse = (serviceKey, { authenticated, tier }) => {
+  if (serviceKey === "practice_email") {
+    return {
+      code: "PRACTICE_EMAIL_QUOTA_EXCEEDED",
+      message: "Bạn đã dùng hết lượt mô phỏng trong 24 giờ. Vui lòng thử lại sau.",
+    };
+  }
   if (serviceKey === "ai_chat") {
     return authenticated
       ? {
@@ -36,22 +42,35 @@ const limitedResponse = (serviceKey, { authenticated, tier }) => {
       };
 };
 
-export const enforceSharedServiceUsage = (serviceKey) => async (req, res, next) => {
+export const enforceSharedServiceUsage = (serviceKey, options = {}) => async (req, res, next) => {
   try {
     const { tier, policy } = await resolveRequestServicePolicy(req, serviceKey);
     const operationKey =
-      serviceKey === "ai_chat"
+      typeof options.resolveOperationKey === "function"
+        ? options.resolveOperationKey(req)
+        : serviceKey === "ai_chat"
         ? req.aiChatRequest?.value?.requestId || req.body?.requestId
         : undefined;
+    const cost =
+      typeof options.resolveCost === "function" ? options.resolveCost(req) : 1;
     const usage = await consumeServiceUsage({
       serviceKey,
       tier,
       policy,
       actor: resolveServiceUsageActor(req),
       operationKey,
+      cost,
     });
     req.serviceUsageQuota = usage.quota;
     if (usage.allowed) {
+      if (options.rejectReplay && !usage.consumed) {
+        return res.status(409).json({
+          success: false,
+          code: "SERVICE_USAGE_REQUEST_REPLAYED",
+          message: "Yêu cầu này đã được xử lý. Vui lòng tạo yêu cầu mới.",
+          meta: { quota: usage.quota },
+        });
+      }
       let reservation = usage.consumed ? usage.reservation : null;
       req.refundServiceUsage = async () => {
         if (!reservation) return req.serviceUsageQuota;

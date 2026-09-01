@@ -14,12 +14,21 @@ export const submitFeedback = (dateString, feedback, signal) =>
   api.put(`/coaching/my-plans/${dateString}/feedback`, feedback, { signal });
 
 // 3.b Khách hàng tải lên video phản hồi cho một bài tập cụ thể
-export const uploadClientFeedbackVideo = (formData) =>
-  api.post("/coaching/my-plans/upload-feedback-video", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
+export const uploadClientFeedbackVideo = (dateString, exerciseId, formData) =>
+  api.post(
+    `/coaching/my-plans/${dateString}/exercises/${exerciseId}/feedback-video`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     },
-  });
+  );
+
+export const removeClientFeedbackVideo = (dateString, exerciseId) =>
+  api.delete(
+    `/coaching/my-plans/${dateString}/exercises/${exerciseId}/feedback-video`,
+  );
 
 // ================= HUẤN LUYỆN VIÊN (TRAINER) =================
 

@@ -17,9 +17,8 @@ import {
   TrainerWeeklyReview,
 } from "../TrainerWeeklyReview";
 import { TrainerAttentionPanel } from "../TrainerAttentionPanel";
-import { TrainerHabitManager } from "../TrainerHabitManager";
+import { TrainerHealthGoalsSection } from "../TrainerHealthGoalsSection";
 import { TrainerSupportReminder } from "../TrainerClientWorkspace";
-import { TrainerWellnessTargetCard } from "../TrainerWellnessTargetCard";
 
 const renderWithQueryClient = (node) => {
   const queryClient = new QueryClient({
@@ -47,25 +46,21 @@ describe("TrainerJournalSummary", () => {
   it("shows the daily report reminder immediately in the support tab", () => {
     const html = renderToStaticMarkup(<TrainerSupportReminder />);
 
-    expect(html).toContain("Nhớ kiểm tra báo cáo từ khách hàng mỗi ngày bạn nhé");
+    expect(html).toContain("Báo cáo từ khách hàng rất quan trọng");
+    expect(html).toContain("kiểm tra mỗi ngày");
     expect(html).toContain('role="note"');
   });
 
-  it("uses the customer-report heading scale for targets and habits", () => {
-    const targetHtml = renderWithQueryClient(
-      <TrainerWellnessTargetCard clientId="client-1" />,
-    );
-    const habitHtml = renderWithQueryClient(
-      <TrainerHabitManager clientId="client-1" dateKey="2026-08-26" />,
+  it("groups targets and customer habits under one health section", () => {
+    const html = renderWithQueryClient(
+      <TrainerHealthGoalsSection clientId="client-1" dateKey="2026-08-26" />,
     );
 
-    for (const html of [targetHtml, habitHtml]) {
-      expect(html).toContain("text-2xl");
-      expect(html).toContain("sm:text-3xl");
-      expect(html).toContain("h-6 w-6");
-    }
-    expect(targetHtml).toContain("Đặt mục tiêu và gửi cho khách hàng");
-    expect(targetHtml).not.toContain("Đặt mục tiêu tham chiếu");
+    expect(html).toContain("Mục tiêu sức khỏe");
+    expect(html).toContain("Chỉ số mục tiêu");
+    expect(html).toContain("Thói quen khách hàng");
+    expect(html).toContain("Đặt mục tiêu và gửi cho khách hàng");
+    expect(html).not.toContain("Thói quen hằng ngày");
   });
 
   it("exposes the journal anchor and only the shared note", () => {

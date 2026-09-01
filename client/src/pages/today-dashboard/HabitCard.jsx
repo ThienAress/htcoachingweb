@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Flame, RefreshCw, SkipForward } from "lucide-react";
 import { useState } from "react";
+import { toast } from "react-toastify";
 import {
   correctDailyJournal,
   saveDailyJournal,
@@ -121,16 +122,22 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
       kind === "create"
         ? createMyCoachingHabit(payload)
         : changeCoachingHabitStatus(habitId, payload),
-    onSuccess: () => {
-      setNotice("Đã cập nhật thói quen.");
+    onSuccess: (_response, variables) => {
+      const successMessage =
+        variables.kind === "create"
+          ? "Đã tạo thói quen khách hàng."
+          : "Đã cập nhật thói quen khách hàng.";
+      setNotice(successMessage);
+      toast.success(successMessage);
       setFailedDefinition(null);
       void queryClient.invalidateQueries({
         queryKey: ["coaching-habits", "my", dateKey],
       });
     },
-    onError: (_error, variables) => {
+    onError: (error, variables) => {
       setNotice("");
       setFailedDefinition(variables);
+      toast.error(apiMessage(error));
     },
   });
 
@@ -141,6 +148,7 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
         : saveDailyJournal(dateKey, payload),
     onSuccess: (response) => {
       setNotice("Đã cập nhật trạng thái thói quen trong ngày.");
+      toast.success("Đã cập nhật trạng thái thói quen trong ngày");
       setFailedCompletion(null);
       setCorrectionReason("");
       onChanged?.(response.data.data);
@@ -151,9 +159,10 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
         queryKey: ["daily-journal-timeline", dateKey],
       });
     },
-    onError: (_error, variables) => {
+    onError: (error, variables) => {
       setNotice("");
       setFailedCompletion(variables);
+      toast.error(apiMessage(error));
     },
   });
 
@@ -205,6 +214,7 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
       });
     } catch (error) {
       setLocalError(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -218,19 +228,19 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
   const stale = mutationError?.response?.status === 409;
   return (
     <section
-      className="mb-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6"
+      className="rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:p-6"
       aria-labelledby="daily-habits-title"
       aria-busy={isPending}
     >
       <div className="flex items-center gap-3">
         <Flame className="text-orange-400" size={24} aria-hidden="true" />
         <div>
-          <h2
+          <h3
             id="daily-habits-title"
             className="text-xl font-bold text-white sm:text-2xl"
           >
-            Thói quen hôm nay
-          </h2>
+            Thói quen khách hàng
+          </h3>
         </div>
       </div>
 

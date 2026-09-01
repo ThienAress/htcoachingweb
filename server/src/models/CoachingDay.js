@@ -40,7 +40,9 @@ const coachingDaySchema = new mongoose.Schema(
         weight: { type: String, default: "60s" },
         videoUrl: { type: String, default: "" }, // Video hướng dẫn riêng từng bài tập (nếu có)
         videoUrl2: { type: String, default: "" }, // Video hướng dẫn thứ 2 (nếu có)
-        clientFeedbackVideo: { type: String, default: "" }, // Video phản hồi kỹ thuật riêng từng bài của học viên
+        // Legacy documents store a public URL string. New uploads store stable
+        // authenticated Cloudinary metadata and are serialized as signed URLs.
+        clientFeedbackVideo: { type: mongoose.Schema.Types.Mixed, default: "" },
         clientFeedbackNote: { type: String, default: "" }, // Cảm nhận riêng của học viên cho từng bài tập
         completed: { type: Boolean, default: false }, // Client tích hoàn thành bài tập này
       },
@@ -50,8 +52,8 @@ const coachingDaySchema = new mongoose.Schema(
       default: "", // Phản hồi văn bản của khách sau khi tập xong
     },
     clientFeedbackVideo: {
-      type: String,
-      default: "", // Đường dẫn file video phản hồi (tải lên server)
+      type: mongoose.Schema.Types.Mixed,
+      default: "", // Legacy URL hoặc metadata private ổn định
     },
     clientStatus: {
       type: String,

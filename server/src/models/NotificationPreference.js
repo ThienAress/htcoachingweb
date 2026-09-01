@@ -11,6 +11,7 @@ const notificationPreferenceSchema = new mongoose.Schema(
     comments: { type: Boolean, default: true, required: true },
     journal: { type: Boolean, default: true, required: true },
     weekly: { type: Boolean, default: true, required: true },
+    morningHealthEmail: { type: Boolean, default: false, required: true },
     revision: { type: Number, min: 1, default: 1, required: true },
   },
   { timestamps: true },

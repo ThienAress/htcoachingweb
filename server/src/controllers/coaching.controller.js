@@ -1,13 +1,7 @@
-import path from "path";
 import mongoose from "mongoose";
 import CoachingDay from "../models/CoachingDay.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
-import {
-  destroyCloudinaryAsset,
-  getCloudinaryPublicIdFromUrl,
-  uploadBufferToCloudinary,
-} from "../utils/cloudinaryUpload.js";
 import { applyExerciseFeedback } from "../utils/coachingFeedback.js";
 import { buildTrainerPlanUpdate } from "../utils/coachingPlan.js";
 import { incrementMetric } from "../observability/metrics.js";
@@ -17,8 +11,43 @@ import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
 import {
   deleteCoachingCommentsForTargets,
 } from "../services/coachingCommentPrivacy.service.js";
+import { enqueueAccountDeletionMedia } from "../services/accountDeletionMedia.service.js";
+import {
+  collectCoachingMediaDeletionInventory,
+  createPrivateCoachingMedia,
+  deletePrivateCoachingMedia,
+  getPrivateCoachingMediaUrl,
+  serializeCoachingPlanMedia,
+  serializeCoachingPlansMedia,
+} from "../services/coachingPrivateMedia.service.js";
 
 const MAX_CLIENT_FEEDBACK_TEXT_LENGTH = 5000;
+const privateResponse = (res) =>
+  res.setHeader("Cache-Control", "private, no-store");
+
+const stripClientFeedbackMedia = (rawExercises) => {
+  let exercises = rawExercises;
+  if (typeof exercises === "string") {
+    try {
+      exercises = JSON.parse(exercises);
+    } catch {
+      return rawExercises;
+    }
+  }
+  if (!Array.isArray(exercises)) return exercises;
+  return exercises.map((exercise) => {
+    if (!exercise || typeof exercise !== "object") return exercise;
+    const { clientFeedbackVideo: _ignoredSignedUrl, ...safeExercise } = exercise;
+    return safeExercise;
+  });
+};
+
+const updateClientStatus = (plan) => {
+  const allCompleted =
+    plan.exercises.length > 0 &&
+    plan.exercises.every((exercise) => exercise.completed);
+  plan.clientStatus = allCompleted ? "completed" : "pending";
+};
 
 // ================= KHÁCH HÀNG (CLIENT) =================
 
@@ -62,9 +91,11 @@ export const getMyPlanDetails = async (req, res) => {
       });
     }
 
+    const serializedPlan = await serializeCoachingPlanMedia(plan);
+    privateResponse(res);
     res.json({
       success: true,
-      data: plan,
+      data: serializedPlan,
     });
   } catch (err) {
     safeLog.error("coaching.plan_detail_failed", err);
@@ -101,15 +132,11 @@ export const submitFeedback = async (req, res) => {
       });
     }
 
-    const previousFeedbackVideoIds = new Map(
-      plan.exercises.map((exercise) => [
-        String(exercise._id),
-        getCloudinaryPublicIdFromUrl(exercise.clientFeedbackVideo),
-      ]),
-    );
-
     try {
-      applyExerciseFeedback(plan.exercises, req.body.exercises);
+      applyExerciseFeedback(
+        plan.exercises,
+        stripClientFeedbackMedia(req.body.exercises),
+      );
     } catch (error) {
       return res.status(400).json({
         success: false,
@@ -121,48 +148,18 @@ export const submitFeedback = async (req, res) => {
       plan.clientFeedbackText = clientFeedbackText;
     }
 
-    // Nếu có file video tải lên
-    if (req.file) {
-      const ext = path.extname(req.file.originalname || "").toLowerCase();
-      const safeBaseName = path.basename(req.file.originalname || "video", ext).replace(/[^a-zA-Z0-9-_]/g, "_");
-      const result = await uploadBufferToCloudinary(req.file.buffer, {
-        folder: "htcoaching/coaching-videos",
-        public_id: `${Date.now()}-${safeBaseName}`,
-        resource_type: "video",
-        allowed_formats: ["mp4", "mov", "avi", "webm", "mkv", "m4v", "3gp"],
-      });
-      plan.clientFeedbackVideo = result.url;
-    }
-
     // Tự động kiểm tra trạng thái hoàn thành ngày tập
     // Nếu tất cả bài tập trong checklist đều có completed = true thì đánh dấu completed
-    const allCompleted = plan.exercises.length > 0 && plan.exercises.every((ex) => ex.completed);
-    plan.clientStatus = allCompleted ? "completed" : "pending";
+    updateClientStatus(plan);
 
     await plan.save();
 
-    const staleFeedbackVideoIds = plan.exercises
-      .map((exercise) => {
-        const previousId = previousFeedbackVideoIds.get(String(exercise._id));
-        const currentId = getCloudinaryPublicIdFromUrl(
-          exercise.clientFeedbackVideo,
-        );
-        return previousId && previousId !== currentId ? previousId : null;
-      })
-      .filter(Boolean);
+    const serializedPlan = await serializeCoachingPlanMedia(plan);
 
-    for (const publicId of staleFeedbackVideoIds) {
-      try {
-        await destroyCloudinaryAsset(publicId, "video");
-      } catch (cleanupError) {
-        incrementMetric("coaching.cleanup_failures");
-        safeLog.error("coaching.removed_feedback_cleanup_failed", cleanupError);
-      }
-    }
-
+    privateResponse(res);
     res.json({
       success: true,
-      data: plan,
+      data: serializedPlan,
       message: "Cập nhật tiến trình tập luyện thành công",
     });
   } catch (err) {
@@ -253,9 +250,11 @@ export const getClientTimeline = async (req, res) => {
         .lean(),
     );
 
+    const serializedHistory = await serializeCoachingPlansMedia(history);
+    privateResponse(res);
     res.json({
       success: true,
-      data: history,
+      data: serializedHistory,
     });
   } catch (err) {
     safeLog.error("coaching.client_timeline_failed", err);
@@ -345,9 +344,11 @@ export const upsertCoachingDay = async (req, res) => {
       });
     }
 
+    const serializedPlan = await serializeCoachingPlanMedia(plan);
+    privateResponse(res);
     res.json({
       success: true,
-      data: plan,
+      data: serializedPlan,
       message: "Lưu giáo án thành công",
     });
   } catch (err) {
@@ -367,7 +368,7 @@ export const upsertCoachingDay = async (req, res) => {
 // 7. Xoá giáo án của một ngày tập cụ thể
 export const deleteCoachingDay = async (req, res) => {
   const todayPlatformEnabled = isTodayPlatformEnabled();
-  const session = todayPlatformEnabled ? await mongoose.startSession() : null;
+  const session = await mongoose.startSession();
   try {
     const { userId, dateString } = req.params;
 
@@ -383,14 +384,30 @@ export const deleteCoachingDay = async (req, res) => {
       }
     }
 
+    const deleteFilter = { userId, dateString };
+    if (req.user.role !== "admin") {
+      deleteFilter.trainerId = req.user.id;
+    }
+
     let deleted = null;
-    if (session) {
-      await session.withTransaction(async () => {
-        deleted = await CoachingDay.findOneAndDelete({
-          userId,
-          dateString,
-        }).session(session);
-        if (!deleted) return;
+    await session.withTransaction(async () => {
+      deleted = await CoachingDay.findOneAndDelete(deleteFilter).session(
+        session,
+      );
+      if (!deleted) return;
+      const mediaInventory = collectCoachingMediaDeletionInventory(deleted);
+      if (mediaInventory.unsupported.length > 0) {
+        throw Object.assign(
+          new Error("Cần xác minh nguồn video trước khi xóa giáo án"),
+          { status: 409, code: "COACHING_MEDIA_OWNERSHIP_REQUIRED" },
+        );
+      }
+      await enqueueAccountDeletionMedia({
+        targetUserId: deleted.userId,
+        assets: mediaInventory.assets,
+        session,
+      });
+      if (todayPlatformEnabled) {
         await deleteCoachingCommentsForTargets({
           targets: [{
             targetType: "coaching_day",
@@ -398,10 +415,8 @@ export const deleteCoachingDay = async (req, res) => {
           }],
           session,
         });
-      });
-    } else {
-      deleted = await CoachingDay.findOneAndDelete({ userId, dateString });
-    }
+      }
+    });
 
     if (!deleted) {
       return res.status(404).json({ success: false, message: "Không tìm thấy giáo án tập để xóa" });
@@ -413,9 +428,14 @@ export const deleteCoachingDay = async (req, res) => {
     });
   } catch (err) {
     safeLog.error("coaching.day_delete_failed", err);
-    res.status(500).json({ success: false, message: "Lỗi xóa giáo án tập luyện" });
+    res.status(err.status || 500).json({
+      success: false,
+      ...(err.code ? { code: err.code } : {}),
+      message:
+        err.status && err.message ? err.message : "Lỗi xóa giáo án tập luyện",
+    });
   } finally {
-    if (session) await session.endSession();
+    await session.endSession();
   }
 };
 
@@ -426,18 +446,10 @@ export const uploadCoachingDemoVideo = async (req, res) => {
       return res.status(400).json({ success: false, message: "Không tìm thấy file tải lên" });
     }
 
-    const ext = path.extname(req.file.originalname || "").toLowerCase();
-    const safeBaseName = path.basename(req.file.originalname || "demo-video", ext).replace(/[^a-zA-Z0-9-_]/g, "_");
-    const result = await uploadBufferToCloudinary(req.file.buffer, {
-      folder: "htcoaching/coaching-videos",
-      public_id: `${Date.now()}-${safeBaseName}`,
-      resource_type: "video",
-      allowed_formats: ["mp4", "mov", "avi", "webm", "mkv", "m4v", "3gp"],
-    });
-
+    privateResponse(res);
     res.json({
       success: true,
-      url: result.url,
+      url: req.file.path,
       message: "Tải lên video demo thành công",
     });
   } catch (err) {
@@ -446,82 +458,183 @@ export const uploadCoachingDemoVideo = async (req, res) => {
   }
 };
 
-// 9. Tải lên video phản hồi kỹ thuật bài tập của Client
-export const uploadClientFeedbackVideo = async (req, res) => {
-  let uploadedPublicId = "";
+// 9. Xác minh ownership trước khi route bắt đầu đọc multipart body.
+export const authorizeClientFeedbackVideoUpload = async (req, res, next) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: "Không tìm thấy file tải lên" });
-    }
-
-    const { dateString, exerciseId } = req.body;
-    if (!dateString || !exerciseId) {
+    const { dateString, exerciseId } = req.params;
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(dateString || "") ||
+      !mongoose.isValidObjectId(exerciseId)
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu ngày giáo án hoặc mã bài tập",
+        message: "Ngày giáo án hoặc mã bài tập không hợp lệ",
       });
     }
-
     const plan = await CoachingDay.findOne({
       userId: req.user.id,
       dateString,
-    });
-    const exercise = plan?.exercises.id(exerciseId);
-    if (!plan || !exercise) {
+      "exercises._id": exerciseId,
+    }).select("_id");
+    if (!plan) {
       return res.status(404).json({
         success: false,
         message: "Không tìm thấy bài tập thuộc giáo án của bạn",
       });
     }
-
-    const ext = path.extname(req.file.originalname || "").toLowerCase();
-    const safeBaseName = path.basename(req.file.originalname || "feedback-video", ext).replace(/[^a-zA-Z0-9-_]/g, "_");
-    const result = await uploadBufferToCloudinary(req.file.buffer, {
-      folder: "htcoaching/coaching-videos",
-      public_id: `${Date.now()}-${safeBaseName}`,
-      resource_type: "video",
-      allowed_formats: ["mp4", "mov", "avi", "webm", "mkv", "m4v", "3gp"],
+    req.coachingFeedbackUpload = {
+      planId: plan._id,
+      exerciseId,
+    };
+    return next();
+  } catch (err) {
+    safeLog.error("coaching.feedback_video_authorize_failed", err);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi kiểm tra quyền tải video phản hồi",
     });
-    uploadedPublicId = result.public_id;
+  }
+};
 
-    const previousPublicId = getCloudinaryPublicIdFromUrl(
-      exercise.clientFeedbackVideo,
-    );
-    exercise.clientFeedbackVideo = result.url;
-    exercise.completed = true;
-    plan.clientStatus =
-      plan.exercises.length > 0 &&
-      plan.exercises.every((item) => item.completed)
-        ? "completed"
-        : "pending";
-    await plan.save();
+export const retireLegacyClientFeedbackUpload = (_req, res) =>
+  res.status(410).json({
+    success: false,
+    code: "COACHING_FEEDBACK_UPLOAD_ROUTE_RETIRED",
+    message: "Vui lòng tải lại trang trước khi gửi video phản hồi",
+  });
 
-    if (previousPublicId && previousPublicId !== uploadedPublicId) {
-      try {
-        await destroyCloudinaryAsset(previousPublicId, "video");
-      } catch (cleanupError) {
-        incrementMetric("coaching.cleanup_failures");
-        safeLog.error("coaching.old_feedback_cleanup_failed", cleanupError);
-      }
+// 10. Tải lên video phản hồi kỹ thuật bài tập của Client
+export const uploadClientFeedbackVideo = async (req, res) => {
+  let uploadedMedia = null;
+  let session = null;
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Không tìm thấy file tải lên" });
     }
 
-    res.json({
+    uploadedMedia = createPrivateCoachingMedia(req.file);
+    const signedUrl = await getPrivateCoachingMediaUrl(uploadedMedia);
+    const { planId, exerciseId } = req.coachingFeedbackUpload || {};
+    session = await mongoose.startSession();
+    let updatedPlan = null;
+    await session.withTransaction(async () => {
+      const plan = await CoachingDay.findOne({
+        _id: planId,
+        userId: req.user.id,
+        "exercises._id": exerciseId,
+      }).session(session);
+      const exercise = plan?.exercises.id(exerciseId);
+      if (!plan || !exercise) {
+        throw Object.assign(
+          new Error("Không tìm thấy bài tập thuộc giáo án của bạn"),
+          { status: 404 },
+        );
+      }
+
+      const previousMedia = exercise.clientFeedbackVideo;
+      exercise.clientFeedbackVideo = uploadedMedia;
+      exercise.completed = true;
+      updateClientStatus(plan);
+      await plan.save({ session });
+
+      if (previousMedia) {
+        const mediaInventory = collectCoachingMediaDeletionInventory({
+          clientFeedbackVideo: previousMedia,
+          exercises: [],
+        });
+        await enqueueAccountDeletionMedia({
+          targetUserId: plan.userId,
+          assets: mediaInventory.assets,
+          session,
+        });
+      }
+      updatedPlan = plan;
+    });
+
+    // DB đã tham chiếu asset mới và cleanup asset cũ đã được ghi bền vững.
+    uploadedMedia = null;
+
+    privateResponse(res);
+    return res.json({
       success: true,
-      url: result.url,
-      revision: plan.__v,
-      clientStatus: plan.clientStatus,
+      url: signedUrl,
+      revision: updatedPlan.__v,
+      clientStatus: updatedPlan.clientStatus,
       message: "Tải lên video phản hồi thành công",
     });
   } catch (err) {
-    if (uploadedPublicId) {
+    if (uploadedMedia) {
       try {
-        await destroyCloudinaryAsset(uploadedPublicId, "video");
+        await deletePrivateCoachingMedia(uploadedMedia);
       } catch (cleanupError) {
         incrementMetric("coaching.cleanup_failures");
         safeLog.error("coaching.new_feedback_cleanup_failed", cleanupError);
       }
     }
     safeLog.error("coaching.feedback_video_upload_failed", err);
-    res.status(500).json({ success: false, message: "Lỗi tải lên video phản hồi" });
+    return res.status(err.status || 500).json({
+      success: false,
+      message:
+        err.status && err.message ? err.message : "Lỗi tải lên video phản hồi",
+    });
+  } finally {
+    if (session) await session.endSession();
+  }
+};
+
+// 11. Gỡ video bằng action riêng; không nhận URL delivery từ client.
+export const removeClientFeedbackVideo = async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const { planId, exerciseId } = req.coachingFeedbackUpload || {};
+    let updatedPlan = null;
+    await session.withTransaction(async () => {
+      const plan = await CoachingDay.findOne({
+        _id: planId,
+        userId: req.user.id,
+        "exercises._id": exerciseId,
+      }).session(session);
+      const exercise = plan?.exercises.id(exerciseId);
+      if (!plan || !exercise) {
+        throw Object.assign(
+          new Error("Không tìm thấy bài tập thuộc giáo án của bạn"),
+          { status: 404 },
+        );
+      }
+
+      const previousMedia = exercise.clientFeedbackVideo;
+      exercise.clientFeedbackVideo = "";
+      exercise.completed = false;
+      updateClientStatus(plan);
+      await plan.save({ session });
+
+      if (previousMedia) {
+        const mediaInventory = collectCoachingMediaDeletionInventory({
+          clientFeedbackVideo: previousMedia,
+          exercises: [],
+        });
+        await enqueueAccountDeletionMedia({
+          targetUserId: plan.userId,
+          assets: mediaInventory.assets,
+          session,
+        });
+      }
+      updatedPlan = plan;
+    });
+
+    return res.json({
+      success: true,
+      revision: updatedPlan.__v,
+      clientStatus: updatedPlan.clientStatus,
+      message: "Đã gỡ video phản hồi",
+    });
+  } catch (err) {
+    safeLog.error("coaching.feedback_video_remove_failed", err);
+    return res.status(err.status || 500).json({
+      success: false,
+      message: err.status && err.message ? err.message : "Lỗi gỡ video phản hồi",
+    });
+  } finally {
+    await session.endSession();
   }
 };

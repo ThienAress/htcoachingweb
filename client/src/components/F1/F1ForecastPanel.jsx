@@ -8,6 +8,7 @@ import {
   Target,
   BarChart3,
 } from "lucide-react";
+import { toast } from "react-toastify";
 import {
   generateOutcomeForecast,
   getLatestOutcomeForecast,
@@ -88,10 +89,10 @@ const F1ForecastPanel = ({ customer, onBack, onGenerated }) => {
       });
       requestIdRef.current = crypto.randomUUID();
       setForecast(res?.data || null);
-      alert("Generate dự đoán kết quả thành công");
+      toast.success("Đã tạo dự đoán kết quả");
       onGenerated?.(res?.data);
     } catch (error) {
-      alert(
+      toast.error(
         error?.response?.data?.message || "Generate dự đoán kết quả thất bại",
       );
     } finally {

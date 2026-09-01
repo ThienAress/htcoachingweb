@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invalidateByKey } from "../../queries/invalidation";
 import { adminQueryKeys } from "../../queries/queryKeys";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import {
@@ -150,7 +150,6 @@ const ContactMessages = () => {
   return (
     <phantom-ui loading={isLoading || undefined}>
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      <ToastContainer position="top-right" autoClose={3000} />
 
       {/* Header */}
       <div className="mb-6">

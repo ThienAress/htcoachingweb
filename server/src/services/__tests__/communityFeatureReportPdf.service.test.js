@@ -20,7 +20,7 @@ describe("community feature report PDF service", () => {
       title: document.getTitle(),
     }).toEqual({
       prefix: "%PDF-",
-      pageCount: 1,
+      pageCount: 2,
       title: "Báo cáo cải tiến tính năng HTCOACHING",
     });
   });

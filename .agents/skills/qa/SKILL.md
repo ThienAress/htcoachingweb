@@ -138,6 +138,30 @@ Trước khi chạy, ghi `git status --short`, `git diff --stat` và Git `HEAD`.
 
 Evidence hết hạn ngay khi working tree liên quan thay đổi. Sau khi sửa, chỉ chạy lại các lệnh bị ảnh hưởng và cập nhật evidence; không tái sử dụng kết quả cũ bằng suy đoán. Mọi exit code khác `0` là `FAIL`; lỗi môi trường phải ghi `BLOCKED`, không đổi thành `PASS`.
 
+### Machine-readable evidence contract
+
+JSON evidence dùng closed schema tại `.agents/scripts/qa-evidence-contract.mjs` và được
+kiểm bằng lệnh sau trước khi `$pre-deploy` hoặc `$ship` tái sử dụng:
+
+```bash
+npm run qa:evidence:validate -- --evidence .local-data/qa-evidence/<evidence-name>.json
+```
+
+Contract kiểm exact command allowlist, status/exit/test counts, expiry, PII/secret,
+working-tree fingerprint và điều kiện `releaseEligible`. Nó chỉ xác minh schema cùng
+tính nhất quán của evidence tự khai; không chứng minh command thật sự đã chạy và
+không thay quyền sở hữu QA của skill này. CLI luôn ghi
+`attestationTrust: SELF_ATTESTED` và `releaseAuthorized: false`.
+
+`$pre-deploy` hoặc `$ship` không được dùng JSON tự khai này làm nguồn duy nhất để cho
+phép release. Cho tới khi có artifact từ trusted CI/runner với provenance bất biến,
+phải đối chiếu evidence với nguồn thực thi đáng tin cậy hoặc chạy lại gate cần thiết.
+Evidence writer phải tạo fingerprint sau khi chạy command; mọi thay đổi liên quan
+tiếp theo làm evidence stale và cần chạy lại đúng gate bị ảnh hưởng.
+Artifact evidence phải là file JSON **untracked** trực tiếp trong
+`.local-data/qa-evidence/`; validator không chấp nhận path tracked hoặc path product
+để artifact không thể tự loại một thay đổi runtime khỏi working-tree fingerprint.
+
 ## Output Format
 
 ```text
@@ -152,11 +176,16 @@ Client tests: PASS (X) | FAIL (Y) | NOT RUN
 Server tests: PASS (X) | FAIL (Y) | NOT RUN
 E2E: PASS (X) | FAIL (Y) | SKIP (<reason>) | NOT RUN
 
-Result: PASS | FAIL | BLOCKED
-Release evidence: VALID | NOT VALID
+Result: PASS | PASS_WITH_RISK | FAIL | BLOCKED
+Machine evidence eligibility: ELIGIBLE | NOT ELIGIBLE
+Attestation trust: SELF_ATTESTED
+Release authorization: NOT PROVIDED
 ```
 
-`PASS` nghĩa là mọi lệnh bắt buộc của mode đã pass. Chỉ `$qa` full đáp ứng đủ điều kiện để ghi `Release evidence: VALID`.
+`PASS` nghĩa là evidence tự khai cho biết mọi lệnh bắt buộc của mode đã pass.
+`PASS_WITH_RISK` chỉ dùng khi E2E được `SKIP` có reason và residual risk hợp lệ;
+không được trình bày nó như `PASS`. Chỉ `$qa` full có thể đạt
+`releaseEligible: true`; eligibility không phải release authorization.
 
 ---
 

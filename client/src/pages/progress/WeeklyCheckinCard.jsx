@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import {
   CalendarDays,
   ChevronDown,
@@ -135,6 +136,10 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
         error.response?.data?.message ||
           "Không thể lưu báo cáo tuần lúc này.",
       );
+      toast.error(
+        error.response?.data?.message ||
+          "Không thể lưu báo cáo tuần lúc này",
+      );
       return null;
     }
   };
@@ -148,7 +153,10 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
         patch: weeklyValuesToPatch(values),
       },
     });
-    if (next) setMessage("Đã lưu bản nháp.");
+    if (next) {
+      setMessage("Đã lưu bản nháp.");
+      toast.success("Đã lưu bản nháp báo cáo tuần");
+    }
   });
 
   const submitValues = async (values) => {
@@ -170,6 +178,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
     });
     if (submittedCheckin) {
       setMessage("Báo cáo tuần đã được gửi cho HLV.");
+      toast.success("Đã gửi báo cáo tuần cho HLV");
     }
   };
 
@@ -200,6 +209,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
     if (corrected) {
       setCorrectionReason("");
       setMessage("Đã lưu chỉnh sửa và gửi lại cho HLV.");
+      toast.success("Đã cập nhật và gửi lại báo cáo tuần cho HLV");
     }
   };
 

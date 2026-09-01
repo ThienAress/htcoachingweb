@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "planId": "077",
+  "specPath": "docs/specs/agent-harness-reliability-and-search-quality.md",
+  "planPath": "docs/plans/077-harden-agent-harness-evidence-and-search-quality.md",
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "Block PII in handoff documentation",
+      "planStep": "Step 1"
+    },
+    {
+      "id": "TASK-002",
+      "title": "Create inventory, plan-state and traceability contracts",
+      "planStep": "Step 2"
+    },
+    {
+      "id": "TASK-003",
+      "title": "Expand critical workflow evaluations",
+      "planStep": "Step 3"
+    },
+    {
+      "id": "TASK-004",
+      "title": "Measure Vietnamese Search quality offline",
+      "planStep": "Step 4"
+    },
+    {
+      "id": "TASK-005",
+      "title": "Re-trace, review and run integrated QA",
+      "planStep": "Step 5"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-001",
+          "mustHave": true,
+          "taskIds": ["TASK-001", "TASK-005"],
+          "verifications": [
+            { "type": "test", "path": "scripts/docs-privacy.test.mjs" },
+            { "type": "test", "path": "scripts/docs-privacy-git.test.mjs" }
+          ]
+        },
+        {
+          "id": "AC-002",
+          "mustHave": true,
+          "taskIds": ["TASK-001", "TASK-005"],
+          "verifications": [
+            { "type": "test", "path": "scripts/docs-privacy.test.mjs" },
+            { "type": "test", "path": "scripts/docs-privacy-git.test.mjs" }
+          ]
+        },
+        {
+          "id": "AC-003",
+          "mustHave": true,
+          "taskIds": ["TASK-001", "TASK-005"],
+          "verifications": [
+            { "type": "command", "command": "npm run security:docs-privacy" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-004",
+          "mustHave": true,
+          "taskIds": ["TASK-002", "TASK-005"],
+          "verifications": [
+            { "type": "test", "path": ".agents/scripts/project-inventory.test.mjs" }
+          ]
+        },
+        {
+          "id": "AC-005",
+          "mustHave": true,
+          "taskIds": ["TASK-002", "TASK-005"],
+          "verifications": [
+            { "type": "test", "path": ".agents/scripts/plan-state-contract.test.mjs" }
+          ]
+        },
+        {
+          "id": "AC-006",
+          "mustHave": true,
+          "taskIds": ["TASK-002", "TASK-005"],
+          "verifications": [
+            { "type": "command", "command": "npm run agents:inventory:check" },
+            { "type": "command", "command": "npm run agents:validate" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-007",
+          "mustHave": true,
+          "taskIds": ["TASK-002", "TASK-005"],
+          "verifications": [
+            { "type": "test", "path": ".agents/scripts/traceability-contract.test.mjs" }
+          ]
+        },
+        {
+          "id": "AC-008",
+          "mustHave": true,
+          "taskIds": ["TASK-002", "TASK-005"],
+          "verifications": [
+            { "type": "command", "command": "npm run agents:validate" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-009",
+          "mustHave": true,
+          "taskIds": ["TASK-004", "TASK-005"],
+          "verifications": [
+            { "type": "test", "path": "scripts/search-quality/benchmark.test.mjs" }
+          ]
+        },
+        {
+          "id": "AC-010",
+          "mustHave": true,
+          "taskIds": ["TASK-004", "TASK-005"],
+          "verifications": [
+            { "type": "test", "path": "scripts/search-quality/benchmark.test.mjs" }
+          ]
+        },
+        {
+          "id": "AC-011",
+          "mustHave": true,
+          "taskIds": ["TASK-004", "TASK-005"],
+          "verifications": [
+            { "type": "test", "path": "scripts/search-quality/benchmark.test.mjs" },
+            { "type": "command", "command": "npm run search:benchmark" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-012",
+          "mustHave": true,
+          "taskIds": ["TASK-003", "TASK-005"],
+          "verifications": [
+            { "type": "test", "path": ".agents/scripts/skill-eval.test.mjs" },
+            { "type": "command", "command": "npm run agents:validate" }
+          ]
+        },
+        {
+          "id": "AC-013",
+          "mustHave": true,
+          "taskIds": ["TASK-003", "TASK-005"],
+          "verifications": [
+            { "type": "command", "command": "npm run agents:validate" }
+          ]
+        }
+      ]
+    }
+  ]
+}

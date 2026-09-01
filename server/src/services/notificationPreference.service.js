@@ -7,6 +7,7 @@ const defaults = (recipientId) => ({
   comments: true,
   journal: true,
   weekly: true,
+  morningHealthEmail: false,
   revision: 0,
 });
 
@@ -15,6 +16,7 @@ const dto = (value) => ({
   comments: value.comments,
   journal: value.journal,
   weekly: value.weekly,
+  morningHealthEmail: value.morningHealthEmail === true,
   revision: value.revision,
 });
 

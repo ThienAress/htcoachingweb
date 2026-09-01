@@ -89,9 +89,19 @@ const operationHashesExpression = () => ({
   },
 });
 
+const eventUnitsExpression = (input = "$usageEvents") => ({
+  $sum: {
+    $map: {
+      input,
+      as: "usageEvent",
+      in: { $ifNull: ["$$usageEvent.units", 1] },
+    },
+  },
+});
+
 const summaryStages = ({ windows, now }) => {
   const maxWindowMs = finiteMaxWindowMs(windows);
-  const eventCount = { $size: "$usageEvents" };
+  const eventCount = eventUnitsExpression();
   return [
     {
       $set: {
@@ -133,6 +143,7 @@ export const buildServiceUsageBucketUpdate = ({
   policyGroup,
   windows,
   operationHash,
+  cost,
   now,
 }) => {
   const duplicateOperation = {
@@ -140,8 +151,13 @@ export const buildServiceUsageBucketUpdate = ({
   };
   const hasCapacity = {
     $and: windows.map((window) => ({
-      $lt: [
-        { $size: activeWindowEventsExpression(window, now) },
+      $lte: [
+        {
+          $add: [
+            eventUnitsExpression(activeWindowEventsExpression(window, now)),
+            cost,
+          ],
+        },
         window.limit,
       ],
     })),
@@ -170,7 +186,7 @@ export const buildServiceUsageBucketUpdate = ({
             {
               $concatArrays: [
                 "$usageEvents",
-                [{ operationHash, consumedAt: now }],
+                [{ operationHash, consumedAt: now, units: cost }],
               ],
             },
             "$usageEvents",
@@ -221,11 +237,15 @@ export const serializeServiceUsageQuota = ({
         window.windowMs === null ||
         new Date(event.consumedAt).getTime() > now.getTime() - window.windowMs,
     );
+    const consumedUnits = activeEvents.reduce(
+      (sum, event) => sum + (Number.isSafeInteger(event.units) ? event.units : 1),
+      0,
+    );
     const firstConsumedAt = activeEvents[0]?.consumedAt;
     return {
       key: window.key,
       limit: window.limit,
-      remaining: Math.max(window.limit - activeEvents.length, 0),
+      remaining: Math.max(window.limit - consumedUnits, 0),
       resetAt:
         window.windowMs !== null && firstConsumedAt
           ? new Date(

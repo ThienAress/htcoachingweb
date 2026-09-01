@@ -10,6 +10,7 @@ const serviceUsageEventSchema = new mongoose.Schema(
       match: /^[a-f0-9]{64}$/,
     },
     consumedAt: { type: Date, required: true },
+    units: { type: Number, required: true, default: 1, min: 1, max: 1000 },
   },
   { _id: false },
 );
@@ -22,7 +23,7 @@ const serviceUsageBucketSchema = new mongoose.Schema(
     },
     serviceKey: {
       type: String,
-      enum: ["ai_chat", "meal_scan"],
+      enum: ["ai_chat", "meal_scan", "practice_email"],
       required: true,
       immutable: true,
     },

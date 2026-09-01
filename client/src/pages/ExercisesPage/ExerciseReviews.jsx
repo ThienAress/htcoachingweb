@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { MessageCircle, Send, Star, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
 
 import { useAuth } from "../../context/AuthContext";
 import { exerciseReviewsQueryOptions } from "../../queries/exercise.queries";
@@ -56,14 +57,26 @@ export default function ExerciseReviews({ exerciseId }) {
     onSuccess: () => {
       setDraft(null);
       queryClient.invalidateQueries({ queryKey: queryOptions.queryKey });
+      toast.success(
+        viewerReview ? "Đã cập nhật đánh giá bài tập" : "Đã gửi đánh giá bài tập",
+      );
     },
+    onError: (error) =>
+      toast.error(
+        error.response?.data?.message || t("detail.reviews.save_error"),
+      ),
   });
   const deleteMutation = useMutation({
     mutationFn: () => deleteExerciseReview(exerciseId),
     onSuccess: () => {
       setDraft(null);
       queryClient.invalidateQueries({ queryKey: queryOptions.queryKey });
+      toast.success("Đã xóa đánh giá bài tập");
     },
+    onError: (error) =>
+      toast.error(
+        error.response?.data?.message || "Không thể xóa đánh giá bài tập",
+      ),
   });
 
   return (

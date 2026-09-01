@@ -13,6 +13,7 @@ export const listTrainerAssignmentCandidates = async ({
   const normalizedSearch = String(search || "").trim().slice(0, 80);
   const subscribedUserIds = await TrainerSubscription.distinct("userId", {
     isActive: true,
+    status: "active",
     endDate: { $gt: now },
   });
   const query = {

@@ -14,7 +14,7 @@ import {
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invalidateByKey } from "../../queries/invalidation";
 import { adminQueryKeys } from "../../queries/queryKeys";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import { getCheckins, updateCheckin } from "../../services/checkin.service";
 import { utcToLocalDateTime, localDateTimeToUTC } from "../../utils/date";
 import {
@@ -120,7 +120,6 @@ const TrainerCheckinHistory = () => {
   return (
     <phantom-ui loading={isLoading || undefined}>
     <div className="space-y-6">
-      <ToastContainer position="top-right" autoClose={3000} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2 uppercase">

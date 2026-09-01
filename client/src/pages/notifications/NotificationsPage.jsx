@@ -7,6 +7,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import SEO from "../../components/SEO";
 import { NotificationPreferences } from "../../components/NotificationPreferences";
@@ -53,7 +54,14 @@ const NotificationsPage = () => {
   });
   const readAllMutation = useMutation({
     mutationFn: markAllNotificationsRead,
-    onSuccess: refreshInbox,
+    onSuccess: () => {
+      toast.success("Đã đánh dấu tất cả thông báo là đã đọc");
+      return refreshInbox();
+    },
+    onError: (error) =>
+      toast.error(
+        error.response?.data?.message || "Không thể cập nhật thông báo",
+      ),
   });
   const openItem = async (item) => {
     try {

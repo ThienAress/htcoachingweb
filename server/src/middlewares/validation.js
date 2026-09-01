@@ -1,4 +1,5 @@
 import { body, param, query, validationResult } from "express-validator";
+import { isValidF1IntakeDraftData } from "../constants/f1IntakeDraft.js";
 import mongoose from "mongoose";
 import {
   TRAINER_BILLING_CYCLES,
@@ -347,7 +348,11 @@ export const validateUpdateF1Status = [
 export const validateSaveIntakeDraft = [
   param("id").isMongoId().withMessage("ID khách hàng F1 không hợp lệ"),
   body("step").isInt({ min: 1, max: 6 }).withMessage("step phải từ 1 đến 6"),
-  body("data").isObject().withMessage("data phải là object"),
+  body("data")
+    .custom((data, { req }) =>
+      isValidF1IntakeDraftData({ step: req.body.step, data }),
+    )
+    .withMessage("data chỉ được chứa nội dung của bước intake hiện tại"),
   handleValidationErrors,
 ];
 
@@ -876,6 +881,59 @@ export const validateLogin = [
 
 export const validateDeleteUser = [
   param("id").isMongoId().withMessage("ID không hợp lệ"),
+  handleValidationErrors,
+];
+
+const exactTrainerTransferBody = (allowedFields) =>
+  body().custom((value) => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).some((key) => !allowedFields.includes(key))
+    ) {
+      throw new Error("Payload điều phối HLV không hợp lệ");
+    }
+    return true;
+  });
+
+const trainerTransferIds = [
+  body("clientId").isMongoId().withMessage("clientId không hợp lệ"),
+  body("fromTrainerId").isMongoId().withMessage("fromTrainerId không hợp lệ"),
+  body("toTrainerId").isMongoId().withMessage("toTrainerId không hợp lệ"),
+];
+
+export const validateRecentTrainerOrders = [
+  query("page").optional().isInt({ min: 1, max: 100000 }).toInt(),
+  query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+  query("search").optional().isString().trim().isLength({ max: 100 }),
+  query("status")
+    .optional()
+    .isIn(["pending", "approved", "completed", "cancelled"]),
+  query("assignment").optional().isIn(["assigned", "unassigned"]),
+  handleValidationErrors,
+];
+
+export const validateTrainerTransferPreview = [
+  exactTrainerTransferBody(["clientId", "fromTrainerId", "toTrainerId", "reason"]),
+  ...trainerTransferIds,
+  body("reason").optional().isString().trim().isLength({ min: 10, max: 500 }),
+  handleValidationErrors,
+];
+
+export const validateTrainerTransfer = [
+  exactTrainerTransferBody([
+    "clientId",
+    "fromTrainerId",
+    "toTrainerId",
+    "reason",
+    "requestId",
+    "previewToken",
+  ]),
+  ...trainerTransferIds,
+  body("reason").isString().trim().isLength({ min: 10, max: 500 }),
+  body("requestId").isUUID().withMessage("requestId không hợp lệ"),
+  body("previewToken").matches(/^[a-f0-9]{64}$/),
   handleValidationErrors,
 ];
 
@@ -1550,6 +1608,7 @@ export const validateNotificationPreference = [
       "comments",
       "journal",
       "weekly",
+      "morningHealthEmail",
     ];
     if (
       !value ||
@@ -1566,6 +1625,7 @@ export const validateNotificationPreference = [
   body("comments").isBoolean().toBoolean(),
   body("journal").isBoolean().toBoolean(),
   body("weekly").isBoolean().toBoolean(),
+  body("morningHealthEmail").optional().isBoolean().toBoolean(),
   handleValidationErrors,
 ];
 

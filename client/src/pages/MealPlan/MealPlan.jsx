@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
-import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { toast } from "react-toastify";
 import { Utensils, Heart, Database, RefreshCw, BarChart3, Dumbbell, Trophy } from "lucide-react";
@@ -389,8 +388,6 @@ const MealPlan = () => {
       />
       <Header />
       <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-        <ToastContainer position="top-right" autoClose={3000} theme="dark" />
-
         <div className="container-custom py-6 sm:py-8">
           <div className="text-center mb-8 sm:mb-10">
             <div className="inline-flex items-center gap-2 sm:gap-3 bg-primary/20 rounded-full px-4 sm:px-5 py-1.5 sm:py-2 mb-4 mt-20">

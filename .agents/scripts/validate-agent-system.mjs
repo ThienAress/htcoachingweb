@@ -3,8 +3,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  checkProjectInventory,
+  collectProjectInventory,
+} from "./project-inventory.mjs";
+import {
+  validatePlanStateFile,
+  validatePlanTraceCoverage,
+} from "./plan-state-contract.mjs";
 import { validateWatchlist } from "./skill-radar-contract.mjs";
 import { validateSkillEvalDirectory } from "./skill-eval-contract.mjs";
+import { validateTraceabilityDirectory } from "./traceability-contract.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(SCRIPT_DIR, "../..");
@@ -13,7 +22,10 @@ const SKILLS_ROOT = path.join(AGENTS_ROOT, "skills");
 const SKILL_EVAL_ROOT = path.join(AGENTS_ROOT, "evals", "skills");
 const RULES_ROOT = path.join(AGENTS_ROOT, "rules");
 const WORKFLOW_MAP = path.join(AGENTS_ROOT, "reference", "agent-workflow-map.md");
+const PROJECT_INVENTORY = path.join(AGENTS_ROOT, "reference", "project-inventory.json");
 const UPSTREAM_WATCHLIST = path.join(AGENTS_ROOT, "upstream-skills", "watchlist.json");
+const PLAN_STATE = path.join(ROOT, "docs", "plans", "plan-state.json");
+const TRACEABILITY_ROOT = path.join(ROOT, "docs", "plans", "traceability");
 
 let errors = 0;
 let warnings = 0;
@@ -42,18 +54,6 @@ function listFiles(directory, predicate = () => true) {
     if (entry.isDirectory()) return listFiles(fullPath, predicate);
     return predicate(fullPath) ? [fullPath] : [];
   });
-}
-
-function countFiles(directory, matcher) {
-  if (!fs.existsSync(directory)) return 0;
-  return listFiles(directory, (filePath) => matcher.test(filePath)).length;
-}
-
-function countDirectFiles(directory, matcher) {
-  if (!fs.existsSync(directory)) return 0;
-  return fs
-    .readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && matcher.test(entry.name)).length;
 }
 
 function getYamlSection(content, sectionName) {
@@ -122,6 +122,9 @@ const requiredPaths = [
   ".agents/rules/seo/seo.md",
   ".agents/skills/known-issues/SKILL.md",
   ".agents/skills/audit-playbook/SKILL.md",
+  ".agents/reference/project-inventory.json",
+  "docs/plans/plan-state.json",
+  "docs/plans/traceability",
 ];
 
 console.log("📁 Required instruction files");
@@ -228,6 +231,44 @@ try {
   pass(`${summary.corpora} corpora / ${summary.cases} scenarios checked`);
 } catch (error) {
   fail(`Invalid skill eval catalog: ${error.message}`);
+}
+
+console.log("\n📦 Generated project inventory");
+try {
+  const inventory = checkProjectInventory({
+    rootDir: ROOT,
+    inventoryPath: PROJECT_INVENTORY,
+  });
+  pass(`Inventory is current: ${JSON.stringify(inventory)}`);
+} catch (error) {
+  fail(error.message);
+}
+
+console.log("\n🗂️ Machine-readable plan state");
+let planState = null;
+try {
+  planState = validatePlanStateFile({ rootDir: ROOT, manifestPath: PLAN_STATE });
+  pass(`${planState.plans.length} post-cutoff plan state entries checked`);
+} catch (error) {
+  fail(`Invalid plan state: ${error.message}`);
+}
+
+console.log("\n🔗 Requirement traceability");
+try {
+  const summary = validateTraceabilityDirectory({
+    rootDir: ROOT,
+    directory: TRACEABILITY_ROOT,
+  });
+  pass(
+    `${summary.manifests} manifests / ${summary.requirements} requirements / ` +
+      `${summary.acceptanceCriteria} acceptance criteria checked`,
+  );
+  if (planState) {
+    validatePlanTraceCoverage(planState, summary);
+    pass("Plan complexity and traceability coverage agree");
+  }
+} catch (error) {
+  fail(`Invalid traceability catalog: ${error.message}`);
 }
 
 console.log("\n📡 Upstream skill watchlist");
@@ -381,6 +422,7 @@ if (errors === 0) pass("No deprecated instruction references found");
 console.log("\n📊 Drift-prone snapshots");
 const snapshotPatterns = [
   /Test Files Hiện Tại \(\d+ files\)/,
+  /Project có\s+\*{0,2}\d+\s+tests/iu,
   /có \d+ models và \d+ controllers/,
   /Request handlers \(\d+ controllers\)/,
   /Mongoose schemas \(\d+ models\)/,
@@ -396,15 +438,7 @@ for (const filePath of markdownFiles) {
   }
 }
 
-const inventory = {
-  skills: skillDirectories.length,
-  clientTests: countFiles(path.join(ROOT, "client", "src"), /\.(test|spec)\.(js|jsx|ts|tsx)$/),
-  serverTests: countFiles(path.join(ROOT, "server", "src"), /\.(test|spec)\.(js|jsx|ts|tsx)$/),
-  e2eTests: countFiles(path.join(ROOT, "e2e"), /\.(test|spec)\.(js|jsx|ts|tsx)$/),
-  models: countDirectFiles(path.join(ROOT, "server", "src", "models"), /\.js$/),
-  controllers: countDirectFiles(path.join(ROOT, "server", "src", "controllers"), /\.js$/),
-  routes: countDirectFiles(path.join(ROOT, "server", "src", "routes"), /\.js$/),
-};
+const inventory = collectProjectInventory(ROOT);
 console.log(`  ℹ️  Live inventory: ${JSON.stringify(inventory)}`);
 
 console.log("\n🔎 Canonical contracts");

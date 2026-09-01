@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invalidateByKey } from "../../queries/invalidation";
 import { adminQueryKeys } from "../../queries/queryKeys";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import DOMPurify from "dompurify";
 import ReactMarkdown from "react-markdown";
@@ -205,7 +205,6 @@ const BlogManagement = () => {
   if (mode === "preview") {
     return (
       <div className="min-h-screen bg-white">
-        <ToastContainer position="top-right" autoClose={2500} />
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-3">
           <button onClick={() => setMode("editor")} className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-primary transition">
             <ChevronLeft className="w-4 h-4" /> Quay lại chỉnh sửa
@@ -280,7 +279,6 @@ const BlogManagement = () => {
   if (mode === "editor") {
     return (
       <div className="min-h-screen bg-slate-50">
-        <ToastContainer position="top-right" autoClose={2500} />
         {/* Top bar */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-3 shadow-sm">
           <button onClick={goList} className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-primary transition">
@@ -497,7 +495,6 @@ const BlogManagement = () => {
   // ==================== LIST MODE ====================
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
-      <ToastContainer position="top-right" autoClose={2500} />
 
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

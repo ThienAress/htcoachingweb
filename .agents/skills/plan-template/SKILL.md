@@ -55,7 +55,11 @@ Trước khi viết hoặc đặt file plan:
    dùng suffix `NNNa`, `NNNb`, ... theo convention hiện tại.
 6. Tạo/cập nhật row tương ứng trong `docs/plans/README.md` cùng lúc với file plan. Với thư mục
    khác, cập nhật index gần nhất nếu index đó tồn tại.
-7. Tạo file plan **trước khi bắt đầu implementation**. Trong lúc thực thi, cập nhật status,
+7. Với plan mới sau `legacyCutoff` trong `docs/plans/plan-state.json`, thêm machine state gồm
+   `complexity`, `lifecycle`, `verification`, `rollout`, `owner`, `updatedAt`; prose status không phải source cho automation.
+8. Task `MODERATE/COMPLEX` tạo `docs/plans/traceability/<plan-id>.json` để map requirement/AC
+   tới task và verification. Mọi must-have AC phải có ít nhất một task và một test/command.
+9. Tạo file plan **trước khi bắt đầu implementation**. Trong lúc thực thi, cập nhật status,
    quyết định lệch plan và verification thực tế để file vẫn là nguồn bàn giao đúng.
 
 Nếu taxonomy hiện tại chưa có chỗ phù hợp, cập nhật `docs/README.md` với category có ranh giới rõ
@@ -78,11 +82,17 @@ rồi mới tạo thư mục. Không tự tạo thư mục mơ hồ như `docs/m
 ## Status
 
 - **Priority**: P1 | P2 | P3
+- **Complexity**: SIMPLE | MODERATE | COMPLEX
 - **Effort**: S (giờ) | M (~1 ngày) | L (nhiều ngày)
 - **Risk**: LOW | MED | HIGH
 - **Depends on**: plan khác hoặc "none"
 - **Category**: bug | security | perf | tests | tech-debt | migration | dx
 - **Planned at**: <ngày viết plan>
+- **Lifecycle**: PLANNED | IN PROGRESS | DONE | BLOCKED | REJECTED
+- **Verification**: NONE | FOCUSED | LOCAL FULL | STAGING | PRODUCTION
+- **Rollout**: NOT APPLICABLE | NOT STARTED | PENDING | LIVE
+- **Owner**: <stable owner/task id>
+- **Updated at**: <YYYY-MM-DD>
 
 ## Why This Matters
 
@@ -203,12 +213,20 @@ Generated on <ngày>. Execute theo thứ tự dưới đây.
 
 ## Execution Order & Status
 
-| Plan | Title | Priority | Effort | Depends on | Status |
-|------|-------|----------|--------|------------|--------|
-| 001  | ...   | P1       | S      | —          | TODO   |
-| 002  | ...   | P1       | M      | 001        | TODO   |
+| Plan | Title | Priority | Effort | Depends on | Lifecycle | Verification | Rollout |
+|------|-------|----------|--------|------------|-----------|--------------|---------|
+| 001  | ...   | P1       | S      | —          | PLANNED   | NONE         | NOT STARTED |
+| 002  | ...   | P1       | M      | 001        | PLANNED   | NONE         | NOT STARTED |
 
-Status values: TODO | IN PROGRESS | DONE | BLOCKED (+ lý do 1 dòng) | REJECTED (+ lý do)
+Machine state canonical nằm trong `docs/plans/plan-state.json`:
+
+- `complexity`: simple | moderate | complex
+- `lifecycle`: planned | in_progress | done | blocked | rejected
+- `verification`: none | focused | local_full | staging | production
+- `rollout`: not_applicable | not_started | pending | live
+
+Các row historical trước `legacyCutoff` có thể giữ status prose để tương thích, nhưng automation
+không được suy luận state từ chuỗi prose đó.
 
 ## Dependency Notes
 
@@ -235,3 +253,4 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (+ lý do 1 dòng) | REJECTED
 - [ ] Đã quét placeholder `TBD`, `TODO marker`, `implement later`, `similar to` và chỉ dẫn mơ hồ như “handle edge cases”?
 - [ ] Tên symbol, payload, route và command có nhất quán giữa các step?
 - [ ] Mỗi task boundary có deliverable/verification riêng thay vì chỉ chia theo technical layer?
+- [ ] Machine state đã cập nhật và dùng đúng enum? Với task `MODERATE/COMPLEX`, mọi must-have AC đã có task + verification trong traceability manifest?

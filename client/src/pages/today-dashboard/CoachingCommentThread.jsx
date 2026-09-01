@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import {
   ChevronLeft,
   ChevronRight,
@@ -52,15 +53,27 @@ export const CoachingCommentThread = ({
       if (kind === "remove") return removeCoachingComment(commentId, payload);
       return createCoachingComment(payload);
     },
-    onSuccess: () => {
+    onSuccess: (_response, variables) => {
       setFailedCommand(null);
       setConfirming(null);
       setEditing(null);
+      toast.success(
+        variables.kind === "create"
+          ? "Đã gửi trao đổi"
+          : variables.kind === "edit"
+            ? "Đã cập nhật trao đổi"
+            : "Đã xóa trao đổi",
+      );
       void queryClient.invalidateQueries({
         queryKey: commentThreadKey(targetType, targetId),
       });
     },
-    onError: (_error, variables) => setFailedCommand(variables),
+    onError: (error, variables) => {
+      setFailedCommand(variables);
+      toast.error(
+        error.response?.data?.message || "Không thể cập nhật trao đổi",
+      );
+    },
   });
 
   const submitDraft = () => {

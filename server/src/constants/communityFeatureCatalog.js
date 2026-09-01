@@ -1,4 +1,4 @@
-export const COMMUNITY_FEATURE_CATALOG_VERSION = "2026-08-12.1";
+export const COMMUNITY_FEATURE_CATALOG_VERSION = "2026-08-29.2";
 const HISTORY_SNAPSHOT_VERSION_2026_08_10 = "2026-08-10.2";
 
 export const COMMUNITY_FEATURE_AUDIENCES = Object.freeze({
@@ -101,6 +101,34 @@ const featureFromSnapshot = (featureKey, snapshot, rest) => ({
   ...rest,
 });
 
+const featureWithCurrentSnapshot = ({ improvementHistory = [], ...feature }) => {
+  const snapshot = deepFreeze({
+    catalogVersion: COMMUNITY_FEATURE_CATALOG_VERSION,
+    featureLabel: feature.label,
+    group: feature.group,
+    priority: feature.priority,
+    primaryValue: feature.primaryValue,
+    audiences: feature.audiences,
+  });
+  return {
+    ...feature,
+    improvementHistory: improvementHistory.map((record) => ({
+      snapshot,
+      ...record,
+    })),
+  };
+};
+
+const MEAL_PLAN_2026_08_25_SNAPSHOT = deepFreeze({
+  catalogVersion: "2026-08-25.1",
+  featureLabel: "Meal Plan",
+  group: GROUPS.NUTRITION,
+  priority: PRIORITIES.F1,
+  primaryValue:
+    "Gợi ý thực đơn theo mục tiêu calo, macro và số bữa trong ngày.",
+  audiences: ["Cộng đồng", "Khách hàng", "HLV"],
+});
+
 export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
   featureFromSnapshot("ht_assistant", HT_ASSISTANT_2026_08_10_SNAPSHOT, {
     priority: PRIORITIES.F1,
@@ -166,7 +194,7 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
       },
     ],
   }),
-  {
+  featureWithCurrentSnapshot({
     featureKey: "tdee_calculator",
     label: "TDEE Calculator",
     group: GROUPS.NUTRITION,
@@ -175,20 +203,33 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
       "Ước tính BMR, TDEE, lượng calo và macro theo mục tiêu cá nhân.",
     audiences: ["Cộng đồng"],
     currentImprovement: {
-      improvementKey: "explain_uncertainty_and_compare_progress",
+      improvementKey: "calibrate_from_real_progress",
       description:
-        "Diễn giải rõ độ sai số và hỗ trợ lưu, so sánh kết quả theo tiến độ.",
-      openedAt: "2026-08-10",
+        "Cho phép đối chiếu ước tính với cân nặng, mức vận động và tiến độ thực tế để gợi ý hiệu chỉnh có giải thích.",
+      openedAt: "2026-08-29",
     },
-    improvementHistory: [],
-  },
+    improvementHistory: [
+      {
+        improvementKey: "uncertainty_and_activity_evidence",
+        opportunity: "Làm rõ độ tin cậy của TDEE",
+        result:
+          "TDEE đã giải thích đây là ước tính, dùng bằng chứng vận động cả ngày và liên kết với tiến trình cơ thể.",
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.VERIFIED,
+            statusDate: "2026-08-12",
+          },
+        ],
+      },
+    ],
+  }),
   featureFromSnapshot("meal_plan", MEAL_PLAN_2026_08_10_SNAPSHOT, {
     priority: PRIORITIES.F1,
     currentImprovement: {
-      improvementKey: "macro_adherence_and_budget_substitutions",
+      improvementKey: "budget_and_allergy_substitutions",
       description:
-        "Đo mức bám sát macro và hỗ trợ thay món theo khẩu vị, dị ứng và ngân sách.",
-      openedAt: "2026-08-12",
+        "Đề xuất món thay thế theo dị ứng, khẩu vị, ngân sách và giải thích ảnh hưởng tới macro.",
+      openedAt: "2026-08-29",
     },
     improvementHistory: [
       {
@@ -231,9 +272,23 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
           },
         ],
       },
+      {
+        improvementKey: "saved_plan_revision_and_daily_execution",
+        opportunity:
+          "Cho phép quản lý thực đơn đã lưu và ghi nhận bữa ăn thực tế",
+        result:
+          "Khách hàng có thể đổi tên, chỉnh sửa, lưu trữ thực đơn, ghi bữa phát sinh và gửi dinh dưỡng thực tế cho HLV.",
+        snapshot: MEAL_PLAN_2026_08_25_SNAPSHOT,
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.VERIFIED,
+            statusDate: "2026-08-25",
+          },
+        ],
+      },
     ],
   }),
-  {
+  featureWithCurrentSnapshot({
     featureKey: "meal_scan",
     label: "Meal Scan",
     group: GROUPS.NUTRITION,
@@ -242,14 +297,27 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
       "Phân tích ảnh món ăn để ước tính khẩu phần, calo và macro.",
     audiences: ["Cộng đồng", "Khách hàng", "HLV"],
     currentImprovement: {
-      improvementKey: "journal_integration_and_accuracy",
+      improvementKey: "confirmed_journal_entry_and_accuracy",
       description:
-        "Lưu kết quả đã chỉnh khẩu phần vào nhật ký và đo độ chính xác thực tế.",
-      openedAt: "2026-08-10",
+        "Cho người dùng xác nhận khẩu phần trước khi đưa vào nhật ký và đo sai lệch trên tập ảnh thực tế.",
+      openedAt: "2026-08-29",
     },
-    improvementHistory: [],
-  },
-  {
+    improvementHistory: [
+      {
+        improvementKey: "entitlement_quota_and_review_flow",
+        opportunity: "Chuẩn hóa hạn mức và bước xác nhận Meal Scan",
+        result:
+          "Meal Scan đã dùng quota theo entitlement và có bước khai báo, khóa, xác nhận trước khi phân tích.",
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.VERIFIED,
+            statusDate: "2026-08-18",
+          },
+        ],
+      },
+    ],
+  }),
+  featureWithCurrentSnapshot({
     featureKey: "recipes",
     label: "Công thức nấu ăn",
     group: GROUPS.NUTRITION,
@@ -258,14 +326,27 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
       "Giúp người dùng tìm, lọc, lưu và thực hành các công thức phù hợp.",
     audiences: ["Cộng đồng", "Khách hàng"],
     currentImprovement: {
-      improvementKey: "serving_macros_and_shopping_list",
+      improvementKey: "allergy_filters_and_shopping_list",
       description:
-        "Bổ sung macro theo khẩu phần, đổi số phần ăn và danh sách mua sắm.",
-      openedAt: "2026-08-10",
+        "Lọc theo dị ứng, mục tiêu dinh dưỡng và tạo danh sách mua sắm từ các công thức đã chọn.",
+      openedAt: "2026-08-29",
     },
-    improvementHistory: [],
-  },
-  {
+    improvementHistory: [
+      {
+        improvementKey: "complete_recipe_nutrition_and_community",
+        opportunity: "Hoàn thiện dinh dưỡng và tương tác công thức",
+        result:
+          "Công thức đã có nutrition theo khẩu phần, quy đổi số phần ăn, bookmark, đánh giá và luồng nhập dữ liệu chuyên gia an toàn.",
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.VERIFIED,
+            statusDate: "2026-08-27",
+          },
+        ],
+      },
+    ],
+  }),
+  featureWithCurrentSnapshot({
     featureKey: "exercise_library",
     label: "Thư viện & bộ tạo bài tập",
     group: GROUPS.TRAINING,
@@ -274,14 +355,27 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
       "Tra cứu bài tập theo nhóm cơ và xây dựng buổi tập có thể xuất PDF.",
     audiences: ["Cộng đồng", "Khách hàng", "HLV"],
     currentImprovement: {
-      improvementKey: "equipment_difficulty_injury_filters",
+      improvementKey: "injury_and_personal_fit_filters",
       description:
-        "Lọc thêm theo thiết bị, độ khó, lưu ý chấn thương và bài tập yêu thích.",
-      openedAt: "2026-08-10",
+        "Lọc theo thiết bị, lưu ý chấn thương và gợi ý bài thay thế phù hợp với khả năng từng người.",
+      openedAt: "2026-08-29",
     },
-    improvementHistory: [],
-  },
-  {
+    improvementHistory: [
+      {
+        improvementKey: "exercise_guides_video_reviews_and_difficulty",
+        opportunity: "Mở rộng chi tiết và chất lượng hướng dẫn bài tập",
+        result:
+          "Trang bài tập đã có hướng dẫn setup, video, đánh giá cộng đồng và độ phức tạp kỹ thuật được nhập có kiểm soát.",
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.VERIFIED,
+            statusDate: "2026-08-27",
+          },
+        ],
+      },
+    ],
+  }),
+  featureWithCurrentSnapshot({
     featureKey: "workout_plans",
     label: "Giáo án tập luyện",
     group: GROUPS.TRAINING,
@@ -296,24 +390,61 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
       openedAt: "2026-08-10",
     },
     improvementHistory: [],
-  },
-  {
+  }),
+  featureWithCurrentSnapshot({
     featureKey: "today_dashboard",
     label: "Today Dashboard",
     group: GROUPS.TRACKING,
-    priority: PRIORITIES.F1,
+    priority: PRIORITIES.F0,
     primaryValue:
       "Tập trung lịch tập, dinh dưỡng, thói quen và nhật ký hằng ngày tại một nơi.",
     audiences: ["Khách hàng", "HLV"],
     currentImprovement: {
-      improvementKey: "onboarding_and_next_action",
+      improvementKey: "health_goal_adherence_and_next_action",
       description:
-        "Cải thiện onboarding và gợi ý hành động tiếp theo từ mức độ tuân thủ.",
-      openedAt: "2026-08-10",
+        "Tổng hợp mức bám mục tiêu sức khỏe và gợi ý một hành động tiếp theo dễ thực hiện trong ngày.",
+      openedAt: "2026-08-29",
     },
-    improvementHistory: [],
-  },
-  {
+    improvementHistory: [
+      {
+        improvementKey: "daily_wellness_nutrition_and_reports",
+        opportunity: "Hoàn thiện nhật ký sức khỏe và dinh dưỡng trong ngày",
+        result:
+          "Khách hàng có thể gửi sức khỏe, dinh dưỡng thực tế và ghi chú; HLV chỉ xem dữ liệu đã gửi trong khu vực hỗ trợ.",
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.VERIFIED,
+            statusDate: "2026-08-25",
+          },
+        ],
+      },
+      {
+        improvementKey: "weekly_habits_and_health_goal_grouping",
+        opportunity: "Gom mục tiêu sức khỏe và thói quen thành một kế hoạch",
+        result:
+          "Thói quen theo lịch tuần đã được kiểm thử; mục tiêu và Thói quen khách hàng được gom cùng section ở HLV và khách hàng.",
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.VERIFIED,
+            statusDate: "2026-08-29",
+          },
+        ],
+      },
+      {
+        improvementKey: "opt_in_morning_health_email",
+        opportunity: "Nhắc khách cập nhật Mục tiêu sức khỏe đúng lúc",
+        result:
+          "Khách coaching có thể bật email nhắc buổi sáng trong Tài khoản; email mở đúng section sức khỏe, tự bỏ qua ngày đã gửi và chống gửi trùng.",
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.VERIFIED,
+            statusDate: "2026-08-29",
+          },
+        ],
+      },
+    ],
+  }),
+  featureWithCurrentSnapshot({
     featureKey: "progress_tracking",
     label: "Tiến độ & Weekly Check-in",
     group: GROUPS.TRACKING,
@@ -322,14 +453,56 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
       "Theo dõi xu hướng sức khỏe, mức độ tuân thủ và phản hồi định kỳ từ HLV.",
     audiences: ["Khách hàng", "HLV"],
     currentImprovement: {
-      improvementKey: "goal_comparison_and_anomaly_explanation",
+      improvementKey: "goal_comparison_and_actionable_trends",
       description:
-        "So sánh với mục tiêu và giải thích các xu hướng hoặc dữ liệu bất thường.",
-      openedAt: "2026-08-10",
+        "So sánh xu hướng với mục tiêu, giải thích dữ liệu bất thường và gợi ý nội dung cần trao đổi với HLV.",
+      openedAt: "2026-08-29",
     },
-    improvementHistory: [],
-  },
-  {
+    improvementHistory: [
+      {
+        improvementKey: "body_progress_and_compliance_charts",
+        opportunity: "Trực quan hóa tiến trình cơ thể và mức độ thực hiện",
+        result:
+          "Tiến trình đã có biểu đồ cân nặng, vòng eo, thành phần cơ thể, mức độ thực hiện và sức khỏe trung bình với trạng thái dữ liệu thiếu rõ ràng.",
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.VERIFIED,
+            statusDate: "2026-08-23",
+          },
+        ],
+      },
+    ],
+  }),
+  featureWithCurrentSnapshot({
+    featureKey: "practice_center",
+    label: "Trung tâm thực hành HLV",
+    group: GROUPS.EDUCATION,
+    priority: PRIORITIES.F2,
+    primaryValue:
+      "Giúp HLV tự trải nghiệm email Order và Check-in bằng dữ liệu mô phỏng an toàn.",
+    audiences: ["HLV"],
+    currentImprovement: {
+      improvementKey: "template_preview_and_delivery_diagnostics",
+      description:
+        "Cho xem trước nội dung từng email và trạng thái giao nhận để HLV tự chẩn đoán trước khi hỗ trợ khách hàng.",
+      openedAt: "2026-08-29",
+    },
+    improvementHistory: [
+      {
+        improvementKey: "safe_order_and_checkin_simulation",
+        opportunity: "Cho HLV thực hành quy trình email mà không tạo dữ liệu thật",
+        result:
+          "HLV/Admin có thể gửi mô phỏng tới email đăng nhập theo hạn mức, không tạo Order, Check-in hay trừ buổi thật.",
+        milestones: [
+          {
+            status: COMMUNITY_FEATURE_DELIVERY_STATUSES.VERIFIED,
+            statusDate: "2026-08-28",
+          },
+        ],
+      },
+    ],
+  }),
+  featureWithCurrentSnapshot({
     featureKey: "gym_finder",
     label: "Tìm phòng tập",
     group: GROUPS.DISCOVERY,
@@ -344,8 +517,8 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
       openedAt: "2026-08-10",
     },
     improvementHistory: [],
-  },
-  {
+  }),
+  featureWithCurrentSnapshot({
     featureKey: "blog_knowledge",
     label: "Blog & kiến thức",
     group: GROUPS.EDUCATION,
@@ -360,5 +533,5 @@ export const COMMUNITY_FEATURE_CATALOG = deepFreeze([
       openedAt: "2026-08-10",
     },
     improvementHistory: [],
-  },
+  }),
 ]);

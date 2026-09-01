@@ -6,6 +6,7 @@ import Contract from "../models/Contract.js";
 import AuditLog from "../models/AuditLog.js";
 import User from "../models/User.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
+import TrainerTransferLock from "../models/TrainerTransferLock.js";
 import { getMaxClientsByPlan } from "../services/trainerPlanCatalog.service.js";
 import jwt from "jsonwebtoken";
 import { escapeRegex } from "../utils/escapeRegex.js";
@@ -27,8 +28,85 @@ import {
   createServiceEntitlementSnapshot,
 } from "../constants/serviceAccessPolicies.js";
 
-const orderError = (status, code, message) =>
-  Object.assign(new Error(message), { status, code });
+const orderError = (status, code, message, data = null) =>
+  Object.assign(new Error(message), {
+    status,
+    code,
+    ...(data ? { data } : {}),
+  });
+
+const acquireTrainerCapacity = async ({ trainerId, clientId, session }) => {
+  if (!mongoose.isValidObjectId(trainerId) || !mongoose.isValidObjectId(clientId)) {
+    throw orderError(
+      400,
+      "INVALID_TRAINER_ASSIGNMENT",
+      "Khách hàng hoặc HLV không hợp lệ",
+    );
+  }
+  await TrainerTransferLock.findOneAndUpdate(
+    { _id: trainerId },
+    { $inc: { revision: 1 } },
+    {
+      upsert: true,
+      returnDocument: "after",
+      setDefaultsOnInsert: true,
+      session,
+    },
+  );
+  const now = new Date();
+  const trainer = await User.findById(trainerId)
+    .select("role")
+    .session(session)
+    .lean();
+  const subscription = await TrainerSubscription.findOne({
+    userId: trainerId,
+    status: "active",
+    isActive: true,
+    endDate: { $gt: now },
+  })
+    .select("planCode planTitle")
+    .session(session)
+    .lean();
+  if (!trainer || (trainer.role !== "trainer" && !subscription)) {
+    throw orderError(
+      409,
+      "TARGET_TRAINER_INACTIVE",
+      "HLV được chọn không có quyền hoạt động",
+    );
+  }
+  const maxClients = getMaxClientsByPlan(
+    subscription?.planCode || subscription?.planTitle || "free",
+  );
+  if (maxClients < 1) {
+    throw orderError(
+      409,
+      "TARGET_TRAINER_PLAN_INVALID",
+      "Không xác định được giới hạn gói của HLV được chọn",
+    );
+  }
+  const existingClientIds = await Order.distinct("userId", {
+    trainerId,
+    userId: { $ne: null },
+    status: { $in: ["pending", "approved"] },
+    sessions: { $gt: 0 },
+  }).session(session);
+  const alreadyManaged = existingClientIds.some(
+    (existingClientId) => String(existingClientId) === String(clientId),
+  );
+  if (!alreadyManaged && existingClientIds.length >= maxClients) {
+    const planTitle = subscription?.planTitle || "Miễn phí";
+    throw orderError(
+      403,
+      "TRAINER_CAPACITY_EXCEEDED",
+      `Gói "${planTitle}" chỉ cho phép quản lý tối đa ${maxClients} học viên. Hiện tại đã có ${existingClientIds.length} học viên.`,
+      {
+        currentClients: existingClientIds.length,
+        maxClients,
+        planTitle,
+      },
+    );
+  }
+};
 
 const syncOrderDailyJournalRetention = async ({
   clientId,
@@ -55,6 +133,7 @@ const syncOrderDailyJournalRetention = async ({
 };
 
 export const createOrder = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const { name, email } = req.body;
 
@@ -69,81 +148,53 @@ export const createOrder = async (req, res) => {
     const trainerId = req.isAdmin
       ? req.body.trainerId || null
       : req.user.id;
-    const conversionOrigin = await resolveConversionOrigin({
-      originBookingId: req.body.originBookingId,
-      originContactMessageId: req.body.originContactMessageId,
-      isAdmin: req.user.role === "admin",
-    });
-    await assertConversionOriginAvailable({
-      Model: Order,
-      conversionOrigin,
-    });
-
-    // ===== Check giới hạn học viên theo gói HLV =====
-    if (trainerId) {
-      // Tìm subscription active của trainer
-      const subscription = await TrainerSubscription.findOne({
-        userId: trainerId,
-        isActive: true,
-        endDate: { $gt: new Date() },
+    let order;
+    await session.withTransaction(async () => {
+      const conversionOrigin = await resolveConversionOrigin({
+        originBookingId: req.body.originBookingId,
+        originContactMessageId: req.body.originContactMessageId,
+        isAdmin: req.user.role === "admin",
+        session,
+      });
+      await assertConversionOriginAvailable({
+        Model: Order,
+        conversionOrigin,
+        session,
       });
 
-      if (subscription) {
-        const maxClients = getMaxClientsByPlan(
-          subscription.planCode || subscription.planTitle,
+      let user = await User.findOne({ email: normalizedEmail }).session(session);
+      if (!user) {
+        [user] = await User.create(
+          [{ name, email: normalizedEmail, role: "user" }],
+          { session },
         );
-
-        if (maxClients > 0) {
-          // Đếm số email unique mà trainer đang quản lý
-          const existingEmails = await Order.distinct("email", {
-            trainerId,
-            status: { $in: ["pending", "approved"] },
-            sessions: { $gt: 0 },
-          });
-
-          // Nếu email này chưa tồn tại → cần 1 slot mới
-          const isNewClient = !existingEmails.includes(normalizedEmail);
-
-          if (isNewClient && existingEmails.length >= maxClients) {
-            return res.status(403).json({
-              success: false,
-              message: `Gói "${subscription.planTitle}" chỉ cho phép quản lý tối đa ${maxClients} học viên. Hiện tại đã có ${existingEmails.length} học viên. Vui lòng nâng cấp gói để thêm học viên mới.`,
-              data: {
-                currentClients: existingEmails.length,
-                maxClients,
-                planTitle: subscription.planTitle,
-              },
-            });
-          }
-        }
       }
-    }
 
-    // 👉 tìm user theo email (khách)
-    let user = await User.findOne({ email: normalizedEmail });
+      if (trainerId) {
+        await acquireTrainerCapacity({
+          trainerId,
+          clientId: user._id,
+          session,
+        });
+      }
 
-    // 👉 nếu chưa có thì tạo
-    if (!user) {
-      user = await User.create({
-        name,
-        email: normalizedEmail,
-        role: "user",
-      });
-    }
-
-    const order = await Order.create({
-      name: req.body.name,
-      email: normalizedEmail,
-      phone: req.body.phone || "",
-      package: req.body.package,
-      gym: req.body.gym,
-      schedule: req.body.schedule,
-      note: req.body.note || "",
-      userId: user._id,
-      trainerId,
-      sessions: Number(req.body.sessions),
-      totalSessions: Number(req.body.sessions),
-      ...conversionOrigin,
+      [order] = await Order.create(
+        [{
+          name: req.body.name,
+          email: normalizedEmail,
+          phone: req.body.phone || "",
+          package: req.body.package,
+          gym: req.body.gym,
+          schedule: req.body.schedule,
+          note: req.body.note || "",
+          userId: user._id,
+          trainerId,
+          sessions: Number(req.body.sessions),
+          totalSessions: Number(req.body.sessions),
+          ...conversionOrigin,
+        }],
+        { session },
+      );
     });
     if (order.status === "approved" && order.sessions > 0) {
       await syncOrderDailyJournalRetention({
@@ -172,7 +223,10 @@ export const createOrder = async (req, res) => {
       code: normalizedError?.code || "ORDER_CREATE_FAILED",
       message:
         status >= 500 ? "Lỗi tạo đơn" : normalizedError.message,
+      ...(normalizedError?.data ? { data: normalizedError.data } : {}),
     });
+  } finally {
+    await session.endSession();
   }
 };
 
@@ -326,6 +380,22 @@ export const updateOrder = async (req, res) => {
         message: "Chỉ có thể sửa đơn đang chờ xác nhận hoặc đang hoạt động",
       });
     }
+    const trainerAssignmentChanged =
+      req.isAdmin &&
+      req.body.trainerId !== undefined &&
+      String(req.body.trainerId || "") !== String(order.trainerId || "");
+    const isInitialTrainerAssignment =
+      trainerAssignmentChanged &&
+      !order.trainerId &&
+      Boolean(req.body.trainerId);
+    if (trainerAssignmentChanged && !isInitialTrainerAssignment) {
+      return res.status(409).json({
+        success: false,
+        code: "TRAINER_COORDINATION_REQUIRED",
+        message:
+          "Hãy dùng mục Điều phối HLV để thay đổi huấn luyện viên phụ trách",
+      });
+    }
 
     // State transition guard
     const VALID_TRANSITIONS = {
@@ -406,18 +476,63 @@ export const updateOrder = async (req, res) => {
       }
     }
 
-    const updated = await Order.findOneAndUpdate(
-      {
-        ...ownerFilter,
-        status: order.status,
-        updatedAt: order.updatedAt,
-      },
-      { $set: updateData },
-      {
-      returnDocument: "after",
-        runValidators: true,
-      },
-    );
+    let updated;
+    if (isInitialTrainerAssignment) {
+      if (!order.userId) {
+        return res.status(409).json({
+          success: false,
+          code: "ORDER_CLIENT_LINK_REQUIRED",
+          message: "Cần liên kết tài khoản khách hàng trước khi phân công HLV",
+        });
+      }
+      const session = await mongoose.startSession();
+      try {
+        await session.withTransaction(async () => {
+          await acquireTrainerCapacity({
+            trainerId: updateData.trainerId,
+            clientId: order.userId,
+            session,
+          });
+          updated = await Order.findOneAndUpdate(
+            {
+              ...ownerFilter,
+              trainerId: null,
+              status: order.status,
+              updatedAt: order.updatedAt,
+            },
+            { $set: updateData },
+            { returnDocument: "after", runValidators: true, session },
+          );
+          if (!updated) return;
+          await AuditLog.create(
+            [{
+              actorId: req.user.id,
+              actorRole: req.user.role,
+              action: "assign_order_trainer",
+              targetType: "order",
+              targetId: order._id,
+              metadata: { toTrainerId: String(updateData.trainerId) },
+            }],
+            { session },
+          );
+        });
+      } finally {
+        await session.endSession();
+      }
+    } else {
+      updated = await Order.findOneAndUpdate(
+        {
+          ...ownerFilter,
+          status: order.status,
+          updatedAt: order.updatedAt,
+        },
+        { $set: updateData },
+        {
+          returnDocument: "after",
+          runValidators: true,
+        },
+      );
+    }
     if (!updated) {
       incrementMetric("financial.conflicts");
       return res.status(409).json({
@@ -446,8 +561,20 @@ export const updateOrder = async (req, res) => {
       message: "Cập nhật thành công",
     });
   } catch (err) {
-    safeLog.error("order.update_failed", err);
-    res.status(500).json({ success: false, message: "Lỗi cập nhật đơn" });
+    const status = err?.status || 500;
+    if (status >= 500) {
+      safeLog.error("order.update_failed", err);
+    } else {
+      safeLog.warn("order.update_rejected", "Order update rejected", {
+        code: err.code,
+      });
+    }
+    res.status(status).json({
+      success: false,
+      code: err?.code || "ORDER_UPDATE_FAILED",
+      message: status >= 500 ? "Lỗi cập nhật đơn" : err.message,
+      ...(err?.data ? { data: err.data } : {}),
+    });
   }
 };
 

@@ -100,6 +100,11 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 071A | Thêm chi tiết bài tập, hướng dẫn setup, video và đánh giá | P1 | L | 047, 071 | DONE / LOCAL VERIFIED — LIVE CLOUDINARY + STRICT PRERENDER PENDING |
 | 072 | Nhập hàng loạt hướng dẫn và độ phức tạp kỹ thuật bài tập | P1 | M | 047, 071A | DONE / LOCAL VERIFIED — FULL SERVER + AUTH E2E BLOCKED |
 | 073 | Nhập dinh dưỡng công thức từ catalog production | P1 | L | 058A, 059, 072 | DONE / LOCAL VERIFIED — ADMIN DRAFT EXPORT + FULL SERVER SUITE BLOCKED |
+| 074 | Harden P1 security và thêm công cụ vận hành HLV | P1 | XL | 019, 020, 033, 066 | DONE / NODE 22 LOCAL FULL — MIGRATIONS NOT RUN |
+| 075 | Rà soát catalog, chuẩn hóa phản hồi submit và gom Mục tiêu sức khỏe | P1 | XL | 039, 047, 060, 062, 067, 068, 069, 071A, 074 | DONE / NODE 22 LOCAL FULL |
+| 076 | Gửi email buổi sáng nhắc khách cập nhật sức khỏe | P1 | L | 003B, 003G, 060, 075 | DONE / NODE 22 LOCAL FULL — PRODUCTION FLAGS OFF |
+| 077 | Harden agent evidence và đo chất lượng Search | P1 | L | 017, 030, 035 | DONE / NODE 22 LOCAL FULL — HISTORY RISK RECORDED |
+| 078 | Build supervised agent harness và Search pilot | P2 | L | 077 | DONE / NODE 22 LOCAL FULL — PRODUCTION ROLLOUT NOT AUTHORIZED |
 
 ## Dependency Notes
 
@@ -187,6 +192,16 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   editor đã có; production chỉ là nguồn GET cho catalog bàn giao, không có mutation.
 - Plan 073 phụ thuộc 058A/059 cho catalog và nutrition contract, cùng 072 cho pattern
   import JSON preview/commit; production tiếp tục chỉ là nguồn GET công khai.
+- Plan 074 phụ thuộc 019/020 cho ownership/security contract, 033 cho quota registry và 066 cho
+  release isolation; migration chỉ được chạy theo target/approval riêng.
+- Plan 075 phụ thuộc catalog/report của 039 và các feature 047/060/062/067-069/071A/074 để cập nhật
+  đúng evidence; presentation/feedback giữ nguyên API contract hiện có.
+- Plan 076 phụ thuộc Daily Journal/notification lifecycle và grouping sức khỏe đã ổn định; email
+  mặc định opt-in false, có delivery idempotency và production flags vẫn tắt trước rollout riêng.
+- Plan 077 phụ thuộc governance/skills/Radar hiện có; chỉ thêm gate deterministic và benchmark offline,
+  không đổi product runtime, Search production hoặc quyền Git/production.
+- Plan 078 phụ thuộc evidence/baseline của 077; chỉ thêm context/evidence/lease/state contracts và
+  Search candidate offline, không tạo autonomous executor hoặc rollout product.
 
 ## Findings Considered and Rejected
 

@@ -1,7 +1,7 @@
 # Plan 008: Đồng bộ đầy đủ tài khoản test vào local và staging
 
 > **Hướng dẫn thực thi**: Production chỉ được đọc đúng tài khoản
-> `hoangthiengym1999@gmail.com`. Mọi ghi dữ liệu chỉ được phép vào database local
+> tài khoản test đồng bộ đã được operator xác nhận (email cụ thể không lưu trong repository). Mọi ghi dữ liệu chỉ được phép vào database local
 > `htcoaching_local` và staging `htcoaching_staging`. Không lưu document hoặc URI database vào repository.
 
 ## Status

@@ -38,6 +38,7 @@ const auditLogSchema = new mongoose.Schema(
         "claim_pending_trainer_grant",
         "revoke_pending_trainer_grant",
         "delete_order",
+        "assign_order_trainer",
         "refund",
         "change_user_role",
         "admin_login",

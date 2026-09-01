@@ -11,6 +11,7 @@ import {
   History,
   Loader2,
   FileText,
+  Mail,
 } from "lucide-react";
 import {
   updateMyProfile,
@@ -23,6 +24,7 @@ import ProfileTab from "./components/ProfileTab";
 import OrdersTab from "./components/OrdersTab";
 import HistoryTab from "./components/HistoryTab";
 import ContractsTab from "./components/ContractsTab";
+import EmailNotificationsTab from "./components/EmailNotificationsTab";
 import {
   accountContractsQueryOptions,
   accountOrdersQueryOptions,
@@ -342,6 +344,9 @@ function AccountPage() {
   // Sidebar menu items
   const menuItems = [
     { key: "profile", label: t("sidebar.profile"), icon: User, group: t("profile.title") },
+    ...(user.role === "user"
+      ? [{ key: "email-reminders", label: t("sidebar.email_reminders"), icon: Mail, group: t("email_reminders.group") }]
+      : []),
     { key: "orders", label: t("sidebar.orders"), icon: ShoppingBag, group: t("orders.title") },
     { key: "history", label: t("sidebar.history"), icon: History, group: t("history.title") },
     { key: "contracts", label: t("sidebar.contracts"), icon: FileText, group: t("contracts.title") },
@@ -412,6 +417,10 @@ function AccountPage() {
                     getAvatarUrl={getAvatarUrl}
                     fileInputRef={fileInputRef}
                   />
+                )}
+
+                {activeTab === "email-reminders" && user.role === "user" && (
+                  <EmailNotificationsTab userId={userId} />
                 )}
 
                 {activeTab === "orders" && (

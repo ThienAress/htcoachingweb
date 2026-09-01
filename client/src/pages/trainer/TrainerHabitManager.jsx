@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Flame, Plus, Repeat2, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { toast } from "react-toastify";
 import {
   changeCoachingHabitStatus,
   createTrainerClientHabit,
@@ -48,20 +49,24 @@ export const TrainerHabitManager = ({ clientId, dateKey }) => {
       const deleted =
         variables.kind === "status" &&
         variables.payload.status === "archived";
-      setNotice(
+      const successMessage =
         deleted
           ? "Đã xóa thói quen khỏi kế hoạch của học viên."
           : variables.kind === "create"
             ? "Đã giao thói quen cho học viên."
-            : "Đã cập nhật thói quen cho học viên.",
-      );
+            : "Đã cập nhật thói quen cho học viên.";
+      setNotice(successMessage);
+      toast.success(successMessage);
       if (variables.kind === "update" || deleted) setEditingHabit(null);
       setFailedCommand(null);
       void queryClient.invalidateQueries({ queryKey });
     },
-    onError: (_error, variables) => {
+    onError: (error, variables) => {
       setNotice("");
       setFailedCommand(variables);
+      toast.error(
+        error.response?.data?.message || "Không thể cập nhật thói quen lúc này",
+      );
     },
   });
 
@@ -102,14 +107,13 @@ export const TrainerHabitManager = ({ clientId, dateKey }) => {
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-sm">
-      {/* Header */}
       <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-5 sm:p-6">
         <div className="flex items-start gap-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-400/10">
             <Repeat2 className="h-6 w-6 text-cyan-300" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-slate-50 sm:text-3xl">Thói quen hằng ngày</h2>
+            <h3 className="text-xl font-bold text-slate-50 sm:text-2xl">Thói quen khách hàng</h3>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
               Giao thói quen theo từng ngày trong tuần để học viên thực hiện đúng lịch.
             </p>

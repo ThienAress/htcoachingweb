@@ -1,18 +1,21 @@
 import { Home, Flame } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import logo from "../assets/images/logo/logo.svg";
 import SEO from "../components/SEO";
 import { getServerBaseUrl } from "../utils/mediaUrl";
+import { rememberLoginRedirect } from "../utils/loginRedirect";
 
 const Login = () => {
   const { t } = useTranslation("auth");
+  const location = useLocation();
   const handleGoogleLogin = () => {
     const apiUrl =
       import.meta.env.VITE_API_URL ||
       (import.meta.env.DEV ? "http://localhost:5000/api" : "");
     const baseUrl = getServerBaseUrl(apiUrl);
     if (!baseUrl) throw new Error("Missing VITE_API_URL");
+    rememberLoginRedirect(location.state?.from);
     window.location.href = `${baseUrl}/api/auth/google?client_url=${encodeURIComponent(window.location.origin)}`;
   };
 

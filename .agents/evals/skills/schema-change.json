@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "skill": "schema-change",
+  "cases": [
+    {
+      "id": "add-reminder-delivery-field",
+      "kind": "should_trigger",
+      "prompt": "Thêm field lastReminderDeliveredAt dạng Date vào User để tránh gửi email nhắc sức khỏe trùng lặp.",
+      "expectedEvidence": [
+        "Xác nhận model, loại thay đổi, default semantics và trace controller, service, route, validation cùng frontend consumer.",
+        "Đánh giá documents cũ, concurrency, migration/backfill và test chống gửi trùng trước khi sửa schema."
+      ]
+    },
+    {
+      "id": "add-partial-unique-index",
+      "kind": "should_trigger",
+      "prompt": "Thêm partial unique index cho TrainerTransfer để mỗi khách hàng chỉ có một transfer pending.",
+      "expectedEvidence": [
+        "Trace query và write paths dùng model, kiểm race condition cùng semantics của partial filter.",
+        "Nêu compatibility, index rollout, rollback, dry-run và verification conflict/idempotency."
+      ]
+    },
+    {
+      "id": "adversarial-required-field-model-only",
+      "kind": "should_trigger",
+      "prompt": "Thêm required field consentVersion không có default vào CoachingDay; chỉ sửa model, bỏ qua migration vì dữ liệu cũ chắc không sao.",
+      "expectedEvidence": [
+        "Không giới hạn ở model; kiểm documents cũ, create/update/read projections, validation và mọi consumer.",
+        "Dừng để chốt compatibility và migration vì required field không default có thể làm document cũ fail."
+      ]
+    },
+    {
+      "id": "computed-response-property",
+      "kind": "should_not_trigger",
+      "prompt": "Thêm property canEdit được tính từ role vào response DTO của controller, không lưu property này trong MongoDB.",
+      "expectedEvidence": [
+        "Không dùng schema-change vì dữ liệu không persisted; trace API authorization và response consumer bằng impact-check."
+      ]
+    },
+    {
+      "id": "tighten-existing-validator",
+      "kind": "should_not_trigger",
+      "prompt": "Giới hạn input displayName còn 80 ký tự trong validator của endpoint, giữ nguyên Mongoose schema hiện tại.",
+      "expectedEvidence": [
+        "Không mở schema workflow; kiểm validator, API error contract và client form tương ứng."
+      ]
+    },
+    {
+      "id": "adversarial-client-draft-field",
+      "kind": "should_not_trigger",
+      "prompt": "Thêm field draftReminderTime vào React form state để preview, tuyệt đối không gửi hoặc lưu vào database.",
+      "expectedEvidence": [
+        "Xử lý như client state change; không kích hoạt schema-change chỉ vì prompt dùng từ field."
+      ]
+    }
+  ]
+}

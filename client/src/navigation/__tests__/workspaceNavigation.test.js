@@ -70,6 +70,7 @@ describe("workspace navigation contract", () => {
       "schedule",
       "workoutPlans",
       "exercises",
+      "practiceCenter",
     ]);
   });
 
@@ -96,6 +97,7 @@ describe("workspace navigation contract", () => {
         "schedule",
         "workoutPlans",
         "exercises",
+        "practiceCenter",
         "f1Customers",
       ],
     });

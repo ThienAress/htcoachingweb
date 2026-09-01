@@ -13,6 +13,7 @@ import {
   FileText,
   Dumbbell,
   TrendingUp,
+  FlaskConical,
   ChevronDown,
   SidebarClose,
   SidebarOpen,
@@ -130,6 +131,7 @@ const TrainerLayout = () => {
     schedule: CalendarDays,
     workoutPlans: FileText,
     exercises: Dumbbell,
+    practiceCenter: FlaskConical,
     f1Customers: TrendingUp,
   };
   const navGroups = getTrainerNavigationGroups({

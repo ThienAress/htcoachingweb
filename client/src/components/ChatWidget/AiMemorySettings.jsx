@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Brain, Download, LoaderCircle, Trash2, X } from "lucide-react";
 import { saveAs } from "file-saver";
+import { toast } from "react-toastify";
 
 import { AI_MEMORY_FIELDS } from "../../config/aiMemory";
 import { useAuth } from "../../context/AuthContext";
@@ -71,29 +72,44 @@ export default function AiMemorySettings({ onClose }) {
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: aiMemoryKeys.mine(userId) });
   };
-  const mutationOptions = (mutationFn) => ({
+  const mutationOptions = (mutationFn, successMessage) => ({
     mutationFn,
     onMutate: () => setActionError(""),
-    onSuccess: refresh,
-    onError: (error) =>
-      setActionError(
-        error?.response?.data?.message || "Không thể cập nhật Trí nhớ AI.",
-      ),
+    onSuccess: async () => {
+      await refresh();
+      toast.success(successMessage);
+    },
+    onError: (error) => {
+      const message =
+        error?.response?.data?.message || "Không thể cập nhật Trí nhớ AI.";
+      setActionError(message);
+      toast.error(message);
+    },
   });
   const consentMutation = useMutation(
-    mutationOptions((enabled) => setAiMemoryConsent(enabled)),
+    mutationOptions(
+      (enabled) => setAiMemoryConsent(enabled),
+      "Đã cập nhật quyền sử dụng Trí nhớ AI",
+    ),
   );
   const valueMutation = useMutation(
-    mutationOptions(({ kind, value }) => upsertAiMemory(kind, value)),
+    mutationOptions(
+      ({ kind, value }) => upsertAiMemory(kind, value),
+      "Đã lưu lựa chọn Trí nhớ AI",
+    ),
   );
   const deleteKindMutation = useMutation(
-    mutationOptions((kind) => deleteAiMemoryKind(kind)),
+    mutationOptions(
+      (kind) => deleteAiMemoryKind(kind),
+      "Đã xóa lựa chọn khỏi Trí nhớ AI",
+    ),
   );
   const clearMutation = useMutation({
-    ...mutationOptions(clearAiMemory),
+    ...mutationOptions(clearAiMemory, "Đã xóa toàn bộ Trí nhớ AI"),
     onSuccess: async () => {
       setConfirmDeleteAll(false);
       await refresh();
+      toast.success("Đã xóa toàn bộ Trí nhớ AI");
     },
   });
   const isPending =
@@ -119,10 +135,12 @@ export default function AiMemorySettings({ onClose }) {
         }),
         "ht-assistant-memory.json",
       );
+      toast.success("Đã xuất dữ liệu Trí nhớ AI");
     } catch (error) {
-      setActionError(
-        error?.response?.data?.message || "Không thể xuất Trí nhớ AI.",
-      );
+      const message =
+        error?.response?.data?.message || "Không thể xuất Trí nhớ AI.";
+      setActionError(message);
+      toast.error(message);
     }
   };
 

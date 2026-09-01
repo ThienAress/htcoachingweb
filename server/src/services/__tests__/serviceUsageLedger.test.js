@@ -41,6 +41,64 @@ const dualWindowPolicy = {
 };
 
 describe("shared service usage ledger", () => {
+  it("atomically consumes two units for a Practice Center journey", async () => {
+    const { user } = await createTestUser({ email: "practice-journey@example.com" });
+    const policy = getServiceAccessPolicy("practice_email", "trainer");
+    const results = await Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        consumeServiceUsage({
+          serviceKey: "practice_email",
+          tier: "trainer",
+          policy,
+          actor: { kind: "user", userId: user._id },
+          operationKey: `journey-${index}`,
+          cost: 2,
+        }),
+      ),
+    );
+
+    expect(results.filter((result) => result.allowed)).toHaveLength(1);
+    expect(results.find((result) => result.allowed)?.quota.remaining).toBe(0);
+    const bucket = await ServiceUsageBucket.findOne().select("+usageEvents").lean();
+    expect(bucket.usageEvents).toEqual([
+      expect.objectContaining({ units: 2 }),
+    ]);
+  });
+
+  it("keeps the default cost at one unit for existing services", async () => {
+    const { user } = await createTestUser({ email: "usage-default-cost@example.com" });
+    const policy = getServiceAccessPolicy("meal_scan", "coaching_customer");
+    const result = await consumeServiceUsage({
+      serviceKey: "meal_scan",
+      tier: "coaching_customer",
+      policy,
+      actor: { kind: "user", userId: user._id },
+      operationKey: "legacy-one-unit",
+    });
+
+    expect(result.quota.remaining).toBe(9);
+    expect((await ServiceUsageBucket.findOne().select("+usageEvents").lean()).usageEvents).toEqual([
+      expect.objectContaining({ units: 1 }),
+    ]);
+  });
+
+  it("rejects a multi-unit cost outside the canonical policy window", async () => {
+    const { user } = await createTestUser({ email: "usage-invalid-cost@example.com" });
+    const policy = getServiceAccessPolicy("practice_email", "trainer");
+
+    await expect(
+      consumeServiceUsage({
+        serviceKey: "practice_email",
+        tier: "trainer",
+        policy,
+        actor: { kind: "user", userId: user._id },
+        operationKey: "over-policy-cost",
+        cost: 3,
+      }),
+    ).rejects.toThrow("Service usage cost is invalid");
+    expect(await ServiceUsageBucket.countDocuments()).toBe(0);
+  });
+
   it("allows exactly one regular-user Meal Scan trial under concurrency", async () => {
     const { user } = await createTestUser({ email: "usage-race@example.com" });
     const policy = getServiceAccessPolicy("meal_scan", "user");

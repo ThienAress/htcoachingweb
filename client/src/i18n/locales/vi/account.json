@@ -4,8 +4,18 @@
     "orders": "Đơn hàng của tôi",
     "history": "Lịch sử thanh toán",
     "contracts": "Hợp đồng của tôi",
+    "email_reminders": "Email nhắc sức khỏe",
     "title": "Cài đặt tài khoản",
-    "desc": "Quản lý hồ sơ, bảo mật, đơn hàng và lịch sử giao dịch của bạn."
+    "desc": "Quản lý hồ sơ, thông báo, đơn hàng và lịch sử giao dịch của bạn."
+  },
+  "email_reminders": {
+    "group": "Thông báo",
+    "title": "Email nhắc sức khỏe",
+    "desc": "Chủ động chọn có nhận lời chúc và nhắc cập nhật Mục tiêu sức khỏe vào buổi sáng hay không.",
+    "morning_title": "Bắt đầu ngày mới cùng Mục tiêu sức khỏe",
+    "morning_desc": "Hệ thống dự kiến gửi một email trong khoảng 07:00–08:59 theo giờ Việt Nam và tự bỏ qua khi bạn đã gửi sức khỏe hôm đó.",
+    "recipient_note": "Email được gửi tới địa chỉ đăng nhập của tài khoản này.",
+    "eligibility_note": "Email chỉ được gửi khi bạn đang có gói coaching còn hiệu lực và đã được phân công HLV. Bạn có thể tắt lại bất cứ lúc nào."
   },
   "profile": {
     "title": "Thông tin cá nhân",

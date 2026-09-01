@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import SEO from "../components/SEO";
+import { consumeLoginRedirect } from "../utils/loginRedirect";
 
 const LoginSuccess = () => {
   const navigate = useNavigate();
@@ -24,17 +26,17 @@ const LoginSuccess = () => {
           }
 
           // User thường → redirect về trang trước đó (nếu có) hoặc trang chủ
-          const redirectTo = localStorage.getItem("redirectAfterLogin") || "/";
-          localStorage.removeItem("redirectAfterLogin");
+          const redirectTo = consumeLoginRedirect();
           navigate(redirectTo, { replace: true });
         } else {
-          alert("Google login fail: /user/me không có email");
+          toast.error("Đăng nhập Google không trả về email");
           navigate("/login", { replace: true });
         }
       } catch (err) {
-        alert(
-          "Google login fail: " +
-            (err?.response?.data?.message || err.message || "Unknown error"),
+        toast.error(
+          err?.response?.data?.message ||
+            err.message ||
+            "Đăng nhập Google thất bại",
         );
         navigate("/login", { replace: true });
       }

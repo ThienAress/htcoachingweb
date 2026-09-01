@@ -122,6 +122,24 @@ if (!email.includes("@")) { ... }
   hoặc nội dung locale tiếng Anh. Rà copy theo surface đang sửa; thay đổi diện rộng phải có spec
   và test để tránh làm sai thuật ngữ nghiệp vụ.
 
+### Pattern 8: Phản hồi cho submit và mutation chủ động
+
+- Mọi submit/mutation do người dùng chủ động xác nhận phải có đủ ba trạng thái: action bị
+  khóa hoặc có loading khi request đang chạy, toast thành công sau khi server xác nhận và
+  toast lỗi khi server/network thất bại.
+- Toast thành công không được phát trước `await mutateAsync`, `onSuccess` hoặc response thành
+  công tương đương. Không dùng toast để che lỗi rồi giả lập thành công.
+- Validation tại field/form tiếp tục hiển thị inline và focus đúng field; không phát toast lỗi
+  khi request chưa được gửi. Conflict, retry hoặc hướng dẫn phục hồi dài vẫn giữ inline bên cạnh
+  toast ngắn gọn.
+- Không phát toast cho autosave, polling, quota accounting/background refresh, read-on-navigation
+  hoặc optimistic toggle/bookmark khi chính surface đã phản ánh trạng thái rõ ràng. Nếu một action
+  có nhiều request nối tiếp, chỉ phát một toast thành công cho kết quả cuối; tránh toast trùng giữa
+  component và hook/service.
+- Ứng dụng chỉ render một `ToastContainer` global. Khi thêm layout/page mới, dùng channel global
+  hiện có; không tự mount container thứ hai. Toast phải dùng copy tiếng Việt tự nhiên, đủ cụ thể để
+  người dùng biết thao tác nào vừa hoàn tất hoặc thất bại.
+
 ---
 
 ## Mandatory Backend Patterns

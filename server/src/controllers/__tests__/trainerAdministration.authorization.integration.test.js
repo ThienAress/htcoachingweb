@@ -26,6 +26,7 @@ import {
 import Contract from "../../models/Contract.js";
 import Checkin from "../../models/Checkin.js";
 import Order from "../../models/Order.js";
+import AuditLog from "../../models/AuditLog.js";
 import TrainerSubscription from "../../models/TrainerSubscription.js";
 import checkinRoutes from "../../routes/checkin.routes.js";
 import contractRoutes from "../../routes/contract.routes.js";
@@ -195,6 +196,153 @@ describe("trainer-scoped administration", () => {
         note: "Thông tin vận hành được cập nhật",
       }),
     );
+  });
+
+  it("requires the audited coordination flow for admin trainer changes", async () => {
+    const admin = await createTestUser({
+      email: "admin-transfer-guard@example.com",
+      role: "admin",
+    });
+    const trainerA = await createTestUser({
+      email: "admin-transfer-source@example.com",
+      role: "trainer",
+    });
+    const trainerB = await createTestUser({
+      email: "admin-transfer-target@example.com",
+      role: "trainer",
+    });
+    const order = await createAssignedOrder(trainerA.user._id, "guarded");
+
+    const response = await withAuth(
+      request(app)
+        .put(`/api/orders/${order._id}`)
+        .send({ trainerId: trainerB.user._id }),
+      admin.accessToken,
+    );
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("TRAINER_COORDINATION_REQUIRED");
+    expect(String((await Order.findById(order._id)).trainerId)).toBe(
+      String(trainerA.user._id),
+    );
+  });
+
+  it("allows an admin to make the initial trainer assignment with an audit record", async () => {
+    const admin = await createTestUser({
+      email: "admin-initial-assignment@example.com",
+      role: "admin",
+    });
+    const trainer = await createTestUser({
+      email: "initial-assignment-trainer@example.com",
+      role: "trainer",
+    });
+    const client = await createTestUser({
+      email: "initial-assignment-client@example.com",
+    });
+    const order = await Order.create({
+      userId: client.user._id,
+      trainerId: null,
+      ...orderPayload("initial-assignment"),
+      totalSessions: 12,
+    });
+
+    const response = await withAuth(
+      request(app)
+        .put(`/api/orders/${order._id}`)
+        .send({ trainerId: trainer.user._id }),
+      admin.accessToken,
+    );
+    const auditLog = await AuditLog.findOne({
+      action: "assign_order_trainer",
+      targetId: order._id,
+    }).lean();
+
+    expect(response.status).toBe(200);
+    expect(String((await Order.findById(order._id)).trainerId)).toBe(
+      String(trainer.user._id),
+    );
+    expect(auditLog).toMatchObject({
+      actorRole: "admin",
+      targetType: "order",
+      metadata: { toTrainerId: String(trainer.user._id) },
+    });
+  });
+
+  it("keeps an unassigned order unchanged when the target trainer is at capacity", async () => {
+    const admin = await createTestUser({
+      email: "admin-capacity-assignment@example.com",
+      role: "admin",
+    });
+    const trainer = await createTestUser({
+      email: "full-capacity-trainer@example.com",
+      role: "trainer",
+    });
+    await Promise.all(
+      ["one", "two", "three"].map((suffix) =>
+        createAssignedOrder(trainer.user._id, `capacity-${suffix}`, {
+          status: "pending",
+          sessions: 1,
+          totalSessions: 1,
+        }),
+      ),
+    );
+    const client = await createTestUser({
+      email: "capacity-waiting-client@example.com",
+    });
+    const order = await Order.create({
+      userId: client.user._id,
+      trainerId: null,
+      ...orderPayload("capacity-waiting", { sessions: 1 }),
+      totalSessions: 1,
+    });
+
+    const response = await withAuth(
+      request(app)
+        .put(`/api/orders/${order._id}`)
+        .send({ trainerId: trainer.user._id }),
+      admin.accessToken,
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("TRAINER_CAPACITY_EXCEEDED");
+    expect((await Order.findById(order._id)).trainerId).toBeNull();
+    expect(
+      await AuditLog.exists({
+        action: "assign_order_trainer",
+        targetId: order._id,
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects an initial assignment to an account without trainer access", async () => {
+    const admin = await createTestUser({
+      email: "admin-inactive-assignment@example.com",
+      role: "admin",
+    });
+    const inactiveTarget = await createTestUser({
+      email: "inactive-assignment-target@example.com",
+      role: "user",
+    });
+    const client = await createTestUser({
+      email: "inactive-assignment-client@example.com",
+    });
+    const order = await Order.create({
+      userId: client.user._id,
+      trainerId: null,
+      ...orderPayload("inactive-assignment"),
+      totalSessions: 12,
+    });
+
+    const response = await withAuth(
+      request(app)
+        .put(`/api/orders/${order._id}`)
+        .send({ trainerId: inactiveTarget.user._id }),
+      admin.accessToken,
+    );
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("TARGET_TRAINER_INACTIVE");
+    expect((await Order.findById(order._id)).trainerId).toBeNull();
   });
 
   it("lists check-in history only from the current trainer's orders", async () => {

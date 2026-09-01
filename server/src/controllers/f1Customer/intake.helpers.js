@@ -210,44 +210,59 @@ export const buildSystemFlags = (payload = {}) => {
   };
 };
 
-export const getNextIntakeVersion = async (customerId) => {
-  const latest = await F1Intake.findOne({ customerId })
+export const getNextIntakeVersion = async (customerId, { session = null } = {}) => {
+  let query = F1Intake.findOne({ customerId })
     .sort({ version: -1 })
     .select("version");
+  if (session) query = query.session(session);
+  const latest = await query;
   return latest ? latest.version + 1 : 1;
 };
 
-export const getOrCreateDraftIntake = async (customer, userId) => {
-  let draft = await F1Intake.findOne({
+export const getOrCreateDraftIntake = async (
+  customer,
+  userId,
+  { session = null } = {},
+) => {
+  let draftQuery = F1Intake.findOne({
     customerId: customer._id,
     isLatest: true,
   });
+  if (session) draftQuery = draftQuery.session(session);
+  let draft = await draftQuery;
 
   if (!draft) {
-    const version = await getNextIntakeVersion(customer._id);
+    const version = await getNextIntakeVersion(customer._id, { session });
     try {
-      draft = await F1Intake.create({
-        customerId: customer._id,
-        version,
-        isLatest: true,
-        isDraft: true,
-        customerInfo: {
-          fullName: customer.fullName,
-          age: customer.age,
-          gender: customer.gender,
-          occupation: customer.occupation,
-          phone: customer.phone,
-          email: customer.email,
-        },
-        createdBy: userId,
-        updatedBy: userId,
-      });
+      const payload = {
+          customerId: customer._id,
+          version,
+          isLatest: true,
+          isDraft: true,
+          customerInfo: {
+            fullName: customer.fullName,
+            age: customer.age,
+            gender: customer.gender,
+            occupation: customer.occupation,
+            phone: customer.phone,
+            email: customer.email,
+          },
+          createdBy: userId,
+          updatedBy: userId,
+        };
+      if (session) {
+        [draft] = await F1Intake.create([payload], { session });
+      } else {
+        draft = await F1Intake.create(payload);
+      }
     } catch (error) {
       if (error.code !== 11000) throw error;
-      draft = await F1Intake.findOne({
+      let retryQuery = F1Intake.findOne({
         customerId: customer._id,
         isLatest: true,
       });
+      if (session) retryQuery = retryQuery.session(session);
+      draft = await retryQuery;
       if (!draft) throw error;
     }
   }

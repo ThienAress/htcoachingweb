@@ -1,4 +1,7 @@
 import mongoose from "mongoose";
+import {
+  sanitizeF1IntakeDraftData,
+} from "../../constants/f1IntakeDraft.js";
 import F1Intake from "../../models/F1Intake.js";
 import F1Media from "../../models/F1Media.js";
 import { F1Customer, assertCustomerAccess } from "./shared.js";
@@ -33,33 +36,42 @@ export const saveIntakeDraft = async (req, res, next) => {
     const customer = await F1Customer.findById(req.params.id);
     assertCustomerAccess(customer, req);
 
-    const step = Number(req.body.step || 1);
+    const step = Number(req.body.step);
     const incoming = req.body.data || {};
-    const draft = await getOrCreateDraftIntake(customer, req.user.id);
-
-    const patch = {
-      ...incoming,
-      updatedBy: req.user.id,
-      draftStep: Math.min(Math.max(step, 1), 6),
-      isDraft: true,
-    };
-
-    if (incoming.bodyMetrics) {
-      patch.bodyMetrics = buildBiometrics({
-        ...(draft.bodyMetrics?.toObject?.() || draft.bodyMetrics || {}),
-        ...incoming.bodyMetrics,
+    const sanitizedDraft = sanitizeF1IntakeDraftData({ step, data: incoming });
+    if (!sanitizedDraft) {
+      return res.status(400).json({
+        success: false,
+        message: "Dữ liệu draft không đúng với bước intake hiện tại",
       });
     }
+    const { root: draftRoot, value: draftValue } = sanitizedDraft;
 
     // Transaction: intake update + customer status phải đồng bộ
     const session = await mongoose.startSession();
     try {
       session.startTransaction();
+      const draft = await getOrCreateDraftIntake(customer, req.user.id, {
+        session,
+      });
+      const patch = {
+        [draftRoot]: draftValue,
+        updatedBy: req.user.id,
+        draftStep: step,
+        isDraft: true,
+      };
+
+      if (draftRoot === "bodyMetrics") {
+        patch.bodyMetrics = buildBiometrics({
+          ...(draft.bodyMetrics?.toObject?.() || draft.bodyMetrics || {}),
+          ...draftValue,
+        });
+      }
 
       const updated = await F1Intake.findByIdAndUpdate(
         draft._id,
         { $set: patch },
-        { returnDocument: 'after', session },
+        { returnDocument: "after", runValidators: true, session },
       );
 
       await F1Customer.findByIdAndUpdate(
@@ -91,51 +103,51 @@ export const submitIntake = async (req, res, next) => {
     const customer = await F1Customer.findById(req.params.id);
     assertCustomerAccess(customer, req);
 
-    let intake = await getOrCreateDraftIntake(customer, req.user.id);
-
-    const media = await F1Media.find({
-      customerId: customer._id,
-      intakeId: intake._id,
-      status: "ready",
-    });
-
-    const postureMediaSummary = summarizeMedia(media);
-    const bodyMetrics = buildBiometrics(
-      req.body.bodyMetrics || intake.bodyMetrics || {},
-    );
-
-    const payload = {
-      customerInfo: req.body.customerInfo || intake.customerInfo,
-      healthScreening: req.body.healthScreening || intake.healthScreening,
-      lifestyleNutrition:
-        req.body.lifestyleNutrition || intake.lifestyleNutrition,
-      bodyMetrics,
-      trainingProfileGoal:
-        req.body.trainingProfileGoal || intake.trainingProfileGoal,
-      consent: {
-        ...(req.body.consent || intake.consent),
-        version: String(
-          process.env.F1_CONSENT_VERSION || "2026-07",
-        ).slice(0, 40),
-        collectedAt: new Date(),
-        collectedBy: req.user.id,
-      },
-      postureMediaSummary,
-    };
-
-    if (!payload.consent.allowDataStorage) {
-      return res.status(400).json({
-        success: false,
-        message: "Cần đồng ý lưu dữ liệu sức khỏe để hoàn tất intake",
-      });
-    }
-
-    const flags = buildSystemFlags(payload);
-
     // Transaction: intake submit + customer update phải đồng bộ
     const session = await mongoose.startSession();
     try {
       session.startTransaction();
+      let intake = await getOrCreateDraftIntake(customer, req.user.id, {
+        session,
+      });
+      const media = await F1Media.find({
+        customerId: customer._id,
+        intakeId: intake._id,
+        status: "ready",
+      }).session(session);
+
+      const postureMediaSummary = summarizeMedia(media);
+      const bodyMetrics = buildBiometrics(
+        req.body.bodyMetrics || intake.bodyMetrics || {},
+      );
+      const payload = {
+        customerInfo: req.body.customerInfo || intake.customerInfo,
+        healthScreening: req.body.healthScreening || intake.healthScreening,
+        lifestyleNutrition:
+          req.body.lifestyleNutrition || intake.lifestyleNutrition,
+        bodyMetrics,
+        trainingProfileGoal:
+          req.body.trainingProfileGoal || intake.trainingProfileGoal,
+        consent: {
+          ...(req.body.consent || intake.consent),
+          version: String(
+            process.env.F1_CONSENT_VERSION || "2026-07",
+          ).slice(0, 40),
+          collectedAt: new Date(),
+          collectedBy: req.user.id,
+        },
+        postureMediaSummary,
+      };
+
+      if (!payload.consent.allowDataStorage) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          success: false,
+          message: "Cần đồng ý lưu dữ liệu sức khỏe để hoàn tất intake",
+        });
+      }
+
+      const flags = buildSystemFlags(payload);
 
       intake = await F1Intake.findByIdAndUpdate(
         intake._id,
@@ -156,7 +168,7 @@ export const submitIntake = async (req, res, next) => {
             updatedBy: req.user.id,
           },
         },
-        { returnDocument: 'after', session },
+        { returnDocument: "after", runValidators: true, session },
       );
 
       await F1Customer.findByIdAndUpdate(

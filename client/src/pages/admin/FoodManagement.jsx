@@ -15,7 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   getFoods,
@@ -332,7 +332,6 @@ const FoodManagement = () => {
   return (
     <phantom-ui loading={isLoading || undefined}>
       <div className="space-y-4 md:space-y-6 h-full">
-        <ToastContainer position="top-right" autoClose={3000} />
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

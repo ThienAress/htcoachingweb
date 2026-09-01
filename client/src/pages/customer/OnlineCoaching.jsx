@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation, Trans } from "react-i18next";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   HelpCircle,
@@ -20,20 +20,20 @@ import {
   Video,
   X,
 } from "lucide-react";
-import { getMyPlans, getMyPlanDetails, submitFeedback, uploadClientFeedbackVideo } from "../../services/coaching.service";
+import {
+  getMyPlans,
+  getMyPlanDetails,
+  removeClientFeedbackVideo,
+  submitFeedback,
+  uploadClientFeedbackVideo,
+} from "../../services/coaching.service";
 import SEO from "../../components/SEO";
 import Header from "../../sections/Header/Header";
 import { resolveMediaUrl } from "../../utils/mediaUrl";
+import { buildExerciseFeedbackPayload } from "../../utils/coachingPrivateMedia";
 import { CoachingCommentThread } from "../today-dashboard/CoachingCommentThread";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
-
-const toExerciseFeedback = (exercise) => ({
-  exerciseId: exercise._id,
-  completed: Boolean(exercise.completed),
-  clientFeedbackNote: exercise.clientFeedbackNote || "",
-  clientFeedbackVideo: exercise.clientFeedbackVideo || "",
-});
 
 const OnlineCoaching = () => {
   const { t, i18n } = useTranslation("coaching");
@@ -55,6 +55,7 @@ const OnlineCoaching = () => {
   // Ref debounce auto-save cảm nhận bài tập
   const feedbackSaveTimers = useRef(new Map());
   const planDetailsRequestRef = useRef(0);
+  const failedFeedbackVideoUrlsRef = useRef(new Set());
 
   const fetchPlans = async () => {
     setIsLoadingPlans(true);
@@ -77,7 +78,10 @@ const OnlineCoaching = () => {
   };
 
   // 2. Fetch chi tiết ngày tập
-  const loadPlanDetails = async (dateString) => {
+  const loadPlanDetails = async (
+    dateString,
+    { preserveExerciseIndex = false } = {},
+  ) => {
     const requestId = ++planDetailsRequestRef.current;
     setIsLoadingDetails(true);
     try {
@@ -92,7 +96,7 @@ const OnlineCoaching = () => {
         }));
       }
       setActivePlan(plan);
-      setActiveExerciseIndex(0);
+      if (!preserveExerciseIndex) setActiveExerciseIndex(0);
       setFeedbackText(plan.clientFeedbackText || "");
     } catch {
       if (requestId !== planDetailsRequestRef.current) return;
@@ -103,6 +107,13 @@ const OnlineCoaching = () => {
         setIsLoadingPlans(false);
       }
     }
+  };
+
+  const refreshExpiredFeedbackVideo = (failedUrl) => {
+    if (!activePlan?.dateString || !failedUrl) return;
+    if (failedFeedbackVideoUrlsRef.current.has(failedUrl)) return;
+    failedFeedbackVideoUrlsRef.current.add(failedUrl);
+    loadPlanDetails(activePlan.dateString, { preserveExerciseIndex: true });
   };
 
   // Helper chia nhóm ngày tập theo tuần
@@ -192,7 +203,7 @@ const OnlineCoaching = () => {
 
     try {
       const res = await submitFeedback(activePlan.dateString, {
-        exercises: [toExerciseFeedback(updatedExercises[index])],
+        exercises: [buildExerciseFeedbackPayload(updatedExercises[index])],
         clientFeedbackText: feedbackText,
       });
 
@@ -248,10 +259,12 @@ const OnlineCoaching = () => {
       try {
         const formData = new FormData();
         formData.append("video", file);
-        formData.append("dateString", targetDateString);
-        formData.append("exerciseId", targetExercise._id);
 
-        const uploadRes = await uploadClientFeedbackVideo(formData);
+        const uploadRes = await uploadClientFeedbackVideo(
+          targetDateString,
+          targetExercise._id,
+          formData,
+        );
         const videoUrl = uploadRes.data.url;
 
         // Cập nhật exercises cục bộ
@@ -318,16 +331,16 @@ const OnlineCoaching = () => {
 
       setActivePlan({ ...activePlan, exercises: updatedExercises });
 
-      // Đồng bộ lưu lên server
-      const res = await submitFeedback(activePlan.dateString, {
-        exercises: [toExerciseFeedback(updatedExercises[index])],
-        clientFeedbackText: feedbackText,
-      });
+      // Gỡ media qua action riêng để signed URL không bao giờ bị ghi ngược vào DB.
+      const res = await removeClientFeedbackVideo(
+        activePlan.dateString,
+        activePlan.exercises[index]._id,
+      );
 
       setPlans((currentPlans) =>
         currentPlans.map((plan) =>
           plan.dateString === activePlan.dateString
-            ? { ...plan, clientStatus: res.data.data.clientStatus }
+            ? { ...plan, clientStatus: res.data.clientStatus }
             : plan,
         ),
       );
@@ -358,7 +371,7 @@ const OnlineCoaching = () => {
     try {
       const targetDateString = activePlan.dateString;
       const res = await submitFeedback(targetDateString, {
-        exercises: activePlan.exercises.map(toExerciseFeedback),
+        exercises: activePlan.exercises.map(buildExerciseFeedbackPayload),
         clientFeedbackText: feedbackText,
       });
       toast.success("Tuyệt vời! Gửi báo cáo buổi tập thành công đến Coach!");
@@ -455,7 +468,6 @@ const OnlineCoaching = () => {
   return (
     <>
       <SEO title={t("seo_coaching")} noindex />
-      <ToastContainer position="top-right" autoClose={3000} theme={customerTheme} />
       <Header />
 
       <div
@@ -623,6 +635,12 @@ const OnlineCoaching = () => {
                               src={resolveMediaUrl(activePlan.exercises[activeExerciseIndex].clientFeedbackVideo)}
                               controls
                               className="w-full h-full object-contain"
+                              onError={() =>
+                                refreshExpiredFeedbackVideo(
+                                  activePlan.exercises[activeExerciseIndex]
+                                    .clientFeedbackVideo,
+                                )
+                              }
                             ></video>
                             <button
                               type="button"
@@ -692,7 +710,7 @@ const OnlineCoaching = () => {
                           const timer = setTimeout(async () => {
                             try {
                               await submitFeedback(updatedPlan.dateString, {
-                                exercises: [toExerciseFeedback(updatedExercise)],
+                                exercises: [buildExerciseFeedbackPayload(updatedExercise)],
                               });
                             } catch {
                               // Auto-save will retry on the next edit.

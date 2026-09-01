@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import { sendExerciseSuggestion as submitExerciseSuggestion } from "../services/exerciseSuggestion.service";
 import { getExercises } from "../services/exercise.service";
 import {
@@ -67,7 +68,7 @@ export default function useExercisesLogic() {
     const trimmedName = customGroupName.trim();
 
     if (tempSelectedGroups.length === 0 && !trimmedName) {
-      alert("Vui lòng chọn ít nhất một nhóm cơ hoặc nhập tên nhóm cơ tùy chỉnh");
+      toast.error("Vui lòng chọn ít nhất một nhóm cơ hoặc nhập tên nhóm cơ tùy chỉnh");
       return;
     }
 

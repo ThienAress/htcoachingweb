@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ChevronLeft, ChevronRight, Save, ClipboardList } from "lucide-react";
+import { toast } from "react-toastify";
 
 import { intakeSchema } from "./intake/schema";
 import { useLatestIntake, useSaveIntakeDraft, useSubmitIntake, useUploadF1Media } from "./intake/useIntake";
@@ -214,8 +215,9 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
     saveDraftMutation.mutate(
       { customerId: customer._id, step: currentStep, data: stepData },
       {
-        onSuccess: () => alert("Đã lưu nháp"),
-        onError: (err) => alert(err?.response?.data?.message || "Lưu nháp thất bại")
+        onSuccess: () => toast.success("Đã lưu nháp khảo sát"),
+        onError: (err) =>
+          toast.error(err?.response?.data?.message || "Lưu nháp thất bại"),
       }
     );
   };
@@ -307,10 +309,10 @@ const F1IntakeWizard = ({ customer, onBack, onSubmitted }) => {
         setUploadProgress(100);
       }
 
-      alert("Hoàn tất intake thành công");
+      toast.success("Đã hoàn tất khảo sát khách hàng");
       onSubmitted?.(submitResult?.data || { customerId: customer._id });
     } catch (error) {
-      alert(
+      toast.error(
         error?.code === "ERR_CANCELED"
           ? "Đã hủy tải ảnh. Intake vẫn được lưu và có thể tải ảnh lại."
           : intakeSubmitted

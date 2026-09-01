@@ -4,6 +4,7 @@ import {
   Bot, X, Trash2, Send, Loader2, Square,
   PanelRight, MessageSquare, ChevronRight, Plus, Image as ImageIcon
 } from "lucide-react";
+import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
 import useAiChat from "../../hooks/useAiChat";
 import ChatBubble from "./ChatBubble";
@@ -136,7 +137,7 @@ export default function ChatWidget() {
     try {
       setSelectedImage(await compressChatImage(file));
     } catch (imageError) {
-      alert(imageError.message);
+      toast.error(imageError.message);
     }
     e.target.value = ""; // reset
   };

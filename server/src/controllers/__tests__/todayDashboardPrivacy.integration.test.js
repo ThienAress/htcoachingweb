@@ -20,6 +20,7 @@ import { errorHandler } from "../../middlewares/errorHandler.js";
 import DailyJournal from "../../models/DailyJournal.js";
 import FitnessPlusQuotaUsage from "../../models/FitnessPlusQuotaUsage.js";
 import FitnessSubscription from "../../models/FitnessSubscription.js";
+import MorningHealthReminderDelivery from "../../models/MorningHealthReminderDelivery.js";
 import Order from "../../models/Order.js";
 import User from "../../models/User.js";
 import userRoutes from "../../routes/user.routes.js";
@@ -39,7 +40,37 @@ afterEach(async () => {
 afterAll(teardownTestDB);
 
 describe("Today Dashboard user deletion orchestration", () => {
-  it("deletes HT Fitness+ entitlement and quota state with the user", async () => {
+  it("deletes the morning health reminder delivery ledger with the account", async () => {
+    const admin = await createTestUser({
+      email: "reminder-delete-admin@example.com",
+      role: "admin",
+    });
+    const client = await createTestUser({
+      email: "reminder-delete-client@example.com",
+    });
+    await MorningHealthReminderDelivery.create({
+      _id: "a".repeat(64),
+      recipientId: client.user._id,
+      dateKey: "2026-08-29",
+      status: "sent",
+      attempts: 1,
+      sentAt: new Date(),
+    });
+
+    const response = await withAuth(
+      request(app).delete(`/api/user/${client.user._id}`),
+      admin.accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      await MorningHealthReminderDelivery.countDocuments({
+        recipientId: client.user._id,
+      }),
+    ).toBe(0);
+  });
+
+  it("retains purchased HT Fitness+ history but deletes quota state", async () => {
     const admin = await createTestUser({
       email: "fitness-delete-admin@example.com",
       role: "admin",
@@ -72,7 +103,7 @@ describe("Today Dashboard user deletion orchestration", () => {
     expect(await User.exists({ _id: client.user._id })).toBeNull();
     expect(
       await FitnessSubscription.countDocuments({ userId: client.user._id }),
-    ).toBe(0);
+    ).toBe(1);
     expect(
       await FitnessPlusQuotaUsage.countDocuments({ userId: client.user._id }),
     ).toBe(0);
@@ -106,7 +137,7 @@ describe("Today Dashboard user deletion orchestration", () => {
       dateKey: "2026-07-29",
       revision: 1,
     });
-    vi.spyOn(User, "deleteOne").mockImplementationOnce(() => {
+    vi.spyOn(User, "deleteMany").mockImplementationOnce(() => {
       throw new Error("injected deletion failure");
     });
 
