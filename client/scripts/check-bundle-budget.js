@@ -92,7 +92,7 @@ console.table(rows.sort((a, b) => Number(b.rawKb) - Number(a.rawKb)).slice(0, 15
 
 const familyRows = routeFamilies.map((family) => {
   const matchingChunks = [...chunks.values()].filter((chunk) =>
-    family.sourcePattern.test([chunk.file, ...chunk.sources].join(" ")),
+    family.sourcePattern.test(chunk.sources.join(" ")),
   );
   const raw = matchingChunks.reduce((total, chunk) => total + chunk.raw, 0);
   const gzip = matchingChunks.reduce((total, chunk) => total + chunk.gzip, 0);
