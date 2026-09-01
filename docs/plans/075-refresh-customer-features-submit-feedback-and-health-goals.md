@@ -11,7 +11,7 @@
 - **Depends on**: 039, 047, 060, 062, 067, 068, 069, 071A, 074
 - **Category**: catalog | ui | feedback | tests | rules
 - **Planned at**: 2026-08-29
-- **Execution**: COMPLETE / LOCAL VERIFIED
+- **Execution**: DONE / NODE 22 LOCAL FULL
 
 ## Current state
 

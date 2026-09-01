@@ -15,7 +15,7 @@
 - **Depends on**: 019, 020, 033, 066
 - **Category**: security | data | feature | tests
 - **Planned at**: 2026-08-28
-- **Execution**: COMPLETE / LOCAL VERIFIED — migration chưa chạy; release postbuild bị chặn bởi môi trường
+- **Execution**: DONE / NODE 22 LOCAL FULL — migrations chưa chạy
 
 ## Why this matters
 
