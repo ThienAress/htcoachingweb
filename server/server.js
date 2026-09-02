@@ -20,7 +20,10 @@ import { safeLog } from "./src/utils/safeLogger.js";
 import { markRuntimeDraining } from "./src/operations/runtimeState.js";
 
 import connectDB from "./src/config/db.js";
-import { getBackgroundJobsMode } from "./src/config/backgroundJobs.js";
+import {
+  getBackgroundJobsMode,
+  getMorningHealthReminderMode,
+} from "./src/config/backgroundJobs.js";
 import "./src/config/passport.js";
 
 import {
@@ -363,6 +366,18 @@ const server = app.listen(PORT, () => {
   });
 
   const backgroundJobs = getBackgroundJobsMode(process.env);
+  const morningHealthReminder = getMorningHealthReminderMode(process.env);
+  if (morningHealthReminder.enabled) {
+    startMorningHealthReminderCron();
+  } else {
+    safeLog.warn(
+      "morning_health_reminder.disabled",
+      morningHealthReminder.explicit
+        ? "Disabled by configuration or unmet Today prerequisites"
+        : "Explicit MORNING_HEALTH_REMINDER_ENABLED=true is required",
+    );
+  }
+
   if (!backgroundJobs.enabled) {
     safeLog.warn(
       "background_jobs.disabled",
@@ -377,7 +392,6 @@ const server = app.listen(PORT, () => {
   startDepositCronJobs();
   startSubscriptionCronJobs();
   startScheduleReminderCron();
-  startMorningHealthReminderCron();
   startContractCronJobs();
   startCleanupCronJobs();
   startF1LifecycleCron();

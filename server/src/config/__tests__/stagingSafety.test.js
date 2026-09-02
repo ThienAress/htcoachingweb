@@ -32,6 +32,7 @@ describe("staging environment safety", () => {
     env.PUBLIC_API_ORIGIN = "https://api.htcoachingweb.io.vn";
     env.ALLOWED_ORIGINS = "https://htcoachingweb.io.vn";
     env.BACKGROUND_JOBS_ENABLED = "true";
+    env.MORNING_HEALTH_REMINDER_ENABLED = "true";
     env.EMAIL_DELIVERY_MODE = "live";
     env.F1_RETENTION_ENFORCE = "true";
     env.NETLIFY_BUILD_HOOK_URL = "https://api.netlify.com/build_hooks/example";
@@ -43,6 +44,7 @@ describe("staging environment safety", () => {
       expect.arrayContaining([
         "STAGING_DATABASE_REQUIRED",
         "STAGING_BACKGROUND_JOBS_FORBIDDEN",
+        "STAGING_MORNING_HEALTH_REMINDER_FORBIDDEN",
         "STAGING_EMAIL_DELIVERY_FORBIDDEN",
         "STAGING_CLIENT_ORIGIN_REQUIRED",
         "STAGING_API_ORIGIN_REQUIRED",

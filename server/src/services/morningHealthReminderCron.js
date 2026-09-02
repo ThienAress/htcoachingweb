@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { getBackgroundJobsMode } from "../config/backgroundJobs.js";
-import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
+import { getMorningHealthReminderMode } from "../config/backgroundJobs.js";
 import DailyJournal from "../models/DailyJournal.js";
 import MorningHealthReminderDelivery from "../models/MorningHealthReminderDelivery.js";
 import NotificationPreference from "../models/NotificationPreference.js";
@@ -40,11 +39,7 @@ const getVietnamDateTime = (date) => {
 
 const isReminderWindow = ({ hour }) => hour === 7 || hour === 8;
 
-const isEnabled = (env) =>
-  getBackgroundJobsMode(env).enabled &&
-  String(env.MORNING_HEALTH_REMINDER_ENABLED || "").toLowerCase() === "true" &&
-  isTodayPlatformEnabled(env) &&
-  String(env.TODAY_JOURNAL_WRITES_ENABLED || "").toLowerCase() === "true";
+const isEnabled = (env) => getMorningHealthReminderMode(env).enabled;
 
 export const buildMorningHealthDeliveryKey = (recipientId, dateKey) =>
   createHash("sha256")

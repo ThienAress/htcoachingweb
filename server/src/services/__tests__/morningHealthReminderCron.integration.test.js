@@ -27,7 +27,7 @@ import { sendMorningHealthReminderMail } from "../../utils/sendMail.js";
 import { checkAndSendMorningHealthReminders } from "../morningHealthReminderCron.js";
 
 const enabledEnv = {
-  BACKGROUND_JOBS_ENABLED: "true",
+  BACKGROUND_JOBS_ENABLED: "false",
   MORNING_HEALTH_REMINDER_ENABLED: "true",
   TODAY_DASHBOARD_ENABLED: "true",
   TODAY_JOURNAL_WRITES_ENABLED: "true",
@@ -89,7 +89,7 @@ afterEach(async () => {
 afterAll(teardownTestDB);
 
 describe("morning health reminder cron", () => {
-  it("sends once per Vietnam date to an opted-in active customer", async () => {
+  it("sends once with the global background jobs switch disabled", async () => {
     const { client } = await createEligibleCustomer();
     const now = new Date("2026-08-29T00:15:00.000Z");
 

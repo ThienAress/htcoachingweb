@@ -17,10 +17,11 @@ coaching active, và provider failure được retry có kiểm soát.
 - Preference được lưu qua API hiện có `PUT /api/notifications/preferences`, giữ optimistic
   concurrency bằng `expectedRevision` và tương thích client cũ không gửi field mới.
 - Job chỉ chạy khi đồng thời có:
-  - `BACKGROUND_JOBS_ENABLED=true`;
   - `MORNING_HEALTH_REMINDER_ENABLED=true`;
   - Today Dashboard enabled;
   - `TODAY_JOURNAL_WRITES_ENABLED=true`.
+- Scheduler của email buổi sáng độc lập với `BACKGROUND_JOBS_ENABLED`; không được bật
+  payment, subscription, cleanup hoặc retention cron chỉ để gửi reminder.
 - Khung giao nhận là 07:00–08:59 theo `Asia/Ho_Chi_Minh`; cửa sổ rộng giúp catch-up sau
   restart nhưng deterministic delivery key vẫn giới hạn một email/user/ngày.
 - Recipient phải có preference bật, role `user`, email hợp lệ và ít nhất một Order
@@ -44,7 +45,7 @@ coaching active, và provider failure được retry có kiểm soát.
 
 - Preference contract: model, validation, controller, service và integration test notification.
 - Delivery: model mới với deterministic string `_id`, cron service, mail template và tests.
-- Runtime: register start/stop trong `server/server.js`; flag mẫu trong
+- Runtime: register start/stop độc lập trong `server/server.js`; flag mẫu trong
   `server/.env.production.example`.
 - Privacy: xóa delivery ledger cùng Today Dashboard data/account deletion.
 - UI: Account tab mới, `NotificationPreferences` channel email, i18n và focused tests.

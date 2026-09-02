@@ -148,6 +148,41 @@ describe("production readiness configuration", () => {
     );
   });
 
+  it("allows the morning health reminder with global jobs disabled", () => {
+    const env = validEnvironment();
+    env.BACKGROUND_JOBS_ENABLED = "false";
+    env.MORNING_HEALTH_REMINDER_ENABLED = "true";
+    env.TODAY_DASHBOARD_ENABLED = "true";
+    env.TODAY_PLATFORM_PRODUCTION_APPROVED = "true";
+    env.TODAY_JOURNAL_WRITES_ENABLED = "true";
+    env.EMAIL_DELIVERY_MODE = "live";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect(result.errors).toEqual([]);
+    expect(result.summary.morningHealthReminderEnabled).toBe(true);
+  });
+
+  it("rejects an enabled morning reminder without safe prerequisites", () => {
+    const env = validEnvironment();
+    env.BACKGROUND_JOBS_ENABLED = "false";
+    env.MORNING_HEALTH_REMINDER_ENABLED = "true";
+    env.TODAY_DASHBOARD_ENABLED = "false";
+    env.TODAY_PLATFORM_PRODUCTION_APPROVED = "false";
+    env.TODAY_JOURNAL_WRITES_ENABLED = "false";
+    env.EMAIL_DELIVERY_MODE = "disabled";
+
+    const result = validateProductionEnvironment(env, { strict: false });
+
+    expect(result.errors.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining([
+        "MORNING_HEALTH_REMINDER_TODAY_PLATFORM_REQUIRED",
+        "MORNING_HEALTH_REMINDER_JOURNAL_WRITES_REQUIRED",
+        "MORNING_HEALTH_REMINDER_LIVE_EMAIL_REQUIRED",
+      ]),
+    );
+  });
+
   it("keeps SePay optional but requires complete live config when enabled", () => {
     const disabled = validateProductionEnvironment(validEnvironment(), {
       strict: true,

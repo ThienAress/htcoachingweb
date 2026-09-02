@@ -37,7 +37,8 @@ workout, email, check-in, hợp đồng hoặc thanh toán.
 
 Residual đã biết: `Order`, `Contract`, wallet/payment, subscription cùng `AuditLog`/`TrainerTransfer`
 append-only được giữ nguyên để không phá financial/legal/operational history, nên vẫn chứa định danh hoặc
-PII cho tới khi có retention/pseudonymization policy được duyệt. Lock điều phối tạm được xóa cùng tài khoản;
+PII cho tới khi policy draft `account-deletion-residual-data-retention.md` được owner/legal duyệt và
+enforcement riêng được triển khai. Lock điều phối tạm được xóa cùng tài khoản;
 implementation báo rõ boundary còn lại thay vì tự chọn chính sách dữ liệu không thể đảo ngược.
 
 ### Trung tâm thực hành
