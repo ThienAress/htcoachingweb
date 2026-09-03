@@ -87,4 +87,41 @@ describe("RecipeNutritionPanel", () => {
     expect(html).not.toContain("detail.nutrition.coverage_missing");
     expect(html).not.toContain("detail.nutrition.estimated");
   });
+
+  it("displays legacy mg values as precise gram values", () => {
+    const html = renderToStaticMarkup(
+      <RecipeNutritionPanel
+        nutrition={{
+          status: "available",
+          values: {
+            calories: 361,
+            protein: 25,
+            fat: 8,
+            carb: 42,
+            sugars: 3.2,
+            salt: 1,
+          },
+          additional: [
+            { label: "Natri", unit: "mg", value: 2000 },
+            { label: "Sắt", unit: "mg", value: 5 },
+            { label: "Vitamin B12", unit: "mcg", value: 1.2 },
+          ],
+        }}
+      />,
+    );
+
+    expect({
+      hasConvertedLargeValue: html.includes(">2<"),
+      hasConvertedSmallValue: html.includes(">0,005<"),
+      gramLabels: html.match(/\(g\)/g)?.length,
+      keepsMicrogram: html.includes("(mcg)"),
+      keepsMilligram: html.includes("(mg)"),
+    }).toEqual({
+      hasConvertedLargeValue: true,
+      hasConvertedSmallValue: true,
+      gramLabels: 7,
+      keepsMicrogram: true,
+      keepsMilligram: false,
+    });
+  });
 });

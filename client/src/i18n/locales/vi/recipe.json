@@ -67,7 +67,8 @@
     "Slovakian": "Slovakia"
   },
   "detail": {
-    "recipe_seo_desc": "Công thức nấu {{name}} — {{count}} nguyên liệu, hướng dẫn chi tiết từng bước tại HTCOACHING.",
+    "recipe_seo_desc": "Công thức {{name}} gồm {{count}} nguyên liệu và {{steps}} bước thực hiện rõ ràng. Xem cách chuẩn bị, thứ tự nấu và mẹo hoàn thiện món ăn với hướng dẫn dễ theo dõi tại HTCOACHING.",
+    "recipe_seo_desc_with_nutrition": "Công thức {{name}} gồm {{count}} nguyên liệu và {{steps}} bước thực hiện rõ ràng, kèm thông tin dinh dưỡng toàn món. Xem cách chuẩn bị và nấu an toàn, chi tiết tại HTCOACHING.",
     "recipe_seo_json_desc": "Công thức nấu {{name}} với {{count}} nguyên liệu.",
     "error_title": "Không tìm thấy công thức",
     "error_desc": "Công thức này có thể đã bị xóa hoặc đường dẫn không đúng.",

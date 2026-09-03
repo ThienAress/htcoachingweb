@@ -105,6 +105,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 076 | Gửi email buổi sáng nhắc khách cập nhật sức khỏe | P1 | L | 003B, 003G, 060, 075 | DONE / NODE 22 LOCAL FULL — PRODUCTION FLAGS OFF |
 | 077 | Harden agent evidence và đo chất lượng Search | P1 | L | 017, 030, 035 | DONE / NODE 22 LOCAL FULL — HISTORY RISK RECORDED |
 | 078 | Build supervised agent harness và Search pilot | P2 | L | 077 | DONE / NODE 22 LOCAL FULL — PRODUCTION ROLLOUT NOT AUTHORIZED |
+| 079 | Curate Search indexing và chuẩn hóa đơn vị dinh dưỡng công thức | P0 | L | 038, 059, 061, 071A, 072, 073 | DONE / LOCAL FULL VERIFIED — ROLLOUT PENDING |
 
 ## Dependency Notes
 
@@ -202,6 +203,9 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   không đổi product runtime, Search production hoặc quyền Git/production.
 - Plan 078 phụ thuộc evidence/baseline của 077; chỉ thêm context/evidence/lease/state contracts và
   Search candidate offline, không tạo autonomous executor hoặc rollout product.
+- Plan 079 phụ thuộc SEO fallback/prerender cùng contract Exercise/Recipe nutrition đã có; pin cohort
+  20 detail URL, chuẩn hóa `mg` sang `g` tương thích ngược và tuyệt đối không tự deploy, submit GSC
+  hoặc ghi dữ liệu production.
 
 ## Findings Considered and Rejected
 

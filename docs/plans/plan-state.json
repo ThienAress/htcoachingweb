@@ -25,6 +25,18 @@
       "rollout": "not_applicable",
       "owner": "root",
       "updatedAt": "2026-08-31"
+    },
+    {
+      "id": "079",
+      "title": "Curate Search indexing and normalize recipe nutrition units",
+      "path": "docs/plans/079-curate-search-indexing-and-normalize-recipe-nutrition.md",
+      "priority": "P0",
+      "complexity": "complex",
+      "lifecycle": "done",
+      "verification": "local_full",
+      "rollout": "pending",
+      "owner": "root",
+      "updatedAt": "2026-09-02"
     }
   ]
 }

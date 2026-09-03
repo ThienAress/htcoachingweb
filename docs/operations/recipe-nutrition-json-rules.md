@@ -64,8 +64,8 @@ không khớp cũng làm toàn bộ file không thể xác nhận cập nhật.
           },
           {
             "label": "Natri",
-            "unit": "mg",
-            "value": 550
+            "unit": "g",
+            "value": 0.55
           },
           {
             "label": "Vitamin B12",
@@ -96,7 +96,7 @@ nguồn, ghi chú hoặc field tự đặt.
 
 Tất cả sáu field đều bắt buộc và phải là số JSON hữu hạn, lớn hơn hoặc bằng 0. Không
 thêm ký hiệu đơn vị vào giá trị. `salt` là muối tương đương tính theo gram; nếu có số
-liệu natri, ghi natri riêng trong `additional` với đơn vị `mg`, không chép natri vào
+liệu natri, ghi natri riêng trong `additional` với đơn vị `g`, không chép natri vào
 `salt`.
 
 ## 5. Thành phần dinh dưỡng bổ sung
@@ -104,7 +104,10 @@ liệu natri, ghi natri riêng trong `additional` với đơn vị `mg`, không 
 - `additional` luôn phải là mảng; dùng `[]` chỉ khi thực sự không tính được chất nào khác.
 - Mỗi item bắt buộc có đúng ba field: `label`, `unit`, `value`.
 - `label` dài 1–80 ký tự, có nghĩa rõ ràng và không trùng nhau trong cùng món.
-- `unit` chỉ nhận một trong: `kcal`, `g`, `mg`, `mcg`.
+- `unit` của input schema v1 nhận một trong: `kcal`, `g`, `mg`, `mcg`. File mới nên dùng
+  `g` thay cho `mg`; `mg` chỉ được giữ để tương thích input cũ và hệ thống sẽ chuyển
+  ngay `value / 1000` sang `g` mà không làm tròn (`920 mg` thành `0.92 g`). `mcg` giữ
+  nguyên; giá trị đã dùng `g` không bị chuyển đổi lần hai.
 - `value` là số JSON hữu hạn, lớn hơn hoặc bằng 0.
 - Tối đa 60 item cho một công thức.
 - Không lặp lại sáu core bằng các label `Năng lượng`, `Đạm`, `Protein`, `Chất béo`,
@@ -125,9 +128,29 @@ liệu natri, ghi natri riêng trong `additional` với đơn vị `mg`, không 
 1. Parse file bằng JSON validator để chắc chắn cú pháp hợp lệ.
 2. Kiểm tra mọi món giữ nguyên tên và nguyên liệu từ catalog production.
 3. Kiểm tra đủ sáu core và `additional` đã chứa mọi chất có thể tính được.
-4. Kiểm tra đúng đơn vị, không có giá trị âm, label trùng hoặc field lạ.
+4. Kiểm tra đúng đơn vị, đã quy đổi `mg` sang `g`, không có giá trị âm, label trùng
+   hoặc field lạ.
 5. Gửi file `.json` cho Admin. Admin phải bấm `Xem trước`; chỉ khi toàn bộ món khớp mới
    có thể bấm `Xác nhận cập nhật`.
 
 Khi xác nhận, hệ thống chỉ cập nhật `nutrition`. Tên món, slug, nguyên liệu, ảnh, hướng
 dẫn, trạng thái hiển thị, nguồn và đánh giá cộng đồng được giữ nguyên.
+
+## 8. Read compatibility, migration và SEO
+
+- Public detail, public `view=prerender` và danh sách Admin đều trả `additional` theo
+  đơn vị canonical. Document legacy có `mg` được đọc thành `g` ngay cả trước migration.
+- Migration `20260902-normalize-recipe-nutrition-units.js` mặc định chỉ preflight; chỉ
+  item `additional` có `unit: "mg"` được đổi thành `g` với `value / 1000`. Apply lần hai
+  phải là no-op và không được thay `mcg`, `g`, core nutrition hoặc field Recipe khác.
+- Chạy staging theo thứ tự `npm run preflight:recipe-nutrition-units:staging --prefix server`
+  rồi `npm run migrate:recipe-nutrition-units:staging --prefix server`. Production dùng
+  `npm run preflight:recipe-nutrition-units --prefix server` rồi
+  `npm run migrate:recipe-nutrition-units --prefix server`; apply yêu cầu
+  `CONFIRM_RECIPE_NUTRITION_UNIT_MIGRATION=yes` cùng target/database guard, và production
+  còn yêu cầu confirmation, backup snapshot, approval theo `migrationSafety.js`.
+- Không chạy migration staging/production trong lúc chỉ làm việc local. Kết quả preflight
+  phải có `ready: true` và không có invalid item trước khi xin phép apply.
+- Dữ liệu hiện tại là tổng toàn công thức (`scope: whole_recipe`), chưa có
+  `recipeYield` hoặc nutrition theo khẩu phần. Vì vậy Recipe JSON-LD phải bỏ hẳn
+  `nutrition`; không được tự đặt `recipeYield: 1`.

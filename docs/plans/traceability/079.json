@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "planId": "079",
+  "specPath": "docs/specs/recipe-community-and-nutrition.md",
+  "planPath": "docs/plans/079-curate-search-indexing-and-normalize-recipe-nutrition.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Canonicalize recipe nutrition units", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Curate and pin a 20 URL Search cohort", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Align sitemap robots and prerender", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Make Exercise discovery crawlable", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Run SEO and release gates", "planStep": "Step 5" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/__tests__/recipeNutrition.service.test.js" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "test", "path": "server/src/migrations/__tests__/recipeNutritionUnits.test.js" }, { "type": "test", "path": "server/src/scripts/__tests__/stagingRecipeNutritionSync.test.js" }, { "type": "test", "path": "server/src/scripts/__tests__/stagingRecipeNutritionSync.mongo.test.js" }] },
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "test", "path": "client/src/pages/RecipeExplorer/__tests__/RecipeNutritionPanel.test.jsx" }, { "type": "test", "path": "client/src/pages/admin/__tests__/RecipeNutritionEditor.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-002", "TASK-005"], "verifications": [{ "type": "test", "path": "client/scripts/__tests__/recipe-seo-selection.test.js" }] },
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-002", "TASK-005"], "verifications": [{ "type": "test", "path": "client/scripts/__tests__/exercise-seo-selection.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": "client/scripts/__tests__/seo-prerender.test.js" }] },
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": "client/scripts/__tests__/prerender-content.test.js" }, { "type": "test", "path": "client/src/components/__tests__/SEO.test.jsx" }, { "type": "test", "path": "client/src/seo/__tests__/searchIndexDetailPolicy.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-004", "TASK-005"], "verifications": [{ "type": "test", "path": "client/src/pages/ExercisesPage/__tests__/ExercisesPage.test.jsx" }] },
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-004", "TASK-005"], "verifications": [{ "type": "test", "path": "client/src/pages/ExercisesPage/__tests__/exerciseDetailPath.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "npm run test:unit:client" }, { "type": "command", "command": "npm run test:unit:server" }, { "type": "command", "command": "npm run lint --prefix client" }, { "type": "command", "command": "npm run build --prefix client" }] },
+        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "npm run agents:validate" }, { "type": "command", "command": "git diff --check" }] }
+      ]
+    }
+  ]
+}

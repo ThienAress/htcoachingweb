@@ -4,6 +4,10 @@ import jwt from "jsonwebtoken";
 
 import Recipe from "../models/Recipe.js";
 import {
+  isPinnedRecipePostStateEligible,
+  isSearchIndexRecipeSlug,
+} from "../seo/recipeSearchIndexPolicy.js";
+import {
   normalizeRecipeNutritionImport,
   RecipeNutritionImportError,
   recipeImportIdentity,
@@ -67,7 +71,13 @@ const findMatches = async (recipes, session) => {
   let query = Recipe.find({ name: { $in: names } }).select({
     _id: 1,
     name: 1,
+    slug: 1,
+    thumbnail: 1,
+    sourceUrl: 1,
     ingredients: 1,
+    instructions: 1,
+    nutrition: 1,
+    isPublished: 1,
   });
   if (session) query = query.session(session);
   const candidates = await query.lean();
@@ -107,9 +117,54 @@ const findMatches = async (recipes, session) => {
               message: issueMessage[code],
             },
           }
-        : { recipeId: exactCandidates[0]._id }),
+        : {
+            recipeId: exactCandidates[0]._id,
+            matchedRecipe: exactCandidates[0],
+          }),
     };
   });
+};
+
+const assertPinnedRecipesRemainEligible = (matches) => {
+  const recipeSlugs = matches.flatMap(({ matchedRecipe, recipe }) => {
+    if (!isSearchIndexRecipeSlug(matchedRecipe?.slug)) return [];
+    return isPinnedRecipePostStateEligible({
+      ...matchedRecipe,
+      nutrition: recipe.nutrition,
+    })
+      ? []
+      : [matchedRecipe.slug];
+  });
+  if (recipeSlugs.length > 0) {
+    throw new RecipeNutritionImportError(
+      "Không thể nhập vì thay đổi làm công thức trong cohort tìm kiếm không còn đạt chuẩn. Hãy repin cohort trước khi cập nhật.",
+      409,
+      { code: "PINNED_RECIPE_INELIGIBLE", recipeSlugs },
+    );
+  }
+};
+
+const annotatePinnedRecipeEligibility = (match) => {
+  if (
+    match.issue ||
+    !isSearchIndexRecipeSlug(match.matchedRecipe?.slug) ||
+    isPinnedRecipePostStateEligible({
+      ...match.matchedRecipe,
+      nutrition: match.recipe.nutrition,
+    })
+  ) {
+    return match;
+  }
+  return {
+    ...match,
+    issue: {
+      itemIndex: match.itemIndex,
+      name: match.recipe.name,
+      code: "pinned_recipe_ineligible",
+      message:
+        "Dinh dưỡng mới làm công thức trong cohort tìm kiếm không còn đạt chuẩn",
+    },
+  };
 };
 
 const buildPreview = (normalized, matches) => {
@@ -137,7 +192,9 @@ const buildPreview = (normalized, matches) => {
 
 export const previewRecipeNutritionImport = async (document) => {
   const normalized = normalizeRecipeNutritionImport(document);
-  const matches = await findMatches(normalized.recipes);
+  const matches = (await findMatches(normalized.recipes)).map(
+    annotatePinnedRecipeEligibility,
+  );
   return buildPreview(normalized, matches);
 };
 
@@ -159,6 +216,8 @@ export const commitRecipeNutritionImport = async (document) => {
           { issues },
         );
       }
+
+      assertPinnedRecipesRemainEligible(matches);
 
       result = await Recipe.bulkWrite(
         matches.map(({ recipeId, recipe }) => ({

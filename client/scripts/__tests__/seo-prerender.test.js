@@ -89,6 +89,55 @@ describe("prerender SEO validation", () => {
     ).toContain("fatal application fallback rendered");
   });
 
+  it("waits for every required cohort link before accepting a hub", () => {
+    const requiredLinkHrefs = [
+      "/exercises/64b000000000000000000001/goblet-squat/",
+      "/exercises/64b000000000000000000002/push-up/",
+    ];
+
+    expect(
+      validatePrerenderSnapshot(
+        { ...validSnapshot, linkHrefs: requiredLinkHrefs.slice(0, 1) },
+        "https://htcoachingweb.io.vn/blog/bai-viet/",
+        { requiredLinkHrefs },
+      ),
+    ).toContain(
+      "missing required internal links: /exercises/64b000000000000000000002/push-up/",
+    );
+    expect(
+      validatePrerenderSnapshot(
+        { ...validSnapshot, linkHrefs: requiredLinkHrefs },
+        "https://htcoachingweb.io.vn/blog/bai-viet/",
+        { requiredLinkHrefs },
+      ),
+    ).toEqual([]);
+  });
+
+  it("waits for Exercise reviews to settle before accepting a detail page", () => {
+    const pendingSnapshot = {
+      ...validSnapshot,
+      exerciseReviewSectionCount: 1,
+      pendingExerciseReviewCount: 1,
+      exerciseReviewErrorCount: 0,
+    };
+    const requirements = { requireSettledExerciseReviews: true };
+
+    expect(
+      validatePrerenderSnapshot(
+        pendingSnapshot,
+        "https://htcoachingweb.io.vn/blog/bai-viet/",
+        requirements,
+      ),
+    ).toContain("exercise reviews are still loading");
+    expect(
+      validatePrerenderSnapshot(
+        { ...pendingSnapshot, pendingExerciseReviewCount: 0 },
+        "https://htcoachingweb.io.vn/blog/bai-viet/",
+        requirements,
+      ),
+    ).toEqual([]);
+  });
+
   it("rejects homepage JSON-LD when trainer plan offers are missing", () => {
     expect(
       validatePrerenderSnapshot(

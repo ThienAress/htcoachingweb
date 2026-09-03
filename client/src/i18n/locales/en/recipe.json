@@ -67,7 +67,8 @@
     "Slovakian": "Slovakian"
   },
   "detail": {
-    "recipe_seo_desc": "Recipe to cook {{name}} — {{count}} ingredients, step-by-step instructions at HTCOACHING.",
+    "recipe_seo_desc": "Cook {{name}} with {{count}} ingredients and {{steps}} clear steps. Review the preparation order, cooking method, and practical finishing tips with clear guidance at HTCOACHING.",
+    "recipe_seo_desc_with_nutrition": "Cook {{name}} with {{count}} ingredients and {{steps}} clear steps, plus whole-recipe nutrition details. Review the preparation, cooking method, and practical guidance at HTCOACHING.",
     "recipe_seo_json_desc": "Recipe to cook {{name}} with {{count}} ingredients.",
     "error_title": "Recipe not found",
     "error_desc": "This recipe may have been deleted or the path is incorrect.",
