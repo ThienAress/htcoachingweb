@@ -150,7 +150,7 @@ export const buildStagingRecipeNutritionPlan = ({
         target.slug,
       );
     }
-    if (hashValue(target.nutrition) === hashValue(nutrition)) {
+    if (hashValue(target.nutrition ?? null) === hashValue(nutrition)) {
       unchanged += 1;
       continue;
     }

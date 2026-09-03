@@ -106,6 +106,17 @@ describe("staging Recipe nutrition sync contract", () => {
     });
   });
 
+  it("treats a missing legacy nutrition field as an update candidate", () => {
+    const targets = targetRecipes().map((recipe, index) =>
+      index === 0 ? { ...recipe, nutrition: undefined } : recipe,
+    );
+    const plan = buildStagingRecipeNutritionPlan({
+      sourceRecipes: sourceRecipes(),
+      targetRecipes: targets,
+    });
+    expect(plan.summary).toEqual({ update: 10, unchanged: 0 });
+  });
+
   it("becomes a no-op only when all ten target values match", () => {
     const plan = buildStagingRecipeNutritionPlan({
       sourceRecipes: sourceRecipes(),
