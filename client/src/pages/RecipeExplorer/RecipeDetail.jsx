@@ -32,6 +32,8 @@ import {
   recipeBookmarksQueryOptions,
   recipeDetailQueryOptions,
 } from "../../queries/recipe.queries";
+import { isIndexableRecipeDetail } from "../../seo/searchIndexDetailPolicy.js";
+import { normalizeSeoDescription } from "../../seo/seoDescription.js";
 import { getFlagUrl } from "./constants";
 import RecipeNutritionPanel from "./RecipeNutritionPanel";
 import RecipeReviews from "./RecipeReviews";
@@ -79,6 +81,28 @@ const RecipeDetail = () => {
 
   const displayArea = recipe?.area ? t(`areas.${recipe.area}`, { defaultValue: recipe.area }) : "";
   const sourceUrl = safeHttpUrl(recipe?.sourceUrl);
+  const isIndexable = isIndexableRecipeDetail({
+    routeSlug: slug,
+    recipe,
+  });
+  const hasNutrition = recipe?.nutrition?.status === "available" &&
+    Object.values(recipe.nutrition.values || {}).some((value) =>
+      Number.isFinite(Number(value)),
+    );
+  const recipeSeoDescription = recipe
+    ? normalizeSeoDescription(
+        t(
+          hasNutrition
+            ? "detail.recipe_seo_desc_with_nutrition"
+            : "detail.recipe_seo_desc",
+          {
+            name: recipe.name,
+            count: recipe.ingredients?.length || 0,
+            steps: recipe.instructions?.length || 0,
+          },
+        ),
+      )
+    : "";
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -102,6 +126,11 @@ const RecipeDetail = () => {
   if (isLoading) {
     return (
       <>
+        <SEO
+          title={t("seo_title")}
+          description={t("seo_desc")}
+          noindexFollow
+        />
         <Header />
         <main className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-800 to-black text-white pt-28 pb-16">
           <div className="container-custom max-w-4xl animate-pulse space-y-6">
@@ -121,6 +150,11 @@ const RecipeDetail = () => {
   if (error || !recipe) {
     return (
       <>
+        <SEO
+          title={t("detail.error_title")}
+          description={t("detail.error_desc")}
+          noindexFollow
+        />
         <Header />
         <main className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-800 to-black text-white pt-28 pb-16">
           <div className="container-custom text-center py-20">
@@ -148,39 +182,42 @@ const RecipeDetail = () => {
     <>
       <SEO
         title={recipe.name}
-        description={t("detail.recipe_seo_desc", { name: recipe.name, count: recipe.ingredients?.length || 0 })}
-        canonical={`/cong-thuc-nau-an/${slug}`}
+        description={recipeSeoDescription}
+        canonical={`/cong-thuc-nau-an/${recipe.slug}/`}
         image={recipe.thumbnail}
         type="article"
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "Recipe",
-          "name": recipe.name,
-          "image": recipe.thumbnail,
-          "description": t("detail.recipe_seo_json_desc", { name: recipe.name, count: recipe.ingredients?.length || 0 }),
-          "prepTime": recipe.prepTime ? `PT${parseInt(recipe.prepTime)}M` : undefined,
-          "recipeIngredient": recipe.ingredients?.map(
-            (i) => `${i.measure} ${i.name}`,
-          ),
-          "recipeInstructions": recipe.instructions?.map((step, idx) => ({
-            "@type": "HowToStep",
-            "position": idx + 1,
-            "text": step,
-          })),
-          "recipeCategory": recipe.category,
-          "recipeCuisine": recipe.area,
-          "isBasedOn": sourceUrl || undefined,
-          "author": recipe.source === "mealdb"
-            ? {
-                "@type": "Organization",
-                "name": "TheMealDB",
-                "url": "https://www.themealdb.com/",
-              }
-            : {
-                "@type": "Organization",
-                "name": "HTCOACHING",
-              },
-        }}
+        noindexFollow={!isIndexable}
+        jsonLd={isIndexable
+          ? {
+              "@context": "https://schema.org",
+              "@type": "Recipe",
+              "name": recipe.name,
+              "image": recipe.thumbnail,
+              "description": recipeSeoDescription,
+              "prepTime": recipe.prepTime ? `PT${parseInt(recipe.prepTime)}M` : undefined,
+              "recipeIngredient": recipe.ingredients?.map(
+                (i) => `${i.measure} ${i.name}`,
+              ),
+              "recipeInstructions": recipe.instructions?.map((step, idx) => ({
+                "@type": "HowToStep",
+                "position": idx + 1,
+                "text": step,
+              })),
+              "recipeCategory": recipe.category,
+              "recipeCuisine": recipe.area,
+              "isBasedOn": sourceUrl || undefined,
+              "author": recipe.source === "mealdb"
+                ? {
+                    "@type": "Organization",
+                    "name": "TheMealDB",
+                    "url": "https://www.themealdb.com/",
+                  }
+                : {
+                    "@type": "Organization",
+                    "name": "HTCOACHING",
+                  },
+            }
+          : undefined}
       />
       <Header />
       <main className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-800 to-black text-white pt-28 pb-16">

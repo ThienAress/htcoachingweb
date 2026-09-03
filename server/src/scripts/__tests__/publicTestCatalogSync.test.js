@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   EXERCISE_MANIFEST,
   EXPECTED_MUSCLE_GROUPS,
   FOOD_MANIFEST,
+  applyPublicTestCatalogPlan,
+  assertNoSearchCohortLifecycleCollision,
   classifyFixtureRecord,
+  cleanupPublicTestCatalog,
   validateLocalTarget,
   validateManifestContract,
   validateSyncTarget,
@@ -73,6 +76,68 @@ describe("public test catalog target guards", () => {
       "STAGING_OPERATION_CONFIRMATION_REQUIRED",
     );
   });
+
+  it.each([
+    ["active Plan 079 fixture", "_stagingSearchIndexCohortFixture"],
+    ["Plan 079 displacement", "_stagingSearchIndexCohortDisplaced"],
+  ])("rejects %s before Plan 043 sync or cleanup", async (_, markerField) => {
+    const collection = {
+      findOne: vi.fn().mockResolvedValue({
+        [markerField]: { key: "plan-079-staging-search-cohort" },
+      }),
+    };
+
+    await expect(
+      assertNoSearchCohortLifecycleCollision({ collection }),
+    ).rejects.toThrowError(/TEST_CATALOG_SEARCH_COHORT_ACTIVE/);
+    expect(collection.findOne).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the Plan 043 preflight lifecycle check read-only", async () => {
+    const collection = { findOne: vi.fn().mockResolvedValue(null) };
+
+    await expect(
+      assertNoSearchCohortLifecycleCollision({ collection }),
+    ).resolves.toBeUndefined();
+    expect(Object.keys(collection)).toEqual(["findOne"]);
+  });
+
+  it.each(["sync apply", "cleanup apply"])(
+    "rechecks the lifecycle inside the %s transaction before writes",
+    async (operation) => {
+      const write = vi.fn();
+      const collection = {
+        countDocuments: vi.fn().mockResolvedValue(1),
+        insertOne: write,
+        deleteMany: write,
+      };
+      const session = {
+        withTransaction: vi.fn((callback) => callback()),
+        endSession: vi.fn(),
+      };
+      const options = {
+        startSession: vi.fn().mockResolvedValue(session),
+        assertLifecycle: vi.fn().mockRejectedValue(
+          new Error("TEST_CATALOG_SEARCH_COHORT_ACTIVE"),
+        ),
+      };
+      const action = operation === "sync apply"
+        ? applyPublicTestCatalogPlan([{
+            collection,
+            entries: [{ action: "insert", row: { name: "Fixture" } }],
+          }], options)
+        : cleanupPublicTestCatalog(true, {
+            ...options,
+            specs: [{ key: "exercises", collection }],
+          });
+
+      await expect(action).rejects.toThrowError(
+        /TEST_CATALOG_SEARCH_COHORT_ACTIVE/,
+      );
+      expect(write).not.toHaveBeenCalled();
+      expect(session.endSession).toHaveBeenCalledOnce();
+    },
+  );
 });
 
 describe("public test catalog upsert policy", () => {

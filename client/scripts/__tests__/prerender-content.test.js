@@ -8,30 +8,35 @@ import {
 } from "../prerender-content.js";
 
 describe("prerender content cache", () => {
-  it("fetches every public recipe detail page in bounded batches", async () => {
+  it("fetches only recipe details declared in the prerender manifest", async () => {
     const fetchApi = vi.fn(async (path) => {
-      const page = Number(
-        new URL(path, "https://example.test").searchParams.get("page"),
-      );
-      const pageSize = page === 3 ? 1 : 50;
+      const slug = path.split("/").at(-1);
       return {
         data: {
-          data: Array.from({ length: pageSize }, (_, index) => ({
-            slug: `recipe-${page}-${index + 1}`,
-            name: `Recipe ${page}-${index + 1}`,
-          })),
-          pagination: { total: 101, page, limit: 50, totalPages: 3 },
+          success: true,
+          data: { slug, name: `Recipe ${slug}` },
         },
       };
     });
 
-    const recipes = await fetchPrerenderRecipes(fetchApi);
+    const recipes = await fetchPrerenderRecipes(
+      [
+        "/",
+        "/cong-thuc-nau-an/recipe-one",
+        "/cong-thuc-nau-an/recipe-two",
+        "/cong-thuc-nau-an/recipe-one",
+      ],
+      fetchApi,
+      { retryDelayMs: 0 },
+    );
 
-    expect(recipes).toHaveLength(101);
+    expect(recipes.map(({ slug }) => slug)).toEqual([
+      "recipe-one",
+      "recipe-two",
+    ]);
     expect(fetchApi.mock.calls.map(([path]) => path)).toEqual([
-      "/recipes?limit=50&page=1&view=prerender",
-      "/recipes?limit=50&page=2&view=prerender",
-      "/recipes?limit=50&page=3&view=prerender",
+      "/recipes/detail/recipe-one",
+      "/recipes/detail/recipe-two",
     ]);
   });
 
@@ -86,18 +91,15 @@ describe("prerender content cache", () => {
           },
         };
       }
-      if (path === "/exercises?limit=500&page=1") {
+      if (path === "/exercises/64b000000000000000000001") {
         return {
           data: {
             success: true,
-            data: [
-              {
-                _id: "64b000000000000000000001",
-                name: "Goblet Squat",
-                instructions: [],
-              },
-            ],
-            pagination: { total: 1, page: 1, limit: 500, totalPages: 1 },
+            data: {
+              _id: "64b000000000000000000001",
+              name: "Goblet Squat",
+              instructions: [],
+            },
           },
         };
       }
@@ -155,9 +157,8 @@ describe("prerender content cache", () => {
     });
   });
 
-  it("prefetches a large exercise catalog through paginated list requests", async () => {
-    const total = 1_374;
-    const exercises = Array.from({ length: total }, (_, index) => ({
+  it("prefetches only exercise details declared in the manifest", async () => {
+    const exercises = Array.from({ length: 10 }, (_, index) => ({
       _id: index.toString(16).padStart(24, "0"),
       name: `Exercise ${index + 1}`,
       instructions: [],
@@ -166,14 +167,11 @@ describe("prerender content cache", () => {
       (exercise) => `/exercises/${exercise._id}/exercise`,
     );
     const fetchApi = vi.fn(async (path) => {
-      const page = Number(
-        new URL(path, "https://example.test").searchParams.get("page"),
-      );
+      const id = path.split("/").at(-1);
       return {
         data: {
           success: true,
-          data: exercises.slice((page - 1) * 500, page * 500),
-          pagination: { total, page, limit: 500, totalPages: 3 },
+          data: exercises.find((exercise) => exercise._id === id),
         },
       };
     });
@@ -182,11 +180,43 @@ describe("prerender content cache", () => {
       retryDelayMs: 0,
     });
 
-    expect(pageData.exercises.size).toBe(total);
-    expect(fetchApi.mock.calls.map(([path]) => path)).toEqual([
-      "/exercises?limit=500&page=1",
-      "/exercises?limit=500&page=2",
-      "/exercises?limit=500&page=3",
-    ]);
+    expect(pageData.exercises.size).toBe(10);
+    expect(fetchApi.mock.calls.map(([path]) => path)).toEqual(
+      exercises.map(({ _id }) => `/exercises/${_id}`),
+    );
+  });
+
+  it("serves cohort-only hub lists from the deterministic cache", () => {
+    const exerciseId = "64b000000000000000000001";
+    const cache = createPrerenderResponseCache(
+      [{ slug: "recipe-one", name: "Recipe One" }],
+      {
+        exercises: new Map([
+          [
+            exerciseId,
+            {
+              success: true,
+              data: { _id: exerciseId, name: "Goblet Squat" },
+            },
+          ],
+        ]),
+      },
+    );
+
+    const recipeList = JSON.parse(
+      responseForPrerenderRequest(
+        "https://api.htcoachingweb.io.vn/api/recipes?search=&category=&area=&page=1&limit=12",
+        cache,
+      ).body,
+    );
+    const exerciseList = JSON.parse(
+      responseForPrerenderRequest(
+        "https://api.htcoachingweb.io.vn/api/exercises?page=1&limit=500",
+        cache,
+      ).body,
+    );
+
+    expect(recipeList.data.map(({ slug }) => slug)).toEqual(["recipe-one"]);
+    expect(exerciseList.data.map(({ _id }) => _id)).toEqual([exerciseId]);
   });
 });

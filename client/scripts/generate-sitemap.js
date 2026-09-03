@@ -8,14 +8,21 @@ import {
   normalizeDynamicRouteApiUrl,
   resolveDynamicRoutePolicy,
 } from "./dynamic-routes.js";
-import { selectRecipesForSeo } from "./recipe-seo-selection.js";
+import { selectSearchIndexCohort } from "./search-index-selection.js";
 import {
   buildSitemapIndex,
   buildUrlSet,
   extractSitemapRoutes,
 } from "./sitemap-files.js";
+import { fetchPrerenderRecipes } from "./prerender-content.js";
 import { normalizePublicPath } from "../src/utils/publicSeoPath.js";
-import { slugifyExerciseName } from "../src/pages/ExercisesPage/exerciseDetailPath.js";
+import { getExerciseDetailPath } from "../src/pages/ExercisesPage/exerciseDetailPath.js";
+import {
+  SEARCH_INDEX_EXERCISE_IDS,
+  SEARCH_INDEX_RECIPE_SLUGS,
+  isSearchIndexExerciseId,
+  isSearchIndexRecipeSlug,
+} from "../src/seo/searchIndexCohort.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,7 +73,7 @@ const toExerciseRoutes = (items) =>
     if (!/^[a-f0-9]{24}$/i.test(id)) return [];
     return [
       {
-        url: `/exercises/${id}/${slugifyExerciseName(item?.name)}`,
+        url: getExerciseDetailPath(item).replace(/\/$/, ""),
         priority: 0.6,
         changefreq: "monthly",
         lastmod: lastModified(item?.updatedAt),
@@ -84,6 +91,23 @@ const routeFromPath = (url) => ({
   changefreq: "monthly",
   lastmod: today,
 });
+
+const recipeSlugFromPath = (url) => {
+  const match = String(url || "").match(/^\/cong-thuc-nau-an\/([^/]+)\/?$/);
+  return match ? match[1] : "";
+};
+
+const exerciseIdFromPath = (url) => {
+  const match = String(url || "").match(/^\/exercises\/([a-f0-9]{24})(?:\/|$)/i);
+  return match ? match[1] : "";
+};
+
+const isRecipeDetailPath = (url) => Boolean(recipeSlugFromPath(url));
+const isExerciseDetailPath = (url) => Boolean(exerciseIdFromPath(url));
+const isPinnedRecipePath = (url) =>
+  isSearchIndexRecipeSlug(recipeSlugFromPath(url));
+const isPinnedExercisePath = (url) =>
+  isSearchIndexExerciseId(exerciseIdFromPath(url));
 
 const readExistingRoutes = () => {
   const indexPath = path.join(publicDir, "sitemap.xml");
@@ -132,13 +156,32 @@ const writeOutputs = ({ coreRoutes, contentRoutes, recipeRoutes, prerenderRoutes
   );
 };
 
-const generateSitemap = async () => {
-  const policy = resolveDynamicRoutePolicy();
+export const generateSitemap = async ({
+  env = process.env,
+  writeOutputsImpl = writeOutputs,
+  fetchDynamicRouteContentImpl = fetchDynamicRouteContent,
+  fetchPrerenderRecipesImpl = fetchPrerenderRecipes,
+  logger = console,
+} = {}) => {
+  const policy = resolveDynamicRoutePolicy(env);
+  if (policy.skip) {
+    writeOutputsImpl({
+      coreRoutes: staticRoutes,
+      contentRoutes: [],
+      recipeRoutes: [],
+      prerenderRoutes: staticRoutes,
+    });
+    logger.warn(
+      "Generated a static-only sitemap for CI; this artifact is not valid for production deployment.",
+    );
+    return { mode: "static", submittedUrlCount: staticRoutes.length };
+  }
+
   const apiUrl = normalizeDynamicRouteApiUrl(
-    process.env.SITEMAP_API_URL || process.env.VITE_API_URL || "https://api.htcoachingweb.io.vn/api",
+    env.SITEMAP_API_URL || env.VITE_API_URL || "https://api.htcoachingweb.io.vn/api",
     policy,
   );
-  const { content, failures } = await fetchDynamicRouteContent({
+  const { content, failures } = await fetchDynamicRouteContentImpl({
     fetchApi: (pathName) => axios.get(apiUrl + pathName, {
       timeout: policy.requireDynamic ? 30_000 : 10_000,
     }),
@@ -151,32 +194,59 @@ const generateSitemap = async () => {
     if (existing.length <= staticRoutes.length) {
       throw new Error("Dynamic sitemap sources failed and no safe existing sitemap is available");
     }
-    const recipePaths = existing.filter((url) => url.startsWith("/cong-thuc-nau-an/"));
+    const recipePaths = existing.filter(isPinnedRecipePath);
     const contentPaths = existing.filter(
       (url) =>
-        !recipePaths.includes(url) &&
-        !staticRoutes.some((route) => route.url === url),
+        !staticRoutes.some((route) => route.url === url) &&
+        !isRecipeDetailPath(url) &&
+        (!isExerciseDetailPath(url) || isPinnedExercisePath(url)),
     );
     writeOutputs({
       coreRoutes: staticRoutes,
       contentRoutes: contentPaths.map(routeFromPath),
-      recipeRoutes: recipePaths.slice(0, 30).map(routeFromPath),
-      prerenderRoutes: [...staticRoutes, ...existing.map(routeFromPath)],
+      recipeRoutes: recipePaths.map(routeFromPath),
+      prerenderRoutes: [
+        ...staticRoutes,
+        ...contentPaths.map(routeFromPath),
+        ...recipePaths.map(routeFromPath),
+      ],
     });
-    console.warn("Preserved existing dynamic routes after non-strict source failure.");
-    return;
+    logger.warn(
+      "Preserved only approved cohort detail routes after non-strict source failure.",
+    );
+    return { mode: "fallback", submittedUrlCount: existing.length };
   }
 
   const storyRoutes = toRoutes(content.stories, "/ket-qua-khach-hang/", 0.8);
   const trainerRoutes = toRoutes(content.trainers, "/huan-luyen-vien/", 0.8);
   const blogRoutes = toRoutes(content.blogs, "/blog/", 0.7);
-  const exerciseRoutes = toExerciseRoutes(content.exercises);
-  const allRecipeRoutes = toRoutes(content.recipes, "/cong-thuc-nau-an/", 0.6);
-  const selectedRecipes = selectRecipesForSeo(content.recipes, {
-    limit: 30,
-    minimum: 20,
-    strict: policy.netlifyProduction,
+  let recipeDetails = content.recipes;
+  try {
+    recipeDetails = await fetchPrerenderRecipesImpl(
+      SEARCH_INDEX_RECIPE_SLUGS.map(
+        (slug) => `/cong-thuc-nau-an/${slug}/`,
+      ),
+      (pathName) =>
+        axios.get(apiUrl + pathName, {
+          timeout: policy.requireDynamic ? 30_000 : 10_000,
+        }),
+    );
+  } catch (error) {
+    if (policy.requireDynamic) throw error;
+    logger.warn(
+      "Pinned Recipe details could not be hydrated; falling back to list projection: " +
+        error.message,
+    );
+  }
+  const selectedCohort = selectSearchIndexCohort({
+    recipes: recipeDetails,
+    exercises: content.exercises,
+  }, {
+    strict: policy.requireDynamic,
   });
+  const selectedExercises = selectedCohort.exercises;
+  const exerciseRoutes = toExerciseRoutes(selectedExercises);
+  const selectedRecipes = selectedCohort.recipes;
   const recipeRoutes = toRoutes(selectedRecipes, "/cong-thuc-nau-an/", 0.7);
   const contentRoutes = [
     ...storyRoutes,
@@ -184,18 +254,24 @@ const generateSitemap = async () => {
     ...blogRoutes,
     ...exerciseRoutes,
   ];
-  writeOutputs({
+  writeOutputsImpl({
     coreRoutes: staticRoutes,
     contentRoutes,
     recipeRoutes,
-    prerenderRoutes: [...staticRoutes, ...contentRoutes, ...allRecipeRoutes],
+    prerenderRoutes: [...staticRoutes, ...contentRoutes, ...recipeRoutes],
   });
-  console.log(
-    `Sitemap index generated with ${staticRoutes.length + contentRoutes.length + recipeRoutes.length} submitted URLs; ${allRecipeRoutes.length} recipe pages remain prerendered.`,
+  logger.log(
+    `Sitemap index generated with ${staticRoutes.length + contentRoutes.length + recipeRoutes.length} submitted URLs; Recipe/Exercise details are limited to the approved ${SEARCH_INDEX_RECIPE_SLUGS.length + SEARCH_INDEX_EXERCISE_IDS.length}-URL cohort.`,
   );
+  return {
+    mode: policy.requireDynamic ? "strict" : "dynamic",
+    submittedUrlCount: staticRoutes.length + contentRoutes.length + recipeRoutes.length,
+  };
 };
 
-generateSitemap().catch((error) => {
-  console.error("Error generating sitemap:", error.message);
-  process.exitCode = 1;
-});
+if (path.resolve(process.argv[1] || "") === __filename) {
+  generateSitemap().catch((error) => {
+    console.error("Error generating sitemap:", error.message);
+    process.exitCode = 1;
+  });
+}

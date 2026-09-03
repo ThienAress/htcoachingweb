@@ -27,6 +27,16 @@ import {
 } from "./exerciseInstructionsImport.testHelpers.js";
 
 const endpoint = "/api/exercises/instructions/import";
+const pinnedExerciseId = "6a4b43515b0a4f47f1108990";
+const eligibleDescription = Array.from(
+  { length: 20 },
+  (_, index) => `quality${index}`,
+).join(" ");
+const eligibleInstructions = [
+  { title: "Step 1", description: "a".repeat(80) },
+  { title: "Step 2", description: "b".repeat(80) },
+  { title: "Step 3", description: "c".repeat(80) },
+];
 
 describe("Exercise instructions bulk import", () => {
   let app;
@@ -114,6 +124,129 @@ describe("Exercise instructions bulk import", () => {
       description: "Mô tả gốc",
       imageUrl: "https://cdn.example.test/goblet.gif",
       videoUrl: "https://cdn.example.test/goblet.mp4",
+    });
+  });
+
+  test("atomically rejects an import that makes a pinned exercise ineligible", async () => {
+    await Exercise.create([
+      {
+        _id: pinnedExerciseId,
+        name: "3/4 Sit-up",
+        muscleGroup: "Core",
+        description: eligibleDescription,
+        imageUrl: "https://cdn.example.test/sit-up.jpg",
+        instructions: eligibleInstructions,
+        technicalDifficulty: rubric,
+      },
+      { name: "Goblet Squat", muscleGroup: "Chân" },
+    ]);
+    const document = importDocument([
+      importItem("3/4 Sit-up"),
+      importItem("Goblet Squat"),
+    ]);
+    const previewResponse = await attachJson(
+      withAuth(request(app).post(endpoint), adminToken),
+      document,
+      true,
+    );
+
+    const response = await attachJson(
+      withAuth(request(app).post(endpoint), adminToken),
+      document,
+      false,
+      previewResponse.body.data.previewToken,
+    );
+    const [pinned, unpinned] = await Promise.all([
+      Exercise.findById(pinnedExerciseId).lean(),
+      Exercise.findOne({ name: "Goblet Squat" }).lean(),
+    ]);
+
+    expect({
+      status: response.status,
+      code: response.body.details?.code,
+      pinnedSteps: pinned.instructions.length,
+      unpinnedSteps: unpinned.instructions.length,
+    }).toEqual({
+      status: 409,
+      code: "PINNED_EXERCISE_INELIGIBLE",
+      pinnedSteps: 3,
+      unpinnedSteps: 0,
+    });
+  });
+
+  test("fails closed when an imported pinned editorial name has the wrong identity", async () => {
+    await Exercise.create({
+      name: "3/4 Sit-up",
+      muscleGroup: "Core",
+      description: eligibleDescription,
+      imageUrl: "https://cdn.example.test/sit-up.jpg",
+    });
+    const document = importDocument([importItem("3/4 Sit-up")]);
+    const previewResponse = await attachJson(
+      withAuth(request(app).post(endpoint), adminToken),
+      document,
+      true,
+    );
+
+    const response = await attachJson(
+      withAuth(request(app).post(endpoint), adminToken),
+      document,
+      false,
+      previewResponse.body.data.previewToken,
+    );
+    const stored = await Exercise.findOne({ name: "3/4 Sit-up" }).lean();
+
+    expect({
+      status: response.status,
+      code: response.body.details?.code,
+      storedSteps: stored.instructions.length,
+    }).toEqual({
+      status: 409,
+      code: "PINNED_EXERCISE_INELIGIBLE",
+      storedSteps: 0,
+    });
+  });
+
+  test("commits an import when the pinned exercise final state remains eligible", async () => {
+    await Exercise.create({
+      _id: pinnedExerciseId,
+      name: "3/4 Sit-up",
+      muscleGroup: "Core",
+      description: eligibleDescription,
+      imageUrl: "https://cdn.example.test/sit-up.jpg",
+      instructions: eligibleInstructions,
+      technicalDifficulty: rubric,
+    });
+    const eligibleImportInstructions = [
+      { title: "New 1", description: "d".repeat(80) },
+      { title: "New 2", description: "e".repeat(80) },
+      { title: "New 3", description: "f".repeat(80) },
+    ];
+    const document = importDocument([
+      importItem("3/4 Sit-up", { instructions: eligibleImportInstructions }),
+    ]);
+    const previewResponse = await attachJson(
+      withAuth(request(app).post(endpoint), adminToken),
+      document,
+      true,
+    );
+
+    const response = await attachJson(
+      withAuth(request(app).post(endpoint), adminToken),
+      document,
+      false,
+      previewResponse.body.data.previewToken,
+    );
+    const stored = await Exercise.findById(pinnedExerciseId).lean();
+
+    expect({
+      status: response.status,
+      updatedItems: response.body.data?.updatedItems,
+      titles: stored.instructions.map(({ title }) => title),
+    }).toEqual({
+      status: 200,
+      updatedItems: 1,
+      titles: ["New 1", "New 2", "New 3"],
     });
   });
 

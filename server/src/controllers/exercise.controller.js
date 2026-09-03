@@ -3,8 +3,16 @@ import Exercise, {
   TECHNICAL_DIFFICULTY_CRITERIA,
 } from "../models/Exercise.js";
 import ExerciseReview from "../models/ExerciseReview.js";
+import {
+  isPinnedExerciseDescriptionCohortSafe,
+  isPinnedExercisePostStateEligible,
+  isSearchIndexExerciseId,
+  normalizeExerciseSeoText,
+  SEARCH_INDEX_EXERCISE_IDS,
+} from "../seo/exerciseSearchIndexPolicy.js";
 import { destroyCloudinaryAsset } from "../utils/cloudinaryUpload.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { scheduleNetlifyBuild } from "../utils/triggerBuild.js";
 
 const COMPLETE_TECHNICAL_DIFFICULTY_QUERY = {
   $and: TECHNICAL_DIFFICULTY_CRITERIA.map((criterion) => ({
@@ -22,6 +30,13 @@ const TECHNICAL_DIFFICULTY_RATING_RANGES = {
   4: [6, 7],
   5: [8, 10],
 };
+
+const rejectPinnedExerciseMutation = (res, code, message) =>
+  res.status(409).json({
+    success: false,
+    message,
+    details: { code },
+  });
 
 const buildTechnicalDifficultyQuery = (rating) => {
   if (!rating) return null;
@@ -46,6 +61,9 @@ const buildTechnicalDifficultyQuery = (rating) => {
 const serializeExercise = (exercise) => {
   const data = exercise.toObject();
   delete data.videoPublicId;
+  delete data._testCatalogFixture;
+  delete data._stagingSearchIndexCohortFixture;
+  delete data._stagingSearchIndexCohortDisplaced;
   return {
     ...data,
     technicalDifficultyRating: deriveTechnicalDifficultyRating(
@@ -145,6 +163,7 @@ export const createExercise = async (req, res) => {
       instructions,
       technicalDifficulty,
     });
+    scheduleNetlifyBuild("exercise_created");
     res.status(201).json({ success: true, data: serializeExercise(exercise) });
   } catch (err) {
     safeLog.error("exercise.create_failed", err);
@@ -194,6 +213,9 @@ export const createManyExercises = async (req, res) => {
         results.failed.push({ ...item, error: err.message });
       }
     }
+    if (results.success.length > 0) {
+      scheduleNetlifyBuild("exercise_bulk_created");
+    }
     res.status(201).json({
       success: true,
       data: results,
@@ -215,19 +237,64 @@ export const updateExercise = async (req, res) => {
       "instructions",
       "technicalDifficulty",
     ];
-    const updateData = {};
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) updateData[key] = req.body[key];
-    }
-
-    const exercise = await Exercise.findByIdAndUpdate(req.params.id, updateData, {
-      returnDocument: 'after',
-      runValidators: true,
-    });
+    const exercise = await Exercise.findById(req.params.id);
     if (!exercise) {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy bài tập" });
+    }
+
+    const pinnedExercise = isSearchIndexExerciseId(exercise._id);
+    const previousNormalizedDescription = normalizeExerciseSeoText(
+      exercise.description,
+    );
+    const providedFields = allowed.filter((key) => req.body[key] !== undefined);
+    for (const key of providedFields) {
+      exercise[key] = req.body[key];
+    }
+    const hasChanges = providedFields.some((key) => exercise.isModified(key));
+    if (hasChanges) {
+      if (
+        pinnedExercise &&
+        normalizeExerciseSeoText(exercise.description) !==
+          previousNormalizedDescription
+      ) {
+        return rejectPinnedExerciseMutation(
+          res,
+          "PINNED_EXERCISE_DESCRIPTION_CHANGE_BLOCKED",
+          "Không thể thay đổi mô tả của bài tập đang thuộc cohort tìm kiếm. Hãy repin cohort trước khi cập nhật.",
+        );
+      }
+      if (
+        pinnedExercise &&
+        !isPinnedExercisePostStateEligible(exercise)
+      ) {
+        return rejectPinnedExerciseMutation(
+          res,
+          "PINNED_EXERCISE_INELIGIBLE",
+          "Không thể cập nhật vì bài tập đang thuộc cohort tìm kiếm và thay đổi này làm nội dung không còn đạt chuẩn. Hãy repin cohort trước khi cập nhật.",
+        );
+      }
+      if (pinnedExercise) {
+        const exerciseId = String(exercise._id).toLowerCase();
+        const siblingIds = SEARCH_INDEX_EXERCISE_IDS.filter(
+          (id) => id !== exerciseId,
+        );
+        const siblings = await Exercise.find({
+          _id: { $in: siblingIds },
+        })
+          .select({ _id: 1, description: 1 })
+          .lean();
+        if (!isPinnedExerciseDescriptionCohortSafe(exercise, siblings)) {
+          return rejectPinnedExerciseMutation(
+            res,
+            "PINNED_EXERCISE_DESCRIPTION_CONFLICT",
+            "Không thể cập nhật vì cohort tìm kiếm thiếu dữ liệu hoặc có mô tả bài tập bị trùng sau chuẩn hóa. Hãy repin cohort trước khi cập nhật.",
+          );
+        }
+      }
+      await exercise.save();
+      scheduleNetlifyBuild("exercise_updated");
     }
     res.json({ success: true, data: serializeExercise(exercise) });
   } catch (err) {
@@ -238,6 +305,13 @@ export const updateExercise = async (req, res) => {
 // Xóa bài tập (chỉ admin)
 export const deleteExercise = async (req, res) => {
   try {
+    if (isSearchIndexExerciseId(req.params.id)) {
+      return rejectPinnedExerciseMutation(
+        res,
+        "PINNED_EXERCISE_DELETE_BLOCKED",
+        "Không thể xóa bài tập đang thuộc cohort tìm kiếm. Hãy repin và deploy cohort mới trước khi xóa.",
+      );
+    }
     const exercise = await Exercise.findByIdAndDelete(req.params.id).select(
       "+videoPublicId",
     );
@@ -258,6 +332,7 @@ export const deleteExercise = async (req, res) => {
         safeLog.error("exercise.video_cleanup_after_delete_failed", cleanupError);
       }
     }
+    scheduleNetlifyBuild("exercise_deleted");
     res.json({ success: true, message: "Xóa thành công" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

@@ -12,6 +12,7 @@ import { useAuth } from "../../context/AuthContext";
 import useExercisesLogic from "../../hooks/useExercisesLogic";
 import { usePrompt } from "../../hooks/usePrompt";
 import Header from "../../sections/Header/Header";
+import { SEARCH_INDEX_EXERCISE_IDS } from "../../seo/searchIndexCohort.js";
 import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
 import { translateData } from "../../utils/localDataTranslator";
 import ExerciseLibrary from "./ExerciseLibrary";
@@ -189,6 +190,7 @@ const ExercisesPage = () => {
               isError={logic.isExercisesError}
               onRetry={logic.retryExercises}
               onOpenPlanner={() => setActiveView("planner")}
+              priorityExerciseIds={SEARCH_INDEX_EXERCISE_IDS}
             />
           ) : (
             <WorkoutPlanner

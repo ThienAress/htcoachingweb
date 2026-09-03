@@ -104,7 +104,6 @@ const RecipeNutritionEditor = ({ value, onChange, disabled = false }) => {
                   className={inputClass}
                 >
                   <option value="g">g</option>
-                  <option value="mg">mg</option>
                   <option value="mcg">mcg</option>
                   <option value="kcal">kcal</option>
                 </select>
@@ -114,7 +113,7 @@ const RecipeNutritionEditor = ({ value, onChange, disabled = false }) => {
                 <input
                   type="number"
                   min="0"
-                  step="0.1"
+                  step={item.unit === "g" ? "0.000001" : "0.1"}
                   value={item.value}
                   onChange={(event) =>
                     updateAdditional(item.rowId, "value", event.target.value)

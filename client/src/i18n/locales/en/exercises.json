@@ -50,6 +50,7 @@
     "loading": "Loading exercise details",
     "error_title": "This exercise could not be loaded",
     "error_description": "The exercise does not exist or its data is temporarily unavailable.",
+    "seo_description": "Learn exercise {{name}} for {{muscleGroup}} with {{steps}} clear steps. Review the setup, controlled execution, technique cues, common mistakes, and safety notes in the HTCOACHING exercise library.",
     "go_to_setup": "Go to the step-by-step guide",
     "admin_difficulty": "Technical rating by HTCOACHING",
     "admin_difficulty_note": "This reflects technical complexity only. It is separate from trainee reviews and does not represent personal training load.",

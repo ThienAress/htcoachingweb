@@ -18,6 +18,7 @@ import {
   validateManifestContract,
   validateSyncTarget,
 } from "./publicTestCatalogSync.contract.js";
+import { STAGING_SEARCH_COHORT_FIXTURE_KEY } from "./stagingSearchIndexCohortSync.contract.js";
 
 export {
   EXERCISE_MANIFEST,
@@ -62,6 +63,32 @@ const collectionSpecs = (catalog) => [
   { key: "foods", collection: mongoose.connection.collection("foods"), identity: "label", rows: catalog.foods },
 ];
 
+const searchCohortCollisionQuery = {
+  $or: [
+    {
+      "_stagingSearchIndexCohortDisplaced.key":
+        STAGING_SEARCH_COHORT_FIXTURE_KEY,
+    },
+    {
+      "_stagingSearchIndexCohortFixture.key":
+        STAGING_SEARCH_COHORT_FIXTURE_KEY,
+    },
+  ],
+};
+
+export const assertNoSearchCohortLifecycleCollision = async ({
+  collection = mongoose.connection.collection("exercises"),
+  session,
+} = {}) => {
+  const collision = await collection.findOne(searchCohortCollisionQuery, {
+    projection: { _id: 1 },
+    ...(session ? { session } : {}),
+  });
+  if (collision) {
+    throw makeTestCatalogError("TEST_CATALOG_SEARCH_COHORT_ACTIVE");
+  }
+};
+
 const buildPlan = async (catalog) => {
   const specs = collectionSpecs(catalog);
   for (const spec of specs) {
@@ -94,10 +121,17 @@ const summarizePlan = (plan) =>
     ]),
   );
 
-const applyPlan = async (plan) => {
-  const session = await mongoose.startSession();
+export const applyPublicTestCatalogPlan = async (
+  plan,
+  {
+    startSession = () => mongoose.startSession(),
+    assertLifecycle = assertNoSearchCohortLifecycleCollision,
+  } = {},
+) => {
+  const session = await startSession();
   try {
     await session.withTransaction(async () => {
+      await assertLifecycle({ session });
       const now = new Date();
       const marker = {
         managed: true,
@@ -146,16 +180,23 @@ const verifyTarget = async () => {
   };
 };
 
-const cleanup = async (apply) => {
+export const cleanupPublicTestCatalog = async (
+  apply,
+  {
+    specs = collectionSpecs({ exercises: [], foods: [] }),
+    startSession = () => mongoose.startSession(),
+    assertLifecycle = assertNoSearchCohortLifecycleCollision,
+  } = {},
+) => {
   const filter = { "_testCatalogFixture.managed": true, "_testCatalogFixture.key": FIXTURE_KEY };
-  const specs = collectionSpecs({ exercises: [], foods: [] });
   const counts = Object.fromEntries(
     await Promise.all(specs.map(async (spec) => [spec.key, await spec.collection.countDocuments(filter)])),
   );
   if (apply) {
-    const session = await mongoose.startSession();
+    const session = await startSession();
     try {
       await session.withTransaction(async () => {
+        await assertLifecycle({ session });
         for (const spec of specs) await spec.collection.deleteMany(filter, { session });
       });
     } finally {
@@ -181,14 +222,15 @@ export const runPublicTestCatalogSync = async ({ argv = process.argv.slice(2), e
     if (mongoose.connection.name !== expectedDatabase) {
       throw makeTestCatalogError("TEST_CATALOG_CONNECTED_DATABASE_MISMATCH");
     }
+    await assertNoSearchCohortLifecycleCollision();
     if (options.cleanup) {
-      const affected = await cleanup(options.apply);
+      const affected = await cleanupPublicTestCatalog(options.apply);
       return { operation: "cleanup", mode: options.apply ? "apply" : "dry-run", target: options.target, database: expectedDatabase, affected };
     }
     const catalog = await loadSourceCatalog();
     const plan = await buildPlan(catalog);
     const actions = summarizePlan(plan);
-    if (options.apply) await applyPlan(plan);
+    if (options.apply) await applyPublicTestCatalogPlan(plan);
     const verified = options.apply ? await verifyTarget() : null;
     return { operation: "sync", mode: options.apply ? "apply" : "dry-run", target: options.target, database: expectedDatabase, source: { exercises: 20, foods: 20 }, actions, verified };
   } finally {

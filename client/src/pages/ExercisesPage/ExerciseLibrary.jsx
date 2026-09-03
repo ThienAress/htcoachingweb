@@ -15,6 +15,38 @@ import { getExerciseDetailPath } from "./exerciseDetailPath";
 import { filterExerciseCatalog } from "./exerciseLibraryFilters";
 
 const INITIAL_VISIBLE_EXERCISES = 24;
+const EMPTY_PRIORITY_EXERCISE_IDS = Object.freeze([]);
+
+const prioritizeExercisesByIds = (
+  exercises,
+  priorityExerciseIds = [],
+) => {
+  if (!Array.isArray(exercises) || !Array.isArray(priorityExerciseIds)) {
+    return Array.isArray(exercises) ? exercises : [];
+  }
+
+  const itemsById = new Map(
+    exercises.map((exercise) => [String(exercise?._id || ""), exercise]),
+  );
+  const prioritizedIds = [
+    ...new Set(
+      priorityExerciseIds
+        .map((id) => String(id || "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  const prioritizedIdSet = new Set(prioritizedIds);
+
+  return [
+    ...prioritizedIds.flatMap((id) => {
+      const exercise = itemsById.get(id);
+      return exercise ? [exercise] : [];
+    }),
+    ...exercises.filter(
+      (exercise) => !prioritizedIdSet.has(String(exercise?._id || "")),
+    ),
+  ];
+};
 
 const ExerciseImage = ({ exercise, className }) => {
   const { t } = useTranslation("exercises");
@@ -80,6 +112,7 @@ export default function ExerciseLibrary({
   isError = false,
   onRetry,
   onOpenPlanner,
+  priorityExerciseIds = EMPTY_PRIORITY_EXERCISE_IDS,
 }) {
   const { t } = useTranslation("exercises");
   const [searchTerm, setSearchTerm] = useState("");
@@ -87,18 +120,26 @@ export default function ExerciseLibrary({
   const [difficulty, setDifficulty] = useState("");
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_EXERCISES);
 
+  const prioritizedExercises = useMemo(
+    () => prioritizeExercisesByIds(exercises, priorityExerciseIds),
+    [exercises, priorityExerciseIds],
+  );
   const muscleGroups = useMemo(
-    () => [...new Set(exercises.map((item) => item.muscleGroup).filter(Boolean))]
-      .sort((left, right) => left.localeCompare(right)),
-    [exercises],
+    () =>
+      [
+        ...new Set(
+          prioritizedExercises.map((item) => item.muscleGroup).filter(Boolean),
+        ),
+      ].sort((left, right) => left.localeCompare(right)),
+    [prioritizedExercises],
   );
   const filteredExercises = useMemo(
-    () => filterExerciseCatalog(exercises, {
+    () => filterExerciseCatalog(prioritizedExercises, {
       searchTerm,
       muscleGroup: selectedMuscleGroup,
       difficulty,
     }),
-    [difficulty, exercises, searchTerm, selectedMuscleGroup],
+    [difficulty, prioritizedExercises, searchTerm, selectedMuscleGroup],
   );
   const hasActiveFilters = Boolean(searchTerm || selectedMuscleGroup || difficulty);
   const visibleExercises = filteredExercises.slice(0, visibleCount);

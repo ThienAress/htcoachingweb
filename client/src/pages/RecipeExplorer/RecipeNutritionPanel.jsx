@@ -9,19 +9,27 @@ const NUTRIENTS = [
   { key: "salt", unitKey: "unit_gram" },
 ];
 
-const formatValue = (value, key, language) => {
+const formatValue = (value, key, language, unit = "") => {
   const number = Number(value);
   if (!Number.isFinite(number)) return "—";
   return new Intl.NumberFormat(language === "en" ? "en-US" : "vi-VN", {
-    maximumFractionDigits: key === "calories" ? 0 : 1,
+    maximumFractionDigits:
+      key === "calories" || unit === "kcal" ? 0 : unit === "g" ? 6 : 1,
   }).format(number);
 };
+
+const normalizeAdditionalNutrient = (item) =>
+  item.unit === "mg"
+    ? { ...item, unit: "g", value: Number(item.value) / 1000 }
+    : item;
 
 const RecipeNutritionPanel = ({ nutrition }) => {
   const { t, i18n } = useTranslation("recipe");
   const status = nutrition?.status || "unavailable";
   const values = nutrition?.values || {};
-  const additional = nutrition?.additional || [];
+  const additional = (nutrition?.additional || []).map(
+    normalizeAdditionalNutrient,
+  );
   const coreRows = NUTRIENTS.filter(({ key }) => Number.isFinite(Number(values[key])));
   const hasTotals =
     status === "available" && (coreRows.length > 0 || additional.length > 0);
@@ -62,7 +70,12 @@ const RecipeNutritionPanel = ({ nutrition }) => {
                     <span className="ml-1 font-normal text-zinc-500">({item.unit})</span>
                   </th>
                   <td className="py-3 pl-4 pr-16 text-right font-bold text-primary sm:px-4">
-                    {formatValue(item.value, item.unit === "kcal" ? "calories" : item.label, i18n.language)}
+                    {formatValue(
+                      item.value,
+                      item.unit === "kcal" ? "calories" : item.label,
+                      i18n.language,
+                      item.unit,
+                    )}
                   </td>
                 </tr>
               ))}

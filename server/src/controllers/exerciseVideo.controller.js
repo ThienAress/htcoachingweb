@@ -8,10 +8,14 @@ import {
   uploadBufferToCloudinary,
 } from "../utils/cloudinaryUpload.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { scheduleNetlifyBuild } from "../utils/triggerBuild.js";
 
 const serializeExercise = (exercise) => {
   const data = exercise.toObject();
   delete data.videoPublicId;
+  delete data._testCatalogFixture;
+  delete data._stagingSearchIndexCohortFixture;
+  delete data._stagingSearchIndexCohortDisplaced;
   return {
     ...data,
     technicalDifficultyRating: deriveTechnicalDifficultyRating(
@@ -62,6 +66,7 @@ export const uploadExerciseVideo = async (req, res) => {
         safeLog.error("exercise.previous_video_cleanup_failed", cleanupError);
       }
     }
+    scheduleNetlifyBuild("exercise_video_uploaded");
 
     return res.json({
       success: true,
@@ -95,17 +100,21 @@ export const deleteExerciseVideo = async (req, res) => {
         .json({ success: false, message: "Không tìm thấy bài tập" });
     }
 
-    const previousPublicId = exercise.videoPublicId;
-    exercise.videoUrl = "";
-    exercise.videoPublicId = "";
-    await exercise.save();
+    const hasStoredVideo = Boolean(exercise.videoUrl || exercise.videoPublicId);
+    if (hasStoredVideo) {
+      const previousPublicId = exercise.videoPublicId;
+      exercise.videoUrl = "";
+      exercise.videoPublicId = "";
+      await exercise.save();
 
-    if (previousPublicId) {
-      try {
-        await destroyCloudinaryAsset(previousPublicId, "video");
-      } catch (cleanupError) {
-        safeLog.error("exercise.video_delete_cleanup_failed", cleanupError);
+      if (previousPublicId) {
+        try {
+          await destroyCloudinaryAsset(previousPublicId, "video");
+        } catch (cleanupError) {
+          safeLog.error("exercise.video_delete_cleanup_failed", cleanupError);
+        }
       }
+      scheduleNetlifyBuild("exercise_video_deleted");
     }
 
     return res.json({

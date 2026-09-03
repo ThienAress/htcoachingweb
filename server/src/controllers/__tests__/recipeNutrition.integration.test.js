@@ -41,7 +41,10 @@ describe("GET /api/recipes/detail/:slug manual nutrition", () => {
         carb: 18,
         sugars: 3.2,
         salt: 1.1,
-        additional: [{ label: "Chất xơ", unit: "g", value: 4.5 }],
+        additional: [
+          { label: "Chất xơ", unit: "g", value: 4.5 },
+          { label: "Kali", unit: "mg", value: 920 },
+        ],
       },
       isPublished: true,
     });
@@ -61,7 +64,10 @@ describe("GET /api/recipes/detail/:slug manual nutrition", () => {
         sugars: 3.2,
         salt: 1.1,
       },
-      additional: [{ label: "Chất xơ", unit: "g", value: 4.5 }],
+      additional: [
+        { label: "Chất xơ", unit: "g", value: 4.5 },
+        { label: "Kali", unit: "g", value: 0.92 },
+      ],
     });
   });
 
@@ -82,7 +88,10 @@ describe("GET /api/recipes/detail/:slug manual nutrition", () => {
         carb: 45,
         sugars: 8,
         salt: 1.5,
-        additional: [{ label: "Chất xơ", unit: "g", value: 6 }],
+        additional: [
+          { label: "Chất xơ", unit: "g", value: 6 },
+          { label: "Kali", unit: "mg", value: 920 },
+        ],
       },
     };
 
@@ -107,9 +116,42 @@ describe("GET /api/recipes/detail/:slug manual nutrition", () => {
       source: "admin_manual",
       calories: 500,
       sugars: 8,
-      additional: [{ label: "Chất xơ", unit: "g", value: 6 }],
+      additional: [
+        { label: "Chất xơ", unit: "g", value: 6 },
+        { label: "Kali", unit: "g", value: 0.92 },
+      ],
     });
     expect(invalid.status).toBe(400);
+  });
+
+  it("normalizes legacy milligrams in the Admin list response", async () => {
+    const admin = await createTestUser({
+      email: "recipe-nutrition-list-admin@example.com",
+      role: "admin",
+    });
+    await Recipe.create({
+      name: "Món Admin dữ liệu cũ",
+      slug: "mon-admin-du-lieu-cu",
+      nutrition: {
+        calories: 500,
+        protein: 30,
+        fat: 20,
+        carb: 45,
+        sugars: 8,
+        salt: 1.5,
+        additional: [{ label: "Natri", unit: "mg", value: 5 }],
+      },
+    });
+
+    const response = await withAuth(
+      request(app).get("/api/recipes/admin/list"),
+      admin.accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data[0].nutrition.additional).toEqual([
+      { label: "Natri", unit: "g", value: 0.005 },
+    ]);
   });
 
   it("does not fall back to ingredient estimation for legacy recipes", async () => {
