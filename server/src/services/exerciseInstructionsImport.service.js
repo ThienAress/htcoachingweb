@@ -6,6 +6,11 @@ import Exercise, {
   deriveTechnicalDifficultyRating,
 } from "../models/Exercise.js";
 import {
+  isPinnedExercisePostStateEligible,
+  SEARCH_INDEX_EXERCISES,
+  SEARCH_INDEX_EXERCISE_IDS,
+} from "../seo/exerciseSearchIndexPolicy.js";
+import {
   ExerciseInstructionsImportError,
   normalizeExerciseInstructionsImport,
 } from "./exerciseInstructionsImport.validation.js";
@@ -73,6 +78,54 @@ const findMissingNames = async (names, session) => {
   return names.filter((name) => !matchedNames.has(name));
 };
 
+const assertPinnedExercisesRemainEligible = async (exercises, session) => {
+  const importedByName = new Map(
+    exercises.map((exercise) => [exercise.name, exercise]),
+  );
+  let query = Exercise.find({
+    _id: { $in: SEARCH_INDEX_EXERCISE_IDS },
+  }).select({
+    _id: 1,
+    name: 1,
+    muscleGroup: 1,
+    description: 1,
+    imageUrl: 1,
+    instructions: 1,
+    technicalDifficulty: 1,
+  });
+  if (session) query = query.session(session);
+  const pinnedExercises = await query.lean();
+  const pinnedById = new Map(
+    pinnedExercises.map((exercise) => [String(exercise._id), exercise]),
+  );
+  const ineligibleIds = SEARCH_INDEX_EXERCISES.flatMap(({ id, name }) => {
+    const exercise = pinnedById.get(id);
+    const imported =
+      importedByName.get(exercise?.name) || importedByName.get(name);
+    if (!imported) return [];
+    if (!exercise) return [id];
+    const postState = {
+      ...exercise,
+      instructions: imported.instructions,
+      technicalDifficulty: imported.technicalDifficulty,
+    };
+    return isPinnedExercisePostStateEligible(postState)
+      ? []
+      : [String(exercise._id)];
+  });
+
+  if (ineligibleIds.length > 0) {
+    throw new ExerciseInstructionsImportError(
+      "Không thể nhập vì thay đổi làm bài tập trong cohort tìm kiếm không còn đạt chuẩn. Hãy repin cohort trước khi cập nhật.",
+      409,
+      {
+        code: "PINNED_EXERCISE_INELIGIBLE",
+        exerciseIds: ineligibleIds,
+      },
+    );
+  }
+};
+
 const buildPreview = (normalized, missingNames) => {
   const missingSet = new Set(missingNames);
   const matchedItems = normalized.exercises.length - missingNames.length;
@@ -119,6 +172,7 @@ export const commitExerciseInstructionsImport = async (document) => {
           { missingNames },
         );
       }
+      await assertPinnedExercisesRemainEligible(normalized.exercises, session);
 
       result = await Exercise.bulkWrite(
         normalized.exercises.map((exercise) => ({

@@ -1,51 +1,73 @@
-const validSlug = (value) =>
-  /^[a-z0-9][a-z0-9-]{0,159}$/i.test(String(value || "").trim());
+import {
+  isValidRecipeSeoSlug as validSlug,
+  isRecipeSeoEligible,
+  usefulRecipeIngredients as usefulIngredients,
+  usefulRecipeInstructions as usefulInstructions,
+} from "../src/seo/recipeSearchIndexPolicy.js";
 
-const hasHttpsUrl = (value) => {
-  try {
-    return new URL(String(value || "")).protocol === "https:";
-  } catch {
-    return false;
-  }
-};
-
-const usefulStrings = (items) =>
-  Array.isArray(items)
-    ? items.filter((item) => String(item?.name || item || "").trim().length >= 2)
-    : [];
-
-const eligibleRecipe = (recipe) =>
-  validSlug(recipe?.slug) &&
-  String(recipe?.name || "").trim().length >= 4 &&
-  hasHttpsUrl(recipe?.thumbnail) &&
-  usefulStrings(recipe?.ingredients).length >= 3 &&
-  usefulStrings(recipe?.instructions).length >= 2;
+export { isRecipeSeoEligible } from "../src/seo/recipeSearchIndexPolicy.js";
 
 const scoreRecipe = (recipe) => {
-  let score = 0;
-  if (["Việt Nam", "Vietnamese"].includes(recipe.area)) score += 8;
-  if (["manual", "ai"].includes(recipe.source)) score += 6;
-  if (hasHttpsUrl(recipe.sourceUrl)) score += 4;
-  if (String(recipe.nameEn || "").trim()) score += 2;
-  score += Math.min(usefulStrings(recipe.ingredients).length, 12);
-  score += Math.min(usefulStrings(recipe.instructions).length, 10);
-  score += Math.min(usefulStrings(recipe.tags).length, 5);
-  return score;
+  const ingredients = usefulIngredients(recipe.ingredients);
+  const instructions = usefulInstructions(recipe.instructions);
+  const measuredIngredients = ingredients.filter(
+    (item) => String(item?.measure || "").trim(),
+  );
+  const instructionLength = instructions.reduce(
+    (total, instruction) => total + instruction.length,
+    0,
+  );
+  const additionalNutrition = Array.isArray(recipe.nutrition?.additional)
+    ? recipe.nutrition.additional
+    : [];
+
+  return (
+    Math.min(ingredients.length, 20) +
+    Math.min(measuredIngredients.length, 20) +
+    Math.min(instructions.length * 2, 20) +
+    Math.min(Math.floor(instructionLength / 100), 15) +
+    Math.min(additionalNutrition.length, 10)
+  );
+};
+
+const validatePinnedSlugs = (pinnedSlugs) => {
+  if (!Array.isArray(pinnedSlugs)) {
+    throw new TypeError("pinnedSlugs must be an array");
+  }
+  const normalized = pinnedSlugs.map((slug) => String(slug || "").trim());
+  if (normalized.some((slug) => !validSlug(slug))) {
+    throw new Error("Invalid pinned recipe slug");
+  }
+  if (new Set(normalized).size !== normalized.length) {
+    throw new Error("Duplicate pinned recipe slug");
+  }
+  return normalized;
 };
 
 export const selectRecipesForSeo = (
   recipes,
-  { limit = 30, minimum = 20, strict = false } = {},
+  {
+    limit = 30,
+    minimum = 20,
+    strict = false,
+    pinnedSlugs = [],
+  } = {},
 ) => {
+  const normalizedPinnedSlugs = validatePinnedSlugs(pinnedSlugs);
+  const pinnedOrder = new Map(
+    normalizedPinnedSlugs.map((slug, index) => [slug, index]),
+  );
+  const usePinnedOrder = normalizedPinnedSlugs.length > 0;
   const candidates = (Array.isArray(recipes) ? recipes : [])
-    .filter(eligibleRecipe)
+    .filter(isRecipeSeoEligible)
+    .filter((recipe) => !usePinnedOrder || pinnedOrder.has(recipe.slug))
     .map((recipe) => ({ recipe, score: scoreRecipe(recipe) }))
     .sort(
       (left, right) =>
-        right.score - left.score ||
-        String(right.recipe.updatedAt || "").localeCompare(
-          String(left.recipe.updatedAt || ""),
-        ) ||
+        (usePinnedOrder
+          ? pinnedOrder.get(left.recipe.slug) -
+            pinnedOrder.get(right.recipe.slug)
+          : right.score - left.score) ||
         String(left.recipe.slug).localeCompare(String(right.recipe.slug)),
     )
     .slice(0, limit)

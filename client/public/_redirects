@@ -22,6 +22,8 @@
 /notifications /index.html 200
 /contracts/* /index.html 200
 /book-training /index.html 200
+/cong-thuc-nau-an/* /dynamic-detail-shell.html 200
+/exercises/* /dynamic-detail-shell.html 200
 /f1-customers /index.html 200
 /trainer /index.html 200
 /trainer/clients/* /index.html 200

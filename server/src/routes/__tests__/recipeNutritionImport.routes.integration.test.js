@@ -19,6 +19,7 @@ import {
 } from "../../__tests__/setup.js";
 import Recipe from "../../models/Recipe.js";
 import recipeRoutes from "../recipe.routes.js";
+import { commitRecipeNutritionImport } from "../../services/recipeNutritionImport.service.js";
 import {
   attachRecipeNutritionJson as attachJson,
   buildRecipeNutritionImportDocument as importDocument,
@@ -31,6 +32,13 @@ const ingredients = [
   { name: "Ức gà", measure: "200 g" },
   { name: "Gạo lứt", measure: "150 g đã nấu" },
 ];
+const pinnedIngredients = [
+  { name: "Cà rốt", measure: "100 g" },
+  { name: "Đậu hũ", measure: "200 g" },
+  { name: "Nấm", measure: "150 g" },
+];
+const substantiveStep = (label) =>
+  `${label}: sơ chế từng nguyên liệu cẩn thận, thực hiện đúng thứ tự an toàn và kiểm tra độ chín trước khi chuyển sang bước tiếp theo để món ăn đạt chất lượng.`;
 
 const createCanonicalRecipe = (overrides = {}) =>
   Recipe.create({
@@ -127,6 +135,11 @@ describe("Recipe nutrition bulk import", () => {
       unit: "g",
       value: 8.5,
     });
+    expect(stored.nutrition.additional).toContainEqual({
+      label: "Kali",
+      unit: "g",
+      value: 0.92,
+    });
     expect(stored).toMatchObject({
       name: "Cơm gà gạo lứt",
       category: "Món chính",
@@ -135,6 +148,56 @@ describe("Recipe nutrition bulk import", () => {
       instructions: ["Áp chảo gà.", "Dùng cùng cơm."],
       source: "manual",
       isPublished: true,
+    });
+  });
+
+  test("atomically rejects nutrition that makes a pinned Recipe ineligible", async () => {
+    const pinned = await createCanonicalRecipe({
+      name: "Vietnamese Style Veggie Hotpot",
+      slug: "vietnamese-style-veggie-hotpot",
+      ingredients: pinnedIngredients,
+      instructions: [
+        substantiveStep("Chuẩn bị"),
+        substantiveStep("Chế biến"),
+        substantiveStep("Hoàn thiện"),
+      ],
+      sourceUrl: "https://source.example.test/hotpot",
+      nutrition: nutrition({ calories: 510 }),
+    });
+    const document = importDocument([
+      importItem(pinned.name, pinnedIngredients, {
+        nutrition: nutrition({ calories: 0 }),
+      }),
+    ]);
+    const preview = await attachJson(
+      withAuth(request(app).post(endpoint), adminToken),
+      document,
+      true,
+    );
+    let commitError;
+    try {
+      await commitRecipeNutritionImport(document);
+    } catch (error) {
+      commitError = error;
+    }
+    const stored = await Recipe.findById(pinned._id).lean();
+
+    expect({
+      previewStatus: preview.status,
+      canImport: preview.body.data.summary.canImport,
+      issueCode: preview.body.data.issues[0]?.code,
+      previewToken: preview.body.data.previewToken,
+      commitStatus: commitError?.status,
+      commitCode: commitError?.details?.code,
+      calories: stored.nutrition.calories,
+    }).toEqual({
+      previewStatus: 200,
+      canImport: false,
+      issueCode: "pinned_recipe_ineligible",
+      previewToken: undefined,
+      commitStatus: 409,
+      commitCode: "PINNED_RECIPE_INELIGIBLE",
+      calories: 510,
     });
   });
 

@@ -6,6 +6,50 @@ import {
 } from "../constants/recipeNutrition.js";
 
 const nutritionUnits = new Set(RECIPE_NUTRITION_UNITS);
+const MILLIGRAMS_PER_GRAM = 1000;
+
+const normalizeAdditionalNutritionUnit = ({ label, unit, value }) =>
+  unit === "mg"
+    ? { label, unit: "g", value: value / MILLIGRAMS_PER_GRAM }
+    : { label, unit, value };
+
+export const normalizeStoredRecipeNutritionUnits = (nutrition) => {
+  if (!nutrition || typeof nutrition !== "object") return nutrition;
+  const plainNutrition =
+    typeof nutrition.toObject === "function" ? nutrition.toObject() : nutrition;
+  return {
+    ...plainNutrition,
+    additional: (plainNutrition.additional || []).map((item) =>
+      normalizeAdditionalNutritionUnit(item),
+    ),
+  };
+};
+
+export const toPublicRecipeNutrition = (nutrition) => {
+  if (
+    !nutrition ||
+    CORE_RECIPE_NUTRITION_FIELDS.some((field) => nutrition[field] == null)
+  ) {
+    return {
+      status: "unavailable",
+      source: "admin_manual",
+      scope: "whole_recipe",
+      values: {},
+      additional: [],
+    };
+  }
+
+  const normalized = normalizeStoredRecipeNutritionUnits(nutrition);
+  return {
+    status: "available",
+    source: "admin_manual",
+    scope: "whole_recipe",
+    values: Object.fromEntries(
+      CORE_RECIPE_NUTRITION_FIELDS.map((field) => [field, normalized[field]]),
+    ),
+    additional: normalized.additional,
+  };
+};
 
 export const normalizeManualRecipeNutrition = (value) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -57,7 +101,11 @@ export const normalizeManualRecipeNutrition = (value) => {
       throw new TypeError("additional nutrition value is invalid");
     }
     labels.add(normalizedLabel);
-    return { label, unit: item.unit, value: item.value };
+    return normalizeAdditionalNutritionUnit({
+      label,
+      unit: item.unit,
+      value: item.value,
+    });
   });
 
   if (nutrition.additional.length > MAX_ADDITIONAL_RECIPE_NUTRIENTS) {

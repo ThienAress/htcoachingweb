@@ -102,5 +102,30 @@ export const validatePrerenderSnapshot = (
     }
   }
 
+  const requiredLinkHrefs = requirements.requiredLinkHrefs;
+  if (Array.isArray(requiredLinkHrefs)) {
+    const receivedLinkHrefs = new Set(snapshot?.linkHrefs || []);
+    const missingLinkHrefs = requiredLinkHrefs.filter(
+      (href) => !receivedLinkHrefs.has(href),
+    );
+    if (missingLinkHrefs.length > 0) {
+      errors.push(
+        `missing required internal links: ${missingLinkHrefs.join(", ")}`,
+      );
+    }
+  }
+
+  if (requirements.requireSettledExerciseReviews) {
+    if (Number(snapshot?.exerciseReviewSectionCount || 0) !== 1) {
+      errors.push("exercise review section is not ready");
+    }
+    if (Number(snapshot?.pendingExerciseReviewCount || 0) > 0) {
+      errors.push("exercise reviews are still loading");
+    }
+    if (Number(snapshot?.exerciseReviewErrorCount || 0) > 0) {
+      errors.push("exercise reviews failed to load");
+    }
+  }
+
   return errors;
 };

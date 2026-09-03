@@ -9,4 +9,8 @@ export const slugifyExerciseName = (name) =>
     .replace(/^-+|-+$/g, "") || "bai-tap";
 
 export const getExerciseDetailPath = (exercise) =>
-  `/exercises/${exercise._id}/${slugifyExerciseName(exercise.name)}`;
+  `/exercises/${exercise._id}/${slugifyExerciseName(exercise.name)}/`;
+
+export const isCanonicalExerciseDetailSlug = (exercise, routeSlug) =>
+  Boolean(exercise?._id) &&
+  String(routeSlug || "") === slugifyExerciseName(exercise?.name);

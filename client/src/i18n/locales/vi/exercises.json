@@ -50,6 +50,7 @@
     "loading": "Đang tải chi tiết bài tập",
     "error_title": "Chưa thể tải bài tập",
     "error_description": "Bài tập không tồn tại hoặc dữ liệu tạm thời chưa sẵn sàng.",
+    "seo_description": "Hướng dẫn bài tập {{name}} cho nhóm cơ {{muscleGroup}} qua {{steps}} bước cụ thể. Xem cách chuẩn bị, thực hiện đúng kỹ thuật, kiểm soát chuyển động và lưu ý an toàn tại HTCOACHING.",
     "go_to_setup": "Đi đến hướng dẫn từng bước",
     "admin_difficulty": "HTCOACHING đánh giá kỹ thuật",
     "admin_difficulty_note": "Chỉ phản ánh độ phức tạp về kỹ thuật; không phải điểm từ người tập và không phản ánh mức tạ cá nhân.",

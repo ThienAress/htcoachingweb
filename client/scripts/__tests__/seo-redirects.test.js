@@ -31,6 +31,24 @@ describe("public SEO redirects", () => {
       "/admin/service-access-policies /index.html 200",
     );
     expect(redirects).toContain("/dashboard/today/* /index.html 200");
+    expect(redirects).toContain(
+      "/cong-thuc-nau-an/* /dynamic-detail-shell.html 200",
+    );
+    expect(redirects).toContain(
+      "/exercises/* /dynamic-detail-shell.html 200",
+    );
     expect(redirects.trim().endsWith("/* /404.html 404")).toBe(true);
+  });
+
+  test("keeps non-cohort dynamic detail routes usable without broadening the site fallback", () => {
+    [
+      "/cong-thuc-nau-an/* /dynamic-detail-shell.html 200",
+      "/exercises/* /dynamic-detail-shell.html 200",
+    ].forEach((rewrite) => {
+      expect(redirects.indexOf(rewrite)).toBeGreaterThan(-1);
+      expect(redirects.indexOf(rewrite)).toBeLessThan(
+        redirects.indexOf("/* /404.html 404"),
+      );
+    });
   });
 });

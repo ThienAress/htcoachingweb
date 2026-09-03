@@ -212,6 +212,38 @@ describe("ExercisesPage library-first experience", () => {
     }).toEqual({ error: true, retry: true, empty: true });
   });
 
+  it("renders priority exercise links inside the initial 24-card HTML", () => {
+    const exercises = Array.from({ length: 30 }, (_, index) => ({
+      ...exercise,
+      _id: `exercise-${index + 1}`,
+      name: `Exercise ${index + 1}`,
+    }));
+
+    const html = renderToStaticMarkup(
+      <ExerciseLibrary
+        exercises={exercises}
+        priorityExerciseIds={["exercise-30", "exercise-29"]}
+        onOpenPlanner={vi.fn()}
+      />,
+    );
+
+    expect({
+      firstPriority: html.includes(
+        'href="/exercises/exercise-30/exercise-30/"',
+      ),
+      secondPriority: html.includes(
+        'href="/exercises/exercise-29/exercise-29/"',
+      ),
+      displacedItem: html.includes(
+        'href="/exercises/exercise-23/exercise-23/"',
+      ),
+    }).toEqual({
+      firstPriority: true,
+      secondPriority: true,
+      displacedItem: false,
+    });
+  });
+
   it("renders the recipe-like hero and setup rail without previous or next controls", () => {
     const html = renderToStaticMarkup(
       <ExerciseDetailContent

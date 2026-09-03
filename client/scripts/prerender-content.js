@@ -1,72 +1,13 @@
 import { mapWithConcurrency } from "./prerender-routes.js";
 
-const PAGE_SIZE = 50;
-const PAGE_CONCURRENCY = 4;
-const MAX_PAGES = 1_000;
 const DETAIL_CONCURRENCY = 2;
 const DETAIL_MAX_ATTEMPTS = 3;
-const EXERCISE_PAGE_SIZE = 500;
 
 const STORY_ROUTE_PREFIX = "/ket-qua-khach-hang/";
 const BLOG_ROUTE_PREFIX = "/blog/";
 const EXERCISE_ROUTE_PREFIX = "/exercises/";
+const RECIPE_ROUTE_PREFIX = "/cong-thuc-nau-an/";
 const STORY_RELATED_PATH = "/customer-stories?limit=20&lang=vi";
-
-const exercisePagePath = (page) =>
-  `/exercises?limit=${EXERCISE_PAGE_SIZE}&page=${page}`;
-
-const recipePagePath = (page) =>
-  `/recipes?limit=${PAGE_SIZE}&page=${page}&view=prerender`;
-
-const parsePage = (response, expectedPage) => {
-  const items = response?.data?.data;
-  const pagination = response?.data?.pagination;
-  const parsed = {
-    total: Number(pagination?.total),
-    page: Number(pagination?.page),
-    limit: Number(pagination?.limit),
-    totalPages: Number(pagination?.totalPages),
-  };
-  if (
-    !Array.isArray(items) ||
-    !Number.isSafeInteger(parsed.total) ||
-    parsed.total < 0 ||
-    parsed.page !== expectedPage ||
-    parsed.limit !== PAGE_SIZE ||
-    !Number.isSafeInteger(parsed.totalPages) ||
-    parsed.totalPages < 0 ||
-    parsed.totalPages > MAX_PAGES ||
-    parsed.totalPages !== Math.ceil(parsed.total / parsed.limit) ||
-    items.length > parsed.limit
-  ) {
-    throw new Error("Prerender recipe pagination is invalid");
-  }
-  return { items, pagination: parsed };
-};
-
-export const fetchPrerenderRecipes = async (fetchApi) => {
-  const first = parsePage(await fetchApi(recipePagePath(1)), 1);
-  const remainingPages = Array.from(
-    { length: Math.max(first.pagination.totalPages - 1, 0) },
-    (_, index) => index + 2,
-  );
-  const remaining = await mapWithConcurrency(
-    remainingPages,
-    PAGE_CONCURRENCY,
-    async (page) => parsePage(await fetchApi(recipePagePath(page)), page),
-  );
-  const recipes = [first, ...remaining].flatMap((entry) => entry.items);
-  const slugs = recipes.map((recipe) => String(recipe?.slug || "").trim());
-
-  if (
-    recipes.length !== first.pagination.total ||
-    slugs.some((slug) => !slug) ||
-    new Set(slugs).size !== slugs.length
-  ) {
-    throw new Error("Prerender recipe content is incomplete");
-  }
-  return recipes;
-};
 
 const isTransientFailure = (error) => {
   const status = Number(error?.response?.status);
@@ -135,6 +76,16 @@ const detailDescriptorForRoute = (route) => {
         }
       : null;
   }
+  if (route.startsWith(RECIPE_ROUTE_PREFIX)) {
+    const slug = route.slice(RECIPE_ROUTE_PREFIX.length).split("/")[0];
+    return slug
+      ? {
+          kind: "recipe",
+          slug,
+          path: `/recipes/detail/${encodeURIComponent(slug)}`,
+        }
+      : null;
+  }
   return null;
 };
 
@@ -152,86 +103,29 @@ const assertDetailResponse = (response, descriptor) => {
   return body;
 };
 
-const parseExercisePage = (response, expectedPage) => {
-  const body = response?.data;
-  const items = body?.data;
-  const pagination = body?.pagination;
-  const parsed = {
-    total: Number(pagination?.total),
-    page: Number(pagination?.page),
-    limit: Number(pagination?.limit),
-    totalPages: Number(pagination?.totalPages),
-  };
-  if (
-    body?.success !== true ||
-    !Array.isArray(items) ||
-    !Number.isSafeInteger(parsed.total) ||
-    parsed.total < 0 ||
-    parsed.page !== expectedPage ||
-    parsed.limit !== EXERCISE_PAGE_SIZE ||
-    !Number.isSafeInteger(parsed.totalPages) ||
-    parsed.totalPages < 0 ||
-    parsed.totalPages > MAX_PAGES ||
-    parsed.totalPages !== Math.ceil(parsed.total / parsed.limit) ||
-    items.length > parsed.limit
-  ) {
-    throw new Error("Prerender exercise pagination is invalid");
-  }
-  return { items, pagination: parsed };
-};
-
-const fetchPrerenderExercises = async (
-  descriptors,
+export const fetchPrerenderRecipes = async (
+  routes,
   fetchApi,
   retryOptions,
 ) => {
-  if (descriptors.length === 0) return [];
+  const descriptors = routes
+    .map(detailDescriptorForRoute)
+    .filter((descriptor) => descriptor?.kind === "recipe");
+  const uniqueDescriptors = [
+    ...new Map(
+      descriptors.map((descriptor) => [descriptor.slug, descriptor]),
+    ).values(),
+  ];
 
-  const first = parseExercisePage(
-    await fetchWithRetry(fetchApi, exercisePagePath(1), retryOptions),
-    1,
+  return mapWithConcurrency(
+    uniqueDescriptors,
+    DETAIL_CONCURRENCY,
+    async (descriptor) =>
+      assertDetailResponse(
+        await fetchWithRetry(fetchApi, descriptor.path, retryOptions),
+        descriptor,
+      ).data,
   );
-  const remainingPages = Array.from(
-    { length: Math.max(first.pagination.totalPages - 1, 0) },
-    (_, index) => index + 2,
-  );
-  const remaining = await mapWithConcurrency(
-    remainingPages,
-    PAGE_CONCURRENCY,
-    async (page) =>
-      parseExercisePage(
-        await fetchWithRetry(fetchApi, exercisePagePath(page), retryOptions),
-        page,
-      ),
-  );
-  const exercises = [first, ...remaining].flatMap((entry) => entry.items);
-  const exerciseIds = exercises.map((exercise) =>
-    String(exercise?._id || ""),
-  );
-  const byId = new Map(
-    exercises.map((exercise, index) => [exerciseIds[index], exercise]),
-  );
-  const requiredIds = descriptors.map(({ id }) => id);
-
-  if (
-    exercises.length !== first.pagination.total ||
-    remaining.some(
-      ({ pagination }) =>
-        pagination.total !== first.pagination.total ||
-        pagination.limit !== first.pagination.limit ||
-        pagination.totalPages !== first.pagination.totalPages,
-    ) ||
-    exerciseIds.some((id) => !/^[a-f0-9]{24}$/i.test(id)) ||
-    byId.size !== exercises.length ||
-    requiredIds.some((id) => !byId.has(id))
-  ) {
-    throw new Error("Prerender exercise content is incomplete");
-  }
-
-  return requiredIds.map((id) => ({
-    descriptor: { kind: "exercise", id },
-    body: { success: true, data: byId.get(id) },
-  }));
 };
 
 export const fetchPrerenderPageData = async (
@@ -264,26 +158,20 @@ export const fetchPrerenderPageData = async (
     throw new Error("Invalid prerender customer story list response");
   }
 
-  const exerciseDescriptors = uniqueDescriptors.filter(
-    ({ kind }) => kind === "exercise",
-  );
   const contentDescriptors = uniqueDescriptors.filter(
-    ({ kind }) => kind !== "exercise",
+    ({ kind }) => kind !== "recipe",
   );
-  const [contentDetails, exerciseDetails] = await Promise.all([
-    mapWithConcurrency(
-      contentDescriptors,
-      DETAIL_CONCURRENCY,
-      async (descriptor) => ({
+  const details = await mapWithConcurrency(
+    contentDescriptors,
+    DETAIL_CONCURRENCY,
+    async (descriptor) => ({
+      descriptor,
+      body: assertDetailResponse(
+        await fetchWithRetry(fetchApi, descriptor.path, retryOptions),
         descriptor,
-        body: assertDetailResponse(
-          await fetchWithRetry(fetchApi, descriptor.path, retryOptions),
-          descriptor,
-        ),
-      })),
-    fetchPrerenderExercises(exerciseDescriptors, fetchApi, retryOptions),
-  ]);
-  const details = [...contentDetails, ...exerciseDetails];
+      ),
+    }),
+  );
 
   return {
     storyList: storyListResponse?.data || null,
@@ -334,6 +222,50 @@ export const responseForPrerenderRequest = (requestUrl, cache) => {
 
   if (pathname.endsWith("/api/user/me")) {
     return jsonResponse(401, { success: false, message: "Unauthenticated" });
+  }
+
+  if (
+    pathname.endsWith("/api/recipes") &&
+    searchParams.get("page") === "1" &&
+    searchParams.get("limit") === "12" &&
+    !searchParams.get("search") &&
+    !searchParams.get("category") &&
+    !searchParams.get("area") &&
+    cache.recipes.size > 0
+  ) {
+    const recipes = [...cache.recipes.values()];
+    return jsonResponse(200, {
+      success: true,
+      data: recipes,
+      pagination: {
+        total: recipes.length,
+        page: 1,
+        limit: 12,
+        totalPages: 1,
+      },
+    });
+  }
+
+  if (
+    pathname.endsWith("/api/exercises") &&
+    searchParams.get("page") === "1" &&
+    searchParams.get("limit") === "500" &&
+    !searchParams.get("search") &&
+    !searchParams.get("muscleGroup") &&
+    !searchParams.get("technicalDifficultyRating") &&
+    cache.exercises.size > 0
+  ) {
+    const exercises = [...cache.exercises.values()].map((entry) => entry.data);
+    return jsonResponse(200, {
+      success: true,
+      data: exercises,
+      pagination: {
+        total: exercises.length,
+        page: 1,
+        limit: 500,
+        totalPages: 1,
+      },
+    });
   }
 
   if (

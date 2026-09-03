@@ -4,7 +4,16 @@ import { useTranslation } from 'react-i18next';
 import { normalizePublicPath } from '../utils/publicSeoPath.js';
 import { formatSeoTitle } from '../utils/seoTitle.js';
 
-export default function SEO({ title, description, canonical, type = 'website', image, noindex = false, jsonLd }) {
+export default function SEO({
+  title,
+  description,
+  canonical,
+  type = 'website',
+  image,
+  noindex = false,
+  noindexFollow = false,
+  jsonLd,
+}) {
   const { i18n } = useTranslation();
   const siteName = "HTCOACHING";
   const defaultTitle = "HTCOACHING - HLV cá nhân: Gym, Boxing, Tăng cơ & Giảm mỡ";
@@ -16,6 +25,12 @@ export default function SEO({ title, description, canonical, type = 'website', i
   const seoTitle = formatSeoTitle({ title, siteName, defaultTitle });
   const seoDescription = description || defaultDescription;
   const seoImage = image || defaultImage;
+  const isIndexable = !noindex && !noindexFollow;
+  const robotsContent = noindex
+    ? 'noindex,nofollow'
+    : noindexFollow
+      ? 'noindex,follow'
+      : 'index,follow';
 
   // Bảo vệ Canonical Tag: Bắt buộc xóa sạch query parameters (?...) và hash (#...)
   const cleanCanonical = canonical ? normalizePublicPath(canonical) : '';
@@ -33,17 +48,14 @@ export default function SEO({ title, description, canonical, type = 'website', i
       <html lang={i18n.language} />
 
       {/* Chặn index nếu là trang hệ thống (noindex=true) */}
-      {noindex
-        ? <meta name="robots" content="noindex,nofollow" />
-        : <meta name="robots" content="index,follow" />
-      }
+      <meta name="robots" content={robotsContent} />
 
       {/* Thẻ SEO Cơ bản */}
       <title>{seoTitle}</title>
       <meta name="description" content={seoDescription} />
 
       {/* URL Chuẩn (Canonical) - chỉ thêm khi không phải noindex */}
-      {!noindex && cleanCanonical && <link rel="canonical" href={`${domain}${cleanCanonical}`} />}
+      {isIndexable && cleanCanonical && <link rel="canonical" href={`${domain}${cleanCanonical}`} />}
 
       {/* Open Graph (Facebook, Zalo) */}
       <meta property="og:type" content={type} />
@@ -53,7 +65,7 @@ export default function SEO({ title, description, canonical, type = 'website', i
       <meta property="og:image" content={seoImage} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
-      {!noindex && cleanCanonical && <meta property="og:url" content={`${domain}${cleanCanonical}`} />}
+      {isIndexable && cleanCanonical && <meta property="og:url" content={`${domain}${cleanCanonical}`} />}
       <meta property="og:locale" content={currentLocale} />
       <meta property="og:locale:alternate" content={alternateLocale} />
 
@@ -64,7 +76,7 @@ export default function SEO({ title, description, canonical, type = 'website', i
       <meta name="twitter:image" content={seoImage} />
 
       {/* JSON-LD Structured Data */}
-      {safeJsonLd && (
+      {isIndexable && safeJsonLd && (
         <script type="application/ld+json">
           {safeJsonLd}
         </script>

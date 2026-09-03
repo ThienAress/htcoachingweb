@@ -1,6 +1,7 @@
 import {
   deleteExerciseReview,
   findPublicExercise,
+  findReviewableExercise,
   getExerciseReviews,
   upsertExerciseReview,
 } from "../services/exerciseReview.service.js";
@@ -50,7 +51,7 @@ export const getReviews = async (req, res) => {
 
 export const upsertReview = async (req, res) => {
   try {
-    if (!(await findPublicExercise(req.params.exerciseId))) {
+    if (!(await findReviewableExercise(req.params.exerciseId))) {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy bài tập" });

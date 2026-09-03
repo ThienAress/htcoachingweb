@@ -9,12 +9,29 @@ export const CORE_NUTRITION_FIELDS = [
 
 export const MAX_ADDITIONAL_RECIPE_NUTRIENTS = 60;
 
-export const createAdditionalNutritionRow = (item = {}) => ({
-  rowId: globalThis.crypto?.randomUUID?.() || String(Date.now() + Math.random()),
-  label: item.label || "",
-  unit: item.unit || "g",
-  value: item.value ?? "",
-});
+const normalizeAdditionalNutritionUnit = (item = {}) => {
+  if (item.unit !== "mg") return item;
+  const numericValue = Number(item.value);
+  return {
+    ...item,
+    unit: "g",
+    value:
+      item.value === "" || !Number.isFinite(numericValue)
+        ? item.value
+        : numericValue / 1000,
+  };
+};
+
+export const createAdditionalNutritionRow = (item = {}) => {
+  const normalized = normalizeAdditionalNutritionUnit(item);
+  return {
+    rowId:
+      globalThis.crypto?.randomUUID?.() || String(Date.now() + Math.random()),
+    label: normalized.label || "",
+    unit: normalized.unit || "g",
+    value: normalized.value ?? "",
+  };
+};
 
 export const recipeNutritionFormValues = (nutrition) => ({
   ...Object.fromEntries(
@@ -27,9 +44,12 @@ export const recipeNutritionPayload = (nutrition) => ({
   ...Object.fromEntries(
     CORE_NUTRITION_FIELDS.map(({ key }) => [key, Number(nutrition[key])]),
   ),
-  additional: nutrition.additional.map(({ label, unit, value }) => ({
-    label: label.trim(),
-    unit,
-    value: Number(value),
-  })),
+  additional: nutrition.additional.map(({ label, unit, value }) => {
+    const normalized = normalizeAdditionalNutritionUnit({ unit, value });
+    return {
+      label: label.trim(),
+      unit: normalized.unit,
+      value: Number(normalized.value),
+    };
+  }),
 });

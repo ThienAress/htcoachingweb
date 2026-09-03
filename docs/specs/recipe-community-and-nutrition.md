@@ -40,14 +40,22 @@ khách chưa đăng nhập vẫn xem được điểm tổng hợp và bình lu�
 - Các field admin luôn nhập: `calories`, `protein`, `fat`, `carb`, `sugars`, `salt`.
 - `additional` cho phép thêm nutrient khác bằng `label`, `unit`, `value`; label không trùng
   core nutrient hoặc trùng nhau trong cùng công thức.
+- Input schema v1 tiếp tục nhận `mg` để tương thích file/document cũ, nhưng ingestion và
+  mọi read response phải canonicalize thành `g` bằng `value / 1000`, không làm tròn.
+  Ví dụ `920 mg` được lưu/trả thành `0.92 g`; `mcg` được giữ nguyên và giá trị đã là `g`
+  không được chia lần hai.
 - Giá trị là tổng toàn bộ công thức. `0` là giá trị hợp lệ do admin chủ động nhập; `null`
   hoặc thiếu nutrition nghĩa là chưa có dữ liệu.
 - Public API trả `source: admin_manual`, `scope: whole_recipe`, `values` và `additional`;
-  không gọi estimator hay fallback từ Food DB.
+  public detail và `view=prerender` dùng cùng public serializer. Admin read dùng chung
+  unit-compatibility normalizer nhưng giữ Admin shape; không path nào gọi estimator hay
+  fallback từ Food DB.
 - Công thức cũ không có nutrition vẫn đọc được và public UI hiển thị empty state; không
   cần backfill/migration bắt buộc trong lần triển khai này.
 - Warning nói rõ số liệu do admin tổng hợp cho toàn bộ công thức và có thể khác theo
   nguyên liệu/cách chế biến thực tế.
+- Recipe JSON-LD không khai `nutrition` khi dữ liệu vẫn có scope `whole_recipe` và chưa
+  có `recipeYield`/dữ liệu theo khẩu phần; không được bịa `recipeYield: 1` để hợp thức hóa.
 
 ## Bulk nutrition import contract
 
@@ -64,7 +72,8 @@ khách chưa đăng nhập vẫn xem được điểm tổng hợp và bình lu�
   cùng khớp đều chặn toàn bộ import.
 - `nutrition` bắt buộc đủ sáu field core và cho phép tối đa 60 nutrient trong
   `additional`. Mỗi nutrient có `label`, `unit` thuộc `kcal | g | mg | mcg` và `value`
-  là số hữu hạn không âm; label không được trùng core hoặc trùng nhau.
+  là số hữu hạn không âm; label không được trùng core hoặc trùng nhau. `mg` chỉ là input
+  tương thích v1 và được normalize sang `g` trước preview/commit.
 - Chuyên gia phải tính tất cả chất có thể xác định hợp lý từ nguyên liệu, không chỉ sáu
   nhóm core. Vitamin, khoáng chất, chất xơ, chất béo thành phần và các chất khác phải
   nằm trong `additional`; không bịa số liệu khi nguồn/định lượng không đủ.
@@ -72,6 +81,9 @@ khách chưa đăng nhập vẫn xem được điểm tổng hợp và bình lu�
   Không sửa tên, slug, nguyên liệu, hướng dẫn, ảnh, publish state, nguồn hoặc review.
 - Nới giới hạn `additional` từ 20 lên 60 là tương thích ngược với document cũ; không
   đổi type/default, không bắt buộc migration hoặc backfill.
+- Document legacy chứa `mg` vẫn đọc an toàn qua serializer. Migration vận hành chỉ đổi
+  item `additional` có unit `mg`, phải chạy preflight trước apply, có target/DB guard và
+  idempotent; không được chạy staging/production trong workflow local này.
 
 ## Review API contract
 
@@ -93,6 +105,46 @@ khách chưa đăng nhập vẫn xem được điểm tổng hợp và bình lu�
 - Recipe importer integration test cho Admin/CSRF, strict JSON, preview no-write,
   name + ingredients matching, token/file mismatch, transaction rollback và bảo toàn
   mọi field ngoài `nutrition`; client test cho file guard, service multipart và CTA.
+
+## Search indexing và nutrition normalization requirements
+
+### REQ-001 — Canonicalize Recipe nutrition units
+
+- AC-001: Ingestion và mọi public/Admin read phải đổi `mg` sang `g` bằng
+  `value / 1000` không làm tròn; giá trị đã là `g` phải idempotent và `mcg` giữ nguyên.
+- AC-002: Migration nutrition phải dry-run mặc định, có target/confirmation/backup
+  guard, từ chối dữ liệu không hợp lệ và cho kết quả idempotent khi chạy lại.
+- AC-003: Admin không cho tạo `mg` mới; Admin/public UI hiển thị `g` với đủ precision
+  để `2000 mg = 2 g` và `5 mg = 0,005 g`.
+
+### REQ-002 — Pin quality-gated Search cohort
+
+- AC-004: Cohort Recipe phải có đúng 10 slug đã duyệt, mọi item đạt quality gate;
+  production build phải fail nếu pin thiếu, trùng hoặc không còn đạt gate.
+- AC-005: Cohort Exercise phải có đúng 10 ID đã duyệt, mọi item đạt quality gate;
+  production build phải fail nếu pin thiếu, trùng hoặc không còn đạt gate.
+
+### REQ-003 — Align sitemap, prerender và quarantine policy
+
+- AC-006: Sitemap/prerender chỉ quảng bá 20 detail thuộc cohort; mỗi artifact có
+  `index,follow`, self-canonical HTTPS và structured data đúng loại.
+- AC-007: Detail ngoài cohort hoặc ở trạng thái loading/error phải có
+  `noindex,follow` và không canonical, `og:url` hay JSON-LD; raw HTML của hai hub phải
+  liên kết tới đủ cohort tương ứng.
+
+### REQ-004 — Make Exercise cohort discoverable và canonical
+
+- AC-008: 10 Exercise đã pin phải xuất hiện trong raw hub HTML và trong 24 card đầu
+  mà không tạo faceted SEO URL mới.
+- AC-009: Internal href, canonical, sitemap và JSON-LD của Exercise detail phải dùng
+  cùng path có trailing slash.
+
+### REQ-005 — Verify locally và hand off rollout
+
+- AC-010: Full local client/server tests, client lint, strict production-mode build,
+  prerender và Search index verifier phải hoàn tất với kết quả được ghi lại.
+- AC-011: Agent docs và diff hygiene phải được kiểm tra; mọi blocker ngoài Plan 079
+  phải ghi rõ, và workflow local không được deploy, chạy migration thật hay thao tác GSC.
 
 ## Success criteria
 

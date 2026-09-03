@@ -12,6 +12,8 @@ import {
   exerciseDetailQueryOptions,
   exerciseReviewsQueryOptions,
 } from "../../queries/exercise.queries";
+import { isIndexableExerciseDetail } from "../../seo/searchIndexDetailPolicy.js";
+import { normalizeSeoDescription } from "../../seo/seoDescription.js";
 import Header from "../../sections/Header/Header";
 import { resolveInitialCustomerDashboardTheme } from "../../utils/customerDashboardTheme";
 import ExerciseReviews from "./ExerciseReviews";
@@ -163,7 +165,7 @@ export const ExerciseDetailContent = ({ exercise, reviewSummary, t }) => {
 };
 
 export default function ExerciseDetailPage() {
-  const { id } = useParams();
+  const { id, slug } = useParams();
   const { t, i18n } = useTranslation("exercises");
   const { user } = useAuth();
   const [customerTheme] = useState(resolveInitialCustomerDashboardTheme);
@@ -179,14 +181,27 @@ export default function ExerciseDetailPage() {
   const reviewSummary = reviewsQuery.data?.data?.summary;
   const canonical = exercise
     ? getExerciseDetailPath(exercise)
-    : `/exercises/${id}`;
+    : `/exercises/${id}/`;
+  const isIndexable = isIndexableExerciseDetail({
+    routeSlug: slug,
+    exercise,
+  });
+  const exerciseSeoDescription = exercise
+    ? normalizeSeoDescription(
+        t("detail.seo_description", {
+          name: exercise.name,
+          muscleGroup: exercise.muscleGroup || t("modal.no_muscle"),
+          steps: exercise.instructions?.length || 0,
+        }),
+      )
+    : t("seo_desc");
 
   const jsonLd = exercise
     ? {
         "@context": "https://schema.org",
         "@type": exercise.instructions?.length ? "HowTo" : "Article",
         name: exercise.name,
-        description: exercise.description || t("seo_desc"),
+        description: exerciseSeoDescription,
         image: exercise.imageUrl || undefined,
         url: `https://htcoachingweb.io.vn${canonical}`,
         step: exercise.instructions?.map((step) => ({
@@ -205,11 +220,12 @@ export default function ExerciseDetailPage() {
     <>
       <SEO
         title={exercise?.name || t("detail.title")}
-        description={exercise?.description || t("seo_desc")}
+        description={exerciseSeoDescription}
         canonical={canonical}
         image={exercise?.imageUrl}
         type="article"
-        jsonLd={jsonLd}
+        noindexFollow={!isIndexable}
+        jsonLd={isIndexable ? jsonLd : undefined}
       />
       <Header />
       <div
@@ -223,7 +239,7 @@ export default function ExerciseDetailPage() {
         <main className="min-h-screen overflow-x-hidden bg-gray-950 pt-28 text-white">
           <div className="container-custom pb-4">
             <Link
-              to="/exercises"
+              to="/exercises/"
               className="mb-8 inline-flex min-h-11 items-center gap-2 rounded-xl border border-gray-700 bg-gray-900 px-4 py-2 text-sm font-bold text-gray-200 transition-colors hover:border-primary hover:text-orange-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
             >
               <ArrowLeft className="size-4" aria-hidden="true" />

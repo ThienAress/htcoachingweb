@@ -20,7 +20,13 @@ import {
   mapWithConcurrency,
   routesFromPrerenderManifest,
 } from "./prerender-routes.js";
+import { createNoindexFallbackShell } from "./prerender-shell.js";
 import { validatePrerenderSnapshot } from "./prerender-validation.js";
+import {
+  SEARCH_INDEX_EXERCISES,
+  SEARCH_INDEX_RECIPE_SLUGS,
+} from "../src/seo/searchIndexCohort.js";
+import { getExerciseDetailPath } from "../src/pages/ExercisesPage/exerciseDetailPath.js";
 import {
   getTrainerPlanCatalogMeta,
   listTrainerPlanBenefits,
@@ -59,6 +65,12 @@ const expectedServiceOffers = trainerPlanCatalog.flatMap((plan) =>
     price: plan.prices[cycle],
     priceCurrency: trainerPlanCatalogMeta.currency,
   })),
+);
+const expectedExerciseHubLinks = SEARCH_INDEX_EXERCISES.map(({ id, name }) =>
+  getExerciseDetailPath({ _id: id, name }),
+);
+const expectedRecipeHubLinks = SEARCH_INDEX_RECIPE_SLUGS.map(
+  (slug) => `/cong-thuc-nau-an/${slug}/`,
 );
 
 const isTrainerPlanCatalogRequest = (requestUrl) => {
@@ -190,6 +202,18 @@ const renderRoute = async (browser, route, recipeCache) => {
       robots: [...document.querySelectorAll('meta[name="robots"]')].map(
         (element) => element.content.trim(),
       ),
+      linkHrefs: [...document.querySelectorAll("a[href]")]
+        .map((element) => element.getAttribute("href"))
+        .filter(Boolean),
+      exerciseReviewSectionCount: document.querySelectorAll(
+        '[data-exercise-reviews="standalone"]',
+      ).length,
+      pendingExerciseReviewCount: document.querySelectorAll(
+        '[data-exercise-reviews="standalone"] [role="status"]',
+      ).length,
+      exerciseReviewErrorCount: document.querySelectorAll(
+        '[data-exercise-reviews="standalone"] [role="alert"]',
+      ).length,
       structuredData: [
         ...document.querySelectorAll('script[type="application/ld+json"]'),
       ]
@@ -202,9 +226,16 @@ const renderRoute = async (browser, route, recipeCache) => {
         })
         .filter(Boolean),
     }));
-    const validationOptions = route === "/"
+    const normalizedRoute = route.length > 1 ? route.replace(/\/+$/, "") : route;
+    const validationOptions = normalizedRoute === "/"
       ? { expectedServiceOffers }
-      : undefined;
+      : normalizedRoute === "/exercises"
+        ? { requiredLinkHrefs: expectedExerciseHubLinks }
+        : normalizedRoute === "/cong-thuc-nau-an"
+          ? { requiredLinkHrefs: expectedRecipeHubLinks }
+          : normalizedRoute.startsWith("/exercises/")
+            ? { requireSettledExerciseReviews: true }
+          : undefined;
     let snapshot = await captureSnapshot();
     let validationErrors = validatePrerenderSnapshot(
       snapshot,
@@ -285,10 +316,12 @@ const prerender = async () => {
   let pageData = {};
   if (!policy.skip) {
     try {
-      recipes = await fetchPrerenderRecipes((pathName) =>
-        axios.get(apiUrl + pathName, {
-          timeout: policy.requireDynamic ? 30_000 : 10_000,
-        }),
+      recipes = await fetchPrerenderRecipes(
+        routesToPrerender,
+        (pathName) =>
+          axios.get(apiUrl + pathName, {
+            timeout: policy.requireDynamic ? 30_000 : 10_000,
+          }),
       );
     } catch (error) {
       if (policy.requireDynamic) throw error;
@@ -328,6 +361,11 @@ const prerender = async () => {
   // subsequent prerender.
   const appShellHtml = fs.readFileSync(
     path.join(DIST_DIR, "index.html"),
+    "utf8",
+  );
+  fs.writeFileSync(
+    path.join(DIST_DIR, "dynamic-detail-shell.html"),
+    createNoindexFallbackShell(appShellHtml),
     "utf8",
   );
   const app = express();

@@ -24,6 +24,15 @@ const toPublicReview = (review, viewerId) => ({
 export const findPublicExercise = (exerciseId) =>
   Exercise.findById(exerciseId).select("_id").lean();
 
+export const findReviewableExercise = (exerciseId) =>
+  Exercise.collection.findOne(
+    {
+      _id: new mongoose.Types.ObjectId(exerciseId),
+      "_stagingSearchIndexCohortFixture.managed": { $ne: true },
+    },
+    { projection: { _id: 1 } },
+  );
+
 export const getExerciseReviews = async (
   exerciseId,
   viewerId = null,

@@ -7,6 +7,7 @@ import {
   verifyExerciseInstructionsPreviewToken,
 } from "../services/exerciseInstructionsImport.service.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { scheduleNetlifyBuild } from "../utils/triggerBuild.js";
 
 export const importExerciseInstructions = async (req, res) => {
   try {
@@ -38,6 +39,9 @@ export const importExerciseInstructions = async (req, res) => {
         req.file.buffer,
         req.user.id,
       );
+    }
+    if (!dryRun && data.modifiedItems > 0) {
+      scheduleNetlifyBuild("exercise_instructions_imported");
     }
 
     return res.json({

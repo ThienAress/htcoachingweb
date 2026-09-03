@@ -6,9 +6,14 @@ import { safeLog } from "../utils/safeLogger.js";
 import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
 import RecipeReview from "../models/RecipeReview.js";
 import {
-  CORE_RECIPE_NUTRITION_FIELDS,
-} from "../constants/recipeNutrition.js";
-import { normalizeManualRecipeNutrition } from "../services/recipeNutrition.service.js";
+  normalizeManualRecipeNutrition,
+  normalizeStoredRecipeNutritionUnits,
+  toPublicRecipeNutrition,
+} from "../services/recipeNutrition.service.js";
+import {
+  isPinnedRecipePostStateEligible,
+  isSearchIndexRecipeSlug,
+} from "../seo/recipeSearchIndexPolicy.js";
 
 // Whitelist fields cho admin update/create
 const ALLOWED_RECIPE_FIELDS = [
@@ -16,34 +21,6 @@ const ALLOWED_RECIPE_FIELDS = [
   "tags", "isPublished", "ingredients", "instructions",
   "sourceUrl", "source", "nutrition",
 ];
-
-const toPublicNutrition = (nutrition) => {
-  if (
-    !nutrition ||
-    CORE_RECIPE_NUTRITION_FIELDS.some((field) => nutrition[field] == null)
-  ) {
-    return {
-      status: "unavailable",
-      source: "admin_manual",
-      scope: "whole_recipe",
-      values: {},
-      additional: [],
-    };
-  }
-  return {
-    status: "available",
-    source: "admin_manual",
-    scope: "whole_recipe",
-    values: Object.fromEntries(
-      CORE_RECIPE_NUTRITION_FIELDS.map((field) => [field, nutrition[field]]),
-    ),
-    additional: (nutrition.additional || []).map(({ label, unit, value }) => ({
-      label,
-      unit,
-      value,
-    })),
-  };
-};
 
 const normalizeSlug = (value) =>
   value
@@ -169,6 +146,25 @@ const sendRecipeWriteError = (res, error) => {
   return res.status(500).json({ success: false, message: error.message });
 };
 
+const rejectPinnedRecipeMutation = (res, code, message) =>
+  res.status(409).json({
+    success: false,
+    message,
+    details: { code },
+  });
+
+const serializeAdminRecipe = (recipe) => {
+  if (!recipe || typeof recipe !== "object") return recipe;
+  const plainRecipe =
+    typeof recipe.toObject === "function" ? recipe.toObject() : recipe;
+  const adminRecipe = { ...plainRecipe };
+  delete adminRecipe.thumbnailPublicId;
+  return {
+    ...adminRecipe,
+    nutrition: normalizeStoredRecipeNutritionUnits(adminRecipe.nutrition),
+  };
+};
+
 const getCloudinaryPublicId = (recipe) => {
   if (recipe.thumbnailPublicId) return recipe.thumbnailPublicId;
   if (!recipe.thumbnail) return "";
@@ -272,6 +268,7 @@ export const getRecipes = async (req, res) => {
               source: 1,
               ingredients: 1,
               instructions: 1,
+              nutrition: 1,
               sourceUrl: 1,
               updatedAt: 1,
             }
@@ -295,9 +292,16 @@ export const getRecipes = async (req, res) => {
       ]),
     );
 
+    const publicRecipes = prerenderView
+      ? recipes.map((recipe) => ({
+          ...recipe,
+          nutrition: toPublicRecipeNutrition(recipe.nutrition),
+        }))
+      : recipes;
+
     res.json({
       success: true,
-      data: recipes,
+      data: publicRecipes,
       pagination: {
         total,
         page,
@@ -324,7 +328,10 @@ export const getRecipeBySlug = async (req, res) => {
     }
     res.json({
       success: true,
-      data: { ...recipe, nutrition: toPublicNutrition(recipe.nutrition) },
+      data: {
+        ...recipe,
+        nutrition: toPublicRecipeNutrition(recipe.nutrition),
+      },
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -483,11 +490,21 @@ export const createRecipe = async (req, res) => {
     const data = normalizeRecipeData(pickAllowedFields(req.body), {
       forCreate: true,
     });
+    if (
+      isSearchIndexRecipeSlug(data.slug) &&
+      !isPinnedRecipePostStateEligible(data)
+    ) {
+      return rejectPinnedRecipeMutation(
+        res,
+        "PINNED_RECIPE_INELIGIBLE",
+        "Không thể tạo công thức với slug đang thuộc cohort tìm kiếm khi nội dung chưa đạt chuẩn.",
+      );
+    }
     const recipe = await Recipe.create(data);
     if (recipe.isPublished) {
       void triggerNetlifyBuild();
     }
-    res.status(201).json({ success: true, data: recipe });
+    res.status(201).json({ success: true, data: serializeAdminRecipe(recipe) });
   } catch (err) {
     return sendRecipeWriteError(res, err);
   }
@@ -497,17 +514,35 @@ export const createRecipe = async (req, res) => {
 export const updateRecipe = async (req, res) => {
   try {
     const updates = normalizeRecipeData(pickAllowedFields(req.body));
-    const recipe = await Recipe.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-      runValidators: true,
-    });
+    const recipe = await Recipe.findById(req.params.id);
     if (!recipe) {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy công thức" });
     }
+    const originalSlug = recipe.slug;
+    const wasPinned = isSearchIndexRecipeSlug(originalSlug);
+    recipe.set(updates);
+    if (wasPinned && recipe.slug !== originalSlug) {
+      return rejectPinnedRecipeMutation(
+        res,
+        "PINNED_RECIPE_SLUG_CHANGE_BLOCKED",
+        "Không thể đổi slug của công thức đang thuộc cohort tìm kiếm. Hãy repin và deploy cohort mới trước khi đổi.",
+      );
+    }
+    if (
+      (wasPinned || isSearchIndexRecipeSlug(recipe.slug)) &&
+      !isPinnedRecipePostStateEligible(recipe)
+    ) {
+      return rejectPinnedRecipeMutation(
+        res,
+        "PINNED_RECIPE_INELIGIBLE",
+        "Không thể cập nhật vì công thức đang thuộc cohort tìm kiếm và thay đổi này làm nội dung không còn đạt chuẩn. Hãy repin cohort trước khi cập nhật.",
+      );
+    }
+    await recipe.save();
     void triggerNetlifyBuild();
-    res.json({ success: true, data: recipe });
+    res.json({ success: true, data: serializeAdminRecipe(recipe) });
   } catch (err) {
     return sendRecipeWriteError(res, err);
   }
@@ -522,6 +557,14 @@ export const deleteRecipe = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Không tìm thấy công thức" });
+    }
+
+    if (isSearchIndexRecipeSlug(recipe.slug)) {
+      return rejectPinnedRecipeMutation(
+        res,
+        "PINNED_RECIPE_DELETE_BLOCKED",
+        "Không thể xóa công thức đang thuộc cohort tìm kiếm. Hãy repin và deploy cohort mới trước khi xóa.",
+      );
     }
 
     await Recipe.deleteOne({ _id: recipe._id });
@@ -576,7 +619,7 @@ export const getAdminRecipes = async (req, res) => {
 
     res.json({
       success: true,
-      data: recipes,
+      data: recipes.map(serializeAdminRecipe),
       pagination: {
         total,
         page,
@@ -601,15 +644,29 @@ export const uploadThumbnail = async (req, res) => {
     const previousPublicId = getCloudinaryPublicId(recipe);
     recipe.thumbnail = req.file.path;
     recipe.thumbnailPublicId = uploadedPublicId;
+    if (
+      isSearchIndexRecipeSlug(recipe.slug) &&
+      !isPinnedRecipePostStateEligible(recipe)
+    ) {
+      await destroyCloudinaryAsset(uploadedPublicId);
+      return rejectPinnedRecipeMutation(
+        res,
+        "PINNED_RECIPE_INELIGIBLE",
+        "Không thể cập nhật ảnh vì công thức đang thuộc cohort tìm kiếm nhưng nội dung hiện tại không còn đạt chuẩn. Hãy khôi phục nội dung hoặc repin cohort trước khi cập nhật.",
+      );
+    }
     await recipe.save();
     if (previousPublicId && previousPublicId !== uploadedPublicId) {
       await destroyCloudinaryAsset(previousPublicId);
+    }
+    if (recipe.isPublished) {
+      void triggerNetlifyBuild();
     }
 
     res.json({
       success: true,
       message: "Tải ảnh lên thành công",
-      data: recipe,
+      data: serializeAdminRecipe(recipe),
     });
   } catch (err) {
     await destroyCloudinaryAsset(uploadedPublicId);
