@@ -126,7 +126,7 @@ export const validateIncidentContext = (input) => {
   assert(INCIDENT_REASONS.has(input.reason), "incident reason is invalid");
   assert(
     Number.isInteger(input.consecutiveFailures) &&
-      input.consecutiveFailures >= 2 && input.consecutiveFailures <= 999,
+      input.consecutiveFailures >= 1 && input.consecutiveFailures <= 999,
     "incident failure count is invalid",
   );
   return {

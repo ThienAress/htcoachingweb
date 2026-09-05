@@ -12,6 +12,7 @@ import {
   validatePatchText,
   validateRemediationReport,
 } from "./incident-remediation-contract.mjs";
+import { evaluateHealthTransition } from "../../workers/production-watchdog/src/worker.mjs";
 
 const report = {
   incidentId: "INC-20260904-1046",
@@ -56,6 +57,46 @@ test("incident context accepts only fixed probe facts", () => {
     reason: "unexpected_status",
     consecutiveFailures: 2,
   }), /check/i);
+  assert.throws(() => validateIncidentContext({
+    check: "api-readiness",
+    route: "GET /api/ops/health/ready",
+    statusCode: 503,
+    reason: "unexpected_status",
+    consecutiveFailures: 0,
+  }), /failure count/i);
+});
+
+test("incident context accepts the first failure emitted by the production threshold", () => {
+  const { event } = evaluateHealthTransition(
+    null,
+    {
+      healthy: false,
+      check: "api-readiness",
+      route: "GET /api/ops/health/ready",
+      statusCode: 503,
+      reason: "unexpected_status",
+    },
+    new Date("2026-09-04T10:46:00.000Z"),
+    1,
+  );
+
+  assert.equal(event.consecutiveFailures, 1);
+  assert.deepEqual(
+    validateIncidentContext({
+      check: event.check,
+      route: event.route,
+      statusCode: event.statusCode,
+      reason: event.reason,
+      consecutiveFailures: event.consecutiveFailures,
+    }),
+    {
+      check: "api-readiness",
+      route: "GET /api/ops/health/ready",
+      statusCode: 503,
+      reason: "unexpected_status",
+      consecutiveFailures: 1,
+    },
+  );
 });
 
 test("remediation report is bounded and rejects credential or PII shapes", () => {
