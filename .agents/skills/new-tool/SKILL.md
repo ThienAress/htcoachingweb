@@ -18,7 +18,7 @@ description: Tạo AI tool mới cho HT Assistant ở mode text-only hoặc Gene
 □ Contract: tool luôn trả { text, uiCard? }
 □ Mode B:   client/src/components/ChatWidget/cards/{Name}Card.jsx
 □ Mode B:   client/src/components/ChatWidget/ChatBubble.jsx (import + CARD_COMPONENTS)
-□ Skill:    .agents/skills/ai-chat-system/SKILL.md (cập nhật File Map + Test checklist)
+□ Docs:     chỉ cập nhật ai-chat-system khi architecture/workflow đổi; không thêm inventory thủ công
 ```
 
 ---
@@ -40,9 +40,10 @@ Sau đó xác định quyền truy cập:
 |------|-------|:--------------:|:---------------------:|
 | **Read-only, public** | searchExercises, getTrainerInfo | `false` | `false` |
 | **Read-only, cần auth** | checkWallet, getWorkoutPlan | `true` | `false` |
-| **Write, cần xác nhận** | bookSchedule, sendEmail | `true` | `true` |
+| **Write candidate — chỉ bật sau full lifecycle** | bookSchedule, sendEmail | `true` | `true` |
 
-**Verify:** Tool này đọc hay ghi dữ liệu? Cần đăng nhập không?
+**Verify:** Tool này đọc hay ghi dữ liệu? Cần đăng nhập không? Nếu ghi, engine hiện đã enforce
+toàn bộ lifecycle bên dưới hay mới chỉ có metadata confirmation?
 
 Đọc [LLM threat matrix](../ai-chat-system/references/llm-threat-matrix.md) và chốt thêm:
 
@@ -50,6 +51,12 @@ Sau đó xác định quyền truy cập:
 - Ownership nào phải enforce trong `execute`, không chỉ qua tool schema hoặc prompt.
 - Giới hạn result count/size, timeout và số lần gọi; write tool cần confirmation cùng idempotency strategy.
 - `text` và `uiCard.data` là untrusted output cho consumer, phải dùng shape/link allowlist.
+
+Nếu là write tool, bắt buộc đọc [Agentic mutation lifecycle](../ai-chat-system/references/agentic-mutation-lifecycle.md)
+và `.agents/rules/security/security.md`. Chỉ tiếp tục khi execution path tách được preview không side
+effect khỏi commit, bind explicit confirmation với canonical preview và enforce authorization + idempotency
+ở server. Nếu hiện tại chỉ có `requiresConfirmation: true`, dừng ở read-only/draft-only và lập spec/plan
+cho boundary còn thiếu; boolean này không tự tạo security guarantee.
 
 ---
 
@@ -184,13 +191,12 @@ Sửa `client/src/components/ChatWidget/ChatBubble.jsx`:
 
 ---
 
-## Bước 6: Cập Nhật Skill Doc
+## Bước 6: Kiểm tra architecture doc
 
-Sửa `.agents/skills/ai-chat-system/SKILL.md`:
-
-1. Thêm tool vào **File Map** (Backend table)
-2. Nếu chọn Mode B, thêm card vào **File Map** (Frontend table)
-3. Thêm test case vào **Test checklist**
+Không thêm từng tool/card vào File Map thủ công. Dùng `rg --files` và
+`node .agents/scripts/validate-tools.mjs` làm inventory. Chỉ sửa
+`.agents/skills/ai-chat-system/SKILL.md` khi tool tạo response mode, execution boundary,
+permission/lifecycle hoặc test workflow mới có giá trị dùng lại.
 
 ---
 
@@ -204,7 +210,7 @@ Sửa `.agents/skills/ai-chat-system/SKILL.md`:
 □ Mode A → text hiển thị đúng khi không có uiCard
 □ Mode B → npm run build --prefix client → exit 0 và UI Card hiển thị đúng data
 □ Tool không gọi khi chưa đủ điều kiện
-□ Tool write yêu cầu confirmation trước khi thực thi
+□ Write tool (nếu có) có integration evidence cho toàn bộ Agentic mutation lifecycle; metadata-only test không đủ
 ```
 
 ---
@@ -217,6 +223,6 @@ Sửa `.agents/skills/ai-chat-system/SKILL.md`:
 | Tạo card cho mọi tool | Chỉ dùng Mode B khi structured UI tạo giá trị rõ ràng |
 | Text-only vẫn trả `uiCard: null` theo thói quen | Trả `{ text }`; giữ `uiCard` là optional |
 | cardType không match giữa BE và FE | Kiểm tra string match chính xác |
-| Tool write không có confirmation | Set `requiresConfirmation: true` |
+| Tool write chỉ thêm `requiresConfirmation` rồi commit trực tiếp | Dừng enable; implement preview-bound confirmation + server revalidation + idempotent commit |
 | Query `.find({})` không limit | Luôn có `.limit()` |
 | Không handle null result | Luôn check empty trước khi process |

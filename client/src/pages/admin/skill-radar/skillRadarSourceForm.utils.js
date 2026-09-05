@@ -97,7 +97,6 @@ export const getSkillRadarMutationError = (error, fallback) => {
     return { message: "Nguồn này đã có trong Radar. Không cần thêm lại." };
   }
   if (
-    status === 429 ||
     data.code === "GITHUB_RATE_LIMITED" ||
     data.code === "SKILL_RADAR_GITHUB_RATE_LIMITED"
   ) {
@@ -105,6 +104,15 @@ export const getSkillRadarMutationError = (error, fallback) => {
       message: "GitHub đang giới hạn lượt đọc metadata. Dữ liệu Radar hiện có vẫn được giữ nguyên.",
       retryAt,
     };
+  }
+  if (data.code === "SKILL_RADAR_MUTATION_RATE_LIMITED") {
+    return {
+      message: "Bạn đang thao tác quá nhanh. Vui lòng chờ một chút rồi thử lại.",
+      ...(retryAt ? { retryAt } : {}),
+    };
+  }
+  if (status === 429) {
+    return { message: data.message || "Dịch vụ đang bận. Vui lòng thử lại sau." };
   }
   if (status === 400 || status === 422) {
     return { message: data.message || "Thông tin nguồn chưa hợp lệ. Kiểm tra và thử lại." };

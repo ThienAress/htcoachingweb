@@ -64,13 +64,20 @@ describe("POST /api/deposits — Tạo yêu cầu nạp tiền", () => {
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.amount).toBe(100000);
+    expect(res.body.data).toMatchObject({
+      bonusTierKey: "growth",
+      bonusRate: 15,
+      bonusAmount: 15000,
+      creditedAmount: 115000,
+      policyVersion: 1,
+    });
     expect(res.body.data.depositCode).toMatch(/^HTC-/);
     expect(res.body.data.status).toBe("pending");
     expect(res.body.data.qrPayload).toBeDefined();
     expect(res.body.data.expiresAt).toBeDefined();
   });
 
-  it("trả 400 khi amount < 5000 (tối thiểu)", async () => {
+  it("trả 400 khi amount < 10000 (tối thiểu)", async () => {
     const { accessToken } = await createTestUser();
 
     const res = await withAuth(
@@ -80,20 +87,20 @@ describe("POST /api/deposits — Tạo yêu cầu nạp tiền", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toContain("5.000");
+    expect(res.body.message).toContain("10.000");
   });
 
-  it("trả 400 khi amount > 100.000.000 (tối đa)", async () => {
+  it("trả 400 khi amount > 1.000.000.000 (tối đa)", async () => {
     const { accessToken } = await createTestUser();
 
     const res = await withAuth(
-      request(app).post("/api/deposits").send({ amount: 200000000 }),
+      request(app).post("/api/deposits").send({ amount: 1000000001 }),
       accessToken
     );
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toContain("100.000.000");
+    expect(res.body.message).toContain("1.000.000.000");
   });
 
   it("trả 400 khi không có amount", async () => {
@@ -127,6 +134,11 @@ describe("POST /api/deposits — Tạo yêu cầu nạp tiền", () => {
     expect(res2.body.message).toContain("chưa hết hạn");
     // Amount phải là của deposit cũ (50000), không phải 100000
     expect(res2.body.data.amount).toBe(50000);
+    expect(res2.body.data).toMatchObject({
+      bonusRate: 10,
+      bonusAmount: 5000,
+      creditedAmount: 55000,
+    });
   });
 
   it("chặn khi đã có deposit needs_review", async () => {
@@ -337,8 +349,34 @@ describe("GET /api/deposits — Lịch sử nạp tiền", () => {
     expect(response.body.data[0]).toMatchObject({
       settledTransactionCount: 2,
       settledAmountTotal: 100000,
+      settledBonusAmountTotal: 0,
+      settledCreditedAmountTotal: 100000,
     });
     expect(response.body.data[0].lastSettlementAt).toBeTruthy();
+  });
+
+  it("reads a legacy deposit without snapshot as zero bonus", async () => {
+    const { accessToken, user } = await createTestUser();
+    await DepositRequest.create({
+      userId: user._id,
+      amount: 5000,
+      depositCode: "HTC-OLD1-0001",
+      expiresAt: new Date(Date.now() + 60_000),
+      status: "pending",
+    });
+
+    const response = await request(app)
+      .get("/api/deposits")
+      .set("Cookie", [`accessToken=${accessToken}`]);
+
+    expect(response.body.data[0]).toMatchObject({
+      amount: 5000,
+      bonusRate: 0,
+      bonusAmount: 0,
+      creditedAmount: 5000,
+      bonusTierKey: null,
+      policyVersion: null,
+    });
   });
 });
 

@@ -556,6 +556,14 @@ export const validateProductionEnvironment = (
     validateSecret(env, findings, "RESEND_API_KEY", { minimum: 20 });
   }
   validateBooleanSetting(env, findings, "SKILL_RADAR_WORKER_ENABLED");
+  if (!String(env.SKILL_RADAR_GITHUB_TOKEN || "").trim()) {
+    addFinding(
+      findings,
+      "errors",
+      "SKILL_RADAR_GITHUB_TOKEN_MISSING",
+      "Radar Admin API and worker require a dedicated read-only GitHub token.",
+    );
+  }
   if (
     String(env.SKILL_RADAR_WORKER_ENABLED || "").toLowerCase() === "true"
   ) {
@@ -565,14 +573,6 @@ export const validateProductionEnvironment = (
         "errors",
         "SKILL_RADAR_WORKER_NOT_ISOLATED",
         "Skill Radar worker requires BACKGROUND_JOBS_ENABLED=false.",
-      );
-    }
-    if (!String(env.SKILL_RADAR_GITHUB_TOKEN || "").trim()) {
-      addFinding(
-        findings,
-        "errors",
-        "SKILL_RADAR_GITHUB_TOKEN_MISSING",
-        "Skill Radar worker requires a dedicated read-only GitHub token.",
       );
     }
   }

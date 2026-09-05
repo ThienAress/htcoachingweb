@@ -12,15 +12,25 @@ const POSIX_LOCAL_PATH_PATTERN =
 
 export const REQUIRED_SKILL_EVAL_BASELINE = Object.freeze({
   "ai-chat-system": 4,
-  "code-review": 6,
+  "code-review": 7,
   debugging: 4,
+  "domain-modeling": 4,
   "feature-spec": 6,
-  "impact-check": 6,
+  "impact-check": 8,
+  "new-tool": 4,
   "plan-template": 6,
-  qa: 6,
+  qa: 7,
   "schema-change": 6,
   "skill-radar": 4,
   "ui-quality": 4,
+});
+
+export const REQUIRED_SKILL_EVAL_CASE_IDS = Object.freeze({
+  "code-review": ["review-refresh-rotation-invariants"],
+  "domain-modeling": ["evidence-gated-queue-adr", "adversarial-copy-sharding-pattern"],
+  "impact-check": ["keyed-state-contract-change", "explain-hashmap-read-only"],
+  "new-tool": ["mutating-tool-confirmed-lifecycle", "read-only-tool-least-privilege"],
+  qa: ["browser-agent-deterministic-evidence"],
 });
 
 const requireObject = (value, label) => {
@@ -133,23 +143,34 @@ export function validateSkillEvalDirectory({ rootDir, skillsRoot }) {
   if (files.length === 0) throw new Error("Skill eval directory must contain JSON corpora");
 
   let cases = 0;
-  const casesBySkill = new Map();
+  const corporaBySkill = new Map();
   for (const fileName of files) {
     validateEvalFileName(fileName);
     const filePath = path.join(rootDir, fileName);
     const corpus = JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, ""));
     validateSkillEvalCorpus(corpus, { knownSkills, fileName });
     cases += corpus.cases.length;
-    casesBySkill.set(corpus.skill, corpus.cases.length);
+    corporaBySkill.set(corpus.skill, corpus);
   }
   for (const [skill, minimumCases] of Object.entries(REQUIRED_SKILL_EVAL_BASELINE)) {
-    if (!casesBySkill.has(skill)) {
+    const corpus = corporaBySkill.get(skill);
+    if (!corpus) {
       throw new Error(`Required baseline corpus ${skill} is missing`);
     }
-    if (casesBySkill.get(skill) < minimumCases) {
+    if (corpus.cases.length < minimumCases) {
       throw new Error(
         `Required baseline corpus ${skill} requires at least ${minimumCases} scenarios`,
       );
+    }
+  }
+  for (const [skill, requiredCaseIds] of Object.entries(REQUIRED_SKILL_EVAL_CASE_IDS)) {
+    const corpus = corporaBySkill.get(skill);
+    if (!corpus) throw new Error(`Required learned-pattern corpus ${skill} is missing`);
+    const actualCaseIds = new Set(corpus.cases.map((evalCase) => evalCase.id));
+    for (const caseId of requiredCaseIds) {
+      if (!actualCaseIds.has(caseId)) {
+        throw new Error(`Required learned-pattern case ${skill}/${caseId} is missing`);
+      }
     }
   }
   return { corpora: files.length, cases };

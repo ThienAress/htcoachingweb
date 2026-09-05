@@ -12,18 +12,26 @@ const ALLOWED_HOSTS = new Set([
 const MAX_RESPONSE_BYTES = 512 * 1024;
 
 const parseRateLimitRetryAt = (headers, now = new Date()) => {
-  const resetEpoch = Number(headers?.get?.("x-ratelimit-reset"));
-  if (Number.isFinite(resetEpoch) && resetEpoch > 0) {
-    return new Date(resetEpoch * 1000).toISOString();
-  }
   const retryAfter = headers?.get?.("retry-after");
   const seconds = Number(retryAfter);
-  if (Number.isFinite(seconds) && seconds >= 0) {
+  if (
+    retryAfter !== null &&
+    String(retryAfter).trim() !== "" &&
+    Number.isFinite(seconds) &&
+    seconds >= 0
+  ) {
     return new Date(now.getTime() + seconds * 1000).toISOString();
   }
   if (retryAfter) {
     const retryDate = new Date(retryAfter);
-    if (!Number.isNaN(retryDate.getTime())) return retryDate.toISOString();
+    if (!Number.isNaN(retryDate.getTime()) && retryDate >= now) {
+      return retryDate.toISOString();
+    }
+  }
+  const resetEpoch = Number(headers?.get?.("x-ratelimit-reset"));
+  if (Number.isFinite(resetEpoch) && resetEpoch > 0) {
+    const resetAt = new Date(resetEpoch * 1000);
+    if (resetAt >= now) return resetAt.toISOString();
   }
   return null;
 };
@@ -91,7 +99,9 @@ const fetchWithPolicy = async ({
         error.status = response.status;
         error.host = parsed.hostname;
         error.rateLimitRetryAt = parseRateLimitRetryAt(response.headers, now);
-        if ((response.status === 429 || response.status >= 500) && attempt < retries) {
+        error.rateLimitRemaining = response.headers.get("x-ratelimit-remaining");
+        error.hasRetryAfter = Boolean(response.headers.get("retry-after"));
+        if (response.status >= 500 && attempt < retries) {
           lastError = error;
           continue;
         }
@@ -100,7 +110,7 @@ const fetchWithPolicy = async ({
       return await readLimitedText(response, maxBytes);
     } catch (error) {
       lastError = error;
-      if (attempt >= retries || error?.name === "AbortError") throw error;
+      if (error?.status || attempt >= retries || error?.name === "AbortError") throw error;
     } finally {
       clearTimeout(timeout);
     }
@@ -112,7 +122,14 @@ const fetchJson = async (options) => JSON.parse(await fetchWithPolicy(options));
 
 const isRateLimitedError = (error) =>
   error?.status === 429 ||
-  (error?.status === 403 && error?.host === "api.github.com");
+  (
+    error?.status === 403 &&
+    error?.host === "api.github.com" &&
+    (
+      String(error?.rateLimitRemaining || "").trim() === "0" ||
+      error?.hasRetryAfter === true
+    )
+  );
 
 const getPreviousById = (snapshot) =>
   new Map((snapshot?.items || []).map((item) => [item.id, item]));
@@ -125,7 +142,11 @@ const shouldWaitForScheduledCheck = (entry, previous, now) => {
   return !Number.isNaN(nextCheckAt.getTime()) && nextCheckAt > now;
 };
 
-const carryPreviousObservation = (entry, previous) => ({
+const carryPreviousObservation = (
+  entry,
+  previous,
+  { includeRateLimit = true } = {},
+) => ({
   id: entry.id,
   contentHash: previous.contentHash || null,
   upstreamCommit: previous.upstreamCommit || null,
@@ -140,7 +161,7 @@ const carryPreviousObservation = (entry, previous) => ({
   decisionReason: previous.decisionReason || null,
   reportPath: previous.reportPath || null,
   ...(previous.error ? { error: sanitizeError(previous.error) } : {}),
-  ...(previous.rateLimitRetryAt
+  ...(includeRateLimit && previous.rateLimitRetryAt
     ? { rateLimitRetryAt: previous.rateLimitRetryAt }
     : {}),
 });
@@ -263,7 +284,7 @@ export async function scanWatchlist({
         rateLimitRetryAt = error.rateLimitRetryAt || nextCheckAt;
       }
       items.push({
-        ...carryPreviousObservation(entry, previous),
+        ...carryPreviousObservation(entry, previous, { includeRateLimit: false }),
         lastCheckedAt: checkedAt,
         nextCheckAt,
         drift: rateLimited ? "rate_limited" : "unreachable",

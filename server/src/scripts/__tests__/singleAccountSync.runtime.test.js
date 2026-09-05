@@ -60,6 +60,11 @@ describe("single-account sync runtime", () => {
       name: "Local Test",
       password: "local-login-hash",
       refreshToken: "local-refresh",
+      refreshSession: {
+        familyId: "local-family",
+        currentJti: "local-jti",
+        expiresAt: new Date("2026-09-09T00:00:00.000Z"),
+      },
     });
   });
 
@@ -169,6 +174,11 @@ describe("single-account sync runtime", () => {
     expect(targetUser.name).toBe("Production Test");
     expect(targetUser.password).toBe("local-login-hash");
     expect(targetUser.refreshToken).toBe("newer-local-refresh");
+    expect(targetUser.refreshSession).toEqual({
+      familyId: "local-family",
+      currentJti: "local-jti",
+      expiresAt: new Date("2026-09-09T00:00:00.000Z"),
+    });
     expect(await targetDb.collection("orders").countDocuments()).toBe(1);
 
     await expect(

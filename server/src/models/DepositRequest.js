@@ -9,12 +9,40 @@ const depositRequestSchema = new mongoose.Schema(
       required: true,
     },
 
-    // Số tiền muốn nạp (VND, integer)
+    // Số tiền khách phải chuyển (VND, integer). Min persisted giữ tương thích
+    // hóa đơn legacy; policy hiện hành được enforce ở create controller.
     amount: {
       type: Number,
       required: true,
-      min: DEPOSIT_POLICY.minAmount,
+      validate: Number.isSafeInteger,
+      min: 1,
       max: DEPOSIT_POLICY.maxAmount,
+    },
+
+    bonusRate: {
+      type: Number,
+      min: 0,
+      max: 100,
+      validate: Number.isSafeInteger,
+    },
+    bonusAmount: {
+      type: Number,
+      min: 0,
+      validate: Number.isSafeInteger,
+    },
+    creditedAmount: {
+      type: Number,
+      min: 1,
+      validate: Number.isSafeInteger,
+    },
+    bonusTierKey: {
+      type: String,
+      enum: ["starter", "growth", "premium"],
+    },
+    policyVersion: {
+      type: Number,
+      min: 1,
+      validate: Number.isSafeInteger,
     },
 
     // Mã nạp tiền duy nhất (NanoID), VD: HTC-8A9X-2M4K

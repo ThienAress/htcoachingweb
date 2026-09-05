@@ -143,9 +143,10 @@ khi đồng thời xét activity, relevance, local usage, maintainer response, s
 
 - Lịch dự kiến: 09:00 ngày 1 mỗi tháng theo `Asia/Saigon` (`0 2 1 * *` theo UTC).
 - Scanner deterministic kiểm tra 23 nguồn active hiện tại, content hash, commit theo source path, repository state và URL health.
-- GitHub API `403/429` được ghi `rate_limited`, giữ last-known-good provenance và không suy diễn repository đã chết.
-- Scanner/API phải đọc `X-RateLimit-Reset` hoặc `Retry-After` khi có, lưu `rateLimitRetryAt`, dừng các request GitHub mới
-  trong batch khi quota đã cạn và hiển thị thời điểm thử lại. Thiếu header thì dùng lần quét lịch kế tiếp.
+- GitHub API `429` và `403` có bằng chứng quota cạn được ghi `rate_limited`, giữ last-known-good provenance và không suy diễn repository đã chết.
+- Scanner/API ưu tiên `Retry-After` cụ thể, sau đó mới dùng `X-RateLimit-Reset` còn hiệu lực; chỉ coi `403` là
+  rate limit khi `X-RateLimit-Remaining=0` hoặc có `Retry-After`. Generic `403` khi quota còn lại là access/upstream
+  failure, không dựng thời điểm thử lại. Khi quota đã cạn, dừng request GitHub mới trong batch và giữ last-known-good.
 - Source chưa có `lastReviewedAt` phải qua baseline content comparison; `clean` chỉ mô tả hash drift sau baseline.
 - `$skill-radar` đọc kết quả, duyệt Trending/Hot/Official/Audits trên skills.sh, tìm candidate mới và tạo
   `docs/audits/YYYY-MM-skill-radar.md`.
@@ -179,6 +180,8 @@ Trang phải có search, filter theo domain/lifecycle/drift và đầy đủ loa
   Cập nhật/review, Trạng thái và Lần quét dự kiến.
 - Có trạng thái đang phân tích, lỗi URL/GitHub, rate limit + thời điểm thử lại, duplicate, đang lưu và thông báo thành công.
 - Không gọi GitHub trực tiếp từ browser. Mutation đi qua service layer, TanStack Query và invalidate/cập nhật read-model cache.
+- HTTP `429` từ limiter nội bộ phải hiển thị thông báo thao tác quá nhanh; chỉ code `SKILL_RADAR_GITHUB_RATE_LIMITED`
+  mới dùng thông báo GitHub đang giới hạn.
 
 ## Security and Operations Boundaries
 

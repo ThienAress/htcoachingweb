@@ -114,6 +114,9 @@ export const accountContractsQueryOptions = ({
 export const invalidateDepositHistory = (queryClient, userId) =>
   invalidateByKey(queryClient, walletAccountKeys.wallet.deposits(userId));
 
+export const invalidateDepositPolicy = (queryClient) =>
+  invalidateByKey(queryClient, walletAccountKeys.wallet.policy());
+
 export const applyTrainerPlanPurchaseResponse = async ({
   queryClient,
   userId,

@@ -37,6 +37,66 @@
       "rollout": "pending",
       "owner": "root",
       "updatedAt": "2026-09-02"
+    },
+    {
+      "id": "080",
+      "title": "Build serverless incident response and refresh Radar",
+      "path": "docs/plans/080-build-serverless-incident-response-and-refresh-radar.md",
+      "priority": "P0",
+      "complexity": "complex",
+      "lifecycle": "done",
+      "verification": "local_full",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-09-04"
+    },
+    {
+      "id": "081",
+      "title": "Redesign Wallet deposit and Trainer profile safely",
+      "path": "docs/plans/081-redesign-wallet-deposit-and-trainer-profile.md",
+      "priority": "P0",
+      "complexity": "complex",
+      "lifecycle": "done",
+      "verification": "local_full",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-09-05"
+    },
+    {
+      "id": "082",
+      "title": "Harden refresh-session rotation and logout",
+      "path": "docs/plans/082-harden-refresh-session-rotation-and-logout.md",
+      "priority": "P1",
+      "complexity": "complex",
+      "lifecycle": "done",
+      "verification": "local_full",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-09-05"
+    },
+    {
+      "id": "083",
+      "title": "Codify validated upstream engineering patterns",
+      "path": "docs/plans/083-codify-validated-upstream-engineering-patterns.md",
+      "priority": "P1",
+      "complexity": "complex",
+      "lifecycle": "done",
+      "verification": "focused",
+      "rollout": "not_applicable",
+      "owner": "root",
+      "updatedAt": "2026-09-05"
+    },
+    {
+      "id": "084",
+      "title": "Reconcile and promote release candidate safely",
+      "path": "docs/plans/084-reconcile-and-promote-release-candidate.md",
+      "priority": "P0",
+      "complexity": "complex",
+      "lifecycle": "in_progress",
+      "verification": "none",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-09-05"
     }
   ]
 }

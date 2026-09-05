@@ -214,7 +214,7 @@ describe("Phase 6 financial state machines", () => {
     expect(repeatedApproval.body.skipped).toBe(true);
     expect(deletePaid.status).toBe(409);
     expect((await Wallet.findOne({ userId: actor.user._id })).balance).toBe(
-      50000,
+      55000,
     );
     expect(
       await WalletTransaction.countDocuments({
@@ -247,7 +247,7 @@ describe("Phase 6 financial state machines", () => {
     expect(deposit.status).toBe("reversed");
     expect(entries).toHaveLength(2);
     expect(entries[1].type).toBe("reversal");
-    expect(entries[1].amount).toBe(-50000);
+    expect(entries[1].amount).toBe(-55000);
     expect(entries[1].reversalOf.toString()).toBe(entries[0]._id.toString());
 
     const report = await reconcileWallets();
@@ -263,6 +263,41 @@ describe("Phase 6 financial state machines", () => {
         (issue) => issue.code === "WALLET_BALANCE_MISMATCH",
       ),
     ).toBe(true);
+  });
+
+  it("rolls back a bonus reversal when the wallet no longer has enough balance", async () => {
+    const actor = await createTestUser({
+      email: "phase6-bonus-reversal-user@example.com",
+    });
+    const admin = await createTestUser({
+      email: "phase6-bonus-reversal-admin@example.com",
+      role: "admin",
+    });
+    const created = await postAs("/api/deposits", actor.accessToken, {
+      amount: 200000,
+    });
+    const depositId = created.body.data.depositRequestId;
+    await postAs(
+      `/api/admin/deposits/${depositId}/approve`,
+      admin.accessToken,
+    );
+    await Wallet.updateOne(
+      { userId: actor.user._id },
+      { $set: { balance: 1 } },
+    );
+
+    const reversed = await postAs(
+      `/api/admin/deposits/${depositId}/reverse`,
+      admin.accessToken,
+      { reason: "Kiểm tra hoàn tác khi số dư không còn đủ" },
+    );
+
+    expect(reversed.status).toBe(409);
+    expect(reversed.body.code).toBe("INSUFFICIENT_WALLET_BALANCE");
+    expect((await DepositRequest.findById(depositId)).status).toBe("success");
+    expect(
+      await WalletTransaction.countDocuments({ referenceId: depositId }),
+    ).toBe(1);
   });
 
   it("charges a purchase request once and cancels without deleting its ledger", async () => {

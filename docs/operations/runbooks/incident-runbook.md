@@ -14,6 +14,9 @@
 4. Stop the rollout. For a release regression, roll back the application version.
 5. Preserve logs and metrics; never paste tokens, cookies, raw AI conversations, or PII.
 
+Telegram watchdog, callback authentication và supervised Draft PR flow được vận hành theo
+`docs/operations/runbooks/serverless-incident-response.md`. Nút đóng chỉ acknowledge; recovery và closure vẫn cần evidence.
+
 ## Diagnosis
 
 - **HTTP/DB:** inspect 5xx, P95 duration, slow query patterns, docs examined, locks, and pool usage.

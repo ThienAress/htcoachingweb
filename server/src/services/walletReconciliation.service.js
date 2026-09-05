@@ -4,6 +4,10 @@ import DepositRequest from "../models/DepositRequest.js";
 import IncomingBankTransaction from "../models/IncomingBankTransaction.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
 import { incrementMetric } from "../observability/metrics.js";
+import {
+  resolveDepositCreditSnapshot,
+  resolveIncomingCreditedAmount,
+} from "./depositPolicy.service.js";
 
 const asId = (value) => String(value || "");
 
@@ -149,7 +153,9 @@ export const reconcileWallets = async ({
   const deposits = await DepositRequest.find({
     status: { $in: ["success", "reversed"] },
   })
-    .select("_id amount status")
+    .select(
+      "_id amount bonusRate bonusAmount creditedAmount bonusTierKey policyVersion status",
+    )
     .limit(safeWalletLimit)
     .lean();
   const depositIds = deposits.map((deposit) => deposit._id);
@@ -164,7 +170,7 @@ export const reconcileWallets = async ({
         depositRequestId: { $in: depositIds },
         status: { $in: ["settled", "reversed"] },
       })
-        .select("_id depositRequestId amount status")
+        .select("_id depositRequestId amount creditedAmount status")
         .lean()
     : [];
   const incomingEntries = incomingTransactions.length
@@ -198,11 +204,20 @@ export const reconcileWallets = async ({
     incomingByDeposit.set(key, values);
 
     const entries = entriesByIncoming.get(asId(incoming._id)) || [];
+    let creditedAmount;
+    try {
+      creditedAmount = resolveIncomingCreditedAmount(incoming);
+    } catch {
+      recordIssue("INCOMING_CREDIT_SNAPSHOT_INVALID", {
+        incomingTransactionId: asId(incoming._id),
+      });
+      continue;
+    }
     const originals = entries.filter(
       (entry) =>
         entry.type === "deposit" &&
         !entry.reversalOf &&
-        entry.amount === incoming.amount,
+        entry.amount === creditedAmount,
     );
     if (originals.length !== 1) {
       recordIssue("INCOMING_LEDGER_CARDINALITY", {
@@ -218,7 +233,7 @@ export const reconcileWallets = async ({
       incoming.status === "reversed" &&
       (reversals.length !== 1 ||
         reversals[0].type !== "reversal" ||
-        reversals[0].amount !== -incoming.amount)
+        reversals[0].amount !== -creditedAmount)
     ) {
       recordIssue("INCOMING_REVERSAL_LEDGER_MISMATCH", {
         incomingTransactionId: asId(incoming._id),
@@ -236,11 +251,20 @@ export const reconcileWallets = async ({
   for (const deposit of deposits) {
     const entries = entriesByDeposit.get(asId(deposit._id)) || [];
     const linkedIncoming = incomingByDeposit.get(asId(deposit._id)) || [];
+    let creditedAmount;
+    try {
+      creditedAmount = resolveDepositCreditSnapshot(deposit).creditedAmount;
+    } catch {
+      recordIssue("DEPOSIT_CREDIT_SNAPSHOT_INVALID", {
+        depositId: asId(deposit._id),
+      });
+      continue;
+    }
     const originals = entries.filter(
       (entry) =>
         entry.type === "deposit" &&
         !entry.reversalOf &&
-        entry.amount === deposit.amount,
+        entry.amount === creditedAmount,
     );
     if (entries.length > 0 && originals.length !== 1) {
       recordIssue("DEPOSIT_LEDGER_CARDINALITY", {
@@ -265,7 +289,7 @@ export const reconcileWallets = async ({
       deposit.status === "reversed" &&
       (reversals.length !== 1 ||
         reversals[0].type !== "reversal" ||
-        reversals[0].amount !== -deposit.amount)
+        reversals[0].amount !== -creditedAmount)
     ) {
       recordIssue("DEPOSIT_REVERSAL_LEDGER_MISMATCH", {
         depositId: asId(deposit._id),

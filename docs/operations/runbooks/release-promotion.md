@@ -84,6 +84,11 @@ monitor fail, dùng exact rollback IDs trong candidate rồi theo
 `production-rollback-runbook.md`. Database restore chỉ dùng khi xác nhận corruption
 và có approval riêng; không dùng restore để chữa application regression.
 
+Security-format cutover có thể đánh dấu rollback ID cũ là không tương thích. Với
+Plan 082, bắt buộc theo `refresh-session-cutover.md`; trạng thái provider `live`
+không tự chứng minh old Auth instance đã drain và không được rollback server về
+build pre-082 chỉ vì ID đó có trong release candidate.
+
 ## 6. Deferred infrastructure
 
 Atlas PITR/continuous recovery, paid monitoring, canary, Kubernetes và container

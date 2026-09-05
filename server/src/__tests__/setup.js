@@ -12,10 +12,10 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import express from "express";
 import cookieParser from "cookie-parser";
-import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
 import User from "../models/User.js";
+import { createAuthSession } from "../services/authSession.service.js";
 import {
   createMongoTestRuntime,
   stopMongoTestRuntime,
@@ -78,21 +78,7 @@ export async function createTestUser(overrides = {}) {
   const userData = { ...defaults, ...overrides };
   const user = await User.create(userData);
 
-  const accessToken = jwt.sign(
-    { id: user._id, role: user.role },
-    TEST_JWT_SECRET,
-    { expiresIn: "15m" }
-  );
-
-  const refreshToken = jwt.sign(
-    { id: user._id },
-    TEST_REFRESH_SECRET,
-    { expiresIn: "7d" }
-  );
-
-  // Lưu hashed refresh token vào DB (giống auth flow thật)
-  user.refreshToken = await bcrypt.hash(refreshToken, 10);
-  await user.save();
+  const { accessToken, refreshToken } = await createAuthSession(user);
 
   return { user, accessToken, refreshToken };
 }

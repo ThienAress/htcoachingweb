@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "skill": "new-tool",
+  "cases": [
+    {
+      "id": "mutating-tool-confirmed-lifecycle",
+      "kind": "should_trigger",
+      "prompt": "Thêm tool để HT Assistant đặt lịch trả phí sau khi người dùng đồng ý với khung giờ và giá hiển thị trong chat.",
+      "expectedEvidence": [
+        "Inspect current execution boundary; nếu thiếu canonical preview binding, idempotency hoặc reconcile thì STOP và giữ tool read-only/draft-only thay vì tin flag/card.",
+        "Tách read/discover, server canonical draft/preview, explicit confirmation, commit và reconcile; confirmation bind đúng actor, target, terms, version và expiry.",
+        "Server tự quyết ownership, price, entitlement; commit re-authorize/revalidate, consume một lần, atomic/idempotent và audit provenance đã redact.",
+        "Timeout là outcome chưa chắc chắn: đọc operation state trước retry và rehydrate UI từ server-authoritative result."
+      ]
+    },
+    {
+      "id": "read-only-tool-least-privilege",
+      "kind": "should_trigger",
+      "prompt": "Tạo tool chỉ đọc ba lịch hẹn sắp tới của user đang đăng nhập và trả text fallback, không thay đổi lịch.",
+      "expectedEvidence": [
+        "Chọn read-only authenticated tool và không ép confirmation không cần thiết.",
+        "Vẫn enforce ownership, projection, result/timeout bounds, schema an toàn và fallback khi không có dữ liệu."
+      ]
+    },
+    {
+      "id": "existing-ai-stream-bug",
+      "kind": "should_not_trigger",
+      "prompt": "Tool hiện có trả đúng dữ liệu nhưng SSE đôi lúc kết thúc trước ui_card; hãy tìm root cause, không tạo tool mới.",
+      "expectedEvidence": [
+        "Định tuyến sang ai-chat-system kết hợp debugging; không dùng workflow scaffold tool mới."
+      ]
+    },
+    {
+      "id": "ordinary-admin-mutation",
+      "kind": "should_not_trigger",
+      "prompt": "Thêm nút Admin sửa ghi chú nội bộ trong trang quản trị; hành động không đi qua HT Assistant.",
+      "expectedEvidence": [
+        "Dùng workflow CRUD/UI/API thông thường và impact/security checks phù hợp; không kích hoạt new-tool."
+      ]
+    }
+  ]
+}

@@ -40,15 +40,55 @@ const normalizeGitHubSummary = (value) => {
 };
 
 const retryAtFromHeaders = (headers, now = new Date()) => {
-  const epoch = Number(headers?.get?.("x-ratelimit-reset"));
-  if (Number.isFinite(epoch) && epoch > 0) return new Date(epoch * 1000).toISOString();
   const retryAfter = headers?.get?.("retry-after");
   const seconds = Number(retryAfter);
-  if (Number.isFinite(seconds) && seconds >= 0) {
+  if (
+    retryAfter !== null &&
+    String(retryAfter).trim() !== "" &&
+    Number.isFinite(seconds) &&
+    seconds >= 0
+  ) {
     return new Date(now.getTime() + seconds * 1000).toISOString();
   }
   const date = retryAfter ? new Date(retryAfter) : null;
-  return date && !Number.isNaN(date.getTime()) ? date.toISOString() : null;
+  if (date && !Number.isNaN(date.getTime()) && date >= now) {
+    return date.toISOString();
+  }
+  const epoch = Number(headers?.get?.("x-ratelimit-reset"));
+  const resetAt = Number.isFinite(epoch) && epoch > 0
+    ? new Date(epoch * 1000)
+    : null;
+  return resetAt && resetAt >= now ? resetAt.toISOString() : null;
+};
+
+const isRateLimitedResponse = (response) => {
+  if (response.status === 429) return true;
+  if (response.status !== 403) return false;
+  const remaining = response.headers?.get?.("x-ratelimit-remaining");
+  const retryAfter = response.headers?.get?.("retry-after");
+  return String(remaining || "").trim() === "0" || Boolean(retryAfter);
+};
+
+const githubResponseError = (response, now, fallbackMessage) => {
+  const limited = isRateLimitedResponse(response);
+  const accessDenied = response.status === 403 && !limited;
+  const error = new Error(
+    limited
+      ? "GitHub API đang giới hạn lượt gọi"
+      : accessDenied
+        ? "GitHub từ chối quyền đọc repository"
+        : fallbackMessage,
+  );
+  error.code = limited
+    ? "GITHUB_RATE_LIMITED"
+    : accessDenied
+      ? "GITHUB_ACCESS_DENIED"
+      : response.status === 404
+        ? "SOURCE_NOT_FOUND"
+        : "GITHUB_UNAVAILABLE";
+  error.status = limited ? 429 : response.status === 404 ? 404 : 503;
+  error.retryAt = limited ? retryAtFromHeaders(response.headers, now) : null;
+  return error;
 };
 
 export const canonicalizeGithubRepositoryUrl = (value) => {
@@ -90,6 +130,7 @@ const sanitizeSourceError = (error) => {
   const status = Number.isInteger(error?.status) ? error.status : 503;
   const safeMessages = {
     GITHUB_INVALID_RESPONSE: "GitHub trả dữ liệu không hợp lệ",
+    GITHUB_ACCESS_DENIED: "GitHub từ chối quyền đọc repository",
     GITHUB_TIMEOUT: "GitHub phản hồi quá thời gian",
     GITHUB_UNAVAILABLE: "Không thể đọc GitHub repository",
     INVALID_SOURCE_URL: "URL GitHub repository không hợp lệ",
@@ -207,12 +248,11 @@ export const createSkillRadarGithubService = ({
         });
       }
       if (!response.ok) {
-        const limited = response.status === 429 || response.status === 403;
-        const error = new Error(limited ? "GitHub API đang giới hạn lượt gọi" : "Không thể đọc GitHub repository");
-        error.code = limited ? "GITHUB_RATE_LIMITED" : response.status === 404 ? "SOURCE_NOT_FOUND" : "GITHUB_UNAVAILABLE";
-        error.status = limited ? 429 : response.status === 404 ? 404 : 503;
-        error.retryAt = limited ? retryAtFromHeaders(response.headers, now) : null;
-        throw error;
+        throw githubResponseError(
+          response,
+          now,
+          "Không thể đọc GitHub repository",
+        );
       }
       const metadata = await readJsonLimited(response, maxBytes);
       if (String(metadata.full_name || "").toLowerCase() !== canonical.sourceRepo.toLowerCase()) {
@@ -235,14 +275,10 @@ export const createSkillRadarGithubService = ({
       let readme = "";
       if (readmeResponse.status !== 404) {
         if (!readmeResponse.ok) {
-          const limited = readmeResponse.status === 429 || readmeResponse.status === 403;
-          throw Object.assign(
-            new Error(limited ? "GitHub API đang giới hạn lượt gọi" : "Không thể đọc GitHub README"),
-            {
-              code: limited ? "GITHUB_RATE_LIMITED" : "GITHUB_UNAVAILABLE",
-              status: limited ? 429 : 503,
-              retryAt: limited ? retryAtFromHeaders(readmeResponse.headers, now) : null,
-            },
+          throw githubResponseError(
+            readmeResponse,
+            now,
+            "Không thể đọc GitHub README",
           );
         }
         readme = await readTextLimited(readmeResponse, maxBytes);

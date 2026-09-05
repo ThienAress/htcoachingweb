@@ -149,12 +149,70 @@
     "title": "Ví của tôi",
     "welcome": "Xin chào",
     "balance": "Số dư hiện tại",
+    "retry_balance": "Không tải được · Thử lại",
+    "retry": "Thử lại",
     "deposit_btn": "Nạp tiền vào ví",
+    "create_invoice": "Tạo hóa đơn nạp ví",
+    "create_invoice_action": "Tạo hóa đơn",
+    "bonus_intro": "Hệ thống tự chọn mức khuyến mãi cao nhất theo số tiền bạn nhập. Chuyển khoản đúng số tiền để nhận đủ quyền lợi.",
+    "secure_transfer": "Thanh toán nhanh và an toàn",
+    "deposit_guide": {
+      "eyebrow": "Quy trình nạp ví",
+      "title": "Nạp tiền trong 5 bước",
+      "subtitle": "Làm theo thứ tự dưới đây để hệ thống nhận diện giao dịch và cộng tiền vào ví nhanh nhất.",
+      "steps": {
+        "choose_tier": {
+          "title": "Chọn mức nạp phù hợp",
+          "description": "Xem ba mức khuyến mãi; hệ thống sẽ tự áp dụng mức cao nhất bạn đủ điều kiện."
+        },
+        "enter_amount": {
+          "title": "Nhập số tiền",
+          "description": "Nhập số tiền muốn nạp và kiểm tra trước khoản khuyến mãi cùng tổng tiền vào ví."
+        },
+        "create_invoice": {
+          "title": "Tạo hóa đơn",
+          "description": "Hệ thống tạo mã nạp và mã QR riêng cho giao dịch của bạn."
+        },
+        "transfer": {
+          "title": "Quét QR và chuyển khoản",
+          "description": "Chuyển đúng số tiền và giữ nguyên nội dung chuyển khoản trên hóa đơn."
+        },
+        "wallet_credit": {
+          "title": "Nhận tiền vào ví",
+          "description": "Ví được cộng tự động khi khớp giao dịch; bạn có thể kiểm tra trạng thái bên dưới."
+        }
+      }
+    },
+    "tpbank_name": "Ngân hàng TMCP Tiên Phong (TPBank)",
+    "minimum": "Tối thiểu",
+    "maximum": "Tối đa",
+    "bonus_rate": "Khuyến mãi",
+    "tier_applied": "Đang áp dụng",
+    "tiers": {
+      "starter": "Khởi đầu",
+      "growth": "Tăng tốc",
+      "premium": "Tối ưu"
+    },
+    "amount_placeholder": "Nhập số tiền cần nạp",
+    "amount_range": "Từ {{min}} đến {{max}}",
+    "deposit_preview": "Quyền lợi dự kiến",
+    "transfer_amount": "Số tiền chuyển",
+    "bonus": "Khuyến mãi",
+    "bonus_with_rate": "Khuyến mãi ({{rate}}%)",
+    "credited_amount": "Tổng cộng vào ví",
+    "view_transfer": "Xem thông tin chuyển khoản",
+    "view": "Xem",
     "needs_review_warning": "Giao dịch đang được kiểm tra",
     "pending_warning": "Bạn đang có giao dịch chưa hoàn tất",
     "needs_review_desc": "Hệ thống đang đối soát giao dịch. Trường hợp sai mã hoặc sai số tiền sẽ được admin kiểm tra.",
     "pending_desc": "Vui lòng hoàn tất hoặc chờ hết hạn giao dịch hiện tại trước khi tạo yêu cầu mới.",
     "qr_title": "Thông tin chuyển khoản",
+    "payment_invoice": "Thanh toán hóa đơn",
+    "payment_details": "Thành phần thanh toán",
+    "scan_qr": "Quét mã QR bằng ứng dụng ngân hàng để chuyển khoản nhanh",
+    "qr_alt": "Mã QR chuyển khoản TPBank",
+    "close_payment": "Đóng thông tin thanh toán",
+    "copy_field": "Sao chép {{field}}",
     "expires_at": "Hết hạn",
     "bank": "Ngân hàng",
     "account_number": "Số tài khoản",
@@ -171,8 +229,8 @@
     "confirm_loading": "Đang xử lý...",
     "cancel_btn": "Hủy yêu cầu",
     "deposit_modal_title": "Nạp tiền vào ví",
-    "min_deposit": "Số tiền tối thiểu: 5.000đ",
-    "max_deposit": "Số tiền tối đa: 100.000.000đ",
+    "min_deposit": "Số tiền tối thiểu: 10.000đ",
+    "max_deposit": "Số tiền tối đa: 1.000.000.000đ",
     "enter_amount": "Nhập số tiền cần nạp (VND)",
     "quick_amount": "Số tiền nhanh",
     "confirmed_title": "Giao dịch đang được kiểm tra",
@@ -181,12 +239,19 @@
     "create_code": "Tạo mã nạp tiền",
     "qr_desc": "Mã QR sẽ có hiệu lực trong 15 phút. Vui lòng chuyển khoản đúng số tiền và nội dung.",
     "errors": {
-      "min_limit": "Số tiền tối thiểu là 5.000đ",
-      "max_limit": "Số tiền tối đa là 100.000.000đ",
+      "min_limit": "Số tiền tối thiểu là 10.000đ",
+      "max_limit": "Số tiền tối đa là 1.000.000.000đ",
       "create_success": "Tạo yêu cầu nạp tiền thành công!",
-      "copy_success": "Đã sao chép!"
+      "copy_success": "Đã sao chép {{label}}!",
+      "copy_failed": "Không thể sao chép. Vui lòng sao chép thủ công.",
+      "create_failed": "Không thể tạo yêu cầu nạp tiền",
+      "policy_unavailable": "Không thể tải chính sách nạp tiền hiện tại. Vui lòng thử lại.",
+      "history_failed": "Không thể cập nhật lịch sử nạp tiền. Vui lòng thử lại.",
+      "qr_failed": "Không thể tải mã QR. Bạn vẫn có thể chuyển khoản bằng thông tin bên dưới."
     },
+    "loading_policy": "Đang tải chính sách nạp tiền...",
     "history_title": "Lịch sử nạp tiền",
+    "history_desc": "Theo dõi số tiền chuyển, khoản khuyến mãi và tổng tiền đã cộng vào ví.",
     "request_code": "Mã yêu cầu",
     "expired_label": "Đã hết hạn",
     "cop_btn": "Sao chép"
@@ -202,6 +267,7 @@
     "paid": "Đã thanh toán",
     "unpaid": "Chờ thanh toán",
     "cancelled_expired": "Hủy bỏ / Hết hạn",
+    "reversal": "Đã hoàn tác",
     "unknown": "Không rõ",
     "deposit": "Nạp tiền",
     "purchase": "Mua hàng",

@@ -111,6 +111,61 @@ describe("skillRadarGithub.service", () => {
     }));
   });
 
+  it("prefers a specific Retry-After over the primary quota reset header", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("limited", {
+      status: 429,
+      headers: {
+        "retry-after": "120",
+        "x-ratelimit-reset": String(new Date("2026-08-12T03:00:00.000Z").getTime() / 1000),
+      },
+    }));
+
+    await expect(createSkillRadarGithubService({ fetchImpl }).analyze(
+      "https://github.com/example/repo",
+      new Date("2026-08-12T02:00:00.000Z"),
+    )).rejects.toEqual(expect.objectContaining({
+      code: "SKILL_RADAR_GITHUB_RATE_LIMITED",
+      retryAt: "2026-08-12T02:02:00.000Z",
+    }));
+  });
+
+  it("does not misclassify a generic GitHub 403 while quota remains", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("forbidden", {
+      status: 403,
+      headers: {
+        "x-ratelimit-remaining": "42",
+        "x-ratelimit-reset": String(new Date("2026-08-12T03:00:00.000Z").getTime() / 1000),
+      },
+    }));
+
+    await expect(createSkillRadarGithubService({ fetchImpl }).analyze(
+      "https://github.com/example/repo",
+      new Date("2026-08-12T02:00:00.000Z"),
+    )).rejects.toEqual(expect.objectContaining({
+      code: "GITHUB_ACCESS_DENIED",
+      status: 503,
+      retryAt: null,
+    }));
+  });
+
+  it("treats GitHub 403 as rate limited when the primary quota is exhausted", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("limited", {
+      status: 403,
+      headers: {
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-reset": String(new Date("2026-08-12T03:00:00.000Z").getTime() / 1000),
+      },
+    }));
+
+    await expect(createSkillRadarGithubService({ fetchImpl }).analyze(
+      "https://github.com/example/repo",
+      new Date("2026-08-12T02:00:00.000Z"),
+    )).rejects.toEqual(expect.objectContaining({
+      code: "SKILL_RADAR_GITHUB_RATE_LIMITED",
+      retryAt: "2026-08-12T03:00:00.000Z",
+    }));
+  });
+
   it("maps a README rate limit to the same retry contract", async () => {
     const fetchImpl = vi
       .fn()

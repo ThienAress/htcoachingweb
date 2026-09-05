@@ -185,6 +185,27 @@ test("scanWatchlist retries a retryable GitHub response", async () => {
   assert.equal(result.failures, 0);
 });
 
+test("scanWatchlist never immediately retries a GitHub Retry-After response", async () => {
+  let attempts = 0;
+  const result = await scanWatchlist({
+    watchlist,
+    previousSnapshot: { schemaVersion: 1, items: [] },
+    fetchImpl: async () => {
+      attempts += 1;
+      return new Response("limited", {
+        status: 429,
+        headers: { "retry-after": "1800" },
+      });
+    },
+    retries: 2,
+    now: new Date("2026-09-04T03:00:00.000Z"),
+  });
+
+  assert.equal(attempts, 1);
+  assert.equal(result.items[0].drift, "rate_limited");
+  assert.equal(result.items[0].rateLimitRetryAt, "2026-09-04T03:30:00.000Z");
+});
+
 test("scanWatchlist classifies GitHub API limits without losing last-known-good provenance", async () => {
   for (const status of [403, 429]) {
     const result = await scanWatchlist({
@@ -206,7 +227,12 @@ test("scanWatchlist classifies GitHub API limits without losing last-known-good 
       },
       fetchImpl: async () => new Response("limited", {
         status,
-        headers: { "x-ratelimit-reset": "1786165200" },
+        headers: {
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": String(
+            Date.parse("2026-08-08T11:00:00.000Z") / 1000,
+          ),
+        },
       }),
       retries: 0,
       now: new Date("2026-08-08T10:00:00.000Z"),
@@ -217,9 +243,57 @@ test("scanWatchlist classifies GitHub API limits without losing last-known-good 
     assert.equal(result.items[0].contentHash, "known-hash");
     assert.equal(result.items[0].upstreamCommit, "abc123def456");
     assert.equal(result.items[0].decision, "adapt");
-    assert.equal(result.items[0].rateLimitRetryAt, "2026-08-08T05:00:00.000Z");
+    assert.equal(result.items[0].rateLimitRetryAt, "2026-08-08T11:00:00.000Z");
     assert.match(result.items[0].error, new RegExp(`HTTP ${status}`));
   }
+});
+
+test("scanWatchlist does not label a generic GitHub 403 as rate limited", async () => {
+  const result = await scanWatchlist({
+    watchlist,
+    previousSnapshot: {
+      schemaVersion: 1,
+      items: [{
+        id: baseEntry.id,
+        contentHash: "known-hash",
+        rateLimitRetryAt: "2026-08-08T09:30:00.000Z",
+      }],
+    },
+    fetchImpl: async () => new Response("forbidden", {
+      status: 403,
+      headers: {
+        "x-ratelimit-remaining": "42",
+        "x-ratelimit-reset": String(
+          Date.parse("2026-08-08T11:00:00.000Z") / 1000,
+        ),
+      },
+    }),
+    retries: 0,
+    now: new Date("2026-08-08T10:00:00.000Z"),
+  });
+
+  assert.equal(result.items[0].drift, "unreachable");
+  assert.equal(result.items[0].contentHash, "known-hash");
+  assert.equal("rateLimitRetryAt" in result.items[0], false);
+});
+
+test("scanWatchlist prefers Retry-After over X-RateLimit-Reset", async () => {
+  const result = await scanWatchlist({
+    watchlist,
+    fetchImpl: async () => new Response("limited", {
+      status: 429,
+      headers: {
+        "retry-after": "120",
+        "x-ratelimit-reset": String(
+          Date.parse("2026-08-08T11:00:00.000Z") / 1000,
+        ),
+      },
+    }),
+    retries: 0,
+    now: new Date("2026-08-08T10:00:00.000Z"),
+  });
+
+  assert.equal(result.items[0].rateLimitRetryAt, "2026-08-08T10:02:00.000Z");
 });
 
 test("scanWatchlist accepts HTTP-date Retry-After metadata", async () => {

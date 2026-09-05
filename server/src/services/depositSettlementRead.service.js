@@ -5,6 +5,8 @@ import IncomingBankTransaction from "../models/IncomingBankTransaction.js";
 const emptySummary = () => ({
   settledTransactionCount: 0,
   settledAmountTotal: 0,
+  settledBonusAmountTotal: 0,
+  settledCreditedAmountTotal: 0,
   lastSettlementAt: null,
 });
 
@@ -25,6 +27,14 @@ export const getDepositSettlementSummaryMap = async (depositIds) => {
         _id: "$depositRequestId",
         settledTransactionCount: { $sum: 1 },
         settledAmountTotal: { $sum: "$amount" },
+        settledCreditedAmountTotal: {
+          $sum: { $ifNull: ["$creditedAmount", "$amount"] },
+        },
+        settledBonusAmountTotal: {
+          $sum: {
+            $subtract: [{ $ifNull: ["$creditedAmount", "$amount"] }, "$amount"],
+          },
+        },
         lastSettlementAt: { $max: "$transactionAt" },
       },
     },
@@ -39,6 +49,9 @@ export const addSettlementSummary = (deposit, summaryMap) => {
     ...value,
     settledTransactionCount: summary.settledTransactionCount,
     settledAmountTotal: summary.settledAmountTotal,
+    settledBonusAmountTotal: summary.settledBonusAmountTotal ?? 0,
+    settledCreditedAmountTotal:
+      summary.settledCreditedAmountTotal ?? summary.settledAmountTotal,
     lastSettlementAt: summary.lastSettlementAt,
   };
 };

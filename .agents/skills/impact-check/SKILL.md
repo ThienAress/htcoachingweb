@@ -1,6 +1,6 @@
 ---
 name: impact-check
-description: Trace và kiểm tra toàn bộ ảnh hưởng liên đới của một thay đổi trong HTCOACHINGWEB. Dùng trước và sau khi sửa code, đặc biệt với API, schema, auth, payment, wallet, pricing, quota, status, route, UI state hoặc thay đổi chạm cả frontend và backend; bảo đảm không bỏ sót consumer, contract, validation, test, migration, SEO và security liên quan.
+description: Trace và kiểm tra toàn bộ ảnh hưởng liên đới của một thay đổi trong HTCOACHINGWEB. Dùng trước và sau khi sửa code, đặc biệt với API, schema, auth, payment, wallet, pricing, quota, keyed cache/dedup/idempotency, status, route, UI state hoặc thay đổi chạm cả frontend và backend; bảo đảm không bỏ sót consumer, contract, validation, test, migration, SEO và security liên quan.
 ---
 
 # Impact Check — HTCOACHINGWEB
@@ -48,6 +48,11 @@ Nếu đổi tên hoặc thay literal, tìm cả tên cũ, tên mới và các g
 - Route/path/method, auth/role/ownership/CSRF và rate limit.
 - Payload, optional/null/default, response envelope, error/loading/empty/disabled state.
 - Pagination: page, limit, total, sentinel và giới hạn tối đa.
+
+Nếu thay `Map`/`Set`, object dictionary, cache/dedup/idempotency key hoặc composite identifier,
+đọc [Keyed-state contract](references/keyed-state-contract.md). Chốt equality/serialization,
+namespace/collision, order, duplicate semantics, lifetime/eviction/restart và concurrent atomicity;
+không suy diễn an toàn chỉ vì lookup trong một process là O(1).
 
 Ưu tiên một nguồn sự thật server-authoritative cho business contract. Frontend phải lấy dữ liệu từ API hoặc adapter đã validate và fail closed khi contract chưa biết. Với giao dịch tài chính, backend luôn tự tính canonical amount; dữ liệu FE chỉ dùng để xác nhận mismatch, không làm nguồn debit.
 

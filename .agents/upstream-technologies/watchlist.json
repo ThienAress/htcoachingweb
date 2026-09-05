@@ -23,6 +23,75 @@
       "reviewedAt": "2026-08-11",
       "nextReviewAt": "2026-09-10",
       "autoInstall": false
+    },
+    {
+      "id": "microsoft/playwright-mcp",
+      "name": "Playwright MCP",
+      "sourceRepo": "microsoft/playwright-mcp",
+      "sourceBranch": "main",
+      "sourcePath": "README.md",
+      "repoUrl": "https://github.com/microsoft/playwright-mcp",
+      "category": "Agent browser automation",
+      "summary": "Structured browser automation for agents through Playwright accessibility snapshots and constrained tool calls.",
+      "ring": "assess",
+      "decision": "adapt",
+      "decisionReason": "Pilot only in an isolated local/mock environment, pin the evaluated version and compare MCP with Playwright CLI plus Skills; never connect it to production or enable unsafe code execution.",
+      "localTargets": [
+        "e2e/",
+        "playwright.config.js",
+        "docs/specs/agent-harness-supervision-and-search-pilot.md"
+      ],
+      "trustTier": "official",
+      "license": "Apache-2.0",
+      "reviewedAt": "2026-09-05",
+      "nextReviewAt": "2026-10-05",
+      "autoInstall": false
+    },
+    {
+      "id": "anthropics/commerce-agents",
+      "name": "Anthropic Commerce Agents",
+      "sourceRepo": "anthropics/commerce-agents",
+      "sourceBranch": "main",
+      "sourcePath": "README.md",
+      "repoUrl": "https://github.com/anthropics/commerce-agents",
+      "category": "Agent safety reference architecture",
+      "summary": "Reference patterns for auditable agentic commerce flows, staged mutations, provenance and resilient UI state.",
+      "ring": "assess",
+      "decision": "adapt",
+      "decisionReason": "Adapt staged mutation approval, provenance, server-owned identity and UI rehydration patterns; do not import the Python/Claude runtime or enable payment mutations, and treat this non-maintained repository only as a blueprint.",
+      "localTargets": [
+        "server/src/services/ai/",
+        "server/src/controllers/ai.controller.js",
+        "docs/specs/"
+      ],
+      "trustTier": "official",
+      "license": "Apache-2.0",
+      "reviewedAt": "2026-09-05",
+      "nextReviewAt": "2026-10-05",
+      "autoInstall": false
+    },
+    {
+      "id": "bytebytegohq/system-design-101",
+      "name": "System Design 101",
+      "sourceRepo": "ByteByteGoHq/system-design-101",
+      "sourceBranch": "main",
+      "sourcePath": "README.md",
+      "repoUrl": "https://github.com/ByteByteGoHq/system-design-101",
+      "category": "System design reference",
+      "summary": "Curated system-design concepts and diagrams for architecture learning and decision prompts.",
+      "ring": "assess",
+      "decision": "adapt",
+      "decisionReason": "Use only as learning and architecture-decision prompts; do not copy assets, and require workload benchmarks plus SLO evidence before making infrastructure changes.",
+      "localTargets": [
+        "docs/architecture/adr/",
+        "server/src/observability/",
+        "docs/operations/"
+      ],
+      "trustTier": "expert",
+      "license": "CC-BY-NC-ND-4.0",
+      "reviewedAt": "2026-09-05",
+      "nextReviewAt": "2026-10-05",
+      "autoInstall": false
     }
   ]
 }

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import DepositRequest from "../models/DepositRequest.js";
 import IncomingBankTransaction from "../models/IncomingBankTransaction.js";
 import { hasActiveLegacyDepositCredit } from "./depositLedgerState.service.js";
+import { resolveIncomingCreditedAmount } from "./depositPolicy.service.js";
 
 const MAX_ATTEMPTS = 3;
 
@@ -79,13 +80,15 @@ export const markDepositReversedWhenNoCreditsRemain = async ({
 };
 
 export const assertIncomingCreditLedger = ({ incoming, ledger }) => {
+  const expectedCreditedAmount = resolveIncomingCreditedAmount(incoming);
   const matches =
     ledger?.type === "deposit" &&
     ledger.status === "success" &&
     ledger.referenceType === "incoming_bank_transaction" &&
+    !ledger.reversalOf &&
     String(ledger.referenceId || "") === String(incoming._id) &&
     String(ledger.userId || "") === String(incoming.userId) &&
-    ledger.amount === incoming.amount;
+    ledger.amount === expectedCreditedAmount;
   if (!matches) {
     throw financialError(
       409,
@@ -94,4 +97,23 @@ export const assertIncomingCreditLedger = ({ incoming, ledger }) => {
     );
   }
   return ledger;
+};
+
+export const assertIncomingReversalLedger = ({ incoming, original, reversal }) => {
+  const matches =
+    reversal?.type === "reversal" &&
+    reversal.status === "success" &&
+    reversal.referenceType === "incoming_bank_transaction" &&
+    String(reversal.referenceId || "") === String(incoming._id) &&
+    String(reversal.userId || "") === String(incoming.userId) &&
+    String(reversal.reversalOf || "") === String(original?._id) &&
+    reversal.amount === -original?.amount;
+  if (!matches) {
+    throw financialError(
+      409,
+      "INCOMING_REVERSAL_LEDGER_MISMATCH",
+      "Ledger hoàn tác giao dịch ngân hàng không nhất quán; cần đối soát",
+    );
+  }
+  return reversal;
 };

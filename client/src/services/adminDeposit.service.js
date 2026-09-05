@@ -4,6 +4,12 @@ import api from "../utils/api";
 export const getAdminDeposits = (status = "all") =>
   api.get(`/admin/deposits?status=${status}`);
 
+export const getAdminDepositPolicy = ({ signal } = {}) =>
+  api.get("/admin/deposits/policy", { signal });
+
+export const updateAdminDepositPolicy = (rates) =>
+  api.put("/admin/deposits/policy", { rates });
+
 // Duyệt nạp tiền
 export const approveDeposit = (id) => api.post(`/admin/deposits/${id}/approve`);
 

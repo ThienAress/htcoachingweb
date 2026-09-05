@@ -42,6 +42,11 @@ loading/error/empty/disabled state, response/error contract và test gap có th�
 Trace `entry point → validation → authorization/ownership → side effect/sink`. Kiểm secret/PII logging,
 CSRF/rate limit, provider outage, observability, migration/backfill/rollback và release evidence.
 
+Nếu diff chạm refresh-session hoặc AI tool có mutation, đọc mục tương ứng trong
+`.agents/rules/security/security.md`; với write tool đọc thêm
+`../ai-chat-system/references/agentic-mutation-lifecycle.md`. Review boundary/replay/retry thực tế;
+metadata hoặc một happy-path test không đủ chứng minh invariant.
+
 Với task `COMPLEX` và môi trường cho phép, dùng reviewer độc lập theo task-orchestration rule;
 root reviewer vẫn đọc diff và chịu trách nhiệm kết luận.
 

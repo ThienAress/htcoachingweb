@@ -2,6 +2,7 @@ import express from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import { financialCommandLimiter } from "../middlewares/rateLimit.js";
+import { validateDepositPolicyUpdate } from "../middlewares/validation.js";
 
 import {
   getAllDeposits,
@@ -16,11 +17,26 @@ import {
   ignoreIncomingBankTransaction,
   reverseIncomingBankTransaction,
 } from "../controllers/adminIncomingBankTransaction.controller.js";
+import {
+  getDepositPolicy,
+  updateDepositPolicy,
+} from "../controllers/depositPolicy.controller.js";
 
 const router = express.Router();
 
 // 📋 Danh sách yêu cầu nạp tiền (filter theo status)
 router.get("/", protect, requireRoles("admin"), getAllDeposits);
+
+router.get("/policy", protect, requireRoles("admin"), getDepositPolicy);
+router.put(
+  "/policy",
+  protect,
+  financialCommandLimiter,
+  csrfProtection,
+  requireRoles("admin"),
+  validateDepositPolicyUpdate,
+  updateDepositPolicy,
+);
 
 router.get(
   "/incoming",

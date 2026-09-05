@@ -140,6 +140,23 @@ if (!email.includes("@")) { ... }
   hiện có; không tự mount container thứ hai. Toast phải dùng copy tiếng Việt tự nhiên, đủ cụ thể để
   người dùng biết thao tác nào vừa hoàn tất hoặc thất bại.
 
+### Pattern 9: Hiển thị số thập phân dễ đọc
+
+- Giữ nguyên độ chính xác trong dữ liệu nguồn, API, phép tính và migration; chỉ làm tròn ở lớp
+  presentation. Quy đổi đơn vị trước, format sau; không ghi ngược chuỗi đã làm tròn vào dữ liệu.
+- Với số đo hoặc số ước tính không mang tính tài chính, dùng formatter dùng chung theo độ lớn và
+  bỏ số 0 vô nghĩa ở cuối: trị tuyệt đối từ `0,1` trở lên tối đa 1 chữ số thập phân; từ `0,01`
+  đến dưới `0,1` tối đa 2; từ `0,001` đến dưới `0,01` tối đa 3. Ví dụ `0,422 → 0,4`,
+  `0,0068 → 0,007`, `3,006 → 3`.
+- Giá trị dương nhỏ hơn ngưỡng hiển thị `0,001` phải dùng dạng `<0,001` đã localize thay vì hiển
+  thị `0` hoặc kéo dài nhiều chữ số. Zero thật hiển thị `0`; input không hữu hạn hiển thị placeholder
+  an toàn theo surface.
+- Dùng `Intl.NumberFormat` với locale hiện tại; không rải `toFixed()` hoặc phép làm tròn ad hoc trong
+  JSX. Thêm regression test cho điểm biên và các ví dụ nghiệp vụ mỗi khi tạo formatter mới.
+- Không áp quy tắc mặc định này cho tiền, payment/wallet, phần trăm theo hợp đồng, số liệu y khoa/lab,
+  pháp lý hoặc dữ liệu khoa học cần độ chính xác cố định; các domain đó phải dùng contract làm tròn
+  và threshold riêng.
+
 ---
 
 ## Mandatory Backend Patterns

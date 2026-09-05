@@ -119,6 +119,7 @@ const preserveTargetAuthentication = (sourceUser, targetUser) => {
     "password",
     "passwordHash",
     "refreshToken",
+    "refreshSession",
     "accessToken",
     "resetPasswordToken",
     "resetPasswordExpires",

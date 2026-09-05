@@ -244,6 +244,18 @@ describe("production readiness configuration", () => {
     );
   });
 
+  it("requires the Radar GitHub token for the production Admin API", () => {
+    const env = validEnvironment();
+    env.SKILL_RADAR_WORKER_ENABLED = "false";
+    delete env.SKILL_RADAR_GITHUB_TOKEN;
+
+    const result = validateProductionEnvironment(env, { strict: false });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "SKILL_RADAR_GITHUB_TOKEN_MISSING",
+    );
+  });
+
   it("blocks production Meal Scan until Gemini data use is approved", () => {
     const env = validEnvironment();
     env.GEMINI_PAID_SERVICE_CONFIRMED = "false";

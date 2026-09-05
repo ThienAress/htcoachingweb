@@ -38,6 +38,11 @@ Chỉ tạo ADR khi quyết định đồng thời:
 Dùng [ADR template](../../../docs/architecture/adr/0000-template.md). Không tạo ADR cho convention hiển nhiên,
 implementation detail tạm thời hoặc quyết định đã nằm đúng chỗ trong spec.
 
+Nếu ADR cân nhắc cache, queue, replica, partition/sharding, provider hoặc topology khó đảo ngược,
+đọc [Infrastructure decision evidence](references/infrastructure-decision-evidence.md). Chỉ quyết định
+sau khi có workload/SLO và bottleneck evidence, alternatives thật, rollout threshold, observability và
+rollback. Thiếu evidence thì ghi phép đo cần bổ sung và defer; không cargo-cult pattern phổ biến.
+
 ## Verification
 
 - Tìm cùng concept trong `client/`, `server/` và `docs/` để phát hiện tên xung đột.

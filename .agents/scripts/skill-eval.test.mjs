@@ -219,7 +219,28 @@ test("validateSkillEvalDirectory rejects reducing a required corpus below its fl
 
   assert.throws(
     () => validateSkillEvalDirectory({ rootDir, skillsRoot }),
-    /required baseline corpus code-review requires at least 6 scenarios/i,
+    /required baseline corpus code-review requires at least 7 scenarios/i,
+  );
+});
+
+test("validateSkillEvalDirectory rejects replacing a required learned-pattern case", (context) => {
+  const rootDir = withEvalDirectory(context);
+  const corpusPath = path.join(rootDir, "qa.json");
+  const corpus = JSON.parse(fs.readFileSync(corpusPath, "utf8"));
+  const requiredIndex = corpus.cases.findIndex(
+    (evalCase) => evalCase.id === "browser-agent-deterministic-evidence",
+  );
+  corpus.cases[requiredIndex] = {
+    id: "replacement-routing-case",
+    kind: "should_trigger",
+    prompt: "Chạy một tình huống QA thay thế để giữ nguyên tổng số scenario trong corpus.",
+    expectedEvidence: ["Bằng chứng thay thế hợp lệ về cấu trúc nhưng không cover pattern bắt buộc."],
+  };
+  fs.writeFileSync(corpusPath, `${JSON.stringify(corpus, null, 2)}\n`, "utf8");
+
+  assert.throws(
+    () => validateSkillEvalDirectory({ rootDir, skillsRoot }),
+    /required learned-pattern case qa\/browser-agent-deterministic-evidence is missing/i,
   );
 });
 

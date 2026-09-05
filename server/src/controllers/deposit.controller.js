@@ -7,6 +7,22 @@ import {
   addSettlementSummary,
   getDepositSettlementSummaryMap,
 } from "../services/depositSettlementRead.service.js";
+import {
+  createDepositCreditSnapshot,
+  getCurrentDepositPolicy,
+  resolveDepositCreditSnapshot,
+} from "../services/depositPolicy.service.js";
+
+const depositSnapshotFields = (deposit) => {
+  const snapshot = resolveDepositCreditSnapshot(deposit);
+  return {
+    bonusRate: snapshot.bonusRate,
+    bonusAmount: snapshot.bonusAmount,
+    creditedAmount: snapshot.creditedAmount,
+    bonusTierKey: snapshot.bonusTierKey,
+    policyVersion: snapshot.policyVersion,
+  };
+};
 
 const getBankTransferConfig = () => {
   const config = {
@@ -37,7 +53,8 @@ export const createDeposit = async (req, res) => {
     const userId = req.user.id;
     const { amount } = req.body;
 
-    const amountValidation = validateDepositAmount(amount);
+    const policy = await getCurrentDepositPolicy();
+    const amountValidation = validateDepositAmount(amount, policy);
     if (!amountValidation.valid) {
       return res.status(400).json({
         success: false,
@@ -77,6 +94,7 @@ export const createDeposit = async (req, res) => {
           qrPayload: existingOpen.qrPayload,
           expiresAt: existingOpen.expiresAt,
           status: existingOpen.status,
+          ...depositSnapshotFields(existingOpen),
         },
       });
     }
@@ -112,6 +130,7 @@ export const createDeposit = async (req, res) => {
       content: depositCode,
     });
 
+    const creditSnapshot = createDepositCreditSnapshot(policy, amount);
     const deposit = await DepositRequest.create({
       userId,
       amount,
@@ -120,6 +139,7 @@ export const createDeposit = async (req, res) => {
       status: "pending",
       isOpen: true,
       expiresAt,
+      ...creditSnapshot,
     });
 
     return res.status(201).json({
@@ -132,6 +152,7 @@ export const createDeposit = async (req, res) => {
         qrPayload: deposit.qrPayload,
         expiresAt: deposit.expiresAt,
         status: deposit.status,
+        ...depositSnapshotFields(deposit),
       },
     });
   } catch (err) {
@@ -187,6 +208,7 @@ export const getDepositById = async (req, res) => {
         reversedAt: deposit.reversedAt,
         reverseReason: deposit.reverseReason,
         createdAt: deposit.createdAt,
+        ...depositSnapshotFields(deposit),
       },
       summaryMap,
     );
@@ -213,7 +235,7 @@ export const getMyDeposits = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(20)
       .select(
-        "amount depositCode qrPayload status expiresAt paidAt reversedAt reverseReason createdAt",
+        "amount bonusRate bonusAmount creditedAmount bonusTierKey policyVersion depositCode qrPayload status expiresAt paidAt reversedAt reverseReason createdAt",
       );
 
     const summaryMap = await getDepositSettlementSummaryMap(
@@ -222,7 +244,15 @@ export const getMyDeposits = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      data: deposits.map((deposit) => addSettlementSummary(deposit, summaryMap)),
+      data: deposits.map((deposit) =>
+        addSettlementSummary(
+          {
+            ...deposit.toObject(),
+            ...depositSnapshotFields(deposit),
+          },
+          summaryMap,
+        ),
+      ),
     });
   } catch (err) {
     safeLog.error("financial.deposit_history_failed", err);
@@ -278,6 +308,8 @@ export const confirmDeposit = async (req, res) => {
     const summary = summaryMap.get(String(deposit._id)) || {
       settledTransactionCount: 0,
       settledAmountTotal: 0,
+      settledBonusAmountTotal: 0,
+      settledCreditedAmountTotal: 0,
       lastSettlementAt: null,
     };
     return res.status(200).json({

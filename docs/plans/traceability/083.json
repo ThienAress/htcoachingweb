@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "planId": "083",
+  "specPath": "docs/specs/upstream-engineering-pattern-adoption.md",
+  "planPath": "docs/plans/083-codify-validated-upstream-engineering-patterns.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Codify mutation and refresh-session security invariants", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Convert browser exploration into deterministic QA evidence", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Add contextual keyed-state and architecture evidence gates", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Integrate routing, inventory and independent review", "planStep": "Step 4" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": ".agents/scripts/skill-eval.test.mjs" }, { "type": "command", "command": "npm run test:agents:eval" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": ".agents/scripts/skill-eval.test.mjs" }, { "type": "command", "command": "npm run agents:validate" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": ".agents/scripts/skill-eval.test.mjs" }, { "type": "command", "command": "npm run test:agents:eval" }] },
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": ".agents/scripts/skill-eval.test.mjs" }, { "type": "command", "command": "npm run agents:validate" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": ".agents/scripts/skill-eval.test.mjs" }, { "type": "command", "command": "npm run agents:validate" }] },
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": ".agents/scripts/skill-eval.test.mjs" }, { "type": "command", "command": "npm run test:agents:eval" }] }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "test", "path": ".agents/scripts/skill-eval.test.mjs" }, { "type": "command", "command": "npm run test:agents:eval" }] }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "test", "path": ".agents/scripts/skill-eval.test.mjs" }, { "type": "command", "command": "npm run test:agents:eval" }] }
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "acceptanceCriteria": [
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "command", "command": "npm run agents:validate" }, { "type": "command", "command": "npm run agents:inventory:check" }, { "type": "command", "command": "npm run test:agents:radar" }] },
+        {
+          "id": "AC-010",
+          "mustHave": true,
+          "taskIds": ["TASK-004"],
+          "verifications": [
+            { "type": "test", "path": ".agents/scripts/skill-eval.test.mjs" },
+            { "type": "command", "command": "npm run test:agents:governance" },
+            { "type": "command", "command": "npm run agents:validate" },
+            { "type": "command", "command": "npm run agents:inventory:check" },
+            { "type": "command", "command": "npm run security:docs-privacy -- docs/specs/upstream-engineering-pattern-adoption.md docs/plans/083-codify-validated-upstream-engineering-patterns.md .agents/rules/security/security.md .agents/skills/qa/references/browser-agent-evidence.md .agents/skills/ai-chat-system/references/agentic-mutation-lifecycle.md .agents/skills/impact-check/references/keyed-state-contract.md .agents/skills/domain-modeling/references/infrastructure-decision-evidence.md" },
+            { "type": "command", "command": "npm run security:secrets" },
+            { "type": "command", "command": "git diff --check -- .agents/reference/agent-workflow-map.md .agents/rules/security/security.md .agents/scripts/skill-eval-contract.mjs .agents/scripts/skill-eval.test.mjs .agents/skills/ai-chat-system/SKILL.md .agents/skills/ai-check/SKILL.md .agents/skills/code-review/SKILL.md .agents/skills/domain-modeling/SKILL.md .agents/skills/impact-check/SKILL.md .agents/skills/new-tool/SKILL.md .agents/skills/qa/SKILL.md docs/README.md docs/plans/README.md" },
+            { "type": "command", "command": "$files=@('.agents/evals/skills/code-review.json','.agents/evals/skills/domain-modeling.json','.agents/evals/skills/impact-check.json','.agents/evals/skills/new-tool.json','.agents/evals/skills/qa.json','.agents/reference/project-inventory.json','.agents/skills/ai-chat-system/references/agentic-mutation-lifecycle.md','.agents/skills/domain-modeling/references/infrastructure-decision-evidence.md','.agents/skills/impact-check/references/keyed-state-contract.md','.agents/skills/qa/references/browser-agent-evidence.md','docs/plans/083-codify-validated-upstream-engineering-patterns.md','docs/plans/plan-state.json','docs/plans/traceability/083.json','docs/specs/upstream-engineering-pattern-adoption.md');$issues=@();foreach($file in $files){$lineNo=0;foreach($line in [System.IO.File]::ReadAllLines((Resolve-Path -LiteralPath $file))){$lineNo++;if($line -match '[ \\t]+$'){$issues+=('{0}:{1}: trailing whitespace' -f $file,$lineNo)}};$raw=[System.IO.File]::ReadAllText((Resolve-Path -LiteralPath $file));if($raw.Length -gt 0 -and -not $raw.EndsWith([string][char]10)){$issues+=('{0}: missing final newline' -f $file)}};if($issues.Count -gt 0){$issues;exit 1}" }
+          ]
+        }
+      ]
+    }
+  ]
+}
