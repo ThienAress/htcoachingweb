@@ -126,11 +126,6 @@ const RecipeDetail = () => {
   if (isLoading) {
     return (
       <>
-        <SEO
-          title={t("seo_title")}
-          description={t("seo_desc")}
-          noindexFollow
-        />
         <Header />
         <main className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-800 to-black text-white pt-28 pb-16">
           <div className="container-custom max-w-4xl animate-pulse space-y-6">

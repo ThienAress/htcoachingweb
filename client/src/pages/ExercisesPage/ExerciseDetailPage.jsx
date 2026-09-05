@@ -218,15 +218,17 @@ export default function ExerciseDetailPage() {
 
   return (
     <>
-      <SEO
-        title={exercise?.name || t("detail.title")}
-        description={exerciseSeoDescription}
-        canonical={canonical}
-        image={exercise?.imageUrl}
-        type="article"
-        noindexFollow={!isIndexable}
-        jsonLd={isIndexable ? jsonLd : undefined}
-      />
+      {!query.isLoading && (
+        <SEO
+          title={exercise?.name || t("detail.title")}
+          description={exerciseSeoDescription}
+          canonical={canonical}
+          image={exercise?.imageUrl}
+          type="article"
+          noindexFollow={!isIndexable}
+          jsonLd={isIndexable ? jsonLd : undefined}
+        />
+      )}
       <Header />
       <div
         className={
