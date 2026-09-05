@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("react-i18next", () => ({
@@ -16,9 +16,16 @@ vi.mock("react-i18next", () => ({
       "sections.video_desc": "Xem video giới thiệu.",
       "sections.methodology": "Phương pháp huấn luyện",
       "sections.methodology_desc": "Mô tả phương pháp",
+      "sections.customer_results": "Kết quả khách hàng",
+      "sections.customer_results_desc": "Những học viên đã tin tưởng và thay đổi cùng huấn luyện viên.",
+      "sections.view_all_stories": "Xem tất cả câu chuyện",
       "sections.faqs": "Câu hỏi thường gặp",
       "sections.faqs_desc": "Giải đáp thắc mắc",
+      "actions.detail_view": "Xem chi tiết",
       "actions.free_consultation": "Đăng ký tư vấn miễn phí",
+      "customer_card.before": "Trước",
+      "customer_card.after": "Sau",
+      "customer_card.duration_label": "Thời gian tập luyện",
       "explore.subtitle": "Bắt đầu hành trình",
       "explore.tdee_title": "Tính TDEE & Macro",
       "explore.tdee_desc": "Mô tả TDEE",
@@ -89,5 +96,47 @@ describe("TrainerProfile", () => {
     ].forEach((content) => expect(html).toContain(content));
 
     expect(html).not.toMatch(/verified|147 đánh giá|phản hồi trong 2 giờ|cam kết kết quả/i);
+  });
+
+  it("renders customer results as a one-column list before the desktop carousel breakpoint", () => {
+    const trainer = {
+      _id: "trainer-1",
+      slug: "hlv-an",
+      name: "Huấn luyện viên An",
+      title: "Huấn luyện viên cá nhân",
+      images: ["https://example.com/trainer.jpg"],
+    };
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(
+      ["public-trainer-detail", "hlv-an", "vi"],
+      { data: trainer },
+    );
+    queryClient.setQueryData(
+      ["public-customer-stories", { trainerId: trainer._id }, "vi"],
+      {
+        data: [{
+          _id: "story-1",
+          slug: "hanh-trinh-cua-an",
+          name: "Khách hàng An",
+          result: "Hoàn thành mục tiêu đã đặt ra",
+        }],
+      },
+    );
+
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/huan-luyen-vien/hlv-an/"]}>
+          <Routes>
+            <Route path="/huan-luyen-vien/:slug/" element={<TrainerProfile />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(html).toMatch(
+      /class="grid grid-cols-1[^"]*lg:overflow-x-auto[^"]*"[\s\S]*<article class="w-full[^"]*lg:shrink-0[^"]*"/,
+    );
   });
 });

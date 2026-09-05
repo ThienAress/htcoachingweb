@@ -214,7 +214,7 @@ export const attestValidatedReport = (input) => {
     ],
     relatedTests: [
       "PASS — fresh npm run test:unit",
-      "PASS — fresh npm run build --prefix client",
+      "PASS — fresh npx vite build",
       "PASS — fresh npm run security:secrets",
     ],
     build: "PASS",

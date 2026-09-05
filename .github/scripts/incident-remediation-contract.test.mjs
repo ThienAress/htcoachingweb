@@ -151,7 +151,7 @@ test("fresh attestation replaces self-reported validation claims", () => {
   assert.match(attested.confidenceReason, /Fresh checkout/);
   assert.deepEqual(attested.relatedTests, [
     "PASS — fresh npm run test:unit",
-    "PASS — fresh npm run build --prefix client",
+    "PASS — fresh npx vite build",
     "PASS — fresh npm run security:secrets",
   ]);
   assert.match(attested.focusedTests[0], /^SKIP\b/);
@@ -403,15 +403,18 @@ test("workflow isolates agent validation and Draft PR publication", async () => 
   assert.ok(candidateUpload > 0 && candidateUpload < candidateDownload);
   assert.ok(candidateDownload < patchExecution);
   assert.match(workflow, /validate_tests:[\s\S]*Run all unit tests in isolated job/);
-  assert.match(workflow, /validate_build:[\s\S]*Build client in isolated job/);
+  assert.match(workflow, /validate_build:[\s\S]*Compile client in isolated job/);
   assert.match(workflow, /validate_secrets:[\s\S]*Scan proposed tree for secrets in isolated job/);
   assert.match(
     workflow,
     /needs:\s*\[investigate, validate_contract, validate_tests, validate_build, validate_secrets\]/,
   );
   assert.equal((workflow.match(/docker run --rm --network none/g) || []).length, 3);
-  assert.equal((workflow.match(/--cap-drop ALL --security-opt no-new-privileges/g) || []).length, 3);
-  assert.equal((workflow.match(/--user "\$\(id -u\):\$\(id -g\)" --read-only/g) || []).length, 3);
+  assert.equal((workflow.match(/--cap-drop ALL --security-opt no-new-privileges/g) || []).length, 4);
+  assert.equal((workflow.match(/--user "\$\(id -u\):\$\(id -g\)" --read-only/g) || []).length, 4);
+  assert.equal((workflow.match(/-v "\$PWD:\/workspace:ro"/g) || []).length, 3);
+  assert.equal((workflow.match(/if touch \/workspace\/\.incident-readonly-probe/g) || []).length, 3);
+  assert.doesNotMatch(workflow, /-v "\$PWD:\/workspace"(?:\s|\\)/);
   assert.match(workflow, /node:22\.23\.1-bookworm-slim@sha256:[a-f0-9]{64}/);
   const isolatedJobs = [
     {
@@ -443,8 +446,30 @@ test("workflow isolates agent validation and Draft PR publication", async () => 
       assert.ok(body.indexOf(marker) > 0 && body.indexOf(marker) < candidateDownloadIndex);
     }
     assert.match(body, /docker run --rm --network none/);
+    assert.match(body, /-v "\$PWD:\/workspace:ro"/);
     assert.doesNotMatch(body, /github\.token|GH_TOKEN|OPENAI_API_KEY|TELEGRAM_/);
   }
+  assert.match(
+    isolatedJobs[0].body,
+    /MONGOMS_RUNTIME_DOWNLOAD=false[\s\S]*-v "\$PWD\/\.incident-mongo-cache:\/incident-mongo-cache:ro"/,
+  );
+  assert.match(
+    isolatedJobs[0].body,
+    /docker pull[\s\S]*docker run --rm[\s\S]*MONGOMS_DOWNLOAD_DIR=\/incident-mongo-cache[\s\S]*MongoBinary\.getPath\(\)[\s\S]*download-artifact@/,
+  );
+  assert.doesNotMatch(
+    isolatedJobs[0].body,
+    /MONGOMS_DOWNLOAD_DIR="\$PWD\/\.incident-mongo-cache" node/,
+  );
+  assert.match(
+    isolatedJobs[0].body,
+    /npm run test:unit:client -- --cache=false[\s\S]*npm run test:unit:server -- --cache=false/,
+  );
+  assert.match(isolatedJobs[1].body, /--tmpfs \/scratch:rw,nosuid,nodev,size=256m/);
+  assert.match(
+    isolatedJobs[1].body,
+    /tar --exclude='\.\/node_modules' -cf \/scratch\/client\.tar[\s\S]*\/workspace\/client\/node_modules\/\.bin\/vite build/,
+  );
   assert.doesNotMatch(workflow, /incident-remediation-validated-/);
 });
 

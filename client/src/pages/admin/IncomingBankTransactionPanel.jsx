@@ -23,6 +23,10 @@ import {
   reasonLabels,
   statusLabels,
 } from "./incomingBankTransactionAdmin.ui";
+import {
+  resolveIncomingWalletImpact,
+  resolveSelectedDeposit,
+} from "./depositAdmin.ui";
 import IncomingBankTransactionPagination from "./IncomingBankTransactionPagination";
 
 const IncomingBankTransactionPanel = () => {
@@ -83,10 +87,34 @@ const IncomingBankTransactionPanel = () => {
       toast.error(error.response?.data?.message || "Không thể xử lý giao dịch"),
   });
 
+  const items = incomingQuery.data?.items || [];
+  const deposits = depositsQuery.data || [];
+  const linkedDeposit =
+    action?.item?.depositRequestId &&
+    typeof action.item.depositRequestId === "object"
+      ? action.item.depositRequestId
+      : null;
+  const depositOptions =
+    linkedDeposit && !deposits.some((deposit) => deposit._id === linkedDeposit._id)
+      ? [linkedDeposit, ...deposits]
+      : deposits;
+  const selectedDeposit = resolveSelectedDeposit({
+    depositRequestId,
+    deposits,
+    linkedDeposit,
+  });
+  const walletImpact = action
+    ? resolveIncomingWalletImpact({
+        actionType: action.type,
+        item: action.item,
+        selectedDeposit,
+      })
+    : null;
+
   const submitAction = () => {
     const note = reason.trim();
     if (!action || note.length < 8) return;
-    if (action.type === "approve" && !depositRequestId) return;
+    if (action.type === "approve" && !selectedDeposit) return;
     mutation.mutate({
       type: action.type,
       item: action.item,
@@ -94,8 +122,6 @@ const IncomingBankTransactionPanel = () => {
       note,
     });
   };
-
-  const items = incomingQuery.data?.items || [];
 
   return (
     <section aria-labelledby="incoming-bank-title" className="space-y-5">
@@ -236,7 +262,7 @@ const IncomingBankTransactionPanel = () => {
             if (event.key === "Escape" && !mutation.isPending) closeAction();
           }}
         >
-          <div role="dialog" aria-modal="true" aria-labelledby="incoming-action-title" aria-describedby="incoming-action-amount" className="z-50 w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="incoming-action-title" aria-describedby="incoming-action-amount incoming-action-wallet-impact" className="z-50 w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
             <h3 id="incoming-action-title" className="text-lg font-bold text-gray-900">
               {action.type === "approve"
                 ? "Duyệt tiền thực nhận"
@@ -257,7 +283,7 @@ const IncomingBankTransactionPanel = () => {
                   className="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 font-normal focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                 >
                   <option value="">Chọn yêu cầu nạp</option>
-                  {(depositsQuery.data || []).map((deposit) => (
+                  {depositOptions.map((deposit) => (
                     <option key={deposit._id} value={deposit._id}>
                       {deposit.depositCode} · {deposit.userId?.name || "Khách hàng"} · {formatVND(deposit.amount)}
                     </option>
@@ -265,6 +291,39 @@ const IncomingBankTransactionPanel = () => {
                 </select>
               </label>
             )}
+            <div
+              id="incoming-action-wallet-impact"
+              className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700"
+            >
+              {action.type === "approve" ? (
+                walletImpact ? (
+                  <div className="space-y-1">
+                    <p>
+                      Tiền chuyển: <strong>{formatVND(walletImpact.transferredAmount)}</strong>
+                    </p>
+                    <p>
+                      Tiền thưởng: <strong>+{formatVND(walletImpact.bonusAmount)}</strong>
+                    </p>
+                    <p className="font-semibold text-emerald-800">
+                      Ví sẽ được cộng chính xác {formatVND(walletImpact.walletAmount)}.
+                    </p>
+                    {!walletImpact.isExactDepositAmount && (
+                      <p className="font-semibold text-amber-700">
+                        Số tiền không khớp yêu cầu nạp nên giao dịch này không được cộng thưởng.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p>Chọn yêu cầu nạp để xem chính xác số tiền sẽ cộng vào ví.</p>
+                )
+              ) : action.type === "reverse" ? (
+                <p className="font-semibold text-red-700">
+                  Ví sẽ bị trừ chính xác {formatVND(walletImpact.walletAmount)}.
+                </p>
+              ) : (
+                <p>Ví sẽ không thay đổi khi bỏ qua giao dịch này.</p>
+              )}
+            </div>
             <label className="mt-4 block text-sm font-semibold text-gray-700">
               Lý do đối soát
               <textarea
@@ -284,7 +343,7 @@ const IncomingBankTransactionPanel = () => {
               <button
                 type="button"
                 onClick={submitAction}
-                disabled={mutation.isPending || reason.trim().length < 8 || (action.type === "approve" && !depositRequestId)}
+                disabled={mutation.isPending || reason.trim().length < 8 || (action.type === "approve" && !selectedDeposit)}
                 className="min-h-11 rounded-lg bg-emerald-600 px-4 py-2 font-bold text-white hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {mutation.isPending ? "Đang xử lý..." : "Xác nhận"}

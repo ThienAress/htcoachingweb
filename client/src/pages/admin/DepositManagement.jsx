@@ -18,6 +18,10 @@ import {
   Settings2,
 } from "lucide-react";
 import IncomingBankTransactionPanel from "./IncomingBankTransactionPanel";
+import {
+  buildDepositApprovalConfirmation,
+  formatVND,
+} from "./depositAdmin.ui";
 
 import {
   getAdminDeposits,
@@ -33,9 +37,6 @@ import {
   parseDepositBonusRateDraft,
 } from "../../utils/depositPolicy";
 import { invalidateDepositPolicy } from "../../queries/walletAccount.queries";
-
-const formatVND = (amount) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
 
 const formatDateTime = (d) =>
   d ? new Date(d).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
@@ -279,11 +280,7 @@ const DepositManagement = () => {
   });
 
   const handleApprove = (deposit) => {
-    if (
-      window.confirm(
-        `Xác nhận duyệt nạp ${formatVND(deposit.amount)} cho ${deposit.userId?.name || "user"}?`
-      )
-    ) {
+    if (window.confirm(buildDepositApprovalConfirmation(deposit))) {
       approveMutation.mutate(deposit._id);
     }
   };
@@ -606,7 +603,7 @@ const DepositManagement = () => {
             <p className="text-sm text-gray-600">
               Ví sẽ bị trừ{" "}
               <strong className="text-red-500">
-                {formatVND(reverseModal.creditedAmount || reverseModal.amount)}
+                {formatVND(reverseModal.creditedAmount ?? reverseModal.amount)}
               </strong>
               . Ledger gốc vẫn được giữ để đối soát.
             </p>

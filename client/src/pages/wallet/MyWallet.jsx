@@ -31,6 +31,7 @@ import {
 } from "../../queries/walletAccount.queries";
 import { createDeposit } from "../../services/wallet.service";
 import { calculateDepositPreview } from "../../utils/depositPolicy";
+import { resolveDepositHistoryAmounts } from "./walletDepositHistory.ui";
 
 const EMPTY_DEPOSITS = [];
 const QUICK_AMOUNTS = [10_000, 50_000, 100_000, 200_000, 500_000, 1_000_000];
@@ -682,7 +683,7 @@ const MyWallet = () => {
                   </thead>
                   <tbody className="divide-y divide-zinc-200">
                     {deposits.map((deposit) => {
-                      const snapshot = snapshotFields(deposit);
+                      const historyAmounts = resolveDepositHistoryAmounts(deposit);
                       return (
                         <tr
                           key={deposit._id}
@@ -690,6 +691,17 @@ const MyWallet = () => {
                         >
                           <td className="px-5 py-4 font-mono font-semibold text-zinc-800">
                             {deposit.depositCode}
+                            {historyAmounts.usesSettlementTotals && (
+                              <span className="mt-1 block font-sans text-xs font-normal text-zinc-500">
+                                {t("wallet.settlement_summary", {
+                                  count: historyAmounts.transactionCount,
+                                  amount: formatVND(
+                                    historyAmounts.creditedAmount,
+                                    language,
+                                  ),
+                                })}
+                              </span>
+                            )}
                             {deposit.status === "pending" && (
                               <button
                                 type="button"
@@ -704,16 +716,17 @@ const MyWallet = () => {
                             )}
                           </td>
                           <td className="px-5 py-4 font-semibold text-zinc-800">
-                            {formatVND(deposit.amount, language)}
+                            {formatVND(historyAmounts.transferredAmount, language)}
                           </td>
                           <td className="px-5 py-4 font-semibold text-amber-700">
-                            +{formatVND(snapshot.bonusAmount, language)}
-                            {snapshot.bonusRate > 0 && (
-                              <span className="ml-1 text-xs">({snapshot.bonusRate}%)</span>
+                            +{formatVND(historyAmounts.bonusAmount, language)}
+                            {!historyAmounts.usesSettlementTotals &&
+                              deposit.bonusRate > 0 && (
+                              <span className="ml-1 text-xs">({deposit.bonusRate}%)</span>
                             )}
                           </td>
                           <td className="px-5 py-4 font-bold text-emerald-700">
-                            {formatVND(snapshot.creditedAmount, language)}
+                            {formatVND(historyAmounts.creditedAmount, language)}
                           </td>
                           <td className="px-5 py-4">
                             <StatusBadge status={deposit.status} t={t} />

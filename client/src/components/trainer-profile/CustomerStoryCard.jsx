@@ -41,7 +41,7 @@ const CustomerStoryCard = ({ story }) => {
   const afterSrc = Array.isArray(story.afterImg) ? story.afterImg[0] : story.afterImg;
 
   return (
-    <article className="w-[88vw] max-w-[54rem] shrink-0 snap-center overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-zinc-950/40 sm:w-[42rem] lg:w-[54rem]">
+    <article className="w-full max-w-[54rem] overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-zinc-950/40 lg:w-[54rem] lg:shrink-0 lg:snap-center">
       <Link
         to={`/ket-qua-khach-hang/${story.slug}/`}
         aria-label={`${t("actions.detail_view")}: ${story.name}`}

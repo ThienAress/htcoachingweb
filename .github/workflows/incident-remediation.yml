@@ -175,9 +175,17 @@ jobs:
           npm ci --prefix client
           npm ci --prefix server
           mkdir -p .incident-mongo-cache
-          MONGOMS_DOWNLOAD_DIR="$PWD/.incident-mongo-cache" node --input-type=module -e \
-            "import { MongoBinary } from './server/node_modules/mongodb-memory-server-core/lib/util/MongoBinary.js'; await MongoBinary.getPath();"
           docker pull node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3
+          docker run --rm --network bridge --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            -e HOME=/tmp -e MONGOMS_DOWNLOAD_DIR=/incident-mongo-cache \
+            -v "$PWD/server:/workspace/server:ro" \
+            -v "$PWD/.incident-mongo-cache:/incident-mongo-cache" \
+            -w /workspace \
+            node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 \
+            node --input-type=module -e \
+            "import { MongoBinary } from './server/node_modules/mongodb-memory-server-core/lib/util/MongoBinary.js'; await MongoBinary.getPath();"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ${{ needs.validate_contract.outputs.candidate_artifact_name }}
@@ -198,10 +206,21 @@ jobs:
           docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
             --user "$(id -u):$(id -g)" --read-only \
             --tmpfs /tmp:rw,noexec,nosuid,size=64m \
-            -e CI=true -e HOME=/tmp -e MONGOMS_DOWNLOAD_DIR=/workspace/.incident-mongo-cache \
-            -v "$PWD:/workspace" -w /workspace \
+            -e CI=true -e HOME=/tmp -e MONGOMS_RUNTIME_DOWNLOAD=false \
+            -e MONGOMS_DOWNLOAD_DIR=/incident-mongo-cache \
+            -v "$PWD:/workspace:ro" \
+            -v "$PWD/.incident-mongo-cache:/incident-mongo-cache:ro" \
+            -w /workspace \
             node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 \
-            npm run test:unit
+            sh -ceu '
+              if touch /workspace/.incident-readonly-probe 2>/dev/null; then
+                echo "::error::validation checkout is writable"
+                rm -f /workspace/.incident-readonly-probe
+                exit 1
+              fi
+              npm run test:unit:client -- --cache=false
+              npm run test:unit:server -- --cache=false
+            '
 
   validate_build:
     needs: [investigate, validate_contract]
@@ -240,16 +259,30 @@ jobs:
             --output build-incident
           git apply --check --whitespace=error-all candidate-artifact/incident-artifacts/change.patch
           git apply --whitespace=error-all candidate-artifact/incident-artifacts/change.patch
-      - name: Build client in isolated job
+      - name: Compile client in isolated job
         run: |
           docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
             --user "$(id -u):$(id -g)" --read-only \
             --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --tmpfs /scratch:rw,nosuid,nodev,size=256m \
             -e CI=true -e HOME=/tmp -e SKIP_DYNAMIC_ROUTES=true \
             -e VITE_API_URL=https://example.invalid/api \
-            -v "$PWD:/workspace" -w /workspace \
+            -v "$PWD:/workspace:ro" -w /workspace \
             node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 \
-            npm run build --prefix client
+            sh -ceu '
+              if touch /workspace/.incident-readonly-probe 2>/dev/null; then
+                echo "::error::validation checkout is writable"
+                rm -f /workspace/.incident-readonly-probe
+                exit 1
+              fi
+              mkdir -p /scratch/client
+              cd /workspace/client
+              tar --exclude='./node_modules' -cf /scratch/client.tar .
+              tar -xf /scratch/client.tar -C /scratch/client
+              ln -s /workspace/client/node_modules /scratch/client/node_modules
+              cd /scratch/client
+              /workspace/client/node_modules/.bin/vite build
+            '
 
   validate_secrets:
     needs: [investigate, validate_contract]
@@ -287,9 +320,16 @@ jobs:
             --user "$(id -u):$(id -g)" --read-only \
             --tmpfs /tmp:rw,noexec,nosuid,size=64m \
             -e CI=true -e HOME=/tmp \
-            -v "$PWD:/workspace" -w /workspace \
+            -v "$PWD:/workspace:ro" -w /workspace \
             node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 \
-            npm run security:secrets
+            sh -ceu '
+              if touch /workspace/.incident-readonly-probe 2>/dev/null; then
+                echo "::error::validation checkout is writable"
+                rm -f /workspace/.incident-readonly-probe
+                exit 1
+              fi
+              npm run security:secrets
+            '
 
   publish-draft:
     needs: [investigate, validate_contract, validate_tests, validate_build, validate_secrets]
