@@ -28,6 +28,7 @@ describe("Skill Radar index migration", () => {
   });
 
   test("creates the missing index and remains idempotent", async () => {
+    await SkillRadarSource.init();
     await SkillRadarSource.collection.dropIndexes();
     const firstInspection = await inspectSkillRadarIndexes();
     const created = await applySkillRadarIndexes(firstInspection);
