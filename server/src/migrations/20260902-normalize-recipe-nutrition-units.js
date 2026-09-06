@@ -100,12 +100,14 @@ export const authorizeRecipeNutritionUnitTarget = async ({
       "Apply requires --confirm-recipe-nutrition-units",
     );
   }
+  const manifest =
+    target === "production" ? await loadBackupManifest() : undefined;
   const authorization = assertMigrationEnvironment({
     env,
     confirmationVariable: RECIPE_NUTRITION_UNIT_CONFIRMATION_VARIABLE,
+    backupManifest: manifest,
   });
   if (target === "production") {
-    const manifest = await loadBackupManifest();
     assertCurrentReleaseBackup({ manifest, env });
   }
   return authorization;
