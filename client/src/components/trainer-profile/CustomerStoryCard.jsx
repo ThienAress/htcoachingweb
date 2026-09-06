@@ -42,8 +42,8 @@ const CustomerStoryCard = ({ story }) => {
 
   return (
     <article
+      className="w-full max-w-[54rem] overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-zinc-950/40 lg:w-[54rem] lg:shrink-0 lg:snap-center"
       data-customer-story-card
-      className="w-[88vw] max-w-[54rem] shrink-0 snap-center overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-950 shadow-2xl shadow-zinc-950/40 sm:w-[42rem] lg:w-[54rem]"
     >
       <Link
         to={`/ket-qua-khach-hang/${story.slug}/`}

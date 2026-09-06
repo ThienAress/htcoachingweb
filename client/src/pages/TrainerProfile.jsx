@@ -450,7 +450,7 @@ const TrainerProfile = ({ previewData }) => {
                   <div
                     role="group"
                     aria-label={t("sections.customer_results")}
-                    className="flex items-center gap-2"
+                    className="hidden items-center gap-2 lg:flex"
                   >
                     <button
                       type="button"
@@ -489,7 +489,7 @@ const TrainerProfile = ({ previewData }) => {
               role="region"
               aria-label={t("sections.customer_results")}
               tabIndex={0}
-              className="flex snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain pb-6 pr-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4 focus-visible:ring-offset-zinc-950"
+              className="grid grid-cols-1 gap-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4 focus-visible:ring-offset-zinc-950 lg:flex lg:snap-x lg:snap-mandatory lg:overflow-x-auto lg:overscroll-x-contain lg:pb-6 lg:pr-4"
             >
               {stories.map((story) => (
                 <CustomerStoryCard key={story._id || story.slug} story={story} />
