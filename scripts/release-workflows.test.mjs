@@ -17,6 +17,14 @@ test("staging live acceptance is explicitly write-enabled only behind staging lo
   assert.match(safety, /STAGING_OPERATION_DATABASE_REQUIRED/);
 });
 
+test("staging acceptance derives deposit amount from the canonical policy", async () => {
+  const source = await read("server/src/scripts/stagingAcceptance.js");
+
+  assert.match(source, /import \{ DEPOSIT_POLICY \} from "\.\.\/constants\/depositPolicy\.js";/);
+  assert.match(source, /const amount = DEPOSIT_POLICY\.minAmount;/);
+  assert.doesNotMatch(source, /const amount = 5000;/);
+});
+
 test("production promotion and observation workflows never run write acceptance", async () => {
   const source = await Promise.all([
     read(".github/workflows/release-promotion-gate.yml"),
