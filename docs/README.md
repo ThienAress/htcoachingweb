@@ -51,6 +51,7 @@ nguồn canonical trước khi thay đổi code.
 - [Thưởng nạp ví theo bậc và thiết kế lại Profile HLV](./specs/wallet-deposit-bonus-and-trainer-profile-redesign.md)
 - [P1 security hardening và nghiệp vụ HLV](./specs/security-hardening-and-trainer-operations.md)
 - [Refresh-session security hardening](./specs/refresh-session-security.md)
+- [Provider-independent security and operations hardening](./specs/provider-independent-security-and-operations-hardening.md)
 - [Chuẩn hóa pattern kỹ thuật upstream đã xác minh](./specs/upstream-engineering-pattern-adoption.md)
 - [Catalog tính năng, phản hồi thao tác và nhóm Mục tiêu sức khỏe](./specs/customer-feature-catalog-submit-feedback-and-health-goals.md)
 - [Email buổi sáng nhắc cập nhật Mục tiêu sức khỏe](./specs/morning-health-email-reminder.md)
@@ -59,6 +60,7 @@ nguồn canonical trước khi thay đổi code.
 - [Architecture Decision Records](./architecture/adr/README.md)
 - [AI Technology Radar](./architecture/ai-technology-radar.md)
 - [Release checklist](./operations/release-checklist.md)
+- [Cập nhật tính năng khi upgrade dịch vụ](./operations/provider-upgrade-playbook.md)
 - [Quy định JSON hướng dẫn và độ phức tạp bài tập](./operations/exercise-setup-json-rules.md)
 - [Danh sách bài tập và mô tả trên production](./operations/production-exercises-for-setup.md)
 - [Quy định JSON dinh dưỡng công thức](./operations/recipe-nutrition-json-rules.md)
@@ -83,6 +85,7 @@ nguồn canonical trước khi thay đổi code.
 - [Production rollback](./operations/runbooks/production-rollback-runbook.md)
 - [Release promotion và live staging acceptance](./operations/runbooks/release-promotion.md)
 - [Refresh-session cutover (Plan 082)](./operations/runbooks/refresh-session-cutover.md)
+- [Provider usage monitoring](./operations/runbooks/provider-usage-monitoring.md)
 
 ## Quy ước
 

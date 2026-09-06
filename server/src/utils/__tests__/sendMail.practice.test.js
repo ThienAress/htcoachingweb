@@ -37,6 +37,14 @@ describe("sendPracticeCenterMail", () => {
           "practice-a0000000-0000-4000-8000-000000000001-checkin",
       },
     );
+    const { getMetricsSnapshot } = await import(
+      "../../observability/metrics.js"
+    );
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.resend_attempts": 1,
+      "provider.resend_sent": 1,
+      "provider.resend_failed": 0,
+    });
 
     send.mockRejectedValueOnce(new Error("provider failed"));
     await expect(
@@ -58,5 +66,10 @@ describe("sendPracticeCenterMail", () => {
         requestId: "a0000000-0000-4000-8000-000000000003",
       }),
     ).rejects.toMatchObject({ code: "PRACTICE_EMAIL_PROVIDER_FAILED" });
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.resend_attempts": 3,
+      "provider.resend_sent": 1,
+      "provider.resend_failed": 2,
+    });
   });
 });

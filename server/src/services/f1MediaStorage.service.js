@@ -3,6 +3,8 @@ import fsPromises from "fs/promises";
 import path from "path";
 import { v2 as cloudinary } from "cloudinary";
 import { resolveCloudinaryFolder } from "../utils/cloudinaryPath.js";
+import { recordCloudinaryUsage } from "../observability/providerUsageMetrics.js";
+import { resolveCloudinaryBackupUploadOverride } from "../config/cloudinaryBackupPolicy.js";
 
 const LOCAL_ROOT = path.resolve(
   process.env.F1_PRIVATE_MEDIA_DIR || ".private/f1-media",
@@ -51,23 +53,34 @@ const resolveLocalPath = (storageKey) => {
   return absolute;
 };
 
+export const createF1CloudinaryUploadOptions = (options) => ({
+  resource_type: "image",
+  type: "authenticated",
+  access_mode: "authenticated",
+  folder: resolveCloudinaryFolder("htcoaching/f1-private"),
+  public_id: `${options.customerId}-${options.mediaId}`,
+  overwrite: true,
+  unique_filename: false,
+  invalidate: true,
+  format: options.format || "webp",
+  backup: resolveCloudinaryBackupUploadOverride("f1_private_image"),
+});
+
 const putCloudinary = (buffer, options) => {
   configureCloudinary();
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: "image",
-        type: "authenticated",
-        access_mode: "authenticated",
-        folder: resolveCloudinaryFolder("htcoaching/f1-private"),
-        public_id: `${options.customerId}-${options.mediaId}`,
-        overwrite: true,
-        unique_filename: false,
-        invalidate: true,
-        format: options.format || "webp",
-      },
+      createF1CloudinaryUploadOptions(options),
       (error, result) => {
-        if (error) return reject(error);
+        if (error) {
+          recordCloudinaryUsage({ operation: "upload", success: false });
+          return reject(error);
+        }
+        recordCloudinaryUsage({
+          operation: "upload",
+          success: true,
+          bytes: result.bytes || buffer.length,
+        });
         return resolve({
           provider: "cloudinary",
           storageKey: result.public_id,
@@ -151,15 +164,19 @@ export const deleteObject = async ({ provider, storageKey }) => {
   if (!storageKey) return { deleted: true, notFound: true };
   if (provider === "cloudinary") {
     configureCloudinary();
-    const result = await cloudinary.uploader.destroy(storageKey, {
-      resource_type: "image",
-      type: "authenticated",
-      invalidate: true,
-    });
-    return {
-      deleted: ["ok", "not found"].includes(result.result),
-      notFound: result.result === "not found",
-    };
+    try {
+      const result = await cloudinary.uploader.destroy(storageKey, {
+        resource_type: "image",
+        type: "authenticated",
+        invalidate: true,
+      });
+      const deleted = ["ok", "not found"].includes(result.result);
+      recordCloudinaryUsage({ operation: "delete", success: deleted });
+      return { deleted, notFound: result.result === "not found" };
+    } catch (error) {
+      recordCloudinaryUsage({ operation: "delete", success: false });
+      throw error;
+    }
   }
   if (provider === "local_private") {
     try {

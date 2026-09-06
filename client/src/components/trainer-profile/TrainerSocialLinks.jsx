@@ -36,7 +36,7 @@ const TrainerSocialLinks = ({ socialLinks }) => {
           target="_blank"
           rel="noopener noreferrer"
           aria-label={platform.label}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-zinc-700 px-3 py-2 text-xs font-bold text-zinc-300 transition-[color,background-color,border-color] duration-200 hover:border-emerald-400/60 hover:bg-emerald-400/10 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-zinc-700 px-3 py-2 text-xs font-bold text-zinc-300 transition-[color,background-color,border-color] duration-200 hover:border-primary/60 hover:bg-primary/10 hover:text-primary-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
         >
           {platform.label}
           <ArrowUpRight aria-hidden="true" size={14} />

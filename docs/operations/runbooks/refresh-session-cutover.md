@@ -58,8 +58,12 @@ target/path was not exercised or independently reviewed.
    only health/readiness checks and keep production Auth acceptance blocked. Existing
    users may need one re-login after the 15-minute access token expires; do not treat
    that expected cutover as a reason to restore old Auth.
-5. Monitor refresh/logout 403 and 5xx rates plus `auth.refresh_reuse_detected`
-   counts without logging credential values. Follow the normal observation window.
+5. Monitor route-level refresh/logout 403 and 5xx plus Prometheus counters
+   `htcoaching_auth_refresh_succeeded`, `htcoaching_auth_refresh_missing`,
+   `htcoaching_auth_refresh_rejected`, `htcoaching_auth_refresh_failed`,
+   `htcoaching_auth_refresh_reuse_detected`, `htcoaching_auth_logout_succeeded` and
+   `htcoaching_auth_logout_failed` without logging credential values. Counters are process-local;
+   aggregate all instances and record restart/deploy boundaries during the observation window.
 
 ## Recovery and rollback
 

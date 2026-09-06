@@ -3,6 +3,12 @@ import { pathToFileURL } from "node:url";
 import mongoose from "mongoose";
 
 import FoodPriceObservation from "../models/FoodPriceObservation.js";
+import {
+  assertConnectedMigrationTarget,
+  assertMigrationEnvironment,
+} from "../config/migrationSafety.js";
+
+const CONFIRMATION_VARIABLE = "CONFIRM_MEAL_PLAN_SAFETY_INDEX_MIGRATION";
 
 const TARGET_INDEX_NAMES = new Set([
   "food_price_lookup",
@@ -79,23 +85,30 @@ export const applyMealPlanSafetyIndexes = async (reports) => {
   return applied;
 };
 
+export const authorizeMealPlanSafetyMigration = ({
+  env = process.env,
+  args = new Set(process.argv.slice(2)),
+} = {}) => {
+  if (!args.has("--target=production")) {
+    throw new Error("Production target guard failed");
+  }
+  if (args.has("--apply") && !args.has("--confirm-production-indexes")) {
+    throw new Error("Apply requires --confirm-production-indexes");
+  }
+  return assertMigrationEnvironment({
+    env,
+    confirmationVariable: CONFIRMATION_VARIABLE,
+  });
+};
+
 const main = async () => {
   const args = new Set(process.argv.slice(2));
   const apply = args.has("--apply");
-  if (
-    !args.has("--target=production") ||
-    process.env.NODE_ENV !== "production" ||
-    process.env.APP_ENV !== "production"
-  ) {
-    throw new Error("Production target guard failed");
-  }
-  if (apply && !args.has("--confirm-production-indexes")) {
-    throw new Error("Apply requires --confirm-production-indexes");
-  }
-  if (!process.env.MONGO_URI) throw new Error("MONGO_URI is required");
+  const authorization = authorizeMealPlanSafetyMigration({ args });
 
   await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
   try {
+    assertConnectedMigrationTarget(mongoose.connection, authorization);
     const reports = await inspectMealPlanSafetyIndexes();
     const safeReports = reports.map((report) => ({
       collection: report.contract.collection,

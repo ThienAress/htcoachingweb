@@ -5,11 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key) => ({
-      "actions.detail_view": "Xem chi tiết",
+      "actions.view_journey": "Xem hành trình",
       "customer_card.before": "Trước",
       "customer_card.after": "Sau",
       "customer_card.age_suffix": "tuổi",
-      "customer_card.duration_label": "Thời gian tập luyện",
+      "customer_card.duration_label": "Hành trình",
       "detail.aria_prev_image": "Ảnh trước",
       "detail.aria_next_image": "Ảnh tiếp",
     })[key] || key,
@@ -21,7 +21,7 @@ import TrainerGallery from "../TrainerGallery";
 import TrainerSocialLinks from "../TrainerSocialLinks";
 
 describe("Trainer profile presentation", () => {
-  it("renders only factual customer-story fields with a directly accessible detail link", () => {
+  it("keeps the card concise and leads with journey duration before name and age", () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>
         <CustomerStoryCard
@@ -39,10 +39,17 @@ describe("Trainer profile presentation", () => {
     );
 
     expect(html).toContain('href="/ket-qua-khach-hang/hanh-trinh-cua-an/"');
-    expect(html).toContain('aria-label="Xem chi tiết: Khách hàng An"');
+    expect(html).toContain('aria-label="Xem hành trình: Khách hàng An"');
     expect(html).toContain('alt="Khách hàng An - Trước"');
     expect(html).toContain('alt="Khách hàng An - Sau"');
-    expect(html).toContain("Hoàn thành mục tiêu đã đặt ra");
+    expect(html.indexOf("Hành trình 12 tuần")).toBeLessThan(
+      html.indexOf("Khách hàng An</span>"),
+    );
+    expect(html).toContain("items-center");
+    expect(html).toContain("data-story-divider");
+    expect(html).toContain("clip-path:polygon(52.34%_0,52.54%_0,42.1%_100%,41.9%_100%)");
+    expect(html).toContain("28 tuổi");
+    expect(html).not.toContain("Hoàn thành mục tiêu đã đặt ra");
     expect(html).not.toMatch(/verified|đánh giá|cam kết kết quả|phản hồi trong/i);
   });
 

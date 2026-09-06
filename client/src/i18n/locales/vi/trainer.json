@@ -26,13 +26,16 @@
   "actions": {
     "free_consultation": "Đăng ký tư vấn miễn phí",
     "view_results": "Xem kết quả lột xác",
-    "detail_view": "Xem chi tiết"
+    "detail_view": "Xem chi tiết",
+    "view_journey": "Xem hành trình"
   },
   "customer_card": {
     "before": "Before",
     "after": "After",
     "age_suffix": "tuổi",
-    "duration_label": "Thời gian tập luyện"
+    "duration_label": "Hành trình",
+    "previous_story": "Trước",
+    "next_story": "Tiếp"
   },
   "explore": {
     "title": "Khám phá <1>thêm</1>",

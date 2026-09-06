@@ -24,9 +24,12 @@ describe("mealScan service", () => {
     });
 
     await expect(
-      analyzeMeal("data:image/webp;base64,YQ==", "vi", [
-        { name: "Dầu ô liu", grams: 15 },
-      ]),
+      analyzeMeal(
+        "data:image/webp;base64,YQ==",
+        "vi",
+        [{ name: "Dầu ô liu", grams: 15 }],
+        true,
+      ),
     ).resolves.toEqual({ result, quota });
     expect(api.post).toHaveBeenCalledWith("/meal-scans/analyze", {
       image: "data:image/webp;base64,YQ==",
@@ -36,13 +39,23 @@ describe("mealScan service", () => {
     });
   });
 
+  test("fails closed before sending when provider consent is absent", async () => {
+    await expect(
+      analyzeMeal("data:image/webp;base64,YQ==", "vi", [], false),
+    ).rejects.toMatchObject({ code: "MEAL_SCAN_CONSENT_REQUIRED" });
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
   test("fails closed when the API response envelope is invalid", async () => {
     api.post.mockResolvedValueOnce({ data: { success: true } });
 
     await expect(
-      analyzeMeal("data:image/webp;base64,YQ==", "vi", [
-        { name: "Dầu ô liu", grams: 15 },
-      ]),
+      analyzeMeal(
+        "data:image/webp;base64,YQ==",
+        "vi",
+        [{ name: "Dầu ô liu", grams: 15 }],
+        true,
+      ),
     ).rejects.toThrow("Kết quả phân tích không hợp lệ");
   });
 });

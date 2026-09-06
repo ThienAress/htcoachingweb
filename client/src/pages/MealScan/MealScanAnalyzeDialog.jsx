@@ -2,31 +2,46 @@ import { useEffect, useRef } from "react";
 import { AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-export default function MealScanAnalyzeDialog({ open, onCancel, onConfirm }) {
+export default function MealScanAnalyzeDialog({
+  open,
+  accepted,
+  onAcceptedChange,
+  onCancel,
+  onConfirm,
+}) {
   const { t } = useTranslation("mealScan");
+  const consentRef = useRef(null);
   const cancelRef = useRef(null);
   const confirmRef = useRef(null);
+  const acceptedRef = useRef(accepted);
+  const onCancelRef = useRef(onCancel);
+
+  useEffect(() => {
+    acceptedRef.current = accepted;
+    onCancelRef.current = onCancel;
+  }, [accepted, onCancel]);
 
   useEffect(() => {
     if (!open) return undefined;
     const previouslyFocused = document.activeElement;
-    cancelRef.current?.focus();
+    consentRef.current?.focus();
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
-        onCancel();
+        onCancelRef.current();
         return;
       }
       if (event.key !== "Tab") return;
 
-      if (event.shiftKey && document.activeElement === cancelRef.current) {
+      const lastRef = acceptedRef.current ? confirmRef : cancelRef;
+      if (event.shiftKey && document.activeElement === consentRef.current) {
         event.preventDefault();
-        confirmRef.current?.focus();
+        lastRef.current?.focus();
       } else if (
         !event.shiftKey &&
-        document.activeElement === confirmRef.current
+        document.activeElement === lastRef.current
       ) {
         event.preventDefault();
-        cancelRef.current?.focus();
+        consentRef.current?.focus();
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -34,7 +49,7 @@ export default function MealScanAnalyzeDialog({ open, onCancel, onConfirm }) {
       window.removeEventListener("keydown", onKeyDown);
       previouslyFocused?.focus?.();
     };
-  }, [open, onCancel]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -67,6 +82,16 @@ export default function MealScanAnalyzeDialog({ open, onCancel, onConfirm }) {
         >
           {t("confirm_analysis.description")}
         </p>
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+          <input
+            ref={consentRef}
+            type="checkbox"
+            checked={accepted}
+            onChange={(event) => onAcceptedChange(event.target.checked)}
+            className="mt-1 h-4 w-4 shrink-0 accent-primary"
+          />
+          <span>{t("confirm_analysis.provider_consent")}</span>
+        </label>
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             ref={cancelRef}
@@ -80,7 +105,8 @@ export default function MealScanAnalyzeDialog({ open, onCancel, onConfirm }) {
             ref={confirmRef}
             type="button"
             onClick={onConfirm}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-white transition-colors hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            disabled={!accepted}
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-white transition-colors hover:bg-primary-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {t("confirm_analysis.confirm")}
           </button>

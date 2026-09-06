@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { fetchMealScanEstimate } from "../mealScan.provider.js";
+import {
+  getMetricsSnapshot,
+  resetMetricsForTests,
+} from "../../observability/metrics.js";
 
 describe("meal scan provider calibration contract", () => {
   beforeEach(() => {
+    resetMetricsForTests();
     process.env.GEMINI_API_KEY = "test-key";
     process.env.GEMINI_MODEL = "test-model";
     process.env.GEMINI_PAID_SERVICE_CONFIRMED = "true";
@@ -49,6 +54,11 @@ describe("meal scan provider calibration contract", () => {
             parts: [{ text: JSON.stringify({ mealName: "Bun bo" }) }],
           },
         }],
+        usageMetadata: {
+          promptTokenCount: 80,
+          candidatesTokenCount: 12,
+          totalTokenCount: 92,
+        },
       }),
     });
     vi.stubGlobal("fetch", fetchSpy);
@@ -60,6 +70,13 @@ describe("meal scan provider calibration contract", () => {
         locale: "vi",
       }),
     ).resolves.toMatchObject({ mealName: "Bun bo" });
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_meal_scan_requests": 1,
+      "provider.gemini_meal_scan_succeeded": 1,
+      "provider.gemini_meal_scan_prompt_tokens": 80,
+      "provider.gemini_meal_scan_output_tokens": 12,
+      "provider.gemini_meal_scan_total_tokens": 92,
+    });
   });
 
   test("asks Gemini for scale evidence and explicit confidence discipline", async () => {
@@ -203,6 +220,11 @@ describe("meal scan provider calibration contract", () => {
       }),
     ).resolves.toMatchObject({ mealName: "Tiramisu" });
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_meal_scan_requests": 2,
+      "provider.gemini_meal_scan_failed": 1,
+      "provider.gemini_meal_scan_succeeded": 1,
+    });
   });
 
   test("retries one network failure but not a permanent HTTP failure", async () => {
@@ -241,5 +263,10 @@ describe("meal scan provider calibration contract", () => {
       }),
     ).rejects.toMatchObject({ code: "MEAL_SCAN_PROVIDER_FAILED" });
     expect(permanentFetch).toHaveBeenCalledTimes(1);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_meal_scan_requests": 3,
+      "provider.gemini_meal_scan_failed": 2,
+      "provider.gemini_meal_scan_succeeded": 1,
+    });
   });
 });

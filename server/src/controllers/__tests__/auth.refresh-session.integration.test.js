@@ -23,6 +23,10 @@ import User from "../../models/User.js";
 import authRoutes from "../../routes/auth.routes.js";
 import { createAuthSession } from "../../services/authSession.service.js";
 import { safeLog } from "../../utils/safeLogger.js";
+import {
+  getMetricsSnapshot,
+  resetMetricsForTests,
+} from "../../observability/metrics.js";
 
 const CSRF_TOKEN = ["refresh", "session", "csrf"].join("-");
 
@@ -54,6 +58,7 @@ describe("refresh-session security", () => {
   });
 
   afterEach(async () => {
+    resetMetricsForTests();
     await clearCollections();
   });
 
@@ -94,8 +99,10 @@ describe("refresh-session security", () => {
       ),
       responseLeaksCredential:
         /accessToken|refreshToken|familyId|currentJti|refreshSession/u.test(
-        JSON.stringify(response.body),
-      ),
+          JSON.stringify(response.body),
+        ),
+      refreshMetric:
+        getMetricsSnapshot().counters["auth.refresh_succeeded"],
     }).toEqual({
       status: 200,
       beforeFamily: expect.any(String),
@@ -107,6 +114,42 @@ describe("refresh-session security", () => {
       accessCookieHttpOnly: true,
       refreshCookieHttpOnly: true,
       responseLeaksCredential: false,
+      refreshMetric: 1,
+    });
+  });
+
+  it("counts missing, rejected and unexpected refresh outcomes separately", async () => {
+    const missing = await postAuth(app, "refresh");
+    const rejected = await postAuth(app, "refresh", [
+      "refreshToken=not-a-refresh-token",
+    ]);
+    const { refreshToken } = await createTestUser({
+      email: "refresh-metric-failure@example.com",
+    });
+    const persistenceFailure = vi
+      .spyOn(User, "findById")
+      .mockRejectedValueOnce(new Error("test persistence failure"));
+    const errorLog = vi.spyOn(safeLog, "error").mockImplementation(() => {});
+    let failed;
+    try {
+      failed = await postAuth(app, "refresh", [
+        `refreshToken=${refreshToken}`,
+      ]);
+    } finally {
+      persistenceFailure.mockRestore();
+      errorLog.mockRestore();
+    }
+
+    expect({
+      statuses: [missing.status, rejected.status, failed.status],
+      counters: getMetricsSnapshot().counters,
+    }).toMatchObject({
+      statuses: [401, 403, 500],
+      counters: {
+        "auth.refresh_missing": 1,
+        "auth.refresh_rejected": 1,
+        "auth.refresh_failed": 1,
+      },
     });
   });
 
@@ -226,6 +269,8 @@ describe("refresh-session security", () => {
       replay: replay.status,
       successorAfterReplay: afterReplay.status,
       reuseLog,
+      reuseMetric:
+        getMetricsSnapshot().counters["auth.refresh_reuse_detected"],
     }).toEqual({
       first: 200,
       replay: 403,
@@ -234,6 +279,7 @@ describe("refresh-session security", () => {
         "auth.refresh_reuse_detected",
         { outcome: "family_revoked" },
       ],
+      reuseMetric: 1,
     });
   });
 

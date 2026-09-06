@@ -4,6 +4,10 @@ import {
   observeMetric,
 } from "../../observability/metrics.js";
 import { safeLog } from "../../utils/safeLogger.js";
+import {
+  recordGeminiRequest,
+  recordGeminiResult,
+} from "../../observability/providerUsageMetrics.js";
 
 export const EMBEDDING_MODEL = "gemini-embedding-2";
 export const EMBEDDING_DIMENSION = 768;
@@ -114,8 +118,10 @@ async function requestEmbedding(cleanText) {
   const linked = createLinkedSignal(undefined, providerTimeoutMs);
   const apiKey = process.env.GEMINI_API_KEY;
   const url = `${EMBEDDING_BASE_URL}/models/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`;
+  let usage = {};
 
   try {
+    recordGeminiRequest("embedding");
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -128,7 +134,8 @@ async function requestEmbedding(cleanText) {
     });
 
     if (!response.ok) {
-      await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({}));
+      usage = errorData?.usageMetadata || {};
       safeLog.warn("kb.embedding_provider_error", "Provider returned error", {
         status: response.status,
       });
@@ -136,6 +143,7 @@ async function requestEmbedding(cleanText) {
     }
 
     const data = await response.json();
+    usage = data?.usageMetadata || {};
     const values = data?.embedding?.values;
     if (
       !Array.isArray(values) ||
@@ -146,8 +154,10 @@ async function requestEmbedding(cleanText) {
     }
 
     setCachedEmbedding(cleanText, values);
+    recordGeminiResult("embedding", { success: true, usage });
     return values;
   } catch (error) {
+    recordGeminiResult("embedding", { success: false, usage });
     incrementMetric("kb.embedding_failures");
     if (linked.signal.aborted) {
       throw new Error("Embedding provider phản hồi quá thời gian");

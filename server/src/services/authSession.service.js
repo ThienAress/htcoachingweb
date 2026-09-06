@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 
 import User from "../models/User.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { incrementMetric } from "../observability/metrics.js";
 
 export const ACCESS_TOKEN_MAX_AGE_MS = 15 * 60 * 1000;
 export const REFRESH_TOKEN_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -140,6 +141,7 @@ const revokeFamily = async (userId, familyId, reason) => {
 };
 
 const reportReuse = () => {
+  incrementMetric("auth.refresh_reuse_detected");
   safeLog.security("auth.refresh_reuse_detected", {
     outcome: "family_revoked",
   });

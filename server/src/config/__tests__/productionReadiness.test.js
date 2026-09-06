@@ -70,6 +70,7 @@ describe("production readiness configuration", () => {
         backgroundJobsExplicit: true,
         cspEnforced: true,
         defaultAdminTrainerMode: "admin_email",
+        cloudinaryBackupEnabled: false,
       }),
     );
   });
@@ -145,6 +146,42 @@ describe("production readiness configuration", () => {
 
     expect(result.errors.map((finding) => finding.code)).toContain(
       "BACKGROUND_JOBS_ENABLED_REQUIRED",
+    );
+  });
+
+  it("blocks Cloudinary backup versions for sensitive media classes", () => {
+    const env = validEnvironment();
+    Object.assign(env, {
+      CLOUDINARY_BACKUP_ENABLED: "true",
+      CLOUDINARY_BACKUP_MEDIA_CLASSES: "f1_private_image",
+      CLOUDINARY_BACKUP_POLICY_VERSION: "cloudinary-backup-v1",
+      CLOUDINARY_BACKUP_APPROVAL_ID: "owner-approved-20260906",
+      CLOUDINARY_BACKUP_CANARY_VERIFIED: "true",
+      CLOUDINARY_BACKUP_RESTORE_CANARY_VERIFIED: "true",
+      CLOUDINARY_BACKUP_PURGE_CANARY_VERIFIED: "true",
+    });
+
+    const result = validateProductionEnvironment(env, { strict: true });
+    expect(result.errors.map(({ code }) => code)).toContain(
+      "CLOUDINARY_BACKUP_SENSITIVE_MEDIA_BLOCKED",
+    );
+  });
+
+  it("blocks global Cloudinary backup even for public scope until inventory is complete", () => {
+    const env = validEnvironment();
+    Object.assign(env, {
+      CLOUDINARY_BACKUP_ENABLED: "true",
+      CLOUDINARY_BACKUP_MEDIA_CLASSES: "public_marketing",
+      CLOUDINARY_BACKUP_POLICY_VERSION: "cloudinary-backup-v1",
+      CLOUDINARY_BACKUP_APPROVAL_ID: "owner-approved-20260906",
+      CLOUDINARY_BACKUP_CANARY_VERIFIED: "true",
+      CLOUDINARY_BACKUP_RESTORE_CANARY_VERIFIED: "true",
+      CLOUDINARY_BACKUP_PURGE_CANARY_VERIFIED: "true",
+    });
+
+    const result = validateProductionEnvironment(env, { strict: true });
+    expect(result.errors.map(({ code }) => code)).toContain(
+      "CLOUDINARY_BACKUP_GLOBAL_SCOPE_UNVERIFIED",
     );
   });
 

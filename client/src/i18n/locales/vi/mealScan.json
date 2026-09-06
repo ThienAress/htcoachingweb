@@ -85,6 +85,7 @@
   "confirm_analysis": {
     "title": "Xác nhận gửi ảnh tới HT COACHING",
     "description": "Khi xác nhận gửi ảnh, bạn sẽ sử dụng 1 lượt phân tích ảnh. HT COACHING không lưu ảnh vào hồ sơ; vui lòng không gửi ảnh có người, thông tin cá nhân hoặc dữ liệu nhạy cảm.",
+    "provider_consent": "Tôi đồng ý gửi ảnh này tới Google Gemini để phân tích. Nếu hệ thống dùng gói Free/Unpaid, Google có thể dùng dữ liệu đã gửi để cải thiện sản phẩm hoặc cho người đánh giá xử lý.",
     "cancel": "Quay lại điều chỉnh",
     "confirm": "Tôi hiểu và đồng ý"
   },  "result": {

@@ -26,13 +26,16 @@
   "actions": {
     "free_consultation": "Get free consultation",
     "view_results": "See transformation results",
-    "detail_view": "View detail"
+    "detail_view": "View detail",
+    "view_journey": "View journey"
   },
   "customer_card": {
     "before": "Before",
     "after": "After",
     "age_suffix": "yo",
-    "duration_label": "Coaching duration"
+    "duration_label": "Journey",
+    "previous_story": "Previous",
+    "next_story": "Next"
   },
   "explore": {
     "title": "Explore <1>more</1>",

@@ -70,4 +70,21 @@ describe("resolveDepositHistoryAmounts", () => {
       usesSettlementTotals: false,
     });
   });
+  it("keeps the invoice snapshot during a mixed-version rollout", () => {
+    expect(
+      resolveDepositHistoryAmounts({
+        amount: 200_000,
+        bonusAmount: 40_000,
+        creditedAmount: 240_000,
+        settledTransactionCount: 1,
+        settledAmountTotal: 200_000,
+      }),
+    ).toEqual({
+      transferredAmount: 200_000,
+      bonusAmount: 40_000,
+      creditedAmount: 240_000,
+      transactionCount: 0,
+      usesSettlementTotals: false,
+    });
+  });
 });

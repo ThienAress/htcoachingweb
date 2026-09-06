@@ -1,4 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getMetricsSnapshot,
+  resetMetricsForTests,
+} from "../../../../observability/metrics.js";
 
 import {
   formatToolsForProvider,
@@ -18,12 +22,19 @@ afterEach(() => {
   delete process.env.GEMINI_API_KEY;
 });
 
+beforeEach(resetMetricsForTests);
+
 describe("geminiLLMStream retry", () => {
   it("sends function responses back to Gemini as user turns", async () => {
     process.env.GEMINI_API_KEY = "test-api-key";
 
     const successEvent = {
       candidates: [{ content: { parts: [{ text: "Used the tool result" }] } }],
+      usageMetadata: {
+        promptTokenCount: 100,
+        candidatesTokenCount: 20,
+        totalTokenCount: 120,
+      },
     };
     const fetchMock = vi.fn(async (_url, options) => {
       const body = JSON.parse(options.body);
@@ -100,6 +111,72 @@ describe("geminiLLMStream retry", () => {
     expect(chunks).toEqual([
       { type: "text", content: "Used the tool result" },
     ]);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 1,
+      "provider.gemini_chat_succeeded": 1,
+      "provider.gemini_chat_prompt_tokens": 100,
+      "provider.gemini_chat_output_tokens": 20,
+      "provider.gemini_chat_total_tokens": 120,
+    });
+  });
+
+  it("counts an in-stream provider error as failure, never success", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(
+        `data: ${JSON.stringify({ error: { code: 500, message: "provider error" } })}\n\n`,
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      ),
+    ));
+
+    await expect(
+      collectStream(geminiLLMStream([{ role: "user", content: "Hi" }])),
+    ).rejects.toMatchObject({ code: "GEMINI_STREAM_ERROR" });
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 1,
+      "provider.gemini_chat_succeeded": 0,
+      "provider.gemini_chat_failed": 1,
+    });
+  });
+
+  it("fails closed when the SSE body has no valid candidate", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(
+        `data: ${JSON.stringify({ usageMetadata: { totalTokenCount: 4 } })}\n\n`,
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      ),
+    ));
+
+    await expect(
+      collectStream(geminiLLMStream([{ role: "user", content: "Hi" }])),
+    ).rejects.toMatchObject({ code: "GEMINI_STREAM_EMPTY" });
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 1,
+      "provider.gemini_chat_succeeded": 0,
+      "provider.gemini_chat_failed": 1,
+    });
+  });
+
+  it("records a body-stream failure exactly once", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => ({
+          read: vi.fn().mockRejectedValue(new Error("body stream failed")),
+        }),
+      },
+    }));
+
+    await expect(
+      collectStream(geminiLLMStream([{ role: "user", content: "Hi" }])),
+    ).rejects.toThrow("body stream failed");
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 1,
+      "provider.gemini_chat_succeeded": 0,
+      "provider.gemini_chat_failed": 1,
+    });
   });
 
   it("preserves hostile tool output only inside the untrusted response envelope", async () => {

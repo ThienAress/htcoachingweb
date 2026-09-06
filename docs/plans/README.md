@@ -111,6 +111,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 082 | Harden refresh-session rotation và logout | P1 | M | 019, 020 | DONE / LOCAL FULL VERIFIED — ROLLOUT NOT STARTED |
 | 083 | Chuẩn hóa các pattern upstream đã xác minh vào agent governance | P1 | M | 017, 020, 030, 035, 077, 078, 082 | DONE / FOCUSED VERIFIED — RELEASE BUILD SITEMAP TIMEOUT |
 | 084 | Đối soát và promotion release candidate an toàn | P0 | L | 077, 078, 079, 080, 081, 082, 083 | IN PROGRESS / RELEASE GATES PENDING |
+| 085 | Harden bảo mật và vận hành không phụ thuộc provider | P0 | XL | 023, 024A, 053A, 056, 066, 074, 082 | DONE / FOCUSED VERIFIED — PROVIDER ROLLOUT NOT STARTED |
 
 ## Dependency Notes
 
@@ -202,6 +203,9 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   release isolation; migration chỉ được chạy theo target/approval riêng.
 - Plan 075 phụ thuộc catalog/report của 039 và các feature 047/060/062/067-069/071A/074 để cập nhật
   đúng evidence; presentation/feedback giữ nguyên API contract hiện có.
+- Plan 085 tái sử dụng consent Meal Scan, recovery readiness, private media lifecycle và refresh-family
+  hiện có để đóng bảy finding local; plan không bật provider backup, không gọi billing dashboard,
+  không chạy migration/restore và không tạo recovery evidence mới.
 - Plan 076 phụ thuộc Daily Journal/notification lifecycle và grouping sức khỏe đã ổn định; email
   mặc định opt-in false, có delivery idempotency và production flags vẫn tắt trước rollout riêng.
 - Plan 077 phụ thuộc governance/skills/Radar hiện có; chỉ thêm gate deterministic và benchmark offline,

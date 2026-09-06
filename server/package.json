@@ -69,6 +69,7 @@
     "reconcile:wallets": "node src/scripts/reconcileWallets.js",
     "reconcile:sepay:staging": "node src/scripts/reconcileSePayTransactions.js",
     "verify:phase4-indexes": "node src/scripts/verifyPhase4Indexes.js",
+    "verify:restore-gridfs": "node src/scripts/verifyContractGridFsRestore.js",
     "verify:phase7": "node src/scripts/verifyPhase7ScheduleIntegrity.js",
     "verify:phase8": "node src/scripts/verifyPhase8F1Integrity.js",
     "verify:phase9": "node src/scripts/verifyPhase9PrivacyOperations.js",
@@ -160,6 +161,7 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
+    "fast-uri": "3.1.7",
     "postcss": "8.5.23",
     "nanoid": "3.3.18"
   }

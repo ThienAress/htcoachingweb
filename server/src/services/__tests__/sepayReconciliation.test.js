@@ -28,6 +28,10 @@ import {
 } from "../sepayTransactionApi.provider.js";
 import { normalizeSePayWebhook } from "../sepayBankTransaction.provider.js";
 import { runSePayReconciliation } from "../sepayReconciliation.service.js";
+import {
+  getMetricsSnapshot,
+  resetMetricsForTests,
+} from "../../observability/metrics.js";
 
 const apiTransaction = {
   id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -79,6 +83,8 @@ const createDepositFixture = async () => {
   return { user, deposit };
 };
 
+beforeEach(resetMetricsForTests);
+
 describe("SePay API v2 provider", () => {
   it("uses only the allowlisted sandbox host and bounded reconciliation filters", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(apiResponse());
@@ -104,6 +110,12 @@ describe("SePay API v2 provider", () => {
       transactionDateFrom: requestUrl.searchParams.get("transaction_date_from"),
       perPage: requestUrl.searchParams.get("per_page"),
       resultId: result.transactions[0].id,
+      requestMetric:
+        getMetricsSnapshot().counters["provider.sepay_api_requests"],
+      transactionMetric:
+        getMetricsSnapshot().counters[
+          "provider.sepay_transactions_received"
+        ],
     }).toEqual({
       origin: "https://userapi-sandbox.sepay.vn",
       path: "/v2/transactions",
@@ -113,6 +125,8 @@ describe("SePay API v2 provider", () => {
       transactionDateFrom: "2026-08-15 07:00:00",
       perPage: "100",
       resultId: apiTransaction.id,
+      requestMetric: 1,
+      transactionMetric: 1,
     });
   });
 
@@ -132,6 +146,9 @@ describe("SePay API v2 provider", () => {
       code: "SEPAY_API_RATE_LIMITED",
       retryAfterMs: 2000,
     });
+    expect(
+      getMetricsSnapshot().counters["provider.sepay_api_failures"],
+    ).toBe(1);
   });
 
   it("keeps the timeout active while reading the response body", async () => {

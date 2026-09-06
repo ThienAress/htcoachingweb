@@ -1,4 +1,5 @@
 import { generateCsrfToken } from "../middlewares/csrf.js";
+import { incrementMetric } from "../observability/metrics.js";
 import {
   ACCESS_TOKEN_MAX_AGE_MS,
   isAuthSessionError,
@@ -87,6 +88,7 @@ export const refreshTokenController = async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
+    incrementMetric("auth.refresh_missing");
     return res
       .status(401)
       .json({ success: false, message: "No refresh token" });
@@ -106,6 +108,7 @@ export const refreshTokenController = async (req, res) => {
       newRefreshToken,
       refreshTokenMaxAgeMs,
     );
+    incrementMetric("auth.refresh_succeeded");
 
     return res.json({
       success: true,
@@ -116,12 +119,14 @@ export const refreshTokenController = async (req, res) => {
   } catch (err) {
     clearAuthCookies(res);
     if (isAuthSessionError(err)) {
+      incrementMetric("auth.refresh_rejected");
       return res.status(403).json({
         success: false,
         message: "Invalid refresh token",
       });
     }
     safeLog.error("auth.refresh_failed", err);
+    incrementMetric("auth.refresh_failed");
     return res.status(500).json({
       success: false,
       message: "Lỗi làm mới phiên đăng nhập",
@@ -135,6 +140,7 @@ export const logout = async (req, res) => {
     if (refreshToken) await revokeAuthSession(refreshToken);
 
     clearAuthCookies(res);
+    incrementMetric("auth.logout_succeeded");
 
     return res.json({
       success: true,
@@ -142,6 +148,7 @@ export const logout = async (req, res) => {
     });
   } catch (err) {
     safeLog.error("LOGOUT", err);
+    incrementMetric("auth.logout_failed");
 
     clearAuthCookies(res);
 

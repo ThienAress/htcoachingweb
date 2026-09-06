@@ -5,6 +5,8 @@ import { fileURLToPath } from "url";
 import { v2 as cloudinary } from "cloudinary";
 
 import { resolveCloudinaryFolder } from "../utils/cloudinaryPath.js";
+import { recordCloudinaryUsage } from "../observability/providerUsageMetrics.js";
+import { resolveCloudinaryBackupUploadOverride } from "../config/cloudinaryBackupPolicy.js";
 
 const PRIVATE_FEEDBACK_FOLDER = "htcoaching/coaching-feedback-private";
 const PUBLIC_DEMO_FOLDER = "htcoaching/coaching-videos";
@@ -43,15 +45,27 @@ const startUploadStream = (options, callback) => {
 };
 
 const destroyCloudinaryVideo = async (storageKey, deliveryType) => {
-  if (testAdapter?.destroy) {
-    return testAdapter.destroy(storageKey, deliveryType);
+  try {
+    let result;
+    if (testAdapter?.destroy) {
+      result = await testAdapter.destroy(storageKey, deliveryType);
+    } else {
+      configureCloudinary();
+      result = await cloudinary.uploader.destroy(storageKey, {
+        resource_type: "video",
+        type: deliveryType,
+        invalidate: true,
+      });
+    }
+    recordCloudinaryUsage({
+      operation: "delete",
+      success: ["ok", "not found"].includes(result?.result),
+    });
+    return result;
+  } catch (error) {
+    recordCloudinaryUsage({ operation: "delete", success: false });
+    throw error;
   }
-  configureCloudinary();
-  return cloudinary.uploader.destroy(storageKey, {
-    resource_type: "video",
-    type: deliveryType,
-    invalidate: true,
-  });
 };
 
 const normalizeSegment = (value, fallback) =>
@@ -60,7 +74,11 @@ const normalizeSegment = (value, fallback) =>
     .replace(/[^a-zA-Z0-9_-]/g, "_")
     .slice(0, 100);
 
-const getUploadOptions = (req, file, authenticated) => {
+export const createCoachingCloudinaryUploadOptions = (
+  req,
+  file,
+  authenticated,
+) => {
   const folder = authenticated ? PRIVATE_FEEDBACK_FOLDER : PUBLIC_DEMO_FOLDER;
   const identity = authenticated
     ? [
@@ -75,16 +93,35 @@ const getUploadOptions = (req, file, authenticated) => {
     public_id: `${identity}-${randomUUID()}`,
     resource_type: "video",
     type: authenticated ? "authenticated" : "upload",
-    ...(authenticated ? { access_mode: "authenticated" } : {}),
+    ...(authenticated
+      ? {
+          access_mode: "authenticated",
+          backup: resolveCloudinaryBackupUploadOverride(
+            "coaching_private_video",
+          ),
+        }
+      : {}),
     allowed_formats: ["mp4", "mov", "avi", "webm", "mkv", "m4v", "3gp"],
   };
 };
 
 export const createCoachingVideoStorage = ({ authenticated }) => ({
   _handleFile(req, file, callback) {
-    const options = getUploadOptions(req, file, authenticated);
+    const options = createCoachingCloudinaryUploadOptions(
+      req,
+      file,
+      authenticated,
+    );
     const uploadStream = startUploadStream(options, (error, result) => {
-      if (error) return callback(error);
+      if (error) {
+        recordCloudinaryUsage({ operation: "upload", success: false });
+        return callback(error);
+      }
+      recordCloudinaryUsage({
+        operation: "upload",
+        success: true,
+        bytes: result.bytes,
+      });
       return callback(null, {
         path: result.secure_url,
         size: result.bytes,
@@ -125,7 +162,19 @@ export const createPrivateCoachingMedia = (file) => {
 
 const deleteLegacyPublicCoachingMedia = async (storageKey) => {
   if (testAdapter?.destroyLegacyPublic) {
-    return testAdapter.destroyLegacyPublic(storageKey);
+    try {
+      const result = await testAdapter.destroyLegacyPublic(storageKey);
+      recordCloudinaryUsage({
+        operation: "delete",
+        success:
+          result?.deleted === true ||
+          ["ok", "not found"].includes(result?.result),
+      });
+      return result;
+    } catch (error) {
+      recordCloudinaryUsage({ operation: "delete", success: false });
+      throw error;
+    }
   }
   if (
     !String(storageKey || "").startsWith("htcoaching/") ||
@@ -134,11 +183,21 @@ const deleteLegacyPublicCoachingMedia = async (storageKey) => {
     throw new Error("Legacy coaching media storage key is not allowlisted");
   }
   configureCloudinary();
-  const result = await cloudinary.uploader.destroy(storageKey, {
-    resource_type: "video",
-    type: "upload",
-    invalidate: true,
-  });
+  let result;
+  try {
+    result = await cloudinary.uploader.destroy(storageKey, {
+      resource_type: "video",
+      type: "upload",
+      invalidate: true,
+    });
+    recordCloudinaryUsage({
+      operation: "delete",
+      success: ["ok", "not found"].includes(result?.result),
+    });
+  } catch (error) {
+    recordCloudinaryUsage({ operation: "delete", success: false });
+    throw error;
+  }
   return {
     deleted: ["ok", "not found"].includes(result.result),
     notFound: result.result === "not found",

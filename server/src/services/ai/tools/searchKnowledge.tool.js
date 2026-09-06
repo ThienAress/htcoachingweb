@@ -6,6 +6,10 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 // Ưu tiên GEMINI_SEARCH_MODEL từ Doppler, fallback gemini-2.5-flash (hỗ trợ Google Search grounding)
 const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash";
 import { safeLog } from "../../../utils/safeLogger.js";
+import {
+  recordGeminiRequest,
+  recordGeminiResult,
+} from "../../../observability/providerUsageMetrics.js";
 
 const MAX_GROUNDING_SOURCES = 3;
 const MAX_GROUNDING_URL_CHARACTERS = 2048;
@@ -74,8 +78,10 @@ export async function searchKnowledge({ query }, context = {}) {
   };
 
   const url = `${GEMINI_BASE_URL}/models/${SEARCH_MODEL}:generateContent?key=${apiKey}`;
+  let providerOutcomeRecorded = false;
 
   try {
+    recordGeminiRequest("search_grounding");
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -84,7 +90,12 @@ export async function searchKnowledge({ query }, context = {}) {
     });
 
     if (!response.ok) {
-      await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({}));
+      recordGeminiResult("search_grounding", {
+        success: false,
+        usage: errorData?.usageMetadata,
+      });
+      providerOutcomeRecorded = true;
       // Nếu model không hỗ trợ grounding → fallback message
       if (response.status === 400) {
         return { text: "Tìm kiếm không khả dụng với model hiện tại. Mình trả lời dựa trên kiến thức có sẵn.", uiCard: null };
@@ -124,8 +135,16 @@ export async function searchKnowledge({ query }, context = {}) {
       result += `\n\n📎 *Nguồn: ${sourceLinks}*`;
     }
 
+    recordGeminiResult("search_grounding", {
+      success: true,
+      usage: data.usageMetadata,
+    });
+    providerOutcomeRecorded = true;
     return { text: result, uiCard: null };
-  } catch (err) {
+  } catch {
+    if (!providerOutcomeRecorded) {
+      recordGeminiResult("search_grounding", { success: false });
+    }
     return { text: "Lỗi kết nối khi tìm kiếm. Vui lòng thử lại.", uiCard: null };
   }
 }

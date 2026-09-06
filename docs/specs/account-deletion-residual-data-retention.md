@@ -66,3 +66,20 @@ implementation hiện tại.
 - Có backup/restore evidence, dry-run counts, staging canary và rollback/runbook.
 - `ACCOUNT_DELETION_DEFERRED_BOUNDARIES` chỉ được gỡ khi migration production đã verify;
   không gỡ chỉ vì code đã merge.
+
+## Cloudinary backup versions
+
+- `user_avatar`, `f1_private_image` và `coaching_private_video` là dữ liệu nhạy cảm. Global/initial
+  backup không được bao gồm các class này cho tới khi retention clock, legal hold, account deletion
+  và provider purge semantics có owner/legal approval riêng. Upload avatar/F1/coaching private mới
+  hiện ép `backup: false` để override Cloudinary product-environment default; không bỏ override chỉ
+  vì dashboard đã bật automatic backup.
+- Xóa active asset qua Upload API chỉ là `activeAssetDeleted`; không được ghi hoặc báo cáo là
+  `backupVersionPurged`. Hai evidence phải tách rời.
+- `CLOUDINARY_BACKUP_ENABLED=true` hiện luôn bị production readiness chặn bằng
+  `CLOUDINARY_BACKUP_GLOBAL_SCOPE_UNVERIFIED`. Chỉ gỡ blocker bằng thay đổi code được review sau khi
+  inventory đủ mọi upload seam, mọi class chưa phân loại mặc định `backup: false`, avatar cũ/mới có
+  active-delete lifecycle, class public dùng opt-in rõ ràng và synthetic
+  upload/read/delete/restore/purge canaries đều pass.
+- Canary phải nằm trong namespace cô lập, không dùng ảnh/video khách hàng. Việc bật backup hoặc
+  purge live vẫn là thao tác provider riêng ngoài spec này.

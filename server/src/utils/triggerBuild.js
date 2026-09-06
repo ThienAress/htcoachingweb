@@ -1,4 +1,5 @@
 import { safeLog } from './safeLogger.js';
+import { recordNetlifyBuildUsage } from '../observability/providerUsageMetrics.js';
 
 export const NETLIFY_BUILD_BATCH_WINDOW_MS = 15 * 60 * 1000;
 
@@ -19,6 +20,7 @@ export const triggerNetlifyBuild = async () => {
   cancelScheduledBuild();
   const buildHookUrl = process.env.NETLIFY_BUILD_HOOK_URL;
   if (!buildHookUrl) {
+    recordNetlifyBuildUsage("skipped");
     safeLog.info("build_hook.skipped", { reason: "not_configured" });
     return { triggered: false, reason: "not_configured" };
   }
@@ -32,8 +34,10 @@ export const triggerNetlifyBuild = async () => {
       throw new Error(`Netlify build hook returned HTTP ${response.status}`);
     }
     safeLog.info("build_hook.triggered", { status: response.status });
+    recordNetlifyBuildUsage("triggered");
     return { triggered: true, status: response.status };
   } catch (error) {
+    recordNetlifyBuildUsage("failed");
     safeLog.error("build_hook.failed", error);
     return { triggered: false, reason: "request_failed" };
   }
@@ -41,6 +45,7 @@ export const triggerNetlifyBuild = async () => {
 
 export const scheduleNetlifyBuild = (reason = "content_changed") => {
   if (!process.env.NETLIFY_BUILD_HOOK_URL) {
+    recordNetlifyBuildUsage("skipped");
     safeLog.info("build_hook.schedule_skipped", { reason: "not_configured" });
     return { scheduled: false, reason: "not_configured" };
   }
@@ -51,6 +56,7 @@ export const scheduleNetlifyBuild = (reason = "content_changed") => {
   scheduledBuildReasons.add(normalizedReason);
 
   if (scheduledBuildTimer) {
+    recordNetlifyBuildUsage("coalesced");
     safeLog.info("build_hook.coalesced", {
       reason: normalizedReason,
       delayMs: NETLIFY_BUILD_BATCH_WINDOW_MS,
@@ -70,6 +76,7 @@ export const scheduleNetlifyBuild = (reason = "content_changed") => {
     void triggerNetlifyBuild();
   }, NETLIFY_BUILD_BATCH_WINDOW_MS);
   scheduledBuildTimer.unref?.();
+  recordNetlifyBuildUsage("scheduled");
 
   safeLog.info("build_hook.scheduled", {
     reason: normalizedReason,
