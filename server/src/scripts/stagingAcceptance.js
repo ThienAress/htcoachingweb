@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
 import { assertStagingOperation } from "../config/stagingOperationSafety.js";
+import { DEPOSIT_POLICY } from "../constants/depositPolicy.js";
 import AuditLog from "../models/AuditLog.js";
 import BlogPost from "../models/BlogPost.js";
 import Booking from "../models/Booking.js";
@@ -591,7 +592,7 @@ const testDeposit = async ({ client, tokens }) => {
     version: before.version,
     updatedAt: before.updatedAt,
   });
-  const amount = 5000;
+  const amount = DEPOSIT_POLICY.minAmount;
   cleanup.depositWindows.push({ userId: client._id, amount });
   const created = await request("/api/deposits", {
     method: "POST",
