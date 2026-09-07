@@ -33,10 +33,10 @@
       "priority": "P0",
       "complexity": "complex",
       "lifecycle": "done",
-      "verification": "local_full",
-      "rollout": "pending",
+      "verification": "production",
+      "rollout": "live",
       "owner": "root",
-      "updatedAt": "2026-09-02"
+      "updatedAt": "2026-09-07"
     },
     {
       "id": "080",
@@ -57,10 +57,10 @@
       "priority": "P0",
       "complexity": "complex",
       "lifecycle": "done",
-      "verification": "local_full",
-      "rollout": "not_started",
+      "verification": "production",
+      "rollout": "live",
       "owner": "root",
-      "updatedAt": "2026-09-05"
+      "updatedAt": "2026-09-07"
     },
     {
       "id": "082",
@@ -69,10 +69,10 @@
       "priority": "P1",
       "complexity": "complex",
       "lifecycle": "done",
-      "verification": "local_full",
-      "rollout": "not_started",
+      "verification": "production",
+      "rollout": "live",
       "owner": "root",
-      "updatedAt": "2026-09-05"
+      "updatedAt": "2026-09-07"
     },
     {
       "id": "082A",
@@ -80,9 +80,9 @@
       "path": "docs/plans/082a-provide-free-auth-cutover-boundary.md",
       "priority": "P0",
       "complexity": "complex",
-      "lifecycle": "in_progress",
-      "verification": "none",
-      "rollout": "not_started",
+      "lifecycle": "done",
+      "verification": "production",
+      "rollout": "live",
       "owner": "root",
       "updatedAt": "2026-09-07"
     },
@@ -104,11 +104,11 @@
       "path": "docs/plans/084-reconcile-and-promote-release-candidate.md",
       "priority": "P0",
       "complexity": "complex",
-      "lifecycle": "in_progress",
-      "verification": "none",
-      "rollout": "not_started",
+      "lifecycle": "done",
+      "verification": "production",
+      "rollout": "live",
       "owner": "root",
-      "updatedAt": "2026-09-05"
+      "updatedAt": "2026-09-07"
     },
     {
       "id": "085",
@@ -117,10 +117,10 @@
       "priority": "P0",
       "complexity": "complex",
       "lifecycle": "done",
-      "verification": "focused",
-      "rollout": "not_started",
+      "verification": "production",
+      "rollout": "live",
       "owner": "root",
-      "updatedAt": "2026-09-06"
+      "updatedAt": "2026-09-07"
     }
   ]
 }
