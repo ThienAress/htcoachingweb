@@ -21,10 +21,10 @@
 - **Category**: bug | seo | data-compatibility | tests | operations
 - **Planned at**: 2026-09-02
 - **Lifecycle**: DONE
-- **Verification**: LOCAL FULL
-- **Rollout**: PENDING
+- **Verification**: PRODUCTION
+- **Rollout**: LIVE
 - **Owner**: root
-- **Updated at**: 2026-09-03
+- **Updated at**: 2026-09-07
 
 ## Why This Matters
 
@@ -271,17 +271,18 @@ khác `0`, hoặc provider không cho kiểm soát thứ tự backend/frontend l
 - [x] Sitemap/prerender chỉ quảng bá cohort detail; noncohort bị quarantine.
 - [x] Raw hub HTML có crawlable canonical links đến toàn bộ cohort tương ứng.
 - [x] `mg` được canonicalize chính xác sang `g` trên write/read/UI; `mcg` không đổi.
-- [x] Migration dry-run/apply có guard, idempotent và chưa được chạy production.
+- [x] Migration dry-run/apply có guard, idempotent; production apply được owner phê duyệt
+  riêng và postflight độc lập xác nhận không còn legacy `mg`.
 - [x] Pinned Recipe/Exercise mutation fail-closed; rollback staging kiểm review
   residue và fixture staging chỉ chặn review write, không chặn public review read.
 - [x] Có guarded staging-only nutrition sync sau khi read-only API preflight xác nhận
   staging chưa sẵn sàng; production source chỉ GET và production DB không là target.
 - [x] Focused server/client tests, lint, build và SEO gates pass hoặc blocker ghi rõ.
-- [x] Không có production write, Git write operation, secret/debug log hoặc thay đổi
-  ngoài dependency map do plan này tạo ra.
+- [x] Implementation local không có production write; migration production sau đó chỉ
+  đổi nutrition unit/value trong phạm vi đã duyệt và không ghi secret/debug log.
 - [x] `docs/plans/README.md`, machine state và traceability phản ánh kết quả thật.
-- [ ] Staging deploy, live acceptance và cleanup residue `0` pass cho exact release SHA.
-- [ ] Production promotion và read-only observation tối thiểu 30 phút pass cho cùng SHA.
+- [x] Staging deploy, live acceptance và cleanup residue `0` pass cho exact release SHA.
+- [x] Production promotion và read-only observation tối thiểu 30 phút pass cho cùng SHA.
 
 ## Verification Evidence
 
@@ -303,8 +304,13 @@ khác `0`, hoặc provider không cho kiểm soát thứ tự backend/frontend l
   chạy trong sandbox trước đó hoàn tất assertions nhưng treo ở Playwright WebServer
   teardown vì Windows `taskkill /T /F` bị từ chối quyền; probe DEBUG tái hiện tại
   một test, và cùng suite thoát sạch khi chạy ngoài sandbox có quyền teardown.
-- Live production checks: PENDING cho rollout; chưa chạy migration production hoặc
-  thao tác Google Search Console.
+- Release candidate `b510a0753637c8cdbe47980423f31d397a7842ec` pass staging acceptance,
+  production promotion, monitor và post-deploy observation cho cùng SHA.
+- Migration production dùng backup đã xác minh: preflight 747 documents / 5.229 items,
+  apply matched/modified 747 documents, postflight độc lập còn 0 document / 0 item `mg`.
+  Production smoke sau migration pass 11/11. Chi tiết tại
+  `docs/operations/production/recipe-nutrition-unit-migration-2026-09-07.md`.
+- Google Search Console vẫn là hoạt động SEO theo dõi riêng, không chặn trạng thái rollout ứng dụng.
 
 ## STOP Conditions
 
