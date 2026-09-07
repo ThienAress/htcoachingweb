@@ -12,14 +12,14 @@
 - **Complexity**: COMPLEX
 - **Effort**: L
 - **Risk**: HIGH
-- **Depends on**: 077, 078, 079, 080, 081, 082, 083
+- **Depends on**: 077, 078, 079, 080, 081, 082, 082A, 083
 - **Category**: release | security | tests | operations
 - **Planned at**: 2026-09-05
 - **Lifecycle**: IN PROGRESS
 - **Verification**: NONE
 - **Rollout**: NOT STARTED
 - **Owner**: root
-- **Updated at**: 2026-09-05
+- **Updated at**: 2026-09-07
 
 ## Why This Matters
 
@@ -126,7 +126,9 @@ residue phải bằng 0. Kiểm tra UI và smoke Auth/Wallet/Profile/SEO trên s
 ### Step 5: Promotion production và quan sát 30 phút
 
 Chỉ sau staging PASS, chạy protected production approval gate và deploy exact SHA. Thực hiện cutover
-Auth theo Plan 082; production observation chỉ GET/HEAD tối thiểu 30 phút rồi chạy post-deploy gate.
+Auth theo Plan 082/082A; production observation chỉ GET/HEAD tối thiểu 30 phút rồi chạy post-deploy gate.
+Render Free phải dùng legacy-compatible bridge và exact-SHA Auth probe window đã rehearsal; suspend trong
+build không hợp lệ vì staging đã chứng minh thao tác đó hủy deploy.
 
 **Behavior**: production KEEP đúng candidate hoặc rollback theo exact compatible IDs khi gate fail.
 

@@ -18,6 +18,7 @@ const COUNTER_NAMES = new Set([
   "auth.refresh_reuse_detected",
   "auth.logout_succeeded",
   "auth.logout_failed",
+  "auth.cutover_blocked",
   "provider.gemini_chat_requests",
   "provider.gemini_chat_succeeded",
   "provider.gemini_chat_failed",

@@ -5,6 +5,35 @@ old and new Auth code to serve concurrently. This runbook does not authorize a
 database migration, bulk session revocation, secret rotation or production write
 from a local task.
 
+## Render Free boundary
+
+Render Free cannot use Maintenance Mode, and staging rehearsal deploy
+`dep-daf5ean40ujc739mcps0` proved that suspending the service cancels an in-progress
+build. Do not use `suspend → build → resume` for this cutover.
+
+The supported Free-tier procedure uses a legacy-compatible bridge containing only
+the Plan 082A Auth cutover boundary:
+
+1. Set `AUTH_CUTOVER_MAINTENANCE=true` with Render **Save only** before deploying
+   the bridge. The pre-bridge legacy binary ignores this new value, so it remains
+   format-compatible with the bridge during that first rolling deploy.
+2. Deploy the exact bridge SHA. Probe `GET /api/auth/google` without following
+   redirects using `npm run verify:auth-cutover-drain`; require `503`, `no-store`,
+   `Retry-After: 60`, `AUTH_CUTOVER_MAINTENANCE` and
+   `X-HT-Release-SHA=<bridge SHA>` for an uninterrupted window of at least two
+   minutes. The verifier rejects shorter operator overrides.
+3. Deploy the exact Plan-082 candidate while the flag remains `true`. Repeat the
+   probe for the candidate SHA. Any redirect, non-503 or other/missing SHA means an
+   old revision can still serve Auth and the cutover stops.
+4. Only after the candidate window passes, set the flag to `false` and deploy the
+   existing candidate build with the new environment. Old/new instances now share
+   Plan-082 semantics, so gradual Auth reopening does not mix formats.
+
+Render documents `RENDER_GIT_COMMIT` as a runtime exact deploy SHA. The middleware
+emits it only after validating a 40-hex value; it never reflects arbitrary request
+or environment text. Render provider deploy identity remains mandatory in addition
+to the probe window.
+
 ## Why this release needs a special cutover
 
 Pre-082 builds store a bcrypt verifier and do not understand `refreshSession`.
@@ -31,10 +60,10 @@ Provider status `live` alone is not drain evidence.
 
 ## Staging rehearsal
 
-1. Put the staging API behind the owner-selected maintenance/drain boundary and
-   wait for all pre-082 instances and in-flight Auth requests to finish.
-2. Deploy the exact candidate, prove only that revision is serving, then reopen
-   staging traffic.
+1. Put the staging API behind the owner-selected maintenance/drain boundary. On
+   Render Free, follow the bridge sequence above; do not suspend during a build.
+2. Deploy the exact candidate, prove only that revision is serving Auth through
+   exact-SHA probes, then reopen staging traffic.
 3. With an isolated staging test account, verify through public HTTP behavior:
    legacy refresh returns the generic 403 and clears the cookie; a fresh login can
    rotate its successor; replay revokes that family; logout works with an expired
@@ -49,7 +78,7 @@ target/path was not exercised or independently reviewed.
 ## Production cutover
 
 1. Announce a bounded maintenance window; stop new Auth traffic using the exact
-   drain/suspend action proven in staging.
+   bridge/boundary action proven in staging.
 2. Confirm every pre-082 instance is terminated or unable to receive traffic.
 3. Deploy the exact reviewed SHA and confirm only the Plan 082 revision is ready.
 4. Reopen traffic. Login/refresh/logout smoke mutates the designated account's Auth
@@ -70,6 +99,7 @@ target/path was not exercised or independently reviewed.
 - Client-only rollback remains allowed when the newer server is compatible.
 - Server recovery must use a build that retains Plan 082 verifier/family semantics,
   or a forward-fix produced from the candidate.
+- The legacy bridge is a traffic boundary, not an eligible post-cutover rollback.
 - Never roll back to pre-082 Auth with the same session population and secret. If
   emergency recovery truly requires it, stop the rollout and obtain explicit
   incident/security approval for a separate global-session revocation or secret

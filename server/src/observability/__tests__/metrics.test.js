@@ -202,6 +202,7 @@ describe("bounded application metrics", () => {
     ];
     expect(metrics.every((metric) => source.includes(metric))).toBe(true);
     expect(source).toContain("htcoaching_auth_refresh_reuse_detected");
+    expect(source).toContain("htcoaching_auth_cutover_blocked");
     expect(source).toContain("htcoaching_provider_gemini_chat_total_tokens");
     expect(source).toContain("htcoaching_provider_resend_sent");
   });
