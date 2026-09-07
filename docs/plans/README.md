@@ -109,8 +109,9 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 080 | Build serverless incident response và refresh Radar | P0 | L | 035, 048, 056, 078 | DONE / LOCAL FULL VERIFIED — ROLLOUT NOT STARTED |
 | 081 | Thưởng nạp ví theo bậc và thiết kế lại Profile HLV | P0/P1 | L | 002, 018, 029, 051 | DONE / LOCAL FULL VERIFIED — E2E SKIPPED / NOT DEPLOYED |
 | 082 | Harden refresh-session rotation và logout | P1 | M | 019, 020 | DONE / LOCAL FULL VERIFIED — ROLLOUT NOT STARTED |
+| 082A | Tạo Auth cutover boundary cho Render Free | P0 | M | 082 | IN PROGRESS / VERIFICATION PENDING — ROLLOUT NOT STARTED |
 | 083 | Chuẩn hóa các pattern upstream đã xác minh vào agent governance | P1 | M | 017, 020, 030, 035, 077, 078, 082 | DONE / FOCUSED VERIFIED — RELEASE BUILD SITEMAP TIMEOUT |
-| 084 | Đối soát và promotion release candidate an toàn | P0 | L | 077, 078, 079, 080, 081, 082, 083 | IN PROGRESS / RELEASE GATES PENDING |
+| 084 | Đối soát và promotion release candidate an toàn | P0 | L | 077, 078, 079, 080, 081, 082, 082A, 083 | IN PROGRESS / RELEASE GATES PENDING |
 | 085 | Harden bảo mật và vận hành không phụ thuộc provider | P0 | XL | 023, 024A, 053A, 056, 066, 074, 082 | DONE / FOCUSED VERIFIED — PROVIDER ROLLOUT NOT STARTED |
 
 ## Dependency Notes

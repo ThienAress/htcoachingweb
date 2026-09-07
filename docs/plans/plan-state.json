@@ -75,6 +75,18 @@
       "updatedAt": "2026-09-05"
     },
     {
+      "id": "082A",
+      "title": "Provide a free-tier Auth cutover boundary",
+      "path": "docs/plans/082a-provide-free-auth-cutover-boundary.md",
+      "priority": "P0",
+      "complexity": "complex",
+      "lifecycle": "in_progress",
+      "verification": "none",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-09-07"
+    },
+    {
       "id": "083",
       "title": "Codify validated upstream engineering patterns",
       "path": "docs/plans/083-codify-validated-upstream-engineering-patterns.md",

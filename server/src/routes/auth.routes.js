@@ -7,6 +7,7 @@ import {
   logout,
 } from "../controllers/auth.controller.js";
 import { csrfProtection, generateCsrfToken } from "../middlewares/csrf.js";
+import { requireAuthCutoverOpen } from "../middlewares/authCutover.middleware.js";
 import {
   ACCESS_TOKEN_MAX_AGE_MS,
   createAuthSession,
@@ -24,6 +25,8 @@ import {
 
 const router = express.Router();
 const isProd = process.env.NODE_ENV === "production";
+
+router.use(requireAuthCutoverOpen);
 
 // ===== COOKIE HELPERS =====
 const getAuthCookieOptions = (maxAge = null) => {

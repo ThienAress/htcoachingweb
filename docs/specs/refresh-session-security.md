@@ -15,6 +15,10 @@ changing the browser's cookie-only auth contract. A stolen or concurrently repla
 not leave another token from the same family active, logout must still revoke the refresh credential when
 the access token is absent or expired, and rotation must never extend the initial seven-day lifetime.
 
+The legacy-to-family rollout boundary is specified separately in
+`docs/specs/free-tier-auth-cutover-boundary.md` so its operational acceptance evidence remains owned by
+Plan 082A rather than being mixed into this implementation spec.
+
 ## Priority triage
 
 - **P0**: none confirmed in this review. Escalate only if live exploitation, credential disclosure or an
