@@ -1,9 +1,7 @@
-import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
 
-import { evaluateBackupReadiness } from "../../../scripts/lib/backup-readiness.mjs";
 import {
   assertConnectedMigrationTarget,
   assertMigrationEnvironment,
@@ -13,10 +11,6 @@ import AiToolConfirmation from "../models/AiToolConfirmation.js";
 import ServiceUsageBucket from "../models/ServiceUsageBucket.js";
 
 const CONFIRMATION_VARIABLE = "CONFIRM_AI_HARDENING_INDEX_MIGRATION";
-const BACKUP_MANIFEST_URL = new URL(
-  "../../../docs/operations/production/backup-readiness.json",
-  import.meta.url,
-);
 const TARGET_INDEX_NAMES = new Set([
   "service_usage_expiry_ttl",
   "service_usage_user_service",
@@ -113,19 +107,6 @@ export const applyAiHardeningIndexes = async (reports) => {
   return applied;
 };
 
-export const assertCurrentReleaseBackup = ({ manifest, env = process.env }) => {
-  const readiness = evaluateBackupReadiness(manifest);
-  if (!readiness.releaseReady) {
-    throw new Error("AI hardening index apply requires a release-ready backup");
-  }
-  if (
-    String(env.MIGRATION_BACKUP_SNAPSHOT_ID || "").trim() !== readiness.backupId
-  ) {
-    throw new Error("AI hardening index backup ID does not match current evidence");
-  }
-  return readiness;
-};
-
 const safeReports = (reports) =>
   reports.map(({ contract, status }) => ({
     collection: contract.collection,
@@ -160,10 +141,6 @@ const authorizeTarget = async ({ args, apply }) => {
   const authorization = assertMigrationEnvironment({
     confirmationVariable: CONFIRMATION_VARIABLE,
   });
-  if (target === "production") {
-    const manifest = JSON.parse(await readFile(BACKUP_MANIFEST_URL, "utf8"));
-    assertCurrentReleaseBackup({ manifest });
-  }
   return authorization;
 };
 

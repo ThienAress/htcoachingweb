@@ -53,6 +53,17 @@ Atlas hiển thị backup active, retention/oplog window được ghi lại và 
 point-in-time restore đã pass trên target cô lập. Logical `mongodump` không
 được dùng thay evidence này.
 
+## Cloudinary backup-version privacy gate
+
+MongoDB backup không chứa Cloudinary bytes. Giữ `CLOUDINARY_BACKUP_ENABLED=false`:
+production readiness hiện luôn trả `CLOUDINARY_BACKUP_GLOBAL_SCOPE_UNVERIFIED` nếu bật global backup.
+Avatar, F1 private images và coaching private videos là sensitive; upload mới của ba class này ép
+`backup: false`. Không gỡ blocker cho public media cho tới khi inventory đủ mọi upload seam, class
+chưa phân loại fail closed, avatar active-delete lifecycle đã hoàn tất và một public canary cùng một
+authenticated/private canary synthetic chứng minh access boundary. Restore và purge-version phải có
+evidence riêng; active-asset deletion không chứng minh backup-version purge. Không dùng customer asset
+trong drill và không ghi public ID/URL/provider credential vào Git.
+
 ## Backup
 
 1. Confirm the target cluster, database name, retention policy, encryption, and backup owner.
@@ -71,8 +82,17 @@ point-in-time restore đã pass trên target cô lập. Logical `mongodump` khô
 3. Run schema/index verification, including npm run verify:phase4-indexes.
 4. Compare critical counts and invariants: users, orders, check-ins, coaching days,
    contracts, deposits, wallet transactions, recipes, and Knowledge Base entries.
-5. Run server integration tests and critical E2E against the restored environment.
-6. Record restore duration, data recovery point, failed checks, and cleanup owner.
+5. Trên target cô lập, đặt `RESTORE_VERIFY_MONGO_URI`, exact
+   `RESTORE_VERIFY_TARGET_DATABASE`, `RESTORE_VERIFY_PRODUCTION_DATABASE` và
+   `CONFIRM_ISOLATED_RESTORE=yes`, rồi chạy `npm run verify:restore-gridfs --prefix server`.
+   Gate phải kiểm `contracts.files`, `contracts.chunks`, PDF signature và SHA-256 `fileHash`;
+   mọi missing/orphan/gap/hash mismatch đều chặn evidence restore. PDF legacy được producer cũ lưu
+   thiếu `metadata.contentType` sẽ trả `GRIDFS_PDF_CONTENT_TYPE_LEGACY_MISSING`; chỉ chấp nhận ngoại
+   lệ có owner review khi signature và hash vẫn khớp, không được sửa production trong restore drill.
+   Verifier hiện đọc snapshot restore vào memory; chạy trên worker có memory headroom và theo dõi
+   heap. Nếu tổng PDF có thể vượt memory budget, STOP và nâng verifier sang cursor/streaming trước drill.
+6. Run server integration tests and critical E2E against the restored environment.
+7. Record restore duration, data recovery point, failed checks, and cleanup owner.
 
 ## Source repository recovery
 

@@ -21,7 +21,7 @@ const TrainerGallery = ({ images, name }) => {
   };
 
   return (
-    <div className="flex h-full flex-col bg-emerald-950/30">
+    <div className="flex h-full flex-col bg-orange-950/30">
       <div className="group relative min-h-[26rem] flex-1 overflow-hidden sm:min-h-[34rem] lg:min-h-[42rem]">
         {availableImages.map((image, index) => (
           <img
@@ -46,7 +46,7 @@ const TrainerGallery = ({ images, name }) => {
               type="button"
               onClick={showPrevious}
               aria-label={`${t("detail.aria_prev_image")}: ${name}`}
-              className="inline-flex size-11 items-center justify-center rounded-full border border-zinc-50/20 bg-zinc-950/80 text-zinc-50 transition-[background-color,border-color] duration-200 hover:border-emerald-300/60 hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+              className="inline-flex size-12 items-center justify-center rounded-full border border-zinc-50/20 bg-zinc-950/80 text-zinc-50 transition-[background-color,border-color,color] duration-200 hover:border-primary hover:bg-primary hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             >
               <ChevronLeft aria-hidden="true" size={20} />
             </button>
@@ -54,7 +54,7 @@ const TrainerGallery = ({ images, name }) => {
               type="button"
               onClick={showNext}
               aria-label={`${t("detail.aria_next_image")}: ${name}`}
-              className="inline-flex size-11 items-center justify-center rounded-full border border-zinc-50/20 bg-zinc-950/80 text-zinc-50 transition-[background-color,border-color] duration-200 hover:border-emerald-300/60 hover:bg-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+              className="inline-flex size-12 items-center justify-center rounded-full border border-zinc-50/20 bg-zinc-950/80 text-zinc-50 transition-[background-color,border-color,color] duration-200 hover:border-primary hover:bg-primary hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             >
               <ChevronRight aria-hidden="true" size={20} />
             </button>
@@ -63,7 +63,7 @@ const TrainerGallery = ({ images, name }) => {
       </div>
 
       {availableImages.length > 1 && (
-        <div className="grid grid-cols-3 gap-2 border-t border-emerald-300/10 bg-zinc-950 p-3">
+        <div className="grid grid-cols-3 gap-2 border-t border-primary/10 bg-zinc-950 p-3">
           {availableImages.map((image, index) => (
             <button
               type="button"
@@ -71,10 +71,10 @@ const TrainerGallery = ({ images, name }) => {
               onClick={() => setActiveIndex(index)}
               aria-label={`${name}: ${index + 1}`}
               aria-pressed={index === safeActiveIndex}
-              className={`relative aspect-[4/3] overflow-hidden rounded-lg border transition-[border-color,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
+              className={`relative aspect-[4/3] overflow-hidden rounded-lg border transition-[border-color,opacity] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${
                 index === safeActiveIndex
-                  ? "border-emerald-400 opacity-100"
-                  : "border-zinc-700 opacity-60 hover:border-emerald-400/60 hover:opacity-100"
+                  ? "border-primary opacity-100"
+                  : "border-zinc-700 opacity-60 hover:border-primary/60 hover:opacity-100"
               }`}
             >
               <img src={image} alt="" loading="lazy" className="h-full w-full object-cover" />

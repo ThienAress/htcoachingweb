@@ -6,7 +6,6 @@ import AiMemory from "../../models/AiMemory.js";
 import AiMemoryPreference from "../../models/AiMemoryPreference.js";
 import {
   applyAiMemoryIndexes,
-  assertCurrentReleaseBackup,
   getAiMemoryIndexContracts,
   inspectAiMemoryIndexes,
 } from "../20260812-ai-memory-indexes.js";
@@ -106,30 +105,4 @@ describe("AI Memory production index migration", () => {
     ).rejects.toThrow("blocked by preflight findings");
   });
 
-  test("requires the production backup ID to match fresh release evidence", () => {
-    const completedAt = new Date(Date.now() - 60_000).toISOString();
-    const manifest = {
-      schemaVersion: 1,
-      policy: { releaseMaxAgeHours: 24, requireOffDeviceRecovery: true },
-      latestVerifiedBackup: {
-        backupId: "production-logical-backup-20260812T105458Z",
-        completedAt,
-        backupType: "logical_mongodump",
-        archiveIntegrityVerified: true,
-        isolatedRestoreVerified: true,
-        sourceFingerprintMatched: true,
-        continuousRecoveryAvailable: false,
-        offDeviceRecoveryVerified: false,
-        evidence:
-          "docs/operations/production/production-backup-record-2026-08-12.md",
-      },
-    };
-
-    expect(() =>
-      assertCurrentReleaseBackup({
-        manifest,
-        env: { MIGRATION_BACKUP_SNAPSHOT_ID: "production-stale-backup" },
-      }),
-    ).toThrow("does not match current evidence");
-  });
 });

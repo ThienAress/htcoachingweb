@@ -1,4 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getMetricsSnapshot,
+  resetMetricsForTests,
+} from "../../observability/metrics.js";
 
 import {
   NETLIFY_BUILD_BATCH_WINDOW_MS,
@@ -7,6 +11,8 @@ import {
 } from "../triggerBuild.js";
 
 const originalBuildHookUrl = process.env.NETLIFY_BUILD_HOOK_URL;
+
+beforeEach(resetMetricsForTests);
 
 afterEach(() => {
   vi.clearAllTimers();
@@ -42,6 +48,11 @@ describe("scheduleNetlifyBuild", () => {
     await vi.advanceTimersByTimeAsync(NETLIFY_BUILD_BATCH_WINDOW_MS);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.netlify_build_scheduled": 1,
+      "provider.netlify_build_coalesced": 1,
+      "provider.netlify_build_triggered": 1,
+    });
   });
 
   it("does not create a timer when the hook is not configured", () => {
@@ -53,6 +64,9 @@ describe("scheduleNetlifyBuild", () => {
       reason: "not_configured",
     });
     expect(vi.getTimerCount()).toBe(0);
+    expect(
+      getMetricsSnapshot().counters["provider.netlify_build_skipped"],
+    ).toBe(1);
   });
 
   it("cancels a pending batch when another content type builds immediately", async () => {
@@ -97,6 +111,9 @@ describe("triggerNetlifyBuild", () => {
       process.env.NETLIFY_BUILD_HOOK_URL,
       expect.objectContaining({ method: "POST" }),
     );
+    expect(
+      getMetricsSnapshot().counters["provider.netlify_build_triggered"],
+    ).toBe(1);
   });
 
   it("does not create an unhandled rejection when Netlify rejects the hook", async () => {
@@ -111,5 +128,8 @@ describe("triggerNetlifyBuild", () => {
       triggered: false,
       reason: "request_failed",
     });
+    expect(
+      getMetricsSnapshot().counters["provider.netlify_build_failed"],
+    ).toBe(1);
   });
 });

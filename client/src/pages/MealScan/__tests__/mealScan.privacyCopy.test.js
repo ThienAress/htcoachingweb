@@ -24,6 +24,15 @@ describe("Meal Scan photo confirmation copy", () => {
     expect(en.uploader.privacy).toMatch(/does not save the photo/i);
   });
 
+  test("discloses the worst-case Gemini Free/Unpaid data use before consent", () => {
+    expect(vi.confirm_analysis.provider_consent).toMatch(
+      /Google Gemini.*Free\/Unpaid.*cải thiện sản phẩm.*người đánh giá/i,
+    );
+    expect(en.confirm_analysis.provider_consent).toMatch(
+      /Google Gemini.*Free\/Unpaid.*improve.*human reviewers/i,
+    );
+  });
+
   test("describes the one guest scan plus one account scan funnel", () => {
     expect({
       viHint: vi.uploader.anonymous_hint,

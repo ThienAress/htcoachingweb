@@ -5,6 +5,7 @@ import { setupTestDB, teardownTestDB } from "../../__tests__/setup.js";
 import F1Customer from "../../models/F1Customer.js";
 import {
   applySeoConversionIndexes,
+  authorizeSeoConversionMigration,
   getSeoConversionIndexContracts,
   inspectSeoConversionIndexes,
 } from "../20260809-seo-conversion-indexes.js";
@@ -36,6 +37,27 @@ describe("SEO and conversion production index migration", () => {
       "uniq_analytics_sync_provider",
       "analytics_sync_status_lock",
     ]);
+  });
+
+  test("binds production authorization to the shared migration guard", () => {
+    expect(() =>
+      authorizeSeoConversionMigration({
+        env: {
+          APP_ENV: "production",
+          MONGO_URI: "mongodb://localhost/htcoaching",
+          MIGRATION_TARGET_DATABASE: "htcoaching",
+          CONFIRM_SEO_CONVERSION_INDEX_MIGRATION: "yes",
+          CONFIRM_PRODUCTION_MIGRATION: "production",
+          MIGRATION_BACKUP_SNAPSHOT_ID: "stale-backup-id",
+          MIGRATION_APPROVAL_ID: "owner-approved-20260906",
+        },
+        args: new Set([
+          "--target=production",
+          "--apply",
+          "--confirm-production-indexes",
+        ]),
+      }),
+    ).toThrow(/MIGRATION_BACKUP/);
   });
 
   test("creates missing indexes and is idempotent on the next inspection", async () => {

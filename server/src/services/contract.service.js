@@ -51,7 +51,9 @@ const DEFAULT_SECTIONS = [
 async function savePdfToGridFS(pdfBytes, filename) {
   const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: "contracts" });
   return new Promise((resolve, reject) => {
-    const uploadStream = bucket.openUploadStream(filename, { contentType: "application/pdf" });
+    const uploadStream = bucket.openUploadStream(filename, {
+      metadata: { contentType: "application/pdf" },
+    });
     uploadStream.on("finish", () => resolve(uploadStream.id));
     uploadStream.on("error", reject);
     uploadStream.end(Buffer.from(pdfBytes));

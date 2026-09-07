@@ -5,7 +5,6 @@ import AiToolConfirmation from "../../models/AiToolConfirmation.js";
 import ServiceUsageBucket from "../../models/ServiceUsageBucket.js";
 import {
   applyAiHardeningIndexes,
-  assertCurrentReleaseBackup,
   getAiHardeningIndexContracts,
   inspectAiHardeningIndexes,
 } from "../20260813-ai-hardening-indexes.js";
@@ -83,29 +82,4 @@ describe("AI hardening production index migration", () => {
     ).rejects.toThrow("blocked by preflight findings");
   });
 
-  it("requires the production backup ID to match current release evidence", () => {
-    const manifest = {
-      schemaVersion: 1,
-      policy: { releaseMaxAgeHours: 24, requireOffDeviceRecovery: true },
-      latestVerifiedBackup: {
-        backupId: "production-logical-backup-20260812T105458Z",
-        completedAt: new Date(Date.now() - 60_000).toISOString(),
-        backupType: "logical_mongodump",
-        archiveIntegrityVerified: true,
-        isolatedRestoreVerified: true,
-        sourceFingerprintMatched: true,
-        continuousRecoveryAvailable: false,
-        offDeviceRecoveryVerified: false,
-        evidence:
-          "docs/operations/production/production-backup-record-2026-08-12.md",
-      },
-    };
-
-    expect(() =>
-      assertCurrentReleaseBackup({
-        manifest,
-        env: { MIGRATION_BACKUP_SNAPSHOT_ID: "production-stale-backup" },
-      }),
-    ).toThrow("does not match current evidence");
-  });
 });

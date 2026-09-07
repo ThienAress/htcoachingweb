@@ -1,4 +1,5 @@
 import { normalizeSePayApiTransaction, SePayProviderError } from "./sepayBankTransaction.provider.js";
+import { recordSePayApiUsage } from "../observability/providerUsageMetrics.js";
 
 const ALLOWED_API_BASE_URLS = new Set([
   "https://userapi-sandbox.sepay.vn/v2",
@@ -178,8 +179,13 @@ export const fetchSePayTransactions = async ({
     for (const transaction of result.transactions) {
       normalizeSePayApiTransaction(transaction);
     }
+    recordSePayApiUsage({
+      success: true,
+      transactions: result.transactions.length,
+    });
     return result;
   } catch (error) {
+    recordSePayApiUsage({ success: false });
     if (error instanceof SePayProviderError) throw error;
     if (error?.name === "AbortError") {
       throw providerError("SEPAY_API_TIMEOUT", "SePay API quá thời gian chờ", 504);

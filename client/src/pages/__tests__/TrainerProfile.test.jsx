@@ -95,6 +95,11 @@ describe("TrainerProfile", () => {
       "https://facebook.com/coach-an",
     ].forEach((content) => expect(html).toContain(content));
 
+    expect(html).toContain("data-trainer-faq=\"true\"");
+    expect(html).toContain("data-trainer-explore=\"true\"");
+    expect(html).toContain("border-zinc-300 bg-zinc-100");
+    expect(html).toContain("bg-zinc-950");
+    expect(html).toContain("bg-primary");
     expect(html).not.toMatch(/verified|147 đánh giá|phản hồi trong 2 giờ|cam kết kết quả/i);
   });
 

@@ -4,8 +4,17 @@ export const resolveDepositHistoryAmounts = (deposit) => {
     deposit.settledTransactionCount > 0
       ? deposit.settledTransactionCount
       : 0;
+  const settlementTotalsComplete =
+    Number.isSafeInteger(deposit.settledAmountTotal) &&
+    deposit.settledAmountTotal > 0 &&
+    Number.isSafeInteger(deposit.settledBonusAmountTotal) &&
+    deposit.settledBonusAmountTotal >= 0 &&
+    Number.isSafeInteger(deposit.settledCreditedAmountTotal) &&
+    deposit.settledCreditedAmountTotal > 0 &&
+    deposit.settledCreditedAmountTotal ===
+      deposit.settledAmountTotal + deposit.settledBonusAmountTotal;
 
-  if (transactionCount > 0) {
+  if (transactionCount > 0 && settlementTotalsComplete) {
     return {
       transferredAmount: deposit.settledAmountTotal ?? 0,
       bonusAmount: deposit.settledBonusAmountTotal ?? 0,

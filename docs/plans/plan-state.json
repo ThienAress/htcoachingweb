@@ -97,6 +97,18 @@
       "rollout": "not_started",
       "owner": "root",
       "updatedAt": "2026-09-05"
+    },
+    {
+      "id": "085",
+      "title": "Harden provider-independent security and operations",
+      "path": "docs/plans/085-harden-provider-independent-security-and-operations.md",
+      "priority": "P0",
+      "complexity": "complex",
+      "lifecycle": "done",
+      "verification": "focused",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-09-06"
     }
   ]
 }

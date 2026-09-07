@@ -3,6 +3,7 @@ import { resolveMealScanProvider } from "./mealScanProvider.js";
 import { parseSePayCutoverAt } from "./sepay.js";
 import { getMorningHealthReminderMode } from "./backgroundJobs.js";
 import { isTodayPlatformEnabled } from "./todayPlatform.js";
+import { evaluateCloudinaryBackupPolicy } from "./cloudinaryBackupPolicy.js";
 
 const PLACEHOLDER_PATTERN =
   /(change[-_ ]?me|replace[-_ ]?me|placeholder|example|your[-_ ]|test[-_ ]secret|local[-_ ]secret)/i;
@@ -359,6 +360,15 @@ export const validateProductionEnvironment = (
   validateSecret(env, findings, "CLOUDINARY_CLOUD_NAME", { minimum: 2 });
   validateSecret(env, findings, "CLOUDINARY_API_KEY", { minimum: 6 });
   validateSecret(env, findings, "CLOUDINARY_API_SECRET", { minimum: 16 });
+  const cloudinaryBackup = evaluateCloudinaryBackupPolicy(env);
+  for (const code of cloudinaryBackup.blockers) {
+    addFinding(
+      findings,
+      "errors",
+      code,
+      "Cloudinary backup versions require an approved public-only privacy lifecycle and verified synthetic canaries.",
+    );
+  }
 
   const strictSecret = (name, minimum) =>
     validateSecret(env, findings, name, {
@@ -665,6 +675,7 @@ export const validateProductionEnvironment = (
       cspEnforced: String(env.CSP_ENFORCE || "").toLowerCase() === "true",
       retentionEnforced:
         String(env.F1_RETENTION_ENFORCE || "").toLowerCase() === "true",
+      cloudinaryBackupEnabled: cloudinaryBackup.backupEnabled,
       geminiPaidServiceConfirmed:
         String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() ===
         "true",

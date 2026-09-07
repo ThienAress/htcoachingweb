@@ -10,6 +10,10 @@ import {
 } from "../services/ai/embedding.service.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
+import {
+  recordGeminiRequest,
+  recordGeminiResult,
+} from "../observability/providerUsageMetrics.js";
 import { safeLog } from "../utils/safeLogger.js";
 import {
   KNOWLEDGE_CATEGORIES,
@@ -589,6 +593,18 @@ export const getCategories = async (_req, res) =>
   });
 
 export const suggestFromConversations = async (req, res) => {
+  let providerRequestStarted = false;
+  let providerOutcomeRecorded = false;
+  let providerUsage = {};
+  const recordProviderOutcome = (success) => {
+    if (!providerRequestStarted || providerOutcomeRecorded) return;
+    recordGeminiResult("kb_suggestion", {
+      success,
+      usage: providerUsage,
+    });
+    providerOutcomeRecorded = true;
+  };
+
   try {
     const days = clampInteger(req.body?.days, 7, 1, 90);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -666,6 +682,8 @@ export const suggestFromConversations = async (req, res) => {
       )
       .join("\n\n")}`;
     const model = process.env.GEMINI_MODEL || "gemini-2.0-flash-lite";
+    recordGeminiRequest("kb_suggestion");
+    providerRequestStarted = true;
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
@@ -683,6 +701,9 @@ export const suggestFromConversations = async (req, res) => {
       },
     );
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      providerUsage = errorData?.usageMetadata || {};
+      recordProviderOutcome(false);
       safeLog.warn("kb.ai_suggestion_provider_error", "Provider returned error", {
         status: response.status,
       });
@@ -693,6 +714,7 @@ export const suggestFromConversations = async (req, res) => {
     }
 
     const data = await response.json();
+    providerUsage = data?.usageMetadata || {};
     const raw =
       data?.candidates?.[0]?.content?.parts
         ?.map((part) => part.text || "")
@@ -706,12 +728,14 @@ export const suggestFromConversations = async (req, res) => {
           .trim(),
       );
     } catch {
+      recordProviderOutcome(false);
       return res.status(502).json({
         success: false,
         message: "AI trả kết quả không hợp lệ",
       });
     }
     if (!suggestionValidator(suggestions)) {
+      recordProviderOutcome(false);
       return res.status(502).json({
         success: false,
         message: "AI trả dữ liệu không đúng schema",
@@ -740,12 +764,14 @@ export const suggestFromConversations = async (req, res) => {
         reason: item.reason,
         convTitle: sample[item.index].convTitle,
       }));
+    recordProviderOutcome(true);
     return res.json({
       success: true,
       data: results,
       totalScanned: allPairs.length,
     });
   } catch (error) {
+    recordProviderOutcome(false);
     safeLog.error("kb.ai_suggestion_failed", error);
     return res.status(500).json({
       success: false,

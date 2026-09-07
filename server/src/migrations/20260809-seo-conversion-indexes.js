@@ -6,6 +6,12 @@ import AnalyticsSyncState from "../models/AnalyticsSyncState.js";
 import F1Customer from "../models/F1Customer.js";
 import Order from "../models/Order.js";
 import SeoDailyMetric from "../models/SeoDailyMetric.js";
+import {
+  assertConnectedMigrationTarget,
+  assertMigrationEnvironment,
+} from "../config/migrationSafety.js";
+
+const CONFIRMATION_VARIABLE = "CONFIRM_SEO_CONVERSION_INDEX_MIGRATION";
 
 const TARGET_INDEX_NAMES = new Set([
   "uniq_f1_conversion_originBookingId",
@@ -119,23 +125,30 @@ const safeReport = (reports) => reports.map((report) => ({
   status: report.status,
 }));
 
+export const authorizeSeoConversionMigration = ({
+  env = process.env,
+  args = new Set(process.argv.slice(2)),
+} = {}) => {
+  if (!args.has("--target=production")) {
+    throw new Error("Production target guard failed");
+  }
+  if (args.has("--apply") && !args.has("--confirm-production-indexes")) {
+    throw new Error("Apply requires --confirm-production-indexes");
+  }
+  return assertMigrationEnvironment({
+    env,
+    confirmationVariable: CONFIRMATION_VARIABLE,
+  });
+};
+
 const main = async () => {
   const args = new Set(process.argv.slice(2));
   const apply = args.has("--apply");
-  if (
-    !args.has("--target=production") ||
-    process.env.NODE_ENV !== "production" ||
-    process.env.APP_ENV !== "production"
-  ) {
-    throw new Error("Production target guard failed");
-  }
-  if (apply && !args.has("--confirm-production-indexes")) {
-    throw new Error("Apply requires --confirm-production-indexes");
-  }
-  if (!process.env.MONGO_URI) throw new Error("MONGO_URI is required");
+  const authorization = authorizeSeoConversionMigration({ args });
 
   await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
   try {
+    assertConnectedMigrationTarget(mongoose.connection, authorization);
     const reports = await inspectSeoConversionIndexes();
     const blocked = reports.filter((report) =>
       report.duplicateGroupCount > 0 || report.status === "name_conflict",

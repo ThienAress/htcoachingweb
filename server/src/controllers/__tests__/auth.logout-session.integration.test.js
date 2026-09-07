@@ -22,6 +22,10 @@ import {
 import User from "../../models/User.js";
 import authRoutes from "../../routes/auth.routes.js";
 import { safeLog } from "../../utils/safeLogger.js";
+import {
+  getMetricsSnapshot,
+  resetMetricsForTests,
+} from "../../observability/metrics.js";
 
 const CSRF_TOKEN = ["logout", "session", "csrf"].join("-");
 
@@ -46,6 +50,7 @@ describe("refresh-backed logout", () => {
   });
 
   afterEach(async () => {
+    resetMetricsForTests();
     await clearCollections();
   });
 
@@ -85,6 +90,7 @@ describe("refresh-backed logout", () => {
       csrfCookieCleared: readSetCookie(response, "csrfToken")?.startsWith(
         "csrfToken=;",
       ),
+      logoutMetric: getMetricsSnapshot().counters["auth.logout_succeeded"],
     }).toEqual({
       status: 200,
       verifier: null,
@@ -93,6 +99,7 @@ describe("refresh-backed logout", () => {
       refreshCookieCleared: true,
       accessCookieCleared: true,
       csrfCookieCleared: true,
+      logoutMetric: 1,
     });
   });
 
@@ -190,10 +197,12 @@ describe("refresh-backed logout", () => {
         "refreshToken=;",
       ),
       logEvent,
+      logoutMetric: getMetricsSnapshot().counters["auth.logout_failed"],
     }).toEqual({
       status: 500,
       cookieCleared: true,
       logEvent: "LOGOUT",
+      logoutMetric: 1,
     });
   });
 });

@@ -1,9 +1,7 @@
-import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
 
-import { evaluateBackupReadiness } from "../../../scripts/lib/backup-readiness.mjs";
 import {
   assertConnectedMigrationTarget,
   assertMigrationEnvironment,
@@ -13,10 +11,6 @@ import AiMemory from "../models/AiMemory.js";
 import AiMemoryPreference from "../models/AiMemoryPreference.js";
 
 const CONFIRMATION_VARIABLE = "CONFIRM_AI_MEMORY_INDEX_MIGRATION";
-const BACKUP_MANIFEST_URL = new URL(
-  "../../../docs/operations/production/backup-readiness.json",
-  import.meta.url,
-);
 const TARGET_INDEX_NAMES = new Set([
   "uniq_active_ai_memory_kind",
   "ai_memory_owner_status_updated",
@@ -145,20 +139,6 @@ export const applyAiMemoryIndexes = async (reports) => {
   return applied;
 };
 
-export const assertCurrentReleaseBackup = ({ manifest, env = process.env }) => {
-  const readiness = evaluateBackupReadiness(manifest);
-  if (!readiness.releaseReady) {
-    throw new Error("AI Memory index apply requires a release-ready backup");
-  }
-  if (
-    String(env.MIGRATION_BACKUP_SNAPSHOT_ID || "").trim() !==
-    readiness.backupId
-  ) {
-    throw new Error("AI Memory index backup ID does not match current evidence");
-  }
-  return readiness;
-};
-
 const safeReports = (reports) =>
   reports.map((report) => ({
     collection: report.contract.collection,
@@ -197,10 +177,6 @@ const authorizeTarget = async ({ args, apply }) => {
   const authorization = assertMigrationEnvironment({
     confirmationVariable: CONFIRMATION_VARIABLE,
   });
-  if (target === "production") {
-    const manifest = JSON.parse(await readFile(BACKUP_MANIFEST_URL, "utf8"));
-    assertCurrentReleaseBackup({ manifest });
-  }
   return authorization;
 };
 

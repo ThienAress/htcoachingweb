@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "planId": "085",
+  "specPath": "docs/specs/provider-independent-security-and-operations-hardening.md",
+  "planPath": "docs/plans/085-harden-provider-independent-security-and-operations.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Enforce Meal Scan consent and patch dependency", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Bind migrations to current backup evidence", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Verify restored GridFS PDFs", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Gate Cloudinary backup-version privacy", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Instrument Auth and provider usage", "planStep": "Step 5" },
+    { "id": "TASK-006", "title": "Run cross-cutting verification and handoff", "planStep": "Step 6" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": "client/src/pages/MealScan/__tests__/MealScanAnalyzeDialog.test.jsx" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": "client/src/services/__tests__/mealScan.service.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "command", "command": "npm ls fast-uri ajv --prefix server --omit=dev" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/config/__tests__/migrationSafety.test.js" }] },
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/migrations/__tests__/aiMemoryIndexes.test.js" }, { "type": "test", "path": "server/src/migrations/__tests__/aiHardeningIndexes.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "test", "path": "server/src/operations/__tests__/contractGridFsRestoreVerifier.test.js" }] },
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "test", "path": "server/src/operations/__tests__/contractGridFsRestoreVerifier.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "test", "path": "server/src/config/__tests__/cloudinaryBackupPolicy.test.js" }, { "type": "test", "path": "server/src/services/__tests__/avatarMedia.service.test.js" }] },
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "test", "path": "server/src/config/__tests__/productionReadiness.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "acceptanceCriteria": [
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/auth.refresh-session.integration.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/auth.logout-session.integration.test.js" }] },
+        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/observability/__tests__/metrics.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-007",
+      "acceptanceCriteria": [
+        { "id": "AC-012", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/ai/providers/__tests__/gemini.provider.test.js" }, { "type": "test", "path": "server/src/services/__tests__/mealScanProviderContract.test.js" }] },
+        { "id": "AC-013", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/utils/__tests__/providerUsageMetrics.test.js" }, { "type": "test", "path": "server/src/utils/__tests__/sendMail.practice.test.js" }, { "type": "test", "path": "server/src/middlewares/__tests__/recipeUploadMetrics.test.js" }, { "type": "test", "path": "server/src/services/__tests__/sepayReconciliation.test.js" }, { "type": "test", "path": "server/src/utils/__tests__/triggerBuild.test.js" }] },
+        { "id": "AC-014", "mustHave": true, "taskIds": ["TASK-005", "TASK-006"], "verifications": [{ "type": "test", "path": "server/src/observability/__tests__/metrics.test.js" }, { "type": "command", "command": "npm run agents:validate" }] }
+      ]
+    }
+  ]
+}
