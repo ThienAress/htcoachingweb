@@ -11,6 +11,7 @@ const COUNTER_NAMES = new Set([
   "ai.tool_calls",
   "ai.tool_failures",
   "ai.moderation_blocks",
+  "auth.cutover_blocked",
   "kb.embedding_failures",
   "kb.search_no_hits",
   "kb.vector_fallbacks",

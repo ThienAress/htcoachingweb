@@ -10,6 +10,7 @@ import {
 } from "../controllers/auth.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { csrfProtection, generateCsrfToken } from "../middlewares/csrf.js";
+import { requireAuthCutoverOpen } from "../middlewares/authCutover.middleware.js";
 import { setCsrfCookie } from "../utils/csrfCookie.js";
 import {
   createOAuthState,
@@ -22,6 +23,8 @@ import {
 
 const router = express.Router();
 const isProd = process.env.NODE_ENV === "production";
+
+router.use(requireAuthCutoverOpen);
 
 // ===== COOKIE HELPERS =====
 const getAuthCookieOptions = (maxAge = null) => {

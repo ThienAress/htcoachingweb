@@ -1,4 +1,5 @@
 import { resolveGeminiMealScanDataUseMode } from "./geminiMealScanDataUse.js";
+import { isAuthCutoverMaintenanceEnabled } from "./authCutover.js";
 import { resolveMealScanProvider } from "./mealScanProvider.js";
 import { parseSePayCutoverAt } from "./sepay.js";
 import { getMorningHealthReminderMode } from "./backgroundJobs.js";
@@ -519,6 +520,9 @@ export const validateProductionEnvironment = (
     minimum: 5000,
     maximum: 60000,
   });
+  validateBooleanSetting(env, findings, "AUTH_CUTOVER_MAINTENANCE", {
+    required: true,
+  });
   validateBooleanSetting(env, findings, "BACKGROUND_JOBS_ENABLED", {
     required: true,
   });
@@ -656,6 +660,7 @@ export const validateProductionEnvironment = (
     summary: {
       allowedOriginCount: allowedOrigins.length,
       hasExplicitTrustProxy: Boolean(String(env.TRUST_PROXY_HOPS || "").trim()),
+      authCutoverMaintenanceEnabled: isAuthCutoverMaintenanceEnabled(env),
       backgroundJobsExplicit: ["true", "false"].includes(
         String(env.BACKGROUND_JOBS_ENABLED || "").toLowerCase(),
       ),

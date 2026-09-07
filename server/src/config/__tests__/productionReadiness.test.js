@@ -44,6 +44,7 @@ const validEnvironment = () => ({
   F1_CONSENT_VERSION: "2026-07",
   ADMIN_EMAIL: "admin@htcoachingweb.io.vn",
   TRUST_PROXY_HOPS: "1",
+  AUTH_CUTOVER_MAINTENANCE: "false",
   BACKGROUND_JOBS_ENABLED: "true",
   SKILL_RADAR_GITHUB_TOKEN: "github-radar-" + "j".repeat(32),
   CSP_ENFORCE: "true",
@@ -67,6 +68,7 @@ describe("production readiness configuration", () => {
       expect.objectContaining({
         allowedOriginCount: 1,
         hasExplicitTrustProxy: true,
+        authCutoverMaintenanceEnabled: false,
         backgroundJobsExplicit: true,
         cspEnforced: true,
         defaultAdminTrainerMode: "admin_email",
@@ -146,6 +148,41 @@ describe("production readiness configuration", () => {
     expect(result.errors.map((finding) => finding.code)).toContain(
       "BACKGROUND_JOBS_ENABLED_REQUIRED",
     );
+  });
+
+  it("rejects a missing or invalid Auth cutover mode", () => {
+    const missing = validEnvironment();
+    delete missing.AUTH_CUTOVER_MAINTENANCE;
+    const invalid = validEnvironment();
+    invalid.AUTH_CUTOVER_MAINTENANCE = "enabled";
+
+    expect([
+      validateProductionEnvironment(missing, { strict: false }).errors.map(
+        ({ code }) => code,
+      ),
+      validateProductionEnvironment(invalid, { strict: false }).errors.map(
+        ({ code }) => code,
+      ),
+    ]).toEqual([
+      expect.arrayContaining(["AUTH_CUTOVER_MAINTENANCE_REQUIRED"]),
+      expect.arrayContaining(["AUTH_CUTOVER_MAINTENANCE_INVALID"]),
+    ]);
+  });
+
+  it("uses the cutover resolver for the normalized readiness summary", () => {
+    const env = validEnvironment();
+    env.AUTH_CUTOVER_MAINTENANCE = " TRUE ";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect({
+      valid: result.valid,
+      authCutoverMaintenanceEnabled:
+        result.summary.authCutoverMaintenanceEnabled,
+    }).toEqual({
+      valid: true,
+      authCutoverMaintenanceEnabled: true,
+    });
   });
 
   it("allows the morning health reminder with global jobs disabled", () => {
