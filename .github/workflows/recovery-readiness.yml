@@ -45,7 +45,7 @@ jobs:
           fi
       - name: Retain secret-free readiness reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: recovery-readiness-${{ github.run_id }}
           path: artifacts/*.json
