@@ -9,6 +9,15 @@ const testRoot = path.join(serverRoot, "src");
 const reportDirectory = path.join(serverRoot, ".local-data");
 const vitestEntry = path.join(serverRoot, "node_modules", "vitest", "vitest.mjs");
 const batchSize = 32;
+const requiredNodeVersion = readFileSync(path.join(repositoryRoot, ".node-version"), "utf8").trim();
+
+export const assertRuntimeVersion = (actualVersion, expectedVersion) => {
+  if (actualVersion !== expectedVersion) {
+    throw new Error(
+      `Server unit test runner requires Node ${expectedVersion}; current runtime is ${actualVersion}`,
+    );
+  }
+};
 
 export const chunkItems = (items, size) => {
   if (!Number.isSafeInteger(size) || size <= 0) {
@@ -40,6 +49,8 @@ export const summarizeVitestReport = (report) => {
 };
 
 const run = () => {
+  assertRuntimeVersion(process.versions.node, requiredNodeVersion);
+
   if (!existsSync(vitestEntry)) {
     throw new Error("Vitest entrypoint is missing; install server dependencies first");
   }

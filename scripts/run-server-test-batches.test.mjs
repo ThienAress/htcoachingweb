@@ -1,7 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { chunkItems, summarizeVitestReport } from "./run-server-test-batches.mjs";
+import {
+  assertRuntimeVersion,
+  chunkItems,
+  summarizeVitestReport,
+} from "./run-server-test-batches.mjs";
+
+test("assertRuntimeVersion rejects a runtime that drifts from the repository pin", () => {
+  assert.throws(
+    () => assertRuntimeVersion("24.15.0", "22.23.1"),
+    /requires Node 22\.23\.1; current runtime is 24\.15\.0/,
+  );
+});
+
+test("assertRuntimeVersion accepts the repository-pinned runtime", () => {
+  assert.doesNotThrow(() => assertRuntimeVersion("22.23.1", "22.23.1"));
+});
 
 test("chunkItems partitions every file once and preserves order", () => {
   assert.deepEqual(chunkItems(["a", "b", "c", "d", "e"], 2), [
