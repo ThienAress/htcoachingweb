@@ -44,6 +44,7 @@ const validEnvironment = () => ({
   F1_CONSENT_VERSION: "2026-07",
   ADMIN_EMAIL: "admin@htcoachingweb.io.vn",
   TRUST_PROXY_HOPS: "1",
+  AUTH_CUTOVER_MAINTENANCE: "false",
   BACKGROUND_JOBS_ENABLED: "true",
   SKILL_RADAR_GITHUB_TOKEN: "github-radar-" + "j".repeat(32),
   CSP_ENFORCE: "true",
@@ -67,9 +68,11 @@ describe("production readiness configuration", () => {
       expect.objectContaining({
         allowedOriginCount: 1,
         hasExplicitTrustProxy: true,
+        authCutoverMaintenanceEnabled: false,
         backgroundJobsExplicit: true,
         cspEnforced: true,
         defaultAdminTrainerMode: "admin_email",
+        cloudinaryBackupEnabled: false,
       }),
     );
   });
@@ -145,6 +148,77 @@ describe("production readiness configuration", () => {
 
     expect(result.errors.map((finding) => finding.code)).toContain(
       "BACKGROUND_JOBS_ENABLED_REQUIRED",
+    );
+  });
+
+  it("rejects a missing or invalid Auth cutover mode", () => {
+    const missing = validEnvironment();
+    delete missing.AUTH_CUTOVER_MAINTENANCE;
+    const invalid = validEnvironment();
+    invalid.AUTH_CUTOVER_MAINTENANCE = "enabled";
+
+    expect([
+      validateProductionEnvironment(missing, { strict: false }).errors.map(
+        ({ code }) => code,
+      ),
+      validateProductionEnvironment(invalid, { strict: false }).errors.map(
+        ({ code }) => code,
+      ),
+    ]).toEqual([
+      expect.arrayContaining(["AUTH_CUTOVER_MAINTENANCE_REQUIRED"]),
+      expect.arrayContaining(["AUTH_CUTOVER_MAINTENANCE_INVALID"]),
+    ]);
+  });
+
+  it("uses the cutover resolver for the normalized readiness summary", () => {
+    const env = validEnvironment();
+    env.AUTH_CUTOVER_MAINTENANCE = " TRUE ";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect({
+      valid: result.valid,
+      authCutoverMaintenanceEnabled:
+        result.summary.authCutoverMaintenanceEnabled,
+    }).toEqual({
+      valid: true,
+      authCutoverMaintenanceEnabled: true,
+    });
+  });
+
+  it("blocks Cloudinary backup versions for sensitive media classes", () => {
+    const env = validEnvironment();
+    Object.assign(env, {
+      CLOUDINARY_BACKUP_ENABLED: "true",
+      CLOUDINARY_BACKUP_MEDIA_CLASSES: "f1_private_image",
+      CLOUDINARY_BACKUP_POLICY_VERSION: "cloudinary-backup-v1",
+      CLOUDINARY_BACKUP_APPROVAL_ID: "owner-approved-20260906",
+      CLOUDINARY_BACKUP_CANARY_VERIFIED: "true",
+      CLOUDINARY_BACKUP_RESTORE_CANARY_VERIFIED: "true",
+      CLOUDINARY_BACKUP_PURGE_CANARY_VERIFIED: "true",
+    });
+
+    const result = validateProductionEnvironment(env, { strict: true });
+    expect(result.errors.map(({ code }) => code)).toContain(
+      "CLOUDINARY_BACKUP_SENSITIVE_MEDIA_BLOCKED",
+    );
+  });
+
+  it("blocks global Cloudinary backup even for public scope until inventory is complete", () => {
+    const env = validEnvironment();
+    Object.assign(env, {
+      CLOUDINARY_BACKUP_ENABLED: "true",
+      CLOUDINARY_BACKUP_MEDIA_CLASSES: "public_marketing",
+      CLOUDINARY_BACKUP_POLICY_VERSION: "cloudinary-backup-v1",
+      CLOUDINARY_BACKUP_APPROVAL_ID: "owner-approved-20260906",
+      CLOUDINARY_BACKUP_CANARY_VERIFIED: "true",
+      CLOUDINARY_BACKUP_RESTORE_CANARY_VERIFIED: "true",
+      CLOUDINARY_BACKUP_PURGE_CANARY_VERIFIED: "true",
+    });
+
+    const result = validateProductionEnvironment(env, { strict: true });
+    expect(result.errors.map(({ code }) => code)).toContain(
+      "CLOUDINARY_BACKUP_GLOBAL_SCOPE_UNVERIFIED",
     );
   });
 
@@ -241,6 +315,18 @@ describe("production readiness configuration", () => {
         "SKILL_RADAR_WORKER_NOT_ISOLATED",
         "SKILL_RADAR_GITHUB_TOKEN_MISSING",
       ]),
+    );
+  });
+
+  it("requires the Radar GitHub token for the production Admin API", () => {
+    const env = validEnvironment();
+    env.SKILL_RADAR_WORKER_ENABLED = "false";
+    delete env.SKILL_RADAR_GITHUB_TOKEN;
+
+    const result = validateProductionEnvironment(env, { strict: false });
+
+    expect(result.errors.map((finding) => finding.code)).toContain(
+      "SKILL_RADAR_GITHUB_TOKEN_MISSING",
     );
   });
 

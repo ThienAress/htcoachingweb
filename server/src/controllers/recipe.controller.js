@@ -3,6 +3,7 @@ import Recipe from "../models/Recipe.js";
 import { v2 as cloudinary } from "cloudinary";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { recordCloudinaryUsage } from "../observability/providerUsageMetrics.js";
 import { triggerNetlifyBuild } from "../utils/triggerBuild.js";
 import RecipeReview from "../models/RecipeReview.js";
 import {
@@ -177,8 +178,13 @@ const getCloudinaryPublicId = (recipe) => {
 const destroyCloudinaryAsset = async (publicId) => {
   if (!publicId) return;
   try {
-    await cloudinary.uploader.destroy(publicId);
+    const result = await cloudinary.uploader.destroy(publicId);
+    recordCloudinaryUsage({
+      operation: "delete",
+      success: ["ok", "not found"].includes(result?.result),
+    });
   } catch (error) {
+    recordCloudinaryUsage({ operation: "delete", success: false });
     safeLog.error("recipe.cloudinary_cleanup_failed", error);
   }
 };

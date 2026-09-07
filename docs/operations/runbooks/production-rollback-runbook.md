@@ -50,6 +50,13 @@ Server/API failure:
 3. Keep background jobs disabled until health and schema compatibility pass.
 4. Verify live/ready, auth, Blog, Recipe and one critical journey per role.
 
+Exception for the Plan 082 refresh-session cutover: a server build before Plan 082
+is not a compatible rollback target because it can accept retained bcrypt refresh
+verifiers and issue that format again. Use a Plan-082-compatible recovery deploy or
+forward-fix. If neither is available, stop and obtain separate incident/security
+approval for global session revocation or secret rotation; do not silently use the
+generic rollback step above. See `refresh-session-cutover.md`.
+
 Combined failure:
 
 1. Roll back the client to stop new feature traffic.

@@ -155,6 +155,10 @@ describe("single-account sync sanitizer", () => {
         password: "hash",
         passwordHash: "legacy-hash",
         refreshToken: "refresh",
+        refreshSession: {
+          familyId: "production-family",
+          currentJti: "production-jti",
+        },
         resetPasswordToken: "reset",
         resetPasswordExpires: new Date("2026-08-22T00:00:00.000Z"),
         googleId: "provider-id",

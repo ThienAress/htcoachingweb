@@ -23,6 +23,7 @@ import {
 import DepositRequest from "../../models/DepositRequest.js";
 import IncomingBankTransaction from "../../models/IncomingBankTransaction.js";
 import Wallet from "../../models/Wallet.js";
+import WalletTransaction from "../../models/WalletTransaction.js";
 
 // =============================================================================
 // Integration Test: Deposit API (luồng nạp tiền)
@@ -64,13 +65,20 @@ describe("POST /api/deposits — Tạo yêu cầu nạp tiền", () => {
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.amount).toBe(100000);
+    expect(res.body.data).toMatchObject({
+      bonusTierKey: "growth",
+      bonusRate: 15,
+      bonusAmount: 15000,
+      creditedAmount: 115000,
+      policyVersion: 1,
+    });
     expect(res.body.data.depositCode).toMatch(/^HTC-/);
     expect(res.body.data.status).toBe("pending");
     expect(res.body.data.qrPayload).toBeDefined();
     expect(res.body.data.expiresAt).toBeDefined();
   });
 
-  it("trả 400 khi amount < 5000 (tối thiểu)", async () => {
+  it("trả 400 khi amount < 10000 (tối thiểu)", async () => {
     const { accessToken } = await createTestUser();
 
     const res = await withAuth(
@@ -80,20 +88,20 @@ describe("POST /api/deposits — Tạo yêu cầu nạp tiền", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toContain("5.000");
+    expect(res.body.message).toContain("10.000");
   });
 
-  it("trả 400 khi amount > 100.000.000 (tối đa)", async () => {
+  it("trả 400 khi amount > 1.000.000.000 (tối đa)", async () => {
     const { accessToken } = await createTestUser();
 
     const res = await withAuth(
-      request(app).post("/api/deposits").send({ amount: 200000000 }),
+      request(app).post("/api/deposits").send({ amount: 1000000001 }),
       accessToken
     );
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
-    expect(res.body.message).toContain("100.000.000");
+    expect(res.body.message).toContain("1.000.000.000");
   });
 
   it("trả 400 khi không có amount", async () => {
@@ -127,6 +135,11 @@ describe("POST /api/deposits — Tạo yêu cầu nạp tiền", () => {
     expect(res2.body.message).toContain("chưa hết hạn");
     // Amount phải là của deposit cũ (50000), không phải 100000
     expect(res2.body.data.amount).toBe(50000);
+    expect(res2.body.data).toMatchObject({
+      bonusRate: 10,
+      bonusAmount: 5000,
+      creditedAmount: 55000,
+    });
   });
 
   it("chặn khi đã có deposit needs_review", async () => {
@@ -337,8 +350,114 @@ describe("GET /api/deposits — Lịch sử nạp tiền", () => {
     expect(response.body.data[0]).toMatchObject({
       settledTransactionCount: 2,
       settledAmountTotal: 100000,
+      settledBonusAmountTotal: 0,
+      settledCreditedAmountTotal: 100000,
     });
     expect(response.body.data[0].lastSettlementAt).toBeTruthy();
+  });
+
+  it("includes an active direct credit in hybrid settlement totals", async () => {
+    const { accessToken, user } = await createTestUser();
+    const created = await withAuth(
+      request(app).post("/api/deposits").send({ amount: 200000 }),
+      accessToken,
+    );
+    const depositId = created.body.data.depositRequestId;
+    const direct = await WalletTransaction.create({
+      userId: user._id,
+      walletId: (await Wallet.findOne({ userId: user._id }))._id,
+      type: "deposit",
+      amount: 240000,
+      balanceBefore: 0,
+      balanceAfter: 240000,
+      status: "success",
+      referenceType: "deposit_request",
+      referenceId: depositId,
+      idempotencyKey: `deposit:${depositId}`,
+    });
+    await IncomingBankTransaction.create({
+      provider: "sepay",
+      source: "webhook",
+      providerTransactionId: "hybrid-settlement-1",
+      sourceAliases: [
+        { source: "webhook", providerTransactionId: "hybrid-settlement-1" },
+      ],
+      payloadDigest: "e".repeat(64),
+      fingerprintDigest: "f".repeat(64),
+      gateway: "TPBank",
+      maskedAccountNumber: "******0000",
+      transferType: "in",
+      amount: 200000,
+      creditedAmount: 240000,
+      transactionAt: new Date(),
+      depositCode: created.body.data.depositCode,
+      depositRequestId: depositId,
+      userId: user._id,
+      status: "settled",
+    });
+
+    const beforeReversal = await request(app)
+      .get("/api/deposits")
+      .set("Cookie", [`accessToken=${accessToken}`]);
+
+    await WalletTransaction.create({
+      userId: user._id,
+      walletId: direct.walletId,
+      type: "reversal",
+      amount: -240000,
+      balanceBefore: 480000,
+      balanceAfter: 240000,
+      status: "success",
+      referenceType: "deposit_request",
+      referenceId: depositId,
+      idempotencyKey: `deposit-reversal:${depositId}`,
+      reversalOf: direct._id,
+    });
+    const afterDirectReversal = await request(app)
+      .get("/api/deposits")
+      .set("Cookie", [`accessToken=${accessToken}`]);
+
+    expect({
+      before: beforeReversal.body.data[0],
+      after: afterDirectReversal.body.data[0],
+    }).toMatchObject({
+      before: {
+        settledTransactionCount: 2,
+        settledAmountTotal: 400000,
+        settledBonusAmountTotal: 80000,
+        settledCreditedAmountTotal: 480000,
+      },
+      after: {
+        settledTransactionCount: 1,
+        settledAmountTotal: 200000,
+        settledBonusAmountTotal: 40000,
+        settledCreditedAmountTotal: 240000,
+      },
+    });
+  });
+
+  it("reads a legacy deposit without snapshot as zero bonus", async () => {
+    const { accessToken, user } = await createTestUser();
+    await DepositRequest.create({
+      userId: user._id,
+      amount: 5000,
+      depositCode: "HTC-OLD1-0001",
+      expiresAt: new Date(Date.now() + 60_000),
+      status: "pending",
+    });
+
+    const response = await request(app)
+      .get("/api/deposits")
+      .set("Cookie", [`accessToken=${accessToken}`]);
+
+    expect(response.body.data[0]).toMatchObject({
+      amount: 5000,
+      bonusRate: 0,
+      bonusAmount: 0,
+      creditedAmount: 5000,
+      bonusTierKey: null,
+      policyVersion: null,
+    });
   });
 });
 

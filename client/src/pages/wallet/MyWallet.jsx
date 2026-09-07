@@ -1,73 +1,77 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "../../context/AuthContext";
-import { createDeposit } from "../../services/wallet.service";
-import { Wallet, Plus, Clock, CheckCircle, XCircle, AlertTriangle, Copy, ArrowLeft } from "lucide-react";
-import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
-import SEO from "../../components/SEO";
 import { useTranslation } from "react-i18next";
-import { useDepositPolicy } from "../../hooks/useDepositPolicy";
 import {
-  invalidateDepositHistory,
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  Clock3,
+  Copy,
+  Landmark,
+  LoaderCircle,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Wallet,
+  X,
+  XCircle,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+
+import SEO from "../../components/SEO";
+import { useAuth } from "../../context/AuthContext";
+import { useDepositPolicy } from "../../hooks/useDepositPolicy";
+import { useModalScrollLock } from "../../hooks/useModalScrollLock";
+import {
   getDepositSettlementSignal,
+  invalidateDepositHistory,
   walletBalanceQueryOptions,
   walletDepositsQueryOptions,
 } from "../../queries/walletAccount.queries";
+import { createDeposit } from "../../services/wallet.service";
+import { calculateDepositPreview } from "../../utils/depositPolicy";
+import { resolveDepositHistoryAmounts } from "./walletDepositHistory.ui";
 
-// ===== Format tiền VND =====
 const EMPTY_DEPOSITS = [];
+const QUICK_AMOUNTS = [10_000, 50_000, 100_000, 200_000, 500_000, 1_000_000];
+const DEPOSIT_GUIDE_STEPS = [
+  "choose_tier",
+  "enter_amount",
+  "create_invoice",
+  "transfer",
+  "wallet_credit",
+];
 
-const formatVND = (amount, lang = "vi") =>
-  new Intl.NumberFormat(lang === "vi" ? "vi-VN" : "en-US", { style: "currency", currency: "VND" }).format(amount);
+const formatVND = (amount, language = "vi") =>
+  new Intl.NumberFormat(language === "vi" ? "vi-VN" : "en-US", {
+    style: "currency",
+    currency: "VND",
+    maximumFractionDigits: 0,
+  }).format(Number.isSafeInteger(amount) ? amount : 0);
 
-// ===== Badge trạng thái =====
-const StatusBadge = ({ status, t }) => {
-  const trans = t || ((k) => k.includes(".") ? k.split(".")[1] : k);
-  const map = {
-    pending: { label: trans("status.pending"), color: "text-yellow-400 bg-yellow-400/10", icon: Clock },
-    success: { label: trans("status.success"), color: "text-green-400 bg-green-400/10", icon: CheckCircle },
-    expired: { label: trans("status.expired"), color: "text-gray-400 bg-gray-400/10", icon: XCircle },
-    rejected: { label: trans("status.rejected"), color: "text-red-400 bg-red-400/10", icon: XCircle },
-    needs_review: { label: trans("status.needs_review"), color: "text-orange-400 bg-orange-400/10", icon: Clock },
-    reversed: { label: trans("status.reversal", { defaultValue: "Đã hoàn tác" }), color: "text-blue-400 bg-blue-400/10", icon: XCircle },
-  };
-  const info = map[status] || map.pending;
-  const Icon = info.icon;
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${info.color}`}>
-      <Icon className="w-3 h-3" /> {info.label}
-    </span>
-  );
+const parseAmount = (value) => {
+  if (!/^\d+$/.test(value)) return null;
+  const amount = Number(value);
+  return Number.isSafeInteger(amount) ? amount : null;
 };
 
-// ===== Countdown Timer =====
-const Countdown = ({ expiresAt, onExpired, t }) => {
-  const [timeLeft, setTimeLeft] = useState(0);
-  const trans = t || ((k) => k.includes(".") ? k.split(".")[1] : k);
-
-  useEffect(() => {
-    const calc = () => {
-      const diff = Math.max(0, Math.floor((new Date(expiresAt) - Date.now()) / 1000));
-      setTimeLeft(diff);
-      if (diff === 0 && onExpired) onExpired();
-    };
-    calc();
-    const timer = setInterval(calc, 1000);
-    return () => clearInterval(timer);
-  }, [expiresAt, onExpired]);
-
-  const mins = Math.floor(timeLeft / 60);
-  const secs = timeLeft % 60;
-
-  if (timeLeft <= 0) return <span className="text-red-400 font-semibold">{trans("wallet.expired_label")}</span>;
-
-  return (
-    <span className={`font-mono font-bold text-lg ${timeLeft < 60 ? "text-red-400 animate-pulse" : "text-green-400"}`}>
-      {String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}
-    </span>
-  );
+const parseQrPayload = (payload) => {
+  try {
+    const value = JSON.parse(payload || "{}");
+    return value && typeof value === "object" ? value : {};
+  } catch {
+    return {};
+  }
 };
+
+const snapshotFields = (deposit) => ({
+  bonusRate: deposit.bonusRate ?? 0,
+  bonusAmount: deposit.bonusAmount ?? 0,
+  creditedAmount: deposit.creditedAmount ?? deposit.amount,
+  bonusTierKey: deposit.bonusTierKey ?? null,
+  policyVersion: deposit.policyVersion ?? null,
+});
 
 const toActiveDeposit = (deposit) =>
   deposit
@@ -78,43 +82,196 @@ const toActiveDeposit = (deposit) =>
         qrPayload: deposit.qrPayload,
         expiresAt: deposit.expiresAt,
         status: deposit.status,
+        ...snapshotFields(deposit),
       }
     : null;
 
-// ===== TRANG VÍ CỦA TÔI =====
+const statusMap = {
+  pending: {
+    key: "status.pending",
+    icon: Clock3,
+    classes: "bg-amber-50 text-amber-700 ring-amber-200",
+  },
+  success: {
+    key: "status.success",
+    icon: CheckCircle2,
+    classes: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  },
+  expired: {
+    key: "status.expired",
+    icon: XCircle,
+    classes: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+  },
+  rejected: {
+    key: "status.rejected",
+    icon: XCircle,
+    classes: "bg-red-50 text-red-700 ring-red-200",
+  },
+  needs_review: {
+    key: "status.needs_review",
+    icon: AlertTriangle,
+    classes: "bg-orange-50 text-orange-700 ring-orange-200",
+  },
+  reversed: {
+    key: "status.reversal",
+    icon: RefreshCw,
+    classes: "bg-cyan-50 text-cyan-700 ring-cyan-200",
+  },
+};
+
+const StatusBadge = ({ status, t }) => {
+  const item = statusMap[status] || statusMap.pending;
+  const Icon = item.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${item.classes}`}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {t(item.key, { defaultValue: status })}
+    </span>
+  );
+};
+
+const Countdown = ({ expiresAt, onExpired, t }) => {
+  const [timeLeft, setTimeLeft] = useState(0);
+
+  useEffect(() => {
+    const calculate = () => {
+      const seconds = Math.max(
+        0,
+        Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000),
+      );
+      setTimeLeft(seconds);
+      if (seconds === 0) onExpired?.();
+    };
+    calculate();
+    const timer = window.setInterval(calculate, 1000);
+    return () => window.clearInterval(timer);
+  }, [expiresAt, onExpired]);
+
+  if (timeLeft <= 0) {
+    return <span className="font-semibold text-red-600">{t("wallet.expired_label")}</span>;
+  }
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  return (
+    <span className="font-mono font-bold tabular-nums text-zinc-900">
+      {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+    </span>
+  );
+};
+
+const DepositGuide = ({ t }) => (
+  <section
+    aria-labelledby="deposit-guide-heading"
+    className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:p-6"
+  >
+    <div className="max-w-2xl">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-800">
+        {t("wallet.deposit_guide.eyebrow")}
+      </p>
+      <h3 id="deposit-guide-heading" className="mt-2 text-lg font-black text-zinc-900">
+        {t("wallet.deposit_guide.title")}
+      </h3>
+      <p className="mt-2 text-sm leading-6 text-zinc-600">
+        {t("wallet.deposit_guide.subtitle")}
+      </p>
+    </div>
+
+    <ol className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
+      {DEPOSIT_GUIDE_STEPS.map((step, index) => (
+        <li key={step} className="flex gap-3 xl:block">
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-orange-800 ring-1 ring-inset ring-primary/25"
+          >
+            {index + 1}
+          </span>
+          <div className="min-w-0 xl:mt-3">
+            <h4 className="text-sm font-bold text-zinc-900">
+              {t(`wallet.deposit_guide.steps.${step}.title`)}
+            </h4>
+            <p className="mt-1 text-xs leading-5 text-zinc-600">
+              {t(`wallet.deposit_guide.steps.${step}.description`)}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  </section>
+);
+
+const TierCard = ({ tier, active, maxAmount, language, t }) => {
+  return (
+    <article
+      aria-current={active ? "true" : undefined}
+      className={`relative rounded-2xl border p-5 transition-[border-color,box-shadow,transform] duration-200 ${
+        active
+          ? "-translate-y-1 border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-100"
+          : "border-zinc-200 bg-white shadow-sm"
+      }`}
+    >
+      {active && (
+        <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white">
+          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+          {t("wallet.tier_applied")}
+        </span>
+      )}
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary-dark">
+        <Landmark className="h-6 w-6" aria-hidden="true" />
+      </div>
+      <h3 className="mt-4 max-w-[15rem] text-base font-bold text-zinc-900">
+        {t("wallet.tpbank_name")}
+      </h3>
+      <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {t(`wallet.tiers.${tier.key}`)}
+      </p>
+      <dl className="mt-4 space-y-2 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt className="text-zinc-500">{t("wallet.minimum")}</dt>
+          <dd className="font-semibold text-zinc-900">
+            {formatVND(tier.minAmount, language)}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-zinc-500">{t("wallet.maximum")}</dt>
+          <dd className="font-semibold text-zinc-900">
+            {formatVND(maxAmount, language)}
+          </dd>
+        </div>
+      </dl>
+      <div className="mt-4 border-t border-zinc-200 pt-4">
+        <p className="text-xs text-zinc-500">{t("wallet.bonus_rate")}</p>
+        <p className="text-3xl font-black text-emerald-700">+{tier.bonusRate}%</p>
+      </div>
+    </article>
+  );
+};
+
 const MyWallet = () => {
   const { t, i18n } = useTranslation("account");
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const userId = user?._id;
+  const language = i18n.language;
+  const [depositAmount, setDepositAmount] = useState("");
+  const [selectedDeposit, setSelectedDeposit] = useState(null);
+  const [qrFailed, setQrFailed] = useState(false);
+  const previousSettlementSignal = useRef(null);
+  const dialogRef = useRef(null);
+  const closeDialogButtonRef = useRef(null);
+
   const {
     data: depositPolicy,
     isLoading: policyLoading,
     isError: policyError,
     refetch: refetchPolicy,
   } = useDepositPolicy();
-
-  const queryClient = useQueryClient();
-  const userId = user?._id;
-
-  // Modal nạp tiền
-  const [showDeposit, setShowDeposit] = useState(false);
-  const [depositAmount, setDepositAmount] = useState("");
-
-  // Màn hình QR
-  const [selectedDeposit, setActiveDeposit] = useState(null);
-
-  const walletQuery = useQuery(
-    walletBalanceQueryOptions({ userId }),
-  );
-  const depositsQuery = useQuery(
-    walletDepositsQueryOptions({ userId }),
-  );
-  const balance = walletQuery.data?.balance ?? null;
+  const walletQuery = useQuery(walletBalanceQueryOptions({ userId }));
+  const depositsQuery = useQuery(walletDepositsQueryOptions({ userId }));
   const deposits = depositsQuery.data || EMPTY_DEPOSITS;
   const settlementSignal = getDepositSettlementSignal(deposits);
-  const previousSettlementSignal = useRef(null);
-  const refetchWallet = walletQuery.refetch;
-  const loading = walletQuery.isPending || depositsQuery.isPending;
 
   useEffect(() => {
     if (!depositsQuery.data) return;
@@ -122,10 +279,53 @@ const MyWallet = () => {
       previousSettlementSignal.current !== null &&
       previousSettlementSignal.current !== settlementSignal
     ) {
-      void refetchWallet();
+      void walletQuery.refetch();
     }
     previousSettlementSignal.current = settlementSignal;
-  }, [depositsQuery.data, settlementSignal, refetchWallet]);
+  }, [depositsQuery.data, settlementSignal, walletQuery]);
+
+  const refreshedSelectedDeposit = selectedDeposit?.depositRequestId
+    ? deposits.find(
+        (deposit) => deposit._id === selectedDeposit.depositRequestId,
+      )
+    : null;
+  const activeDeposit = toActiveDeposit(refreshedSelectedDeposit || selectedDeposit);
+  const qrOpen = activeDeposit?.status === "pending";
+  useModalScrollLock(qrOpen);
+
+  useEffect(() => {
+    if (!qrOpen) return undefined;
+    const previouslyFocused = document.activeElement;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setSelectedDeposit(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = dialogRef.current?.querySelectorAll(
+        'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    const focusTimer = window.requestAnimationFrame(() =>
+      closeDialogButtonRef.current?.focus(),
+    );
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusTimer);
+      window.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus?.();
+    };
+  }, [qrOpen]);
 
   const createDepositMutation = useMutation({
     mutationFn: createDeposit,
@@ -135,57 +335,46 @@ const MyWallet = () => {
         ? invalidateDepositHistory(queryClient, userId)
         : undefined,
   });
-  const depositLoading = createDepositMutation.isPending;
-  const checkingStatus = walletQuery.isFetching || depositsQuery.isFetching;
 
-  // Kiểm tra có giao dịch đang chờ duyệt hoặc đang pending
-  const hasNeedsReview = deposits.some((d) => d.status === "needs_review");
-  const hasPendingDeposit = deposits.some((d) => d.status === "pending");
-  const isRefreshingOpenDeposits =
-    depositsQuery.isFetching && (hasNeedsReview || hasPendingDeposit);
-  const refreshedSelectedDeposit = selectedDeposit?.depositRequestId
-    ? deposits.find(
-        (deposit) => deposit._id === selectedDeposit.depositRequestId,
-      )
-    : null;
-  const activeDeposit = toActiveDeposit(
-    refreshedSelectedDeposit ||
-      selectedDeposit ||
-      deposits.find((deposit) =>
-        ["pending", "needs_review"].includes(deposit.status),
-      ),
+  const numericAmount = parseAmount(depositAmount);
+  const preview = useMemo(
+    () =>
+      depositPolicy
+        ? calculateDepositPreview(depositPolicy, numericAmount ?? 0)
+        : null,
+    [depositPolicy, numericAmount],
+  );
+  const hasNeedsReview = deposits.some((deposit) => deposit.status === "needs_review");
+  const hasPendingDeposit = deposits.some((deposit) => deposit.status === "pending");
+  const hasOpenDeposit = hasNeedsReview || hasPendingDeposit;
+  const validAmount = Boolean(
+    depositPolicy &&
+      numericAmount !== null &&
+      numericAmount >= depositPolicy.minAmount &&
+      numericAmount <= depositPolicy.maxAmount,
   );
 
-  // Tạo yêu cầu nạp tiền
   const handleCreateDeposit = async () => {
-    const amount = parseInt(depositAmount);
     if (!depositPolicy) {
-      toast.error("Không thể xác minh giới hạn nạp tiền. Vui lòng tải lại.");
+      toast.error(t("wallet.errors.policy_unavailable"));
       return;
     }
-    if (!amount || amount < depositPolicy.minAmount) {
-      toast.error(t("wallet.errors.min_limit"));
+    if (!validAmount) {
+      toast.error(
+        numericAmount !== null && numericAmount > depositPolicy.maxAmount
+          ? t("wallet.errors.max_limit")
+          : t("wallet.errors.min_limit"),
+      );
       return;
     }
-    if (amount > depositPolicy.maxAmount) {
-      toast.error(t("wallet.errors.max_limit"));
-      return;
-    }
-
     try {
-      const res = await createDepositMutation.mutateAsync(amount);
-      const data = res.data.data;
-      setActiveDeposit(data);
-      setShowDeposit(false);
+      const response = await createDepositMutation.mutateAsync(numericAmount);
+      setQrFailed(false);
+      setSelectedDeposit(toActiveDeposit(response.data.data));
       setDepositAmount("");
       toast.success(t("wallet.errors.create_success"));
-    } catch (err) {
-      toast.error(
-        err.response?.data?.message ||
-          t("wallet.errors.create_failed", {
-            defaultValue: "Lỗi khi tạo yêu cầu nạp tiền",
-          }),
-      );
+    } catch (error) {
+      toast.error(error.response?.data?.message || t("wallet.errors.create_failed"));
     }
   };
 
@@ -194,385 +383,529 @@ const MyWallet = () => {
     toast.info(t("wallet.check_status_done"));
   };
 
-  // Copy mã nạp tiền
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success(t("wallet.errors.copy_success"));
+  const handleCopy = async (text, label) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(t("wallet.errors.copy_success", { label }));
+    } catch {
+      toast.error(t("wallet.errors.copy_failed"));
+    }
   };
 
-  // Số tiền nhanh
-  const quickAmounts = depositPolicy
-    ? [5000, 10000, 50000, 100000, 200000, 500000].filter(
-        (amount) => amount >= depositPolicy.minAmount && amount <= depositPolicy.maxAmount,
-      ) : [];
+  const qr = parseQrPayload(activeDeposit?.qrPayload);
+  const qrSource = qr.accountNumber
+    ? `https://img.vietqr.io/image/${qr.bankCode || "TPB"}-${qr.accountNumber}-compact.png?amount=${qr.amount}&addInfo=${encodeURIComponent(qr.content || "")}&accountName=${encodeURIComponent(qr.accountHolder || "")}`
+    : "";
+  const loading = walletQuery.isPending || depositsQuery.isPending;
 
   return (
     <phantom-ui loading={loading || undefined}>
-    <div className="min-h-screen bg-[#1a1a1a] text-white">
-      <SEO title={t("wallet.title")} noindex />
+      <div className="min-h-screen bg-zinc-50 text-zinc-900">
+        <SEO title={t("wallet.title")} noindex />
 
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#1a1a1a] to-[#2a2a2a] border-b border-gray-800">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-400 hover:text-white mb-4 transition">
-            <ArrowLeft className="w-4 h-4" /> {t("wallet.back")}
-          </button>
-          <div className="flex items-center justify-between flex-wrap gap-4">
+        <header className="border-b border-zinc-200 bg-white">
+          <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-6 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2 uppercase">
-                <Wallet className="w-7 h-7 text-primary" /> {t("wallet.title")}
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-semibold text-zinc-600 transition-colors duration-200 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                {t("wallet.back")}
+              </button>
+              <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight text-zinc-900 md:text-3xl">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-white">
+                  <Wallet className="h-6 w-6" aria-hidden="true" />
+                </span>
+                {t("wallet.title")}
               </h1>
-              <p className="text-gray-400 text-sm mt-1">{t("wallet.welcome")}, {user?.name || user?.email}</p>
+              <p className="mt-2 text-sm text-zinc-600">
+                {t("wallet.welcome")}, {user?.name || user?.email}
+              </p>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-400">{t("wallet.balance")}</p>
+
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 px-6 py-4 lg:min-w-72 lg:text-right">
+              <p className="text-sm font-medium text-zinc-700">{t("wallet.balance")}</p>
               {walletQuery.isError ? (
-                <div role="alert" className="mt-1">
-                  <p className="text-3xl font-bold text-gray-500">—</p>
-                  <button
-                    type="button"
-                    onClick={() => walletQuery.refetch()}
-                    disabled={walletQuery.isFetching}
-                    className="mt-1 text-xs font-semibold text-orange-300 hover:text-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-wait disabled:opacity-50"
-                  >
-                    {walletQuery.isFetching ? "Đang tải lại..." : "Không tải được · Thử lại"}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => walletQuery.refetch()}
+                  disabled={walletQuery.isFetching}
+                  className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-red-700 transition-colors duration-200 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-wait disabled:opacity-50"
+                >
+                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                  {t("wallet.retry_balance")}
+                </button>
               ) : (
-                <p className="text-3xl font-bold text-primary">
-                  {balance === null ? "—" : formatVND(balance, i18n.language)}
+                <p className="mt-1 text-3xl font-black text-primary-dark">
+                  {walletQuery.data?.balance === undefined
+                    ? "—"
+                    : formatVND(walletQuery.data.balance, language)}
                 </p>
               )}
             </div>
           </div>
-        </div>
-      </div>
+        </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-        {/* Nút Nạp tiền */}
-        {hasNeedsReview || hasPendingDeposit ? (
-          <div className="w-full py-4 bg-[#222] border border-orange-500/30 text-orange-400 font-semibold text-center rounded-xl space-y-2">
-            <div className="flex items-center justify-center gap-2">
-              <Clock className="w-5 h-5" />
-              <span>{hasNeedsReview ? t("wallet.needs_review_warning") : t("wallet.pending_warning")}</span>
-            </div>
-            <p className="text-xs text-gray-500">
-              {hasNeedsReview
-                ? t("wallet.needs_review_desc")
-                : t("wallet.pending_desc")
-              }
-            </p>
-            {isRefreshingOpenDeposits && (
-              <p role="status" aria-live="polite" className="text-xs text-orange-300">
-                Đang đồng bộ trạng thái giao dịch...
-              </p>
-            )}
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowDeposit(true)}
-            className="w-full py-4 bg-gradient-to-r from-primary to-orange-500 text-white font-bold text-lg rounded-xl hover:shadow-lg hover:shadow-orange-500/30 transition-all flex items-center justify-center gap-2"
-          >
-            <Plus className="w-5 h-5" /> {t("wallet.deposit_btn")}
-          </button>
-        )}
-
-        {/* ===== MÀN HÌNH QR (khi đã tạo yêu cầu nạp) ===== */}
-        {activeDeposit && activeDeposit.status === "pending" && (
-          <div className="bg-[#222] border border-gray-700 rounded-xl p-6 space-y-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">{t("wallet.qr_title")}</h3>
-              <Countdown
-                expiresAt={activeDeposit.expiresAt}
-                onExpired={() => {
-                  setActiveDeposit(null);
-                  void depositsQuery.refetch();
-                }}
-                t={t}
-              />
-            </div>
-
-            {(() => {
-              const qr = JSON.parse(activeDeposit.qrPayload || "{}");
-              return (
-                <div className="space-y-4">
-                  {/* QR Image (VietQR API) */}
-                  <div className="flex justify-center">
-                    <div className="bg-white rounded-xl p-3">
-                      <img
-                        src={`https://img.vietqr.io/image/${qr.bankCode || "TPB"}-${qr.accountNumber}-compact.png?amount=${qr.amount}&addInfo=${encodeURIComponent(qr.content)}&accountName=${encodeURIComponent(qr.accountHolder)}`}
-                        alt="QR Chuyển khoản"
-                        className="w-56 h-56 object-contain"
-                        onError={(e) => {
-                          e.target.style.display = "none";
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Thông tin chi tiết */}
-                  <div className="bg-[#1a1a1a] rounded-lg p-4 space-y-3 text-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">{t("wallet.bank")}</span>
-                      <span className="font-semibold">{qr.bankName}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">{t("wallet.account_number")}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{qr.accountNumber}</span>
-                        <button onClick={() => handleCopy(qr.accountNumber)} className="text-primary hover:text-orange-400">
-                          <Copy className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">{t("wallet.account_holder")}</span>
-                      <span className="font-semibold">{qr.accountHolder}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">{t("wallet.amount")}</span>
-                      <span className="font-bold text-primary text-base">{formatVND(qr.amount, i18n.language)}</span>
-                    </div>
-                    <div className="flex justify-between items-center border-t border-gray-700 pt-3">
-                      <span className="text-gray-400">{t("wallet.content")}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-yellow-400 tracking-wider">{qr.content}</span>
-                        <button onClick={() => handleCopy(qr.content)} className="text-primary hover:text-orange-400">
-                          <Copy className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-yellow-400 text-xs text-center">
-                    ⚠️ {t("wallet.warning_alert")}
-                  </div>
-
-                  <p className="text-center text-xs leading-relaxed text-gray-400">
-                    {t("wallet.automatic_note")}
+        <main className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6">
+          {hasOpenDeposit && (
+            <section
+              role="status"
+              className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex gap-3">
+                <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden="true" />
+                <div>
+                  <h2 className="font-bold text-amber-900">
+                    {hasNeedsReview
+                      ? t("wallet.needs_review_warning")
+                      : t("wallet.pending_warning")}
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-amber-800">
+                    {hasNeedsReview
+                      ? t("wallet.needs_review_desc")
+                      : t("wallet.pending_desc")}
                   </p>
-
-                  <button
-                    type="button"
-                    onClick={handleCheckStatus}
-                    disabled={checkingStatus}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 font-bold text-white transition-[background-color,box-shadow] duration-200 hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-wait disabled:opacity-50"
-                  >
-                    <CheckCircle className="w-5 h-5" aria-hidden="true" />
-                    {checkingStatus
-                      ? t("wallet.checking_status")
-                      : t("wallet.check_status")}
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setActiveDeposit(null);
-                      void depositsQuery.refetch();
-                    }}
-                    className="w-full py-2 border border-gray-600 rounded-lg text-gray-400 hover:text-white hover:border-gray-400 transition text-sm"
-                  >
-                    {t("profile.cancel")}
-                  </button>
                 </div>
-              );
-            })()}
-          </div>
-        )}
-
-        {/* ===== MÀN HÌNH XÁC NHẬN ĐÃ THANH TOÁN (needs_review) ===== */}
-        {activeDeposit && activeDeposit.status === "needs_review" && (
-          <div className="bg-[#222] border border-green-500/30 rounded-xl p-8 space-y-4 text-center">
-            <div className="flex justify-center">
-              <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-10 h-10 text-green-400" />
               </div>
-            </div>
-            <h3 className="text-xl font-bold text-green-400">{t("wallet.confirmed_title")}</h3>
-            <p className="text-gray-400 text-sm">{t("wallet.confirmed_desc")}</p>
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-green-300 text-xs">
-              {t("wallet.confirmed_help")}
-            </div>
-            <button
-              onClick={() => {
-                setActiveDeposit(null);
-                void depositsQuery.refetch();
-              }}
-              className="w-full py-2 border border-gray-600 rounded-lg text-gray-400 hover:text-white hover:border-gray-400 transition text-sm"
-            >
-              {t("profile.cancel")}
-            </button>
-          </div>
-        )}
-
-        {/* ===== LỊCH SỬ NẠP TIỀN ===== */}
-        <div>
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-gray-400" /> {t("wallet.history_title")}
-          </h3>
-          {depositsQuery.isError && depositsQuery.data && (
-            <div role="alert" className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-              Không thể cập nhật lịch sử mới nhất.
-              <button
-                type="button"
-                onClick={() => depositsQuery.refetch()}
-                disabled={depositsQuery.isFetching}
-                className="ml-2 font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-wait disabled:opacity-50"
-              >
-                Thử lại
-              </button>
-            </div>
-          )}
-          {depositsQuery.isError && !depositsQuery.data ? (
-            <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-center text-red-300">
-              <p>Không thể tải lịch sử nạp tiền.</p>
-              <button
-                type="button"
-                onClick={() => depositsQuery.refetch()}
-                disabled={depositsQuery.isFetching}
-                className="mt-3 min-h-11 rounded-lg border border-red-400/50 px-4 py-2 font-semibold hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-wait disabled:opacity-50"
-              >
-                {depositsQuery.isFetching ? "Đang tải lại..." : "Thử lại"}
-              </button>
-            </div>
-          ) : deposits.length === 0 ? (
-            <div className="text-center text-gray-500 py-10 bg-[#222] rounded-xl border border-gray-800">
-              {t("history.no_txs")}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {deposits.map((d) => (
-                <div
-                  key={d._id}
-                  className="flex items-center justify-between gap-4 bg-[#222] border border-gray-800 rounded-lg p-4 hover:border-gray-600 transition cursor-pointer"
+              {hasPendingDeposit && (
+                <button
+                  type="button"
                   onClick={() => {
-                    if (d.status === "pending") {
-                      setActiveDeposit({
-                        depositRequestId: d._id,
-                        amount: d.amount,
-                        depositCode: d.depositCode,
-                        qrPayload: d.qrPayload,
-                        expiresAt: d.expiresAt,
-                        status: d.status,
-                      });
-                    }
+                    setQrFailed(false);
+                    setSelectedDeposit(
+                      toActiveDeposit(
+                        deposits.find((deposit) => deposit.status === "pending"),
+                      ),
+                    );
                   }}
+                  className="min-h-11 shrink-0 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-bold text-white transition-colors duration-200 hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
                 >
+                  {t("wallet.view_transfer")}
+                </button>
+              )}
+            </section>
+          )}
+
+          <section aria-labelledby="deposit-heading" className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+            <div className="flex flex-col gap-3 border-b border-zinc-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 id="deposit-heading" className="text-xl font-black text-zinc-900">
+                  {t("wallet.create_invoice")}
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600">
+                  {t("wallet.bonus_intro")}
+                </p>
+              </div>
+              <span className="inline-flex w-fit items-center gap-2 rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-700">
+                <ShieldCheck className="h-4 w-4 text-primary-dark" aria-hidden="true" />
+                {t("wallet.secure_transfer")}
+              </span>
+            </div>
+
+            <DepositGuide t={t} />
+
+            {policyError ? (
+              <div role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+                <p>{t("wallet.errors.policy_unavailable")}</p>
+                <button
+                  type="button"
+                  onClick={() => refetchPolicy()}
+                  className="mt-3 min-h-11 rounded-lg border border-red-300 px-4 font-bold transition-colors duration-200 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                >
+                  {t("wallet.retry")}
+                </button>
+              </div>
+            ) : policyLoading || !depositPolicy ? (
+              <div className="mt-6 flex min-h-40 items-center justify-center text-zinc-500" role="status">
+                <LoaderCircle className="mr-2 h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                {t("wallet.loading_policy")}
+              </div>
+            ) : (
+              <>
+                <div className="mt-6 grid gap-4 lg:grid-cols-3">
+                  {depositPolicy.tiers.map((tier) => (
+                    <TierCard
+                      key={tier.key}
+                      tier={tier}
+                      active={preview?.bonusTierKey === tier.key}
+                      maxAmount={depositPolicy.maxAmount}
+                      language={language}
+                      t={t}
+                    />
+                  ))}
+                </div>
+
+                <div className="mt-7 grid gap-6 border-t border-zinc-200 pt-7 lg:grid-cols-[minmax(0,1fr)_22rem]">
                   <div>
-                    <p className="font-semibold text-white">{formatVND(d.amount, i18n.language)}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(d.createdAt).toLocaleString(i18n.language === "vi" ? "vi-VN" : "en-US", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })}
-                      {d.depositCode && <span className="ml-2 text-gray-600">• {d.depositCode}</span>}
+                    <label htmlFor="deposit-amount" className="text-sm font-bold text-zinc-800">
+                      {t("wallet.enter_amount")}
+                    </label>
+                    <div className="mt-2 flex rounded-xl border border-zinc-300 bg-zinc-50 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
+                      <input
+                        id="deposit-amount"
+                        name="depositAmount"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={depositAmount}
+                        onChange={(event) => {
+                          if (/^\d*$/.test(event.target.value)) {
+                            setDepositAmount(event.target.value);
+                          }
+                        }}
+                        disabled={hasOpenDeposit || createDepositMutation.isPending}
+                        aria-describedby="deposit-range"
+                        placeholder={t("wallet.amount_placeholder")}
+                        className="min-h-14 w-full rounded-l-xl bg-transparent px-4 text-lg font-bold text-zinc-900 outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                      <span className="flex items-center border-l border-zinc-200 px-4 font-bold text-zinc-600">VND</span>
+                    </div>
+                    <p id="deposit-range" className="mt-2 text-xs text-zinc-500">
+                      {t("wallet.amount_range", {
+                        min: formatVND(depositPolicy.minAmount, language),
+                        max: formatVND(depositPolicy.maxAmount, language),
+                      })}
                     </p>
-                    {d.reverseReason && (
-                      <p className="text-xs text-blue-400 mt-1">
-                        {d.reverseReason}
-                      </p>
-                    )}
-                    {d.settledTransactionCount > 0 && (
-                      <p className="mt-1 text-xs font-medium text-emerald-400">
-                        {t("wallet.settlement_summary", {
-                          count: d.settledTransactionCount,
-                          amount: formatVND(
-                            d.settledAmountTotal,
-                            i18n.language,
-                          ),
-                        })}
-                      </p>
-                    )}
-                    {d.status === "expired" && (
-                      <p className="mt-1 max-w-prose text-xs leading-relaxed text-gray-500">
-                        {t("wallet.late_payment_note")}
-                      </p>
+                    <div className="mt-4 flex flex-wrap gap-2" aria-label={t("wallet.quick_amount")}>
+                      {QUICK_AMOUNTS.filter(
+                        (amount) => amount <= depositPolicy.maxAmount,
+                      ).map((amount) => (
+                        <button
+                          type="button"
+                          key={amount}
+                          onClick={() => setDepositAmount(String(amount))}
+                          disabled={hasOpenDeposit || createDepositMutation.isPending}
+                          className={`min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 ${
+                            numericAmount === amount
+                              ? "border-primary bg-primary/10 text-orange-800"
+                              : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400"
+                          }`}
+                        >
+                          {formatVND(amount, language)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <aside className="rounded-2xl bg-zinc-900 p-5 text-white" aria-live="polite">
+                    <div className="flex items-center gap-2 text-primary-light">
+                      <Sparkles className="h-5 w-5" aria-hidden="true" />
+                      <h3 className="font-bold">{t("wallet.deposit_preview")}</h3>
+                    </div>
+                    <dl className="mt-5 space-y-3 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-zinc-400">{t("wallet.transfer_amount")}</dt>
+                        <dd className="font-semibold">{formatVND(preview?.amount || 0, language)}</dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-zinc-400">
+                          {t("wallet.bonus_with_rate", { rate: preview?.bonusRate || 0 })}
+                        </dt>
+                        <dd className="font-semibold text-amber-300">
+                          +{formatVND(preview?.bonusAmount || 0, language)}
+                        </dd>
+                      </div>
+                      <div className="flex items-end justify-between gap-4 border-t border-zinc-700 pt-4">
+                        <dt className="font-bold text-zinc-200">{t("wallet.credited_amount")}</dt>
+                        <dd className="text-2xl font-black text-emerald-300">
+                          {formatVND(preview?.creditedAmount || 0, language)}
+                        </dd>
+                      </div>
+                    </dl>
+                    <button
+                      type="button"
+                      onClick={handleCreateDeposit}
+                      disabled={
+                        hasOpenDeposit ||
+                        !validAmount ||
+                        createDepositMutation.isPending
+                      }
+                      className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-black text-zinc-950 transition-[background-color,box-shadow] duration-200 hover:bg-primary-dark hover:shadow-lg hover:shadow-orange-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400 disabled:shadow-none"
+                    >
+                      {createDepositMutation.isPending ? (
+                        <LoaderCircle className="h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                      ) : (
+                        <Landmark className="h-5 w-5" aria-hidden="true" />
+                      )}
+                      {createDepositMutation.isPending
+                        ? t("wallet.confirm_loading")
+                        : t("wallet.create_invoice_action")}
+                    </button>
+                  </aside>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section aria-labelledby="history-heading">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 id="history-heading" className="flex items-center gap-2 text-xl font-black text-zinc-900">
+                  <Clock3 className="h-5 w-5 text-zinc-500" aria-hidden="true" />
+                  {t("wallet.history_title")}
+                </h2>
+                <p className="mt-1 text-sm text-zinc-600">{t("wallet.history_desc")}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCheckStatus}
+                disabled={walletQuery.isFetching || depositsQuery.isFetching}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 text-sm font-bold text-zinc-700 transition-colors duration-200 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait disabled:opacity-50"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                {t("wallet.check_status")}
+              </button>
+            </div>
+
+            {depositsQuery.isError && (
+              <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                {t("wallet.errors.history_failed")}
+              </div>
+            )}
+            {deposits.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-zinc-300 bg-white py-12 text-center text-zinc-500">
+                {t("history.no_txs")}
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm">
+                <table className="min-w-[760px] w-full border-collapse text-left text-sm">
+                  <thead className="bg-zinc-100 text-xs uppercase tracking-wide text-zinc-600">
+                    <tr>
+                      <th className="px-5 py-4">{t("wallet.request_code")}</th>
+                      <th className="px-5 py-4">{t("wallet.transfer_amount")}</th>
+                      <th className="px-5 py-4">{t("wallet.bonus")}</th>
+                      <th className="px-5 py-4">{t("wallet.credited_amount")}</th>
+                      <th className="px-5 py-4">{t("history.status")}</th>
+                      <th className="px-5 py-4">{t("history.date")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200">
+                    {deposits.map((deposit) => {
+                      const historyAmounts = resolveDepositHistoryAmounts(deposit);
+                      return (
+                        <tr
+                          key={deposit._id}
+                          className="transition-colors duration-200 hover:bg-zinc-50"
+                        >
+                          <td className="px-5 py-4 font-mono font-semibold text-zinc-800">
+                            {deposit.depositCode}
+                            {historyAmounts.usesSettlementTotals && (
+                              <span className="mt-1 block font-sans text-xs font-normal text-zinc-500">
+                                {t("wallet.settlement_summary", {
+                                  count: historyAmounts.transactionCount,
+                                  amount: formatVND(
+                                    historyAmounts.creditedAmount,
+                                    language,
+                                  ),
+                                })}
+                              </span>
+                            )}
+                            {deposit.status === "pending" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setQrFailed(false);
+                                  setSelectedDeposit(toActiveDeposit(deposit));
+                                }}
+                                className="ml-3 rounded-md px-2 py-1 font-sans text-xs font-bold text-orange-800 transition-colors duration-200 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                              >
+                                {t("wallet.view")}
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 font-semibold text-zinc-800">
+                            {formatVND(historyAmounts.transferredAmount, language)}
+                          </td>
+                          <td className="px-5 py-4 font-semibold text-amber-700">
+                            +{formatVND(historyAmounts.bonusAmount, language)}
+                            {!historyAmounts.usesSettlementTotals &&
+                              deposit.bonusRate > 0 && (
+                              <span className="ml-1 text-xs">({deposit.bonusRate}%)</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 font-bold text-emerald-700">
+                            {formatVND(historyAmounts.creditedAmount, language)}
+                          </td>
+                          <td className="px-5 py-4">
+                            <StatusBadge status={deposit.status} t={t} />
+                          </td>
+                          <td className="px-5 py-4 text-zinc-600">
+                            {new Date(deposit.createdAt).toLocaleString(
+                              language === "vi" ? "vi-VN" : "en-US",
+                              {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: false,
+                              },
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </main>
+
+        {qrOpen && (
+          <div
+            className="fixed inset-0 z-40 flex items-center justify-center bg-zinc-950/65 p-4"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setSelectedDeposit(null);
+            }}
+          >
+            <section
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="deposit-payment-title"
+              className="z-50 max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-3xl bg-white shadow-2xl"
+            >
+              <header className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-zinc-200 bg-white px-5 py-4 sm:px-7">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 id="deposit-payment-title" className="text-xl font-black text-zinc-900">
+                      {t("wallet.payment_invoice")}
+                    </h2>
+                    <StatusBadge status="pending" t={t} />
+                  </div>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {t("wallet.request_code")}: {activeDeposit.depositCode}
+                  </p>
+                </div>
+                <button
+                  ref={closeDialogButtonRef}
+                  type="button"
+                  onClick={() => setSelectedDeposit(null)}
+                  aria-label={t("wallet.close_payment")}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors duration-200 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </header>
+
+              <div className="p-5 sm:p-7">
+                <div className="rounded-3xl bg-zinc-100 p-5 text-center sm:p-7">
+                  <div className="mx-auto flex h-64 w-64 max-w-full items-center justify-center rounded-2xl bg-white p-3 shadow-sm">
+                    {qrSource && !qrFailed ? (
+                      <img
+                        src={qrSource}
+                        alt={t("wallet.qr_alt")}
+                        className="h-full w-full object-contain"
+                        onError={() => setQrFailed(true)}
+                      />
+                    ) : (
+                      <div role="alert" className="max-w-48 text-sm leading-6 text-red-700">
+                        {t("wallet.errors.qr_failed")}
+                      </div>
                     )}
                   </div>
-                  <StatusBadge status={d.status} t={t} />
+                  <p className="mt-4 text-sm italic text-zinc-600">{t("wallet.scan_qr")}</p>
+                  <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm text-zinc-600 shadow-sm">
+                    <Clock3 className="h-4 w-4" aria-hidden="true" />
+                    {t("wallet.expires_at")}:
+                    <Countdown
+                      expiresAt={activeDeposit.expiresAt}
+                      onExpired={() => {
+                        setSelectedDeposit(null);
+                        void depositsQuery.refetch();
+                      }}
+                      t={t}
+                    />
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* ===== MODAL NẠP TIỀN ===== */}
-      {showDeposit && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-md p-6 space-y-5 relative">
-            <button
-              onClick={() => setShowDeposit(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <XCircle className="w-6 h-6" />
-            </button>
+                <h3 className="mt-7 text-sm font-black uppercase tracking-wide text-zinc-500">
+                  {t("wallet.payment_details")}
+                </h3>
+                <dl className="mt-3 divide-y divide-zinc-200 text-sm">
+                  {[
+                    [t("wallet.bank"), qr.bankName],
+                    [t("wallet.account_holder"), qr.accountHolder],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex justify-between gap-5 py-3">
+                      <dt className="text-zinc-500">{label}</dt>
+                      <dd className="text-right font-bold text-zinc-900">{value || "—"}</dd>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between gap-5 py-3">
+                    <dt className="text-zinc-500">{t("wallet.account_number")}</dt>
+                    <dd className="flex items-center gap-2 font-bold text-zinc-900">
+                      {qr.accountNumber || "—"}
+                      {qr.accountNumber && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(qr.accountNumber, t("wallet.account_number"))}
+                          aria-label={t("wallet.copy_field", { field: t("wallet.account_number") })}
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-primary-dark transition-colors duration-200 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                        >
+                          <Copy className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-5 py-3">
+                    <dt className="text-zinc-500">{t("wallet.content")}</dt>
+                    <dd className="flex items-center gap-2 font-black text-amber-700">
+                      {qr.content || activeDeposit.depositCode}
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(qr.content || activeDeposit.depositCode, t("wallet.content"))}
+                        aria-label={t("wallet.copy_field", { field: t("wallet.content") })}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-primary-dark transition-colors duration-200 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <Copy className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </dd>
+                  </div>
+                </dl>
 
-            <h3 className="text-xl font-bold text-white">{t("wallet.deposit_modal_title")}</h3>
+                <dl className="mt-4 rounded-2xl bg-zinc-50 p-5">
+                  <div className="flex justify-between gap-4 text-sm">
+                    <dt className="text-zinc-600">{t("wallet.transfer_amount")}</dt>
+                    <dd className="font-bold text-zinc-900">{formatVND(activeDeposit.amount, language)}</dd>
+                  </div>
+                  <div className="mt-3 flex justify-between gap-4 text-sm">
+                    <dt className="text-zinc-600">
+                      {t("wallet.bonus_with_rate", { rate: activeDeposit.bonusRate })}
+                    </dt>
+                    <dd className="font-bold text-amber-700">
+                      +{formatVND(activeDeposit.bonusAmount, language)}
+                    </dd>
+                  </div>
+                  <div className="mt-4 flex items-end justify-between gap-4 border-t border-zinc-200 pt-4">
+                    <dt className="font-bold text-zinc-800">{t("wallet.credited_amount")}</dt>
+                    <dd className="text-2xl font-black text-emerald-700">
+                      +{formatVND(activeDeposit.creditedAmount, language)}
+                    </dd>
+                  </div>
+                </dl>
 
-            {/* Input số tiền */}
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">{t("wallet.enter_amount")}</label>
-              <input
-                type="number"
-                min={depositPolicy?.minAmount}
-                max={depositPolicy?.maxAmount}
-                value={depositAmount}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || !depositPolicy || parseInt(val) <= depositPolicy.maxAmount) {
-                    setDepositAmount(val);
-                  }
-                }}
-                placeholder="Ví dụ: 500000"
-                className="w-full bg-[#2a2a2a] border border-gray-600 rounded-lg px-4 py-3 text-white text-lg focus:outline-none focus:border-primary transition"
-              />
-              {depositAmount && depositPolicy && parseInt(depositAmount) >= depositPolicy.minAmount && (
-                <p className="text-primary text-sm mt-1 font-semibold">{formatVND(parseInt(depositAmount), i18n.language)}</p>
-              )}
-            </div>
-              {policyError && (
-                <div className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-                  <p>Không thể tải giới hạn nạp tiền hiện tại.</p>
-                  <button
-                    type="button"
-                    onClick={() => refetchPolicy()}
-                    className="mt-2 min-h-11 rounded-md px-3 py-2 font-semibold hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
-                  >
-                    Thử tải lại
-                  </button>
+                <div className="mt-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                  <p>{t("wallet.warning_alert")}</p>
                 </div>
-              )}
-
-            {/* Số tiền nhanh */}
-            <div className="flex flex-wrap gap-2">
-              {quickAmounts.map((amt) => (
                 <button
-                  key={amt}
-                  onClick={() => setDepositAmount(String(amt))}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition ${
-                    parseInt(depositAmount) === amt
-                      ? "border-primary bg-primary/20 text-primary"
-                      : "border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white"
-                  }`}
+                  type="button"
+                  onClick={handleCheckStatus}
+                  disabled={walletQuery.isFetching || depositsQuery.isFetching}
+                  className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-3 font-bold text-white transition-colors duration-200 hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-wait disabled:opacity-50"
                 >
-                  {amt >= 1000000 ? `${amt / 1000000}tr` : `${amt / 1000}k`}
+                  <RefreshCw className="h-5 w-5" aria-hidden="true" />
+                  {t("wallet.check_status")}
                 </button>
-              ))}
-            </div>
-
-            {/* Nút xác nhận */}
-            <button
-              onClick={handleCreateDeposit}
-              disabled={depositLoading || policyLoading || !depositPolicy || !depositAmount || parseInt(depositAmount) < depositPolicy.minAmount || parseInt(depositAmount) > depositPolicy.maxAmount}
-              className="w-full py-3 bg-gradient-to-r from-primary to-orange-500 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-orange-500/30 transition-all"
-            >
-              {depositLoading ? t("wallet.confirm_loading") : t("wallet.create_code")}
-            </button>
-
-            <p className="text-xs text-gray-500 text-center">
-              {t("wallet.qr_desc")}
-            </p>
+              </div>
+            </section>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     </phantom-ui>
   );
 };

@@ -52,6 +52,16 @@
       "expectedEvidence": [
         "Review nội dung theo yêu cầu; không kích hoạt code-review chỉ vì prompt dùng từ review."
       ]
+    },
+    {
+      "id": "review-refresh-rotation-invariants",
+      "kind": "should_trigger",
+      "prompt": "Review diff refresh-token rotation có concurrent refresh, replay token cũ và logout khi access token đã hết hạn.",
+      "expectedEvidence": [
+        "Xác minh verifier bao phủ toàn token, family/JTI, atomic compare-and-swap, reuse revocation và absolute family expiry; không chấp nhận lookup fail-open.",
+        "Logout verify refresh credential nhưng vẫn giữ CSRF và httpOnly cookie secrecy; có concurrency, replay, expiry cùng persistence-failure tests.",
+        "Review mixed-version cutover và rollback compatibility; test xanh chung chung không thay evidence tại rotation boundary."
+      ]
     }
   ]
 }

@@ -30,10 +30,32 @@ import {
 import {
   createEntry,
   mergeVariant,
+  suggestFromConversations,
   updateEntry,
 } from "../knowledgeBase.controller.js";
+import {
+  getMetricsSnapshot,
+  resetMetricsForTests,
+} from "../../observability/metrics.js";
 
 let app;
+
+const createSuggestionConversation = (userId) =>
+  ChatConversation.create({
+    userId,
+    title: "Synthetic fitness Q&A",
+    messages: [
+      {
+        role: "user",
+        content: "Tôi nên phân bổ protein trong ngày như thế nào?",
+      },
+      {
+        role: "assistant",
+        content:
+          "Bạn có thể chia protein tương đối đều vào các bữa chính để hỗ trợ tổng lượng protein trong ngày.",
+      },
+    ],
+  });
 
 beforeAll(async () => {
   await setupTestDB();
@@ -46,11 +68,18 @@ beforeAll(async () => {
   app.post("/api/knowledge-base", protect, createEntry);
   app.put("/api/knowledge-base/:id", protect, updateEntry);
   app.post("/api/knowledge-base/:id/merge", protect, mergeVariant);
+  app.post(
+    "/api/knowledge-base/suggest-from-conversations",
+    protect,
+    suggestFromConversations,
+  );
 });
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   delete process.env.GEMINI_API_KEY;
+  resetMetricsForTests();
   await clearCollections();
 });
 
@@ -256,6 +285,100 @@ describe("Phase 2 AI conversation integrity", () => {
 });
 
 describe("Phase 2 Knowledge Base lifecycle", () => {
+  it("records bounded Gemini usage for Knowledge Base suggestions", async () => {
+    const { user, accessToken } = await createTestUser({ role: "admin" });
+    await createSuggestionConversation(user._id);
+    process.env.GEMINI_API_KEY = "test-key";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify([
+                        {
+                          index: 0,
+                          score: 8,
+                          category: "nutrition",
+                          reason: "Có thể tái sử dụng cho nhiều khách hàng",
+                        },
+                      ]),
+                    },
+                  ],
+                },
+              },
+            ],
+            usageMetadata: {
+              promptTokenCount: 42,
+              candidatesTokenCount: 8,
+              totalTokenCount: 50,
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const response = await withAuth(
+      request(app)
+        .post("/api/knowledge-base/suggest-from-conversations")
+        .send({ days: 7 }),
+      accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_kb_suggestion_requests": 1,
+      "provider.gemini_kb_suggestion_succeeded": 1,
+      "provider.gemini_kb_suggestion_prompt_tokens": 42,
+      "provider.gemini_kb_suggestion_output_tokens": 8,
+      "provider.gemini_kb_suggestion_total_tokens": 50,
+    });
+  });
+
+  it("records provider-reported token usage when a Knowledge Base suggestion fails", async () => {
+    const { user, accessToken } = await createTestUser({ role: "admin" });
+    await createSuggestionConversation(user._id);
+    process.env.GEMINI_API_KEY = "test-key";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            error: { status: "UNAVAILABLE" },
+            usageMetadata: {
+              promptTokenCount: 21,
+              candidatesTokenCount: 2,
+              totalTokenCount: 23,
+            },
+          }),
+          { status: 503, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const response = await withAuth(
+      request(app)
+        .post("/api/knowledge-base/suggest-from-conversations")
+        .send({ days: 7 }),
+      accessToken,
+    );
+
+    expect(response.status).toBe(503);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_kb_suggestion_requests": 1,
+      "provider.gemini_kb_suggestion_failed": 1,
+      "provider.gemini_kb_suggestion_prompt_tokens": 21,
+      "provider.gemini_kb_suggestion_output_tokens": 2,
+      "provider.gemini_kb_suggestion_total_tokens": 23,
+    });
+  });
+
   it("keeps an entry in draft when embedding generation fails", async () => {
     const { accessToken } = await createTestUser({ role: "admin" });
     const response = await withAuth(

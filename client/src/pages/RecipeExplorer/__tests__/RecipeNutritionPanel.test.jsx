@@ -124,4 +124,76 @@ describe("RecipeNutritionPanel", () => {
       keepsMilligram: false,
     });
   });
+
+  it("rounds gram values for readable display without hiding trace amounts", () => {
+    const html = renderToStaticMarkup(
+      <RecipeNutritionPanel
+        nutrition={{
+          status: "available",
+          values: {},
+          additional: [
+            { label: "Canxi", unit: "g", value: 0.422 },
+            { label: "Sắt", unit: "g", value: 0.0068 },
+            { label: "Kali", unit: "g", value: 3.006 },
+            { label: "Magie", unit: "g", value: 0.268 },
+            { label: "Vitamin C", unit: "g", value: 0.1445 },
+            { label: "Cholesterol", unit: "g", value: -0 },
+            { label: "Mốc một phần mười", unit: "g", value: 0.1 },
+            { label: "Mốc một phần trăm", unit: "g", value: 0.01 },
+            { label: "Mốc một phần nghìn", unit: "g", value: 0.001 },
+            { label: "Dưới ngưỡng", unit: "g", value: 0.000999 },
+          ],
+        }}
+      />,
+    );
+
+    expect({
+      roundsRegularDecimal: html.includes(">0,4<"),
+      preservesReadableSmallValue: html.includes(">0,007<"),
+      trimsRedundantFraction: html.includes(">3<"),
+      roundsOtherScreenshotValues:
+        html.includes(">0,3<") && html.includes(">0,1<"),
+      normalizesNegativeZero: html.includes(">0<"),
+      keepsBoundaryPrecision:
+        html.includes(">0,1<") &&
+        html.includes(">0,01<") &&
+        html.includes(">0,001<"),
+      doesNotPresentTraceAmountAsZero: html.includes(">&lt;0,001<"),
+      rendersEveryNutrientLabel: [
+        "Canxi",
+        "Sắt",
+        "Kali",
+        "Magie",
+        "Vitamin C",
+        "Cholesterol",
+        "Mốc một phần mười",
+        "Mốc một phần trăm",
+        "Mốc một phần nghìn",
+        "Dưới ngưỡng",
+      ].every((label) => html.includes(label)),
+    }).toEqual({
+      roundsRegularDecimal: true,
+      preservesReadableSmallValue: true,
+      trimsRedundantFraction: true,
+      roundsOtherScreenshotValues: true,
+      normalizesNegativeZero: true,
+      keepsBoundaryPrecision: true,
+      doesNotPresentTraceAmountAsZero: true,
+      rendersEveryNutrientLabel: true,
+    });
+  });
+
+  it("preserves a small non-zero core gram value", () => {
+    const html = renderToStaticMarkup(
+      <RecipeNutritionPanel
+        nutrition={{
+          status: "available",
+          values: { salt: 0.0068 },
+          additional: [],
+        }}
+      />,
+    );
+
+    expect(html).toContain(">0,007<");
+  });
 });

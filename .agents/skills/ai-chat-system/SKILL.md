@@ -10,6 +10,8 @@ description: Hướng dẫn kiến trúc hệ thống AI Chat (HT Assistant). D�
 
 Khi thay prompt/context, RAG, provider, tool permission, output, logging hoặc quota, đọc
 [LLM threat matrix](references/llm-threat-matrix.md) và map risk tới guard/test thật.
+Khi tool có side effect, đọc thêm [Agentic mutation lifecycle](references/agentic-mutation-lifecycle.md)
+và security rule canonical trước khi viết spec hoặc code.
 
 ---
 
@@ -32,6 +34,8 @@ Khi sửa bug hoặc update system prompt/content moderation:
 - **Sửa tool response format** → Kiểm tra card component có match data shape mới không
 - **Đưa CMS/KB/tool text vào prompt** → Coi là untrusted data và kiểm tra indirect prompt injection
 - **Thêm provider/model hoặc tăng loop/quota** → Kiểm tra supply-chain source, timeout và cost bound
+- **Thêm tool write/external action** → Tách preview/confirmation/commit/reconcile; xác minh engine
+  enforce authorization, preview binding và idempotency thay vì chỉ tin prompt/metadata
 
 ---
 
@@ -66,7 +70,8 @@ Frontend (React)                         Backend (Express)
 | `components/ChatWidget/ChatPanel.jsx` | Panel chat chính — messages, input, header |
 | `components/ChatWidget/ChatPanelSidebar.jsx` | Sidebar mode layout |
 | `components/ChatWidget/ChatBubble.jsx` | Render message + markdown links + UI cards |
-| `components/ChatWidget/cards/*.jsx` | Generative UI cards (8 cards) |
+| `components/ChatWidget/cards/*.jsx` | Generative UI cards; lấy inventory từ code/validator hiện tại |
+| `components/ChatWidget/cards/ConfirmationCard.jsx` | UI confirmation hiện có; không tự chứng minh canonical preview binding |
 | `hooks/useAiChat.js` | SSE streaming hook + auto token refresh |
 | `services/ai.service.js` | API URL helpers |
 | `App.css` | Chat animations (slideRight, slideIn, cardEnter, scrollbar) |
@@ -84,18 +89,10 @@ Frontend (React)                         Backend (Express)
 | `services/ai/embedding.service.js` | Vector embeddings cho Knowledge Base search |
 | `services/ai/tools/toolRegistry.js` | Tool schemas (OpenAI format) |
 | `services/ai/tools/toolEngine.js` | Tool executor |
-| `services/ai/tools/calculateTdee.tool.js` | Tính TDEE + macros |
-| `services/ai/tools/searchExercises.tool.js` | Tìm bài tập trong DB |
-| `services/ai/tools/suggestMeal.tool.js` | Gợi ý thực đơn |
-| `services/ai/tools/getTrainerInfo.tool.js` | Lấy thông tin HLV |
-| `services/ai/tools/checkWallet.tool.js` | Kiểm tra số dư ví (requiresAuth) |
-| `services/ai/tools/getWorkoutPlan.tool.js` | Lấy giáo án tập luyện (requiresAuth) |
-| `services/ai/tools/searchKnowledge.tool.js` | Tra cứu thông tin từ Knowledge Base |
-| `services/ai/tools/searchBlog.tool.js` | Tìm bài viết blog |
-| `services/ai/tools/getCheckinHistory.tool.js` | Lấy lịch sử checkin (requiresAuth) |
-| `services/ai/tools/getGymInfo.tool.js` | Lấy thông tin phòng gym |
-| `services/ai/tools/getTrainingSchedule.tool.js` | Lấy lịch tập luyện (requiresAuth) |
+| `services/ai/tools/*.tool.js` | Tool implementations; lấy inventory bằng `rg --files`/tool validator |
+| `services/ai/toolConfirmation.service.js` | Confirmation challenge lifecycle hiện có |
 | `models/ChatConversation.js` | Mongoose model (TTL 30 ngày) |
+| `models/AiToolConfirmation.js` | Confirmation state; không thay server-authoritative domain preview |
 | `routes/ai.routes.js` | Routes + auth + CSRF + rate limit |
 
 ## Luồng xử lý tin nhắn
@@ -116,6 +113,12 @@ User gửi message
 ```
 
 ## Quy tắc khi sửa code
+
+### Tool có mutation
+
+- Tuân theo [Agentic mutation lifecycle](references/agentic-mutation-lifecycle.md). Trước khi bật write
+  tool đầu tiên, chứng minh execution path enforce preview binding, authorization, one-time confirmation,
+  idempotency và reconcile; nếu thiếu, giữ tool read-only/draft-only và STOP.
 
 ### Thêm Tool mới
 1. Tạo file `server/src/services/ai/tools/{name}.tool.js`
@@ -167,3 +170,5 @@ User gửi message
 - [ ] AI trả link → click được → navigate
 - [ ] Nội dung xấu → cảnh báo → khóa 1h
 - [ ] 401 → auto refresh token → retry
+- [ ] Write tool (nếu có) → tampered/stale preview, double confirm, concurrent commit và uncertain
+      outcome đều fail/reconcile đúng; audit không chứa raw prompt/payload

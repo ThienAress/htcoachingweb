@@ -9,7 +9,7 @@ import {
   validateRecipeReview,
   validateRecipeNutrition,
 } from "../middlewares/validation.js";
-import upload from "../middlewares/recipeUpload.js";
+import { uploadRecipeThumbnail } from "../middlewares/recipeUpload.js";
 import {
   getRecipes,
   getRecipeBySlug,
@@ -138,7 +138,7 @@ router.post(
   requireRoles("admin"),
   validateId,
   loadRecipeForUpload,
-  upload.single("image"),
+  uploadRecipeThumbnail,
   uploadThumbnail
 );
 

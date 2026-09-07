@@ -63,11 +63,35 @@ describe("skill radar source form", () => {
   it("gives actionable duplicate and rate-limit feedback", () => {
     expect(getSkillRadarMutationError({ response: { status: 409 } }, "fallback").message).toContain("đã có");
     expect(getSkillRadarMutationError({
-      response: { status: 429, data: { retryAt: "2026-08-12T13:00:00.000Z" } },
+      response: {
+        status: 429,
+        data: {
+          code: "SKILL_RADAR_GITHUB_RATE_LIMITED",
+          retryAt: "2026-08-12T13:00:00.000Z",
+        },
+      },
     }, "fallback")).toEqual(expect.objectContaining({
       message: expect.stringContaining("vẫn được giữ nguyên"),
       retryAt: "2026-08-12T13:00:00.000Z",
     }));
+  });
+
+  it("distinguishes the local mutation limiter from a GitHub rate limit", () => {
+    expect(getSkillRadarMutationError({
+      response: {
+        status: 429,
+        data: {
+          code: "SKILL_RADAR_MUTATION_RATE_LIMITED",
+          message: "Bạn đã phân tích quá nhiều nguồn. Vui lòng thử lại sau.",
+        },
+      },
+    }, "fallback")).toEqual({
+      message: "Bạn đang thao tác quá nhanh. Vui lòng chờ một chút rồi thử lại.",
+    });
+
+    expect(getSkillRadarMutationError({
+      response: { status: 429, data: { message: "Dịch vụ đang bận." } },
+    }, "fallback")).toEqual({ message: "Dịch vụ đang bận." });
   });
 
   it("rejects local targets that exceed the server contract", () => {

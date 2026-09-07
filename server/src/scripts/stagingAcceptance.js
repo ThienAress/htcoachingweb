@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
 import { assertStagingOperation } from "../config/stagingOperationSafety.js";
+import { DEPOSIT_POLICY } from "../constants/depositPolicy.js";
 import AuditLog from "../models/AuditLog.js";
 import BlogPost from "../models/BlogPost.js";
 import Booking from "../models/Booking.js";
@@ -26,6 +27,7 @@ import {
   reconciliationIssueDelta,
   runWithVerifiedCleanup,
 } from "./stagingAcceptanceSafety.js";
+import { testStagingAuthCutover } from "./stagingAuthAcceptance.js";
 
 const STAGING_API_ORIGIN = "https://htcoachingweb-staging.onrender.com";
 const FIXTURE_EMAILS = {
@@ -53,6 +55,7 @@ const cleanup = {
   depositWindows: [],
   walletBaselines: new Map(),
   auditTargetIds: new Set(),
+  authUserIds: new Set(),
   walletReconciliationBaseline: null,
 };
 
@@ -81,13 +84,20 @@ const createToken = (user) =>
 
 const request = async (
   path,
-  { method = "GET", token, body, expected = [200], label = path } = {},
+  {
+    method = "GET",
+    token,
+    cookies: extraCookies = [],
+    body,
+    expected = [200],
+    label = path,
+  } = {},
 ) => {
   const headers = {
     Accept: "application/json",
     "User-Agent": "htcoaching-staging-acceptance/1.0",
   };
-  const cookies = [`csrfToken=${csrfToken}`];
+  const cookies = [`csrfToken=${csrfToken}`, ...extraCookies];
   if (token) cookies.push(`accessToken=${token}`);
   headers.Cookie = cookies.join("; ");
 
@@ -117,7 +127,11 @@ const request = async (
       `${label} returned ${response.status}; expected ${expected.join("/")}; code=${data?.code || "none"}`,
     );
   }
-  return { status: response.status, data };
+  const setCookies =
+    typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : [response.headers.get("set-cookie")].filter(Boolean);
+  return { status: response.status, data, setCookies };
 };
 
 const dateKeyIn = (days) => {
@@ -591,7 +605,7 @@ const testDeposit = async ({ client, tokens }) => {
     version: before.version,
     updatedAt: before.updatedAt,
   });
-  const amount = 5000;
+  const amount = DEPOSIT_POLICY.minAmount;
   cleanup.depositWindows.push({ userId: client._id, amount });
   const created = await request("/api/deposits", {
     method: "POST",
@@ -814,6 +828,11 @@ const cleanupRun = async () => {
   if (auditTargetIds.length) {
     await AuditLog.collection.deleteMany({ targetId: { $in: auditTargetIds } });
   }
+  if (cleanup.authUserIds.size) {
+    await User.collection.deleteMany({
+      _id: { $in: asObjectIds(cleanup.authUserIds) },
+    });
+  }
 };
 
 const verifyCleanup = async () => {
@@ -831,6 +850,11 @@ const verifyCleanup = async () => {
     ]),
   );
   const counts = {
+    authUsers: cleanup.authUserIds.size
+      ? await User.collection.countDocuments({
+          _id: { $in: asObjectIds(cleanup.authUserIds) },
+        })
+      : 0,
     blogs: cleanup.blogSlugs.size
       ? await BlogPost.collection.countDocuments({ slug: { $in: [...cleanup.blogSlugs] } })
       : 0,
@@ -921,6 +945,12 @@ const verifyCleanup = async () => {
 
 const executeFlows = async () => {
   const actors = await loadActors();
+  await testStagingAuthCutover({
+    addFlow,
+    registerUser: (userId) => cleanup.authUserIds.add(userId.toString()),
+    request,
+    runSuffix,
+  });
   await testPermissions(actors);
   await testBlog(actors);
   await testRecipe(actors);

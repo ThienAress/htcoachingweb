@@ -132,7 +132,17 @@ const confirmAnalysis = async (page) => {
     name: /Xác nhận gửi ảnh tới HT COACHING/,
   });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Tôi hiểu và đồng ý" }).click();
+  const confirmButton = dialog.getByRole("button", {
+    name: "Tôi hiểu và đồng ý",
+  });
+  await expect(confirmButton).toBeDisabled();
+  await dialog
+    .getByRole("checkbox", {
+      name: /Tôi đồng ý gửi ảnh này tới Google Gemini/,
+    })
+    .check();
+  await expect(confirmButton).toBeEnabled();
+  await confirmButton.click();
 };
 
 const uploadAndAnalyze = async (page) => {

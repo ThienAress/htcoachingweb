@@ -73,6 +73,35 @@ const mealPlanPreferencesSchema = new mongoose.Schema(
   { _id: false, strict: "throw" },
 );
 
+const refreshSessionSchema = new mongoose.Schema(
+  {
+    familyId: {
+      type: String,
+      required: true,
+      maxlength: 64,
+    },
+    currentJti: {
+      type: String,
+      required: true,
+      maxlength: 64,
+    },
+    expiresAt: {
+      type: Date,
+      required: true,
+    },
+    revokedAt: {
+      type: Date,
+      default: null,
+    },
+    revokeReason: {
+      type: String,
+      enum: ["logout", "reuse"],
+      default: null,
+    },
+  },
+  { _id: false, strict: "throw" },
+);
+
 const userSchema = new mongoose.Schema({
   name: String,
   email: String,
@@ -105,6 +134,12 @@ const userSchema = new mongoose.Schema({
   refreshToken: {
     type: String,
     default: null,
+    select: false,
+  },
+
+  refreshSession: {
+    type: refreshSessionSchema,
+    default: undefined,
     select: false,
   },
 

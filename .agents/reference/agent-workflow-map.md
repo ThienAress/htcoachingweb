@@ -15,8 +15,13 @@
 | Mongoose schema | `$schema-change` + `$impact-check` → tests → `$code-review` |
 | Public page/SEO | `$new-page` → `$seo-check` → `$cleanup-delivery` |
 | AI Chat/tool | `$ai-chat-system` hoặc `$new-tool` → `$ai-check` → `$cleanup-delivery` |
+| AI tool có side effect | `$ai-chat-system` hoặc `$new-tool` → mutation lifecycle gate → `$impact-check` → integration tests → `$ai-check`/`$code-review`; thiếu preview binding thì giữ draft-only |
+| Refresh-session/JWT rotation | security invariants → `$impact-check` → concurrency/replay tests → `$code-review` |
+| Playwright MCP/browser-agent recon | `$qa e2e` browser-agent evidence → deterministic Playwright spec → command canonical; exploration không phải release PASS |
 | UI component/layout | `$ui-quality` → implementation → baseline regression `ui:audit` → rendered/manual `$ui-check` → `$cleanup-delivery` |
 | Dịch vụ có quota/dùng thử/paywall | `$service-access-policy` → `$impact-check` → tests → `$code-review` → `$cleanup-delivery` |
+| Map/cache/dedup/idempotency key | `$impact-check` keyed-state contract → boundary/concurrency tests → `$code-review` |
+| Shared cache/queue/sharding/provider topology | đo baseline + workload/SLO → `$domain-modeling` ADR gate → `$plan-template` → `$impact-check` → `$qa`/`$code-review` |
 | Production database backup/off-device restore | `$production-backup` → backup/restore runbook → recovery gates → `$cleanup-delivery` |
 | Codebase health/periodic review | `$audit` → findings/plan backlog; không tự sửa nếu user chỉ yêu cầu review |
 | PDF project artifact | `$pdf-generation` → focused verification → `$cleanup-delivery` |

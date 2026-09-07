@@ -8,12 +8,52 @@ import {
 } from "../services/walletLedger.service.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { resolveDepositCreditSnapshot } from "../services/depositPolicy.service.js";
+import IncomingBankTransaction from "../models/IncomingBankTransaction.js";
 
 const MUTABLE_DEPOSIT_STATUSES = ["pending", "needs_review", "expired"];
 const DELETABLE_DEPOSIT_STATUSES = ["expired", "rejected"];
 
 const httpError = (status, code, message) =>
   Object.assign(new Error(message), { status, code });
+
+const assertDirectDepositLedger = ({ deposit, ledger, creditSnapshot }) => {
+  const matches =
+    ledger?.type === "deposit" &&
+    ledger.status === "success" &&
+    ledger.referenceType === "deposit_request" &&
+    !ledger.reversalOf &&
+    String(ledger.referenceId || "") === String(deposit._id) &&
+    String(ledger.userId || "") === String(deposit.userId) &&
+    ledger.amount === creditSnapshot.creditedAmount;
+  if (!matches) {
+    throw httpError(
+      409,
+      "DEPOSIT_LEDGER_MISMATCH",
+      "Ledger nạp tiền không nhất quán; cần đối soát trước khi tiếp tục",
+    );
+  }
+  return ledger;
+};
+
+const assertDirectDepositReversal = ({ deposit, original, reversal }) => {
+  const matches =
+    reversal?.type === "reversal" &&
+    reversal.status === "success" &&
+    reversal.referenceType === "deposit_request" &&
+    String(reversal.referenceId || "") === String(deposit._id) &&
+    String(reversal.userId || "") === String(deposit.userId) &&
+    String(reversal.reversalOf || "") === String(original._id) &&
+    reversal.amount === -original.amount;
+  if (!matches) {
+    throw httpError(
+      409,
+      "DEPOSIT_REVERSAL_LEDGER_MISMATCH",
+      "Ledger hoàn tác không nhất quán; cần đối soát trước khi tiếp tục",
+    );
+  }
+  return reversal;
+};
 
 const normalizeReason = (value, { required = false } = {}) => {
   const reason = String(value || "").trim();
@@ -75,7 +115,20 @@ export const getAllDeposits = async (req, res) => {
       .populate("reversedBy", "name email")
       .lean();
 
-    return res.status(200).json({ success: true, data: deposits });
+    return res.status(200).json({
+      success: true,
+      data: deposits.map((deposit) => {
+        const resolved = resolveDepositCreditSnapshot(deposit);
+        const snapshot = {
+          bonusRate: resolved.bonusRate,
+          bonusAmount: resolved.bonusAmount,
+          creditedAmount: resolved.creditedAmount,
+          bonusTierKey: resolved.bonusTierKey,
+          policyVersion: resolved.policyVersion,
+        };
+        return { ...deposit, ...snapshot };
+      }),
+    });
   } catch (error) {
     safeLog.error("financial.deposit_list_failed", error);
     return res.status(500).json({ success: false, message: "Lỗi hệ thống" });
@@ -100,6 +153,8 @@ export const approveDeposit = async (req, res) => {
         );
       }
 
+      const creditSnapshot = resolveDepositCreditSnapshot(deposit);
+
       if (deposit.status === "success") {
         const ledgerEntry = await WalletTransaction.findOne({
           idempotencyKey: `deposit:${deposit._id}`,
@@ -113,11 +168,12 @@ export const approveDeposit = async (req, res) => {
             "Deposit đã duyệt nhưng thiếu ledger entry; cần đối soát",
           );
         }
+        assertDirectDepositLedger({ deposit, ledger: ledgerEntry, creditSnapshot });
         incrementMetric("financial.idempotency_hits");
         outcome = {
           skipped: true,
           balanceAfter: ledgerEntry.balanceAfter,
-          amount: deposit.amount,
+          amount: creditSnapshot.creditedAmount,
         };
         return;
       }
@@ -132,7 +188,7 @@ export const approveDeposit = async (req, res) => {
       const ledger = await applyWalletEntry({
         session,
         userId: deposit.userId,
-        amount: deposit.amount,
+        amount: creditSnapshot.creditedAmount,
         type: "deposit",
         referenceType: "deposit_request",
         referenceId: deposit._id,
@@ -177,6 +233,8 @@ export const approveDeposit = async (req, res) => {
             targetId: deposit._id,
             metadata: {
               amount: deposit.amount,
+              bonusAmount: creditSnapshot.bonusAmount,
+              creditedAmount: creditSnapshot.creditedAmount,
               depositCode: deposit.depositCode,
               balanceBefore: ledger.balanceBefore,
               balanceAfter: ledger.balanceAfter,
@@ -190,7 +248,7 @@ export const approveDeposit = async (req, res) => {
       outcome = {
         skipped: false,
         balanceAfter: ledger.balanceAfter,
-        amount: deposit.amount,
+        amount: creditSnapshot.creditedAmount,
       };
     });
 
@@ -311,24 +369,34 @@ export const reverseDeposit = async (req, res) => {
           "Không tìm thấy yêu cầu nạp tiền",
         );
       }
-      if (deposit.status === "reversed") {
-        const reversal = await WalletTransaction.findOne({
-          idempotencyKey: `deposit-reversal:${deposit._id}`,
-        })
-          .session(session)
-          .lean();
-        if (!reversal) {
-          throw httpError(
-            409,
-            "DEPOSIT_REVERSAL_LEDGER_MISSING",
-            "Deposit đã reversed nhưng thiếu reversal entry; cần đối soát",
-          );
-        }
+      const creditSnapshot = resolveDepositCreditSnapshot(deposit);
+      const original = await WalletTransaction.findOne({
+        idempotencyKey: `deposit:${deposit._id}`,
+        type: "deposit",
+      }).session(session);
+      if (!original) {
+        throw httpError(
+          409,
+          "DEPOSIT_LEDGER_MISSING",
+          "Không tìm thấy ledger entry gốc; cần đối soát trước khi hoàn tác",
+        );
+      }
+      assertDirectDepositLedger({ deposit, ledger: original, creditSnapshot });
+
+      const existingReversal = await WalletTransaction.findOne({
+        idempotencyKey: `deposit-reversal:${deposit._id}`,
+      }).session(session);
+      if (existingReversal) {
+        assertDirectDepositReversal({
+          deposit,
+          original,
+          reversal: existingReversal,
+        });
         incrementMetric("financial.idempotency_hits");
         outcome = {
           skipped: true,
-          balanceAfter: reversal.balanceAfter,
-          amount: deposit.amount,
+          balanceAfter: existingReversal.balanceAfter,
+          amount: original.amount,
         };
         return;
       }
@@ -340,23 +408,10 @@ export const reverseDeposit = async (req, res) => {
         );
       }
 
-      const original = await WalletTransaction.findOne({
-        idempotencyKey: `deposit:${deposit._id}`,
-        type: "deposit",
-        amount: deposit.amount,
-      }).session(session);
-      if (!original) {
-        throw httpError(
-          409,
-          "DEPOSIT_LEDGER_MISSING",
-          "Không tìm thấy ledger entry gốc; cần đối soát trước khi hoàn tác",
-        );
-      }
-
       const ledger = await applyWalletEntry({
         session,
         userId: deposit.userId,
-        amount: -deposit.amount,
+        amount: -original.amount,
         type: "reversal",
         referenceType: "deposit_request",
         referenceId: deposit._id,
@@ -375,16 +430,25 @@ export const reverseDeposit = async (req, res) => {
         );
       }
 
+      const activeIncomingCredits = await IncomingBankTransaction.countDocuments({
+        depositRequestId: deposit._id,
+        status: "settled",
+      }).session(session);
+      const nextStatus = activeIncomingCredits > 0 ? "success" : "reversed";
+      const nextState =
+        nextStatus === "reversed"
+          ? {
+              status: nextStatus,
+              isOpen: false,
+              reversedAt: new Date(),
+              reversedBy: req.user.id,
+              reverseReason: reason,
+            }
+          : { status: nextStatus, isOpen: false };
       const transitioned = await DepositRequest.updateOne(
         { _id: deposit._id, status: "success" },
         {
-          $set: {
-            status: "reversed",
-            isOpen: false,
-            reversedAt: new Date(),
-            reversedBy: req.user.id,
-            reverseReason: reason,
-          },
+          $set: nextState,
         },
         { session, runValidators: true },
       );
@@ -406,6 +470,8 @@ export const reverseDeposit = async (req, res) => {
             targetId: deposit._id,
             metadata: {
               amount: deposit.amount,
+              bonusAmount: creditSnapshot.bonusAmount,
+              creditedAmount: original.amount,
               depositCode: deposit.depositCode,
               reason,
               balanceBefore: ledger.balanceBefore,
@@ -422,7 +488,7 @@ export const reverseDeposit = async (req, res) => {
       outcome = {
         skipped: false,
         balanceAfter: ledger.balanceAfter,
-        amount: deposit.amount,
+        amount: original.amount,
       };
     });
 
@@ -436,16 +502,6 @@ export const reverseDeposit = async (req, res) => {
       data: { balanceAfter: outcome.balanceAfter },
     });
   } catch (error) {
-    if (error.code === 11000) {
-      const deposit = await DepositRequest.findById(req.params.id).lean();
-      if (deposit?.status === "reversed") {
-        return res.status(200).json({
-          success: true,
-          skipped: true,
-          message: "Deposit này đã được hoàn tác trước đó",
-        });
-      }
-    }
     return sendMutationError(res, error, "financial.deposit_reverse_failed");
   } finally {
     await session.endSession();

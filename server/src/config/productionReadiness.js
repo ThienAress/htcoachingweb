@@ -1,8 +1,10 @@
 import { resolveGeminiMealScanDataUseMode } from "./geminiMealScanDataUse.js";
+import { isAuthCutoverMaintenanceEnabled } from "./authCutover.js";
 import { resolveMealScanProvider } from "./mealScanProvider.js";
 import { parseSePayCutoverAt } from "./sepay.js";
 import { getMorningHealthReminderMode } from "./backgroundJobs.js";
 import { isTodayPlatformEnabled } from "./todayPlatform.js";
+import { evaluateCloudinaryBackupPolicy } from "./cloudinaryBackupPolicy.js";
 
 const PLACEHOLDER_PATTERN =
   /(change[-_ ]?me|replace[-_ ]?me|placeholder|example|your[-_ ]|test[-_ ]secret|local[-_ ]secret)/i;
@@ -359,6 +361,15 @@ export const validateProductionEnvironment = (
   validateSecret(env, findings, "CLOUDINARY_CLOUD_NAME", { minimum: 2 });
   validateSecret(env, findings, "CLOUDINARY_API_KEY", { minimum: 6 });
   validateSecret(env, findings, "CLOUDINARY_API_SECRET", { minimum: 16 });
+  const cloudinaryBackup = evaluateCloudinaryBackupPolicy(env);
+  for (const code of cloudinaryBackup.blockers) {
+    addFinding(
+      findings,
+      "errors",
+      code,
+      "Cloudinary backup versions require an approved public-only privacy lifecycle and verified synthetic canaries.",
+    );
+  }
 
   const strictSecret = (name, minimum) =>
     validateSecret(env, findings, name, {
@@ -519,6 +530,9 @@ export const validateProductionEnvironment = (
     minimum: 5000,
     maximum: 60000,
   });
+  validateBooleanSetting(env, findings, "AUTH_CUTOVER_MAINTENANCE", {
+    required: true,
+  });
   validateBooleanSetting(env, findings, "BACKGROUND_JOBS_ENABLED", {
     required: true,
   });
@@ -556,6 +570,14 @@ export const validateProductionEnvironment = (
     validateSecret(env, findings, "RESEND_API_KEY", { minimum: 20 });
   }
   validateBooleanSetting(env, findings, "SKILL_RADAR_WORKER_ENABLED");
+  if (!String(env.SKILL_RADAR_GITHUB_TOKEN || "").trim()) {
+    addFinding(
+      findings,
+      "errors",
+      "SKILL_RADAR_GITHUB_TOKEN_MISSING",
+      "Radar Admin API and worker require a dedicated read-only GitHub token.",
+    );
+  }
   if (
     String(env.SKILL_RADAR_WORKER_ENABLED || "").toLowerCase() === "true"
   ) {
@@ -565,14 +587,6 @@ export const validateProductionEnvironment = (
         "errors",
         "SKILL_RADAR_WORKER_NOT_ISOLATED",
         "Skill Radar worker requires BACKGROUND_JOBS_ENABLED=false.",
-      );
-    }
-    if (!String(env.SKILL_RADAR_GITHUB_TOKEN || "").trim()) {
-      addFinding(
-        findings,
-        "errors",
-        "SKILL_RADAR_GITHUB_TOKEN_MISSING",
-        "Skill Radar worker requires a dedicated read-only GitHub token.",
       );
     }
   }
@@ -656,6 +670,7 @@ export const validateProductionEnvironment = (
     summary: {
       allowedOriginCount: allowedOrigins.length,
       hasExplicitTrustProxy: Boolean(String(env.TRUST_PROXY_HOPS || "").trim()),
+      authCutoverMaintenanceEnabled: isAuthCutoverMaintenanceEnabled(env),
       backgroundJobsExplicit: ["true", "false"].includes(
         String(env.BACKGROUND_JOBS_ENABLED || "").toLowerCase(),
       ),
@@ -665,6 +680,7 @@ export const validateProductionEnvironment = (
       cspEnforced: String(env.CSP_ENFORCE || "").toLowerCase() === "true",
       retentionEnforced:
         String(env.F1_RETENTION_ENFORCE || "").toLowerCase() === "true",
+      cloudinaryBackupEnabled: cloudinaryBackup.backupEnabled,
       geminiPaidServiceConfirmed:
         String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() ===
         "true",

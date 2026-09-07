@@ -5,6 +5,10 @@ import {
   EMBEDDING_DIMENSION,
   generateEmbedding,
 } from "../embedding.service.js";
+import {
+  getMetricsSnapshot,
+  resetMetricsForTests,
+} from "../../../observability/metrics.js";
 
 const VECTOR = Array.from(
   { length: EMBEDDING_DIMENSION },
@@ -13,13 +17,21 @@ const VECTOR = Array.from(
 
 const successfulResponse = () => ({
   ok: true,
-  json: vi.fn().mockResolvedValue({ embedding: { values: VECTOR } }),
+  json: vi.fn().mockResolvedValue({
+    embedding: { values: VECTOR },
+    usageMetadata: {
+      promptTokenCount: 12,
+      candidatesTokenCount: 0,
+      totalTokenCount: 12,
+    },
+  }),
 });
 
 describe("embedding provider single-flight", () => {
   beforeEach(() => {
     process.env.GEMINI_API_KEY = "test-key";
     clearEmbeddingCacheForTests();
+    resetMetricsForTests();
   });
 
   afterEach(() => {
@@ -43,6 +55,12 @@ describe("embedding provider single-flight", () => {
     await expect(Promise.all([first, second])).resolves.toEqual([VECTOR, VECTOR]);
     await expect(generateEmbedding("same query")).resolves.toEqual(VECTOR);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_embedding_requests": 1,
+      "provider.gemini_embedding_succeeded": 1,
+      "provider.gemini_embedding_prompt_tokens": 12,
+      "provider.gemini_embedding_total_tokens": 12,
+    });
   });
 
   it("removes failed in-flight work so a later request can retry", async () => {
@@ -51,7 +69,12 @@ describe("embedding provider single-flight", () => {
       .mockResolvedValueOnce({
         ok: false,
         status: 503,
-        json: vi.fn().mockResolvedValue({}),
+        json: vi.fn().mockResolvedValue({
+          usageMetadata: {
+            promptTokenCount: 7,
+            totalTokenCount: 7,
+          },
+        }),
       })
       .mockResolvedValueOnce(successfulResponse());
     vi.stubGlobal("fetch", fetchMock);
@@ -59,6 +82,13 @@ describe("embedding provider single-flight", () => {
     await expect(generateEmbedding("retry me")).rejects.toThrow("HTTP 503");
     await expect(generateEmbedding("retry me")).resolves.toEqual(VECTOR);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_embedding_requests": 2,
+      "provider.gemini_embedding_failed": 1,
+      "provider.gemini_embedding_succeeded": 1,
+      "provider.gemini_embedding_prompt_tokens": 19,
+      "provider.gemini_embedding_total_tokens": 19,
+    });
   });
 
   it("lets one caller abort without cancelling the shared provider request", async () => {

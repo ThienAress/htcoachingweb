@@ -59,8 +59,13 @@ forbidPattern(
 );
 requirePattern(
   "server/src/controllers/deposit.controller.js",
-  /validateDepositAmount\(amount\)/,
-  "deposit controller must use the canonical policy validator",
+  /const\s+policy\s*=\s*await\s+getCurrentDepositPolicy\(\)/,
+  "deposit controller must load the current server-authoritative policy",
+);
+requirePattern(
+  "server/src/controllers/deposit.controller.js",
+  /validateDepositAmount\(amount,\s*policy\)/,
+  "deposit controller must validate against the current canonical policy",
 );
 requirePattern(
   "client/src/hooks/useDepositPolicy.js",

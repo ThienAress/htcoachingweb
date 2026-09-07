@@ -12,6 +12,31 @@ const stagingEnvironment = () => ({
   CONFIRM_PHASE1_INTEGRITY_MIGRATION: "yes",
 });
 
+const backupManifest = (overrides = {}) => ({
+  schemaVersion: 1,
+  policy: { releaseMaxAgeHours: 24, requireOffDeviceRecovery: true },
+  latestVerifiedBackup: {
+    backupId: "production-logical-backup-20260906T010000Z",
+    completedAt: "2026-09-06T01:00:00.000Z",
+    backupType: "logical_mongodump",
+    archiveIntegrityVerified: true,
+    isolatedRestoreVerified: true,
+    sourceFingerprintMatched: true,
+    continuousRecoveryAvailable: false,
+    offDeviceRecoveryVerified: false,
+    evidence: "docs/operations/production/backup-record.md",
+    ...overrides,
+  },
+});
+
+const productionOptions = (env, overrides = {}) => ({
+  env,
+  confirmationVariable: "CONFIRM_PHASE1_INTEGRITY_MIGRATION",
+  backupManifest: backupManifest(),
+  now: new Date("2026-09-06T02:00:00.000Z"),
+  ...overrides,
+});
+
 describe("migration safety", () => {
   it("accepts an explicitly confirmed staging target", () => {
     const result = validateMigrationEnvironment({
@@ -32,10 +57,7 @@ describe("migration safety", () => {
     delete env.MIGRATION_TARGET_DATABASE;
     delete env.CONFIRM_PHASE1_INTEGRITY_MIGRATION;
 
-    const result = validateMigrationEnvironment({
-      env,
-      confirmationVariable: "CONFIRM_PHASE1_INTEGRITY_MIGRATION",
-    });
+    const result = validateMigrationEnvironment(productionOptions(env));
 
     expect(result.errors).toEqual(
       expect.arrayContaining([
@@ -71,10 +93,7 @@ describe("migration safety", () => {
       MIGRATION_TARGET_DATABASE: "htcoaching",
     };
 
-    const result = validateMigrationEnvironment({
-      env,
-      confirmationVariable: "CONFIRM_PHASE1_INTEGRITY_MIGRATION",
-    });
+    const result = validateMigrationEnvironment(productionOptions(env));
 
     expect(result.errors).toEqual(
       expect.arrayContaining([
@@ -96,10 +115,7 @@ describe("migration safety", () => {
       MIGRATION_APPROVAL_ID: "ok",
     };
 
-    const result = validateMigrationEnvironment({
-      env,
-      confirmationVariable: "CONFIRM_PHASE1_INTEGRITY_MIGRATION",
-    });
+    const result = validateMigrationEnvironment(productionOptions(env));
 
     expect(result.errors).toEqual(
       expect.arrayContaining([
@@ -116,16 +132,59 @@ describe("migration safety", () => {
       MONGO_URI: "mongodb+srv://example.mongodb.net/htcoaching",
       MIGRATION_TARGET_DATABASE: "htcoaching",
       CONFIRM_PRODUCTION_MIGRATION: "production",
-      MIGRATION_BACKUP_SNAPSHOT_ID: "atlas-snapshot-20260723T1500Z",
+      MIGRATION_BACKUP_SNAPSHOT_ID:
+        "production-logical-backup-20260906T010000Z",
       MIGRATION_APPROVAL_ID: "release-2026-07-23-owner-approved",
     };
 
     expect(
-      validateMigrationEnvironment({
-        env,
-        confirmationVariable: "CONFIRM_PHASE1_INTEGRITY_MIGRATION",
-      }).valid,
+      validateMigrationEnvironment(productionOptions(env)).valid,
     ).toBe(true);
+  });
+
+  it("rejects stale evidence and a backup ID that differs from the manifest", () => {
+    const env = {
+      ...stagingEnvironment(),
+      APP_ENV: "production",
+      MONGO_URI: "mongodb+srv://example.mongodb.net/htcoaching",
+      MIGRATION_TARGET_DATABASE: "htcoaching",
+      CONFIRM_PRODUCTION_MIGRATION: "production",
+      MIGRATION_BACKUP_SNAPSHOT_ID: "production-logical-backup-different",
+      MIGRATION_APPROVAL_ID: "release-2026-09-06-owner-approved",
+    };
+    const result = validateMigrationEnvironment(
+      productionOptions(env, {
+        backupManifest: backupManifest({
+          completedAt: "2026-09-01T01:00:00.000Z",
+        }),
+      }),
+    );
+
+    expect(result.errors).toEqual(
+      expect.arrayContaining([
+        "MIGRATION_BACKUP_NOT_RELEASE_READY",
+        "MIGRATION_BACKUP_SNAPSHOT_MISMATCH",
+      ]),
+    );
+  });
+
+  it("rejects malformed backup evidence instead of trusting the environment", () => {
+    const env = {
+      ...stagingEnvironment(),
+      APP_ENV: "production",
+      MONGO_URI: "mongodb+srv://example.mongodb.net/htcoaching",
+      MIGRATION_TARGET_DATABASE: "htcoaching",
+      CONFIRM_PRODUCTION_MIGRATION: "production",
+      MIGRATION_BACKUP_SNAPSHOT_ID:
+        "production-logical-backup-20260906T010000Z",
+      MIGRATION_APPROVAL_ID: "release-2026-09-06-owner-approved",
+    };
+
+    expect(
+      validateMigrationEnvironment(
+        productionOptions(env, { backupManifest: { schemaVersion: 999 } }),
+      ).errors,
+    ).toContain("MIGRATION_BACKUP_MANIFEST_INVALID");
   });
 
   it("blocks execution when the connected database differs from the lock", () => {

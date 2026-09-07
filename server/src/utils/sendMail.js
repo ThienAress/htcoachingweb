@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import escapeHtml from "escape-html";
 import { safeLog } from "./safeLogger.js";
+import { recordResendUsage } from "../observability/providerUsageMetrics.js";
 
 let resendClient;
 
@@ -16,9 +17,20 @@ const deliverEmail = async (message, options = {}) => {
     safeLog.warn("mail.delivery_disabled", "Outbound email is disabled", {
       template: "staging",
     });
+    recordResendUsage("disabled");
     return { data: { id: "" } };
   }
-  return getResendClient().emails.send(message, options);
+  recordResendUsage("attempts");
+  try {
+    const response = await getResendClient().emails.send(message, options);
+    recordResendUsage(
+      response?.error || !response?.data?.id ? "failed" : "sent",
+    );
+    return response;
+  } catch (error) {
+    recordResendUsage("failed");
+    throw error;
+  }
 };
 
 const formatDate = (t) => {

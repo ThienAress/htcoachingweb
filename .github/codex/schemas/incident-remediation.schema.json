@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "incidentId",
+    "outcome",
+    "title",
+    "conclusion",
+    "confidence",
+    "confidenceReason",
+    "rootCause",
+    "impact",
+    "fix",
+    "focusedTests",
+    "relatedTests",
+    "build",
+    "durationSeconds"
+  ],
+  "properties": {
+    "incidentId": { "type": "string", "pattern": "^INC-[0-9]{8}-[0-9]{4}$" },
+    "outcome": { "type": "string", "enum": ["draft_patch", "no_safe_patch", "no_reproduction"] },
+    "title": { "type": "string", "minLength": 1, "maxLength": 72 },
+    "conclusion": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "confidence": { "type": "string", "enum": ["Cao", "Trung bình", "Thấp"] },
+    "confidenceReason": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "rootCause": { "type": "string", "minLength": 1, "maxLength": 600 },
+    "impact": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "fix": { "type": "string", "minLength": 1, "maxLength": 600 },
+    "focusedTests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+    },
+    "relatedTests": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+    },
+    "build": { "type": "string", "enum": ["PASS", "FAIL", "SKIP"] },
+    "durationSeconds": { "type": "integer", "minimum": 0, "maximum": 7200 }
+  }
+}

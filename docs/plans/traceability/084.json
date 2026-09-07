@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "planId": "084",
+  "specPath": "docs/specs/reconcile-and-promote-release-candidate.md",
+  "planPath": "docs/plans/084-reconcile-and-promote-release-candidate.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Lock provenance and candidate scope", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Integrate on latest staging and review", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Generate fresh QA and recovery evidence", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Deploy and accept exact staging SHA", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Promote and observe production", "planStep": "Step 5" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "command", "command": "git status --short --branch" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-001", "TASK-002"], "verifications": [{ "type": "command", "command": "git diff --check" }, { "type": "command", "command": "npm run security:secrets" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "command", "command": "git merge-base --is-ancestor origin/staging HEAD" }, { "type": "command", "command": "git diff --check" }] },
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-002", "TASK-003"], "verifications": [{ "type": "command", "command": "npm run security:data-boundaries" }, { "type": "command", "command": "npm run agents:validate" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "command", "command": "npm run test:unit:client" }, { "type": "command", "command": "npm run test:unit:server" }, { "type": "command", "command": "npm run test:e2e" }, { "type": "command", "command": "npm run build --prefix client" }] },
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "command", "command": "npm run audit:backup-readiness" }, { "type": "command", "command": "npm run verify:backup-release" }] }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "command", "command": "GitHub CI and provider deploy identity checks must pass for the exact release SHA" }] },
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "command", "command": "npm run acceptance:staging --prefix server" }] }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "npm run verify:release-candidate" }] },
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "npm run verify:post-deploy" }] }
+      ]
+    }
+  ]
+}

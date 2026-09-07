@@ -1,20 +1,41 @@
 import { useTranslation } from "react-i18next";
 
 const NUTRIENTS = [
-  { key: "calories", unitKey: "unit_kcal" },
-  { key: "protein", unitKey: "unit_gram" },
-  { key: "carb", unitKey: "unit_gram" },
-  { key: "fat", unitKey: "unit_gram" },
-  { key: "sugars", unitKey: "unit_gram" },
-  { key: "salt", unitKey: "unit_gram" },
+  { key: "calories", unit: "kcal", unitKey: "unit_kcal" },
+  { key: "protein", unit: "g", unitKey: "unit_gram" },
+  { key: "carb", unit: "g", unitKey: "unit_gram" },
+  { key: "fat", unit: "g", unitKey: "unit_gram" },
+  { key: "sugars", unit: "g", unitKey: "unit_gram" },
+  { key: "salt", unit: "g", unitKey: "unit_gram" },
 ];
+
+const MIN_DISPLAYABLE_GRAMS = 0.001;
+
+const getMaximumFractionDigits = (number, key, unit) => {
+  if (key === "calories" || unit === "kcal") return 0;
+  if (unit !== "g") return 1;
+
+  const magnitude = Math.abs(number);
+  if (magnitude === 0 || magnitude >= 0.1) return 1;
+
+  return Math.min(3, Math.ceil(-Math.log10(magnitude)));
+};
 
 const formatValue = (value, key, language, unit = "") => {
   const number = Number(value);
   if (!Number.isFinite(number)) return "—";
-  return new Intl.NumberFormat(language === "en" ? "en-US" : "vi-VN", {
-    maximumFractionDigits:
-      key === "calories" || unit === "kcal" ? 0 : unit === "g" ? 6 : 1,
+  if (number === 0) return "0";
+  const locale = language === "en" ? "en-US" : "vi-VN";
+
+  if (unit === "g" && number > 0 && number < MIN_DISPLAYABLE_GRAMS) {
+    const threshold = new Intl.NumberFormat(locale, {
+      maximumFractionDigits: 3,
+    }).format(MIN_DISPLAYABLE_GRAMS);
+    return `<${threshold}`;
+  }
+
+  return new Intl.NumberFormat(locale, {
+    maximumFractionDigits: getMaximumFractionDigits(number, key, unit),
   }).format(number);
 };
 
@@ -54,13 +75,15 @@ const RecipeNutritionPanel = ({ nutrition }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-700/60">
-              {coreRows.map(({ key, unitKey }) => (
+              {coreRows.map(({ key, unit, unitKey }) => (
                 <tr key={key} className="bg-zinc-800/40">
                   <th scope="row" className="px-4 py-3 text-left font-semibold text-zinc-100">
                     {t(`detail.nutrition.${key}`)}
                     <span className="ml-1 font-normal text-zinc-500">({t(`detail.nutrition.${unitKey}`)})</span>
                   </th>
-                  <td className="py-3 pl-4 pr-16 text-right font-bold text-primary sm:px-4">{formatValue(values[key], key, i18n.language)}</td>
+                  <td className="py-3 pl-4 pr-16 text-right font-bold text-primary sm:px-4">
+                    {formatValue(values[key], key, i18n.language, unit)}
+                  </td>
                 </tr>
               ))}
               {additional.map((item) => (

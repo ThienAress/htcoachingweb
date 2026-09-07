@@ -76,6 +76,12 @@ const incomingBankTransactionSchema = new mongoose.Schema(
       validate: Number.isSafeInteger,
       min: 1,
     },
+    creditedAmount: {
+      type: Number,
+      default: null,
+      validate: (value) => value === null || Number.isSafeInteger(value),
+      min: 1,
+    },
     transactionAt: { type: Date, required: true },
     depositCode: { type: String, default: null, maxlength: 20 },
     depositRequestId: {

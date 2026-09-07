@@ -16,6 +16,7 @@ import cookieParser from "cookie-parser";
 import { requestTelemetry } from "./src/middlewares/requestTelemetry.js";
 import { createSecurityHeaders } from "./src/middlewares/securityHeaders.js";
 import { rejectUnsafeMongoInput } from "./src/middlewares/requestSanitization.js";
+import { requireAuthCutoverOpen } from "./src/middlewares/authCutover.middleware.js";
 import { safeLog } from "./src/utils/safeLogger.js";
 import { markRuntimeDraining } from "./src/operations/runtimeState.js";
 
@@ -191,11 +192,18 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use(rejectUnsafeMongoInput);
 app.use(cookieParser());
-app.use(passport.initialize());
 
 // ================= RATE LIMIT =================
 if (isProd) {
   app.use("/api", globalLimiter);
+}
+
+// Auth cutover must run before the Auth limiter and the global CSRF cookie helper.
+// auth.routes.js mounts the same guard as defense-in-depth for isolated app mounts.
+app.use("/api/auth", requireAuthCutoverOpen);
+app.use(passport.initialize());
+
+if (isProd) {
   app.use("/api/auth", authLimiter);
   app.use("/api/orders", apiLimiter);
   app.use("/api/checkin", apiLimiter);

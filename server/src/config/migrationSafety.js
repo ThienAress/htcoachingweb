@@ -1,5 +1,13 @@
+import { readFileSync } from "node:fs";
+
+import { evaluateBackupReadiness } from "../../../scripts/lib/backup-readiness.mjs";
+
 const ALLOWED_ENVIRONMENTS = new Set(["staging", "production"]);
 const STAGING_DATABASE = "htcoaching_staging";
+const BACKUP_MANIFEST_URL = new URL(
+  "../../../docs/operations/production/backup-readiness.json",
+  import.meta.url,
+);
 const PLACEHOLDER_PATTERN =
   /^(?:changeme|example|none|pending|replace[-_ ]?me|todo)$/i;
 
@@ -22,6 +30,8 @@ const hasRecordedValue = (value) => {
 export const validateMigrationEnvironment = ({
   env = process.env,
   confirmationVariable,
+  backupManifest,
+  now = new Date(),
 } = {}) => {
   const errors = [];
   const addError = (code) => {
@@ -62,6 +72,25 @@ export const validateMigrationEnvironment = ({
     }
     if (!hasRecordedValue(env.MIGRATION_APPROVAL_ID)) {
       addError("MIGRATION_APPROVAL_REQUIRED");
+    }
+
+    try {
+      const manifest =
+        backupManifest === undefined
+          ? JSON.parse(readFileSync(BACKUP_MANIFEST_URL, "utf8"))
+          : backupManifest;
+      const readiness = evaluateBackupReadiness(manifest, { now });
+      if (!readiness.releaseReady) {
+        addError("MIGRATION_BACKUP_NOT_RELEASE_READY");
+      }
+      if (
+        hasRecordedValue(env.MIGRATION_BACKUP_SNAPSHOT_ID) &&
+        String(env.MIGRATION_BACKUP_SNAPSHOT_ID).trim() !== readiness.backupId
+      ) {
+        addError("MIGRATION_BACKUP_SNAPSHOT_MISMATCH");
+      }
+    } catch {
+      addError("MIGRATION_BACKUP_MANIFEST_INVALID");
     }
   }
 

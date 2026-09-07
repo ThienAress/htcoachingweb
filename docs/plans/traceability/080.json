@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "planId": "080",
+  "specPath": "docs/specs/serverless-incident-response-and-radar-reliability.md",
+  "planPath": "docs/plans/080-build-serverless-incident-response-and-refresh-radar.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Correct Radar error semantics and merge static sources", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Build serverless watchdog and Telegram transitions", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Build supervised Codex Draft PR workflow", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Refresh and semantically review monthly Radar", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Run QA review and locked rollout handoff", "planStep": "Step 5" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-002", "TASK-005"], "verifications": [{ "type": "test", "path": "workers/production-watchdog/src/worker.test.mjs" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-002", "TASK-005"], "verifications": [{ "type": "test", "path": "workers/production-watchdog/src/worker.test.mjs" }] },
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-002", "TASK-005"], "verifications": [{ "type": "test", "path": "workers/production-watchdog/src/worker.test.mjs" }] },
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-002", "TASK-005"], "verifications": [{ "type": "test", "path": "workers/production-watchdog/src/worker.test.mjs" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": ".github/scripts/incident-remediation-contract.test.mjs" }] },
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": ".github/scripts/incident-remediation-contract.test.mjs" }] },
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": ".github/scripts/incident-remediation-contract.test.mjs" }] },
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "test", "path": ".github/scripts/incident-remediation-contract.test.mjs" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/__tests__/skillRadarGithub.service.test.js" }] },
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/__tests__/skillRadarGithub.service.test.js" }] },
+        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "test", "path": "client/src/pages/admin/skill-radar/__tests__/skillRadarSourceForm.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        { "id": "AC-012", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/__tests__/skillRadar.service.test.js" }] },
+        { "id": "AC-013", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/__tests__/skillRadar.service.test.js" }] },
+        { "id": "AC-014", "mustHave": true, "taskIds": ["TASK-004", "TASK-005"], "verifications": [{ "type": "command", "command": "npm run agents:radar" }, { "type": "command", "command": "npm run test:agents:radar" }] }
+      ]
+    }
+  ]
+}

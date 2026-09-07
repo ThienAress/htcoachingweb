@@ -106,6 +106,13 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 077 | Harden agent evidence và đo chất lượng Search | P1 | L | 017, 030, 035 | DONE / NODE 22 LOCAL FULL — HISTORY RISK RECORDED |
 | 078 | Build supervised agent harness và Search pilot | P2 | L | 077 | DONE / NODE 22 LOCAL FULL — PRODUCTION ROLLOUT NOT AUTHORIZED |
 | 079 | Curate Search indexing và chuẩn hóa đơn vị dinh dưỡng công thức | P0 | L | 038, 059, 061, 071A, 072, 073 | DONE / LOCAL FULL VERIFIED — ROLLOUT PENDING |
+| 080 | Build serverless incident response và refresh Radar | P0 | L | 035, 048, 056, 078 | DONE / LOCAL FULL VERIFIED — ROLLOUT NOT STARTED |
+| 081 | Thưởng nạp ví theo bậc và thiết kế lại Profile HLV | P0/P1 | L | 002, 018, 029, 051 | DONE / LOCAL FULL VERIFIED — E2E SKIPPED / NOT DEPLOYED |
+| 082 | Harden refresh-session rotation và logout | P1 | M | 019, 020 | DONE / LOCAL FULL VERIFIED — ROLLOUT NOT STARTED |
+| 082A | Tạo Auth cutover boundary cho Render Free | P0 | M | 082 | IN PROGRESS / VERIFICATION PENDING — ROLLOUT NOT STARTED |
+| 083 | Chuẩn hóa các pattern upstream đã xác minh vào agent governance | P1 | M | 017, 020, 030, 035, 077, 078, 082 | DONE / FOCUSED VERIFIED — RELEASE BUILD SITEMAP TIMEOUT |
+| 084 | Đối soát và promotion release candidate an toàn | P0 | L | 077, 078, 079, 080, 081, 082, 082A, 083 | IN PROGRESS / RELEASE GATES PENDING |
+| 085 | Harden bảo mật và vận hành không phụ thuộc provider | P0 | XL | 023, 024A, 053A, 056, 066, 074, 082 | DONE / FOCUSED VERIFIED — PROVIDER ROLLOUT NOT STARTED |
 
 ## Dependency Notes
 
@@ -197,6 +204,9 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
   release isolation; migration chỉ được chạy theo target/approval riêng.
 - Plan 075 phụ thuộc catalog/report của 039 và các feature 047/060/062/067-069/071A/074 để cập nhật
   đúng evidence; presentation/feedback giữ nguyên API contract hiện có.
+- Plan 085 tái sử dụng consent Meal Scan, recovery readiness, private media lifecycle và refresh-family
+  hiện có để đóng bảy finding local; plan không bật provider backup, không gọi billing dashboard,
+  không chạy migration/restore và không tạo recovery evidence mới.
 - Plan 076 phụ thuộc Daily Journal/notification lifecycle và grouping sức khỏe đã ổn định; email
   mặc định opt-in false, có delivery idempotency và production flags vẫn tắt trước rollout riêng.
 - Plan 077 phụ thuộc governance/skills/Radar hiện có; chỉ thêm gate deterministic và benchmark offline,
@@ -206,6 +216,16 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 - Plan 079 phụ thuộc SEO fallback/prerender cùng contract Exercise/Recipe nutrition đã có; pin cohort
   20 detail URL, chuẩn hóa `mg` sang `g` tương thích ngược và tuyệt đối không tự deploy, submit GSC
   hoặc ghi dữ liệu production.
+- Plan 080 phụ thuộc Radar/monitoring/agent harness hiện có; chuyển health polling sang Worker, giữ
+  remediation ở Draft PR có human review và chỉ cập nhật snapshot Radar local, không deploy/push/merge.
+- Plan 081 phụ thuộc policy thương mại, query state, media/profile và SePay ledger hiện có; thêm bonus
+  snapshot server-authoritative cùng hai UI đã duyệt nhưng không migration, deploy hoặc ghi production.
+- Plan 082 phụ thuộc auth/security governance của 019–020; harden một phiên refresh hiện hữu bằng CAS,
+  family/JTI và absolute lifetime mà không migration, frontend change, deploy hoặc ghi dữ liệu thật.
+- Plan 083 phụ thuộc governance/evidence/Radar hiện có cùng invariant Auth của 082; chỉ codify pattern
+  đã xác minh vào rule, skill, workflow và eval, không copy upstream hoặc thay runtime/dữ liệu/môi trường.
+- Plan 084 phụ thuộc toàn bộ thay đổi chưa rollout của 077–083; khóa provenance và exact SHA, tích hợp
+  trên `origin/staging`, rồi bắt buộc local QA → staging acceptance → production approval/observation.
 
 ## Findings Considered and Rejected
 

@@ -6,6 +6,7 @@ import {
 } from "../services/adminIncomingBankTransaction.service.js";
 import { WalletLedgerError } from "../services/walletLedger.service.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { resolveDepositCreditSnapshot } from "../services/depositPolicy.service.js";
 
 const LIST_STATUSES = new Set([
   "all",
@@ -64,21 +65,49 @@ export const getIncomingBankTransactions = async (req, res) => {
     const [items, total] = await Promise.all([
       IncomingBankTransaction.find(filter)
         .select(
-          "gateway maskedAccountNumber transferType amount transactionAt depositCode depositRequestId userId status reviewReason reviewedBy reviewedAt reviewNote walletTransactionId reversalTransactionId createdAt",
+          "gateway maskedAccountNumber transferType amount creditedAmount transactionAt depositCode depositRequestId userId status reviewReason reviewedBy reviewedAt reviewNote walletTransactionId reversalTransactionId createdAt",
         )
         .sort({ transactionAt: -1, _id: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .populate("userId", "name email")
-        .populate("depositRequestId", "amount depositCode status userId")
+        .populate("depositRequestId", "amount bonusRate bonusAmount creditedAmount bonusTierKey policyVersion depositCode status userId")
         .populate("reviewedBy", "name email")
         .lean(),
       IncomingBankTransaction.countDocuments(filter),
     ]);
+    const safeItems = items.map((item) => {
+      const resolvedDepositSnapshot = item.depositRequestId
+        ? resolveDepositCreditSnapshot(item.depositRequestId)
+        : null;
+      const depositSnapshot = resolvedDepositSnapshot
+        ? {
+            bonusRate: resolvedDepositSnapshot.bonusRate,
+            bonusAmount: resolvedDepositSnapshot.bonusAmount,
+            creditedAmount: resolvedDepositSnapshot.creditedAmount,
+            bonusTierKey: resolvedDepositSnapshot.bonusTierKey,
+            policyVersion: resolvedDepositSnapshot.policyVersion,
+          }
+        : null;
+      const exactDepositAmount =
+        item.depositRequestId && item.amount === item.depositRequestId.amount;
+      const creditedAmount =
+        item.creditedAmount ??
+        (exactDepositAmount ? depositSnapshot.creditedAmount : item.amount);
+      return {
+        ...item,
+        bonusRate: exactDepositAmount ? depositSnapshot.bonusRate : 0,
+        bonusAmount: creditedAmount - item.amount,
+        creditedAmount,
+        depositRequestId: item.depositRequestId
+          ? { ...item.depositRequestId, ...depositSnapshot }
+          : null,
+      };
+    });
     return res.status(200).json({
       success: true,
       data: {
-        items,
+        items: safeItems,
         pagination: {
           page,
           limit,
@@ -106,8 +135,12 @@ export const approveIncomingBankTransaction = async (req, res) => {
       skipped: result.skipped,
       message: result.skipped
         ? "Giao dịch này đã được cộng trước đó"
-        : `Đã cộng ${result.amount.toLocaleString("vi-VN")}đ theo số tiền thực nhận`,
-      data: { balanceAfter: result.balanceAfter },
+        : `Đã cộng ${result.creditedAmount.toLocaleString("vi-VN")}đ vào ví`,
+      data: {
+        balanceAfter: result.balanceAfter,
+        transferredAmount: result.transferredAmount,
+        creditedAmount: result.creditedAmount,
+      },
     });
   } catch (error) {
     return sendError(res, error, "financial.incoming_approve_failed");

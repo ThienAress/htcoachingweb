@@ -109,6 +109,10 @@ describe('Module Name', () => {
 
 > Chỉ chạy khi dev servers và dữ liệu thử nghiệm cần thiết đã sẵn sàng.
 > Nếu thiếu điều kiện, ghi `SKIP` kèm lý do; không được báo `PASS`.
+> Khi dùng Playwright MCP/browser agent để recon, đọc
+> [Browser-agent evidence](references/browser-agent-evidence.md). Exploration, screenshot hoặc trace
+> chỉ là diagnostic; phải chuyển behavior thành Playwright spec deterministic và chạy command canonical
+> trước khi ghi E2E/Release `PASS`.
 
 ```bash
 npm run test:e2e
@@ -118,9 +122,10 @@ npm run test:e2e
 
 ### Trước khi viết E2E test mới
 
-1. **Chụp screenshot / đọc DOM** trước → biết selectors thật
-2. File location: `e2e/{feature}.spec.js`
-3. Luôn chờ page loaded trước khi assert
+1. Đọc accessibility/DOM snapshot trước; ưu tiên semantic locator theo role/label/name thật.
+2. Dùng context/storage, synthetic account và fixture cô lập; không reuse production auth state.
+3. File location: `e2e/{feature}.spec.js`.
+4. Chờ trạng thái loaded ổn định rồi assert outcome cuối, không chỉ assert action đã được click.
 
 ---
 

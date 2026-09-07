@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "planId": "082A",
+  "specPath": "docs/specs/free-tier-auth-cutover-boundary.md",
+  "planPath": "docs/plans/082a-provide-free-auth-cutover-boundary.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Block Auth mutations before their handlers", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Require explicit production cutover mode", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Rehearse the legacy bridge on staging", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Prepare compatible recovery and production gate", "planStep": "Step 4" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": "server/src/routes/__tests__/auth.cutover.integration.test.js" }] },
+        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-001", "TASK-002"], "verifications": [{ "type": "test", "path": "server/src/routes/__tests__/auth.cutover.integration.test.js" }, { "type": "test", "path": "server/src/config/__tests__/productionReadiness.test.js" }] },
+        { "id": "AC-012", "mustHave": true, "taskIds": ["TASK-001", "TASK-003"], "verifications": [{ "type": "test", "path": "server/src/routes/__tests__/auth.cutover.integration.test.js" }, { "type": "command", "command": "no-follow exact-SHA staging probe window" }] },
+        { "id": "AC-013", "mustHave": true, "taskIds": ["TASK-003", "TASK-004"], "verifications": [{ "type": "command", "command": "staging bridge-to-candidate rehearsal and release candidate gate" }] }
+      ]
+    }
+  ]
+}

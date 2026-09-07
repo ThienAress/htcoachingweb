@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "planId": "081",
+  "specPath": "docs/specs/wallet-deposit-bonus-and-trainer-profile-redesign.md",
+  "planPath": "docs/plans/081-redesign-wallet-deposit-and-trainer-profile.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Snapshot a server-authoritative tier reward", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Credit and reverse the frozen credited amount", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Ship the light Wallet flow and Admin bonus cards", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Apply HT Signature presentation to Trainer content", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Integrate review and close local evidence", "planStep": "Step 5" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": "server/src/services/__tests__/depositPolicy.test.js" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/depositPolicy.integration.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-001", "TASK-002"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/deposit.integration.test.js" }] },
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-001", "TASK-002"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/phase6.financial.integration.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/sepayWebhook.integration.test.js" }] },
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/adminIncomingBankTransaction.integration.test.js" }] },
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/phase6.financial.integration.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "test", "path": "client/src/utils/__tests__/depositPolicy.test.js" }] },
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "test", "path": "client/src/queries/__tests__/walletAccount.queries.test.js" }, { "type": "command", "command": "npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high" }] },
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-001", "TASK-003"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/depositPolicy.integration.test.js" }, { "type": "command", "command": "npm run lint --prefix client" }] }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "test", "path": "client/src/pages/__tests__/TrainerProfile.test.jsx" }] },
+        { "id": "AC-012", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "test", "path": "client/src/components/trainer-profile/__tests__/TrainerProfilePresentation.test.jsx" }, { "type": "command", "command": "npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high" }] }
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "acceptanceCriteria": [
+        { "id": "AC-013", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "npm run test:unit:client" }, { "type": "command", "command": "npm run test:unit:server" }, { "type": "command", "command": "npm run build --prefix client" }] },
+        { "id": "AC-014", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "git diff --check" }] }
+      ]
+    }
+  ]
+}

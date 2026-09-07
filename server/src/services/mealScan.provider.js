@@ -1,6 +1,10 @@
 import { isGeminiMealScanDataUseApproved } from "../config/geminiMealScanDataUse.js";
 import { safeLog } from "../utils/safeLogger.js";
 import {
+  recordGeminiRequest,
+  recordGeminiResult,
+} from "../observability/providerUsageMetrics.js";
+import {
   MEAL_SCAN_ANALYSIS_STATUSES,
   MEAL_SCAN_DATA_SOURCES,
   MEAL_SCAN_IMAGE_QUALITIES,
@@ -197,6 +201,7 @@ export const fetchMealScanEstimate = async ({
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = performance.now();
+  let providerOutcomeRecorded = false;
 
   try {
     const providerUrl =
@@ -226,9 +231,13 @@ export const fetchMealScanEstimate = async ({
 
     for (let attempt = 1; attempt <= MAX_PROVIDER_ATTEMPTS; attempt += 1) {
       requestAttempts = attempt;
+      recordGeminiRequest("meal_scan");
+      providerOutcomeRecorded = false;
       try {
         response = await fetch(providerUrl, requestOptions);
       } catch (error) {
+        recordGeminiResult("meal_scan", { success: false });
+        providerOutcomeRecorded = true;
         if (controller.signal.aborted || attempt === MAX_PROVIDER_ATTEMPTS) {
           throw error;
         }
@@ -242,6 +251,8 @@ export const fetchMealScanEstimate = async ({
       }
 
       if (response.ok) break;
+      recordGeminiResult("meal_scan", { success: false });
+      providerOutcomeRecorded = true;
       if (
         isTransientProviderStatus(response.status) &&
         attempt < MAX_PROVIDER_ATTEMPTS
@@ -286,6 +297,8 @@ export const fetchMealScanEstimate = async ({
     try {
       const result = JSON.parse(text);
       const usage = payload?.usageMetadata || {};
+      recordGeminiResult("meal_scan", { success: true, usage });
+      providerOutcomeRecorded = true;
       safeLog.info("meal_scan.provider_succeeded", {
         provider: "gemini",
         model,
@@ -304,6 +317,9 @@ export const fetchMealScanEstimate = async ({
       );
     }
   } catch (error) {
+    if (!providerOutcomeRecorded) {
+      recordGeminiResult("meal_scan", { success: false });
+    }
     if (error?.code?.startsWith("MEAL_SCAN_")) throw error;
     if (controller.signal.aborted) {
       throw createMealScanError(

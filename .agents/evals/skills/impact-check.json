@@ -52,6 +52,24 @@
       "expectedEvidence": [
         "Thực hiện search read-only và tổng hợp kết quả; không kích hoạt impact-check chỉ vì xuất hiện keyword quota."
       ]
+    },
+    {
+      "id": "keyed-state-contract-change",
+      "kind": "should_trigger",
+      "prompt": "Đổi composite cache key và dedupe Map cho webhook để dùng chung giữa tenant, rồi coi lookup trong Map là đủ idempotent.",
+      "expectedEvidence": [
+        "Chốt canonical serialization/equality, namespace tenant, semantic collision, iteration-order và duplicate contract.",
+        "Trace bounded growth, TTL/eviction, restart semantics và invalidation; Map hoặc Set không tự tạo cross-process idempotency.",
+        "Xác định atomic boundary và test equivalent/different key, composite collision, expiry/eviction cùng concurrent duplicate."
+      ]
+    },
+    {
+      "id": "explain-hashmap-read-only",
+      "kind": "should_not_trigger",
+      "prompt": "Giải thích ngắn gọn Map và HashMap khác nhau thế nào trong Java; tôi không yêu cầu sửa project hoặc thiết kế cache.",
+      "expectedEvidence": [
+        "Trả lời câu hỏi khái niệm ở mức phù hợp; không kích hoạt impact-check hay keyed-state workflow khi không có contract project cần thay đổi."
+      ]
     }
   ]
 }

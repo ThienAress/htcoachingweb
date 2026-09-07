@@ -12,6 +12,12 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const WATCHLIST_PATH = path.join(ROOT, ".agents", "upstream-skills", "watchlist.json");
 const SNAPSHOT_PATH = path.join(ROOT, ".agents", "upstream-skills", "snapshot.json");
+const TECHNOLOGY_WATCHLIST_PATH = path.join(
+  ROOT,
+  ".agents",
+  "upstream-technologies",
+  "watchlist.json",
+);
 const DRIFTS = new Set(["unknown", "clean", "changed", "review_due", "rate_limited", "unreachable", "audit_warning"]);
 const DECISIONS = new Set(["pending", "adopt", "adapt", "reject", "defer"]);
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -61,6 +67,69 @@ const safeAudits = (audits) => Array.isArray(audits) ? audits.slice(0, 8).map((a
   riskLevel: sanitizeText(audit?.riskLevel, 24), auditedAt: sanitizeText(audit?.auditedAt, 40),
 })) : [];
 
+const technologyLifecycle = (ring) => ({
+  adopt: "active",
+  trial: "candidate",
+  assess: "watch",
+  hold: "dormant",
+}[ring] || "watch");
+
+const dateOnlyAtMonthlyScanTime = (value) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))
+    ? `${value}T02:00:00.000Z`
+    : null;
+
+export const projectTechnologyRadarEntries = (
+  technologyWatchlist,
+  now = new Date(),
+) => {
+  const entries = [];
+  const observations = [];
+  const ids = new Set();
+  for (const source of Array.isArray(technologyWatchlist?.entries)
+    ? technologyWatchlist.entries
+    : []) {
+    if (!source?.id || ids.has(source.id)) continue;
+    ids.add(source.id);
+    const reviewedAt = dateOnlyAtMonthlyScanTime(source.reviewedAt);
+    const nextCheckAt = dateOnlyAtMonthlyScanTime(source.nextReviewAt);
+    const nextCheckTime = nextCheckAt ? new Date(nextCheckAt).getTime() : Number.NaN;
+    entries.push({
+      id: source.id,
+      sourceType: "repository",
+      name: source.name,
+      sourceRepo: source.sourceRepo,
+      repoUrl: source.repoUrl,
+      skillsShUrl: null,
+      domain: source.category,
+      summary: source.summary,
+      localTargets: source.localTargets || [],
+      trustTier: source.trustTier || "community",
+      lifecycle: technologyLifecycle(source.ring),
+      reviewIntervalDays: 30,
+      license: source.license || "NOASSERTION",
+    });
+    observations.push({
+      id: source.id,
+      contentHash: null,
+      upstreamCommit: null,
+      lastUpstreamCommitAt: null,
+      repositoryArchived: false,
+      lastCheckedAt: reviewedAt,
+      lastReviewedAt: reviewedAt,
+      nextCheckAt,
+      drift: Number.isFinite(nextCheckTime) && nextCheckTime <= now.getTime()
+        ? "review_due"
+        : "clean",
+      auditSummary: [],
+      decision: DECISIONS.has(source.decision) ? source.decision : "pending",
+      decisionReason: source.decisionReason || null,
+      reportPath: null,
+    });
+  }
+  return { entries, observations };
+};
+
 export const buildSkillRadarReadModel = ({ watchlist, snapshot, now = new Date() }) => {
   if (watchlist?.schemaVersion !== 1 || !Array.isArray(watchlist.entries)) throw new Error("Invalid skill radar watchlist");
   const observedById = new Map((snapshot?.schemaVersion === 1 && Array.isArray(snapshot.items) ? snapshot.items : []).map((item) => [item.id, item]));
@@ -94,12 +163,38 @@ export const buildSkillRadarReadModel = ({ watchlist, snapshot, now = new Date()
 const readFiles = () => ({
   watchlist: readJson(WATCHLIST_PATH, null),
   snapshot: readJson(SNAPSHOT_PATH, { schemaVersion: 1, items: [] }),
+  technologyWatchlist: readJson(TECHNOLOGY_WATCHLIST_PATH, {
+    schemaVersion: 1,
+    entries: [],
+  }),
 });
-export const getAdminSkillRadar = () => { const { watchlist, snapshot } = readFiles(); return buildSkillRadarReadModel({ watchlist, snapshot }); };
+const mergeStaticRadarData = ({
+  watchlist,
+  snapshot,
+  technologyWatchlist,
+  now = new Date(),
+}) => {
+  const technology = projectTechnologyRadarEntries(technologyWatchlist, now);
+  return {
+    watchlist: {
+      ...watchlist,
+      entries: [...(watchlist?.entries || []), ...technology.entries],
+    },
+    snapshot: {
+      ...snapshot,
+      items: [...(snapshot?.items || []), ...technology.observations],
+    },
+  };
+};
+export const getAdminSkillRadar = () => {
+  const files = readFiles();
+  return buildSkillRadarReadModel(mergeStaticRadarData(files));
+};
 const dynamicEntry = (s) => ({ id: s._id, sourceType: s.sourceType, name: s.name, sourceRepo: s.sourceRepo, repoUrl: s.repoUrl, skillsShUrl: s.skillsShUrl, domain: s.domain, summary: s.summary, localTargets: s.localTargets, trustTier: s.trustTier, lifecycle: s.lifecycle, reviewIntervalDays: s.reviewIntervalDays, license: s.license });
 const dynamicObserved = (s) => ({ id: s._id, drift: s.drift, upstreamCommit: s.upstreamCommit, lastUpstreamCommitAt: s.lastUpstreamCommitAt?.toISOString?.() || null, lastCheckedAt: s.lastCheckedAt?.toISOString?.() || null, lastReviewedAt: s.lastReviewedAt?.toISOString?.() || null, nextCheckAt: s.nextCheckAt?.toISOString?.() || null, rateLimitRetryAt: s.rateLimitRetryAt?.toISOString?.() || null, repositoryArchived: s.repositoryArchived, auditSummary: s.auditSummary, decision: s.decision || "pending", decisionReason: s.decisionReason });
 export const getAdminSkillRadarWithDynamicSources = async () => {
-  const { watchlist, snapshot } = readFiles();
+  const files = readFiles();
+  const { watchlist, snapshot } = mergeStaticRadarData(files);
   if (watchlist?.schemaVersion !== 1 || !Array.isArray(watchlist.entries)) {
     throw new Error("Invalid skill radar watchlist");
   }
@@ -107,14 +202,34 @@ export const getAdminSkillRadarWithDynamicSources = async () => {
     .select("-createdBy -auditLogId -createdAt -updatedAt -__v")
     .sort({ createdAt: 1 })
     .lean();
-  return buildSkillRadarReadModel({ watchlist: { ...watchlist, entries: [...watchlist.entries, ...dynamic.map(dynamicEntry)] }, snapshot: { ...snapshot, items: [...(snapshot.items || []), ...dynamic.map(dynamicObserved)] } });
+  const staticRepositoryKeys = new Set(
+    watchlist.entries.map((entry) => entry.sourceRepo?.toLowerCase()).filter(Boolean),
+  );
+  const uniqueDynamic = dynamic.filter(
+    (source) => !staticRepositoryKeys.has(source.sourceRepo?.toLowerCase()),
+  );
+  return buildSkillRadarReadModel({ watchlist: { ...watchlist, entries: [...watchlist.entries, ...uniqueDynamic.map(dynamicEntry)] }, snapshot: { ...snapshot, items: [...(snapshot.items || []), ...uniqueDynamic.map(dynamicObserved)] } });
 };
-export const previewSkillRadarSource = (sourceUrl) =>
-  skillRadarGithubService.analyze(sourceUrl);
 const conflict = () => Object.assign(
   new Error("Nguồn này đã có trong Radar công nghệ"),
   { status: 409, code: "SKILL_RADAR_SOURCE_DUPLICATE" },
 );
+const isKnownRadarRepository = async (canonical, files = readFiles()) => {
+  const isStaticDuplicate = [
+    ...(files.watchlist?.entries || []),
+    ...(files.technologyWatchlist?.entries || []),
+  ].some(
+    (entry) => entry.sourceRepo?.toLowerCase() === canonical.sourceKey,
+  );
+  return isStaticDuplicate || Boolean(
+    await SkillRadarSource.exists({ _id: canonical.sourceKey }),
+  );
+};
+export const previewSkillRadarSource = async (sourceUrl) => {
+  const canonical = canonicalizeGithubRepositoryUrl(sourceUrl);
+  if (await isKnownRadarRepository(canonical)) throw conflict();
+  return skillRadarGithubService.analyze(canonical.repoUrl);
+};
 const writeSkillRadarAudit = ({ createdBy, sourceKey, sourceType, lifecycle, outcome }) =>
   AuditLog.create({
     actorId: createdBy,
@@ -127,11 +242,7 @@ const writeSkillRadarAudit = ({ createdBy, sourceKey, sourceType, lifecycle, out
   });
 export const createSkillRadarSource = async (payload, createdBy) => {
   const canonical = canonicalizeGithubRepositoryUrl(payload.sourceUrl);
-  const { watchlist } = readFiles();
-  const isStaticDuplicate = watchlist.entries.some(
-    (entry) => entry.sourceRepo?.toLowerCase() === canonical.sourceKey,
-  );
-  if (isStaticDuplicate || await SkillRadarSource.exists({ _id: canonical.sourceKey })) {
+  if (await isKnownRadarRepository(canonical)) {
     throw conflict();
   }
   const analyzed = await skillRadarGithubService.analyze(canonical.repoUrl);

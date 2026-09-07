@@ -1,0 +1,484 @@
+name: Supervised Incident Remediation
+
+on:
+  workflow_dispatch:
+    inputs:
+      incident_id:
+        description: "Validated incident identifier"
+        required: true
+        type: string
+      incident_context:
+        description: "Bounded JSON facts from the production health probe"
+        required: true
+        type: string
+      telegram_message_id:
+        description: "Telegram incident message to edit idempotently"
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: incident-remediation-${{ inputs.incident_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      started_epoch: ${{ steps.started.outputs.epoch }}
+      base_sha: ${{ steps.base.outputs.sha }}
+      untrusted_artifact_name: ${{ steps.untrusted_artifact.outputs.name }}
+    steps:
+      - name: Record bounded workflow start
+        id: started
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+      - name: Validate incident identifier
+        env:
+          INCIDENT_ID: ${{ inputs.incident_id }}
+          TELEGRAM_MESSAGE_ID: ${{ inputs.telegram_message_id }}
+        run: |
+          if [[ ! "$INCIDENT_ID" =~ ^INC-[0-9]{8}-[0-9]{4}$ ]]; then
+            echo "Invalid incident id" >&2
+            exit 1
+          fi
+          if [[ -n "$TELEGRAM_MESSAGE_ID" && ! "$TELEGRAM_MESSAGE_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Invalid Telegram message id" >&2
+            exit 1
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Record exact investigation base
+        id: base
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Prepare bounded artifact directory
+        run: |
+          mkdir -p incident-artifacts
+          : > incident-artifacts/change.patch
+      - name: Validate bounded incident context
+        env:
+          INCIDENT_CONTEXT: ${{ inputs.incident_context }}
+        run: >-
+          node .github/scripts/incident-remediation-contract.mjs validate-context
+          --context "$INCIDENT_CONTEXT"
+          --output incident-artifacts/context.json
+      - name: Investigate and prepare a safe patch
+        id: codex
+        uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e # v1.12
+        env:
+          INCIDENT_ID: ${{ inputs.incident_id }}
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/incident-remediation.md
+          output-file: incident-artifacts/report.json
+          codex-args: '["--ephemeral","--output-schema",".github/codex/schemas/incident-remediation.schema.json"]'
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+          allow-users: ThienAress
+      - name: Bind exact untrusted artifact name
+        id: untrusted_artifact
+        if: always()
+        run: echo "name=incident-remediation-untrusted-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+      - name: Upload untrusted remediation artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.untrusted_artifact.outputs.name }}
+          path: |
+            incident-artifacts/change.patch
+            incident-artifacts/report.json
+          if-no-files-found: error
+          retention-days: 3
+
+  validate_contract:
+    needs: investigate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      outcome: ${{ steps.contract.outputs.outcome }}
+      title: ${{ steps.contract.outputs.title }}
+      candidate_artifact_name: ${{ steps.candidate_artifact.outputs.name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.investigate.outputs.base_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.investigate.outputs.untrusted_artifact_name }}
+          path: incident-artifacts
+      - name: Validate report and patch boundaries
+        id: contract
+        env:
+          INCIDENT_ID: ${{ inputs.incident_id }}
+        run: >-
+          node .github/scripts/incident-remediation-contract.mjs validate
+          --incident "$INCIDENT_ID"
+          --patch incident-artifacts/change.patch
+          --report incident-artifacts/report.json
+          --output validated-incident
+      - name: Bind exact candidate artifact name
+        id: candidate_artifact
+        run: echo "name=incident-remediation-candidate-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+      - name: Upload immutable remediation candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.candidate_artifact.outputs.name }}
+          path: |
+            incident-artifacts/change.patch
+            validated-incident/report.json
+          if-no-files-found: error
+          retention-days: 3
+  validate_tests:
+    needs: [investigate, validate_contract]
+    if: needs.validate_contract.outputs.outcome == 'draft_patch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.investigate.outputs.base_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+      - name: Prepare trusted dependencies and offline runtime
+        run: |
+          npm ci --prefix client
+          npm ci --prefix server
+          mkdir -p .incident-mongo-cache
+          docker pull node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3
+          docker run --rm --network bridge --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            -e HOME=/tmp -e MONGOMS_DOWNLOAD_DIR=/incident-mongo-cache \
+            -v "$PWD/server:/workspace/server:ro" \
+            -v "$PWD/.incident-mongo-cache:/incident-mongo-cache" \
+            -w /workspace \
+            node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 \
+            node --input-type=module -e \
+            "import { MongoBinary } from './server/node_modules/mongodb-memory-server-core/lib/util/MongoBinary.js'; await MongoBinary.getPath();"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.validate_contract.outputs.candidate_artifact_name }}
+          path: candidate-artifact
+      - name: Revalidate candidate and apply in isolated test job
+        env:
+          INCIDENT_ID: ${{ inputs.incident_id }}
+        run: |
+          node .github/scripts/incident-remediation-contract.mjs validate \
+            --incident "$INCIDENT_ID" \
+            --patch candidate-artifact/incident-artifacts/change.patch \
+            --report candidate-artifact/validated-incident/report.json \
+            --output test-incident
+          git apply --check --whitespace=error-all candidate-artifact/incident-artifacts/change.patch
+          git apply --whitespace=error-all candidate-artifact/incident-artifacts/change.patch
+      - name: Run all unit tests in isolated job
+        run: |
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            -e CI=true -e HOME=/tmp -e MONGOMS_RUNTIME_DOWNLOAD=false \
+            -e MONGOMS_DOWNLOAD_DIR=/incident-mongo-cache \
+            -v "$PWD:/workspace:ro" \
+            -v "$PWD/.incident-mongo-cache:/incident-mongo-cache:ro" \
+            -w /workspace \
+            node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 \
+            sh -ceu '
+              if touch /workspace/.incident-readonly-probe 2>/dev/null; then
+                echo "::error::validation checkout is writable"
+                rm -f /workspace/.incident-readonly-probe
+                exit 1
+              fi
+              npm run test:unit:client -- --cache=false
+              npm run test:unit:server -- --cache=false
+            '
+
+  validate_build:
+    needs: [investigate, validate_contract]
+    if: needs.validate_contract.outputs.outcome == 'draft_patch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.investigate.outputs.base_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Prepare trusted client dependencies and offline runtime
+        run: |
+          npm ci --prefix client
+          docker pull node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.validate_contract.outputs.candidate_artifact_name }}
+          path: candidate-artifact
+      - name: Revalidate candidate and apply in isolated build job
+        env:
+          INCIDENT_ID: ${{ inputs.incident_id }}
+        run: |
+          node .github/scripts/incident-remediation-contract.mjs validate \
+            --incident "$INCIDENT_ID" \
+            --patch candidate-artifact/incident-artifacts/change.patch \
+            --report candidate-artifact/validated-incident/report.json \
+            --output build-incident
+          git apply --check --whitespace=error-all candidate-artifact/incident-artifacts/change.patch
+          git apply --whitespace=error-all candidate-artifact/incident-artifacts/change.patch
+      - name: Compile client in isolated job
+        run: |
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --tmpfs /scratch:rw,nosuid,nodev,size=256m \
+            -e CI=true -e HOME=/tmp -e SKIP_DYNAMIC_ROUTES=true \
+            -e VITE_API_URL=https://example.invalid/api \
+            -v "$PWD:/workspace:ro" -w /workspace \
+            node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 \
+            sh -ceu '
+              if touch /workspace/.incident-readonly-probe 2>/dev/null; then
+                echo "::error::validation checkout is writable"
+                rm -f /workspace/.incident-readonly-probe
+                exit 1
+              fi
+              mkdir -p /scratch/client
+              cd /workspace/client
+              tar --exclude='./node_modules' -cf /scratch/client.tar .
+              tar -xf /scratch/client.tar -C /scratch/client
+              ln -s /workspace/client/node_modules /scratch/client/node_modules
+              cd /scratch/client
+              /workspace/client/node_modules/.bin/vite build
+            '
+
+  validate_secrets:
+    needs: [investigate, validate_contract]
+    if: needs.validate_contract.outputs.outcome == 'draft_patch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.investigate.outputs.base_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare trusted offline scan runtime
+        run: docker pull node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.validate_contract.outputs.candidate_artifact_name }}
+          path: candidate-artifact
+      - name: Revalidate candidate and apply in isolated secret-scan job
+        env:
+          INCIDENT_ID: ${{ inputs.incident_id }}
+        run: |
+          node .github/scripts/incident-remediation-contract.mjs validate \
+            --incident "$INCIDENT_ID" \
+            --patch candidate-artifact/incident-artifacts/change.patch \
+            --report candidate-artifact/validated-incident/report.json \
+            --output secret-incident
+          git apply --check --whitespace=error-all candidate-artifact/incident-artifacts/change.patch
+          git apply --whitespace=error-all candidate-artifact/incident-artifacts/change.patch
+      - name: Scan proposed tree for secrets in isolated job
+        run: |
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+            --user "$(id -u):$(id -g)" --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            -e CI=true -e HOME=/tmp \
+            -v "$PWD:/workspace:ro" -w /workspace \
+            node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 \
+            sh -ceu '
+              if touch /workspace/.incident-readonly-probe 2>/dev/null; then
+                echo "::error::validation checkout is writable"
+                rm -f /workspace/.incident-readonly-probe
+                exit 1
+              fi
+              npm run security:secrets
+            '
+
+  publish-draft:
+    needs: [investigate, validate_contract, validate_tests, validate_build, validate_secrets]
+    if: needs.validate_contract.outputs.outcome == 'draft_patch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.investigate.outputs.base_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.validate_contract.outputs.candidate_artifact_name }}
+          path: candidate-artifact
+      - name: Revalidate and apply approved artifact
+        env:
+          INCIDENT_ID: ${{ inputs.incident_id }}
+        run: |
+          node .github/scripts/incident-remediation-contract.mjs validate \
+            --incident "$INCIDENT_ID" \
+            --patch candidate-artifact/incident-artifacts/change.patch \
+            --report candidate-artifact/validated-incident/report.json \
+            --output publish-incident
+          git apply --check --whitespace=error-all candidate-artifact/incident-artifacts/change.patch
+          git apply --whitespace=error-all candidate-artifact/incident-artifacts/change.patch
+          node .github/scripts/incident-remediation-contract.mjs attest \
+            --report publish-incident/report.json \
+            --output publish-incident
+      - name: Push isolated incident branch
+        id: branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INCIDENT_ID: ${{ inputs.incident_id }}
+          BASE_SHA: ${{ needs.investigate.outputs.base_sha }}
+        run: |
+          branch="codex/incident-${INCIDENT_ID,,}-${BASE_SHA:0:12}"
+          git switch -c "$branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --pathspec-from-file=publish-incident/changed-paths.txt
+          git diff --cached --quiet && exit 1 || true
+          git commit -m "fix: remediate $INCIDENT_ID"
+          gh auth setup-git
+          if git ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null; then
+            git fetch origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            if ! git diff --quiet "origin/$branch" HEAD; then
+              echo "Existing incident branch differs from the newly validated patch" >&2
+              exit 1
+            fi
+          else
+            git push --set-upstream origin "$branch"
+          fi
+          existing_pr_url=""
+          mapfile -t existing_pr < <(gh pr list --head "$branch" --state open --limit 1 --json url,isDraft --jq '.[] | .url, .isDraft')
+          if [[ ${#existing_pr[@]} -gt 0 ]]; then
+            if [[ "${existing_pr[1]:-false}" != "true" ]]; then
+              echo "Existing incident PR is no longer a draft" >&2
+              exit 1
+            fi
+            existing_pr_url="${existing_pr[0]}"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "existing_pr_url=$existing_pr_url" >> "$GITHUB_OUTPUT"
+      - name: Open Draft PR for human review
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          EXISTING_PR_URL: ${{ steps.branch.outputs.existing_pr_url }}
+          INCIDENT_ID: ${{ inputs.incident_id }}
+        run: |
+          if [[ -n "$EXISTING_PR_URL" ]]; then
+            pr_url="$EXISTING_PR_URL"
+          else
+            pr_url="$(gh pr create \
+              --draft \
+              --base main \
+              --head "$BRANCH" \
+              --title "fix: supervised remediation for $INCIDENT_ID" \
+              --body-file publish-incident/pull-request-body.md)"
+          fi
+          echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
+      - name: Send sanitized Draft PR update to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INCIDENT_ID: ${{ inputs.incident_id }}
+          TELEGRAM_MESSAGE_ID: ${{ inputs.telegram_message_id }}
+          PR_URL: ${{ steps.pr.outputs.pr_url }}
+          STARTED_EPOCH: ${{ needs.investigate.outputs.started_epoch }}
+        run: |
+          runner_minutes=$(( ( $(date +%s) - STARTED_EPOCH + 59 ) / 60 ))
+          node .github/scripts/incident-remediation-contract.mjs notify \
+            --incident "$INCIDENT_ID" \
+            --report publish-incident/report.json \
+            --pr-url "$PR_URL" \
+            --message-id "$TELEGRAM_MESSAGE_ID" \
+            --runner-minutes "$runner_minutes"
+
+  report-no-patch:
+    needs: [investigate, validate_contract]
+    if: needs.validate_contract.outputs.outcome != 'draft_patch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.investigate.outputs.base_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.validate_contract.outputs.candidate_artifact_name }}
+          path: candidate-artifact
+      - name: Revalidate and attest no-patch result
+        env:
+          INCIDENT_ID: ${{ inputs.incident_id }}
+        run: |
+          node .github/scripts/incident-remediation-contract.mjs validate \
+            --incident "$INCIDENT_ID" \
+            --patch candidate-artifact/incident-artifacts/change.patch \
+            --report candidate-artifact/validated-incident/report.json \
+            --output report-incident
+          node .github/scripts/incident-remediation-contract.mjs attest \
+            --report report-incident/report.json \
+            --output report-incident
+      - name: Send sanitized no-patch result to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          INCIDENT_ID: ${{ inputs.incident_id }}
+          TELEGRAM_MESSAGE_ID: ${{ inputs.telegram_message_id }}
+          STARTED_EPOCH: ${{ needs.investigate.outputs.started_epoch }}
+        run: |
+          runner_minutes=$(( ( $(date +%s) - STARTED_EPOCH + 59 ) / 60 ))
+          node .github/scripts/incident-remediation-contract.mjs notify \
+            --incident "$INCIDENT_ID" \
+            --report report-incident/report.json \
+            --message-id "$TELEGRAM_MESSAGE_ID" \
+            --runner-minutes "$runner_minutes"

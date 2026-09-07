@@ -14,8 +14,14 @@ import {
   Trash2,
   RotateCcw,
   Landmark,
+  Save,
+  Settings2,
 } from "lucide-react";
 import IncomingBankTransactionPanel from "./IncomingBankTransactionPanel";
+import {
+  buildDepositApprovalConfirmation,
+  formatVND,
+} from "./depositAdmin.ui";
 
 import {
   getAdminDeposits,
@@ -23,10 +29,14 @@ import {
   rejectDeposit,
   reverseDeposit,
   deleteAdminDeposit,
+  getAdminDepositPolicy,
+  updateAdminDepositPolicy,
 } from "../../services/adminDeposit.service";
-
-const formatVND = (amount) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
+import {
+  normalizeDepositPolicyResponse,
+  parseDepositBonusRateDraft,
+} from "../../utils/depositPolicy";
+import { invalidateDepositPolicy } from "../../queries/walletAccount.queries";
 
 const formatDateTime = (d) =>
   d ? new Date(d).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
@@ -66,6 +76,162 @@ const WorkspaceSwitch = ({ value, onChange }) => (
     })}
   </div>
 );
+
+const DepositPolicyEditor = () => {
+  const queryClient = useQueryClient();
+  const [rates, setRates] = useState(null);
+  const policyQuery = useQuery({
+    queryKey: ["admin-deposit-policy"],
+    queryFn: ({ signal }) =>
+      getAdminDepositPolicy({ signal }).then(normalizeDepositPolicyResponse),
+  });
+
+  const draftRates =
+    rates ||
+    (policyQuery.data
+      ? Object.fromEntries(
+          policyQuery.data.tiers.map((tier) => [tier.key, String(tier.bonusRate)]),
+        )
+      : { starter: "", growth: "", premium: "" });
+  const parsedRates = Object.fromEntries(
+    Object.entries(draftRates).map(([key, value]) => [
+      key,
+      parseDepositBonusRateDraft(value),
+    ]),
+  );
+  const values = [parsedRates.starter, parsedRates.growth, parsedRates.premium];
+  const ratesValid =
+    values.every(
+      (value) => value !== null,
+    ) &&
+    parsedRates.starter <= parsedRates.growth &&
+    parsedRates.growth <= parsedRates.premium;
+  const originalRates = policyQuery.data
+    ? Object.fromEntries(
+        policyQuery.data.tiers.map((tier) => [tier.key, tier.bonusRate]),
+      )
+    : null;
+  const changed = Boolean(
+    originalRates &&
+      Object.keys(parsedRates).some(
+        (key) => parsedRates[key] !== originalRates[key],
+      ),
+  );
+
+  const updateMutation = useMutation({
+    mutationFn: () => updateAdminDepositPolicy(parsedRates),
+    onSuccess: async (response) => {
+      queryClient.setQueryData(
+        ["admin-deposit-policy"],
+        normalizeDepositPolicyResponse(response),
+      );
+      setRates(null);
+      await invalidateDepositPolicy(queryClient);
+      toast.success(response.data.message);
+    },
+    onError: (error) =>
+      toast.error(
+        error.response?.data?.message || "Không thể cập nhật tỷ lệ thưởng",
+      ),
+  });
+
+  if (policyQuery.isPending) {
+    return (
+      <section className="mb-6 rounded-2xl border border-gray-200 bg-white p-6" role="status">
+        <p className="text-sm text-gray-500">Đang tải chính sách thưởng...</p>
+      </section>
+    );
+  }
+  if (policyQuery.isError || !policyQuery.data) {
+    return (
+      <section className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-6" role="alert">
+        <p className="text-sm text-red-700">Không thể tải chính sách thưởng nạp tiền.</p>
+        <button
+          type="button"
+          onClick={() => policyQuery.refetch()}
+          className="mt-3 min-h-11 rounded-lg border border-red-300 px-4 text-sm font-bold text-red-700 transition-colors duration-200 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+        >
+          Thử lại
+        </button>
+      </section>
+    );
+  }
+
+  const labels = Object.fromEntries(
+    policyQuery.data.tiers.map((tier) => [
+      tier.key,
+      `Bậc ${formatVND(tier.minAmount)}`,
+    ]),
+  );
+  return (
+    <section aria-labelledby="deposit-policy-heading" className="mb-6 rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm md:p-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 id="deposit-policy-heading" className="flex items-center gap-2 text-lg font-black text-gray-900">
+            <Settings2 className="h-5 w-5 text-emerald-600" aria-hidden="true" />
+            Tỷ lệ thưởng nạp ví
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-600">
+            Cập nhật đồng thời cả ba tỷ lệ. Thay đổi chỉ áp dụng cho hóa đơn tạo sau khi lưu; hóa đơn hiện có giữ nguyên quyền lợi.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => updateMutation.mutate()}
+          disabled={!ratesValid || !changed || updateMutation.isPending}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white transition-[background-color,box-shadow] duration-200 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
+        >
+          <Save className="h-4 w-4" aria-hidden="true" />
+          {updateMutation.isPending ? "Đang lưu..." : "Lưu tỷ lệ"}
+        </button>
+      </div>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-3">
+        {policyQuery.data.tiers.map((tier) => (
+          <label
+            key={tier.key}
+            className={`rounded-xl border p-4 ${
+              tier.key === "premium"
+                ? "border-emerald-300 bg-emerald-50"
+                : "border-gray-200 bg-gray-50"
+            }`}
+          >
+            <span className="block text-sm font-bold text-gray-800">
+              {labels[tier.key]}
+            </span>
+            <span className="mt-1 block text-xs text-gray-500">
+              Tối đa {formatVND(policyQuery.data.maxAmount)}
+            </span>
+            <span className="mt-4 flex items-center rounded-lg border border-gray-300 bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100">
+              <input
+                type="number"
+                name={`depositBonusRate-${tier.key}`}
+                min="0"
+                max="100"
+                step="1"
+                value={draftRates[tier.key]}
+                onChange={(event) =>
+                  setRates((current) => ({
+                    ...(current || draftRates),
+                    [tier.key]: event.target.value,
+                  }))
+                }
+                aria-label={`Tỷ lệ thưởng ${labels[tier.key]}`}
+                className="min-h-11 w-full rounded-l-lg px-3 text-lg font-black text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500"
+              />
+              <span className="px-3 font-bold text-emerald-700">%</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {!ratesValid && (
+        <p className="mt-3 text-sm font-medium text-red-600" role="alert">
+          Nhập số nguyên từ 0–100 và bảo đảm tỷ lệ không giảm ở bậc tiền cao hơn.
+        </p>
+      )}
+    </section>
+  );
+};
 
 const DepositManagement = () => {
   const queryClient = useQueryClient();
@@ -114,11 +280,7 @@ const DepositManagement = () => {
   });
 
   const handleApprove = (deposit) => {
-    if (
-      window.confirm(
-        `Xác nhận duyệt nạp ${formatVND(deposit.amount)} cho ${deposit.userId?.name || "user"}?`
-      )
-    ) {
+    if (window.confirm(buildDepositApprovalConfirmation(deposit))) {
       approveMutation.mutate(deposit._id);
     }
   };
@@ -189,6 +351,7 @@ const DepositManagement = () => {
             Đối soát giao dịch ngân hàng và xử lý trường hợp cần xem lại
           </p>
         </div>
+        <DepositPolicyEditor />
         <WorkspaceSwitch value={workspace} onChange={setWorkspace} />
         <IncomingBankTransactionPanel />
       </div>
@@ -208,6 +371,8 @@ const DepositManagement = () => {
           Duyệt / Từ chối yêu cầu nạp tiền của người dùng
         </p>
       </div>
+
+      <DepositPolicyEditor />
 
       <WorkspaceSwitch value={workspace} onChange={setWorkspace} />
 
@@ -284,6 +449,18 @@ const DepositManagement = () => {
                     <span className="text-gray-500">Số tiền</span>
                     <span className="font-bold text-red-500 text-base">
                       {formatVND(deposit.amount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Tiền thưởng</span>
+                    <span className="font-semibold text-amber-600">
+                      +{formatVND(deposit.bonusAmount || 0)} ({deposit.bonusRate || 0}%)
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Tổng cộng ví</span>
+                    <span className="font-bold text-emerald-700">
+                      {formatVND(deposit.creditedAmount || deposit.amount)}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -426,7 +603,7 @@ const DepositManagement = () => {
             <p className="text-sm text-gray-600">
               Ví sẽ bị trừ{" "}
               <strong className="text-red-500">
-                {formatVND(reverseModal.amount)}
+                {formatVND(reverseModal.creditedAmount ?? reverseModal.amount)}
               </strong>
               . Ledger gốc vẫn được giữ để đối soát.
             </p>

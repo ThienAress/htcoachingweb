@@ -51,6 +51,27 @@ description: Quy tắc bảo mật bắt buộc — Auth flow, CSRF, JWT, rate l
 
 ---
 
+## Refresh-session invariants
+
+- Verifier lưu server-side phải bao phủ **toàn bộ token chính xác** bằng fixed-length digest/MAC
+  và timing-safe comparison; không hash/compare một prefix, claim rời hoặc dùng password verifier
+  có giới hạn độ dài làm hai JWT khác nhau có thể cùng được chấp nhận.
+- Mỗi refresh token phải có `familyId` và `jti` không đoán được. Rotation dùng atomic
+  compare-and-swap trên current verifier/JTI để một credential chỉ thành công một lần; không làm
+  theo chuỗi read-then-write có thể double-success khi concurrent.
+- Dùng lại token đã rotate phải revoke successor/current family, ghi metadata allowlist bằng `safeLog`
+  và buộc đăng nhập lại. Lookup lỗi, metadata legacy thiếu hoặc verifier không khớp đều fail closed;
+  không fallback về cơ chế yếu hơn.
+- Absolute family expiry được cố định lúc login và không kéo dài qua rotation. JWT expiry và cookie
+  max-age không được vượt quá thời gian còn lại của family.
+- Logout phải có thể verify/revoke bằng refresh credential khi access token đã hết hạn, nhưng mutating
+  request vẫn giữ CSRF. Luôn clear cookies; không trả/log token, verifier, family/JTI hoặc raw cookie.
+- Regression bắt buộc gồm simultaneous refresh, replay sau rotation, absolute expiry, logout khi access
+  hết hạn, CSRF rejection, cookie secrecy và persistence failure. Kế hoạch rollout phải nêu mixed-version
+  cutover/rollback; không rollback sang binary có thể hồi sinh legacy verifier hoặc hạ invariant.
+
+---
+
 ## Dữ Liệu Nhạy Cảm & Quyền Truy Cập
 
 Xem dữ liệu sức khỏe, đánh giá cơ thể, ảnh/video, hội thoại AI, thông tin định danh,
@@ -85,6 +106,25 @@ trong domain hiện tại.
   query/body chưa kiểm tra.
 - Khi thêm external domain, kiểm tra đồng thời CORS, Helmet CSP, privacy impact và cách
   credential được truyền; không nới wildcard chỉ để request chạy được.
+
+## AI-assisted mutation & tool execution
+
+- Prompt, model output, tool schema, UI card và cờ `requiresConfirmation` là input/routing metadata,
+  **không phải authorization boundary**. Server quyết định actor, role, ownership, target, canonical
+  price, entitlement, transition hợp lệ và field allowlist tại execution path.
+- Mutation phải tách `read/discover → draft/preview → explicit confirmation → commit → reconcile`.
+  Draft/preview không gây side effect và được server canonicalize; confirmation phải gắn với đúng actor,
+  action/target, version/terms, expiry và một preview identifier/digest không thể tráo.
+- Trước commit, server re-authenticate/re-authorize và revalidate current state cùng mọi business
+  invariant. Commit dùng one-time confirmation, idempotency key và atomic/transactional guard phù hợp;
+  retry cùng key không được lặp side effect.
+- Audit chỉ ghi provenance allowlist như actor/tool/action/resource/confirmation/idempotency/result;
+  không ghi raw conversation, prompt, health/financial payload hoặc secret. External content vẫn là
+  untrusted data và không được tự nâng thành instruction/action.
+- Nếu commit timeout hoặc kết quả không chắc chắn, reconcile bằng status/read server-authoritative trước
+  khi retry. UI phải invalidate/rehydrate từ final server state; không tự giả định thành công từ card/chat.
+- Nếu tool engine chưa enforce preview binding, one-time confirmation, authorization và idempotency,
+  **không ship write tool**; viết spec/plan cho boundary còn thiếu thay vì dựa vào prompt để bù.
 
 ## Security Review Evidence Contract
 

@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import { resolveCloudinaryFolder } from "./cloudinaryPath.js";
+import { recordCloudinaryUsage } from "../observability/providerUsageMetrics.js";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -21,7 +22,15 @@ export const uploadBufferToCloudinary = (buffer, options = {}) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       isolatedOptions,
       (error, result) => {
-        if (error) return reject(error);
+        if (error) {
+          recordCloudinaryUsage({ operation: "upload", success: false });
+          return reject(error);
+        }
+        recordCloudinaryUsage({
+          operation: "upload",
+          success: true,
+          bytes: result.bytes || buffer.length,
+        });
         resolve({ url: result.secure_url, public_id: result.public_id });
       },
     );
@@ -42,7 +51,16 @@ export const destroyCloudinaryAsset = async (
   resourceType = "image",
 ) => {
   if (!publicId) return;
-  await cloudinary.uploader.destroy(publicId, {
-    resource_type: resourceType,
-  });
+  try {
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType,
+    });
+    recordCloudinaryUsage({
+      operation: "delete",
+      success: ["ok", "not found"].includes(result?.result),
+    });
+  } catch (error) {
+    recordCloudinaryUsage({ operation: "delete", success: false });
+    throw error;
+  }
 };

@@ -92,6 +92,7 @@ jobs:
           APP_ENV: staging
           MONGO_URI: ${{ secrets.STAGING_MONGO_URI }}
           JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
+          REFRESH_SECRET: ${{ secrets.STAGING_REFRESH_SECRET }}
           ADMIN_EMAIL: ${{ secrets.STAGING_ADMIN_EMAIL }}
           CLIENT_URL: https://staging--htcoachingweb.netlify.app
           PUBLIC_API_ORIGIN: https://htcoachingweb-staging.onrender.com

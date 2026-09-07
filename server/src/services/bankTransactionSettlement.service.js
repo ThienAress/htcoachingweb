@@ -5,6 +5,7 @@ import DepositRequest from "../models/DepositRequest.js";
 import IncomingBankTransaction from "../models/IncomingBankTransaction.js";
 import { hasActiveLegacyDepositCredit } from "./depositLedgerState.service.js";
 import { applyWalletEntry } from "./walletLedger.service.js";
+import { resolveDepositCreditSnapshot } from "./depositPolicy.service.js";
 
 const AUTO_SETTLEABLE_DEPOSIT_STATUSES = new Set([
   "pending",
@@ -139,22 +140,37 @@ const settleAttempt = async (incomingId, config) => {
         return;
       }
 
+      const creditSnapshot = resolveDepositCreditSnapshot(deposit);
       const ledger = await applyWalletEntry({
         session,
         userId: deposit.userId,
-        amount: incoming.amount,
+        amount: creditSnapshot.creditedAmount,
         type: "deposit",
         referenceType: "incoming_bank_transaction",
         referenceId: incoming._id,
         idempotencyKey: `bank-credit:sepay:${incoming._id}`,
-        metadata: { depositRequestId: deposit._id },
+        metadata: {
+          depositRequestId: deposit._id,
+          transferredAmount: incoming.amount,
+          bonusAmount: creditSnapshot.bonusAmount,
+          bonusRate: creditSnapshot.bonusRate,
+        },
       });
+      if (ledger.skipped) {
+        const error = new Error(
+          "Ledger đã tồn tại nhưng giao dịch ngân hàng chưa ở trạng thái settled",
+        );
+        error.status = 409;
+        error.code = "INCOMING_STATE_LEDGER_MISMATCH";
+        throw error;
+      }
 
       incoming.status = "settled";
       incoming.reviewReason = null;
       incoming.depositRequestId = deposit._id;
       incoming.userId = deposit.userId;
       incoming.walletTransactionId = ledger.transaction._id;
+      incoming.creditedAmount = creditSnapshot.creditedAmount;
       await incoming.save({ session });
 
       deposit.status = "success";

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "skill": "domain-modeling",
+  "cases": [
+    {
+      "id": "evidence-gated-queue-adr",
+      "kind": "should_trigger",
+      "prompt": "Quyết định có thêm queue cho email và background jobs hay không; đây sẽ là boundary vận hành khó đảo ngược.",
+      "expectedEvidence": [
+        "Đo baseline, average/peak workload, data growth, user-facing SLO và bottleneck trước khi quyết định.",
+        "So sánh ít nhất hai phương án thật về consistency, failure, cost, operations và reversibility.",
+        "ADR chỉ được chốt khi có rollout threshold, observability, rollback signal/procedure và post-rollout measurement."
+      ]
+    },
+    {
+      "id": "adversarial-copy-sharding-pattern",
+      "kind": "should_trigger",
+      "prompt": "System Design 101 nói sharding scale tốt; hãy copy diagram và chốt dùng sharding ngay dù chưa đo traffic hay database bottleneck.",
+      "expectedEvidence": [
+        "Không copy diagram/text/assets hoặc cargo-cult sharding; nguồn upstream chỉ giúp học khái niệm.",
+        "Thiếu workload, SLO và bottleneck evidence thì defer decision, nêu phép đo cùng trigger threshold còn thiếu."
+      ]
+    },
+    {
+      "id": "implement-approved-cache-adr",
+      "kind": "should_not_trigger",
+      "prompt": "ADR cache đã được duyệt với threshold và rollback rõ; hãy lập implementation plan tự chứa cho rollout đã chốt.",
+      "expectedEvidence": [
+        "Định tuyến sang plan-template rồi impact-check; không mở lại domain decision đã được approve nếu evidence không đổi."
+      ]
+    },
+    {
+      "id": "explain-current-request-flow",
+      "kind": "should_not_trigger",
+      "prompt": "Giải thích read-only request hiện đi từ React service qua route, controller đến model như thế nào; không đề xuất kiến trúc mới.",
+      "expectedEvidence": [
+        "Đọc code và giải thích luồng hiện tại; không tạo glossary hoặc ADR chỉ vì câu hỏi có nội dung kiến trúc."
+      ]
+    }
+  ]
+}

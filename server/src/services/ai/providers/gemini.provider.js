@@ -3,6 +3,10 @@
 // Hỗ trợ: Function Calling + Streaming
 import { safeLog } from "../../../utils/safeLogger.js";
 import {
+  recordGeminiRequest,
+  recordGeminiResult,
+} from "../../../observability/providerUsageMetrics.js";
+import {
   canonicalizeToolResultForModel,
   serializeToolResultForModel,
 } from "../tools/toolResultBoundary.js";
@@ -11,6 +15,14 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 45000;
 const GEMINI_UNSUPPORTED_SCHEMA_KEYS = new Set(["additionalProperties"]);
+const GEMINI_OUTCOME_RECORDED = Symbol("geminiOutcomeRecorded");
+
+const recordGeminiFailure = (error) => {
+  recordGeminiResult("chat", { success: false });
+  if (error && typeof error === "object") {
+    error[GEMINI_OUTCOME_RECORDED] = true;
+  }
+};
 
 function sanitizeSchemaForGemini(value) {
   if (Array.isArray(value)) return value.map(sanitizeSchemaForGemini);
@@ -234,6 +246,7 @@ async function* streamGemini(messages, tools, signal) {
 
   let response;
   try {
+    recordGeminiRequest("chat");
     response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -241,6 +254,7 @@ async function* streamGemini(messages, tools, signal) {
       signal,
     });
   } catch (err) {
+    recordGeminiFailure(err);
     if (signal.aborted) throw err;
     safeLog.error("ai.gemini_fetch_failed", err);
     yield { type: "text", content: "⚠️ Không thể kết nối tới Gemini API. Kiểm tra kết nối mạng." };
@@ -248,6 +262,7 @@ async function* streamGemini(messages, tools, signal) {
   }
 
   if (!response.ok) {
+    recordGeminiResult("chat", { success: false });
     const providerError = await readProviderError(response);
     safeLog.warn("ai.gemini_http_error", "Provider returned an error", {
       status: response.status,
@@ -279,6 +294,7 @@ async function* streamGemini(messages, tools, signal) {
 
       let retryResponse;
       try {
+        recordGeminiRequest("chat");
         retryResponse = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -286,12 +302,14 @@ async function* streamGemini(messages, tools, signal) {
           signal,
         });
       } catch (err) {
+        recordGeminiFailure(err);
         if (signal.aborted) throw err;
         yield { type: "text", content: "Xin lỗi, tôi không thể xử lý lúc này. Bạn thử lại nhé! 😊" };
         return;
       }
 
       if (!retryResponse.ok && retryResponse.status === 400 && geminiTools) {
+        recordGeminiResult("chat", { success: false });
         safeLog.warn(
           "ai.gemini_tool_free_retry",
           "Retrying provider without tools after minimal retry failed",
@@ -299,6 +317,7 @@ async function* streamGemini(messages, tools, signal) {
         const toolFreeRetryBody = { ...retryBody };
         delete toolFreeRetryBody.tools;
         try {
+          recordGeminiRequest("chat");
           retryResponse = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -306,6 +325,7 @@ async function* streamGemini(messages, tools, signal) {
             signal,
           });
         } catch (err) {
+          recordGeminiFailure(err);
           if (signal.aborted) throw err;
           yield { type: "text", content: "Xin lỗi, tôi không thể xử lý lúc này. Bạn thử lại nhé! 😊" };
           return;
@@ -313,6 +333,7 @@ async function* streamGemini(messages, tools, signal) {
       }
 
       if (!retryResponse.ok) {
+        recordGeminiResult("chat", { success: false });
         const retryError = await readProviderError(retryResponse);
         safeLog.warn("ai.gemini_retry_failed", "Minimal provider retry failed", {
           status: retryResponse.status,
@@ -342,6 +363,13 @@ async function* streamGemini(messages, tools, signal) {
   let buffer = "";
   const thoughtBuffer = []; // Buffer thought parts để gửi kèm tool_call
   const pendingToolCalls = [];
+  const usage = {
+    promptTokenCount: 0,
+    candidatesTokenCount: 0,
+    totalTokenCount: 0,
+  };
+  let receivedOutput = false;
+  let terminalStreamError = false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -358,10 +386,17 @@ async function* streamGemini(messages, tools, signal) {
 
       try {
         const data = JSON.parse(jsonStr);
+        for (const field of Object.keys(usage)) {
+          usage[field] = Math.max(
+            usage[field],
+            Number(data.usageMetadata?.[field]) || 0,
+          );
+        }
 
         // Gemini trả error trong stream body (HTTP 200 nhưng có lỗi)
         if (data.error) {
           safeLog.warn("ai.gemini_stream_error", "Provider stream error");
+          terminalStreamError = true;
           continue;
         }
 
@@ -383,10 +418,12 @@ async function* streamGemini(messages, tools, signal) {
           }
 
           if (part.text) {
+            receivedOutput = true;
             yield { type: "text", content: part.text };
           }
 
           if (part.functionCall) {
+            receivedOutput = true;
             pendingToolCalls.push({
               id: part.functionCall.id || part.id || `gemini_${Date.now()}`,
               name: part.functionCall.name,
@@ -400,6 +437,15 @@ async function* streamGemini(messages, tools, signal) {
       }
     }
   }
+
+  if (terminalStreamError || !receivedOutput) {
+    const error = new Error("Gemini stream ended without a valid candidate");
+    error.code = terminalStreamError
+      ? "GEMINI_STREAM_ERROR"
+      : "GEMINI_STREAM_EMPTY";
+    throw error;
+  }
+  recordGeminiResult("chat", { success: true, usage });
 
   if (pendingToolCalls.length > 0) {
     yield {
@@ -424,7 +470,12 @@ export async function* geminiLLMStream(messages, tools, options = {}) {
   try {
     yield* streamGemini(messages, tools, linked.signal);
   } catch (error) {
-    if (!linked.signal.aborted) throw error;
+    if (!error?.[GEMINI_OUTCOME_RECORDED]) {
+      recordGeminiFailure(error);
+    }
+    if (!linked.signal.aborted) {
+      throw error;
+    }
     if (!options.signal?.aborted) {
       safeLog.warn("ai.gemini_timeout", "Provider request timed out");
       yield {

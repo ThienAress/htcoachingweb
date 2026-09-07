@@ -1,15 +1,18 @@
 import express from "express";
 import { safeLog } from "../utils/safeLogger.js";
 import passport from "passport";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 
 import {
   refreshTokenController,
   logout,
 } from "../controllers/auth.controller.js";
-import { protect } from "../middlewares/auth.middleware.js";
 import { csrfProtection, generateCsrfToken } from "../middlewares/csrf.js";
+import { requireAuthCutoverOpen } from "../middlewares/authCutover.middleware.js";
+import {
+  ACCESS_TOKEN_MAX_AGE_MS,
+  createAuthSession,
+  REFRESH_TOKEN_MAX_AGE_MS,
+} from "../services/authSession.service.js";
 import { setCsrfCookie } from "../utils/csrfCookie.js";
 import {
   createOAuthState,
@@ -23,6 +26,8 @@ import {
 const router = express.Router();
 const isProd = process.env.NODE_ENV === "production";
 
+router.use(requireAuthCutoverOpen);
+
 // ===== COOKIE HELPERS =====
 const getAuthCookieOptions = (maxAge = null) => {
   const options = {
@@ -32,7 +37,7 @@ const getAuthCookieOptions = (maxAge = null) => {
     path: "/",
   };
 
-  if (maxAge) {
+  if (maxAge !== null) {
     options.maxAge = maxAge;
   }
 
@@ -47,17 +52,12 @@ const getCsrfCookieOptions = () => ({
   maxAge: 24 * 60 * 60 * 1000,
 });
 
-const signAccessToken = (user) =>
-  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-    expiresIn: "15m",
-  });
-
-const signRefreshToken = (user) =>
-  jwt.sign({ id: user._id }, process.env.REFRESH_SECRET, {
-    expiresIn: "7d",
-  });
-
-const setAuthCookies = (res, accessToken, refreshToken) => {
+const setAuthCookies = (
+  res,
+  accessToken,
+  refreshToken,
+  refreshTokenMaxAgeMs = REFRESH_TOKEN_MAX_AGE_MS,
+) => {
   // Xóa cookie cũ (không có domain) để tránh trùng lặp trên production
   if (isProd) {
     res.clearCookie("csrfToken", { path: "/", httpOnly: false, secure: true, sameSite: "none" });
@@ -65,11 +65,11 @@ const setAuthCookies = (res, accessToken, refreshToken) => {
     res.clearCookie("refreshToken", { path: "/", httpOnly: true, secure: true, sameSite: "none" });
   }
 
-  res.cookie("accessToken", accessToken, getAuthCookieOptions(15 * 60 * 1000));
+  res.cookie("accessToken", accessToken, getAuthCookieOptions(ACCESS_TOKEN_MAX_AGE_MS));
   res.cookie(
     "refreshToken",
     refreshToken,
-    getAuthCookieOptions(7 * 24 * 60 * 60 * 1000),
+    getAuthCookieOptions(refreshTokenMaxAgeMs),
   );
 
   const csrfToken = generateCsrfToken();
@@ -165,15 +165,14 @@ router.get(
         );
       }
 
-      const accessToken = signAccessToken(user);
-      const refreshToken = signRefreshToken(user);
+      const session = await createAuthSession(user);
 
-      // QUAN TRỌNG: hash refresh token giống auth.controller.js
-      const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-      user.refreshToken = hashedRefreshToken;
-      await user.save();
-
-      setAuthCookies(res, accessToken, refreshToken);
+      setAuthCookies(
+        res,
+        session.accessToken,
+        session.refreshToken,
+        session.refreshTokenMaxAgeMs,
+      );
 
       return res.redirect(`${clientUrl}/login-success`);
     } catch (err) {
@@ -201,14 +200,14 @@ if (isDevLoginEnabled(process.env)) {
         return res.status(404).json({ success: false, message: "User not found" });
       }
 
-      const accessToken = signAccessToken(user);
-      const refreshToken = signRefreshToken(user);
+      const session = await createAuthSession(user);
 
-      const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-      user.refreshToken = hashedRefreshToken;
-      await user.save();
-
-      setAuthCookies(res, accessToken, refreshToken);
+      setAuthCookies(
+        res,
+        session.accessToken,
+        session.refreshToken,
+        session.refreshTokenMaxAgeMs,
+      );
       return res.redirect(`${process.env.CLIENT_URL || "http://localhost:5173"}/login-success`);
     } catch (err) {
       safeLog.error("auth.google_callback_unhandled", err);
@@ -219,6 +218,6 @@ if (isDevLoginEnabled(process.env)) {
 
 // ===== REFRESH / LOGOUT =====
 router.post("/refresh", csrfProtection, refreshTokenController);
-router.post("/logout", protect, csrfProtection, logout);
+router.post("/logout", csrfProtection, logout);
 
 export default router;

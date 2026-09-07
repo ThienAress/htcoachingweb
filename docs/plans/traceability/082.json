@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "planId": "082",
+  "specPath": "docs/specs/refresh-session-security.md",
+  "planPath": "docs/plans/082-harden-refresh-session-rotation-and-logout.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Rotate and contain one refresh family atomically", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Revoke refresh credentials during logout", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Bound lifetime and reject legacy tokens safely", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Integrate review and local verification", "planStep": "Step 4" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/auth.refresh-session.integration.test.js" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/auth.refresh-session.integration.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/auth.logout-session.integration.test.js" }] },
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/auth.logout-session.integration.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/auth.refresh-session.integration.test.js" }] },
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/auth.refresh-session.integration.test.js" }, { "type": "test", "path": "server/src/scripts/__tests__/singleAccountSync.runtime.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-001", "TASK-004"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/auth.refresh-session.integration.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/phase0.security.integration.test.js" }] },
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-001", "TASK-002", "TASK-003", "TASK-004"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/auth.refresh-session.integration.test.js" }, { "type": "command", "command": "cd server && npx vitest run --shard=1/4" }, { "type": "command", "command": "cd server && npx vitest run --shard=2/4" }, { "type": "command", "command": "cd server && npx vitest run --shard=3/4" }, { "type": "command", "command": "cd server && npx vitest run --shard=4/4" }] },
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "test", "path": "server/src/scripts/__tests__/singleAccountSync.contract.test.js" }, { "type": "command", "command": "npm run security:data-boundaries" }] }
+      ]
+    }
+  ]
+}

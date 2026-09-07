@@ -135,6 +135,7 @@ describe("Coaching upload security boundaries", () => {
         resource_type: "video",
         type: "authenticated",
         access_mode: "authenticated",
+        backup: false,
       }),
     );
     const stored = await CoachingDay.findById(plan._id).lean();

@@ -58,6 +58,7 @@ const createDepositFixture = async ({
   depositCode = "HTC-AB12-CD34",
   createdAt = new Date("2026-08-15T02:30:00.000Z"),
   expiresAt = new Date("2026-08-15T03:20:00.000Z"),
+  snapshot = {},
 } = {}) => {
   const { user } = await createTestUser();
   await Wallet.create({ userId: user._id, balance: 0, version: 0 });
@@ -69,6 +70,7 @@ const createDepositFixture = async ({
     status: "pending",
     createdAt,
     updatedAt: createdAt,
+    ...snapshot,
   });
   return { user, deposit };
 };
@@ -204,6 +206,37 @@ describe("POST /api/webhooks/sepay", () => {
         referenceType: "incoming_bank_transaction",
         referenceId: incoming?._id.toString(),
       },
+    });
+  });
+
+  it("credits the frozen deposit snapshot for an exact automatic settlement", async () => {
+    const { user, deposit } = await createDepositFixture({
+      amount: 200000,
+      snapshot: {
+        bonusRate: 20,
+        bonusAmount: 40000,
+        creditedAmount: 240000,
+        bonusTierKey: "premium",
+        policyVersion: 7,
+      },
+    });
+
+    await signedRequest(app, { ...payload, transferAmount: 200000 });
+
+    const incoming = await IncomingBankTransaction.findOne().lean();
+    const ledger = await WalletTransaction.findOne().lean();
+    expect({
+      walletBalance: (await Wallet.findOne({ userId: user._id }).lean())?.balance,
+      transferredAmount: incoming?.amount,
+      creditedAmount: incoming?.creditedAmount,
+      ledgerAmount: ledger?.amount,
+      depositStatus: (await DepositRequest.findById(deposit._id).lean())?.status,
+    }).toEqual({
+      walletBalance: 240000,
+      transferredAmount: 200000,
+      creditedAmount: 240000,
+      ledgerAmount: 240000,
+      depositStatus: "success",
     });
   });
 

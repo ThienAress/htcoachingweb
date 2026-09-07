@@ -42,3 +42,9 @@ server/.private/
 
 # Local Netlify folder
 .netlify
+
+# Local Cloudflare Worker deployment config
+workers/production-watchdog/wrangler.toml
+
+# Local Codex worktrees are never release artifacts
+.codex-worktrees/

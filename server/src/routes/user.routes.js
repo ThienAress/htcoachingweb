@@ -11,6 +11,7 @@ import FitnessSubscription from "../models/FitnessSubscription.js";
 import CustomerStory from "../models/CustomerStory.js";
 import { uploadAvatar } from "../middlewares/avatarUpload.js";
 import { uploadBufferToCloudinary } from "../utils/cloudinaryUpload.js";
+import { createAvatarCloudinaryUploadOptions } from "../services/avatarMedia.service.js";
 import {
   getUsers,
   deleteUser,
@@ -105,13 +106,10 @@ router.put("/me/avatar", protect, csrfProtection, uploadAvatar.single("avatar"),
       return res.status(400).json({ success: false, message: "Không tìm thấy file tải lên" });
     }
 
-    const result = await uploadBufferToCloudinary(req.file.buffer, {
-      folder: "htcoaching/avatars",
-      transformation: [
-        { width: 200, height: 200, crop: "fill", gravity: "face" },
-        { quality: "auto", fetch_format: "auto" },
-      ],
-    });
+    const result = await uploadBufferToCloudinary(
+      req.file.buffer,
+      createAvatarCloudinaryUploadOptions(),
+    );
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,

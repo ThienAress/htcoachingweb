@@ -65,6 +65,7 @@ export default function MealScan() {
   const [ingredientsLocked, setIngredientsLocked] = useState(false);
   const [ingredientErrorCode, setIngredientErrorCode] = useState("");
   const [confirmAnalysisOpen, setConfirmAnalysisOpen] = useState(false);
+  const [providerDataUseAccepted, setProviderDataUseAccepted] = useState(false);
   const [quota, setQuota] = useState(null);
   const [scanErrorCode, setScanErrorCode] = useState("");
 
@@ -128,6 +129,7 @@ export default function MealScan() {
     setIngredientsLocked(false);
     setIngredientErrorCode("");
     setConfirmAnalysisOpen(false);
+    setProviderDataUseAccepted(false);
   };
 
   const handleFile = (candidate) => {
@@ -232,6 +234,7 @@ export default function MealScan() {
         image,
         i18n.language,
         declaredIngredients,
+        providerDataUseAccepted,
       );
       setQuota(nextQuota);
       setResult(data);
@@ -263,10 +266,12 @@ export default function MealScan() {
 
   const requestAnalyze = () => {
     if (!file || !ingredientsLocked) return;
+    setProviderDataUseAccepted(false);
     setConfirmAnalysisOpen(true);
   };
 
   const handleConfirmAnalysis = () => {
+    if (!providerDataUseAccepted) return;
     setConfirmAnalysisOpen(false);
     void performAnalyze();
   };
@@ -537,6 +542,8 @@ export default function MealScan() {
       </main>
       <MealScanAnalyzeDialog
         open={confirmAnalysisOpen}
+        accepted={providerDataUseAccepted}
+        onAcceptedChange={setProviderDataUseAccepted}
         onCancel={() => setConfirmAnalysisOpen(false)}
         onConfirm={handleConfirmAnalysis}
       />

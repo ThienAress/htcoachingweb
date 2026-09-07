@@ -1,0 +1,24 @@
+name = "htcoaching-production-watchdog"
+main = "src/worker.mjs"
+compatibility_date = "2026-09-04"
+workers_dev = true
+
+[triggers]
+crons = ["*/30 * * * *"]
+
+[vars]
+FAILURE_THRESHOLD = "1"
+HEALTH_TIMEOUT_MS = "90000"
+COLD_START_RETRY_DELAY_MS = "30000"
+
+[[kv_namespaces]]
+binding = "INCIDENT_STATE"
+id = "replace-with-production-kv-namespace-id"
+
+[[durable_objects.bindings]]
+name = "INCIDENT_COORDINATOR"
+class_name = "IncidentCoordinator"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["IncidentCoordinator"]

@@ -25,6 +25,7 @@ import {
   AI_MEMORY_VALUES,
 } from "../constants/aiMemory.js";
 import { MAX_ADDITIONAL_RECIPE_NUTRIENTS } from "../constants/recipeNutrition.js";
+import { validateDepositBonusRates } from "../constants/depositPolicy.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -2633,5 +2634,24 @@ export const validateExerciseSuggestionUpdate = [
   }),
   body("status").isIn(["pending", "approved", "rejected"]),
   body("adminNote").optional().isString().trim().isLength({ max: 1000 }),
+  handleValidationErrors,
+];
+
+export const validateDepositPolicyUpdate = [
+  body().custom((value) => {
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).length !== 1 ||
+      !Object.hasOwn(value, "rates")
+    ) {
+      throw new Error("Payload chính sách nạp tiền không hợp lệ");
+    }
+
+    const validation = validateDepositBonusRates(value.rates);
+    if (!validation.valid) throw new Error(validation.message);
+    return true;
+  }),
   handleValidationErrors,
 ];

@@ -5,8 +5,13 @@ import WalletTransaction from "../models/WalletTransaction.js";
 import { incrementMetric } from "../observability/metrics.js";
 import { applyWalletEntry } from "./walletLedger.service.js";
 import {
+  resolveDepositCreditSnapshot,
+  resolveIncomingCreditedAmount,
+} from "./depositPolicy.service.js";
+import {
   assertObjectId,
   assertIncomingCreditLedger,
+  assertIncomingReversalLedger,
   auditRecord,
   financialError,
   markDepositReversedWhenNoCreditsRemain,
@@ -58,7 +63,8 @@ export const approveIncomingBankTransaction = async ({
       incrementMetric("financial.idempotency_hits");
       return {
         skipped: true,
-        amount: incoming.amount,
+        transferredAmount: incoming.amount,
+        creditedAmount: resolveIncomingCreditedAmount(incoming),
         balanceAfter: existing.balanceAfter,
       };
     }
@@ -80,22 +86,43 @@ export const approveIncomingBankTransaction = async ({
         "Không tìm thấy yêu cầu nạp tiền",
       );
     }
+    const exactAmount = incoming.amount === deposit.amount;
+    const depositSnapshot = exactAmount
+      ? resolveDepositCreditSnapshot(deposit)
+      : null;
+    const creditedAmount = exactAmount
+      ? depositSnapshot.creditedAmount
+      : incoming.amount;
     const ledger = await applyWalletEntry({
       session,
       userId: deposit.userId,
-      amount: incoming.amount,
+      amount: creditedAmount,
       type: "deposit",
       referenceType: "incoming_bank_transaction",
       referenceId: incoming._id,
       idempotencyKey: `bank-credit:sepay:${incoming._id}`,
-      metadata: { depositRequestId: deposit._id, reviewedBy: actor.id },
+      metadata: {
+        depositRequestId: deposit._id,
+        reviewedBy: actor.id,
+        transferredAmount: incoming.amount,
+        bonusAmount: depositSnapshot?.bonusAmount || 0,
+        bonusRate: depositSnapshot?.bonusRate || 0,
+      },
     });
+    if (ledger.skipped) {
+      throw financialError(
+        409,
+        "INCOMING_STATE_LEDGER_MISMATCH",
+        "Ledger đã tồn tại nhưng giao dịch ngân hàng chưa ở trạng thái settled",
+      );
+    }
 
     incoming.status = "settled";
     incoming.reviewReason = null;
     incoming.depositRequestId = deposit._id;
     incoming.userId = deposit.userId;
     incoming.walletTransactionId = ledger.transaction._id;
+    incoming.creditedAmount = creditedAmount;
     incoming.reviewedBy = actor.id;
     incoming.reviewedAt = new Date();
     incoming.reviewNote = reason;
@@ -120,7 +147,9 @@ export const approveIncomingBankTransaction = async ({
           action: "approve_incoming_bank_transaction",
           incoming,
           metadata: {
-            amount: incoming.amount,
+            transferredAmount: incoming.amount,
+            creditedAmount,
+            bonusAmount: depositSnapshot?.bonusAmount || 0,
             depositRequestId: deposit._id,
             userId: deposit.userId,
             balanceBefore: ledger.balanceBefore,
@@ -133,7 +162,8 @@ export const approveIncomingBankTransaction = async ({
     );
     return {
       skipped: false,
-      amount: incoming.amount,
+      transferredAmount: incoming.amount,
+      creditedAmount,
       balanceAfter: ledger.balanceAfter,
     };
   });
@@ -224,6 +254,22 @@ export const reverseIncomingBankTransaction = async ({
           "Giao dịch đã hoàn tác nhưng thiếu ledger; cần đối soát",
         );
       }
+      const original = await WalletTransaction.findById(
+        incoming.walletTransactionId,
+      ).session(session);
+      if (!original) {
+        throw financialError(
+          409,
+          "INCOMING_LEDGER_MISSING",
+          "Giao dịch đã hoàn tác nhưng thiếu ledger gốc; cần đối soát",
+        );
+      }
+      assertIncomingCreditLedger({ incoming, ledger: original });
+      assertIncomingReversalLedger({
+        incoming,
+        original,
+        reversal: existing,
+      });
       incrementMetric("financial.idempotency_hits");
       return { skipped: true, balanceAfter: existing.balanceAfter };
     }
@@ -248,7 +294,7 @@ export const reverseIncomingBankTransaction = async ({
     const ledger = await applyWalletEntry({
       session,
       userId: incoming.userId,
-      amount: -incoming.amount,
+      amount: -original.amount,
       type: "reversal",
       referenceType: "incoming_bank_transaction",
       referenceId: incoming._id,
@@ -256,6 +302,13 @@ export const reverseIncomingBankTransaction = async ({
       reversalOf: original._id,
       metadata: { reason, reversedBy: actor.id },
     });
+    if (ledger.skipped) {
+      throw financialError(
+        409,
+        "INCOMING_REVERSAL_STATE_MISMATCH",
+        "Ledger hoàn tác đã tồn tại nhưng giao dịch chưa ở trạng thái reversed",
+      );
+    }
 
     incoming.status = "reversed";
     incoming.reversalTransactionId = ledger.transaction._id;
@@ -276,7 +329,8 @@ export const reverseIncomingBankTransaction = async ({
           action: "reverse_incoming_bank_transaction",
           incoming,
           metadata: {
-            amount: incoming.amount,
+            transferredAmount: incoming.amount,
+            creditedAmount: original.amount,
             reason,
             originalTransactionId: original._id,
             reversalTransactionId: ledger.transaction._id,

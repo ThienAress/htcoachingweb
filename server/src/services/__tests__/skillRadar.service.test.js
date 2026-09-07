@@ -15,10 +15,91 @@ import {
   teardownTestDB,
 } from "../../__tests__/setup.js";
 import SkillRadarSource from "../../models/SkillRadarSource.js";
-import { refreshDueSkillRadarSources } from "../skillRadar.service.js";
+import {
+  buildSkillRadarReadModel,
+  projectTechnologyRadarEntries,
+  refreshDueSkillRadarSources,
+} from "../skillRadar.service.js";
 import { skillRadarGithubService } from "../skillRadarGithub.service.js";
 
 const NOW = new Date("2026-08-12T02:00:00.000Z");
+
+describe("static technology Radar projection", () => {
+  it("projects TencentDB as one repository row without turning it into a skill", () => {
+    const projected = projectTechnologyRadarEntries({
+      schemaVersion: 1,
+      entries: [{
+        id: "tencentcloud/tencentdb-agent-memory",
+        name: "TencentDB Agent Memory",
+        sourceRepo: "TencentCloud/TencentDB-Agent-Memory",
+        repoUrl: "https://github.com/TencentCloud/TencentDB-Agent-Memory",
+        category: "AI memory architecture",
+        summary: "Long-term agent memory",
+        ring: "assess",
+        decision: "adapt",
+        decisionReason: "Keep explicit memory and provenance only.",
+        localTargets: ["docs/specs/ai-explicit-memory.md"],
+        trustTier: "official",
+        license: "MIT",
+        reviewedAt: "2026-08-11",
+        nextReviewAt: "2026-09-10",
+        autoInstall: false,
+      }],
+    }, new Date("2026-09-04T02:00:00.000Z"));
+
+    expect(projected.entries).toEqual([
+      expect.objectContaining({
+        id: "tencentcloud/tencentdb-agent-memory",
+        sourceType: "repository",
+        lifecycle: "watch",
+        domain: "AI memory architecture",
+      }),
+    ]);
+    expect(projected.observations).toEqual([
+      expect.objectContaining({
+        id: "tencentcloud/tencentdb-agent-memory",
+        drift: "clean",
+        decision: "adapt",
+        nextCheckAt: "2026-09-10T02:00:00.000Z",
+      }),
+    ]);
+
+    const readModel = buildSkillRadarReadModel({
+      watchlist: { schemaVersion: 1, entries: projected.entries },
+      snapshot: { schemaVersion: 1, items: projected.observations },
+      now: new Date("2026-09-04T02:00:00.000Z"),
+    });
+    expect(readModel.items).toHaveLength(1);
+    expect(readModel.items[0].sourceType).toBe("repository");
+  });
+
+  it("marks an overdue technology review due and deduplicates repeated ids", () => {
+    const entry = {
+      id: "example/technology",
+      name: "Technology",
+      sourceRepo: "example/technology",
+      repoUrl: "https://github.com/example/technology",
+      category: "AI",
+      summary: "Example",
+      ring: "assess",
+      decision: "defer",
+      decisionReason: "Needs more evidence.",
+      localTargets: ["docs/specs/example.md"],
+      trustTier: "community",
+      license: "MIT",
+      reviewedAt: "2026-08-01",
+      nextReviewAt: "2026-09-01",
+      autoInstall: false,
+    };
+    const projected = projectTechnologyRadarEntries(
+      { schemaVersion: 1, entries: [entry, entry] },
+      new Date("2026-09-04T02:00:00.000Z"),
+    );
+
+    expect(projected.entries).toHaveLength(1);
+    expect(projected.observations[0].drift).toBe("review_due");
+  });
+});
 
 const createDueSource = async ({ id, createdBy }) => SkillRadarSource.create({
   _id: id,

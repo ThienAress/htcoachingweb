@@ -14,47 +14,37 @@ description: Kiểm tra hệ thống AI Chat (HT Assistant) — system prompt, c
 
 ## Bước 1: Kiểm tra cấu trúc files
 
-Verify tất cả files cần thiết tồn tại:
+Lấy inventory từ repo thay vì duy trì danh sách từng tool/card trong skill:
 
+```bash
+rg --files server/src/services/ai client/src/components/ChatWidget
+rg --files server/src/services/ai/tools | rg "\.tool\.js$"
+rg --files client/src/components/ChatWidget/cards | rg "\.jsx$"
 ```
+
+Verify các entry point kiến trúc bắt buộc tồn tại; tool/card cụ thể được đối chiếu từ inventory
+và `validate-tools.mjs` ở Bước 4.5:
+
+```text
 server/src/controllers/ai.controller.js
 server/src/services/ai/providers/index.js
-server/src/services/ai/providers/gemini.provider.js
-server/src/services/ai/providers/mock.provider.js
 server/src/services/ai/systemPrompt.js
 server/src/services/ai/contentModeration.js
 server/src/services/ai/aiLogger.js
 server/src/services/ai/tools/toolRegistry.js
 server/src/services/ai/tools/toolEngine.js
-server/src/services/ai/tools/calculateTdee.tool.js
-server/src/services/ai/tools/searchExercises.tool.js
-server/src/services/ai/tools/suggestMeal.tool.js
-server/src/services/ai/tools/getTrainerInfo.tool.js
-server/src/services/ai/tools/searchKnowledge.tool.js
-server/src/services/ai/tools/checkWallet.tool.js
-server/src/services/ai/tools/getWorkoutPlan.tool.js
-server/src/services/ai/tools/searchBlog.tool.js
-server/src/services/ai/tools/getCheckinHistory.tool.js
-server/src/services/ai/tools/getTrainingSchedule.tool.js
-server/src/services/ai/tools/getGymInfo.tool.js
+server/src/services/ai/toolConfirmation.service.js
 server/src/models/ChatConversation.js
+server/src/models/AiToolConfirmation.js
 server/src/routes/ai.routes.js
 client/src/components/ChatWidget/ChatWidget.jsx
 client/src/components/ChatWidget/ChatPanel.jsx
 client/src/components/ChatWidget/ChatBubble.jsx
-client/src/components/ChatWidget/cards/TdeeResultCard.jsx
-client/src/components/ChatWidget/cards/TdeeFormCard.jsx
-client/src/components/ChatWidget/cards/ExerciseListCard.jsx
-client/src/components/ChatWidget/cards/MealSuggestionCard.jsx
-client/src/components/ChatWidget/cards/TrainerInfoCard.jsx
-client/src/components/ChatWidget/cards/WalletSummaryCard.jsx
-client/src/components/ChatWidget/cards/WorkoutPlanCard.jsx
-client/src/components/ChatWidget/cards/BlogListCard.jsx
 client/src/hooks/useAiChat.js
 client/src/services/ai.service.js
 ```
 
-→ Verify: Tất cả files tồn tại
+→ Verify: Entry points tồn tại; không có registered tool thiếu file hoặc orphan tool file
 
 ---
 
@@ -100,6 +90,11 @@ client/src/services/ai.service.js
 - [ ] Tool auth, guest eligibility, ownership, schema và confirmation được enforce khi execute
 - [ ] Vector/KB write/query provenance và access path đã trace hoặc ghi `proof_gap`
 - [ ] Rate limit, quota, iteration, context, timeout và tool-call cost vẫn bounded
+
+Nếu diff thêm/bật tool có side effect, đọc
+`../ai-chat-system/references/agentic-mutation-lifecycle.md` và ghi integration evidence cho từng stage.
+Nếu engine chưa enforce canonical preview binding, server revalidation, one-time confirmation,
+idempotency và reconcile, kết quả là `FAIL`; cờ registry hoặc UI confirmation riêng lẻ không đủ.
 
 Không đánh dấu PASS từ checklist đơn thuần; mỗi mục cần file/test evidence hoặc `NOT APPLICABLE` có lý do.
 
@@ -170,6 +165,8 @@ AI Chat System Check — [DATE]
 Files:          ✅/❌
 Prompt:         ✅/❌
 Moderation:     ✅/❌
+Threat matrix:  PASS/FAIL/NOT APPLICABLE
+Mutation flow:  PASS/FAIL/NOT APPLICABLE
 Tools:          ✅/❌
 Tool Validate:  ✅/❌
 Build:          ✅/❌

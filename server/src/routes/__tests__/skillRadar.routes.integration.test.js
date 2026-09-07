@@ -38,7 +38,7 @@ afterEach(async () => {
 afterAll(teardownTestDB);
 
 describe("GET /api/admin/skill-radar", () => {
-  it("returns the sanitized 23-source read model to admin", async () => {
+  it("returns the sanitized skill and technology read model to admin", async () => {
     const { accessToken } = await createTestUser({
       email: "radar-admin@example.com",
       role: "admin",
@@ -51,8 +51,8 @@ describe("GET /api/admin/skill-radar", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
-    expect(response.body.data.summary.total).toBe(23);
-    expect(response.body.data.items).toHaveLength(23);
+    expect(response.body.data.summary.total).toBe(27);
+    expect(response.body.data.items).toHaveLength(27);
     expect(response.body.data.items[0]).toEqual(
       expect.objectContaining({
         id: expect.any(String),
@@ -227,13 +227,16 @@ describe("GET /api/admin/skill-radar", () => {
     const response = await withAuth(request(app).get("/api/admin/skill-radar"), accessToken);
 
     expect(response.status).toBe(200);
-    expect(response.body.data.summary.total).toBe(24);
+    expect(response.body.data.summary.total).toBe(27);
     expect(response.body.data.items).toEqual(expect.arrayContaining([
       expect.objectContaining({
         id: "tencentcloud/tencentdb-agent-memory",
         sourceType: "repository",
       }),
     ]));
+    expect(response.body.data.items.filter(
+      (item) => item.id === "tencentcloud/tencentdb-agent-memory",
+    )).toHaveLength(1);
   });
 
   it("persists an allowlisted preview payload and rejects its duplicate", async () => {
@@ -242,8 +245,9 @@ describe("GET /api/admin/skill-radar", () => {
       role: "admin",
     });
     const analyzed = {
-      sourceRepo: "TencentCloud/TencentDB-Agent-Memory",
-      repoUrl: "https://github.com/TencentCloud/TencentDB-Agent-Memory",
+      sourceKey: "example/new-radar-source",
+      sourceRepo: "example/new-radar-source",
+      repoUrl: "https://github.com/example/new-radar-source",
       skillsShUrl: null,
       trustTier: "community",
       reviewIntervalDays: 30,
@@ -255,9 +259,9 @@ describe("GET /api/admin/skill-radar", () => {
     };
     vi.spyOn(skillRadarGithubService, "analyze").mockResolvedValue(analyzed);
     const payload = {
-      sourceUrl: "https://github.com/TencentCloud/TencentDB-Agent-Memory?fbclid=x",
+      sourceUrl: "https://github.com/example/new-radar-source?fbclid=x",
       sourceType: "repository",
-      name: "TencentDB-Agent-Memory",
+      name: "new-radar-source",
       domain: "AI Memory",
       summary: "Agent memory for databases",
       localTargets: ["HT Assistant", "Knowledge Base"],
@@ -275,7 +279,7 @@ describe("GET /api/admin/skill-radar", () => {
 
     expect(created.status).toBe(201);
     expect(created.body.data).toEqual(expect.objectContaining({
-      id: "tencentcloud/tencentdb-agent-memory",
+      id: "example/new-radar-source",
       domain: "AI Memory",
       drift: "review_due",
       reviewIntervalDays: 30,
@@ -285,11 +289,11 @@ describe("GET /api/admin/skill-radar", () => {
     expect(skillRadarGithubService.analyze).toHaveBeenCalledTimes(1);
     expect(await AuditLog.exists({
       action: "create_skill_radar_source",
-      targetKey: "tencentcloud/tencentdb-agent-memory",
+      targetKey: "example/new-radar-source",
       outcome: "succeeded",
     })).toBeTruthy();
     const persisted = await SkillRadarSource.findById(
-      "tencentcloud/tencentdb-agent-memory",
+      "example/new-radar-source",
     ).lean();
     expect(await AuditLog.exists({ _id: persisted.auditLogId })).toBeTruthy();
   });
@@ -316,6 +320,28 @@ describe("GET /api/admin/skill-radar", () => {
 
     expect(response.status).toBe(409);
     expect(response.body.code).toBe("SKILL_RADAR_SOURCE_DUPLICATE");
+    expect(analyze).not.toHaveBeenCalled();
+  });
+
+  it("rejects canonical preview duplicates before spending GitHub requests", async () => {
+    const { accessToken } = await createTestUser({
+      email: "radar-preview-duplicate@example.com",
+      role: "admin",
+    });
+    const analyze = vi.spyOn(skillRadarGithubService, "analyze");
+
+    const responses = await Promise.all([
+      "https://github.com/TencentCloud/TencentDB-Agent-Memory?fbclid=x",
+      "https://github.com/emilkowalski/skills?fbclid=x",
+    ].map((sourceUrl) => withAuth(
+      request(app).post("/api/admin/skill-radar/preview").send({ sourceUrl }),
+      accessToken,
+    )));
+
+    expect(responses.map((response) => [response.status, response.body.code])).toEqual([
+      [409, "SKILL_RADAR_SOURCE_DUPLICATE"],
+      [409, "SKILL_RADAR_SOURCE_DUPLICATE"],
+    ]);
     expect(analyze).not.toHaveBeenCalled();
   });
 
