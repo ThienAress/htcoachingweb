@@ -6,6 +6,8 @@ const MISSING_FIELD_LABELS = {
   pain: "Mức đau",
   weightKg: "Cân nặng",
   waistCm: "Vòng eo",
+  hipCm: "Vòng hông",
+  abdomenCm: "Vòng bụng",
   bodyFatPercent: "Tỷ lệ mỡ cơ thể",
   skeletalMusclePercent: "Tỷ lệ cơ xương",
 };

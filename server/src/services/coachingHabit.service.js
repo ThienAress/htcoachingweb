@@ -16,6 +16,20 @@ import {
   normalizeHabitInput,
 } from "./coachingHabitSnapshot.service.js";
 
+const resolveUserHabitAccess = ({ actor, session = null }) =>
+  actor.role === "user"
+    ? resolveClientHabitAccess({
+        clientId: actor.id,
+        clientRole: actor.role,
+        session,
+      })
+    : null;
+
+const definitionForAccess = (definition, access) =>
+  access?.mode === "self_managed"
+    ? { ...definition, visibility: "private" }
+    : definition;
+
 const findReplay = async ({
   actorId,
   requestId,
@@ -44,8 +58,9 @@ const findReplay = async ({
   return habit;
 };
 
-const duplicateResult = async ({ error, ...command }) => {
+const duplicateResult = async ({ error, authorize, ...command }) => {
   if (error?.code !== 11000) throw error;
+  await authorize();
   const replay = await findReplay(command);
   if (replay) return replay;
   incrementMetric("coaching_habit.conflicts");
@@ -60,7 +75,15 @@ export const createCoachingHabit = async ({ actor, clientId, input }) => {
   assertHabitWritesEnabled();
   const createdByRole = actor.role === "user" ? "user" : "trainer";
   const ownerId = createdByRole === "trainer" ? clientId : actor.id;
-  const normalized = normalizeHabitInput(input, { createdByRole });
+  const authorize = (session = null) =>
+    createdByRole === "trainer"
+      ? assertCoachManagesClient({ actor, clientId: ownerId, session })
+      : resolveUserHabitAccess({ actor, session });
+  const initialAccess = await authorize();
+  const normalized = normalizeHabitInput(input, {
+    createdByRole,
+    forcePrivate: initialAccess?.mode === "self_managed",
+  });
   const payloadFingerprint = habitFingerprint({
     commandType: "create",
     ownerId: String(ownerId),
@@ -82,6 +105,7 @@ export const createCoachingHabit = async ({ actor, clientId, input }) => {
   let idempotentReplay = false;
   try {
     await session.withTransaction(async () => {
+      const assignment = await authorize(session);
       const replay = await findReplay({ ...command, session });
       if (replay) {
         result = replay;
@@ -89,19 +113,12 @@ export const createCoachingHabit = async ({ actor, clientId, input }) => {
         return;
       }
       let trainerIdAtCreation;
+      let effectiveDefinition = normalized;
       if (createdByRole === "trainer") {
-        const assignment = await assertCoachManagesClient({
-          actor,
-          clientId: ownerId,
-          session,
-        });
         trainerIdAtCreation = assignment.trainerId || actor.id;
       } else {
-        const assignment = await resolveClientHabitAccess({
-          clientId: actor.id,
-          session,
-        });
         trainerIdAtCreation = assignment.trainerId;
+        effectiveDefinition = definitionForAccess(normalized, assignment);
       }
       [result] = await CoachingHabit.create(
         [
@@ -114,7 +131,7 @@ export const createCoachingHabit = async ({ actor, clientId, input }) => {
             version: 1,
             isLatest: true,
             status: "active",
-            ...normalized,
+            ...effectiveDefinition,
             commandActorId: actor.id,
             commandType: "create",
             commandRequestId: input.requestId,
@@ -125,7 +142,7 @@ export const createCoachingHabit = async ({ actor, clientId, input }) => {
       );
     });
   } catch (error) {
-    result = await duplicateResult({ error, ...command });
+    result = await duplicateResult({ error, authorize, ...command });
     idempotentReplay = true;
   } finally {
     await session.endSession();
@@ -134,22 +151,30 @@ export const createCoachingHabit = async ({ actor, clientId, input }) => {
   return { data: toCoachingHabitDto(result), idempotentReplay };
 };
 
-const normalizeUpdateInput = (input, { createdByRole }) => {
+const normalizeUpdateInput = (
+  input,
+  { createdByRole, forcePrivate = false },
+) => {
   if (!Number.isInteger(input?.expectedVersion) || input.expectedVersion < 1) {
     throw habitError(400, "expectedVersion không hợp lệ", "INVALID_HABIT_VERSION");
   }
   const { expectedVersion, ...definitionInput } = input;
   return {
     expectedVersion,
-    definition: normalizeHabitInput(definitionInput, { createdByRole }),
+    definition: normalizeHabitInput(definitionInput, {
+      createdByRole,
+      forcePrivate,
+    }),
   };
 };
 
 export const updateCoachingHabit = async ({ actor, habitId, input }) => {
   assertHabitWritesEnabled();
   const baseline = await findHabitForMutation({ actor, habitId });
+  const initialAccess = await resolveUserHabitAccess({ actor });
   const normalized = normalizeUpdateInput(input, {
     createdByRole: baseline.createdByRole,
+    forcePrivate: initialAccess?.mode === "self_managed",
   });
   const payloadFingerprint = habitFingerprint({
     commandType: "update",
@@ -172,13 +197,14 @@ export const updateCoachingHabit = async ({ actor, habitId, input }) => {
   let idempotentReplay = false;
   try {
     await session.withTransaction(async () => {
+      const current = await findHabitForMutation({ actor, habitId, session });
+      const currentAccess = await resolveUserHabitAccess({ actor, session });
       const replay = await findReplay({ ...command, session });
       if (replay) {
         result = replay;
         idempotentReplay = true;
         return;
       }
-      const current = await findHabitForMutation({ actor, habitId, session });
       if (
         !current.isLatest ||
         current.version !== normalized.expectedVersion ||
@@ -204,7 +230,7 @@ export const updateCoachingHabit = async ({ actor, habitId, input }) => {
             version: current.version + 1,
             isLatest: true,
             status: "active",
-            ...normalized.definition,
+            ...definitionForAccess(normalized.definition, currentAccess),
             retentionExpiresAt: current.retentionExpiresAt,
             commandActorId: actor.id,
             commandType: "update",
@@ -216,7 +242,14 @@ export const updateCoachingHabit = async ({ actor, habitId, input }) => {
       );
     });
   } catch (error) {
-    result = await duplicateResult({ error, ...command });
+    result = await duplicateResult({
+      error,
+      authorize: async () => {
+        await findHabitForMutation({ actor, habitId });
+        await resolveUserHabitAccess({ actor });
+      },
+      ...command,
+    });
     idempotentReplay = true;
   } finally {
     await session.endSession();
@@ -238,6 +271,8 @@ const assertStatusInput = (input) => {
 export const changeCoachingHabitStatus = async ({ actor, habitId, input }) => {
   assertHabitWritesEnabled();
   assertStatusInput(input);
+  await findHabitForMutation({ actor, habitId });
+  await resolveUserHabitAccess({ actor });
   const payloadFingerprint = habitFingerprint({
     commandType: "status",
     habitId,
@@ -260,13 +295,14 @@ export const changeCoachingHabitStatus = async ({ actor, habitId, input }) => {
   let idempotentReplay = false;
   try {
     await session.withTransaction(async () => {
+      const current = await findHabitForMutation({ actor, habitId, session });
+      const currentAccess = await resolveUserHabitAccess({ actor, session });
       const replay = await findReplay({ ...command, session });
       if (replay) {
         result = replay;
         idempotentReplay = true;
         return;
       }
-      const current = await findHabitForMutation({ actor, habitId, session });
       if (
         !current.isLatest ||
         current.version !== input.expectedVersion ||
@@ -299,7 +335,10 @@ export const changeCoachingHabitStatus = async ({ actor, habitId, input }) => {
             schedule: current.schedule.toObject(),
             target: current.target,
             unit: current.unit,
-            visibility: current.visibility,
+            visibility:
+              currentAccess?.mode === "self_managed"
+                ? "private"
+                : current.visibility,
             retentionExpiresAt: current.retentionExpiresAt,
             commandActorId: actor.id,
             commandType: "status",
@@ -311,7 +350,14 @@ export const changeCoachingHabitStatus = async ({ actor, habitId, input }) => {
       );
     });
   } catch (error) {
-    result = await duplicateResult({ error, ...command });
+    result = await duplicateResult({
+      error,
+      authorize: async () => {
+        await findHabitForMutation({ actor, habitId });
+        await resolveUserHabitAccess({ actor });
+      },
+      ...command,
+    });
     idempotentReplay = true;
   } finally {
     await session.endSession();

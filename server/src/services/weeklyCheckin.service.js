@@ -44,6 +44,22 @@ const replayResult = (result) => ({
   idempotentReplay: Boolean(result.idempotentReplay),
 });
 
+const resolveWeeklyCommandAccess = async ({ actor, action, session = null }) => {
+  const assignment = await resolveWeeklyCheckinWriteAccess({
+    clientId: actor.id,
+    clientRole: actor.role,
+    session,
+  });
+  if (assignment.mode === "self_managed" && action !== "update") {
+    throw weeklyCheckinError(
+      403,
+      "HT Fitness+ tự quản lý chỉ lưu số đo cá nhân, không gửi báo cáo cho HLV",
+      "SELF_MANAGED_WEEKLY_ACTION_FORBIDDEN",
+    );
+  }
+  return assignment;
+};
+
 const applyClientCommand = async ({
   actor,
   weekStartDateKey,
@@ -84,6 +100,7 @@ const applyClientCommand = async ({
     patchFields,
     reason: normalizedReason,
   });
+  await resolveWeeklyCommandAccess({ actor, action });
   const prior = await findWeeklyCheckinReplay({
     actorId: actor.id,
     requestId,
@@ -104,14 +121,15 @@ const applyClientCommand = async ({
         payloadFingerprint,
         session,
       });
+      const assignment = await resolveWeeklyCommandAccess({
+        actor,
+        action,
+        session,
+      });
       if (replay) {
         result = replay;
         return;
       }
-      const assignment = await resolveWeeklyCheckinWriteAccess({
-        clientId: actor.id,
-        session,
-      });
       const checkin = await WeeklyCheckin.findOne({
         clientId: actor.id,
         weekStartDateKey,
@@ -124,7 +142,14 @@ const applyClientCommand = async ({
         incrementMetric("weekly_checkin.revision_conflicts");
         throw stale();
       }
-      if (checkin && checkin.status !== "draft" && action === "update") {
+      const convertsToSelfManaged =
+        assignment.mode === "self_managed" && action === "update";
+      if (
+        checkin &&
+        checkin.status !== "draft" &&
+        action === "update" &&
+        !convertsToSelfManaged
+      ) {
         throw weeklyCheckinError(
           409,
           "Báo cáo tuần đã gửi, hãy dùng chức năng cập nhật có lý do",
@@ -181,6 +206,14 @@ const applyClientCommand = async ({
           ? { status: "submitted", submittedAt: now }
           : {
               ...patchFields,
+              ...(convertsToSelfManaged && checkin?.status !== "draft"
+                ? {
+                    status: "draft",
+                    submittedAt: null,
+                    trainerReview: null,
+                    correctionCount: 0,
+                  }
+                : {}),
               ...(action === "correction"
                 ? { correctionCount: (checkin.correctionCount || 0) + 1 }
                 : {}),
@@ -233,7 +266,10 @@ const applyClientCommand = async ({
         changes: revisionChanges,
         session,
       });
-      if (action === "submit" || action === "correction") {
+      if (
+        assignment.mode === "coaching" &&
+        (action === "submit" || action === "correction")
+      ) {
         await createInAppNotification({
           recipientId: assignment.trainerId,
           actorId: actor.id,
@@ -262,6 +298,7 @@ const applyClientCommand = async ({
     });
   } catch (error) {
     if (error?.code === 11000) {
+      await resolveWeeklyCommandAccess({ actor, action });
       const replay = await findWeeklyCheckinReplay({
         actorId: actor.id,
         requestId,

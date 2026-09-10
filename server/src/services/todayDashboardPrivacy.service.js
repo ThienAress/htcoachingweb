@@ -12,6 +12,7 @@ import SavedMealPlan from "../models/SavedMealPlan.js";
 import WeeklyCheckin from "../models/WeeklyCheckin.js";
 import WeeklyCheckinRevision from "../models/WeeklyCheckinRevision.js";
 import WellnessTarget from "../models/WellnessTarget.js";
+import { deleteBodyAssessmentCollections } from "./bodyAssessmentPrivacy.service.js";
 
 const deleteDashboardCollections = async ({
   clientId,
@@ -51,7 +52,7 @@ const deleteDashboardCollections = async ({
       { recipientId: clientId },
     ],
   ];
-  const counts = {};
+  const counts = await deleteBodyAssessmentCollections({ clientId, session });
   for (const [key, Model, filter] of operations) {
     const result = await Model.deleteMany(filter).session(session);
     counts[key] = result.deletedCount;

@@ -12,6 +12,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { NotificationCenter } from "../components/NotificationCenter";
 import { useAuth } from "../context/AuthContext";
@@ -25,6 +26,7 @@ import {
   persistCustomerDashboardTheme,
   resolveInitialCustomerDashboardTheme,
 } from "../utils/customerDashboardTheme";
+import { getTodayProgressPromptEligibility } from "../services/todayDashboard.service";
 
 const NAV_ITEMS = [
   { key: "today", label: "Hôm nay", icon: CalendarCheck2 },
@@ -48,16 +50,21 @@ const CustomerNav = ({
   ariaLabel = "Điều hướng bảng theo dõi",
   compact = false,
   dateKey,
+  accessMode,
 }) => (
   <nav
     aria-label={ariaLabel}
     className={
       compact
-        ? "grid grid-cols-5"
+        ? accessMode === "self_managed"
+          ? "grid grid-cols-4"
+          : "grid grid-cols-5"
         : "space-y-0.5"
     }
   >
-    {NAV_ITEMS.map((item) => {
+    {NAV_ITEMS.filter(
+      (item) => accessMode === "coaching" || item.key !== "training",
+    ).map((item) => {
       const Icon = item.icon;
       const active = activeSection === item.key;
       return (
@@ -102,6 +109,14 @@ const CustomerDashboardLayout = () => {
   const [dashboardTheme, setDashboardTheme] = useState(
     resolveInitialCustomerDashboardTheme,
   );
+  const accessQuery = useQuery({
+    queryKey: ["today-dashboard", "prompt-eligibility", user?._id],
+    queryFn: async () =>
+      (await getTodayProgressPromptEligibility()).data.data,
+    enabled: Boolean(user?._id),
+    staleTime: 60_000,
+  });
+  const accessMode = accessQuery.data?.accessMode || "blocked";
 
   useEffect(() => {
     persistCustomerDashboardTheme(dashboardTheme);
@@ -175,7 +190,11 @@ const CustomerDashboardLayout = () => {
           <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">
             Menu chính
           </p>
-          <CustomerNav activeSection={activeSection} dateKey={dateKey} />
+          <CustomerNav
+            activeSection={activeSection}
+            accessMode={accessMode}
+            dateKey={dateKey}
+          />
 
           {/* Bottom — user + home */}
           <div className="mt-auto space-y-1 border-t border-white/[0.07] pt-4">
@@ -303,7 +322,12 @@ const CustomerDashboardLayout = () => {
       {/* Mobile bottom nav */}
       <div className="fixed inset-x-3 bottom-4 z-20 pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div className="overflow-hidden rounded-2xl border border-white/[0.15] bg-slate-950/95 shadow-2xl backdrop-blur-xl">
-          <CustomerNav activeSection={activeSection} compact dateKey={dateKey} />
+          <CustomerNav
+            activeSection={activeSection}
+            accessMode={accessMode}
+            compact
+            dateKey={dateKey}
+          />
         </div>
       </div>
 
@@ -313,6 +337,7 @@ const CustomerDashboardLayout = () => {
             <CustomerNav
               activeSection={activeSection}
               ariaLabel="Điều hướng nhanh bảng theo dõi"
+              accessMode={accessMode}
               dateKey={dateKey}
               compact
             />

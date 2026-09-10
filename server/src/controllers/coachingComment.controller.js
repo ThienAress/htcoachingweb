@@ -29,14 +29,14 @@ const sendError = (res, error, event) => {
 };
 const auditTrainer = (req, action, clientId, metadata) => {
   if (
-    !actor(req).canActAsTrainer ||
+    (!actor(req).canActAsTrainer && actor(req).role !== "admin") ||
     String(clientId) === String(req.user.id)
   ) {
     return null;
   }
   return AuditLog.create({
     actorId: req.user.id,
-    actorRole: "trainer",
+    actorRole: actor(req).role === "admin" ? "admin" : "trainer",
     action,
     targetType: "user",
     targetId: clientId,

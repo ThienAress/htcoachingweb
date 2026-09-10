@@ -236,6 +236,49 @@ describe("WorkoutPlan approved relationship boundary", () => {
     expect(String(response.body.data.trainerId)).toBe(String(trainer.user._id));
   });
 
+  it("fails closed when active orders resolve to different coaches", async () => {
+    const lead = await createTestUser({
+      role: "admin",
+      email: "workout-conflict-lead@example.com",
+    });
+    const operator = await createTestUser({
+      role: "admin",
+      email: "workout-conflict-operator@example.com",
+    });
+    const trainer = await createTestUser({
+      role: "trainer",
+      email: "workout-conflict-trainer@example.com",
+    });
+    const client = await createTestUser({
+      email: "workout-conflict-client@example.com",
+    });
+    const priorLead = process.env.DEFAULT_ADMIN_TRAINER_ID;
+    process.env.DEFAULT_ADMIN_TRAINER_ID = String(lead.user._id);
+    try {
+      await Order.create({
+        userId: client.user._id,
+        name: client.user.name,
+        email: client.user.email,
+        package: "ONLINE",
+        sessions: 8,
+        totalSessions: 8,
+        status: "approved",
+      });
+      await createApprovedOrder({ client: client.user, trainer: trainer.user });
+
+      const response = await withAuth(
+        request(app).post("/api/workout-plans"),
+        operator.accessToken,
+      ).send(createPayload(client.user));
+
+      expect(response.status).toBe(409);
+      expect(response.body.code).toBe("COACH_ASSIGNMENT_CONFLICT");
+    } finally {
+      if (priorLead === undefined) delete process.env.DEFAULT_ADMIN_TRAINER_ID;
+      else process.env.DEFAULT_ADMIN_TRAINER_ID = priorLead;
+    }
+  });
+
   it("does not expose a client draft by id before it is published", async () => {
     const trainer = await createTestUser({
       role: "trainer",

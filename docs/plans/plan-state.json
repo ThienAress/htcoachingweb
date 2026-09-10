@@ -2,6 +2,8 @@
   "schemaVersion": 1,
   "legacyCutoff": "076",
   "plans": [
+    {"id":"089","title":"Unify effective coach","path":"docs/plans/089-unify-effective-coach.md","priority":"P1","complexity":"complex","lifecycle":"done","verification":"focused","rollout":"not_started","owner":"root","updatedAt":"2026-09-10"},
+    {"id":"088","title":"Add Codex session governor","path":"docs/plans/088-add-codex-session-governor.md","priority":"P1","complexity":"moderate","lifecycle":"done","verification":"focused","rollout":"not_applicable","owner":"root","updatedAt":"2026-09-09"},
     {
       "id": "077",
       "title": "Harden agent evidence and measure Search quality",
@@ -121,6 +123,30 @@
       "rollout": "live",
       "owner": "root",
       "updatedAt": "2026-09-07"
+    },
+    {
+      "id": "086",
+      "title": "Unify customer notifications and self-managed dashboard",
+      "path": "docs/plans/086-unify-customer-notifications-and-self-managed-dashboard.md",
+      "priority": "P0",
+      "complexity": "complex",
+      "lifecycle": "done",
+      "verification": "focused",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-09-08"
+    },
+    {
+      "id": "087",
+      "title": "Apply brand system and body assessments",
+      "path": "docs/plans/087-apply-brand-system-and-body-assessments.md",
+      "priority": "P1",
+      "complexity": "complex",
+      "lifecycle": "done",
+      "verification": "local_full",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-09-09"
     }
   ]
 }

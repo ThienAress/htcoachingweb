@@ -4,7 +4,7 @@
     "agentGovernance": "working_tree_candidates",
     "productSurfaces": "git_index"
   },
-  "skills": 29,
+  "skills": 30,
   "evalCorpora": 12,
   "evalScenarios": 64,
   "testFiles": {

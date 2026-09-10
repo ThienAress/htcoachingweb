@@ -24,6 +24,12 @@ import {
 } from "../../__tests__/setup.js";
 import contractRoutes from "../../routes/contract.routes.js";
 import Contract from "../../models/Contract.js";
+import Order from "../../models/Order.js";
+import NotificationPreference from "../../models/NotificationPreference.js";
+import {
+  createContract,
+  CUSTOMER_EMAIL_CONSENT_TEXT,
+} from "../../services/contract.service.js";
 
 const SIGNATURE =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mNk+M/wHwAF/gL+XgW+WQAAAABJRU5ErkJggg==";
@@ -142,6 +148,81 @@ describe("contract handwritten signing", () => {
     expect(stored.signedPdfFileId).toBeTruthy();
     expect(stored.auditTrail.map((entry) => entry.action)).toContain("viewed");
     expect(stored.auditTrail.map((entry) => entry.action)).toContain("signed");
+    expect(
+      await NotificationPreference.findOne({ recipientId: client.user._id }),
+    ).toBeNull();
+  });
+
+  it("atomically enables customer email preferences when the signed contract contains consent", async () => {
+    const { client, contract } = await createFixture("viewed");
+    await Contract.updateOne(
+      { _id: contract._id },
+      {
+        $set: {
+          customSections: [{
+            title: "Điều khoản email",
+            content: "",
+            items: [CUSTOMER_EMAIL_CONSENT_TEXT],
+          }],
+        },
+      },
+    );
+
+    const signed = await postAs(
+      `/api/contracts/${contract._id}/sign`,
+      client.accessToken,
+      { signatureImage: SIGNATURE, acceptedTerms: true },
+    );
+    const preference = await NotificationPreference.findOne({
+      recipientId: client.user._id,
+    }).lean();
+
+    expect(signed.status).toBe(200);
+    expect(preference).toMatchObject({
+      morningHealthEmail: true,
+      checkinEmail: true,
+      customerEmailConfigured: true,
+      revision: 1,
+    });
+  });
+
+  it("records the effective lead coach rather than the admin operator for a legacy order", async () => {
+    const lead = await createTestUser({
+      role: "admin",
+      email: "contract-lead@example.com",
+    });
+    const operator = await createTestUser({
+      role: "admin",
+      email: "contract-operator@example.com",
+    });
+    const client = await createTestUser({
+      email: "contract-legacy-client@example.com",
+    });
+    const priorLead = process.env.DEFAULT_ADMIN_TRAINER_ID;
+    process.env.DEFAULT_ADMIN_TRAINER_ID = String(lead.user._id);
+    try {
+      const order = await Order.create({
+        userId: client.user._id,
+        name: client.user.name,
+        email: client.user.email,
+        package: "PT 10",
+        sessions: 10,
+        totalSessions: 10,
+        status: "approved",
+      });
+
+      const contract = await createContract(
+        order._id,
+        operator.user._id,
+        "127.0.0.1",
+        "vitest",
+      );
+
+      expect(String(contract.trainerId)).toBe(String(lead.user._id));
+    } finally {
+      if (priorLead === undefined) delete process.env.DEFAULT_ADMIN_TRAINER_ID;
+      else process.env.DEFAULT_ADMIN_TRAINER_ID = priorLead;
+    }
   });
 
   it("requires Party A's signature before an admin can issue the contract", async () => {

@@ -14,11 +14,14 @@ const formatDate = (dateKey) =>
   }).format(new Date(`${dateKey}T12:00:00+07:00`));
 
 const formatNumber = (value) =>
-  Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+  Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 3 });
 
 const METRICS = [
   { key: "weightKg", label: "Cân nặng", icon: Scale, unit: "kg" },
   { key: "waistCm", label: "Vòng eo", icon: Ruler, unit: "cm" },
+  { key: "hipCm", label: "Vòng hông", icon: Ruler, unit: "cm" },
+  { key: "abdomenCm", label: "Vòng bụng", icon: Ruler, unit: "cm" },
+  { key: "waistHipRatio", label: "Tỷ lệ eo/hông", icon: Ruler, unit: "" },
   { key: "bodyFatPercent", label: "Tỷ lệ mỡ cơ thể", icon: Percent, unit: "%" },
   {
     key: "skeletalMusclePercent",
@@ -29,19 +32,24 @@ const METRICS = [
 ];
 
 const valueLabel = (value, unit) =>
-  unit === "%" ? `${formatNumber(value)}%` : `${formatNumber(value)} ${unit}`;
+  unit === "%" ? `${formatNumber(value)}%` : `${formatNumber(value)} ${unit}`.trim();
 
 const deltaLabel = (delta, unit) => {
   if (delta === null || delta === undefined) return "Cần ít nhất 2 lần đo";
   const deltaUnit = unit === "%" ? "điểm %" : unit;
   const prefix = delta > 0 ? "+" : delta < 0 ? "−" : "";
-  return `${prefix}${formatNumber(Math.abs(delta))} ${deltaUnit}`;
+  return `${prefix}${formatNumber(Math.abs(delta))} ${deltaUnit}`.trim();
 };
 
 const initialMetricKey = (bodyProgress) =>
   METRICS.find(({ key }) => bodyProgress?.[key]?.current)?.key || "weightKg";
 
-const MetricSelector = ({ activeKey, bodyProgress, onSelect }) => {
+const MetricSelector = ({
+  activeKey,
+  bodyProgress,
+  onSelect,
+  selfManaged = false,
+}) => {
   const buttonRefs = useRef([]);
   const moveSelection = (event, currentIndex) => {
     const keyTargets = {
@@ -110,9 +118,11 @@ const MetricSelector = ({ activeKey, bodyProgress, onSelect }) => {
                 ? metric.delta === null || metric.delta === undefined
                   ? "Cần ít nhất 2 lần đo"
                   : `Thay đổi ${deltaLabel(metric.delta, metric.unit || unit)}`
-                : "Chưa có báo cáo phù hợp"}
+                : selfManaged
+                  ? "Chưa có số đo phù hợp"
+                  : "Chưa có báo cáo phù hợp"}
             </span>
-            <span className="sr-only">Lựa chọn {index + 1} trong 4</span>
+            <span className="sr-only">Lựa chọn {index + 1} trong {METRICS.length}</span>
           </button>
         );
       })}
@@ -120,7 +130,7 @@ const MetricSelector = ({ activeKey, bodyProgress, onSelect }) => {
   );
 };
 
-const HistoryTable = ({ history }) => (
+const HistoryTable = ({ history, selfManaged = false }) => (
   <details className="border-t border-slate-800 px-5 py-4 sm:px-6">
     <summary className="cursor-pointer text-sm font-semibold text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400">
       Xem lịch sử số đo ({history.length})
@@ -133,7 +143,9 @@ const HistoryTable = ({ history }) => (
       <div className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[680px] text-left text-sm">
           <caption className="sr-only">
-            Lịch sử số đo cơ thể theo báo cáo tuần
+            {selfManaged
+              ? "Lịch sử số đo cơ thể tự lưu theo tuần"
+              : "Lịch sử số đo cơ thể theo báo cáo tuần"}
           </caption>
           <thead className="border-b border-slate-800 text-slate-400">
             <tr>
@@ -174,6 +186,7 @@ export const BodyProgressReport = ({
   onBack,
   range,
   rangeControls,
+  selfManaged = false,
 }) => {
   const [activeKey, setActiveKey] = useState(() =>
     initialMetricKey(bodyProgress),
@@ -198,8 +211,16 @@ export const BodyProgressReport = ({
       <ProgressSectionHeader
         title="Tiến trình cơ thể"
         titleId="body-progress-title"
-        description="Theo dõi xu hướng từ các báo cáo tuần đã gửi. Chọn một chỉ số để xem rõ thay đổi theo thời gian. Đây là dữ liệu theo dõi, không phải kết luận y khoa."
-        source="Nguồn: Báo cáo tuần đã gửi hoặc được duyệt"
+        description={
+          selfManaged
+            ? "Theo dõi xu hướng từ các số đo bạn tự lưu mỗi tuần. Chọn một chỉ số để xem rõ thay đổi theo thời gian. Đây là dữ liệu theo dõi, không phải kết luận y khoa."
+            : "Theo dõi xu hướng từ các báo cáo tuần đã gửi. Chọn một chỉ số để xem rõ thay đổi theo thời gian. Đây là dữ liệu theo dõi, không phải kết luận y khoa."
+        }
+        source={
+          selfManaged
+            ? "Nguồn: Số đo tuần bạn đã lưu"
+            : "Nguồn: Báo cáo tuần đã gửi hoặc được duyệt"
+        }
         headingRef={headingRef}
         onBack={onBack}
         rangeControls={rangeControls}
@@ -209,6 +230,7 @@ export const BodyProgressReport = ({
         activeKey={activeConfig.key}
         bodyProgress={bodyProgress}
         onSelect={setActiveKey}
+        selfManaged={selfManaged}
       />
 
       <div
@@ -219,7 +241,7 @@ export const BodyProgressReport = ({
       >
         <div>
           <h3 className="text-base font-bold text-white">
-            Biểu đồ {activeConfig.label.toLowerCase()} ({activeMetric.unit})
+            Biểu đồ {activeConfig.label.toLowerCase()}{activeMetric.unit ? ` (${activeMetric.unit})` : ""}
           </h3>
           <p className="mt-1 text-sm text-slate-400">
             {activeMetric.current && firstPoint
@@ -242,6 +264,7 @@ export const BodyProgressReport = ({
           label={activeConfig.label}
           metric={activeMetric}
           range={range}
+          selfManaged={selfManaged}
         />
         {activeMetric.current && (
           <aside className="mt-5 border-t border-slate-800 pt-4 text-sm leading-6 text-slate-400">
@@ -251,13 +274,17 @@ export const BodyProgressReport = ({
               <li>
                 Đường nét đứt thể hiện lần đo đầu tiên trong khoảng đang xem.
               </li>
-              <li>Ngày trên biểu đồ là ngày bắt đầu kỳ báo cáo.</li>
+              <li>
+                {selfManaged
+                  ? "Ngày trên biểu đồ là ngày bắt đầu tuần theo dõi."
+                  : "Ngày trên biểu đồ là ngày bắt đầu kỳ báo cáo."}
+              </li>
             </ul>
           </aside>
         )}
       </div>
 
-      <HistoryTable history={history} />
+      <HistoryTable history={history} selfManaged={selfManaged} />
     </section>
   );
 };

@@ -3,7 +3,6 @@ import WeeklyCheckin from "../models/WeeklyCheckin.js";
 import { incrementMetric } from "../observability/metrics.js";
 import {
   assertMonthWeekPeriodKey,
-  assertTrainerWeeklyCheckinRead,
   assertWeeklyCheckinWritesEnabled,
   weeklyCheckinError,
 } from "./weeklyCheckinAccess.service.js";
@@ -18,6 +17,7 @@ import {
   weeklyCheckinFingerprint,
 } from "./weeklyCheckinPatch.service.js";
 import { createInAppNotification } from "./inAppNotification.service.js";
+import { assertEffectiveCoachAccess } from "./effectiveCoach.service.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -57,6 +57,7 @@ export const reviewWeeklyCheckin = async ({
     expectedRevision,
     review: normalizedReview,
   });
+  await assertEffectiveCoachAccess({ actor, clientId });
   const prior = await findWeeklyCheckinReplay({
     actorId: actor.id,
     requestId,
@@ -70,6 +71,7 @@ export const reviewWeeklyCheckin = async ({
   let didSave = false;
   try {
     await session.withTransaction(async () => {
+      await assertEffectiveCoachAccess({ actor, clientId, session });
       const replay = await findWeeklyCheckinReplay({
         actorId: actor.id,
         requestId,
@@ -81,7 +83,6 @@ export const reviewWeeklyCheckin = async ({
         result = replay;
         return;
       }
-      await assertTrainerWeeklyCheckinRead({ actor, clientId, session });
       const checkin = await WeeklyCheckin.findOne({
         clientId,
         weekStartDateKey,
@@ -141,6 +142,7 @@ export const reviewWeeklyCheckin = async ({
     });
   } catch (error) {
     if (error?.code !== 11000) throw error;
+    await assertEffectiveCoachAccess({ actor, clientId });
     const replay = await findWeeklyCheckinReplay({
       actorId: actor.id,
       requestId,

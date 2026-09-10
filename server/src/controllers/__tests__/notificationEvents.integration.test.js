@@ -230,6 +230,8 @@ describe("Notification domain events", () => {
       missingFields: [
         "weightKg",
         "waistCm",
+        "hipCm",
+        "abdomenCm",
         "bodyFatPercent",
         "skeletalMusclePercent",
       ],

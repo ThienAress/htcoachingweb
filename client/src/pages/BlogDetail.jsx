@@ -256,7 +256,7 @@ const BlogDetail = () => {
         "publisher": {
           "@type": "Organization",
           "name": "HTCOACHING",
-          "logo": { "@type": "ImageObject", "url": "https://htcoachingweb.io.vn/og-image.png" },
+          "logo": { "@type": "ImageObject", "url": "https://htcoachingweb.io.vn/branding/ht-v2/organization-logo.png" },
         },
         "description": post.metaDescription || stripMarkdown(post.excerpt) || "",
         ...(post.publishedAt && { datePublished: new Date(post.publishedAt).toISOString().split("T")[0] }),

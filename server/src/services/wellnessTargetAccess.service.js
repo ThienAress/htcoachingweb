@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Order from "../models/Order.js";
+import { assertEffectiveCoachAccess, resolveEffectiveClientCoach } from "./effectiveCoach.service.js";
 
 export const wellnessTargetError = (statusCode, message, codeName) => {
   const error = new Error(message);
@@ -30,21 +30,18 @@ export const resolveCoachClientTargetAccess = async ({
       "INVALID_CLIENT",
     );
   }
-  const filter = {
-    userId: clientId,
-    status: "approved",
-    sessions: { $gt: 0 },
-    ...(actor.isAdmin ? {} : { trainerId: actor.id }),
-  };
-  let query = Order.findOne(filter).select("_id trainerId");
-  if (session) query = query.session(session);
-  const order = await query.lean();
-  if (!order) {
+  try {
+    // Keep audited admin operations separate from the responsible coach identity.
+    const assignment = actor.isAdmin
+      ? await resolveEffectiveClientCoach({ clientId, session })
+      : await assertEffectiveCoachAccess({ actor, clientId, session });
+    return { orderId: assignment.order._id, trainerId: assignment.trainerId };
+  } catch (error) {
+    if (error.statusCode !== 403) throw error;
     throw wellnessTargetError(
       403,
       "Học viên không thuộc phạm vi huấn luyện đang hoạt động",
       "WELLNESS_TARGET_FORBIDDEN",
     );
   }
-  return { orderId: order._id, trainerId: order.trainerId };
 };

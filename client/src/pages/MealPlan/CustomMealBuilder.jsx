@@ -7,6 +7,7 @@ import NutritionLegend from "./NutritionLegend";
 import { toast } from "react-toastify";
 import { useMealPlanAccess } from "../../hooks/useMealPlanAccess";
 import { useAuth } from "../../context/AuthContext";
+import { Link } from "react-router-dom";
 
 const round1 = (num) => Math.round(num * 10) / 10;
 const calcCalories = (p, c, f) => round1(p * 4 + c * 4 + f * 9);
@@ -467,9 +468,9 @@ export default function CustomMealBuilder({
                           components={[<strong className="text-white" key="0" />, <strong className="text-white" key="1" />]}
                         />
                       </p>
-                      <a href="/" className="inline-block mt-3 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-orange-500/20">
+                      <Link to="/#pricing" className="inline-block mt-3 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors shadow-lg shadow-orange-500/20">
                         {t("builder.upgrade_now")}
-                      </a>
+                      </Link>
                     </div>
                   )}
                 </div>

@@ -9,6 +9,7 @@ export const HealthGoalsSection = ({
   canEdit,
   onChanged,
   sectionRef,
+  selfManaged = false,
 }) => (
   <section
     ref={sectionRef}
@@ -28,7 +29,9 @@ export const HealthGoalsSection = ({
           Mục tiêu sức khỏe
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-          Cập nhật chỉ số và Thói quen khách hàng trong cùng một nơi.
+          {selfManaged
+            ? "Tự cập nhật chỉ số và thói quen của bạn trong cùng một nơi."
+            : "Cập nhật chỉ số và Thói quen khách hàng trong cùng một nơi."}
         </p>
       </div>
     </header>
@@ -39,12 +42,14 @@ export const HealthGoalsSection = ({
         journal={journal}
         canEdit={canEdit}
         onChanged={onChanged}
+        selfManaged={selfManaged}
       />
       <HabitCard
         dateKey={dateKey}
         journal={journal}
         canEdit={canEdit}
         onChanged={onChanged}
+        selfManaged={selfManaged}
       />
     </div>
   </section>

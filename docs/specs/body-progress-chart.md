@@ -1,5 +1,10 @@
 # Spec: Biểu đồ Tiến trình cơ thể theo báo cáo tuần
 
+> Plan 087 mở rộng contract chỉ số dưới đây theo
+> [spec nhận diện và kết quả đo](./brand-system-and-body-assessments.md): thêm vòng
+> hông, vòng bụng và tỷ lệ eo/hông cùng record. Các nguyên tắc missing/history,
+> một biểu đồ đang chọn và nguồn WeeklyCheckin tiếp tục áp dụng.
+
 ## Objective
 
 Giúp khách hàng và HLV trả lời nhanh ba câu hỏi cho từng số đo cơ thể: giá trị hiện tại là bao nhiêu,

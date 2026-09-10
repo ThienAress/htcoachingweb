@@ -18,6 +18,7 @@ import {
 } from "../../migrations/20260729-today-dashboard-phase6.js";
 import CoachingCommentRevision from "../../models/CoachingCommentRevision.js";
 import DailyJournal from "../../models/DailyJournal.js";
+import FitnessSubscription from "../../models/FitnessSubscription.js";
 import InAppNotification from "../../models/InAppNotification.js";
 import WeeklyCheckin from "../../models/WeeklyCheckin.js";
 import {
@@ -42,6 +43,16 @@ describe("Today Dashboard Phase 6 performance gates", () => {
     const migration = await runTodayDashboardPhase6Migration();
     const client = await createTestUser({
       email: "today-performance@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_essential",
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
     });
     const result = await runTodayDashboardPerformanceCheck({
       clientId: client.user._id,

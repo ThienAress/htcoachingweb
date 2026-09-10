@@ -75,6 +75,14 @@ jobs:
             if (data.head_sha !== sha || data.conclusion !== "success") {
               throw new Error("CI run is not successful for RELEASE_SHA");
             }
+            const { data: workflow } = await github.rest.actions.getWorkflow({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: data.workflow_id,
+            });
+            if (workflow.path !== ".github/workflows/ci.yml") {
+              throw new Error("CI run must come from the canonical CI workflow");
+            }
       - name: Install server dependencies
         run: npm ci --prefix server
       - name: Verify exact Netlify and Render staging deploys
