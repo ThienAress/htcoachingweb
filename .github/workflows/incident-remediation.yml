@@ -211,7 +211,7 @@ jobs:
         run: |
           docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
             --user "$(id -u):$(id -g)" --read-only \
-            --tmpfs /tmp:rw,noexec,nosuid,size=512m \
+            --tmpfs /tmp:rw,noexec,nosuid,size=1g \
             -e CI=true -e HOME=/tmp -e MONGOMS_RUNTIME_DOWNLOAD=false \
             -e MONGOMS_DOWNLOAD_DIR=/incident-mongo-cache \
             -e SERVER_TEST_REPORT_DIRECTORY=/tmp/server-test-reports \

@@ -480,11 +480,11 @@ test("workflow isolates agent validation and Draft PR publication", async () => 
   );
   assert.match(
     isolatedJobs[0].body,
-    /Run all unit tests[\s\S]*--tmpfs \/tmp:rw,noexec,nosuid,size=512m/,
+    /Run all unit tests[\s\S]*--tmpfs \/tmp:rw,noexec,nosuid,size=1g/,
   );
   assert.doesNotMatch(
     isolatedJobs[0].body,
-    /Run all unit tests[\s\S]*--tmpfs \/tmp:rw,noexec,nosuid,size=64m/,
+    /Run all unit tests[\s\S]*--tmpfs \/tmp:rw,noexec,nosuid,size=(?:64|512)m/,
   );
   assert.match(isolatedJobs[1].body, /--tmpfs \/scratch:rw,nosuid,nodev,size=256m/);
   assert.match(
