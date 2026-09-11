@@ -478,6 +478,14 @@ test("workflow isolates agent validation and Draft PR publication", async () => 
     isolatedJobs[0].body,
     /SERVER_TEST_REPORT_DIRECTORY=\/tmp\/server-test-reports[\s\S]*SERVER_TEST_CONFIG_LOADER=runner/,
   );
+  assert.match(
+    isolatedJobs[0].body,
+    /Run all unit tests[\s\S]*--tmpfs \/tmp:rw,noexec,nosuid,size=512m/,
+  );
+  assert.doesNotMatch(
+    isolatedJobs[0].body,
+    /Run all unit tests[\s\S]*--tmpfs \/tmp:rw,noexec,nosuid,size=64m/,
+  );
   assert.match(isolatedJobs[1].body, /--tmpfs \/scratch:rw,nosuid,nodev,size=256m/);
   assert.match(
     isolatedJobs[1].body,
