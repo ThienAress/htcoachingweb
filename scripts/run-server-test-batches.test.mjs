@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   assertRuntimeVersion,
   chunkItems,
+  formatVitestFailures,
   resolveServerTestConfigLoader,
   resolveServerTestReportDirectory,
   summarizeVitestReport,
@@ -64,4 +65,33 @@ test("summarizeVitestReport fails closed on incomplete or failed reports", () =>
     { files: 2, tests: 4, failedTests: 1, success: false },
   );
   assert.equal(summarizeVitestReport({ success: true }).success, false);
+});
+
+test("formatVitestFailures emits bounded repo-relative test identities", () => {
+  const serverRoot = path.join(process.cwd(), "server");
+  const report = {
+    testResults: [
+      {
+        name: path.join(serverRoot, "src", "controllers", "__tests__", "deposit.test.js"),
+        status: "failed",
+        assertionResults: [
+          {
+            status: "failed",
+            fullName: "deposit rejects missing config\nwithout leaking raw output",
+          },
+          { status: "passed", fullName: "deposit succeeds" },
+        ],
+      },
+      {
+        name: path.join(serverRoot, "src", "utils", "__tests__", "logger.test.js"),
+        status: "failed",
+        assertionResults: [],
+      },
+    ],
+  };
+
+  assert.deepEqual(formatVitestFailures(report, { serverRoot, limit: 2 }), [
+    "src/controllers/__tests__/deposit.test.js :: deposit rejects missing config without leaking raw output",
+    "src/utils/__tests__/logger.test.js :: suite failed before assertions",
+  ]);
 });

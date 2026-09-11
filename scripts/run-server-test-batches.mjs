@@ -63,6 +63,52 @@ export const summarizeVitestReport = (report) => {
   return { files, tests, failedTests, success };
 };
 
+const boundedIdentity = (value, fallback) => {
+  const normalized = String(value || fallback)
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (normalized || fallback).slice(0, 180);
+};
+
+export const formatVitestFailures = (report, options = {}) => {
+  const reportServerRoot = options.serverRoot || serverRoot;
+  const limit = options.limit ?? 5;
+  if (!Number.isSafeInteger(limit) || limit <= 0 || limit > 10) {
+    throw new Error("Vitest failure detail limit must be between 1 and 10");
+  }
+
+  const failures = [];
+  for (const result of Array.isArray(report?.testResults) ? report.testResults : []) {
+    const absoluteName = String(result?.name || "");
+    const relativeName = absoluteName ? path.relative(reportServerRoot, absoluteName) : "";
+    const isInsideServer = relativeName
+      && relativeName !== ".."
+      && !relativeName.startsWith(`..${path.sep}`)
+      && !path.isAbsolute(relativeName);
+    const fileName = boundedIdentity(
+      isInsideServer ? relativeName.split(path.sep).join("/") : path.basename(absoluteName),
+      "unknown test file",
+    );
+    const failedAssertions = Array.isArray(result?.assertionResults)
+      ? result.assertionResults.filter((assertion) => assertion?.status === "failed")
+      : [];
+
+    if (failedAssertions.length === 0 && result?.status === "failed") {
+      failures.push(`${fileName} :: suite failed before assertions`);
+    } else {
+      for (const assertion of failedAssertions) {
+        failures.push(
+          `${fileName} :: ${boundedIdentity(assertion?.fullName || assertion?.title, "unnamed test")}`,
+        );
+      }
+    }
+
+    if (failures.length >= limit) break;
+  }
+  return failures.slice(0, limit);
+};
+
 const run = () => {
   assertRuntimeVersion(process.versions.node, requiredNodeVersion);
 
@@ -113,8 +159,15 @@ const run = () => {
         throw new Error(`Vitest batch ${index + 1} did not produce a report`);
       }
 
-      const summary = summarizeVitestReport(JSON.parse(readFileSync(reportPath, "utf8")));
+      const report = JSON.parse(readFileSync(reportPath, "utf8"));
+      const summary = summarizeVitestReport(report);
       if (result.status !== 0 || !summary.success) {
+        const failureIdentities = formatVitestFailures(report);
+        if (failureIdentities.length > 0) {
+          process.stderr.write(
+            `Vitest batch ${index + 1} failure identities (bounded):\n${failureIdentities.map((identity) => `- ${identity}`).join("\n")}\n`,
+          );
+        }
         throw new Error(
           `Vitest batch ${index + 1} failed (exit=${result.status ?? "signal"}, failedTests=${summary.failedTests})`,
         );
