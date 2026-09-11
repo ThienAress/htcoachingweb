@@ -354,6 +354,11 @@ test("workflow isolates agent validation and Draft PR publication", async () => 
   assert.doesNotMatch(workflow, /uses:\s*[^\s#]+@(?![a-f0-9]{40}\b)/);
   assert.match(workflow, /sandbox:\s*workspace-write/);
   assert.match(workflow, /safety-strategy:\s*drop-sudo/);
+  assert.match(workflow, /model:\s*gpt-5\.6-terra/);
+  assert.match(
+    workflow,
+    /npm ci --prefix server --ignore-scripts --no-audit --no-fund[\s\S]*openai\/codex-action@/,
+  );
   assert.match(workflow, /persist-credentials:\s*false/);
   const openAiKeyPattern = new RegExp([
     "openai-api-key",
@@ -493,6 +498,10 @@ test("Codex prompt requires evidence, safe patch output and no production action
     /narrative[\s\S]*không được chứa[\s\S]*(?:filename|tên file)[\s\S]*(?:repo-relative|path tương đối)/i,
   );
   assert.match(prompt, /symbol có dấu chấm|dot-qualified/i);
+  assert.match(
+    prompt,
+    /api-readiness[\s\S]*network_error[\s\S]*logging[\s\S]*metrics[\s\S]*Vitest[\s\S]*no_reproduction/i,
+  );
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.properties.confidence.enum, ["Cao", "Trung bình", "Thấp"]);
 });

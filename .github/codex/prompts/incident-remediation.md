@@ -24,6 +24,8 @@ Quy trình evidence:
 6. Nếu không có patch an toàn, bảo đảm `incident-artifacts/change.patch` rỗng.
 7. Final response phải là JSON đúng schema được cung cấp. `incidentId` phải bằng `INCIDENT_ID`; confidence chỉ dùng `Cao`, `Trung bình`, `Thấp` dựa trên evidence, không dùng phần trăm. Không đưa PII, request body, token, cookie, email, raw logs hoặc absolute local paths vào report.
 
+Với incident `api-readiness` có reason `network_error`, phải coi logging và metrics trong allowlist là các hypothesis bắt buộc vì chúng chạy quanh lifecycle của request. Workflow đã chuẩn bị server dependencies bằng trusted step; không cài hoặc cập nhật package. Chạy các focused test logging và metrics hiện có bằng Vitest. Chỉ được trả `no_reproduction` sau khi cả hai nhóm test liên quan đều PASS; nếu test RED, localize root cause rồi thực hiện đúng vòng RED → GREEN trước khi tạo patch.
+
 Các field narrative (`title`, `conclusion`, `confidenceReason`, `rootCause`, `impact`, `fix`, `focusedTests`, `relatedTests`) không được chứa URL, domain, handle, Markdown link, filename, repo-relative path, path tương đối hoặc symbol có dấu chấm. Chỉ mô tả bằng ngôn ngữ tự nhiên; giữ filename, path và code-qualified symbol trong patch, không đưa chúng vào report.
 
 `Cao` chỉ hợp lệ khi có ít nhất một focused test PASS sau khi đã quan sát RED trước sửa. Mọi test item bắt đầu bằng `PASS`, `FAIL` hoặc `SKIP`.

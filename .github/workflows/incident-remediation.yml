@@ -62,6 +62,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Prepare trusted server dependencies for offline investigation
+        run: npm ci --prefix server --ignore-scripts --no-audit --no-fund
       - name: Prepare bounded artifact directory
         run: |
           mkdir -p incident-artifacts
@@ -83,6 +87,8 @@ jobs:
           prompt-file: .github/codex/prompts/incident-remediation.md
           output-file: incident-artifacts/report.json
           codex-args: '["--ephemeral","--output-schema",".github/codex/schemas/incident-remediation.schema.json"]'
+          model: gpt-5.6-terra
+          effort: low
           sandbox: workspace-write
           safety-strategy: drop-sudo
           allow-users: ThienAress
