@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeForLog } from "../safeLogger.js";
+import { runWithRequestContext } from "../requestContext.js";
+import { safeLog, sanitizeForLog } from "../safeLogger.js";
 
 describe("sanitizeForLog", () => {
   it("redacts case-insensitive sensitive keys at every nesting level", () => {
@@ -46,4 +47,21 @@ describe("sanitizeForLog", () => {
     expect(sanitized.errorMessage).not.toContain("token=secret");
     expect(sanitized.signedUrl).toBe("[REDACTED]");
   });
+});
+
+it("preserves request correlation without crashing startup logging", () => {
+  const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    expect(() => runWithRequestContext(
+      { requestId: "drill-request", traceId: "drill-trace" },
+      () => safeLog.info("server.startup"),
+    )).not.toThrow();
+    expect(JSON.parse(logSpy.mock.calls[0][0])).toMatchObject({
+      requestId: "drill-request",
+      traceId: "drill-trace",
+      event: "server.startup",
+    });
+  } finally {
+    logSpy.mockRestore();
+  }
 });
