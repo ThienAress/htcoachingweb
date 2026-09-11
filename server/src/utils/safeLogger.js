@@ -69,7 +69,7 @@ const sanitizeForLog = (value, seen = new WeakSet()) => {
 };
 
 const write = (level, event, details = {}) => {
-  const context = getRequestContext();
+  const context = null;
   const entry = {
     timestamp: new Date().toISOString(),
     level,
