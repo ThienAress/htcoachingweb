@@ -533,6 +533,14 @@ test("Codex prompt requires evidence, safe patch output and no production action
     prompt,
     /không chạy[\s\S]*(?:integration|tích hợp)[\s\S]*(?:trusted gate|cổng kiểm tra tin cậy)/i,
   );
+  assert.match(
+    prompt,
+    /outcome=draft_patch[\s\S]*trạng thái cuối sau sửa[\s\S]*chỉ dùng `PASS`[\s\S]*`SKIP`[\s\S]*không dùng tiền tố `FAIL`/i,
+  );
+  assert.match(
+    prompt,
+    /RED trước sửa[\s\S]*`confidenceReason` hoặc `conclusion`/i,
+  );
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.properties.confidence.enum, ["Cao", "Trung bình", "Thấp"]);
 });

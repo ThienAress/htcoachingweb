@@ -31,3 +31,5 @@ Sandbox điều tra không được phép mở local listening socket, khởi đ
 Các field narrative (`title`, `conclusion`, `confidenceReason`, `rootCause`, `impact`, `fix`, `focusedTests`, `relatedTests`) không được chứa URL, domain, handle, Markdown link, filename, repo-relative path, path tương đối hoặc symbol có dấu chấm. Chỉ mô tả bằng ngôn ngữ tự nhiên; giữ filename, path và code-qualified symbol trong patch, không đưa chúng vào report.
 
 `Cao` chỉ hợp lệ khi có ít nhất một focused test PASS sau khi đã quan sát RED trước sửa. Mọi test item bắt đầu bằng `PASS`, `FAIL` hoặc `SKIP`.
+
+Với `outcome=draft_patch`, `focusedTests` và `relatedTests` chỉ ghi trạng thái cuối sau sửa: chỉ dùng `PASS` cho kiểm tra đã qua hoặc `SKIP` cho kiểm tra chưa chạy. Không đưa dòng RED trước sửa vào hai mảng này và không dùng tiền tố `FAIL`; ghi bằng chứng đã quan sát RED trong `confidenceReason` hoặc `conclusion`. Nếu bất kỳ kiểm tra nào vẫn FAIL sau sửa thì không được trả `outcome=draft_patch`.
