@@ -3,13 +3,14 @@ import { describe, expect, it } from "vitest";
 
 import { WellnessFields } from "../WellnessFields";
 
-const renderFields = () =>
+const renderFields = (props = {}) =>
   renderToStaticMarkup(
     <WellnessFields
       register={(name) => ({ name })}
       errors={{}}
       disabled={false}
       painValue={0}
+      {...props}
     />,
   );
 
@@ -47,5 +48,13 @@ describe("WellnessFields", () => {
     expect(html).not.toContain('name="privateNote"');
     expect(html).toContain("Chia sẻ với HLV");
     expect((html.match(/<textarea/g) || [])).toHaveLength(1);
+  });
+
+  it("removes trainer sharing from the self-managed form", () => {
+    const html = renderFields({ selfManaged: true, painValue: 10 });
+
+    expect(html).not.toMatch(/HLV|Chia sẻ với/);
+    expect(html).toContain("liên hệ chuyên gia y tế phù hợp");
+    expect(html).not.toContain('<textarea');
   });
 });

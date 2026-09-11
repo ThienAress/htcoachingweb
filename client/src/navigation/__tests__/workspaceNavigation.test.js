@@ -33,6 +33,18 @@ describe("workspace navigation contract", () => {
     ).toEqual([
       expect.objectContaining({ key: "customerDashboard", path: "/dashboard" }),
     ]);
+    expect(
+      getAccountWorkspaceItems({ hasCoaching: false })[0].labelKey,
+    ).toBe("nav_user.my_dashboard");
+    expect(
+      getAccountWorkspaceItems({ hasCoaching: true })[0].labelKey,
+    ).toBe("nav_user.today_dashboard");
+    expect(
+      getAccountWorkspaceItems({
+        hasActiveCustomerPlan: true,
+        hasCoaching: false,
+      })[0].labelKey,
+    ).toBe("nav_user.my_dashboard");
   });
 
   it("hides Today workspaces and health navigation while the platform is off", () => {

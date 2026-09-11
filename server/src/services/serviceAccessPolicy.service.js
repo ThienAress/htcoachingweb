@@ -165,6 +165,7 @@ export const resolveServiceAccessCandidates = async (
   actor,
   {
     now = new Date(),
+    session = null,
     orderModel = Order,
     trainerSubscriptionModel = TrainerSubscription,
     fitnessSubscriptionModel = FitnessSubscription,
@@ -177,7 +178,7 @@ export const resolveServiceAccessCandidates = async (
   const userId = actor.id || actor._id;
   if (!userId) throw new Error("Authenticated service access actor requires an id");
 
-  const [activeTrainerSubscription, activeCoachingOrders, activeFitnessSubscription] = await Promise.all([
+  const entitlementQueries = [
     trainerSubscriptionModel
       .findOne({
         userId,
@@ -187,6 +188,7 @@ export const resolveServiceAccessCandidates = async (
       })
       .select(snapshotFields)
       .sort({ createdAt: -1 })
+      .session(session)
       .lean(),
     orderModel
       .find({
@@ -196,6 +198,7 @@ export const resolveServiceAccessCandidates = async (
       })
       .select(snapshotFields)
       .sort({ approvedAt: -1, createdAt: -1 })
+      .session(session)
       .lean(),
     fitnessSubscriptionModel
       .findOne({
@@ -206,8 +209,21 @@ export const resolveServiceAccessCandidates = async (
       })
       .select(`planCode ${snapshotFields}`)
       .sort({ createdAt: -1 })
+      .session(session)
       .lean(),
-  ]);
+  ];
+  const entitlementResults = session
+    ? [
+        await entitlementQueries[0],
+        await entitlementQueries[1],
+        await entitlementQueries[2],
+      ]
+    : await Promise.all(entitlementQueries);
+  const [
+    activeTrainerSubscription,
+    activeCoachingOrders,
+    activeFitnessSubscription,
+  ] = entitlementResults;
 
   const candidates = [];
   if (actor.role === "admin") {

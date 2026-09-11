@@ -4,6 +4,10 @@ import {
   commentThreadKey,
 } from "../coachingCommentViewModel";
 
+it("labels designated admin coach comments as coaching rather than student", () => {
+  expect(commentDisplay({ actorRole: "admin", body: "Test", status: "visible" }).authorLabel).toBe("Huấn luyện viên");
+});
+
 describe("coachingCommentViewModel", () => {
   it("renders tombstones without retaining removed content", () => {
     expect(

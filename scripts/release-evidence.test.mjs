@@ -5,6 +5,7 @@ import {
   evaluatePostDeployEvidence,
   evaluateReleaseCandidate,
 } from "./lib/release-evidence.mjs";
+import { evaluateCandidateGate } from "./release-gate.mjs";
 
 const SHA = "a".repeat(40);
 const RUN_URL = "https://github.com/ThienAress/htcoachingweb/actions/runs/123";
@@ -52,6 +53,32 @@ test("release candidate requires exact SHA, staging cleanup and off-device recov
     blockers: [],
     warnings: ["CONTINUOUS_RECOVERY_UNAVAILABLE"],
   });
+});
+
+test("candidate gate rejects an expected release SHA different from the artifact", () => {
+  const value = candidate();
+  const result = evaluateCandidateGate({
+    candidate: value,
+    expectedSha: "b".repeat(40),
+    backupManifest: {
+      schemaVersion: 1,
+      policy: { releaseMaxAgeHours: 24, requireOffDeviceRecovery: true },
+      latestVerifiedBackup: {
+        backupId: value.recovery.backupId,
+        completedAt: new Date().toISOString(),
+        backupType: "logical_mongodump",
+        archiveIntegrityVerified: true,
+        isolatedRestoreVerified: true,
+        sourceFingerprintMatched: true,
+        continuousRecoveryAvailable: false,
+        offDeviceRecoveryVerified: true,
+        evidence: "docs/operations/production/backup-record.md",
+      },
+    },
+  });
+
+  assert.equal(result.ready, false);
+  assert.ok(result.blockers.includes("EXPECTED_RELEASE_SHA_MISMATCH"));
 });
 
 test("release candidate fails closed on SHA drift and synthetic residue", () => {

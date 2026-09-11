@@ -8,12 +8,17 @@ import mongoose from "mongoose";
 import Contract from "../models/Contract.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
+import { resolveOrderCoach } from "./effectiveCoach.service.js";
 import { safeLog } from "../utils/safeLogger.js";
+import { enableContractEmailPreferences } from "./notificationPreference.service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Nội quy mặc định
+export const CUSTOMER_EMAIL_CONSENT_TEXT =
+  "Học viên đồng ý để hệ thống gửi email nhắc cập nhật Mục tiêu sức khỏe buổi sáng và thông báo check-in buổi tập. Học viên có thể thay đổi các tùy chọn này bất cứ lúc nào trong mục Tài khoản.";
+
 const DEFAULT_SECTIONS = [
   { title: "1. THỜI GIAN BUỔI TẬP", content: "Các buổi tập được diễn ra trong vòng 1 giờ 30 phút (1H30).", items: [] },
   { title: "2. TRÁCH NHIỆM CỦA HUẤN LUYỆN VIÊN", content: "", items: [
@@ -31,6 +36,7 @@ const DEFAULT_SECTIONS = [
     "Nếu vắng mặt không báo trước 12 giờ, buổi tập sẽ bị tính vào số buổi đã sử dụng.",
     "Tuân thủ nội quy phòng tập và tôn trọng huấn luyện viên.",
     "Hội viên có thể kiểm tra check-in và các tính năng khác trực tiếp trên nền tảng web.",
+    CUSTOMER_EMAIL_CONSENT_TEXT,
   ]},
   { title: "4. HOÀN TRẢ VÀ CHẤM DỨT HỢP ĐỒNG", content: "", items: [
     "HLV chỉ hoàn lại chi phí cho những buổi chưa tập nếu có lý do chính đáng (chỉ định bác sĩ, chuyển nơi cư trú).",
@@ -43,6 +49,13 @@ const DEFAULT_SECTIONS = [
     "Nếu gặp vấn đề sức khỏe nghiêm trọng do huấn luyện không phù hợp, có quyền chấm dứt hợp đồng sớm.",
   ]},
 ];
+
+const hasCustomerEmailConsent = (sections = []) =>
+  sections.some(
+    (section) =>
+      section?.content === CUSTOMER_EMAIL_CONSENT_TEXT ||
+      section?.items?.some((item) => item === CUSTOMER_EMAIL_CONSENT_TEXT),
+  );
 
 // ============================================================================
 // GRIDFS HELPERS
@@ -456,13 +469,14 @@ export async function createContract(
   if (order.status !== "approved") throw new Error("Đơn hàng chưa được xác nhận");
 
   const user = order.userId ? await User.findById(order.userId) : null;
-  const trainer = order.trainerId ? await User.findById(order.trainerId) : null;
+  const effectiveCoach = await resolveOrderCoach({ order });
+  const trainer = await User.findById(effectiveCoach.trainerId);
 
   try {
     const contract = await Contract.create({
       orderId: order._id,
       clientId: order.userId,
-      trainerId: order.trainerId || createdBy,
+      trainerId: effectiveCoach.trainerId,
       trainerInfo: {
         name: trainer?.name || "", birthYear: "", address: "",
         phone: trainer?.phone || "", email: trainer?.email || "",
@@ -596,33 +610,51 @@ export async function signContract({
       `hop-dong-${reserved._id}-${Date.now()}.pdf`,
     );
 
-    const signed = await Contract.findOneAndUpdate(
-      { _id: contractId, clientId, status: "signing" },
-      {
-        $set: {
-          status: "signed",
-          signatureImage,
-          signedAt,
-          signedPdfFileId: fileId,
-          fileHash,
-        },
-        $push: {
-          auditTrail: {
-            action: "signed",
-            ipAddress,
-            userAgent,
-            timestamp: signedAt,
+    const transactionSession = await mongoose.startSession();
+    let signed;
+    try {
+      await transactionSession.withTransaction(async () => {
+        signed = await Contract.findOneAndUpdate(
+          { _id: contractId, clientId, status: "signing" },
+          {
+            $set: {
+              status: "signed",
+              signatureImage,
+              signedAt,
+              signedPdfFileId: fileId,
+              fileHash,
+            },
+            $push: {
+              auditTrail: {
+                action: "signed",
+                ipAddress,
+                userAgent,
+                timestamp: signedAt,
+              },
+            },
           },
-        },
-      },
-      { returnDocument: "after", runValidators: true },
-    );
+          {
+            returnDocument: "after",
+            runValidators: true,
+            session: transactionSession,
+          },
+        );
 
-    if (!signed) {
-      const error = new Error("Không thể hoàn tất ký hợp đồng");
-      error.code = "CONTRACT_SIGNING_CONFLICT";
-      error.statusCode = 409;
-      throw error;
+        if (!signed) {
+          const error = new Error("Không thể hoàn tất ký hợp đồng");
+          error.code = "CONTRACT_SIGNING_CONFLICT";
+          error.statusCode = 409;
+          throw error;
+        }
+        if (hasCustomerEmailConsent(reserved.customSections)) {
+          await enableContractEmailPreferences({
+            recipientId: clientId,
+            session: transactionSession,
+          });
+        }
+      });
+    } finally {
+      await transactionSession.endSession();
     }
     return signed;
   } catch (error) {

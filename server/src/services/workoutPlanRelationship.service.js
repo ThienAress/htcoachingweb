@@ -1,14 +1,18 @@
 import mongoose from "mongoose";
 
-import Order from "../models/Order.js";
 import User from "../models/User.js";
+import { resolveEffectiveClientCoach } from "./effectiveCoach.service.js";
 
-const relationshipError = () =>
+const relationshipError = ({
+  statusCode = 403,
+  code = "WORKOUT_PLAN_RELATIONSHIP_REQUIRED",
+  message = "Không tìm thấy quan hệ huấn luyện đã được phê duyệt và còn buổi",
+} = {}) =>
   Object.assign(
-    new Error("Không tìm thấy quan hệ huấn luyện đã được phê duyệt và còn buổi"),
+    new Error(message),
     {
-      code: "WORKOUT_PLAN_RELATIONSHIP_REQUIRED",
-      statusCode: 403,
+      code,
+      statusCode,
     },
   );
 
@@ -34,29 +38,35 @@ export const resolveWorkoutPlanRelationship = async ({
     throw relationshipError();
   }
 
-  const orderFilter = {
-    userId: client._id,
-    status: "approved",
-    sessions: { $gt: 0 },
-  };
-  if (isAdmin) {
-    if (trainerId) orderFilter.trainerId = trainerId;
-  } else {
-    orderFilter.trainerId = actorId;
+  let assignment;
+  try {
+    assignment = await resolveEffectiveClientCoach({ clientId: client._id });
+  } catch (error) {
+    if (error?.codeName === "COACH_ASSIGNMENT_CONFLICT") {
+      throw relationshipError({
+        statusCode: 409,
+        code: error.codeName,
+        message: error.message,
+      });
+    }
+    throw relationshipError();
   }
-
-  const order = await Order.findOne(orderFilter)
-    .select("trainerId")
-    .sort({ approvedAt: -1, updatedAt: -1, _id: -1 })
-    .lean();
-  if (!order?.trainerId) throw relationshipError();
+  if (trainerId && String(assignment.trainerId) !== String(trainerId)) {
+    throw relationshipError();
+  }
+  if (!isAdmin && String(assignment.trainerId) !== String(actorId)) {
+    throw relationshipError();
+  }
 
   return {
     clientId: client._id,
     clientEmail: normalizeEmail(client.email),
-    trainerId: order.trainerId,
+    trainerId: assignment.trainerId,
   };
 };
 
 export const isWorkoutPlanRelationshipError = (error) =>
-  error?.code === "WORKOUT_PLAN_RELATIONSHIP_REQUIRED";
+  [
+    "WORKOUT_PLAN_RELATIONSHIP_REQUIRED",
+    "COACH_ASSIGNMENT_CONFLICT",
+  ].includes(error?.code);

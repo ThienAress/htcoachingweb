@@ -1,12 +1,14 @@
 import TrainerSubscription from "../models/TrainerSubscription.js";
 import User from "../models/User.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
+import { resolveDefaultAdminTrainer } from "./defaultAdminTrainer.service.js";
 
 export const listTrainerAssignmentCandidates = async ({
   page = 1,
   limit = 50,
   search = "",
   now = new Date(),
+  env = process.env,
 } = {}) => {
   const safePage = Math.max(Number.parseInt(page, 10) || 1, 1);
   const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 50, 1), 100);
@@ -26,6 +28,12 @@ export const listTrainerAssignmentCandidates = async ({
       },
     ],
   };
+  try {
+    const defaultTrainer = await resolveDefaultAdminTrainer({ env });
+    query.$and[0].$or.push({ _id: defaultTrainer._id, role: "admin" });
+  } catch (error) {
+    if (!Number.isInteger(error?.statusCode)) throw error;
+  }
   if (normalizedSearch) {
     const regex = new RegExp(escapeRegex(normalizedSearch), "i");
     query.$and.push({ $or: [{ name: regex }, { email: regex }] });

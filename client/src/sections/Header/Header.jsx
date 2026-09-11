@@ -23,7 +23,7 @@ import {
   Utensils,
   ScanLine,
 } from "lucide-react";
-import logo from "../../assets/images/logo/logo.svg";
+import BrandLogo from "../../components/BrandLogo";
 import { useAuth } from "../../context/AuthContext";
 import LanguageSwitcher from "../../components/LanguageSwitcher";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +32,7 @@ import { walletBalanceQueryOptions } from "../../queries/walletAccount.queries";
 import { NotificationCenter } from "../../components/NotificationCenter";
 import { getAccountWorkspaceItems } from "../../navigation/workspaceNavigation";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
+import { getTodayProgressPromptEligibility } from "../../services/todayDashboard.service";
 
 function Header() {
   const navigate = useNavigate();
@@ -63,6 +64,14 @@ function Header() {
   const { data: activeSubscriptionData } = useQuery(
     mySubscriptionQueryOptions({ userId }),
   );
+  const { data: customerDashboardAccess } = useQuery({
+    queryKey: ["today-dashboard", "prompt-eligibility", userId],
+    queryFn: async () =>
+      (await getTodayProgressPromptEligibility()).data.data,
+    enabled:
+      Boolean(userId) && user?.role === "user" && TODAY_PLATFORM_ENABLED,
+    staleTime: 60_000,
+  });
   const walletBalance = user ? (wallet?.balance ?? null) : null;
   const activeSubscription = user ? (activeSubscriptionData ?? null) : null;
 
@@ -76,8 +85,7 @@ function Header() {
   // Hàm scroll đến section
   const handleScrollToSection = (sectionId) => {
     if (location.pathname !== "/") {
-      // Chuyển về trang chủ và lưu lại section cần scroll
-      navigate("/", { state: { scrollTo: sectionId } });
+      navigate(`/#${sectionId}`);
       return;
     }
 
@@ -93,25 +101,6 @@ function Header() {
       });
     }
   };
-
-  // Khi quay về trang chủ với state scrollTo
-  useEffect(() => {
-    if (location.pathname === "/" && location.state?.scrollTo) {
-      const sectionId = location.state.scrollTo;
-      // Xóa state để không bị scroll lại khi refresh
-      navigate("/", { replace: true, state: {} });
-      setTimeout(() => {
-        const element = document.getElementById(sectionId);
-        if (element) {
-          const offset = 80;
-          const elementPosition =
-            element.getBoundingClientRect().top + window.scrollY;
-          const offsetPosition = elementPosition - offset;
-          window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-        }
-      }, 100);
-    }
-  }, [location, navigate]);
 
   // Click ngoài dropdown
   useEffect(() => {
@@ -184,6 +173,7 @@ function Header() {
   const workspaceItems = getAccountWorkspaceItems({
     isAdmin,
     hasTrainerAccess,
+    hasCoaching: customerDashboardAccess?.hasCoaching === true,
     todayPlatformEnabled: TODAY_PLATFORM_ENABLED,
   }).map((item) => ({
     ...item,
@@ -235,13 +225,10 @@ function Header() {
         <Link
           to="/"
           onClick={() => setMenuOpen(false)}
-          className="overflow-hidden z-20"
+          aria-label="HTCOACHING — Trang chủ"
+          className={`z-20 flex min-h-11 shrink-0 items-center rounded-md px-3 py-2 transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current ${isSolidHeader ? "bg-zinc-900" : "bg-transparent"}`}
         >
-          <img
-            src={logo}
-            alt="HT Coaching"
-            className={`h-12 lg:h-14 2xl:h-16 max-w-full object-contain transition-all duration-300`}
-          />
+          <BrandLogo variant="header" surface={isSolidHeader ? "dark" : "light"} decorative />
         </Link>
 
         {/* Desktop Navigation */}

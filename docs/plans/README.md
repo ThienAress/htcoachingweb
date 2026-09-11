@@ -6,6 +6,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
+| 089 | Thống nhất effective coach và HLV chính mặc định | P1 | L | 086, 087 | DONE / FOCUSED — FULL SERVER RADAR TEST FAIL; NOT DEPLOYED |
+| 088 | Session Governor: telemetry và model recommendations | P1 | M | — | DONE / FOCUSED — REPO-LOCAL |
 | 001 | Hoàn thiện vòng đời gói HLV và bảo vệ AI output | P1 | L | — | IMPLEMENTED / VERIFIED |
 | 002 | Loại bỏ drift giá và hợp đồng thương mại giữa FE/BE | P1 | L | 001 | DEPLOYED / VERIFIED ON STAGING |
 | 003 | Xây dựng Today Dashboard thành trung tâm đồng hành hằng ngày | P1 | XL | 001, 002 | IMPLEMENTED / LOCAL VERIFIED — STAGING + F1 LINK PENDING |
@@ -105,16 +107,21 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 076 | Gửi email buổi sáng nhắc khách cập nhật sức khỏe | P1 | L | 003B, 003G, 060, 075 | DONE / NODE 22 LOCAL FULL — PRODUCTION FLAGS OFF |
 | 077 | Harden agent evidence và đo chất lượng Search | P1 | L | 017, 030, 035 | DONE / NODE 22 LOCAL FULL — HISTORY RISK RECORDED |
 | 078 | Build supervised agent harness và Search pilot | P2 | L | 077 | DONE / NODE 22 LOCAL FULL — PRODUCTION ROLLOUT NOT AUTHORIZED |
-| 079 | Curate Search indexing và chuẩn hóa đơn vị dinh dưỡng công thức | P0 | L | 038, 059, 061, 071A, 072, 073 | DONE / LOCAL FULL VERIFIED — ROLLOUT PENDING |
+| 079 | Curate Search indexing và chuẩn hóa đơn vị dinh dưỡng công thức | P0 | L | 038, 059, 061, 071A, 072, 073 | DONE / PRODUCTION VERIFIED — LIVE |
 | 080 | Build serverless incident response và refresh Radar | P0 | L | 035, 048, 056, 078 | DONE / LOCAL FULL VERIFIED — ROLLOUT NOT STARTED |
-| 081 | Thưởng nạp ví theo bậc và thiết kế lại Profile HLV | P0/P1 | L | 002, 018, 029, 051 | DONE / LOCAL FULL VERIFIED — E2E SKIPPED / NOT DEPLOYED |
-| 082 | Harden refresh-session rotation và logout | P1 | M | 019, 020 | DONE / LOCAL FULL VERIFIED — ROLLOUT NOT STARTED |
-| 082A | Tạo Auth cutover boundary cho Render Free | P0 | M | 082 | IN PROGRESS / VERIFICATION PENDING — ROLLOUT NOT STARTED |
+| 081 | Thưởng nạp ví theo bậc và thiết kế lại Profile HLV | P0/P1 | L | 002, 018, 029, 051 | DONE / PRODUCTION VERIFIED — LIVE |
+| 082 | Harden refresh-session rotation và logout | P1 | M | 019, 020 | DONE / PRODUCTION VERIFIED — LIVE |
+| 082A | Tạo Auth cutover boundary cho Render Free | P0 | M | 082 | DONE / PRODUCTION VERIFIED — LIVE |
 | 083 | Chuẩn hóa các pattern upstream đã xác minh vào agent governance | P1 | M | 017, 020, 030, 035, 077, 078, 082 | DONE / FOCUSED VERIFIED — RELEASE BUILD SITEMAP TIMEOUT |
-| 084 | Đối soát và promotion release candidate an toàn | P0 | L | 077, 078, 079, 080, 081, 082, 082A, 083 | IN PROGRESS / RELEASE GATES PENDING |
-| 085 | Harden bảo mật và vận hành không phụ thuộc provider | P0 | XL | 023, 024A, 053A, 056, 066, 074, 082 | DONE / FOCUSED VERIFIED — PROVIDER ROLLOUT NOT STARTED |
+| 084 | Đối soát và promotion release candidate an toàn | P0 | L | 077, 078, 079, 080, 081, 082, 082A, 083 | DONE / PRODUCTION VERIFIED — LIVE |
+| 085 | Harden bảo mật và vận hành không phụ thuộc provider | P0 | XL | 023, 024A, 053A, 056, 066, 074, 082 | DONE / PRODUCTION VERIFIED — LIVE; PAID PROVIDER GATES DEFERRED |
+| 086 | Chuẩn hóa email khách hàng và Dashboard tự quản lý | P0 | XL | 003H, 006, 023, 052A, 060, 062, 065, 068, 075, 076 | DONE / FOCUSED VERIFIED — RELEASE PRERENDER + FULL SERVER RUNNER BLOCKED |
+| 087 | Áp dụng nhận diện và kết quả đo thành phần cơ thể | P1 | L | 003F, 003H, 060, 062, 065, 086 | DONE / LOCAL FULL — 753 CLIENT, 1421 SERVER, 112 E2E; NOT DEPLOYED |
 
 ## Dependency Notes
+
+- Plan 088: Session Governor (MODERATE, DONE, FOCUSED, NOT APPLICABLE),
+  skill/footer/model recommendations; không đổi product hoặc Codex global config.
 
 - Plan 051 phụ thuộc Plan 018 vì Wallet/Account đã có query keys, polling và
   server-authoritative balance; plan thêm SePay webhook/API v2, transaction-specific
@@ -207,6 +214,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 - Plan 085 tái sử dụng consent Meal Scan, recovery readiness, private media lifecycle và refresh-family
   hiện có để đóng bảy finding local; plan không bật provider backup, không gọi billing dashboard,
   không chạy migration/restore và không tạo recovery evidence mới.
+- Plan 086 phụ thuộc notification/contract/Dashboard/HT Fitness+ đã có để tách rõ coaching và
+  self-managed; preference mới default-off, không backfill, không đổi quota/payment và không ghi production.
 - Plan 076 phụ thuộc Daily Journal/notification lifecycle và grouping sức khỏe đã ổn định; email
   mặc định opt-in false, có delivery idempotency và production flags vẫn tắt trước rollout riêng.
 - Plan 077 phụ thuộc governance/skills/Radar hiện có; chỉ thêm gate deterministic và benchmark offline,

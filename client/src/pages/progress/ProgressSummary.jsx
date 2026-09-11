@@ -11,12 +11,15 @@ import { BodyProgressReport } from "./BodyProgressReport";
 import { ComplianceProgressReport } from "./ComplianceProgressReport";
 import { ProgressWellnessOverview } from "./ProgressWellnessOverview";
 import { normalizeProgressSection } from "./progressPresentation";
+import { BodyAssessmentReport } from "../../components/body-assessment/BodyAssessmentReport";
 
 const PROGRESS_SECTIONS = [
   {
     key: "compliance",
     label: "Mức độ thực hiện",
     description: "So sánh mức hoàn thành lịch tập, giáo án, bữa ăn và thói quen.",
+    selfManagedDescription:
+      "Theo dõi bữa ăn và thói quen từ dữ liệu bạn tự ghi nhận.",
     icon: Activity,
     iconClass: "bg-orange-400/10 text-orange-300",
   },
@@ -24,6 +27,7 @@ const PROGRESS_SECTIONS = [
     key: "body",
     label: "Tiến trình cơ thể",
     description: "Theo dõi thay đổi số đo từ những báo cáo tuần đã gửi.",
+    selfManagedDescription: "Theo dõi thay đổi từ số đo bạn tự lưu mỗi tuần.",
     icon: Ruler,
     iconClass: "bg-cyan-400/10 text-cyan-300",
   },
@@ -31,8 +35,18 @@ const PROGRESS_SECTIONS = [
     key: "wellness",
     label: "Sức khỏe trung bình",
     description: "Xem xu hướng những chỉ số sức khỏe từ nhật ký đã gửi.",
+    selfManagedDescription:
+      "Xem xu hướng các chỉ số sức khỏe từ nhật ký bạn tự lưu.",
     icon: HeartPulse,
     iconClass: "bg-emerald-400/10 text-emerald-300",
+  },
+  {
+    key: "composition",
+    label: "Phân bố thành phần cơ thể",
+    description: "Xem và so sánh kết quả đo từng vùng do HLV gửi.",
+    selfManagedDescription: "Xem các kết quả đo từng vùng đã được HLV gửi trước đây.",
+    icon: Ruler,
+    iconClass: "bg-cyan-400/10 text-cyan-300",
   },
 ];
 
@@ -40,6 +54,7 @@ const ProgressHeader = ({
   actions,
   contained = false,
   headingLevel: Heading = "h2",
+  selfManaged = false,
 }) => (
   <header
     className={`flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between ${
@@ -55,16 +70,16 @@ const ProgressHeader = ({
           className="h-6 w-6 shrink-0 text-orange-400"
           aria-hidden="true"
         />
-        Tiến trình cơ thể và tập luyện
+        {selfManaged ? "Tiến trình của tôi" : "Tiến trình cơ thể và tập luyện"}
       </Heading>
     </div>
     {actions}
   </header>
 );
 
-const ProgressLanding = ({ buttonRefs, onSectionChange }) => (
+const ProgressLanding = ({ buttonRefs, onSectionChange, selfManaged }) => (
     <div className="divide-y divide-slate-800 border-t border-slate-800">
-      {PROGRESS_SECTIONS.map((section) => {
+      {PROGRESS_SECTIONS.filter((section) => !selfManaged || section.key !== "composition").map((section) => {
         const Icon = section.icon;
         return (
           <button
@@ -86,7 +101,9 @@ const ProgressLanding = ({ buttonRefs, onSectionChange }) => (
                 {section.label}
               </span>
               <span className="mt-1 block text-sm leading-5 text-slate-400">
-                {section.description}
+                {selfManaged
+                  ? section.selfManagedDescription
+                  : section.description}
               </span>
             </span>
             <ArrowRight
@@ -101,6 +118,7 @@ const ProgressLanding = ({ buttonRefs, onSectionChange }) => (
 );
 
 export const ProgressSummary = ({
+  assessmentClientId,
   activeSection,
   landingActions,
   landingHeadingLevel = "h2",
@@ -112,8 +130,9 @@ export const ProgressSummary = ({
   const headingRef = useRef(null);
   const lastSectionRef = useRef(null);
   const hasOpenedRef = useRef(false);
-  const sectionKey = normalizeProgressSection(activeSection);
+  const sectionKey = progress?.accessMode === "self_managed" && activeSection === "composition" ? null : normalizeProgressSection(activeSection);
   const section = PROGRESS_SECTIONS.find(({ key }) => key === sectionKey);
+  const selfManaged = progress?.accessMode === "self_managed";
 
   useEffect(() => {
     if (sectionKey) {
@@ -142,17 +161,20 @@ export const ProgressSummary = ({
               actions={landingActions}
               contained
               headingLevel={landingHeadingLevel}
+              selfManaged={selfManaged}
             />
           </div>
           <ProgressLanding
             buttonRefs={buttonRefs}
             onSectionChange={onSectionChange}
+            selfManaged={selfManaged}
           />
         </section>
       ) : (
         <ProgressHeader
           actions={landingActions}
           headingLevel={landingHeadingLevel}
+          selfManaged={selfManaged}
         />
       )}
       {sectionKey === "compliance" && (
@@ -161,6 +183,7 @@ export const ProgressSummary = ({
           headingRef={headingRef}
           onBack={onBack}
           rangeControls={rangeControls}
+          selfManaged={selfManaged}
         />
       )}
       {sectionKey === "body" && (
@@ -170,6 +193,7 @@ export const ProgressSummary = ({
           onBack={onBack}
           range={progress.range}
           rangeControls={rangeControls}
+          selfManaged={selfManaged}
         />
       )}
       {sectionKey === "wellness" && (
@@ -178,8 +202,12 @@ export const ProgressSummary = ({
           onBack={onBack}
           range={progress.range}
           rangeControls={rangeControls}
+          selfManaged={selfManaged}
           wellness={progress.wellness}
         />
+      )}
+      {sectionKey === "composition" && (
+        <BodyAssessmentReport clientId={assessmentClientId} headingRef={headingRef} onBack={onBack} />
       )}
     </div>
   );

@@ -94,6 +94,7 @@ export const setClientWellnessTarget = async ({ actor, clientId, input }) => {
   assertWellnessTargetWritesEnabled();
   const normalized = normalizeInput(input);
   const payloadFingerprint = fingerprintFor({ clientId, normalized });
+  await resolveCoachClientTargetAccess({ actor, clientId });
   const prior = resolveReplay(
     await findReplay({ actorId: actor.id, requestId: normalized.requestId }),
     payloadFingerprint,
@@ -104,6 +105,11 @@ export const setClientWellnessTarget = async ({ actor, clientId, input }) => {
   let result;
   try {
     await session.withTransaction(async () => {
+      const access = await resolveCoachClientTargetAccess({
+        actor,
+        clientId,
+        session,
+      });
       const replay = resolveReplay(
         await findReplay({
           actorId: actor.id,
@@ -116,11 +122,6 @@ export const setClientWellnessTarget = async ({ actor, clientId, input }) => {
         result = replay;
         return;
       }
-      const access = await resolveCoachClientTargetAccess({
-        actor,
-        clientId,
-        session,
-      });
       const current = await WellnessTarget.findOne({
         clientId,
         isLatest: true,
@@ -184,6 +185,7 @@ export const setClientWellnessTarget = async ({ actor, clientId, input }) => {
     });
   } catch (error) {
     if (error?.code === 11000) {
+      await resolveCoachClientTargetAccess({ actor, clientId });
       const replay = resolveReplay(
         await findReplay({ actorId: actor.id, requestId: normalized.requestId }),
         payloadFingerprint,

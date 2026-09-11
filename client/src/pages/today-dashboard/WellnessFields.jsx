@@ -69,7 +69,13 @@ const RatingField = ({
   );
 };
 
-export const WellnessFields = ({ register, errors, disabled, painValue }) => {
+export const WellnessFields = ({
+  register,
+  errors,
+  disabled,
+  painValue,
+  selfManaged = false,
+}) => {
   const semanticPainValue = wellnessSemanticValue("pain", painValue);
   const ratingHelperId = useId();
 
@@ -159,27 +165,30 @@ export const WellnessFields = ({ register, errors, disabled, painValue }) => {
           className="rounded-lg border border-amber-700/60 bg-amber-950/30 px-4 py-3 text-sm leading-6 text-amber-100"
           role="alert"
         >
-          Mức đau cao. Hãy dừng bài gây đau và liên hệ HLV hoặc chuyên gia y tế
-          phù hợp. Thông báo này không phải chẩn đoán.
+          {selfManaged
+            ? "Mức đau cao. Hãy dừng bài gây đau và liên hệ chuyên gia y tế phù hợp. Thông báo này không phải chẩn đoán."
+            : "Mức đau cao. Hãy dừng bài gây đau và liên hệ HLV hoặc chuyên gia y tế phù hợp. Thông báo này không phải chẩn đoán."}
         </p>
       )}
-      <label className="block text-sm font-medium text-slate-300">
-        Chia sẻ với HLV
-        <textarea
-          {...register("sharedNote")}
-          disabled={disabled}
-          aria-invalid={Boolean(errors.sharedNote)}
-          rows={3}
-          maxLength={2000}
-          className={fieldClass}
-          placeholder="Thông tin bạn muốn HLV biết"
-        />
-        {errors.sharedNote && (
-          <span role="alert" className="mt-1 block text-xs text-red-300">
-            {errors.sharedNote.message}
-          </span>
-        )}
-      </label>
+      {!selfManaged && (
+        <label className="block text-sm font-medium text-slate-300">
+          Chia sẻ với HLV
+          <textarea
+            {...register("sharedNote")}
+            disabled={disabled}
+            aria-invalid={Boolean(errors.sharedNote)}
+            rows={3}
+            maxLength={2000}
+            className={fieldClass}
+            placeholder="Thông tin bạn muốn HLV biết"
+          />
+          {errors.sharedNote && (
+            <span role="alert" className="mt-1 block text-xs text-red-300">
+              {errors.sharedNote.message}
+            </span>
+          )}
+        </label>
+      )}
     </>
   );
 };

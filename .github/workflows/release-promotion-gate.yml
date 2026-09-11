@@ -41,7 +41,7 @@ jobs:
         shell: bash
         run: |
           test "$(git rev-parse HEAD)" = "${{ inputs.release_sha }}"
-          node scripts/release-gate.mjs --mode=candidate --manifest=artifacts/release-candidate.json --backup-manifest=docs/operations/production/backup-readiness.json
+          node scripts/release-gate.mjs --mode=candidate --manifest=artifacts/release-candidate.json --backup-manifest=docs/operations/production/backup-readiness.json --expected-sha=${{ inputs.release_sha }}
       - name: Retain promotion gate evidence
         if: always()
         uses: actions/upload-artifact@v4

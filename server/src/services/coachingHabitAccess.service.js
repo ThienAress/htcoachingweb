@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import CoachingHabit from "../models/CoachingHabit.js";
-import Order from "../models/Order.js";
 import { resolveJournalWriteAccess } from "./dailyJournalAccess.service.js";
+import { assertEffectiveCoachAccess, resolveEffectiveClientCoach } from "./effectiveCoach.service.js";
 
 export const habitError = (statusCode, message, codeName) => {
   const error = new Error(message);
@@ -20,8 +20,11 @@ export const assertHabitWritesEnabled = () => {
   }
 };
 
-export const resolveClientHabitAccess = ({ clientId, session = null }) =>
-  resolveJournalWriteAccess({ clientId, session });
+export const resolveClientHabitAccess = ({
+  clientId,
+  clientRole = "user",
+  session = null,
+}) => resolveJournalWriteAccess({ clientId, clientRole, session });
 
 export const assertCoachManagesClient = async ({
   actor,
@@ -34,25 +37,20 @@ export const assertCoachManagesClient = async ({
   if (!new Set(["trainer", "admin"]).has(actor?.role)) {
     throw habitError(403, "Không có quyền", "COACHING_HABIT_FORBIDDEN");
   }
-  const filter = {
-    userId: clientId,
-    status: "approved",
-    sessions: { $gt: 0 },
-    ...(actor.role === "admin" ? {} : { trainerId: actor.id }),
-  };
-  let query = Order.findOne(filter)
-    .select("_id trainerId")
-    .lean();
-  if (session) query = query.session(session);
-  const order = await query;
-  if (!order) {
+  try {
+    // Admin habit management remains operational; attribution uses the assigned coach.
+    const assignment = actor.role === "admin"
+      ? await resolveEffectiveClientCoach({ clientId, session })
+      : await assertEffectiveCoachAccess({ actor, clientId, session });
+    return { _id: assignment.order._id, trainerId: assignment.trainerId };
+  } catch (error) {
+    if (error.statusCode !== 403) throw error;
     throw habitError(
       403,
       "Client không thuộc phạm vi quản lý hiện tại",
       "COACHING_HABIT_FORBIDDEN",
     );
   }
-  return order;
 };
 
 export const assertTrainerManagesClient = ({

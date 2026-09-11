@@ -157,6 +157,18 @@ if (!email.includes("@")) { ... }
   pháp lý hoặc dữ liệu khoa học cần độ chính xác cố định; các domain đó phải dùng contract làm tròn
   và threshold riêng.
 
+### Pattern 10: Form cấu hình Lưu → read-only → Cập nhật
+
+- Áp dụng cho preference, profile hoặc cấu hình do user sở hữu và có hành động lưu rõ ràng. Trước
+  lần lưu, field ở edit mode và primary CTA là `Lưu`. Chỉ sau response thành công từ server mới
+  chuyển field sang read-only và primary CTA thành `Cập nhật`.
+- Nhấn `Cập nhật` chỉ mở lại edit mode; khi phù hợp phải có `Lưu` và `Hủy`. `Hủy` phục hồi snapshot
+  server gần nhất. Pending khóa thao tác; error giữ edit mode; conflict tải lại snapshot canonical.
+- Không phát success hoặc khóa form khi input chưa hợp lệ, thiếu lựa chọn bắt buộc hay request chưa
+  được server xác nhận. Dùng inline feedback/toast theo chuẩn surface hiện có.
+- Không áp dụng máy móc cho autosave, search/filter, optimistic toggle hoặc transaction action như
+  thanh toán, ký hợp đồng, gửi báo cáo; các luồng đó phải theo lifecycle riêng trong spec.
+
 ---
 
 ## Mandatory Backend Patterns

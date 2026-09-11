@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "planId": "087",
+  "specPath": "docs/specs/brand-system-and-body-assessments.md",
+  "planPath": "docs/plans/087-apply-brand-system-and-body-assessments.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Apply supplied brand assets and icon bundle", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Record and compare weekly circumference measurements", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Publish private trainer body assessments safely", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Read and compare shared segmental measurements", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Verify, review and deliver the integrated changes", "planStep": "Step 5" }
+  ],
+  "requirements": [
+    { "id": "REQ-001", "acceptanceCriteria": [
+      { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "command", "command": "npm run test:unit:client" }] },
+      { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "command", "command": "npm run build --prefix client" }, { "type": "command", "command": "npm run test:e2e" }] }
+    ] },
+    { "id": "REQ-002", "acceptanceCriteria": [
+      { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "command", "command": "npm run test:unit:client" }, { "type": "command", "command": "npm run test:unit:server" }] }
+    ] },
+    { "id": "REQ-003", "acceptanceCriteria": [
+      { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "command", "command": "npm run test:unit:server" }] },
+      { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "command", "command": "npm run test:unit:server" }] },
+      { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "command", "command": "npm run test:unit:server" }, { "type": "command", "command": "npm run security:data-boundaries" }] }
+    ] },
+    { "id": "REQ-004", "acceptanceCriteria": [
+      { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "command", "command": "npm run test:unit:client" }, { "type": "command", "command": "npm run test:e2e" }] },
+      { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-004", "TASK-005"], "verifications": [{ "type": "command", "command": "npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high" }, { "type": "command", "command": "npm run lint --prefix client" }, { "type": "command", "command": "npm run security:secrets" }] }
+    ] }
+  ]
+}

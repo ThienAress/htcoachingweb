@@ -9,6 +9,7 @@ import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
 import {
   syncDailyJournalRetentionForClient,
 } from "../services/dailyJournalRetentionPolicy.service.js";
+import { isCheckinEmailEnabled } from "../services/notificationPreference.service.js";
 
 // Helper để parse time an toàn
 const parseSafeTime = (timeInput) => {
@@ -110,14 +111,16 @@ export const createCheckin = async (req, res) => {
     }
 
     try {
-      await sendCheckinMail(order.email, {
-        name: order.name,
-        package: order.package,
-        time: formattedTime,
-        muscle,
-        note,
-        remainingSessions: order.sessions,
-      });
+      if (await isCheckinEmailEnabled(order.userId)) {
+        await sendCheckinMail(order.email, {
+          name: order.name,
+          package: order.package,
+          time: formattedTime,
+          muscle,
+          note,
+          remainingSessions: order.sessions,
+        });
+      }
     } catch (mailErr) {
       safeLog.error("checkin.mail_failed", mailErr);
     }

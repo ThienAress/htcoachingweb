@@ -545,6 +545,7 @@ export const TrainerClientOverview = ({
             {surfaceConfig.showOverview && (
               <>
                 <ProgressSummary
+              assessmentClientId={clientId}
               progress={query.data.progress}
               activeSection={activeProgressSection}
               onSectionChange={handleProgressSectionChange}
