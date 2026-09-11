@@ -71,6 +71,30 @@ const boundedIdentity = (value, fallback) => {
   return (normalized || fallback).slice(0, 180);
 };
 
+const firstNonEmptyLine = (value) => String(value || "")
+  .split(/\r?\n/)
+  .map((line) => line.trim())
+  .find(Boolean) || "";
+
+export const sanitizeVitestDiagnostic = (value) => firstNonEmptyLine(value)
+  .replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "")
+  .replace(/\bBearer\s+\S+/gi, "Bearer [redacted]")
+  .replace(/\beyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted]")
+  .replace(/\bhttps?:\/\/[^\s]+/gi, "[url]")
+  .replace(/(?:[A-Za-z]:\\|\\\\)[^\s"'`]+/g, "[path]")
+  .replace(/(^|[\s(])\/(?:[^/\s]+\/)+[^:\s),]+(?::\d+(?::\d+)?)?/g, "$1[path]")
+  .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted]")
+  .replace(/(?<!\w)(?:\+?\d[\d .()-]{7,}\d)(?!\w)/g, "[redacted]")
+  .replace(/\?[A-Za-z0-9_.~-]+=[^\s#]+/g, "?[redacted]")
+  .replace(/(["'`])(?:\\.|(?!\1)[^\\\r\n])*\1/g, "[redacted]")
+  .replace(/\s+/g, " ")
+  .trim();
+
+const withDiagnostic = (identity, rawDiagnostic) => {
+  const diagnostic = sanitizeVitestDiagnostic(rawDiagnostic);
+  return boundedIdentity(diagnostic ? `${identity} :: ${diagnostic}` : identity, identity);
+};
+
 export const formatVitestFailures = (report, options = {}) => {
   const reportServerRoot = options.serverRoot || serverRoot;
   const limit = options.limit ?? 5;
@@ -95,12 +119,15 @@ export const formatVitestFailures = (report, options = {}) => {
       : [];
 
     if (failedAssertions.length === 0 && result?.status === "failed") {
-      failures.push(`${fileName} :: suite failed before assertions`);
+      const identity = `${fileName} :: suite failed before assertions`;
+      failures.push(withDiagnostic(identity, result?.message));
     } else {
       for (const assertion of failedAssertions) {
-        failures.push(
-          `${fileName} :: ${boundedIdentity(assertion?.fullName || assertion?.title, "unnamed test")}`,
-        );
+        const identity = `${fileName} :: ${boundedIdentity(
+          assertion?.fullName || assertion?.title,
+          "unnamed test",
+        )}`;
+        failures.push(withDiagnostic(identity, assertion?.failureMessages?.[0]));
       }
     }
 

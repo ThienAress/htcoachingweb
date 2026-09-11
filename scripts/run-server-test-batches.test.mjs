@@ -8,8 +8,15 @@ import {
   formatVitestFailures,
   resolveServerTestConfigLoader,
   resolveServerTestReportDirectory,
+  sanitizeVitestDiagnostic,
   summarizeVitestReport,
 } from "./run-server-test-batches.mjs";
+
+const syntheticJwt = [
+  "eyJhbGciOiJIUzI1NiJ9",
+  "eyJzdWIiOiIxMjMifQ",
+  "signature",
+].join(".");
 
 test("assertRuntimeVersion rejects a runtime that drifts from the repository pin", () => {
   assert.throws(
@@ -94,4 +101,62 @@ test("formatVitestFailures emits bounded repo-relative test identities", () => {
     "src/controllers/__tests__/deposit.test.js :: deposit rejects missing config without leaking raw output",
     "src/utils/__tests__/logger.test.js :: suite failed before assertions",
   ]);
+});
+
+test("formatVitestFailures includes only sanitized first-line diagnostics", () => {
+  const serverRoot = path.join(process.cwd(), "server");
+  const report = {
+    testResults: [
+      {
+        name: path.join(serverRoot, "src", "controllers", "__tests__", "deposit.test.js"),
+        status: "failed",
+        assertionResults: [
+          {
+            status: "failed",
+            fullName: "deposit rejects invalid callback",
+            failureMessages: [
+              "AssertionError: expected \"customer@example.com\" to equal '0901234567' https://example.com/callback?token=secret\n    at C:\\workspace\\server\\deposit.test.js:42:7",
+            ],
+          },
+        ],
+      },
+      {
+        name: path.join(serverRoot, "src", "utils", "__tests__", "logger.test.js"),
+        status: "failed",
+        assertionResults: [],
+        message: `Error: ${["Bearer", syntheticJwt].join(" ")} at /home/runner/work/private/server/logger.test.js:9:3\nmore details`,
+      },
+    ],
+  };
+
+  assert.deepEqual(formatVitestFailures(report, { serverRoot, limit: 2 }), [
+    "src/controllers/__tests__/deposit.test.js :: deposit rejects invalid callback :: AssertionError: expected [redacted] to equal [redacted] [url]",
+    "src/utils/__tests__/logger.test.js :: suite failed before assertions :: Error: Bearer [redacted] at [path]",
+  ]);
+});
+
+test("formatVitestFailures bounds sanitized records after adding diagnostics", () => {
+  const serverRoot = path.join(process.cwd(), "server");
+  const report = {
+    testResults: Array.from({ length: 6 }, (_, index) => ({
+      name: path.join(serverRoot, "src", "__tests__", `failure-${index}.test.js`),
+      status: "failed",
+      assertionResults: [],
+      message: `Error: ${"x".repeat(250)} secret@example.com`,
+    })),
+  };
+
+  const failures = formatVitestFailures(report, { serverRoot });
+  assert.equal(failures.length, 5);
+  assert.equal(failures.every((failure) => failure.length <= 180), true);
+  assert.equal(failures.some((failure) => failure.includes("secret@example.com")), false);
+});
+
+test("sanitizeVitestDiagnostic redacts common secret and PII shapes", () => {
+  assert.equal(
+    sanitizeVitestDiagnostic(
+      `Error: customer@example.com called +84 901 234 567 with ${syntheticJwt} at /home/runner/private.test.js:2:1?token=secret`,
+    ),
+    "Error: [redacted] called [redacted] with [redacted] at [path]?[redacted]",
+  );
 });
