@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { runWithRequestContext } from "../requestContext.js";
 import { safeLog, sanitizeForLog } from "../safeLogger.js";
 

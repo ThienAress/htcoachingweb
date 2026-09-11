@@ -488,6 +488,11 @@ test("Codex prompt requires evidence, safe patch output and no production action
   assert.match(prompt, /không.*merge|do not.*merge/is);
   assert.match(prompt, /incident-artifacts\/change\.patch/);
   assert.match(prompt, /incident-artifacts\/context\.json/);
+  assert.match(
+    prompt,
+    /narrative[\s\S]*không được chứa[\s\S]*(?:filename|tên file)[\s\S]*(?:repo-relative|path tương đối)/i,
+  );
+  assert.match(prompt, /symbol có dấu chấm|dot-qualified/i);
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.properties.confidence.enum, ["Cao", "Trung bình", "Thấp"]);
 });
