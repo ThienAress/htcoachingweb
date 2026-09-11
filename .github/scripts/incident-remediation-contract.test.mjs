@@ -516,7 +516,11 @@ test("Codex prompt requires evidence, safe patch output and no production action
     prompt,
     /api-readiness[\s\S]*network_error[\s\S]*logging[\s\S]*metrics[\s\S]*Vitest[\s\S]*no_reproduction/i,
   );
-  assert.match(prompt, /env -u GITHUB_ACTIONS -u GITHUB_STEP_SUMMARY/);
+  assert.match(
+    prompt,
+    /env -u GITHUB_ACTIONS -u GITHUB_STEP_SUMMARY npm exec --prefix server vitest run/,
+  );
+  assert.doesNotMatch(prompt, /cd server && env -u GITHUB_ACTIONS/);
   assert.match(
     prompt,
     /không chạy[\s\S]*(?:integration|tích hợp)[\s\S]*(?:trusted gate|cổng kiểm tra tin cậy)/i,
