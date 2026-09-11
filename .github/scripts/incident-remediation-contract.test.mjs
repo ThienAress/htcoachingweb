@@ -358,7 +358,8 @@ test("workflow isolates agent validation and Draft PR publication", async () => 
   assert.doesNotMatch(workflow, /uses:\s*[^\s#]+@(?![a-f0-9]{40}\b)/);
   assert.match(workflow, /sandbox:\s*workspace-write/);
   assert.match(workflow, /safety-strategy:\s*drop-sudo/);
-  assert.match(workflow, /model:\s*gpt-5\.6-terra/);
+  assert.match(workflow, /model:\s*gpt-5\.6-luna/);
+  assert.match(workflow, /effort:\s*low/);
   assert.match(
     workflow,
     /npm ci --prefix server --ignore-scripts --no-audit --no-fund[\s\S]*openai\/codex-action@/,
