@@ -57,10 +57,19 @@ describe("GET /api/admin/skill-radar", () => {
       expect.objectContaining({
         id: expect.any(String),
         repoUrl: expect.stringMatching(/^https:\/\/github\.com\//),
-        skillsShUrl: expect.stringMatching(/^https:\/\/(www\.)?skills\.sh\//),
         localTargets: expect.any(Array),
       }),
     );
+    expect(response.body.data.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        sourceType: "skill",
+        skillsShUrl: expect.stringMatching(/^https:\/\/(www\.)?skills\.sh\//),
+      }),
+      expect.objectContaining({
+        sourceType: "repository",
+        skillsShUrl: null,
+      }),
+    ]));
     expect(response.body.data.items[0]).not.toHaveProperty("sourcePath");
     expect(JSON.stringify(response.body.data)).not.toMatch(/[A-Z]:\\/i);
   });
