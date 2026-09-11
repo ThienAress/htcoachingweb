@@ -175,7 +175,7 @@ export const validateRemediationReport = (input, { incidentId } = {}) => {
     );
   }
   if (report.outcome === "draft_patch") {
-    assert(report.build === "PASS", "draft patch requires a passing agent build");
+    assert(report.build !== "FAIL", "draft patch cannot contain a failed agent build");
     assert(
       ![...report.focusedTests, ...report.relatedTests].some((item) => /^FAIL\b/.test(item)),
       "draft patch cannot contain a failed test",

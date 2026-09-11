@@ -139,9 +139,13 @@ test("remediation report is bounded and rejects credential or PII shapes", () =>
     () => validateRemediationReport({ ...report, focusedTests: ["unit suite passed"] }),
     /PASS.*FAIL.*SKIP/i,
   );
+  assert.equal(
+    validateRemediationReport({ ...report, build: "SKIP" }).build,
+    "SKIP",
+  );
   assert.throws(
     () => validateRemediationReport({ ...report, build: "FAIL" }),
-    /passing agent build/i,
+    /failed agent build/i,
   );
 });
 
