@@ -1,4 +1,4 @@
-name: Supervised Incident Remediation
+name: Supervised Incident Remediation Drill
 
 on:
   workflow_dispatch:
@@ -53,7 +53,7 @@ jobs:
           fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: main
+          ref: codex/incident-drill-20260911-01
           fetch-depth: 0
           persist-credentials: false
       - name: Record exact investigation base
@@ -414,7 +414,7 @@ jobs:
           else
             pr_url="$(gh pr create \
               --draft \
-              --base main \
+              --base codex/incident-drill-20260911-01 \
               --head "$BRANCH" \
               --title "fix: supervised remediation for $INCIDENT_ID" \
               --body-file publish-incident/pull-request-body.md)"
