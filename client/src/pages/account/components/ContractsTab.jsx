@@ -7,12 +7,12 @@ import { useTranslation } from "react-i18next";
 function ContractsTab({ myContracts }) {
   const { t, i18n } = useTranslation("account");
   const statusMap = {
-    draft: { label: t("status.draft"), cls: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
-    sent: { label: t("status.sent"), cls: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
-    viewed: { label: t("status.viewed"), cls: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-    signed: { label: t("status.signed"), cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-    expired: { label: t("status.expired"), cls: "bg-gray-500/10 text-gray-400 border-gray-500/20" },
-    cancelled: { label: t("status.cancelled"), cls: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
+    draft: { label: t("contracts.draft"), cls: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
+    sent: { label: t("contracts.sent"), cls: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+    viewed: { label: t("contracts.viewed"), cls: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+    signed: { label: t("contracts.signed"), cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+    expired: { label: t("contracts.expired"), cls: "bg-gray-500/10 text-gray-400 border-gray-500/20" },
+    cancelled: { label: t("contracts.cancelled"), cls: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
   };
 
   const handleDownload = async (contract) => {

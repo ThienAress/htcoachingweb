@@ -1,0 +1,6 @@
+interface:
+  display_name: "Codex Session Governor"
+  short_description: "Đo phiên và đề xuất model có bằng chứng"
+  default_prompt: "Use $codex-session-governor to report session telemetry and recommend the next model or checkpoint without changing tasks automatically."
+policy:
+  allow_implicit_invocation: true

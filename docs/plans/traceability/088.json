@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "planId": "088",
+  "specPath": "docs/specs/codex-session-governor.md",
+  "planPath": "docs/plans/088-add-codex-session-governor.md",
+  "tasks": [
+    {"id":"TASK-001","title":"Measure bounded session telemetry","planStep":"Step 1"},
+    {"id":"TASK-002","title":"Route recommendations and footer policy","planStep":"Step 2"},
+    {"id":"TASK-003","title":"Validate sources and forward-test skill","planStep":"Step 3"}
+  ],
+  "requirements": [
+    {"id":"REQ-005","acceptanceCriteria":[
+      {"id":"AC-012","mustHave":true,"taskIds":["TASK-002","TASK-003"],"verifications":[{"type":"command","command":"node --test .agents/skills/codex-session-governor/scripts/worker-routing.test.mjs"}]},
+      {"id":"AC-013","mustHave":true,"taskIds":["TASK-002"],"verifications":[{"type":"command","command":"node --test .agents/skills/codex-session-governor/scripts/worker-routing.test.mjs"}]},
+      {"id":"AC-014","mustHave":true,"taskIds":["TASK-003"],"verifications":[{"type":"command","command":"npm run agents:validate"}]}
+    ]},
+    {"id":"REQ-001","acceptanceCriteria":[
+      {"id":"AC-001","mustHave":true,"taskIds":["TASK-001"],"verifications":[{"type":"command","command":"node --test .agents/skills/codex-session-governor/scripts/session-governor.test.mjs"}]},
+      {"id":"AC-002","mustHave":true,"taskIds":["TASK-001"],"verifications":[{"type":"command","command":"node --test .agents/skills/codex-session-governor/scripts/session-governor.test.mjs"}]},
+      {"id":"AC-003","mustHave":true,"taskIds":["TASK-001"],"verifications":[{"type":"command","command":"node --test .agents/skills/codex-session-governor/scripts/session-governor.test.mjs"}]}
+    ]},
+    {"id":"REQ-002","acceptanceCriteria":[
+      {"id":"AC-004","mustHave":true,"taskIds":["TASK-002"],"verifications":[{"type":"command","command":"node .agents/skills/codex-session-governor/scripts/session-governor.mjs --footer"}]},
+      {"id":"AC-005","mustHave":true,"taskIds":["TASK-001","TASK-002"],"verifications":[{"type":"command","command":"node --test .agents/skills/codex-session-governor/scripts/session-governor.test.mjs"}]},
+      {"id":"AC-006","mustHave":true,"taskIds":["TASK-001"],"verifications":[{"type":"command","command":"node --test .agents/skills/codex-session-governor/scripts/session-governor.test.mjs"}]}
+    ]},
+    {"id":"REQ-003","acceptanceCriteria":[
+      {"id":"AC-007","mustHave":true,"taskIds":["TASK-002"],"verifications":[{"type":"command","command":"node --test .agents/skills/codex-session-governor/scripts/session-governor.test.mjs"}]},
+      {"id":"AC-008","mustHave":true,"taskIds":["TASK-002"],"verifications":[{"type":"command","command":"node --test .agents/skills/codex-session-governor/scripts/session-governor.test.mjs"}]},
+      {"id":"AC-009","mustHave":true,"taskIds":["TASK-002"],"verifications":[{"type":"command","command":"node --test .agents/skills/codex-session-governor/scripts/session-governor.test.mjs"}]}
+    ]},
+    {"id":"REQ-004","acceptanceCriteria":[
+      {"id":"AC-010","mustHave":true,"taskIds":["TASK-003"],"verifications":[{"type":"command","command":"npm run agents:validate"}]},
+      {"id":"AC-011","mustHave":true,"taskIds":["TASK-003"],"verifications":[{"type":"command","command":"npm run security:docs-privacy"}]}
+    ]}
+  ]
+}

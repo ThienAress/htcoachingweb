@@ -47,6 +47,22 @@ const assertCommandInput = ({ expectedRevision, requestId }) => {
   }
 };
 
+const resolveJournalCommandAccess = async ({ actor, action, session = null }) => {
+  const assignment = await resolveJournalWriteAccess({
+    clientId: actor.id,
+    clientRole: actor.role,
+    session,
+  });
+  if (assignment.mode === "self_managed" && action !== "update") {
+    throw journalError(
+      403,
+      "HT Fitness+ tự quản lý chỉ lưu dữ liệu cá nhân, không gửi báo cáo cho HLV",
+      "SELF_MANAGED_JOURNAL_ACTION_FORBIDDEN",
+    );
+  }
+  return assignment;
+};
+
 const applyCommand = async ({
   actor,
   dateKey,
@@ -81,6 +97,7 @@ const applyCommand = async ({
     patchFields,
     reason: normalizedReason,
   });
+  await resolveJournalCommandAccess({ actor, action });
   const prior = await findJournalReplay({
     actorId: actor.id,
     requestId,
@@ -106,14 +123,15 @@ const applyCommand = async ({
         payloadFingerprint,
         session,
       });
+      const assignment = await resolveJournalCommandAccess({
+        actor,
+        action,
+        session,
+      });
       if (replay) {
         result = replay;
         return;
       }
-      const assignment = await resolveJournalWriteAccess({
-        clientId: actor.id,
-        session,
-      });
       const journal = await DailyJournal.findOne({
         clientId: actor.id,
         dateKey,
@@ -152,9 +170,12 @@ const applyCommand = async ({
       const nutritionOnlyPatch =
         Object.keys(patchFields).length > 0 &&
         Object.keys(patchFields).every((path) => path.startsWith("nutrition."));
+      const convertsToSelfManaged =
+        assignment.mode === "self_managed" && action === "update";
       if (
         journal?.nutrition?.submittedAt &&
-        (nutritionPatch || action === "nutrition_submit")
+        (nutritionPatch || action === "nutrition_submit") &&
+        !convertsToSelfManaged
       ) {
         throw journalError(
           409,
@@ -165,7 +186,8 @@ const applyCommand = async ({
       if (
         journal?.status === "submitted" &&
         action === "update" &&
-        !nutritionOnlyPatch
+        !nutritionOnlyPatch &&
+        !convertsToSelfManaged
       ) {
         throw journalError(
           409,
@@ -207,6 +229,17 @@ const applyCommand = async ({
           ? buildNutritionSubmissionFields({ journal, now })
           : {
               ...patchFields,
+              ...(convertsToSelfManaged ? { "notes.shared": "" } : {}),
+              ...(convertsToSelfManaged && journal?.status === "submitted"
+                ? {
+                    status: "draft",
+                    submittedAt: null,
+                    correctionCount: 0,
+                  }
+                : {}),
+              ...(convertsToSelfManaged && journal?.nutrition?.submittedAt
+                ? { "nutrition.submittedAt": null }
+                : {}),
               ...(action === "submit"
                 ? { status: "submitted", submittedAt: now }
                 : {}),
@@ -294,9 +327,10 @@ const applyCommand = async ({
         session,
       });
       if (
-        action === "submit" ||
-        action === "correction" ||
-        action === "nutrition_submit"
+        assignment.mode === "coaching" &&
+        (action === "submit" ||
+          action === "correction" ||
+          action === "nutrition_submit")
       ) {
         await createInAppNotification({
           recipientId: assignment.trainerId,
@@ -329,6 +363,7 @@ const applyCommand = async ({
     });
   } catch (error) {
     if (error?.code === 11000) {
+      await resolveJournalCommandAccess({ actor, action });
       const replay = await findJournalReplay({
         actorId: actor.id,
         requestId,

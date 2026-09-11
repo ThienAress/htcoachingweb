@@ -44,7 +44,12 @@ const useChartWidth = () => {
   return { containerRef, width };
 };
 
-export const WellnessMetricChart = ({ config, range, wellness }) => {
+export const WellnessMetricChart = ({
+  config,
+  range,
+  selfManaged = false,
+  wellness,
+}) => {
   const { containerRef, width } = useChartWidth();
   const [activeDateKey, setActiveDateKey] = useState(null);
   const titleId = useId();
@@ -99,8 +104,12 @@ export const WellnessMetricChart = ({ config, range, wellness }) => {
           <title id={titleId}>{`Biểu đồ ${axisLabel.toLowerCase()}`}</title>
           <desc id={descriptionId}>
             {config.kind === "qualitative"
-              ? "Mỗi điểm là trạng thái được chọn trong một nhật ký đã gửi."
-              : "Mỗi điểm là một nhật ký đã gửi và đường nét đứt là mức trung bình."}
+              ? selfManaged
+                ? "Mỗi điểm là trạng thái được chọn trong một nhật ký đã lưu."
+                : "Mỗi điểm là trạng thái được chọn trong một nhật ký đã gửi."
+              : selfManaged
+                ? "Mỗi điểm là một nhật ký đã lưu và đường nét đứt là mức trung bình."
+                : "Mỗi điểm là một nhật ký đã gửi và đường nét đứt là mức trung bình."}
           </desc>
           <rect
             x={dimensions.padding.left}

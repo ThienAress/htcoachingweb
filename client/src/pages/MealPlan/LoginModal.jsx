@@ -1,7 +1,7 @@
 import React from "react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import logo from "../../assets/images/logo/logo.svg";
+import BrandLogo from "../../components/BrandLogo";
 import { getServerBaseUrl } from "../../utils/mediaUrl";
 
 const LoginModal = ({ isOpen, onClose }) => {
@@ -40,7 +40,7 @@ const LoginModal = ({ isOpen, onClose }) => {
         </button>
 
         {/* Logo */}
-        <img src={logo} alt="HT Coaching" className="h-14 mx-auto mb-5" />
+        <BrandLogo variant="mark" surface="dark" className="h-20 w-20 mx-auto mb-5" />
 
         {/* Tiêu đề */}
         <h2 className="text-3xl font-black mb-2 tracking-wider uppercase">

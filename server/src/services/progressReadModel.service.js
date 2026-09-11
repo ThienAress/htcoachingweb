@@ -4,6 +4,7 @@ import {
   getVietnamDateKey,
   parseDateKey,
 } from "../utils/dateKey.js";
+import { deriveWeeklyWaistHipRatio } from "./weeklyCheckinDto.service.js";
 
 const ALLOWED_DAYS = new Set([7, 30, 90, 180]);
 const NUMERIC_WELLNESS_FIELDS = ["sleepHours", "waterMl", "steps"];
@@ -251,7 +252,7 @@ const bodyMetric = ({ weeklyCheckins, range, field, unit }) => {
   const series = weeklyCheckins
     .filter(
       (item) =>
-        ["submitted", "reviewed"].includes(item.status) &&
+        ["submitted", "reviewed", "self_saved"].includes(item.status) &&
         typeof item[field] === "number" &&
         Number.isFinite(item[field]) &&
         item[field] > 0 &&
@@ -274,7 +275,7 @@ const bodyMetric = ({ weeklyCheckins, range, field, unit }) => {
     delta:
       series.length < 2
         ? null
-        : Number((series.at(-1).value - series[0].value).toFixed(2)),
+        : Number((series.at(-1).value - series[0].value).toFixed(field === "waistHipRatio" ? 3 : 2)),
     series,
   };
 };
@@ -302,6 +303,12 @@ const bodyProgress = ({ weeklyCheckins, range }) => ({
     range,
     field: "bodyFatPercent",
     unit: "%",
+  }),
+  hipCm: bodyMetric({ weeklyCheckins, range, field: "hipCm", unit: "cm" }),
+  abdomenCm: bodyMetric({ weeklyCheckins, range, field: "abdomenCm", unit: "cm" }),
+  waistHipRatio: bodyMetric({
+    weeklyCheckins: weeklyCheckins.map((item) => ({ ...item, waistHipRatio: deriveWeeklyWaistHipRatio(item) })),
+    range, field: "waistHipRatio", unit: "",
   }),
   skeletalMusclePercent: bodyMetric({
     weeklyCheckins,

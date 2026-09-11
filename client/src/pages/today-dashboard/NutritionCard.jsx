@@ -29,6 +29,7 @@ export const NutritionCard = ({
   journal,
   canEdit,
   onChanged,
+  selfManaged = false,
 }) => {
   const queryClient = useQueryClient();
   const [selectedPlanId, setSelectedPlanId] = useState("");
@@ -90,8 +91,9 @@ export const NutritionCard = ({
     },
   });
 
+  const nutritionLocked = !selfManaged && nutritionSubmitted;
   const mutationDisabled =
-    !canEdit || nutritionSubmitted || command.isPending;
+    !canEdit || nutritionLocked || command.isPending;
   const persistNutrition = (nutrition) => {
     setNotice("");
     setLocalError("");
@@ -275,7 +277,7 @@ export const NutritionCard = ({
         onAdd={addQuickEntry}
       />
 
-      <div className="mt-5 border-t border-slate-800 pt-5">
+      {!selfManaged && <div className="mt-5 border-t border-slate-800 pt-5">
         {nutritionSubmitted ? (
           <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
             <p className="text-sm font-bold text-emerald-200">
@@ -302,9 +304,9 @@ export const NutritionCard = ({
             Hãy xác nhận ít nhất một bữa đã ăn trước khi gửi.
           </p>
         )}
-      </div>
+      </div>}
 
-      {confirmSubmit && !nutritionSubmitted && (
+      {!selfManaged && confirmSubmit && !nutritionSubmitted && (
         <div
           role="dialog"
           aria-modal="true"
@@ -364,7 +366,7 @@ export const NutritionCard = ({
       </div>
       {!canEdit && (
         <p className="mt-4 text-sm text-slate-500">
-          Ngày này chỉ có thể xem hoặc gói huấn luyện hiện không hoạt động.
+          Ngày này chỉ có thể xem hoặc gói coaching/HT Fitness+ hiện không hoạt động.
         </p>
       )}
     </section>

@@ -18,6 +18,7 @@ import {
 } from "../../__tests__/setup.js";
 import { errorHandler } from "../../middlewares/errorHandler.js";
 import Order from "../../models/Order.js";
+import FitnessSubscription from "../../models/FitnessSubscription.js";
 import WeeklyCheckin from "../../models/WeeklyCheckin.js";
 import WeeklyCheckinRevision from "../../models/WeeklyCheckinRevision.js";
 import weeklyCheckinRoutes from "../../routes/weeklyCheckin.routes.js";
@@ -120,6 +121,60 @@ afterEach(async () => {
 afterAll(teardownTestDB);
 
 describe("Weekly Check-in lifecycle", () => {
+  it("round-trips optional circumferences and exports a same-record ratio without persisting it", async () => {
+    const { client } = await createAssigned("circumferences");
+    const saved = await saveCheckin(client.accessToken, currentWeek, 0, IDS.save,
+      bodyPatch({ waistCm: 80, hipCm: 100, abdomenCm: 88 }));
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200);
+    const read = await withAuth(request(app).get(`/api/weekly-checkins/${currentWeek}`), client.accessToken);
+    const exported = await withAuth(request(app).get("/api/weekly-checkins/privacy/export"), client.accessToken);
+    expect([read.body.data.body, exported.body.data.checkins[0].body]).toEqual([
+      expect.objectContaining({ waistCm: 80, hipCm: 100, abdomenCm: 88, waistHipRatio: 0.8 }),
+      expect.objectContaining({ waistCm: 80, hipCm: 100, abdomenCm: 88, waistHipRatio: 0.8 }),
+    ]);
+    const stored = await WeeklyCheckin.findOne({ clientId: client.user._id }).lean();
+    expect(stored.body).not.toHaveProperty("waistHipRatio");
+  });
+
+  it.each([{ hipCm: 29 }, { abdomenCm: 301 }, { hipCm: "100" }, { waistHipRatio: 0.8 }])(
+    "rejects invalid or derived circumference patch %j", async (fields) => {
+      const { client } = await createAssigned("invalid-circumference");
+      const response = await saveCheckin(client.accessToken, currentWeek, 0, IDS.save, { body: fields });
+      expect(response.status).toBe(400);
+      expect(await WeeklyCheckin.countDocuments()).toBe(0);
+    },
+  );
+
+  it("reads legacy missing circumferences as null without borrowing an earlier hip measurement", async () => {
+    const { client } = await createAssigned("legacy-circumferences");
+    await WeeklyCheckin.collection.insertMany([
+      { clientId: client.user._id, weekStartDateKey: currentWeek, body: { waistCm: 80 }, status: "draft", revision: 0 },
+      { clientId: client.user._id, weekStartDateKey: historicalPeriodStart, body: { hipCm: 100 }, status: "submitted", revision: 1 },
+    ]);
+    const response = await withAuth(request(app).get(`/api/weekly-checkins/${currentWeek}`), client.accessToken);
+    expect(response.body.data.body).toMatchObject({ waistCm: 80, hipCm: null, abdomenCm: null, waistHipRatio: null });
+    const raw = await WeeklyCheckin.collection.findOne({ clientId: client.user._id, weekStartDateKey: currentWeek });
+    expect(raw.body).toEqual({ waistCm: 80 });
+  });
+
+  it("corrects and clears circumferences with revision history and null derived ratio", async () => {
+    const { client, trainer } = await createAssigned("correct-circumferences");
+    await saveCheckin(client.accessToken, currentWeek, 0, IDS.save,
+      bodyPatch({ waistCm: 80, hipCm: 100, abdomenCm: 88 }));
+    await withAuth(request(app).post(`/api/weekly-checkins/${currentWeek}/submit`)
+      .send({ expectedRevision: 1, requestId: IDS.submit }), client.accessToken);
+    const corrected = await withAuth(request(app).post(`/api/weekly-checkins/${currentWeek}/corrections`)
+      .send({ expectedRevision: 2, requestId: IDS.correction, reason: "Sửa số đo đã nhập nhầm", patch: { body: { hipCm: null, abdomenCm: 87.5 } } }), client.accessToken);
+    expect(corrected.body.data.body).toMatchObject({ hipCm: null, abdomenCm: 87.5, waistHipRatio: null });
+    const trainerRead = await withAuth(request(app).get(`/api/weekly-checkins/trainer/clients/${client.user._id}/${currentWeek}`), trainer.accessToken);
+    expect(trainerRead.body.data.body).toMatchObject({ hipCm: null, abdomenCm: 87.5, waistHipRatio: null });
+    const exported = await withAuth(request(app).get("/api/weekly-checkins/privacy/export"), client.accessToken);
+    expect(exported.body.data.revisions.find(({ action }) => action === "correction").changes).toEqual(expect.arrayContaining([
+      { path: "body.hipCm", before: 100, after: null },
+      { path: "body.abdomenCm", before: 88, after: 87.5 },
+    ]));
+  });
+
   it("saves one canonical Monday check-in idempotently and rejects stale writes", async () => {
     const { client } = await createAssigned("save");
     const created = await saveCheckin(
@@ -190,6 +245,159 @@ describe("Weekly Check-in lifecycle", () => {
     expect(future.status).toBe(422);
     expect(historical.status).toBe(200);
     expect(tooOld.status).toBe(422);
+  });
+
+  it("lets HT Fitness+ users self-save measurements but not submit to a trainer", async () => {
+    const client = await createTestUser({
+      email: "weekly-fitness-self-managed@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_smart",
+      planTitle: "Tăng tốc",
+      billingCycle: "month",
+      amount: 199000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+    const saved = await saveCheckin(
+      client.accessToken,
+      currentWeek,
+      0,
+      "9ccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    );
+    const submitted = await withAuth(
+      request(app)
+        .post(`/api/weekly-checkins/${currentWeek}/submit`)
+        .send({
+          expectedRevision: 1,
+          requestId: "9ddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        }),
+      client.accessToken,
+    );
+    const checkin = await WeeklyCheckin.findOne({ clientId: client.user._id });
+
+    expect(saved.status).toBe(200);
+    expect(checkin.trainerIdAtCreation).toBeNull();
+    expect(submitted.status).toBe(403);
+    expect(submitted.body.code).toBe("SELF_MANAGED_WEEKLY_ACTION_FORBIDDEN");
+  });
+
+  it("rejects an idempotent replay after the Fitness+ entitlement expires", async () => {
+    const client = await createTestUser({
+      email: "weekly-fitness-expired-replay@example.com",
+    });
+    const subscription = await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_smart",
+      planTitle: "Tăng tốc",
+      billingCycle: "month",
+      amount: 199000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+    const requestId = "9eeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+
+    const saved = await saveCheckin(
+      client.accessToken,
+      currentWeek,
+      0,
+      requestId,
+    );
+    await FitnessSubscription.updateOne(
+      { _id: subscription._id },
+      { $set: { status: "expired" } },
+    );
+    const replay = await saveCheckin(
+      client.accessToken,
+      currentWeek,
+      0,
+      requestId,
+    );
+
+    expect(saved.status).toBe(200);
+    expect(replay.status).toBe(403);
+    expect(replay.body.code).toBe("WEEKLY_CHECKIN_ENTITLEMENT_REQUIRED");
+    expect(await WeeklyCheckinRevision.countDocuments()).toBe(1);
+  });
+
+  it("does not treat a trainer with Fitness+ as a self-managed customer", async () => {
+    const trainer = await createTestUser({
+      email: "weekly-trainer-fitness-role@example.com",
+      role: "trainer",
+    });
+    await FitnessSubscription.create({
+      userId: trainer.user._id,
+      planCode: "fitness_plus_smart",
+      planTitle: "Tăng tốc",
+      billingCycle: "month",
+      amount: 199000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+
+    const response = await saveCheckin(
+      trainer.accessToken,
+      currentWeek,
+      0,
+      "9fffffff-ffff-4fff-8fff-ffffffffffff",
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("CLIENT_ONLY");
+  });
+
+  it("converts a prior reviewed check-in to a self-managed draft on save", async () => {
+    const client = await createTestUser({
+      email: "weekly-fitness-transition@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_smart",
+      planTitle: "Tăng tốc",
+      billingCycle: "month",
+      amount: 199000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+    await WeeklyCheckin.create({
+      clientId: client.user._id,
+      trainerIdAtCreation: client.user._id,
+      weekStartDateKey: currentWeek,
+      status: "reviewed",
+      submittedAt: new Date(),
+      trainerReview: {
+        trainerId: client.user._id,
+        message: "Nhận xét cũ",
+        reviewedAt: new Date(),
+      },
+      correctionCount: 1,
+      body: { weightKg: 72 },
+      revision: 3,
+    });
+
+    const response = await saveCheckin(
+      client.accessToken,
+      currentWeek,
+      3,
+      "9eeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+      bodyPatch({ weightKg: 70 }),
+    );
+    const checkin = await WeeklyCheckin.findOne({ clientId: client.user._id });
+
+    expect(response.status).toBe(200);
+    expect(checkin).toMatchObject({
+      status: "draft",
+      submittedAt: null,
+      trainerReview: null,
+      correctionCount: 0,
+      revision: 4,
+      body: { weightKg: 70 },
+    });
   });
 
   it("allows one historical submission and rejects every later correction", async () => {
@@ -493,7 +701,7 @@ describe("Weekly Check-in lifecycle", () => {
     expect(ownershipViolation.status).toBe(400);
   });
 
-  it("allows inactive clients to read own history but removes trainer access", async () => {
+  it("blocks inactive clients and removes trainer access", async () => {
     const assigned = await createAssigned("inactive");
     await saveCheckin(assigned.client.accessToken, currentWeek, 0, IDS.save);
     await Order.updateMany(
@@ -511,7 +719,7 @@ describe("Weekly Check-in lifecycle", () => {
       assigned.trainer.accessToken,
     );
 
-    expect(own.status).toBe(200);
+    expect(own.status).toBe(403);
     expect(trainer.status).toBe(403);
   });
 });

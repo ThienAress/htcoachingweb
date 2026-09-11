@@ -13,6 +13,8 @@ test("staging live acceptance is explicitly write-enabled only behind staging lo
   assert.match(workflow, /APP_ENV: staging/);
   assert.match(workflow, /CONFIRM_STAGING_ACCEPTANCE: "yes"/);
   assert.match(workflow, /STAGING_ACCEPTANCE_OUTPUT:/);
+  assert.match(workflow, /getWorkflow\(/);
+  assert.match(workflow, /\.github\/workflows\/ci\.yml/);
   assert.match(safety, /const STAGING_DATABASE = "htcoaching_staging"/);
   assert.match(safety, /STAGING_OPERATION_DATABASE_REQUIRED/);
 });
@@ -34,6 +36,7 @@ test("production promotion and observation workflows never run write acceptance"
   assert.match(source, /environment: production-approval/);
   assert.match(source, /environment: production-observation/);
   assert.match(source, /--mode=candidate/);
+  assert.match(source, /--expected-sha=/);
   assert.match(source, /--mode=post-deploy/);
 });
 

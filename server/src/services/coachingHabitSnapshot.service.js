@@ -55,7 +55,10 @@ const normalizeSchedule = (schedule, createdByRole) => {
   };
 };
 
-export const normalizeHabitInput = (input, { createdByRole }) => {
+export const normalizeHabitInput = (
+  input,
+  { createdByRole, forcePrivate = false },
+) => {
   assertHabitRequestId(input?.requestId);
   const allowed = new Set([
     "requestId",
@@ -114,7 +117,11 @@ export const normalizeHabitInput = (input, { createdByRole }) => {
     throw habitError(400, "target không hợp lệ", "INVALID_HABIT");
   }
   const visibility =
-    createdByRole === "trainer" ? "shared" : input.visibility || "private";
+    createdByRole === "trainer"
+      ? "shared"
+      : forcePrivate
+        ? "private"
+        : input.visibility || "private";
   if (!new Set(["private", "shared"]).has(visibility)) {
     throw habitError(400, "visibility không hợp lệ", "INVALID_HABIT");
   }

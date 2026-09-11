@@ -239,11 +239,16 @@ export const loadTodaySources = ({
   orderIds,
   range,
   actorScope = "client",
+  includeCoachingSources = true,
 }) => ({
-  schedule: loadSchedule({ userId, dateKey, range }),
-  coaching: loadCoaching({ userId, dateKey }),
-  workout: loadWorkout({ userId, email, range }),
-  attendance: loadAttendance({ orderIds, range }),
+  ...(includeCoachingSources
+    ? {
+        schedule: loadSchedule({ userId, dateKey, range }),
+        coaching: loadCoaching({ userId, dateKey }),
+        workout: loadWorkout({ userId, email, range }),
+        attendance: loadAttendance({ orderIds, range }),
+      }
+    : {}),
   journal: loadJournal({ userId, dateKey, actorScope }),
 });
 

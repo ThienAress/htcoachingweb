@@ -66,7 +66,7 @@ export const habitScheduleLabel = (schedule = {}) => {
 export const habitFormToPayload = (
   values,
   dateKey,
-  { trainer = false, habit = null } = {},
+  { trainer = false, habit = null, selfManaged = false } = {},
 ) => ({
   title: values.title.trim(),
   description: values.description.trim(),
@@ -87,5 +87,6 @@ export const habitFormToPayload = (
         startDateKey: habit?.schedule?.startDateKey || dateKey,
         endDateKey: habit?.schedule?.endDateKey || null,
       },
-  visibility: trainer || values.shared ? "shared" : "private",
+  visibility:
+    trainer || (!selfManaged && values.shared) ? "shared" : "private",
 });

@@ -7,8 +7,10 @@ import CoachingComment from "../models/CoachingComment.js";
 import { isTodayPlatformEnabled } from "../config/todayPlatform.js";
 import InAppNotification from "../models/InAppNotification.js";
 import WellnessTarget from "../models/WellnessTarget.js";
+import BodyAssessment from "../models/BodyAssessment.js";
 
 const RETAINED_MODELS = [
+  { model: BodyAssessment, ownerField: "clientId" },
   { model: DailyJournal, ownerField: "clientId" },
   { model: SavedMealPlan, ownerField: "ownerId" },
   { model: CoachingHabit, ownerField: "clientId" },

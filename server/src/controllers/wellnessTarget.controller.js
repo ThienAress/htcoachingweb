@@ -12,6 +12,7 @@ import { safeLog } from "../utils/safeLogger.js";
 const actor = (req) => ({
   id: req.user.id,
   role: req.user.role,
+  canActAsTrainer: Boolean(req.isTrainer),
   isAdmin: Boolean(req.isAdmin || req.user.role === "admin"),
 });
 const privateResponse = (res) =>

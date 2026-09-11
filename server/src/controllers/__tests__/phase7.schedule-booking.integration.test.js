@@ -108,6 +108,69 @@ afterAll(async () => {
 });
 
 describe("Phase 7 training occurrence integrity", () => {
+  it("scopes legacy unassigned clients to the configured lead admin", async () => {
+    const lead = await createTestUser({
+      email: "phase7-default-lead@example.com",
+      role: "admin",
+    });
+    const otherAdmin = await createTestUser({
+      email: "phase7-other-admin@example.com",
+      role: "admin",
+    });
+    const client = await createTestUser({
+      email: "phase7-default-lead-client@example.com",
+    });
+    process.env.DEFAULT_ADMIN_TRAINER_ID = String(lead.user._id);
+    await createApprovedOrder(client.user._id, null);
+
+    const [leadClients, otherAdminClients] = await Promise.all([
+      withAuth(
+        request(app).get("/api/training-schedules/my-clients"),
+        lead.accessToken,
+      ),
+      withAuth(
+        request(app).get("/api/training-schedules/my-clients"),
+        otherAdmin.accessToken,
+      ),
+    ]);
+
+    expect(leadClients.status).toBe(200);
+    expect(leadClients.body.data).toContainEqual(
+      expect.objectContaining({ _id: String(client.user._id) }),
+    );
+    expect(otherAdminClients.status).toBe(200);
+    expect(otherAdminClients.body.data).not.toContainEqual(
+      expect.objectContaining({ _id: String(client.user._id) }),
+    );
+
+    const created = await postAs("/api/training-schedules", lead.accessToken, {
+      clientId: client.user._id,
+      occurrenceDateKey: futureDateKey(1),
+      dayOfWeek: getAppDayOfWeek(futureDateKey(1)),
+      startTime: "09:00",
+      endTime: "10:00",
+      exerciseType: "Gym",
+      notes: "",
+      color: "#3b82f6",
+      requestId: "70000000-0000-4000-8000-000000000001",
+    });
+    expect(created.status).toBe(201);
+
+    const forbidden = await postAs("/api/training-schedules", otherAdmin.accessToken, {
+      clientId: client.user._id,
+      occurrenceDateKey: futureDateKey(2),
+      dayOfWeek: getAppDayOfWeek(futureDateKey(2)),
+      startTime: "09:00",
+      endTime: "10:00",
+      exerciseType: "Gym",
+      notes: "",
+      color: "#3b82f6",
+      requestId: "70000000-0000-4000-8000-000000000002",
+    });
+    expect(forbidden.status).toBe(403);
+    expect(forbidden.body.code).toBe("TRAINER_CLIENT_FORBIDDEN");
+  });
+
   it("allows exactly one of two concurrent claims for the same trainer slots", async () => {
     const trainer = await createTestUser({
       email: "phase7-trainer@example.com",

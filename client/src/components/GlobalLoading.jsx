@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import SplitType from "split-type";
-import logoSrc from "../assets/images/logo/logo.svg";
+import BrandLogo from "./BrandLogo";
 
 /**
  * GlobalLoading — 2 chế độ:
@@ -172,12 +172,13 @@ const GlobalLoading = ({ onComplete }) => {
   if (!isIntroMode) {
     return (
       <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
-        <div ref={contentRef} className="flex flex-col items-center gap-3" style={{ visibility: "hidden" }}>
-          <img
+        <div ref={contentRef} className="flex flex-col items-center gap-3">
+          <BrandLogo
             ref={logoRef}
-            src={logoSrc}
-            alt="HTCOACHING"
-            className="h-8 md:h-10"
+            variant="mark"
+            surface="dark"
+            decorative
+            className="h-16 w-16 md:h-20 md:w-20"
           />
           <h1
             ref={textRef}
@@ -232,15 +233,15 @@ const GlobalLoading = ({ onComplete }) => {
       <div
         ref={contentRef}
         className="absolute inset-0 flex items-center justify-center z-10"
-        style={{ visibility: "hidden" }}
       >
         <div className="flex flex-col items-center gap-3">
           {/* Logo phía trên */}
-          <img
+          <BrandLogo
             ref={logoRef}
-            src={logoSrc}
-            alt="HTCOACHING"
-            className="h-8 md:h-10"
+            variant="mark"
+            surface="dark"
+            decorative
+            className="h-16 w-16 md:h-20 md:w-20"
           />
 
           {/* Brand text — cam, nghiêng */}

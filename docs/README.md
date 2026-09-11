@@ -19,6 +19,10 @@ nguồn canonical trước khi thay đổi code.
 ## Điểm vào chính
 
 - [Implementation plans](./plans/README.md)
+- [HLV chính mặc định và effective coach](./specs/default-lead-coach.md)
+- [Rollout HLV chính mặc định](./operations/runbooks/default-lead-coach.md)
+- [Bàn giao resolver HLV chính — Plan089](./reports/089-effective-coach-delivery.md)
+- [Session Governor và model recommendations](./specs/codex-session-governor.md)
 - [Today Dashboard spec](./specs/today-dashboard.md)
 - [Wellness targets spec](./specs/wellness-targets.md)
 - [Trainer client workspace spec](./specs/trainer-client-workspace.md)
@@ -55,6 +59,10 @@ nguồn canonical trước khi thay đổi code.
 - [Chuẩn hóa pattern kỹ thuật upstream đã xác minh](./specs/upstream-engineering-pattern-adoption.md)
 - [Catalog tính năng, phản hồi thao tác và nhóm Mục tiêu sức khỏe](./specs/customer-feature-catalog-submit-feedback-and-health-goals.md)
 - [Email buổi sáng nhắc cập nhật Mục tiêu sức khỏe](./specs/morning-health-email-reminder.md)
+- [Email thông báo khách hàng và Dashboard tự quản lý](./specs/customer-notifications-and-fitness-dashboard.md)
+- [Nhận diện HTCOACHING và kết quả đo thành phần cơ thể](./specs/brand-system-and-body-assessments.md)
+- [Bàn giao Plan 087: nhận diện và kết quả đo](./reports/087-brand-body-assessment-delivery.md)
+- [Rollout index kết quả đo thành phần cơ thể](./operations/runbooks/body-assessment-indexes.md)
 - [Service access and quota matrix 2026-08-07](./reports/service-access-matrix-2026-08-07.md)
 - [SEO indexing remediation evidence 2026-08-10](./reports/seo-indexing-remediation-2026-08-10.md)
 - [Architecture Decision Records](./architecture/adr/README.md)

@@ -240,7 +240,12 @@ const handleApi = (req, res, path) => {
       actor?.role === "user" &&
       req.headers["x-e2e-trainer-access"] !== "true";
     return actor
-      ? sendJson(res, { success: true, data: { eligible } })
+      ? sendJson(res, { success: true, data: {
+          eligible,
+          accessMode: eligible ? "coaching" : "blocked",
+          hasActiveCustomerPlan: actor.role === "user",
+          hasCoaching: actor.role === "user",
+        } })
       : sendJson(
           res,
           { success: false, message: "Bạn chưa đăng nhập" },
@@ -925,6 +930,15 @@ const handleApi = (req, res, path) => {
         },
       ],
     });
+  }
+  if (path.startsWith("/api/trainer-client-overview/") && req.method === "GET") {
+    return sendJson(res, { success: true, data: {
+      attention: { items: [] }, today: {}, weeklyCheckin: null,
+      progress: {
+        range: { startDateKey: addDays(todayKey, -29), endDateKey: todayKey, days: 30 },
+        compliance: {}, wellness: {}, bodyProgress: {},
+      },
+    } });
   }
   if (path.startsWith("/api/coaching/trainer/clients/")) {
     return sendJson(res, { success: true, data: [] });

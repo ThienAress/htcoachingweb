@@ -8,8 +8,9 @@ export const ComplianceProgressReport = ({
   headingRef,
   onBack,
   rangeControls,
+  selfManaged = false,
 }) => {
-  const rows = progressMetricRows(compliance);
+  const rows = progressMetricRows(compliance, { selfManaged });
 
   return (
     <section
@@ -20,7 +21,11 @@ export const ComplianceProgressReport = ({
       <ProgressSectionHeader
         title="Mức độ thực hiện"
         titleId="compliance-progress-title"
-        description="So sánh mức hoàn thành những nội dung thực sự được áp dụng trong khoảng đang xem."
+        description={
+          selfManaged
+            ? "Theo dõi mức độ thực hiện từ bữa ăn và thói quen bạn tự ghi nhận."
+            : "So sánh mức hoàn thành những nội dung thực sự được áp dụng trong khoảng đang xem."
+        }
         headingRef={headingRef}
         onBack={onBack}
         rangeControls={rangeControls}
@@ -94,8 +99,9 @@ export const ComplianceProgressReport = ({
           })}
         </div>
         <figcaption className="mt-4 text-xs leading-5 text-slate-500">
-          Phần trăm chỉ tính những lịch, kế hoạch hoặc thói quen thực sự áp dụng;
-          mục chưa áp dụng không bị tính thành 0%.
+          {selfManaged
+            ? "Phần trăm chỉ tính những bữa ăn hoặc thói quen có dữ liệu tự ghi nhận; mục chưa áp dụng không bị tính thành 0%."
+            : "Phần trăm chỉ tính những lịch, kế hoạch hoặc thói quen thực sự áp dụng; mục chưa áp dụng không bị tính thành 0%."}
         </figcaption>
       </figure>
     </section>

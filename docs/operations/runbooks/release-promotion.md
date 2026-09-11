@@ -58,7 +58,8 @@ ID và exact SHA. Environment `production-approval` phải có reviewer. Gate t�
 ```powershell
 node scripts/release-gate.mjs --mode=candidate `
   --manifest=artifacts/release-candidate.json `
-  --backup-manifest=docs/operations/production/backup-readiness.json
+  --backup-manifest=docs/operations/production/backup-readiness.json `
+  --expected-sha=<EXACT_40_CHARACTER_CANDIDATE_SHA>
 ```
 
 Gate fail nếu backup hiện tại stale/khác ID, off-device recovery chưa ready,

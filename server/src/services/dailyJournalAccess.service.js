@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
-import Order from "../models/Order.js";
 import {
   addDaysToDateKey,
   getVietnamDateKey,
   parseDateKey,
 } from "../utils/dateKey.js";
 import { resolveClientTrainer } from "./trainingScheduleCommand.service.js";
+import { resolveCustomerDashboardAccess } from "./customerDashboardAccess.service.js";
+import { assertEffectiveCoachAccess } from "./effectiveCoach.service.js";
 
 export const journalError = (statusCode, message, codeName) => {
   const error = new Error(message);
@@ -49,14 +50,35 @@ export const assertJournalEditWindow = (
 
 export const resolveJournalWriteAccess = async ({
   clientId,
+  clientRole = "user",
   session = null,
 }) => {
+  const access = await resolveCustomerDashboardAccess({
+    id: clientId,
+    role: clientRole,
+  }, { session });
+  if (access.accessMode === "self_managed") {
+    return {
+      mode: "self_managed",
+      trainerId: null,
+      orderId: null,
+      clientName: "",
+    };
+  }
+  if (access.accessMode === "blocked") {
+    throw journalError(
+      403,
+      "Bạn cần có gói coaching hoặc HT Fitness+ còn hiệu lực để ghi nhật ký",
+      "JOURNAL_ENTITLEMENT_REQUIRED",
+    );
+  }
   const assignment = await resolveClientTrainer({
     clientId,
     session,
     includeClientName: true,
   });
   return {
+    mode: "coaching",
     trainerId: assignment.trainerId,
     orderId: assignment.order._id,
     clientName: assignment.clientName,
@@ -66,25 +88,21 @@ export const resolveJournalWriteAccess = async ({
 export const assertTrainerJournalRead = async ({
   actor,
   clientId,
+  session = null,
 }) => {
   if (!mongoose.isValidObjectId(clientId)) {
     throw journalError(400, "clientId không hợp lệ", "INVALID_CLIENT");
   }
   if (actor.role === "admin") return { adminRead: true };
-  const order = await Order.findOne({
-    userId: clientId,
-    trainerId: actor.id,
-    status: "approved",
-    sessions: { $gt: 0 },
-  })
-    .select("_id")
-    .lean();
-  if (!order) {
+  try {
+    const { order } = await assertEffectiveCoachAccess({ actor, clientId, session });
+    return { adminRead: false, orderId: order._id };
+  } catch (error) {
+    if (error.statusCode !== 403) throw error;
     throw journalError(
       403,
       "Khách hàng không thuộc phạm vi quản lý hiện tại",
       "JOURNAL_FORBIDDEN",
     );
   }
-  return { adminRead: false, orderId: order._id };
 };

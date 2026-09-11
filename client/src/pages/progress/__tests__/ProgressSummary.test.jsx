@@ -205,4 +205,62 @@ describe("ProgressSummary", () => {
     expect(html).not.toContain("6/10");
     expect(html).not.toContain("Trung bình 6");
   });
+
+  it("chỉ trình bày dữ liệu tự lưu cho khách Fitness+-only", () => {
+    const selfManagedProgress = {
+      ...progress,
+      accessMode: "self_managed",
+      compliance: {
+        scheduleAttendance: { numerator: 0, denominator: 0, percent: null },
+        workoutCompletion: { numerator: 0, denominator: 0, percent: null },
+        coachingCompletion: { numerator: 0, denominator: 0, percent: null },
+        mealCompliance: { numerator: 2, denominator: 3, percent: 66.7 },
+        habitCompliance: { numerator: 3, denominator: 4, percent: 75 },
+      },
+    };
+    const landing = renderToStaticMarkup(
+      <ProgressSummary progress={selfManagedProgress} />,
+    );
+    const compliance = renderToStaticMarkup(
+      <ProgressSummary
+        activeSection="compliance"
+        progress={selfManagedProgress}
+      />,
+    );
+
+    expect(`${landing}${compliance}`).not.toMatch(
+      /HLV|Huấn luyện hằng ngày|Giáo án tập luyện|Lịch tập|báo cáo tuần đã gửi|nhật ký đã gửi/,
+    );
+    expect(landing).toContain("Tiến trình của tôi");
+    expect(compliance).toContain("Thói quen cá nhân");
+    expect((compliance.match(/role="progressbar"/g) || [])).toHaveLength(2);
+  });
+
+  it("mô tả biểu đồ Fitness+-only từ số đo và nhật ký tự lưu", () => {
+    const selfManagedProgress = {
+      ...progress,
+      accessMode: "self_managed",
+      bodyProgress: {
+        ...progress.bodyProgress,
+        source: { includedStatuses: ["self_saved"] },
+      },
+      wellness: {
+        sleepHours: { average: 7, count: 1 },
+        daily: [{ dateKey: "2026-08-23", sleepHours: 7 }],
+      },
+    };
+    const body = renderToStaticMarkup(
+      <ProgressSummary activeSection="body" progress={selfManagedProgress} />,
+    );
+    const wellness = renderToStaticMarkup(
+      <ProgressSummary
+        activeSection="wellness"
+        progress={selfManagedProgress}
+      />,
+    );
+
+    expect(body).toContain("Nguồn: Số đo tuần bạn đã lưu");
+    expect(wellness).toContain("nhật ký sức khỏe bạn đã lưu");
+    expect(`${body}${wellness}`).not.toContain("đã gửi");
+  });
 });
