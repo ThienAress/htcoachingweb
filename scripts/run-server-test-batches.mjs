@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const serverRoot = path.join(repositoryRoot, "server");
 const testRoot = path.join(serverRoot, "src");
-const reportDirectory = path.join(serverRoot, ".local-data");
 const vitestEntry = path.join(serverRoot, "node_modules", "vitest", "vitest.mjs");
 const batchSize = 32;
 const requiredNodeVersion = readFileSync(path.join(repositoryRoot, ".node-version"), "utf8").trim();
@@ -31,6 +30,22 @@ export const chunkItems = (items, size) => {
   return batches;
 };
 
+export const resolveServerTestReportDirectory = (root, configuredDirectory) => {
+  if (!configuredDirectory) return path.join(root, ".local-data");
+  if (!path.isAbsolute(configuredDirectory)) {
+    throw new Error("Server test report directory must be an absolute path");
+  }
+  return path.normalize(configuredDirectory);
+};
+
+export const resolveServerTestConfigLoader = (configuredLoader) => {
+  if (!configuredLoader) return null;
+  if (configuredLoader !== "runner") {
+    throw new Error("Server test config loader must be runner");
+  }
+  return configuredLoader;
+};
+
 const collectTestFiles = (directory) => readdirSync(directory, { withFileTypes: true })
   .flatMap((entry) => {
     const absolutePath = path.join(directory, entry.name);
@@ -51,6 +66,14 @@ export const summarizeVitestReport = (report) => {
 const run = () => {
   assertRuntimeVersion(process.versions.node, requiredNodeVersion);
 
+  const reportDirectory = resolveServerTestReportDirectory(
+    serverRoot,
+    process.env.SERVER_TEST_REPORT_DIRECTORY,
+  );
+  const configLoader = resolveServerTestConfigLoader(
+    process.env.SERVER_TEST_CONFIG_LOADER,
+  );
+
   if (!existsSync(vitestEntry)) {
     throw new Error("Vitest entrypoint is missing; install server dependencies first");
   }
@@ -69,7 +92,14 @@ const run = () => {
     try {
       const result = spawnSync(
         process.execPath,
-        [vitestEntry, "run", "--reporter=json", `--outputFile=${reportPath}`, ...batch],
+        [
+          vitestEntry,
+          "run",
+          ...(configLoader ? ["--configLoader", configLoader] : []),
+          "--reporter=json",
+          `--outputFile=${reportPath}`,
+          ...batch,
+        ],
         {
           cwd: serverRoot,
           env: process.env,

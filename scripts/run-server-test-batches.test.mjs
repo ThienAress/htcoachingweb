@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
 import {
   assertRuntimeVersion,
   chunkItems,
+  resolveServerTestConfigLoader,
+  resolveServerTestReportDirectory,
   summarizeVitestReport,
 } from "./run-server-test-batches.mjs";
 
@@ -28,6 +31,26 @@ test("chunkItems partitions every file once and preserves order", () => {
 
 test("chunkItems rejects an unsafe batch size", () => {
   assert.throws(() => chunkItems(["a"], 0), /positive safe integer/);
+});
+
+test("server test runtime accepts only an absolute report directory", () => {
+  const serverRoot = path.join(process.cwd(), "server");
+  const reportDirectory = path.join(path.parse(process.cwd()).root, "tmp", "server-test-reports");
+
+  assert.equal(
+    resolveServerTestReportDirectory(serverRoot, reportDirectory),
+    path.normalize(reportDirectory),
+  );
+  assert.throws(
+    () => resolveServerTestReportDirectory(serverRoot, "relative/reports"),
+    /absolute path/,
+  );
+});
+
+test("server test runtime allows only the read-only-safe config loader override", () => {
+  assert.equal(resolveServerTestConfigLoader(undefined), null);
+  assert.equal(resolveServerTestConfigLoader("runner"), "runner");
+  assert.throws(() => resolveServerTestConfigLoader("bundle"), /config loader/);
 });
 
 test("summarizeVitestReport fails closed on incomplete or failed reports", () => {

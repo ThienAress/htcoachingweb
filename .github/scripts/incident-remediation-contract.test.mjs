@@ -474,6 +474,10 @@ test("workflow isolates agent validation and Draft PR publication", async () => 
     isolatedJobs[0].body,
     /npm run test:unit:client -- --cache=false --configLoader runner[\s\S]*npm run test:unit:server -- --cache=false/,
   );
+  assert.match(
+    isolatedJobs[0].body,
+    /SERVER_TEST_REPORT_DIRECTORY=\/tmp\/server-test-reports[\s\S]*SERVER_TEST_CONFIG_LOADER=runner/,
+  );
   assert.match(isolatedJobs[1].body, /--tmpfs \/scratch:rw,nosuid,nodev,size=256m/);
   assert.match(
     isolatedJobs[1].body,

@@ -214,6 +214,8 @@ jobs:
             --tmpfs /tmp:rw,noexec,nosuid,size=64m \
             -e CI=true -e HOME=/tmp -e MONGOMS_RUNTIME_DOWNLOAD=false \
             -e MONGOMS_DOWNLOAD_DIR=/incident-mongo-cache \
+            -e SERVER_TEST_REPORT_DIRECTORY=/tmp/server-test-reports \
+            -e SERVER_TEST_CONFIG_LOADER=runner \
             -v "$PWD:/workspace:ro" \
             -v "$PWD/.incident-mongo-cache:/incident-mongo-cache:ro" \
             -w /workspace \
