@@ -472,13 +472,17 @@ test("workflow isolates agent validation and Draft PR publication", async () => 
   );
   assert.match(
     isolatedJobs[0].body,
-    /npm run test:unit:client -- --cache=false[\s\S]*npm run test:unit:server -- --cache=false/,
+    /npm run test:unit:client -- --cache=false --configLoader runner[\s\S]*npm run test:unit:server -- --cache=false/,
   );
   assert.match(isolatedJobs[1].body, /--tmpfs \/scratch:rw,nosuid,nodev,size=256m/);
   assert.match(
     isolatedJobs[1].body,
-    /tar --exclude='\.\/node_modules' -cf \/scratch\/client\.tar[\s\S]*\/workspace\/client\/node_modules\/\.bin\/vite build/,
+    /tar --exclude='\.\/node_modules' -cf \/scratch\/client\.tar[\s\S]*\/workspace\/client\/node_modules\/\.bin\/vite build --configLoader runner/,
   );
+  const gitEnabledNodeImage =
+    "node:22.23.1-bookworm@sha256:5647be709086c696ff32edaaf1c70cd26d1da6ab2b39c32f3c7b4c4a31957e37";
+  assert.equal(isolatedJobs[2].body.split(gitEnabledNodeImage).length - 1, 2);
+  assert.doesNotMatch(isolatedJobs[2].body, /node:22\.23\.1-bookworm-slim/);
   assert.doesNotMatch(workflow, /incident-remediation-validated-/);
 });
 

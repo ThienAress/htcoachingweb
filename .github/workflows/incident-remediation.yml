@@ -224,7 +224,7 @@ jobs:
                 rm -f /workspace/.incident-readonly-probe
                 exit 1
               fi
-              npm run test:unit:client -- --cache=false
+              npm run test:unit:client -- --cache=false --configLoader runner
               npm run test:unit:server -- --cache=false
             '
 
@@ -287,7 +287,7 @@ jobs:
               tar -xf /scratch/client.tar -C /scratch/client
               ln -s /workspace/client/node_modules /scratch/client/node_modules
               cd /scratch/client
-              /workspace/client/node_modules/.bin/vite build
+              /workspace/client/node_modules/.bin/vite build --configLoader runner
             '
 
   validate_secrets:
@@ -304,7 +304,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Prepare trusted offline scan runtime
-        run: docker pull node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3
+        run: docker pull node:22.23.1-bookworm@sha256:5647be709086c696ff32edaaf1c70cd26d1da6ab2b39c32f3c7b4c4a31957e37
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ${{ needs.validate_contract.outputs.candidate_artifact_name }}
@@ -327,7 +327,7 @@ jobs:
             --tmpfs /tmp:rw,noexec,nosuid,size=64m \
             -e CI=true -e HOME=/tmp \
             -v "$PWD:/workspace:ro" -w /workspace \
-            node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 \
+            node:22.23.1-bookworm@sha256:5647be709086c696ff32edaaf1c70cd26d1da6ab2b39c32f3c7b4c4a31957e37 \
             sh -ceu '
               if touch /workspace/.incident-readonly-probe 2>/dev/null; then
                 echo "::error::validation checkout is writable"
