@@ -1,3 +1,5 @@
+import crypto from "crypto";
+
 const asBoundedInteger = (value, fallback, minimum, maximum) => {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return fallback;
@@ -76,7 +78,7 @@ const runRequest = async (index) => {
     const response = await fetch(target, {
       method: "GET",
       signal: controller.signal,
-      headers: { "X-Request-Id": `load-smoke-${index}` },
+      headers: { "X-Request-Id": crypto.randomUUID() },
     });
     await response.arrayBuffer();
     results.push({

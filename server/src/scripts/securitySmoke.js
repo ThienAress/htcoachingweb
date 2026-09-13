@@ -1,4 +1,5 @@
-const REQUEST_ID_PATTERN = /^[a-zA-Z0-9._-]{8,100}$/;
+const REQUEST_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TRACE_ID_PATTERN = /^[0-9a-f]{32}$/i;
 
 const parsePositiveInteger = (value, fallback, minimum, maximum) => {
