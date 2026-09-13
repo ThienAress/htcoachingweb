@@ -84,6 +84,10 @@ let todayJournal = {
 };
 let savedMealPlans = [];
 let aiSwitchStreamCompleted = false;
+const PACED_AI_RESPONSE =
+  "HT Assistant đang trả lời theo từng đoạn. " +
+  "Tăng tải vừa sức và nghỉ đủ giữa các buổi tập. ".repeat(35) +
+  "Kết thúc phản hồi thử nghiệm.";
 const F1_CUSTOMER_ID = "100000000000000000000001";
 const F1_INTAKE_ID = "100000000000000000000002";
 const F1_ASSESSMENT_ID = "100000000000000000000003";
@@ -1238,6 +1242,47 @@ const handleApi = (req, res, path) => {
         ].join("\n") + "\n",
       );
     }, 3000);
+    return;
+  }
+  if (
+    aiScenario === "paced-final" &&
+    path === "/api/ai/conversations/conversation-paced-final" &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: {
+        conversationId: "conversation-paced-final",
+        title: "E2E progressive response",
+        messages: [
+          {
+            _id: "message-user-paced-final",
+            role: "user",
+            content: "Trả lời tăng dần cho tôi",
+          },
+          {
+            _id: "message-assistant-paced-final",
+            role: "assistant",
+            content: PACED_AI_RESPONSE,
+          },
+        ],
+        context: {},
+      },
+    });
+  }
+  if (
+    aiScenario === "paced-final" &&
+    path === "/api/ai/chat" &&
+    req.method === "POST"
+  ) {
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    res.end(
+      [
+        { type: "conversation", conversationId: "conversation-paced-final" },
+        { type: "text", content: PACED_AI_RESPONSE },
+        { type: "done", conversationId: "conversation-paced-final" },
+      ].map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+    );
     return;
   }
   if (path === "/api/ai/conversations" || path === "/api/ai/history") {
