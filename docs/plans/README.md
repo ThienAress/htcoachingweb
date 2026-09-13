@@ -6,6 +6,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
+| 090 | Biến HT Assistant thành fitness-first và grounding KB bằng evidence | P1 | L | 031, 052 | BLOCKED / FOCUSED VERIFIED — STAGING ATLAS + LIVE PROVIDER + ROLLOUT NOT STARTED |
 | 089 | Thống nhất effective coach và HLV chính mặc định | P1 | L | 086, 087 | DONE / FOCUSED — FULL SERVER RADAR TEST FAIL; NOT DEPLOYED |
 | 088 | Session Governor: telemetry và model recommendations | P1 | M | — | DONE / FOCUSED — REPO-LOCAL |
 | 001 | Hoàn thiện vòng đời gói HLV và bảo vệ AI output | P1 | L | — | IMPLEMENTED / VERIFIED |
@@ -119,6 +120,9 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 | 087 | Áp dụng nhận diện và kết quả đo thành phần cơ thể | P1 | L | 003F, 003H, 060, 062, 065, 086 | DONE / LOCAL FULL — 753 CLIENT, 1421 SERVER, 112 E2E; NOT DEPLOYED |
 
 ## Dependency Notes
+
+- Plan 090 phụ thuộc sitewide assistant của 031 và AI hardening của 052; giữ Flash Lite/quota/guest permissions,
+  chỉ nâng routing, evidence lifecycle, privacy-safe feedback và retrieval quality trước rollout riêng.
 
 - Plan 088: Session Governor (MODERATE, DONE, FOCUSED, NOT APPLICABLE),
   skill/footer/model recommendations; không đổi product hoặc Codex global config.
