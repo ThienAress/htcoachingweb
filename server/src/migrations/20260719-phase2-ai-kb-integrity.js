@@ -8,15 +8,18 @@ import {
 import AiModerationState from "../models/AiModerationState.js";
 import ChatConversation from "../models/ChatConversation.js";
 import KnowledgeEntry from "../models/KnowledgeEntry.js";
-import { EMBEDDING_DIMENSION, EMBEDDING_VERSION } from "../services/ai/embedding.service.js";
 import { MAX_STORED_CHAT_MESSAGES } from "../utils/aiChat.js";
 import { normalizeKnowledgeQuestion } from "../utils/knowledgeBase.js";
+import {
+  buildKnowledgeEntryIntegritySet,
+  KNOWLEDGE_INTEGRITY_PROJECTION,
+} from "./phase2AiKbIntegrity.helpers.js";
 
 const assertKnowledgePreconditions = async () => {
   const entries = await KnowledgeEntry.collection
     .find(
       {},
-      { projection: { question: 1, variants: 1, tags: 1, embedding: 1, status: 1 } },
+      { projection: KNOWLEDGE_INTEGRITY_PROJECTION },
     )
     .toArray();
   const owners = new Map();
@@ -46,38 +49,15 @@ const assertKnowledgePreconditions = async () => {
 
 const migrateKnowledgeEntries = async () => {
   const entries = await assertKnowledgePreconditions();
-  const operations = entries.map((entry) => {
-    const mainReady =
-      Array.isArray(entry.embedding) &&
-      entry.embedding.length === EMBEDDING_DIMENSION &&
-      entry.embedding.every(Number.isFinite);
-    const variantsReady = (entry.variants || []).every(
-      (variant) =>
-        Array.isArray(variant.embedding) &&
-        variant.embedding.length === EMBEDDING_DIMENSION &&
-        variant.embedding.every(Number.isFinite),
-    );
-    const ready = mainReady && variantsReady;
-
-    return {
-      updateOne: {
-        filter: { _id: entry._id },
-        update: {
-          $set: {
-            normalizedQuestion: normalizeKnowledgeQuestion(entry.question),
-            variantCount: entry.variants?.length || 0,
-            embeddingStatus: ready ? "ready" : "failed",
-            embeddingVersion: ready ? EMBEDDING_VERSION : null,
-            embeddingUpdatedAt: ready ? new Date() : null,
-            embeddingError: ready
-              ? null
-              : "Backfill: embedding missing or invalid; regenerate required",
-            ...(entry.status === "published" && !ready && { status: "draft" }),
-          },
-        },
+  const migrationNow = new Date();
+  const operations = entries.map((entry) => ({
+    updateOne: {
+      filter: { _id: entry._id },
+      update: {
+        $set: buildKnowledgeEntryIntegritySet(entry, { now: migrationNow }),
       },
-    };
-  });
+    },
+  }));
 
   if (operations.length) {
     await KnowledgeEntry.collection.bulkWrite(operations, { ordered: true });

@@ -385,6 +385,18 @@ describe("Phase 2 Knowledge Base lifecycle", () => {
       request(app).post("/api/knowledge-base").send({
         question: "Protein là gì?",
         answer: "Protein hỗ trợ xây dựng và duy trì mô cơ.",
+        category: "nutrition",
+        evidenceLevel: "source_backed",
+        freshnessClass: "stable",
+        sources: [
+          {
+            type: "professional",
+            title: "Synthetic nutrition reference",
+            publisher: "Synthetic Sports Nutrition Group",
+            url: "https://example.org/nutrition/protein",
+            evidenceTier: "professional",
+          },
+        ],
         status: "published",
       }),
       accessToken,

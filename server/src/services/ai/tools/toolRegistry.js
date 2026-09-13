@@ -13,6 +13,8 @@ import { getCheckinHistory } from "./getCheckinHistory.tool.js";
 import { getTrainingSchedule } from "./getTrainingSchedule.tool.js";
 import { getGymInfo } from "./getGymInfo.tool.js";
 
+export const SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS = 300;
+
 const validateTdeeTrainingEvidence = (parameters) => {
   const noTraining = parameters.trainingFrequency === "none";
   const noDuration = parameters.trainingDuration === "none";
@@ -168,14 +170,13 @@ export const toolRegistry = {
   search_knowledge: {
     name: "search_knowledge",
     description:
-      "Tra cứu thông tin thực tế từ internet bằng Google Search. " +
-      "⚠️ CHỈ GỌI KHI: thông tin KHÔNG có trong phần 'Kiến thức đã verified' ở system prompt. " +
-      "Nếu system prompt đã có câu trả lời → DÙNG NGAY, KHÔNG gọi tool này. " +
-      "GỌI KHI: user hỏi dữ liệu mới/có thể thay đổi, yêu cầu nguồn, hoặc thông tin cụ thể " +
-      "mà model không đủ chắc chắn và không tìm thấy trong kiến thức verified. " +
-      "VÍ DỤ nên gọi: 'Mr. Olympia 2024 ai thắng', 'bài nghiên cứu mới về creatine'. " +
-      "KHÔNG GỌI KHI: câu hỏi đã được trả lời bởi KB, kiến thức gym phổ thông, " +
-      "hoặc tiểu sử ổn định mà model biết chắc.",
+      "Tra cứu bằng chứng web công khai cho mọi chủ đề an toàn. " +
+      "CHỈ GỌI khi routing của server ghi web_required và function này được cung cấp; " +
+      "gọi tối đa đúng 1 lần trong request. Dùng cho dữ liệu mới/có thể thay đổi, " +
+      "yêu cầu nguồn, nghiên cứu/số liệu hoặc claim về thói quen, thành tích, phát ngôn của người thật. " +
+      "KHÔNG GỌI cho general knowledge ổn định, dữ kiện HTCOACHING/KB đã được cung cấp, " +
+      "hoặc kỹ thuật bài tập đã có tool nội bộ. Không có nguồn nghĩa là chưa thể xác minh, " +
+      "không được fallback sang trí nhớ model để khẳng định.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -183,7 +184,7 @@ export const toolRegistry = {
         query: {
           type: "string",
           minLength: 2,
-          maxLength: 300,
+          maxLength: SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS,
           description: "Câu truy vấn tìm kiếm. Viết rõ ràng, đầy đủ ngữ cảnh. VD: 'Chris Bumstead Mr Olympia thành tích các năm', 'Đăng béo influencer fitness Việt Nam là ai'",
         },
       },
@@ -370,11 +371,15 @@ export const toolRegistry = {
 };
 
 // Lấy danh sách tool schemas cho LLM API (OpenAI/Gemini format)
-export function getToolSchemas({ isAuthenticated = true } = {}) {
+export function getToolSchemas({
+  isAuthenticated = true,
+  allowWebSearch = true,
+} = {}) {
   return Object.values(toolRegistry)
     .filter(
       (tool) =>
-        isAuthenticated || (!tool.requiresAuth && tool.guestEnabled !== false),
+        (isAuthenticated || (!tool.requiresAuth && tool.guestEnabled !== false)) &&
+        (allowWebSearch || tool.name !== "search_knowledge"),
     )
     .map((tool) => ({
       type: "function",

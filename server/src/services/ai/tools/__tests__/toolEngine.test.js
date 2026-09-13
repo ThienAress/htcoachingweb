@@ -35,6 +35,22 @@ describe("AI tool runtime validation", () => {
     expect(guestToolNames).toContain("search_blog");
   });
 
+  it("only exposes web search when the authenticated request route allows it", () => {
+    const allowed = getToolSchemas({
+      isAuthenticated: true,
+      allowWebSearch: true,
+    }).map((schema) => schema.function.name);
+    const blocked = getToolSchemas({
+      isAuthenticated: true,
+      allowWebSearch: false,
+    }).map((schema) => schema.function.name);
+
+    expect({
+      allowed: allowed.includes("search_knowledge"),
+      blocked: blocked.includes("search_knowledge"),
+    }).toEqual({ allowed: true, blocked: false });
+  });
+
   it("rejects a guest-only-disabled tool even when the provider calls it", async () => {
     toolRegistry.search_knowledge.execute = () => {
       throw new Error("executor must not be reached");
@@ -70,6 +86,35 @@ describe("AI tool runtime validation", () => {
 
     expect(result.meta.validationFailed).toBe(true);
     expect(result.meta.invalidFields).toContain("age");
+  });
+
+  it("enforces the server routing allowlist again at the execution boundary", async () => {
+    const originalExecute = toolRegistry.check_wallet.execute;
+    toolRegistry.check_wallet.execute = () => {
+      throw new Error("executor must not be reached");
+    };
+
+    try {
+      const result = await executeTool(
+        "check_wallet",
+        {},
+        {
+          userId: "authenticated-user",
+          allowedToolNames: ["search_exercises"],
+        },
+      );
+
+      expect(result).toMatchObject({
+        error: null,
+        meta: {
+          toolName: "check_wallet",
+          validationFailed: true,
+          routeBlocked: true,
+        },
+      });
+    } finally {
+      toolRegistry.check_wallet.execute = originalExecute;
+    }
   });
 
   it("rejects additional properties supplied by the model", async () => {
