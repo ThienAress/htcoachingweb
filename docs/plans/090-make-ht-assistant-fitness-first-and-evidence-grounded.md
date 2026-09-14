@@ -19,10 +19,10 @@
 - **Category**: feature | security | data | tests
 - **Planned at**: 2026-09-12
 - **Lifecycle**: BLOCKED
-- **Verification**: FOCUSED
-- **Rollout**: NOT STARTED
+- **Verification**: STAGING
+- **Rollout**: LIVE
 - **Owner**: root
-- **Updated at**: 2026-09-13
+- **Updated at**: 2026-09-15
 
 ## Why This Matters
 
@@ -173,11 +173,12 @@ Chạy full unit, client build, AI/security/agent gates; ghi rõ E2E/provider/li
 | Full server unit | `npx -y node@22.23.1 scripts/run-server-test-batches.mjs` trên snapshot review dựa staging | PASS 8/8 batches, 253 files / 2,532 tests. Focused logger/observability/privacy sau chỉnh tài liệu: 3/3 files, 16/16 PASS. |
 | Client compile-only / release build | Node 22.23.1 Vite 8 với synthetic `VITE_API_URL=https://example.invalid/api` | Compile-only cuối PASS, 2,957 modules transformed, cảnh báo chunk >500 kB. Strict release pre/postbuild cần HTTPS API và dynamic SEO data; chưa gọi release build PASS. |
 | Static gates | Client lint; UI regression baseline; secret scan; data-boundary scan; agent validation; AI tool validator; `git diff --check` | Đều exit 0; secret/data-boundary/agent/tool/diff gates được chạy lại trên snapshot pre-PR cuối. Lint 0 errors/1 warning cũ `TrainerTransferPanel.jsx:91`, UI regression 0 finding mới/0 high-confidence blocking. Không có rendered-browser evidence. |
-| Local AI-chat E2E | `CI=true` với Playwright Chromium qua Node 22.23.1, `e2e/ai-chat.spec.js` và loopback mock API | Snapshot review cuối 4/4 PASS; gồm SSE coalesced partial render và giữ conversation A tiếp tục stream khi đang xem conversation B. Không phải live provider/proxy E2E. |
-| Provider/live, rollout | Không chạy | Không có evidence staging/production; không migration, re-embed, deploy hoặc ghi dữ liệu thật. |
+| Local AI-chat E2E | Playwright Chromium qua Node 22.23.1, `e2e/ai-chat.spec.js` và loopback mock API | Diff hiện tại 7/7 PASS; gồm SSE coalesced partial render, A→B + citation isolation, Stop, provider failure → Retry/Edit + citation và confirmation. Không phải live provider/proxy E2E. |
+| Provider/live, rollout | Plan 090a staging evidence ngày 2026-09-14 | CI/deploy identity, recovery, re-embed và acceptance 9/9 PASS. Synthetic fixture eligible trả một Search Test hit 98,7% ở threshold 0,75; authenticated Retry trả lời kèm WHO citation. Chat citation chưa được chứng minh là đến từ KB; AC-009 live smoke còn thiếu các behavior và fallback metrics. Fixture/conversations đã dọn qua staging UI; không có production mutation. |
 
-`FOCUSED` phản ánh phần đã chứng thực, không phải release GO.
-Blocker được giữ rõ để tiếp tục strict release build, Atlas staging và live provider verification mà không tự rollout ngoài scope.
+`STAGING` phản ánh rollout và acceptance đã chạy, không phải production release GO.
+Blocker còn lại là provenance KB của chat citation và các phần live smoke/fallback metrics
+trong AC-009; Search Test và citation hiển thị riêng lẻ chưa chứng minh đủ contract này.
 
 Review độc lập phát hiện và xác nhận đóng hai MED: compound TDEE/meal từng có thể chạy song song bằng macro bịa;
 ordinary next-send sau provider rollback từng giữ ghost turn. Admin Search Test race đã PASS scoped review.
@@ -193,20 +194,70 @@ không có BLOCK/HIGH/MED mới: parser đối lập tiếng Anh, TDEE lưu lâu
 và assertion E2E partial có thể flaky trên CI cực chậm. Review logger/telemetry local cuối `PASS`: giữ request
 context hiện hành, thay X-Request-Id không phải UUID bằng server UUID để tránh PII/collision, giữ correlation
 request → response → log; việc này cố ý thu hẹp contract cho upstream từng gửi custom ID. Release vẫn
-`NO-GO/BLOCKED` vì thiếu strict release-build/Atlas staging/live Gemini và
-chưa migration/re-embed/deploy; local AI-chat E2E mock không thay thế provider/proxy thật.
+`NO-GO/BLOCKED` vì AC-009 live smoke chưa hoàn tất; local AI-chat E2E mock không
+thay thế provider/proxy thật và staging success không cấp quyền production.
 
 Review client pre-PR tiếp tục đóng race MED của Retry/Edit: action đang chờ reconcile hoặc fork bị vô hiệu hóa
 nếu người dùng đã đổi navigation generation, kể cả chuỗi A → B → A; lỗi cũ không được ghi vào conversation mới.
 Regression test RED → GREEN nằm trong focused 72/72 ở trên.
 
+## Staging Rollout Evidence — 2026-09-14
+
+Plan 090a đã đưa guardrails và embedding profile lên staging tại exact SHA
+`b81fb159a829059fd04176325416d5ee53561236`. Canonical CI
+[34830572458](https://github.com/ThienAress/htcoachingweb/actions/runs/34830572458),
+Netlify `6aa7c5449e21464e943801c0` và Render `dep-dajsusbm8hqs739juqdg`
+cùng SHA. Acceptance hậu re-embed
+[34843937729](https://github.com/ThienAress/htcoachingweb/actions/runs/34843937729)
+PASS 9/9, recovery gates PASS và cleanup `verified=true`, `residue=0`.
+Public health read-only `2026-09-14T13:16:27.911Z` PASS 7/7 HTTP checks.
+
+AI-chat E2E loopback mới PASS 7/7 trên Node `22.23.1`, bổ sung Stop, provider
+failure → Retry/Edit, citation rendering và citation isolation khi A vẫn stream
+trong lúc xem B. Diagnostic ban đầu trên seed `draft`, `vector: ready` nhưng chưa
+review/evidence cho Search Test `0` ở threshold 0,75 và 0,60; exact seed question
+route `general/model_prior`, nên Chat không có KB citation. Đây không phải bằng
+chứng Atlas/vector hỏng.
+
+Sau khi user duyệt fixture synthetic staging có nguồn WHO thật, entry `training`,
+`published`, `vector: ready`, `source_backed` cho một Search Test hit `98,7%` ở
+production threshold `0,75`. Authenticated HT Assistant lần đầu lỗi generic;
+Retry thành công, trả claim ≥150 phút/tuần và hiển thị citation
+`https://www.who.int/news-room/fact-sheets/detail/physical-activity`.
+Search Test chứng minh entry eligible được retrieval; URL hiển thị trong Chat
+chưa tự chứng minh citation có provenance KB thay vì một nguồn grounding khác.
+Quota quan sát cuối `1197/1200`; không đổi chính sách quota/model/auth.
+
+Sau user xác nhận xóa, hai conversation smoke và fixture WHO đã được xóa qua
+staging UI. Sidebar không còn conversation; bảng KB từ hai entry về một
+seed `draft` ban đầu. Exact WHO query sau xóa trả `0` ở cả threshold `0,75`
+và `0,60`; admin conversation filter “Tất cả” không thấy conversation phù hợp.
+Đây là cleanup quan sát qua UI, không phải DB-level residue verification.
+
+Plan giữ `BLOCKED` dù rollout đang `LIVE`: AC-009 vẫn thiếu live Retry/Edit,
+A→B streaming, Stop, provider-failure behavior và root/variant fallback metrics;
+provenance KB của citation trong Chat cũng chưa được chứng minh. Các behavior này
+có deterministic E2E evidence, không có live provider-failure injection.
+Không có production write hoặc production rollout.
+
+Post-smoke local hardening (chưa deploy) của Plan 090a đã thêm root/variant/combined
+fallback counters và sửa preflight/rollback prior-state compatibility. Regression
+local nay bao gồm snapshot mã hóa → giải mã → rollback trên Mongo cô lập và một
+search fallback đồng thời root+variant; focused Node 22.23.1 hai file 46/46 PASS.
+AI eval 49/49, loopback E2E 7/7 và release build 54/54 PASS. Test client đọc
+raw source được normalize newline để độc lập LF/CRLF: full client Node 22.23.1
+170/170 files, 816/816 tests PASS sau lần đầu 815/816 do CRLF. Những kết quả này
+không phải live staging metrics hay rollback drill evidence. Full server trên
+diff cuối PASS 9/9 batches, 258 files/2.581 tests; release build rerun sau khi
+staging API hết cold-start timeout PASS prerender 54/54 và bundle/search-index gates.
+
 ## Done Criteria
 
 - [ ] Tất cả 14 must-have acceptance criteria trong spec có test/command evidence.
-- [ ] Không thay model/quota, không bật guest search và không chạy production mutation.
-- [ ] Schema additive; legacy document có behavior được test và rollout/re-embed vẫn pending rõ ràng.
-- [ ] Full unit, client build, AI/security/agent gates pass hoặc blocker được ghi chính xác.
-- [ ] Plan/index/machine state/traceability cập nhật đúng lifecycle thực tế.
+- [x] Không thay model/quota, không bật guest search và không chạy production mutation.
+- [x] Schema additive; legacy document có behavior được test và staging rollout/re-embed được ghi rõ, production vẫn ngoài scope.
+- [x] Full unit, client build, AI/security/agent gates và blocker được ghi chính xác theo từng snapshot; local fix/test portability chưa deploy, không coi QA local là deployed-SHA evidence hay AC-009 live PASS.
+- [x] Plan/index/machine state/traceability cập nhật đúng lifecycle thực tế.
 
 ## STOP Conditions
 

@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
+const read = (path) =>
+  readFileSync(new URL(path, import.meta.url), "utf8").replace(/\r\n?/g, "\n");
 
 describe("HT Fitness+ self-managed presentation contract", () => {
   it("removes trainer-only surfaces while preserving self-save modules", () => {
