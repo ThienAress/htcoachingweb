@@ -177,6 +177,24 @@ describe("embedding provider single-flight", () => {
       legacyVersion: "gemini-embedding-2:768",
     });
   });
+
+  it("uses an explicitly requested profile for provider input and cache isolation", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => successfulResponse());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await generateEmbedding("Creatine có tác dụng gì?", {
+      inputType: "document",
+    });
+    await generateEmbedding("Creatine có tác dụng gì?", {
+      inputType: "document",
+      profileId: "question-answering-v1",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      JSON.parse(fetchMock.mock.calls[1][1].body).content.parts[0].text,
+    ).toBe("title: none | text: creatine có tác dụng gì?");
+  });
 });
 
 describe("Knowledge Base retrieval parity", () => {

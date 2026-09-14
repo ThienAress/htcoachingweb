@@ -6,6 +6,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
+| 090A | Rollout guarded Knowledge Base embeddings trên staging | P1 | L | 090, PR #114 | IN PROGRESS / FOCUSED — PR PENDING; FRESH BACKUP + LIVE STAGING PENDING |
 | 090 | Biến HT Assistant thành fitness-first và grounding KB bằng evidence | P1 | L | 031, 052 | BLOCKED / FOCUSED VERIFIED — STAGING ATLAS + LIVE PROVIDER + ROLLOUT NOT STARTED |
 | 089 | Thống nhất effective coach và HLV chính mặc định | P1 | L | 086, 087 | DONE / FOCUSED — FULL SERVER RADAR TEST FAIL; NOT DEPLOYED |
 | 088 | Session Governor: telemetry và model recommendations | P1 | M | — | DONE / FOCUSED — REPO-LOCAL |
