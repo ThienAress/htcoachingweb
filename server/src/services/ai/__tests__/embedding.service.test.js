@@ -201,6 +201,7 @@ describe("Knowledge Base retrieval parity", () => {
   beforeEach(() => {
     process.env.GEMINI_API_KEY = "test-key";
     clearEmbeddingCacheForTests();
+    resetMetricsForTests();
   });
 
   afterEach(() => {
@@ -434,7 +435,9 @@ describe("Knowledge Base retrieval parity", () => {
     process.env.KB_VECTOR_INDEX = "synthetic_root_index";
     process.env.KB_VARIANT_VECTOR_INDEX = "synthetic_variant_index";
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successfulResponse()));
-    vi.spyOn(KnowledgeEntry, "exists").mockResolvedValue({ _id: "synthetic" });
+    vi.spyOn(KnowledgeEntry, "exists")
+      .mockResolvedValueOnce({ _id: "synthetic" })
+      .mockResolvedValueOnce(null);
     vi.spyOn(KnowledgeEntry, "aggregate").mockResolvedValue([]);
     const findSpy = vi.spyOn(KnowledgeEntry, "find").mockReturnValue({
       select: vi.fn().mockReturnThis(),
@@ -471,6 +474,51 @@ describe("Knowledge Base retrieval parity", () => {
     expect(findSpy).toHaveBeenCalledWith(
       expect.not.objectContaining({ variantCount: { $gt: 0 } }),
     );
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "kb.vector_fallbacks": 1,
+      "kb.vector_root_fallbacks": 1,
+      "kb.vector_variant_fallbacks": 0,
+      "kb.vector_combined_fallbacks": 0,
+    });
+  });
+
+  it("counts a no-index bounded scan with a variant match as one combined fallback", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successfulResponse()));
+    vi.spyOn(KnowledgeEntry, "exists").mockResolvedValue({ _id: "synthetic" });
+    vi.spyOn(KnowledgeEntry, "find").mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      sort: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue([
+        {
+          _id: "68c3cd2c192a765135686086",
+          question: "Synthetic combined fallback",
+          answer: "Variant answer.",
+          category: "training",
+          tags: [],
+          status: "published",
+          embeddingStatus: "ready",
+          embedding: Array(EMBEDDING_DIMENSION).fill(0),
+          embeddingVersion: EMBEDDING_VERSION,
+          variants: [{ text: "No index fallback", embedding: VECTOR }],
+          variantCount: 1,
+          evidenceLevel: "source_backed",
+          reviewStatus: "reviewed",
+          reviewDueAt: null,
+        },
+      ]),
+    });
+
+    await expect(searchKnowledgeBase("No index fallback")).resolves.toEqual([
+      expect.objectContaining({ matchSource: "variant" }),
+    ]);
+
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "kb.vector_fallbacks": 1,
+      "kb.vector_root_fallbacks": 0,
+      "kb.vector_variant_fallbacks": 0,
+      "kb.vector_combined_fallbacks": 1,
+    });
   });
 
   it("does not fallback when Atlas returns healthy candidates below the answer threshold", async () => {
@@ -561,6 +609,105 @@ describe("Knowledge Base retrieval parity", () => {
         }),
       ]),
     );
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "kb.vector_fallbacks": 1,
+      "kb.vector_root_fallbacks": 0,
+      "kb.vector_variant_fallbacks": 1,
+      "kb.vector_combined_fallbacks": 0,
+    });
+  });
+
+  it("counts separate root and variant bounded fallbacks from one search", async () => {
+    process.env.KB_VECTOR_INDEX = "synthetic_root_index";
+    process.env.KB_VARIANT_VECTOR_INDEX = "synthetic_variant_index";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successfulResponse()));
+    vi.spyOn(KnowledgeEntry, "exists").mockResolvedValue({ _id: "synthetic" });
+    vi.spyOn(KnowledgeEntry, "aggregate").mockResolvedValue([]);
+    vi.spyOn(KnowledgeEntry, "find").mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      sort: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue([
+        {
+          _id: "68c3cd2c192a765135686087",
+          question: "Synthetic split fallback",
+          answer: "Fallback answer.",
+          category: "training",
+          tags: [],
+          status: "published",
+          embeddingStatus: "ready",
+          embedding: VECTOR,
+          embeddingVersion: EMBEDDING_VERSION,
+          variants: [{ text: "Synthetic split variant", embedding: VECTOR }],
+          variantCount: 1,
+          evidenceLevel: "source_backed",
+          reviewStatus: "reviewed",
+          reviewDueAt: null,
+        },
+      ]),
+    });
+
+    await searchKnowledgeBase("Synthetic split variant");
+
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "kb.vector_fallbacks": 2,
+      "kb.vector_root_fallbacks": 1,
+      "kb.vector_variant_fallbacks": 1,
+      "kb.vector_combined_fallbacks": 0,
+    });
+  });
+
+  it("keeps all fallback metrics at zero when both Atlas searches are healthy", async () => {
+    process.env.KB_VECTOR_INDEX = "synthetic_root_index";
+    process.env.KB_VARIANT_VECTOR_INDEX = "synthetic_variant_index";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(successfulResponse()));
+    vi.spyOn(KnowledgeEntry, "exists").mockResolvedValue({ _id: "synthetic" });
+    vi.spyOn(KnowledgeEntry, "aggregate")
+      .mockResolvedValueOnce([
+        {
+          _id: "68c3cd2c192a765135686088",
+          question: "Synthetic healthy root",
+          answer: "Root answer.",
+          category: "training",
+          tags: [],
+          status: "published",
+          embeddingStatus: "ready",
+          embeddingVersion: EMBEDDING_VERSION,
+          evidenceLevel: "source_backed",
+          reviewStatus: "reviewed",
+          reviewDueAt: null,
+          similarity: 0.95,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          _id: "68c3cd2c192a765135686089",
+          question: "Synthetic healthy variant source",
+          answer: "Variant answer.",
+          category: "training",
+          tags: [],
+          status: "published",
+          embeddingStatus: "ready",
+          embeddingVersion: EMBEDDING_VERSION,
+          variants: [{ text: "Synthetic healthy variant", embedding: VECTOR }],
+          variantCount: 1,
+          evidenceLevel: "source_backed",
+          reviewStatus: "reviewed",
+          reviewDueAt: null,
+          similarity: 0.95,
+        },
+      ]);
+    const findSpy = vi.spyOn(KnowledgeEntry, "find");
+
+    await searchKnowledgeBase("Synthetic healthy variant");
+
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "kb.vector_fallbacks": 0,
+      "kb.vector_root_fallbacks": 0,
+      "kb.vector_variant_fallbacks": 0,
+      "kb.vector_combined_fallbacks": 0,
+    });
+    expect(findSpy).not.toHaveBeenCalled();
   });
 
   it("normalizes fallback cosine similarity to the same zero-to-one scale as Atlas", async () => {

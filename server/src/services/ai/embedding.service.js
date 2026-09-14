@@ -436,6 +436,17 @@ async function boundedFallbackSearch(KnowledgeEntry, queryVector, options) {
   return rankKnowledgeCandidates(candidates, options);
 }
 
+const VECTOR_FALLBACK_METRICS = Object.freeze({
+  root: "kb.vector_root_fallbacks",
+  variant: "kb.vector_variant_fallbacks",
+  combined: "kb.vector_combined_fallbacks",
+});
+
+const recordVectorFallback = (scope) => {
+  incrementMetric("kb.vector_fallbacks");
+  incrementMetric(VECTOR_FALLBACK_METRICS[scope]);
+};
+
 async function searchKnowledgeBaseInternal(query, options = {}) {
   const cleanQuery = String(query || "").trim();
   if (!cleanQuery || cleanQuery.length > 500) return [];
@@ -476,7 +487,7 @@ async function searchKnowledgeBaseInternal(query, options = {}) {
   const hasRootAtlasIndex = Boolean(readAtlasIndexName(false));
   const hasVariantAtlasIndex = Boolean(readAtlasIndexName(true));
   if (!hasRootAtlasIndex && !hasVariantAtlasIndex) {
-    incrementMetric("kb.vector_fallbacks");
+    recordVectorFallback("combined");
     return boundedFallbackSearch(KnowledgeEntry, queryVector, boundedOptions);
   }
 
@@ -495,7 +506,7 @@ async function searchKnowledgeBaseInternal(query, options = {}) {
 
   let normalizedAtlas;
   if (!Array.isArray(atlasResults) || atlasResults.length === 0) {
-    incrementMetric("kb.vector_fallbacks");
+    recordVectorFallback("root");
     normalizedAtlas = await boundedFallbackSearch(
       KnowledgeEntry,
       queryVector,
@@ -538,7 +549,7 @@ async function searchKnowledgeBaseInternal(query, options = {}) {
     }
   }
   if (!Array.isArray(variantResults) || variantResults.length === 0) {
-    incrementMetric("kb.vector_fallbacks");
+    recordVectorFallback("variant");
     variantResults = await boundedFallbackSearch(KnowledgeEntry, queryVector, {
       ...boundedOptions,
       variantsOnly: true,

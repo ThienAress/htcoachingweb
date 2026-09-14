@@ -29,6 +29,73 @@ const isValidVector = (value) =>
   value.length === EMBEDDING_DIMENSION &&
   value.every(Number.isFinite);
 
+const isStoredVector = (value) =>
+  Array.isArray(value) &&
+  (value.length === 0 || value.length === EMBEDDING_DIMENSION) &&
+  value.every(Number.isFinite);
+
+const toDate = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw fail("KB_REEMBED_VECTOR_STATE_DATE_INVALID");
+  }
+  return parsed;
+};
+
+const assertStoredState = (state, { rollback = false } = {}) => {
+  if (
+    !isStoredVector(state?.embedding) ||
+    !Array.isArray(state?.variantEmbeddings) ||
+    !state.variantEmbeddings.every(isStoredVector) ||
+    !new Set(["pending", "ready", "failed"]).has(state.embeddingStatus) ||
+    (state.embeddingVersion !== null &&
+      (typeof state.embeddingVersion !== "string" ||
+        state.embeddingVersion.length > 100))
+  ) {
+    throw fail("KB_REEMBED_VECTOR_STATE_INVALID");
+  }
+  if (
+    state.embeddingVersion === QUESTION_ANSWERING_EMBEDDING_VERSION &&
+    (!rollback || state.embeddingStatus === "ready") &&
+    (state.embeddingStatus !== "ready" ||
+      state.embedding.length !== EMBEDDING_DIMENSION ||
+      state.variantEmbeddings.some(
+        (item) => item.length !== EMBEDDING_DIMENSION,
+      ))
+  ) {
+    throw fail("KB_REEMBED_TARGET_VECTOR_STATE_INVALID");
+  }
+};
+
+export const buildKnowledgeVectorUpdateSet = (
+  liveEntry,
+  state,
+  { rollback = false } = {},
+) => {
+  assertStoredState(state, { rollback });
+  const currentVariants = Array.isArray(liveEntry.variants)
+    ? liveEntry.variants
+    : [];
+  const variantEmbeddings = Array.isArray(state.variantEmbeddings)
+    ? state.variantEmbeddings
+    : [];
+  if (variantEmbeddings.length !== currentVariants.length) {
+    throw fail("KB_REEMBED_VARIANT_COUNT_DRIFT");
+  }
+  return {
+    embedding: [...state.embedding],
+    variants: currentVariants.map((variant, index) => ({
+      ...variant,
+      embedding: [...variantEmbeddings[index]],
+    })),
+    embeddingStatus: state.embeddingStatus,
+    embeddingVersion: state.embeddingVersion,
+    embeddingError: state.embeddingError,
+    embeddingUpdatedAt: toDate(state.embeddingUpdatedAt),
+  };
+};
+
 const variants = (entry) =>
   Array.isArray(entry?.variants) ? entry.variants : [];
 
@@ -224,6 +291,11 @@ export const verifyKnowledgeRollbackPreState = ({ snapshot, entries = [] }) => {
     ) {
       throw fail("KB_REEMBED_ROLLBACK_TARGET_STATE_DRIFT");
     }
+  }
+  for (const saved of snapshot.entries) {
+    const entry = byId.get(saved.id);
+    if (!entry) throw fail("KB_REEMBED_DOCUMENT_MISSING");
+    buildKnowledgeVectorUpdateSet(entry, saved.priorState, { rollback: true });
   }
   return { valid: true, documentsVerified: expected.length };
 };

@@ -205,5 +205,8 @@ describe("bounded application metrics", () => {
     expect(source).toContain("htcoaching_auth_cutover_blocked");
     expect(source).toContain("htcoaching_provider_gemini_chat_total_tokens");
     expect(source).toContain("htcoaching_provider_resend_sent");
+    expect(source).toContain("htcoaching_kb_vector_root_fallbacks");
+    expect(source).toContain("htcoaching_kb_vector_variant_fallbacks");
+    expect(source).toContain("htcoaching_kb_vector_combined_fallbacks");
   });
 });

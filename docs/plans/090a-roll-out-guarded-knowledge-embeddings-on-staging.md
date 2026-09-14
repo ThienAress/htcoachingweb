@@ -17,18 +17,19 @@
 - **Depends on**: 090, PR #114
 - **Category**: migration | data | tests | operations
 - **Planned at**: 2026-09-14
-- **Lifecycle**: IN PROGRESS
-- **Verification**: FOCUSED
-- **Rollout**: NOT STARTED
+- **Lifecycle**: BLOCKED
+- **Verification**: STAGING
+- **Rollout**: LIVE
 - **Owner**: root
-- **Updated at**: 2026-09-14
+- **Updated at**: 2026-09-15
 
 Local evidence trước PR: Node 22 focused six files 47/47 PASS, gồm MongoMemory
 replica-set apply→rollback; full server suite trước patch review cuối 257 files /
-2.561 tests PASS, nên không được tái sử dụng như full evidence cho diff mới.
-AI tool validator 11/11, client compile-only, secret/data-boundary/docs-privacy
-và agent validation PASS. Backup audit đo 73,4 giờ > policy 24 giờ:
-`BACKUP_STALE`; không có staging DB write/provider call.
+2.561 tests PASS. Guardrails sau đó đã được merge/deploy trên staging và rollout
+staging đã chạy; evidence thực thi mới nhất nằm ở mục `Staging Execution Evidence`.
+Plan chưa hoàn tất: synthetic Knowledge Entry eligible đã chứng minh Search Test
+và Chat đã hiển thị WHO citation, nhưng provenance KB và toàn bộ AC-009 live smoke
+chưa được chứng minh; fixture đã được dọn qua staging UI.
 
 ## Why This Matters
 
@@ -47,9 +48,15 @@ Rollout này tạo một đường re-embed staging có thể review, chống dr
   `embeddingStatus`, `embeddingVersion`, `embeddingError` và `embeddingUpdatedAt`.
 - `docs/architecture/atlas-vector-index.md` định nghĩa hai index độc lập
   `kb_embedding_v2` và `kb_variant_embedding_v1`; repository không tự tạo external indexes.
-- Render staging tại preflight chưa có `KB_EMBEDDING_PROFILE`, `KB_VECTOR_INDEX` hoặc
-  `KB_VARIANT_VECTOR_INDEX`, nên runtime đang dùng legacy profile và bounded fallback.
-- Backup gate gần nhất trỏ tới `production-logical-backup-20260911T054030Z`, đã quá giới hạn 24 giờ.
+- Guardrail release `b81fb159a829059fd04176325416d5ee53561236` đã qua CI và được deploy
+  đồng nhất lên Netlify/Render staging trước re-embed và acceptance hậu cutover.
+- Staging re-embed đã hoàn tất với reviewed digest và encrypted snapshot; rollback
+  preflight read-only PASS nhưng rollback thật không chạy.
+- Backup gate hiện dùng `production-logical-backup-20260914T072629Z` và PASS cả
+  release readiness lẫn isolated disaster-recovery verification.
+- Corpus staging ban đầu chỉ có seed fixture `draft`, chưa review/evidence; dù
+  vector `ready`, entry không eligible. Synthetic WHO fixture eligible được tạo
+  theo scope user duyệt để smoke, rồi xóa qua admin UI; bảng hiện về seed ban đầu.
 
 ## Commands You Will Need
 
@@ -62,7 +69,7 @@ Rollout này tạo một đường re-embed staging có thể review, chống dr
 | Agent docs | `npm run agents:validate` | exit 0 |
 | Preflight | `npm run preflight:kb-reembed:staging --prefix server` | JSON mode `preflight`, zero writes, plan digest present |
 | Apply | `npm run migrate:kb-reembed:staging --prefix server -- --plan-digest=<reviewed-digest>` | exact staging target, verified snapshot and post-state |
-| Rollback preflight | `npm run preflight:rollback-kb-reembed:staging --prefix server -- --snapshot=<id>` | JSON mode `preflight`, zero writes |
+| Rollback preflight | `npm run preflight:rollback-kb-reembed:staging --prefix server -- --snapshot=<absolute-encrypted-snapshot-file>` | JSON mode `preflight`, zero writes; snapshot file phải nằm ngoài repo |
 | Diff hygiene | `git diff --check` | exit 0 |
 
 ## Scope
@@ -172,16 +179,72 @@ HT Assistant tests (citations, Retry/Edit, A→B streaming and provider failure)
 - Verification: exact document/variant counts, dimension 768, target version and rollback fingerprint.
 - Live: authenticated citation rendering, retry/edit navigation isolation, streaming switch and provider failure.
 
+## Staging Execution Evidence — 2026-09-14
+
+| Gate | Evidence | Result / limitation |
+|---|---|---|
+| Exact release identity | SHA `b81fb159a829059fd04176325416d5ee53561236`; canonical CI run [34830572458](https://github.com/ThienAress/htcoachingweb/actions/runs/34830572458); Netlify deploy `6aa7c5449e21464e943801c0`; Render deploy `dep-dajsusbm8hqs739juqdg` | PASS: CI, client và server cùng exact SHA. |
+| Recovery gate | Backup `production-logical-backup-20260914T072629Z`; release candidate artifact của run [34843937729](https://github.com/ThienAress/htcoachingweb/actions/runs/34843937729) | PASS: `releaseReady=true`, `disasterRecoveryReady=true`; production không nhận write. Continuous recovery vẫn không khả dụng và không được suy thành PITR. |
+| Staging re-embed | Plan digest `c5bcbad239871a6e89522359d8c35248645d29d3e32ae0614f9599b68b02c597`; encrypted snapshot `kb-reembed-staging-20260914T115622Z-c5bcbad2`; post-verification trước cutover | PASS trên exact `htcoaching_staging`; không commit key, URI hoặc raw vector. Rollback preflight read-only PASS `1/1`; rollback thật không chạy. |
+| Final staging acceptance | Run [34843937729](https://github.com/ThienAress/htcoachingweb/actions/runs/34843937729), `2026-09-14T12:32:27.388Z` → `2026-09-14T12:33:16.366Z` | PASS 9/9 flows; exact deploy identity PASS; cleanup `verified=true`, `residue=0`; backup và disaster-recovery gates PASS. |
+| Public health | `ALLOW_REMOTE_STAGING_HEALTH=true` với Node `22.23.1`, checked `2026-09-14T13:16:27.911Z` | PASS 7/7: client, manifest, live, ready và ba public API đều HTTP 200. |
+| Deterministic authenticated-chat regressions | `npx -y node@22.23.1 node_modules/@playwright/test/cli.js test e2e/ai-chat.spec.js --project=chromium` | PASS 7/7: incremental/coalesced SSE, A→B isolation + citation, Stop không nhận late suffix, provider failure → Retry/Edit + citation, confirmation flow. Đây là loopback mock, không phải provider-failure injection trên staging. |
+| Current-diff QA/review | Node `22.23.1`: focused re-embed/embedding cuối 46/46, stream hook 20/20, full AI-chat spec 7/7, Stop stress 3/3; full client 816/816; full server 258 files/2.581 tests; staging-configured client release build; static gates và independent review | PASS: release build prerender 54/54, bundle/search-index gates PASS; review `PASS WITH WARNINGS`, không còn BLOCK/HIGH/MED/LOW finding. Mock vẫn không thay live provider/proxy/fallback evidence. |
+| Initial live diagnostic | Admin Search Test với exact seed question ở production parity `top=3, threshold=0.75`, rồi explore `top=5, threshold=0.60`; authenticated HT Assistant | Seed `draft`, `vector: ready` nhưng chưa review/evidence cho `0` hit ở cả hai search mode; exact seed question route `general/model_prior`, Chat không render KB citation. Không phải bằng chứng Atlas/vector regression. |
+| Eligible-fixture live smoke | Synthetic WHO source-backed staging entry `training`, `published`, `vector: ready`; Admin Search Test `threshold=0.75`; authenticated HT Assistant | Search Test có một hit `98,7%`. Chat lần đầu lỗi generic, Retry thành công với claim ≥150 phút/tuần và citation `https://www.who.int/news-room/fact-sheets/detail/physical-activity`. Search Test chứng minh retrieval eligible; WHO URL trong Chat chưa tự chứng minh provenance từ KB thay vì grounding khác. Quota quan sát cuối `1197/1200`. |
+| Manual smoke cleanup | User xác nhận xóa; staging admin KB và conversation UI, rồi exact WHO Search Test | Hai conversation và WHO fixture đã xóa qua UI; sidebar không còn conversation, KB table `2 → 1` còn seed `draft`, exact WHO query trả `0` ở cả `0.75`/`0.60`, conversation admin filter “Tất cả” không thấy mục phù hợp. UI-observed, không phải DB-level residue counter; tách biệt acceptance cleanup `residue=0` ở trên. |
+
+### Post-smoke local hardening — chưa deploy
+
+Review rollback phát hiện snapshot prior state hợp lệ ở target version nhưng
+`failed`/`pending` từng qua apply rồi không rollback được. Diff local giờ dùng
+chung validator cho preflight và transaction: phục hồi đúng trạng thái prior
+không-ready nhưng vẫn chặn vector `ready` hỏng, drift/CAS và forward target
+không-ready. Regression RED tái hiện lỗi; GREEN Node `22.23.1` focused 52/52
+(migration state/Mongo + embedding/metrics). Telemetry mới tách counter fallback
+`root`, `variant`, `combined` và giữ counter tổng cũ; nhánh không index là
+combined scan, không bị gán nhầm root. AI eval 49/49, tool validator 11/11,
+Chat loopback E2E 7/7, client release build/prerender 54/54, security/agent
+gates PASS. Review độc lập `PASS WITH WARNINGS` đã nêu thiếu round-trip encrypted
+snapshot → rollback và đồng thời root+variant fallback trong cùng một search.
+Hai khoảng trống test local này đã có regression bổ sung: snapshot mã hóa →
+giải mã → apply/rollback trên Mongo cô lập cho prior `failed`/`pending`, root+variant
+fallback cùng một search và Atlas healthy zero fallback. Focused Node `22.23.1`
+hai file 46/46 PASS. Full server suite trên diff cuối PASS 9/9 batches,
+258 files/2.581 tests; không dùng kết quả local như deployed-SHA hoặc rollback
+drill trên staging.
+
+Full client suite Node `22.23.1` lần đầu 815/816 do một source assertion phụ thuộc
+LF trong Windows CRLF checkout; sửa helper test normalize newline (không đổi UI)
+và rerun 170/170 files, 816/816 tests PASS.
+
+Worktree vẫn ở `b81fb159a829059fd04176325416d5ee53561236`; fix và metrics
+chưa commit/deploy. Máy local không có staging-only DB credential, key hoặc
+absolute encrypted snapshot file để chạy drill. GitHub environment
+`staging-live-acceptance` có staging DB credential nhưng không có snapshot key;
+không chuyển secret qua repo/log. Không chạy rollback thật trên binary cũ.
+
+Seed script cố ý tạo fixture `draft` không có evidence; re-embed chỉ thay vector
+state. Runtime yêu cầu `published + ready + exact version + reviewed` và approved
+evidence trước threshold. WHO fixture dùng nguồn thật và đã được dọn sau smoke,
+không đổi nội dung production hoặc suy citation Chat chắc chắn đi từ KB.
+
+**NO-GO để đóng Plan 090a**: AC-009 còn thiếu live Retry/Edit đầy đủ, A→B
+streaming, Stop, provider-failure behavior và root/variant fallback metrics;
+provenance KB của citation Chat chưa có trace quyết định. Retry sau generic failure
+đã được quan sát, nhưng không thay thế provider-failure injection. Các behavior
+còn lại có deterministic loopback E2E evidence, không phải live provider/proxy.
+
 ## Done Criteria
 
-- [ ] Preflight defaults to zero writes and rejects every non-staging target.
-- [ ] Apply requires exact target, explicit confirmation, reviewed plan digest and a complete snapshot.
-- [ ] Rollback restores the exact prior root/variant vector state and verifies its fingerprint.
-- [ ] Focused/server/AI/security/agent gates pass.
-- [ ] Guardrail PR merges to `staging`; CI, Netlify and Render match one exact SHA.
-- [ ] Fresh backup gate passes with zero production writes.
+- [x] Preflight defaults to zero writes and rejects every non-staging target.
+- [x] Apply requires exact target, explicit confirmation, reviewed plan digest and a complete snapshot.
+- [ ] Rollback restores the exact prior root/variant vector state and verifies its fingerprint; isolated tests and live read-only preflight PASS, but the real rollback was intentionally not invoked.
+- [x] Focused/server/AI/security/agent gates pass for the deployed guardrail SHA.
+- [x] Guardrail PR merges to `staging`; CI, Netlify and Render match one exact SHA.
+- [x] Fresh backup gate passes with zero production writes.
 - [ ] Re-embed, indexes, env cutover and live smoke pass only on `htcoaching_staging`.
-- [ ] Final acceptance cleanup has `residue=0`; Plan 090 state matches evidence.
+- [x] Final acceptance cleanup has `residue=0`; Plan 090 state matches evidence.
 
 ## STOP Conditions
 

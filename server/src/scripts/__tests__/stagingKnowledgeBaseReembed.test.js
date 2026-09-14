@@ -1,18 +1,29 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import mongoose from "mongoose";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+
+import {
+  clearCollections,
+  setupTestDB,
+  teardownTestDB,
+} from "../../__tests__/setup.js";
 
 import {
   QUESTION_ANSWERING_EMBEDDING_VERSION,
+  applyStagingKnowledgeBaseRollback,
+  applyStagingKnowledgeBaseTargetStates,
   buildKnowledgeSnapshotPayload,
   buildStagingKnowledgeBaseReembedPlan,
   createEncryptedKnowledgeSnapshot,
   createKnowledgeContentHash,
   createKnowledgeVectorStateHash,
+  loadStagingKnowledgeEntries,
   readEncryptedKnowledgeSnapshot,
   validateStagingKnowledgeBaseReembedAuthorization,
+  verifyKnowledgeRollbackPreState,
 } from "../stagingKnowledgeBaseReembed.js";
 
 const NOW = new Date("2026-09-14T06:00:00.000Z");
@@ -218,4 +229,289 @@ describe("encrypted Knowledge Base snapshot", () => {
       payload,
     })).rejects.toThrowError(/KB_REEMBED_SNAPSHOT_INCOMPLETE/);
   });
+});
+
+describe("staging Knowledge Base rollback prior-state compatibility", () => {
+  beforeAll(setupTestDB);
+  afterEach(clearCollections);
+  afterAll(teardownTestDB);
+
+  const applyWithSnapshot = async (overrides) => {
+    const original = legacyEntry({
+      _id: new mongoose.Types.ObjectId(),
+      embeddingVersion: QUESTION_ANSWERING_EMBEDDING_VERSION,
+      ...overrides,
+    });
+    await mongoose.connection.collection("knowledgeentries").insertOne(original);
+    const before = await loadStagingKnowledgeEntries({
+      connection: mongoose.connection,
+    });
+    const plan = buildStagingKnowledgeBaseReembedPlan(before);
+    const target = targetEntry(before[0]);
+    const targetStates = [
+      {
+        id: String(original._id),
+        contentHash: createKnowledgeContentHash(before[0]),
+        priorStateHash: createKnowledgeVectorStateHash(before[0]),
+        targetEntry: target,
+        targetStateHash: createKnowledgeVectorStateHash(target),
+      },
+    ];
+    const snapshot = buildKnowledgeSnapshotPayload({
+      plan,
+      entries: before,
+      targetStates,
+      snapshotId: `kb-reembed-staging-20260914T060000Z-${plan.planDigest.slice(0, 8)}`,
+      now: NOW,
+    });
+
+    await applyStagingKnowledgeBaseTargetStates({
+      connection: mongoose.connection,
+      plan,
+      targetStates,
+    });
+    return { before, targetStates, snapshot };
+  };
+
+  it.each(["failed", "pending"])(
+    "restores exact target-version %s prior state after apply",
+    async (embeddingStatus) => {
+      const { before, targetStates, snapshot } = await applyWithSnapshot({
+        embedding: [],
+        variants: [{ text: "Creatine dùng để làm gì?", embedding: [] }],
+        embeddingStatus,
+        embeddingError:
+          embeddingStatus === "failed" ? "EMBEDDING_UNAVAILABLE" : null,
+        embeddingUpdatedAt:
+          embeddingStatus === "failed"
+            ? null
+            : new Date("2026-09-11T01:00:00.000Z"),
+      });
+      const applied = await loadStagingKnowledgeEntries({
+        connection: mongoose.connection,
+      });
+      expect(
+        verifyKnowledgeRollbackPreState({ snapshot, entries: applied }),
+      ).toEqual({ valid: true, documentsVerified: 1 });
+      await applyStagingKnowledgeBaseRollback({
+        connection: mongoose.connection,
+        snapshot,
+      });
+      const after = await loadStagingKnowledgeEntries({
+        connection: mongoose.connection,
+      });
+
+      expect({
+        entry: after[0],
+        contentHash: createKnowledgeContentHash(after[0]),
+        vectorStateHash: createKnowledgeVectorStateHash(after[0]),
+      }).toEqual({
+        entry: before[0],
+        contentHash: targetStates[0].contentHash,
+        vectorStateHash: targetStates[0].priorStateHash,
+      });
+    },
+  );
+
+  it.each(["failed", "pending"])(
+    "round-trips an encrypted snapshot and restores %s root and variant state",
+    async (embeddingStatus) => {
+      const temporaryDirectory = await mkdtemp(
+        path.join(os.tmpdir(), "ht-kb-reembed-rollback-"),
+      );
+      try {
+        const original = legacyEntry({
+          _id: new mongoose.Types.ObjectId(),
+          embedding: [],
+          variants: [{ text: "Creatine dùng để làm gì?", embedding: [] }],
+          embeddingStatus,
+          embeddingVersion: QUESTION_ANSWERING_EMBEDDING_VERSION,
+          embeddingError:
+            embeddingStatus === "failed" ? "EMBEDDING_UNAVAILABLE" : null,
+          embeddingUpdatedAt:
+            embeddingStatus === "failed"
+              ? null
+              : new Date("2026-09-11T01:00:00.000Z"),
+        });
+        await mongoose.connection.collection("knowledgeentries").insertOne(original);
+        const before = await loadStagingKnowledgeEntries({
+          connection: mongoose.connection,
+        });
+        const plan = buildStagingKnowledgeBaseReembedPlan(before);
+        const target = targetEntry(before[0]);
+        const targetStates = [{
+          id: String(before[0]._id),
+          contentHash: createKnowledgeContentHash(before[0]),
+          priorStateHash: createKnowledgeVectorStateHash(before[0]),
+          targetEntry: target,
+          targetStateHash: createKnowledgeVectorStateHash(target),
+        }];
+        const payload = buildKnowledgeSnapshotPayload({
+          plan,
+          entries: before,
+          targetStates,
+          snapshotId: `kb-reembed-staging-20260914T060000Z-${plan.planDigest.slice(0, 8)}`,
+          now: NOW,
+        });
+        const written = await createEncryptedKnowledgeSnapshot({
+          directory: temporaryDirectory,
+          secret: validEnv().KB_REEMBED_SNAPSHOT_KEY,
+          payload,
+        });
+        const snapshot = await readEncryptedKnowledgeSnapshot({
+          filePath: written.filePath,
+          secret: validEnv().KB_REEMBED_SNAPSHOT_KEY,
+        });
+
+        await applyStagingKnowledgeBaseTargetStates({
+          connection: mongoose.connection,
+          plan,
+          targetStates,
+        });
+        await applyStagingKnowledgeBaseRollback({
+          connection: mongoose.connection,
+          snapshot,
+        });
+        const after = await loadStagingKnowledgeEntries({
+          connection: mongoose.connection,
+        });
+        await rm(temporaryDirectory, { recursive: true, force: true });
+
+        expect({
+          priorStateHash: createKnowledgeVectorStateHash(before[0]),
+          restoredStateHash: createKnowledgeVectorStateHash(after[0]),
+          embeddingStatus: after[0].embeddingStatus,
+          embedding: after[0].embedding,
+          variantEmbeddings: after[0].variants.map((variant) => variant.embedding),
+          snapshotDirectoryRemoved: await access(temporaryDirectory)
+            .then(() => false)
+            .catch(() => true),
+        }).toEqual({
+          priorStateHash: targetStates[0].priorStateHash,
+          restoredStateHash: targetStates[0].priorStateHash,
+          embeddingStatus,
+          embedding: [],
+          variantEmbeddings: [[]],
+          snapshotDirectoryRemoved: true,
+        });
+      } finally {
+        await rm(temporaryDirectory, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each([
+    ["empty root", { embedding: [] }, /KB_REEMBED_TARGET_VECTOR_STATE_INVALID/],
+    [
+      "empty variant",
+      { variants: [{ text: "Biến thể?", embedding: [] }] },
+      /KB_REEMBED_TARGET_VECTOR_STATE_INVALID/,
+    ],
+    ["wrong dimension", { embedding: [1, 2, 3] }, /KB_REEMBED_VECTOR_STATE_INVALID/],
+    [
+      "non-finite component",
+      { embedding: VECTOR.map(() => NaN) },
+      /KB_REEMBED_VECTOR_STATE_INVALID/,
+    ],
+  ])(
+    "rejects a ready prior state with %s without changing the target",
+    async (_label, overrides, error) => {
+      const { snapshot, targetStates } = await applyWithSnapshot(overrides);
+      const applied = await loadStagingKnowledgeEntries({
+        connection: mongoose.connection,
+      });
+
+      expect(() =>
+        verifyKnowledgeRollbackPreState({ snapshot, entries: applied }),
+      ).toThrowError(error);
+
+      await expect(
+        applyStagingKnowledgeBaseRollback({
+          connection: mongoose.connection,
+          snapshot,
+        }),
+      ).rejects.toThrowError(error);
+      const after = await loadStagingKnowledgeEntries({
+        connection: mongoose.connection,
+      });
+
+      expect(createKnowledgeVectorStateHash(after[0])).toBe(
+        targetStates[0].targetStateHash,
+      );
+    },
+  );
+
+  it.each(["failed", "pending"])(
+    "rejects forward apply of a %s target state",
+    async (embeddingStatus) => {
+      const original = legacyEntry({ _id: new mongoose.Types.ObjectId() });
+      await mongoose.connection.collection("knowledgeentries").insertOne(original);
+      const target = { ...targetEntry(original), embeddingStatus };
+      const priorStateHash = createKnowledgeVectorStateHash(original);
+
+      await expect(
+        applyStagingKnowledgeBaseTargetStates({
+          connection: mongoose.connection,
+          plan: buildStagingKnowledgeBaseReembedPlan([original]),
+          targetStates: [
+            {
+              id: String(original._id),
+              contentHash: createKnowledgeContentHash(original),
+              priorStateHash,
+              targetEntry: target,
+              targetStateHash: createKnowledgeVectorStateHash(target),
+            },
+          ],
+        }),
+      ).rejects.toThrowError(/KB_REEMBED_TARGET_VECTOR_STATE_INVALID/);
+      const after = await loadStagingKnowledgeEntries({
+        connection: mongoose.connection,
+      });
+
+      expect(createKnowledgeVectorStateHash(after[0])).toBe(priorStateHash);
+    },
+  );
+
+  it.each([
+    [
+      "invalid date",
+      { embeddingUpdatedAt: "not-a-date" },
+      /KB_REEMBED_VECTOR_STATE_DATE_INVALID/,
+    ],
+    [
+      "variant count drift",
+      { variantEmbeddings: [] },
+      /KB_REEMBED_VARIANT_COUNT_DRIFT/,
+    ],
+  ])(
+    "rejects prior-state %s during preflight and rollback",
+    async (_label, overrides, error) => {
+      const { snapshot, targetStates } = await applyWithSnapshot({
+        embeddingStatus: "pending",
+        embedding: [],
+        variants: [{ text: "Creatine dùng để làm gì?", embedding: [] }],
+      });
+      Object.assign(snapshot.entries[0].priorState, overrides);
+      const applied = await loadStagingKnowledgeEntries({
+        connection: mongoose.connection,
+      });
+
+      expect(() =>
+        verifyKnowledgeRollbackPreState({ snapshot, entries: applied }),
+      ).toThrowError(error);
+      await expect(
+        applyStagingKnowledgeBaseRollback({
+          connection: mongoose.connection,
+          snapshot,
+        }),
+      ).rejects.toThrowError(error);
+      const after = await loadStagingKnowledgeEntries({
+        connection: mongoose.connection,
+      });
+
+      expect(createKnowledgeVectorStateHash(after[0])).toBe(
+        targetStates[0].targetStateHash,
+      );
+    },
+  );
 });

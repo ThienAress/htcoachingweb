@@ -16,25 +16,25 @@
     {
       "id": "REQ-001",
       "acceptanceCriteria": [
-        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/embedding.service.test.js" }] },
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/scripts/__tests__/stagingKnowledgeBaseReembed.test.js" }, { "type": "command", "command": "npm run preflight:kb-reembed:staging --prefix server" }] },
         { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/scripts/__tests__/stagingKnowledgeBaseReembed.test.js" }] },
-        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "command", "command": "npm run preflight:kb-reembed:staging --prefix server" }, { "type": "command", "command": "npm run preflight:rollback-kb-reembed:staging --prefix server -- --snapshot=<id>" }] }
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-001", "TASK-002"], "verifications": [{ "type": "test", "path": "server/src/scripts/__tests__/stagingKnowledgeBaseReembed.test.js" }, { "type": "test", "path": "server/src/services/ai/__tests__/embedding.service.test.js" }] }
       ]
     },
     {
       "id": "REQ-002",
       "acceptanceCriteria": [
-        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "command", "command": "npm run agents:validate" }, { "type": "command", "command": "npm run security:secrets" }] },
-        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "command", "command": "npm run verify:staging-deploys" }] },
-        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "npm run verify:backup-release" }, { "type": "command", "command": "npm run verify:disaster-recovery" }] }
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-001", "TASK-002", "TASK-003", "TASK-004"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/embedding.service.test.js" }, { "type": "test", "path": "server/src/scripts/__tests__/stagingKnowledgeBaseReembed.test.js" }, { "type": "command", "command": "npm run test:unit:server" }, { "type": "command", "command": "npm run security:secrets" }, { "type": "command", "command": "npm run agents:validate" }, { "type": "command", "command": "npm run verify:staging-deploys" }, { "type": "command", "command": "git diff --check" }] },
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "npm run verify:backup-release" }, { "type": "command", "command": "npm run verify:disaster-recovery" }] },
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/embedding.service.test.js" }] }
       ]
     },
     {
       "id": "REQ-003",
       "acceptanceCriteria": [
-        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "command", "command": "npm run migrate:kb-reembed:staging --prefix server -- --plan-digest=<reviewed-digest>" }] },
-        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-007"], "verifications": [{ "type": "command", "command": "npm run acceptance:staging --prefix server" }, { "type": "command", "command": "npx playwright test e2e/ai-chat.spec.js" }] },
-        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-001", "TASK-002", "TASK-003", "TASK-004", "TASK-005", "TASK-006", "TASK-007"], "verifications": [{ "type": "command", "command": "git diff --check" }] }
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-002", "TASK-006"], "verifications": [{ "type": "test", "path": "server/src/scripts/__tests__/stagingKnowledgeBaseReembed.test.js" }, { "type": "command", "command": "npm run migrate:kb-reembed:staging --prefix server -- --plan-digest=<reviewed-digest>" }, { "type": "command", "command": "npm run preflight:rollback-kb-reembed:staging --prefix server -- --snapshot=<absolute-encrypted-snapshot-file>" }] },
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-007"], "verifications": [{ "type": "command", "command": "npm run acceptance:staging --prefix server" }] },
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-006", "TASK-007"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/embedding.service.test.js" }, { "type": "test", "path": "e2e/ai-chat.spec.js" }, { "type": "command", "command": "npx -y node@22.23.1 node_modules/@playwright/test/cli.js test e2e/ai-chat.spec.js --project=chromium" }] }
       ]
     }
   ]
