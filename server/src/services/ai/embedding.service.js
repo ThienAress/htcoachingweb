@@ -221,6 +221,7 @@ export async function generateEmbedding(text, options = {}) {
 
   const prepared = prepareEmbeddingInput(text, {
     inputType: options.inputType || "document",
+    profileId: options.profileId || EMBEDDING_PROFILE_ID,
   });
   const cacheKey = JSON.stringify([prepared.version, prepared.text]);
 
