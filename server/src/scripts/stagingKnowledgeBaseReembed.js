@@ -241,9 +241,10 @@ export const runStagingKnowledgeBaseReembed = async ({
     await runtime.connect(env.MONGO_URI);
     connected = true;
     await runtime.assertConnectedTarget(authorization);
-    return authorization.operation === "rollback"
-      ? runRollback({ authorization, runtime })
-      : runReembed({ authorization, runtime, now });
+    const result = authorization.operation === "rollback"
+      ? await runRollback({ authorization, runtime })
+      : await runReembed({ authorization, runtime, now });
+    return result;
   } finally {
     if (connected) await runtime.disconnect();
   }

@@ -142,6 +142,35 @@ describe("staging Knowledge Base re-embed runner", () => {
     expect(runtime.disconnect).toHaveBeenCalledOnce();
   });
 
+  it("keeps the connection open until the preflight read completes", async () => {
+    let completeRead;
+    const readGate = new Promise((resolve) => {
+      completeRead = resolve;
+    });
+    const order = [];
+    const runtime = dependencies();
+    runtime.loadEntries.mockImplementation(async () => {
+      order.push("read:start");
+      await readGate;
+      order.push("read:end");
+      return [legacyEntry()];
+    });
+    runtime.disconnect.mockImplementation(() => {
+      order.push("disconnect");
+    });
+
+    const resultPromise = runStagingKnowledgeBaseReembed({
+      argv: ["--target=staging"], env: validEnv(), dependencies: runtime, now: NOW,
+    });
+    await vi.waitFor(() => expect(runtime.loadEntries).toHaveBeenCalledOnce());
+    const orderBeforeReadCompleted = [...order];
+    completeRead();
+    await resultPromise;
+
+    expect(orderBeforeReadCompleted).toEqual(["read:start"]);
+    expect(order).toEqual(["read:start", "read:end", "disconnect"]);
+  });
+
   it("rejects a drifted reviewed digest before provider calls or writes", async () => {
     const runtime = dependencies();
     await expect(runStagingKnowledgeBaseReembed({
