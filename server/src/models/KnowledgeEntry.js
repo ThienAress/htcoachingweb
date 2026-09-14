@@ -1,11 +1,55 @@
 import mongoose from "mongoose";
 import {
+  KNOWLEDGE_EVIDENCE_LEVELS,
+  KNOWLEDGE_EVIDENCE_TIERS,
+  KNOWLEDGE_FRESHNESS_CLASSES,
+  KNOWLEDGE_REVIEW_STATUSES,
+  KNOWLEDGE_SOURCE_TYPES,
+  MAX_KNOWLEDGE_SOURCES,
   MAX_KNOWLEDGE_TAGS,
   MAX_KNOWLEDGE_VARIANTS,
   normalizeKnowledgeQuestion,
+  validateKnowledgePublication,
 } from "../utils/knowledgeBase.js";
+import {
+  EMBEDDING_DIMENSION,
+  EMBEDDING_VERSION,
+} from "../services/ai/embeddingProfile.js";
 
-const EMBEDDING_DIMENSION = 768;
+const sourceSchema = new mongoose.Schema(
+  {
+    type: { type: String, enum: KNOWLEDGE_SOURCE_TYPES, required: true },
+    title: { type: String, required: true, trim: true, maxlength: 300 },
+    publisher: { type: String, required: true, trim: true, maxlength: 200 },
+    url: {
+      type: String,
+      default: null,
+      maxlength: 2048,
+      validate: {
+        validator: (value) => {
+          if (!value) return true;
+          try {
+            const parsed = new URL(value);
+            return parsed.protocol === "https:" && !parsed.username && !parsed.password;
+          } catch {
+            return false;
+          }
+        },
+        message: "Knowledge source URL phải dùng HTTPS",
+      },
+    },
+    publishedAt: { type: Date, default: null },
+    retrievedAt: { type: Date, default: null },
+    evidenceTier: {
+      type: String,
+      enum: KNOWLEDGE_EVIDENCE_TIERS,
+      required: true,
+    },
+  },
+  { _id: false },
+);
+
+const sha256Pattern = /^[a-f0-9]{64}$/;
 
 const knowledgeEntrySchema = new mongoose.Schema(
   {
@@ -112,9 +156,61 @@ const knowledgeEntrySchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    sources: {
+      type: [sourceSchema],
+      default: [],
+      validate: {
+        validator: (value) => value.length <= MAX_KNOWLEDGE_SOURCES,
+        message: `Tối đa ${MAX_KNOWLEDGE_SOURCES} knowledge sources`,
+      },
+    },
+    evidenceLevel: {
+      type: String,
+      enum: KNOWLEDGE_EVIDENCE_LEVELS,
+      default: "legacy_unverified",
+    },
+    reviewStatus: {
+      type: String,
+      enum: KNOWLEDGE_REVIEW_STATUSES,
+      default: "needs_review",
+    },
+    freshnessClass: {
+      type: String,
+      enum: KNOWLEDGE_FRESHNESS_CLASSES,
+      default: "stable",
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    reviewedAt: { type: Date, default: null },
+    reviewDueAt: { type: Date, default: null },
+    revision: { type: Number, default: 1, min: 1 },
     source: {
       conversationId: { type: mongoose.Schema.Types.ObjectId, ref: "ChatConversation", default: null },
       messageIndex: { type: Number, default: null },
+      questionIndex: { type: Number, default: null, min: 0 },
+      answerIndex: { type: Number, default: null, min: 0 },
+      questionMessageId: { type: mongoose.Schema.Types.ObjectId, default: null },
+      answerMessageId: { type: mongoose.Schema.Types.ObjectId, default: null },
+      questionHash: {
+        type: String,
+        default: null,
+        validate: {
+          validator: (value) => value === null || sha256Pattern.test(value),
+          message: "Question hash không hợp lệ",
+        },
+      },
+      answerHash: {
+        type: String,
+        default: null,
+        validate: {
+          validator: (value) => value === null || sha256Pattern.test(value),
+          message: "Answer hash không hợp lệ",
+        },
+      },
+      capturedAt: { type: Date, default: null },
     },
     status: {
       type: String,
@@ -145,6 +241,7 @@ knowledgeEntrySchema.pre("validate", function syncKnowledgeIntegrity() {
   if (
     this.status === "published" &&
     (this.embeddingStatus !== "ready" ||
+      this.embeddingVersion !== EMBEDDING_VERSION ||
       !Array.isArray(this.embedding) ||
       this.embedding.length !== EMBEDDING_DIMENSION)
   ) {
@@ -152,6 +249,27 @@ knowledgeEntrySchema.pre("validate", function syncKnowledgeIntegrity() {
       "status",
       "Không thể publish knowledge entry khi embedding chưa sẵn sàng",
     );
+  }
+
+  const evidenceChanged = [
+    "status",
+    "question",
+    "answer",
+    "category",
+    "sources",
+    "evidenceLevel",
+    "freshnessClass",
+    "reviewDueAt",
+  ].some((path) => this.isModified(path));
+  if (this.status === "published" && (this.isNew || evidenceChanged)) {
+    const publication = validateKnowledgePublication(this);
+    if (!publication.valid) this.invalidate("status", publication.message);
+    if (this.reviewStatus !== "reviewed" || !this.reviewedBy || !this.reviewedAt) {
+      this.invalidate(
+        "reviewStatus",
+        "Knowledge entry phải được server ghi nhận reviewer trước khi publish",
+      );
+    }
   }
 });
 

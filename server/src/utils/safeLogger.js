@@ -70,13 +70,19 @@ const sanitizeForLog = (value, seen = new WeakSet()) => {
 
 const write = (level, event, details = {}) => {
   const context = getRequestContext();
+  const requestId = typeof context.requestId === "string"
+    ? sanitizeString(context.requestId)
+    : null;
+  const traceId = typeof context.traceId === "string"
+    ? sanitizeString(context.traceId)
+    : null;
   const entry = {
     timestamp: new Date().toISOString(),
     level,
     service: "htcoaching-api",
     event,
-    ...(context.requestId ? { requestId: context.requestId } : {}),
-    ...(context.traceId ? { traceId: context.traceId } : {}),
+    ...(requestId ? { requestId } : {}),
+    ...(traceId ? { traceId } : {}),
     ...sanitizeForLog(details),
   };
   const line = JSON.stringify(entry);

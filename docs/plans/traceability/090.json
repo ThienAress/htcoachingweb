@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "planId": "090",
+  "specPath": "docs/specs/fitness-first-ai-and-knowledge-quality.md",
+  "planPath": "docs/plans/090-make-ht-assistant-fitness-first-and-evidence-grounded.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Route fitness-first and general-safe requests", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Publish knowledge with evidence", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Close privacy-safe feedback loop", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Gate retrieval quality", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Stream sanitized final answers progressively", "planStep": "Step 5" },
+    { "id": "TASK-006", "title": "Review and verify integrated change", "planStep": "Step 6" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/requestRouter.test.js" }, { "type": "test", "path": "server/src/services/ai/tools/__tests__/searchKnowledge.tool.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/systemPrompt.test.js" }] },
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "command", "command": "npm run test:ai-eval" }, { "type": "test", "path": "server/src/services/ai/__tests__/knowledgePrivacy.test.js" }, { "type": "test", "path": "server/src/services/ai/__tests__/personalHealthData.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/knowledgeBaseEvidence.routes.integration.test.js" }, { "type": "test", "path": "client/src/pages/admin/__tests__/knowledgeBaseAdmin.test.js" }] },
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "test", "path": "server/src/utils/__tests__/knowledgeBase.test.js" }, { "type": "test", "path": "server/src/migrations/__tests__/20260719-phase2-ai-kb-integrity.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/knowledgePrivacy.test.js" }, { "type": "test", "path": "server/src/services/ai/__tests__/personalHealthData.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/knowledgeBaseEvidence.routes.integration.test.js" }] },
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [{ "type": "test", "path": "client/src/components/ChatWidget/__tests__/feedbackRuntime.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "acceptanceCriteria": [
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/embedding.service.test.js" }, { "type": "test", "path": "client/src/pages/admin/__tests__/knowledgeBaseAdmin.test.js" }] },
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "command", "command": "node .agents/scripts/validate-tools.mjs" }] }
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "acceptanceCriteria": [
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "command", "command": "npm run test:unit" }] },
+        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "command", "command": "npm run build --prefix client" }] },
+        { "id": "AC-012", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "command", "command": "npm run security:secrets" }, { "type": "command", "command": "npm run security:data-boundaries" }, { "type": "command", "command": "npm run agents:validate" }] }
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "acceptanceCriteria": [
+        { "id": "AC-013", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/responseStreamer.test.js" }, { "type": "test", "path": "client/src/hooks/__tests__/aiChatStreamPacer.test.js" }] },
+        { "id": "AC-014", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }, { "type": "test", "path": "client/src/hooks/__tests__/useAiChat.streamCompletion.test.js" }] }
+      ]
+    }
+  ]
+}

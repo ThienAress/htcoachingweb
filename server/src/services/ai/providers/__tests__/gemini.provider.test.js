@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../../../../utils/safeLogger.js", () => ({
+  safeLog: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
+}));
 import {
   getMetricsSnapshot,
   resetMetricsForTests,
@@ -25,6 +28,79 @@ afterEach(() => {
 beforeEach(resetMetricsForTests);
 
 describe("geminiLLMStream retry", () => {
+  it("throws a typed configuration error instead of displaying the missing key", async () => {
+    await expect(
+      collectStream(geminiLLMStream([{ role: "user", content: "Hi" }])),
+    ).rejects.toMatchObject({
+      name: "AiProviderOperationalError",
+      code: "GEMINI_CONFIG_UNAVAILABLE",
+    });
+  });
+
+  it.each([429, 403, 503])("throws a typed operational error for HTTP %s", async (status) => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response('{"error":{"status":"UNAVAILABLE"}}', { status }),
+    ));
+
+    await expect(
+      collectStream(geminiLLMStream([{ role: "user", content: "Hi" }])),
+    ).rejects.toMatchObject({
+      name: "AiProviderOperationalError",
+      code: "GEMINI_HTTP_ERROR",
+      status,
+    });
+  });
+
+  it("throws a typed operational error for network failure", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+
+    await expect(
+      collectStream(geminiLLMStream([{ role: "user", content: "Hi" }])),
+    ).rejects.toMatchObject({
+      name: "AiProviderOperationalError",
+      code: "GEMINI_NETWORK_ERROR",
+    });
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 1,
+      "provider.gemini_chat_failed": 1,
+    });
+  });
+
+  it("throws a typed error when minimal-context retry is exhausted", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response('{"error":{"status":"INVALID_ARGUMENT"}}', { status: 400 }),
+    ));
+
+    await expect(
+      collectStream(geminiLLMStream([{ role: "user", content: "Hi" }])),
+    ).rejects.toMatchObject({
+      name: "AiProviderOperationalError",
+      code: "GEMINI_HTTP_ERROR",
+      status: 400,
+    });
+  });
+
+  it("throws a typed timeout rather than yielding assistant text", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    vi.stubGlobal("fetch", vi.fn((_url, { signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    })));
+
+    await expect(
+      collectStream(geminiLLMStream([{ role: "user", content: "Hi" }], [], { timeoutMs: 1 })),
+    ).rejects.toMatchObject({
+      name: "AiProviderOperationalError",
+      code: "GEMINI_TIMEOUT",
+    });
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 1,
+      "provider.gemini_chat_failed": 1,
+    });
+  }, 7000);
+
   it("sends function responses back to Gemini as user turns", async () => {
     process.env.GEMINI_API_KEY = "test-api-key";
 

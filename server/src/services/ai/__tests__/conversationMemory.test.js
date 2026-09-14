@@ -153,24 +153,22 @@ describe("AI conversation working memory", () => {
     expect(prompt).not.toContain("cần đăng nhập và luôn kiểm tra lại khẩu phần");
   });
 
-  it("asks one clarifying question when a person name may be fitness-related", () => {
+  it("uses a transparent common interpretation for a stable person identity", () => {
     const prompt = buildSystemPrompt();
 
-    expect(prompt).toContain(
-      "Nếu tên người hoặc chủ thể còn mơ hồ (ví dụ: \"Lisa là ai?\")",
-    );
-    expect(prompt).toContain("hỏi lại đúng 1 câu ngắn");
+    expect(prompt).toContain("Nếu bạn đang nói Lisa của BLACKPINK");
+    expect(prompt).toContain("chỉ hỏi lại khi có nhiều cách hiểu ngang nhau");
   });
 
-  it("refuses clearly off-topic requests and points to quota below the input", () => {
+  it("answers safe general questions while preserving the one-message quota rule", () => {
     const prompt = buildSystemPrompt();
 
-    expect(prompt).toContain("thẩm mỹ viện này ở đâu");
+    expect(prompt).toContain("câu hỏi kiến thức chung an toàn và ổn định");
     expect(prompt).toMatch(/tin nhắn này vẫn được tính vào hạn mức/i);
     expect(prompt).toContain("dưới ô nhập");
     expect(prompt).not.toContain("cạnh tên HT Assistant");
     expect(prompt).toMatch(/không tự nêu số lượt AI Chat còn lại/i);
-    expect(prompt).toContain("lịch tập, tính TDEE hoặc gợi ý bữa ăn");
+    expect(prompt).not.toContain("Mình tập trung vào tập luyện");
   });
 
   it("invalidates an old meal plan after TDEE is recalculated", () => {

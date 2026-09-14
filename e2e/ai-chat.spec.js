@@ -38,9 +38,54 @@ test.describe("AI chat", () => {
     await expect(page.getByText("Phản hồi AI deterministic")).toBeVisible();
   });
 
+  test("reveals a coalesced SSE answer before its full response is displayed", async ({ page }) => {
+    test.setTimeout(60000);
+    await page.route("**/api/**", (route) =>
+      route.continue({
+        headers: {
+          ...route.request().headers(),
+          "x-e2e-role": "user",
+          "x-e2e-ai-scenario": "paced-final",
+        },
+      }),
+    );
+    const expectedAnswer =
+      "HT Assistant đang trả lời theo từng đoạn. " +
+      "Tăng tải vừa sức và nghỉ đủ giữa các buổi tập. ".repeat(35) +
+      "Kết thúc phản hồi thử nghiệm.";
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const historyResponse = page.waitForResponse("**/api/ai/history");
+    await page.getByRole("button", { name: "Mở HT Assistant" }).click();
+    await historyResponse;
+
+    const input = page.getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...").first();
+    const chatResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().endsWith("/api/ai/chat"),
+    );
+    await input.fill("Trả lời tăng dần cho tôi");
+    await input.press("Enter");
+
+    const response = await chatResponse;
+    expect(response.status()).toBe(200);
+    // The message wrapper is the only stable assistant-content boundary in ChatBubble.
+    const answer = page.getByRole("dialog", { name: "HT Assistant" })
+      .locator(".markdown-body");
+    await expect(answer).toContainText("HT Assistant đang trả lời");
+    await expect(answer).not.toHaveText(expectedAnswer);
+    await expect(page.getByRole("button", { name: "Dừng phản hồi" })).toBeVisible();
+
+    await response.finished();
+    await expect(answer).toHaveText(expectedAnswer);
+    await expect(page.getByRole("button", { name: "Gửi tin nhắn" })).toBeVisible();
+  });
+
   test("keeps conversation A streaming while the user views conversation B", async ({
     page,
   }) => {
+    test.setTimeout(60000);
     await page.route("**/api/**", (route) =>
       route.continue({
         headers: {

@@ -62,14 +62,15 @@ afterAll(async () => {
 
 describe("Phase 9 security and telemetry boundaries", () => {
   it("sets report-only CSP and propagates safe request and trace identifiers", async () => {
+    const requestId = "a8902e3f-8477-4fe0-a4aa-e96fdd20b19a";
     const traceId = "0123456789abcdef0123456789abcdef";
     const response = await request(app)
       .get("/api/ping")
-      .set("X-Request-Id", "phase9-request-001")
+      .set("X-Request-Id", requestId)
       .set("traceparent", "00-" + traceId + "-0123456789abcdef-01");
 
     expect(response.status).toBe(200);
-    expect(response.headers["x-request-id"]).toBe("phase9-request-001");
+    expect(response.headers["x-request-id"]).toBe(requestId);
     expect(response.headers["x-trace-id"]).toBe(traceId);
     expect(response.headers["content-security-policy-report-only"]).toContain(
       "report-uri /api/ops/csp-report",

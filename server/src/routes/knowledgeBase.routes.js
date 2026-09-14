@@ -17,6 +17,7 @@ import {
   getFullConversation,
   getCategories,
   suggestFromConversations,
+  reviewConversationFeedback,
 } from "../controllers/knowledgeBase.controller.js";
 
 const router = Router();
@@ -38,6 +39,11 @@ router.put("/:id", csrfProtection, updateEntry);
 router.delete("/:id", csrfProtection, deleteEntry);
 router.post("/from-conversation", csrfProtection, createFromConversation);
 router.post("/ai-suggest", csrfProtection, suggestFromConversations);
+router.post(
+  "/feedback/:conversationId/:messageId/review",
+  csrfProtection,
+  reviewConversationFeedback,
+);
 router.post("/:id/regenerate-embedding", csrfProtection, regenerateEmbedding);
 router.post("/:id/merge", csrfProtection, mergeVariant);
 router.get("/:id/variants", getVariants);

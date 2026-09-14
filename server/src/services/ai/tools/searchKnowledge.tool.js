@@ -2,18 +2,27 @@
 // Tách riêng khỏi function calling để tránh conflict Gemini API
 // Dùng generateContent (non-streaming) vì kết quả được inject vào conversation
 
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-// Ưu tiên GEMINI_SEARCH_MODEL từ Doppler, fallback gemini-2.5-flash (hỗ trợ Google Search grounding)
-const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash";
-import { safeLog } from "../../../utils/safeLogger.js";
+import { prepareExternalKnowledgeQuery } from "../knowledgePrivacy.js";
 import {
   recordGeminiRequest,
   recordGeminiResult,
 } from "../../../observability/providerUsageMetrics.js";
+import { safeLog } from "../../../utils/safeLogger.js";
+
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+// Ưu tiên GEMINI_SEARCH_MODEL từ Doppler, fallback gemini-2.5-flash (hỗ trợ Google Search grounding)
+const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash";
 
 const MAX_GROUNDING_SOURCES = 3;
+const MAX_GROUNDING_SUPPORTS = 12;
 const MAX_GROUNDING_URL_CHARACTERS = 2048;
 const MAX_GROUNDING_TITLE_CHARACTERS = 160;
+const MAX_GROUNDED_SEGMENT_CHARACTERS = 4000;
+const unavailableEvidence = (text) => ({
+  text,
+  uiCard: null,
+  meta: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+});
 
 const escapeMarkdownLabel = (value) =>
   String(value || "")
@@ -23,52 +32,171 @@ const escapeMarkdownLabel = (value) =>
     .replace(/[\r\n]+/g, " ")
     .trim();
 
+const normalizeGroundingSource = (chunk) => {
+  const source = chunk?.web;
+  if (!source?.uri || String(source.uri).length > MAX_GROUNDING_URL_CHARACTERS) {
+    return null;
+  }
+  try {
+    const url = new URL(String(source.uri));
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    url.hash = "";
+    const hostname = escapeMarkdownLabel(url.hostname);
+    const suppliedTitle = escapeMarkdownLabel(source.title);
+    // Provider metadata is untrusted: keep its useful title, but always show
+    // the actual destination host so a forged publisher cannot impersonate it.
+    const title = suppliedTitle && suppliedTitle !== hostname
+      ? `${suppliedTitle} (${hostname})`
+      : hostname;
+    return title ? { title, uri: url.href } : null;
+  } catch {
+    return null;
+  }
+};
+
 export const normalizeGroundingSources = (chunks) => {
   if (!Array.isArray(chunks)) return [];
   const seen = new Set();
   const sources = [];
-
   for (const chunk of chunks) {
-    const source = chunk?.web;
-    if (!source?.uri || String(source.uri).length > MAX_GROUNDING_URL_CHARACTERS) {
-      continue;
-    }
-    try {
-      const url = new URL(String(source.uri));
-      if (url.protocol !== "https:" || url.username || url.password) continue;
-      url.hash = "";
-      const href = url.href;
-      if (seen.has(href)) continue;
-      seen.add(href);
-      const title = escapeMarkdownLabel(source.title) || escapeMarkdownLabel(url.hostname);
-      if (!title) continue;
-      sources.push({ title, uri: href });
-      if (sources.length === MAX_GROUNDING_SOURCES) break;
-    } catch {
-      // Provider URLs are untrusted data; malformed entries are ignored.
-    }
+    const source = normalizeGroundingSource(chunk);
+    if (!source || seen.has(source.uri)) continue;
+    seen.add(source.uri);
+    sources.push(source);
+    if (sources.length === MAX_GROUNDING_SOURCES) break;
   }
   return sources;
+};
+
+const normalizeSupportedSegment = (segment, candidateText) => {
+  const supplied = String(segment?.text || "").trim();
+  if (supplied && candidateText.includes(supplied)) {
+    return supplied.slice(0, MAX_GROUNDED_SEGMENT_CHARACTERS);
+  }
+  const start = Number(segment?.startIndex);
+  const end = Number(segment?.endIndex);
+  if (
+    !Number.isInteger(start) ||
+    !Number.isInteger(end) ||
+    start < 0 ||
+    end <= start ||
+    end > candidateText.length
+  ) {
+    return "";
+  }
+  return candidateText.slice(start, end).trim().slice(
+    0,
+    MAX_GROUNDED_SEGMENT_CHARACTERS,
+  );
+};
+
+// Grounding hỗ trợ claim, không chứng thực link do model tự viết trong claim.
+// Chỉ các URI lấy từ groundingChunks mới được dựng thành Markdown link.
+const neutralizeSegmentLinks = (value) =>
+  String(value || "")
+    .replace(/^[ \t]{0,3}\[[^\]\r\n]+\]:[ \t]*\S[^\r\n]*$/gm, "")
+    .replace(/!?\[([^\]\r\n]+)\]\((?:<[^<>\r\n]*>|[^)\r\n]*)\)/g, "$1")
+    .replace(/!?\[([^\]\r\n]+)\]\[[^\]\r\n]*\]/g, "$1")
+    .replace(/<(?:https?:\/\/|ftp:\/\/|www\.)[^>\r\n]*>/gi, "")
+    .replace(/\b(?:https?:\/\/|ftp:\/\/|www\.)[^\s<>\[\])]+/gi, (url) =>
+      url.match(/[.,;:!?]+$/)?.[0] || "",
+    )
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "")
+    .replace(/[\\\[\]<>]/g, "\\$&")
+    .trim();
+
+const buildGroundedEvidence = (candidate, candidateText) => {
+  const chunks = Array.isArray(candidate?.groundingMetadata?.groundingChunks)
+    ? candidate.groundingMetadata.groundingChunks
+    : [];
+  const supports = Array.isArray(candidate?.groundingMetadata?.groundingSupports)
+    ? candidate.groundingMetadata.groundingSupports.slice(0, MAX_GROUNDING_SUPPORTS)
+    : [];
+  const selectedSources = [];
+  const selectedSourceUris = new Set();
+  const selectedSegments = [];
+  const selectedSegmentTexts = new Set();
+
+  for (const support of supports) {
+    const segmentText = normalizeSupportedSegment(
+      support?.segment,
+      candidateText,
+    );
+    if (!segmentText || selectedSegmentTexts.has(segmentText)) continue;
+    const safeSegmentText = neutralizeSegmentLinks(segmentText);
+    if (!safeSegmentText) continue;
+
+    const supportSources = [];
+    for (const rawIndex of Array.isArray(support?.groundingChunkIndices)
+      ? support.groundingChunkIndices
+      : []) {
+      const index = Number(rawIndex);
+      if (!Number.isInteger(index) || index < 0 || index >= chunks.length) {
+        continue;
+      }
+      const source = normalizeGroundingSource(chunks[index]);
+      if (!source) continue;
+      const knownSource = selectedSources.find(
+        (candidateSource) => candidateSource.uri === source.uri,
+      );
+      if (knownSource) {
+        supportSources.push(knownSource);
+        continue;
+      }
+      if (selectedSources.length >= MAX_GROUNDING_SOURCES) continue;
+      selectedSources.push(source);
+      selectedSourceUris.add(source.uri);
+      supportSources.push(source);
+    }
+    if (supportSources.length === 0) continue;
+    selectedSegmentTexts.add(segmentText);
+    selectedSegments.push({ text: safeSegmentText, sources: supportSources });
+  }
+
+  const text = selectedSegments
+    .map(({ text: supportedText, sources }) => {
+      const links = sources
+        .filter((source) => selectedSourceUris.has(source.uri))
+        .map((source) => `[${source.title}](<${source.uri}>)`)
+        .join(" · ");
+      return links
+        ? `${supportedText}\n\n📎 *Nguồn: ${links}*`
+        : supportedText;
+    })
+    .join("\n\n");
+
+  return { text, sources: selectedSources };
 };
 
 /**
  * Tra cứu thông tin thực tế bằng Google Search Grounding
  * @param {{ query: string }} params
  * @param {{ signal?: AbortSignal }} context
- * @returns {{ text: string, uiCard: null }}
+ * @returns {{ text: string, uiCard: null, meta: { evidenceAvailable: boolean, sourceCount: number, sources: Array<{title: string, uri: string}> } }}
  */
 export async function searchKnowledge({ query }, context = {}) {
+  const preparedQuery = prepareExternalKnowledgeQuery(query, {
+    allowedPublicPersonNames: context.allowedPublicPersonNames,
+  });
+  if (!preparedQuery.eligible) {
+    return unavailableEvidence(
+      "Mình không thể gửi dữ liệu cá nhân hoặc thông tin sức khỏe riêng lên web để tra cứu. Bạn có thể hỏi lại theo hướng thông tin chung, không kèm dữ liệu riêng.",
+    );
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return { text: "Không thể tìm kiếm: chưa cấu hình GEMINI_API_KEY.", uiCard: null };
+    return unavailableEvidence(
+      "Hiện không thể xác minh thông tin bằng nguồn web. Vui lòng thử lại sau.",
+    );
   }
 
   const body = {
-    contents: [{ role: "user", parts: [{ text: query }] }],
+    contents: [{ role: "user", parts: [{ text: preparedQuery.query }] }],
     tools: [{ googleSearch: {} }],
     systemInstruction: {
       parts: [{
-        text: "Bạn là trợ lý tra cứu thông tin fitness. Trả lời ngắn gọn, chính xác bằng Tiếng Việt. Tập trung đúng vào thông tin được hỏi, không lan man.",
+        text: "Bạn thu thập bằng chứng web công khai cho mọi chủ đề an toàn. Trả lời ngắn gọn bằng Tiếng Việt, chỉ nêu dữ kiện được nguồn hỗ trợ và không suy đoán. Ưu tiên nguồn chính thức, nguồn sơ cấp hoặc tổ chức chuyên môn phù hợp với chủ đề.",
       }],
     },
     generationConfig: {
@@ -98,41 +226,39 @@ export async function searchKnowledge({ query }, context = {}) {
       providerOutcomeRecorded = true;
       // Nếu model không hỗ trợ grounding → fallback message
       if (response.status === 400) {
-        return { text: "Tìm kiếm không khả dụng với model hiện tại. Mình trả lời dựa trên kiến thức có sẵn.", uiCard: null };
+        return unavailableEvidence(
+          "Hiện không thể xác minh thông tin bằng nguồn web với model tìm kiếm này.",
+        );
       }
       // Quota exceeded / rate limit
       if (response.status === 429) {
         safeLog.warn("ai.search_rate_limited", "Search provider rate limited");
-        return { text: "Chức năng tìm kiếm đang tạm giới hạn. Bạn cứ hỏi trực tiếp — mình sẽ trả lời dựa trên kiến thức có sẵn nhé!", uiCard: null };
+        return unavailableEvidence(
+          "Hiện không thể xác minh thông tin vì tra cứu web đang tạm giới hạn.",
+        );
       }
       safeLog.warn("ai.search_provider_error", "Search provider returned error", {
         status: response.status,
       });
-      return { text: "Không thể tìm kiếm lúc này. Bạn hỏi trực tiếp, mình trả lời dựa trên kiến thức có sẵn nhé!", uiCard: null };
+      return unavailableEvidence(
+        "Hiện không thể xác minh thông tin bằng nguồn web. Vui lòng thử lại sau.",
+      );
     }
 
     const data = await response.json();
     const candidate = data.candidates?.[0];
 
-    // Lấy text từ response parts
-    const text = candidate?.content?.parts
+    // Chỉ phần text có groundingSupports trỏ tới HTTPS chunk hợp lệ mới được
+    // xem là evidence. Có URL nhưng không có claim-support mapping phải fail closed.
+    const candidateText = candidate?.content?.parts
       ?.filter((p) => p.text)
       ?.map((p) => p.text)
       ?.join("") || "Không tìm thấy thông tin phù hợp.";
-
-    // Lấy nguồn (URLs) từ grounding metadata — tối đa 3 nguồn
-    const sources = normalizeGroundingSources(
-      candidate?.groundingMetadata?.groundingChunks,
-    );
-
-    let result = text;
+    const groundedEvidence = buildGroundedEvidence(candidate, candidateText);
+    const sources = groundedEvidence.sources;
+    let result = groundedEvidence.text;
     if (sources.length === 0) {
-      result = "Xin lỗi, hiện tại mình chưa tìm thấy thông tin chính xác về vấn đề này. Bạn có câu hỏi nào khác về tập luyện hay dinh dưỡng không?";
-    } else {
-      const sourceLinks = sources
-        .map((s) => `[${s.title}](<${s.uri}>)`)
-        .join(" · ");
-      result += `\n\n📎 *Nguồn: ${sourceLinks}*`;
+      result = "Hiện chưa tìm thấy nguồn web phù hợp để xác minh thông tin này.";
     }
 
     recordGeminiResult("search_grounding", {
@@ -140,11 +266,22 @@ export async function searchKnowledge({ query }, context = {}) {
       usage: data.usageMetadata,
     });
     providerOutcomeRecorded = true;
-    return { text: result, uiCard: null };
-  } catch {
+    return {
+      text: result,
+      uiCard: null,
+      meta: {
+        evidenceAvailable: sources.length > 0,
+        sourceCount: sources.length,
+        sources,
+      },
+    };
+  } catch (error) {
+    if (context.signal?.aborted) throw error;
     if (!providerOutcomeRecorded) {
       recordGeminiResult("search_grounding", { success: false });
     }
-    return { text: "Lỗi kết nối khi tìm kiếm. Vui lòng thử lại.", uiCard: null };
+    return unavailableEvidence(
+      "Hiện không thể xác minh thông tin do kết nối tra cứu web bị lỗi.",
+    );
   }
 }

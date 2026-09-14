@@ -18,6 +18,38 @@ const toolValidators = new Map(
 );
 const DEFAULT_TOOL_TIMEOUT_MS = 15000;
 const CONFIRMED_TOOL_EXECUTION = Symbol("confirmedToolExecution");
+const MAX_EVIDENCE_SOURCES = 3;
+const stripUnsafeMetadataText = (value) =>
+  String(value ?? "").replace(
+    /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u202A-\u202E\u2066-\u2069]/g,
+    "",
+  );
+
+const normalizeEvidenceSources = (sources) => {
+  if (!Array.isArray(sources)) return [];
+  const normalized = [];
+  const seen = new Set();
+  for (const source of sources) {
+    try {
+      const url = new URL(String(source?.uri || ""));
+      if (url.protocol !== "https:" || url.username || url.password) continue;
+      url.hash = "";
+      const uri = url.href.slice(0, 2048);
+      if (!uri || seen.has(uri)) continue;
+      const title = stripUnsafeMetadataText(source?.title)
+        .replace(/[\r\n]+/g, " ")
+        .trim()
+        .slice(0, 160);
+      if (!title) continue;
+      seen.add(uri);
+      normalized.push({ title, uri });
+      if (normalized.length === MAX_EVIDENCE_SOURCES) break;
+    } catch {
+      // Tool metadata is untrusted; malformed sources do not cross the boundary.
+    }
+  }
+  return normalized;
+};
 
 const validationFailure = (toolName, invalidFields) => ({
   text:
@@ -105,6 +137,23 @@ export async function executeTool(toolName, parameters, context = {}) {
     };
   }
 
+  if (
+    Array.isArray(context.allowedToolNames) &&
+    !context.allowedToolNames.includes(toolName)
+  ) {
+    return {
+      text: "Công cụ này không phù hợp với yêu cầu hiện tại.",
+      uiCard: null,
+      error: null,
+      meta: {
+        toolName,
+        validationFailed: true,
+        routeBlocked: true,
+        invalidFields: ["toolName"],
+      },
+    };
+  }
+
   // Guest capability must also be enforced at execution time. Tool schemas are
   // advisory input to the provider; a malformed or hallucinated tool call must
   // not bypass the guest allowlist.
@@ -177,12 +226,34 @@ export async function executeTool(toolName, parameters, context = {}) {
       };
     }
     const result = execution.result;
+    const normalizedSources =
+      toolName === "search_knowledge"
+        ? normalizeEvidenceSources(result?.meta?.sources)
+        : [];
+    const evidenceMeta =
+      toolName === "search_knowledge"
+        ? {
+          evidenceAvailable:
+            result?.meta?.evidenceAvailable === true &&
+            normalizedSources.length > 0,
+          sourceCount: normalizedSources.length,
+          sources: normalizedSources,
+        }
+        : toolName === "search_exercises"
+          ? {
+              evidenceAvailable: result?.meta?.evidenceAvailable === true,
+              resultCount: Math.min(
+                Math.max(Number(result?.meta?.resultCount) || 0, 0),
+                10,
+              ),
+            }
+          : {};
 
     return {
       text: result.text,
       uiCard: result.uiCard || null,
       error: null,
-      meta: { toolName, timeCost },
+      meta: { toolName, timeCost, ...evidenceMeta },
     };
   } catch (err) {
     if (context.signal?.aborted) {
