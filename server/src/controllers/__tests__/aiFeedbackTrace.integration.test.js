@@ -708,6 +708,68 @@ describe("AI answer trace and feedback review", () => {
     expect(JSON.stringify(answer.answerTrace)).not.toContain("cột sống");
   });
 
+  it("appends a reviewed public KB citation when the provider omits its link", async () => {
+    const { user, accessToken } = await createTestUser();
+    const sourceUrl = "https://example.org/research/squat-technique";
+    llmStreamMock.mockImplementationOnce(async function* responseWithoutCitation() {
+      yield { type: "text", content: "Giữ cột sống trung lập khi squat." };
+    });
+    searchKnowledgeBaseMock.mockResolvedValueOnce([
+      {
+        _id: "507f191e810c19729de860ed",
+        question: "Cách squat đúng kỹ thuật?",
+        answer: "Giữ cột sống trung lập và kiểm soát biên độ phù hợp.",
+        category: "training",
+        similarity: 0.93,
+        status: "published",
+        evidenceLevel: "source_backed",
+        reviewStatus: "reviewed",
+        freshnessClass: "stable",
+        reviewDueAt: "2099-01-01T00:00:00.000Z",
+        sources: [
+          {
+            type: "research",
+            title: "Synthetic squat technique reference",
+            publisher: "Synthetic Sports Science Journal",
+            url: sourceUrl,
+            evidenceTier: "primary",
+          },
+        ],
+      },
+    ]);
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Cách squat đúng kỹ thuật là gì?",
+      requestId: "0ca66a61-4768-4cf7-862b-ce43154426ab",
+    });
+
+    const streamedText = response.text
+      .split("\n\n")
+      .filter((event) => event.startsWith("data: "))
+      .map((event) => JSON.parse(event.slice(6)))
+      .filter((event) => event.type === "text")
+      .map((event) => event.content)
+      .join("");
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+
+    expect({
+      status: response.status,
+      streamedText,
+      storedAnswer: answer.content,
+    }).toEqual({
+      status: 200,
+      streamedText: expect.stringContaining(sourceUrl),
+      storedAnswer: expect.stringContaining(sourceUrl),
+    });
+  });
+
   it("uses the previous user topic for a short Knowledge Base follow-up", async () => {
     const { user, accessToken } = await createTestUser();
     const conversation = await ChatConversation.create({

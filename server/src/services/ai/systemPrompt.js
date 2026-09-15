@@ -217,6 +217,7 @@ const buildKnowledgeEvidence = (result) => {
   });
 
   return {
+    citable,
     metadata: [
       `evidence=${evidenceLevel}`,
       `review=${reviewStatus}`,
@@ -226,9 +227,35 @@ const buildKnowledgeEvidence = (result) => {
       .filter(Boolean)
       .join("; "),
     policy,
+    sources,
     sourceLines,
   };
 };
+
+export function getCitableKnowledgeSources(results) {
+  if (!Array.isArray(results) || results.length === 0) return [];
+
+  const selected = [];
+  for (const result of results.slice(0, 3)) {
+    if (
+      result?.status !== "published" ||
+      !validateKnowledgeEntryPrivacy(result).valid
+    ) {
+      continue;
+    }
+    const evidence = buildKnowledgeEvidence(result);
+    if (!evidence.citable) continue;
+
+    for (const source of evidence.sources) {
+      if (!source.url || selected.some((item) => item.uri === source.url)) {
+        continue;
+      }
+      selected.push({ title: source.title, uri: source.url });
+      if (selected.length === 3) return selected;
+    }
+  }
+  return selected;
+}
 
 export function buildKnowledgeReferenceBlock(results) {
   if (!Array.isArray(results) || results.length === 0) return "";

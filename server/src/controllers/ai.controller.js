@@ -21,6 +21,7 @@ import {
 import {
   buildKnowledgeReferenceBlock,
   buildSystemPrompt,
+  getCitableKnowledgeSources,
 } from "../services/ai/systemPrompt.js";
 import {
   buildStandaloneRetrievalQuery,
@@ -617,6 +618,7 @@ export const chatStream = async (req, res) => {
   let fullResponse = "";
   let routingDecision = null;
   let kbEntryIds = [];
+  let kbCitationSources = [];
   let webSearchAttemptCount = 0;
   let webSearchExecutionCount = 0;
   let webSearchEvidenceAvailable = false;
@@ -678,6 +680,12 @@ export const chatStream = async (req, res) => {
     if (routingDecision?.webSearchRequired && webSearchEvidenceAvailable) {
       return boundAssistantOutputWithSources(candidate, {
         sources: webSearchSources,
+        maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
+      });
+    }
+    if (kbCitationSources.length > 0) {
+      return boundAssistantOutputWithSources(candidate, {
+        sources: kbCitationSources,
         maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
       });
     }
@@ -792,6 +800,7 @@ export const chatStream = async (req, res) => {
           });
           if (kbResults.length > 0) {
             kbEntryIds = kbResults.map((result) => result._id);
+            kbCitationSources = getCitableKnowledgeSources(kbResults);
             aiLogger.kbMatch(actorId, kbResults.length, kbResults[0]?.similarity);
             systemPrompt += buildKnowledgeReferenceBlock(kbResults);
           }
