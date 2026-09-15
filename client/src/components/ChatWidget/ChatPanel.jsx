@@ -724,6 +724,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                         return (
                           <div
                             key={messageKey}
+                            data-message-id={msg._id || undefined}
                             ref={msg.role === "user" ? (node) => {
                               if (node) questionTargetRefs.current.set(messageKey, node);
                               else questionTargetRefs.current.delete(messageKey);

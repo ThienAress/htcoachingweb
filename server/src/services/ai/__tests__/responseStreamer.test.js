@@ -7,6 +7,21 @@ import {
 } from "../responseStreamer.js";
 
 describe("sanitized assistant response streaming", () => {
+  it("awaits the optional first-frame barrier and never writes beyond an aborted barrier", async () => {
+    const frames = [];
+    const controller = new AbortController();
+    const afterFirstFrame = vi.fn(async () => {
+      expect(frames).toEqual(["a".repeat(12)]);
+      controller.abort();
+    });
+    const result = await streamAssistantText("a".repeat(48), {
+      write: (frame) => frames.push(frame), signal: controller.signal,
+      frameDelayMs: 0, afterFirstFrame,
+    });
+    expect({ result, barriers: afterFirstFrame.mock.calls.length }).toEqual({
+      result: { writtenFrames: 1, writtenCharacters: 12, aborted: true }, barriers: 1,
+    });
+  });
   it("splits a long final answer into bounded frames without changing content", () => {
     const content =
       "Ronaldo ưu tiên sức mạnh thân dưới, khả năng bùng nổ và phục hồi.\n\nMỗi khẳng định về lịch tập cần đi kèm nguồn phù hợp.";

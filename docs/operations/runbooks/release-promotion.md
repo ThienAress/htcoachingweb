@@ -22,10 +22,13 @@ Required secrets/IDs:
 - Production observation: `NETLIFY_PRODUCTION_SITE_ID`,
   `RENDER_PRODUCTION_SERVICE_ID`.
 
-Không in secret trong log/artifact. Provider token chỉ gọi GET deploy detail.
+Không in secret trong log/artifact. Provider token chỉ gọi các API read-only:
+GET deploy detail, service detail và current instances.
 Theo API chính thức, Netlify deploy detail trả deploy state/commit reference và
 Render retrieve-deploy trả deploy detail; verifier yêu cầu exact ID, SHA và
-ready/live.
+ready/live. Vì metrics KB hiện process-local, verifier còn yêu cầu Render staging
+không bật autoscaling, cấu hình đúng một instance và thực tế chỉ có một instance
+trước lẫn sau AC-009; sai topology làm acceptance inconclusive và dừng.
 
 ## 2. Staging live acceptance
 
@@ -41,12 +44,29 @@ deploy IDs và hai production known-good rollback deploy IDs. Workflow sẽ:
 1. checkout exact SHA và xác minh CI run cùng SHA đã success;
 2. dùng provider GET API xác minh deploy IDs/SHA/status;
 3. chạy `acceptance:staging` với exact database lock;
-4. luôn cleanup và yêu cầu residue `0`;
-5. chạy current backup + off-device recovery gates;
-6. tạo artifact `release-candidate-<run_id>`.
+4. chạy `acceptance:staging:ai` bằng browser live và capability request-scoped chỉ
+   hoạt động trên staging; positive KB/provider lane không mock response;
+5. luôn cleanup cả hai acceptance lane và yêu cầu từng report có residue `0`;
+6. xác minh lại exact deploy IDs/SHA sau live AI smoke;
+7. chạy current backup + off-device recovery gates;
+8. tạo artifact `release-candidate-<run_id>`.
+
+AC-009 không mở `answerTrace` qua public API. Runner đọc projection tối thiểu của
+đúng synthetic actor/conversation trực tiếp từ staging MongoDB rồi xóa theo exact
+IDs. Các lane Stop, A→B và provider-boundary failure dùng capability ký ngắn hạn,
+bind exact SHA/run/actor/request/payload và one-time claim; không đổi Gemini key,
+provider/model, auth, CSRF hoặc quota. Artifact phải ghi rõ failure được inject ở
+provider boundary, không gọi đó là Gemini outage thật, và không chứa raw prompt,
+assistant output, token, cookie, URI database hoặc provider response.
+
+Render staging phải bật `STAGING_AI_ACCEPTANCE_ENABLED=true` cho đúng deploy được
+nghiệm thu. Biến này mặc định fail-closed khi thiếu; production luôn phải thiếu hoặc
+`false`. Nếu flag, database/origin/SHA/actor binding không đúng, workflow dừng trước
+provider và không được bỏ qua lane AI.
 
 Nếu workflow bị kill cứng trước `finally`, không chạy lại mù. Dùng cùng run ID
-trong artifact/log để kiểm tra residue và dọn theo IDs/marker đã đăng ký; không
+trong `staging-ai-recovery-intent.json` được ghi trước khi connect/mutation (và log
+sanitized) để kiểm tra residue, rồi dọn theo IDs/marker đã đăng ký; không
 dùng query rộng. Chỉ rerun sau khi cleanup verifier trả 0.
 
 ## 3. Production promotion approval

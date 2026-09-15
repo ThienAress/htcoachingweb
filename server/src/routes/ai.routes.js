@@ -6,6 +6,7 @@ import { csrfProtection } from "../middlewares/csrf.js";
 import { enforceSharedServiceUsage } from "../middlewares/serviceUsageLedger.js";
 import { aiConfirmationLimiter } from "../middlewares/rateLimit.js";
 import { prepareAiChatRequest } from "../middlewares/aiChatRequest.js";
+import { prepareStagingAiAcceptance } from "../middlewares/stagingAiAcceptance.js";
 import {
   aiChatLimiter,
   aiGuestChatLimiter,
@@ -49,6 +50,7 @@ router.post(
   ensureAiActor,
   csrfProtection,
   prepareAiChatRequest,
+  prepareStagingAiAcceptance,
   resolveServiceAccessTierMiddleware,
   aiGuestChatLimiter,
   aiChatLimiter,

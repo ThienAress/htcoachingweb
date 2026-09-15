@@ -77,6 +77,10 @@ import {
 import { incrementMetric } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { getAiMemoryContext } from "../services/aiMemory.service.js";
+import {
+  STAGING_AI_ACCEPTANCE_RESPONSE,
+  waitForStagingAiAcceptanceRelease,
+} from "../services/ai/stagingAiAcceptance.service.js";
 
 const MAX_ITERATIONS = AI_RUNTIME_POLICY.maxAgentIterations;
 const MAX_HISTORY_MESSAGES = AI_RUNTIME_POLICY.maxHistoryMessages;
@@ -591,6 +595,12 @@ export const chatStream = async (req, res) => {
   const writeAssistantResponse = (content) =>
     streamAssistantText(content, {
       signal: abortController.signal,
+      afterFirstFrame: req.stagingAiAcceptance?.mode === "paced_response" &&
+        responseModel === "staging_acceptance_synthetic_v1"
+        ? () => waitForStagingAiAcceptanceRelease(req.stagingAiAcceptance, {
+            signal: abortController.signal,
+          })
+        : undefined,
       write: (frame) => {
         res.write(
           `data: ${JSON.stringify({ type: "text", content: frame })}\n\n`,
@@ -901,9 +911,20 @@ export const chatStream = async (req, res) => {
         iterationTools.map((tool) => tool?.function?.name).filter(Boolean),
       );
 
-      for await (const chunk of llmStream(llmMessages, iterationTools, {
-        signal: abortController.signal,
-      })) {
+      // Only the authenticated, one-time staging middleware can set this lane.
+      // The ordinary acquisition, moderation, routing and retrieval remain above.
+      if (req.stagingAiAcceptance?.mode === "provider_failure_before_llm") {
+        throw Object.assign(new Error("Injected staging acceptance failure before LLM invocation"), {
+          code: "STAGING_AI_ACCEPTANCE_PROVIDER_FAILURE",
+          isOperational: true,
+        });
+      }
+      const pacedAcceptance = req.stagingAiAcceptance?.mode === "paced_response";
+      if (pacedAcceptance) responseModel = "staging_acceptance_synthetic_v1";
+      const providerStream = pacedAcceptance
+        ? [{ type: "text", content: STAGING_AI_ACCEPTANCE_RESPONSE }]
+        : llmStream(llmMessages, iterationTools, { signal: abortController.signal });
+      for await (const chunk of providerStream) {
         if (abortController.signal.aborted) break;
         switch (chunk.type) {
           case "text":

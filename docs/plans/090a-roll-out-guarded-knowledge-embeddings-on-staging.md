@@ -70,6 +70,7 @@ Rollout này tạo một đường re-embed staging có thể review, chống dr
 | Preflight | `npm run preflight:kb-reembed:staging --prefix server` | JSON mode `preflight`, zero writes, plan digest present |
 | Apply | `npm run migrate:kb-reembed:staging --prefix server -- --plan-digest=<reviewed-digest>` | exact staging target, verified snapshot and post-state |
 | Rollback preflight | `npm run preflight:rollback-kb-reembed:staging --prefix server -- --snapshot=<absolute-encrypted-snapshot-file>` | JSON mode `preflight`, zero writes; snapshot file phải nằm ngoài repo |
+| Live AI acceptance | `npm run acceptance:staging:ai --prefix server` | exact deployed SHA; positive KB/provider lane và deterministic UI/failure lanes PASS; cleanup `residue=0` |
 | Diff hygiene | `git diff --check` | exit 0 |
 
 ## Scope
@@ -81,6 +82,8 @@ Rollout này tạo một đường re-embed staging có thể review, chống dr
 - Root and variant vector snapshot, source-hash CAS, plan digest and post-verification.
 - Package scripts, runbook, plan state and traceability.
 - PR to `staging`, exact-SHA CI/deploy verification, live staging retrieval smoke.
+- Request-scoped, signed staging-only AC-009 capability và isolated live browser runner; public conversation DTO,
+  auth/CSRF/quota và provider credentials giữ nguyên.
 - Fresh production backup that performs production reads only, as required by release gate.
 - Creation/verification of the two staging Atlas Vector Search indexes and Render staging env cutover.
 
@@ -166,6 +169,22 @@ if root retrieval fails, unset both index vars and roll back profile/vectors.
 Rerun the 9 acceptance flows after the final merge/deploy SHA, confirm cleanup residue is zero, complete authenticated
 HT Assistant tests (citations, Retry/Edit, A→B streaming and provider failure), and update Plan 090 evidence.
 
+AC-009 chạy trong lane riêng sau deploy-identity gate. Positive lane phải dùng frontend/backend staging, Gemini và
+Knowledge Base thật; runner tạo fixture source-backed/reviewed theo run marker rồi đọc projection tối thiểu trực tiếp
+từ Mongo để chứng minh đúng assistant message có `evidenceMode=internal_kb`, exact fixture ID và
+`webSearchUsed=false`. Public DTO không được mở rộng chỉ để test.
+
+Các lane A→B, Stop và provider-boundary failure dùng capability HS256 domain-separated từ staging JWT secret,
+TTL ngắn, bind exact SHA/run/actor/request/conversation/payload digest và one-time claim trong collection control
+ephemeral. Capability chỉ được chấp nhận khi `APP_ENV=staging`, database là `htcoaching_staging`, origin đúng,
+runtime flag bật và actor synthetic đã đăng nhập; request thường không đổi byte/behavior. Failure được ghi đúng là
+injected tại provider boundary, không tuyên bố Gemini thật trả lỗi và không đổi `GEMINI_API_KEY`/`AI_PROVIDER`.
+Barrier nằm sau SSE text frame đầu, abort-aware và timeout hữu hạn để Stop/A→B không phụ thuộc timing.
+
+Runner phải snapshot metrics trước/sau, xác minh root/variant counters tồn tại và không có delta ngoài topology đã
+quan sát. Cleanup chạy trong `finally`, chỉ xóa exact registered control/KB/conversation/branch/user/quota IDs và
+PASS duy nhất khi verifier trả `residue=0`; artifact không chứa token, raw prompt/output, cookie hoặc Mongo URI.
+
 **Behavior**: all nine release steps have evidence on one final staging SHA.
 
 **Verify**: acceptance workflow and live smoke report PASS; otherwise keep NO-GO with the exact blocker.
@@ -178,6 +197,9 @@ HT Assistant tests (citations, Retry/Edit, A→B streaming and provider failure)
 - Data safety: source hash/version CAS, snapshot completeness, provider partial failure leaves source recoverable.
 - Verification: exact document/variant counts, dimension 768, target version and rollback fingerprint.
 - Live: authenticated citation rendering, retry/edit navigation isolation, streaming switch and provider failure.
+- Staging capability: non-staging/wrong origin/wrong SHA/actor/body/algorithm/expiry/replay đều fail trước provider và
+  quota; normal request không capability giữ nguyên behavior.
+- Live cleanup: execute fail/abort/timeout vẫn dọn exact IDs và residue khác 0 luôn làm workflow FAIL.
 
 ## Staging Execution Evidence — 2026-09-14
 
@@ -244,6 +266,8 @@ còn lại có deterministic loopback E2E evidence, không phải live provider/
 - [x] Guardrail PR merges to `staging`; CI, Netlify and Render match one exact SHA.
 - [x] Fresh backup gate passes with zero production writes.
 - [ ] Re-embed, indexes, env cutover and live smoke pass only on `htcoaching_staging`.
+- [ ] Signed AC-009 runner chứng minh positive real-KB provenance/citation, Retry/Edit, A→B, Stop,
+  injected provider-boundary failure, root/variant metrics và cleanup `residue=0` trên cùng exact SHA.
 - [x] Final acceptance cleanup has `residue=0`; Plan 090 state matches evidence.
 
 ## STOP Conditions
@@ -254,6 +278,10 @@ còn lại có deterministic loopback E2E evidence, không phải live provider/
 - Fresh production backup cannot be independently recovered from canonical Drive/Bitwarden.
 - Atlas index definition/status differs from the reviewed contract.
 - Provider cost/error budget, authentication or staging test account is unavailable.
+- Capability có thể chạy ngoài exact staging target, không bind actor/request/SHA, bị replay, hoặc cần nới
+  auth/CSRF/quota/provider credential.
+- Metrics bị reset/load-balanced mà không thể gắn delta với instance, stream không terminal, hoặc cleanup không
+  chứng minh exact `residue=0`.
 - Any step would write production or expose secret, health data, conversation content or raw vectors in Git/logs.
 - The same gate fails three times after evidence-based fixes.
 

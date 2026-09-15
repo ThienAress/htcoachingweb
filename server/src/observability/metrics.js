@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { getHeapStatistics } from "node:v8";
+
+const RUNTIME_INSTANCE_ID = randomUUID();
 
 const COUNTER_NAMES = new Set([
   "http.requests",
@@ -332,6 +335,7 @@ export const getMetricsSnapshot = ({
   const memory = getMemorySnapshot({ memoryUsage, heapStatistics });
   return {
     generatedAt: new Date(nowMs).toISOString(),
+    runtimeInstanceId: RUNTIME_INSTANCE_ID,
     uptimeSeconds: Math.round(process.uptime()),
     memory,
     counters: Object.fromEntries(counters),
