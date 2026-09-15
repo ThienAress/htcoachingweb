@@ -21,12 +21,31 @@ export const STAGING_AI_CHAT_ATTEMPT_PLAN = Object.freeze([
   Object.freeze({ purpose: "recovery_edit", mode: "observe_only" }),
 ]);
 
-const waitStableText = async (locator, expected) => {
-  await locator.filter({ hasText: expected }).waitFor({ state: "visible", timeout: 30_000 });
-  const first = await locator.filter({ hasText: expected }).last().innerText();
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const second = await locator.filter({ hasText: expected }).last().innerText();
-  assert(first === second, "Paced response prefix was not stable after its first frame");
+export const waitForStableAssistantText = async (locator, expected, options = {}) => {
+  const timeoutMs = Math.max(1, Number(options.timeoutMs) || 5_000);
+  const stableMs = Math.max(1, Number(options.stableMs) || 300);
+  const pollMs = Math.max(1, Number(options.pollMs) || 100);
+  const now = options.now || (() => Date.now());
+  const wait = options.wait || ((milliseconds) =>
+    new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  const target = locator.filter({ hasText: expected }).last();
+  await target.waitFor({ state: "visible", timeout: 30_000 });
+
+  const deadline = now() + timeoutMs;
+  let stableSince = null;
+  let previous = null;
+  while (now() <= deadline) {
+    const current = await target.innerText();
+    if (current === previous) {
+      if (stableSince !== null && now() - stableSince >= stableMs) return current;
+    } else {
+      previous = current;
+      stableSince = now();
+    }
+    if (now() >= deadline) break;
+    await wait(Math.min(pollMs, Math.max(1, deadline - now())));
+  }
+  assert(false, "Paced response prefix did not become stable", "STAGING_AI_PACED_TEXT_UNSTABLE");
 };
 
 const waitControlStatus = async (collection, jti, status, timeoutMs = 15_000) => {
@@ -226,7 +245,7 @@ export const runBrowserAcceptance = async ({
     await send(page, pacedQuestion);
     const pacedControl = controls.at(-1);
     await waitControlStatus(controlCollection, pacedControl.jti, "first_frame");
-    await waitStableText(assistantBodies, prefix);
+    await waitForStableAssistantText(assistantBodies, prefix);
     const pacedConversation = conversationButton(page, pacedQuestion);
     await pacedConversation.waitFor({ state: "visible", timeout: 10_000 });
     await conversationButton(page, fixture.question).click();
@@ -234,7 +253,7 @@ export const runBrowserAcceptance = async ({
     assert((await citation.getAttribute("href")) === stableCitation, "Conversation B citation changed while A was pending");
     assert((await assistantBodies.last().innerText()) === stableBody, "Conversation B content changed while A was pending");
     await pacedConversation.click();
-    await waitStableText(assistantBodies, prefix);
+    await waitForStableAssistantText(assistantBodies, prefix);
     const released = await controlCollection.updateOne({
       _id: pacedControl.jti,
       runId,
@@ -251,7 +270,7 @@ export const runBrowserAcceptance = async ({
     await send(page, `${fixture.variant} lane-stop`);
     const stopControl = controls.at(-1);
     await waitControlStatus(controlCollection, stopControl.jti, "first_frame");
-    await waitStableText(assistantBodies, prefix);
+    await waitForStableAssistantText(assistantBodies, prefix);
     const stoppedBody = assistantBodies.filter({ hasText: prefix }).last();
     await page.getByRole("button", { name: "Dừng phản hồi" }).click();
     const composer = page.getByPlaceholder("Hỏi về tập luyện, dinh dưỡng...");
