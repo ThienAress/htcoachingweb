@@ -147,11 +147,11 @@ jobs:
               envelopeArrays,
             };
             const endTime = new Date();
-            const startTime = new Date(endTime.getTime() - 10 * 60_000);
+            const startTime = new Date(endTime.getTime() - 60 * 60_000);
             const metricsUrl = new URL("https://api.render.com/v1/metrics/instance-count");
             metricsUrl.searchParams.set("startTime", startTime.toISOString());
             metricsUrl.searchParams.set("endTime", endTime.toISOString());
-            metricsUrl.searchParams.set("resolutionSeconds", "30");
+            metricsUrl.searchParams.set("resolutionSeconds", "60");
             metricsUrl.searchParams.set("resource", serviceId);
             const metricsResponse = await fetch(metricsUrl, {
               method: "GET",
@@ -215,6 +215,83 @@ jobs:
               seriesCount: Array.isArray(metricsPayload) ? metricsPayload.length : null,
               seriesMetadata,
             };
+            const summarizeAdditionalMetric = async (url, { includeCounts = false } = {}) => {
+              const metricResponse = await fetch(url, {
+                method: "GET",
+                headers: {
+                  Accept: "application/json",
+                  Authorization: `Bearer ${token}`,
+                  "User-Agent": "htcoaching-release-gate-shape-probe/1.0",
+                },
+                signal: AbortSignal.timeout(30_000),
+              });
+              let metricPayload;
+              let metricParsed = true;
+              try {
+                metricPayload = await metricResponse.json();
+              } catch {
+                metricParsed = false;
+              }
+              const series = Array.isArray(metricPayload) ? metricPayload : [];
+              const labels = series.flatMap((item) => Array.isArray(item?.labels) ? item.labels : []);
+              const points = series.flatMap((item) => Array.isArray(item?.values) ? item.values : []);
+              const numericPoints = points.filter((point) => point !== null
+                && typeof point === "object" && !Array.isArray(point)
+                && Number.isFinite(point.value));
+              const latestTimestamp = points
+                .map((point) => Date.parse(point?.timestamp))
+                .filter(Number.isFinite)
+                .sort((left, right) => left - right)
+                .at(-1);
+              const instanceLabelValues = new Set(labels
+                .filter((label) => label !== null && typeof label === "object"
+                  && !Array.isArray(label) && label.field === "instance"
+                  && typeof label.value === "string" && label.value)
+                .map((label) => label.value));
+              return {
+                status: metricResponse.status,
+                jsonContentType: /^application\/json\b/i.test(
+                  metricResponse.headers.get("content-type") || "",
+                ),
+                parsed: metricParsed,
+                payloadKind: metricParsed ? classify(metricPayload) : "unparsed",
+                seriesCount: Array.isArray(metricPayload) ? metricPayload.length : null,
+                seriesWithTargetService: series.filter((item) => Array.isArray(item?.labels)
+                  && item.labels.some((label) => label !== null && typeof label === "object"
+                    && !Array.isArray(label) && ["resource", "service"].includes(label.field)
+                    && label.value === serviceId)).length,
+                seriesWithInstanceLabel: series.filter((item) => Array.isArray(item?.labels)
+                  && item.labels.some((label) => label?.field === "instance"
+                    && typeof label.value === "string" && label.value)).length,
+                distinctInstanceLabelCount: instanceLabelValues.size,
+                pointCount: points.length,
+                numericPointCount: numericPoints.length,
+                latestAgeSeconds: Number.isFinite(latestTimestamp)
+                  ? Math.max(0, Math.round((endTime.getTime() - latestTimestamp) / 1000))
+                  : null,
+                ...(includeCounts && numericPoints.length
+                  ? {
+                      minCount: Math.min(...numericPoints.map((point) => point.value)),
+                      maxCount: Math.max(...numericPoints.map((point) => point.value)),
+                      latestCount: numericPoints.at(-1).value,
+                    }
+                  : {}),
+              };
+            };
+            const deprecatedServiceUrl = new URL(
+              "https://api.render.com/v1/metrics/instance-count",
+            );
+            deprecatedServiceUrl.searchParams.set("service", serviceId);
+            metadata.instanceCountMetricsDeprecatedService = await summarizeAdditionalMetric(
+              deprecatedServiceUrl,
+              { includeCounts: true },
+            );
+            const cpuUrl = new URL("https://api.render.com/v1/metrics/cpu");
+            cpuUrl.searchParams.set("startTime", startTime.toISOString());
+            cpuUrl.searchParams.set("endTime", endTime.toISOString());
+            cpuUrl.searchParams.set("resolutionSeconds", "60");
+            cpuUrl.searchParams.set("resource", serviceId);
+            metadata.cpuMetrics = await summarizeAdditionalMetric(cpuUrl);
             process.stdout.write(`${JSON.stringify(metadata)}\n`);
           } catch {
             process.stderr.write('{"probe":"render-instances-shape-v1","probeError":true}\n');
