@@ -339,6 +339,53 @@ validation; workflow bỏ AC-009 dependency vào unavailable topology artifact n
 vẫn verify deploy identity trước/sau. Sau local QA/security review, deploy exact SHA
 lên staging rồi chạy fresh AC-008/009; không reuse acceptance evidence từ binary cũ.
 
+### AC-009 fixture rejection incident — 2026-09-15
+
+- Staging Live Acceptance [34961418907](https://github.com/ThienAress/htcoachingweb/actions/runs/34961418907)
+  chạy trên exact deploy SHA `aa2d031d4420ba96d3e34e6fa87fba23e246755a`: deploy identity và AC-008 `9/9`
+  PASS, nhưng AC-009 fail trước capability cohort. Render application log ghi exact
+  `POST /api/knowledge-base/` status `400` tại `2026-09-15T11:07:19.008Z`.
+- Reproduction qua parser/privacy/publication thật chứng minh payload hợp lệ về schema/publication,
+  nhưng answer mở đầu `Theo WHO, ...` bị privacy guard phân loại `ambiguous_person_identity`.
+  Controller trả rejection trước `createKnowledgeRecord`; runner v1 vẫn giữ journal `pending`
+  theo fail-closed contract nên cleanup report là unknown.
+- Remediation TDD: đổi fixture wording nhưng giữ WHO citation/source; journal v2 bind request-ID và
+  canonical payload digest, chỉ terminal hóa exact pre-write privacy rejection; thêm manual staging-only
+  recovery workflow verify exact failed-run artifact và Render application log qua provider API.
+  Production không bị ghi; journal v1 không bị giả thành `settled`.
+- Local focused evidence sau recovery hardening: AC-009 script/recovery/receipt/provider-evidence tests `95/95` PASS;
+  workflow contract `5/5` PASS. Vẫn **NO-GO** cho tới khi patch merge/deploy, legacy recovery report
+  `verified=true, residue=0` và fresh AC-009 live evidence PASS trên SHA mới.
+
+### AC-009 recovery review correction — 2026-09-15
+
+**Complexity**: COMPLEX; root owns provider proof/docs/integration, report-retry worker owns
+recovery CLI/workflow/tests. Five user-owned sitemap/generated files remain excluded.
+
+1. **Retain current unknown mutations**: restrict operator fallback to exact journal v1.
+   RED: both v2 pending cases (matching and unrelated request ID) incorrectly returned verified cleanup.
+   GREEN: recovery suite `15/15` PASS before report-retry changes; both cases retain actor/journal/tombstone.
+   Verify final: `npx vitest run src/scripts/__tests__/stagingAiChatAcceptance.recover.test.js` in `server/`.
+2. **Bind the audited provider evidence**: restrict the compatibility escape hatch to the incident tuple
+   above plus service `srv-d9g8em61a83c73b4l61g`, deploy `dep-dakiao1594qs73e61jkg` and observed timestamp
+   `2026-09-15T11:07:19.008Z`. GET exact deploy ID/SHA/finishedAt; reject all malformed/duplicate or
+   conflicting records rather than filter them. Provider regressions RED → GREEN `21/21` PASS.
+   This remains operator attestation: API detail does not prove full historical serving interval.
+   Verify: `npx vitest run src/scripts/__tests__/stagingAiChatAcceptance.rejectionEvidence.test.js`.
+   Shared cleanup also rejects a v2 `terminal/rejected` proof when the exact Knowledge Entry exists
+   before cleanup or appears during receipt quiescence; RED `2/2` → cleanup suite GREEN `7/7`, preserving
+   the actor, contradictory entry, journal and run tombstone rather than deleting evidence.
+3. **Make successful recovery retry usable**: add optional prior recovery run/attempt inputs,
+   verify trusted staging workflow provenance, download immutable prior report to a separate input,
+   validate before connect/revoke and retain v2 operator-proof digest. Prepare output directory before
+   mutation, upload artifacts named with run ID and attempt. Keep the post-journal/pre-report crash gap
+   as a manual blocker, never manufacture a report from an apparently empty inventory.
+   Verify: recovery tests plus `node --test scripts/release-workflows.test.mjs`.
+4. **Final gates**: one Node 22 QA pass, secret/boundary/dependency/agent gates, independent security
+   and general re-review; then obtain explicit Git/release authority if it is not available in current
+   task context. No live acceptance until exact legacy recovery artifact proves `verified=true, residue=0`.
+   Production remains read-only, and real vector rollback is still a separate incomplete done criterion.
+
 ## Done Criteria
 
 - [x] Preflight defaults to zero writes and rejects every non-staging target.

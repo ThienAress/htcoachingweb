@@ -43,6 +43,63 @@ test("staging live acceptance is explicitly write-enabled only behind staging lo
   assert.match(safety, /STAGING_OPERATION_DATABASE_REQUIRED/);
 });
 
+test("legacy AC-009 recovery is manual, staging-only and retains provider proof", async () => {
+  const workflow = await read(".github/workflows/staging-ai-recovery.yml");
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /repository_dispatch:/);
+  assert.match(workflow, /environment: staging-live-acceptance/);
+  assert.match(workflow, /group: staging-live-acceptance/);
+  assert.match(workflow, /contents: read/);
+  assert.match(workflow, /actions: read/);
+  assert.match(workflow, /run-id: \$\{\{ inputs\.acceptance_run_id \}\}/);
+  assert.match(workflow, /release-candidate-\$\{\{ inputs\.acceptance_run_id \}\}/);
+  assert.match(workflow, /prior_recovery_run_id:/);
+  assert.match(workflow, /prior_recovery_run_attempt:/);
+  assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
+  assert.match(workflow, /context\.ref !== "refs\/heads\/staging"/);
+  assert.match(workflow, /data\.head_branch !== "staging"/);
+  assert.match(workflow, /workflow\.path !== "\.github\/workflows\/staging-ai-recovery\.yml"/);
+  assert.match(workflow, /data\.run_attempt !== attempt/);
+  assert.match(workflow, /staging-ai-recovery-\$\{\{ inputs\.prior_recovery_run_id \}\}-\$\{\{ inputs\.prior_recovery_run_attempt \}\}/);
+  assert.match(workflow, /path: artifacts\/prior/);
+  assert.match(workflow, /STAGING_AI_FIXTURE_REJECTION_EVIDENCE: \$\{\{ inputs\.prior_recovery_run_id == ''/);
+  assert.match(workflow, /verify:acceptance:staging:ai:fixture-rejection/);
+  assert.match(workflow, /RENDER_API_KEY: \$\{\{ secrets\.RENDER_API_KEY \}\}/);
+  assert.match(workflow, /STAGING_AI_FIXTURE_REJECTION_EVIDENCE:/);
+  assert.match(workflow, /CONFIRM_STAGING_AI_ACCEPTANCE_RECOVERY: "yes"/);
+  assert.match(workflow, /MONGO_URI: \$\{\{ secrets\.STAGING_MONGO_URI \}\}/);
+  assert.match(workflow, /if: always\(\)/);
+  assert.match(workflow, /staging-ai-recovery-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
+  assert.match(workflow, /path: artifacts\/recovery\/\*\.json/);
+  assert.doesNotMatch(workflow, /production-approval|PRODUCTION_MONGO|production write/i);
+});
+
+test("staging AI recovery pins every action to an immutable commit", async () => {
+  const workflow = await read(".github/workflows/staging-ai-recovery.yml");
+  const actionUses = [...workflow.matchAll(/^\s*(?:-\s*)?uses:\s*([^\s#]+)(?:\s+#\s*(\S+))?\s*$/gm)];
+
+  assert.ok(actionUses.length > 0, "recovery workflow must use at least one action");
+  for (const [, action, versionComment] of actionUses) {
+    assert.match(action, /^[^@\s]+@[0-9a-f]{40}$/, `${action} must use a full commit SHA`);
+    assert.match(versionComment || "", /^v\d+$/, `${action} must retain its major-version comment`);
+  }
+  assert.doesNotMatch(workflow, /^\s*(?:-\s*)?uses:\s*[^\s#]+@v\d+/m);
+});
+
+test("release runbook retains the AC-009 fixture journal v2 contract", async () => {
+  const [runbook, specification] = await Promise.all([
+    read("docs/operations/runbooks/release-promotion.md"),
+    read("docs/specs/knowledge-base-embedding-staging-rollout.md"),
+  ]);
+
+  for (const contract of ["terminal/created", "terminal/rejected", "KNOWLEDGE_QUERY_SENSITIVE"]) {
+    assert.match(runbook, new RegExp(contract));
+    assert.match(specification, new RegExp(contract));
+  }
+  assert.match(runbook, /Journal v1 legacy `pending` chỉ dùng ngoại lệ manual/);
+  assert.doesNotMatch(runbook, /CAS journal sang `settled`/);
+});
+
 test("staging acceptance derives deposit amount from the canonical policy", async () => {
   const source = await read("server/src/scripts/stagingAcceptance.js");
 

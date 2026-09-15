@@ -64,13 +64,18 @@ validator tự recompute correspondence/delta. Mỗi provider-failure receipt ph
 nâng cấp thành request-bound proof. Missing receipt, restart, runtime mismatch,
 auth/CSRF retry ngoài inventory hoặc cleanup khi mutation còn chưa settled đều FAIL.
 
-Trước KB fixture POST, runner ghi durable `fixture_create` journal `pending`, bind
-exact run/SHA/synthetic admin/normalized-question digest. Chỉ response `201` đã
-validate published/reviewed/embedding-ready mới được CAS journal sang `settled`.
-Journal này không phải request receipt thứ mười và không làm tăng counter cohort.
-Cleanup giữ journal `settled` cùng run tombstone cho tới sau khi xóa và verify toàn
-bộ synthetic data; capability receipt chỉ được xóa atomically khi còn `issued` hoặc
-`settled`, không bao giờ xóa `admitted`.
+Trước KB fixture POST, runner ghi durable `fixture_create` journal v2 ở trạng thái
+`pending`, bind exact run/SHA/synthetic admin/request ID và canonical payload digest.
+Chỉ response `201` đã validate published/reviewed/embedding-ready mới được CAS sang
+`terminal/created`; exact `400 / KNOWLEDGE_QUERY_SENSITIVE` có matching request ID
+mới được CAS sang `terminal/rejected`. Timeout, 5xx, malformed response,
+request-ID mismatch và mọi rejection khác vẫn là unknown. Journal này không phải
+request receipt thứ mười và không làm tăng counter cohort. Cleanup giữ journal cùng
+run tombstone cho tới sau khi xóa và verify toàn bộ synthetic data; nếu journal nói
+`rejected` nhưng exact KB entry tồn tại/xuất hiện muộn thì giữ nguyên evidence và fail
+closed. Capability receipt chỉ được xóa atomically khi còn `issued` hoặc `settled`,
+không bao giờ xóa `admitted`. Journal v1 legacy `pending` chỉ dùng ngoại lệ manual
+được giới hạn tại đoạn recovery bên dưới; không được tự đổi thành `settled/created`.
 
 AC-009 không mở `answerTrace` qua public API. Runner đọc projection tối thiểu của
 đúng synthetic actor/conversation trực tiếp từ staging MongoDB rồi xóa theo exact
@@ -119,6 +124,40 @@ intent; chỉ tiếp tục workflow sau report `verified: true`, `residue: 0`.
 Tương tự, `STAGING_AI_RECOVERY_FIXTURE_UNKNOWN` nghĩa là fixture journal thiếu,
 `pending`, malformed hoặc terminal CAS không được acknowledge. Giữ tombstone và
 fixtures; không đánh dấu journal settled, không ad-hoc delete và không rerun acceptance.
+Journal v2 chỉ coi `terminal/created` hoặc exact `terminal/rejected` với request-ID/payload
+binding là proof. Với journal v1 legacy pending, ngoại lệ duy nhất là workflow manual
+`.github/workflows/staging-ai-recovery.yml`: workflow phải tải artifact của exact failed
+`Staging Live Acceptance` run, verify SHA/deploy identity, tìm đúng một Render application
+`http.request` finish record cho `POST /api/knowledge-base/` status `400` trong cửa sổ journal,
+và lưu closed operator-attested evidence trước khi chạy recovery CLI. Workflow dùng chung
+concurrency/environment `staging-live-acceptance`; request khác, log phân trang/malformed,
+KB entry xuất hiện hoặc identity mismatch đều giữ tombstone và fail closed. Không dùng workflow
+này cho 5xx/timeout/malformed response hoặc production.
+Ngoại lệ v1 hiện chỉ được code chấp nhận cho incident tuple đã ghi trong spec rollout; đây là
+operator attestation có provenance, không phải chứng nhận tự động về toàn historical serving interval.
+Verifier GET exact Render deploy để bind service/deploy/SHA/chronology và reject toàn response log
+malformed, duplicate hoặc conflicting. Journal v2 pending không bao giờ dùng nhánh operator này.
+
+Khi retry một recovery đã success, truyền cả `prior_recovery_run_id` và exact
+`prior_recovery_run_attempt`. Workflow chỉ tải report từ successful `workflow_dispatch` của chính
+`.github/workflows/staging-ai-recovery.yml` trên trusted `staging` ref; report được validate closed
+schema và exact intent trước connect/revoke, rồi recovery vẫn quiescence/inventory/cleanup lại.
+Recovery report v2 giữ `operator_attested_render_application_log` cùng digest canonical evidence;
+v1 prior report vẫn đọc được nhưng không tự có operator proof. Nếu process chết sau xóa journal nhưng
+trước ghi verified report thì vẫn là manual blocker, không dùng empty inventory để manufacture proof.
+
+Ví dụ dispatch sau khi reviewer đã đối chiếu exact request ID trong provider log:
+
+```powershell
+gh workflow run staging-ai-recovery.yml --ref staging `
+  -f acceptance_run_id=<FAILED_WORKFLOW_RUN_ID> `
+  -f release_sha=<INCIDENT_SHA> `
+  -f fixture_request_id=<EXACT_RENDER_REQUEST_ID> `
+  -f "confirmation=RECOVER EXACT AC009 STAGING RESIDUE"
+```
+
+Chỉ rerun live acceptance sau khi artifact recovery có
+`staging-ai-recovery-report.json` với `verified: true`, `residue: 0`.
 Chỉ trường hợp chính recovery đã ghi một closed verified report của đúng SHA/run mới
 được phép tái dùng report đó khi journal terminal đã được xóa. Nếu process chết sau
 xóa journal nhưng trước khi report verified được ghi, trạng thái vẫn là manual blocker

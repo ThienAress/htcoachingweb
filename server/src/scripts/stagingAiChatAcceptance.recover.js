@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { setTimeout as waitFor } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
@@ -9,12 +10,20 @@ import { EXPECTED_API_ORIGIN, EXPECTED_CLIENT_URL } from "./stagingAiChatAccepta
 import { createExactCleanup } from "./stagingAiChatAcceptance.cleanup.js";
 import { knowledgeFixtureQueries } from "./stagingAiChatAcceptance.http.js";
 import { normalizeKnowledgeQuestion } from "../utils/knowledgeBase.js";
-import { assertFixtureCreateSettled, deleteSettledFixtureJournal } from "./stagingAiChatAcceptance.fixture.js";
+import {
+  assertFixtureCreatePending,
+  assertFixtureCreateTerminal,
+  deletePendingFixtureJournal,
+  deleteTerminalFixtureJournal,
+} from "./stagingAiChatAcceptance.fixture.js";
+import { validateFixtureRejectionEvidence } from "./stagingAiChatAcceptance.rejectionEvidence.js";
 
 const SHA = /^[a-f0-9]{40}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const INTENT_KEYS = ["schemaVersion", "kind", "releaseSha", "runId", "marker", "createdAt"];
 const REPORT_KEYS = ["schemaVersion", "kind", "releaseSha", "runId", "recoveredReceiptCount", "alreadyClean", "residue", "verified"];
+const REPORT_V2_KEYS = [...REPORT_KEYS, "fixtureRejectionProof"];
+const FIXTURE_REJECTION_PROOF_KEYS = ["proofMethod", "evidenceDigest"];
 const RECEIPT_PURPOSES = new Map([
   ["live_kb_provider", ["ai_chat", "observe_only"]],
   ["paced_conversation", ["ai_chat", "paced_response"]],
@@ -80,20 +89,40 @@ const validateReceipt = (receipt, intent) => {
   }
   return receipt;
 };
+const canonicalJson = (value) => {
+  if (Array.isArray(value)) return value.map(canonicalJson);
+  if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort()
+    .map((key) => [key, canonicalJson(value[key]) ]));
+  return value;
+};
+const fixtureRejectionProof = (evidence) => evidence ? {
+  proofMethod: "operator_attested_render_application_log",
+  evidenceDigest: createHash("sha256").update(JSON.stringify(canonicalJson(evidence))).digest("hex"),
+} : null;
+const validFixtureRejectionProof = (value) => value === null || (
+  value && typeof value === "object" && !Array.isArray(value) &&
+  Object.keys(value).length === FIXTURE_REJECTION_PROOF_KEYS.length &&
+  Object.keys(value).every((key) => FIXTURE_REJECTION_PROOF_KEYS.includes(key)) &&
+  value.proofMethod === "operator_attested_render_application_log" &&
+  /^[a-f0-9]{64}$/.test(value.evidenceDigest || "")
+);
 const validateRecoveryReport = (value, expected) => {
+  const isV1 = value?.schemaVersion === 1;
+  const reportKeys = isV1 ? REPORT_KEYS : REPORT_V2_KEYS;
   if (!value || typeof value !== "object" || Array.isArray(value) ||
-      Object.keys(value).length !== REPORT_KEYS.length ||
-      Object.keys(value).some((key) => !REPORT_KEYS.includes(key)) ||
-      value.schemaVersion !== 1 || value.kind !== "staging-ai-chat-recovery-report" ||
+      Object.keys(value).length !== reportKeys.length ||
+      Object.keys(value).some((key) => !reportKeys.includes(key)) ||
+      ![1, 2].includes(value.schemaVersion) || value.kind !== "staging-ai-chat-recovery-report" ||
       value.releaseSha !== expected.releaseSha || value.runId !== expected.runId ||
       !Number.isSafeInteger(value.recoveredReceiptCount) || value.recoveredReceiptCount < 0 ||
-      typeof value.alreadyClean !== "boolean" || value.residue !== 0 || value.verified !== true) {
+      typeof value.alreadyClean !== "boolean" || value.residue !== 0 || value.verified !== true ||
+      (!isV1 && !validFixtureRejectionProof(value.fixtureRejectionProof))) {
     throw fail("STAGING_AI_RECOVERY_REPORT_INVALID", "Existing recovery report is not valid for this exact run");
   }
   return value;
 };
-const safeReport = ({ intent, report, recoveredReceipts, alreadyClean }) => ({
-  schemaVersion: 1,
+const safeReport = ({ intent, report, recoveredReceipts, alreadyClean, fixtureRejectionEvidence, priorVerifiedReport }) => ({
+  schemaVersion: 2,
   kind: "staging-ai-chat-recovery-report",
   releaseSha: intent.releaseSha,
   runId: intent.runId,
@@ -101,6 +130,9 @@ const safeReport = ({ intent, report, recoveredReceipts, alreadyClean }) => ({
   alreadyClean,
   residue: report.residue,
   verified: report.residue === 0,
+  fixtureRejectionProof: priorVerifiedReport?.schemaVersion === 2
+    ? priorVerifiedReport.fixtureRejectionProof
+    : fixtureRejectionProof(fixtureRejectionEvidence),
 });
 
 export const recoverStagingAiChatAcceptance = async ({
@@ -109,6 +141,7 @@ export const recoverStagingAiChatAcceptance = async ({
   db,
   capability,
   priorVerifiedReport,
+  fixtureRejectionEvidence,
   cleanupOptions = {},
   recoveryQuiescenceMs = DEFAULT_RECOVERY_QUIESCENCE_MS,
   postCleanupQuiescenceMs = DEFAULT_POST_CLEANUP_QUIESCENCE_MS,
@@ -135,9 +168,35 @@ export const recoverStagingAiChatAcceptance = async ({
 
   const fixtureProof = { collection: control, runId: intent.runId, releaseSha: intent.releaseSha, marker: intent.marker };
   const existingJournal = await control.findOne({ _id: `${intent.runId}:fixture-create` });
-  const fixtureJournal = !existingJournal && priorVerifiedReport
-    ? null : await assertFixtureCreateSettled(fixtureProof);
-  const fixtureActor = fixtureJournal && await db.collection("users").findOne({ _id: new mongoose.Types.ObjectId(fixtureJournal.actorId) }, {
+  let fixtureJournal = null;
+  let rejectedPendingJournal = null;
+  let attestedFixtureRejectionEvidence = null;
+  if (existingJournal) {
+    try {
+      fixtureJournal = await assertFixtureCreateTerminal(fixtureProof);
+    } catch (error) {
+      if (!fixtureRejectionEvidence) throw error;
+      rejectedPendingJournal = await assertFixtureCreatePending(fixtureProof);
+      // Operator attestation is only a compatibility escape hatch for v1,
+      // which never persisted its HTTP request identity. V2 unknown stays unknown.
+      if (rejectedPendingJournal.journalVersion !== 1) throw error;
+      const evidence = validateFixtureRejectionEvidence(fixtureRejectionEvidence, intent);
+      if (evidence.recoveryCodeSha !== env.GITHUB_SHA || evidence.operatorActor !== env.GITHUB_ACTOR ||
+          String(evidence.sourceWorkflowRunId) !== env.STAGING_AI_SOURCE_WORKFLOW_RUN_ID) {
+        throw fail("STAGING_AI_RECOVERY_FIXTURE_REJECTION_INVALID", "Fixture rejection evidence is not bound to this manual workflow run");
+      }
+      const startedAt = new Date(rejectedPendingJournal.startedAt).getTime();
+      const observedAt = new Date(evidence.observedAt).getTime();
+      if (observedAt < startedAt || observedAt > startedAt + 60_000) {
+        throw fail("STAGING_AI_RECOVERY_FIXTURE_REJECTION_INVALID", "Provider rejection is outside the exact pending journal window");
+      }
+      attestedFixtureRejectionEvidence = evidence;
+    }
+  } else if (!priorVerifiedReport) {
+    await assertFixtureCreateTerminal(fixtureProof);
+  }
+  const actorJournal = fixtureJournal || rejectedPendingJournal;
+  const fixtureActor = actorJournal && await db.collection("users").findOne({ _id: new mongoose.Types.ObjectId(actorJournal.actorId) }, {
     projection: { email: 1, role: 1 },
   });
   if (fixtureActor && (fixtureActor.role !== "admin" || fixtureActor.email !== exactEmail(intent.runId, "admin"))) {
@@ -146,6 +205,11 @@ export const recoverStagingAiChatAcceptance = async ({
 
   const { question } = knowledgeFixtureQueries(intent.marker);
   const normalizedQuestion = normalizeKnowledgeQuestion(question);
+  const rejectedFixture = rejectedPendingJournal ||
+    (fixtureJournal?.journalVersion === 2 && fixtureJournal.outcome === "rejected" ? fixtureJournal : null);
+  if (rejectedFixture && await db.collection("knowledgeentries").countDocuments({ normalizedQuestion }) !== 0) {
+    throw fail("STAGING_AI_RECOVERY_FIXTURE_REJECTION_CONFLICT", "Rejected fixture proof conflicts with a persisted Knowledge Entry");
+  }
   const exact = createExactCleanup({
     db,
     runId: intent.runId,
@@ -155,8 +219,8 @@ export const recoverStagingAiChatAcceptance = async ({
     requireFixtureCreateProof: Boolean(fixtureJournal),
     releaseSha: intent.releaseSha,
   });
-  exact.registerKnowledgeQuestion(normalizedQuestion);
-  if (fixtureJournal) exact.registerKnowledgeEntry(fixtureJournal.knowledgeEntryId);
+  if (!rejectedFixture) exact.registerKnowledgeQuestion(normalizedQuestion);
+  if (fixtureJournal && !rejectedFixture) exact.registerKnowledgeEntry(fixtureJournal.knowledgeEntryId);
   const observed = { receipts: new Set(), users: new Set(), knowledge: new Set() };
   const inventory = async () => {
     const receipts = await control.find({ runId: intent.runId, recordType: "capability" }, {
@@ -193,6 +257,9 @@ export const recoverStagingAiChatAcceptance = async ({
       { normalizedQuestion },
       { projection: { _id: 1 } },
     ).toArray();
+    if (rejectedFixture && knowledge.length !== 0) {
+      throw fail("STAGING_AI_RECOVERY_FIXTURE_REJECTION_CONFLICT", "A Knowledge Entry appeared after the attested rejection");
+    }
     for (const entry of knowledge) {
       exact.registerKnowledgeEntry(entry._id);
       observed.knowledge.add(String(entry._id));
@@ -204,18 +271,19 @@ export const recoverStagingAiChatAcceptance = async ({
   const alreadyClean = initial.receipts.length === 0 && initial.users.length === 0 &&
     initial.knowledge.length === 0;
   await exact.cleanup();
-  const first = await exact.verify({ allowFixtureJournal: true });
+  const first = await exact.verify({ allowFixtureJournal: Boolean(actorJournal) });
   if (first.residue !== 0) throw fail("STAGING_AI_RECOVERY_RESIDUE", "Recovery verification found synthetic residue");
   await wait(postCleanupQuiescenceMs);
   await inventory();
   await exact.cleanup();
-  const second = await exact.verify({ allowFixtureJournal: true });
+  const second = await exact.verify({ allowFixtureJournal: Boolean(actorJournal) });
   if (first.residue !== 0 || second.residue !== 0) throw fail("STAGING_AI_RECOVERY_RESIDUE", "Recovery verification found synthetic residue");
   const finalInventory = await inventory();
   if (finalInventory.receipts.length || finalInventory.users.length || finalInventory.knowledge.length) {
     throw fail("STAGING_AI_RECOVERY_NOT_QUIESCENT", "Recovery retained its tombstone because synthetic writes arrived after cleanup");
   }
-  if (fixtureJournal) await deleteSettledFixtureJournal(fixtureProof);
+  if (fixtureJournal) await deleteTerminalFixtureJournal(fixtureProof);
+  if (rejectedPendingJournal) await deletePendingFixtureJournal(fixtureProof);
   await exact.deleteRunTombstone();
   const final = await exact.verify();
   if (final.residue !== 0) throw fail("STAGING_AI_RECOVERY_RESIDUE", "Recovery verification found synthetic residue");
@@ -224,12 +292,15 @@ export const recoverStagingAiChatAcceptance = async ({
     report: final,
     recoveredReceipts: observed.receipts.size,
     alreadyClean,
+    fixtureRejectionEvidence: attestedFixtureRejectionEvidence,
+    priorVerifiedReport,
   });
 };
 
 const readIntent = async (filename) => parseRecoveryIntent(JSON.parse(await fs.readFile(path.resolve(filename), "utf8")));
 export const writeRecoveryReport = async (filename, report) => {
   if (!filename) return report;
+  validateRecoveryReport(report, report);
   const target = path.resolve(filename);
   try {
     await fs.writeFile(target, `${JSON.stringify(report, null, 2)}\n`, { flag: "wx" });
@@ -246,25 +317,53 @@ export const writeRecoveryReport = async (filename, report) => {
   }
 };
 
+const readPriorRecoveryReport = async (filename, intent, allowMissing) => {
+  if (!filename) return undefined;
+  try {
+    return validateRecoveryReport(JSON.parse(await fs.readFile(path.resolve(filename), "utf8")), intent);
+  } catch (error) {
+    if (allowMissing && error?.code === "ENOENT") return undefined;
+    throw fail("STAGING_AI_RECOVERY_REPORT_INVALID", "Prior recovery report cannot be validated");
+  }
+};
+const prepareRecoveryReportOutput = async (filename) => {
+  if (filename) await fs.mkdir(path.dirname(path.resolve(filename)), { recursive: true });
+};
+
 export const runRecoveryCli = async ({ env = process.env } = {}) => {
   const filename = env.STAGING_AI_ACCEPTANCE_RECOVERY_INTENT;
   if (!filename) throw fail("STAGING_AI_RECOVERY_INTENT_REQUIRED", "Recovery intent path is required");
   const intent = await readIntent(filename);
   assertRecoveryConfig(env, intent);
+  const priorReportPath = env.STAGING_AI_ACCEPTANCE_PRIOR_RECOVERY_REPORT ||
+    env.STAGING_AI_ACCEPTANCE_RECOVERY_REPORT_OUTPUT;
+  const priorVerifiedReport = await readPriorRecoveryReport(
+    priorReportPath,
+    intent,
+    !env.STAGING_AI_ACCEPTANCE_PRIOR_RECOVERY_REPORT,
+  );
+  await prepareRecoveryReportOutput(env.STAGING_AI_ACCEPTANCE_RECOVERY_REPORT_OUTPUT);
   await mongoose.connect(env.MONGO_URI, { autoIndex: false });
   try {
     const capability = await import("../services/ai/stagingAiAcceptance.service.js");
-    let priorVerifiedReport;
-    if (env.STAGING_AI_ACCEPTANCE_RECOVERY_REPORT_OUTPUT) {
+    let fixtureRejectionEvidence;
+    if (env.STAGING_AI_FIXTURE_REJECTION_EVIDENCE) {
       try {
-        priorVerifiedReport = validateRecoveryReport(JSON.parse(await fs.readFile(
-          path.resolve(env.STAGING_AI_ACCEPTANCE_RECOVERY_REPORT_OUTPUT), "utf8",
-        )), intent);
-      } catch (error) {
-        if (error.code !== "ENOENT") throw fail("STAGING_AI_RECOVERY_REPORT_INVALID", "Prior recovery report cannot be validated");
+        fixtureRejectionEvidence = JSON.parse(await fs.readFile(
+          path.resolve(env.STAGING_AI_FIXTURE_REJECTION_EVIDENCE), "utf8",
+        ));
+      } catch {
+        throw fail("STAGING_AI_RECOVERY_FIXTURE_REJECTION_INVALID", "Fixture rejection evidence cannot be read");
       }
     }
-    const report = await recoverStagingAiChatAcceptance({ env, intent, db: mongoose.connection.db, capability, priorVerifiedReport });
+    const report = await recoverStagingAiChatAcceptance({
+      env,
+      intent,
+      db: mongoose.connection.db,
+      capability,
+      priorVerifiedReport,
+      fixtureRejectionEvidence,
+    });
     const persistedReport = await writeRecoveryReport(env.STAGING_AI_ACCEPTANCE_RECOVERY_REPORT_OUTPUT, report);
     process.stdout.write(`${JSON.stringify(persistedReport)}\n`);
     return persistedReport;
