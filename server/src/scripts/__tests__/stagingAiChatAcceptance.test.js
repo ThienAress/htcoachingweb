@@ -103,6 +103,33 @@ describe("staging AI acceptance evidence", () => {
     expect(evidence.runtimeBinding).toMatchObject({ proof: "request_cohort", attempts: [{ receiptState: "settled" }] });
   });
 
+  it("retains a sanitized root operation code when cleanup wraps the failure", () => {
+    const operationError = Object.assign(new Error("private browser detail"), {
+      code: "STAGING_AI_CONTROL_BARRIER_FAILED",
+    });
+    const cleanupError = Object.assign(new Error("private cleanup detail"), {
+      code: "STAGING_AI_CLEANUP_OUTCOME_UNKNOWN",
+    });
+    const evidence = buildSafeEvidence({
+      releaseSha: SHA,
+      runId: randomUUID(),
+      syntheticIds: {},
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      status: "failed",
+      sourceUrl: "https://www.who.int/news-room/fact-sheets/detail/physical-activity",
+      error: Object.assign(
+        new AggregateError([operationError, cleanupError], "private aggregate detail"),
+        { code: "STAGING_ACCEPTANCE_CLEANUP_FAILED" },
+      ),
+    });
+
+    expect(evidence.error).toEqual({
+      code: "STAGING_ACCEPTANCE_CLEANUP_FAILED",
+      operationCode: "STAGING_AI_CONTROL_BARRIER_FAILED",
+    });
+  });
+
   it("fails metrics closed without matching runtime identity", () => {
     expect(() => metricDelta(
       { uptimeSeconds: 10, counters: {} },

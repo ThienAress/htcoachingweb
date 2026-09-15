@@ -11,6 +11,21 @@ const safeErrorCode = (error) =>
     ? String(error.code)
     : "STAGING_AI_ACCEPTANCE_FAILED";
 
+const safeEvidenceError = (error) => {
+  const code = safeErrorCode(error);
+  const operationError = code === "STAGING_ACCEPTANCE_CLEANUP_FAILED" &&
+    Array.isArray(error?.errors)
+    ? error.errors[0]
+    : null;
+  const operationCode = operationError ? safeErrorCode(operationError) : null;
+  return {
+    code,
+    ...(operationCode && operationCode !== "STAGING_AI_ACCEPTANCE_FAILED"
+      ? { operationCode }
+      : {}),
+  };
+};
+
 const safeLane = (lane) => ({
   name: String(lane?.name || "unknown").slice(0, 80),
   passed: lane?.passed === true,
@@ -94,7 +109,7 @@ export const buildSafeEvidence = (input) => ({
   metricsSnapshots: safeMetricsSnapshots(input.metricsSnapshots),
   runtimeBinding: safeRuntimeBinding(input.runtimeBinding),
   cleanup: input.cleanup || null,
-  ...(input.error ? { error: { code: safeErrorCode(input.error) } } : {}),
+  ...(input.error ? { error: safeEvidenceError(input.error) } : {}),
 });
 
 export const metricDelta = (before, after) => {

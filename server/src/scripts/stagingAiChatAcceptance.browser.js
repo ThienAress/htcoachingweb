@@ -100,6 +100,14 @@ const newConversation = async (page) => {
   await page.getByRole("button", { name: "Cuộc trò chuyện mới" }).click();
 };
 
+export const stagingConversationButtonName = (question) =>
+  `Mở cuộc trò chuyện: ${String(question || "").slice(0, 60)}`;
+
+const conversationButton = (page, question) => page.getByRole("button", {
+  name: stagingConversationButtonName(question),
+  exact: true,
+});
+
 export const runBrowserAcceptance = async ({
   chromium,
   clientUrl,
@@ -219,10 +227,14 @@ export const runBrowserAcceptance = async ({
     const pacedControl = controls.at(-1);
     await waitControlStatus(controlCollection, pacedControl.jti, "first_frame");
     await waitStableText(assistantBodies, prefix);
-    await page.getByText(fixture.question.slice(0, 55), { exact: false }).first().click();
+    const pacedConversation = conversationButton(page, pacedQuestion);
+    await pacedConversation.waitFor({ state: "visible", timeout: 10_000 });
+    await conversationButton(page, fixture.question).click();
     await new Promise((resolve) => setTimeout(resolve, 500));
     assert((await citation.getAttribute("href")) === stableCitation, "Conversation B citation changed while A was pending");
     assert((await assistantBodies.last().innerText()) === stableBody, "Conversation B content changed while A was pending");
+    await pacedConversation.click();
+    await waitStableText(assistantBodies, prefix);
     const released = await controlCollection.updateOne({
       _id: pacedControl.jti,
       runId,
@@ -232,7 +244,6 @@ export const runBrowserAcceptance = async ({
       status: "first_frame",
     }, { $set: { status: "released", releasedAt: new Date() } });
     assert(released.modifiedCount === 1, "Paced control release CAS failed");
-    await page.getByText(pacedQuestion.slice(0, 55), { exact: false }).first().click();
     await assistantBodies.filter({ hasText: lateSuffix }).last().waitFor({ timeout: 30_000 });
     recordLane({ name: "paced-conversation-isolation", passed: true, injection: "paced response at server boundary" });
 
