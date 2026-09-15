@@ -4,6 +4,7 @@ import {
   buildSystemPrompt,
   buildKnowledgeReferenceBlock,
   buildPersonalMemoryBlock,
+  getCitableKnowledgeSources,
 } from "../systemPrompt.js";
 import { routeAiRequest } from "../requestRouter.js";
 
@@ -272,6 +273,55 @@ describe("Knowledge Base prompt boundary", () => {
       stale: block.includes("review=stale"),
       citationBlocked: block.includes("KHÔNG ĐỦ ĐIỀU KIỆN CITATION"),
     }).toEqual({ stale: true, citationBlocked: true });
+  });
+
+  it("returns output citations only for current reviewed published evidence", () => {
+    const validSource = {
+      type: "research",
+      title: "Synthetic current source",
+      publisher: "Synthetic Journal",
+      url: "https://example.org/research/current",
+      evidenceTier: "primary",
+    };
+    const baseEntry = {
+      question: "How should adults progress resistance training?",
+      answer: "Increase training demand gradually while recovering.",
+      category: "training",
+      evidenceLevel: "source_backed",
+      reviewStatus: "reviewed",
+      freshnessClass: "stable",
+      sources: [validSource],
+    };
+
+    expect(
+      getCitableKnowledgeSources([
+        { ...baseEntry, status: "draft" },
+        {
+          ...baseEntry,
+          status: "published",
+          reviewDueAt: "2000-01-01T00:00:00.000Z",
+        },
+        { ...baseEntry, status: "published" },
+      ]),
+    ).toEqual([
+      {
+        title: "Synthetic current source",
+        uri: "https://example.org/research/current",
+      },
+    ]);
+
+    expect(
+      getCitableKnowledgeSources([
+        {
+          ...baseEntry,
+          status: "published",
+          sources: [{
+            ...validSource,
+            url: "https://example.org/research/private?access_token=secret",
+          }],
+        },
+      ]),
+    ).toEqual([]);
   });
 });
 

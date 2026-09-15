@@ -27,11 +27,13 @@ Local evidence trước PR: Node 22 focused six files 47/47 PASS, gồm MongoMem
 replica-set apply→rollback; full server suite trước patch review cuối 257 files /
 2.561 tests PASS. Guardrails sau đó đã được merge/deploy trên staging và rollout
 staging đã chạy; evidence thực thi mới nhất nằm ở mục `Staging Execution Evidence`.
-Plan chưa hoàn tất: PR #119 đã đưa signed AC-009 runner lên staging tại exact SHA
-`5fb8bfba7596e20f22737654ef26fc98e92330e8`, nhưng live acceptance bị chặn trước mọi
-synthetic write vì Render running-instance inventory trả HTTP 200 JSON `null`.
-Không dùng CPU metrics hoặc Free-plan inference để cấp topology certificate;
-provenance KB, toàn bộ AC-009 live lanes và rollback vector thật vẫn chưa hoàn tất.
+Plan chưa hoàn tất: PR #124 đã đưa recovery journal v2 lên staging tại exact SHA
+`ada5610b2518ae6dc6dad8a90c7759a93db0169d`; CI và hai staging deploy cùng SHA đều
+PASS/ready/live. Gemini đã hồi phục với một request mới HTTP `200`, nhưng live
+acceptance gần nhất dừng trước lane AC-009 đầu tiên vì response KB không luôn render
+exact citation URL. Incident đã được recovery về `verified=true, residue=0`; fix
+deterministic citation hiện mới được verify local, chưa deploy trên một exact SHA mới.
+Provenance KB, toàn bộ AC-009 live lanes và rollback vector thật vẫn chưa hoàn tất.
 
 ## Why This Matters
 
@@ -386,6 +388,62 @@ recovery CLI/workflow/tests. Five user-owned sitemap/generated files remain excl
    task context. No live acceptance until exact legacy recovery artifact proves `verified=true, residue=0`.
    Production remains read-only, and real vector rollback is still a separate incomplete done criterion.
 
+### AC-009 live retry and upstream blocker — 2026-09-15
+
+- PR #124 merged as `ada5610b2518ae6dc6dad8a90c7759a93db0169d`. CI
+  [34992043457](https://github.com/ThienAress/htcoachingweb/actions/runs/34992043457) PASS `5/5`;
+  Netlify staging deploy `6aa96dcd263dfdb20343d08f` was `ready` and Render staging deploy
+  `dep-dakmpvh42hec73b4hu80` was `live`, both on the exact release SHA.
+- Live acceptance runs
+  [34993500580](https://github.com/ThienAress/htcoachingweb/actions/runs/34993500580),
+  [34994461651](https://github.com/ThienAress/htcoachingweb/actions/runs/34994461651) and
+  [34995417387](https://github.com/ThienAress/htcoachingweb/actions/runs/34995417387) each passed
+  AC-008 `9/9` with cleanup `verified=true, residue=0`. AC-009 created a reviewed/published/embedding-ready
+  fixture but recorded no completed lane and failed closed with `STAGING_ACCEPTANCE_CLEANUP_FAILED` while
+  the browser mutation outcome was unknown.
+- Render application logs bind the latter two attempts to exact `GEMINI_HTTP_ERROR` responses:
+  HTTP `503`, provider status `UNAVAILABLE`, at `2026-09-15T16:23:31.648Z` and
+  `2026-09-15T16:32:19.556Z`. This is an upstream availability blocker, not an injected AC-009 failure lane.
+- Recovery bridge runs
+  [34994072308](https://github.com/ThienAress/htcoachingweb/actions/runs/34994072308),
+  [34994974894](https://github.com/ThienAress/htcoachingweb/actions/runs/34994974894) and
+  [34995932013](https://github.com/ThienAress/htcoachingweb/actions/runs/34995932013) each produced a closed
+  journal-v2 report for its exact incident with `alreadyClean=true`, `verified=true`, `residue=0` and
+  `fixtureRejectionProof=null`; no ad-hoc deletion or production write was used.
+- **Decision**: `NO-GO/BLOCKED`. Stop condition “the same gate fails three times” is met. Do not rerun again
+  until Gemini availability has recovered; then run one fresh AC-008/AC-009 acceptance on unchanged exact
+  deploy identities or repeat the full identity gate if either deploy changes. Real vector rollback remains
+  an independent incomplete done criterion.
+
+### AC-009 provider recovery and deterministic citation fix — 2026-09-16
+
+- Live acceptance
+  [34998972302](https://github.com/ThienAress/htcoachingweb/actions/runs/34998972302) giữ exact
+  deploy identity trên SHA `ada5610b2518ae6dc6dad8a90c7759a93db0169d` và AC-008 PASS `9/9` với
+  cleanup `verified=true, residue=0`. AC-009 vẫn chưa ghi lane đầu tiên; run fail closed với
+  `STAGING_ACCEPTANCE_CLEANUP_FAILED` và `outcomeUnknown=true`.
+- Exact incident recovery
+  [34999668236](https://github.com/ThienAress/htcoachingweb/actions/runs/34999668236) PASS với
+  `alreadyClean=true`, `verified=true`, `residue=0`; không có production write.
+- Render log sau đó ghi một request `/api/ai/chat` mới HTTP `200` trong khoảng `10.2s`;
+  `chat_end` có `durationMs=8561`, `kbHits=1`, và không có `502`, `503`, `GEMINI_HTTP_ERROR`
+  hoặc `chat_error` mới. Hai log `503 UNAVAILABLE` còn thấy chỉ thuộc các attempt cũ lúc
+  `2026-09-15T16:23:31.648Z` và `2026-09-15T16:32:19.556Z`.
+- Root cause evidence: browser runner chờ exact `a[href=sourceUrl]` tối đa 90 giây trong
+  `stagingAiChatAcceptance.browser.js`, trong khi `ai.controller.js` trước đây chỉ append
+  citation deterministically cho web grounding; response từ internal KB phụ thuộc provider tự chèn link.
+  Backend success rồi runner timeout khớp failure chronology này.
+- Local fix trên base HEAD `0cadfc8fba48e7c88cdb472bd7689e108800ca9a`: lấy tối đa ba nguồn từ chính
+  KB results đã `published`, còn hạn review, `source_backed`, qua privacy/HTTPS guard, rồi append
+  tại assistant output boundary nếu provider bỏ sót. SSE và persisted conversation dùng cùng canonical output.
+- Local evidence: focused prompt/output `30/30` PASS; focused controller regression `1/1` PASS;
+  full server suite trên Node `22.23.1` PASS `266 files / 2752 tests`; client compile-only PASS;
+  tool registry `11/11`, secret scan và repository data-boundary scan PASS. Release build bị chặn ở
+  prebuild do các dynamic sitemap sources đồng loạt `ECONNABORTED`; Vite compile không có lỗi.
+- **Decision**: giữ `NO-GO/BLOCKED`. Không chạy lại acceptance trên SHA cũ. Cần review/commit/deploy
+  fix thành exact SHA mới, xác minh cả Netlify và Render cùng SHA, rồi dispatch đúng một fresh acceptance.
+  Real vector rollback vẫn là done criterion độc lập chưa hoàn tất.
+
 ## Done Criteria
 
 - [x] Preflight defaults to zero writes and rejects every non-staging target.
@@ -397,7 +455,7 @@ recovery CLI/workflow/tests. Five user-owned sitemap/generated files remain excl
 - [ ] Re-embed, indexes, env cutover and live smoke pass only on `htcoaching_staging`.
 - [ ] Signed AC-009 runner chứng minh positive real-KB provenance/citation, Retry/Edit, A→B, Stop,
   injected provider-boundary failure, root/variant metrics và cleanup `residue=0` trên cùng exact SHA.
-- [x] Final acceptance cleanup has `residue=0`; Plan 090 state matches evidence.
+- [x] Every failed acceptance incident has exact cleanup/recovery evidence with `residue=0`; Plan 090 state matches evidence.
 
 ## STOP Conditions
 

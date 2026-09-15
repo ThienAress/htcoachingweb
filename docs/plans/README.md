@@ -6,8 +6,8 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
-| 090A | Rollout guarded Knowledge Base embeddings trên staging | P1 | L | 090, PR #114 | BLOCKED / STAGING / LIVE — AC-009 FIXTURE REJECTION RECOVERY PENDING; REAL ROLLBACK PENDING |
-| 090 | Biến HT Assistant thành fitness-first và grounding KB bằng evidence | P1 | L | 031, 052 | BLOCKED / STAGING / LIVE — PR #121 DEPLOYED; AC-009 FIXTURE REJECTION RECOVERY PENDING |
+| 090A | Rollout guarded Knowledge Base embeddings trên staging | P1 | L | 090, PR #114 | BLOCKED / LOCAL FIX VERIFIED — AC-009 CITATION FIX NOT DEPLOYED; RECOVERY CLEAN; REAL ROLLBACK PENDING |
+| 090 | Biến HT Assistant thành fitness-first và grounding KB bằng evidence | P1 | L | 031, 052 | BLOCKED / LOCAL FIX VERIFIED — AC-009 CITATION FIX NOT DEPLOYED; RECOVERY CLEAN |
 | 089 | Thống nhất effective coach và HLV chính mặc định | P1 | L | 086, 087 | DONE / FOCUSED — FULL SERVER RADAR TEST FAIL; NOT DEPLOYED |
 | 088 | Session Governor: telemetry và model recommendations | P1 | M | — | DONE / FOCUSED — REPO-LOCAL |
 | 001 | Hoàn thiện vòng đời gói HLV và bảo vệ AI output | P1 | L | — | IMPLEMENTED / VERIFIED |
