@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   stagingConversationButtonName,
+  waitForStableAssistantText,
   waitForFailedRecoveryReceipt,
 } from "../stagingAiChatAcceptance.browser.js";
 
@@ -30,6 +31,55 @@ const failedReceipt = (overrides = {}) => ({
 });
 
 describe("AC-009 browser failure-recovery receipt barrier", () => {
+  it("waits for the client pacer to finish revealing the first server frame", async () => {
+    const values = [
+      "AC009-PREFIX",
+      "AC009-PREFIX đang hiện",
+      "AC009-PREFIX đang hiện",
+      "AC009-PREFIX đang hiện",
+    ];
+    let reads = 0;
+    let now = 0;
+    const locator = {
+      filter: () => locator,
+      last: () => locator,
+      waitFor: async () => {},
+      innerText: async () => values[Math.min(reads++, values.length - 1)],
+    };
+
+    const text = await waitForStableAssistantText(locator, "AC009-PREFIX", {
+      timeoutMs: 10,
+      stableMs: 2,
+      pollMs: 1,
+      now: () => now,
+      wait: async (milliseconds) => { now += milliseconds; },
+    });
+
+    expect({ text, reads }).toEqual({
+      text: "AC009-PREFIX đang hiện",
+      reads: 4,
+    });
+  });
+
+  it("fails closed when paced text never becomes stable", async () => {
+    let reads = 0;
+    let now = 0;
+    const locator = {
+      filter: () => locator,
+      last: () => locator,
+      waitFor: async () => {},
+      innerText: async () => `AC009-PREFIX ${++reads}`,
+    };
+
+    await expect(waitForStableAssistantText(locator, "AC009-PREFIX", {
+      timeoutMs: 3,
+      stableMs: 2,
+      pollMs: 1,
+      now: () => now,
+      wait: async (milliseconds) => { now += milliseconds; },
+    })).rejects.toMatchObject({ code: "STAGING_AI_PACED_TEXT_UNSTABLE" });
+  });
+
   it("targets the exact accessible conversation title emitted by the client", () => {
     expect(stagingConversationButtonName("a".repeat(80))).toBe(
       `Mở cuộc trò chuyện: ${"a".repeat(60)}`,
