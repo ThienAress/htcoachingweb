@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { waitForFailedRecoveryReceipt } from "../stagingAiChatAcceptance.browser.js";
+import {
+  stagingConversationButtonName,
+  waitForFailedRecoveryReceipt,
+} from "../stagingAiChatAcceptance.browser.js";
 
 const cohort = {
   jti: "recovery-jti",
@@ -27,6 +30,12 @@ const failedReceipt = (overrides = {}) => ({
 });
 
 describe("AC-009 browser failure-recovery receipt barrier", () => {
+  it("targets the exact accessible conversation title emitted by the client", () => {
+    expect(stagingConversationButtonName("a".repeat(80))).toBe(
+      `Mở cuộc trò chuyện: ${"a".repeat(60)}`,
+    );
+  });
+
   it("waits for delayed failed settlement before admitting recovery", async () => {
     let reads = 0;
     const receipt = await waitForFailedRecoveryReceipt({

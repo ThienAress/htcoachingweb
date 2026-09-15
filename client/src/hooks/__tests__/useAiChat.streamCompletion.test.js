@@ -158,6 +158,85 @@ describe("AI chat SSE completion", () => {
     });
   });
 
+  it("keeps a streamed suffix when navigating away from and back to the active conversation", async () => {
+    const encoder = new TextEncoder();
+    const releaseCompletion = deferred();
+    let reads = 0;
+    getAiHistory.mockResolvedValue({
+      data: {
+        conversationId: "conversation-a",
+        messages: [
+          { _id: "u-a", role: "user", content: "Câu hỏi A" },
+          { _id: "a-a", role: "assistant", content: "Câu trả lời A" },
+        ],
+      },
+    });
+    getAiConversationById.mockResolvedValue({
+      data: {
+        messages: [
+          { _id: "u-b", role: "user", content: "Câu hỏi B" },
+          {
+            _id: "a-b",
+            role: "assistant",
+            content: "AC009-PREFIX AC009-LATE-SUFFIX",
+          },
+        ],
+      },
+    });
+    openAiChatStream.mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => ({
+          read: async () => {
+            reads += 1;
+            if (reads === 1) {
+              return {
+                done: false,
+                value: encoder.encode(
+                  'data: {"type":"conversation","conversationId":"conversation-b"}\n\n' +
+                  'data: {"type":"text","content":"AC009-PREFIX"}\n\n',
+                ),
+              };
+            }
+            if (reads === 2) return releaseCompletion.promise;
+            return { done: true };
+          },
+        }),
+      },
+    });
+
+    const hook = renderHook({ persistenceEnabled: true });
+    await hook.loadHistory();
+    renderHook({ persistenceEnabled: true }).clearHistory();
+    const request = renderHook({ persistenceEnabled: true })
+      .sendMessage("Câu hỏi B");
+    await vi.waitFor(() => expect(
+      renderHook({ persistenceEnabled: true }).conversationId,
+    ).toBe("conversation-b"));
+    await renderHook({ persistenceEnabled: true })
+      .switchConversation("conversation-a");
+    await renderHook({ persistenceEnabled: true })
+      .switchConversation("conversation-b");
+
+    releaseCompletion.resolve({
+      done: false,
+      value: encoder.encode(
+        'data: {"type":"text","content":" AC009-LATE-SUFFIX"}\n\n' +
+        'data: {"type":"done","conversationId":"conversation-b"}\n\n',
+      ),
+    });
+    await request;
+    await vi.waitFor(() => expect(
+      renderHook({ persistenceEnabled: true }).messages.at(-1)?.content,
+    ).toContain("AC009-LATE-SUFFIX"));
+    await vi.waitFor(() => expect(
+      renderHook({ persistenceEnabled: true }).isReconciling,
+    ).toBe(false));
+
+    expect(renderHook({ persistenceEnabled: true }).terminalOutcome)
+      .toBe("completed");
+  });
+
   it("keeps a completed outcome when post-done history reconciliation retries", async () => {
     const persistedMessages = [
       { _id: "u1", role: "user", content: "Câu hỏi thử nghiệm" },
