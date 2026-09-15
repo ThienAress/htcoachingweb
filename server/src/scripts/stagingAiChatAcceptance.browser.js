@@ -11,6 +11,16 @@ const assert = (condition, message, code = "STAGING_AI_BROWSER_ASSERTION_FAILED"
 export const selectNewReconciledAssistant = (items, cursor, questionDigest) =>
   items.slice(cursor).find((item) => item.questionDigest === questionDigest) || null;
 
+export const STAGING_AI_CHAT_ATTEMPT_PLAN = Object.freeze([
+  Object.freeze({ purpose: "live_kb_provider", mode: "observe_only" }),
+  Object.freeze({ purpose: "paced_conversation", mode: "paced_response" }),
+  Object.freeze({ purpose: "stop", mode: "paced_response" }),
+  Object.freeze({ purpose: "provider_failure_retry", mode: "provider_failure_before_llm" }),
+  Object.freeze({ purpose: "recovery_retry", mode: "observe_only" }),
+  Object.freeze({ purpose: "provider_failure_edit", mode: "provider_failure_before_llm" }),
+  Object.freeze({ purpose: "recovery_edit", mode: "observe_only" }),
+]);
+
 const waitStableText = async (locator, expected) => {
   await locator.filter({ hasText: expected }).waitFor({ state: "visible", timeout: 30_000 });
   const first = await locator.filter({ hasText: expected }).last().innerText();
@@ -28,6 +38,56 @@ const waitControlStatus = async (collection, jti, status, timeoutMs = 15_000) =>
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   assert(false, `Staging control did not reach ${status}`, "STAGING_AI_CONTROL_BARRIER_FAILED");
+};
+
+export const waitForFailedRecoveryReceipt = async ({
+  collection,
+  jti,
+  requestId,
+  runId,
+  actorId,
+  releaseSha,
+  runtimeInstanceId,
+  action,
+  purpose,
+  mode,
+  timeoutMs = 30_000,
+  pollMs = 100,
+  now = () => Date.now(),
+  wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+}) => {
+  const deadline = now() + timeoutMs;
+  while (now() < deadline) {
+    const receipt = await collection.findOne(
+      { _id: jti, recordType: "capability" },
+      { projection: {
+        _id: 1, recordType: 1, receiptVersion: 1, receiptState: 1, outcome: 1,
+        runId: 1, actorId: 1, action: 1, purpose: 1, mode: 1, requestId: 1,
+        releaseSha: 1, runtimeInstanceId: 1, admittedAt: 1, settledAt: 1,
+      } },
+    );
+    if (receipt) {
+      assert(
+        String(receipt._id) === jti && receipt.recordType === "capability" && receipt.receiptVersion === 2 &&
+          receipt.runId === runId && receipt.actorId === actorId && receipt.requestId === requestId &&
+          receipt.action === action && receipt.purpose === purpose && receipt.mode === mode &&
+          receipt.releaseSha === releaseSha && receipt.runtimeInstanceId === runtimeInstanceId,
+        "Failure receipt did not match its exact recovery cohort contract",
+        "STAGING_AI_RECEIPT_MISMATCH",
+      );
+      if (receipt.receiptState === "settled") {
+        assert(receipt.outcome === "failed" && receipt.admittedAt && receipt.settledAt,
+          "Failure receipt did not settle as failed before recovery",
+          "STAGING_AI_RECEIPT_MISMATCH");
+        return receipt;
+      }
+      assert(["issued", "admitted"].includes(receipt.receiptState),
+        "Failure receipt entered an unexpected non-terminal state",
+        "STAGING_AI_RECEIPT_MISMATCH");
+    }
+    await wait(pollMs);
+  }
+  assert(false, "Failure receipt did not settle before recovery admission", "STAGING_AI_RECEIPT_UNSETTLED");
 };
 
 const send = async (page, text) => {
@@ -48,24 +108,25 @@ export const runBrowserAcceptance = async ({
   csrfToken,
   actorId,
   releaseSha,
+  runtimeInstanceId,
   runId,
   fixture,
   sourceUrl,
   prefix,
   lateSuffix,
   issueCapability,
-  registerCapabilityJti,
   db,
   ownerObjectId,
   onLaneResult = () => {},
+  onAttempt = () => {},
 }) => {
   const browser = await chromium.launch({ headless: true });
-  const modes = [];
   const requestIds = [];
   const controls = [];
   const reconciledAssistants = [];
   const uiAssistantEvidence = [];
   const laneResults = [];
+  const attemptPlan = STAGING_AI_CHAT_ATTEMPT_PLAN.map((item) => ({ ...item }));
   const recordLane = (lane) => {
     laneResults.push(lane);
     onLaneResult(lane);
@@ -104,12 +165,15 @@ export const runBrowserAcceptance = async ({
       if (request.method() !== "POST") return route.continue();
       const body = request.postDataJSON();
       requestIds.push(body.requestId);
-      const mode = modes.shift();
-      if (!mode) return route.continue();
+      const planned = attemptPlan.shift();
+      assert(planned, "Chat POST exceeded the exact AC-009 request inventory", "STAGING_AI_REQUEST_INVENTORY_FAILED");
       const jti = crypto.randomUUID();
-      registerCapabilityJti(jti);
-      controls.push({ jti, requestId: body.requestId, mode });
-      const token = await issueCapability({ releaseSha, runId, actorId, request: body, mode, jti });
+      controls.push({ jti, requestId: body.requestId, mode: planned.mode, purpose: planned.purpose });
+      const token = await issueCapability({
+        releaseSha, runtimeInstanceId, runId, actorId, request: body, mode: planned.mode, purpose: planned.purpose, action: "ai_chat", jti,
+        ttlSeconds: 30,
+      });
+      onAttempt({ purpose: planned.purpose, action: "ai_chat", mode: planned.mode, jti, requestId: body.requestId });
       await route.continue({ postData: JSON.stringify({ ...body, stagingAcceptance: token }) });
     });
     await page.goto(clientUrl, { waitUntil: "domcontentloaded" });
@@ -151,7 +215,6 @@ export const runBrowserAcceptance = async ({
 
     await newConversation(page);
     const pacedQuestion = `${fixture.variant} lane-paced`;
-    modes.push("paced_response");
     await send(page, pacedQuestion);
     const pacedControl = controls.at(-1);
     await waitControlStatus(controlCollection, pacedControl.jti, "first_frame");
@@ -174,7 +237,6 @@ export const runBrowserAcceptance = async ({
     recordLane({ name: "paced-conversation-isolation", passed: true, injection: "paced response at server boundary" });
 
     await newConversation(page);
-    modes.push("paced_response");
     await send(page, `${fixture.variant} lane-stop`);
     const stopControl = controls.at(-1);
     await waitControlStatus(controlCollection, stopControl.jti, "first_frame");
@@ -212,7 +274,6 @@ export const runBrowserAcceptance = async ({
     const runFailureRecovery = async (kind) => {
       await newConversation(page);
       const question = `${fixture.question} lane-${kind}`;
-      modes.push("provider_failure_before_llm");
       const before = await db.collection("serviceusagebuckets").findOne({ userId: ownerObjectId });
       await send(page, question);
       const alert = page.getByRole("alert");
@@ -233,6 +294,18 @@ export const runBrowserAcceptance = async ({
           Number(after?.count || 0) === Number(before?.count || 0),
         "Failure lane did not remove its authoritative quota event",
       );
+      const failedAttempt = controls.at(-1);
+      assert(failedAttempt?.requestId === failedId,
+        "Failure lane did not retain the exact capability attempt", "STAGING_AI_REQUEST_INVENTORY_FAILED");
+      await waitForFailedRecoveryReceipt({
+        collection: controlCollection,
+        ...failedAttempt,
+        runId,
+        actorId,
+        releaseSha,
+        runtimeInstanceId,
+        action: "ai_chat",
+      });
       const reconciliationCursor = reconciledAssistants.length;
       let recoveryQuestion;
       if (kind === "retry") {
@@ -262,9 +335,12 @@ export const runBrowserAcceptance = async ({
     };
     await runFailureRecovery("retry");
     await runFailureRecovery("edit");
+    assert(attemptPlan.length === 0 && requestIds.length === 7 && controls.length === 7,
+      "Chat POST inventory did not contain exactly seven planned attempts", "STAGING_AI_REQUEST_INVENTORY_FAILED");
     await context.close();
     return {
       requestIds,
+      attempts: controls.map(({ purpose, mode, jti, requestId }) => ({ purpose, action: "ai_chat", mode, jti, requestId })),
       uiAssistantEvidence,
       lanes: laneResults,
     };

@@ -49,7 +49,6 @@ export const assertAcceptanceConfig = (env = process.env) => {
   }
   for (const name of [
     "JWT_SECRET",
-    "ADMIN_EMAIL",
     "STAGING_AI_ACCEPTANCE_OUTPUT",
     "STAGING_AI_ACCEPTANCE_RECOVERY_OUTPUT",
     "EXPECTED_KB_EMBEDDING_VERSION",
@@ -60,36 +59,5 @@ export const assertAcceptanceConfig = (env = process.env) => {
       throw error;
     }
   }
-  if (!String(env.STAGING_RENDER_TOPOLOGY_EVIDENCE || "").trim()) {
-    const error = new Error("Staging AI acceptance requires STAGING_RENDER_TOPOLOGY_EVIDENCE");
-    error.code = "STAGING_AI_ACCEPTANCE_CONFIG_MISSING";
-    throw error;
-  }
   return result;
-};
-
-export const validateTopologyEvidence = (document, releaseSha, { now = Date.now() } = {}) => {
-  const topKeys = Object.keys(document || {}).sort();
-  const topologyKeys = Object.keys(document?.serviceTopology || {}).sort();
-  const checkedAt = new Date(document?.checkedAt).getTime();
-  const valid = Boolean(
-    document?.schemaVersion === 1 &&
-      document.kind === "render-single-instance-topology" &&
-      JSON.stringify(topKeys) === JSON.stringify(["checkedAt", "kind", "releaseSha", "schemaVersion", "serviceTopology"]) &&
-      JSON.stringify(topologyKeys) === JSON.stringify(["configuredInstances", "currentInstances"]) &&
-      SHA_PATTERN.test(document.releaseSha) &&
-      document.releaseSha === releaseSha &&
-      document.serviceTopology.configuredInstances === 1 &&
-      document.serviceTopology.currentInstances === 1 &&
-      Number.isFinite(checkedAt) &&
-      new Date(checkedAt).toISOString() === document.checkedAt &&
-      checkedAt <= now + 60_000 &&
-      now - checkedAt <= 15 * 60_000,
-  );
-  if (!valid) {
-    const error = new Error("Render topology evidence is missing, stale, mismatched, or not single-instance");
-    error.code = "STAGING_AI_TOPOLOGY_INCONCLUSIVE";
-    throw error;
-  }
-  return { checkedAt: new Date(checkedAt).toISOString(), topology: "single_instance" };
 };

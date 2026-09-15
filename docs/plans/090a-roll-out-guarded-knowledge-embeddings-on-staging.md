@@ -183,9 +183,24 @@ runtime flag bật và actor synthetic đã đăng nhập; request thường kh�
 injected tại provider boundary, không tuyên bố Gemini thật trả lỗi và không đổi `GEMINI_API_KEY`/`AI_PROVIDER`.
 Barrier nằm sau SSE text frame đầu, abort-aware và timeout hữu hạn để Stop/A→B không phụ thuộc timing.
 
-Runner phải snapshot metrics trước/sau, xác minh root/variant counters tồn tại và không có delta ngoài topology đã
-quan sát. Cleanup chạy trong `finally`, chỉ xóa exact registered control/KB/conversation/branch/user/quota IDs và
-PASS duy nhất khi verifier trả `residue=0`; artifact không chứa token, raw prompt/output, cookie hoặc Mongo URI.
+Runner phải snapshot metrics trước/sau. Bảy chat attempts và hai admin KB searches
+tạo metrics dùng capability riêng; runner preregister JTI `issued`, backend CAS
+`issued → admitted` rồi ghi `settled` sau business finalization
+với boot UUID/exact SHA lấy từ chính runtime; receipt inventory phải song ánh với
+request inventory và cùng identity với cả hai structured snapshots. Raw/candidate
+validator tự recompute delta từ timestamp, SHA, runtime fingerprint và counter allowlist,
+đồng thời bắt buộc failure receipt của từng Retry/Edit lane settle trước recovery admission.
+Mode observe không đổi
+provider/retrieval/quota; receipt không mở public DTO/header/SSE. Cleanup chạy trong
+`finally`, chỉ xóa exact registered control/KB/conversation/branch/user/quota IDs và
+PASS duy nhất khi verifier trả `residue=0`; artifact không chứa token, raw
+prompt/output, cookie hoặc Mongo URI.
+
+Request-cohort proof chỉ chứng minh counters của AC-009 được tạo và settled trên một
+runtime; không được đổi tên thành single-instance topology hay giả lập Render census.
+Direct provider inventory `null` tiếp tục inconclusive. Capability/receipt và raw
+evidence bump v2, release candidate bump v3; artifact cũ không đủ điều kiện theo
+contract mới.
 
 **Behavior**: all nine release steps have evidence on one final staging SHA.
 
@@ -202,6 +217,12 @@ PASS duy nhất khi verifier trả `residue=0`; artifact không chứa token, ra
 - Staging capability: non-staging/wrong origin/wrong SHA/actor/body/algorithm/expiry/replay đều fail trước provider và
   quota; normal request không capability giữ nguyên behavior.
 - Live cleanup: execute fail/abort/timeout vẫn dọn exact IDs và residue khác 0 luôn làm workflow FAIL.
+- Hard-kill recovery: revoke + quiescence + re-inventory bắt late KB/JTI writes;
+  `admitted` không terminal giữ tombstone/fixture và chặn rerun.
+- KB fixture mutation: journal durable `pending` trước POST, bind run/SHA/admin/question
+  và chỉ `settled` sau validated `201`; missing/pending/malformed proof là manual blocker.
+- Evidence tamper: raw/candidate validator từ chối chronology đảo ngược giữa
+  provider failure settlement và Retry/Edit recovery admission.
 
 ## Staging Execution Evidence — 2026-09-14
 
@@ -293,9 +314,30 @@ Hypotheses and closing evidence:
    and `git diff --check`; review independently. Remove the temporary workflow probe before delivery.
 
 **Done for this slice**: focused/ops regression GREEN, temporary probe absent, no topology certificate
-for `null` or malformed records. **Not done for Plan 090A**: restore authoritative Render inventory or
-explicitly approve a new per-request runtime UUID/SHA-bound acceptance contract, then final AC-008/009;
-real vector rollback also requires the original encrypted snapshot and separate key custody.
+ for `null` or malformed records. **Not done for Plan 090A at that checkpoint**:
+ choose and implement a replacement proof, then final AC-008/009; real vector
+ rollback also requires the original encrypted snapshot and separate key custody.
+ The request-cohort replacement is approved in the amendment below; it does not
+ retroactively make the failed topology runs conclusive.
+
+### AC-009 request-cohort contract amendment — 2026-09-15
+
+User yêu cầu tiếp tục làm tới xong. Ba workstream architecture/impact/security đã
+review và thống nhất dùng server-written admission/settlement receipts thay vì lộ
+runtime identity qua response header. Contract mới bind đúng 7 chat attempts và 2
+admin Knowledge Base searches vào cùng boot UUID/exact SHA với metrics snapshots;
+mọi request thiếu/thừa, restart, cross-runtime, non-terminal receipt hoặc replay đều
+fail closed. Một synthetic admin run-scoped giữ authorization route hiện có; capability
+không cấp quyền admin và run phải được revoke trước exact cleanup để token chưa hết
+hạn không thể replay sau khi tombstone bị xóa.
+
+Implementation phải TDD theo các vertical slice: ordinary request parity và strict
+capability v2; immutable `issued → admitted → settled` receipt lifecycle cho
+success/failure/abort;
+9-request runner inventory + metric correspondence; evidence v2/candidate v3 tamper
+validation; workflow bỏ AC-009 dependency vào unavailable topology artifact nhưng
+vẫn verify deploy identity trước/sau. Sau local QA/security review, deploy exact SHA
+lên staging rồi chạy fresh AC-008/009; không reuse acceptance evidence từ binary cũ.
 
 ## Done Criteria
 

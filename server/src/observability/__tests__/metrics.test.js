@@ -4,6 +4,7 @@ import {
   getOperationalAlerts,
   getPrometheusMetrics,
   getMetricsSnapshot,
+  getRuntimeIdentity,
   incrementMetric,
   observeMetric,
   recordHttpRequest,
@@ -217,5 +218,7 @@ describe("bounded application metrics", () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
     expect(second.runtimeInstanceId).toBe(first.runtimeInstanceId);
+    expect(second.runtimeReleaseSha).toBe(getRuntimeIdentity().runtimeReleaseSha);
+    expect(Object.isFrozen(getRuntimeIdentity())).toBe(true);
   });
 });

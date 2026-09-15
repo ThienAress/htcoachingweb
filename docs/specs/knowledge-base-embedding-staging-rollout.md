@@ -47,8 +47,22 @@ quota/model/auth hoặc relabel vector cũ thành version mới.
 - AC-008: Chín staging acceptance flows PASS trên final deploy SHA và cleanup báo
   `residue=0`.
 - AC-009: Authenticated live smoke chứng minh citations/source rendering, Retry/Edit,
-  conversation A→B khi A đang stream, Stop và provider-failure behavior; root/variant
-  fallback metrics không có regression blocking.
+  conversation A→B khi A đang stream, Stop và provider-failure behavior. Bảy chat
+  attempts và hai admin Knowledge Base search tạo metrics phải có signed staging-only
+  capability riêng, được runner preregister `issued`, backend CAS `issued → admitted`
+  rồi chỉ ghi `settled` sau khi business persistence được acknowledge trên cùng boot UUID
+  và exact Render SHA với hai metrics snapshots có timestamp/fingerprint/counters.
+  Validator phải tự tính lại delta từ hai snapshot và chứng minh receipt failure của
+  từng lane Retry/Edit đã `settled` trước khi recovery tương ứng được `admitted`.
+  Receipt inventory phải song ánh với request inventory, mọi fallback delta bằng `0`, cleanup `residue=0`; restart,
+  load-balancing, receipt thiếu/thừa/chưa settled hoặc identity mismatch đều fail closed.
+  Đây là request-cohort proof riêng cho AC-009, không phải chứng nhận toàn Render chỉ có
+  một instance và không được dựng `currentInstances=1` khi provider inventory không có.
+  Hard-kill recovery phải revoke trước, chờ và inventory lại exact run; receipt
+  `admitted` không terminal là manual blocker và không được xóa/đánh dấu settled.
+  Runner phải ghi durable fixture-create journal `pending` trước KB POST và chỉ CAS
+  `settled` sau response `201` đã validate đầy đủ. Journal thiếu/pending/malformed là
+  `STAGING_AI_RECOVERY_FIXTURE_UNKNOWN`: giữ tombstone/fixtures và không cấp cleanup PASS.
 
 ## Quy tắc dừng
 

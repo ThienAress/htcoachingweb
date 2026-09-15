@@ -28,16 +28,14 @@ test("staging live acceptance is explicitly write-enabled only behind staging lo
     /STAGING_AI_ACCEPTANCE_RECOVERY_OUTPUT:/,
     /STAGING_AI_ACCEPTANCE_ENABLED: "true"/,
     /EXPECTED_KB_EMBEDDING_VERSION: gemini-embedding-2:768:question-answering-v1/,
-    /STAGING_RENDER_TOPOLOGY_EVIDENCE:/,
   ]) assert.match(aiStep, required);
-  assert.match(workflow, /RENDER_TOPOLOGY_OUTPUT: artifacts\/staging-render-topology\.json/);
-  assert.match(workflow, /RENDER_TOPOLOGY_OUTPUT: artifacts\/staging-render-topology-post-ai\.json/);
+  assert.doesNotMatch(aiStep, /ADMIN_EMAIL:/);
+  assert.doesNotMatch(workflow, /RENDER_TOPOLOGY_OUTPUT:/);
+  assert.doesNotMatch(workflow, /STAGING_RENDER_TOPOLOGY_EVIDENCE:/);
   assert.match(workflow, /staging-deploy-identity-post-ai\.json/);
   for (const requiredCandidateEvidence of [
     /STAGING_AI_ACCEPTANCE_EVIDENCE: artifacts\/staging-ai-acceptance\.json/,
     /STAGING_DEPLOY_IDENTITY_POST_AI_EVIDENCE: artifacts\/staging-deploy-identity-post-ai\.json/,
-    /STAGING_RENDER_TOPOLOGY_EVIDENCE: artifacts\/staging-render-topology\.json/,
-    /STAGING_RENDER_TOPOLOGY_POST_AI_EVIDENCE: artifacts\/staging-render-topology-post-ai\.json/,
   ]) assert.match(workflow, requiredCandidateEvidence);
   assert.match(workflow, /getWorkflow\(/);
   assert.match(workflow, /\.github\/workflows\/ci\.yml/);

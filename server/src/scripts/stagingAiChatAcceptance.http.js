@@ -1,5 +1,9 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
+import {
+  STAGING_AI_ACCEPTANCE_HEADER,
+  STAGING_AI_ACCEPTANCE_REQUEST_ID_HEADER,
+} from "../services/ai/stagingAiAcceptance.service.js";
 
 export const createAccessToken = (user, secret) =>
   jwt.sign({ id: user._id.toString(), role: user.role }, secret, {
@@ -8,13 +12,14 @@ export const createAccessToken = (user, secret) =>
   });
 
 export const createApiClient = ({ origin, accessToken, csrfToken = crypto.randomBytes(32).toString("hex") }) => {
-  const request = async (path, { method = "GET", body, expected = [200] } = {}) => {
+  const request = async (path, { method = "GET", body, expected = [200], headers = {} } = {}) => {
     const response = await fetch(`${origin}${path}`, {
       method,
       headers: {
         Accept: "application/json",
         Cookie: `accessToken=${accessToken}; csrfToken=${csrfToken}`,
         ...(body !== undefined && { "Content-Type": "application/json", "X-CSRF-Token": csrfToken }),
+        ...headers,
       },
       ...(body !== undefined && { body: JSON.stringify(body) }),
       signal: AbortSignal.timeout(60_000),
@@ -29,6 +34,20 @@ export const createApiClient = ({ origin, accessToken, csrfToken = crypto.random
   };
   return { request, csrfToken };
 };
+
+export const searchKnowledgeFixture = async ({ api, clientOrigin, query, token, requestId }) => {
+  const canonicalQuery = normalizeQuery(query);
+  const response = await api.request(`/api/knowledge-base/search?q=${encodeURIComponent(canonicalQuery)}&threshold=0.75&limit=3`, {
+    headers: {
+      Origin: clientOrigin,
+      [STAGING_AI_ACCEPTANCE_HEADER]: token,
+      [STAGING_AI_ACCEPTANCE_REQUEST_ID_HEADER]: requestId,
+    },
+  });
+  return { response, canonicalQuery };
+};
+
+export const normalizeQuery = (query) => String(query || "").trim().replace(/\s+/g, " ");
 
 export const createKnowledgeFixture = async ({ api, marker, sourceUrl }) => {
   const { question, variant, label } = knowledgeFixtureQueries(marker);

@@ -207,12 +207,17 @@ const serializePublicChatMessage = (message) => {
 const serializePublicChatMessages = (messages = []) =>
   messages.map(serializePublicChatMessage);
 
+const blockStagingAcceptanceSettlement = (req) => {
+  if (req.stagingAiAcceptance) req.stagingAiAcceptanceSettlementBlocked = true;
+};
+
 const refundAiQuota = async (req, stage) => {
   if (!req.refundServiceUsage) return serializeRequestQuota(req, "ai_chat");
   try {
     return await req.refundServiceUsage();
   } catch (error) {
     safeLog.error("ai.quota_refund_failed", error, { stage });
+    blockStagingAcceptanceSettlement(req);
     return serializeRequestQuota(req, "ai_chat");
   }
 };
@@ -455,12 +460,38 @@ export const chatStream = async (req, res) => {
     });
   }
   const streamId = crypto.randomUUID();
+  const abortController = new AbortController();
+  let clientDisconnected = false;
+  let deadlineExceeded = false;
+  const markClientDisconnected = () => {
+    if (!res.writableEnded && !abortController.signal.aborted) {
+      clientDisconnected = true;
+      incrementMetric("ai.aborts");
+      abortController.abort(new Error("Client disconnected"));
+    }
+  };
+  res.on("close", markClientDisconnected);
+  if (
+    req.stagingAiAcceptanceResponseClosed ||
+    req.aborted ||
+    res.destroyed ||
+    res.closed
+  ) {
+    markClientDisconnected();
+  }
+  const stopDisconnectedPreflight = async (stage) => {
+    if (!clientDisconnected) return false;
+    await refundAiQuota(req, stage);
+    if (req.stagingAiAcceptance) req.stagingAiAcceptanceOutcome = "aborted";
+    return true;
+  };
 
   let user;
   let conversation;
   try {
     if (userId) {
       user = await User.findById(userId).select("name isAiChatBanned").lean();
+      if (await stopDisconnectedPreflight("client_disconnected_user_lookup")) return;
       if (user?.isAiChatBanned) {
         aiLogger.userLocked(actorId, "permanent");
         await refundAiQuota(req, "user_banned");
@@ -470,6 +501,7 @@ export const chatStream = async (req, res) => {
         });
       }
       const lockStatus = await isUserLocked(userId);
+      if (await stopDisconnectedPreflight("client_disconnected_lock_check")) return;
       if (lockStatus.blocked) {
         aiLogger.userLocked(actorId, lockStatus.remainingMinutes);
         await refundAiQuota(req, "user_locked");
@@ -483,6 +515,7 @@ export const chatStream = async (req, res) => {
     const moderation = userId
       ? await moderateContent(userId, message)
       : moderateGuestContent(message);
+    if (await stopDisconnectedPreflight("client_disconnected_moderation")) return;
     if (!moderation.safe) {
       aiLogger.moderationTrigger(actorId, moderation.action || "blocked");
       await refundAiQuota(req, "moderation_rejected");
@@ -505,6 +538,26 @@ export const chatStream = async (req, res) => {
     });
     conversation = acquired.conversation;
 
+    if (clientDisconnected) {
+      let released = acquired.duplicate;
+      if (!acquired.duplicate) {
+        try {
+          released = await releaseFailedConversation({
+            conversation,
+            ownerFilter,
+            streamId,
+            requestKey: requestKeyContract.writeKey,
+          });
+        } catch (error) {
+          aiLogger.chatError(actorId, error, "chatPreflightDisconnectRelease");
+        }
+      }
+      if (!released) blockStagingAcceptanceSettlement(req);
+      await refundAiQuota(req, "client_disconnected_conversation_acquire");
+      if (req.stagingAiAcceptance) req.stagingAiAcceptanceOutcome = "aborted";
+      return;
+    }
+
     if (acquired.duplicate) {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -521,10 +574,14 @@ export const chatStream = async (req, res) => {
           duplicate: true,
         })}\n\n`,
       );
+      if (req.stagingAiAcceptance) req.stagingAiAcceptanceOutcome = "duplicate";
       return res.end();
     }
   } catch (error) {
     aiLogger.chatError(actorId, error, "chatPreflight");
+    // A failed Mongo acquisition may still commit after an ambiguous write
+    // error. Refunding quota cannot prove that acquisition was rolled back.
+    if (!error.status || error.status >= 500) blockStagingAcceptanceSettlement(req);
     const quota = await refundAiQuota(req, "chat_preflight");
     return res.status(error.status || 500).json({
       success: false,
@@ -545,21 +602,10 @@ export const chatStream = async (req, res) => {
     res.write(`data: ${JSON.stringify({ type: "quota", quota })}\n\n`);
   }
 
-  const abortController = new AbortController();
-  let clientDisconnected = false;
-  let deadlineExceeded = false;
   const deadlineTimer = setTimeout(() => {
     deadlineExceeded = true;
     abortController.abort(new Error("AI response deadline exceeded"));
   }, CHAT_DEADLINE_MS);
-  res.on("close", () => {
-    if (!res.writableEnded && !abortController.signal.aborted) {
-      clientDisconnected = true;
-      incrementMetric("ai.aborts");
-      abortController.abort(new Error("Client disconnected"));
-    }
-  });
-
   const generatedMessages = [];
   let conversationMemory = deriveConversationMemory(
     conversation.messages,
@@ -675,7 +721,7 @@ export const chatStream = async (req, res) => {
           timestamp: new Date(),
         });
       }
-      await finalizeConversation({
+      const finalization = await finalizeConversation({
         conversationId: conversation._id,
         ownerFilter,
         conversationTtlMs,
@@ -684,6 +730,9 @@ export const chatStream = async (req, res) => {
         assistantPreview: fullResponse,
         workingMemory: conversationMemory,
       });
+      if (req.stagingAiAcceptance && finalization.modifiedCount !== 1) {
+        blockStagingAcceptanceSettlement(req);
+      }
       finalized = true;
       if (deadlineExceeded) {
         throw new Error("AI response deadline exceeded");
@@ -1268,7 +1317,7 @@ export const chatStream = async (req, res) => {
       throw new Error("AI provider completed without usable output");
     }
 
-    await finalizeConversation({
+    const finalization = await finalizeConversation({
       conversationId: conversation._id,
       ownerFilter,
       conversationTtlMs,
@@ -1277,6 +1326,9 @@ export const chatStream = async (req, res) => {
       assistantPreview: fullResponse,
       workingMemory: conversationMemory,
     });
+    if (req.stagingAiAcceptance && finalization.modifiedCount !== 1) {
+      blockStagingAcceptanceSettlement(req);
+    }
     finalized = true;
     if (deadlineExceeded) {
       throw new Error("AI response deadline exceeded");
@@ -1284,10 +1336,20 @@ export const chatStream = async (req, res) => {
 
     // Tăng usageCount cho KB entries đã dùng (non-blocking)
     if (kbEntryIds.length > 0) {
-      KnowledgeEntry.updateMany(
+      const usageUpdate = KnowledgeEntry.updateMany(
         { _id: { $in: kbEntryIds } },
         { $inc: { usageCount: 1 }, $set: { lastUsedAt: new Date() } }
-      ).catch((err) => safeLog.error("ai.kb_usage_update_failed", err));
+      );
+      if (req.stagingAiAcceptance) {
+        try {
+          await usageUpdate;
+        } catch (error) {
+          safeLog.error("ai.kb_usage_update_failed", error);
+          blockStagingAcceptanceSettlement(req);
+        }
+      } else {
+        usageUpdate.catch((error) => safeLog.error("ai.kb_usage_update_failed", error));
+      }
     }
 
     // Done event
@@ -1300,10 +1362,16 @@ export const chatStream = async (req, res) => {
     if (!abortController.signal.aborted) {
       res.write(`data: ${JSON.stringify({ type: "done", conversationId: conversation._id })}\n\n`);
       res.end();
+      if (req.stagingAiAcceptance) req.stagingAiAcceptanceOutcome = "completed";
+    } else if (req.stagingAiAcceptance) {
+      req.stagingAiAcceptanceOutcome = "aborted";
     }
   } catch (err) {
     aiLogger.chatError(actorId, err, "chatStream");
     failedStream = !clientDisconnected;
+    if (req.stagingAiAcceptance) {
+      req.stagingAiAcceptanceOutcome = clientDisconnected ? "aborted" : "failed";
+    }
     if (failedStream && !finalized) {
       try {
         rollbackSucceeded = await releaseFailedConversation({
@@ -1342,14 +1410,16 @@ export const chatStream = async (req, res) => {
     if (!finalized) {
       if (failedStream) {
         try {
-          await releaseFailedConversation({
+          const released = await releaseFailedConversation({
             conversation,
             ownerFilter,
             streamId,
             requestKey: requestKeyContract.writeKey,
           });
+          if (!released) blockStagingAcceptanceSettlement(req);
         } catch (error) {
           aiLogger.chatError(actorId, error, "chatReleaseFailed");
+          blockStagingAcceptanceSettlement(req);
         }
         return;
       }
@@ -1365,7 +1435,7 @@ export const chatStream = async (req, res) => {
         });
       }
       try {
-        await finalizeConversation({
+        const finalization = await finalizeConversation({
           conversationId: conversation._id,
           ownerFilter,
           conversationTtlMs,
@@ -1374,8 +1444,12 @@ export const chatStream = async (req, res) => {
           assistantPreview: fullResponse,
           workingMemory: conversationMemory,
         });
+        if (req.stagingAiAcceptance && finalization.modifiedCount !== 1) {
+          blockStagingAcceptanceSettlement(req);
+        }
       } catch (error) {
         aiLogger.chatError(actorId, error, "chatFinalize");
+        blockStagingAcceptanceSettlement(req);
       }
     }
   }
