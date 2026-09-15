@@ -8,10 +8,11 @@ import mongoose from "mongoose";
 import User from "../models/User.js";
 import { normalizeKnowledgeQuestion } from "../utils/knowledgeBase.js";
 import { createAcceptanceIdentity, runWithVerifiedCleanup } from "./stagingAcceptanceSafety.js";
-import { assertAcceptanceConfig, EXPECTED_API_ORIGIN, EXPECTED_CLIENT_URL, validateTopologyEvidence } from "./stagingAiChatAcceptance.config.js";
+import { assertAcceptanceConfig, EXPECTED_API_ORIGIN, EXPECTED_CLIENT_URL } from "./stagingAiChatAcceptance.config.js";
 import { createExactCleanup } from "./stagingAiChatAcceptance.cleanup.js";
 import { assertHealthyVectorTopology, buildSafeEvidence, metricDelta } from "./stagingAiChatAcceptance.evidence.js";
-import { createAccessToken, createApiClient, createKnowledgeFixture, fetchMetrics, knowledgeFixtureQueries } from "./stagingAiChatAcceptance.http.js";
+import { createAccessToken, createApiClient, fetchMetrics, knowledgeFixtureQueries, normalizeQuery, searchKnowledgeFixture } from "./stagingAiChatAcceptance.http.js";
+import { createTrackedKnowledgeFixture, deleteSettledFixtureJournal } from "./stagingAiChatAcceptance.fixture.js";
 import { runBrowserAcceptance } from "./stagingAiChatAcceptance.browser.js";
 
 const SOURCE_URL = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";
@@ -31,6 +32,51 @@ const writeEvidence = async (output, evidence) => {
   await fs.writeFile(target, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx" });
 };
 
+const runtimeFingerprint = (runId, runtimeInstanceId) => crypto.createHash("sha256")
+  .update(`${runId}:${runtimeInstanceId}`).digest("hex");
+
+export const buildStagingAiRecoveryIntent = ({ releaseSha, runId, marker, createdAt }) => ({
+  schemaVersion: 1,
+  kind: "staging-ai-chat-recovery-intent",
+  releaseSha,
+  runId,
+  marker,
+  createdAt,
+});
+
+export const waitForSettledReceipts = async ({ collection, runId, attempts, runtimeInstanceId, releaseSha }) => {
+  const deadline = Date.now() + 30_000;
+  let receipts = [];
+  const expected = new Map(attempts.map((item) => [item.jti, item]));
+  while (Date.now() < deadline) {
+    receipts = await collection.find({ runId, recordType: "capability" }).toArray();
+    assert(receipts.every((item) => expected.has(String(item._id))),
+      "Acceptance run contains a receipt outside the exact request inventory",
+      "STAGING_AI_REQUEST_INVENTORY_FAILED");
+    if (receipts.length === attempts.length && receipts.every((item) => item.receiptState === "settled")) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert(receipts.length === attempts.length && receipts.every((item) => item.receiptState === "settled"),
+    "Every registered request receipt must settle before metrics-after", "STAGING_AI_RECEIPT_UNSETTLED");
+  const byJti = new Map(receipts.map((item) => [String(item._id), item]));
+  const fingerprint = runtimeFingerprint(runId, runtimeInstanceId);
+  return attempts.map((attempt) => {
+    const receipt = byJti.get(attempt.jti);
+    assert(receipt && receipt.action === attempt.action && receipt.purpose === attempt.purpose &&
+      receipt.mode === attempt.mode && receipt.requestId === attempt.requestId &&
+      receipt.releaseSha === releaseSha && receipt.runtimeInstanceId === runtimeInstanceId &&
+      receipt.receiptState === "settled" && receipt.outcome === attempt.outcome &&
+      receipt.admittedAt && receipt.settledAt,
+    "Receipt did not match its exact request cohort contract", "STAGING_AI_RECEIPT_MISMATCH");
+    return {
+      purpose: receipt.purpose, action: receipt.action, mode: receipt.mode, outcome: receipt.outcome,
+      jti: receipt._id, requestId: receipt.requestId, releaseSha: receipt.releaseSha,
+      runtimeFingerprint: fingerprint, admittedAt: new Date(receipt.admittedAt).toISOString(),
+      settledAt: new Date(receipt.settledAt).toISOString(), receiptState: receipt.receiptState,
+    };
+  });
+};
+
 export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => {
   const config = assertAcceptanceConfig(env);
   const startedAt = new Date().toISOString();
@@ -42,10 +88,12 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
     completedAt: null,
     status: "failed",
     sourceUrl: SOURCE_URL,
-    syntheticIds: { userId: null, kbEntryId: null, capabilityJtis: [] },
+    syntheticIds: { userId: null, adminUserId: null, kbEntryId: null, capabilityJtis: [] },
     assertions: [],
     lanes: [],
     metricsDelta: {},
+    metricsSnapshots: null,
+    runtimeBinding: null,
     cleanup: null,
     error: null,
   };
@@ -53,27 +101,20 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
   const evidenceOutput = path.resolve(env.STAGING_AI_ACCEPTANCE_OUTPUT);
   assert(recoveryOutput !== evidenceOutput,
     "Staging AI recovery intent and final evidence paths must be distinct");
-  await writeEvidence(recoveryOutput, {
-    schemaVersion: 1,
-    kind: "staging-ai-chat-recovery-intent",
+  const recoveryIntent = buildStagingAiRecoveryIntent({
     releaseSha: config.releaseSha,
     runId,
     marker,
     createdAt: startedAt,
   });
-  process.stdout.write(`${JSON.stringify({
-    kind: "staging-ai-chat-recovery-intent",
-    releaseSha: config.releaseSha,
-    runId,
-  })}\n`);
+  await writeEvidence(recoveryOutput, recoveryIntent);
+  // This complete schema is safe to copy from Actions logs when a runner is
+  // lost before the always-upload step can retain the local intent file.
+  process.stdout.write(`${JSON.stringify(recoveryIntent)}\n`);
   let operationError = null;
   let connected = false;
 
   try {
-    const topologyDocument = JSON.parse(
-      await fs.readFile(path.resolve(env.STAGING_RENDER_TOPOLOGY_EVIDENCE), "utf8"),
-    );
-    const topologyEvidence = validateTopologyEvidence(topologyDocument, config.releaseSha);
     await mongoose.connect(env.MONGO_URI, { autoIndex: false });
     connected = true;
     assert(mongoose.connection.db?.databaseName === "htcoaching_staging", "Connected database is not exactly htcoaching_staging");
@@ -84,17 +125,18 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
       db: mongoose.connection.db,
       runId,
       controlCollection: capability.STAGING_AI_ACCEPTANCE_COLLECTION,
+      retainRunTombstone: true,
+      requireFixtureCreateProof: true,
+      releaseSha: config.releaseSha,
     });
     const result = await runWithVerifiedCleanup({
       execute: async () => {
-        const adminEmails = String(env.ADMIN_EMAIL).split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
-        const admin = await User.findOne({ email: { $in: adminEmails }, role: "admin" })
-          .select("_id role")
-          .lean();
-        assert(admin, "ADMIN_EMAIL did not resolve to an admin", "STAGING_AI_ADMIN_NOT_FOUND");
         const syntheticId = new mongoose.Types.ObjectId();
+        const syntheticAdminId = new mongoose.Types.ObjectId();
         exact.registerUser(syntheticId);
+        exact.registerUser(syntheticAdminId);
         state.syntheticIds.userId = syntheticId.toString();
+        state.syntheticIds.adminUserId = syntheticAdminId.toString();
         const user = new User({
           _id: syntheticId,
           name: `AC009 ${runId.slice(0, 8)}`,
@@ -102,6 +144,13 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
           role: "user",
         });
         await user.save();
+        const admin = new User({
+          _id: syntheticAdminId,
+          name: `AC009 Admin ${runId.slice(0, 8)}`,
+          email: `ac009-admin.${runId}@example.invalid`,
+          role: "admin",
+        });
+        await admin.save();
 
         const adminApi = createApiClient({
           origin: EXPECTED_API_ORIGIN,
@@ -112,20 +161,55 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
           accessToken: createAccessToken(user, env.JWT_SECRET),
         });
         const beforeMetrics = await fetchMetrics(adminApi);
+        const runtime = { runtimeInstanceId: beforeMetrics.runtimeInstanceId, runtimeReleaseSha: beforeMetrics.runtimeReleaseSha };
+        assert(typeof runtime.runtimeInstanceId === "string" && runtime.runtimeReleaseSha === config.releaseSha,
+        "Metrics-before did not bind the deployed runtime identity", "STAGING_AI_METRICS_INCONCLUSIVE");
+        const attempts = [];
+        const registerAttempt = (attempt) => {
+          assert(!attempts.some((item) => item.jti === attempt.jti || item.requestId === attempt.requestId),
+            "Request cohort contains duplicate JTI or request ID", "STAGING_AI_REQUEST_INVENTORY_FAILED");
+          attempts.push(attempt);
+        };
+        const issueRegisteredCapability = async (options) => {
+          const token = capability.issueStagingAiAcceptance(options, { env });
+          const conservativeExpiry = Date.now() + (Number(options.ttlSeconds || 300) + 1) * 1000;
+          exact.registerCapabilityJti(options.jti, conservativeExpiry);
+          state.syntheticIds.capabilityJtis.push(options.jti);
+          await capability.registerStagingAiAcceptanceCapability(token, { env });
+          return token;
+        };
         const { question: expectedQuestion } = knowledgeFixtureQueries(marker);
         exact.registerKnowledgeQuestion(normalizeKnowledgeQuestion(expectedQuestion));
         exact.markMutationStart();
-        const fixture = await createKnowledgeFixture({ api: adminApi, marker, sourceUrl: SOURCE_URL });
+        const fixture = await createTrackedKnowledgeFixture({
+          collection: mongoose.connection.db.collection(capability.STAGING_AI_ACCEPTANCE_COLLECTION),
+          api: adminApi, marker, sourceUrl: SOURCE_URL, runId,
+          releaseSha: config.releaseSha, actorId: syntheticAdminId.toString(),
+        });
         exact.markMutationSettled();
         exact.registerKnowledgeEntry(fixture.id);
         state.syntheticIds.kbEntryId = fixture.id;
         assert(fixture.embeddingVersion === env.EXPECTED_KB_EMBEDDING_VERSION, "Knowledge fixture embedding version is not the locked staging target");
         state.assertions.push({ name: "reviewed published KB embedding", passed: true });
 
-        for (const query of [fixture.question, fixture.variant]) {
-          const search = await adminApi.request(
-            `/api/knowledge-base/search?q=${encodeURIComponent(query)}&threshold=0.75&limit=3`,
-          );
+        for (const [purpose, query] of [["kb_search_root", fixture.question], ["kb_search_variant", fixture.variant]]) {
+          const requestId = crypto.randomUUID();
+          const jti = crypto.randomUUID();
+          const capabilityOptions = {
+            releaseSha: config.releaseSha, runtimeInstanceId: runtime.runtimeInstanceId, runId, actorId: syntheticAdminId.toString(),
+            action: "kb_search", purpose, mode: "observe_only", request: {
+              query: { q: normalizeQuery(query), threshold: "0.75", limit: "3" }, requestId,
+            }, jti, ttlSeconds: 30,
+          };
+          const token = await issueRegisteredCapability(capabilityOptions);
+          registerAttempt({ purpose, action: "kb_search", mode: "observe_only", outcome: "completed", jti, requestId });
+          const { response: search } = await searchKnowledgeFixture({
+            api: adminApi,
+            clientOrigin: EXPECTED_CLIENT_URL,
+            query,
+            token,
+            requestId,
+          });
           assert(search?.data?.some((entry) => String(entry._id) === fixture.id), "Exact fixture was not found by healthy semantic search");
         }
 
@@ -139,25 +223,25 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
           actorId: syntheticId.toString(),
           ownerObjectId: syntheticId,
           releaseSha: config.releaseSha,
+          runtimeInstanceId: runtime.runtimeInstanceId,
           runId,
           fixture,
           sourceUrl: SOURCE_URL,
           prefix: capability.STAGING_AI_ACCEPTANCE_PREFIX,
           lateSuffix: capability.STAGING_AI_ACCEPTANCE_LATE_SUFFIX,
-          issueCapability: capability.issueStagingAiAcceptance,
-          registerCapabilityJti: (jti) => {
-            exact.registerCapabilityJti(jti);
-            state.syntheticIds.capabilityJtis.push(jti);
-          },
+          issueCapability: issueRegisteredCapability,
+          onAttempt: (attempt) => registerAttempt({ ...attempt, outcome: attempt.mode === "paced_response" && attempt.purpose === "stop" ? "aborted" : attempt.mode === "provider_failure_before_llm" ? "failed" : "completed" }),
           db: mongoose.connection.db,
           onLaneResult: (lane) => state.lanes.push(lane),
         });
         exact.markMutationSettled();
-        state.lanes.push({
-          name: "metrics-single-instance-topology",
-          passed: true,
-          observedTopology: `${topologyEvidence.topology}; checkedAt=${topologyEvidence.checkedAt}`,
+        assert(attempts.length === 9 && new Set(attempts.map((item) => item.purpose)).size === 9,
+          "AC-009 must register exactly nine unique counter-producing requests", "STAGING_AI_REQUEST_INVENTORY_FAILED");
+        const receiptAttempts = await waitForSettledReceipts({
+          collection: mongoose.connection.db.collection(capability.STAGING_AI_ACCEPTANCE_COLLECTION), runId, attempts,
+          runtimeInstanceId: runtime.runtimeInstanceId, releaseSha: config.releaseSha,
         });
+        state.lanes.push({ name: "request-cohort-runtime-binding", passed: true });
 
         const conversations = await mongoose.connection.db.collection("chatconversations")
           .find({ userId: syntheticId }, { projection: { messages: 1, activeStreamId: 1 } })
@@ -196,12 +280,54 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
         state.assertions.push({ name: "live UI and Mongo provenance correspondence", passed: true });
 
         const afterMetrics = await fetchMetrics(adminApi);
+        assert(afterMetrics.runtimeInstanceId === runtime.runtimeInstanceId &&
+          afterMetrics.runtimeReleaseSha === runtime.runtimeReleaseSha,
+        "Metrics-after did not remain on the admitted runtime", "STAGING_AI_METRICS_INCONCLUSIVE");
+        const metricsBeforeAt = new Date(beforeMetrics.generatedAt).getTime();
+        const metricsAfterAt = new Date(afterMetrics.generatedAt).getTime();
+        assert(Number.isFinite(metricsBeforeAt) && Number.isFinite(metricsAfterAt) && metricsAfterAt >= metricsBeforeAt &&
+          receiptAttempts.every((item) => new Date(item.admittedAt).getTime() >= metricsBeforeAt &&
+            new Date(item.settledAt).getTime() <= metricsAfterAt),
+        "Metrics snapshots did not bracket every settled receipt", "STAGING_AI_METRICS_INCONCLUSIVE");
         state.metricsDelta = metricDelta(beforeMetrics, afterMetrics);
+        const cohortRuntimeFingerprint = runtimeFingerprint(runId, runtime.runtimeInstanceId);
+        state.metricsSnapshots = {
+          before: {
+            generatedAt: beforeMetrics.generatedAt,
+            releaseSha: beforeMetrics.runtimeReleaseSha,
+            runtimeFingerprint: cohortRuntimeFingerprint,
+            counters: beforeMetrics.counters,
+          },
+          after: {
+            generatedAt: afterMetrics.generatedAt,
+            releaseSha: afterMetrics.runtimeReleaseSha,
+            runtimeFingerprint: cohortRuntimeFingerprint,
+            counters: afterMetrics.counters,
+          },
+        };
         assertHealthyVectorTopology(state.metricsDelta);
         state.assertions.push({ name: "metrics snapshots conclusive without reset", passed: true });
+        state.assertions.push({ name: "request cohort bound to one runtime", passed: true });
+        state.runtimeBinding = {
+          proof: "request_cohort", releaseSha: config.releaseSha,
+          runtimeFingerprint: cohortRuntimeFingerprint,
+          metricsBeforeAt: new Date(metricsBeforeAt).toISOString(),
+          metricsAfterAt: new Date(metricsAfterAt).toISOString(),
+          attempts: receiptAttempts,
+        };
         return true;
       },
-      cleanup: exact.cleanup,
+      cleanup: async () => {
+        await capability.revokeStagingAiAcceptanceRun(runId);
+        await exact.cleanup();
+        const provisional = await exact.verify({ allowFixtureJournal: true });
+        assert(provisional.residue === 0, "Fixture journal retained because data cleanup is incomplete");
+        await deleteSettledFixtureJournal({
+          collection: mongoose.connection.db.collection(capability.STAGING_AI_ACCEPTANCE_COLLECTION),
+          runId, releaseSha: config.releaseSha, marker,
+        });
+        await exact.deleteRunTombstone();
+      },
       verify: exact.verify,
     });
     state.cleanup = result.cleanup;

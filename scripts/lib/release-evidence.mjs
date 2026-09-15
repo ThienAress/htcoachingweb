@@ -3,20 +3,33 @@ const DEPLOY_ID_PATTERN = /^[a-z0-9][a-z0-9._:-]{5,159}$/i;
 const RUN_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/i;
+const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 const STAGING_AI_ASSERTIONS = Object.freeze([
   "exact staging identity",
   "live UI and Mongo provenance correspondence",
   "metrics snapshots conclusive without reset",
+  "request cohort bound to one runtime",
   "reviewed published KB embedding",
 ]);
 const STAGING_AI_LANES = Object.freeze([
   "live-kb-provider",
-  "metrics-single-instance-topology",
   "paced-conversation-isolation",
   "provider-failure-edit",
   "provider-failure-retry",
+  "request-cohort-runtime-binding",
   "stop-recovery",
 ]);
+const STAGING_AI_REQUEST_COHORT = Object.freeze({
+  live_kb_provider: Object.freeze({ action: "ai_chat", mode: "observe_only", outcome: "completed" }),
+  paced_conversation: Object.freeze({ action: "ai_chat", mode: "paced_response", outcome: "completed" }),
+  stop: Object.freeze({ action: "ai_chat", mode: "paced_response", outcome: "aborted" }),
+  provider_failure_retry: Object.freeze({ action: "ai_chat", mode: "provider_failure_before_llm", outcome: "failed" }),
+  recovery_retry: Object.freeze({ action: "ai_chat", mode: "observe_only", outcome: "completed" }),
+  provider_failure_edit: Object.freeze({ action: "ai_chat", mode: "provider_failure_before_llm", outcome: "failed" }),
+  recovery_edit: Object.freeze({ action: "ai_chat", mode: "observe_only", outcome: "completed" }),
+  kb_search_root: Object.freeze({ action: "kb_search", mode: "observe_only", outcome: "completed" }),
+  kb_search_variant: Object.freeze({ action: "kb_search", mode: "observe_only", outcome: "completed" }),
+});
 const STAGING_AI_METRICS = Object.freeze([
   "kb.vector_combined_fallbacks",
   "kb.vector_fallbacks",
@@ -103,6 +116,48 @@ const exactStringList = (value, expected, name) => {
   );
 };
 
+const validateMetricsSnapshot = (value, name, { generatedAt, releaseSha, runtimeFingerprint }) => {
+  closedObject(value, ["generatedAt", "releaseSha", "runtimeFingerprint", "counters"], name);
+  assert(value.generatedAt === generatedAt, `${name}.generatedAt does not match runtime binding`);
+  assert(value.releaseSha === releaseSha, `${name}.releaseSha does not match runtime binding`);
+  assert(value.runtimeFingerprint === runtimeFingerprint,
+    `${name}.runtimeFingerprint does not match runtime binding`);
+  closedObject(value.counters, STAGING_AI_METRICS, `${name}.counters`);
+  exactStringList(Object.keys(value.counters), STAGING_AI_METRICS, `${name}.counters`);
+  for (const [metric, count] of Object.entries(value.counters)) {
+    assert(Number.isSafeInteger(count) && count >= 0,
+      `${name} metric ${metric} is invalid`);
+  }
+  return value.counters;
+};
+
+const validateMetricsSnapshots = (value, name, runtimeBinding) => {
+  closedObject(value, ["before", "after"], name);
+  const before = validateMetricsSnapshot(value.before, `${name}.before`, {
+    generatedAt: runtimeBinding.metricsBeforeAt,
+    releaseSha: runtimeBinding.releaseSha,
+    runtimeFingerprint: runtimeBinding.runtimeFingerprint,
+  });
+  const after = validateMetricsSnapshot(value.after, `${name}.after`, {
+    generatedAt: runtimeBinding.metricsAfterAt,
+    releaseSha: runtimeBinding.releaseSha,
+    runtimeFingerprint: runtimeBinding.runtimeFingerprint,
+  });
+  return Object.fromEntries(STAGING_AI_METRICS.map((metric) => {
+    assert(after[metric] >= before[metric],
+      `${name} metric ${metric} decreased`);
+    return [metric, after[metric] - before[metric]];
+  }));
+};
+
+const assertHealthyMetricsDelta = (delta, name) => {
+  for (const [metric, count] of Object.entries(delta)) {
+    if (metric.startsWith("kb.vector_")) {
+      assert(count === 0, `${name} metric ${metric} used fallback`);
+    }
+  }
+};
+
 const passedEvidenceNames = (value, expected, name, allowedFields) => {
   assert(Array.isArray(value), `${name} must be an array`);
   const names = value.map((item, index) => {
@@ -115,13 +170,106 @@ const passedEvidenceNames = (value, expected, name, allowedFields) => {
   return names.sort();
 };
 
+const validateRuntimeBinding = (value, {
+  expectedSha,
+  startedAt,
+  completedAt,
+  expectedJtis,
+} = {}) => {
+  closedObject(value, [
+    "proof", "releaseSha", "runtimeFingerprint", "metricsBeforeAt",
+    "metricsAfterAt", "attempts",
+  ], "staging AI runtimeBinding");
+  assert(value.proof === "request_cohort", "staging AI runtimeBinding proof is invalid");
+  sha(value.releaseSha, "staging AI runtimeBinding releaseSha");
+  if (expectedSha) {
+    assert(value.releaseSha === expectedSha, "staging AI runtimeBinding SHA mismatch");
+  }
+  assert(DIGEST_PATTERN.test(String(value.runtimeFingerprint || "")),
+    "staging AI runtimeBinding runtime fingerprint is invalid");
+  const before = canonicalTimestamp(value.metricsBeforeAt,
+    "staging AI runtimeBinding.metricsBeforeAt");
+  const after = canonicalTimestamp(value.metricsAfterAt,
+    "staging AI runtimeBinding.metricsAfterAt");
+  assert(before <= after, "staging AI runtimeBinding metrics window is invalid");
+  if (startedAt) {
+    assert(before >= startedAt, "staging AI runtimeBinding starts before acceptance");
+  }
+  if (completedAt) {
+    assert(after <= completedAt, "staging AI runtimeBinding ends after acceptance");
+  }
+  assert(Array.isArray(value.attempts) &&
+    value.attempts.length === Object.keys(STAGING_AI_REQUEST_COHORT).length,
+  "staging AI runtimeBinding attempts are incomplete");
+  const purposes = [];
+  const jtis = [];
+  const requestIds = [];
+  const attemptTimes = new Map();
+  for (const [index, attempt] of value.attempts.entries()) {
+    const name = `staging AI runtimeBinding.attempts[${index}]`;
+    closedObject(attempt, [
+      "purpose", "action", "mode", "outcome", "jti", "requestId",
+      "releaseSha", "runtimeFingerprint", "admittedAt", "settledAt",
+      "receiptState",
+    ], name);
+    const contract = STAGING_AI_REQUEST_COHORT[attempt.purpose];
+    assert(contract, `${name}.purpose is invalid`);
+    assert(attempt.action === contract.action && attempt.mode === contract.mode &&
+      attempt.outcome === contract.outcome,
+    `${name} purpose/action/mode/outcome contract is invalid`);
+    assert(RUN_ID_PATTERN.test(String(attempt.jti || "")), `${name}.jti is invalid`);
+    assert(RUN_ID_PATTERN.test(String(attempt.requestId || "")), `${name}.requestId is invalid`);
+    assert(attempt.releaseSha === value.releaseSha, `${name}.releaseSha mismatch`);
+    assert(attempt.runtimeFingerprint === value.runtimeFingerprint,
+      `${name} runtime fingerprint mismatch`);
+    assert(attempt.receiptState === "settled", `${name} receipt is not settled`);
+    const admittedAt = canonicalTimestamp(attempt.admittedAt, `${name}.admittedAt`);
+    const settledAt = canonicalTimestamp(attempt.settledAt, `${name}.settledAt`);
+    assert(admittedAt >= before && settledAt >= admittedAt && settledAt <= after,
+      `${name} timestamps fall outside the metrics window`);
+    attemptTimes.set(attempt.purpose, { admittedAt, settledAt });
+    purposes.push(attempt.purpose);
+    jtis.push(attempt.jti);
+    requestIds.push(attempt.requestId);
+  }
+  exactStringList(purposes, Object.keys(STAGING_AI_REQUEST_COHORT).sort(),
+    "staging AI runtimeBinding purposes");
+  assert(new Set(jtis).size === jtis.length,
+    "staging AI runtimeBinding contains duplicate capability ids");
+  assert(new Set(requestIds).size === requestIds.length,
+    "staging AI runtimeBinding contains duplicate request ids");
+  if (expectedJtis) {
+    assert([...jtis].sort().join("\n") === [...expectedJtis].sort().join("\n"),
+      "staging AI runtimeBinding capability inventory mismatch");
+  }
+  for (const [failurePurpose, recoveryPurpose] of [
+    ["provider_failure_retry", "recovery_retry"],
+    ["provider_failure_edit", "recovery_edit"],
+  ]) {
+    assert(
+      attemptTimes.get(failurePurpose).settledAt <=
+        attemptTimes.get(recoveryPurpose).admittedAt,
+      `staging AI ${recoveryPurpose} recovery chronology starts before its failure settled`,
+    );
+  }
+  return {
+    proof: value.proof,
+    releaseSha: value.releaseSha,
+    runtimeFingerprint: value.runtimeFingerprint,
+    metricsBeforeAt: value.metricsBeforeAt,
+    metricsAfterAt: value.metricsAfterAt,
+    attempts: [...value.attempts].sort((left, right) =>
+      left.purpose.localeCompare(right.purpose)),
+  };
+};
+
 export const validateStagingAiAcceptanceEvidence = (evidence, { expectedSha } = {}) => {
   closedObject(evidence, [
     "schemaVersion", "kind", "releaseSha", "runId", "status", "startedAt",
     "completedAt", "syntheticIds", "sourceUrl", "assertions", "lanes",
-    "traceMetadata", "metricsDelta", "cleanup",
+    "traceMetadata", "metricsDelta", "metricsSnapshots", "runtimeBinding", "cleanup",
   ], "Staging AI acceptance evidence");
-  assert(evidence.schemaVersion === 1, "Unsupported staging AI acceptance schemaVersion");
+  assert(evidence.schemaVersion === 2, "Unsupported staging AI acceptance schemaVersion");
   assert(evidence.kind === "staging-ai-chat-acceptance", "Staging AI acceptance kind is invalid");
   sha(evidence.releaseSha, "staging AI acceptance releaseSha");
   if (expectedSha) {
@@ -135,15 +283,16 @@ export const validateStagingAiAcceptanceEvidence = (evidence, { expectedSha } = 
 
   closedObject(
     evidence.syntheticIds,
-    ["userId", "kbEntryId", "capabilityJtis"],
+    ["userId", "adminUserId", "kbEntryId", "capabilityJtis"],
     "staging AI acceptance syntheticIds",
   );
   assert(OBJECT_ID_PATTERN.test(evidence.syntheticIds.userId), "Synthetic user id is invalid");
+  assert(OBJECT_ID_PATTERN.test(evidence.syntheticIds.adminUserId), "Synthetic admin user id is invalid");
   assert(OBJECT_ID_PATTERN.test(evidence.syntheticIds.kbEntryId), "Synthetic KB entry id is invalid");
   assert(
     Array.isArray(evidence.syntheticIds.capabilityJtis) &&
-      evidence.syntheticIds.capabilityJtis.length === 4 &&
-      new Set(evidence.syntheticIds.capabilityJtis).size === 4 &&
+      evidence.syntheticIds.capabilityJtis.length === 9 &&
+      new Set(evidence.syntheticIds.capabilityJtis).size === 9 &&
       evidence.syntheticIds.capabilityJtis.every((value) => RUN_ID_PATTERN.test(String(value))),
     "Synthetic capability ids are invalid",
   );
@@ -161,7 +310,7 @@ export const validateStagingAiAcceptanceEvidence = (evidence, { expectedSha } = 
     evidence.lanes,
     STAGING_AI_LANES,
     "Staging AI acceptance required lanes",
-    ["name", "passed", "injection", "observedTopology"],
+    ["name", "passed", "injection"],
   );
 
   const trace = evidence.traceMetadata;
@@ -176,15 +325,23 @@ export const validateStagingAiAcceptanceEvidence = (evidence, { expectedSha } = 
     "Staging AI acceptance browser evidence is unsafe or mocked",
   );
 
+  const runtimeBinding = validateRuntimeBinding(evidence.runtimeBinding, {
+    expectedSha: evidence.releaseSha,
+    startedAt,
+    completedAt,
+    expectedJtis: evidence.syntheticIds.capabilityJtis,
+  });
+  const recomputedMetricsDelta = validateMetricsSnapshots(evidence.metricsSnapshots,
+    "staging AI acceptance metricsSnapshots", runtimeBinding);
   closedObject(evidence.metricsDelta, STAGING_AI_METRICS, "staging AI acceptance metricsDelta");
   exactStringList(Object.keys(evidence.metricsDelta), STAGING_AI_METRICS,
     "Staging AI acceptance metrics");
   for (const [name, value] of Object.entries(evidence.metricsDelta)) {
     assert(Number.isFinite(value) && value >= 0, `Staging AI acceptance metric ${name} is invalid`);
-    if (name.startsWith("kb.vector_")) {
-      assert(value === 0, `Staging AI acceptance metric ${name} used fallback`);
-    }
+    assert(value === recomputedMetricsDelta[name],
+      `Staging AI acceptance metric ${name} does not match snapshots`);
   }
+  assertHealthyMetricsDelta(recomputedMetricsDelta, "Staging AI acceptance");
 
   closedObject(evidence.cleanup, ["verified", "residue", "collections"],
     "staging AI acceptance cleanup");
@@ -209,27 +366,24 @@ export const validateStagingAiAcceptanceEvidence = (evidence, { expectedSha } = 
     assertions,
     lanes,
     responseMocking: trace.responseMocking,
+    metricsSnapshots: evidence.metricsSnapshots,
+    runtimeBinding,
     cleanup: { verified: true, residue: 0 },
   };
 };
 
 const validateVerificationPoint = (point, name) => {
   closedObject(point, [
-    "deployCheckedAt", "topologyCheckedAt", "clientDeployId", "serverDeployId",
-    "configuredInstances", "currentInstances",
+    "deployCheckedAt", "clientDeployId", "serverDeployId",
   ], name);
   canonicalTimestamp(point.deployCheckedAt, `${name}.deployCheckedAt`);
-  canonicalTimestamp(point.topologyCheckedAt, `${name}.topologyCheckedAt`);
   deploy(point.clientDeployId, `${name}.clientDeployId`);
   deploy(point.serverDeployId, `${name}.serverDeployId`);
-  for (const field of ["configuredInstances", "currentInstances"]) {
-    assert(Number.isSafeInteger(point[field]) && point[field] >= 0, `${name}.${field} is invalid`);
-  }
 };
 
 export const validateReleaseCandidate = (manifest) => {
   closedObject(manifest, ["schemaVersion", "kind", "release", "ci", "staging", "recovery", "rollback"], "Release candidate");
-  assert(manifest.schemaVersion === 2, "Unsupported release candidate schemaVersion");
+  assert(manifest.schemaVersion === 3, "Unsupported release candidate schemaVersion");
   assert(manifest.kind === "release-candidate", "Release candidate kind is invalid");
 
   closedObject(manifest.release, ["sha", "branch", "createdAt"], "release");
@@ -261,7 +415,8 @@ export const validateReleaseCandidate = (manifest) => {
   const aiAcceptance = manifest.staging.aiAcceptance;
   closedObject(aiAcceptance, [
     "status", "releaseSha", "runId", "runUrl", "artifactName", "startedAt",
-    "completedAt", "assertions", "lanes", "responseMocking", "cleanup",
+    "completedAt", "assertions", "lanes", "responseMocking", "metricsSnapshots", "cleanup",
+    "runtimeBinding",
   ], "staging.aiAcceptance");
   assert(["passed", "failed"].includes(aiAcceptance.status), "staging.aiAcceptance.status is invalid");
   sha(aiAcceptance.releaseSha, "staging.aiAcceptance.releaseSha");
@@ -276,6 +431,14 @@ export const validateReleaseCandidate = (manifest) => {
   exactStringList(aiAcceptance.lanes, STAGING_AI_LANES, "staging.aiAcceptance.lanes");
   assert(typeof aiAcceptance.responseMocking === "boolean",
     "staging.aiAcceptance.responseMocking must be boolean");
+  const runtimeBinding = validateRuntimeBinding(aiAcceptance.runtimeBinding, {
+    expectedSha: aiAcceptance.releaseSha,
+    startedAt: aiStartedAt,
+    completedAt: aiCompletedAt,
+  });
+  const candidateMetricsDelta = validateMetricsSnapshots(aiAcceptance.metricsSnapshots,
+    "staging.aiAcceptance.metricsSnapshots", runtimeBinding);
+  assertHealthyMetricsDelta(candidateMetricsDelta, "staging.aiAcceptance");
   validateCleanup(aiAcceptance.cleanup, "staging.aiAcceptance.cleanup");
 
   closedObject(manifest.staging.verificationWindow, ["before", "after"],
@@ -335,17 +498,11 @@ export const evaluateReleaseCandidate = (manifest) => {
   if (after.serverDeployId !== manifest.staging.server.deployId) {
     blockers.push("STAGING_POST_AI_SERVER_DEPLOY_MISMATCH");
   }
-  if ([before, after].some((point) =>
-    point.configuredInstances !== 1 || point.currentInstances !== 1)) {
-    blockers.push("STAGING_AI_TOPOLOGY_INCONCLUSIVE");
-  }
   const aiStartedAt = new Date(ai.startedAt);
   const aiCompletedAt = new Date(ai.completedAt);
   if (
     new Date(before.deployCheckedAt) > aiStartedAt ||
-    new Date(before.topologyCheckedAt) > aiStartedAt ||
-    new Date(after.deployCheckedAt) < aiCompletedAt ||
-    new Date(after.topologyCheckedAt) < aiCompletedAt
+    new Date(after.deployCheckedAt) < aiCompletedAt
   ) {
     blockers.push("STAGING_AI_VERIFICATION_WINDOW_INVALID");
   }

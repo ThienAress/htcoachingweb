@@ -22,13 +22,19 @@ Required secrets/IDs:
 - Production observation: `NETLIFY_PRODUCTION_SITE_ID`,
   `RENDER_PRODUCTION_SERVICE_ID`.
 
-Không in secret trong log/artifact. Provider token chỉ gọi các API read-only:
-GET deploy detail, service detail và current instances.
+Không in secret trong log/artifact. Provider token chỉ gọi API read-only. Luồng
+deploy identity gọi GET deploy/service detail; current-instances chỉ được gọi khi
+một global-topology gate riêng yêu cầu rõ.
 Theo API chính thức, Netlify deploy detail trả deploy state/commit reference và
 Render retrieve-deploy trả deploy detail; verifier yêu cầu exact ID, SHA và
-ready/live. Vì metrics KB hiện process-local, verifier còn yêu cầu Render staging
-không bật autoscaling, cấu hình đúng một instance và thực tế chỉ có một instance
-trước lẫn sau AC-009; sai topology làm acceptance inconclusive và dừng.
+ready/live. Helper topology chỉ fail-closed khi một global-topology gate riêng yêu
+cầu output; không được suy topology từ CPU metrics, plan limit hoặc `null`. Riêng
+AC-009 không dùng instance inventory: nó reverify deploy identity trước/sau và dùng
+request-cohort proof:
+bảy chat attempts cùng hai admin Knowledge Base searches tạo metrics phải có receipt
+`issued → admitted → settled` của runner/backend, tất cả cùng boot UUID/exact SHA với hai metrics
+snapshots. Proof này chỉ quy thuộc counters của AC-009; không chứng nhận topology
+toàn service hoặc traffic khác.
 
 ## 2. Staging live acceptance
 
@@ -51,6 +57,21 @@ deploy IDs và hai production known-good rollback deploy IDs. Workflow sẽ:
 7. chạy current backup + off-device recovery gates;
 8. tạo artifact `release-candidate-<run_id>`.
 
+AC-009 raw evidence schema v2 và release-candidate schema v3 phải giữ inventory
+request/receipt đóng, outcome terminal, boot UUID fingerprint và exact SHA đủ để
+validator tự recompute correspondence/delta. Mỗi provider-failure receipt phải
+`settledAt <= admittedAt` của Retry/Edit recovery tương ứng. Artifact v1/v2 lịch sử không được tự
+nâng cấp thành request-bound proof. Missing receipt, restart, runtime mismatch,
+auth/CSRF retry ngoài inventory hoặc cleanup khi mutation còn chưa settled đều FAIL.
+
+Trước KB fixture POST, runner ghi durable `fixture_create` journal `pending`, bind
+exact run/SHA/synthetic admin/normalized-question digest. Chỉ response `201` đã
+validate published/reviewed/embedding-ready mới được CAS journal sang `settled`.
+Journal này không phải request receipt thứ mười và không làm tăng counter cohort.
+Cleanup giữ journal `settled` cùng run tombstone cho tới sau khi xóa và verify toàn
+bộ synthetic data; capability receipt chỉ được xóa atomically khi còn `issued` hoặc
+`settled`, không bao giờ xóa `admitted`.
+
 AC-009 không mở `answerTrace` qua public API. Runner đọc projection tối thiểu của
 đúng synthetic actor/conversation trực tiếp từ staging MongoDB rồi xóa theo exact
 IDs. Các lane Stop, A→B và provider-boundary failure dùng capability ký ngắn hạn,
@@ -66,8 +87,42 @@ provider và không được bỏ qua lane AI.
 
 Nếu workflow bị kill cứng trước `finally`, không chạy lại mù. Dùng cùng run ID
 trong `staging-ai-recovery-intent.json` được ghi trước khi connect/mutation (và log
-sanitized) để kiểm tra residue, rồi dọn theo IDs/marker đã đăng ký; không
-dùng query rộng. Chỉ rerun sau khi cleanup verifier trả 0.
+toàn bộ closed schema không chứa secret) để kiểm tra residue, rồi dọn theo IDs/marker đã đăng ký; không
+dùng query rộng. Chỉ rerun sau khi cleanup verifier trả 0. Chạy thủ công, trong
+đúng môi trường staging và chỉ khi SHA của deploy vẫn khớp intent:
+
+Nếu runner mất file trước bước upload artifact, mở log của step AI acceptance và
+copy nguyên một dòng JSON bắt đầu bằng
+`{"schemaVersion":1,"kind":"staging-ai-chat-recovery-intent"` vào
+`staging-ai-recovery-intent.json`. Dòng phải có đúng sáu field
+`schemaVersion`, `kind`, `releaseSha`, `runId`, `marker`, `createdAt`; không thêm,
+đổi hoặc suy giá trị từ run khác. Recovery CLI sẽ kiểm closed schema và exact SHA
+trước mọi mutation.
+
+```powershell
+$env:CONFIRM_STAGING_AI_ACCEPTANCE_RECOVERY = "yes"
+$env:STAGING_AI_ACCEPTANCE_RECOVERY_INTENT = "../artifacts/staging-ai-recovery-intent.json"
+$env:STAGING_AI_ACCEPTANCE_RECOVERY_REPORT_OUTPUT = "../artifacts/staging-ai-recovery-report.json"
+npm run recover:acceptance:staging:ai --prefix server
+```
+
+CLI fail-closed nếu `APP_ENV`, database `htcoaching_staging`, hai origin được phê
+duyệt, SHA/commit hoặc intent schema v1 không khớp. Nó tạo tombstone revoke trước,
+chờ conservative unknown-outcome window, inventory exact run, cleanup trong khi
+vẫn giữ tombstone, rồi chờ ngắn và inventory/verify lại trước khi gỡ tombstone.
+Receipt chỉ được xóa sau expiry exact; report path có thể tái dùng duy nhất khi
+artifact hiện có là closed, verified report của đúng SHA/run.
+Nếu hết thời gian chờ, code `STAGING_AI_RECOVERY_ADMITTED_UNKNOWN` là manual blocker:
+giữ nguyên tombstone và toàn bộ fixture, không rerun acceptance và không tự xóa hay
+đánh dấu settled. Điều tra deploy/backend settlement, rồi chạy lại chính recovery
+intent; chỉ tiếp tục workflow sau report `verified: true`, `residue: 0`.
+Tương tự, `STAGING_AI_RECOVERY_FIXTURE_UNKNOWN` nghĩa là fixture journal thiếu,
+`pending`, malformed hoặc terminal CAS không được acknowledge. Giữ tombstone và
+fixtures; không đánh dấu journal settled, không ad-hoc delete và không rerun acceptance.
+Chỉ trường hợp chính recovery đã ghi một closed verified report của đúng SHA/run mới
+được phép tái dùng report đó khi journal terminal đã được xóa. Nếu process chết sau
+xóa journal nhưng trước khi report verified được ghi, trạng thái vẫn là manual blocker
+dù inventory có vẻ sạch; điều tra bằng database/provider logs thay vì suy `residue=0`.
 
 ## 3. Production promotion approval
 

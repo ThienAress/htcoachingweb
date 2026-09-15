@@ -6,7 +6,7 @@ import { csrfProtection } from "../middlewares/csrf.js";
 import { enforceSharedServiceUsage } from "../middlewares/serviceUsageLedger.js";
 import { aiConfirmationLimiter } from "../middlewares/rateLimit.js";
 import { prepareAiChatRequest } from "../middlewares/aiChatRequest.js";
-import { prepareStagingAiAcceptance } from "../middlewares/stagingAiAcceptance.js";
+import { prepareStagingAiAcceptance, settleStagingAiAcceptanceHandler } from "../middlewares/stagingAiAcceptance.js";
 import {
   aiChatLimiter,
   aiGuestChatLimiter,
@@ -55,7 +55,7 @@ router.post(
   aiGuestChatLimiter,
   aiChatLimiter,
   enforceSharedServiceUsage("ai_chat"),
-  chatStream,
+  settleStagingAiAcceptanceHandler(chatStream),
 );
 router.get("/history", protect, getHistory);
 router.delete("/history", protect, csrfProtection, clearHistory);

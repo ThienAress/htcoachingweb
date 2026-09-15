@@ -4,7 +4,6 @@ import path from "node:path";
 import { evaluateBackupReadiness } from "./lib/backup-readiness.mjs";
 import {
   validateDeploymentIdentityEvidence,
-  validateRenderTopologyEvidence,
 } from "./lib/deployment-identity.mjs";
 import {
   evaluateReleaseCandidate,
@@ -26,31 +25,25 @@ const main = async () => {
     aiAcceptanceEvidence,
     deploymentBefore,
     deploymentAfter,
-    topologyBefore,
-    topologyAfter,
     backupManifest,
   ] = await Promise.all([
     readJson(required("STAGING_ACCEPTANCE_EVIDENCE")),
     readJson(required("STAGING_AI_ACCEPTANCE_EVIDENCE")),
     readJson(required("STAGING_DEPLOY_IDENTITY_EVIDENCE")),
     readJson(required("STAGING_DEPLOY_IDENTITY_POST_AI_EVIDENCE")),
-    readJson(required("STAGING_RENDER_TOPOLOGY_EVIDENCE")),
-    readJson(required("STAGING_RENDER_TOPOLOGY_POST_AI_EVIDENCE")),
     readJson(required("BACKUP_READINESS_MANIFEST")),
   ]);
   const backup = evaluateBackupReadiness(backupManifest);
   const releaseSha = required("RELEASE_SHA").toLowerCase();
   validateDeploymentIdentityEvidence(deploymentBefore, { expectedSha: releaseSha });
   validateDeploymentIdentityEvidence(deploymentAfter, { expectedSha: releaseSha });
-  validateRenderTopologyEvidence(topologyBefore, { expectedSha: releaseSha });
-  validateRenderTopologyEvidence(topologyAfter, { expectedSha: releaseSha });
   const aiAcceptance = validateStagingAiAcceptanceEvidence(aiAcceptanceEvidence, {
     expectedSha: releaseSha,
   });
   const runUrl = required("ACCEPTANCE_RUN_URL");
   const artifactName = required("ACCEPTANCE_ARTIFACT_NAME");
   const candidate = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     kind: "release-candidate",
     release: {
       sha: releaseSha,
@@ -90,17 +83,13 @@ const main = async () => {
       verificationWindow: {
         before: {
           deployCheckedAt: deploymentBefore.checkedAt,
-          topologyCheckedAt: topologyBefore.checkedAt,
           clientDeployId: deploymentBefore.client.deployId,
           serverDeployId: deploymentBefore.server.deployId,
-          ...topologyBefore.serviceTopology,
         },
         after: {
           deployCheckedAt: deploymentAfter.checkedAt,
-          topologyCheckedAt: topologyAfter.checkedAt,
           clientDeployId: deploymentAfter.client.deployId,
           serverDeployId: deploymentAfter.server.deployId,
-          ...topologyAfter.serviceTopology,
         },
       },
     },

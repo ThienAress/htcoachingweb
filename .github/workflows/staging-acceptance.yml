@@ -93,7 +93,6 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
           DEPLOY_IDENTITY_OUTPUT: artifacts/staging-deploy-identity.json
-          RENDER_TOPOLOGY_OUTPUT: artifacts/staging-render-topology.json
       - name: Run write-enabled staging acceptance with mandatory cleanup
         working-directory: server
         run: npm run acceptance:staging
@@ -122,7 +121,6 @@ jobs:
           APP_ENV: staging
           MONGO_URI: ${{ secrets.STAGING_MONGO_URI }}
           JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
-          ADMIN_EMAIL: ${{ secrets.STAGING_ADMIN_EMAIL }}
           CLIENT_URL: https://staging--htcoachingweb.netlify.app
           PUBLIC_API_ORIGIN: https://htcoachingweb-staging.onrender.com
           ALLOWED_ORIGINS: https://staging--htcoachingweb.netlify.app
@@ -130,7 +128,6 @@ jobs:
           EMAIL_DELIVERY_MODE: disabled
           F1_RETENTION_ENFORCE: "false"
           EXPECTED_KB_EMBEDDING_VERSION: gemini-embedding-2:768:question-answering-v1
-          STAGING_RENDER_TOPOLOGY_EVIDENCE: ../artifacts/staging-render-topology.json
           RENDER_GIT_COMMIT: ${{ env.RELEASE_SHA }}
           STAGING_AI_ACCEPTANCE_ENABLED: "true"
           CONFIRM_STAGING_AI_ACCEPTANCE: "yes"
@@ -144,7 +141,6 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
           DEPLOY_IDENTITY_OUTPUT: artifacts/staging-deploy-identity-post-ai.json
-          RENDER_TOPOLOGY_OUTPUT: artifacts/staging-render-topology-post-ai.json
       - name: Verify current release and off-device recovery evidence
         run: |
           npm run verify:backup-release
@@ -161,8 +157,6 @@ jobs:
           STAGING_AI_ACCEPTANCE_EVIDENCE: artifacts/staging-ai-acceptance.json
           STAGING_DEPLOY_IDENTITY_EVIDENCE: artifacts/staging-deploy-identity.json
           STAGING_DEPLOY_IDENTITY_POST_AI_EVIDENCE: artifacts/staging-deploy-identity-post-ai.json
-          STAGING_RENDER_TOPOLOGY_EVIDENCE: artifacts/staging-render-topology.json
-          STAGING_RENDER_TOPOLOGY_POST_AI_EVIDENCE: artifacts/staging-render-topology-post-ai.json
           BACKUP_READINESS_MANIFEST: docs/operations/production/backup-readiness.json
           RELEASE_CANDIDATE_OUTPUT: artifacts/release-candidate.json
       - name: Retain per-release acceptance and candidate evidence

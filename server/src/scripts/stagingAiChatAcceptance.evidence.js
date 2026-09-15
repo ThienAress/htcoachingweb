@@ -15,10 +15,28 @@ const safeLane = (lane) => ({
   name: String(lane?.name || "unknown").slice(0, 80),
   passed: lane?.passed === true,
   ...(lane?.injection ? { injection: String(lane.injection).slice(0, 120) } : {}),
-  ...(lane?.observedTopology
-    ? { observedTopology: String(lane.observedTopology).slice(0, 160) }
-    : {}),
 });
+
+const ISO = (value) => typeof value === "string" && Number.isFinite(new Date(value).getTime())
+  ? new Date(value).toISOString()
+  : null;
+const HEX_64 = /^[a-f0-9]{64}$/;
+const SHA = /^[a-f0-9]{40}$/;
+const ATTEMPT_KEYS = ["purpose", "action", "mode", "outcome", "jti", "requestId", "releaseSha", "runtimeFingerprint", "admittedAt", "settledAt", "receiptState"];
+const safeAttempt = (item = {}) => {
+  const result = Object.fromEntries(ATTEMPT_KEYS.map((key) => [key, item[key] ?? null]));
+  result.admittedAt = ISO(result.admittedAt);
+  result.settledAt = ISO(result.settledAt);
+  return result;
+};
+const safeRuntimeBinding = (binding) => binding && typeof binding === "object" ? {
+  proof: binding.proof === "request_cohort" ? binding.proof : "invalid",
+  releaseSha: SHA.test(binding.releaseSha || "") ? binding.releaseSha : null,
+  runtimeFingerprint: HEX_64.test(binding.runtimeFingerprint || "") ? binding.runtimeFingerprint : null,
+  metricsBeforeAt: ISO(binding.metricsBeforeAt),
+  metricsAfterAt: ISO(binding.metricsAfterAt),
+  attempts: Array.isArray(binding.attempts) ? binding.attempts.map(safeAttempt) : [],
+} : null;
 
 export const selectMetrics = (value = {}) =>
   Object.fromEntries(
@@ -27,8 +45,22 @@ export const selectMetrics = (value = {}) =>
     ),
   );
 
+const safeMetricsSnapshot = (value = {}) => ({
+  generatedAt: ISO(value.generatedAt),
+  releaseSha: SHA.test(value.releaseSha || "") ? value.releaseSha : null,
+  runtimeFingerprint: HEX_64.test(value.runtimeFingerprint || "")
+    ? value.runtimeFingerprint
+    : null,
+  counters: selectMetrics(value.counters),
+});
+
+const safeMetricsSnapshots = (value) => ({
+  before: safeMetricsSnapshot(value?.before),
+  after: safeMetricsSnapshot(value?.after),
+});
+
 export const buildSafeEvidence = (input) => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   kind: "staging-ai-chat-acceptance",
   releaseSha: input.releaseSha,
   runId: input.runId,
@@ -37,6 +69,7 @@ export const buildSafeEvidence = (input) => ({
   completedAt: input.completedAt,
   syntheticIds: {
     userId: input.syntheticIds?.userId || null,
+    adminUserId: input.syntheticIds?.adminUserId || null,
     kbEntryId: input.syntheticIds?.kbEntryId || null,
     capabilityJtis: [...(input.syntheticIds?.capabilityJtis || [])],
   },
@@ -58,6 +91,8 @@ export const buildSafeEvidence = (input) => ({
     responseMocking: false,
   },
   metricsDelta: selectMetrics(input.metricsDelta),
+  metricsSnapshots: safeMetricsSnapshots(input.metricsSnapshots),
+  runtimeBinding: safeRuntimeBinding(input.runtimeBinding),
   cleanup: input.cleanup || null,
   ...(input.error ? { error: { code: safeErrorCode(input.error) } } : {}),
 });
@@ -66,7 +101,10 @@ export const metricDelta = (before, after) => {
   if (
     typeof before?.runtimeInstanceId !== "string" ||
     !before.runtimeInstanceId ||
+    typeof before?.runtimeReleaseSha !== "string" ||
+    !SHA.test(before.runtimeReleaseSha) ||
     after?.runtimeInstanceId !== before.runtimeInstanceId ||
+    after?.runtimeReleaseSha !== before.runtimeReleaseSha ||
     !Number.isFinite(before?.uptimeSeconds) ||
     !Number.isFinite(after?.uptimeSeconds) ||
     after.uptimeSeconds < before.uptimeSeconds

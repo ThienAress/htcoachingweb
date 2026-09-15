@@ -42,6 +42,13 @@ sổ quan sát tương ứng với chính release đó.
   SHA, branch, CI run URL, Netlify staging deploy ID, Render staging deploy ID,
   acceptance run URL/artifact, cleanup `verified=true`, recovery backup ID và
   rollback deploy IDs cho client/server.
+- Candidate schema v3 phải giữ AC-009 request-cohort proof đã validate: exact
+  nine-purpose inventory, terminal admission/settlement receipts, một runtime
+  fingerprint/exact SHA và structured metrics snapshots bao quanh mọi receipt; gate
+  tự recompute delta thay vì tin giá trị đã tính sẵn, đồng thời xác minh mỗi
+  provider-failure receipt đã settle trước admission của Retry/Edit recovery tương ứng. Render inventory
+  thiếu/`null` không được biến thành instance count; request-cohort proof không
+  được dùng để tuyên bố topology toàn service.
 - Candidate chỉ PASS khi CI và staging acceptance đều PASS, SHA của hai deploy
   trùng candidate SHA, cleanup residue bằng `0`, và backup/off-device recovery
   gate hiện tại PASS.
@@ -68,6 +75,13 @@ sổ quan sát tương ứng với chính release đó.
 - Unit contract cho exact database/origin/confirmation và production denial.
 - Unit/integration seam cho registry cleanup: cleanup chạy cả success/failure,
   chỉ xóa IDs/marker của run, và verification fail nếu còn residue.
+- Hard-kill recovery test phải giữ tombstone qua bounded quiescence/re-inventory,
+  từ chối receipt sai SHA/action-role và giữ fixture nếu `admitted` chưa terminal.
+- Fixture-create journal phải tồn tại trước KB POST, bind exact run/SHA/admin/question,
+  và chỉ settle sau validated `201`; missing/pending/malformed proof phải giữ tombstone
+  cùng fixtures và báo manual blocker.
+- Raw/candidate tamper tests phải từ chối khi chronology failure-settlement →
+  Retry/Edit recovery-admission bị đảo ngược.
 - Node tests cho release-manifest schema, SHA/deploy consistency, current backup
   evidence, observation window và rollback identity.
 - Server tests dùng clock tiêm vào để chứng minh event cũ hết hạn khỏi rolling
