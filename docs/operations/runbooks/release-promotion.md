@@ -139,22 +139,36 @@ Verifier GET exact Render deploy để bind service/deploy/SHA/chronology và re
 malformed, duplicate hoặc conflicting. Journal v2 pending không bao giờ dùng nhánh operator này.
 
 Khi retry một recovery đã success, truyền cả `prior_recovery_run_id` và exact
-`prior_recovery_run_attempt`. Workflow chỉ tải report từ successful `workflow_dispatch` của chính
-`.github/workflows/staging-ai-recovery.yml` trên trusted `staging` ref; report được validate closed
-schema và exact intent trước connect/revoke, rồi recovery vẫn quiescence/inventory/cleanup lại.
+`prior_recovery_run_attempt`. Workflow chỉ tải report từ successful `workflow_dispatch` của
+`.github/workflows/staging-ai-recovery.yml` hoặc registered bridge
+`.github/workflows/staging-security.yml` trên trusted `staging` ref; artifact name và report vẫn
+phải khớp exact run/attempt. Report được validate closed schema và exact intent trước
+connect/revoke, rồi recovery vẫn quiescence/inventory/cleanup lại.
 Recovery report v2 giữ `operator_attested_render_application_log` cùng digest canonical evidence;
 v1 prior report vẫn đọc được nhưng không tự có operator proof. Nếu process chết sau xóa journal nhưng
 trước ghi verified report thì vẫn là manual blocker, không dùng empty inventory để manufacture proof.
 
-Ví dụ dispatch sau khi reviewer đã đối chiếu exact request ID trong provider log:
+`workflow_dispatch` chỉ đăng ký file có mặt trên default branch. Khi recovery workflow chưa có
+trên default branch, dispatch qua `staging-security.yml`; bridge chỉ nhận manual operation
+`recover-ai-residue`, gọi reusable recovery workflow từ cùng commit `staging` và dùng chung
+`staging-live-acceptance` concurrency/environment của recovery. Push, schedule và manual
+operation `monitor` vẫn chỉ chạy monitor read-only.
+
+Ví dụ dispatch qua registered bridge sau khi reviewer đã đối chiếu exact request ID trong
+provider log:
 
 ```powershell
-gh workflow run staging-ai-recovery.yml --ref staging `
-  -f acceptance_run_id=<FAILED_WORKFLOW_RUN_ID> `
-  -f release_sha=<INCIDENT_SHA> `
-  -f fixture_request_id=<EXACT_RENDER_REQUEST_ID> `
-  -f "confirmation=RECOVER EXACT AC009 STAGING RESIDUE"
+gh workflow run staging-security.yml --ref staging `
+  -f operation=recover-ai-residue `
+  -f recovery_acceptance_run_id=<FAILED_WORKFLOW_RUN_ID> `
+  -f recovery_release_sha=<INCIDENT_SHA> `
+  -f recovery_fixture_request_id=<EXACT_RENDER_REQUEST_ID> `
+  -f "recovery_confirmation=RECOVER EXACT AC009 STAGING RESIDUE"
 ```
+
+Sau khi `.github/workflows/staging-ai-recovery.yml` đã có trên default branch, có thể dispatch
+trực tiếp với `acceptance_run_id`, `release_sha`, `fixture_request_id` và `confirmation`; hai
+entrypoint phải thực thi cùng recovery contract, không dùng bridge để nới verification.
 
 Chỉ rerun live acceptance sau khi artifact recovery có
 `staging-ai-recovery-report.json` với `verified: true`, `residue: 0`.

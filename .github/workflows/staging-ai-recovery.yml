@@ -22,6 +22,34 @@ on:
       confirmation:
         description: Type RECOVER EXACT AC009 STAGING RESIDUE
         required: true
+  workflow_call:
+    inputs:
+      acceptance_run_id:
+        description: Failed Staging Live Acceptance workflow run ID
+        required: true
+        type: string
+      release_sha:
+        description: Exact incident SHA from the immutable recovery intent
+        required: true
+        type: string
+      fixture_request_id:
+        description: Exact Render application request ID for the rejected fixture POST
+        required: true
+        type: string
+      prior_recovery_run_id:
+        description: Optional successful recovery workflow run ID for the same incident
+        required: false
+        type: string
+        default: ""
+      prior_recovery_run_attempt:
+        description: Attempt number for prior_recovery_run_id
+        required: false
+        type: string
+        default: "1"
+      confirmation:
+        description: Exact manual recovery confirmation
+        required: true
+        type: string
 
 concurrency:
   group: staging-live-acceptance
@@ -110,10 +138,14 @@ jobs:
               repo: context.repo.repo,
               workflow_id: data.workflow_id,
             });
+            const trustedWorkflowPaths = new Set([
+              ".github/workflows/staging-ai-recovery.yml",
+              ".github/workflows/staging-security.yml",
+            ]);
             if (data.event !== "workflow_dispatch" || data.head_branch !== "staging" ||
                 data.conclusion !== "success" || data.run_attempt !== attempt ||
                 data.head_repository?.full_name !== `${context.repo.owner}/${context.repo.repo}` ||
-                workflow.path !== ".github/workflows/staging-ai-recovery.yml") {
+                !trustedWorkflowPaths.has(workflow.path)) {
               throw new Error("Prior recovery run is not a trusted successful staging recovery attempt");
             }
       - name: Download immutable prior recovery report
