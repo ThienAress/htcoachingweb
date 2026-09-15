@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
-import { assertFixtureCreateSettled, fixtureCreateJournalId } from "./stagingAiChatAcceptance.fixture.js";
+import { assertFixtureCreateTerminal, fixtureCreateJournalId } from "./stagingAiChatAcceptance.fixture.js";
+import { knowledgeFixtureQueries } from "./stagingAiChatAcceptance.http.js";
+import { normalizeKnowledgeQuestion } from "../utils/knowledgeBase.js";
 
 const oid = (value) =>
   value instanceof mongoose.Types.ObjectId ? value : new mongoose.Types.ObjectId(String(value));
@@ -43,6 +45,10 @@ export const createExactCleanup = ({
     uncertainMutationStartedAt = null;
     outcomeUnknown = false;
   };
+  const fixtureNormalizedQuestion = normalizeKnowledgeQuestion(
+    knowledgeFixtureQueries(`htcoaching-acceptance:${runId}`).question,
+  );
+  let fixtureCreateJournal = null;
 
   const filters = () => {
     const userIds = [...ids.users].map(oid);
@@ -141,6 +147,17 @@ export const createExactCleanup = ({
       throw error;
     }
   };
+  const assertRejectedFixtureHasNoKnowledge = async (available) => {
+    if (fixtureCreateJournal?.journalVersion !== 2 || fixtureCreateJournal.outcome !== "rejected" ||
+        !available.has("knowledgeentries")) return;
+    if (await db.collection("knowledgeentries").countDocuments({
+      normalizedQuestion: fixtureNormalizedQuestion,
+    }) !== 0) {
+      const error = new Error("Rejected fixture proof conflicts with a persisted Knowledge Entry");
+      error.code = "STAGING_AI_RECOVERY_FIXTURE_REJECTION_CONFLICT";
+      throw error;
+    }
+  };
   const cleanup = async () => {
     if (uncertainMutationStartedAt) {
       const remaining = unknownOutcomeWaitMs - (now() - uncertainMutationStartedAt);
@@ -149,14 +166,20 @@ export const createExactCleanup = ({
     const available = await existing();
     await ensureRevokedTombstone(available);
     if (requireFixtureCreateProof) {
-      await assertFixtureCreateSettled({
+      fixtureCreateJournal = await assertFixtureCreateTerminal({
         collection: db.collection(controlCollection), runId, releaseSha,
         marker: `htcoaching-acceptance:${runId}`,
       });
+      if (fixtureCreateJournal.journalVersion === 2 && fixtureCreateJournal.outcome === "rejected") {
+        registerKnowledgeQuestion(fixtureNormalizedQuestion);
+      }
     }
+    await assertRejectedFixtureHasNoKnowledge(available);
     await assertReceiptsTerminalAndExpired(available);
     await assertNoUnexpectedCapabilities(available);
-    if (available.has("knowledgeentries") && ids.knowledgeQuestions.size) {
+    await assertRejectedFixtureHasNoKnowledge(available);
+    if (available.has("knowledgeentries") && ids.knowledgeQuestions.size &&
+        fixtureCreateJournal?.outcome !== "rejected") {
       const discovered = await db.collection("knowledgeentries")
         .find({ normalizedQuestion: { $in: [...ids.knowledgeQuestions] } }, { projection: { _id: 1 } })
         .toArray();
@@ -167,6 +190,7 @@ export const createExactCleanup = ({
     // is interrupted, a subsequent recovery can still authenticate every
     // remaining receipt against its actor while the run tombstone blocks replay.
     for (const name of [controlCollection, "knowledgeentries", "chatconversations", "serviceusagebuckets", "aimemories", "aimemorypreferences", "aitoolconfirmations", "aimoderationstates", "users"]) {
+      await assertRejectedFixtureHasNoKnowledge(available);
       if (available.has(name)) await db.collection(name).deleteMany(all[name]);
       if (name === controlCollection) {
         await assertNoUnexpectedCapabilities(available);
@@ -185,7 +209,7 @@ export const createExactCleanup = ({
     const available = await existing();
     const all = filters();
     all[controlCollection] = retainRunTombstone
-      ? { runId, _id: { $nin: allowFixtureJournal && requireFixtureCreateProof
+      ? { runId, _id: { $nin: allowFixtureJournal
           ? [runId, fixtureCreateJournalId(runId)] : [runId] } }
       : { runId };
     const collections = {};

@@ -37,7 +37,8 @@ describe("AC-009 durable fixture-create journal", () => {
     }) };
     await createTrackedKnowledgeFixture({ ...config, api });
     expect(await assertFixtureCreateSettled(config)).toMatchObject({
-      state: "settled", actorId: config.actorId, knowledgeEntryId: response.data._id,
+      journalVersion: 2, state: "terminal", outcome: "created",
+      actorId: config.actorId, knowledgeEntryId: response.data._id, responseStatus: 201,
     });
   });
 
@@ -50,6 +51,33 @@ describe("AC-009 durable fixture-create journal", () => {
     await expect(createTrackedKnowledgeFixture({ ...config, api })).rejects.toBeInstanceOf(Error);
     expect(await collection.findOne({ _id: fixtureCreateJournalId(config.runId) }))
       .toMatchObject({ state: "pending", settledAt: null, knowledgeEntryId: null });
+  });
+
+  it("persists a terminal rejection only for an exact known pre-write response", async () => {
+    const config = options();
+    let error;
+    await expect(createTrackedKnowledgeFixture({
+      ...config,
+      api: { request: vi.fn(async (_path, request) => {
+        error = Object.assign(new Error("synthetic privacy rejection"), {
+          remoteOutcomeKnown: true,
+          httpStatus: 400,
+          responseCode: "KNOWLEDGE_QUERY_SENSITIVE",
+          requestId: request.headers["X-Request-Id"],
+        });
+        throw error;
+      }) },
+    })).rejects.toMatchObject({ remoteOutcomeKnown: true });
+    expect(await collection.findOne({ _id: fixtureCreateJournalId(config.runId) })).toMatchObject({
+      journalVersion: 2,
+      state: "terminal",
+      outcome: "rejected",
+      knowledgeEntryId: null,
+      responseStatus: 400,
+      responseCode: "KNOWLEDGE_QUERY_SENSITIVE",
+      requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      payloadDigest: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
   });
 
   it("does not send POST when journal insertion is unacknowledged", async () => {

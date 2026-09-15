@@ -1,0 +1,165 @@
+name: Staging AI Recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      acceptance_run_id:
+        description: Failed Staging Live Acceptance workflow run ID
+        required: true
+      release_sha:
+        description: Exact incident SHA from the immutable recovery intent
+        required: true
+      fixture_request_id:
+        description: Exact Render application request ID for the rejected fixture POST
+        required: true
+      prior_recovery_run_id:
+        description: Optional successful Staging AI Recovery workflow run ID for the same incident
+        required: false
+      prior_recovery_run_attempt:
+        description: Attempt number for prior_recovery_run_id (default 1)
+        required: false
+        default: "1"
+      confirmation:
+        description: Type RECOVER EXACT AC009 STAGING RESIDUE
+        required: true
+
+concurrency:
+  group: staging-live-acceptance
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging-live-acceptance
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Verify manual recovery authority and incident workflow
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          SOURCE_WORKFLOW_RUN_ID: ${{ inputs.acceptance_run_id }}
+          INCIDENT_RELEASE_SHA: ${{ inputs.release_sha }}
+          RECOVERY_CONFIRMATION: ${{ inputs.confirmation }}
+        with:
+          script: |
+            const runId = Number(process.env.SOURCE_WORKFLOW_RUN_ID);
+            const sha = process.env.INCIDENT_RELEASE_SHA;
+            if (!Number.isSafeInteger(runId) || runId < 1) throw new Error("Invalid source workflow run ID");
+            if (!/^[0-9a-f]{40}$/.test(sha || "")) throw new Error("Invalid incident release SHA");
+            if (process.env.RECOVERY_CONFIRMATION !== "RECOVER EXACT AC009 STAGING RESIDUE") {
+              throw new Error("Exact staging recovery confirmation is required");
+            }
+            if (context.ref !== "refs/heads/staging") {
+              throw new Error("Recovery must be dispatched from refs/heads/staging");
+            }
+            const { data } = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId,
+            });
+            if (data.head_sha !== sha || data.head_branch !== "staging" ||
+                data.conclusion !== "failure" || data.event !== "workflow_dispatch" ||
+                data.head_repository?.full_name !== `${context.repo.owner}/${context.repo.repo}`) {
+              throw new Error("Source acceptance run does not match the failed incident SHA");
+            }
+            const { data: workflow } = await github.rest.actions.getWorkflow({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: data.workflow_id,
+            });
+            if (workflow.path !== ".github/workflows/staging-acceptance.yml") {
+              throw new Error("Source run is not Staging Live Acceptance");
+            }
+      - name: Download immutable incident evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-candidate-${{ inputs.acceptance_run_id }}
+          path: artifacts/source
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.acceptance_run_id }}
+      - name: Verify optional prior recovery provenance
+        if: ${{ inputs.prior_recovery_run_id != '' }}
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          PRIOR_RECOVERY_RUN_ID: ${{ inputs.prior_recovery_run_id }}
+          PRIOR_RECOVERY_RUN_ATTEMPT: ${{ inputs.prior_recovery_run_attempt }}
+        with:
+          script: |
+            const runId = Number(process.env.PRIOR_RECOVERY_RUN_ID);
+            const attempt = Number(process.env.PRIOR_RECOVERY_RUN_ATTEMPT);
+            if (!Number.isSafeInteger(runId) || runId < 1 || !Number.isSafeInteger(attempt) || attempt < 1) {
+              throw new Error("Prior recovery run ID and attempt must be positive integers");
+            }
+            if (context.ref !== "refs/heads/staging") throw new Error("Recovery must run from refs/heads/staging");
+            const { data } = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId,
+            });
+            const { data: workflow } = await github.rest.actions.getWorkflow({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: data.workflow_id,
+            });
+            if (data.event !== "workflow_dispatch" || data.head_branch !== "staging" ||
+                data.conclusion !== "success" || data.run_attempt !== attempt ||
+                data.head_repository?.full_name !== `${context.repo.owner}/${context.repo.repo}` ||
+                workflow.path !== ".github/workflows/staging-ai-recovery.yml") {
+              throw new Error("Prior recovery run is not a trusted successful staging recovery attempt");
+            }
+      - name: Download immutable prior recovery report
+        if: ${{ inputs.prior_recovery_run_id != '' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: staging-ai-recovery-${{ inputs.prior_recovery_run_id }}-${{ inputs.prior_recovery_run_attempt }}
+          path: artifacts/prior
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.prior_recovery_run_id }}
+      - name: Install server dependencies
+        run: npm ci --prefix server
+      - name: Verify exact Render application rejection
+        if: ${{ inputs.prior_recovery_run_id == '' }}
+        working-directory: server
+        run: npm run verify:acceptance:staging:ai:fixture-rejection
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          STAGING_AI_SOURCE_WORKFLOW_RUN_ID: ${{ inputs.acceptance_run_id }}
+          STAGING_AI_ACCEPTANCE_RECOVERY_INTENT: ../artifacts/source/staging-ai-recovery-intent.json
+          STAGING_DEPLOY_IDENTITY_EVIDENCE: ../artifacts/source/staging-deploy-identity.json
+          STAGING_AI_FIXTURE_REJECTION_REQUEST_ID: ${{ inputs.fixture_request_id }}
+          STAGING_AI_FIXTURE_REJECTION_EVIDENCE_OUTPUT: ../artifacts/recovery/staging-ai-fixture-rejection-evidence.json
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+      - name: Recover exact AC-009 synthetic residue
+        working-directory: server
+        run: npm run recover:acceptance:staging:ai
+        env:
+          APP_ENV: staging
+          MONGO_URI: ${{ secrets.STAGING_MONGO_URI }}
+          CLIENT_URL: https://staging--htcoachingweb.netlify.app
+          PUBLIC_API_ORIGIN: https://htcoachingweb-staging.onrender.com
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          RENDER_GIT_COMMIT: ${{ inputs.release_sha }}
+          CONFIRM_STAGING_AI_ACCEPTANCE_RECOVERY: "yes"
+          STAGING_AI_ACCEPTANCE_RECOVERY_INTENT: ../artifacts/source/staging-ai-recovery-intent.json
+          STAGING_AI_FIXTURE_REJECTION_EVIDENCE: ${{ inputs.prior_recovery_run_id == '' && '../artifacts/recovery/staging-ai-fixture-rejection-evidence.json' || '' }}
+          STAGING_AI_ACCEPTANCE_PRIOR_RECOVERY_REPORT: ${{ inputs.prior_recovery_run_id != '' && '../artifacts/prior/staging-ai-recovery-report.json' || '' }}
+          STAGING_AI_ACCEPTANCE_RECOVERY_REPORT_OUTPUT: ../artifacts/recovery/staging-ai-recovery-report.json
+          STAGING_AI_SOURCE_WORKFLOW_RUN_ID: ${{ inputs.acceptance_run_id }}
+      - name: Retain exact recovery evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: staging-ai-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/recovery/*.json
+          if-no-files-found: error
+          retention-days: 30

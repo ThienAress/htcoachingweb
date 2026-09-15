@@ -181,11 +181,17 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
         const { question: expectedQuestion } = knowledgeFixtureQueries(marker);
         exact.registerKnowledgeQuestion(normalizeKnowledgeQuestion(expectedQuestion));
         exact.markMutationStart();
-        const fixture = await createTrackedKnowledgeFixture({
-          collection: mongoose.connection.db.collection(capability.STAGING_AI_ACCEPTANCE_COLLECTION),
-          api: adminApi, marker, sourceUrl: SOURCE_URL, runId,
-          releaseSha: config.releaseSha, actorId: syntheticAdminId.toString(),
-        });
+        let fixture;
+        try {
+          fixture = await createTrackedKnowledgeFixture({
+            collection: mongoose.connection.db.collection(capability.STAGING_AI_ACCEPTANCE_COLLECTION),
+            api: adminApi, marker, sourceUrl: SOURCE_URL, runId,
+            releaseSha: config.releaseSha, actorId: syntheticAdminId.toString(),
+          });
+        } catch (error) {
+          if (error?.remoteOutcomeKnown === true) exact.markMutationSettled();
+          throw error;
+        }
         exact.markMutationSettled();
         exact.registerKnowledgeEntry(fixture.id);
         state.syntheticIds.kbEntryId = fixture.id;

@@ -24,6 +24,8 @@ import {
   waitForSettledReceipts,
 } from "../stagingAiChatAcceptance.js";
 import { createApiClient, createKnowledgeFixture, searchKnowledgeFixture } from "../stagingAiChatAcceptance.http.js";
+import { validateKnowledgeEntryPrivacy } from "../../services/ai/knowledgePrivacy.js";
+import { parseKnowledgeEntryPayload, validateKnowledgePublication } from "../../utils/knowledgeBase.js";
 
 const SHA = "a".repeat(40);
 const validEnv = () => ({
@@ -160,6 +162,35 @@ describe("staging AI hard-kill intent", () => {
 });
 
 describe("staging AI remote mutation outcomes", () => {
+  it("builds a fixture payload accepted by the real KB write guards", async () => {
+    const api = { request: vi.fn(async (requestPath, options) => {
+      const parsed = parseKnowledgeEntryPayload(options.body);
+      expect({
+        requestPath,
+        method: options.method,
+        parseError: parsed.error || null,
+        privacy: parsed.value ? validateKnowledgeEntryPrivacy(parsed.value) : null,
+        publication: parsed.value ? validateKnowledgePublication(parsed.value) : null,
+      }).toEqual({
+        requestPath: "/api/knowledge-base",
+        method: "POST",
+        parseError: null,
+        privacy: { valid: true },
+        publication: { valid: true },
+      });
+      return { data: {
+        _id: String(new mongoose.Types.ObjectId()), status: "published", reviewStatus: "reviewed",
+        embeddingStatus: "ready", embeddingVersion: "locked-target",
+      } };
+    }) };
+    await createKnowledgeFixture({
+      api,
+      marker: `htcoaching-acceptance:${randomUUID()}`,
+      sourceUrl: "https://www.who.int/news-room/fact-sheets/detail/physical-activity",
+    });
+    expect(api.request).toHaveBeenCalledOnce();
+  });
+
   it.each([502, 504])("does not call HTTP %i a terminal remote outcome", async (status) => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({ status, json: async () => ({}) });
     const api = createApiClient({ origin: EXPECTED_API_ORIGIN, accessToken: "synthetic", csrfToken: "csrf" });
@@ -171,6 +202,66 @@ describe("staging AI remote mutation outcomes", () => {
     }
     expect({ code: failure?.code, outcomeKnown: failure?.remoteOutcomeKnown === true })
       .toEqual({ code: "STAGING_AI_API_CONTRACT_FAILED", outcomeKnown: false });
+    vi.restoreAllMocks();
+  });
+
+  it("recognizes only the exact pre-write privacy rejection as a known remote outcome", async () => {
+    const requestId = randomUUID();
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      status: 400,
+      headers: { get: (name) => name.toLowerCase() === "x-request-id" ? requestId : null },
+      json: async () => ({ success: false, code: "KNOWLEDGE_QUERY_SENSITIVE" }),
+    });
+    const api = createApiClient({ origin: EXPECTED_API_ORIGIN, accessToken: "synthetic", csrfToken: "csrf" });
+    let failure;
+    try {
+      await api.request("/api/knowledge-base", {
+        method: "POST",
+        body: {},
+        headers: { "X-Request-Id": requestId },
+      });
+    } catch (error) {
+      failure = error;
+    }
+    expect({
+      code: failure?.code,
+      outcomeKnown: failure?.remoteOutcomeKnown === true,
+      httpStatus: failure?.httpStatus,
+      responseCode: failure?.responseCode,
+      requestId: failure?.requestId,
+    }).toEqual({
+      code: "STAGING_AI_API_CONTRACT_FAILED",
+      outcomeKnown: true,
+      httpStatus: 400,
+      responseCode: "KNOWLEDGE_QUERY_SENSITIVE",
+      requestId,
+    });
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    [400, "VALIDATION_ERROR", "matching"],
+    [400, "KNOWLEDGE_QUERY_SENSITIVE", "mismatch"],
+    [409, "KNOWLEDGE_QUERY_SENSITIVE", "matching"],
+  ])("keeps HTTP %i/%s with %s request ID outcome unknown", async (status, code, requestIdMode) => {
+    const requestId = randomUUID();
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      status,
+      headers: { get: () => requestIdMode === "matching" ? requestId : randomUUID() },
+      json: async () => ({ success: false, code }),
+    });
+    const api = createApiClient({ origin: EXPECTED_API_ORIGIN, accessToken: "synthetic", csrfToken: "csrf" });
+    let failure;
+    try {
+      await api.request("/api/knowledge-base", {
+        method: "POST",
+        body: {},
+        headers: { "X-Request-Id": requestId },
+      });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure?.remoteOutcomeKnown === true).toBe(false);
     vi.restoreAllMocks();
   });
 

@@ -28,6 +28,17 @@ export const createApiClient = ({ origin, accessToken, csrfToken = crypto.random
     if (!expected.includes(response.status)) {
       const error = new Error(`Staging API ${path} returned HTTP ${response.status}`);
       error.code = "STAGING_AI_API_CONTRACT_FAILED";
+      error.httpStatus = response.status;
+      error.responseCode = typeof data?.code === "string" ? data.code : null;
+      const sentRequestId = headers["X-Request-Id"] || headers["x-request-id"];
+      const responseRequestId = response.headers?.get?.("x-request-id") || null;
+      if (typeof responseRequestId === "string") error.requestId = responseRequestId;
+      error.remoteOutcomeKnown = Boolean(
+        path === "/api/knowledge-base" && method === "POST" &&
+        response.status === 400 && data?.success === false &&
+        data?.code === "KNOWLEDGE_QUERY_SENSITIVE" &&
+        typeof sentRequestId === "string" && responseRequestId === sentRequestId,
+      );
       throw error;
     }
     return data;
@@ -49,30 +60,36 @@ export const searchKnowledgeFixture = async ({ api, clientOrigin, query, token, 
 
 export const normalizeQuery = (query) => String(query || "").trim().replace(/\s+/g, " ");
 
-export const createKnowledgeFixture = async ({ api, marker, sourceUrl }) => {
+export const buildKnowledgeFixturePayload = ({ marker, sourceUrl, retrievedAt = new Date().toISOString() }) => {
   const { question, variant, label } = knowledgeFixtureQueries(marker);
+  return {
+    question,
+    answer: `Theo nguồn chính thức, người trưởng thành nên đạt ít nhất 150 phút hoạt động thể lực cường độ vừa mỗi tuần. Nguồn: [WHO](${sourceUrl}).`,
+    category: "general",
+    tags: ["ac009", label],
+    variants: [variant],
+    status: "published",
+    evidenceLevel: "source_backed",
+    freshnessClass: "stable",
+    skipDuplicateCheck: true,
+    sources: [{
+      type: "official",
+      title: "Physical activity",
+      publisher: "World Health Organization",
+      url: sourceUrl,
+      evidenceTier: "primary",
+      retrievedAt,
+    }],
+  };
+};
+
+export const createKnowledgeFixture = async ({ api, marker, sourceUrl, requestId, payload }) => {
+  const { question, variant } = knowledgeFixtureQueries(marker);
   const response = await api.request("/api/knowledge-base", {
     method: "POST",
     expected: [201],
-    body: {
-      question,
-      answer: `Theo WHO, người trưởng thành nên đạt ít nhất 150 phút hoạt động thể lực cường độ vừa mỗi tuần. Nguồn: [WHO](${sourceUrl}).`,
-      category: "general",
-      tags: ["ac009", label],
-      variants: [variant],
-      status: "published",
-      evidenceLevel: "source_backed",
-      freshnessClass: "stable",
-      skipDuplicateCheck: true,
-      sources: [{
-        type: "official",
-        title: "Physical activity",
-        publisher: "World Health Organization",
-        url: sourceUrl,
-        evidenceTier: "primary",
-        retrievedAt: new Date().toISOString(),
-      }],
-    },
+    body: payload || buildKnowledgeFixturePayload({ marker, sourceUrl }),
+    ...(requestId && { headers: { "X-Request-Id": requestId } }),
   });
   const entry = response?.data;
   if (!entry?._id || entry.status !== "published" || entry.reviewStatus !== "reviewed" || entry.embeddingStatus !== "ready") {

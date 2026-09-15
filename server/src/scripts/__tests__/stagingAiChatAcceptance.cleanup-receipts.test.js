@@ -61,6 +61,43 @@ beforeEach(async () => {
 afterAll(async () => { await mongoose.disconnect(); await memory.stop(); });
 
 describe("AC-009 cleanup receipt fence", () => {
+  it.each(["before cleanup", "during receipt expiry wait"])("retains conflicting rejected-fixture data %s", async (phase) => {
+    const actor = new mongoose.Types.ObjectId();
+    const normalizedQuestion = normalizeKnowledgeQuestion(knowledgeFixtureQueries(intent().marker).question);
+    await db.collection("users").insertOne({ _id: actor });
+    await db.collection("staging_ai_acceptance_claims").insertMany([
+      {
+        _id: `${RUN_ID}:fixture-create`, recordType: "fixture_create", journalVersion: 2,
+        runId: RUN_ID, releaseSha: SHA, actorId: String(actor),
+        questionDigest: createHash("sha256").update(normalizedQuestion).digest("hex"),
+        requestId: "650e8400-e29b-41d4-a716-446655440000", payloadDigest: "c".repeat(64),
+        state: "terminal", outcome: "rejected", startedAt: new Date(0), settledAt: new Date(1),
+        knowledgeEntryId: null, responseStatus: 400, responseCode: "KNOWLEDGE_QUERY_SENSITIVE",
+      },
+      receipt({ actorId: actor, expiresAt: new Date(10) }),
+    ]);
+    const insertConflict = () => db.collection("knowledgeentries").insertOne({ normalizedQuestion });
+    if (phase === "before cleanup") await insertConflict();
+    let tick = 0;
+    const cleanup = createExactCleanup({ db, runId: RUN_ID, releaseSha: SHA,
+      retainRunTombstone: true, requireFixtureCreateProof: true, expirySkewMs: 0,
+      now: () => tick, wait: async (ms) => {
+        tick += ms;
+        if (phase === "during receipt expiry wait") await insertConflict();
+      },
+    });
+    cleanup.registerUser(actor);
+    cleanup.registerKnowledgeQuestion(normalizedQuestion);
+    cleanup.registerCapabilityJti("650e8400-e29b-41d4-a716-446655440000", 10);
+    await expect(cleanup.cleanup()).rejects.toMatchObject({ code: "STAGING_AI_RECOVERY_FIXTURE_REJECTION_CONFLICT" });
+    expect({
+      actor: await db.collection("users").findOne({ _id: actor }),
+      knowledgeCount: await db.collection("knowledgeentries").countDocuments({ normalizedQuestion }),
+      journal: await db.collection("staging_ai_acceptance_claims").findOne({ _id: `${RUN_ID}:fixture-create` }),
+      tombstone: await db.collection("staging_ai_acceptance_claims").findOne({ _id: RUN_ID, state: "revoked" }),
+    }).toMatchObject({ actor: { _id: actor }, knowledgeCount: 1, journal: { outcome: "rejected" }, tombstone: { state: "revoked" } });
+  });
+
   it("waits for a delayed admitted receipt to settle before deleting fixtures", async () => {
     const actor = new mongoose.Types.ObjectId();
     await db.collection("staging_ai_acceptance_claims").insertMany([{ _id: RUN_ID, recordType: "run", runId: RUN_ID, state: "revoked" }, receipt({ actorId: actor, receiptState: "admitted", expiresAt: new Date(0) })]);
