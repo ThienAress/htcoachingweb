@@ -146,6 +146,75 @@ jobs:
                 : null,
               envelopeArrays,
             };
+            const endTime = new Date();
+            const startTime = new Date(endTime.getTime() - 10 * 60_000);
+            const metricsUrl = new URL("https://api.render.com/v1/metrics/instance-count");
+            metricsUrl.searchParams.set("startTime", startTime.toISOString());
+            metricsUrl.searchParams.set("endTime", endTime.toISOString());
+            metricsUrl.searchParams.set("resolutionSeconds", "30");
+            metricsUrl.searchParams.set("resource", serviceId);
+            const metricsResponse = await fetch(metricsUrl, {
+              method: "GET",
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+                "User-Agent": "htcoaching-release-gate-shape-probe/1.0",
+              },
+              signal: AbortSignal.timeout(30_000),
+            });
+            let metricsPayload;
+            let metricsParsed = true;
+            try {
+              metricsPayload = await metricsResponse.json();
+            } catch {
+              metricsParsed = false;
+            }
+            const seriesMetadata = Array.isArray(metricsPayload)
+              ? metricsPayload.slice(0, 10).map((series) => {
+                const isSeries = series !== null && typeof series === "object" && !Array.isArray(series);
+                const labels = isSeries && Array.isArray(series.labels) ? series.labels : [];
+                const values = isSeries && Array.isArray(series.values) ? series.values : [];
+                const numericValues = values
+                  .filter((point) => point !== null && typeof point === "object"
+                    && !Array.isArray(point) && Number.isFinite(point.value))
+                  .map((point) => point.value);
+                const latestPoint = values
+                  .filter((point) => point !== null && typeof point === "object"
+                    && !Array.isArray(point) && Number.isFinite(point.value)
+                    && Number.isFinite(Date.parse(point.timestamp)))
+                  .sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp))
+                  .at(-1);
+                return {
+                  kind: classify(series),
+                  hasLabelsArray: isSeries && Array.isArray(series.labels),
+                  labelCount: labels.length,
+                  hasTargetResourceLabel: labels.some((label) => label !== null
+                    && typeof label === "object" && !Array.isArray(label)
+                    && ["resource", "service"].includes(label.field)
+                    && label.value === serviceId),
+                  hasValuesArray: isSeries && Array.isArray(series.values),
+                  valueCount: values.length,
+                  numericValueCount: numericValues.length,
+                  minValue: numericValues.length ? Math.min(...numericValues) : null,
+                  maxValue: numericValues.length ? Math.max(...numericValues) : null,
+                  latestValue: latestPoint?.value ?? null,
+                  latestAgeSeconds: latestPoint
+                    ? Math.max(0, Math.round((endTime.getTime() - Date.parse(latestPoint.timestamp)) / 1000))
+                    : null,
+                  unitKind: series?.unit === "count" ? "count" : classify(series?.unit),
+                };
+              })
+              : [];
+            metadata.instanceCountMetrics = {
+              status: metricsResponse.status,
+              jsonContentType: /^application\/json\b/i.test(
+                metricsResponse.headers.get("content-type") || "",
+              ),
+              parsed: metricsParsed,
+              payloadKind: metricsParsed ? classify(metricsPayload) : "unparsed",
+              seriesCount: Array.isArray(metricsPayload) ? metricsPayload.length : null,
+              seriesMetadata,
+            };
             process.stdout.write(`${JSON.stringify(metadata)}\n`);
           } catch {
             process.stderr.write('{"probe":"render-instances-shape-v1","probeError":true}\n');
