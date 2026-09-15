@@ -27,9 +27,11 @@ Local evidence trước PR: Node 22 focused six files 47/47 PASS, gồm MongoMem
 replica-set apply→rollback; full server suite trước patch review cuối 257 files /
 2.561 tests PASS. Guardrails sau đó đã được merge/deploy trên staging và rollout
 staging đã chạy; evidence thực thi mới nhất nằm ở mục `Staging Execution Evidence`.
-Plan chưa hoàn tất: synthetic Knowledge Entry eligible đã chứng minh Search Test
-và Chat đã hiển thị WHO citation, nhưng provenance KB và toàn bộ AC-009 live smoke
-chưa được chứng minh; fixture đã được dọn qua staging UI.
+Plan chưa hoàn tất: PR #119 đã đưa signed AC-009 runner lên staging tại exact SHA
+`5fb8bfba7596e20f22737654ef26fc98e92330e8`, nhưng live acceptance bị chặn trước mọi
+synthetic write vì Render running-instance inventory trả HTTP 200 JSON `null`.
+Không dùng CPU metrics hoặc Free-plan inference để cấp topology certificate;
+provenance KB, toàn bộ AC-009 live lanes và rollback vector thật vẫn chưa hoàn tất.
 
 ## Why This Matters
 
@@ -256,6 +258,44 @@ streaming, Stop, provider-failure behavior và root/variant fallback metrics;
 provenance KB của citation Chat chưa có trace quyết định. Retry sau generic failure
 đã được quan sát, nhưng không thay thế provider-failure injection. Các behavior
 còn lại có deterministic loopback E2E evidence, không phải live provider/proxy.
+
+## AC-009 topology investigation and hardening — 2026-09-15
+
+**Target**: staging only. Production env, data, deploy và rollback ngoài scope.
+
+| Boundary | Evidence | Result |
+|---|---|---|
+| Final runner release | PR [#119](https://github.com/ThienAress/htcoachingweb/pull/119), merge SHA `5fb8bfba7596e20f22737654ef26fc98e92330e8`; canonical CI [34924645034](https://github.com/ThienAress/htcoachingweb/actions/runs/34924645034) | PASS client/server/E2E/docker/secrets. |
+| Staging deploy identity | Netlify `6aa8b9a385e4d10008d6e058`; Render `dep-dakbluuk1f9s73cnr8bg` | Both live/ready at exact merge SHA; Render staging acceptance flag enabled, auto-deploy remains disabled. |
+| Live acceptance | Run [34925142825](https://github.com/ThienAress/htcoachingweb/actions/runs/34925142825), attempts 1 and 2 | FAIL at topology verification before acceptance, AI runner or cleanup; no synthetic writes from these attempts. |
+| Sanitized inventory probe | Runs [34926118247](https://github.com/ThienAress/htcoachingweb/actions/runs/34926118247), [34926269008](https://github.com/ThienAress/htcoachingweb/actions/runs/34926269008), [34926506701](https://github.com/ThienAress/htcoachingweb/actions/runs/34926506701) | `/instances`: HTTP 200, JSON content type, parsed `null` repeatedly. Probe exits before checkout/acceptance and never logs token, instance IDs or raw payload. |
+| Alternative metric sources | Last probe above | `/metrics/instance-count`: empty array for both `resource` and deprecated `service`; CPU has two historical instance series with latest sample age 450 seconds, not an authoritative current census. |
+| Wake discriminator | Known staging health GET returned HTTP 200 after spin-up; immediate probe [34926875617](https://github.com/ThienAress/htcoachingweb/actions/runs/34926875617) | `/instances` remains JSON `null`; spin-down-only hypothesis rejected. |
+
+Hypotheses and closing evidence:
+
+- Envelope mismatch rejected: observed payload is `null`, not an object envelope.
+- Deploy warm-up/transient weakened by repeated stable-deploy probes with identical result.
+- Spin-down-only rejected by healthy wake followed immediately by the same `null` response.
+- Provider inventory unavailability supported; exact upstream reason remains unproven.
+- CPU/Free-plan fallback rejected: historical samples or a scaling limit do not prove absence of a
+  second serving runtime during restart/transition. Existing before/after runtime UUID cannot bind
+  every chat request in between.
+
+**Hardening slice plan**, owned by root:
+
+1. Add RED regression tests through exported `verifyRenderSingleInstanceTopology()` for malformed
+   records and JSON parse canaries in `scripts/deployment-identity.test.mjs`.
+2. In `scripts/lib/deployment-identity.mjs`, validate required `id` and `createdAt` on every inventory
+   record; `null` stays inconclusive. Wrap JSON parse failures with static provider labels, never raw
+   upstream exception text. No fallback count or artifact-schema change.
+3. Run `node --test scripts/deployment-identity.test.mjs`, `npm run test:ops`, secret/boundary gates
+   and `git diff --check`; review independently. Remove the temporary workflow probe before delivery.
+
+**Done for this slice**: focused/ops regression GREEN, temporary probe absent, no topology certificate
+for `null` or malformed records. **Not done for Plan 090A**: restore authoritative Render inventory or
+explicitly approve a new per-request runtime UUID/SHA-bound acceptance contract, then final AC-008/009;
+real vector rollback also requires the original encrypted snapshot and separate key custody.
 
 ## Done Criteria
 
