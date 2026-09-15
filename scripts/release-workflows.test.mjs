@@ -58,7 +58,9 @@ test("legacy AC-009 recovery is manual, staging-only and retains provider proof"
   assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(workflow, /context\.ref !== "refs\/heads\/staging"/);
   assert.match(workflow, /data\.head_branch !== "staging"/);
-  assert.match(workflow, /workflow\.path !== "\.github\/workflows\/staging-ai-recovery\.yml"/);
+  assert.match(workflow, /trustedWorkflowPaths\.has\(workflow\.path\)/);
+  assert.match(workflow, /\.github\/workflows\/staging-ai-recovery\.yml/);
+  assert.match(workflow, /\.github\/workflows\/staging-security\.yml/);
   assert.match(workflow, /data\.run_attempt !== attempt/);
   assert.match(workflow, /staging-ai-recovery-\$\{\{ inputs\.prior_recovery_run_id \}\}-\$\{\{ inputs\.prior_recovery_run_attempt \}\}/);
   assert.match(workflow, /path: artifacts\/prior/);
@@ -72,6 +74,28 @@ test("legacy AC-009 recovery is manual, staging-only and retains provider proof"
   assert.match(workflow, /staging-ai-recovery-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
   assert.match(workflow, /path: artifacts\/recovery\/\*\.json/);
   assert.doesNotMatch(workflow, /production-approval|PRODUCTION_MONGO|production write/i);
+});
+
+test("registered staging monitor dispatch can invoke the same-commit AC-009 recovery", async () => {
+  const [monitor, recovery] = await Promise.all([
+    read(".github/workflows/staging-security.yml"),
+    read(".github/workflows/staging-ai-recovery.yml"),
+  ]);
+
+  assert.match(monitor, /operation:[\s\S]*default: monitor/);
+  assert.match(
+    monitor,
+    /github\.event_name == 'workflow_dispatch' && inputs\.operation == 'recover-ai-residue'/,
+  );
+  assert.match(monitor, /github\.event_name != 'workflow_dispatch' \|\| inputs\.operation == 'monitor'/);
+  assert.match(monitor, /uses: \.\/\.github\/workflows\/staging-ai-recovery\.yml/);
+  assert.match(monitor, /acceptance_run_id: \$\{\{ inputs\.recovery_acceptance_run_id \}\}/);
+  assert.match(monitor, /release_sha: \$\{\{ inputs\.recovery_release_sha \}\}/);
+  assert.match(monitor, /fixture_request_id: \$\{\{ inputs\.recovery_fixture_request_id \}\}/);
+  assert.match(monitor, /confirmation: \$\{\{ inputs\.recovery_confirmation \}\}/);
+  assert.match(monitor, /secrets: inherit/);
+  assert.match(recovery, /workflow_call:/);
+  assert.match(recovery, /\.github\/workflows\/staging-security\.yml/);
 });
 
 test("staging AI recovery pins every action to an immutable commit", async () => {
