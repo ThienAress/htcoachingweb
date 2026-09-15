@@ -64,7 +64,7 @@ test("legacy AC-009 recovery is manual, staging-only and retains provider proof"
   assert.match(workflow, /data\.run_attempt !== attempt/);
   assert.match(workflow, /staging-ai-recovery-\$\{\{ inputs\.prior_recovery_run_id \}\}-\$\{\{ inputs\.prior_recovery_run_attempt \}\}/);
   assert.match(workflow, /path: artifacts\/prior/);
-  assert.match(workflow, /STAGING_AI_FIXTURE_REJECTION_EVIDENCE: \$\{\{ inputs\.prior_recovery_run_id == ''/);
+  assert.match(workflow, /STAGING_AI_FIXTURE_REJECTION_EVIDENCE: \$\{\{ inputs\.fixture_request_id != ''/);
   assert.match(workflow, /verify:acceptance:staging:ai:fixture-rejection/);
   assert.match(workflow, /RENDER_API_KEY: \$\{\{ secrets\.RENDER_API_KEY \}\}/);
   assert.match(workflow, /STAGING_AI_FIXTURE_REJECTION_EVIDENCE:/);
@@ -74,6 +74,22 @@ test("legacy AC-009 recovery is manual, staging-only and retains provider proof"
   assert.match(workflow, /staging-ai-recovery-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
   assert.match(workflow, /path: artifacts\/recovery\/\*\.json/);
   assert.doesNotMatch(workflow, /production-approval|PRODUCTION_MONGO|production write/i);
+});
+
+test("AC-009 recovery accepts journal v2 incidents without manufacturing legacy provider proof", async () => {
+  const workflow = await read(".github/workflows/staging-ai-recovery.yml");
+  const fixtureInputs = [...workflow.matchAll(
+    /fixture_request_id:\r?\n\s+description: Optional exact Render application request ID for a legacy rejected fixture POST\r?\n\s+required: false/g,
+  )];
+  assert.equal(fixtureInputs.length, 2, "workflow_dispatch and workflow_call must both make legacy proof optional");
+  assert.match(
+    workflow,
+    /if: \$\{\{ inputs\.prior_recovery_run_id == '' && inputs\.fixture_request_id != '' \}\}/,
+  );
+  assert.match(
+    workflow,
+    /STAGING_AI_FIXTURE_REJECTION_EVIDENCE: \$\{\{ inputs\.fixture_request_id != '' && inputs\.prior_recovery_run_id == ''/,
+  );
 });
 
 test("registered staging monitor dispatch can invoke the same-commit AC-009 recovery", async () => {
@@ -121,6 +137,8 @@ test("release runbook retains the AC-009 fixture journal v2 contract", async () 
     assert.match(specification, new RegExp(contract));
   }
   assert.match(runbook, /Journal v1 legacy `pending` chỉ dùng ngoại lệ manual/);
+  assert.match(runbook, /Với journal v2 terminal, bỏ hẳn input legacy/);
+  assert.match(specification, /Manual recovery cho journal v2 terminal/);
   assert.doesNotMatch(runbook, /CAS journal sang `settled`/);
 });
 

@@ -138,6 +138,15 @@ operator attestation có provenance, không phải chứng nhận tự động v
 Verifier GET exact Render deploy để bind service/deploy/SHA/chronology và reject toàn response log
 malformed, duplicate hoặc conflicting. Journal v2 pending không bao giờ dùng nhánh operator này.
 
+Với failed run có journal v2 đã `terminal/created` hoặc exact
+`terminal/rejected`, recovery workflow không nhận `fixture_request_id` và không tạo
+operator-attested Render proof. Recovery CLI phải tự đọc exact journal trong
+`htcoaching_staging`, kiểm run/SHA/marker/request/payload binding trước mọi delete,
+rồi mới quiescence/inventory/cleanup. Nếu journal v2 còn `pending`, thiếu hoặc
+malformed thì vẫn giữ tombstone/fixtures và fail
+`STAGING_AI_RECOVERY_FIXTURE_UNKNOWN`; không được thêm request ID legacy để lách
+contract này.
+
 Khi retry một recovery đã success, truyền cả `prior_recovery_run_id` và exact
 `prior_recovery_run_attempt`. Workflow chỉ tải report từ successful `workflow_dispatch` của
 `.github/workflows/staging-ai-recovery.yml` hoặc registered bridge
@@ -166,9 +175,20 @@ gh workflow run staging-security.yml --ref staging `
   -f "recovery_confirmation=RECOVER EXACT AC009 STAGING RESIDUE"
 ```
 
+Với journal v2 terminal, bỏ hẳn input legacy `recovery_fixture_request_id`:
+
+```powershell
+gh workflow run staging-security.yml --ref staging `
+  -f operation=recover-ai-residue `
+  -f recovery_acceptance_run_id=<FAILED_WORKFLOW_RUN_ID> `
+  -f recovery_release_sha=<INCIDENT_SHA> `
+  -f "recovery_confirmation=RECOVER EXACT AC009 STAGING RESIDUE"
+```
+
 Sau khi `.github/workflows/staging-ai-recovery.yml` đã có trên default branch, có thể dispatch
-trực tiếp với `acceptance_run_id`, `release_sha`, `fixture_request_id` và `confirmation`; hai
-entrypoint phải thực thi cùng recovery contract, không dùng bridge để nới verification.
+trực tiếp với `acceptance_run_id`, `release_sha` và `confirmation`; chỉ truyền
+`fixture_request_id` cho ngoại lệ journal v1 legacy. Hai entrypoint phải thực thi
+cùng recovery contract, không dùng bridge để nới verification.
 
 Chỉ rerun live acceptance sau khi artifact recovery có
 `staging-ai-recovery-report.json` với `verified: true`, `residue: 0`.

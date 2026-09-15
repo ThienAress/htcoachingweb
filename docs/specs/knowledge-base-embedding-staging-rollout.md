@@ -66,6 +66,10 @@ quota/model/auth hoặc relabel vector cũ thành version mới.
   `400 / KNOWLEDGE_QUERY_SENSITIVE` từ guard trước write. Timeout, 5xx, response JSON lỗi,
   request-ID mismatch và mọi rejection khác vẫn là unknown. Journal thiếu/pending/malformed là
   `STAGING_AI_RECOVERY_FIXTURE_UNKNOWN`: giữ tombstone/fixtures và không cấp cleanup PASS.
+  Manual recovery cho journal v2 terminal phải tải exact failed-run artifact nhưng không
+  nhận request ID hoặc tạo operator proof; CLI tự xác minh terminal journal cùng
+  run/SHA/marker/request/payload binding trong staging trước mọi delete. Journal v2 pending
+  vẫn fail closed dù operator có một Render request ID.
   Journal v1 legacy pending chỉ được recovery bằng manual workflow trên environment staging,
   exact failed-run artifact và một Render application-log finish record đã verify qua provider API;
   evidence phải ghi rõ `operator_attested_render_application_log`, không được đổi journal thành created.

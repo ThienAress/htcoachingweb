@@ -10,8 +10,8 @@ on:
         description: Exact incident SHA from the immutable recovery intent
         required: true
       fixture_request_id:
-        description: Exact Render application request ID for the rejected fixture POST
-        required: true
+        description: Optional exact Render application request ID for a legacy rejected fixture POST
+        required: false
       prior_recovery_run_id:
         description: Optional successful Staging AI Recovery workflow run ID for the same incident
         required: false
@@ -33,9 +33,10 @@ on:
         required: true
         type: string
       fixture_request_id:
-        description: Exact Render application request ID for the rejected fixture POST
-        required: true
+        description: Optional exact Render application request ID for a legacy rejected fixture POST
+        required: false
         type: string
+        default: ""
       prior_recovery_run_id:
         description: Optional successful recovery workflow run ID for the same incident
         required: false
@@ -159,7 +160,7 @@ jobs:
       - name: Install server dependencies
         run: npm ci --prefix server
       - name: Verify exact Render application rejection
-        if: ${{ inputs.prior_recovery_run_id == '' }}
+        if: ${{ inputs.prior_recovery_run_id == '' && inputs.fixture_request_id != '' }}
         working-directory: server
         run: npm run verify:acceptance:staging:ai:fixture-rejection
         env:
@@ -183,7 +184,7 @@ jobs:
           RENDER_GIT_COMMIT: ${{ inputs.release_sha }}
           CONFIRM_STAGING_AI_ACCEPTANCE_RECOVERY: "yes"
           STAGING_AI_ACCEPTANCE_RECOVERY_INTENT: ../artifacts/source/staging-ai-recovery-intent.json
-          STAGING_AI_FIXTURE_REJECTION_EVIDENCE: ${{ inputs.prior_recovery_run_id == '' && '../artifacts/recovery/staging-ai-fixture-rejection-evidence.json' || '' }}
+          STAGING_AI_FIXTURE_REJECTION_EVIDENCE: ${{ inputs.fixture_request_id != '' && inputs.prior_recovery_run_id == '' && '../artifacts/recovery/staging-ai-fixture-rejection-evidence.json' || '' }}
           STAGING_AI_ACCEPTANCE_PRIOR_RECOVERY_REPORT: ${{ inputs.prior_recovery_run_id != '' && '../artifacts/prior/staging-ai-recovery-report.json' || '' }}
           STAGING_AI_ACCEPTANCE_RECOVERY_REPORT_OUTPUT: ../artifacts/recovery/staging-ai-recovery-report.json
           STAGING_AI_SOURCE_WORKFLOW_RUN_ID: ${{ inputs.acceptance_run_id }}
