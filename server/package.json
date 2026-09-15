@@ -121,6 +121,7 @@
     "seed:staging": "node src/scripts/stagingSeed.js",
     "cleanup:staging": "node src/scripts/stagingSeed.js --cleanup",
     "acceptance:staging": "node src/scripts/stagingAcceptance.js",
+    "acceptance:staging:ai": "node src/scripts/stagingAiChatAcceptance.js",
     "integrations:staging": "node src/scripts/stagingIntegrations.js",
     "recovery:staging": "node src/scripts/stagingRecoveryDrill.js",
     "acceptance:staging:extended": "node src/scripts/stagingExtendedAcceptance.js"

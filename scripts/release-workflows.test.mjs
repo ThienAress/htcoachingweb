@@ -13,6 +13,32 @@ test("staging live acceptance is explicitly write-enabled only behind staging lo
   assert.match(workflow, /APP_ENV: staging/);
   assert.match(workflow, /CONFIRM_STAGING_ACCEPTANCE: "yes"/);
   assert.match(workflow, /STAGING_ACCEPTANCE_OUTPUT:/);
+  const aiStep = workflow.match(
+    /- name: Run authenticated staging AI acceptance with verified cleanup[\s\S]*?(?=\n      - name: Reverify deploy identity)/,
+  )?.[0];
+  assert.ok(aiStep, "live AI acceptance step is missing");
+  assert.match(workflow, /npm run acceptance:staging:ai/);
+  for (const required of [
+    /ALLOWED_ORIGINS: https:\/\/staging--htcoachingweb\.netlify\.app/,
+    /BACKGROUND_JOBS_ENABLED: "false"/,
+    /EMAIL_DELIVERY_MODE: disabled/,
+    /F1_RETENTION_ENFORCE: "false"/,
+    /CONFIRM_STAGING_AI_ACCEPTANCE: "yes"/,
+    /STAGING_AI_ACCEPTANCE_OUTPUT:/,
+    /STAGING_AI_ACCEPTANCE_RECOVERY_OUTPUT:/,
+    /STAGING_AI_ACCEPTANCE_ENABLED: "true"/,
+    /EXPECTED_KB_EMBEDDING_VERSION: gemini-embedding-2:768:question-answering-v1/,
+    /STAGING_RENDER_TOPOLOGY_EVIDENCE:/,
+  ]) assert.match(aiStep, required);
+  assert.match(workflow, /RENDER_TOPOLOGY_OUTPUT: artifacts\/staging-render-topology\.json/);
+  assert.match(workflow, /RENDER_TOPOLOGY_OUTPUT: artifacts\/staging-render-topology-post-ai\.json/);
+  assert.match(workflow, /staging-deploy-identity-post-ai\.json/);
+  for (const requiredCandidateEvidence of [
+    /STAGING_AI_ACCEPTANCE_EVIDENCE: artifacts\/staging-ai-acceptance\.json/,
+    /STAGING_DEPLOY_IDENTITY_POST_AI_EVIDENCE: artifacts\/staging-deploy-identity-post-ai\.json/,
+    /STAGING_RENDER_TOPOLOGY_EVIDENCE: artifacts\/staging-render-topology\.json/,
+    /STAGING_RENDER_TOPOLOGY_POST_AI_EVIDENCE: artifacts\/staging-render-topology-post-ai\.json/,
+  ]) assert.match(workflow, requiredCandidateEvidence);
   assert.match(workflow, /getWorkflow\(/);
   assert.match(workflow, /\.github\/workflows\/ci\.yml/);
   assert.match(safety, /const STAGING_DATABASE = "htcoaching_staging"/);

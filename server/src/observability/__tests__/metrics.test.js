@@ -209,4 +209,13 @@ describe("bounded application metrics", () => {
     expect(source).toContain("htcoaching_kb_vector_variant_fallbacks");
     expect(source).toContain("htcoaching_kb_vector_combined_fallbacks");
   });
+
+  it("exposes one opaque runtime identity for process-local metric attribution", () => {
+    const first = getMetricsSnapshot();
+    const second = getMetricsSnapshot();
+    expect(first.runtimeInstanceId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(second.runtimeInstanceId).toBe(first.runtimeInstanceId);
+  });
 });

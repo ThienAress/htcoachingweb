@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   verifyNetlifyDeploy,
   verifyRenderDeploy,
+  verifyRenderSingleInstanceTopology,
 } from "./lib/deployment-identity.mjs";
 
 const required = (name) => {
@@ -14,7 +15,10 @@ const required = (name) => {
 
 const main = async () => {
   const sha = required("RELEASE_SHA").toLowerCase();
-  const [client, server] = await Promise.all([
+  const renderToken = required("RENDER_API_KEY");
+  const renderServiceId = required("RENDER_STAGING_SERVICE_ID");
+  const topologyOutput = String(process.env.RENDER_TOPOLOGY_OUTPUT || "").trim();
+  const [client, server, serviceTopology] = await Promise.all([
     verifyNetlifyDeploy({
       siteId: required("NETLIFY_STAGING_SITE_ID"),
       deployId: required("STAGING_CLIENT_DEPLOY_ID"),
@@ -22,15 +26,19 @@ const main = async () => {
       token: required("NETLIFY_AUTH_TOKEN"),
     }),
     verifyRenderDeploy({
-      serviceId: required("RENDER_STAGING_SERVICE_ID"),
+      serviceId: renderServiceId,
       deployId: required("STAGING_SERVER_DEPLOY_ID"),
       expectedSha: sha,
-      token: required("RENDER_API_KEY"),
+      token: renderToken,
     }),
+    ...(topologyOutput
+      ? [verifyRenderSingleInstanceTopology({ serviceId: renderServiceId, token: renderToken })]
+      : [Promise.resolve(null)]),
   ]);
+  const checkedAt = new Date().toISOString();
   const evidence = {
     schemaVersion: 1,
-    checkedAt: new Date().toISOString(),
+    checkedAt,
     sha,
     client,
     server,
@@ -41,6 +49,17 @@ const main = async () => {
     encoding: "utf8",
     mode: 0o600,
   });
+  if (topologyOutput) {
+    const topologyPath = path.resolve(topologyOutput);
+    await mkdir(path.dirname(topologyPath), { recursive: true });
+    await writeFile(topologyPath, `${JSON.stringify({
+      schemaVersion: 1,
+      kind: "render-single-instance-topology",
+      releaseSha: sha,
+      checkedAt,
+      serviceTopology,
+    }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  }
   process.stdout.write(
     `${JSON.stringify({ success: true, sha, providers: [client.provider, server.provider] })}\n`,
   );
