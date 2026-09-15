@@ -24,7 +24,7 @@ on:
         required: false
         type: string
       recovery_fixture_request_id:
-        description: Exact Render application request ID for the rejected fixture POST
+        description: Optional exact Render application request ID for a legacy rejected fixture POST
         required: false
         type: string
       recovery_prior_run_id:
