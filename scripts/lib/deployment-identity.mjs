@@ -1,8 +1,31 @@
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const ID_PATTERN = /^[a-z0-9][a-z0-9._:-]{2,159}$/i;
+const TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|([+-])(\d{2}):(\d{2}))$/;
 
 const assert = (condition, message) => {
   if (!condition) throw new Error(message);
+};
+
+const isCanonicalTimestamp = (value) => {
+  if (typeof value !== "string") return false;
+  const match = TIMESTAMP_PATTERN.exec(value);
+  if (!match) return false;
+  const [, rawYear, rawMonth, rawDay, rawHour, rawMinute, rawSecond,
+    , , rawOffsetHour, rawOffsetMinute] = match;
+  const year = Number(rawYear);
+  const month = Number(rawMonth);
+  const day = Number(rawDay);
+  const hour = Number(rawHour);
+  const minute = Number(rawMinute);
+  const second = Number(rawSecond);
+  const offsetHour = rawOffsetHour == null ? 0 : Number(rawOffsetHour);
+  const offsetMinute = rawOffsetMinute == null ? 0 : Number(rawOffsetMinute);
+  if (
+    month < 1 || month > 12 || hour > 23 || minute > 59 || second > 59 ||
+    offsetHour > 23 || offsetMinute > 59
+  ) return false;
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return day >= 1 && day <= daysInMonth && Number.isFinite(Date.parse(value));
 };
 
 const validateInput = ({ id, expectedSha, token, name }) => {
@@ -11,9 +34,18 @@ const validateInput = ({ id, expectedSha, token, name }) => {
   assert(String(token || "").length >= 20, `${name} API token is missing`);
 };
 
+const parseJson = async (response, name) => {
+  try {
+    return await response.json();
+  } catch {
+    // Upstream JSON exceptions can contain response-body excerpts.
+    throw new Error(`${name} API returned invalid JSON`);
+  }
+};
+
 const readJson = async (response, name) => {
   assert(response.status === 200, `${name} API returned ${response.status}`);
-  const payload = await response.json();
+  const payload = await parseJson(response, name);
   assert(payload && typeof payload === "object", `${name} deploy payload is invalid`);
   return payload;
 };
@@ -180,7 +212,7 @@ export const verifyRenderSingleInstanceTopology = async ({
       },
     );
     assert(response.status === 200, `${label} API returned ${response.status}`);
-    return response.json();
+    return parseJson(response, label);
   };
 
   const service = await request("", "Render service");
@@ -197,7 +229,16 @@ export const verifyRenderSingleInstanceTopology = async ({
     "Render metrics topology must configure a single instance");
 
   const instances = await request("/instances", "Render instances");
+  assert(instances !== null, "Render running-instance inventory is unavailable");
   assert(Array.isArray(instances), "Render instances payload is invalid");
+  for (const instance of instances) {
+    assert(
+      instance && typeof instance === "object" && !Array.isArray(instance) &&
+        typeof instance.id === "string" && ID_PATTERN.test(instance.id) &&
+        isCanonicalTimestamp(instance.createdAt),
+      "Render instance record is invalid",
+    );
+  }
   assert(instances.length === 1,
     "Render metrics topology must have exactly one running instance");
   return { configuredInstances: details.numInstances, currentInstances: instances.length };
