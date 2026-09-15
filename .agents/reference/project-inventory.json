@@ -8,7 +8,7 @@
   "evalCorpora": 12,
   "evalScenarios": 64,
   "testFiles": {
-    "client": 156,
+    "client": 157,
     "server": 266,
     "e2e": 26
   },
