@@ -84,6 +84,9 @@ describe("Progress presentation", () => {
         dateKey: "2026-07-06",
         weightKg: 70,
         waistCm: null,
+        hipCm: null,
+        abdomenCm: null,
+        waistHipRatio: null,
         bodyFatPercent: null,
         skeletalMusclePercent: null,
       },
@@ -91,6 +94,9 @@ describe("Progress presentation", () => {
         dateKey: "2026-07-13",
         weightKg: null,
         waistCm: 78,
+        hipCm: null,
+        abdomenCm: null,
+        waistHipRatio: null,
         bodyFatPercent: null,
         skeletalMusclePercent: null,
       },
@@ -98,6 +104,9 @@ describe("Progress presentation", () => {
         dateKey: "2026-07-20",
         weightKg: 69,
         waistCm: null,
+        hipCm: null,
+        abdomenCm: null,
+        waistHipRatio: null,
         bodyFatPercent: null,
         skeletalMusclePercent: null,
       },
@@ -168,11 +177,13 @@ describe("Weekly Check-in form", () => {
       }),
     ).toEqual([
       { key: "waistCm", label: "Vòng eo" },
+      { key: "hipCm", label: "Vòng hông" },
+      { key: "abdomenCm", label: "Vòng bụng" },
       { key: "bodyFatPercent", label: "Tỷ lệ mỡ cơ thể" },
     ]);
   });
 
-  it("normalizes and submits only the four optional body measurements", () => {
+  it("normalizes and submits only the six optional body measurements", () => {
     const values = weeklyFormSchema.parse({
       weightKg: "72.5",
       waistCm: "",
@@ -184,6 +195,8 @@ describe("Weekly Check-in form", () => {
       body: {
         weightKg: 72.5,
         waistCm: null,
+        hipCm: null,
+        abdomenCm: null,
         bodyFatPercent: 18.5,
         skeletalMusclePercent: 42,
       },

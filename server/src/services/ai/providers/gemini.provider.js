@@ -17,6 +17,14 @@ const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 45000;
 const GEMINI_UNSUPPORTED_SCHEMA_KEYS = new Set(["additionalProperties"]);
 const GEMINI_OUTCOME_RECORDED = Symbol("geminiOutcomeRecorded");
 
+const operationalError = (code, status) => {
+  const error = new Error("Gemini provider unavailable");
+  error.name = "AiProviderOperationalError";
+  error.code = code;
+  if (status) error.status = status;
+  return error;
+};
+
 const recordGeminiFailure = (error) => {
   recordGeminiResult("chat", { success: false });
   if (error && typeof error === "object") {
@@ -224,8 +232,7 @@ async function* streamGemini(messages, tools, signal) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    yield { type: "text", content: "⚠️ Chưa cấu hình GEMINI_API_KEY. Vui lòng thêm vào file .env của server." };
-    return;
+    throw operationalError("GEMINI_CONFIG_UNAVAILABLE");
   }
 
   const { systemInstruction, contents } = convertMessages(messages);
@@ -253,12 +260,12 @@ async function* streamGemini(messages, tools, signal) {
       body: JSON.stringify(body),
       signal,
     });
-  } catch (err) {
-    recordGeminiFailure(err);
-    if (signal.aborted) throw err;
-    safeLog.error("ai.gemini_fetch_failed", err);
-    yield { type: "text", content: "⚠️ Không thể kết nối tới Gemini API. Kiểm tra kết nối mạng." };
-    return;
+  } catch {
+    const error = operationalError("GEMINI_NETWORK_ERROR");
+    recordGeminiFailure(error);
+    if (signal.aborted) throw error;
+    safeLog.error("ai.gemini_fetch_failed", "Provider connection failed");
+    throw error;
   }
 
   if (!response.ok) {
@@ -269,10 +276,6 @@ async function* streamGemini(messages, tools, signal) {
       ...providerError,
     });
 
-    if (response.status === 429) {
-      yield { type: "text", content: "⚠️ HT Assistant đang bận (rate limit). Vui lòng thử lại sau 1 phút." };
-      return;
-    }
     if (response.status === 400) {
       safeLog.warn(
         "ai.gemini_minimal_retry",
@@ -301,11 +304,11 @@ async function* streamGemini(messages, tools, signal) {
           body: JSON.stringify(retryBody),
           signal,
         });
-      } catch (err) {
-        recordGeminiFailure(err);
-        if (signal.aborted) throw err;
-        yield { type: "text", content: "Xin lỗi, tôi không thể xử lý lúc này. Bạn thử lại nhé! 😊" };
-        return;
+      } catch {
+        const error = operationalError("GEMINI_NETWORK_ERROR");
+        recordGeminiFailure(error);
+        if (signal.aborted) throw error;
+        throw error;
       }
 
       if (!retryResponse.ok && retryResponse.status === 400 && geminiTools) {
@@ -324,11 +327,11 @@ async function* streamGemini(messages, tools, signal) {
             body: JSON.stringify(toolFreeRetryBody),
             signal,
           });
-        } catch (err) {
-          recordGeminiFailure(err);
-          if (signal.aborted) throw err;
-          yield { type: "text", content: "Xin lỗi, tôi không thể xử lý lúc này. Bạn thử lại nhé! 😊" };
-          return;
+        } catch {
+          const error = operationalError("GEMINI_NETWORK_ERROR");
+          recordGeminiFailure(error);
+          if (signal.aborted) throw error;
+          throw error;
         }
       }
 
@@ -339,21 +342,17 @@ async function* streamGemini(messages, tools, signal) {
           status: retryResponse.status,
           ...retryError,
         });
-        yield { type: "text", content: "Xin lỗi, tôi không xử lý được yêu cầu này. Bạn thử bắt đầu cuộc trò chuyện mới nhé! 😊" };
-        return;
+        const error = operationalError("GEMINI_HTTP_ERROR", retryResponse.status);
+        error[GEMINI_OUTCOME_RECORDED] = true;
+        throw error;
       }
 
       // Dùng retryResponse thay cho response ban đầu
       response = retryResponse;
-    } else if (response.status === 403) {
-      yield { type: "text", content: "⚠️ API Key không hợp lệ hoặc chưa kích hoạt. Kiểm tra lại GEMINI_API_KEY." };
-      return;
     } else {
-      yield {
-        type: "text",
-        content: "HT Assistant đang gặp lỗi từ nhà cung cấp. Vui lòng thử lại sau.",
-      };
-      return;
+      const error = operationalError("GEMINI_HTTP_ERROR", response.status);
+      error[GEMINI_OUTCOME_RECORDED] = true;
+      throw error;
     }
   }
 
@@ -439,11 +438,9 @@ async function* streamGemini(messages, tools, signal) {
   }
 
   if (terminalStreamError || !receivedOutput) {
-    const error = new Error("Gemini stream ended without a valid candidate");
-    error.code = terminalStreamError
-      ? "GEMINI_STREAM_ERROR"
-      : "GEMINI_STREAM_EMPTY";
-    throw error;
+    throw operationalError(
+      terminalStreamError ? "GEMINI_STREAM_ERROR" : "GEMINI_STREAM_EMPTY",
+    );
   }
   recordGeminiResult("chat", { success: true, usage });
 
@@ -478,10 +475,7 @@ export async function* geminiLLMStream(messages, tools, options = {}) {
     }
     if (!options.signal?.aborted) {
       safeLog.warn("ai.gemini_timeout", "Provider request timed out");
-      yield {
-        type: "text",
-        content: "HT Assistant phản hồi quá lâu. Bạn thử lại sau ít phút nhé.",
-      };
+      throw operationalError("GEMINI_TIMEOUT");
     }
   } finally {
     linked.cleanup();

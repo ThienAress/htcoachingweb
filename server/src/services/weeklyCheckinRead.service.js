@@ -1,15 +1,39 @@
 import WeeklyCheckin from "../models/WeeklyCheckin.js";
 import WeeklyCheckinRevision from "../models/WeeklyCheckinRevision.js";
-import { assertTrainerWeeklyCheckinRead } from "./weeklyCheckinAccess.service.js";
+import {
+  assertTrainerWeeklyCheckinRead,
+  weeklyCheckinError,
+} from "./weeklyCheckinAccess.service.js";
+import { resolveCustomerDashboardAccess } from "./customerDashboardAccess.service.js";
 import {
   toWeeklyCheckinDto,
   toWeeklyCheckinRevisionDto,
 } from "./weeklyCheckinDto.service.js";
 
-export const getMyWeeklyCheckin = async ({ clientId, weekStartDateKey }) =>
-  toWeeklyCheckinDto(
+const assertCustomerRead = async (clientId, clientRole = "user") => {
+  const access = await resolveCustomerDashboardAccess({
+    id: clientId,
+    role: clientRole,
+  });
+  if (access.accessMode === "blocked") {
+    throw weeklyCheckinError(
+      403,
+      "Bạn cần có gói coaching hoặc HT Fitness+ còn hiệu lực để xem số đo",
+      "WEEKLY_CHECKIN_ENTITLEMENT_REQUIRED",
+    );
+  }
+};
+
+export const getMyWeeklyCheckin = async ({
+  clientId,
+  clientRole,
+  weekStartDateKey,
+}) => {
+  await assertCustomerRead(clientId, clientRole);
+  return toWeeklyCheckinDto(
     await WeeklyCheckin.findOne({ clientId, weekStartDateKey }).lean(),
   );
+};
 
 export const getTrainerWeeklyCheckin = async ({
   actor,
@@ -28,10 +52,12 @@ export const getTrainerWeeklyCheckin = async ({
 
 export const listWeeklyCheckinRevisions = async ({
   clientId,
+  clientRole,
   weekStartDateKey,
   page = 1,
   limit = 20,
 }) => {
+  await assertCustomerRead(clientId, clientRole);
   const checkin = await WeeklyCheckin.findOne({
     clientId,
     weekStartDateKey,

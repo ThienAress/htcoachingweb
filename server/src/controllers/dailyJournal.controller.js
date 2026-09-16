@@ -6,6 +6,7 @@ import {
   submitDailyJournalNutrition,
 } from "../services/dailyJournal.service.js";
 import {
+  assertCustomerJournalRead,
   getMyDailyJournal,
   getTrainerDailyJournal,
   listDailyJournalRevisions,
@@ -46,6 +47,7 @@ export const getMyJournal = async (req, res) => {
   try {
     const data = await getMyDailyJournal({
       clientId: req.user.id,
+      clientRole: req.user.role,
       dateKey: req.params.dateKey,
     });
     return res.json({ success: true, data });
@@ -93,6 +95,7 @@ export const getMyJournalRevisions = async (req, res) => {
   try {
     const data = await listDailyJournalRevisions({
       clientId: req.user.id,
+      clientRole: req.user.role,
       dateKey: req.params.dateKey,
       ...pagination(req),
     });
@@ -105,6 +108,7 @@ export const getMyJournalRevisions = async (req, res) => {
 export const getMyJournalTimeline = async (req, res) => {
   privateResponse(res);
   try {
+    await assertCustomerJournalRead(req.user.id, req.user.role);
     const data = await getDailyJournalTimeline({
       clientId: req.user.id,
       dateKey: req.params.dateKey,

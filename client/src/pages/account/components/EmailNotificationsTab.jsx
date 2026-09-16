@@ -1,4 +1,4 @@
-import { Mail, Sunrise } from "lucide-react";
+import { BellRing, Mail } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { NotificationPreferences } from "../../../components/NotificationPreferences";
@@ -7,10 +7,13 @@ const EmailNotificationsTab = ({ userId }) => {
   const { t } = useTranslation("account");
 
   return (
-    <section className="animate-tab-fade" aria-labelledby="email-reminder-title">
+    <section
+      className="animate-tab-fade motion-reduce:animate-none"
+      aria-labelledby="email-notification-title"
+    >
       <header className="mb-6 border-b border-white/10 pb-4">
         <h2
-          id="email-reminder-title"
+          id="email-notification-title"
           className="text-xl font-bold uppercase text-white"
         >
           {t("email_reminders.title")}
@@ -23,14 +26,14 @@ const EmailNotificationsTab = ({ userId }) => {
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-gray-800/30 shadow-xl">
         <div className="flex items-start gap-4 border-b border-white/10 p-5 sm:p-6">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-300">
-            <Sunrise className="h-6 w-6" aria-hidden="true" />
+            <BellRing className="h-6 w-6" aria-hidden="true" />
           </span>
           <div>
             <h3 className="font-bold text-white">
-              {t("email_reminders.morning_title")}
+              {t("email_reminders.options_title")}
             </h3>
             <p className="mt-1 text-sm leading-6 text-gray-400">
-              {t("email_reminders.morning_desc")}
+              {t("email_reminders.options_desc")}
             </p>
           </div>
         </div>

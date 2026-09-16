@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowRight, CalendarDays, Clock, Loader2, RefreshCw, Rocket, Users } from "lucide-react";
+import { useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import SEO from "../../components/SEO";
 import { useTodayDashboardDay } from "../../hooks/useTodayDashboardDay";
@@ -254,6 +255,17 @@ const TodayDashboardDayLayout = () => {
     query.data?.summary,
     section,
   );
+  const selfManaged = query.data?.accessMode === "self_managed";
+  const metaDescription =
+    selfManaged && section === "journal"
+      ? "Sức khỏe, thói quen và số đo tuần do bạn tự lưu."
+      : meta.description;
+
+  useEffect(() => {
+    if (query.data?.accessMode === "self_managed" && section === "training") {
+      navigate(dashboardPathFor("today", dateKey), { replace: true });
+    }
+  }, [dateKey, navigate, query.data?.accessMode, section]);
 
   const goToDate = (nextDateKey) =>
     navigate(dashboardPathFor(section, nextDateKey));
@@ -274,7 +286,9 @@ const TodayDashboardDayLayout = () => {
           <div>
             {/* Eyebrow label */}
             <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest text-slate-500">
-              Bảng theo dõi học viên
+              {query.data?.accessMode === "coaching"
+                ? "Dashboard học viên"
+                : "Dashboard của tôi"}
             </p>
             <h1 className="text-2xl font-black text-white sm:text-3xl">{meta.title}</h1>
             {validDate && (
@@ -283,7 +297,7 @@ const TodayDashboardDayLayout = () => {
               </p>
             )}
             <p className="mt-1 max-w-xl text-sm leading-6 text-slate-400">
-              {meta.description}
+              {metaDescription}
             </p>
           </div>
 
@@ -395,6 +409,7 @@ const TodayDashboardDayLayout = () => {
           <Outlet
             context={{
               data: query.data,
+              accessMode: query.data.accessMode,
               dateKey,
               handleJournalChanged,
               refetch: query.refetch,

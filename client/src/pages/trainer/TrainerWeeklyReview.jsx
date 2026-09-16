@@ -5,6 +5,9 @@ const STATUS_LABELS = {
 const WEEKLY_MEASUREMENTS = [
   ["weightKg", "Cân nặng", "kg"],
   ["waistCm", "Vòng eo", "cm"],
+  ["hipCm", "Vòng hông", "cm"],
+  ["abdomenCm", "Vòng bụng", "cm"],
+  ["waistHipRatio", "Tỷ lệ eo/hông", ""],
   ["bodyFatPercent", "Tỷ lệ mỡ cơ thể", "%"],
   ["skeletalMusclePercent", "Tỷ lệ cơ xương", "%"],
 ];
@@ -19,7 +22,7 @@ export const TrainerWeeklyMeasurements = ({ body = {} }) => (
           <dt className="text-xs font-semibold text-slate-500">{label}</dt>
           <dd className="mt-1 text-sm font-bold text-slate-100">
             {available
-              ? `${value.toLocaleString("vi-VN", { maximumFractionDigits: 2 })} ${unit}`
+              ? `${value.toLocaleString("vi-VN", { maximumFractionDigits: 3 })} ${unit}`.trim()
               : "Chưa ghi"}
           </dd>
         </div>

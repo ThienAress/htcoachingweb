@@ -12,7 +12,7 @@ export const commentDisplay = (comment) => {
       ? "Bình luận đã được gỡ"
       : String(comment.body || "").trim(),
     authorLabel:
-      comment.actorRole === "trainer"
+      ["trainer", "admin"].includes(comment.actorRole)
         ? "Huấn luyện viên"
         : comment.isMine
           ? "Bạn"

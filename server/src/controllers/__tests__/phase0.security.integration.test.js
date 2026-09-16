@@ -29,6 +29,8 @@ import Checkin from "../../models/Checkin.js";
 import DailyJournal from "../../models/DailyJournal.js";
 import Order from "../../models/Order.js";
 import Contract from "../../models/Contract.js";
+import NotificationPreference from "../../models/NotificationPreference.js";
+import { sendCheckinMail } from "../../utils/sendMail.js";
 import F1Intake from "../../models/F1Intake.js";
 import {
   createCheckin,
@@ -109,6 +111,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  vi.clearAllMocks();
   await clearCollections();
 });
 
@@ -310,6 +313,7 @@ describe("Phase 0 security boundaries", () => {
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
     expect(await Checkin.countDocuments({ orderId: order._id })).toBe(1);
+    expect(sendCheckinMail).not.toHaveBeenCalled();
     const exhaustedOrder = await Order.findById(order._id);
     expect(exhaustedOrder.sessions).toBe(0);
     expect(exhaustedOrder.sessionsExhaustedAt).toBeInstanceOf(Date);
@@ -335,6 +339,48 @@ describe("Phase 0 security boundaries", () => {
     expect(
       (await DailyJournal.findById(journal._id)).retentionExpiresAt,
     ).toBeNull();
+  });
+
+  it("sends check-in email only after the client opts in", async () => {
+    const { user: client } = await createTestUser({
+      email: "checkin-email-optin@example.com",
+    });
+    const { user: trainer, accessToken } = await createTestUser({
+      email: "checkin-email-optin-trainer@example.com",
+      role: "admin",
+    });
+    const order = await Order.create({
+      userId: client._id,
+      trainerId: trainer._id,
+      name: client.name,
+      email: client.email,
+      package: "PT 10",
+      sessions: 2,
+      totalSessions: 2,
+      status: "approved",
+    });
+    await NotificationPreference.create({
+      recipientId: client._id,
+      checkinEmail: true,
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/checkin").send({
+        orderId: order._id.toString(),
+        clientRequestId: "b26e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
+        time: "2026-07-19T08:00:00.000Z",
+        muscle: "Legs",
+        note: "Opted in",
+      }),
+      accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(sendCheckinMail).toHaveBeenCalledTimes(1);
+    expect(sendCheckinMail).toHaveBeenCalledWith(
+      client.email,
+      expect.objectContaining({ remainingSessions: 1 }),
+    );
   });
 
   it("preserves client coaching progress and rejects a stale trainer revision", async () => {

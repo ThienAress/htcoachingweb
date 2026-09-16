@@ -129,6 +129,17 @@ Các tên `/audit`, `/ship` cũ không phải slash command native của Codex. 
 
 ## Điều kiện hoàn thành
 
+- Sau mỗi lượt trả lời cuối trong project, thêm footer theo
+  `.agents/rules/workflow/session-governance.md`: chạy
+  `node .agents/skills/codex-session-governor/scripts/session-governor.mjs --footer`
+  với exact task ID từ runtime; thiếu telemetry báo không xác định, không đoán.
+- Khi chọn model/checkpoint dùng `$codex-session-governor`; recommendation không
+  đổi model thực thi, không tự tạo task hoặc mở rộng quyền delegation.
+- User đã yêu cầu conditional multi-model workers: với phần việc độc lập đủ lớn,
+  context gọn, verification rõ và runtime cho phép, chủ động giao role/model theo
+  session-governance; việc trivial root tự làm. Giữ model gốc user chọn, không
+  suy mọi worker cùng model; kiểm availability và báo requested/observed đúng nguồn.
+
 - Không còn debug log, commented-out code mới, unused import hoặc hardcoded secret do thay đổi tạo ra.
 - Không tạo breaking change ngoài yêu cầu; file mới nên dưới 300 dòng, nếu vượt phải có lý do hoặc tách module.
 - Báo cáo cuối nêu: kết quả, files chính, validation đã chạy, phần chưa chạy/blocker và side effect nếu có.

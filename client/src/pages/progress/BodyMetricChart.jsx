@@ -11,10 +11,10 @@ const formatDate = (dateKey) =>
   }).format(new Date(`${dateKey}T12:00:00+07:00`));
 
 const formatNumber = (value) =>
-  Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+  Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 3 });
 
 const valueLabel = (value, unit) =>
-  unit === "%" ? `${formatNumber(value)}%` : `${formatNumber(value)} ${unit}`;
+  unit === "%" ? `${formatNumber(value)}%` : `${formatNumber(value)} ${unit}`.trim();
 
 const useChartWidth = () => {
   const containerRef = useRef(null);
@@ -36,7 +36,12 @@ const useChartWidth = () => {
   return { containerRef, width };
 };
 
-export const BodyMetricChart = ({ label, metric, range }) => {
+export const BodyMetricChart = ({
+  label,
+  metric,
+  range,
+  selfManaged = false,
+}) => {
   const { containerRef, width } = useChartWidth();
   const [activeDateKey, setActiveDateKey] = useState(null);
   const titleId = useId();
@@ -69,10 +74,11 @@ export const BodyMetricChart = ({ label, metric, range }) => {
           aria-labelledby={`${titleId} ${descriptionId}`}
           data-body-metric-chart="true"
         >
-          <title id={titleId}>{`Biểu đồ ${label.toLowerCase()} (${metric.unit})`}</title>
+          <title id={titleId}>{`Biểu đồ ${label.toLowerCase()}${metric.unit ? ` (${metric.unit})` : ""}`}</title>
           <desc id={descriptionId}>
-            Mỗi điểm là một báo cáo tuần đã gửi và đường nối thể hiện xu hướng
-            giữa các lần có số đo.
+            {selfManaged
+              ? "Mỗi điểm là một số đo tuần đã lưu và đường nối thể hiện xu hướng giữa các lần có số đo."
+              : "Mỗi điểm là một báo cáo tuần đã gửi và đường nối thể hiện xu hướng giữa các lần có số đo."}
           </desc>
           <rect
             x={dimensions.padding.left}

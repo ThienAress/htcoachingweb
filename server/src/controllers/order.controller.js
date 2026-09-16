@@ -27,6 +27,11 @@ import {
   SERVICE_ACCESS_TIERS,
   createServiceEntitlementSnapshot,
 } from "../constants/serviceAccessPolicies.js";
+import { resolveDefaultAdminTrainer } from "../services/defaultAdminTrainer.service.js";
+import {
+  effectiveCoachOrderFilter,
+  resolveOrderCoach,
+} from "../services/effectiveCoach.service.js";
 
 const orderError = (status, code, message, data = null) =>
   Object.assign(new Error(message), {
@@ -58,6 +63,10 @@ const acquireTrainerCapacity = async ({ trainerId, clientId, session }) => {
     .select("role")
     .session(session)
     .lean();
+  if (trainer?.role === "admin") {
+    const defaultTrainer = await resolveDefaultAdminTrainer({ session });
+    if (String(defaultTrainer._id) === String(trainerId)) return;
+  }
   const subscription = await TrainerSubscription.findOne({
     userId: trainerId,
     status: "active",
@@ -145,11 +154,15 @@ export const createOrder = async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const trainerId = req.isAdmin
-      ? req.body.trainerId || null
-      : req.user.id;
+    let trainerId = req.isAdmin ? req.body.trainerId || null : req.user.id;
     let order;
     await session.withTransaction(async () => {
+      if (!trainerId) {
+        ({ trainerId } = await resolveOrderCoach({
+          order: { trainerId: null },
+          session,
+        }));
+      }
       const conversionOrigin = await resolveConversionOrigin({
         originBookingId: req.body.originBookingId,
         originContactMessageId: req.body.originContactMessageId,
@@ -210,7 +223,7 @@ export const createOrder = async (req, res) => {
     });
   } catch (err) {
     const normalizedError = normalizeConversionOriginPersistenceError(err);
-    const status = normalizedError?.status || 500;
+    const status = normalizedError?.status || normalizedError?.statusCode || 500;
     if (status >= 500) {
       safeLog.error("order.create_failed", normalizedError);
     } else {
@@ -220,7 +233,7 @@ export const createOrder = async (req, res) => {
     }
     res.status(status).json({
       success: false,
-      code: normalizedError?.code || "ORDER_CREATE_FAILED",
+      code: normalizedError?.code || normalizedError?.codeName || "ORDER_CREATE_FAILED",
       message:
         status >= 500 ? "Lỗi tạo đơn" : normalizedError.message,
       ...(normalizedError?.data ? { data: normalizedError.data } : {}),
@@ -284,12 +297,12 @@ export const getCheckinOrderOptions = async (req, res) => {
       status: "approved",
       sessions: { $gt: 0 },
       ...(req.isAdmin
-        ? { trainerId: null }
+        ? await effectiveCoachOrderFilter({ trainerId: req.user.id })
         : { trainerId: req.user.id }),
     };
     if (search) {
       const regex = new RegExp(escapeRegex(search), "i");
-      query.$or = [{ name: regex }, { email: regex }];
+      query.$and = [{ $or: [{ name: regex }, { email: regex }] }];
     }
 
     const orders = await trackDbQuery("order.checkin_options", () =>
@@ -309,23 +322,49 @@ export const getCheckinOrderOptions = async (req, res) => {
 };
 
 export const approveOrder = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const entitlementPolicySnapshot = createServiceEntitlementSnapshot(
       SERVICE_ACCESS_TIERS.COACHING_CUSTOMER,
     );
-    // Atomic: chỉ approve nếu đang pending
-    const order = await Order.findOneAndUpdate(
-      { _id: req.params.id, status: "pending" },
-      {
-        $set: {
-          status: "approved",
-          approvedAt: new Date(),
-          entitlementPolicyVersion: SERVICE_ACCESS_POLICY_VERSION,
-          entitlementPolicySnapshot,
+    let order;
+    await session.withTransaction(async () => {
+      const pendingOrder = await Order.findOne({
+        _id: req.params.id,
+        status: "pending",
+      }).session(session);
+      if (!pendingOrder) return;
+
+      const updateData = {
+        status: "approved",
+        approvedAt: new Date(),
+        entitlementPolicyVersion: SERVICE_ACCESS_POLICY_VERSION,
+        entitlementPolicySnapshot,
+      };
+      if (!pendingOrder.trainerId) {
+        const { trainerId } = await resolveOrderCoach({
+          order: pendingOrder,
+          session,
+        });
+        updateData.trainerId = trainerId;
+        if (pendingOrder.userId) {
+          await acquireTrainerCapacity({
+            trainerId,
+            clientId: pendingOrder.userId,
+            session,
+          });
+        }
+      }
+      order = await Order.findOneAndUpdate(
+        {
+          _id: pendingOrder._id,
+          status: "pending",
+          updatedAt: pendingOrder.updatedAt,
         },
-      },
-      { returnDocument: "after" },
-    );
+        { $set: updateData },
+        { returnDocument: "after", session },
+      );
+    });
 
     if (!order) {
       // Kiểm tra đơn có tồn tại không
@@ -354,10 +393,13 @@ export const approveOrder = async (req, res) => {
     });
   } catch (err) {
     safeLog.error("order.approve_failed", err);
-    res.status(500).json({
+    res.status(err?.status || err?.statusCode || 500).json({
       success: false,
+      code: err?.code || err?.codeName || "ORDER_APPROVE_FAILED",
       message: err.message,
     });
+  } finally {
+    await session.endSession();
   }
 };
 
@@ -476,8 +518,13 @@ export const updateOrder = async (req, res) => {
       }
     }
 
+    const assignsDefaultLeadOnApproval =
+      order.status === "pending" &&
+      updateData.status === "approved" &&
+      !order.trainerId &&
+      !updateData.trainerId;
     let updated;
-    if (isInitialTrainerAssignment) {
+    if (isInitialTrainerAssignment || assignsDefaultLeadOnApproval) {
       if (!order.userId) {
         return res.status(409).json({
           success: false,
@@ -488,6 +535,12 @@ export const updateOrder = async (req, res) => {
       const session = await mongoose.startSession();
       try {
         await session.withTransaction(async () => {
+          if (assignsDefaultLeadOnApproval) {
+            ({ trainerId: updateData.trainerId } = await resolveOrderCoach({
+              order,
+              session,
+            }));
+          }
           await acquireTrainerCapacity({
             trainerId: updateData.trainerId,
             clientId: order.userId,
@@ -561,7 +614,7 @@ export const updateOrder = async (req, res) => {
       message: "Cập nhật thành công",
     });
   } catch (err) {
-    const status = err?.status || 500;
+    const status = err?.status || err?.statusCode || 500;
     if (status >= 500) {
       safeLog.error("order.update_failed", err);
     } else {
@@ -571,7 +624,7 @@ export const updateOrder = async (req, res) => {
     }
     res.status(status).json({
       success: false,
-      code: err?.code || "ORDER_UPDATE_FAILED",
+      code: err?.code || err?.codeName || "ORDER_UPDATE_FAILED",
       message: status >= 500 ? "Lỗi cập nhật đơn" : err.message,
       ...(err?.data ? { data: err.data } : {}),
     });

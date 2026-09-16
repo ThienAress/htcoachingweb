@@ -240,6 +240,7 @@ export const ProgressWellnessOverview = ({
   onBack,
   range = {},
   rangeControls,
+  selfManaged = false,
   wellness = {},
 }) => {
   const [activeKey, setActiveKey] = useState(() => initialMetricKey(wellness));
@@ -259,7 +260,11 @@ export const ProgressWellnessOverview = ({
       <ProgressSectionHeader
         title="Sức khỏe trung bình"
         titleId="wellness-progress-title"
-        description="Theo dõi xu hướng từ những nhật ký sức khỏe đã gửi."
+        description={
+          selfManaged
+            ? "Theo dõi xu hướng từ những nhật ký sức khỏe bạn đã lưu."
+            : "Theo dõi xu hướng từ những nhật ký sức khỏe đã gửi."
+        }
         headingRef={headingRef}
         onBack={onBack}
         rangeControls={rangeControls}
@@ -294,6 +299,7 @@ export const ProgressWellnessOverview = ({
           <WellnessMetricChart
             config={activeConfig}
             range={range}
+            selfManaged={selfManaged}
             wellness={wellness}
           />
           {activeSnapshot.hasValue && (
@@ -303,7 +309,9 @@ export const ProgressWellnessOverview = ({
               </h4>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>
-                  Biểu đồ chỉ hiển thị những ngày đã gửi dữ liệu.
+                  {selfManaged
+                    ? "Biểu đồ chỉ hiển thị những ngày bạn đã lưu dữ liệu."
+                    : "Biểu đồ chỉ hiển thị những ngày đã gửi dữ liệu."}
                 </li>
                 {activeConfig.kind !== "qualitative" && (
                   <li>

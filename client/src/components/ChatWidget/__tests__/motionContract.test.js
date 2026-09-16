@@ -45,5 +45,7 @@ describe("ChatWidget motion contract", () => {
     expect(panel).toContain("behavior: getChatScrollBehavior(window)");
     expect(navigator).toContain("group-hover:opacity-100");
     expect(navigator).toContain("group-focus-within:opacity-100");
+    expect(navigator).toContain("group-hover/marker:w-6");
+    expect(navigator).toContain("group-focus-visible/marker:w-6");
   });
 });

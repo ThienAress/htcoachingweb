@@ -1,4 +1,17 @@
+import { randomUUID } from "node:crypto";
 import { getHeapStatistics } from "node:v8";
+
+const RUNTIME_INSTANCE_ID = randomUUID();
+// Captured once at process boot.  Do not read process.env at request time: a
+// receipt must describe the same deployed process as its metrics snapshot.
+const RUNTIME_RELEASE_SHA = String(
+  process.env.RENDER_GIT_COMMIT || (process.env.NODE_ENV === "test" ? "a".repeat(40) : ""),
+);
+
+export const getRuntimeIdentity = () => Object.freeze({
+  runtimeInstanceId: RUNTIME_INSTANCE_ID,
+  runtimeReleaseSha: RUNTIME_RELEASE_SHA,
+});
 
 const COUNTER_NAMES = new Set([
   "http.requests",
@@ -70,6 +83,9 @@ const COUNTER_NAMES = new Set([
   "kb.embedding_failures",
   "kb.search_no_hits",
   "kb.vector_fallbacks",
+  "kb.vector_root_fallbacks",
+  "kb.vector_variant_fallbacks",
+  "kb.vector_combined_fallbacks",
   "checkin.idempotency_hits",
   "checkin.transaction_aborts",
   "coaching.revision_conflicts",
@@ -329,6 +345,8 @@ export const getMetricsSnapshot = ({
   const memory = getMemorySnapshot({ memoryUsage, heapStatistics });
   return {
     generatedAt: new Date(nowMs).toISOString(),
+    runtimeInstanceId: RUNTIME_INSTANCE_ID,
+    runtimeReleaseSha: RUNTIME_RELEASE_SHA,
     uptimeSeconds: Math.round(process.uptime()),
     memory,
     counters: Object.fromEntries(counters),

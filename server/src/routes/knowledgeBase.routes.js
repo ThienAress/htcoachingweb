@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
+import { prepareStagingAiAcceptanceSearch, settleStagingAiAcceptanceHandler } from "../middlewares/stagingAiAcceptance.js";
 import {
   getEntries,
   createEntry,
@@ -17,6 +18,7 @@ import {
   getFullConversation,
   getCategories,
   suggestFromConversations,
+  reviewConversationFeedback,
 } from "../controllers/knowledgeBase.controller.js";
 
 const router = Router();
@@ -26,7 +28,7 @@ router.use(protect, requireRoles("admin"));
 
 // Read-only routes (không cần CSRF)
 router.get("/", getEntries);
-router.get("/search", searchEntries);
+router.get("/search", prepareStagingAiAcceptanceSearch, settleStagingAiAcceptanceHandler(searchEntries));
 router.get("/stats", getStats);
 router.get("/categories", getCategories);
 router.get("/conversations", getAllConversations);
@@ -38,6 +40,11 @@ router.put("/:id", csrfProtection, updateEntry);
 router.delete("/:id", csrfProtection, deleteEntry);
 router.post("/from-conversation", csrfProtection, createFromConversation);
 router.post("/ai-suggest", csrfProtection, suggestFromConversations);
+router.post(
+  "/feedback/:conversationId/:messageId/review",
+  csrfProtection,
+  reviewConversationFeedback,
+);
 router.post("/:id/regenerate-embedding", csrfProtection, regenerateEmbedding);
 router.post("/:id/merge", csrfProtection, mergeVariant);
 router.get("/:id/variants", getVariants);

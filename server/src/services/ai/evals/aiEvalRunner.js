@@ -2,6 +2,10 @@ import { sanitizeAssistantOutput } from "../assistantOutput.js";
 import { getAiPromptContractMetadata } from "../promptContract.js";
 import { AI_RUNTIME_POLICY } from "../runtimePolicy.js";
 import {
+  buildRequestRoutingBlock,
+  routeAiRequest,
+} from "../requestRouter.js";
+import {
   buildKnowledgeReferenceBlock,
   buildPersonalMemoryBlock,
   buildSystemPrompt,
@@ -11,6 +15,7 @@ import {
   toolRegistry,
 } from "../tools/toolRegistry.js";
 import { serializeToolResultForModel } from "../tools/toolResultBoundary.js";
+import { evaluateRetrievalGoldenQueries } from "./retrievalQualityEvaluator.js";
 
 const SCHEMA_VERSION = 1;
 const ID_PATTERN = /^[a-z0-9][a-z0-9_-]{2,99}$/;
@@ -83,6 +88,7 @@ const evaluators = {
   guest_tool_contract: ({ input, expected }) => {
     const tools = getToolSchemas({
       isAuthenticated: input.isAuthenticated === true,
+      allowWebSearch: input.allowWebSearch !== false,
     });
     const names = tools.map((tool) => tool.function.name);
     const failures = [];
@@ -107,6 +113,16 @@ const evaluators = {
   },
   runtime_limits_contract: ({ expected }) =>
     comparePathEquals(AI_RUNTIME_POLICY, expected.pathEquals),
+  request_router_contract: ({ input, expected }) => {
+    const decision = routeAiRequest(input.message);
+    const routingBlock = buildRequestRoutingBlock(decision, {
+      canUseWebSearch: input.canUseWebSearch === true,
+    });
+    return [
+      ...comparePathEquals(decision, expected.pathEquals),
+      ...compareText(routingBlock, expected.routingText || {}),
+    ];
+  },
   tool_result_contract: ({ input, expected }) => {
     const envelope = JSON.parse(
       serializeToolResultForModel({
@@ -127,6 +143,8 @@ const evaluators = {
       ...compareText(result.content, expected.text || {}),
     ];
   },
+  retrieval_quality_contract: ({ input, expected }) =>
+    evaluateRetrievalGoldenQueries(input, expected),
 };
 
 export const AI_EVAL_EVALUATORS = Object.freeze(Object.keys(evaluators));
@@ -178,13 +196,21 @@ export async function evaluateAiCorpus(corpus) {
 
   for (const scenario of corpus.scenarios) {
     try {
-      const failures = await evaluators[scenario.evaluator](scenario);
-      results.push({
+      const evaluation = await evaluators[scenario.evaluator](scenario);
+      const normalized = Array.isArray(evaluation)
+        ? { failures: evaluation }
+        : evaluation;
+      if (!Array.isArray(normalized?.failures)) {
+        throw new Error("evaluator must return failures as an array");
+      }
+      const result = {
         id: scenario.id,
         evaluator: scenario.evaluator,
-        passed: failures.length === 0,
-        failures,
-      });
+        passed: normalized.failures.length === 0,
+        failures: normalized.failures,
+      };
+      if (normalized.metrics !== undefined) result.metrics = normalized.metrics;
+      results.push(result);
     } catch (error) {
       results.push({
         id: scenario.id,

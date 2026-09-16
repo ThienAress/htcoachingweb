@@ -53,6 +53,11 @@ const clientWeeklyDeepLink = ({ contextDateKey }) =>
     : "/dashboard";
 
 const TYPE_CONFIG = {
+  body_assessment_published: {
+    category: "weekly",
+    title: () => "Huấn luyện viên đã gửi kết quả đo thành phần cơ thể",
+    deepLink: "/dashboard/progress#composition",
+  },
   journal_submitted: {
     category: "journal",
     title: ({ clientName }) =>

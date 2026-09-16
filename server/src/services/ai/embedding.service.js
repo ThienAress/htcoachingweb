@@ -8,10 +8,27 @@ import {
   recordGeminiRequest,
   recordGeminiResult,
 } from "../../observability/providerUsageMetrics.js";
-
-export const EMBEDDING_MODEL = "gemini-embedding-2";
-export const EMBEDDING_DIMENSION = 768;
-export const EMBEDDING_VERSION = `${EMBEDDING_MODEL}:${EMBEDDING_DIMENSION}`;
+import { withKnowledgeEvidenceDefaults } from "../../utils/knowledgeBase.js";
+import {
+  buildKnowledgeRetrievalFilter,
+  rankKnowledgeCandidates,
+} from "./retrievalRuntime.js";
+import {
+  EMBEDDING_DIMENSION,
+  EMBEDDING_MODEL,
+  EMBEDDING_PROFILE_ID,
+  EMBEDDING_VERSION,
+  getEmbeddingProfile,
+} from "./embeddingProfile.js";
+export {
+  EMBEDDING_DIMENSION,
+  EMBEDDING_MODEL,
+  EMBEDDING_PROFILE_ID,
+  EMBEDDING_VERSION,
+  LEGACY_EMBEDDING_PROFILE_ID,
+  LEGACY_EMBEDDING_VERSION,
+  QUESTION_ANSWERING_EMBEDDING_PROFILE_ID,
+} from "./embeddingProfile.js";
 
 const EMBEDDING_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const EMBEDDING_TIMEOUT_MS = Number(process.env.EMBEDDING_TIMEOUT_MS) || 15000;
@@ -27,6 +44,36 @@ function normalizeEmbeddingText(text) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+}
+
+export function prepareEmbeddingInput(
+  text,
+  { inputType = "document", profileId = EMBEDDING_PROFILE_ID } = {},
+) {
+  const profile = getEmbeddingProfile(profileId);
+  if (!profile) throw new Error(`Embedding profile không được hỗ trợ: ${profileId}`);
+  if (!new Set(["query", "document"]).has(inputType)) {
+    throw new Error(`Embedding input type không được hỗ trợ: ${inputType}`);
+  }
+  const cleanText = normalizeEmbeddingText(text);
+  if (!cleanText) throw new Error("Text rỗng, không thể tạo embedding");
+  if (cleanText.length > 1000) {
+    throw new Error("Text embedding vượt quá 1000 ký tự");
+  }
+
+  let preparedText = cleanText;
+  if (profile.format === "question_answering") {
+    preparedText =
+      inputType === "query"
+        ? `task: question answering | query: ${cleanText}`
+        : `title: none | text: ${cleanText}`;
+  }
+  return {
+    inputType,
+    profileId,
+    text: preparedText,
+    version: profile.version,
+  };
 }
 
 function createLinkedSignal(externalSignal, timeoutMs) {
@@ -108,7 +155,7 @@ function waitForEmbedding(promise, { signal, timeoutMs } = {}) {
   });
 }
 
-async function requestEmbedding(cleanText) {
+async function requestEmbedding(preparedText, cacheKey) {
   // The provider deadline is independent from any one caller. This lets callers
   // stop waiting without cancelling an identical request shared by others.
   const providerTimeoutMs = Math.min(
@@ -127,7 +174,7 @@ async function requestEmbedding(cleanText) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: `models/${EMBEDDING_MODEL}`,
-        content: { parts: [{ text: cleanText }] },
+        content: { parts: [{ text: preparedText }] },
         outputDimensionality: EMBEDDING_DIMENSION,
       }),
       signal: linked.signal,
@@ -153,7 +200,7 @@ async function requestEmbedding(cleanText) {
       throw new Error("Embedding provider trả vector không hợp lệ");
     }
 
-    setCachedEmbedding(cleanText, values);
+    setCachedEmbedding(cacheKey, values);
     recordGeminiResult("embedding", { success: true, usage });
     return values;
   } catch (error) {
@@ -172,31 +219,31 @@ export async function generateEmbedding(text, options = {}) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("Embedding provider chưa được cấu hình");
 
-  const cleanText = normalizeEmbeddingText(text);
-  if (!cleanText) throw new Error("Text rỗng, không thể tạo embedding");
-  if (cleanText.length > 1000) {
-    throw new Error("Text embedding vượt quá 1000 ký tự");
-  }
+  const prepared = prepareEmbeddingInput(text, {
+    inputType: options.inputType || "document",
+    profileId: options.profileId || EMBEDDING_PROFILE_ID,
+  });
+  const cacheKey = JSON.stringify([prepared.version, prepared.text]);
 
-  const cached = getCachedEmbedding(cleanText);
+  const cached = getCachedEmbedding(cacheKey);
   if (cached) return cached;
 
   const callerTimeoutMs = options.timeoutMs
     ? Math.min(Math.max(Number(options.timeoutMs) || 3000, 3000), 60000)
     : null;
-  let pending = embeddingInFlight.get(cleanText);
+  let pending = embeddingInFlight.get(cacheKey);
   if (!pending) {
-    pending = requestEmbedding(cleanText);
-    embeddingInFlight.set(cleanText, pending);
+    pending = requestEmbedding(prepared.text, cacheKey);
+    embeddingInFlight.set(cacheKey, pending);
     pending.then(
       () => {
-        if (embeddingInFlight.get(cleanText) === pending) {
-          embeddingInFlight.delete(cleanText);
+        if (embeddingInFlight.get(cacheKey) === pending) {
+          embeddingInFlight.delete(cacheKey);
         }
       },
       () => {
-        if (embeddingInFlight.get(cleanText) === pending) {
-          embeddingInFlight.delete(cleanText);
+        if (embeddingInFlight.get(cacheKey) === pending) {
+          embeddingInFlight.delete(cacheKey);
         }
       },
     );
@@ -226,26 +273,51 @@ export function cosineSimilarity(vecA, vecB) {
   return denominator === 0 ? 0 : dotProduct / denominator;
 }
 
+const normalizeVectorSearchScore = (cosine) =>
+  Math.min(Math.max((Number(cosine) + 1) / 2, 0), 1);
+
+const readAtlasIndexName = (variantsOnly) => {
+  const indexName = variantsOnly
+    ? process.env.KB_VARIANT_VECTOR_INDEX
+    : process.env.KB_VECTOR_INDEX;
+  const normalized = String(indexName || "").trim();
+  return /^[a-z0-9_-]+$/i.test(normalized) ? normalized : null;
+};
+
+const buildCurrentReviewFilter = (now) => ({
+  $or: [
+    { reviewDueAt: { $exists: false } },
+    { reviewDueAt: null },
+    { reviewDueAt: { $gt: now } },
+  ],
+});
+
 async function atlasVectorSearch(KnowledgeEntry, queryVector, options) {
-  const indexName = process.env.KB_VECTOR_INDEX;
-  if (!indexName || !/^[a-z0-9_-]+$/i.test(indexName)) return null;
+  const indexName = readAtlasIndexName(options.variantsOnly);
+  if (!indexName) return null;
 
   const filter = {
-    status: "published",
-    embeddingStatus: "ready",
+    ...buildKnowledgeRetrievalFilter({
+      embeddingVersion: options.embeddingVersion,
+      category: options.category,
+    }),
+    ...buildCurrentReviewFilter(options.now),
   };
-  if (options.category) filter.category = options.category;
 
-  return KnowledgeEntry.aggregate([
+  const vectorPath = options.variantsOnly ? "variants.embedding" : "embedding";
+  const vectorSearch = {
+    index: indexName,
+    path: vectorPath,
+    queryVector,
+    numCandidates: Math.min(Math.max(options.limit * 20, 50), 200),
+    limit: Math.min(Math.max(options.limit * 4, options.limit), 40),
+    ...(options.variantsOnly
+      ? { parentFilter: filter, nestedOptions: { scoreMode: "max" } }
+      : { filter }),
+  };
+  const entries = await KnowledgeEntry.aggregate([
     {
-      $vectorSearch: {
-        index: indexName,
-        path: "embedding",
-        queryVector,
-        numCandidates: Math.min(Math.max(options.limit * 20, 50), 200),
-        limit: options.limit,
-        filter,
-      },
+      $vectorSearch: vectorSearch,
     },
     {
       $project: {
@@ -253,53 +325,127 @@ async function atlasVectorSearch(KnowledgeEntry, queryVector, options) {
         answer: 1,
         category: 1,
         tags: 1,
+        status: 1,
+        embeddingStatus: 1,
         variantCount: 1,
+        embeddingVersion: 1,
+        sources: 1,
+        evidenceLevel: 1,
+        reviewStatus: 1,
+        freshnessClass: 1,
+        reviewDueAt: 1,
+        reviewedAt: 1,
+        revision: 1,
+        ...(options.variantsOnly && { variants: 1 }),
         similarity: { $meta: "vectorSearchScore" },
       },
     },
-    { $match: { similarity: { $gte: options.threshold } } },
+    {
+      $match: {
+        ...buildCurrentReviewFilter(options.now),
+      },
+    },
   ]);
+
+  return entries.map((entry) => {
+    if (!options.variantsOnly) return { ...entry, matchSource: "primary" };
+    let matchedQuestion = entry.question;
+    let bestVariantScore = -1;
+    for (const variant of entry.variants || []) {
+      if (variant.embedding?.length !== EMBEDDING_DIMENSION) continue;
+      const score = cosineSimilarity(queryVector, variant.embedding);
+      if (score > bestVariantScore) {
+        bestVariantScore = score;
+        matchedQuestion = variant.text;
+      }
+    }
+    const boundedEntry = { ...entry };
+    delete boundedEntry.variants;
+    return { ...boundedEntry, matchedQuestion, matchSource: "variant" };
+  });
 }
 
 async function boundedFallbackSearch(KnowledgeEntry, queryVector, options) {
-  const filter = { status: "published", embeddingStatus: "ready" };
-  if (options.category) filter.category = options.category;
+  const filter = {
+    ...buildKnowledgeRetrievalFilter({
+      embeddingVersion: options.embeddingVersion,
+      category: options.category,
+      requireVariants: options.variantsOnly,
+    }),
+    ...buildCurrentReviewFilter(options.now),
+  };
 
   const entries = await KnowledgeEntry.find(filter)
-    .select("+embedding +variants question answer category tags variantCount _id")
+    .select(
+      "+embedding +variants question answer category tags status embeddingStatus variantCount embeddingVersion sources evidenceLevel reviewStatus freshnessClass reviewDueAt reviewedAt revision _id",
+    )
     .sort({ usageCount: -1, updatedAt: -1 })
     .limit(Math.min(Math.max(MAX_FALLBACK_ENTRIES, 50), 2000))
     .lean();
 
-  return entries
-    .filter((entry) => entry.embedding?.length === EMBEDDING_DIMENSION)
+  const candidates = entries
+    .filter((entry) =>
+      options.variantsOnly
+        ? entry.variants?.some(
+            (variant) => variant.embedding?.length === EMBEDDING_DIMENSION,
+          )
+        : entry.embedding?.length === EMBEDDING_DIMENSION,
+    )
     .map((entry) => {
-      let similarity = cosineSimilarity(queryVector, entry.embedding);
+      let rawCosineSimilarity = options.variantsOnly
+        ? -1
+        : cosineSimilarity(queryVector, entry.embedding);
       let matchedQuestion = entry.question;
-      for (const variant of entry.variants || []) {
-        if (variant.embedding?.length !== EMBEDDING_DIMENSION) continue;
-        const variantSimilarity = cosineSimilarity(queryVector, variant.embedding);
-        if (variantSimilarity > similarity) {
-          similarity = variantSimilarity;
-          matchedQuestion = variant.text;
+      let matchSource = options.variantsOnly ? "variant" : "primary";
+      if (!options.primaryOnly) {
+        for (const variant of entry.variants || []) {
+          if (variant.embedding?.length !== EMBEDDING_DIMENSION) continue;
+          const variantSimilarity = cosineSimilarity(queryVector, variant.embedding);
+          if (variantSimilarity > rawCosineSimilarity) {
+            rawCosineSimilarity = variantSimilarity;
+            matchedQuestion = variant.text;
+            matchSource = "variant";
+          }
         }
       }
 
-      return {
+      const similarity = normalizeVectorSearchScore(rawCosineSimilarity);
+
+      return withKnowledgeEvidenceDefaults({
         _id: entry._id,
         question: entry.question,
         matchedQuestion,
         answer: entry.answer,
         category: entry.category,
         tags: entry.tags,
+        status: entry.status,
+        embeddingStatus: entry.embeddingStatus,
+        embeddingVersion: entry.embeddingVersion,
         similarity,
+        matchSource,
         variantCount: entry.variantCount || 0,
-      };
-    })
-    .filter((entry) => entry.similarity >= options.threshold)
-    .sort((left, right) => right.similarity - left.similarity)
-    .slice(0, options.limit);
+        sources: entry.sources,
+        evidenceLevel: entry.evidenceLevel,
+        reviewStatus: entry.reviewStatus,
+        freshnessClass: entry.freshnessClass,
+        reviewDueAt: entry.reviewDueAt,
+        reviewedAt: entry.reviewedAt,
+        revision: entry.revision,
+      });
+    });
+  return rankKnowledgeCandidates(candidates, options);
 }
+
+const VECTOR_FALLBACK_METRICS = Object.freeze({
+  root: "kb.vector_root_fallbacks",
+  variant: "kb.vector_variant_fallbacks",
+  combined: "kb.vector_combined_fallbacks",
+});
+
+const recordVectorFallback = (scope) => {
+  incrementMetric("kb.vector_fallbacks");
+  incrementMetric(VECTOR_FALLBACK_METRICS[scope]);
+};
 
 async function searchKnowledgeBaseInternal(query, options = {}) {
   const cleanQuery = String(query || "").trim();
@@ -312,41 +458,111 @@ async function searchKnowledgeBaseInternal(query, options = {}) {
       ? Math.min(Math.max(rawThreshold, 0), 1)
       : 0.75,
     category: options.category,
+    embeddingVersion: EMBEDDING_VERSION,
+    now: new Date(),
   };
   const { default: KnowledgeEntry } = await import("../../models/KnowledgeEntry.js");
-  const hasEntries = await KnowledgeEntry.exists({
-    status: "published",
-    embeddingStatus: "ready",
-    ...(boundedOptions.category && { category: boundedOptions.category }),
-  });
+  const hasEntries = await KnowledgeEntry.exists(
+    {
+      ...buildKnowledgeRetrievalFilter({
+        embeddingVersion: boundedOptions.embeddingVersion,
+        category: boundedOptions.category,
+      }),
+      ...buildCurrentReviewFilter(boundedOptions.now),
+    },
+  );
   if (!hasEntries) return [];
 
   let queryVector;
   try {
-    queryVector = await generateEmbedding(cleanQuery, { signal: options.signal });
+    queryVector = await generateEmbedding(cleanQuery, {
+      inputType: "query",
+      signal: options.signal,
+    });
   } catch (error) {
     safeLog.error("kb.query_embedding_failed", error);
     return [];
   }
 
-  try {
-    const atlasResults = await atlasVectorSearch(
-      KnowledgeEntry,
-      queryVector,
-      boundedOptions,
-    );
-    if (atlasResults) {
-      return atlasResults.map((entry) => ({
-        ...entry,
-        matchedQuestion: entry.question,
-      }));
-    }
-  } catch (error) {
-    safeLog.error("kb.vector_search_fallback", error);
+  const hasRootAtlasIndex = Boolean(readAtlasIndexName(false));
+  const hasVariantAtlasIndex = Boolean(readAtlasIndexName(true));
+  if (!hasRootAtlasIndex && !hasVariantAtlasIndex) {
+    recordVectorFallback("combined");
+    return boundedFallbackSearch(KnowledgeEntry, queryVector, boundedOptions);
   }
 
-  incrementMetric("kb.vector_fallbacks");
-  return boundedFallbackSearch(KnowledgeEntry, queryVector, boundedOptions);
+  let atlasResults;
+  if (hasRootAtlasIndex) {
+    try {
+      atlasResults = await atlasVectorSearch(
+        KnowledgeEntry,
+        queryVector,
+        { ...boundedOptions, variantsOnly: false },
+      );
+    } catch (error) {
+      safeLog.error("kb.vector_search_fallback", error);
+    }
+  }
+
+  let normalizedAtlas;
+  if (!Array.isArray(atlasResults) || atlasResults.length === 0) {
+    recordVectorFallback("root");
+    normalizedAtlas = await boundedFallbackSearch(
+      KnowledgeEntry,
+      queryVector,
+      { ...boundedOptions, primaryOnly: true },
+    );
+  } else {
+    normalizedAtlas = atlasResults.map((entry) =>
+      withKnowledgeEvidenceDefaults({
+        ...entry,
+        matchedQuestion: entry.question,
+        matchSource: "primary",
+      }),
+    );
+  }
+
+  const hasVariantEntries = await KnowledgeEntry.exists({
+    ...buildKnowledgeRetrievalFilter({
+      embeddingVersion: boundedOptions.embeddingVersion,
+      category: boundedOptions.category,
+      requireVariants: true,
+    }),
+    ...buildCurrentReviewFilter(boundedOptions.now),
+  });
+  if (!hasVariantEntries) {
+    return rankKnowledgeCandidates(normalizedAtlas, boundedOptions);
+  }
+
+  let variantResults;
+  if (hasVariantAtlasIndex) {
+    try {
+      variantResults = await atlasVectorSearch(
+        KnowledgeEntry,
+        queryVector,
+        { ...boundedOptions, variantsOnly: true },
+      );
+    } catch {
+      // A nested-index incompatibility must not discard valid root Atlas hits.
+      // The bounded fallback metric below remains the operational signal.
+      variantResults = null;
+    }
+  }
+  if (!Array.isArray(variantResults) || variantResults.length === 0) {
+    recordVectorFallback("variant");
+    variantResults = await boundedFallbackSearch(KnowledgeEntry, queryVector, {
+      ...boundedOptions,
+      variantsOnly: true,
+    });
+  }
+
+  return rankKnowledgeCandidates(
+    [
+      ...normalizedAtlas,
+      ...variantResults.map((entry) => withKnowledgeEvidenceDefaults(entry)),
+    ],
+    boundedOptions,
+  );
 }
 
 export async function searchKnowledgeBase(query, options = {}) {

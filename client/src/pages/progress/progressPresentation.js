@@ -6,7 +6,13 @@ const METRIC_LABELS = {
   habitCompliance: "Thói quen được giao",
 };
 
-const PROGRESS_SECTION_KEYS = new Set(["compliance", "body", "wellness"]);
+const SELF_MANAGED_METRIC_LABELS = {
+  mealCompliance: "Bữa ăn đã lưu",
+  habitCompliance: "Thói quen cá nhân",
+};
+
+const PROGRESS_SECTION_KEYS = new Set(["compliance", "body", "wellness", "composition"]);
+const BODY_METRIC_KEYS = ["weightKg", "waistCm", "hipCm", "abdomenCm", "waistHipRatio", "bodyFatPercent", "skeletalMusclePercent"];
 const BODY_PROGRESS_RANGES = Object.freeze([30, 90, 180]);
 const DAILY_PROGRESS_RANGES = Object.freeze([7, 30, 90]);
 
@@ -14,13 +20,13 @@ export const normalizeProgressSection = (value) =>
   PROGRESS_SECTION_KEYS.has(value) ? value : null;
 
 export const progressRangeOptions = (section) =>
-  section === "body" ? [...BODY_PROGRESS_RANGES] : [...DAILY_PROGRESS_RANGES];
+  ["body", "composition"].includes(section) ? [...BODY_PROGRESS_RANGES] : [...DAILY_PROGRESS_RANGES];
 
 export const normalizeProgressDaysForSection = (section, days) => {
   const ranges = progressRangeOptions(section);
   const value = Number(days);
   if (ranges.includes(value)) return value;
-  if (section === "body" && value < ranges[0]) return ranges[0];
+  if (["body", "composition"].includes(section) && value < ranges[0]) return ranges[0];
   return ranges.at(-1);
 };
 
@@ -35,7 +41,7 @@ export const progressSectionHasData = (section, progress = {}) => {
     );
   }
   if (section === "body") {
-    return ["weightKg", "waistCm", "bodyFatPercent", "skeletalMusclePercent"].some(
+    return BODY_METRIC_KEYS.some(
       (key) => (progress.bodyProgress?.[key]?.series || []).length > 0,
     );
   }
@@ -53,10 +59,20 @@ export const progressSectionHasData = (section, progress = {}) => {
   return false;
 };
 
-export const progressMetricRows = (compliance = {}) =>
-  Object.entries(compliance).map(([key, value]) => ({
+export const progressMetricRows = (
+  compliance = {},
+  { selfManaged = false } = {},
+) =>
+  Object.entries(compliance)
+    .filter(
+      ([key]) =>
+        !selfManaged || Object.hasOwn(SELF_MANAGED_METRIC_LABELS, key),
+    )
+    .map(([key, value]) => ({
     key,
-    label: METRIC_LABELS[key] || key,
+    label:
+      (selfManaged ? SELF_MANAGED_METRIC_LABELS[key] : METRIC_LABELS[key]) ||
+      key,
     numerator: value?.numerator || 0,
     denominator: value?.denominator || 0,
     percent: value?.percent ?? null,
@@ -64,7 +80,7 @@ export const progressMetricRows = (compliance = {}) =>
       value?.percent === null || value?.percent === undefined
         ? "Chưa có dữ liệu"
         : value.percent + "%",
-  }));
+    }));
 
 const validBodyPoint = (point) =>
   /^\d{4}-\d{2}-\d{2}$/.test(String(point?.dateKey || "")) &&
@@ -77,6 +93,9 @@ export const bodyProgressHistoryRows = (bodyProgress = {}) => {
   for (const [metricKey, field] of [
     ["weightKg", "weightKg"],
     ["waistCm", "waistCm"],
+    ["hipCm", "hipCm"],
+    ["abdomenCm", "abdomenCm"],
+    ["waistHipRatio", "waistHipRatio"],
     ["bodyFatPercent", "bodyFatPercent"],
     ["skeletalMusclePercent", "skeletalMusclePercent"],
   ]) {
@@ -86,6 +105,9 @@ export const bodyProgressHistoryRows = (bodyProgress = {}) => {
         dateKey: point.dateKey,
         weightKg: null,
         waistCm: null,
+        hipCm: null,
+        abdomenCm: null,
+        waistHipRatio: null,
         bodyFatPercent: null,
         skeletalMusclePercent: null,
       };
@@ -107,7 +129,7 @@ export const summarizeProgressAvailability = (progress) =>
       (metric?.average !== null && metric?.average !== undefined) ||
       (metric?.latest !== null && metric?.latest !== undefined),
   ) ||
-  ["weightKg", "waistCm", "bodyFatPercent", "skeletalMusclePercent"].some(
+  BODY_METRIC_KEYS.some(
     (key) => (progress?.bodyProgress?.[key]?.series || []).length > 0,
   ) ||
   (progress?.weightTrend?.points || []).length > 0;

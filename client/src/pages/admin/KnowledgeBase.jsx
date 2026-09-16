@@ -1,17 +1,34 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import {
   Brain, Plus, Search, Trash2, Edit3, MessageSquare,
   BarChart3, RefreshCw, ChevronDown, Eye, Star, X, Sparkles, GitMerge, AlertTriangle,
+  ThumbsDown, ThumbsUp, CheckCircle2, Ban, Link2,
 } from "lucide-react";
 import {
   getKBEntries, createKBEntry, updateKBEntry, deleteKBEntry,
   getKBStats, getKBCategories, searchKB, aiSuggestKB, mergeKBVariant,
   getKBVariants, deleteKBVariant, regenerateKBEmbedding,
-  getAllConversations, getFullConversation, createKBFromConversation,
+  getAllConversations, getFullConversation, createKBFromConversation, reviewAiFeedback,
 } from "../../services/knowledgeBase.service";
 import { useDebounce } from "../../hooks/useDebounce";
+import {
+  applyConversationFeedbackReview,
+  buildKnowledgeSuggestionDraft,
+  buildKnowledgeEntryPayload,
+  clampKnowledgePage,
+  createEmptyKnowledgeSource,
+  createKnowledgeSearchRuntime,
+  createLatestRequestRuntime,
+  filterConversationPairs,
+  getKnowledgeQueryViewState,
+  getPairFeedback,
+  getPairReviewStatus,
+  getSuggestionSourcePair,
+  KNOWLEDGE_SEARCH_MODES,
+  toDateInputValue,
+} from "./knowledgeBaseAdmin";
 
 const emptyForm = (variants = []) => ({
   question: "",
@@ -20,6 +37,10 @@ const emptyForm = (variants = []) => ({
   tags: "",
   variants,
   status: "draft",
+  evidenceLevel: "legacy_unverified",
+  freshnessClass: "stable",
+  reviewDueAt: "",
+  sources: [],
 });
 
 const CATEGORY_COLORS = {
@@ -35,12 +56,53 @@ const CATEGORY_COLORS = {
   general: "bg-gray-100 text-gray-700",
 };
 
+const EVIDENCE_LEVELS = [
+  { value: "legacy_unverified", label: "Chưa kiểm chứng" },
+  { value: "editor_reviewed", label: "Biên tập viên đã duyệt" },
+  { value: "source_backed", label: "Có nguồn đối chiếu" },
+  { value: "canonical_internal", label: "Nguồn nội bộ chuẩn" },
+];
+
+const FRESHNESS_CLASSES = [
+  { value: "stable", label: "Ổn định" },
+  { value: "periodic", label: "Kiểm tra định kỳ" },
+  { value: "time_sensitive", label: "Nhạy theo thời gian" },
+];
+
+const SOURCE_TYPES = [
+  { value: "internal", label: "Nội bộ HTCOACHING" },
+  { value: "official", label: "Nguồn chính thức" },
+  { value: "research", label: "Nghiên cứu" },
+  { value: "professional", label: "Tổ chức chuyên môn" },
+  { value: "editorial", label: "Báo chí / biên tập" },
+  { value: "conversation", label: "Hội thoại cần kiểm chứng" },
+];
+
+const EVIDENCE_TIERS = [
+  { value: "canonical", label: "Chuẩn nội bộ" },
+  { value: "primary", label: "Nguồn gốc / trực tiếp" },
+  { value: "professional", label: "Nguồn chuyên môn" },
+  { value: "secondary", label: "Nguồn thứ cấp" },
+  { value: "conversation", label: "Từ hội thoại" },
+  { value: "legacy_unknown", label: "Chưa xác định" },
+];
+
+const REVIEW_STATUS_LABELS = {
+  pending: "Chờ xử lý",
+  resolved: "Đã xử lý",
+  dismissed: "Đã bỏ qua",
+};
+
 export default function KnowledgeBase() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("entries"); // entries | conversations | search
   const [entryPage, setEntryPage] = useState(1);
   const [conversationPage, setConversationPage] = useState(1);
   const [filter, setFilter] = useState({ category: "", status: "", search: "" });
+  const [conversationFilter, setConversationFilter] = useState({
+    feedback: "down",
+    feedbackReviewStatus: "pending",
+  });
   const debouncedSearch = useDebounce(filter.search, 300);
 
   // Modal states
@@ -54,11 +116,32 @@ export default function KnowledgeBase() {
   // Conversations
   const [selectedConv, setSelectedConv] = useState(null);
   const [convDetail, setConvDetail] = useState(null);
+  const [reviewingMessageId, setReviewingMessageId] = useState(null);
+  const [editRequestRuntime] = useState(createLatestRequestRuntime);
+  const [conversationRequestRuntime] = useState(createLatestRequestRuntime);
 
   // Search test
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResponse, setSearchResponse] = useState(null);
+  const [searchError, setSearchError] = useState("");
   const [searching, setSearching] = useState(false);
+  const [searchMode, setSearchMode] = useState("production");
+  const [searchRuntime] = useState(() =>
+    createKnowledgeSearchRuntime({
+      search: searchKB,
+      onStart: () => {
+        setSearching(true);
+        setSearchError("");
+        setSearchResponse(null);
+      },
+      onSuccess: setSearchResponse,
+      onError: () => {
+        setSearchError("Không thể kiểm tra tìm kiếm. Vui lòng thử lại.");
+        toast.error("Lỗi search");
+      },
+      onSettled: () => setSearching(false),
+    }),
+  );
 
   // AI Suggest
   const [suggestions, setSuggestions] = useState([]);
@@ -107,11 +190,23 @@ export default function KnowledgeBase() {
       "knowledge-base",
       "conversations",
       conversationPage,
+      conversationFilter.feedback,
+      conversationFilter.feedbackReviewStatus,
     ],
     queryFn: ({ signal }) =>
-      getAllConversations({ page: conversationPage, limit: 15 }, signal).then(
-        (response) => response.data,
-      ),
+      getAllConversations(
+        {
+          page: conversationPage,
+          limit: 15,
+          ...(conversationFilter.feedback && {
+            feedback: conversationFilter.feedback,
+          }),
+          ...(conversationFilter.feedbackReviewStatus && {
+            feedbackReviewStatus: conversationFilter.feedbackReviewStatus,
+          }),
+        },
+        signal,
+      ).then((response) => response.data),
     enabled: tab === "conversations",
     placeholderData: keepPreviousData,
   });
@@ -133,6 +228,60 @@ export default function KnowledgeBase() {
     tab === "conversations"
       ? conversationsQuery.isLoading
       : entriesQuery.isLoading;
+  const entriesViewState = getKnowledgeQueryViewState({
+    isLoading: entriesQuery.isLoading,
+    isError: entriesQuery.isError,
+    hasData: entries.length > 0,
+  });
+  const statsViewState = getKnowledgeQueryViewState({
+    isLoading: statsQuery.isLoading,
+    isError: statsQuery.isError,
+    hasData: Boolean(stats),
+  });
+  const visibleConversationPairs = filterConversationPairs(
+    convDetail?.qaPairs,
+    conversationFilter,
+  );
+  const currentSearchResponse =
+    searchResponse?.query === searchQuery.trim() &&
+    searchResponse?.mode === searchMode
+      ? searchResponse
+      : null;
+  const searchResults = currentSearchResponse?.results || [];
+
+  useEffect(
+    () => () => {
+      searchRuntime.cancel();
+      editRequestRuntime.invalidate();
+      conversationRequestRuntime.invalidate();
+    },
+    [conversationRequestRuntime, editRequestRuntime, searchRuntime],
+  );
+
+  useEffect(() => {
+    if (entriesQuery.isFetching) return;
+    const nextPage = clampKnowledgePage(entryPage, pagination.totalPages);
+    if (nextPage !== entryPage) setEntryPage(nextPage);
+  }, [entriesQuery.isFetching, entryPage, pagination.totalPages]);
+
+  useEffect(() => {
+    if (conversationsQuery.isFetching) return;
+    const nextPage = clampKnowledgePage(
+      conversationPage,
+      convPagination.totalPages,
+    );
+    if (nextPage !== conversationPage) {
+      conversationRequestRuntime.invalidate();
+      setSelectedConv(null);
+      setConvDetail(null);
+      setConversationPage(nextPage);
+    }
+  }, [
+    conversationRequestRuntime,
+    conversationsQuery.isFetching,
+    conversationPage,
+    convPagination.totalPages,
+  ]);
 
   const loadEntries = useCallback(
     (page = entryPage) => {
@@ -168,11 +317,7 @@ export default function KnowledgeBase() {
     }
     setSaving(true);
     try {
-      const data = {
-        ...form,
-        tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
-        variants: (form.variants || []).map((v) => v.trim()).filter(Boolean),
-      };
+      const data = buildKnowledgeEntryPayload(form);
       if (editingEntry) {
         const response = await updateKBEntry(editingEntry._id, data);
         if (response.data.warning) toast.warning(response.data.warning);
@@ -181,9 +326,7 @@ export default function KnowledgeBase() {
         const res = sourcePair
           ? await createKBFromConversation({
               ...data,
-              conversationId: sourcePair.conversationId,
-              questionIndex: sourcePair.questionIndex,
-              answerIndex: sourcePair.answerIndex,
+              ...sourcePair,
             })
           : await createKBEntry(data);
         // Check duplicate warning
@@ -222,9 +365,7 @@ export default function KnowledgeBase() {
       if (sourcePair) {
         await createKBFromConversation({
           ...payload,
-          conversationId: sourcePair.conversationId,
-          questionIndex: sourcePair.questionIndex,
-          answerIndex: sourcePair.answerIndex,
+          ...sourcePair,
         });
       } else {
         await createKBEntry(payload);
@@ -289,14 +430,17 @@ export default function KnowledgeBase() {
   };
 
   const handleEdit = async (entry) => {
+    const request = editRequestRuntime.begin();
     setEditingEntry(entry);
     let entryVariants = [];
     try {
-      const res = await getKBVariants(entry._id);
+      const res = await getKBVariants(entry._id, request.signal);
       entryVariants = (res.data?.data?.variants || []).map((v) => v.text);
     } catch {
       // Variants are optional when opening the edit form.
     }
+    if (!editRequestRuntime.isCurrent(request)) return;
+    editRequestRuntime.settle(request);
     setForm({
       question: entry.question,
       answer: entry.answer,
@@ -304,6 +448,18 @@ export default function KnowledgeBase() {
       tags: entry.tags?.join(", ") || "",
       variants: entryVariants.length > 0 ? entryVariants : [""],
       status: entry.status || "draft",
+      evidenceLevel: entry.evidenceLevel || "legacy_unverified",
+      freshnessClass: entry.freshnessClass || "stable",
+      reviewDueAt: toDateInputValue(entry.reviewDueAt),
+      sources: (entry.sources || []).map((source) => ({
+        type: source.type || "official",
+        title: source.title || "",
+        publisher: source.publisher || "",
+        url: source.url || "",
+        evidenceTier: source.evidenceTier || "legacy_unknown",
+        publishedAt: toDateInputValue(source.publishedAt),
+        retrievedAt: toDateInputValue(source.retrievedAt),
+      })),
     });
     setSourcePair(null);
     setShowModal(true);
@@ -334,14 +490,39 @@ export default function KnowledgeBase() {
   };
 
   const viewConversation = async (id) => {
+    const request = conversationRequestRuntime.begin();
+    setSelectedConv(id);
+    setConvDetail(null);
     try {
-      const res = await getFullConversation(id);
+      const res = await getFullConversation(id, {
+        ...(conversationFilter.feedback && {
+          feedback: conversationFilter.feedback,
+        }),
+        ...(conversationFilter.feedbackReviewStatus && {
+          feedbackReviewStatus: conversationFilter.feedbackReviewStatus,
+        }),
+      }, request.signal);
+      if (!conversationRequestRuntime.isCurrent(request)) return;
       setConvDetail(res.data.data);
-      setSelectedConv(id);
-    } catch { toast.error("Lỗi tải conversation"); }
+    } catch {
+      if (!conversationRequestRuntime.isCurrent(request)) return;
+      setSelectedConv(null);
+      toast.error("Lỗi tải conversation");
+    } finally {
+      conversationRequestRuntime.settle(request);
+    }
   };
 
   const addToKB = (pair) => {
+    const boundSourcePair = getSuggestionSourcePair({
+      ...pair,
+      conversationId: selectedConv,
+    });
+    if (!boundSourcePair) {
+      toast.error("Cặp Q&A chưa có định danh nguồn hợp lệ; hãy tải lại conversation");
+      return;
+    }
+    editRequestRuntime.invalidate();
     setForm({
       question: pair.question,
       answer: pair.answer || "",
@@ -349,25 +530,95 @@ export default function KnowledgeBase() {
       tags: "",
       variants: [""],
       status: "draft",
+      evidenceLevel: "legacy_unverified",
+      freshnessClass: "stable",
+      reviewDueAt: "",
+      sources: [],
     });
     setEditingEntry(null);
-    setSourcePair({
-      conversationId: selectedConv,
-      questionIndex: pair.questionIndex,
-      answerIndex: pair.answerIndex,
-    });
+    setSourcePair(boundSourcePair);
     setShowModal(true);
   };
 
   // Search test
-  const handleSearch = async () => {
+  const invalidateSearch = () => {
+    searchRuntime.invalidate();
+    setSearchResponse(null);
+    setSearchError("");
+  };
+
+  const handleSearchQueryChange = (value) => {
+    invalidateSearch();
+    setSearchQuery(value);
+  };
+
+  const handleSearchModeChange = (mode) => {
+    if (mode === searchMode) return;
+    invalidateSearch();
+    setSearchMode(mode);
+  };
+
+  const handleSearch = () => {
     if (!searchQuery.trim()) return;
-    setSearching(true);
+    void searchRuntime.run({ query: searchQuery, mode: searchMode });
+  };
+
+  const handleFeedbackReview = async (pair, status) => {
+    const messageId = pair.answerMessageId;
+    if (!selectedConv || !messageId || reviewingMessageId) return;
+    const reviewConversationId = selectedConv;
+    setReviewingMessageId(messageId);
     try {
-      const res = await searchKB({ q: searchQuery, limit: 5, threshold: 0.6 });
-      setSearchResults(res.data.data);
-    } catch { toast.error("Lỗi search"); }
-    setSearching(false);
+      const response = await reviewAiFeedback(
+        reviewConversationId,
+        messageId,
+        status,
+      );
+      const savedReview = response.data?.data?.feedbackReview || { status };
+      setConvDetail((current) =>
+        applyConversationFeedbackReview(current, {
+          conversationId: reviewConversationId,
+          messageId,
+          feedbackReview: savedReview,
+        }),
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "knowledge-base", "conversations"],
+      });
+      toast.success(
+        status === "resolved"
+          ? "Đã đánh dấu phản hồi là đã xử lý"
+          : "Đã bỏ qua phản hồi này",
+      );
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Không thể cập nhật phản hồi");
+    } finally {
+      setReviewingMessageId(null);
+    }
+  };
+
+  const updateConversationFilter = (key, value) => {
+    conversationRequestRuntime.invalidate();
+    setConversationPage(1);
+    setSelectedConv(null);
+    setConvDetail(null);
+    setConversationFilter((current) => ({ ...current, [key]: value }));
+  };
+
+  const updateKnowledgeSource = (index, key, value) => {
+    setForm((current) => ({
+      ...current,
+      sources: (current.sources || []).map((source, sourceIndex) =>
+        sourceIndex === index ? { ...source, [key]: value } : source,
+      ),
+    }));
+  };
+
+  const removeKnowledgeSource = (index) => {
+    setForm((current) => ({
+      ...current,
+      sources: (current.sources || []).filter((_, sourceIndex) => sourceIndex !== index),
+    }));
   };
 
   return (
@@ -378,13 +629,31 @@ export default function KnowledgeBase() {
           <Brain className="w-7 h-7 text-indigo-600" />
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Kiến thức AI</h1>
-            <p className="text-sm text-slate-500">
-              {stats ? `${stats.total} entries • Đã sử dụng ${stats.topUsed?.length || 0} lần` : "Đang tải..."}
-            </p>
+            {statsViewState === "error" ? (
+              <p className="text-sm text-red-600" role="alert">
+                Không tải được thống kê.{" "}
+                <button
+                  type="button"
+                  onClick={() => statsQuery.refetch()}
+                  className="font-medium underline underline-offset-2 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                >
+                  Thử lại
+                </button>
+              </p>
+            ) : (
+              <p className="text-sm text-slate-500" aria-live="polite">
+                {statsViewState === "loading"
+                  ? "Đang tải thống kê..."
+                  : stats
+                    ? `${stats.total} mục kiến thức`
+                    : "Chưa có thống kê"}
+              </p>
+            )}
           </div>
         </div>
         <button
           onClick={() => {
+            editRequestRuntime.invalidate();
             setEditingEntry(null);
             setForm(emptyForm([""]));
             setSourcePair(null);
@@ -418,7 +687,12 @@ export default function KnowledgeBase() {
         ].map(({ key, label, icon: Icon }) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
+            onClick={() => {
+              if (key !== "conversations") {
+                conversationRequestRuntime.invalidate();
+              }
+              setTab(key);
+            }}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               tab === key ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
             }`}
@@ -476,7 +750,7 @@ export default function KnowledgeBase() {
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Câu hỏi</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600 hidden md:table-cell">Danh mục</th>
-                  <th className="text-center px-4 py-3 font-medium text-slate-600 w-20">Dùng</th>
+                  <th className="text-center px-4 py-3 font-medium text-slate-600 w-20">Truy xuất</th>
                   <th className="text-center px-4 py-3 font-medium text-slate-600 w-24">Trạng thái</th>
                   <th className="text-center px-4 py-3 font-medium text-slate-600 w-24"></th>
                 </tr>
@@ -517,6 +791,9 @@ export default function KnowledgeBase() {
                       }`}>
                         vector: {e.embeddingStatus || "pending"}
                       </p>
+                      <p className="mt-1 text-[10px] text-slate-500">
+                        {EVIDENCE_LEVELS.find((item) => item.value === e.evidenceLevel)?.label || "Chưa kiểm chứng"}
+                      </p>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center gap-1 justify-center">
@@ -545,7 +822,30 @@ export default function KnowledgeBase() {
                     </td>
                   </tr>
                 ))}
-                {entries.length === 0 && !loading && (
+                {entriesViewState === "loading" && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center text-slate-500" aria-live="polite">
+                      Đang tải danh sách kiến thức...
+                    </td>
+                  </tr>
+                )}
+                {entriesViewState === "error" && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center">
+                      <div className="text-sm text-red-600" role="alert">
+                        <p>Không tải được danh sách kiến thức.</p>
+                        <button
+                          type="button"
+                          onClick={() => entriesQuery.refetch()}
+                          className="mt-2 rounded-lg border border-red-200 px-3 py-1.5 font-medium hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                        >
+                          Thử lại
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {entriesViewState === "empty" && (
                   <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400">Chưa có knowledge entry nào</td></tr>
                 )}
               </tbody>
@@ -575,7 +875,9 @@ export default function KnowledgeBase() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-medium text-slate-700">AI Gợi ý từ cuộc trò chuyện</p>
-              <p className="text-xs text-slate-400 mt-0.5">AI sẽ quét tất cả conversations, chấm điểm và lọc ra Q&A hay nhất</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                AI chỉ đề xuất ứng viên; Admin phải kiểm chứng nguồn trước khi xuất bản
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <select
@@ -615,7 +917,9 @@ export default function KnowledgeBase() {
           )}
 
           {suggestInfo?.total > 0 && suggestions.length > 0 && (
-            <p className="text-xs text-slate-400 mb-4">Đã quét {suggestInfo.total} Q&A → AI chọn ra {suggestions.length} gợi ý hay nhất</p>
+            <p className="text-xs text-slate-400 mb-4">
+              Đã quét {suggestInfo.total} Q&A → AI đề xuất {suggestions.length} ứng viên cần kiểm chứng
+            </p>
           )}
 
           {suggestions.length > 0 && (
@@ -633,19 +937,20 @@ export default function KnowledgeBase() {
                   <p className="text-sm text-slate-600 line-clamp-3 mb-3">A: {s.answer}</p>
                   <button
                     onClick={() => {
-                      setForm({
-                        question: s.question,
-                        answer: s.answer,
-                        category: s.category || "general",
-                        tags: "",
-                        variants: [""],
-                        status: "draft",
-                      });
-                      setSourcePair(null);
+                      const draft = buildKnowledgeSuggestionDraft(s);
+                      if (!draft) {
+                        toast.error(
+                          "Gợi ý này thiếu thông tin nguồn. Hãy quét lại trước khi thêm vào Knowledge Base.",
+                        );
+                        return;
+                      }
+                      editRequestRuntime.invalidate();
+                      setForm(draft.form);
+                      setSourcePair(draft.sourcePair);
                       setEditingEntry(null);
                       setShowModal(true);
                     }}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium transition-colors hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
                   >
                     <Plus size={12} /> Thêm vào KB
                   </button>
@@ -658,155 +963,348 @@ export default function KnowledgeBase() {
 
       {/* Tab: Conversations */}
       {tab === "conversations" && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* List */}
-          <div className="md:col-span-1 bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="p-3 border-b border-slate-200 bg-slate-50">
-              <p className="text-sm font-medium text-slate-700">Cuộc trò chuyện gần đây</p>
-            </div>
-            <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
-              {conversations.map((c) => (
-                <button
-                  key={c._id}
-                  onClick={() => viewConversation(c._id)}
-                  className={`w-full text-left px-3 py-3 hover:bg-slate-50 transition-colors ${
-                    selectedConv === c._id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : ""
-                  }`}
-                >
-                  <p className="text-sm font-medium text-slate-800 line-clamp-1">{c.title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {c.user?.name || "Unknown"} • {c.messageCount} tin nhắn
-                  </p>
-                </button>
-              ))}
-              {conversations.length === 0 && (
-                <p className="px-4 py-8 text-center text-slate-400 text-sm">
-                  {loading ? "Đang tải..." : "Chưa có cuộc trò chuyện"}
-                </p>
-              )}
-            </div>
-            {convPagination.totalPages > 1 && (
-              <div className="flex items-center justify-between gap-2 border-t border-slate-200 p-2">
-                <button
-                  type="button"
-                  disabled={conversationPage <= 1}
-                  onClick={() => setConversationPage((page) => Math.max(1, page - 1))}
-                  className="px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
-                >
-                  Trước
-                </button>
-                <span className="text-xs text-slate-400">
-                  {conversationPage}/{convPagination.totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={conversationPage >= convPagination.totalPages}
-                  onClick={() =>
-                    setConversationPage((page) =>
-                      Math.min(convPagination.totalPages, page + 1),
-                    )
-                  }
-                  className="px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
-                >
-                  Sau
-                </button>
-              </div>
-            )}
+        <>
+          <div className="mb-4 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-end">
+            <label className="block flex-1 text-xs font-medium text-slate-600">
+              Phản hồi câu trả lời
+              <select
+                value={conversationFilter.feedback}
+                onChange={(event) => updateConversationFilter("feedback", event.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              >
+                <option value="">Tất cả phản hồi</option>
+                <option value="down">Chưa tốt</option>
+                <option value="up">Hữu ích</option>
+              </select>
+            </label>
+            <label className="block flex-1 text-xs font-medium text-slate-600">
+              Trạng thái xử lý
+              <select
+                value={conversationFilter.feedbackReviewStatus}
+                onChange={(event) => updateConversationFilter("feedbackReviewStatus", event.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              >
+                <option value="">Tất cả trạng thái</option>
+                <option value="pending">Chờ xử lý</option>
+                <option value="resolved">Đã xử lý</option>
+                <option value="dismissed">Đã bỏ qua</option>
+              </select>
+            </label>
+            <p className="text-xs text-slate-500 sm:max-w-xs">
+              Ưu tiên phản hồi chưa tốt để sửa câu trả lời hoặc bổ sung kiến thức có nguồn.
+            </p>
           </div>
 
-          {/* Detail */}
-          <div className="md:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden">
-            {convDetail ? (
-              <>
-                <div className="p-3 border-b border-slate-200 bg-slate-50">
-                  <p className="text-sm font-medium text-slate-700">{convDetail.title}</p>
-                  <p className="text-xs text-slate-400">{convDetail.userId?.name} • {convDetail.qaPairs?.length || 0} cặp Q&A</p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {/* List */}
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white md:col-span-1">
+              <div className="border-b border-slate-200 bg-slate-50 p-3">
+                <p className="text-sm font-medium text-slate-700">Cuộc trò chuyện cần xem</p>
+              </div>
+              <div className="max-h-[600px] divide-y divide-slate-100 overflow-y-auto overscroll-contain">
+                {conversations.map((c) => (
+                  <button
+                    key={c._id}
+                    onClick={() => viewConversation(c._id)}
+                    className={`w-full px-3 py-3 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 ${
+                      selectedConv === c._id ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="line-clamp-1 text-sm font-medium text-slate-800">{c.title}</p>
+                      {c.pendingFeedbackCount > 0 && (
+                        <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                          {c.pendingFeedbackCount} chờ xử lý
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-500">{c.messageCount} tin nhắn</p>
+                  </button>
+                ))}
+                {conversations.length === 0 && (
+                  <div className="px-4 py-8 text-center text-sm text-slate-500">
+                    {conversationsQuery.isError ? (
+                      <>
+                        <p>Không thể tải hàng đợi phản hồi.</p>
+                        <button
+                          type="button"
+                          onClick={() => conversationsQuery.refetch()}
+                          className="mt-2 rounded-md px-3 py-1.5 font-medium text-indigo-600 hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                        >
+                          Thử lại
+                        </button>
+                      </>
+                    ) : loading ? "Đang tải..." : "Không có cuộc trò chuyện phù hợp"}
+                  </div>
+                )}
+              </div>
+              {convPagination.totalPages > 1 && (
+                <div className="flex items-center justify-between gap-2 border-t border-slate-200 p-2">
+                  <button
+                    type="button"
+                    disabled={conversationPage <= 1}
+                    onClick={() => {
+                      conversationRequestRuntime.invalidate();
+                      setSelectedConv(null);
+                      setConvDetail(null);
+                      setConversationPage((page) => Math.max(1, page - 1));
+                    }}
+                    className="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-40"
+                  >
+                    Trước
+                  </button>
+                  <span className="text-xs text-slate-500">
+                    {conversationPage}/{convPagination.totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={conversationPage >= convPagination.totalPages}
+                    onClick={() => {
+                      conversationRequestRuntime.invalidate();
+                      setSelectedConv(null);
+                      setConvDetail(null);
+                      setConversationPage((page) =>
+                        Math.min(convPagination.totalPages, page + 1),
+                      );
+                    }}
+                    className="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-40"
+                  >
+                    Sau
+                  </button>
                 </div>
-                <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
-                  {convDetail.qaPairs?.map((pair, i) => (
-                    <div key={i} className="p-4 hover:bg-slate-50 transition-colors group">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-indigo-700 mb-1">Q: {pair.question}</p>
-                          {pair.answer && (
-                            <p className="text-sm text-slate-600 line-clamp-3">A: {pair.answer}</p>
+              )}
+            </div>
+
+            {/* Detail */}
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white md:col-span-2">
+              {convDetail ? (
+                <>
+                  <div className="border-b border-slate-200 bg-slate-50 p-3">
+                    <p className="text-sm font-medium text-slate-700">{convDetail.title}</p>
+                    <p className="text-xs text-slate-500">
+                      {visibleConversationPairs.length} cặp phù hợp bộ lọc
+                    </p>
+                  </div>
+                  <div className="max-h-[600px] divide-y divide-slate-100 overflow-y-auto overscroll-contain">
+                    {visibleConversationPairs.map((pair) => {
+                      const feedback = getPairFeedback(pair);
+                      const reviewStatus = getPairReviewStatus(pair);
+                      const messageId = pair.answerMessageId || pair.answerIndex;
+                      const isReviewing = reviewingMessageId === pair.answerMessageId;
+                      return (
+                        <div key={messageId} className="group p-4 transition-colors hover:bg-slate-50">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-2 flex flex-wrap items-center gap-2">
+                                {feedback === "down" && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                                    <ThumbsDown size={12} /> Chưa tốt
+                                  </span>
+                                )}
+                                {feedback === "up" && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                                    <ThumbsUp size={12} /> Hữu ích
+                                  </span>
+                                )}
+                                {reviewStatus && (
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                                    {REVIEW_STATUS_LABELS[reviewStatus] || reviewStatus}
+                                  </span>
+                                )}
+                              </div>
+                              {pair.contentVisibility === "hidden_sensitive" ? (
+                                <p className="text-sm text-amber-700">
+                                  Nội dung nhạy cảm đã được ẩn; bạn vẫn có thể đóng feedback này.
+                                </p>
+                              ) : (
+                                <p className="mb-1 text-sm font-medium text-indigo-700">Q: {pair.question}</p>
+                              )}
+                              {pair.answer && pair.contentVisibility !== "hidden_sensitive" && (
+                                <p className="line-clamp-3 text-sm text-slate-600">A: {pair.answer}</p>
+                              )}
+                            </div>
+                            {pair.answer && getSuggestionSourcePair(pair) && (
+                              <button
+                                onClick={() => addToKB(pair)}
+                                className="shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 opacity-100 transition-colors hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                              >
+                                <span className="flex items-center gap-1"><Star size={12} /> Thêm vào KB</span>
+                              </button>
+                            )}
+                          </div>
+                          {feedback === "down" && reviewStatus === "pending" && pair.answerMessageId && (
+                            <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                              <button
+                                type="button"
+                                disabled={Boolean(reviewingMessageId)}
+                                onClick={() => handleFeedbackReview(pair, "resolved")}
+                                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <CheckCircle2 size={13} /> {isReviewing ? "Đang lưu..." : "Đánh dấu đã xử lý"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={Boolean(reviewingMessageId)}
+                                onClick={() => handleFeedbackReview(pair, "dismissed")}
+                                className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <Ban size={13} /> Bỏ qua
+                              </button>
+                            </div>
                           )}
                         </div>
-                        {pair.answer && (
-                          <button
-                            onClick={() => addToKB(pair)}
-                            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <Star size={12} /> Thêm vào KB
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
+                    {visibleConversationPairs.length === 0 && (
+                      <p className="px-4 py-10 text-center text-sm text-slate-500">
+                        Cuộc trò chuyện này không có cặp hỏi đáp phù hợp bộ lọc.
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex h-64 items-center justify-center text-sm text-slate-500">
+                  Chọn cuộc trò chuyện để xem chi tiết
                 </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-64 text-slate-400 text-sm">
-                Chọn cuộc trò chuyện để xem chi tiết
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Tab: Search Test */}
       {tab === "search" && (
         <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <p className="text-sm font-medium text-slate-700 mb-3">Test Vector Search</p>
-          <div className="flex gap-3 mb-6">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-700">Kiểm tra tìm kiếm ngữ nghĩa</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Chế độ production dùng đúng 3 kết quả và ngưỡng khớp 75% như HT Assistant.
+              </p>
+            </div>
+            <fieldset>
+              <legend className="mb-1 text-xs font-medium text-slate-600">Chế độ kiểm tra</legend>
+              <div className="flex rounded-lg bg-slate-100 p-1">
+                {[
+                  { value: "production", label: "Production" },
+                  { value: "exploratory", label: "Khám phá" },
+                ].map((mode) => (
+                  <button
+                    key={mode.value}
+                    type="button"
+                    aria-pressed={searchMode === mode.value}
+                    onClick={() => handleSearchModeChange(mode.value)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                      searchMode === mode.value
+                        ? "bg-white text-indigo-700 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+          {searchMode === "exploratory" && (
+            <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Chế độ khám phá nới xuống 60% và lấy 5 kết quả; kết quả này không phản ánh hành vi production.
+            </p>
+          )}
+          <div className="mb-6 flex gap-3">
             <input
               type="text"
-              placeholder="Nhập câu hỏi để test search..."
+              aria-label="Câu hỏi kiểm tra tìm kiếm"
+              placeholder="Nhập câu hỏi để kiểm tra..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchQueryChange(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm"
+              className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
             />
             <button
+              type="button"
               onClick={handleSearch}
-              disabled={searching}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+              disabled={searching || !searchQuery.trim()}
+              aria-controls="knowledge-search-results"
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {searching ? "Đang tìm..." : "Search"}
+              {searching ? "Đang tìm..." : "Tìm kiếm"}
             </button>
           </div>
-          {searchResults.length > 0 && (
-            <div className="space-y-3">
-              {searchResults.map((r, i) => (
-                <div key={r._id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-bold text-indigo-600">#{i + 1}</span>
-                    <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-medium">
-                      {(r.similarity * 100).toFixed(1)}% match
-                    </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${CATEGORY_COLORS[r.category]}`}>{r.category}</span>
+          <div id="knowledge-search-results" aria-busy={searching}>
+            <p className="sr-only" role="status" aria-live="polite">
+              {searching
+                ? "Đang kiểm tra tìm kiếm"
+                : currentSearchResponse
+                  ? `Đã tìm thấy ${searchResults.length} kết quả`
+                  : ""}
+            </p>
+            {searchError && !searching && (
+              <div
+                className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+                role="alert"
+              >
+                <span>{searchError}</span>
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  className="shrink-0 rounded-md px-2 py-1 text-xs font-semibold hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                >
+                  Thử lại
+                </button>
+              </div>
+            )}
+            {searchResults.length > 0 && (
+              <div className="space-y-3">
+                {searchResults.map((r, i) => (
+                  <div key={r._id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-bold text-indigo-600">#{i + 1}</span>
+                      <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-medium">
+                        {(r.similarity * 100).toFixed(1)}% match
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${CATEGORY_COLORS[r.category]}`}>{r.category}</span>
+                      <span className="text-xs text-slate-500">
+                        {EVIDENCE_LEVELS.find((item) => item.value === r.evidenceLevel)?.label || "Chưa kiểm chứng"}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-800 mb-1">Q: {r.question}</p>
+                    {r.matchedQuestion && r.matchedQuestion !== r.question && (
+                      <p className="mb-1 text-xs text-indigo-600">Khớp qua biến thể: {r.matchedQuestion}</p>
+                    )}
+                    <p className="text-sm text-slate-600">A: {r.answer}</p>
                   </div>
-                  <p className="text-sm font-medium text-slate-800 mb-1">Q: {r.question}</p>
-                  <p className="text-sm text-slate-600">A: {r.answer}</p>
-                </div>
-              ))}
-            </div>
-          )}
-          {searchResults.length === 0 && searchQuery && !searching && (
-            <p className="text-sm text-slate-400 text-center py-4">Không tìm thấy kết quả nào (threshold ≥ 60%)</p>
-          )}
+                ))}
+              </div>
+            )}
+            {currentSearchResponse && searchResults.length === 0 && !searching && (
+              <p className="py-4 text-center text-sm text-slate-500">
+                Không tìm thấy kết quả nào (ngưỡng ≥ {Math.round(KNOWLEDGE_SEARCH_MODES[currentSearchResponse.mode].threshold * 100)}%)
+              </p>
+            )}
+          </div>
         </div>
       )}
 
       {/* Modal Thêm/Sửa */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="knowledge-entry-dialog-title"
+            className="w-full max-w-3xl max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl bg-white shadow-2xl mx-4"
+          >
             <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-800">
-                {editingEntry ? "Sửa Knowledge Entry" : "Thêm Knowledge Entry"}
+              <h3 id="knowledge-entry-dialog-title" className="text-lg font-bold text-slate-800">
+                {editingEntry ? "Sửa mục kiến thức" : "Thêm mục kiến thức"}
               </h3>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-md">
+              <button
+                type="button"
+                aria-label="Đóng hộp thoại kiến thức"
+                onClick={() => setShowModal(false)}
+                className="p-1 hover:bg-slate-100 rounded-md"
+              >
                 <X size={18} className="text-slate-400" />
               </button>
             </div>
@@ -879,7 +1377,7 @@ export default function KnowledgeBase() {
                   onChange={(e) => setForm((p) => ({ ...p, answer: e.target.value }))}
                   rows={5}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Câu trả lời đã verified..."
+                  placeholder="Câu trả lời đã đối chiếu..."
                 />
               </div>
 
@@ -901,9 +1399,9 @@ export default function KnowledgeBase() {
                     onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
                   >
-                    <option value="draft">Draft</option>
-                    <option value="published">Published</option>
-                    <option value="archived">Archived</option>
+                    <option value="draft">Bản nháp</option>
+                    <option value="published">Đã xuất bản</option>
+                    <option value="archived">Đã lưu trữ</option>
                   </select>
                 </div>
                 <div>
@@ -917,6 +1415,153 @@ export default function KnowledgeBase() {
                   />
                 </div>
               </div>
+
+              <section className="border-t border-slate-200 pt-4" aria-labelledby="knowledge-evidence-heading">
+                <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h4 id="knowledge-evidence-heading" className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                      <Link2 size={15} className="text-indigo-600" /> Bằng chứng và lịch kiểm tra
+                    </h4>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Mục xuất bản cần nguồn phù hợp và sẽ được server ghi nhận người duyệt.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((current) => ({
+                        ...current,
+                        sources: [...(current.sources || []), createEmptyKnowledgeSource()],
+                      }))
+                    }
+                    className="mt-2 inline-flex items-center gap-1 self-start rounded-md px-2.5 py-1.5 text-xs font-semibold text-indigo-600 transition-colors hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 sm:mt-0"
+                  >
+                    <Plus size={13} /> Thêm nguồn
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <label className="text-xs font-medium text-slate-600">
+                    Mức bằng chứng
+                    <select
+                      value={form.evidenceLevel}
+                      onChange={(event) => setForm((current) => ({ ...current, evidenceLevel: event.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    >
+                      {EVIDENCE_LEVELS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs font-medium text-slate-600">
+                    Độ mới của nội dung
+                    <select
+                      value={form.freshnessClass}
+                      onChange={(event) => setForm((current) => ({ ...current, freshnessClass: event.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    >
+                      {FRESHNESS_CLASSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs font-medium text-slate-600">
+                    Ngày cần kiểm tra lại
+                    <input
+                      type="date"
+                      value={form.reviewDueAt}
+                      onChange={(event) => setForm((current) => ({ ...current, reviewDueAt: event.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {(form.sources || []).map((source, index) => (
+                    <fieldset key={index} className="rounded-xl border border-slate-200 p-3">
+                      <legend className="px-1 text-xs font-semibold text-slate-600">Nguồn {index + 1}</legend>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <label className="text-xs font-medium text-slate-600">
+                          Loại nguồn
+                          <select
+                            value={source.type}
+                            onChange={(event) => updateKnowledgeSource(index, "type", event.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          >
+                            {SOURCE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                          </select>
+                        </label>
+                        <label className="text-xs font-medium text-slate-600">
+                          Cấp độ nguồn
+                          <select
+                            value={source.evidenceTier}
+                            onChange={(event) => updateKnowledgeSource(index, "evidenceTier", event.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          >
+                            {EVIDENCE_TIERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                          </select>
+                        </label>
+                        <label className="text-xs font-medium text-slate-600">
+                          Tiêu đề
+                          <input
+                            type="text"
+                            value={source.title}
+                            onChange={(event) => updateKnowledgeSource(index, "title", event.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            placeholder="Tên tài liệu hoặc trang"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-slate-600">
+                          Đơn vị xuất bản
+                          <input
+                            type="text"
+                            value={source.publisher}
+                            onChange={(event) => updateKnowledgeSource(index, "publisher", event.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            placeholder="Ví dụ: ACSM, WHO"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-slate-600 md:col-span-2">
+                          URL nguồn HTTPS
+                          <input
+                            type="url"
+                            value={source.url}
+                            onChange={(event) => updateKnowledgeSource(index, "url", event.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                            placeholder="https://..."
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-slate-600">
+                          Ngày xuất bản
+                          <input
+                            type="date"
+                            value={source.publishedAt || ""}
+                            onChange={(event) => updateKnowledgeSource(index, "publishedAt", event.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-slate-600">
+                          Ngày truy xuất
+                          <input
+                            type="date"
+                            value={source.retrievedAt || ""}
+                            onChange={(event) => updateKnowledgeSource(index, "retrievedAt", event.target.value)}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          />
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeKnowledgeSource(index)}
+                        className="mt-3 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                      >
+                        <Trash2 size={12} /> Xóa nguồn
+                      </button>
+                    </fieldset>
+                  ))}
+                  {(form.sources || []).length === 0 && (
+                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      Chưa có nguồn. Bạn vẫn có thể lưu bản nháp, nhưng server sẽ từ chối xuất bản khi bằng chứng chưa đủ.
+                    </p>
+                  )}
+                </div>
+              </section>
             </div>
             <div className="flex justify-end gap-3 p-5 border-t border-slate-200">
               <button disabled={saving} onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg disabled:opacity-50">Hủy</button>

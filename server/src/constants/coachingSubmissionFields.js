@@ -9,6 +9,8 @@ export const DAILY_JOURNAL_SUBMISSION_FIELDS = Object.freeze([
 export const WEEKLY_CHECKIN_SUBMISSION_FIELDS = Object.freeze([
   { key: "weightKg", path: "body.weightKg" },
   { key: "waistCm", path: "body.waistCm" },
+  { key: "hipCm", path: "body.hipCm" },
+  { key: "abdomenCm", path: "body.abdomenCm" },
   { key: "bodyFatPercent", path: "body.bodyFatPercent" },
   {
     key: "skeletalMusclePercent",

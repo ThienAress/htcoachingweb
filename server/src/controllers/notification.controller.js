@@ -67,7 +67,9 @@ export const readAllNotifications = async (req, res) => {
 export const getMyNotificationPreference = async (req, res) => {
   privateResponse(res);
   try {
-    const data = await getNotificationPreference(req.user.id);
+    const data = await getNotificationPreference(req.user.id, {
+      role: req.user.role,
+    });
     return res.json({ success: true, data });
   } catch (error) {
     return sendError(res, error, "notification.preference_read_failed");
@@ -79,6 +81,7 @@ export const updateMyNotificationPreference = async (req, res) => {
   try {
     const data = await updateNotificationPreference({
       recipientId: req.user.id,
+      role: req.user.role,
       expectedRevision: req.body.expectedRevision,
       input: {
         inAppEnabled: req.body.inAppEnabled,
@@ -87,6 +90,9 @@ export const updateMyNotificationPreference = async (req, res) => {
         weekly: req.body.weekly,
         ...(req.body.morningHealthEmail !== undefined
           ? { morningHealthEmail: req.body.morningHealthEmail }
+          : {}),
+        ...(req.body.checkinEmail !== undefined
+          ? { checkinEmail: req.body.checkinEmail }
           : {}),
       },
     });

@@ -1,8 +1,9 @@
 import CoachingHabit from "../models/CoachingHabit.js";
 import DailyJournal from "../models/DailyJournal.js";
-import Order from "../models/Order.js";
 import { addDaysToDateKey, parseDateKey } from "../utils/dateKey.js";
 import { assertCoachManagesClient } from "./coachingHabitAccess.service.js";
+import { habitError } from "./coachingHabitAccess.service.js";
+import { resolveCustomerDashboardAccess } from "./customerDashboardAccess.service.js";
 import { toCoachingHabitDto } from "./coachingHabitDto.service.js";
 import {
   deriveHabitStreak,
@@ -34,23 +35,33 @@ const withDerivedState = (habits, journals, dateKey) =>
     }),
   );
 
-export const listMyCoachingHabits = async ({ clientId, dateKey }) => {
+export const listMyCoachingHabits = async ({
+  clientId,
+  clientRole = "user",
+  dateKey,
+}) => {
   parseDateKey(dateKey);
-  const [activeOrder, journals] = await Promise.all([
-    Order.exists({
-      userId: clientId,
-      status: "approved",
-      sessions: { $gt: 0 },
-    }),
+  const access = await resolveCustomerDashboardAccess({
+    id: clientId,
+    role: clientRole,
+  });
+  if (access.accessMode === "blocked") {
+    throw habitError(
+      403,
+      "Bạn cần có gói coaching hoặc HT Fitness+ còn hiệu lực để xem thói quen",
+      "COACHING_HABIT_ENTITLEMENT_REQUIRED",
+    );
+  }
+  const [habits, journals] = await Promise.all([
+    CoachingHabit.find({
+      clientId,
+      isLatest: true,
+      ...(access.accessMode === "coaching" ? {} : { createdByRole: "user" }),
+    })
+      .sort({ createdAt: 1 })
+      .lean(),
     readJournals(clientId, dateKey),
   ]);
-  const habits = await CoachingHabit.find({
-    clientId,
-    isLatest: true,
-    ...(activeOrder ? {} : { createdByRole: "user" }),
-  })
-    .sort({ createdAt: 1 })
-    .lean();
   return {
     items: withDerivedState(habits, journals, dateKey),
     dateKey,

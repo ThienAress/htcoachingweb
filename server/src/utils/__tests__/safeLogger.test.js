@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { sanitizeForLog } from "../safeLogger.js";
+import { describe, expect, it, vi } from "vitest";
+import { runWithRequestContext } from "../requestContext.js";
+import { safeLog, sanitizeForLog } from "../safeLogger.js";
 
 describe("sanitizeForLog", () => {
   it("redacts case-insensitive sensitive keys at every nesting level", () => {
@@ -46,4 +47,46 @@ describe("sanitizeForLog", () => {
     expect(sanitized.errorMessage).not.toContain("token=secret");
     expect(sanitized.signedUrl).toBe("[REDACTED]");
   });
+});
+
+it("preserves request correlation when a context exists", () => {
+  const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    expect(() => runWithRequestContext(
+      { requestId: "internal-request", traceId: "internal-trace" },
+      () => safeLog.info("http.request"),
+    )).not.toThrow();
+    expect(JSON.parse(logSpy.mock.calls[0][0])).toMatchObject({
+      requestId: "internal-request",
+      traceId: "internal-trace",
+      event: "http.request",
+    });
+  } finally {
+    logSpy.mockRestore();
+  }
+});
+
+it("logs safely when no request context exists", () => {
+  const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    expect(() => safeLog.info("server.startup")).not.toThrow();
+    expect(JSON.parse(logSpy.mock.calls[0][0])).not.toHaveProperty("requestId");
+  } finally {
+    logSpy.mockRestore();
+  }
+});
+
+it("redacts phone-shaped correlation values before writing logs", () => {
+  const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    runWithRequestContext(
+      { requestId: "0912345678", traceId: "internal-trace" },
+      () => safeLog.info("http.request"),
+    );
+    const entry = JSON.parse(logSpy.mock.calls[0][0]);
+    expect(entry.requestId).toBe("[REDACTED_PHONE]");
+    expect(entry.traceId).toBe("internal-trace");
+  } finally {
+    logSpy.mockRestore();
+  }
 });

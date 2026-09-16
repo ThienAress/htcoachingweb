@@ -101,14 +101,14 @@ export default function ConversationNavigator({
               onClick={() => handleNavigate(item.key)}
               aria-label={`Đi tới câu hỏi ${index + 1}: ${item.label}`}
               aria-current={isActive ? "location" : undefined}
-              className="flex h-3 w-7 items-center justify-end rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
+              className="group/marker flex h-3 w-7 items-center justify-end rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
             >
               <span
                 aria-hidden="true"
                 className={`h-0.5 rounded-full transition-[width,background-color] duration-150 motion-reduce:transition-none ${
                   isActive
                     ? "w-6 bg-gray-900 dark:bg-gray-100"
-                    : "w-4 bg-gray-400 group-hover:bg-gray-500 dark:bg-gray-600 dark:group-hover:bg-gray-400"
+                    : "w-4 bg-gray-400 group-hover/marker:w-6 group-focus-visible/marker:w-6 group-hover/marker:bg-gray-500 dark:bg-gray-600 dark:group-hover/marker:bg-gray-400"
                 }`}
               />
             </button>

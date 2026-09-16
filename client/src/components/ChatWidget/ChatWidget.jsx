@@ -13,7 +13,9 @@ import { submitAiFeedback } from "../../services/ai.service";
 import { compressChatImage } from "../../utils/compressChatImage";
 import {
   getChatScrollBehavior,
+  isChatNearBottom,
   prefersReducedMotion,
+  runChatActionWithAutoFollow,
 } from "./chatPanelRuntime";
 
 const TOOL_LABELS = {
@@ -39,6 +41,7 @@ export default function ChatWidget() {
   const [mode, setMode] = useState("floating");
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
+  const shouldFollowMessagesRef = useRef(true);
   const inputRef = useRef(null);
   const textareaRef = useRef(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -56,6 +59,7 @@ export default function ChatWidget() {
     loadHistory,
     clearHistory,
     cancelRequest,
+    updateMessageFeedback,
   } = useAiChat();
 
   const handleOpen = useCallback(() => {
@@ -84,12 +88,25 @@ export default function ChatWidget() {
   }, [mode]);
 
   useEffect(() => {
-    if (isOpen && !isClosing) {
+    if (isOpen && !isClosing && shouldFollowMessagesRef.current) {
       messagesEndRef.current?.scrollIntoView({
-        behavior: getChatScrollBehavior(window),
+        behavior: getChatScrollBehavior(window, { streaming: isLoading }),
       });
     }
   }, [messages, isLoading, activeTool, isOpen, isClosing]);
+
+  const handleMessagesScroll = useCallback((event) => {
+    shouldFollowMessagesRef.current = isChatNearBottom(event.currentTarget);
+  }, []);
+
+  const sendFollowingMessage = useCallback(
+    (...args) => runChatActionWithAutoFollow(
+      shouldFollowMessagesRef,
+      sendMessage,
+      ...args
+    ),
+    [sendMessage],
+  );
 
   useEffect(() => {
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 300);
@@ -125,11 +142,11 @@ export default function ChatWidget() {
 
   const handleSend = useCallback(() => {
     if ((!input.trim() && !selectedImage) || isLoading) return;
-    sendMessage(input, { lastPage: location.pathname, image: selectedImage });
+    sendFollowingMessage(input, { lastPage: location.pathname, image: selectedImage });
     setInput("");
     setSelectedImage(null);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
-  }, [input, selectedImage, isLoading, sendMessage, location.pathname]);
+  }, [input, selectedImage, isLoading, sendFollowingMessage, location.pathname]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -158,17 +175,17 @@ export default function ChatWidget() {
         setShowTdeeForm(true);
         return;
       }
-      sendMessage(action.value, { lastPage: location.pathname });
+      sendFollowingMessage(action.value, { lastPage: location.pathname });
     },
-    [sendMessage, location.pathname]
+    [sendFollowingMessage, location.pathname]
   );
 
   const handleTdeeSubmit = useCallback(
     (text) => {
       setShowTdeeForm(false);
-      sendMessage(text, { lastPage: location.pathname });
+      sendFollowingMessage(text, { lastPage: location.pathname });
     },
-    [sendMessage, location.pathname]
+    [sendFollowingMessage, location.pathname]
   );
 
   const handleClear = useCallback(() => {
@@ -179,13 +196,9 @@ export default function ChatWidget() {
 
   const handleFeedback = useCallback(async (messageId, feedback) => {
     if (!conversationId || !messageId) return;
-    try {
-      await submitAiFeedback(conversationId, messageId, feedback);
-    // eslint-disable-next-line no-unused-vars
-    } catch (err) {
-      // Silent fail
-    }
-  }, [conversationId]);
+    await submitAiFeedback(conversationId, messageId, feedback);
+    updateMessageFeedback(conversationId, messageId, feedback);
+  }, [conversationId, updateMessageFeedback]);
 
   if (!user) return null;
 
@@ -289,7 +302,10 @@ export default function ChatWidget() {
             </div>
           </div>
 
-          <div className="min-h-[200px] flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4">
+          <div
+            onScroll={handleMessagesScroll}
+            className="min-h-[200px] flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4"
+          >
             {/* Empty state */}
             {messages.length === 0 && !isLoading && (
               <div className="flex flex-col items-start pt-6 px-1 chat-card-enter">

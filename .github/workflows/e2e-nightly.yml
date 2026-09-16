@@ -12,10 +12,11 @@ jobs:
     env:
       PW_FULL_BROWSER_MATRIX: "true"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .node-version
+          package-manager-cache: false
           cache: npm
           cache-dependency-path: |
             package-lock.json
@@ -25,7 +26,7 @@ jobs:
         working-directory: client
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-nightly

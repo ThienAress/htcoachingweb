@@ -24,17 +24,17 @@ const parseArguments = (argv) => {
 const readJson = async (file) =>
   JSON.parse(await readFile(path.resolve(file), "utf8"));
 
-const candidateGate = async (args) => {
-  if (!args["backup-manifest"]) {
-    throw new Error("--backup-manifest is required for candidate mode");
-  }
-  const [candidate, backupManifest] = await Promise.all([
-    readJson(args.manifest),
-    readJson(args["backup-manifest"]),
-  ]);
+export const evaluateCandidateGate = ({
+  candidate,
+  backupManifest,
+  expectedSha,
+}) => {
   const candidateResult = evaluateReleaseCandidate(candidate);
   const backup = evaluateBackupReadiness(backupManifest);
   const blockers = [...candidateResult.blockers];
+  if (candidateResult.sha !== expectedSha) {
+    blockers.push("EXPECTED_RELEASE_SHA_MISMATCH");
+  }
   if (candidate.recovery.backupId !== backup.backupId) {
     blockers.push("BACKUP_ID_MISMATCH");
   }
@@ -55,6 +55,24 @@ const candidateGate = async (args) => {
       ]),
     ],
   };
+};
+
+const candidateGate = async (args) => {
+  if (!args["backup-manifest"]) {
+    throw new Error("--backup-manifest is required for candidate mode");
+  }
+  if (!/^[0-9a-f]{40}$/.test(args["expected-sha"] || "")) {
+    throw new Error("--expected-sha is required for candidate mode");
+  }
+  const [candidate, backupManifest] = await Promise.all([
+    readJson(args.manifest),
+    readJson(args["backup-manifest"]),
+  ]);
+  return evaluateCandidateGate({
+    candidate,
+    backupManifest,
+    expectedSha: args["expected-sha"],
+  });
 };
 
 const postDeployGate = async (args) => {

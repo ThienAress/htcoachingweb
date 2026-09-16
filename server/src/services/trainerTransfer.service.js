@@ -117,7 +117,15 @@ export const executeTrainerTransfer = async (command) => {
       const workoutIds = snapshot.workoutPlans.map(({ _id }) => _id);
       const coachingIds = snapshot.coachingDays.map(({ _id }) => _id);
       const orders = await Order.updateMany(
-        { _id: { $in: orderIds }, trainerId: snapshot.ids.fromTrainerId },
+        {
+          userId: snapshot.ids.clientId,
+          $or: snapshot.orders.map((order) => ({
+            _id: order._id,
+            trainerId: Object.hasOwn(order, "trainerId")
+              ? (order.trainerId === null ? { $eq: null, $exists: true } : order.trainerId)
+              : { $exists: false },
+          })),
+        },
         { $set: { trainerId: snapshot.ids.toTrainerId } },
         { session },
       );
@@ -127,7 +135,7 @@ export const executeTrainerTransfer = async (command) => {
         { session },
       );
       const claims = await TrainingSlotClaim.updateMany(
-        { scheduleId: { $in: scheduleIds }, trainerId: snapshot.ids.fromTrainerId },
+        { _id: { $in: snapshot.claims.map(({ _id }) => _id) }, trainerId: snapshot.ids.fromTrainerId },
         { $set: { trainerId: snapshot.ids.toTrainerId } },
         { session },
       );

@@ -1,6 +1,50 @@
 import mongoose from "mongoose";
 import { AI_TOOL_RESULT_STATUSES } from "../constants/aiToolResult.js";
 
+const answerTraceSchema = new mongoose.Schema(
+  {
+    routeDomain: {
+      type: String,
+      enum: ["ht_service", "fitness", "adjacent", "general"],
+      required: true,
+    },
+    evidenceMode: {
+      type: String,
+      enum: ["internal_kb", "web_required", "model_prior"],
+      required: true,
+    },
+    kbEntryIds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "KnowledgeEntry" }],
+      default: [],
+      validate: {
+        validator: (value) => value.length <= 10,
+        message: "Answer trace chỉ được chứa tối đa 10 Knowledge Entry IDs",
+      },
+    },
+    webSearchUsed: { type: Boolean, default: false },
+    model: { type: String, required: true, maxlength: 100 },
+    promptVersion: { type: String, required: true, maxlength: 100 },
+  },
+  { _id: false },
+);
+
+const feedbackReviewSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ["none", "pending", "resolved", "dismissed"],
+      default: "none",
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    reviewedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
 const chatMessageSchema = new mongoose.Schema(
   {
     role: {
@@ -28,6 +72,14 @@ const chatMessageSchema = new mongoose.Schema(
     feedback: {
       type: String,
       enum: ["up", "down", null],
+      default: null,
+    },
+    feedbackReview: {
+      type: feedbackReviewSchema,
+      default: null,
+    },
+    answerTrace: {
+      type: answerTraceSchema,
       default: null,
     },
     timestamp: { type: Date, default: Date.now },

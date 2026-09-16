@@ -15,11 +15,15 @@ import {
 } from "./conversationNavigatorRuntime";
 import {
   getChatVisualViewportBounds,
+  getAssistantStreamAnnouncement,
+  getChatErrorAnnouncementProps,
   getChatQuotaStatusLine,
   getChatScrollBehavior,
+  isChatNearBottom,
   isTdeeQuickAction,
   persistChatTheme,
   resolveInitialChatTheme,
+  runChatActionWithAutoFollow,
 } from "./chatPanelRuntime";
 import { submitAiFeedback } from "../../services/ai.service";
 import { compressChatImage } from "../../utils/compressChatImage";
@@ -65,6 +69,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [memorySettingsOpen, setMemorySettingsOpen] = useState(false);
   const [showTdeeForm, setShowTdeeForm] = useState(false);
+  const [streamAnnouncement, setStreamAnnouncement] = useState("");
 
   const panelRef = useRef(null);
   const inputRef = useRef(null);
@@ -78,6 +83,8 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const attachMenuRef = useRef(null);
   const historyLoadGateRef = useRef(null);
   const wasOpenRef = useRef(initiallyOpen);
+  const shouldFollowMessagesRef = useRef(true);
+  const wasLoadingRef = useRef(false);
 
   if (historyLoadGateRef.current == null) {
     historyLoadGateRef.current = createChatHistoryLoadGate();
@@ -89,10 +96,11 @@ export default function ChatPanel({ initiallyOpen = false }) {
   const hidePillPaths = ["/admin", "/trainer"];
 
   const {
-    messages, isLoading, activeTool, error, quota, conversationId,
+    messages, isLoading, activeTool, error, terminalOutcome, isReconciling,
+    quota, conversationId,
     conversations, pendingConversationIds, sendMessage, loadHistory, loadConversations,
     clearHistory, switchConversation, removeConversation, cancelRequest,
-    retryLastMessage, editMessage,
+    retryLastMessage, editMessage, updateMessageFeedback,
   } = useAiChat({ persistenceEnabled: Boolean(user) });
   const authenticatedUserId = user?._id || user?.id || null;
   const conversationQuestionItems = useMemo(
@@ -118,6 +126,25 @@ export default function ChatPanel({ initiallyOpen = false }) {
       behavior: getChatScrollBehavior(window),
     });
   }, []);
+  const handleMessagesScroll = useCallback((event) => {
+    shouldFollowMessagesRef.current = isChatNearBottom(event.currentTarget);
+  }, []);
+  const sendFollowingMessage = useCallback(
+    (...args) => runChatActionWithAutoFollow(
+      shouldFollowMessagesRef,
+      sendMessage,
+      ...args
+    ),
+    [sendMessage],
+  );
+  const retryFollowingMessage = useCallback(
+    (...args) => runChatActionWithAutoFollow(
+      shouldFollowMessagesRef,
+      retryLastMessage,
+      ...args
+    ),
+    [retryLastMessage],
+  );
   const buildCurrentContext = useCallback(
     () => getAiMessageContext(location.pathname, document.title),
     [location.pathname],
@@ -182,10 +209,21 @@ export default function ChatPanel({ initiallyOpen = false }) {
   ]);
 
   useEffect(() => {
+    if (!shouldFollowMessagesRef.current) return;
     messagesEndRef.current?.scrollIntoView({
-      behavior: getChatScrollBehavior(window),
+      behavior: getChatScrollBehavior(window, { streaming: isLoading }),
     });
-  }, [messages, activeTool]);
+  }, [messages, activeTool, isLoading]);
+
+  useEffect(() => {
+    const announcement = getAssistantStreamAnnouncement({
+      isLoading,
+      wasLoading: wasLoadingRef.current,
+      terminalOutcome,
+    });
+    wasLoadingRef.current = isLoading;
+    setStreamAnnouncement(announcement);
+  }, [isLoading, terminalOutcome]);
 
   useEffect(() => {
     if (isOpen) {
@@ -279,10 +317,10 @@ export default function ChatPanel({ initiallyOpen = false }) {
       ...(selectedImage && { image: selectedImage }),
     };
 
-    sendMessage(input.trim(), context);
+    sendFollowingMessage(input.trim(), context);
     setInput("");
     setSelectedImage(null);
-  }, [buildCurrentContext, input, selectedImage, isLoading, sendMessage]);
+  }, [buildCurrentContext, input, selectedImage, isLoading, sendFollowingMessage]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -303,7 +341,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
   };
 
   const handleNewConversation = () => {
-    clearHistory();
+    runChatActionWithAutoFollow(shouldFollowMessagesRef, clearHistory);
     setShowTdeeForm(false);
     if (isMobile) setSidebarOpen(false);
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -319,33 +357,38 @@ export default function ChatPanel({ initiallyOpen = false }) {
       setShowTdeeForm(true);
       return;
     }
-    sendMessage(action.value, buildCurrentContext());
-  }, [buildCurrentContext, sendMessage]);
+    sendFollowingMessage(action.value, buildCurrentContext());
+  }, [buildCurrentContext, sendFollowingMessage]);
 
   const handleTdeeSubmit = useCallback((text) => {
     setShowTdeeForm(false);
-    sendMessage(text, buildCurrentContext());
-  }, [buildCurrentContext, sendMessage]);
+    sendFollowingMessage(text, buildCurrentContext());
+  }, [buildCurrentContext, sendFollowingMessage]);
 
   const handleSwitchConversation = async (id) => {
     if (id === conversationId) return;
-    await switchConversation(id);
+    await runChatActionWithAutoFollow(
+      shouldFollowMessagesRef,
+      switchConversation,
+      id,
+    );
     if (isMobile) setSidebarOpen(false);
   };
 
   const handleFeedback = useCallback(async (messageId, feedback) => {
     if (!user || !conversationId || !messageId) return;
-    try {
-      await submitAiFeedback(conversationId, messageId, feedback);
-    // eslint-disable-next-line no-unused-vars
-    } catch (err) {
-      // Silent fail — feedback là non-critical
-    }
-  }, [conversationId, user]);
+    await submitAiFeedback(conversationId, messageId, feedback);
+    updateMessageFeedback(conversationId, messageId, feedback);
+  }, [conversationId, updateMessageFeedback, user]);
 
   const handleEditMessage = useCallback((messageId, newText) => {
     if (!newText?.trim()) return;
-    editMessage(messageId, newText);
+    runChatActionWithAutoFollow(
+      shouldFollowMessagesRef,
+      editMessage,
+      messageId,
+      newText,
+    );
   }, [editMessage]);
 
   if (noAuthPaths.includes(location.pathname)) return null;
@@ -358,7 +401,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
     setPillExpanded(false);
     setIsOpen(true);
     setTimeout(() => {
-      sendMessage(text, buildCurrentContext());
+      sendFollowingMessage(text, buildCurrentContext());
     }, 200);
   };
 
@@ -565,6 +608,14 @@ export default function ChatPanel({ initiallyOpen = false }) {
 
           {/* Main content */}
           <div className="relative flex flex-col flex-1 min-w-0">
+            <p
+              className="sr-only"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {streamAnnouncement}
+            </p>
             {/* Header Actions */}
             <div className="pointer-events-none absolute left-4 right-4 top-4 z-10 flex items-center justify-between gap-2">
               <div className="flex justify-start">
@@ -657,6 +708,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                 <>
                   <div
                     ref={messagesScrollRef}
+                    onScroll={handleMessagesScroll}
                     className="flex-1 overflow-y-auto px-4 py-6 pt-20 md:px-6"
                   >
                     <div
@@ -672,6 +724,7 @@ export default function ChatPanel({ initiallyOpen = false }) {
                         return (
                           <div
                             key={messageKey}
+                            data-message-id={msg._id || undefined}
                             ref={msg.role === "user" ? (node) => {
                               if (node) questionTargetRefs.current.set(messageKey, node);
                               else questionTargetRefs.current.delete(messageKey);
@@ -679,8 +732,8 @@ export default function ChatPanel({ initiallyOpen = false }) {
                           >
                             <ChatBubble
                               message={msg}
-                              onRetry={user ? retryLastMessage : undefined}
-                              onEdit={user ? handleEditMessage : undefined}
+                              onRetry={user && !isReconciling ? retryFollowingMessage : undefined}
+                              onEdit={user && !isReconciling ? handleEditMessage : undefined}
                               isThinking={isLastAssistant}
                               onFeedback={user ? handleFeedback : undefined}
                             />
@@ -707,14 +760,18 @@ export default function ChatPanel({ initiallyOpen = false }) {
                         </div>
                       )}
                       {error && (
-                        <div className="flex items-center justify-between text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl px-4 py-3">
+                        <div
+                          {...getChatErrorAnnouncementProps()}
+                          className="flex items-center justify-between text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl px-4 py-3"
+                        >
                           <span>{error}</span>
                           {user && (
                             <button
-                              onClick={retryLastMessage}
-                              className="px-3 py-1.5 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/40 rounded-lg transition-colors font-medium flex items-center gap-1.5"
+                              onClick={() => retryFollowingMessage()}
+                              disabled={isReconciling}
+                              className="px-3 py-1.5 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/40 rounded-lg transition-colors font-medium flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 disabled:cursor-wait disabled:opacity-60"
                             >
-                              🔄 Thử lại
+                              {isReconciling ? "Đang đồng bộ..." : "🔄 Thử lại"}
                             </button>
                           )}
                         </div>

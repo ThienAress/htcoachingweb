@@ -37,6 +37,7 @@ export async function searchExercises(params) {
         ? `Không tìm thấy bài tập nào cho nhóm cơ "${muscleGroup}".`
         : `Không tìm thấy bài tập nào khớp với "${searchQuery}".`,
       uiCard: null,
+      meta: { evidenceAvailable: false, resultCount: 0 },
     };
   }
 
@@ -62,5 +63,9 @@ export async function searchExercises(params) {
     },
   };
 
-  return { text, uiCard };
+  return {
+    text,
+    uiCard,
+    meta: { evidenceAvailable: true, resultCount: exercises.length },
+  };
 }

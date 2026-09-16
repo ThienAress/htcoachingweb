@@ -9,7 +9,10 @@ import {
   isSuccessfulToolResult,
 } from "../services/ai/tools/toolEngine.js";
 import { executeToolBatch } from "../services/ai/tools/toolBatchExecutor.js";
-import { getToolSchemas } from "../services/ai/tools/toolRegistry.js";
+import {
+  getToolSchemas,
+  SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS,
+} from "../services/ai/tools/toolRegistry.js";
 import {
   normalizePublicToolText,
   resolveToolResultStatus,
@@ -18,7 +21,16 @@ import {
 import {
   buildKnowledgeReferenceBlock,
   buildSystemPrompt,
+  getCitableKnowledgeSources,
 } from "../services/ai/systemPrompt.js";
+import {
+  buildStandaloneRetrievalQuery,
+  buildRequestRoutingBlock,
+  getAllowedToolNamesForRoute,
+  getUrgentSafetyResponse,
+  routeAiRequest,
+} from "../services/ai/requestRouter.js";
+import { AI_PROMPT_CONTRACT_VERSION } from "../services/ai/promptContract.js";
 import {
   isUserLocked,
   moderateContent,
@@ -36,7 +48,19 @@ import {
   deriveConversationMemory,
   updateConversationMemory,
 } from "../services/ai/conversationMemory.js";
-import { sanitizeAssistantOutput } from "../services/ai/assistantOutput.js";
+import {
+  boundAssistantOutputWithSources,
+  sanitizeAssistantOutput,
+} from "../services/ai/assistantOutput.js";
+import {
+  getPublicPersonLookupNames,
+  prepareExternalKnowledgeQuery,
+  prepareKnowledgeRetrievalQuery,
+} from "../services/ai/knowledgePrivacy.js";
+import {
+  streamAssistantText,
+  truncateAssistantText,
+} from "../services/ai/responseStreamer.js";
 import {
   AI_RUNTIME_POLICY,
   boundAiToolCalls,
@@ -54,6 +78,10 @@ import {
 import { incrementMetric } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { getAiMemoryContext } from "../services/aiMemory.service.js";
+import {
+  STAGING_AI_ACCEPTANCE_RESPONSE,
+  waitForStagingAiAcceptanceRelease,
+} from "../services/ai/stagingAiAcceptance.service.js";
 
 const MAX_ITERATIONS = AI_RUNTIME_POLICY.maxAgentIterations;
 const MAX_HISTORY_MESSAGES = AI_RUNTIME_POLICY.maxHistoryMessages;
@@ -62,8 +90,127 @@ const CONVERSATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const GUEST_CONVERSATION_TTL_MS = 24 * 60 * 60 * 1000;
 const CHAT_DEADLINE_MS = AI_RUNTIME_POLICY.chatDeadlineMs;
 const TOOL_TIMEOUT_MS = AI_RUNTIME_POLICY.toolTimeoutMs;
+const MAX_ASSISTANT_RESPONSE_CHARACTERS = 20000;
+const GUEST_REQUEST_KEY_VERSION = "guest-v1";
+
+const explicitDietPlan = (message) => {
+  const text = String(message || "");
+  const negation = /(?:^|\s)(?:không|khong|đừng|dung|tránh|tranh|not|avoid|thay\s+vì|instead\s+of|rather\s+than)(?:\s|$)/iu;
+  const quote = /["'“”‘’]/u;
+  const matches = [
+    ["Low-carb", /\blow[\s-]*carb\b/gi],
+    ["Moderate-carb", /\bmoderate[\s-]*carb\b/gi],
+    ["High-carb", /\bhigh[\s-]*carb\b/gi],
+  ].filter(([, pattern]) => [...text.matchAll(pattern)].some((match) => {
+    const before = text.slice(0, match.index);
+    const after = text.slice(match.index + match[0].length);
+    const clause = before.split(/[:,.;!?]|\s+(?:mà|nhưng|but|instead)\s+/iu).at(-1);
+    const quoted = quote.test(before.trimEnd().at(-1) || "") &&
+      quote.test(after.trimStart().at(0) || "");
+    const afterQuote = quoted ? after.trimStart().slice(1).trimStart() : "";
+    const quotedAsExample = quoted &&
+      /^(?:chỉ\s+là\s+ví\s+dụ|là\s+ví\s+dụ|ví\s+dụ|không\s+phải|just\s+an?\s+example)(?:\s|[,.;!?]|$)/iu.test(afterQuote);
+    const rejectedAfter = /^\s*["'”’]?\s*(?:không|khong|not)\s+(?:phù\s+hợp|muốn|đúng|phải|tốt|hợp)(?=\s|[,.;!?]|$)/iu.test(after);
+    return !quotedAsExample && !negation.test(clause || "") && !rejectedAfter;
+  }));
+  return matches.length === 1 ? matches[0][0] : null;
+};
+
+const canReuseTdeeForMealFollowUp = (message) => {
+  const remaining = String(message || "")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/đ/gi, "d")
+    .toLowerCase()
+    .replace(/\b(?:low|moderate|high)[\s-]*carb\b/g, " ")
+    .replace(/\b[1-6]\s*(?:bua|meals?)(?:\s*(?:\/|moi|trong)\s*ngay)?\b/g, " ")
+    .replace(/\b(?:goi|y|thuc|don|len|lam|tao|doi|chuyen|cho|toi|minh|ban|giup|voi|theo|che|do|hay|nhe|an|bua|meal|plan|please)\b/g, " ")
+    .replace(/[^a-z0-9]/g, "");
+  // Chỉ dùng TDEE cũ cho lời hỏi tiếp thuần variant/số bữa. Mọi số đo,
+  // calo, mục tiêu hoặc hoạt động mới phải được model xử lý như yêu cầu mới.
+  return remaining.length === 0;
+};
+
+const canonicalCompoundMealArgs = (
+  tdeeResult,
+  requestedArgs = {},
+  requestedDietPlan = null,
+) => {
+  const requested = requestedArgs && typeof requestedArgs === "object"
+    ? requestedArgs
+    : {};
+  const data = tdeeResult?.uiCard?.cardType === "tdee"
+    ? tdeeResult.uiCard.data
+    : null;
+  const defaultMacros = data?.macros?.["Moderate-carb"];
+  const validMacros = (macro) =>
+    Number.isSafeInteger(macro?.protein) && macro.protein >= 0 && macro.protein <= 500 &&
+    Number.isSafeInteger(macro?.carb) && macro.carb >= 0 && macro.carb <= 1000 &&
+    Number.isSafeInteger(macro?.fat) && macro.fat >= 0 && macro.fat <= 300;
+  const matchesRequestedMacros = (macro) =>
+    validMacros(macro) &&
+    macro?.protein === requested.proteinGrams &&
+    macro?.carb === requested.carbGrams &&
+    macro?.fat === requested.fatGrams;
+  const macros = requestedDietPlan
+    ? data?.macros?.[requestedDietPlan]
+    : Object.values(data?.macros || {}).find(matchesRequestedMacros) ||
+      defaultMacros;
+  if (
+    !Number.isSafeInteger(data?.targetCalories) ||
+    data.targetCalories < 800 || data.targetCalories > 6000 ||
+    !validMacros(macros)
+  ) {
+    return null;
+  }
+  return {
+    targetCalories: data.targetCalories,
+    proteinGrams: macros.protein,
+    carbGrams: macros.carb,
+    fatGrams: macros.fat,
+    mealsPerDay: Number.isInteger(requested.mealsPerDay) &&
+      requested.mealsPerDay >= 1 && requested.mealsPerDay <= 6
+      ? requested.mealsPerDay
+      : 3,
+  };
+};
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
+
+const buildConversationRequestKey = ({ userId, guestKey, requestId }) => {
+  if (userId) {
+    return Object.freeze({ writeKey: requestId, lookupKeys: [requestId] });
+  }
+  const guestScope = crypto
+    .createHash("sha256")
+    .update(String(guestKey || ""))
+    .digest("hex");
+  const writeKey = `${GUEST_REQUEST_KEY_VERSION}:${guestScope}:${requestId}`;
+  // Raw requestId remains a read alias for guest conversations created by
+  // older releases; new writes are owner-scoped before hitting the legacy
+  // { userId, recentRequestIds } unique index.
+  return Object.freeze({ writeKey, lookupKeys: [writeKey, requestId] });
+};
+
+const serializePublicChatMessage = (message) => {
+  const source = message?.toObject ? message.toObject() : message || {};
+  return {
+    _id: source._id,
+    role: source.role,
+    content: source.content || "",
+    image: source.image || null,
+    uiCard: source.uiCard || null,
+    feedback: source.feedback || null,
+    timestamp: source.timestamp,
+  };
+};
+
+const serializePublicChatMessages = (messages = []) =>
+  messages.map(serializePublicChatMessage);
+
+const blockStagingAcceptanceSettlement = (req) => {
+  if (req.stagingAiAcceptance) req.stagingAiAcceptanceSettlementBlocked = true;
+};
 
 const refundAiQuota = async (req, stage) => {
   if (!req.refundServiceUsage) return serializeRequestQuota(req, "ai_chat");
@@ -71,6 +218,7 @@ const refundAiQuota = async (req, stage) => {
     return await req.refundServiceUsage();
   } catch (error) {
     safeLog.error("ai.quota_refund_failed", error, { stage });
+    blockStagingAcceptanceSettlement(req);
     return serializeRequestQuota(req, "ai_chat");
   }
 };
@@ -90,7 +238,8 @@ async function acquireConversation({
   ownerDocument,
   conversationTtlMs,
   conversationId,
-  requestId,
+  requestKey,
+  requestLookupKeys,
   message,
   image,
   context,
@@ -98,7 +247,7 @@ async function acquireConversation({
 }) {
   const duplicate = await ChatConversation.findOne({
     ...ownerFilter,
-    recentRequestIds: requestId,
+    recentRequestIds: { $in: requestLookupKeys },
   }).select("_id");
   if (duplicate) return { conversation: duplicate, duplicate: true };
 
@@ -119,7 +268,7 @@ async function acquireConversation({
         messages: [userMessage],
         messageCount: 1,
         ...summary,
-        recentRequestIds: [requestId],
+        recentRequestIds: [requestKey],
         activeStreamId: streamId,
         activeStreamStartedAt: timestamp,
         context,
@@ -130,7 +279,7 @@ async function acquireConversation({
       if (error?.code !== 11000) throw error;
       const winner = await ChatConversation.findOne({
         ...ownerFilter,
-        recentRequestIds: requestId,
+        recentRequestIds: { $in: requestLookupKeys },
       });
       if (winner) return { conversation: winner, duplicate: true };
       throw error;
@@ -142,7 +291,7 @@ async function acquireConversation({
     {
       _id: conversationId,
       ...ownerFilter,
-      recentRequestIds: { $ne: requestId },
+      recentRequestIds: { $nin: requestLookupKeys },
       $or: [
         { activeStreamId: null },
         { activeStreamId: { $exists: false } },
@@ -164,7 +313,7 @@ async function acquireConversation({
           $slice: -MAX_STORED_CHAT_MESSAGES,
         },
         recentRequestIds: {
-          $each: [requestId],
+          $each: [requestKey],
           $slice: -MAX_RECENT_REQUEST_IDS,
         },
       },
@@ -181,7 +330,11 @@ async function acquireConversation({
     .select("_id activeStreamId recentRequestIds")
     .lean();
   if (!existing) throw httpError(404, "Không tìm thấy cuộc trò chuyện");
-  if (existing.recentRequestIds?.includes(requestId)) {
+  if (
+    existing.recentRequestIds?.some((value) =>
+      requestLookupKeys.includes(value),
+    )
+  ) {
     return { conversation: existing, duplicate: true };
   }
   throw httpError(409, "Cuộc trò chuyện đang xử lý một tin nhắn khác");
@@ -231,6 +384,44 @@ async function finalizeConversation({
   );
 }
 
+async function releaseFailedConversation({
+  conversation,
+  ownerFilter,
+  streamId,
+  requestKey,
+}) {
+  const failedUserMessage = conversation.messages.at(-1);
+  const previousMessage = conversation.messages.at(-2);
+  if (failedUserMessage?.role !== "user" || !failedUserMessage._id) {
+    throw new Error("Failed chat request has no owned user message");
+  }
+
+  const update = await ChatConversation.updateOne(
+    {
+      _id: conversation._id,
+      ...ownerFilter,
+      activeStreamId: streamId,
+      recentRequestIds: requestKey,
+      messages: { $elemMatch: { _id: failedUserMessage._id, role: "user" } },
+    },
+    {
+      $set: {
+        activeStreamId: null,
+        activeStreamStartedAt: null,
+        lastMessagePreview: previousMessage?.content?.slice(0, 120) || "",
+        lastMessageAt: previousMessage?.timestamp || null,
+      },
+      $pull: {
+        messages: { _id: failedUserMessage._id },
+        recentRequestIds: requestKey,
+      },
+      $inc: { messageCount: -1 },
+    },
+    { runValidators: true },
+  );
+  return update.modifiedCount === 1;
+}
+
 // POST /api/ai/chat — SSE streaming chat với Agent Loop
 export const chatStream = async (req, res) => {
   const userId = req.user?.id || null;
@@ -256,6 +447,11 @@ export const chatStream = async (req, res) => {
     return res.status(400).json({ success: false, message: parsed.error });
   }
   const { message, conversationId, context, image, requestId } = parsed.value;
+  const requestKeyContract = buildConversationRequestKey({
+    userId,
+    guestKey,
+    requestId,
+  });
   if (!userId && image) {
     await refundAiQuota(req, "guest_image_rejected");
     return res.status(403).json({
@@ -265,12 +461,38 @@ export const chatStream = async (req, res) => {
     });
   }
   const streamId = crypto.randomUUID();
+  const abortController = new AbortController();
+  let clientDisconnected = false;
+  let deadlineExceeded = false;
+  const markClientDisconnected = () => {
+    if (!res.writableEnded && !abortController.signal.aborted) {
+      clientDisconnected = true;
+      incrementMetric("ai.aborts");
+      abortController.abort(new Error("Client disconnected"));
+    }
+  };
+  res.on("close", markClientDisconnected);
+  if (
+    req.stagingAiAcceptanceResponseClosed ||
+    req.aborted ||
+    res.destroyed ||
+    res.closed
+  ) {
+    markClientDisconnected();
+  }
+  const stopDisconnectedPreflight = async (stage) => {
+    if (!clientDisconnected) return false;
+    await refundAiQuota(req, stage);
+    if (req.stagingAiAcceptance) req.stagingAiAcceptanceOutcome = "aborted";
+    return true;
+  };
 
   let user;
   let conversation;
   try {
     if (userId) {
       user = await User.findById(userId).select("name isAiChatBanned").lean();
+      if (await stopDisconnectedPreflight("client_disconnected_user_lookup")) return;
       if (user?.isAiChatBanned) {
         aiLogger.userLocked(actorId, "permanent");
         await refundAiQuota(req, "user_banned");
@@ -280,6 +502,7 @@ export const chatStream = async (req, res) => {
         });
       }
       const lockStatus = await isUserLocked(userId);
+      if (await stopDisconnectedPreflight("client_disconnected_lock_check")) return;
       if (lockStatus.blocked) {
         aiLogger.userLocked(actorId, lockStatus.remainingMinutes);
         await refundAiQuota(req, "user_locked");
@@ -293,6 +516,7 @@ export const chatStream = async (req, res) => {
     const moderation = userId
       ? await moderateContent(userId, message)
       : moderateGuestContent(message);
+    if (await stopDisconnectedPreflight("client_disconnected_moderation")) return;
     if (!moderation.safe) {
       aiLogger.moderationTrigger(actorId, moderation.action || "blocked");
       await refundAiQuota(req, "moderation_rejected");
@@ -306,13 +530,34 @@ export const chatStream = async (req, res) => {
       ownerDocument,
       conversationTtlMs,
       conversationId,
-      requestId,
+      requestKey: requestKeyContract.writeKey,
+      requestLookupKeys: requestKeyContract.lookupKeys,
       message,
       image,
       context: canonicalContext,
       streamId,
     });
     conversation = acquired.conversation;
+
+    if (clientDisconnected) {
+      let released = acquired.duplicate;
+      if (!acquired.duplicate) {
+        try {
+          released = await releaseFailedConversation({
+            conversation,
+            ownerFilter,
+            streamId,
+            requestKey: requestKeyContract.writeKey,
+          });
+        } catch (error) {
+          aiLogger.chatError(actorId, error, "chatPreflightDisconnectRelease");
+        }
+      }
+      if (!released) blockStagingAcceptanceSettlement(req);
+      await refundAiQuota(req, "client_disconnected_conversation_acquire");
+      if (req.stagingAiAcceptance) req.stagingAiAcceptanceOutcome = "aborted";
+      return;
+    }
 
     if (acquired.duplicate) {
       res.setHeader("Content-Type", "text/event-stream");
@@ -330,10 +575,14 @@ export const chatStream = async (req, res) => {
           duplicate: true,
         })}\n\n`,
       );
+      if (req.stagingAiAcceptance) req.stagingAiAcceptanceOutcome = "duplicate";
       return res.end();
     }
   } catch (error) {
     aiLogger.chatError(actorId, error, "chatPreflight");
+    // A failed Mongo acquisition may still commit after an ambiguous write
+    // error. Refunding quota cannot prove that acquisition was rolled back.
+    if (!error.status || error.status >= 500) blockStagingAcceptanceSettlement(req);
     const quota = await refundAiQuota(req, "chat_preflight");
     return res.status(error.status || 500).json({
       success: false,
@@ -354,28 +603,94 @@ export const chatStream = async (req, res) => {
     res.write(`data: ${JSON.stringify({ type: "quota", quota })}\n\n`);
   }
 
-  const abortController = new AbortController();
-  let clientDisconnected = false;
-  let deadlineExceeded = false;
   const deadlineTimer = setTimeout(() => {
     deadlineExceeded = true;
     abortController.abort(new Error("AI response deadline exceeded"));
   }, CHAT_DEADLINE_MS);
-  res.on("close", () => {
-    if (!res.writableEnded && !abortController.signal.aborted) {
-      clientDisconnected = true;
-      incrementMetric("ai.aborts");
-      abortController.abort(new Error("Client disconnected"));
-    }
-  });
-
   const generatedMessages = [];
   let conversationMemory = deriveConversationMemory(
     conversation.messages,
     conversation.workingMemory,
   );
   let finalized = false;
+  let failedStream = false;
+  let rollbackSucceeded = false;
   let fullResponse = "";
+  let routingDecision = null;
+  let kbEntryIds = [];
+  let kbCitationSources = [];
+  let webSearchAttemptCount = 0;
+  let webSearchExecutionCount = 0;
+  let webSearchEvidenceAvailable = false;
+  let webSearchSources = [];
+  let internalEvidenceRequired = false;
+  let internalEvidenceAvailable = false;
+  let externalKnowledgeQuery = { eligible: false, reason: "not_required" };
+  let responseModel = String(
+    process.env.GEMINI_MODEL || "gemini-3.1-flash-lite",
+  ).slice(0, 100);
+  const buildAnswerTrace = () =>
+    routingDecision
+      ? {
+          routeDomain: routingDecision.domain,
+          evidenceMode: routingDecision.evidence,
+          kbEntryIds: kbEntryIds.slice(0, 10),
+          webSearchUsed: webSearchExecutionCount > 0,
+          model: responseModel,
+          promptVersion: AI_PROMPT_CONTRACT_VERSION,
+        }
+      : null;
+  const writeAssistantResponse = (content) =>
+    streamAssistantText(content, {
+      signal: abortController.signal,
+      afterFirstFrame: req.stagingAiAcceptance?.mode === "paced_response" &&
+        responseModel === "staging_acceptance_synthetic_v1"
+        ? () => waitForStagingAiAcceptanceRelease(req.stagingAiAcceptance, {
+            signal: abortController.signal,
+          })
+        : undefined,
+      write: (frame) => {
+        res.write(
+          `data: ${JSON.stringify({ type: "text", content: frame })}\n\n`,
+        );
+      },
+    });
+  const deliverAssistantResponse = async (content) => {
+    const boundedContent = truncateAssistantText(
+      content,
+      MAX_ASSISTANT_RESPONSE_CHARACTERS,
+    );
+    const streamed = await writeAssistantResponse(boundedContent);
+    return boundedContent.slice(0, streamed.writtenCharacters);
+  };
+  const enforceEvidenceBoundary = (candidate) => {
+    const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
+    if (urgentSafetyResponse) return urgentSafetyResponse;
+    if (
+      routingDecision?.webSearchRequired &&
+      (!webSearchEvidenceAvailable || webSearchSources.length === 0)
+    ) {
+      return userId
+        ? "Mình chưa thể xác minh thông tin này bằng nguồn đáng tin cậy lúc này, nên chưa muốn khẳng định từ trí nhớ. Bạn thử lại sau nhé."
+        : "Mình chưa thể xác minh thông tin mới nhất này trong chế độ khách. Bạn đăng nhập để dùng tra cứu có nguồn nhé.";
+    }
+    if (internalEvidenceRequired && !internalEvidenceAvailable) {
+      return "Mình chưa tìm thấy dữ kiện phù hợp trong thư viện bài tập để trả lời chắc chắn. Bạn thử mô tả tên bài hoặc nhóm cơ cụ thể hơn nhé.";
+    }
+    if (routingDecision?.webSearchRequired && webSearchEvidenceAvailable) {
+      return boundAssistantOutputWithSources(candidate, {
+        sources: webSearchSources,
+        maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
+      });
+    }
+    if (kbCitationSources.length > 0) {
+      return boundAssistantOutputWithSources(candidate, {
+        sources: kbCitationSources,
+        maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
+      });
+    }
+    return candidate;
+  };
   try {
     const chatStartTime = Date.now();
     let toolCallCount = 0;
@@ -385,6 +700,68 @@ export const chatStream = async (req, res) => {
         conversationId: conversation._id,
       })}\n\n`,
     );
+
+    const priorMessages = conversation.messages.slice(0, -1);
+    const retrievalQuery = buildStandaloneRetrievalQuery(
+      message,
+      priorMessages,
+    );
+    routingDecision = routeAiRequest(message, {
+      contextualQuery: retrievalQuery,
+    });
+    const allowedPublicPersonNames =
+      getPublicPersonLookupNames(retrievalQuery);
+    const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
+    if (urgentSafetyResponse) {
+      responseModel = "static_safety_v1";
+      aiLogger.chatStart(actorId, conversation._id);
+      const guardedSafetyResponse = sanitizeAssistantOutput(
+        urgentSafetyResponse,
+      );
+      fullResponse = await deliverAssistantResponse(
+        guardedSafetyResponse.content || urgentSafetyResponse,
+      );
+      if (fullResponse) {
+        generatedMessages.push({
+          role: "assistant",
+          content: fullResponse,
+          answerTrace: buildAnswerTrace(),
+          timestamp: new Date(),
+        });
+      }
+      const finalization = await finalizeConversation({
+        conversationId: conversation._id,
+        ownerFilter,
+        conversationTtlMs,
+        streamId,
+        generatedMessages,
+        assistantPreview: fullResponse,
+        workingMemory: conversationMemory,
+      });
+      if (req.stagingAiAcceptance && finalization.modifiedCount !== 1) {
+        blockStagingAcceptanceSettlement(req);
+      }
+      finalized = true;
+      if (deadlineExceeded) {
+        throw new Error("AI response deadline exceeded");
+      }
+      aiLogger.chatEnd(actorId, conversation._id, {
+        iterations: 0,
+        toolCalls: 0,
+        durationMs: Date.now() - chatStartTime,
+        kbHits: 0,
+      });
+      if (!abortController.signal.aborted) {
+        res.write(
+          `data: ${JSON.stringify({
+            type: "done",
+            conversationId: conversation._id,
+          })}\n\n`,
+        );
+        res.end();
+      }
+      return;
+    }
 
     const resolvedPageContext = await resolvePageContext(
       conversation.context,
@@ -411,21 +788,96 @@ export const chatStream = async (req, res) => {
       conversationMemory,
       personalMemory,
     });
-
     // === KNOWLEDGE BASE SEARCH ===
     // Tìm kiến thức đã review trước khi gọi LLM. KB vẫn là untrusted data.
-    let kbEntryIds = [];
-    try {
-      const kbResults = await searchKnowledgeBase(message, { limit: 3, threshold: 0.75 });
-      if (kbResults.length > 0) {
-        kbEntryIds = kbResults.map((r) => r._id);
-        aiLogger.kbMatch(actorId, kbResults.length, kbResults[0]?.similarity);
-        systemPrompt += buildKnowledgeReferenceBlock(kbResults);
+    if (routingDecision.knowledgeBaseEligible) {
+      const preparedRetrieval = prepareKnowledgeRetrievalQuery(retrievalQuery);
+      if (preparedRetrieval.eligible) {
+        try {
+          const kbResults = await searchKnowledgeBase(preparedRetrieval.query, {
+            limit: 3,
+            threshold: 0.75,
+          });
+          if (kbResults.length > 0) {
+            kbEntryIds = kbResults.map((result) => result._id);
+            kbCitationSources = getCitableKnowledgeSources(kbResults);
+            aiLogger.kbMatch(actorId, kbResults.length, kbResults[0]?.similarity);
+            systemPrompt += buildKnowledgeReferenceBlock(kbResults);
+          }
+        } catch (err) {
+          // KB search lỗi không ảnh hưởng chat flow chính
+          safeLog.error("ai.kb_search_non_blocking_failed", err);
+        }
       }
-    } catch (err) {
-      // KB search lỗi không ảnh hưởng chat flow chính
-      safeLog.error("ai.kb_search_non_blocking_failed", err);
     }
+
+    // Fitness rủi ro thấp không có KB hit/canonical tool phù hợp được chuyển
+    // sang evidence web có giới hạn. High-stakes không externalize query:
+    // chỉ còn model-prior giáo dục với guard sức khỏe của system prompt.
+    if (
+      routingDecision.evidence === "internal_kb" &&
+      routingDecision.domain === "fitness" &&
+      kbEntryIds.length === 0 &&
+      !routingDecision.preferredTool
+    ) {
+      const lowRiskWebFallback = routingDecision.risk === "low";
+      routingDecision = Object.freeze({
+        ...routingDecision,
+        evidence: lowRiskWebFallback ? "web_required" : "model_prior",
+        knowledgeBaseEligible: false,
+        webSearchRequired: lowRiskWebFallback,
+        preferredTool: lowRiskWebFallback ? "search_knowledge" : null,
+        maxWebSearchCalls: lowRiskWebFallback ? 1 : 0,
+        reasonCodes: Object.freeze([
+          ...routingDecision.reasonCodes,
+          lowRiskWebFallback
+            ? "knowledge_base_no_hit"
+            : "high_stakes_no_internal_evidence",
+        ]),
+      });
+    }
+    internalEvidenceAvailable = kbEntryIds.length > 0;
+    internalEvidenceRequired =
+      routingDecision.evidence === "internal_kb" &&
+      routingDecision.domain === "fitness" &&
+      kbEntryIds.length === 0 &&
+      routingDecision.preferredTool === "search_exercises";
+    if (routingDecision.webSearchRequired) {
+      const missingRequiredPublicPersonBinding =
+        routingDecision.reasonCodes.includes("public_person_claim") &&
+        allowedPublicPersonNames.length === 0;
+      externalKnowledgeQuery = missingRequiredPublicPersonBinding
+        ? { eligible: false, reason: "ambiguous_person_identity" }
+        : prepareExternalKnowledgeQuery(retrievalQuery, {
+            allowedPublicPersonNames,
+          });
+      if (externalKnowledgeQuery.eligible) {
+        externalKnowledgeQuery = {
+          ...externalKnowledgeQuery,
+          query: externalKnowledgeQuery.query.slice(
+            0,
+            SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS,
+          ),
+        };
+      }
+      if (!externalKnowledgeQuery.eligible) {
+        routingDecision = Object.freeze({
+          ...routingDecision,
+          maxWebSearchCalls: 0,
+          preferredTool: null,
+          reasonCodes: Object.freeze([
+            ...routingDecision.reasonCodes,
+            "external_privacy_blocked",
+          ]),
+        });
+      }
+    }
+    systemPrompt += buildRequestRoutingBlock(routingDecision, {
+      canUseWebSearch:
+        Boolean(userId) &&
+        externalKnowledgeQuery.eligible &&
+        routingDecision.maxWebSearchCalls > 0,
+    });
 
     const llmMessages = [
       { role: "system", content: systemPrompt },
@@ -452,7 +904,47 @@ export const chatStream = async (req, res) => {
       }),
     ];
 
-    const tools = getToolSchemas({ isAuthenticated: Boolean(userId) });
+    const availableTools = getToolSchemas({
+      isAuthenticated: Boolean(userId),
+      allowWebSearch:
+        Boolean(userId) &&
+        externalKnowledgeQuery.eligible &&
+        routingDecision.maxWebSearchCalls > 0,
+    });
+    const routeAllowedToolNames = getAllowedToolNamesForRoute(
+      routingDecision,
+    ).filter(
+      (toolName) =>
+        toolName !== "search_knowledge" || externalKnowledgeQuery.eligible,
+    );
+    const routeAllowedToolNameSet = new Set(routeAllowedToolNames);
+    const routedTools = availableTools.filter((tool) =>
+      routeAllowedToolNameSet.has(tool?.function?.name),
+    );
+    const compoundTdeeMeal = routingDecision.reasonCodes.includes(
+      "compound_tdee_meal",
+    ) && routeAllowedToolNameSet.has("suggest_meal");
+    const requestedDietPlan = routeAllowedToolNameSet.has("suggest_meal")
+      ? explicitDietPlan(message)
+      : null;
+    const rememberedTdeeResult = !compoundTdeeMeal && requestedDietPlan &&
+      canReuseTdeeForMealFollowUp(message) &&
+      conversationMemory.lastTdee?.result
+      ? { uiCard: { cardType: "tdee", data: conversationMemory.lastTdee.result } }
+      : null;
+    let completedTdeeResult = null;
+    let completedCompoundMeal = false;
+    const getIterationTools = () => {
+      if (routingDecision.webSearchRequired &&
+          webSearchAttemptCount >= routingDecision.maxWebSearchCalls) return [];
+      if (compoundTdeeMeal) {
+        const nextToolName = completedCompoundMeal
+          ? null
+          : completedTdeeResult ? "suggest_meal" : "calculate_tdee";
+        return routedTools.filter((tool) => tool?.function?.name === nextToolName);
+      }
+      return routedTools;
+    };
     let lastToolResultText = ""; // Backup: dùng khi Gemini im luôn sau tool call
 
     // === AGENT LOOP (Pattern từ Dify fc_agent_runner.py) ===
@@ -470,10 +962,27 @@ export const chatStream = async (req, res) => {
       iteration++;
       let iterationText = "";
       let iterationCalledTool = false;
+      let iterationCompletedWebSearch = false;
+      let iterationGroundedWebText = "";
+      const iterationTools = getIterationTools();
+      const allowedToolNames = new Set(
+        iterationTools.map((tool) => tool?.function?.name).filter(Boolean),
+      );
 
-      for await (const chunk of llmStream(llmMessages, tools, {
-        signal: abortController.signal,
-      })) {
+      // Only the authenticated, one-time staging middleware can set this lane.
+      // The ordinary acquisition, moderation, routing and retrieval remain above.
+      if (req.stagingAiAcceptance?.mode === "provider_failure_before_llm") {
+        throw Object.assign(new Error("Injected staging acceptance failure before LLM invocation"), {
+          code: "STAGING_AI_ACCEPTANCE_PROVIDER_FAILURE",
+          isOperational: true,
+        });
+      }
+      const pacedAcceptance = req.stagingAiAcceptance?.mode === "paced_response";
+      if (pacedAcceptance) responseModel = "staging_acceptance_synthetic_v1";
+      const providerStream = pacedAcceptance
+        ? [{ type: "text", content: STAGING_AI_ACCEPTANCE_RESPONSE }]
+        : llmStream(llmMessages, iterationTools, { signal: abortController.signal });
+      for await (const chunk of providerStream) {
         if (abortController.signal.aborted) break;
         switch (chunk.type) {
           case "text":
@@ -492,10 +1001,51 @@ export const chatStream = async (req, res) => {
 
           case "tool_call":
             {
-            const boundedToolCalls = boundAiToolCalls(
+            // Mọi text phát trước function call chỉ là draft. Bỏ ngay cả khi
+            // function call bị runtime policy từ chối để không lộ protocol nháp.
+            iterationText = "";
+            fullResponse = "";
+            const runtimeBoundedToolCalls = boundAiToolCalls(
               chunk.toolCalls,
               toolCallCount,
             );
+            const eligibleToolCalls = runtimeBoundedToolCalls
+              .filter((call) => {
+                if (!allowedToolNames.has(call.name)) return false;
+                if (call.name !== "search_knowledge") return true;
+                if (
+                  webSearchAttemptCount >= routingDecision.maxWebSearchCalls ||
+                  !userId ||
+                  !externalKnowledgeQuery.eligible
+                ) {
+                  return false;
+                }
+                webSearchAttemptCount += 1;
+                return true;
+              })
+              .map((call) =>
+                call.name === "search_knowledge"
+                  ? {
+                      ...call,
+                      args: { query: externalKnowledgeQuery.query },
+                    }
+                  : (compoundTdeeMeal || rememberedTdeeResult) &&
+                      call.name === "suggest_meal"
+                    ? {
+                        ...call,
+                        args: canonicalCompoundMealArgs(
+                          completedTdeeResult || rememberedTdeeResult,
+                          call.args,
+                          requestedDietPlan,
+                        ),
+                      }
+                  : call,
+              );
+            const boundedToolCalls = compoundTdeeMeal
+              ? eligibleToolCalls.slice(0, 1).filter((call) => call.args)
+              : eligibleToolCalls.filter((call) =>
+                  call.name !== "suggest_meal" || !rememberedTdeeResult || call.args,
+                );
             if (boundedToolCalls.length === 0) {
               needsToolCall = false;
               iterationText +=
@@ -518,10 +1068,6 @@ export const chatStream = async (req, res) => {
             }
             needsToolCall = true;
             iterationCalledTool = true;
-            
-            // XÓA BỎ VĂN BẢN RÁC: Khi LLM gọi tool, nó sẽ bắt đầu lại từ đầu ở Turn sau,
-            // nên mọi văn bản đã sinh ra ở Turn hiện tại chỉ là nháp và phải bị vứt bỏ.
-            fullResponse = "";
 
             // Gemini yêu cầu parallel function calls nằm trong cùng model turn,
             // sau đó mới tới các functionResponse trong một user turn.
@@ -531,12 +1077,6 @@ export const chatStream = async (req, res) => {
               tool_calls: boundedToolCalls,
               _thoughtParts: chunk.thoughtParts || [],
             });
-            generatedMessages.push({
-              role: "assistant",
-              content: "",
-              toolCalls: boundedToolCalls,
-              timestamp: new Date(),
-            });
 
             const toolExecutions = await executeToolBatch(
               boundedToolCalls,
@@ -544,16 +1084,45 @@ export const chatStream = async (req, res) => {
                 userId,
                 signal: abortController.signal,
                 timeoutMs: TOOL_TIMEOUT_MS,
+                allowedToolNames: [...allowedToolNames],
+                allowedPublicPersonNames,
               },
               {
-                executor: executeTool,
+                executor: (toolName, parameters, context) => {
+                  if (toolName !== "search_knowledge") {
+                    return executeTool(toolName, parameters, context);
+                  }
+                  if (!externalKnowledgeQuery.eligible) {
+                    return {
+                      text:
+                        "Không thể gửi dữ liệu sức khỏe hoặc định danh cá nhân lên web search để tra cứu.",
+                      uiCard: null,
+                      error: null,
+                      meta: {
+                        toolName,
+                        evidenceAvailable: false,
+                        sourceCount: 0,
+                        validationFailed: true,
+                        invalidFields: ["query"],
+                        privacyBlocked: true,
+                      },
+                    };
+                  }
+                  webSearchExecutionCount += 1;
+                  return executeTool(
+                    toolName,
+                    { query: externalKnowledgeQuery.query },
+                    context,
+                  );
+                },
                 onStart: (call) => {
                   res.write(
-                    `data: ${JSON.stringify({ type: "tool_start", tool: call.name })}\n\n`,
+                    `data: ${JSON.stringify({ type: "tool_start" })}\n\n`,
                   );
                 },
               },
             );
+            const completedToolMessages = [];
 
             for (const execution of toolExecutions) {
               const { call, durationMs: toolDuration } =
@@ -566,6 +1135,7 @@ export const chatStream = async (req, res) => {
                   toolName: call.name,
                   parameters: call.args,
                 });
+                if (abortController.signal.aborted) break;
                 toolResult = {
                   ...toolResult,
                   uiCard: serializeAiToolConfirmationCard(challenge),
@@ -578,8 +1148,37 @@ export const chatStream = async (req, res) => {
                 status: resolveToolResultStatus(toolResult),
               });
               const toolStatus = resolveToolResultStatus(toolResult);
+              if (call.name === "search_knowledge") {
+                iterationCompletedWebSearch = true;
+                webSearchSources = Array.isArray(toolResult.meta?.sources)
+                  ? toolResult.meta.sources
+                  : [];
+                webSearchEvidenceAvailable =
+                  toolResult.meta?.evidenceAvailable === true &&
+                  webSearchSources.length > 0;
+                if (webSearchEvidenceAvailable) {
+                  iterationGroundedWebText = safeToolText;
+                }
+              }
               toolCallCount++;
               const toolSucceeded = isSuccessfulToolResult(toolResult);
+              if (compoundTdeeMeal && toolSucceeded) {
+                if (call.name === "calculate_tdee" &&
+                    canonicalCompoundMealArgs(toolResult)) {
+                  completedTdeeResult = toolResult;
+                } else if (call.name === "suggest_meal") {
+                  completedCompoundMeal = true;
+                }
+              }
+              if (
+                internalEvidenceRequired &&
+                call.name === routingDecision.preferredTool
+              ) {
+                internalEvidenceAvailable =
+                  internalEvidenceAvailable ||
+                  (toolSucceeded &&
+                    toolResult.meta?.evidenceAvailable === true);
+              }
               aiLogger.toolCall(actorId, call.name, toolDuration, toolSucceeded);
               if (toolSucceeded) {
                 conversationMemory = updateConversationMemory(
@@ -590,8 +1189,8 @@ export const chatStream = async (req, res) => {
                 );
               }
 
-              // Gửi tool_result cho FE
-              res.write(`data: ${JSON.stringify({ type: "tool_result", tool: call.name, text: safeToolText })}\n\n`);
+              // FE chỉ cần biết tool đã hoàn tất; tên/nội dung tool là protocol nội bộ.
+              res.write(`data: ${JSON.stringify({ type: "tool_result" })}\n\n`);
 
               // Nếu có UI card → gửi cho FE render
               if (toolResult.uiCard) {
@@ -609,7 +1208,7 @@ export const chatStream = async (req, res) => {
               lastToolResultText = safeToolText; // Lưu backup
 
               // Lưu tool call vào conversation
-              generatedMessages.push({
+              completedToolMessages.push({
                 role: "tool",
                 content: safeToolText,
                 toolName: call.name,
@@ -622,6 +1221,20 @@ export const chatStream = async (req, res) => {
                 timestamp: new Date(),
               });
             }
+            if (
+              !abortController.signal.aborted &&
+              completedToolMessages.length === boundedToolCalls.length
+            ) {
+              generatedMessages.push(
+                {
+                  role: "assistant",
+                  content: "",
+                  toolCalls: boundedToolCalls,
+                  timestamp: new Date(),
+                },
+                ...completedToolMessages,
+              );
+            }
             }
             break;
 
@@ -632,6 +1245,23 @@ export const chatStream = async (req, res) => {
       }
 
       if (abortController.signal.aborted) break;
+      if (iterationCalledTool && iterationCompletedWebSearch) {
+        let groundedContent = "";
+        if (webSearchEvidenceAvailable) {
+          const guardedGrounding = sanitizeAssistantOutput(
+            iterationGroundedWebText,
+          );
+          groundedContent = guardedGrounding.content;
+          if (!groundedContent) {
+            webSearchEvidenceAvailable = false;
+            webSearchSources = [];
+          }
+        }
+        const finalContent = enforceEvidenceBoundary(groundedContent);
+        fullResponse = await deliverAssistantResponse(finalContent);
+        needsToolCall = false;
+        break;
+      }
       if (!iterationCalledTool && iterationText) {
         const guarded = sanitizeAssistantOutput(iterationText);
         if (guarded.protocolLeak && protocolRetryCount < 1) {
@@ -646,16 +1276,16 @@ export const chatStream = async (req, res) => {
           continue;
         }
 
-        fullResponse =
-          guarded.content ||
-          "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.";
-        res.write(
-          `data: ${JSON.stringify({ type: "text", content: fullResponse })}\n\n`,
+        const finalContent = enforceEvidenceBoundary(
+            guarded.content ||
+              "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.",
         );
+        fullResponse = await deliverAssistantResponse(finalContent);
       }
     }
 
     if (deadlineExceeded) {
+      fullResponse = "";
       throw new Error("AI response deadline exceeded");
     }
 
@@ -671,19 +1301,32 @@ export const chatStream = async (req, res) => {
         "ai.tool_result_fallback",
         "Provider returned no text after tool call",
       );
-      fullResponse = lastToolResultText;
-      res.write(`data: ${JSON.stringify({ type: "text", content: fullResponse })}\n\n`);
+      const guardedFallback = sanitizeAssistantOutput(lastToolResultText);
+      if (guardedFallback.protocolLeak) {
+        safeLog.warn(
+          "ai.tool_result_fallback_blocked",
+          "Tool fallback contained assistant protocol text",
+        );
+      }
+      const fallbackContent = enforceEvidenceBoundary(
+        guardedFallback.content ||
+          "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.",
+      );
+      fullResponse = await deliverAssistantResponse(fallbackContent);
     }
     if (fullResponse) {
-      fullResponse = fullResponse.slice(0, 20000);
       generatedMessages.push({
         role: "assistant",
         content: fullResponse,
+        answerTrace: buildAnswerTrace(),
         timestamp: new Date(),
       });
     }
+    if (!abortController.signal.aborted && !fullResponse) {
+      throw new Error("AI provider completed without usable output");
+    }
 
-    await finalizeConversation({
+    const finalization = await finalizeConversation({
       conversationId: conversation._id,
       ownerFilter,
       conversationTtlMs,
@@ -692,14 +1335,30 @@ export const chatStream = async (req, res) => {
       assistantPreview: fullResponse,
       workingMemory: conversationMemory,
     });
+    if (req.stagingAiAcceptance && finalization.modifiedCount !== 1) {
+      blockStagingAcceptanceSettlement(req);
+    }
     finalized = true;
+    if (deadlineExceeded) {
+      throw new Error("AI response deadline exceeded");
+    }
 
     // Tăng usageCount cho KB entries đã dùng (non-blocking)
     if (kbEntryIds.length > 0) {
-      KnowledgeEntry.updateMany(
+      const usageUpdate = KnowledgeEntry.updateMany(
         { _id: { $in: kbEntryIds } },
         { $inc: { usageCount: 1 }, $set: { lastUsedAt: new Date() } }
-      ).catch((err) => safeLog.error("ai.kb_usage_update_failed", err));
+      );
+      if (req.stagingAiAcceptance) {
+        try {
+          await usageUpdate;
+        } catch (error) {
+          safeLog.error("ai.kb_usage_update_failed", error);
+          blockStagingAcceptanceSettlement(req);
+        }
+      } else {
+        usageUpdate.catch((error) => safeLog.error("ai.kb_usage_update_failed", error));
+      }
     }
 
     // Done event
@@ -712,9 +1371,29 @@ export const chatStream = async (req, res) => {
     if (!abortController.signal.aborted) {
       res.write(`data: ${JSON.stringify({ type: "done", conversationId: conversation._id })}\n\n`);
       res.end();
+      if (req.stagingAiAcceptance) req.stagingAiAcceptanceOutcome = "completed";
+    } else if (req.stagingAiAcceptance) {
+      req.stagingAiAcceptanceOutcome = "aborted";
     }
   } catch (err) {
     aiLogger.chatError(actorId, err, "chatStream");
+    failedStream = !clientDisconnected;
+    if (req.stagingAiAcceptance) {
+      req.stagingAiAcceptanceOutcome = clientDisconnected ? "aborted" : "failed";
+    }
+    if (failedStream && !finalized) {
+      try {
+        rollbackSucceeded = await releaseFailedConversation({
+          conversation,
+          ownerFilter,
+          streamId,
+          requestKey: requestKeyContract.writeKey,
+        });
+        finalized = rollbackSucceeded;
+      } catch (error) {
+        aiLogger.chatError(actorId, error, "chatReleaseFailed");
+      }
+    }
     const refundedQuota = await refundAiQuota(
       req,
       deadlineExceeded ? "provider_deadline" : "provider_stream",
@@ -728,21 +1407,44 @@ export const chatStream = async (req, res) => {
           `data: ${JSON.stringify({ type: "quota", quota: refundedQuota })}\n\n`,
         );
       }
-      res.write(`data: ${JSON.stringify({ type: "error", message })}\n\n`);
+      res.write(`data: ${JSON.stringify({
+        type: "error",
+        message,
+        retryable: rollbackSucceeded,
+      })}\n\n`);
       res.end();
     }
   } finally {
     clearTimeout(deadlineTimer);
     if (!finalized) {
+      if (failedStream) {
+        try {
+          const released = await releaseFailedConversation({
+            conversation,
+            ownerFilter,
+            streamId,
+            requestKey: requestKeyContract.writeKey,
+          });
+          if (!released) blockStagingAcceptanceSettlement(req);
+        } catch (error) {
+          aiLogger.chatError(actorId, error, "chatReleaseFailed");
+          blockStagingAcceptanceSettlement(req);
+        }
+        return;
+      }
       if (fullResponse && !generatedMessages.some((item) => item.content === fullResponse)) {
         generatedMessages.push({
           role: "assistant",
-          content: fullResponse.slice(0, 20000),
+          content: truncateAssistantText(
+            fullResponse,
+            MAX_ASSISTANT_RESPONSE_CHARACTERS,
+          ),
+          answerTrace: buildAnswerTrace(),
           timestamp: new Date(),
         });
       }
       try {
-        await finalizeConversation({
+        const finalization = await finalizeConversation({
           conversationId: conversation._id,
           ownerFilter,
           conversationTtlMs,
@@ -751,8 +1453,12 @@ export const chatStream = async (req, res) => {
           assistantPreview: fullResponse,
           workingMemory: conversationMemory,
         });
+        if (req.stagingAiAcceptance && finalization.modifiedCount !== 1) {
+          blockStagingAcceptanceSettlement(req);
+        }
       } catch (error) {
         aiLogger.chatError(actorId, error, "chatFinalize");
+        blockStagingAcceptanceSettlement(req);
       }
     }
   }
@@ -805,7 +1511,7 @@ export const getConversationById = async (req, res) => {
       data: {
         conversationId: conversation._id,
         title: conversation.title || "Cuộc trò chuyện",
-        messages: conversation.messages,
+        messages: serializePublicChatMessages(conversation.messages),
         context: conversation.context,
       },
     });
@@ -916,7 +1622,7 @@ export const forkConversation = async (req, res) => {
       data: {
         conversationId: branch._id,
         title: branch.title,
-        messages: branch.messages,
+        messages: serializePublicChatMessages(branch.messages),
         context: branch.context,
       },
     });
@@ -942,7 +1648,7 @@ export const getHistory = async (req, res) => {
       data: {
         conversationId: conversation._id,
         title: conversation.title || "",
-        messages: conversation.messages,
+        messages: serializePublicChatMessages(conversation.messages),
         context: conversation.context,
       },
     });
@@ -992,6 +1698,9 @@ export const submitFeedback = async (req, res) => {
       return res.status(400).json({ success: false, message: "Thiếu messageId hoặc feedback không hợp lệ" });
     }
 
+    const feedbackReview = feedback === "down"
+      ? { status: "pending", reviewedBy: null, reviewedAt: null }
+      : { status: "none", reviewedBy: null, reviewedAt: null };
     const result = await ChatConversation.updateOne({
       _id: req.params.id,
       userId: req.user.id,
@@ -999,7 +1708,10 @@ export const submitFeedback = async (req, res) => {
         $elemMatch: { _id: messageId, role: "assistant" },
       },
     }, {
-      $set: { "messages.$[message].feedback": feedback },
+      $set: {
+        "messages.$[message].feedback": feedback,
+        "messages.$[message].feedbackReview": feedbackReview,
+      },
     }, {
       arrayFilters: [{ "message._id": messageId, "message.role": "assistant" }],
       runValidators: true,
@@ -1011,6 +1723,7 @@ export const submitFeedback = async (req, res) => {
 
     res.json({ success: true, message: "Đã lưu feedback" });
   } catch (err) {
+    safeLog.error("ai.feedback_submit_failed", err);
     res.status(500).json({ success: false, message: "Không thể lưu feedback" });
   }
 };

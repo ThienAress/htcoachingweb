@@ -94,6 +94,7 @@ const TRAINER_NAVIGATION_GROUPS = [
 export const getAccountWorkspaceItems = ({
   isAdmin = false,
   hasTrainerAccess = false,
+  hasCoaching = false,
   todayPlatformEnabled = true,
 } = {}) => {
   if (isAdmin) {
@@ -104,7 +105,14 @@ export const getAccountWorkspaceItems = ({
     return [ACCOUNT_WORKSPACES.customerManagement];
   }
 
-  return todayPlatformEnabled ? [ACCOUNT_WORKSPACES.customerDashboard] : [];
+  return todayPlatformEnabled
+    ? [{
+        ...ACCOUNT_WORKSPACES.customerDashboard,
+        labelKey: hasCoaching
+          ? "nav_user.today_dashboard"
+          : "nav_user.my_dashboard",
+      }]
+    : [];
 };
 
 export const getTrainerNavigationGroups = ({

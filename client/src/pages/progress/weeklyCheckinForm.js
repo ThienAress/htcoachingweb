@@ -7,6 +7,8 @@ import {
 export const WEEKLY_SUBMISSION_FIELDS = [
   { key: "weightKg", label: "Cân nặng" },
   { key: "waistCm", label: "Vòng eo" },
+  { key: "hipCm", label: "Vòng hông" },
+  { key: "abdomenCm", label: "Vòng bụng" },
   { key: "bodyFatPercent", label: "Tỷ lệ mỡ cơ thể" },
   { key: "skeletalMusclePercent", label: "Tỷ lệ cơ xương" },
 ];
@@ -22,16 +24,21 @@ export const getMissingWeeklyFields = (values = {}) =>
 const optionalNumber = (min, max, integer = false) =>
   z.preprocess(
     (value) => {
-      if (value === "" || value === undefined) return null;
+      if (value === "" || value === undefined || value === null) return null;
       const numeric = Number(value);
       return Number.isNaN(numeric) ? value : numeric;
     },
-    (integer ? z.number().int() : z.number()).min(min).max(max).nullable(),
+    (integer ? z.number().int() : z.number())
+      .min(min, `Nhập số đo từ ${min} đến ${max}.`)
+      .max(max, `Nhập số đo từ ${min} đến ${max}.`)
+      .nullable(),
   );
 
 export const weeklyFormSchema = z.object({
   weightKg: optionalNumber(30, 350),
   waistCm: optionalNumber(30, 300),
+  hipCm: optionalNumber(30, 300),
+  abdomenCm: optionalNumber(30, 300),
   bodyFatPercent: optionalNumber(1, 80),
   skeletalMusclePercent: optionalNumber(1, 80),
 });
@@ -43,6 +50,8 @@ export const weeklyCheckinSchema = weeklyFormSchema.extend({
 export const weeklyFormDefaults = {
   weightKg: "",
   waistCm: "",
+  hipCm: "",
+  abdomenCm: "",
   bodyFatPercent: "",
   skeletalMusclePercent: "",
 };
@@ -51,6 +60,8 @@ export const weeklyValuesToPatch = (values) => ({
   body: {
     weightKg: values.weightKg,
     waistCm: values.waistCm,
+    hipCm: values.hipCm,
+    abdomenCm: values.abdomenCm,
     bodyFatPercent: values.bodyFatPercent,
     skeletalMusclePercent: values.skeletalMusclePercent,
   },

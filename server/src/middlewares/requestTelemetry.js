@@ -3,7 +3,10 @@ import { recordHttpRequest } from "../observability/metrics.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { runWithRequestContext } from "../utils/requestContext.js";
 
-const REQUEST_ID_PATTERN = /^[a-zA-Z0-9._-]{8,100}$/;
+// Chỉ nhận correlation ID opaque theo UUID. Header này do client kiểm soát;
+// chuỗi tự do có thể chứa PII và bị ghi lại bởi observability/proxy logs.
+const REQUEST_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TRACEPARENT_PATTERN =
   /^[0-9a-f]{2}-([0-9a-f]{32})-[0-9a-f]{16}-[0-9a-f]{2}$/i;
 

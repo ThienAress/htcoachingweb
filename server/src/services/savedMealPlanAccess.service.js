@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Order from "../models/Order.js";
+import { resolveEffectiveClientCoach } from "./effectiveCoach.service.js";
 import SavedMealPlan from "../models/SavedMealPlan.js";
 
 export const savedMealPlanError = (statusCode, message, codeName) => {
@@ -23,20 +23,13 @@ export const resolveSavedMealPlanTrainerMetadata = async ({
   ownerId,
   session = null,
 }) => {
-  let query = Order.findOne({
-    userId: ownerId,
-    status: "approved",
-    sessions: { $gt: 0 },
-  })
-    .sort({ createdAt: -1 })
-    .select("trainerId")
-    .lean();
-  if (session) query = query.session(session);
-  const order = await query;
-  return {
-    trainerId: order?.trainerId || null,
-    orderId: order?._id || null,
-  };
+  try {
+    const assignment = await resolveEffectiveClientCoach({ clientId: ownerId, session });
+    return { trainerId: assignment.trainerId, orderId: assignment.order._id };
+  } catch (error) {
+    if (error.codeName === "NO_ACTIVE_ORDER") return { trainerId: null, orderId: null };
+    throw error;
+  }
 };
 
 export const findOwnedSavedMealPlan = async ({

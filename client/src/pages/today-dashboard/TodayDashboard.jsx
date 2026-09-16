@@ -9,12 +9,12 @@ import {
 import { Link, useOutletContext } from "react-router-dom";
 import { dashboardPathFor } from "../../utils/customerDashboardNavigation";
 
-const dayStatusLabel = (status) =>
+const dayStatusLabel = (status, selfManaged = false) =>
   ({
     not_started: "Chưa bắt đầu",
     in_progress: "Đang thực hiện",
     completed: "Đã hoàn thành",
-    submitted: "Đã gửi HLV",
+    submitted: selfManaged ? "Đã lưu" : "Đã gửi HLV",
     rest_day: "Ngày nghỉ",
   })[status] || "Đang cập nhật";
 
@@ -97,6 +97,7 @@ const MODULE_CONFIG = {
     icon: NotebookPen,
     label: "Nhật ký & thói quen",
     description: "Sức khỏe, thói quen và báo cáo tuần.",
+    selfManagedDescription: "Sức khỏe, thói quen và số đo tuần.",
     accent: "amber",
     iconBg: "bg-amber-500/15",
     iconColor: "text-amber-400",
@@ -121,6 +122,7 @@ const MODULE_CONFIG = {
 
 const TodayDashboard = () => {
   const { data, dateKey } = useOutletContext();
+  const selfManaged = data.accessMode === "self_managed";
   const scheduleItems = data.sections.schedule.items || [];
   const nextSchedule = scheduleItems[0] || null;
   const moduleProgress = data.summary.moduleProgress;
@@ -190,7 +192,9 @@ const TodayDashboard = () => {
                   Hoàn thiện nhật ký trong ngày
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                  Hôm nay chưa có lịch tập. Bạn vẫn có thể cập nhật sức khỏe, bữa ăn và thói quen.
+                  {selfManaged
+                    ? "Bạn có thể tự cập nhật sức khỏe, bữa ăn và thói quen hôm nay."
+                    : "Hôm nay chưa có lịch tập. Bạn vẫn có thể cập nhật sức khỏe, bữa ăn và thói quen."}
                 </p>
                 <Link
                   to={dashboardPathFor("journal", dateKey)}
@@ -218,7 +222,7 @@ const TodayDashboard = () => {
             <div
               className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${dayStatusBg(dayStatus)} ${dayStatusColor(dayStatus)}`}
             >
-              {dayStatusLabel(dayStatus)}
+              {dayStatusLabel(dayStatus, selfManaged)}
             </div>
           </div>
         </div>
@@ -230,7 +234,11 @@ const TodayDashboard = () => {
           Chọn khu vực để tiếp tục
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
-          {Object.entries(MODULE_CONFIG).map(([key, cfg]) => {
+          {Object.entries(MODULE_CONFIG)
+            .filter(
+              ([key]) => data.accessMode !== "self_managed" || key !== "training",
+            )
+            .map(([key, cfg]) => {
             const Icon = cfg.icon;
             return (
               <Link
@@ -256,7 +264,11 @@ const TodayDashboard = () => {
 
                   <div className="min-w-0 flex-1">
                     <span className="block font-bold text-white">{cfg.label}</span>
-                    <span className="mt-0.5 block text-sm text-slate-400">{cfg.description}</span>
+                    <span className="mt-0.5 block text-sm text-slate-400">
+                      {selfManaged && cfg.selfManagedDescription
+                        ? cfg.selfManagedDescription
+                        : cfg.description}
+                    </span>
                     <span className={`mt-2 block truncate text-xs font-semibold ${cfg.statusColor}`}>
                       {moduleStatuses[key]}
                     </span>

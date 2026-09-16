@@ -4,9 +4,9 @@ import { getMorningHealthReminderMode } from "../config/backgroundJobs.js";
 import DailyJournal from "../models/DailyJournal.js";
 import MorningHealthReminderDelivery from "../models/MorningHealthReminderDelivery.js";
 import NotificationPreference from "../models/NotificationPreference.js";
-import Order from "../models/Order.js";
 import User from "../models/User.js";
 import { createRecurringJob } from "../operations/recurringJob.js";
+import { resolveEffectiveCoachRecipients } from "./effectiveCoachRecipients.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 import { sendMorningHealthReminderMail } from "../utils/sendMail.js";
 
@@ -41,12 +41,23 @@ const isReminderWindow = ({ hour }) => hour === 7 || hour === 8;
 
 const isEnabled = (env) => getMorningHealthReminderMode(env).enabled;
 
+const reportTick = (result) => {
+  safeLog.info("morning_health_reminder.tick", result);
+  return result;
+};
+
 export const buildMorningHealthDeliveryKey = (recipientId, dateKey) =>
   createHash("sha256")
     .update(`morning-health:${String(recipientId)}:${dateKey}`)
     .digest("hex");
 
-const loadEligibleRecipients = async (dateKey) => {
+const countSkipReasons = (excluded) =>
+  [...excluded.values()].reduce(
+    (counts, reason) => ({ ...counts, [reason]: (counts[reason] || 0) + 1 }),
+    {},
+  );
+
+const loadEligibleRecipients = async (dateKey, env) => {
   const preferences = await NotificationPreference.find({
     morningHealthEmail: true,
   })
@@ -57,21 +68,13 @@ const loadEligibleRecipients = async (dateKey) => {
     return { recipients: [], suppressed: 0 };
   }
 
-  const [users, activeOrders, submittedJournals] = await Promise.all([
+  const [users, submittedJournals] = await Promise.all([
     User.find({
       _id: { $in: recipientIds },
       role: "user",
       email: { $type: "string", $ne: "" },
     })
       .select("_id name email")
-      .lean(),
-    Order.find({
-      userId: { $in: recipientIds },
-      status: "approved",
-      sessions: { $gt: 0 },
-      trainerId: { $ne: null },
-    })
-      .select("userId")
       .lean(),
     DailyJournal.find({
       clientId: { $in: recipientIds },
@@ -82,14 +85,16 @@ const loadEligibleRecipients = async (dateKey) => {
       .lean(),
   ]);
 
-  const activeUserIds = new Set(
-    activeOrders.map((order) => String(order.userId)),
-  );
+  const { eligibleRecipientIds, excluded } =
+    await resolveEffectiveCoachRecipients({
+      recipientIds: users.map((user) => user._id),
+      env,
+    });
   const submittedUserIds = new Set(
     submittedJournals.map((journal) => String(journal.clientId)),
   );
   const activeUsers = users.filter((user) =>
-    activeUserIds.has(String(user._id)),
+    eligibleRecipientIds.has(String(user._id)),
   );
   return {
     recipients: activeUsers.filter(
@@ -98,6 +103,7 @@ const loadEligibleRecipients = async (dateKey) => {
     suppressed: activeUsers.filter((user) =>
       submittedUserIds.has(String(user._id)),
     ).length,
+    skipReasons: countSkipReasons(excluded),
   };
 };
 
@@ -174,31 +180,51 @@ export async function checkAndSendMorningHealthReminders(
   env = process.env,
 ) {
   if (!isEnabled(env)) {
-    return { sent: 0, failed: 0, suppressed: 0, skipped: "disabled" };
+    return reportTick({
+      eligible: 0,
+      suppressed: 0,
+      claimed: 0,
+      sent: 0,
+      failed: 0,
+      alreadyHandled: 0,
+      skipReasons: {},
+      skipped: "disabled",
+    });
   }
   const vietnamNow = getVietnamDateTime(now);
   if (!isReminderWindow(vietnamNow)) {
-    return {
+    return reportTick({
       dateKey: vietnamNow.dateKey,
+      eligible: 0,
+      claimed: 0,
       sent: 0,
       failed: 0,
       suppressed: 0,
+      alreadyHandled: 0,
+      skipReasons: {},
       skipped: "outside_window",
-    };
+    });
   }
 
-  const { recipients, suppressed } = await loadEligibleRecipients(
+  const { recipients, suppressed, skipReasons } = await loadEligibleRecipients(
     vietnamNow.dateKey,
+    env,
   );
   let sent = 0;
   let failed = 0;
+  let claimed = 0;
+  let alreadyHandled = 0;
   for (const recipient of recipients) {
     const delivery = await claimDelivery({
       recipientId: recipient._id,
       dateKey: vietnamNow.dateKey,
       now,
     });
-    if (!delivery) continue;
+    if (!delivery) {
+      alreadyHandled += 1;
+      continue;
+    }
+    claimed += 1;
 
     try {
       await sendMorningHealthReminderMail(recipient.email, {
@@ -211,13 +237,22 @@ export async function checkAndSendMorningHealthReminders(
     } catch (error) {
       await markFailed(delivery._id, error, now);
       safeLog.error("morning_health_reminder.delivery_failed", error, {
-        deliveryKey: delivery._id,
         dateKey: vietnamNow.dateKey,
       });
       failed += 1;
     }
   }
-  return { dateKey: vietnamNow.dateKey, sent, failed, suppressed };
+  const result = {
+    dateKey: vietnamNow.dateKey,
+    eligible: recipients.length,
+    suppressed,
+    claimed,
+    sent,
+    failed,
+    alreadyHandled,
+    skipReasons,
+  };
+  return reportTick(result);
 }
 
 const morningHealthReminderCron = createRecurringJob({

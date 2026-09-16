@@ -14,6 +14,8 @@ import User from "../models/User.js";
 import WorkoutPlan from "../models/WorkoutPlan.js";
 import { getMaxClientsByPlan } from "./trainerPlanCatalog.service.js";
 import { transferError } from "./trainerTransferErrors.js";
+import { resolveDefaultAdminTrainer } from "./defaultAdminTrainer.service.js";
+import { effectiveCoachOrderFilter, isCoachAssignmentError } from "./effectiveCoach.service.js";
 
 const ACTIVE_ORDER_FILTER = {
   $or: [
@@ -40,6 +42,7 @@ const documentVersion = (document) => [
   String(document._id),
   document.updatedAt?.toISOString?.() || "",
   Number(document.__v) || 0,
+  Object.hasOwn(document, "trainerId") ? String(document.trainerId) : "missing",
 ];
 
 const createPreviewToken = (snapshot) =>
@@ -102,21 +105,28 @@ export const loadTrainerTransferSnapshot = async ({
   if (!client || !fromTrainer) {
     throw transferError(404, "TRANSFER_ACTOR_NOT_FOUND", "Không tìm thấy khách hoặc HLV hiện tại");
   }
-  if (!toTrainer || (toTrainer.role !== "trainer" && !targetSubscription)) {
+  let leadId = null;
+  try {
+    leadId = (await resolveDefaultAdminTrainer({ session }))._id;
+  } catch (error) {
+    if (!isCoachAssignmentError(error)) throw error;
+  }
+  const unlimitedCapacity = toTrainer?.role === "admin" && ids.toTrainerId.equals(leadId);
+  if (!toTrainer || (toTrainer.role !== "trainer" && !targetSubscription && !unlimitedCapacity)) {
     throw transferError(409, "TARGET_TRAINER_INACTIVE", "HLV mới không có quyền hoạt động");
   }
-  const maxClients = getMaxClientsByPlan(
+  const maxClients = unlimitedCapacity ? null : getMaxClientsByPlan(
     targetSubscription?.planCode || targetSubscription?.planTitle || "free",
   );
-  if (maxClients < 1) {
+  if (!unlimitedCapacity && maxClients < 1) {
     throw transferError(409, "TARGET_TRAINER_PLAN_INVALID", "Không xác định được giới hạn gói HLV mới");
   }
 
   const orderFilter = {
     userId: ids.clientId,
-    trainerId: ids.fromTrainerId,
-    ...ACTIVE_ORDER_FILTER,
+    $and: [await effectiveCoachOrderFilter({ trainerId: ids.fromTrainerId, session }), ACTIVE_ORDER_FILTER],
   };
+  const targetOrderFilter = await effectiveCoachOrderFilter({ trainerId: ids.toTrainerId, session });
   const scheduleFilter = {
     clientId: ids.clientId,
     trainerId: ids.fromTrainerId,
@@ -138,18 +148,18 @@ export const loadTrainerTransferSnapshot = async ({
   };
   const [orders, schedules, workoutPlans, coachingDays, targetClientIds] =
     await resolveQueries([
-      withSession(Order.find(orderFilter).select("status updatedAt __v"), session).lean(),
+      withSession(Order.find(orderFilter).select("trainerId status updatedAt __v"), session).lean(),
       withSession(
         TrainingSchedule.find(scheduleFilter).select(
-          "startAt endAt updatedAt __v",
+          "trainerId startAt endAt updatedAt __v",
         ),
         session,
       ).lean(),
-      withSession(WorkoutPlan.find(workoutFilter).select("status planDate updatedAt __v"), session).lean(),
-      withSession(CoachingDay.find(coachingFilter).select("clientStatus date updatedAt __v"), session).lean(),
+      withSession(WorkoutPlan.find(workoutFilter).select("trainerId status planDate updatedAt __v"), session).lean(),
+      withSession(CoachingDay.find(coachingFilter).select("trainerId clientStatus date updatedAt __v"), session).lean(),
       withSession(
         Order.distinct("userId", {
-          trainerId: ids.toTrainerId,
+          ...targetOrderFilter,
           userId: { $ne: null },
           status: { $in: ["pending", "approved"] },
           sessions: { $gt: 0 },
@@ -166,7 +176,7 @@ export const loadTrainerTransferSnapshot = async ({
   const claims = scheduleIds.length
     ? await withSession(
         TrainingSlotClaim.find({ scheduleId: { $in: scheduleIds } }).select(
-          "slotStartAt updatedAt __v",
+          "trainerId slotStartAt updatedAt __v",
         ),
         session,
       ).lean()
@@ -245,7 +255,7 @@ export const loadTrainerTransferSnapshot = async ({
 };
 
 export const serializeTrainerTransferPreview = (snapshot) => {
-  const capacityExceeded = snapshot.projectedClients > snapshot.maxClients;
+  const capacityExceeded = snapshot.maxClients !== null && snapshot.projectedClients > snapshot.maxClients;
   const warnings = [];
   if (snapshot.retained.contracts > 0) {
     warnings.push({ code: "CONTRACTS_RETAINED", message: "Hợp đồng giữ nguyên HLV lịch sử; tạo hợp đồng mới nếu cần" });
@@ -274,6 +284,7 @@ export const serializeTrainerTransferPreview = (snapshot) => {
       currentClients: snapshot.targetClientIds.length,
       projectedClients: snapshot.projectedClients,
       maxClients: snapshot.maxClients,
+      unlimited: snapshot.maxClients === null,
       exceeded: capacityExceeded,
     },
     warnings,

@@ -534,7 +534,7 @@ const MealPlan = () => {
                   i18nKey="trial_expired"
                   ns="mealplan"
                   components={[
-                    <Link to="/" className="underline font-semibold hover:text-red-300" key="0" />
+                    <Link to="/#pricing" className="underline font-semibold hover:text-red-300" key="0" />
                   ]}
                 />
               )}

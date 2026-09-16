@@ -1,4 +1,5 @@
 export const TRAINER_PRIVATE_QUERY_ROOTS = Object.freeze([
+  "body-assessments",
   "coaching-comments",
   "coaching-activity",
   "coaching-habits",

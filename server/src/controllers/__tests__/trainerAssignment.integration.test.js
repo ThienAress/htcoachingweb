@@ -5,6 +5,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import request from "supertest";
 
@@ -27,11 +28,15 @@ beforeAll(async () => {
   app.use("/api/user", userRoutes);
 });
 
-afterEach(clearCollections);
+afterEach(async () => {
+  vi.unstubAllEnvs();
+  await clearCollections();
+});
 afterAll(teardownTestDB);
 
 describe("GET /api/user/trainer-assignment-candidates", () => {
   it("returns trainer-role and active subscriber users without duplicates", async () => {
+    vi.stubEnv("DEFAULT_ADMIN_TRAINER_ID", "");
     const admin = await createTestUser({ role: "admin", email: "admin@test.com" });
     const legacyTrainer = await createTestUser({
       role: "trainer",
@@ -85,6 +90,35 @@ describe("GET /api/user/trainer-assignment-candidates", () => {
     );
     expect(response.body.data.trainers).not.toContainEqual(
       expect.objectContaining({ email: cancelledSubscriber.user.email }),
+    );
+  });
+
+  it("includes only the configured admin lead as an assignment candidate", async () => {
+    const lead = await createTestUser({
+      role: "admin",
+      email: "lead-admin@test.com",
+    });
+    const otherAdmin = await createTestUser({
+      role: "admin",
+      email: "other-admin@test.com",
+    });
+    const requester = await createTestUser({
+      role: "admin",
+      email: "requester-admin@test.com",
+    });
+    vi.stubEnv("DEFAULT_ADMIN_TRAINER_ID", String(lead.user._id));
+
+    const response = await withAuth(
+      request(app).get("/api/user/trainer-assignment-candidates?limit=100"),
+      requester.accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.trainers).toContainEqual(
+      expect.objectContaining({ _id: String(lead.user._id) }),
+    );
+    expect(response.body.data.trainers).not.toContainEqual(
+      expect.objectContaining({ _id: String(otherAdmin.user._id) }),
     );
   });
 

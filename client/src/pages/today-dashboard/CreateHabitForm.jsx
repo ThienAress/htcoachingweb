@@ -20,6 +20,7 @@ export const CreateHabitForm = ({
   dateKey,
   disabled,
   onCreate,
+  selfManaged = false,
   trainerMode = false,
   initialHabit = null,
   onUpdate,
@@ -62,6 +63,7 @@ export const CreateHabitForm = ({
     const payload = habitFormToPayload(values, dateKey, {
       trainer: trainerMode,
       habit: initialHabit,
+      selfManaged,
     });
     if (isEditing) {
       onUpdate?.(payload);
@@ -168,7 +170,7 @@ export const CreateHabitForm = ({
             </p>
           )}
         </fieldset>
-      {!trainerMode && (
+      {!trainerMode && !selfManaged && (
         <label className="mt-4 flex min-h-11 items-center gap-3 text-sm text-slate-300">
           <input
             type="checkbox"

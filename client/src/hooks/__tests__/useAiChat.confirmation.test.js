@@ -59,4 +59,27 @@ describe("AI ephemeral confirmation reconciliation", () => {
       mergeEphemeralConfirmationCards(persisted, local, "current-assistant"),
     ).toBe(persisted);
   });
+
+  it("does not duplicate a confirmation card already attached locally", () => {
+    const card = {
+      cardType: "confirmation",
+      data: { token: "opaque" },
+    };
+    const persisted = [
+      {
+        role: "assistant",
+        localId: "current-assistant",
+        content: "",
+        uiCards: [card],
+      },
+    ];
+
+    const merged = mergeEphemeralConfirmationCards(
+      persisted,
+      persisted,
+      "current-assistant",
+    );
+
+    expect(merged[0].uiCards).toEqual([card]);
+  });
 });

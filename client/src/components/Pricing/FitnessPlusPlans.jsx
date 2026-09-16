@@ -244,7 +244,7 @@ export default function FitnessPlusPlans({ billingCycle, onBillingCycleChange })
                 disabled={isActive}
                 onClick={() => {
                   if (!user) {
-                    navigate("/login", { state: { from: "/pricing" } });
+                    navigate("/login", { state: { from: "/#pricing" } });
                     return;
                   }
                   setCheckoutPlan(plan);

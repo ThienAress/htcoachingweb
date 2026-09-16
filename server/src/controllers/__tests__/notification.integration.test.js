@@ -20,6 +20,7 @@ import { errorHandler } from "../../middlewares/errorHandler.js";
 import InAppNotification from "../../models/InAppNotification.js";
 import AuditLog from "../../models/AuditLog.js";
 import NotificationPreference from "../../models/NotificationPreference.js";
+import Order from "../../models/Order.js";
 import notificationRoutes from "../../routes/notification.routes.js";
 import userRoutes from "../../routes/user.routes.js";
 import { createInAppNotification } from "../../services/inAppNotification.service.js";
@@ -243,6 +244,20 @@ describe("Thông báo trong ứng dụng", () => {
     const recipient = await createTestUser({
       email: "notification-morning-health@example.com",
     });
+    const trainer = await createTestUser({
+      email: "notification-morning-health-trainer@example.com",
+      role: "trainer",
+    });
+    await Order.create({
+      userId: recipient.user._id,
+      trainerId: trainer.user._id,
+      name: recipient.user.name,
+      email: recipient.user.email,
+      package: "PT 10",
+      sessions: 10,
+      totalSessions: 10,
+      status: "approved",
+    });
     const initial = await withAuth(
       request(app).get("/api/notifications/preferences"),
       recipient.accessToken,
@@ -255,6 +270,7 @@ describe("Thông báo trong ứng dụng", () => {
         journal: true,
         weekly: true,
         morningHealthEmail: true,
+        checkinEmail: true,
       }),
       recipient.accessToken,
     );
@@ -269,13 +285,113 @@ describe("Thông báo trong ứng dụng", () => {
       recipient.accessToken,
     );
 
-    expect(initial.body.data.morningHealthEmail).toBe(false);
-    expect(enabled.body.data.morningHealthEmail).toBe(true);
+    expect(initial.body.data).toMatchObject({
+      morningHealthEmail: false,
+      checkinEmail: false,
+      customerEmailConfigured: false,
+      emailEligible: true,
+    });
+    expect(enabled.body.data).toMatchObject({
+      morningHealthEmail: true,
+      checkinEmail: true,
+      customerEmailConfigured: true,
+    });
     expect(legacyUpdate.body.data).toMatchObject({
       morningHealthEmail: true,
+      checkinEmail: true,
+      customerEmailConfigured: true,
       journal: false,
       revision: 2,
     });
+  });
+
+  it("lets an ineligible legacy client save in-app settings when email values do not change", async () => {
+    const recipient = await createTestUser({
+      email: "notification-legacy-in-app@example.com",
+    });
+
+    const response = await withAuth(
+      request(app).put("/api/notifications/preferences").send({
+        expectedRevision: 0,
+        inAppEnabled: true,
+        comments: false,
+        journal: true,
+        weekly: true,
+        morningHealthEmail: false,
+      }),
+      recipient.accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({
+      comments: false,
+      morningHealthEmail: false,
+      checkinEmail: false,
+      customerEmailConfigured: false,
+    });
+  });
+
+  it("rejects email preference changes without an eligible coaching order", async () => {
+    const recipient = await createTestUser({
+      email: "notification-email-ineligible@example.com",
+    });
+
+    const response = await withAuth(
+      request(app).put("/api/notifications/preferences").send({
+        expectedRevision: 0,
+        inAppEnabled: true,
+        comments: true,
+        journal: true,
+        weekly: true,
+        checkinEmail: true,
+      }),
+      recipient.accessToken,
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("EMAIL_NOTIFICATION_NOT_ELIGIBLE");
+    expect(await NotificationPreference.countDocuments()).toBe(0);
+  });
+
+  it("keeps customer email preferences disabled for trainer accounts", async () => {
+    const trainerAccount = await createTestUser({
+      email: "notification-email-trainer-role@example.com",
+      role: "trainer",
+    });
+    const assignedTrainer = await createTestUser({
+      email: "notification-email-trainer-role-assignee@example.com",
+      role: "trainer",
+    });
+    await Order.create({
+      userId: trainerAccount.user._id,
+      trainerId: assignedTrainer.user._id,
+      name: trainerAccount.user.name,
+      email: trainerAccount.user.email,
+      package: "PT 10",
+      sessions: 10,
+      totalSessions: 10,
+      status: "approved",
+    });
+
+    const initial = await withAuth(
+      request(app).get("/api/notifications/preferences"),
+      trainerAccount.accessToken,
+    );
+    const updated = await withAuth(
+      request(app).put("/api/notifications/preferences").send({
+        expectedRevision: 0,
+        inAppEnabled: true,
+        comments: true,
+        journal: true,
+        weekly: true,
+        checkinEmail: true,
+      }),
+      trainerAccount.accessToken,
+    );
+
+    expect(initial.body.data.emailEligible).toBe(false);
+    expect(updated.status).toBe(403);
+    expect(updated.body.code).toBe("EMAIL_NOTIFICATION_NOT_ELIGIBLE");
   });
 
   it("lists only recipient data and marks one or all notifications read", async () => {

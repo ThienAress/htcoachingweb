@@ -74,8 +74,8 @@ const TransferPreview = ({
             : "bg-emerald-50 text-emerald-800"
         }`}
       >
-        Sức chứa HLV mới: {preview.capacity.projectedClients}/
-        {preview.capacity.maxClients} học viên
+        Sức chứa HLV mới: {preview.capacity.projectedClients}
+        {preview.capacity.unlimited ? " học viên · Không giới hạn (HLV chính)" : `/${preview.capacity.maxClients} học viên`}
       </p>
       {preview.warnings.length > 0 && (
         <ul className="space-y-2 text-sm text-amber-900">

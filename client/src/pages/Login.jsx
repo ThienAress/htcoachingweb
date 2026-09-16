@@ -1,7 +1,7 @@
 import { Home, Flame } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import logo from "../assets/images/logo/logo.svg";
+import BrandLogo from "../components/BrandLogo";
 import SEO from "../components/SEO";
 import { getServerBaseUrl } from "../utils/mediaUrl";
 import { rememberLoginRedirect } from "../utils/loginRedirect";
@@ -39,7 +39,7 @@ const Login = () => {
       <div className="absolute inset-0 z-20 flex items-center justify-center px-4">
         <div className="bg-black/20 backdrop-blur-md rounded-2xl shadow-2xl p-8 w-full max-w-md text-center">
           {/* Logo */}
-          <img src={logo} alt="HT Coaching" className="h-16 mx-auto mb-6" />
+          <BrandLogo variant="mark" surface="dark" decorative className="h-20 w-20 mx-auto mb-6" />
 
           {/* Tiêu đề với font Oswald */}
           <h2 className="text-fluid-5xl font-black mb-2 tracking-wider uppercase">

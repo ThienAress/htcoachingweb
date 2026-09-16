@@ -12,6 +12,7 @@ import ConfirmationCard from "./cards/ConfirmationCard";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { getChatScrollBehavior } from "./chatPanelRuntime";
+import { persistOptimisticFeedback } from "./feedbackRuntime";
 
 const CARD_COMPONENTS = {
   tdee: TdeeResultCard,
@@ -41,6 +42,8 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
   const location = useLocation();
   const isUser = message.role === "user";
   const [feedbackState, setFeedbackState] = useState(message.feedback || null);
+  const [feedbackPending, setFeedbackPending] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
   const [copied, setCopied] = useState(false);
   const [hasRetried, setHasRetried] = useState(false);
   const [showRetryApology, setShowRetryApology] = useState(false);
@@ -56,6 +59,11 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
       editRef.current.setSelectionRange(len, len);
     }
   }, [isEditing]);
+
+  useEffect(() => {
+    setFeedbackState(message.feedback || null);
+    setFeedbackError("");
+  }, [message._id, message.feedback]);
 
   const handleCopy = useCallback(() => {
     if (!message.content) return;
@@ -74,6 +82,25 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
     setHasRetried(true);
     onRetry?.(message._id);
   }, [hasRetried, message._id, onRetry]);
+
+  const handleFeedbackChange = useCallback(async (nextFeedback) => {
+    if (feedbackPending || !message._id) return;
+    const previousFeedback = feedbackState;
+    setFeedbackPending(true);
+    setFeedbackError("");
+    try {
+      await persistOptimisticFeedback({
+        previous: previousFeedback,
+        next: nextFeedback,
+        apply: setFeedbackState,
+        persist: (value) => onFeedback(message._id, value),
+      });
+    } catch {
+      setFeedbackError("Không thể lưu phản hồi. Lựa chọn trước đã được khôi phục.");
+    } finally {
+      setFeedbackPending(false);
+    }
+  }, [feedbackPending, feedbackState, message._id, onFeedback]);
 
   const handleEditOpen = useCallback(() => {
     setEditText(message.content || "");
@@ -325,38 +352,43 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
         })}
 
         {/* Feedback buttons (chỉ cho assistant messages có nội dung) */}
-        {!isUser && onFeedback && !isThinking && !message.isError && (message.content || message.uiCards?.length > 0) && (
-          <div className="flex items-center gap-1 mt-1">
+        {!isUser && onFeedback && message._id && !isThinking && !message.isError && (message.content || message.uiCards?.length > 0) && (
+          <div className="mt-1 flex flex-wrap items-center gap-1">
             <button
-              onClick={() => {
-                const val = feedbackState === "up" ? null : "up";
-                setFeedbackState(val);
-                onFeedback?.(message._id, val);
-              }}
-              className={`p-1 rounded-md transition-colors ${
+              type="button"
+              disabled={feedbackPending}
+              aria-pressed={feedbackState === "up"}
+              aria-label="Đánh giá câu trả lời hữu ích"
+              onClick={() => handleFeedbackChange(feedbackState === "up" ? null : "up")}
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
                 feedbackState === "up"
                   ? "text-emerald-400 bg-emerald-500/10"
                   : "text-gray-400 hover:text-gray-300 hover:bg-white/5"
-              }`}
+              } disabled:cursor-not-allowed disabled:opacity-50`}
               title="Phản hồi tốt"
             >
               <ThumbsUp size={12} />
             </button>
             <button
-              onClick={() => {
-                const val = feedbackState === "down" ? null : "down";
-                setFeedbackState(val);
-                onFeedback?.(message._id, val);
-              }}
-              className={`p-1 rounded-md transition-colors ${
+              type="button"
+              disabled={feedbackPending}
+              aria-pressed={feedbackState === "down"}
+              aria-label="Đánh giá câu trả lời chưa tốt"
+              onClick={() => handleFeedbackChange(feedbackState === "down" ? null : "down")}
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
                 feedbackState === "down"
                   ? "text-red-400 bg-red-500/10"
                   : "text-gray-400 hover:text-gray-300 hover:bg-white/5"
-              }`}
+              } disabled:cursor-not-allowed disabled:opacity-50`}
               title="Phản hồi chưa tốt"
             >
               <ThumbsDown size={12} />
             </button>
+            {feedbackError && (
+              <span role="alert" className="ml-1 text-[11px] text-red-500 dark:text-red-300">
+                {feedbackError}
+              </span>
+            )}
           </div>
         )}
       </div>

@@ -33,7 +33,7 @@ const coachingCommentSchema = new mongoose.Schema(
     },
     actorRole: {
       type: String,
-      enum: ["trainer", "user"],
+      enum: ["trainer", "user", "admin"],
       required: true,
     },
     body: { type: String, trim: true, maxlength: 2000, default: "" },

@@ -12,7 +12,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { IncompleteSubmissionConfirm } from "../../components/IncompleteSubmissionConfirm";
 import {
   getMonthWeekPeriod,
@@ -62,7 +62,11 @@ const monthLabelFor = (dateKey) =>
 const periodLabelFor = (period) =>
   `Tuần ${period.index} · ${formatDayMonth(period.rangeStartDateKey)}–${formatDayMonth(period.endDateKey)}`;
 
-const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
+const WeeklyCheckinCardForMonth = ({
+  dateKey,
+  userId,
+  selfManaged = false,
+}) => {
   const queryClient = useQueryClient();
   const today = getVietnamDateKey();
   const monthOptions = getRecentMonthDateKeys(today);
@@ -96,12 +100,15 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
   const {
     register,
     reset,
+    control,
+    setFocus,
     handleSubmit,
     formState: { errors, isDirty },
   } = useForm({
     resolver: zodResolver(weeklyFormSchema),
     defaultValues: weeklyFormDefaults,
   });
+  const watchedValues = useWatch({ control });
   useEffect(() => {
     if (!query.isLoading) reset(checkinToWeeklyValues(query.data));
   }, [query.data, query.isLoading, reset]);
@@ -132,13 +139,16 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
       return next;
     } catch (error) {
       setFailedCommand(command);
+      const fallbackMessage = selfManaged
+        ? "Không thể lưu số đo tuần lúc này."
+        : "Không thể lưu báo cáo tuần lúc này.";
       setMessage(
         error.response?.data?.message ||
-          "Không thể lưu báo cáo tuần lúc này.",
+          fallbackMessage,
       );
       toast.error(
         error.response?.data?.message ||
-          "Không thể lưu báo cáo tuần lúc này",
+          fallbackMessage,
       );
       return null;
     }
@@ -154,8 +164,10 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
       },
     });
     if (next) {
-      setMessage("Đã lưu bản nháp.");
-      toast.success("Đã lưu bản nháp báo cáo tuần");
+      setMessage(selfManaged ? "Đã lưu số đo tuần." : "Đã lưu bản nháp.");
+      toast.success(
+        selfManaged ? "Đã lưu số đo tuần" : "Đã lưu bản nháp báo cáo tuần",
+      );
     }
   });
 
@@ -281,20 +293,23 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
     currentPeriod,
   });
   const hasSubmitted = ["submitted", "reviewed"].includes(query.data?.status);
+  const coachingSubmissionLocked = !selfManaged && hasSubmitted;
   const historicalNeedsAcknowledgement =
     periodMode === "historical" &&
-    !hasSubmitted &&
+    !coachingSubmissionLocked &&
     !historicalAcknowledged;
   const canEdit =
     periodMode === "current" ||
     (periodMode === "historical" &&
-      !hasSubmitted &&
+      !coachingSubmissionLocked &&
       historicalAcknowledged);
+  const selfManagedLocked =
+    selfManaged && (query.data?.revision || 0) > 0 && !isCorrectionOpen;
   const {
     submitted,
     correctionUsed,
     correctionOpen,
-    fieldsDisabled: disabled,
+    fieldsDisabled: coachingFieldsDisabled,
     canOpenCorrection,
     canSubmitCorrection,
   } = deriveWeeklyCheckinEditState({
@@ -305,6 +320,9 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
     busy:
       query.isLoading || mutation.isPending || Boolean(incompleteSubmission),
   });
+  const disabled = selfManaged
+    ? !canEdit || query.isLoading || mutation.isPending || selfManagedLocked
+    : coachingFieldsDisabled;
   const monthLabel = monthLabelFor(monthDateKey);
 
   return (
@@ -319,11 +337,15 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
               Kết quả tuần
             </h2>
             <p className="mt-1 text-sm text-slate-400">
-              Mỗi tuần gửi một báo cáo
+              {selfManaged
+                ? "Tự lưu số đo để theo dõi tiến trình"
+                : "Mỗi tuần gửi một báo cáo"}
             </p>
           </div>
           <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
-            {statusLabel[query.data?.status] || "Chưa tạo"}
+            {selfManaged && query.data?.revision
+              ? "Đã lưu"
+              : statusLabel[query.data?.status] || "Chưa tạo"}
           </span>
         </div>
 
@@ -334,7 +356,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
               className="text-orange-300"
               aria-hidden="true"
             />
-            Chọn kỳ báo cáo
+            {selfManaged ? "Chọn tuần theo dõi" : "Chọn kỳ báo cáo"}
           </p>
           <p id="weekly-period-help" className="mt-1 text-xs leading-5 text-slate-400">
             Bạn có thể chọn tháng hiện tại và 3 tháng trước đó.
@@ -369,7 +391,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
                   value={weekStartDateKey}
                   onChange={(event) => selectPeriod(event.target.value)}
                   aria-describedby="weekly-period-help"
-                  aria-label={`Tuần báo cáo trong ${monthLabel}`}
+                  aria-label={`${selfManaged ? "Tuần theo dõi" : "Tuần báo cáo"} trong ${monthLabel}`}
                   className="min-h-11 w-full appearance-none rounded-lg border border-slate-700 bg-slate-950 px-3 pr-10 text-sm font-semibold text-white outline-none transition hover:border-slate-600 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30"
                 >
                   {periods.map((period) => (
@@ -396,8 +418,9 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
                 className="mt-1 shrink-0 text-amber-300"
                 aria-hidden="true"
               />
-              Đây là kỳ đã qua. Báo cáo chỉ được gửi một lần và sẽ khóa ngay
-              sau khi gửi cho HLV.
+              {selfManaged
+                ? "Đây là kỳ đã qua. Bạn có thể tự lưu số đo cho kỳ này."
+                : "Đây là kỳ đã qua. Báo cáo chỉ được gửi một lần và sẽ khóa ngay sau khi gửi cho HLV."}
             </p>
             <button
               type="button"
@@ -409,7 +432,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
           </div>
         )}
 
-        {periodMode === "historical" && hasSubmitted && (
+        {!selfManaged && periodMode === "historical" && hasSubmitted && (
           <p className="mt-4 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300">
             {getWeeklySubmittedLockMessage({
               periodMode,
@@ -426,7 +449,11 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
 
         {query.isError ? (
           <div className="mt-5 rounded-xl border border-red-900/60 bg-red-950/20 p-4">
-            <p className="text-sm text-red-200">Không thể tải báo cáo tuần.</p>
+            <p className="text-sm text-red-200">
+              {selfManaged
+                ? "Không thể tải số đo tuần."
+                : "Không thể tải báo cáo tuần."}
+            </p>
             <button
               type="button"
               onClick={() => query.refetch()}
@@ -441,14 +468,14 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
             role="status"
             aria-live="polite"
           >
-            Đang tải báo cáo tuần...
+            {selfManaged ? "Đang tải số đo tuần..." : "Đang tải báo cáo tuần..."}
           </p>
         ) : (
           <form
             className="mt-6 space-y-5"
             onSubmit={(event) => event.preventDefault()}
           >
-            {submitted && !correctionOpen && periodMode !== "historical" && (
+            {!selfManaged && submitted && !correctionOpen && periodMode !== "historical" && (
               <p className="flex items-start gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm leading-6 text-slate-300">
                 <LockKeyhole
                   size={17}
@@ -462,6 +489,8 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
               </p>
             )}
             <WeeklyCheckinFields
+              values={watchedValues}
+              setFocus={setFocus}
               register={register}
               errors={errors}
               disabled={disabled}
@@ -483,7 +512,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
               }}
               isPending={mutation.isPending}
             />
-            {submitted && canEdit && correctionOpen && (
+            {!selfManaged && submitted && canEdit && correctionOpen && (
               <div className="space-y-2">
                 <label
                   htmlFor="weekly-correction-reason"
@@ -506,7 +535,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
                 )}
               </div>
             )}
-            {query.data?.trainerReview && (
+            {!selfManaged && query.data?.trainerReview && (
               <aside className="rounded-xl border border-emerald-800/60 bg-emerald-950/20 p-4">
                 <p className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
                   <ShieldCheck size={17} aria-hidden="true" /> Nhận xét từ HLV
@@ -535,7 +564,39 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
             )}
             {canEdit && (
               <div className="flex flex-wrap gap-3">
-                {canOpenCorrection ? (
+                {selfManaged ? (
+                  selfManagedLocked ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsCorrectionOpen(true)}
+                      disabled={mutation.isPending}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-orange-400 px-4 text-sm font-bold text-orange-200 hover:bg-orange-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-40"
+                    >
+                      <Pencil size={16} aria-hidden="true" /> Cập nhật
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={saveDraft}
+                        disabled={disabled || !isDirty}
+                        className="min-h-11 rounded-lg bg-orange-500 px-4 text-sm font-bold text-slate-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-40"
+                      >
+                        {mutation.isPending ? "Đang lưu..." : "Lưu"}
+                      </button>
+                      {(query.data?.revision || 0) > 0 && (
+                        <button
+                          type="button"
+                          onClick={cancelCorrection}
+                          disabled={mutation.isPending}
+                          className="min-h-11 rounded-lg border border-slate-700 px-4 text-sm font-semibold text-slate-300 hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 disabled:opacity-40"
+                        >
+                          Hủy
+                        </button>
+                      )}
+                    </>
+                  )
+                ) : canOpenCorrection ? (
                   <button
                     type="button"
                     onClick={() => setIsCorrectionOpen(true)}
@@ -599,7 +660,7 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
           </form>
         )}
       </section>
-      {query.data?._id && (
+      {!selfManaged && query.data?._id && (
         <CoachingCommentThread
           targetType="weekly_checkin"
           targetId={query.data._id}
@@ -610,10 +671,11 @@ const WeeklyCheckinCardForMonth = ({ dateKey, userId }) => {
   );
 };
 
-export const WeeklyCheckinCard = ({ dateKey, userId }) => (
+export const WeeklyCheckinCard = ({ dateKey, userId, selfManaged = false }) => (
   <WeeklyCheckinCardForMonth
     key={dateKey}
     dateKey={dateKey}
     userId={userId}
+    selfManaged={selfManaged}
   />
 );

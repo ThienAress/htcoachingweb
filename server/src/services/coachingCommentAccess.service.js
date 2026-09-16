@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Order from "../models/Order.js";
+import { assertEffectiveCoachAccess, resolveEffectiveClientCoach } from "./effectiveCoach.service.js";
 
 export const commentError = (statusCode, message, codeName) => {
   const error = new Error(message);
@@ -35,36 +35,27 @@ export const assertCommentTargetAccess = async ({
     String(actor.id) === String(clientId)
   ) {
     if (!write) return { scope: "client" };
-    let query = Order.findOne({
-      userId: clientId,
-      status: "approved",
-      sessions: { $gt: 0 },
-    }).select("_id trainerId");
-    if (session) query = query.session(session);
-    const order = await query.lean();
-    if (order) {
+    try {
+      const { order, trainerId } = await resolveEffectiveClientCoach({ clientId, session });
       return {
         scope: "client",
         orderId: order._id,
-        trainerId: order.trainerId,
+        trainerId,
       };
+    } catch (error) {
+      if (error.statusCode !== 403) throw error;
     }
   }
-  if (actor.role === "trainer" || actor.canActAsTrainer) {
-    let query = Order.findOne({
-      userId: clientId,
-      trainerId: actor.id,
-      status: "approved",
-      sessions: { $gt: 0 },
-    }).select("_id");
-    if (session) query = query.session(session);
-    const order = await query.lean();
-    if (order) {
+  if (["trainer", "admin"].includes(actor.role) || actor.canActAsTrainer) {
+    try {
+      const { order, trainerId } = await assertEffectiveCoachAccess({ actor, clientId, session });
       return {
         scope: "trainer",
         orderId: order._id,
-        trainerId: actor.id,
+        trainerId,
       };
+    } catch (error) {
+      if (error.statusCode !== 403) throw error;
     }
   }
   throw commentError(

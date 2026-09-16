@@ -165,6 +165,51 @@ describe("Today Dashboard read-only aggregation", () => {
     expect(response.body.data.sections.coaching.status).toBe("empty");
   });
 
+  it("opens only self-management sources for an active HT Fitness+ user", async () => {
+    const client = await createTestUser({
+      email: "today-fitness-self-managed@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_smart",
+      planTitle: "Tăng tốc",
+      billingCycle: "month",
+      amount: 199000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+    const dateKey = getVietnamDateKey();
+    await DailyJournal.create({
+      clientId: client.user._id,
+      trainerIdAtCreation: null,
+      dateKey,
+      wellness: { energy: 8 },
+      revision: 1,
+    });
+    process.env.TODAY_JOURNAL_WRITES_ENABLED = "true";
+
+    const response = await getDay(client.accessToken, dateKey);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({
+      accessMode: "self_managed",
+      eligibility: { status: "active", trainer: null },
+      capabilities: {
+        canViewSources: true,
+        canEditJournal: true,
+        canComment: false,
+      },
+      sections: {
+        schedule: { status: "empty" },
+        coaching: { status: "empty" },
+        workout: { status: "empty" },
+        attendance: { status: "empty" },
+        journal: { status: "ready", day: { wellness: { energy: 8 } } },
+      },
+    });
+  });
+
   it("distinguishes pending and assignment-required states", async () => {
     const pendingClient = await createTestUser({
       email: "today-pending@example.com",
@@ -409,7 +454,7 @@ describe("Today Dashboard read-only aggregation", () => {
     );
   });
 
-  it("allows an inactive client to read their own history", async () => {
+  it("blocks dashboard sources after the client entitlement becomes inactive", async () => {
     const trainer = await createTestUser({
       email: "today-history-trainer@example.com",
       role: "trainer",
@@ -433,8 +478,8 @@ describe("Today Dashboard read-only aggregation", () => {
     const response = await getDay(client.accessToken);
 
     expect(response.body.data.eligibility.status).toBe("inactive");
-    expect(response.body.data.capabilities.canViewSources).toBe(true);
-    expect(response.body.data.sections.coaching.status).toBe("ready");
+    expect(response.body.data.capabilities.canViewSources).toBe(false);
+    expect(response.body.data.sections.coaching.status).toBe("empty");
   });
 
   it("keeps healthy sections usable when one source fails", async () => {
@@ -539,7 +584,7 @@ describe("Today Dashboard homepage prompt eligibility", () => {
 
     expect(response.body).toMatchObject({
       success: true,
-      data: { eligible: true },
+      data: { eligible: true, hasCoaching: true },
     });
   });
 
@@ -607,5 +652,15 @@ describe("Today Dashboard homepage prompt eligibility", () => {
     expect(
       responses.map((response) => response.body.data?.eligible),
     ).toEqual([false, false, false, false, false]);
+    expect(responses[0].body.data).toMatchObject({
+      accessMode: "blocked",
+      hasActiveCustomerPlan: false,
+      hasCoaching: false,
+    });
+    expect(responses[4].body.data).toMatchObject({
+      accessMode: "self_managed",
+      hasActiveCustomerPlan: true,
+      hasCoaching: false,
+    });
   });
 });

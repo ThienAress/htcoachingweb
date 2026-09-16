@@ -71,6 +71,7 @@ export const getMyCheckin = async (req, res) => {
   try {
     const data = await getMyWeeklyCheckin({
       clientId: req.user.id,
+      clientRole: req.user.role,
       weekStartDateKey: req.params.weekStartDateKey,
     });
     return res.json({ success: true, data });
@@ -84,6 +85,7 @@ export const getMyCheckinRevisions = async (req, res) => {
   try {
     const data = await listWeeklyCheckinRevisions({
       clientId: req.user.id,
+      clientRole: req.user.role,
       weekStartDateKey: req.params.weekStartDateKey,
       ...pagination(req),
     });

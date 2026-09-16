@@ -15,3 +15,7 @@ Chỉ tạo ADR khi quyết định đồng thời:
 - Status: `PROPOSED`, `ACCEPTED`, `SUPERSEDED` hoặc `REJECTED`.
 - ADR mới supersede ADR cũ bằng link hai chiều; không sửa lịch sử để giả như quyết định cũ chưa từng tồn tại.
 - Không chứa secret, PII, production payload hoặc task progress.
+
+## Records
+
+- [ADR 0001: Bind staging AI acceptance to a runtime cohort](./0001-bind-staging-ai-acceptance-to-a-runtime-cohort.md)

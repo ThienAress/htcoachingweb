@@ -26,6 +26,12 @@ import {
 } from "../constants/aiMemory.js";
 import { MAX_ADDITIONAL_RECIPE_NUTRIENTS } from "../constants/recipeNutrition.js";
 import { validateDepositBonusRates } from "../constants/depositPolicy.js";
+import {
+  assertBodyAssessmentDelete,
+  assertBodyAssessmentTarget,
+  bodyAssessmentPagination,
+  normalizeBodyAssessmentCommand,
+} from "../services/bodyAssessmentValidation.service.js";
 
 // ============================================================================
 // MIDDLEWARE & CUSTOM VALIDATORS
@@ -1610,6 +1616,7 @@ export const validateNotificationPreference = [
       "journal",
       "weekly",
       "morningHealthEmail",
+      "checkinEmail",
     ];
     if (
       !value ||
@@ -1627,6 +1634,7 @@ export const validateNotificationPreference = [
   body("journal").isBoolean().toBoolean(),
   body("weekly").isBoolean().toBoolean(),
   body("morningHealthEmail").optional().isBoolean().toBoolean(),
+  body("checkinEmail").optional().isBoolean().toBoolean(),
   handleValidationErrors,
 ];
 
@@ -2654,4 +2662,35 @@ export const validateDepositPolicyUpdate = [
     return true;
   }),
   handleValidationErrors,
+];
+
+// Use the same contract as the command boundary; never echo health payloads in errors.
+const assessmentTarget = param("clientId").custom((value, { req }) => {
+  assertBodyAssessmentTarget(value, req.params.weekStartDateKey);
+  return true;
+});
+const assessmentValidationErrors = (req, res, next) => {
+  if (!validationResult(req).isEmpty()) {
+    return res.status(400).json({ success: false, code: "BODY_ASSESSMENT_INVALID", message: "Kiểm tra lại kỳ, ngày đo và số liệu đã nhập." });
+  }
+  return next();
+};
+export const validateBodyAssessmentList = [
+  param("clientId").optional().isMongoId(),
+  query().custom((value) => { bodyAssessmentPagination(value); return true; }),
+  assessmentValidationErrors,
+];
+export const validateBodyAssessmentRead = [assessmentTarget, assessmentValidationErrors];
+export const validateBodyAssessmentSave = [
+  assessmentTarget,
+  body().custom((value) => { normalizeBodyAssessmentCommand(value, "save"); return true; }),
+  assessmentValidationErrors,
+];
+export const validateBodyAssessmentPublish = [
+  assessmentTarget,
+  body().custom((value) => { normalizeBodyAssessmentCommand(value, "publish"); return true; }),
+  assessmentValidationErrors,
+];
+export const validateBodyAssessmentDelete = [
+  body().custom(assertBodyAssessmentDelete), assessmentValidationErrors,
 ];

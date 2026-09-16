@@ -18,6 +18,7 @@ import {
 } from "../../__tests__/setup.js";
 import { errorHandler } from "../../middlewares/errorHandler.js";
 import CoachingHabit from "../../models/CoachingHabit.js";
+import FitnessSubscription from "../../models/FitnessSubscription.js";
 import Order from "../../models/Order.js";
 import coachingHabitRoutes from "../../routes/coachingHabit.routes.js";
 import dailyJournalRoutes from "../../routes/dailyJournal.routes.js";
@@ -47,6 +48,8 @@ const UUIDS = {
   update: "fa111111-1111-4111-8111-111111111111",
   updateStale: "fa222222-2222-4222-8222-222222222222",
   adminUpdate: "fa333333-3333-4333-8333-333333333333",
+  selfManagedCreate: "fa444444-4444-4444-8444-444444444444",
+  selfManagedStatus: "fa555555-5555-4555-8555-555555555555",
 };
 
 const createAssigned = async (suffix) => {
@@ -262,7 +265,7 @@ describe("Coaching Habit contract", () => {
     });
   });
 
-  it("ẩn habit HLV khi gói hết buổi nhưng giữ habit cá nhân", async () => {
+  it("chặn toàn bộ habit khi gói coaching đã hết buổi", async () => {
     const assigned = await createAssigned("expired-order");
     await createOwnHabit(
       assigned.client.accessToken,
@@ -286,11 +289,95 @@ describe("Coaching Habit contract", () => {
       assigned.client.accessToken,
     );
 
-    expect(listed.status).toBe(200);
-    expect(listed.body.data.items.map((item) => item.title)).toEqual([
-      "Habit cá nhân",
-    ]);
+    expect(listed.status).toBe(403);
+    expect(listed.body.code).toBe("COACHING_HABIT_ENTITLEMENT_REQUIRED");
   });
+
+  it("không mở habit khách hàng cho tài khoản HLV có Fitness+", async () => {
+    const trainer = await createTestUser({
+      email: "habit-trainer-fitness-role@example.com",
+      role: "trainer",
+    });
+    await FitnessSubscription.create({
+      userId: trainer.user._id,
+      planCode: "fitness_plus_essential",
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+
+    const response = await withAuth(
+      request(app).get(`/api/coaching-habits/my?dateKey=${today}`),
+      trainer.accessToken,
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("COACHING_HABIT_ENTITLEMENT_REQUIRED");
+  });
+
+  it("buộc thói quen Fitness+-only thành riêng tư", async () => {
+    const client = await createTestUser({
+      email: "habit-self-managed-private@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_essential",
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+
+    const response = await createOwnHabit(
+      client.accessToken,
+      habitPayload(UUIDS.selfManagedCreate, { visibility: "shared" }),
+    );
+
+    expect(response.body.data.visibility).toBe("private");
+  });
+
+  it("chặn cập nhật trạng thái thói quen khi entitlement đã hết", async () => {
+    const client = await createTestUser({
+      email: "habit-self-managed-expired@example.com",
+    });
+    const subscription = await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_essential",
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+    const created = await createOwnHabit(
+      client.accessToken,
+      habitPayload(UUIDS.selfManagedCreate),
+    );
+    await FitnessSubscription.updateOne(
+      { _id: subscription._id },
+      { $set: { status: "expired" } },
+    );
+
+    const response = await withAuth(
+      request(app)
+        .post(`/api/coaching-habits/${created.body.data._id}/status`)
+        .send({
+          status: "paused",
+          expectedVersion: 1,
+          requestId: UUIDS.selfManagedStatus,
+        }),
+      client.accessToken,
+    );
+
+    expect(response.status).toBe(403);
+  });
+
   it("creates an immutable lifecycle version and replays the status command", async () => {
     const { client } = await createAssigned("status");
     const created = await createOwnHabit(
