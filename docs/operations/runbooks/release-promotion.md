@@ -30,11 +30,19 @@ Render retrieve-deploy trả deploy detail; verifier yêu cầu exact ID, SHA v�
 ready/live. Helper topology chỉ fail-closed khi một global-topology gate riêng yêu
 cầu output; không được suy topology từ CPU metrics, plan limit hoặc `null`. Riêng
 AC-009 không dùng instance inventory: nó reverify deploy identity trước/sau và dùng
-request-cohort proof:
-bảy chat attempts cùng hai admin Knowledge Base searches tạo metrics phải có receipt
+request-cohort proof. Trong certified metrics window, bảy chat attempts cùng hai
+admin Knowledge Base searches tạo metrics phải có receipt
 `issued → admitted → settled` của runner/backend, tất cả cùng boot UUID/exact SHA với hai metrics
 snapshots. Proof này chỉ quy thuộc counters của AC-009; không chứng nhận topology
 toàn service hoặc traffic khác.
+
+Sau khi tạo fixture nhưng trước certified window, runner chạy `pre-cohort readiness`
+như một non-certifying barrier có hard deadline. Mỗi attempt gồm exact root và
+variant search không capability/receipt; cả hai phải thấy đúng fixture, có zero
+fallback delta và cùng boot UUID/exact SHA. Snapshot `after` của attempt thành công
+được reuse nguyên trạng làm `metrics-before`; exact-nine cohort chỉ bắt đầu sau
+baseline đó. Timeout, restart, runtime/SHA drift hoặc snapshot inconclusive đều
+fail closed. Readiness không tạo release claim và không thuộc request inventory.
 
 ## 2. Staging live acceptance
 
@@ -63,6 +71,9 @@ validator tự recompute correspondence/delta. Mỗi provider-failure receipt ph
 `settledAt <= admittedAt` của Retry/Edit recovery tương ứng. Artifact v1/v2 lịch sử không được tự
 nâng cấp thành request-bound proof. Missing receipt, restart, runtime mismatch,
 auth/CSRF retry ngoài inventory hoặc cleanup khi mutation còn chưa settled đều FAIL.
+Hai schema vẫn giữ nguyên: readiness không thêm field/JTI/receipt; counter tuyệt đối
+tại `metrics-before` có thể gồm fallback từ attempt readiness trước đó, nhưng delta
+trong exact-nine window bắt buộc bằng `0`.
 
 Trước KB fixture POST, runner ghi durable `fixture_create` journal v2 ở trạng thái
 `pending`, bind exact run/SHA/synthetic admin/request ID và canonical payload digest.

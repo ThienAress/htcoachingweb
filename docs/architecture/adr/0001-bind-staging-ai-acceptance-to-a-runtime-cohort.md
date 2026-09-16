@@ -2,6 +2,7 @@
 
 - **Status**: ACCEPTED
 - **Date**: 2026-09-15
+- **Amended**: 2026-09-16 — define the pre-cohort readiness boundary
 - **Owners**: release engineering / AI operations
 - **Supersedes**: none
 
@@ -20,13 +21,14 @@ tokens, prompts or conversation content to users or artifacts.
 
 ## Decision
 
-AC-009 will use a request-cohort proof. Every fallback-counter-producing request in
-the acceptance run—seven chat attempts and two admin Knowledge Base searches—uses
-a short-lived, one-time, staging-only capability bound to exact SHA, boot UUID,
-run, actor, action, request and canonical payload digest. The backend writes an
-internal admission receipt and a terminal settlement receipt from the actual
-runtime. Both metrics snapshots and every receipt must identify the same boot UUID
-and exact SHA, and the request inventory must correspond one-to-one with receipts.
+AC-009 will use a request-cohort proof. Every fallback-counter-producing request
+inside the certified metrics window—seven chat attempts and two admin Knowledge
+Base searches—uses a short-lived, one-time, staging-only capability bound to exact
+SHA, boot UUID, run, actor, action, request and canonical payload digest. The
+backend writes an internal admission receipt and a terminal settlement receipt
+from the actual runtime. Both metrics snapshots and every receipt must identify
+the same boot UUID and exact SHA, and the request inventory must correspond
+one-to-one with receipts.
 
 The trusted runner preregisters each exact JTI as `issued`; the backend admits only
 through a no-upsert compare-and-set `issued → admitted`, then settles only after
@@ -43,6 +45,22 @@ only by the trusted runner through its staging Mongo connection. Runtime identit
 is not added to public DTOs, SSE frames or response headers. Ordinary requests do
 not create receipts or change provider, authorization, CSRF, quota or response
 behavior.
+
+Before that certified window, the runner may execute a `pre-cohort readiness`
+phase to absorb Atlas Search eventual consistency after creating the synthetic
+fixture. This phase is a non-certifying barrier, not part of the exact-nine request
+inventory: each bounded attempt performs one root and one variant search without
+acceptance capability or receipt. A successful attempt requires both responses to
+contain the exact fixture and a zero fallback delta between its snapshots on the
+same boot UUID and exact SHA. Its final `after` snapshot is reused unchanged as
+the cohort `metrics-before` baseline; the exact-nine cohort begins only after that
+baseline. The barrier has a hard deadline, and timeout, restart, runtime/SHA drift
+or an inconclusive snapshot fails closed instead of advancing the baseline.
+
+Because readiness makes no release claim by itself, it adds no field, JTI or
+receipt to raw evidence schema v2 or release-candidate schema v3. Absolute fallback
+counters in `metrics-before` may include earlier readiness attempts; validators
+continue to certify only the recomputed delta inside the exact-nine window.
 
 The runner also creates a separate durable `fixture_create` journal before the
 admin Knowledge Base POST. It is not a tenth counter-producing cohort receipt.
@@ -75,6 +93,8 @@ topology claim is required.
 - Positive: no production mutation and no public API/SSE contract expansion.
 - Negative: each acceptance request performs small control writes and exact cleanup;
   CI validators and release artifacts require new schema versions.
+- Negative: pre-cohort readiness can conservatively delay or fail acceptance, but
+  it cannot replace or satisfy any of the nine certified requests.
 - Negative: after a hard kill, recovery must keep the revocation tombstone and
   synthetic fixtures whenever an `admitted` receipt cannot reach a terminal state;
   it may not manufacture settlement or a zero-residue certificate.

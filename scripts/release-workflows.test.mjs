@@ -142,6 +142,37 @@ test("release runbook retains the AC-009 fixture journal v2 contract", async () 
   assert.doesNotMatch(runbook, /CAS journal sang `settled`/);
 });
 
+test("AC-009 docs keep pre-cohort readiness outside the exact-nine proof", async () => {
+  const [adr, rollout, releaseSpec, runbook] = await Promise.all([
+    read("docs/architecture/adr/0001-bind-staging-ai-acceptance-to-a-runtime-cohort.md"),
+    read("docs/specs/knowledge-base-embedding-staging-rollout.md"),
+    read("docs/specs/release-promotion-and-staging-acceptance.md"),
+    read("docs/operations/runbooks/release-promotion.md"),
+  ]);
+
+  for (const source of [adr, rollout, releaseSpec, runbook]) {
+    assert.match(source, /`pre-cohort readiness`/);
+    assert.match(source, /non-certifying barrier/);
+    assert.match(source, /hard deadline/);
+    assert.match(source, /zero\s+fallback delta/);
+    assert.match(source, /`metrics-before`/);
+    assert.match(source, /exact-nine cohort/);
+    assert.match(
+      source,
+      /readiness[\s\S]{0,180}(?:no field, JTI or\s+receipt|không\s+thêm field\/JTI\/receipt)/i,
+    );
+  }
+
+  assert.match(adr, /inside the certified metrics window—seven chat attempts and two admin Knowledge/);
+  assert.match(rollout, /exact root\s+và variant search/);
+  assert.match(releaseSpec, /nine-purpose inventory bên trong certified window/);
+  assert.match(runbook, /Trong certified metrics window, bảy chat attempts cùng hai/);
+  for (const source of [adr, rollout, releaseSpec, runbook]) {
+    assert.match(source, /raw evidence schema v2/i);
+    assert.match(source, /release-candidate schema v3/i);
+  }
+});
+
 test("staging acceptance derives deposit amount from the canonical policy", async () => {
   const source = await read("server/src/scripts/stagingAcceptance.js");
 

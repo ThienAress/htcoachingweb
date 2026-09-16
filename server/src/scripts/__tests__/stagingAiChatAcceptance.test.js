@@ -19,11 +19,18 @@ import {
   STAGING_AI_CHAT_ATTEMPT_PLAN,
 } from "../stagingAiChatAcceptance.browser.js";
 import {
+  assertExactRequestInventory,
   buildStagingAiRecoveryIntent,
   runStagingAiChatAcceptance,
+  STAGING_AI_REQUEST_PURPOSES,
   waitForSettledReceipts,
 } from "../stagingAiChatAcceptance.js";
 import { createApiClient, createKnowledgeFixture, searchKnowledgeFixture } from "../stagingAiChatAcceptance.http.js";
+import {
+  assertExpectedRuntime,
+  runAfterRuntimePreflight,
+  waitForHealthyVectorFixture,
+} from "../stagingAiChatAcceptance.vector.js";
 import { validateKnowledgeEntryPrivacy } from "../../services/ai/knowledgePrivacy.js";
 import { parseKnowledgeEntryPayload, validateKnowledgePublication } from "../../utils/knowledgeBase.js";
 
@@ -147,6 +154,244 @@ describe("staging AI acceptance evidence", () => {
   });
 });
 
+describe("staging AI vector readiness", () => {
+  const snapshot = ({ fallback = 0, root = 0, variant = 0, uptimeSeconds }) => ({
+    runtimeInstanceId: "runtime-1",
+    runtimeReleaseSha: SHA,
+    uptimeSeconds,
+    counters: {
+      "kb.vector_fallbacks": fallback,
+      "kb.vector_root_fallbacks": root,
+      "kb.vector_variant_fallbacks": variant,
+      "kb.vector_combined_fallbacks": 0,
+      "provider.gemini_chat_failed": 0,
+    },
+  });
+
+  it("does not enter the fixture/probe/capability operation on the wrong release", async () => {
+    const execute = vi.fn();
+    await expect(runAfterRuntimePreflight({
+      fetchSnapshot: vi.fn(async () => ({
+        ...snapshot({ uptimeSeconds: 10 }),
+        runtimeReleaseSha: "b".repeat(40),
+      })),
+      expectedReleaseSha: SHA,
+      execute,
+    })).rejects.toMatchObject({ code: "STAGING_AI_METRICS_INCONCLUSIVE" });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("rejects a runtime restart between identity preflight and readiness", () => {
+    expect(() => assertExpectedRuntime(
+      { ...snapshot({ uptimeSeconds: 10 }), runtimeInstanceId: "runtime-2" },
+      { expectedReleaseSha: SHA, expectedRuntimeInstanceId: "runtime-1" },
+    )).toThrowError(expect.objectContaining({ code: "STAGING_AI_METRICS_INCONCLUSIVE" }));
+  });
+
+  it("starts the cohort only after root and variant probes stop using fallbacks", async () => {
+    const finalSnapshot = snapshot({ fallback: 2, root: 1, variant: 1, uptimeSeconds: 12 });
+    const snapshots = [
+      snapshot({ uptimeSeconds: 10 }),
+      snapshot({ fallback: 2, root: 1, variant: 1, uptimeSeconds: 11 }),
+      snapshot({ fallback: 2, root: 1, variant: 1, uptimeSeconds: 11 }),
+      finalSnapshot,
+    ];
+    let clock = 0;
+    const fixtureId = "fixture-1";
+    const baseline = await waitForHealthyVectorFixture({
+      fetchSnapshot: vi.fn(async () => snapshots.shift()),
+      search: vi.fn(async () => ({ data: [{ _id: fixtureId }] })),
+      fixtureId,
+      queries: ["root query", "variant query"],
+      timeoutMs: 2_000,
+      pollMs: 1_000,
+      now: () => clock,
+      wait: vi.fn(async (milliseconds) => { clock += milliseconds; }),
+      expectedReleaseSha: SHA,
+      expectedRuntimeInstanceId: "runtime-1",
+    });
+
+    expect(baseline).toBe(finalSnapshot);
+  });
+
+  it("fails closed when Atlas never serves the exact fixture without fallback", async () => {
+    let clock = 0;
+    let snapshotCall = 0;
+    const fetchSnapshot = vi.fn(async () => {
+      const attempt = Math.floor(snapshotCall / 2);
+      const fallback = attempt + (snapshotCall % 2);
+      snapshotCall += 1;
+      return snapshot({ fallback, root: fallback, uptimeSeconds: 10 + snapshotCall });
+    });
+
+    await expect(waitForHealthyVectorFixture({
+      fetchSnapshot,
+      search: vi.fn(async () => ({ data: [{ _id: "fixture-1" }] })),
+      fixtureId: "fixture-1",
+      queries: ["root query", "variant query"],
+      timeoutMs: 1_000,
+      pollMs: 1_000,
+      now: () => clock,
+      wait: vi.fn(async (milliseconds) => { clock += milliseconds; }),
+    })).rejects.toMatchObject({ code: "STAGING_AI_VECTOR_INDEX_NOT_READY" });
+  });
+
+  it.each([
+    [{ data: [] }],
+    [{ data: [{ _id: "another-fixture" }] }],
+    [{ data: null }],
+  ])("fails closed when any readiness probe omits the exact fixture", async (response) => {
+    let clock = 0;
+    await expect(waitForHealthyVectorFixture({
+      fetchSnapshot: vi.fn(async () => snapshot({ uptimeSeconds: 10 })),
+      search: vi.fn(async () => response),
+      fixtureId: "fixture-1",
+      queries: ["root query", "variant query"],
+      timeoutMs: 1,
+      pollMs: 1,
+      now: () => clock,
+      wait: vi.fn(async (milliseconds) => { clock += milliseconds; }),
+    })).rejects.toMatchObject({ code: "STAGING_AI_VECTOR_INDEX_NOT_READY" });
+  });
+
+  it("requires both the root and variant probe to contain the exact fixture", async () => {
+    let clock = 0;
+    const search = vi.fn()
+      .mockResolvedValueOnce({ data: [{ _id: "fixture-1" }] })
+      .mockResolvedValueOnce({ data: [] });
+    await expect(waitForHealthyVectorFixture({
+      fetchSnapshot: vi.fn(async () => snapshot({ uptimeSeconds: 10 })),
+      search,
+      fixtureId: "fixture-1",
+      queries: ["root query", "variant query"],
+      timeoutMs: 1_000,
+      pollMs: 1_000,
+      now: () => clock,
+      wait: vi.fn(async (milliseconds) => { clock += milliseconds; }),
+    })).rejects.toMatchObject({ code: "STAGING_AI_VECTOR_INDEX_NOT_READY" });
+    expect(search).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not start another probe attempt once polling reaches the deadline", async () => {
+    let clock = 0;
+    const fetchSnapshot = vi.fn(async () => snapshot({ uptimeSeconds: 10 }));
+    const search = vi.fn(async () => ({ data: [] }));
+
+    await expect(waitForHealthyVectorFixture({
+      fetchSnapshot,
+      search,
+      fixtureId: "fixture-1",
+      queries: ["root query", "variant query"],
+      timeoutMs: 1_000,
+      pollMs: 1_000,
+      now: () => clock,
+      wait: vi.fn(async (milliseconds) => { clock += milliseconds; }),
+    })).rejects.toMatchObject({ code: "STAGING_AI_VECTOR_INDEX_NOT_READY" });
+
+    expect({ snapshots: fetchSnapshot.mock.calls.length, searches: search.mock.calls.length })
+      .toEqual({ snapshots: 2, searches: 2 });
+  });
+
+  it("rejects a healthy probe that only completes after the readiness deadline", async () => {
+    let clock = 0;
+    const after = snapshot({ uptimeSeconds: 11 });
+    const fetchSnapshot = vi.fn()
+      .mockResolvedValueOnce(snapshot({ uptimeSeconds: 10 }))
+      .mockImplementationOnce(async () => {
+        clock = 1_001;
+        return after;
+      });
+
+    await expect(waitForHealthyVectorFixture({
+      fetchSnapshot,
+      search: vi.fn(async () => ({ data: [{ _id: "fixture-1" }] })),
+      fixtureId: "fixture-1",
+      queries: ["root query", "variant query"],
+      timeoutMs: 1_000,
+      pollMs: 1_000,
+      now: () => clock,
+      wait: vi.fn(),
+    })).rejects.toMatchObject({ code: "STAGING_AI_VECTOR_INDEX_NOT_READY" });
+  });
+
+  it("clamps polling sleep to the remaining deadline", async () => {
+    let clock = 0;
+    const wait = vi.fn(async (milliseconds) => { clock += milliseconds; });
+    await expect(waitForHealthyVectorFixture({
+      fetchSnapshot: vi.fn(async () => snapshot({ uptimeSeconds: 10 })),
+      search: vi.fn(async () => ({ data: [] })),
+      fixtureId: "fixture-1",
+      queries: ["root query", "variant query"],
+      timeoutMs: 250,
+      pollMs: 1_000,
+      now: () => clock,
+      wait,
+    })).rejects.toMatchObject({ code: "STAGING_AI_VECTOR_INDEX_NOT_READY" });
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(wait).toHaveBeenCalledWith(250, { signal: expect.any(AbortSignal) });
+  });
+
+  it("aborts an in-flight readiness request at the hard deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      let observedSignal;
+      const pending = waitForHealthyVectorFixture({
+        fetchSnapshot: vi.fn(({ signal }) => {
+          observedSignal = signal;
+          return new Promise(() => {});
+        }),
+        search: vi.fn(),
+        fixtureId: "fixture-1",
+        queries: ["root query", "variant query"],
+        timeoutMs: 100,
+      }).catch((error) => error);
+
+      await vi.advanceTimersByTimeAsync(100);
+      const failure = await pending;
+      expect({ code: failure?.code, aborted: observedSignal?.aborted })
+        .toEqual({ code: "STAGING_AI_VECTOR_INDEX_NOT_READY", aborted: true });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("propagates an inconclusive metrics window when the runtime changes", async () => {
+    const snapshots = [
+      snapshot({ uptimeSeconds: 10 }),
+      { ...snapshot({ uptimeSeconds: 1 }), runtimeInstanceId: "runtime-2" },
+    ];
+    await expect(waitForHealthyVectorFixture({
+      fetchSnapshot: vi.fn(async () => snapshots.shift()),
+      search: vi.fn(async () => ({ data: [{ _id: "fixture-1" }] })),
+      fixtureId: "fixture-1",
+      queries: ["root query", "variant query"],
+    })).rejects.toMatchObject({ code: "STAGING_AI_METRICS_INCONCLUSIVE" });
+  });
+
+  it("fails inconclusive when a later polling attempt moves to another runtime", async () => {
+    let clock = 0;
+    const snapshots = [
+      snapshot({ uptimeSeconds: 10 }),
+      snapshot({ fallback: 1, root: 1, uptimeSeconds: 11 }),
+      { ...snapshot({ fallback: 5, root: 5, uptimeSeconds: 1 }), runtimeInstanceId: "runtime-2" },
+      { ...snapshot({ fallback: 5, root: 5, uptimeSeconds: 2 }), runtimeInstanceId: "runtime-2" },
+    ];
+
+    await expect(waitForHealthyVectorFixture({
+      fetchSnapshot: vi.fn(async () => snapshots.shift()),
+      search: vi.fn(async () => ({ data: [{ _id: "fixture-1" }] })),
+      fixtureId: "fixture-1",
+      queries: ["root query", "variant query"],
+      timeoutMs: 2_000,
+      pollMs: 1_000,
+      now: () => clock,
+      wait: vi.fn(async (milliseconds) => { clock += milliseconds; }),
+      expectedReleaseSha: SHA,
+      expectedRuntimeInstanceId: "runtime-1",
+    })).rejects.toMatchObject({ code: "STAGING_AI_METRICS_INCONCLUSIVE" });
+  });
+});
+
 describe("staging AI browser reconciliation", () => {
   it("does not reuse an earlier assistant when a recovery has no new matching response", () => {
     const items = [{ assistantId: "initial", questionDigest: "same-question" }];
@@ -163,6 +408,35 @@ describe("staging AI browser reconciliation", () => {
       { purpose: "provider_failure_edit", mode: "provider_failure_before_llm" },
       { purpose: "recovery_edit", mode: "observe_only" },
     ]);
+  });
+
+  it("accepts only the exact seven-chat and two-search request inventory", () => {
+    const inventory = STAGING_AI_REQUEST_PURPOSES.map((purpose) => ({
+      purpose,
+      jti: randomUUID(),
+      requestId: randomUUID(),
+    }));
+
+    expect(assertExactRequestInventory(inventory)).toBe(inventory);
+    expect(inventory.filter((item) => item.purpose.startsWith("kb_search_")))
+      .toHaveLength(2);
+  });
+
+  it.each([
+    ["missing", (items) => items.slice(0, -1)],
+    ["extra", (items) => [...items, { purpose: "readiness_probe", jti: randomUUID(), requestId: randomUUID() }]],
+    ["duplicate purpose", (items) => items.map((item, index) => index === 1 ? { ...item, purpose: items[0].purpose } : item)],
+    ["duplicate JTI", (items) => items.map((item, index) => index === 1 ? { ...item, jti: items[0].jti } : item)],
+    ["duplicate request ID", (items) => items.map((item, index) => index === 1 ? { ...item, requestId: items[0].requestId } : item)],
+  ])("rejects a %s request inventory", (_name, mutate) => {
+    const inventory = STAGING_AI_REQUEST_PURPOSES.map((purpose) => ({
+      purpose,
+      jti: randomUUID(),
+      requestId: randomUUID(),
+    }));
+
+    expect(() => assertExactRequestInventory(mutate(inventory)))
+      .toThrowError(expect.objectContaining({ code: "STAGING_AI_REQUEST_INVENTORY_FAILED" }));
   });
 });
 
@@ -312,6 +586,25 @@ describe("staging AI remote mutation outcomes", () => {
       .toEqual({ code: "STAGING_AI_KB_FIXTURE_FAILED", outcomeKnown: false });
   });
 
+  it("does not swallow an abort while reading an API response body", async () => {
+    const controller = new AbortController();
+    const reason = Object.assign(new Error("readiness deadline reached"), {
+      code: "STAGING_AI_VECTOR_INDEX_NOT_READY",
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      status: 200,
+      json: async () => {
+        controller.abort(reason);
+        throw reason;
+      },
+    });
+    const api = createApiClient({ origin: EXPECTED_API_ORIGIN, accessToken: "synthetic", csrfToken: "csrf" });
+
+    await expect(api.request("/api/ops/metrics", { signal: controller.signal }))
+      .rejects.toBe(reason);
+    vi.restoreAllMocks();
+  });
+
   it("sends the exact staging client origin with a capability-bound KB search", async () => {
     const request = vi.fn().mockResolvedValue({ success: true, data: [] });
     await searchKnowledgeFixture({
@@ -325,6 +618,35 @@ describe("staging AI remote mutation outcomes", () => {
       "/api/knowledge-base/search?q=squat%20c%C6%A1%20b%E1%BA%A3n&threshold=0.75&limit=3",
       { headers: expect.objectContaining({ Origin: EXPECTED_CLIENT_URL }) },
     );
+  });
+
+  it("omits acceptance capability headers from vector-readiness probes", async () => {
+    const request = vi.fn().mockResolvedValue({ success: true, data: [] });
+    const signal = new AbortController().signal;
+    await searchKnowledgeFixture({
+      api: { request },
+      clientOrigin: EXPECTED_CLIENT_URL,
+      query: "readiness probe",
+      signal,
+    });
+
+    expect(request).toHaveBeenCalledWith(
+      "/api/knowledge-base/search?q=readiness%20probe&threshold=0.75&limit=3",
+      { headers: { Origin: EXPECTED_CLIENT_URL }, signal },
+    );
+  });
+
+  it.each([
+    [{ requestId: "request-id-without-capability" }],
+    [Object.fromEntries([["to" + "ken", "capability-without-request-id"]])],
+    [Object.fromEntries([["to" + "ken", ""], ["requestId", ""]])],
+  ])("rejects incomplete acceptance capability binding", async (binding) => {
+    await expect(searchKnowledgeFixture({
+      api: { request: vi.fn() },
+      clientOrigin: EXPECTED_CLIENT_URL,
+      query: "bound query",
+      ...binding,
+    })).rejects.toMatchObject({ code: "STAGING_AI_REQUEST_INVENTORY_FAILED" });
   });
 });
 

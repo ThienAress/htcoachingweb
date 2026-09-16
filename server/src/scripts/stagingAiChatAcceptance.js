@@ -13,7 +13,15 @@ import { createExactCleanup } from "./stagingAiChatAcceptance.cleanup.js";
 import { assertHealthyVectorTopology, buildSafeEvidence, metricDelta } from "./stagingAiChatAcceptance.evidence.js";
 import { createAccessToken, createApiClient, fetchMetrics, knowledgeFixtureQueries, normalizeQuery, searchKnowledgeFixture } from "./stagingAiChatAcceptance.http.js";
 import { createTrackedKnowledgeFixture, deleteSettledFixtureJournal } from "./stagingAiChatAcceptance.fixture.js";
-import { runBrowserAcceptance } from "./stagingAiChatAcceptance.browser.js";
+import {
+  runBrowserAcceptance,
+  STAGING_AI_CHAT_ATTEMPT_PLAN,
+} from "./stagingAiChatAcceptance.browser.js";
+import {
+  assertExpectedRuntime,
+  runAfterRuntimePreflight,
+  waitForHealthyVectorFixture,
+} from "./stagingAiChatAcceptance.vector.js";
 
 const SOURCE_URL = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";
 const isEntrypoint = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -24,6 +32,31 @@ const assert = (condition, message, code = "STAGING_AI_ACCEPTANCE_ASSERTION_FAIL
     error.code = code;
     throw error;
   }
+};
+
+export const STAGING_AI_REQUEST_PURPOSES = Object.freeze([
+  ...STAGING_AI_CHAT_ATTEMPT_PLAN.map((item) => item.purpose),
+  "kb_search_root",
+  "kb_search_variant",
+]);
+
+export const assertExactRequestInventory = (attempts) => {
+  const expectedPurposes = new Set(STAGING_AI_REQUEST_PURPOSES);
+  const purposes = Array.isArray(attempts) ? attempts.map((item) => item?.purpose) : [];
+  const jtis = Array.isArray(attempts) ? attempts.map((item) => item?.jti) : [];
+  const requestIds = Array.isArray(attempts) ? attempts.map((item) => item?.requestId) : [];
+  assert(
+    attempts?.length === expectedPurposes.size &&
+      purposes.every((purpose) => expectedPurposes.has(purpose)) &&
+      new Set(purposes).size === expectedPurposes.size &&
+      jtis.every((value) => typeof value === "string" && value.length > 0) &&
+      new Set(jtis).size === expectedPurposes.size &&
+      requestIds.every((value) => typeof value === "string" && value.length > 0) &&
+      new Set(requestIds).size === expectedPurposes.size,
+    "AC-009 must register exactly nine unique counter-producing requests",
+    "STAGING_AI_REQUEST_INVENTORY_FAILED",
+  );
+  return attempts;
 };
 
 const writeEvidence = async (output, evidence) => {
@@ -160,10 +193,6 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
           origin: EXPECTED_API_ORIGIN,
           accessToken: createAccessToken(user, env.JWT_SECRET),
         });
-        const beforeMetrics = await fetchMetrics(adminApi);
-        const runtime = { runtimeInstanceId: beforeMetrics.runtimeInstanceId, runtimeReleaseSha: beforeMetrics.runtimeReleaseSha };
-        assert(typeof runtime.runtimeInstanceId === "string" && runtime.runtimeReleaseSha === config.releaseSha,
-        "Metrics-before did not bind the deployed runtime identity", "STAGING_AI_METRICS_INCONCLUSIVE");
         const attempts = [];
         const registerAttempt = (attempt) => {
           assert(!attempts.some((item) => item.jti === attempt.jti || item.requestId === attempt.requestId),
@@ -180,23 +209,49 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
         };
         const { question: expectedQuestion } = knowledgeFixtureQueries(marker);
         exact.registerKnowledgeQuestion(normalizeKnowledgeQuestion(expectedQuestion));
-        exact.markMutationStart();
-        let fixture;
-        try {
-          fixture = await createTrackedKnowledgeFixture({
-            collection: mongoose.connection.db.collection(capability.STAGING_AI_ACCEPTANCE_COLLECTION),
-            api: adminApi, marker, sourceUrl: SOURCE_URL, runId,
-            releaseSha: config.releaseSha, actorId: syntheticAdminId.toString(),
-          });
-        } catch (error) {
-          if (error?.remoteOutcomeKnown === true) exact.markMutationSettled();
-          throw error;
-        }
-        exact.markMutationSettled();
+        const { runtime, result: fixture } = await runAfterRuntimePreflight({
+          fetchSnapshot: () => fetchMetrics(adminApi),
+          expectedReleaseSha: config.releaseSha,
+          execute: async () => {
+            exact.markMutationStart();
+            try {
+              const createdFixture = await createTrackedKnowledgeFixture({
+                collection: mongoose.connection.db.collection(capability.STAGING_AI_ACCEPTANCE_COLLECTION),
+                api: adminApi, marker, sourceUrl: SOURCE_URL, runId,
+                releaseSha: config.releaseSha, actorId: syntheticAdminId.toString(),
+              });
+              exact.markMutationSettled();
+              return createdFixture;
+            } catch (error) {
+              if (error?.remoteOutcomeKnown === true) exact.markMutationSettled();
+              throw error;
+            }
+          },
+        });
         exact.registerKnowledgeEntry(fixture.id);
         state.syntheticIds.kbEntryId = fixture.id;
         assert(fixture.embeddingVersion === env.EXPECTED_KB_EMBEDDING_VERSION, "Knowledge fixture embedding version is not the locked staging target");
         state.assertions.push({ name: "reviewed published KB embedding", passed: true });
+
+        // Atlas Search indexes new documents asynchronously. Keep readiness
+        // probes outside the certified exact-nine metrics/receipt cohort.
+        const beforeMetrics = await waitForHealthyVectorFixture({
+          fetchSnapshot: ({ signal }) => fetchMetrics(adminApi, { signal }),
+          search: async (query, { signal }) => (await searchKnowledgeFixture({
+            api: adminApi,
+            clientOrigin: EXPECTED_CLIENT_URL,
+            query,
+            signal,
+          })).response,
+          fixtureId: fixture.id,
+          queries: [fixture.question, fixture.variant],
+          expectedReleaseSha: config.releaseSha,
+          expectedRuntimeInstanceId: runtime.runtimeInstanceId,
+        });
+        assertExpectedRuntime(beforeMetrics, {
+          expectedReleaseSha: config.releaseSha,
+          expectedRuntimeInstanceId: runtime.runtimeInstanceId,
+        });
 
         for (const [purpose, query] of [["kb_search_root", fixture.question], ["kb_search_variant", fixture.variant]]) {
           const requestId = crypto.randomUUID();
@@ -241,8 +296,7 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
           onLaneResult: (lane) => state.lanes.push(lane),
         });
         exact.markMutationSettled();
-        assert(attempts.length === 9 && new Set(attempts.map((item) => item.purpose)).size === 9,
-          "AC-009 must register exactly nine unique counter-producing requests", "STAGING_AI_REQUEST_INVENTORY_FAILED");
+        assertExactRequestInventory(attempts);
         const receiptAttempts = await waitForSettledReceipts({
           collection: mongoose.connection.db.collection(capability.STAGING_AI_ACCEPTANCE_COLLECTION), runId, attempts,
           runtimeInstanceId: runtime.runtimeInstanceId, releaseSha: config.releaseSha,
