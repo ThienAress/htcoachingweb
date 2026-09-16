@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "planId": "091",
+  "specPath": "docs/specs/github-actions-runtime-and-release-closure.md",
+  "planPath": "docs/plans/091-modernize-github-actions-and-close-release-operations.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Preserve Node 22 and protected local files", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Upgrade official GitHub Actions runtimes", "planStep": "Step 1" },
+    { "id": "TASK-003", "title": "Enforce workflow runtime contracts", "planStep": "Step 2" },
+    { "id": "TASK-004", "title": "Run proportional workflow verification", "planStep": "Step 5" },
+    { "id": "TASK-005", "title": "Audit continuous recovery and PITR", "planStep": "Step 3" },
+    { "id": "TASK-006", "title": "Delete two obsolete candidate refs", "planStep": "Step 4" },
+    { "id": "TASK-007", "title": "Close Plan 090A release evidence", "planStep": "Step 5" },
+    { "id": "TASK-008", "title": "Review, cleanup and report", "planStep": "Step 5" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001", "TASK-002"], "verifications": [{ "type": "test", "path": "scripts/release-workflows.test.mjs" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-003", "TASK-004"], "verifications": [{ "type": "command", "command": "node --test scripts/release-workflows.test.mjs .github/scripts/incident-remediation-contract.test.mjs" }, { "type": "command", "command": "npm run test:ops" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "npm run audit:backup-readiness" }] },
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "command", "command": "git ls-remote --heads origin refs/heads/codex/production-candidate-89ac30fc-0916 refs/heads/codex/production-candidate-89ac30fc-20260916-release" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-007", "TASK-008"], "verifications": [{ "type": "command", "command": "npm run agents:validate" }, { "type": "command", "command": "npm run security:secrets" }, { "type": "command", "command": "npm run security:data-boundaries" }, { "type": "command", "command": "git diff --check" }] }
+      ]
+    }
+  ]
+}

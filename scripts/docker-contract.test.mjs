@@ -91,7 +91,7 @@ test("Docker CI uses immutable tools and scans an exported image", async () => {
 
   assert.match(
     dockerJob,
-    /actions\/checkout@11bd71901bbe5b1630ceea73d27597364c9af683/,
+    /actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/,
   );
   assert.match(
     dockerJob,

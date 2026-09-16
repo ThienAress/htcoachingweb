@@ -1,8 +1,92 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 
 const read = (file) => readFile(new URL(`../${file}`, import.meta.url), "utf8");
+
+const actionRuntimeContracts = new Map([
+  ["actions/checkout", {
+    major: 5,
+    sha: "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+    release: "v5.1.0",
+  }],
+  ["actions/setup-node", {
+    major: 5,
+    sha: "a0853c24544627f65ddf259abe73b1d18a591444",
+    release: "v5.0.0",
+  }],
+  ["actions/upload-artifact", {
+    major: 6,
+    sha: "b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+    release: "v6.0.0",
+  }],
+  ["actions/download-artifact", {
+    major: 7,
+    sha: "37930b1c2abaa49bbe596cd826c3c89aef350131",
+    release: "v7.0.0",
+  }],
+  ["actions/github-script", {
+    major: 8,
+    sha: "ed597411d8f924073f98dfc5c65a23a2325f34cd",
+    release: "v8.0.0",
+  }],
+]);
+
+test("official action runtimes are upgraded while application Node remains 22.23.1", async () => {
+  const workflowsDirectory = new URL("../.github/workflows/", import.meta.url);
+  const workflowFiles = (await readdir(workflowsDirectory))
+    .filter((file) => file.endsWith(".yml"));
+  const workflows = await Promise.all(workflowFiles.map(async (file) => ({
+    file,
+    source: await read(`.github/workflows/${file}`),
+  })));
+  let inspectedActions = 0;
+  let setupNodeSteps = 0;
+
+  for (const { file, source } of workflows) {
+    for (const match of source.matchAll(
+      /^\s*(?:-\s*)?uses:\s*(actions\/(?:checkout|setup-node|upload-artifact|download-artifact|github-script))@([^\s#]+)(?:\s+#\s*(\S+))?\s*$/gm,
+    )) {
+      inspectedActions += 1;
+      const [, action, reference, releaseComment] = match;
+      const expected = actionRuntimeContracts.get(action);
+      const allowedReference = reference === `v${expected.major}` || reference === expected.sha;
+
+      assert.ok(
+        allowedReference,
+        `${file}: ${action}@${reference} must use v${expected.major} or ${expected.sha}`,
+      );
+      if (reference === expected.sha) {
+        assert.equal(
+          releaseComment,
+          expected.release,
+          `${file}: pinned ${action} must document ${expected.release}`,
+        );
+      }
+    }
+
+    for (const match of source.matchAll(
+      /^\s{6}- uses: actions\/setup-node@[^\r\n]+\r?\n\s{8}with:\r?\n((?:\s{10}[^\r\n]+(?:\r?\n|$))+)/gm,
+    )) {
+      setupNodeSteps += 1;
+      const inputs = match[1];
+      assert.match(inputs, /^\s{10}node-version-file: \.node-version$/m, `${file}: setup-node must read .node-version`);
+      assert.match(inputs, /^\s{10}package-manager-cache: false$/m, `${file}: setup-node automatic cache must stay disabled`);
+    }
+  }
+
+  assert.equal(inspectedActions, 71, "the action-runtime inventory changed; review the new call site");
+  assert.equal(setupNodeSteps, 20, "the setup-node inventory changed; review its Node/cache contract");
+
+  const [nodeVersion, nvmrc, rootPackage] = await Promise.all([
+    read(".node-version"),
+    read(".nvmrc"),
+    read("package.json").then(JSON.parse),
+  ]);
+  assert.equal(nodeVersion.trim(), "22.23.1");
+  assert.equal(nvmrc.trim(), "22.23.1");
+  assert.equal(rootPackage.engines?.node, "22.23.1");
+});
 
 test("staging live acceptance is explicitly write-enabled only behind staging locks", async () => {
   const [workflow, safety] = await Promise.all([
@@ -121,7 +205,7 @@ test("staging AI recovery pins every action to an immutable commit", async () =>
   assert.ok(actionUses.length > 0, "recovery workflow must use at least one action");
   for (const [, action, versionComment] of actionUses) {
     assert.match(action, /^[^@\s]+@[0-9a-f]{40}$/, `${action} must use a full commit SHA`);
-    assert.match(versionComment || "", /^v\d+$/, `${action} must retain its major-version comment`);
+    assert.match(versionComment || "", /^v\d+\.\d+\.\d+$/, `${action} must retain its release comment`);
   }
   assert.doesNotMatch(workflow, /^\s*(?:-\s*)?uses:\s*[^\s#]+@v\d+/m);
 });
