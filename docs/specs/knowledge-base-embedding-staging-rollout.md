@@ -52,12 +52,23 @@ quota/model/auth hoặc relabel vector cũ thành version mới.
   capability riêng, được runner preregister `issued`, backend CAS `issued → admitted`
   rồi chỉ ghi `settled` sau khi business persistence được acknowledge trên cùng boot UUID
   và exact Render SHA với hai metrics snapshots có timestamp/fingerprint/counters.
+  Sau khi tạo fixture và trước snapshot baseline, runner chạy `pre-cohort readiness`
+  như một non-certifying barrier có hard deadline: mỗi attempt chỉ gồm exact root
+  và variant search, cả hai phải thấy đúng fixture, zero fallback delta và giữ cùng
+  boot UUID/exact SHA. Snapshot `after` của attempt thành công phải được reuse nguyên
+  trạng làm `metrics-before`; exact-nine cohort chỉ bắt đầu sau baseline này. Probe
+  readiness không có capability/receipt, không thuộc request inventory và không tự
+  tạo release claim. Timeout, restart, runtime/SHA drift hoặc snapshot inconclusive
+  phải fail closed.
   Validator phải tự tính lại delta từ hai snapshot và chứng minh receipt failure của
   từng lane Retry/Edit đã `settled` trước khi recovery tương ứng được `admitted`.
   Receipt inventory phải song ánh với request inventory, mọi fallback delta bằng `0`, cleanup `residue=0`; restart,
   load-balancing, receipt thiếu/thừa/chưa settled hoặc identity mismatch đều fail closed.
   Đây là request-cohort proof riêng cho AC-009, không phải chứng nhận toàn Render chỉ có
   một instance và không được dựng `currentInstances=1` khi provider inventory không có.
+  Raw evidence schema v2 và release-candidate schema v3 không đổi; readiness không
+  thêm field/JTI/receipt. Counter tuyệt đối tại `metrics-before` có thể chứa fallback
+  của attempt trước, nhưng delta trong exact-nine window vẫn phải bằng `0`.
   Hard-kill recovery phải revoke trước, chờ và inventory lại exact run; receipt
   `admitted` không terminal là manual blocker và không được xóa/đánh dấu settled.
   Runner phải ghi durable fixture-create journal trước KB POST. Journal v2 bind exact

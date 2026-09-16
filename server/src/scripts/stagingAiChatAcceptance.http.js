@@ -12,7 +12,11 @@ export const createAccessToken = (user, secret) =>
   });
 
 export const createApiClient = ({ origin, accessToken, csrfToken = crypto.randomBytes(32).toString("hex") }) => {
-  const request = async (path, { method = "GET", body, expected = [200], headers = {} } = {}) => {
+  const request = async (path, { method = "GET", body, expected = [200], headers = {}, signal } = {}) => {
+    const requestTimeoutSignal = AbortSignal.timeout(60_000);
+    const effectiveSignal = signal
+      ? AbortSignal.any([signal, requestTimeoutSignal])
+      : requestTimeoutSignal;
     const response = await fetch(`${origin}${path}`, {
       method,
       headers: {
@@ -22,9 +26,15 @@ export const createApiClient = ({ origin, accessToken, csrfToken = crypto.random
         ...headers,
       },
       ...(body !== undefined && { body: JSON.stringify(body) }),
-      signal: AbortSignal.timeout(60_000),
+      signal: effectiveSignal,
     });
-    const data = await response.json().catch(() => ({}));
+    let data;
+    try {
+      data = await response.json();
+    } catch (error) {
+      if (effectiveSignal.aborted) throw effectiveSignal.reason || error;
+      data = {};
+    }
     if (!expected.includes(response.status)) {
       const error = new Error(`Staging API ${path} returned HTTP ${response.status}`);
       error.code = "STAGING_AI_API_CONTRACT_FAILED";
@@ -46,14 +56,26 @@ export const createApiClient = ({ origin, accessToken, csrfToken = crypto.random
   return { request, csrfToken };
 };
 
-export const searchKnowledgeFixture = async ({ api, clientOrigin, query, token, requestId }) => {
+export const searchKnowledgeFixture = async ({ api, clientOrigin, query, token, requestId, signal }) => {
   const canonicalQuery = normalizeQuery(query);
+  const tokenProvided = token !== undefined && token !== null;
+  const requestIdProvided = requestId !== undefined && requestId !== null;
+  const hasCapability = typeof token === "string" && token.length > 0 &&
+    typeof requestId === "string" && requestId.length > 0;
+  if (tokenProvided !== requestIdProvided || (tokenProvided && !hasCapability)) {
+    const error = new Error("Staging acceptance capability and request ID must be provided together");
+    error.code = "STAGING_AI_REQUEST_INVENTORY_FAILED";
+    throw error;
+  }
   const response = await api.request(`/api/knowledge-base/search?q=${encodeURIComponent(canonicalQuery)}&threshold=0.75&limit=3`, {
     headers: {
       Origin: clientOrigin,
-      [STAGING_AI_ACCEPTANCE_HEADER]: token,
-      [STAGING_AI_ACCEPTANCE_REQUEST_ID_HEADER]: requestId,
+      ...(hasCapability && {
+        [STAGING_AI_ACCEPTANCE_HEADER]: token,
+        [STAGING_AI_ACCEPTANCE_REQUEST_ID_HEADER]: requestId,
+      }),
     },
+    ...(signal && { signal }),
   });
   return { response, canonicalQuery };
 };
@@ -111,8 +133,10 @@ export const knowledgeFixtureQueries = (marker) => {
   };
 };
 
-export const fetchMetrics = async (api) => {
-  const response = await api.request("/api/ops/metrics");
+export const fetchMetrics = async (api, { signal } = {}) => {
+  const response = await api.request("/api/ops/metrics", {
+    ...(signal && { signal }),
+  });
   if (!response?.success || !response?.data?.counters) {
     const error = new Error("Authenticated metrics response is missing counters");
     error.code = "STAGING_AI_METRICS_INCONCLUSIVE";
