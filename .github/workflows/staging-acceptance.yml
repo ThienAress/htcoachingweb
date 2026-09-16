@@ -45,17 +45,18 @@ jobs:
       ROLLBACK_CLIENT_DEPLOY_ID: ${{ inputs.rollback_client_deploy_id || github.event.client_payload.rollback_client_deploy_id }}
       ROLLBACK_SERVER_DEPLOY_ID: ${{ inputs.rollback_server_deploy_id || github.event.client_payload.rollback_server_deploy_id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ env.RELEASE_SHA }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .node-version
+          package-manager-cache: false
       - name: Verify checked-out SHA
         shell: bash
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
       - name: Verify CI identity
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const sha = process.env.RELEASE_SHA;
@@ -161,7 +162,7 @@ jobs:
           RELEASE_CANDIDATE_OUTPUT: artifacts/release-candidate.json
       - name: Retain per-release acceptance and candidate evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-candidate-${{ github.run_id }}
           path: artifacts/*.json

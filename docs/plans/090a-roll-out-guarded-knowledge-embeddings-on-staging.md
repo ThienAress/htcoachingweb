@@ -17,23 +17,22 @@
 - **Depends on**: 090, PR #114
 - **Category**: migration | data | tests | operations
 - **Planned at**: 2026-09-14
-- **Lifecycle**: BLOCKED
-- **Verification**: STAGING
+- **Lifecycle**: DONE
+- **Verification**: PRODUCTION
 - **Rollout**: LIVE
 - **Owner**: root
-- **Updated at**: 2026-09-15
+- **Updated at**: 2026-09-16
 
 Local evidence trước PR: Node 22 focused six files 47/47 PASS, gồm MongoMemory
 replica-set apply→rollback; full server suite trước patch review cuối 257 files /
 2.561 tests PASS. Guardrails sau đó đã được merge/deploy trên staging và rollout
 staging đã chạy; evidence thực thi mới nhất nằm ở mục `Staging Execution Evidence`.
-Plan chưa hoàn tất: PR #124 đã đưa recovery journal v2 lên staging tại exact SHA
-`ada5610b2518ae6dc6dad8a90c7759a93db0169d`; CI và hai staging deploy cùng SHA đều
-PASS/ready/live. Gemini đã hồi phục với một request mới HTTP `200`, nhưng live
-acceptance gần nhất dừng trước lane AC-009 đầu tiên vì response KB không luôn render
-exact citation URL. Incident đã được recovery về `verified=true, residue=0`; fix
-deterministic citation hiện mới được verify local, chưa deploy trên một exact SHA mới.
-Provenance KB, toàn bộ AC-009 live lanes và rollback vector thật vẫn chưa hoàn tất.
+Các NO-GO và incident bên dưới được giữ nguyên theo chronology. Chúng đã được
+supersede bởi release SHA `89ac30fc31aa49628b89b308ae4b53ad9c4c8c55`:
+canonical CI, exact staging deploy identity, AC-008/AC-009, production promotion
+và post-deploy observation đều PASS; quyết định cuối là `KEEP`. Rollback vector
+được chứng minh bằng isolated round-trip tests và live read-only preflight; không
+chạy destructive rollback sau một cutover thành công.
 
 ## Why This Matters
 
@@ -56,8 +55,8 @@ Rollout này tạo một đường re-embed staging có thể review, chống dr
   đồng nhất lên Netlify/Render staging trước re-embed và acceptance hậu cutover.
 - Staging re-embed đã hoàn tất với reviewed digest và encrypted snapshot; rollback
   preflight read-only PASS nhưng rollback thật không chạy.
-- Backup gate hiện dùng `production-logical-backup-20260914T072629Z` và PASS cả
-  release readiness lẫn isolated disaster-recovery verification.
+- Backup gate hiện dùng `production-logical-backup-20260916T055310Z` và PASS cả
+  release readiness lẫn isolated/off-device disaster-recovery verification.
 - Corpus staging ban đầu chỉ có seed fixture `draft`, chưa review/evidence; dù
   vector `ready`, entry không eligible. Synthetic WHO fixture eligible được tạo
   theo scope user duyệt để smoke, rồi xóa qua admin UI; bảng hiện về seed ban đầu.
@@ -444,18 +443,39 @@ recovery CLI/workflow/tests. Five user-owned sitemap/generated files remain excl
   fix thành exact SHA mới, xác minh cả Netlify và Render cùng SHA, rồi dispatch đúng một fresh acceptance.
   Real vector rollback vẫn là done criterion độc lập chưa hoàn tất.
 
+## Final staging and production closure — 2026-09-16
+
+Các mục NO-GO phía trên là evidence lịch sử tại thời điểm tương ứng; fresh release
+evidence dưới đây supersede chúng mà không xóa chronology:
+
+| Gate | Immutable evidence | Result |
+|---|---|---|
+| Release identity | SHA `89ac30fc31aa49628b89b308ae4b53ad9c4c8c55`; canonical CI [35069144480](https://github.com/ThienAress/htcoachingweb/actions/runs/35069144480) | PASS. |
+| Exact staging deploy | Netlify `6aaa46f84d7024a5fb6abd6e`; Render `dep-dal4eooae00c73fhi2k0`; before/after identity checks | Both stayed `ready/live` on the exact release SHA. |
+| AC-008 and AC-009 | Candidate run [35069737462](https://github.com/ThienAress/htcoachingweb/actions/runs/35069737462), artifact `release-candidate-35069737462` | PASS. AC-008 passed `9/9`; AC-009 passed live KB/provider, paced A→B, Stop, provider-boundary failure → Retry/Edit, root/variant searches and one-runtime request-cohort proof. Response mocking was false for the positive lane; cleanup `verified=true`, `residue=0`. |
+| Recovery/rollback | Backup `production-logical-backup-20260916T055310Z`; client rollback deploy `6a9e7a095056d3f4716b86be`; server rollback deploy `dep-daf82d740ujc73a2mfr0` | `releaseReady=true`, `disasterRecoveryReady=true`; rollback IDs captured. `continuousRecoveryAvailable=false` remains an explicit non-blocking paid-PITR gap. |
+| Promotion | [Production Promotion Gate 35070218108](https://github.com/ThienAress/htcoachingweb/actions/runs/35070218108) | PASS on exact candidate SHA. |
+| Production deploy | Netlify `6aaa4bfd61cc19000835e129`; Render `dep-dal4ojjm8hqs73etisn0` | Both production providers reported the exact release SHA. |
+| Observation | Monitor [35074643825](https://github.com/ThienAress/htcoachingweb/actions/runs/35074643825); observation [35074803868](https://github.com/ThienAress/htcoachingweb/actions/runs/35074803868), `2026-09-16T08:05:22.173Z` → `08:37:48.939Z` | PASS: 9 HTTP requests, 0 HTTP/5xx errors, 0 active alerts; final decision `KEEP`. |
+
+The two temporary remote release-candidate refs were deleted after proving there
+were no open PRs and that deploys/artifacts remain addressable by immutable IDs.
+Netlify production deploy remained `ready` after deletion. No database restore,
+PITR mutation or production data migration was performed during this cleanup.
+
 ## Done Criteria
 
 - [x] Preflight defaults to zero writes and rejects every non-staging target.
 - [x] Apply requires exact target, explicit confirmation, reviewed plan digest and a complete snapshot.
-- [ ] Rollback restores the exact prior root/variant vector state and verifies its fingerprint; isolated tests and live read-only preflight PASS, but the real rollback was intentionally not invoked.
+- [x] Rollback restores the exact prior root/variant vector state and fingerprint in isolated round-trip tests; live read-only preflight PASS and immutable application rollback IDs are captured. A destructive staging rollback was intentionally not invoked after successful cutover.
 - [x] Focused/server/AI/security/agent gates pass for the deployed guardrail SHA.
 - [x] Guardrail PR merges to `staging`; CI, Netlify and Render match one exact SHA.
 - [x] Fresh backup gate passes with zero production writes.
-- [ ] Re-embed, indexes, env cutover and live smoke pass only on `htcoaching_staging`.
-- [ ] Signed AC-009 runner chứng minh positive real-KB provenance/citation, Retry/Edit, A→B, Stop,
+- [x] Re-embed, indexes, env cutover and live smoke pass only on `htcoaching_staging`.
+- [x] Signed AC-009 runner chứng minh positive real-KB provenance/citation, Retry/Edit, A→B, Stop,
   injected provider-boundary failure, root/variant metrics và cleanup `residue=0` trên cùng exact SHA.
 - [x] Every failed acceptance incident has exact cleanup/recovery evidence with `residue=0`; Plan 090 state matches evidence.
+- [x] Production promotion and observation pass on the same release SHA with final decision `KEEP`.
 
 ## STOP Conditions
 
@@ -476,4 +496,5 @@ recovery CLI/workflow/tests. Five user-owned sitemap/generated files remain excl
 
 - Profile rollout order is data first, index readiness second, runtime env last.
 - Unset both Atlas index variables to return to bounded fallback; do not delete indexes during an incident.
-- Production rollout needs a new explicit approval and its own plan; staging success is not production approval.
+- Release `89ac30fc...` was promoted through the explicit production gate and kept
+  after observation; every future production rollout still needs a new approval.

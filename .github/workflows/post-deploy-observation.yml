@@ -36,20 +36,21 @@ jobs:
     timeout-minutes: 10
     environment: production-observation
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.release_sha }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .node-version
-      - uses: actions/download-artifact@v4
+          package-manager-cache: false
+      - uses: actions/download-artifact@v7
         with:
           name: release-candidate-${{ inputs.candidate_run_id }}
           path: artifacts
           github-token: ${{ github.token }}
           run-id: ${{ inputs.candidate_run_id }}
       - name: Verify production monitor run succeeded
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           MONITOR_RUN_URL: ${{ inputs.production_monitor_run_url }}
         with:
@@ -88,7 +89,7 @@ jobs:
         run: node scripts/release-gate.mjs --mode=post-deploy --manifest=artifacts/production-observation.json --candidate=artifacts/release-candidate.json
       - name: Retain current release observation evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: production-observation-${{ github.run_id }}
           path: artifacts/*.json

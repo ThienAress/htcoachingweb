@@ -18,11 +18,11 @@
 - **Depends on**: 031, 052
 - **Category**: feature | security | data | tests
 - **Planned at**: 2026-09-12
-- **Lifecycle**: BLOCKED
-- **Verification**: STAGING
+- **Lifecycle**: DONE
+- **Verification**: PRODUCTION
 - **Rollout**: LIVE
 - **Owner**: root
-- **Updated at**: 2026-09-15
+- **Updated at**: 2026-09-16
 
 ## Why This Matters
 
@@ -251,12 +251,31 @@ không phải live staging metrics hay rollback drill evidence. Full server trê
 diff cuối PASS 9/9 batches, 258 files/2.581 tests; release build rerun sau khi
 staging API hết cold-start timeout PASS prerender 54/54 và bundle/search-index gates.
 
+## Final release closure — 2026-09-16
+
+Release SHA `89ac30fc31aa49628b89b308ae4b53ad9c4c8c55` supersede các NO-GO
+snapshot lịch sử phía trên. Canonical CI `35069144480`, staging Netlify
+`6aaa46f84d7024a5fb6abd6e` và Render `dep-dal4eooae00c73fhi2k0` cùng exact SHA.
+Candidate run [35069737462](https://github.com/ThienAress/htcoachingweb/actions/runs/35069737462)
+PASS AC-008 `9/9` và toàn bộ signed AC-009 request cohort: live KB/provider,
+provenance/citation, paced A→B, Stop, provider-boundary failure rồi Retry/Edit,
+root/variant searches, metrics/runtime binding và cleanup `residue=0`.
+
+Promotion gate [35070218108](https://github.com/ThienAress/htcoachingweb/actions/runs/35070218108)
+PASS. Production Netlify `6aaa4bfd61cc19000835e129` và Render
+`dep-dal4ojjm8hqs73etisn0` cùng release SHA. Monitor
+[35074643825](https://github.com/ThienAress/htcoachingweb/actions/runs/35074643825)
+và observation [35074803868](https://github.com/ThienAress/htcoachingweb/actions/runs/35074803868)
+PASS; final decision `KEEP`. Backup `production-logical-backup-20260916T055310Z`
+PASS release/off-device recovery gates với zero production write; paid Atlas PITR
+vẫn không khả dụng và không được suy từ logical backup.
+
 ## Done Criteria
 
-- [ ] Tất cả 14 must-have acceptance criteria trong spec có test/command evidence.
+- [x] Tất cả 14 must-have acceptance criteria trong spec có test/command evidence; final live AC-009 nằm trong candidate run `35069737462` trên exact SHA `89ac30fc...`.
 - [x] Không thay model/quota, không bật guest search và không chạy production mutation.
 - [x] Schema additive; legacy document có behavior được test và staging rollout/re-embed được ghi rõ, production vẫn ngoài scope.
-- [x] Full unit, client build, AI/security/agent gates và blocker được ghi chính xác theo từng snapshot; local fix/test portability chưa deploy, không coi QA local là deployed-SHA evidence hay AC-009 live PASS.
+- [x] Full unit, client build, AI/security/agent gates và blocker được ghi chính xác theo từng snapshot; final fix đã deploy và AC-009 live PASS trên exact release SHA.
 - [x] Plan/index/machine state/traceability cập nhật đúng lifecycle thực tế.
 
 ## STOP Conditions
