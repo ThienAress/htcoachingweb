@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "2026-09-retrieval-v14",
+  "corpusVersion": "2026-09-reliability-v16",
   "scenarios": [
     {
       "id": "general-stable-lisa-direct",
@@ -47,6 +47,241 @@
           "preferredTool": "search_knowledge",
           "maxWebSearchCalls": 1
         }
+      }
+    },
+    {
+      "id": "incident-breakfast-500-kcal-answer-first",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "Gợi ý cho tôi một bữa sáng món Việt khoảng 500 kcal, tối thiểu 30g protein và dễ chuẩn bị",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "internal_kb",
+          "risk": "low",
+          "knowledgeBaseEligible": true,
+          "webSearchRequired": false,
+          "maxWebSearchCalls": 0
+        }
+      }
+    },
+    {
+      "id": "incident-bodyweight-chest-exercises-answer-first",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "Tìm 5 bài tập ngực không cần dụng cụ dành cho người mới, kèm số hiệp và số lần",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "internal_kb",
+          "risk": "low",
+          "knowledgeBaseEligible": true,
+          "webSearchRequired": false,
+          "preferredTool": "search_exercises",
+          "maxWebSearchCalls": 0
+        }
+      }
+    },
+    {
+      "id": "incident-four-day-muscle-plan-not-public-person",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "Hãy tạo lịch tập tăng cơ 4 ngày mỗi tuần, mỗi buổi tối đa 60 phút",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "internal_kb",
+          "risk": "low",
+          "knowledgeBaseEligible": true,
+          "webSearchRequired": false,
+          "maxWebSearchCalls": 0
+        }
+      }
+    },
+    {
+      "id": "incident-deficit-follow-up-stays-direct",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "Giữ nguyên toàn bộ kế hoạch vừa rồi nhưng đổi mức thâm hụt từ 300 kcal thành 700 kcal. Giải thích phần nào đã thay đổi.",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "freshness": "stable",
+          "evidence": "model_prior",
+          "risk": "low",
+          "webSearchRequired": false,
+          "maxWebSearchCalls": 0
+        }
+      }
+    },
+    {
+      "id": "incident-seven-day-fat-loss-plan-answer-first",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "Lập kế hoạch ăn uống và tập luyện chi tiết trong 7 ngày cho người mới muốn giảm mỡ.",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "internal_kb",
+          "risk": "low",
+          "knowledgeBaseEligible": true,
+          "webSearchRequired": false,
+          "maxWebSearchCalls": 0
+        }
+      }
+    },
+    {
+      "id": "incident-lifestyle-follow-up-stays-direct",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "ngồi làm, 10000 bước 1 ngày, tập 60-90p",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "freshness": "stable",
+          "evidence": "model_prior",
+          "risk": "low",
+          "webSearchRequired": false,
+          "maxWebSearchCalls": 0
+        }
+      }
+    },
+    {
+      "id": "adversarial-meal-2500-hard-constraints",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "Lập cho tôi thực đơn món Việt trong 1 ngày khoảng 2.500 kcal (sai số tối đa 100 kcal), ít nhất 170g protein, chia 4 bữa. Tôi không dùng whey, không dung nạp lactose, dị ứng đậu phộng và ngân sách tối đa 150.000đ/ngày. Ghi khối lượng từng món và tổng kcal, protein, carb, fat.",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "internal_kb",
+          "risk": "low",
+          "knowledgeBaseEligible": true,
+          "webSearchRequired": false,
+          "preferredTool": "suggest_meal",
+          "maxWebSearchCalls": 0
+        }
+      }
+    },
+    {
+      "id": "adversarial-meal-follow-up-preserves-scope",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "Giữ nguyên các món và ít nhất 170g protein của thực đơn vừa rồi, nhưng hạ tổng xuống khoảng 2.200 kcal chỉ bằng cách đổi lượng cơm và dầu. Chỉ ra trước/sau thay đổi bao nhiêu gram và tính lại tổng macro.",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "internal_kb",
+          "risk": "low",
+          "knowledgeBaseEligible": true,
+          "webSearchRequired": false,
+          "preferredTool": "suggest_meal",
+          "maxWebSearchCalls": 0
+        }
+      }
+    },
+    {
+      "id": "adversarial-ronaldo-routine-needs-vetted-source",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy liệt kê những bài tập hoặc kiểu buổi tập từng được ghi nhận là anh ấy thực hiện. Tách rõ: (1) thông tin có nguồn xác minh, (2) phần chỉ là gợi ý bài tập lấy cảm hứng từ anh ấy. Đính kèm nguồn và không bịa một lịch tập chính xác nếu không có bằng chứng.",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "web_required",
+          "risk": "low",
+          "knowledgeBaseEligible": false,
+          "webSearchRequired": true,
+          "preferredTool": "search_knowledge",
+          "maxWebSearchCalls": 1
+        },
+        "routingText": {
+          "contains": [
+            "BẮT BUỘC tra cứu",
+            "tối đa đúng 1 lần",
+            "Thư viện bài tập không chứng minh"
+          ],
+          "maxCharacters": 1600
+        }
+      }
+    },
+    {
+      "id": "adversarial-workout-multi-constraint-answer-first",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Tôi đi 10.000 bước/ngày, không muốn tập chân hai ngày liên tiếp. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "internal_kb",
+          "risk": "low",
+          "knowledgeBaseEligible": true,
+          "webSearchRequired": false,
+          "preferredTool": "search_exercises",
+          "maxWebSearchCalls": 0
+        }
+      }
+    },
+    {
+      "id": "adversarial-calorie-request-asks-for-missing-data",
+      "evaluator": "request_router_contract",
+      "input": {
+        "message": "Tôi ngồi làm văn phòng, đi 10.000 bước mỗi ngày và tập 60–90 phút. Hãy tính chính xác lượng calo tôi nên ăn và lập giáo án phù hợp ngay. Nếu dữ liệu chưa đủ thì đừng đoán: hãy nêu dữ liệu còn thiếu và hỏi tối đa 5 câu quan trọng nhất trước.",
+        "canUseWebSearch": true
+      },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "internal_kb",
+          "risk": "low",
+          "knowledgeBaseEligible": true,
+          "webSearchRequired": false,
+          "preferredTool": null,
+          "maxWebSearchCalls": 0
+        }
+      }
+    },
+    {
+      "id": "incident-orphan-opening-brace-blocked",
+      "evaluator": "assistant_output_contract",
+      "input": { "text": "{" },
+      "expected": {
+        "pathEquals": { "content": "", "protocolLeak": true }
+      }
+    },
+    {
+      "id": "incident-orphan-closing-brace-blocked",
+      "evaluator": "assistant_output_contract",
+      "input": { "text": "}" },
+      "expected": {
+        "pathEquals": { "content": "", "protocolLeak": true }
       }
     },
     {

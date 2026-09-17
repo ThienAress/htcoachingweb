@@ -356,6 +356,24 @@ describe("TDEE estimate prompt contract", () => {
   });
 });
 
+describe("Meal calculation and constraint prompt contract", () => {
+  it("requires arithmetically consistent macros without silently breaking hard constraints", () => {
+    const prompt = buildSystemPrompt();
+
+    expect({
+      macroArithmetic: prompt.includes("4 × Protein + 4 × Carb + 9 × Fat"),
+      hardConstraints: prompt.includes("dị ứng, không dung nạp, ngân sách"),
+      followUpScope: prompt.includes("không được âm thầm đổi món hoặc ràng buộc khác"),
+      unsupportedPrecision: prompt.includes("không được bịa số liệu hoặc tự tuyên bố đã đáp ứng"),
+    }).toEqual({
+      macroArithmetic: true,
+      hardConstraints: true,
+      followUpScope: true,
+      unsupportedPrecision: true,
+    });
+  });
+});
+
 describe("Fitness-first general-helpful prompt contract", () => {
   it("answers safe stable general knowledge instead of refusing by domain", () => {
     const prompt = buildSystemPrompt();

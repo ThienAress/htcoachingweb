@@ -64,6 +64,11 @@ describe("openAiChatStream", () => {
   });
 
   it("refreshes an expired session and retries with the rotated CSRF token", async () => {
+    const payload = {
+      message: "Xin chào",
+      conversationId: "conversation-1",
+      requestId: "request-1",
+    };
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response("", { status: 401 }))
@@ -73,11 +78,15 @@ describe("openAiChatStream", () => {
       csrfToken = "rotated-token";
     });
 
-    const response = await openAiChatStream({ message: "Xin chào" });
+    const response = await openAiChatStream(payload);
 
     expect(response.status).toBe(200);
     expect(api.post).toHaveBeenCalledWith("/auth/refresh", {});
     expect(fetchMock.mock.calls[1][1].headers["X-CSRF-Token"]).toBe("rotated-token");
+    expect(fetchMock.mock.calls.map(([, options]) => options.body)).toEqual([
+      JSON.stringify(payload),
+      JSON.stringify(payload),
+    ]);
   });
 
   it("uses owner-scoped AI memory routes with bounded payloads", async () => {

@@ -41,6 +41,7 @@ import {
   withAuth,
 } from "../../__tests__/setup.js";
 import ChatConversation from "../../models/ChatConversation.js";
+import Exercise from "../../models/Exercise.js";
 import { chatStream } from "../ai.controller.js";
 
 let app;
@@ -810,7 +811,7 @@ describe("AI answer trace and feedback review", () => {
     );
   });
 
-  it("does not turn an empty canonical exercise lookup into model-prior advice", async () => {
+  it("uses safe model-prior advice when a low-risk exercise lookup has no hit", async () => {
     const { user, accessToken } = await createTestUser();
     let providerTurn = 0;
     llmStreamMock.mockImplementation(async function* emptyExerciseLookup(
@@ -854,8 +855,59 @@ describe("AI answer trace and feedback review", () => {
     );
     expect(response.status).toBe(200);
     expect(providerTurn).toBe(2);
-    expect(answer.content).toMatch(/chưa tìm thấy.*thư viện bài tập/i);
-    expect(answer.content).not.toContain("model-prior");
+    expect(answer.content).toBe(
+      "Bản nháp model-prior không có bằng chứng nội bộ.",
+    );
+    expect(answer.answerTrace).toMatchObject({
+      routeDomain: "fitness",
+      evidenceMode: "model_prior",
+      kbEntryIds: [],
+      webSearchUsed: false,
+    });
+  });
+
+  it("keeps internal evidence attribution when the exercise catalog returns a hit", async () => {
+    const { user, accessToken } = await createTestUser();
+    await Exercise.create({
+      name: "Incline Push Up",
+      muscleGroup: "Cơ ngực",
+      description: "Biến thể chống đẩy phù hợp để bắt đầu.",
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* catalogBackedAnswer() {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "tool_call",
+          toolCalls: [{
+            id: "exercise-catalog-hit",
+            name: "search_exercises",
+            args: { muscleGroup: "ngực", limit: 5 },
+          }],
+        };
+        return;
+      }
+      yield {
+        type: "text",
+        content: "Bạn có thể bắt đầu với Incline Push Up.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tìm bài tập ngực cho người mới",
+      requestId: "26496538-8c69-48b1-865a-a0d74c547a75",
+    });
+
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(2);
+    expect(answer.content).toMatch(/Incline Push Up/);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
       evidenceMode: "internal_kb",
@@ -864,7 +916,44 @@ describe("AI answer trace and feedback review", () => {
     });
   });
 
-  it("falls back to one web-evidence route when an internal fitness query has no KB hit", async () => {
+  it("records model-prior evidence when a low-risk exercise answer skips the exposed catalog tool", async () => {
+    const { user, accessToken } = await createTestUser();
+    let exposedTools = [];
+    llmStreamMock.mockImplementationOnce(async function* directExerciseAnswer(
+      _messages,
+      tools,
+    ) {
+      exposedTools = tools.map((tool) => tool.function.name);
+      yield {
+        type: "text",
+        content: "Bạn có thể bắt đầu với chống đẩy tường và chống đẩy gối.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tìm 5 bài tập ngực cho người mới",
+      requestId: "26496538-8c69-48b1-865a-a0d74c547a74",
+    });
+
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+    expect(response.status).toBe(200);
+    expect(exposedTools).toContain("search_exercises");
+    expect(answer.content).toMatch(/chống đẩy tường/i);
+    expect(answer.answerTrace).toMatchObject({
+      routeDomain: "fitness",
+      evidenceMode: "model_prior",
+      kbEntryIds: [],
+      webSearchUsed: false,
+    });
+  });
+
+  it("keeps a low-risk fitness KB miss on the answer-first model path", async () => {
     const { user, accessToken } = await createTestUser();
     let exposedTools = [];
     llmStreamMock.mockImplementationOnce(async function* noHitResponse(
@@ -888,13 +977,13 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(exposedTools).toEqual(["search_knowledge"]);
+    expect(exposedTools).toEqual([]);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
-      evidenceMode: "web_required",
+      evidenceMode: "model_prior",
       webSearchUsed: false,
     });
-    expect(answer.content).toMatch(/chưa thể xác minh.*nguồn đáng tin cậy/i);
+    expect(answer.content).toBe("Unsupported model-prior draft.");
   });
 
   it("keeps a high-stakes fitness KB miss off web search and returns bounded education", async () => {

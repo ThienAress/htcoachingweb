@@ -181,6 +181,16 @@ describe("AI request evidence router", () => {
     });
   });
 
+  it("does not mistake a Vietnamese person named Lập for a planning verb", () => {
+    expect(routeAiRequest("Lập thường tập gì?")).toMatchObject({
+      domain: "fitness",
+      evidence: "web_required",
+      webSearchRequired: true,
+      preferredTool: "search_knowledge",
+      reasonCodes: expect.arrayContaining(["public_person_claim"]),
+    });
+  });
+
   it("marks an unseen lowercase person claim for evidence-bound privacy handling", () => {
     expect(routeAiRequest("zoraqx quux thường tập gì?")).toMatchObject({
       domain: "fitness",
@@ -280,6 +290,16 @@ describe("AI request evidence router", () => {
     "PPL thường tập gì?",
     "HLV thường tập gì?",
     "Tập chân thường tập bài gì?",
+    "Hãy tạo lịch tập tăng cơ 4 ngày mỗi tuần, mỗi buổi tối đa 60 phút",
+    "Tạo cho tôi một lịch tập tăng cơ 4 ngày",
+    "Giúp tôi lập lịch tập tăng cơ 4 ngày",
+    "Có thể lập lịch tập tăng cơ 4 ngày không?",
+    "Lập giúp tôi lịch tập tăng cơ 4 ngày",
+    "Làm cho tôi lịch tập tăng cơ 4 ngày",
+    "Soạn cho tôi lịch tập tăng cơ 4 ngày",
+    "Thiết kế lịch tập tăng cơ 4 ngày cho tôi",
+    "Cho tôi một lịch tập tăng cơ 4 ngày",
+    "Tôi muốn lịch tập tăng cơ 4 ngày",
   ])("does not mistake a generic fitness subject for a public person: %s", (message) => {
     expect(routeAiRequest(message)).toMatchObject({
       domain: "fitness",
@@ -287,6 +307,9 @@ describe("AI request evidence router", () => {
       webSearchRequired: false,
       risk: "low",
     });
+    expect(routeAiRequest(message).reasonCodes).not.toContain(
+      "public_person_claim",
+    );
   });
 
   it.each([
@@ -960,6 +983,18 @@ describe("AI request routing prompt block", () => {
     expect(block).toMatch(
       /trả lời trực tiếp[\s\S]*không gọi Knowledge Base hoặc web search[\s\S]*không ép liên hệ sang fitness/i,
     );
+  });
+
+  it("keeps low-risk fitness useful when internal enrichment has no hit", () => {
+    const block = buildRequestRoutingBlock(
+      routeAiRequest("Tìm 5 bài tập ngực cho người mới"),
+      { canUseWebSearch: true },
+    );
+
+    expect(block).toMatch(
+      /catalog không có kết quả[\s\S]*kiến thức fitness phổ thông an toàn[\s\S]*không giả vờ/i,
+    );
+    expect(block).not.toMatch(/BẮT BUỘC tra cứu/i);
   });
 
   it("keeps high-stakes health guidance away from external retrieval", () => {

@@ -158,6 +158,34 @@ describe("AI chat SSE completion", () => {
     });
   });
 
+  it("keeps stale conversation context visible and asks for an explicit new chat on 404", async () => {
+    const priorMessages = [
+      { _id: "u1", role: "user", content: "Câu hỏi trước" },
+      { _id: "a1", role: "assistant", content: "Câu trả lời trước" },
+    ];
+    getAiHistory.mockResolvedValue({
+      data: { conversationId: "conversation-stale", messages: priorMessages },
+    });
+    openAiChatStream.mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ message: "Không tìm thấy cuộc trò chuyện" }),
+    });
+
+    const hook = renderHook({ persistenceEnabled: true });
+    await hook.loadHistory();
+    await renderHook({ persistenceEnabled: true }).sendMessage("Câu hỏi mới");
+    const view = renderHook({ persistenceEnabled: true });
+
+    expect(view.conversationId).toBe("conversation-stale");
+    expect(view.error).toMatch(/không còn tồn tại.*cuộc trò chuyện mới/i);
+    expect(view.messages.some(
+      (message) => message.role === "user" && message.content === "Câu hỏi mới",
+    )).toBe(true);
+    expect(forkAiConversation).not.toHaveBeenCalled();
+    expect(getAiConversationById).not.toHaveBeenCalled();
+  });
+
   it("keeps a streamed suffix when navigating away from and back to the active conversation", async () => {
     const encoder = new TextEncoder();
     const releaseCompletion = deferred();

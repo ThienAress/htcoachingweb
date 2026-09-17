@@ -68,6 +68,8 @@ const GENERIC_ROUTINE_SUBJECT_PATTERN =
   /^(?:ai|ban|toi|minh|em|i|bo toi|me toi|vo toi|chong toi|con toi|ban toi|anh toi|chi toi|em toi|my father|my mother|my wife|my husband|my child|my friend|nguoi moi|nguoi tap|hoc vien|khach hang|benh nhan|client|patient|customer|member|user|he|she|they|hlv|huan luyen vien|coach|ppl|push pull legs|van dong vien|cac van dong vien|cau thu|cac cau thu|trieu chung|dau hieu|vai|nguc|chan|lung|tay|bung|co bung|mong|nhom co|bai tap|tap chan|tap vai|tap nguc|tap lung|tap tay|squat|deadlift|bench press|plank|cardio|hiit|yoga|cach (?:tang|giam|siet)\b)(?:\b[\s\S]*)?$/;
 const GENERIC_PERSON_QUERY_PREFIX_PATTERN =
   /^(?:(?:mot|cac|nhung)\s+)?(?:nguoi moi|nguoi tap|hoc vien|khach hang|benh nhan|client|patient|customer|member|user)\b/;
+const GENERIC_PLANNING_REQUEST_PATTERN =
+  /^(?:(?:(?:hay|vui long|co the)\s+)*(?:(?:giup|ho tro)(?:\s+(?:toi|minh|em))?\s+)?(?:tao|lap|xay dung|goi y|de xuat|lam|soan|thiet ke|viet|len)\s+(?:(?:giup|cho)(?:\s+(?:toi|minh|em))?\s+)?|(?:(?:cho\s+(?:toi|minh|em))|(?:(?:toi|minh|em)\s+(?:muon|can)))\s+)(?:mot\s+)?(?:lich tap|ke hoach|giao an|thuc don|bua an|meal plan)\b/;
 const POLITE_QUERY_PREFIX_PATTERN =
   /^(?:(?:xin\s+)?(?:ban\s+)?cho\s+(?:toi|minh|em)\s+hoi|(?:toi|minh|em)\s+(?:muon\s+)?hoi|(?:xin\s+)?hoi)\s+/;
 const KNOWLEDGE_QUERY_PREFIX_PATTERN =
@@ -274,6 +276,7 @@ const hasLikelyNamedPerson = (normalizedMessage, domain) => {
   if (domain === "ht_service") return false;
   const routedText = stripPoliteQueryPrefix(normalizedMessage);
   if (GENERIC_PERSON_QUERY_PREFIX_PATTERN.test(routedText)) return false;
+  if (GENERIC_PLANNING_REQUEST_PATTERN.test(routedText)) return false;
   const possessiveMatch = routedText.match(
     POSSESSIVE_PUBLIC_PERSON_CLAIM_PATTERN,
   );
@@ -646,6 +649,11 @@ export function buildRequestRoutingBlock(
     lines.push(
       "- Ưu tiên dữ kiện Knowledge Base/canonical tool đã được cung cấp; không gọi web search.",
     );
+    if (decision.domain === "fitness" && decision.risk === "low") {
+      lines.push(
+        "- Nếu Knowledge Base hoặc catalog không có kết quả, vẫn trả lời bằng kiến thức fitness phổ thông an toàn; nói rõ đây là gợi ý chung và không giả vờ đã tìm thấy dữ liệu nội bộ.",
+      );
+    }
     if (decision.preferredTool === "search_exercises") {
       lines.push(
         "- Dùng search_exercises cho kỹ thuật hoặc danh mục bài tập. Không dùng kết quả đó làm bằng chứng về routine của người thật.",
