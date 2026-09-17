@@ -18,10 +18,15 @@ const MAX_GROUNDING_SUPPORTS = 12;
 const MAX_GROUNDING_URL_CHARACTERS = 2048;
 const MAX_GROUNDING_TITLE_CHARACTERS = 160;
 const MAX_GROUNDED_SEGMENT_CHARACTERS = 4000;
-const unavailableEvidence = (text) => ({
+const unavailableEvidence = (text, searchOutcome) => ({
   text,
   uiCard: null,
-  meta: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+  meta: {
+    evidenceAvailable: false,
+    sourceCount: 0,
+    sources: [],
+    searchOutcome,
+  },
 });
 
 const escapeMarkdownLabel = (value) =>
@@ -181,6 +186,7 @@ export async function searchKnowledge({ query }, context = {}) {
   if (!preparedQuery.eligible) {
     return unavailableEvidence(
       "Mình không thể gửi dữ liệu cá nhân hoặc thông tin sức khỏe riêng lên web để tra cứu. Bạn có thể hỏi lại theo hướng thông tin chung, không kèm dữ liệu riêng.",
+      "not_called",
     );
   }
 
@@ -188,6 +194,7 @@ export async function searchKnowledge({ query }, context = {}) {
   if (!apiKey) {
     return unavailableEvidence(
       "Hiện không thể xác minh thông tin bằng nguồn web. Vui lòng thử lại sau.",
+      "provider_error",
     );
   }
 
@@ -228,6 +235,7 @@ export async function searchKnowledge({ query }, context = {}) {
       if (response.status === 400) {
         return unavailableEvidence(
           "Hiện không thể xác minh thông tin bằng nguồn web với model tìm kiếm này.",
+          "provider_error",
         );
       }
       // Quota exceeded / rate limit
@@ -235,6 +243,7 @@ export async function searchKnowledge({ query }, context = {}) {
         safeLog.warn("ai.search_rate_limited", "Search provider rate limited");
         return unavailableEvidence(
           "Hiện không thể xác minh thông tin vì tra cứu web đang tạm giới hạn.",
+          "provider_error",
         );
       }
       safeLog.warn("ai.search_provider_error", "Search provider returned error", {
@@ -242,6 +251,7 @@ export async function searchKnowledge({ query }, context = {}) {
       });
       return unavailableEvidence(
         "Hiện không thể xác minh thông tin bằng nguồn web. Vui lòng thử lại sau.",
+        "provider_error",
       );
     }
 
@@ -273,6 +283,9 @@ export async function searchKnowledge({ query }, context = {}) {
         evidenceAvailable: sources.length > 0,
         sourceCount: sources.length,
         sources,
+        searchOutcome: sources.length > 0
+          ? "grounded"
+          : "no_supported_source",
       },
     };
   } catch (error) {
@@ -282,6 +295,7 @@ export async function searchKnowledge({ query }, context = {}) {
     }
     return unavailableEvidence(
       "Hiện không thể xác minh thông tin do kết nối tra cứu web bị lỗi.",
+      "provider_error",
     );
   }
 }

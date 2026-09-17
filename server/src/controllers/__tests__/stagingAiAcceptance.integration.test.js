@@ -357,9 +357,11 @@ describe("staging acceptance through the authenticated chat route", () => {
 
   it("substitutes a fixed safe response only after the normal retrieval path", async () => {
     const { user, accessToken } = await createTestUser();
-    retrieval.mockResolvedValue([{ _id: new mongoose.Types.ObjectId(), question: "Cách squat?",
-      answer: "Kiến thức tổng hợp thử nghiệm.", similarity: 0.95, category: "training" }]);
-    const body = await makeBody(user.id, "paced_response", { message: "Cách squat đúng?" });
+    retrieval.mockResolvedValue([{ _id: new mongoose.Types.ObjectId(), question: "Phân bổ protein trong ngày?",
+      answer: "Kiến thức tổng hợp thử nghiệm.", similarity: 0.95, category: "nutrition" }]);
+    const body = await makeBody(user.id, "paced_response", {
+      message: "Tôi nên phân bổ protein trong ngày như thế nào?",
+    });
     const pending = withAuth(request(app).post("/api/ai/chat"), accessToken)
       .set("Origin", env.CLIENT_URL).send(body).then((response) => response);
     const collection = mongoose.connection.db.collection(STAGING_AI_ACCEPTANCE_COLLECTION);

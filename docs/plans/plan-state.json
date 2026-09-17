@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "legacyCutoff": "076",
   "plans": [
-    {"id":"092","title":"Restore HT Assistant reliability before further expansion","path":"docs/plans/092-restore-ht-assistant-reliability.md","priority":"P0","complexity":"complex","lifecycle":"in_progress","verification":"focused","rollout":"not_started","owner":"root","updatedAt":"2026-09-17"},
+    {"id":"092","title":"Restore HT Assistant reliability before further expansion","path":"docs/plans/092-restore-ht-assistant-reliability.md","priority":"P0","complexity":"complex","lifecycle":"in_progress","verification":"local_full","rollout":"not_started","owner":"root","updatedAt":"2026-09-18"},
     {"id":"091","title":"Modernize GitHub Actions and close release operations","path":"docs/plans/091-modernize-github-actions-and-close-release-operations.md","priority":"P1","complexity":"complex","lifecycle":"done","verification":"focused","rollout":"not_applicable","owner":"root","updatedAt":"2026-09-16"},
     {"id":"090A","title":"Roll out guarded Knowledge Base embeddings on staging","path":"docs/plans/090a-roll-out-guarded-knowledge-embeddings-on-staging.md","priority":"P1","complexity":"complex","lifecycle":"done","verification":"production","rollout":"live","owner":"root","updatedAt":"2026-09-16"},
     {"id":"090","title":"Make HT Assistant fitness-first and evidence-grounded","path":"docs/plans/090-make-ht-assistant-fitness-first-and-evidence-grounded.md","priority":"P1","complexity":"complex","lifecycle":"done","verification":"production","rollout":"live","owner":"root","updatedAt":"2026-09-16"},

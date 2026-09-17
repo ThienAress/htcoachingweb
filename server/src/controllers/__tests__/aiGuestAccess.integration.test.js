@@ -256,14 +256,14 @@ describe("AI guest access", () => {
     });
 
     const failed = await guestRequest({
-      message: "Lập lịch tập cho tôi",
+      message: "Bạn có thể giúp tôi những gì?",
       requestId: "c26e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
     });
     const bucketAfterFailure = await ServiceUsageBucket.findOne()
       .select("+usageEvents")
       .lean();
     const retried = await guestRequest({
-      message: "Lập lịch tập cho tôi lần nữa",
+      message: "Bạn có thể giới thiệu thêm khả năng khác không?",
       requestId: "c26e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
     });
 
@@ -298,7 +298,7 @@ describe("AI guest access", () => {
     });
 
     const failed = await guestRequest({
-      message: "Lập lịch tập cho tôi",
+      message: "Bạn có thể giúp tôi những gì?",
       requestId: status === 503
         ? "c26e93e8-8d21-4be2-9c6e-2ebf3cc340c1"
         : "c26e93e8-8d21-4be2-9c6e-2ebf3cc340c2",
@@ -314,7 +314,10 @@ describe("AI guest access", () => {
       throw new Error("synthetic secret provider diagnostic");
     });
     const requestId = "d26e93e8-8d21-4be2-9c6e-2ebf3cc340b1";
-    const failed = await guestRequest({ message: "Bài tập chân", requestId });
+    const failed = await guestRequest({
+      message: "Bạn có thể giúp tôi những gì?",
+      requestId,
+    });
     const conversationId = failed.text.match(/"conversationId":"([^"]+)"/)?.[1];
     const guestCookie = readGuestCookie(failed);
 
@@ -328,7 +331,7 @@ describe("AI guest access", () => {
     expect(guestCookie).toBeTruthy();
 
     const retried = await guestRequest(
-      { message: "Bài tập chân", conversationId, requestId },
+      { message: "Bạn có thể giúp tôi những gì?", conversationId, requestId },
       guestCookie,
     );
     const conversation = await ChatConversation.findById(conversationId)
@@ -360,7 +363,7 @@ describe("AI guest access", () => {
       .mockRejectedValueOnce(new Error("synthetic rollback failure"));
     try {
       const failed = await guestRequest({
-        message: "Bài tập chân",
+        message: "Bạn có thể giúp tôi những gì?",
         requestId: "d26e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
       });
 
@@ -457,14 +460,22 @@ describe("AI guest access", () => {
     });
 
     const failed = await guestRequest(
-      { message: "Bài tập chân", conversationId, requestId: retryRequestId },
+      {
+        message: "Bạn có thể giúp tôi những gì?",
+        conversationId,
+        requestId: retryRequestId,
+      },
       guestCookie,
     );
     const afterFailure = await ChatConversation.findById(conversationId)
       .select("+recentRequestIds")
       .lean();
     const retried = await guestRequest(
-      { message: "Bài tập chân", conversationId, requestId: retryRequestId },
+      {
+        message: "Bạn có thể giúp tôi những gì?",
+        conversationId,
+        requestId: retryRequestId,
+      },
       guestCookie,
     );
     const afterRetry = await ChatConversation.findById(conversationId)

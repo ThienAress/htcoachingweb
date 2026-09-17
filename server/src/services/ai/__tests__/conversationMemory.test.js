@@ -33,6 +33,45 @@ const tdeeCard = {
   },
 };
 
+const mealArgs = {
+  targetCalories: 2500,
+  proteinGrams: 170,
+  carbGrams: 280,
+  fatGrams: 78,
+  mealsPerDay: 4,
+  targetToleranceCalories: 100,
+  minimumProteinGrams: 170,
+  excludedFoods: ["whey"],
+  excludedAllergens: ["peanut"],
+  lactoseFree: true,
+  budgetVndPerDay: 150000,
+};
+
+const mealCard = {
+  cardType: "meal",
+  data: {
+    status: "complete",
+    targetCalories: 2500,
+    targetToleranceCalories: 100,
+    nutritionMethod: "server_calculated_4p_4c_9f",
+    targets: { minimumProteinGrams: 170 },
+    meals: [{
+      label: "Bữa sáng",
+      foods: [
+        {
+          foodId: "chicken",
+          name: "Ức gà",
+          amountGrams: 137.5,
+          macros: { protein: 42.6, carb: 0, fat: 5 },
+          calories: 215.4,
+        },
+      ],
+      totals: { protein: 42.6, carb: 0, fat: 5, calories: 215.4 },
+    }],
+    totals: { protein: 42.6, carb: 0, fat: 5, calories: 215.4 },
+  },
+};
+
 describe("AI conversation working memory", () => {
   it("stores validated TDEE inputs and structured results", () => {
     const memory = updateConversationMemory(
@@ -52,7 +91,7 @@ describe("AI conversation working memory", () => {
     });
   });
 
-  it("rebuilds memory from persisted tool history for old documents", () => {
+  it("does not trust legacy meal history without a complete structured card", () => {
     const memory = deriveConversationMemory([
       {
         role: "assistant",
@@ -75,7 +114,94 @@ describe("AI conversation working memory", () => {
       { role: "tool", toolName: "suggest_meal", content: "Thực đơn 4 bữa" },
     ]);
 
-    expect(memory.lastMeal.mealsPerDay).toBe(4);
+    expect(memory.lastMeal).toBeUndefined();
+  });
+
+  it("stores a bounded structured meal plan for scoped follow-ups", () => {
+    const memory = updateConversationMemory(
+      {},
+      "suggest_meal",
+      mealArgs,
+      { uiCard: mealCard },
+    );
+
+    expect(memory.lastMeal).toMatchObject({
+      ...mealArgs,
+      plan: {
+        status: "complete",
+        nutritionMethod: "server_calculated_4p_4c_9f",
+        meals: [{
+          foods: [{ foodId: "chicken", amountGrams: 137.5 }],
+        }],
+      },
+      revision: 1,
+    });
+  });
+
+  it("drops malformed structured meal data instead of trusting persisted Mixed fields", () => {
+    const memory = deriveConversationMemory([], {
+      lastMeal: {
+        ...mealArgs,
+        plan: {
+          ...mealCard.data,
+          meals: [{
+            ...mealCard.data.meals[0],
+            foods: [{
+              ...mealCard.data.meals[0].foods[0],
+              amountGrams: Number.POSITIVE_INFINITY,
+            }],
+          }],
+        },
+      },
+    });
+
+    expect(memory.lastMeal.plan).toBeUndefined();
+    expect(memory.lastMeal.targetCalories).toBe(2500);
+  });
+
+  it("keeps the previous complete meal when a later attempt returns missing_data", () => {
+    const completeMemory = updateConversationMemory(
+      {},
+      "suggest_meal",
+      mealArgs,
+      { uiCard: mealCard },
+    );
+    const afterFailure = updateConversationMemory(
+      completeMemory,
+      "suggest_meal",
+      { ...mealArgs, targetCalories: 2200 },
+      {
+        uiCard: {
+          cardType: "meal",
+          data: { status: "missing_data", meals: [], totals: null },
+        },
+      },
+    );
+
+    expect(afterFailure.lastMeal).toEqual(completeMemory.lastMeal);
+  });
+
+  it("pairs persisted meal results by tool call id before a same-name legacy call", () => {
+    const memory = deriveConversationMemory([
+      {
+        role: "assistant",
+        toolCalls: [
+          { id: "meal-old", name: "suggest_meal", args: { ...mealArgs, targetCalories: 1800 } },
+          { id: "meal-current", name: "suggest_meal", args: mealArgs },
+        ],
+      },
+      {
+        role: "tool",
+        toolName: "suggest_meal",
+        toolCallId: "meal-current",
+        uiCard: mealCard,
+      },
+    ]);
+
+    expect(memory.lastMeal).toMatchObject({
+      targetCalories: 2500,
+      plan: { targetCalories: 2500 },
+    });
   });
 
   it("injects confirmed TDEE state so follow-ups do not ask again", () => {

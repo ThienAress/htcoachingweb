@@ -20,10 +20,10 @@
 - **Category**: bug | reliability | tests | operations
 - **Planned at**: 2026-09-16
 - **Lifecycle**: IN PROGRESS
-- **Verification**: LOCAL FULL UNIT + COMPILE-ONLY + FOCUSED E2E; RELEASE BUILD/LIVE GATES PENDING
+- **Verification**: STEP 5 LOCAL GREEN; RELEASE BUILD + LIVE STAGING RERUN PENDING
 - **Rollout**: NOT STARTED
 - **Owner**: root
-- **Updated at**: 2026-09-17
+- **Updated at**: 2026-09-18
 
 ## Why This Matters
 
@@ -57,6 +57,34 @@ những cải tiến mới chỉ khi chúng chứng minh không làm tăng tỷ 
 - Google quota không giảm là phù hợp với request bị chặn trước provider hoặc request
   `503` không sinh token; dashboard provider không được dùng làm bằng chứng duy nhất rằng
   application có/không gọi model.
+- Live staging round 1 trên merge `586e8b39` (chứa nguyên candidate
+  `ed839923`) chỉ có 5 câu PASS, 5 câu FAIL và 1 câu FAIL nhẹ. Câu 5
+  được regrade thành PASS: hỏi dữ liệu cơ bản trước khi cá nhân hóa là hành vi
+  đúng, không phải lỗi chất lượng.
+- Ba câu dinh dưỡng lặp lại cùng một vi phạm: model công bố kcal/macro
+  không khớp với chính danh sách món. Bữa sáng công bố `480–500 kcal`
+  nhưng `47P/30C/5F` chỉ tương đương khoảng `353 kcal`; thực đơn
+  `2.500 kcal` có tổng item `171P/185C/102F ≈ 2.342 kcal`; follow-up
+  `2.200 kcal` có tổng item `167P/143C/93F ≈ 2.077 kcal` và không đủ
+  `170g protein`.
+- `suggestMeal.tool.js` hiện chỉ chia macro theo bữa, clamp/round khối lượng và
+  xáo trộn `Math.random()`; tool không cộng lại kcal/macro, không xác minh
+  sai số, không nhận dị ứng/không dung nạp/ngân sách và không trả structured
+  totals. Hiện cũng không có focused test cho tool này.
+- Router cung cấp đúng `suggest_meal`, `search_exercises` hoặc `search_knowledge`,
+  nhưng provider vẫn ở function-calling `AUTO`; controller chấp nhận text cuối cùng
+  ngay cả khi preferred tool chưa được gọi. Prompt `LUÔN gọi tool` vì vậy
+  không phải runtime invariant.
+- Câu Ronaldo được router test xác nhận đúng là `web_required` và
+  `preferredTool=search_knowledge`. Lời fallback hiện tại có thể xuất hiện cả khi
+  model không gọi tool lẫn khi Google Search trả về không có
+  `groundingSupports`; UI không đủ evidence để phân biệt hai nhánh.
+- Câu tìm năm bài ngực trả generic provider error. Chuỗi text này bao phủ
+  `5xx`, network, empty stream và timeout, nên chưa được gọi đích danh là
+  quota/model limit khi không có app-side outcome trace.
+- Câu giáo án tại nhà vi phạm ràng buộc nhẹ: dù user chỉ có tạ đơn và
+  dây kháng lực, output chọn hai bài press cần ghế mà không nêu phương án
+  sàn/thay thế.
 
 ## Commands You Will Need
 
@@ -87,6 +115,12 @@ những cải tiến mới chỉ khi chúng chứng minh không làm tăng tỷ 
   `client/src/services/ai.service.js` cùng tests.
 - Incident corpus trong `server/src/services/ai/evals/corpus/ai-eval-corpus.v1.json`,
   staging acceptance và `e2e/ai-chat.spec.js` khi cần.
+- Deterministic meal contract trong `server/src/services/ai/tools/suggestMeal.tool.js`,
+  schema `suggest_meal`, structured tool result và focused tests cho kcal/macro,
+  allergy/exclusion, budget provenance và follow-up scope.
+- Runtime orchestration cho read-only preferred tools trong `ai.controller.js` và
+  `gemini.provider.js`: không phụ thuộc model tự nguyện gọi tool khi route đã
+  xác định tool bắt buộc.
 - Safe metrics phân biệt `provider_attempted`, `provider_succeeded`,
   `provider_unavailable`, `provider_rate_limited` và `provider_not_required` mà không
   log raw prompt hoặc dữ liệu sức khỏe.
@@ -173,24 +207,61 @@ không cần đóng/mở widget.
 
 **Verify**: server/client focused suites và E2E retry/history scenarios exit 0.
 
-### Step 5: Chứng minh bằng live staging trước production
+### Step 5: Đóng các lỗ hổng output do live staging phát hiện
+
+Trước khi chạy lại, chuyển các vi phạm live thành RED tests ở public seam:
+
+1. `suggest_meal` phải trả structured items + totals do server tính, không chỉ trả
+   prose. Tổng item, tổng macro và `4P + 4C + 9F` phải khớp trong dung sai
+   rounding đã khai báo; kcal phải nằm trong tolerance user yêu cầu và protein
+   không được thấp hơn minimum.
+2. Tool schema phải nhận các constraint mà runtime thực sự enforce được. Dị ứng,
+   không dung nạp và thực phẩm loại phải fail closed nếu catalog chưa review;
+   ngân sách chỉ được công bố đạt khi có price provenance đủ, nếu không phải
+   nói rõ chưa xác minh.
+3. Khi router chọn một read-only canonical tool cho action rõ ràng, server phải
+   enforce tool execution hoặc trả lời thiếu dữ liệu có cấu trúc; không được
+   chấp nhận prose tự bịa số. Write/mutation tools không thuộc cơ chế này.
+4. Với `web_required`, authenticated server phải thực thi đúng một
+   `search_knowledge` canonical attempt thay vì chờ model chọn. Trace phải phân biệt
+   `not_called`, `provider_error`, `no_supported_source` và `grounded`; nếu không có
+   evidence, phần claim về người thật vẫn fail closed nhưng có thể đưa gợi ý
+   fitness phổ thông được dán nhãn rõ là không phải routine đã xác minh.
+5. Workout output phải validate ràng buộc equipment; không sinh bài cần ghế/máy
+   nếu user không có, trừ khi ghi rõ biến thể thay thế không cần thiết bị đó.
+6. Follow-up chỉnh thực đơn phải thao tác trên structured plan trước, không
+   đọc prose cũ rồi ước lượng lại.
+
+**Behavior**: Câu 1, 7 và 8 không thể công bố tổng sai; câu 2 vẫn có
+tool-backed fallback hữu ích nếu chat model hỏng sau khi tool đã thành công; câu 9
+thật sự thực thi search attempt và có outcome trace; câu 10 giữ đúng thiết bị.
+
+**Blast radius**: meal/search/exercise read-only tools, tool schema, controller orchestration,
+conversation memory, output/eval tests và staging acceptance assertions.
+
+**Depends on**: Steps 1–4 và staging round 1 evidence.
+
+**Verify**: RED → GREEN focused tests cho numeric invariant, mandatory read-only tool execution,
+search outcome và equipment constraint; `npm run test:ai-eval` exit 0.
+
+### Step 6: Chứng minh lại bằng live staging trước production
 
 Chạy full QA dưới Node `22.23.1`, sau đó chạy chính 11 prompt user-visible trên staging với
 provider thật hai lượt liên tiếp ở hai conversation mới. Acceptance phải lưu request ID,
-route/evidence/provider outcome, latency và cleanup receipt nhưng không raw prompt trong log.
-Đối chiếu số `provider_attempted/succeeded/failed/not_required` với provider console; ghi rõ
-console có thể trễ và request lỗi trước token generation có thể không trừ quota.
+route/evidence/tool outcome, provider outcome, latency và cleanup receipt nhưng không raw prompt
+trong log. Oracle phải assert cả semantic invariants (tổng kcal/macro, hard constraints,
+source, equipment, context continuity), không chỉ assert route hoặc response không rỗng.
 
 **Behavior**: Không generic error, không refusal sai, không orphan fragment, không conversation
-fork ngoài ý muốn; mọi request giải thích được vì sao có hoặc không gọi model.
+fork ngoài ý muốn; mọi request giải thích được vì sao có/không gọi provider/tool.
 
 **Blast radius**: acceptance script/tests, release evidence và staging only.
 
-**Depends on**: Steps 2–4.
+**Depends on**: Step 5 GREEN và exact candidate đã deploy staging.
 
 **Verify**: focused + full QA pass; hai staging runs pass `11/11`, cleanup `residue=0`.
 
-### Step 6: Roll out nhỏ và quan sát trước khi mở rộng tính năng
+### Step 7: Roll out nhỏ và quan sát trước khi mở rộng tính năng
 
 Tạo release candidate chỉ chứa Plan 092, giữ immutable rollback target là release trước thay
 đổi. Sau deploy, chạy smoke prompt subset và quan sát tối thiểu provider errors, false refusal,
@@ -202,7 +273,7 @@ privacy/safety của phiên bản mới.
 
 **Blast radius**: release/operations; không migration hay data rewrite.
 
-**Depends on**: Step 5 và owner approval cho deploy.
+**Depends on**: Step 6 và owner approval cho deploy.
 
 **Verify**: exact deploy identity, production smoke và observation report đều pass.
 
@@ -216,6 +287,10 @@ privacy/safety của phiên bản mới.
 - Conversation: provider rollback retry same ID, malformed retry same ID, past-success retry forks,
   refresh `401`, stale `404`, navigation race và no ghost turn.
 - Live staging: 11 prompts x 2 consecutive runs; zero generic error/false refusal/orphan fragment.
+- Meal live oracle: item totals khớp declared totals; target kcal trong tolerance; protein
+  đạt minimum; allergy/exclusion được enforce; budget không được claim khi thiếu provenance.
+- Required-tool oracle: route đã chọn read-only tool thì trace phải có exact tool
+  outcome; `web_required` phân biệt no-call, provider error, no-support và grounded.
 
 ## Done Criteria
 
@@ -227,6 +302,10 @@ privacy/safety của phiên bản mới.
 - [x] Metrics giải thích được provider attempt/success/failure, unavailable/rate-limited và static safety không cần provider.
 - [ ] Focused tests, AI eval, full unit, client build, security và agent validation pass dưới Node 22.23.1.
 - [ ] Hai lượt staging live liên tiếp pass `11/11`, cleanup residue 0.
+- [ ] Câu 1, 7 và 8 pass deterministic kcal/macro + hard-constraint oracle; không
+  còn dùng prompt text như guard duy nhất.
+- [ ] Câu 9 có canonical search outcome trace và chỉ claim phần có grounded support.
+- [ ] Câu 10 giữ đúng equipment constraint hoặc nêu rõ biến thể thay thế.
 - [x] Năm file protected và feature local của user không bị thay đổi bởi implementation.
 - [ ] Production chỉ rollout sau approval riêng và có rollback target được xác minh.
 
@@ -242,7 +321,36 @@ privacy/safety của phiên bản mới.
 - Tool registry: `11` tools, `0` orphan, PASS. Secret scan, repository boundary scan và agent validation đều PASS; `git diff --check` PASS tại checkpoint implementation.
 - Release build lifecycle đã được chạy dưới Node `22.23.1` qua wrapper backup/restore. Vite compile `2957` modules và bundle budget PASS, nhưng lifecycle tổng thể BLOCKED/FAIL ở prerender/search-index verification vì local thiếu `VITE_API_URL`, dẫn tới `0/54` route render. Wrapper báo `PROTECTED_RESTORE=PASS`; SHA-256 của cả năm file protected khớp snapshot trước build và `git diff --check` vẫn PASS. Không rerun bằng staging/production API khi chưa có authorization live rõ ràng.
 - Focused Playwright dưới Node `22.23.1` với mock API local PASS `7/7`: deterministic/progressive SSE, navigation continuity, stop response, provider failure + Retry/Edit cùng conversation và confirmation card. Ports `4174`/`5100` đều trống trước khi chạy; không dùng MongoDB, Gemini hoặc credentials thật.
-- Steps 5–6: mới có manual baseline smoke trên deploy cũ. Formal live staging acceptance của exact candidate SHA, hai lượt liên tiếp, verified cleanup, provider correlation, release candidate, production deploy và observation chưa chạy.
+- Steps 5–7: formal live staging acceptance hai lượt liên tiếp, verified cleanup,
+  provider/tool correlation, release candidate, production deploy và observation chưa pass.
+- Manual live round 1 sau khi staging merge `586e8b39` đã chứa candidate
+  `ed839923`: PASS câu 3, 4, 5, 6, 11; FAIL câu 1, 2, 7, 8, 9; FAIL nhẹ
+  câu 10. Câu 5 được regrade PASS vì không đoán dữ liệu cá nhân là đúng
+  product behavior. Round này là RED evidence cho Step 5, không phải release evidence;
+  dừng trước backup, formal promotion gate và production deploy.
+
+## Execution Evidence — 2026-09-18
+
+- Step 5 local implementation hoàn tất: `suggest_meal` tạo structured meals/totals
+  deterministic, đối chiếu tổng item/meal với `4P + 4C + 9F`, giữ minimum protein,
+  fail closed cho allergy/exclusion thiếu provenance, và follow-up chỉ đổi món được
+  chỉ định với gram trước → sau. Mandatory read-only tool execution, canonical web
+  search outcome trace và equipment constraint đều có regression ở public seam.
+- Node `22.23.1`: full server PASS `270` files / `2865` tests; focused AI PASS
+  `12` files / `254` tests; AI eval `2026-09-reliability-v16` PASS `62/62`;
+  client PASS `172` files / `820` tests; Vite compile-only PASS `2957` modules.
+- Tool validator PASS `11` tools / `0` orphan. Agent validation, secret scan,
+  repository-boundary scan và `git diff --check` đều PASS. Full server runner có
+  force-exit warning sau khi JSON report đã ghi ở một số batch, nhưng mọi batch và
+  command tổng đều exit `0`; đây là teardown warning còn theo dõi, không phải test fail.
+- SHA-256 của năm file protected khớp trước/sau compile-only; implementation không
+  stage, commit hoặc sửa nội dung các file đó. Hai report debug tạm trong
+  `server/.local-data/` đã được xóa.
+- `ChatConversation.answerTrace.webSearchOutcome` là field optional có default
+  `not_called`; document cũ vẫn tương thích và không cần migration/backfill.
+- Chưa deploy exact candidate mới lên staging, nên Step 6 vẫn PENDING. Release build
+  lifecycle vẫn giữ blocker đã ghi ngày 2026-09-17 do local thiếu `VITE_API_URL`;
+  không nâng compile-only thành release evidence và chưa đủ điều kiện production.
 
 ## STOP Conditions
 

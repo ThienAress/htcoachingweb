@@ -4,6 +4,7 @@ import Exercise, {
   deriveTechnicalDifficultyRating,
 } from "../../../models/Exercise.js";
 import { escapeRegex } from "../../../utils/escapeRegex.js";
+import { validateWorkoutEquipmentOutput } from "../equipmentConstraint.js";
 
 const MUSCLE_GROUP_ALIASES = [
   {
@@ -33,7 +34,7 @@ const MUSCLE_GROUP_ALIASES = [
 ];
 
 const GENERIC_EXERCISE_INTENT_PATTERN =
-  /\b(?:bai tap|exercise|exercises|workout|workouts|tim|goi y|danh cho|nguoi moi|beginner|beginners|khong can dung cu|khong dung cu|no equipment|without equipment|sets?|reps?|hiep|so lan|kem)\b/;
+  /\b(?:bai tap|exercise|exercises|workout|workouts|workout plan|training plan|lich tap|chuong trinh tap|giao an tap|tim|goi y|danh cho|nguoi moi|beginner|beginners|khong can dung cu|khong dung cu|no equipment|without equipment|sets?|reps?|hiep|so lan|kem)\b/;
 const NO_EQUIPMENT_PATTERN =
   /\b(?:khong can dung cu|khong dung cu|khong co dung cu|no equipment|without equipment|bodyweight|body weight)\b/;
 const BEGINNER_INTENT_PATTERN =
@@ -42,6 +43,17 @@ const ADVANCED_EXERCISE_NAME_PATTERN =
   /\b(?:archer|diamond|one arm|one-arm|pistol|plyometric|explosive|handstand|muscle up|muscle-up|dragon flag|planche)\b/;
 const BODYWEIGHT_EXERCISE_REGEX =
   "(?:^|[\\s-])(?:bodyweight|push[ -]?up|dip|plank|burpee|mountain climber|crunch|sit[ -]?up)(?:$|[\\s-])";
+const LIMITED_EQUIPMENT_INTENT_PATTERN =
+  /\b(?:chi co|chi dung|only have|only use|have only)\b/;
+const DUMBBELL_PATTERN = /\b(?:ta don|dumbbells?)\b/;
+const RESISTANCE_BAND_PATTERN = /\b(?:day khang luc|resistance bands?)\b/;
+const EXPLICITLY_UNAVAILABLE_EQUIPMENT_PATTERN =
+  /\b(?:barbell|thanh don|cable|cap|machine|may|xa don|pull[ -]?up bars?|pull[ -]?ups?|chin[ -]?ups?|keo xa|trx|suspension trainers?|kettlebells?|plyo box|box jumps?|dip stations?|dips?)\b/;
+const BENCH_REQUIRED_PATTERN = /\b(?:bench|ghe)\b/;
+const FLOOR_COMPATIBLE_PATTERN =
+  /\b(?:floor|san|khong can ghe|no bench|without bench)\b/;
+const LIMITED_EQUIPMENT_SAFE_PATTERN =
+  /\b(?:dumbbells?|ta don|resistance bands?|day khang luc|bodyweight|push[ -]?up|hit dat|plank|burpee|mountain climber|crunch|sit[ -]?up|squat|lunge|calf raise)\b/;
 
 const normalizeIntent = (value) =>
   String(value || "")
@@ -76,6 +88,37 @@ const getBeginnerRank = (exercise) => {
   return advancedPenalty + (rating ?? 3);
 };
 
+const getExerciseEquipmentText = (exercise) =>
+  normalizeIntent([
+    exercise.name,
+    exercise.description,
+    ...(exercise.instructions || []).flatMap(({ title, description }) => [title, description]),
+  ].filter(Boolean).join(" "));
+
+const hasLimitedDumbbellAndBandConstraint = (normalizedSearchQuery) =>
+  LIMITED_EQUIPMENT_INTENT_PATTERN.test(normalizedSearchQuery) &&
+  DUMBBELL_PATTERN.test(normalizedSearchQuery) &&
+  RESISTANCE_BAND_PATTERN.test(normalizedSearchQuery);
+
+const isCompatibleWithLimitedDumbbellAndBandEquipment = (
+  exercise,
+  normalizedSearchQuery,
+) => {
+  const equipmentText = getExerciseEquipmentText(exercise);
+  if (EXPLICITLY_UNAVAILABLE_EQUIPMENT_PATTERN.test(equipmentText)) return false;
+  if (
+    BENCH_REQUIRED_PATTERN.test(equipmentText) &&
+    !FLOOR_COMPATIBLE_PATTERN.test(equipmentText)
+  ) {
+    return false;
+  }
+  return LIMITED_EQUIPMENT_SAFE_PATTERN.test(equipmentText) &&
+    validateWorkoutEquipmentOutput(
+      normalizedSearchQuery,
+      equipmentText,
+    ).valid;
+};
+
 /**
  * Tìm bài tập theo nhóm cơ hoặc tên
  * @param {{ muscleGroup?, searchQuery?, limit? }} params
@@ -87,6 +130,9 @@ export async function searchExercises(params) {
 
   const normalizedSearchQuery = normalizeIntent(searchQuery);
   const beginnerIntent = BEGINNER_INTENT_PATTERN.test(normalizedSearchQuery);
+  const limitedDumbbellAndBandEquipment = hasLimitedDumbbellAndBandConstraint(
+    normalizedSearchQuery,
+  );
   const muscleAlias = findMuscleGroupAlias(muscleGroup, searchQuery);
   const normalizedMuscleGroup = normalizeIntent(muscleGroup);
   const searchIsOnlyMuscleGroup = Boolean(
@@ -120,16 +166,25 @@ export async function searchExercises(params) {
   }
 
   const resultLimit = Math.min(Math.max(Number(limit) || 5, 1), 10);
-  const candidateLimit = beginnerIntent
-    ? Math.min(Math.max(resultLimit * 3, 15), 30)
-    : resultLimit;
+  const candidateLimit = limitedDumbbellAndBandEquipment
+    ? Math.min(Math.max(resultLimit * 5, 15), 30)
+    : beginnerIntent
+      ? Math.min(Math.max(resultLimit * 3, 15), 30)
+      : resultLimit;
   const candidates = await Exercise.find(query)
     .sort({ name: 1 })
     .limit(candidateLimit)
-    .select("name muscleGroup description videoUrl imageUrl technicalDifficulty")
+    .select("name muscleGroup description instructions videoUrl imageUrl technicalDifficulty")
     .lean();
+  const equipmentCompatibleCandidates = limitedDumbbellAndBandEquipment
+    ? candidates.filter((exercise) =>
+        isCompatibleWithLimitedDumbbellAndBandEquipment(
+          exercise,
+          normalizedSearchQuery,
+        ))
+    : candidates;
   const exercises = beginnerIntent
-    ? candidates
+    ? equipmentCompatibleCandidates
         .map((exercise, index) => ({ exercise, index }))
         .sort((left, right) =>
           getBeginnerRank(left.exercise) - getBeginnerRank(right.exercise) ||
@@ -137,7 +192,8 @@ export async function searchExercises(params) {
         )
         .slice(0, resultLimit)
         .map(({ exercise }) => exercise)
-    : candidates;
+    : equipmentCompatibleCandidates.slice(0, resultLimit);
+  const excludedForEquipmentCount = candidates.length - equipmentCompatibleCandidates.length;
 
   if (exercises.length === 0) {
     return {
@@ -145,7 +201,12 @@ export async function searchExercises(params) {
         ? `Không tìm thấy bài tập nào cho nhóm cơ "${muscleGroup}".`
         : `Không tìm thấy bài tập nào khớp với "${searchQuery}".`,
       uiCard: null,
-      meta: { evidenceAvailable: false, resultCount: 0 },
+      meta: {
+        evidenceAvailable: false,
+        resultCount: 0,
+        equipmentConstraintApplied: limitedDumbbellAndBandEquipment,
+        excludedForEquipmentCount,
+      },
     };
   }
 
@@ -174,6 +235,11 @@ export async function searchExercises(params) {
   return {
     text,
     uiCard,
-    meta: { evidenceAvailable: true, resultCount: exercises.length },
+    meta: {
+      evidenceAvailable: true,
+      resultCount: exercises.length,
+      equipmentConstraintApplied: limitedDumbbellAndBandEquipment,
+      excludedForEquipmentCount,
+    },
   };
 }

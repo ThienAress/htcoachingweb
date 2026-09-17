@@ -65,6 +65,7 @@ describe("searchExercises query normalization", () => {
     });
 
     expect(chain.limit).toHaveBeenCalledWith(15);
+    expect(findMock.mock.calls[0][0].name).toBeUndefined();
     expect(result.uiCard.data.exercises.map(({ name }) => name)).toEqual([
       "Incline Push Up",
       "Push Up",
@@ -83,5 +84,80 @@ describe("searchExercises query normalization", () => {
     await searchExercises({ searchQuery: "bench press (barbell)" });
 
     expect(findMock.mock.calls[0][0].name.$regex).toContain("\\(barbell\\)");
+  });
+
+  it("excludes equipment the user does not have from a four-day dumbbell and band request", async () => {
+    const chain = mockExerciseQuery([
+      {
+        name: "Barbell Bench Press",
+        muscleGroup: "Cơ ngực",
+        description: "Nằm trên ghế và dùng thanh đòn.",
+      },
+      {
+        name: "Cable Chest Fly",
+        muscleGroup: "Cơ ngực",
+        description: "Dùng máy cáp tại phòng gym.",
+      },
+      {
+        name: "Dumbbell Floor Press",
+        muscleGroup: "Cơ ngực",
+        description: "Nằm trên sàn, dùng tạ đơn điều chỉnh.",
+        instructions: [{ title: "Setup", description: "Nằm trên sàn, không cần ghế." }],
+      },
+      {
+        name: "Resistance Band Chest Press",
+        muscleGroup: "Cơ ngực",
+        description: "Dùng dây kháng lực neo chắc chắn.",
+      },
+    ]);
+
+    const result = await searchExercises({
+      searchQuery:
+        "Lập lịch tập 4 ngày, tôi chỉ có tạ đơn điều chỉnh và dây kháng lực; không có ghế, máy, thanh đòn hay cáp.",
+      limit: 3,
+    });
+
+    expect(chain.limit).toHaveBeenCalledWith(15);
+    expect(result.uiCard.data.exercises.map(({ name }) => name)).toEqual([
+      "Dumbbell Floor Press",
+      "Resistance Band Chest Press",
+    ]);
+    expect(result.meta).toMatchObject({
+      equipmentConstraintApplied: true,
+      excludedForEquipmentCount: 2,
+    });
+  });
+
+  it("filters ambiguous presses and bodyweight exercises that require unavailable setup", async () => {
+    mockExerciseQuery([
+      {
+        name: "Dumbbell Chest Press",
+        muscleGroup: "Cơ ngực",
+      },
+      {
+        name: "Pull Up",
+        muscleGroup: "Cơ lưng",
+        description: "Bodyweight pull-up trên xà đơn.",
+      },
+      {
+        name: "Chair Dips",
+        muscleGroup: "Cơ tay",
+        description: "Bodyweight dips với ghế.",
+      },
+      {
+        name: "Dumbbell Floor Press",
+        muscleGroup: "Cơ ngực",
+        description: "Nằm trên sàn và dùng tạ đơn.",
+      },
+    ]);
+
+    const result = await searchExercises({
+      searchQuery: "Tạo lịch tập chỉ có tạ đơn và dây kháng lực",
+      limit: 5,
+    });
+
+    expect(result.uiCard.data.exercises.map(({ name }) => name)).toEqual([
+      "Dumbbell Floor Press",
+    ]);
   });
 });
