@@ -69,7 +69,9 @@ export const isSuccessfulToolResult = (result) =>
   !result.needsConfirmation &&
   !result.meta?.validationFailed &&
   !result.meta?.timedOut &&
-  !result.meta?.internalError;
+  !result.meta?.internalError &&
+  (result.uiCard?.cardType !== "meal" ||
+    result.uiCard?.data?.status === "complete");
 
 const createAbortError = (reason) => {
   const error = new Error(reason?.message || "Tool execution aborted");
@@ -230,6 +232,12 @@ export async function executeTool(toolName, parameters, context = {}) {
       toolName === "search_knowledge"
         ? normalizeEvidenceSources(result?.meta?.sources)
         : [];
+    const searchOutcomes = new Set([
+      "not_called",
+      "provider_error",
+      "no_supported_source",
+      "grounded",
+    ]);
     const evidenceMeta =
       toolName === "search_knowledge"
         ? {
@@ -238,13 +246,28 @@ export async function executeTool(toolName, parameters, context = {}) {
             normalizedSources.length > 0,
           sourceCount: normalizedSources.length,
           sources: normalizedSources,
+          searchOutcome: searchOutcomes.has(result?.meta?.searchOutcome)
+            ? result.meta.searchOutcome
+            : result?.meta?.evidenceAvailable === true &&
+                normalizedSources.length > 0
+              ? "grounded"
+              : "provider_error",
         }
-        : toolName === "search_exercises"
+          : toolName === "search_exercises"
           ? {
               evidenceAvailable: result?.meta?.evidenceAvailable === true,
               resultCount: Math.min(
                 Math.max(Number(result?.meta?.resultCount) || 0, 0),
                 10,
+              ),
+              equipmentConstraintApplied:
+                result?.meta?.equipmentConstraintApplied === true,
+              excludedForEquipmentCount: Math.min(
+                Math.max(
+                  Number(result?.meta?.excludedForEquipmentCount) || 0,
+                  0,
+                ),
+                30,
               ),
             }
           : {};

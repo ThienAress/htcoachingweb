@@ -153,7 +153,12 @@ describe("Google grounding source boundary", () => {
 
     expect(result).toMatchObject({
       text: expect.stringMatching(/chưa tìm thấy nguồn/i),
-      meta: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+      meta: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "no_supported_source",
+      },
     });
   });
 
@@ -213,6 +218,7 @@ describe("Google grounding source boundary", () => {
     expect(result.meta).toEqual({
       evidenceAvailable: true,
       sourceCount: 1,
+      searchOutcome: "grounded",
       sources: [
         {
           title: "Trusted \\[source\\] txt.exe (example.com)",
@@ -261,7 +267,11 @@ describe("Google grounding source boundary", () => {
 
     expect(result).toMatchObject({
       text: expect.stringMatching(/không thể xác minh/i),
-      meta: { evidenceAvailable: false, sourceCount: 0 },
+      meta: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        searchOutcome: "provider_error",
+      },
     });
     expect(result.text).not.toMatch(/kiến thức có sẵn|hỏi trực tiếp/i);
     expect(getMetricsSnapshot().counters).toMatchObject({
@@ -340,7 +350,11 @@ describe("Google grounding source boundary", () => {
 
     expect(result).toMatchObject({
       text: expect.stringMatching(/chưa tìm thấy nguồn/i),
-      meta: { evidenceAvailable: false, sourceCount: 0 },
+      meta: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        searchOutcome: "no_supported_source",
+      },
     });
   });
 
@@ -379,7 +393,12 @@ describe("Google grounding source boundary", () => {
 
     expect(result).toMatchObject({
       text: expect.stringMatching(/chưa tìm thấy nguồn/i),
-      meta: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+      meta: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "no_supported_source",
+      },
     });
   });
 
@@ -448,7 +467,12 @@ describe("Google grounding source boundary", () => {
       evidence: result.meta,
     }).toEqual({
       providerCalls: 0,
-      evidence: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+      evidence: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "not_called",
+      },
     });
   });
 
@@ -494,7 +518,12 @@ describe("Google grounding source boundary", () => {
       evidence: result.meta,
     }).toEqual({
       providerCalled: 0,
-      evidence: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+      evidence: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "not_called",
+      },
     });
   });
 
@@ -512,7 +541,12 @@ describe("Google grounding source boundary", () => {
       evidence: result.meta,
     }).toEqual({
       providerCalled: 0,
-      evidence: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+      evidence: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "not_called",
+      },
     });
   });
 
@@ -549,7 +583,12 @@ describe("Google grounding source boundary", () => {
         evidence: result.meta,
       }).toEqual({
         providerCalled: 0,
-        evidence: { evidenceAvailable: false, sourceCount: 0, sources: [] },
+        evidence: {
+          evidenceAvailable: false,
+          sourceCount: 0,
+          sources: [],
+          searchOutcome: "not_called",
+        },
       });
     },
   );

@@ -28,6 +28,92 @@ afterEach(() => {
 beforeEach(resetMetricsForTests);
 
 describe("geminiLLMStream retry", () => {
+  it("forces exactly the requested function with Gemini ANY mode", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        'data: {"candidates":[{"content":{"parts":[{"functionCall":{"id":"lookup-1","name":"lookup","args":{}}}]}}]}\n\n',
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const tools = [{
+      type: "function",
+      function: {
+        name: "lookup",
+        description: "Lookup",
+        parameters: { type: "object", properties: {} },
+      },
+    }];
+
+    await collectStream(geminiLLMStream(
+      [{ role: "user", content: "Lookup" }],
+      tools,
+      { requiredToolName: "lookup" },
+    ));
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.toolConfig).toEqual({
+      functionCallingConfig: {
+        mode: "ANY",
+        allowedFunctionNames: ["lookup"],
+      },
+    });
+  });
+
+  it("rejects an invalid required tool before contacting Gemini", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Lookup" }],
+      [],
+      { requiredToolName: "lookup" },
+    ))).rejects.toMatchObject({
+      code: "GEMINI_REQUIRED_TOOL_CONFIG_INVALID",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps required tool config on minimal retry and never retries tool-free", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const badResponse = () => new Response(
+      '{"error":{"status":"INVALID_ARGUMENT"}}',
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(badResponse())
+      .mockResolvedValueOnce(badResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const tools = [{
+      type: "function",
+      function: {
+        name: "lookup",
+        description: "Lookup",
+        parameters: { type: "object", properties: {} },
+      },
+    }];
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Lookup" }],
+      tools,
+      { requiredToolName: "lookup" },
+    ))).rejects.toMatchObject({ code: "GEMINI_HTTP_ERROR", status: 400 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retryBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(retryBody).toMatchObject({
+      tools: expect.any(Array),
+      toolConfig: {
+        functionCallingConfig: {
+          mode: "ANY",
+          allowedFunctionNames: ["lookup"],
+        },
+      },
+    });
+  });
+
   it("throws a typed configuration error instead of displaying the missing key", async () => {
     await expect(
       collectStream(geminiLLMStream([{ role: "user", content: "Hi" }])),

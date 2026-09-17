@@ -22,6 +22,16 @@ const answerTraceSchema = new mongoose.Schema(
       },
     },
     webSearchUsed: { type: Boolean, default: false },
+    webSearchOutcome: {
+      type: String,
+      enum: [
+        "not_called",
+        "provider_error",
+        "no_supported_source",
+        "grounded",
+      ],
+      default: "not_called",
+    },
     model: { type: String, required: true, maxlength: 100 },
     promptVersion: { type: String, required: true, maxlength: 100 },
   },

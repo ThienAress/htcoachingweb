@@ -343,13 +343,35 @@ export function formatToolsForProvider(tools) {
   }];
 }
 
+const buildRequiredToolConfig = (tools, requiredToolName) => {
+  if (!requiredToolName) return undefined;
+  const matches = (tools || []).filter(
+    (tool) => tool?.function?.name === requiredToolName,
+  );
+  if (matches.length !== 1) {
+    throw operationalError("GEMINI_REQUIRED_TOOL_CONFIG_INVALID");
+  }
+  return {
+    functionCallingConfig: {
+      mode: "ANY",
+      allowedFunctionNames: [requiredToolName],
+    },
+  };
+};
+
 /**
  * Gemini streaming với function calling
  * @param {Array} messages - Conversation messages (OpenAI format)
  * @param {Array} tools - Tool schemas (OpenAI format)
  * @yields {{ type: "text"|"tool_call", content?: string, toolCalls?: Array }}
  */
-async function* streamGemini(messages, tools, signal, retryOptions) {
+async function* streamGemini(
+  messages,
+  tools,
+  signal,
+  retryOptions,
+  requiredToolName,
+) {
   // Đọc API key tại runtime (không phải lúc import) để đảm bảo .env đã load
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -359,11 +381,13 @@ async function* streamGemini(messages, tools, signal, retryOptions) {
 
   const { systemInstruction, contents } = convertMessages(messages);
   const geminiTools = formatToolsForProvider(tools);
+  const toolConfig = buildRequiredToolConfig(tools, requiredToolName);
 
   const body = {
     contents,
     ...(systemInstruction && { systemInstruction }),
     ...(geminiTools && { tools: geminiTools }),
+    ...(toolConfig && { toolConfig }),
     generationConfig: {
       temperature: 0.4,
       topP: 0.9,
@@ -407,6 +431,7 @@ async function* streamGemini(messages, tools, signal, retryOptions) {
         contents: retryContents,
         ...(retrySystem && { systemInstruction: retrySystem }),
         ...(geminiTools && { tools: geminiTools }),
+        ...(toolConfig && { toolConfig }),
         generationConfig: body.generationConfig,
       };
 
@@ -418,7 +443,12 @@ async function* streamGemini(messages, tools, signal, retryOptions) {
         retryBudget,
       );
 
-      if (!retryResponse.ok && retryResponse.status === 400 && geminiTools) {
+      if (
+        !retryResponse.ok &&
+        retryResponse.status === 400 &&
+        geminiTools &&
+        !requiredToolName
+      ) {
         recordGeminiResult("chat", { success: false });
         safeLog.warn(
           "ai.gemini_tool_free_retry",
@@ -577,7 +607,13 @@ export async function* geminiLLMStream(messages, tools, options = {}) {
   };
 
   try {
-    yield* streamGemini(messages, tools, linked.signal, retryOptions);
+    yield* streamGemini(
+      messages,
+      tools,
+      linked.signal,
+      retryOptions,
+      options.requiredToolName,
+    );
   } catch (error) {
     if (!error?.[GEMINI_OUTCOME_RECORDED]) {
       recordGeminiFailure(error);

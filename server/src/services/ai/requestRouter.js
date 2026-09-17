@@ -88,6 +88,8 @@ const DIRECT_FITNESS_TECHNIQUE_PATTERN =
   /\b(?:cach tap\s+(?:dung\b|the nao|nhu nao|hit dat|push up|pull up|keo xa|squat|deadlift|bench press|plank|hip thrust|lunge|row)|ky thuat\s+(?:hit dat|push up|pull up|keo xa|squat|deadlift|bench press|plank|hip thrust|lunge|row)|tap\s+(?:vai|nguc|chan|lung|tay|bung|co bung|mong|dau goi|khop goi|goi)\s+(?:nhu nao|the nao))\b/;
 const EXERCISE_LOOKUP_PATTERN =
   /\b(?:(?:vai|nguc|chan|lung|tay|bung|co bung|mong|ppl|push pull legs|nhom co|bai tap)\b[\s\S]{0,60}\b(?:tap|bai|exercise|workout)|tap\s+(?:vai|nguc|chan|lung|tay|bung|co bung|mong))\b/;
+const WORKOUT_CREATION_PATTERN =
+  /\b(?:tao|lap|xay dung|de xuat|goi y)\b[\s\S]{0,80}\b(?:lich|giao an|chuong trinh|workout plan)\b[\s\S]{0,40}\b(?:tap|tang co|giam mo|workout)|\b(?:lich|giao an|chuong trinh|workout plan)\b[\s\S]{0,40}\b(?:tap|tang co|giam mo)\b/;
 const TDEE_TOOL_PATTERN =
   /\b(tinh tdee|tdee cua toi|tdee|bmr|calo moi ngay|calorie needs?|an bao nhieu calo)\b/;
 const MEAL_TOOL_PATTERN =
@@ -469,6 +471,7 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
     (EXERCISE_TECHNIQUE_PATTERN.test(normalized) ||
       DIRECT_FITNESS_TECHNIQUE_PATTERN.test(normalized) ||
       EXERCISE_LOOKUP_PATTERN.test(normalized) ||
+      WORKOUT_CREATION_PATTERN.test(normalized) ||
       JOINT_EXERCISE_PATTERN.test(normalized) ||
       EXERCISE_ENTITY_PATTERN.test(normalized));
   const preferredInternalTool =

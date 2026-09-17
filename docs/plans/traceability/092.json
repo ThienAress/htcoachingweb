@@ -1,15 +1,16 @@
 {
   "schemaVersion": 1,
   "planId": "092",
-  "specPath": "docs/specs/fitness-first-ai-and-knowledge-quality.md",
+  "specPath": "docs/specs/ht-assistant-reliability.md",
   "planPath": "docs/plans/092-restore-ht-assistant-reliability.md",
   "tasks": [
     { "id": "TASK-001", "title": "Lock production incidents into regression contracts", "planStep": "Step 1" },
     { "id": "TASK-002", "title": "Restore answer-first low-risk fitness behavior", "planStep": "Step 2" },
     { "id": "TASK-003", "title": "Add bounded transient provider recovery", "planStep": "Step 3" },
     { "id": "TASK-004", "title": "Reject malformed output and preserve retry continuity", "planStep": "Step 4" },
-    { "id": "TASK-005", "title": "Prove the incident suite on live staging", "planStep": "Step 5" },
-    { "id": "TASK-006", "title": "Roll out with an observed rollback boundary", "planStep": "Step 6" }
+    { "id": "TASK-005", "title": "Close live output quality and mandatory read-only tool gaps", "planStep": "Step 5" },
+    { "id": "TASK-006", "title": "Prove the incident suite on live staging", "planStep": "Step 6" },
+    { "id": "TASK-007", "title": "Roll out with an observed rollback boundary", "planStep": "Step 7" }
   ],
   "requirements": [
     {
@@ -23,15 +24,15 @@
     {
       "id": "REQ-002",
       "acceptanceCriteria": [
-        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/knowledgeBaseEvidence.routes.integration.test.js" }, { "type": "test", "path": "client/src/pages/admin/__tests__/knowledgeBaseAdmin.test.js" }] },
-        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/utils/__tests__/knowledgeBase.test.js" }, { "type": "test", "path": "server/src/migrations/__tests__/20260719-phase2-ai-kb-integrity.test.js" }] }
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/knowledgeBaseEvidence.routes.integration.test.js" }, { "type": "test", "path": "client/src/pages/admin/__tests__/knowledgeBaseAdmin.test.js" }] },
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "test", "path": "server/src/utils/__tests__/knowledgeBase.test.js" }, { "type": "test", "path": "server/src/migrations/__tests__/20260719-phase2-ai-kb-integrity.test.js" }] }
       ]
     },
     {
       "id": "REQ-003",
       "acceptanceCriteria": [
-        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/knowledgePrivacy.test.js" }, { "type": "test", "path": "server/src/services/ai/__tests__/personalHealthData.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }] },
-        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "client/src/components/ChatWidget/__tests__/feedbackRuntime.test.js" }] }
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/knowledgePrivacy.test.js" }, { "type": "test", "path": "server/src/services/ai/__tests__/personalHealthData.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }] },
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "test", "path": "client/src/components/ChatWidget/__tests__/feedbackRuntime.test.js" }] }
       ]
     },
     {
@@ -44,9 +45,9 @@
     {
       "id": "REQ-005",
       "acceptanceCriteria": [
-        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "npm run test:unit" }, { "type": "command", "command": "npm run acceptance:staging:ai --prefix server" }] },
-        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "command", "command": "npm run build --prefix client" }] },
-        { "id": "AC-012", "mustHave": true, "taskIds": ["TASK-005", "TASK-006"], "verifications": [{ "type": "command", "command": "npm run security:secrets" }, { "type": "command", "command": "npm run security:data-boundaries" }, { "type": "command", "command": "npm run agents:validate" }] }
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "command", "command": "npm run test:unit" }, { "type": "command", "command": "npm run acceptance:staging:ai --prefix server" }] },
+        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "command", "command": "npm run build --prefix client" }] },
+        { "id": "AC-012", "mustHave": true, "taskIds": ["TASK-006", "TASK-007"], "verifications": [{ "type": "command", "command": "npm run security:secrets" }, { "type": "command", "command": "npm run security:data-boundaries" }, { "type": "command", "command": "npm run agents:validate" }] }
       ]
     },
     {
@@ -54,6 +55,15 @@
       "acceptanceCriteria": [
         { "id": "AC-013", "mustHave": true, "taskIds": ["TASK-004"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/assistantOutput.test.js" }, { "type": "test", "path": "client/src/hooks/__tests__/aiChatStreamPacer.test.js" }] },
         { "id": "AC-014", "mustHave": true, "taskIds": ["TASK-003", "TASK-004"], "verifications": [{ "type": "test", "path": "server/src/services/ai/providers/__tests__/gemini.provider.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiGuestAccess.integration.test.js" }, { "type": "test", "path": "client/src/hooks/__tests__/useAiChat.streamCompletion.test.js" }, { "type": "test", "path": "client/src/services/__tests__/ai.service.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-007",
+      "acceptanceCriteria": [
+        { "id": "AC-015", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/ai/tools/__tests__/suggestMeal.tool.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }] },
+        { "id": "AC-016", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }, { "type": "test", "path": "server/src/services/ai/tools/__tests__/searchKnowledge.tool.test.js" }] },
+        { "id": "AC-017", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/ai/tools/__tests__/searchExercises.tool.test.js" }] },
+        { "id": "AC-018", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "command", "command": "npm run acceptance:staging:ai --prefix server" }] }
       ]
     }
   ]

@@ -19,6 +19,7 @@ import {
 } from "../../__tests__/setup.js";
 import { protect } from "../../middlewares/auth.middleware.js";
 import ChatConversation from "../../models/ChatConversation.js";
+import Food from "../../models/Food.js";
 import KnowledgeEntry from "../../models/KnowledgeEntry.js";
 import {
   chatStream,
@@ -240,6 +241,29 @@ describe("Phase 2 AI conversation integrity", () => {
       accessToken,
     );
     const conversation = await ChatConversation.findOne({ userId: user._id });
+    await Food.insertMany([
+      {
+        label: "Ức gà kiểm thử",
+        protein: 31,
+        carb: 0,
+        fat: 3.6,
+        calories: 156.4,
+      },
+      {
+        label: "Cơm kiểm thử",
+        protein: 2.7,
+        carb: 28,
+        fat: 0.3,
+        calories: 125.5,
+      },
+      {
+        label: "Dầu kiểm thử",
+        protein: 0,
+        carb: 0,
+        fat: 100,
+        calories: 900,
+      },
+    ]);
 
     const response = await withAuth(
       request(app).post("/api/ai/chat").send({
