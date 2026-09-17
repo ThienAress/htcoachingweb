@@ -37,18 +37,212 @@ describe("geminiLLMStream retry", () => {
     });
   });
 
-  it.each([429, 403, 503])("throws a typed operational error for HTTP %s", async (status) => {
+  it("does not retry a non-transient 403", async () => {
     process.env.GEMINI_API_KEY = "synthetic-test-key";
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
-      new Response('{"error":{"status":"UNAVAILABLE"}}', { status }),
-    ));
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('{"error":{"status":"PERMISSION_DENIED"}}', { status: 403 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      collectStream(geminiLLMStream([{ role: "user", content: "Hi" }])),
+      collectStream(geminiLLMStream([{ role: "user", content: "Hi" }], [], {
+        retryBaseDelayMs: 0,
+      })),
     ).rejects.toMatchObject({
       name: "AiProviderOperationalError",
       code: "GEMINI_HTTP_ERROR",
-      status,
+      status: 403,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers after one transient 503", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('{"error":{"status":"UNAVAILABLE"}}', { status: 503 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          'data: {"candidates":[{"content":{"parts":[{"text":"Recovered"}]}}]}\n\n',
+          { status: 200, headers: { "Content-Type": "text/event-stream" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).resolves.toEqual([{ type: "text", content: "Recovered" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 2,
+      "provider.gemini_chat_succeeded": 1,
+      "provider.gemini_chat_failed": 1,
+      "provider.gemini_chat_unavailable": 1,
+    });
+  });
+
+  it("recovers from a transient 503 after the minimal-context 400 fallback", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('{"error":{"status":"INVALID_ARGUMENT"}}', { status: 400 }),
+      )
+      .mockResolvedValueOnce(
+        new Response('{"error":{"status":"UNAVAILABLE"}}', { status: 503 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          'data: {"candidates":[{"content":{"parts":[{"text":"Recovered fallback"}]}}]}\n\n',
+          { status: 200, headers: { "Content-Type": "text/event-stream" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).resolves.toEqual([{ type: "text", content: "Recovered fallback" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 3,
+      "provider.gemini_chat_succeeded": 1,
+      "provider.gemini_chat_failed": 2,
+      "provider.gemini_chat_unavailable": 1,
+    });
+  });
+
+  it("classifies a non-retryable 429 from the minimal-context fallback", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response('{"error":{"status":"INVALID_ARGUMENT"}}', { status: 400 }),
+      )
+      .mockResolvedValueOnce(new Response("", { status: 429 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).rejects.toMatchObject({ status: 429 });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_rate_limited": 1,
+    });
+  });
+
+  it("bounds repeated transient 503 retries", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('{"error":{"status":"UNAVAILABLE"}}', { status: 503 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).rejects.toMatchObject({
+      code: "GEMINI_HTTP_ERROR",
+      status: 503,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_unavailable": 3,
+    });
+  });
+
+  it("retries 429 only when Retry-After is valid", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const success = () => new Response(
+      'data: {"candidates":[{"content":{"parts":[{"text":"Recovered"}]}}]}\n\n',
+      { status: 200, headers: { "Content-Type": "text/event-stream" } },
+    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("", {
+        status: 429,
+        headers: { "Retry-After": "0" },
+      }))
+      .mockResolvedValueOnce(success());
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).resolves.toEqual([{ type: "text", content: "Recovered" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_rate_limited": 1,
+    });
+  });
+
+  it("does not retry 429 without a valid Retry-After", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("", { status: 429 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).rejects.toMatchObject({ status: 429 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry 429 when Retry-After exceeds the shared deadline", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("", {
+        status: 429,
+        headers: { "Retry-After": "60" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { timeoutMs: 5000, retryBaseDelayMs: 0 },
+    ))).rejects.toMatchObject({ status: 429 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not double-count a provider failure when aborted during backoff", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('{"error":{"status":"UNAVAILABLE"}}', { status: 503 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const stream = collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      {
+        signal: controller.signal,
+        retryBaseDelayMs: 1000,
+        retryJitterRatio: 0,
+      },
+    ));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    controller.abort(new Error("synthetic caller abort"));
+
+    await expect(stream).resolves.toEqual([]);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 1,
+      "provider.gemini_chat_failed": 1,
+      "provider.gemini_chat_unavailable": 1,
     });
   });
 

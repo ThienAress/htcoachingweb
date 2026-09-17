@@ -28,12 +28,50 @@ describe("AI assistant output guard", () => {
   });
 
   it.each([
+    '{"action":"search_exercises","action_input":{"muscleGroup":"Ngực"}}',
+    '[{"action":"search_exercises","action_input":{"muscleGroup":"Ngực"}}]',
+  ])("blocks nested pseudo tool action envelopes without orphan braces: %s", (value) => {
+    expect(sanitizeAssistantOutput(value)).toEqual({
+      content: "",
+      protocolLeak: true,
+    });
+  });
+
+  it.each([
     '{"functionCall":{"name":"unknown_operation","args":{"value":1}}}',
     "<tool_call><name>unknown_operation</name></tool_call>",
   ])("blocks unknown provider protocol shapes: %s", (value) => {
     expect(sanitizeAssistantOutput(value)).toEqual({
       content: "",
       protocolLeak: true,
+    });
+  });
+
+  it.each([
+    "",
+    "   \n\t",
+    "{",
+    "}",
+    '{"action":',
+    '[{"action":',
+    "```json\n{\n```",
+  ])("blocks orphan or incomplete provider protocol fragments: %s", (value) => {
+    expect(sanitizeAssistantOutput(value)).toEqual({
+      content: "",
+      protocolLeak: true,
+    });
+  });
+
+  it.each([
+    "Dùng dấu { và } để minh họa một tập hợp.",
+    "Bạn đã hoàn thành rồi!",
+    "[Thư viện bài tập](/exercises) có thêm hướng dẫn chi tiết.",
+    "[5 bài tập](/exercises) phù hợp cho người mới.",
+    "[Lưu ý] Hãy ưu tiên kỹ thuật đúng.",
+  ])("keeps ordinary prose and punctuation: %s", (value) => {
+    expect(sanitizeAssistantOutput(value)).toEqual({
+      content: value,
+      protocolLeak: false,
     });
   });
 

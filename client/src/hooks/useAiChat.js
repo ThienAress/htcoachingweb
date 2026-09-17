@@ -619,7 +619,12 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
           applySessionQuota(session, data.meta?.quota);
-          throw new Error(data.message || `HTTP ${response.status}`);
+          const responseError = new Error(
+            data.message || `HTTP ${response.status}`,
+          );
+          responseError.status = response.status;
+          responseError.code = data.code;
+          throw responseError;
         }
 
         const reader = response.body.getReader();
@@ -726,8 +731,14 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         const activeSession = registry.getSession(sessionId);
         if (requestError.name !== "AbortError" && activeSession) {
           activeSession.terminalOutcome = "error";
+          const staleConversation =
+            requestError.status === 404 &&
+            Boolean(activeSession.targetConversationId);
+          activeSession.staleConversation = staleConversation;
           updateView(activeSession.viewKey, (view) => ({
-            error: requestError.message || "Không thể kết nối tới server",
+            error: staleConversation
+              ? "Cuộc trò chuyện này không còn tồn tại. Hãy bắt đầu cuộc trò chuyện mới rồi gửi lại câu hỏi."
+              : requestError.message || "Không thể kết nối tới server",
             terminalOutcome: "error",
             messages: view.messages.filter(
               (message) =>
@@ -752,7 +763,9 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
               activeSession.terminalOutcome ||
               (activeSession.networkComplete ? "completed" : "error"),
           });
-          if (!activeSession.networkComplete) {
+          if (activeSession.staleConversation) {
+            void loadConversations();
+          } else if (!activeSession.networkComplete) {
             void reconcileConversation(
               activeSession.targetConversationId ||
                 registry.getView(activeSession.viewKey)?.conversationId,

@@ -713,6 +713,7 @@ export const chatStream = async (req, res) => {
       getPublicPersonLookupNames(retrievalQuery);
     const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
     if (urgentSafetyResponse) {
+      incrementMetric("provider.gemini_chat_not_required");
       responseModel = "static_safety_v1";
       aiLogger.chatStart(actorId, conversation._id);
       const guardedSafetyResponse = sanitizeAssistantOutput(
@@ -811,27 +812,25 @@ export const chatStream = async (req, res) => {
       }
     }
 
-    // Fitness rủi ro thấp không có KB hit/canonical tool phù hợp được chuyển
-    // sang evidence web có giới hạn. High-stakes không externalize query:
-    // chỉ còn model-prior giáo dục với guard sức khỏe của system prompt.
+    // Với fitness rủi ro thấp, KB là enrichment. KB miss không được biến một
+    // câu hỏi ổn định thành web lookup bắt buộc hoặc lời từ chối giả.
     if (
       routingDecision.evidence === "internal_kb" &&
       routingDecision.domain === "fitness" &&
       kbEntryIds.length === 0 &&
       !routingDecision.preferredTool
     ) {
-      const lowRiskWebFallback = routingDecision.risk === "low";
       routingDecision = Object.freeze({
         ...routingDecision,
-        evidence: lowRiskWebFallback ? "web_required" : "model_prior",
+        evidence: "model_prior",
         knowledgeBaseEligible: false,
-        webSearchRequired: lowRiskWebFallback,
-        preferredTool: lowRiskWebFallback ? "search_knowledge" : null,
-        maxWebSearchCalls: lowRiskWebFallback ? 1 : 0,
+        webSearchRequired: false,
+        preferredTool: null,
+        maxWebSearchCalls: 0,
         reasonCodes: Object.freeze([
           ...routingDecision.reasonCodes,
-          lowRiskWebFallback
-            ? "knowledge_base_no_hit"
+          routingDecision.risk === "low"
+            ? "knowledge_base_no_hit_model_prior"
             : "high_stakes_no_internal_evidence",
         ]),
       });
@@ -840,6 +839,7 @@ export const chatStream = async (req, res) => {
     internalEvidenceRequired =
       routingDecision.evidence === "internal_kb" &&
       routingDecision.domain === "fitness" &&
+      routingDecision.risk !== "low" &&
       kbEntryIds.length === 0 &&
       routingDecision.preferredTool === "search_exercises";
     if (routingDecision.webSearchRequired) {
@@ -1171,13 +1171,27 @@ export const chatStream = async (req, res) => {
                 }
               }
               if (
-                internalEvidenceRequired &&
+                routingDecision.evidence === "internal_kb" &&
                 call.name === routingDecision.preferredTool
               ) {
                 internalEvidenceAvailable =
                   internalEvidenceAvailable ||
                   (toolSucceeded &&
                     toolResult.meta?.evidenceAvailable === true);
+              }
+              if (
+                call.name === "search_exercises" &&
+                routingDecision.risk === "low" &&
+                toolResult.meta?.evidenceAvailable !== true
+              ) {
+                routingDecision = Object.freeze({
+                  ...routingDecision,
+                  evidence: "model_prior",
+                  reasonCodes: Object.freeze([
+                    ...routingDecision.reasonCodes,
+                    "exercise_catalog_no_hit_model_prior",
+                  ]),
+                });
               }
               aiLogger.toolCall(actorId, call.name, toolDuration, toolSucceeded);
               if (toolSucceeded) {
@@ -1263,17 +1277,40 @@ export const chatStream = async (req, res) => {
         break;
       }
       if (!iterationCalledTool && iterationText) {
-        const guarded = sanitizeAssistantOutput(iterationText);
-        if (guarded.protocolLeak && protocolRetryCount < 1) {
-          protocolRetryCount++;
-          llmMessages.push({ role: "assistant", content: iterationText });
-          llmMessages.push({
-            role: "user",
-            content:
-              "Không hiển thị JSON action, tên tool hoặc suy nghĩ nội bộ. Hãy gọi function phù hợp trực tiếp; nếu không cần function thì chỉ trả lời cuối cùng.",
+        if (
+          routingDecision.evidence === "internal_kb" &&
+          routingDecision.domain === "fitness" &&
+          routingDecision.risk === "low" &&
+          !internalEvidenceAvailable
+        ) {
+          routingDecision = Object.freeze({
+            ...routingDecision,
+            evidence: "model_prior",
+            reasonCodes: Object.freeze([
+              ...routingDecision.reasonCodes,
+              "internal_evidence_not_used_model_prior",
+            ]),
           });
-          needsToolCall = true;
-          continue;
+        }
+        const guarded = sanitizeAssistantOutput(iterationText);
+        if (guarded.protocolLeak) {
+          if (protocolRetryCount < 1) {
+            protocolRetryCount++;
+            llmMessages.push({ role: "assistant", content: iterationText });
+            llmMessages.push({
+              role: "user",
+              content:
+                "Không hiển thị JSON action, tên tool hoặc suy nghĩ nội bộ. Hãy gọi function phù hợp trực tiếp; nếu không cần function thì chỉ trả lời cuối cùng.",
+            });
+            needsToolCall = true;
+            continue;
+          }
+          const malformedOutputError = new Error(
+            "AI provider returned malformed protocol output",
+          );
+          malformedOutputError.code = "AI_MALFORMED_OUTPUT";
+          malformedOutputError.isOperational = true;
+          throw malformedOutputError;
         }
 
         const finalContent = enforceEvidenceBoundary(
@@ -1399,9 +1436,28 @@ export const chatStream = async (req, res) => {
       deadlineExceeded ? "provider_deadline" : "provider_stream",
     );
     if (!clientDisconnected && !res.writableEnded) {
-      const message = deadlineExceeded
-        ? "HT Assistant phản hồi quá lâu. Bạn vui lòng thử lại."
-        : "Có lỗi xảy ra, vui lòng thử lại";
+      let errorMessage = "Có lỗi xảy ra, vui lòng thử lại";
+      if (deadlineExceeded) {
+        errorMessage = "HT Assistant phản hồi quá lâu. Bạn vui lòng thử lại.";
+      } else if (err?.code === "AI_MALFORMED_OUTPUT") {
+        errorMessage =
+          "HT Assistant nhận được phản hồi chưa hoàn chỉnh. Bạn vui lòng thử lại.";
+      } else if (err?.code === "GEMINI_HTTP_ERROR" && err?.status === 429) {
+        errorMessage =
+          "HT Assistant đang nhận quá nhiều yêu cầu từ nhà cung cấp. Bạn vui lòng thử lại sau ít phút.";
+      } else if (
+        (err?.code === "GEMINI_HTTP_ERROR" && Number(err?.status) >= 500) ||
+        [
+          "GEMINI_NETWORK_ERROR",
+          "GEMINI_STREAM_ERROR",
+          "GEMINI_STREAM_EMPTY",
+          "GEMINI_TIMEOUT",
+        ]
+          .includes(err?.code)
+      ) {
+        errorMessage =
+          "Dịch vụ AI đang tạm gián đoạn. Bạn vui lòng thử lại sau.";
+      }
       if (refundedQuota) {
         res.write(
           `data: ${JSON.stringify({ type: "quota", quota: refundedQuota })}\n\n`,
@@ -1409,7 +1465,7 @@ export const chatStream = async (req, res) => {
       }
       res.write(`data: ${JSON.stringify({
         type: "error",
-        message,
+        message: errorMessage,
         retryable: rollbackSucceeded,
       })}\n\n`);
       res.end();

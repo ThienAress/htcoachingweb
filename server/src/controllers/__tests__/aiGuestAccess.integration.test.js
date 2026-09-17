@@ -274,6 +274,41 @@ describe("AI guest access", () => {
     expect(retried.text).toContain('"remaining":4');
   });
 
+  it.each([
+    {
+      status: 503,
+      expected: "Dịch vụ AI đang tạm gián đoạn",
+      excluded: "quá nhiều yêu cầu",
+    },
+    {
+      status: 429,
+      expected: "nhận quá nhiều yêu cầu từ nhà cung cấp",
+      excluded: "tạm gián đoạn",
+    },
+  ])("classifies provider HTTP $status without leaking diagnostics", async ({
+    status,
+    expected,
+    excluded,
+  }) => {
+    llmStream.mockImplementationOnce(async function* failedProviderStream() {
+      throw Object.assign(new Error("synthetic private provider diagnostic"), {
+        code: "GEMINI_HTTP_ERROR",
+        status,
+      });
+    });
+
+    const failed = await guestRequest({
+      message: "Lập lịch tập cho tôi",
+      requestId: status === 503
+        ? "c26e93e8-8d21-4be2-9c6e-2ebf3cc340c1"
+        : "c26e93e8-8d21-4be2-9c6e-2ebf3cc340c2",
+    });
+
+    expect(failed.text).toContain(expected);
+    expect(failed.text).not.toContain(excluded);
+    expect(failed.text).not.toContain("synthetic private provider diagnostic");
+  });
+
   it("retries the same request and conversation after a provider failure without a ghost message or charge", async () => {
     llmStream.mockImplementationOnce(async function* failedProviderStream() {
       throw new Error("synthetic secret provider diagnostic");
@@ -371,6 +406,43 @@ describe("AI guest access", () => {
     expect(failed.text).not.toContain("provider diagnostic");
     expect(conversation.messages).toHaveLength(0);
     expect(conversation.messageCount).toBe(0);
+  });
+
+  it("rolls back an orphan protocol fragment and retries in the same conversation", async () => {
+    llmStream
+      .mockImplementationOnce(async function* malformedProviderResponse() {
+        yield { type: "text", content: "}" };
+      })
+      .mockImplementationOnce(async function* repeatedMalformedProviderResponse() {
+        yield { type: "text", content: "{" };
+      })
+      .mockImplementationOnce(async function* recoveredProviderResponse() {
+        yield { type: "text", content: "Phản hồi đã phục hồi." };
+      });
+    const requestId = "e26e93e8-8d21-4be2-9c6e-2ebf3cc340b3";
+    const failed = await guestRequest({ message: "Giúp tôi tập luyện", requestId });
+    const conversationId = failed.text.match(/"conversationId":"([^"]+)"/)?.[1];
+    const guestCookie = readGuestCookie(failed);
+    const afterFailure = await ChatConversation.findById(conversationId).lean();
+
+    expect(failed.text).toContain('"type":"error"');
+    expect(failed.text).toContain('"retryable":true');
+    expect(failed.text).not.toContain('"type":"done"');
+    expect(afterFailure.messages).toHaveLength(0);
+
+    const retried = await guestRequest(
+      { message: "Giúp tôi tập luyện", conversationId, requestId },
+      guestCookie,
+    );
+    const afterRetry = await ChatConversation.findById(conversationId).lean();
+
+    expect(retried.text).toContain('"type":"text"');
+    expect(retried.text).toContain('"type":"done"');
+    expect(afterRetry.messages.map(({ role }) => role)).toEqual([
+      "user",
+      "assistant",
+    ]);
+    expect(afterRetry.messages.at(-1)?.content).toBe("Phản hồi đã phục hồi.");
   });
 
   it("preserves earlier turns when a later request fails and retries with the same key", async () => {

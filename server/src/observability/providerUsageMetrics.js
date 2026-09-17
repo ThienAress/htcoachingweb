@@ -36,6 +36,13 @@ export const recordGeminiResult = (surface, { success, usage = {} } = {}) => {
   }
 };
 
+export const recordGeminiChatDisposition = (outcome) => {
+  if (!new Set(["unavailable", "rate_limited", "not_required"]).has(outcome)) {
+    throw new Error("Unknown Gemini chat disposition");
+  }
+  incrementMetric(`provider.gemini_chat_${outcome}`);
+};
+
 export const recordResendUsage = (outcome) => {
   if (!new Set(["attempts", "sent", "failed", "disabled"]).has(outcome)) {
     throw new Error("Unknown Resend usage outcome");
