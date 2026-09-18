@@ -64,6 +64,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
   await clearCollections();
 });
 
@@ -272,6 +273,34 @@ describe("AI guest access", () => {
     expect(failed.text).toContain('"remaining":5');
     expect(bucketAfterFailure.usageEvents).toHaveLength(0);
     expect(retried.text).toContain('"remaining":4');
+  });
+
+  it("classifies a guest public-person lookup as a policy block without calling web search", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await guestRequest({
+      message: "Ronaldo thường tập những bài gì trong phòng gym?",
+      requestId: "aa6e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
+    });
+    const conversation = await ChatConversation.findOne({ userId: null })
+      .select("+guestKey")
+      .lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(conversation.messages.some((message) =>
+      message.toolCalls?.some((call) => call.name === "search_knowledge"),
+    )).toBe(false);
+    expect(answer.content).toMatch(/chế độ khách.*đăng nhập.*tra cứu có nguồn/i);
+    expect(answer.answerTrace).toMatchObject({
+      evidenceMode: "web_required",
+      webSearchUsed: false,
+      webSearchOutcome: "not_called",
+    });
   });
 
   it.each([

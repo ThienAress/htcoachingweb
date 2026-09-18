@@ -626,6 +626,9 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
           responseError.code = data.code;
           throw responseError;
         }
+        assignConversation(
+          response.headers?.get?.("X-AI-Conversation-Id"),
+        );
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -697,6 +700,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
                 ),
               }));
             } else if (event.type === "error") {
+              assignConversation(event.conversationId);
               activeSession.serverErrorReceived = true;
               activeSession.terminalOutcome = "error";
               updateView(activeSession.viewKey, {
@@ -734,12 +738,22 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
           const staleConversation =
             requestError.status === 404 &&
             Boolean(activeSession.targetConversationId);
+          const retryableTransportError = !staleConversation && (
+            requestError.status === undefined ||
+            requestError.status === 408 ||
+            requestError.status === 409 ||
+            requestError.status === 429 ||
+            requestError.status >= 500
+          );
           activeSession.staleConversation = staleConversation;
           updateView(activeSession.viewKey, (view) => ({
             error: staleConversation
               ? "Cuộc trò chuyện này không còn tồn tại. Hãy bắt đầu cuộc trò chuyện mới rồi gửi lại câu hỏi."
               : requestError.message || "Không thể kết nối tới server",
             terminalOutcome: "error",
+            retryableFailedLocalId: retryableTransportError
+              ? activeSession.userLocalId
+              : null,
             messages: view.messages.filter(
               (message) =>
                 message.localId !== assistantLocalId ||
@@ -802,6 +816,20 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         registryRef.current.getSelectedKey() === sourceViewKey &&
         Boolean(registryRef.current.getView(sourceViewKey));
       if (!sourceConversationId) {
+        const view = registryRef.current.getView(sourceViewKey);
+        const lastUser = [...(view?.messages || [])]
+          .reverse()
+          .find((message) => message.role === "user");
+        if (
+          view?.terminalOutcome === "error" &&
+          sourceMessage?.localId &&
+          view.retryableFailedLocalId === sourceMessage.localId &&
+          lastUser?.localId === sourceMessage.localId &&
+          !registryRef.current.getSessionForView(sourceViewKey)
+        ) {
+          await sendMessage(text, context, { targetConversationId: null });
+          return;
+        }
         clearHistory();
         return sendMessage(text, context, { targetConversationId: null });
       }

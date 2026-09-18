@@ -84,7 +84,9 @@ describe("search evidence metadata boundary", () => {
       uiCard: null,
       meta: {
         evidenceAvailable: false,
+        requestedCount: 7,
         resultCount: 999,
+        catalogInsufficient: true,
         rawQuery: "must not cross the boundary",
       },
     });
@@ -98,7 +100,9 @@ describe("search evidence metadata boundary", () => {
     expect(result.meta).toMatchObject({
       toolName: "search_exercises",
       evidenceAvailable: false,
+      requestedCount: 7,
       resultCount: 10,
+      catalogInsufficient: true,
     });
     expect(result.meta).not.toHaveProperty("rawQuery");
   });

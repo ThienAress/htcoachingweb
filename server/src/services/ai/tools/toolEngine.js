@@ -256,10 +256,16 @@ export async function executeTool(toolName, parameters, context = {}) {
           : toolName === "search_exercises"
           ? {
               evidenceAvailable: result?.meta?.evidenceAvailable === true,
+              requestedCount: Math.min(
+                Math.max(Number(result?.meta?.requestedCount) || 0, 0),
+                10,
+              ),
               resultCount: Math.min(
                 Math.max(Number(result?.meta?.resultCount) || 0, 0),
                 10,
               ),
+              catalogInsufficient:
+                result?.meta?.catalogInsufficient === true,
               equipmentConstraintApplied:
                 result?.meta?.equipmentConstraintApplied === true,
               excludedForEquipmentCount: Math.min(

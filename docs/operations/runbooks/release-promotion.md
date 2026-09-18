@@ -65,14 +65,16 @@ deploy IDs và hai production known-good rollback deploy IDs. Workflow sẽ:
 7. chạy current backup + off-device recovery gates;
 8. tạo artifact `release-candidate-<run_id>`.
 
-AC-009 raw evidence schema v2 và release-candidate schema v3 phải giữ inventory
+AC-009 raw evidence schema v3 và release-candidate schema v3 phải giữ inventory
 request/receipt đóng, outcome terminal, boot UUID fingerprint và exact SHA đủ để
 validator tự recompute correspondence/delta. Mỗi provider-failure receipt phải
 `settledAt <= admittedAt` của Retry/Edit recovery tương ứng. Artifact v1/v2 lịch sử không được tự
 nâng cấp thành request-bound proof. Missing receipt, restart, runtime mismatch,
 auth/CSRF retry ngoài inventory hoặc cleanup khi mutation còn chưa settled đều FAIL.
-Hai schema vẫn giữ nguyên: readiness không thêm field/JTI/receipt; counter tuyệt đối
-tại `metrics-before` có thể gồm fallback từ attempt readiness trước đó, nhưng delta
+Raw evidence v3 còn giữ snapshot `catalogReadiness` allowlisted; validator chỉ chấp
+nhận khi Exercise/Food/allergen/fresh-price coverage đạt gate. Candidate schema v3
+không đổi; `pre-cohort readiness` không thêm field/JTI/receipt. Counter tuyệt đối tại
+`metrics-before` có thể gồm fallback từ attempt readiness trước đó, nhưng delta
 trong exact-nine window bắt buộc bằng `0`.
 
 Trước KB fixture POST, runner ghi durable `fixture_create` journal v2 ở trạng thái

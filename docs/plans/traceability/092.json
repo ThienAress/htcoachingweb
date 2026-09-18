@@ -9,8 +9,10 @@
     { "id": "TASK-003", "title": "Add bounded transient provider recovery", "planStep": "Step 3" },
     { "id": "TASK-004", "title": "Reject malformed output and preserve retry continuity", "planStep": "Step 4" },
     { "id": "TASK-005", "title": "Close live output quality and mandatory read-only tool gaps", "planStep": "Step 5" },
-    { "id": "TASK-006", "title": "Prove the incident suite on live staging", "planStep": "Step 6" },
-    { "id": "TASK-007", "title": "Roll out with an observed rollback boundary", "planStep": "Step 7" }
+    { "id": "TASK-006", "title": "Prove the incident suite on live staging", "planStep": "Step 7" },
+    { "id": "TASK-007", "title": "Roll out with an observed rollback boundary", "planStep": "Step 8" },
+    { "id": "TASK-008", "title": "Close post-staging semantic, card and conversation gaps", "planStep": "Step 6" },
+    { "id": "TASK-009", "title": "Make staging catalog readiness explicit and fail closed", "planStep": "Step 6" }
   ],
   "requirements": [
     {
@@ -60,10 +62,21 @@
     {
       "id": "REQ-007",
       "acceptanceCriteria": [
-        { "id": "AC-015", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/ai/tools/__tests__/suggestMeal.tool.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }] },
+        { "id": "AC-015", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/ai/tools/__tests__/suggestMeal.tool.test.js" }, { "type": "test", "path": "server/src/services/ai/__tests__/mixedWorkoutMealGuard.test.js" }, { "type": "test", "path": "server/src/services/ai/evals/__tests__/semanticOutputEvaluator.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }] },
         { "id": "AC-016", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }, { "type": "test", "path": "server/src/services/ai/tools/__tests__/searchKnowledge.tool.test.js" }] },
         { "id": "AC-017", "mustHave": true, "taskIds": ["TASK-005"], "verifications": [{ "type": "test", "path": "server/src/services/ai/tools/__tests__/searchExercises.tool.test.js" }] },
         { "id": "AC-018", "mustHave": true, "taskIds": ["TASK-006"], "verifications": [{ "type": "command", "command": "npm run acceptance:staging:ai --prefix server" }] }
+      ]
+    },
+    {
+      "id": "REQ-008",
+      "acceptanceCriteria": [
+        { "id": "AC-019", "mustHave": true, "taskIds": ["TASK-008"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/requestRouter.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }] },
+        { "id": "AC-020", "mustHave": true, "taskIds": ["TASK-008"], "verifications": [{ "type": "test", "path": "server/src/services/ai/tools/__tests__/searchExercises.tool.test.js" }, { "type": "test", "path": "server/src/services/ai/tools/__tests__/searchExercises.tool.integration.test.js" }] },
+        { "id": "AC-021", "mustHave": true, "taskIds": ["TASK-008"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/scopePreservation.test.js" }, { "type": "test", "path": "server/src/services/ai/__tests__/systemPrompt.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }, { "type": "command", "command": "npm run test:ai-eval" }] },
+        { "id": "AC-022", "mustHave": true, "taskIds": ["TASK-008"], "verifications": [{ "type": "test", "path": "client/src/hooks/__tests__/useAiChat.streamCompletion.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }] },
+        { "id": "AC-023", "mustHave": true, "taskIds": ["TASK-008", "TASK-009"], "verifications": [{ "type": "test", "path": "server/src/services/ai/evals/__tests__/semanticOutputEvaluator.test.js" }, { "type": "test", "path": "server/src/scripts/__tests__/stagingAiCatalogReadiness.test.js" }, { "type": "command", "command": "npm run acceptance:staging:ai --prefix server" }] },
+        { "id": "AC-024", "mustHave": true, "taskIds": ["TASK-008"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/systemPrompt.test.js" }, { "type": "command", "command": "npm run test:ai-eval" }] }
       ]
     }
   ]

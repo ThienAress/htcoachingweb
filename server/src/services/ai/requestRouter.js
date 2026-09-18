@@ -89,7 +89,9 @@ const DIRECT_FITNESS_TECHNIQUE_PATTERN =
 const EXERCISE_LOOKUP_PATTERN =
   /\b(?:(?:vai|nguc|chan|lung|tay|bung|co bung|mong|ppl|push pull legs|nhom co|bai tap)\b[\s\S]{0,60}\b(?:tap|bai|exercise|workout)|tap\s+(?:vai|nguc|chan|lung|tay|bung|co bung|mong))\b/;
 const WORKOUT_CREATION_PATTERN =
-  /\b(?:tao|lap|xay dung|de xuat|goi y)\b[\s\S]{0,80}\b(?:lich|giao an|chuong trinh|workout plan)\b[\s\S]{0,40}\b(?:tap|tang co|giam mo|workout)|\b(?:lich|giao an|chuong trinh|workout plan)\b[\s\S]{0,40}\b(?:tap|tang co|giam mo)\b/;
+  /\b(?:tao|lap|xay dung|de xuat|goi y|lam|soan|thiet ke|viet|len)\b[\s\S]{0,120}\b(?:(?:lich(?: tap)?|giao an(?: tap)?|chuong trinh tap|workout plan)\b|ke hoach\b[\s\S]{0,80}\b(?:tap luyen|tang co|giam mo|workout))\b/;
+const WORKOUT_PLAN_TARGET_PATTERN =
+  /\b(?:lich tap|giao an(?: tap)?|chuong trinh tap|workout plan)\b|\bke hoach\b[\s\S]{0,80}\b(?:tap luyen|tang co|giam mo|workout)\b/;
 const TDEE_TOOL_PATTERN =
   /\b(tinh tdee|tdee cua toi|tdee|bmr|calo moi ngay|calorie needs?|an bao nhieu calo)\b/;
 const MEAL_TOOL_PATTERN =
@@ -465,13 +467,18 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
         POSSESSIVE_PUBLIC_PERSON_CLAIM_PATTERN.test(normalized)));
   const explicitEvidence = SOURCE_REQUEST_PATTERN.test(normalized);
   const researchClaim = RESEARCH_CLAIM_PATTERN.test(normalized);
+  const workoutCreation =
+    domain === "fitness" &&
+    !publicPersonClaim &&
+    (WORKOUT_CREATION_PATTERN.test(normalized) ||
+      (GENERIC_PLANNING_REQUEST_PATTERN.test(normalized) &&
+        WORKOUT_PLAN_TARGET_PATTERN.test(normalized)));
   const exerciseTechnique =
     domain === "fitness" &&
     !publicPersonClaim &&
     (EXERCISE_TECHNIQUE_PATTERN.test(normalized) ||
       DIRECT_FITNESS_TECHNIQUE_PATTERN.test(normalized) ||
       EXERCISE_LOOKUP_PATTERN.test(normalized) ||
-      WORKOUT_CREATION_PATTERN.test(normalized) ||
       JOINT_EXERCISE_PATTERN.test(normalized) ||
       EXERCISE_ENTITY_PATTERN.test(normalized));
   const preferredInternalTool =
@@ -489,6 +496,8 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
               ? "calculate_tdee"
               : MEAL_TOOL_PATTERN.test(normalized)
                 ? "suggest_meal"
+                : workoutCreation
+                  ? null
                 : TRAINER_TOOL_PATTERN.test(normalized)
                   ? "get_trainer_info"
                   : GYM_INFO_TOOL_PATTERN.test(normalized)
@@ -554,6 +563,7 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
   if (risk === "high_stakes" && !publicPersonClaim) {
     reasonCodes.push("high_stakes_no_externalization");
   }
+  if (workoutCreation) reasonCodes.push("workout_creation");
   if (exerciseTechnique) reasonCodes.push("exercise_technique");
   if (tdeeMealCompoundAction) reasonCodes.push("compound_tdee_meal");
   if (reasonCodes.length === 0) reasonCodes.push(`${domain}_stable`);
@@ -583,6 +593,17 @@ export function getAllowedToolNamesForRoute(decision) {
     return Object.freeze([]);
   }
   if (decision.webSearchRequired) return Object.freeze(["search_knowledge"]);
+  if (decision.reasonCodes?.includes("workout_creation")) {
+    if (
+      decision.preferredTool === "calculate_tdee" &&
+      decision.reasonCodes?.includes("compound_tdee_meal")
+    ) {
+      return TDEE_MEAL_TOOL_SEQUENCE;
+    }
+    return decision.preferredTool && decision.preferredTool !== "search_exercises"
+      ? Object.freeze([decision.preferredTool])
+      : Object.freeze([]);
+  }
   if (
     decision.preferredTool === "calculate_tdee" &&
     decision.reasonCodes?.includes("compound_tdee_meal")

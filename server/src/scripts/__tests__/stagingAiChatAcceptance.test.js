@@ -90,6 +90,21 @@ describe("staging AI acceptance evidence", () => {
       sourceUrl: "https://www.who.int/news-room/fact-sheets/detail/physical-activity",
       assertions: [{ name: "failure lane", passed: false }],
       lanes: [{ name: "retry", passed: false, token: "must-not-leak", output: "raw" }],
+      catalogReadiness: {
+        ready: false,
+        gaps: ["food_fresh_price_macro_groups_incomplete", "unsafe raw detail"],
+        metrics: {
+          exerciseCount: 31,
+          displacedFixtures: 1,
+          beginnerBodyweightChest: 3,
+          foodCount: 50,
+          safeMealFoods: 4,
+          freshPricedSafeMealFoods: 3,
+          safeMacroGroups: ["protein", "carb", "fat", "unexpected"],
+          freshPricedSafeMacroGroups: ["protein"],
+          rawFoodLabels: ["must-not-leak"],
+        },
+      },
       metricsDelta: { "kb.vector_fallbacks": 0, secret: 12 },
       cleanup: { verified: true, residue: 0, collections: { users: 0 } },
       runtimeBinding: {
@@ -105,9 +120,51 @@ describe("staging AI acceptance evidence", () => {
     });
     expect(JSON.stringify(evidence)).not.toContain("must-not-leak");
     expect(JSON.stringify(evidence)).toEqual(expect.not.stringMatching(/secret|token=|conversation/i));
-    expect(evidence).toMatchObject({ schemaVersion: 2, metricsDelta: { "kb.vector_fallbacks": 0 } });
+    expect(evidence).toMatchObject({ schemaVersion: 3, metricsDelta: { "kb.vector_fallbacks": 0 } });
+    expect(evidence.catalogReadiness).toEqual({
+      ready: false,
+      gaps: [
+        "food_fresh_price_macro_groups_incomplete",
+        "catalog_readiness_payload_invalid",
+      ],
+      metrics: {
+        exerciseCount: 31,
+        displacedFixtures: 1,
+        beginnerBodyweightChest: 3,
+        foodCount: 50,
+        safeMealFoods: 4,
+        freshPricedSafeMealFoods: 3,
+        safeMacroGroups: ["carb", "fat", "protein"],
+        freshPricedSafeMacroGroups: ["protein"],
+      },
+    });
     expect(JSON.stringify(evidence)).not.toContain(rawRuntimeId);
     expect(evidence.runtimeBinding).toMatchObject({ proof: "request_cohort", attempts: [{ receiptState: "settled" }] });
+  });
+
+  it("fails sanitized catalog readiness closed when a passing payload contains unknown fields", () => {
+    const evidence = buildSafeEvidence({
+      catalogReadiness: {
+        ready: true,
+        gaps: ["unknown_gap"],
+        metrics: {
+          exerciseCount: 31,
+          displacedFixtures: 0,
+          beginnerBodyweightChest: 5,
+          foodCount: 50,
+          safeMealFoods: 3,
+          freshPricedSafeMealFoods: 3,
+          safeMacroGroups: ["protein", "carb", "fat"],
+          freshPricedSafeMacroGroups: ["protein", "carb", "fat"],
+          unexpected: true,
+        },
+      },
+    });
+
+    expect(evidence.catalogReadiness).toMatchObject({
+      ready: false,
+      gaps: ["catalog_readiness_payload_invalid"],
+    });
   });
 
   it("retains a sanitized root operation code when cleanup wraps the failure", () => {

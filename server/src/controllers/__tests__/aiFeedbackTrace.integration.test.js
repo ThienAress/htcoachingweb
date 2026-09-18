@@ -274,41 +274,25 @@ describe("AI answer trace and feedback review", () => {
     );
 
     expect(requiredToolName).toBe("calculate_tdee");
-    expect(answer.content).toMatch(/chưa đủ dữ liệu.*TDEE/i);
+    expect(answer.content).toMatch(/TDEE là một ước tính.*chưa đủ dữ liệu/is);
+    expect(answer.content).toMatch(/tối đa 5 nhóm/i);
+    expect(answer.content).not.toMatch(/TDEE chính xác/i);
     expect(answer.content).not.toContain("2500");
     expect(response.status).toBe(200);
   });
 
   it.each(["provider_error", "double_invalid", "empty_final"])(
-    "guards an unsafe exercise tool fallback at the final delivery boundary: %s",
+    "guards an unsafe workout draft at the final delivery boundary: %s",
     async (scenario) => {
       const { user, accessToken } = await createTestUser();
-      toolRegistry.search_exercises.execute = vi.fn().mockResolvedValue({
-        text: "Tìm thấy 1 bài tập:\n1. Dumbbell Chest Press (Cơ ngực)",
-        uiCard: {
-          cardType: "exercise",
-          data: {
-            exercises: [{
-              name: "Dumbbell Chest Press",
-              muscleGroup: "Cơ ngực",
-              description: "",
-            }],
-            searchedFor: "ngực",
-          },
-        },
-        meta: { evidenceAvailable: true, resultCount: 1 },
-      });
+      toolRegistry.search_exercises.execute = vi.fn();
       let providerTurn = 0;
       llmStreamMock.mockImplementation(async function* unsafeFallbackFlow() {
         providerTurn += 1;
         if (providerTurn === 1) {
           yield {
-            type: "tool_call",
-            toolCalls: [{
-              id: `unsafe-fallback-${scenario}`,
-              name: "search_exercises",
-              args: { searchQuery: "lịch tập ngực", limit: 1 },
-            }],
+            type: "text",
+            content: "Dumbbell Chest Press trên ghế và Cable Chest Fly — 4 hiệp.",
           };
           return;
         }
@@ -338,6 +322,8 @@ describe("AI answer trace and feedback review", () => {
       );
 
       expect(response.status).toBe(200);
+      expect(toolRegistry.search_exercises.execute).not.toHaveBeenCalled();
+      expect(response.text).not.toContain('"type":"ui_card"');
       expect(answer.content).not.toContain("Dumbbell Chest Press");
       expect(answer.content).toMatch(/chưa thể tạo lịch tập.*giới hạn thiết bị/i);
     },
@@ -1265,8 +1251,9 @@ describe("AI answer trace and feedback review", () => {
     });
   });
 
-  it("retries once when a constrained home workout invents unavailable equipment", async () => {
+  it("creates a constrained workout as text without emitting a flat exercise card", async () => {
     const { user, accessToken } = await createTestUser();
+    toolRegistry.search_exercises.execute = vi.fn();
     let providerTurn = 0;
     llmStreamMock.mockImplementation(async function* constrainedWorkout(
       messages,
@@ -1275,18 +1262,7 @@ describe("AI answer trace and feedback review", () => {
     ) {
       providerTurn += 1;
       if (providerTurn === 1) {
-        expect(options.requiredToolName).toBe("search_exercises");
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "equipment-search",
-            name: "search_exercises",
-            args: { searchQuery: "lịch tăng cơ người mới", limit: 5 },
-          }],
-        };
-        return;
-      }
-      if (providerTurn === 2) {
+        expect(options.requiredToolName).toBeNull();
         expect(tools).toEqual([]);
         yield {
           type: "text",
@@ -1298,7 +1274,7 @@ describe("AI answer trace and feedback review", () => {
       yield {
         type: "text",
         content:
-          "Buổi 1: Dumbbell Floor Press trên sàn và Resistance Band Chest Press.",
+          "Buổi 1: Dumbbell Floor Press trên sàn. Buổi 2: Goblet Squat. Buổi 3: Resistance Band Row. Buổi 4: Dumbbell Romanian Deadlift.",
       };
     });
 
@@ -1317,9 +1293,342 @@ describe("AI answer trace and feedback review", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(providerTurn).toBe(3);
+    expect(providerTurn).toBe(2);
+    expect(toolRegistry.search_exercises.execute).not.toHaveBeenCalled();
+    expect(response.text).not.toContain('"type":"ui_card"');
+    expect(conversation.messages.some((item) =>
+      item.role === "tool" || item.toolCalls?.length > 0,
+    )).toBe(false);
     expect(answer.content).toContain("Dumbbell Floor Press");
     expect(answer.content).not.toMatch(/barbell|cable/i);
+    expect(answer.answerTrace).toMatchObject({
+      routeDomain: "fitness",
+      evidenceMode: "model_prior",
+      webSearchUsed: false,
+    });
+  });
+
+  it("rejects meal rewrites and retries for a workout-only supplement in a mixed planning request", async () => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "SERVER_CANONICAL_MEAL: tổng 2500 kcal.",
+      uiCard: {
+        cardType: "meal",
+        data: {
+          status: "complete",
+          targetCalories: 2500,
+          meals: [],
+          totals: { protein: 170, carb: 300, fat: 69, calories: 2501 },
+        },
+      },
+      meta: { evidenceAvailable: true },
+    });
+    toolRegistry.search_exercises.execute = vi.fn();
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* mixedMealWorkout(
+      messages,
+      tools,
+    ) {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        expect(tools.map((tool) => tool.function.name)).toEqual([
+          "suggest_meal",
+        ]);
+        yield {
+          type: "tool_call",
+          toolCalls: [{
+            id: "mixed-plan-meal",
+            name: "suggest_meal",
+            args: {
+              targetCalories: 2500,
+              proteinGrams: 170,
+              carbGrams: 300,
+              fatGrams: 69,
+              mealsPerDay: 4,
+            },
+          }],
+        };
+        return;
+      }
+      if (providerTurn === 2) {
+        expect(tools).toEqual([]);
+        expect(messages.at(-1).content).toMatch(/chỉ bổ sung giáo án/i);
+        yield {
+          type: "text",
+          content:
+            "Bạn nên ăn mỗi ngày 2700. Giáo án 4 ngày: Buổi 1 Dumbbell Floor Press; Buổi 2 Goblet Squat.",
+        };
+        return;
+      }
+      expect(tools).toEqual([]);
+      expect(messages.at(-1).content).toMatch(/không nhắc lại.*thực đơn|workout-only/iu);
+      yield {
+        type: "text",
+        content:
+          "Giáo án 4 ngày: Buổi 1 Dumbbell Floor Press; Buổi 2 Goblet Squat; Buổi 3 One-arm Dumbbell Row; Buổi 4 Dumbbell Romanian Deadlift.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tạo thực đơn 2500 kcal và lịch tập 4 ngày với tạ đơn",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f9",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(3);
+    expect(toolRegistry.suggest_meal.execute).toHaveBeenCalledTimes(1);
+    expect(toolRegistry.search_exercises.execute).not.toHaveBeenCalled();
+    expect(answer.content).toContain("SERVER_CANONICAL_MEAL");
+    expect(answer.content).toContain("Giáo án 4 ngày");
+    expect(answer.content).not.toMatch(/ăn mỗi ngày 2700/i);
+    expect(response.text).toContain('"cardType":"meal"');
+    expect(response.text).not.toContain('"cardType":"exercise"');
+  });
+
+  it.each(["invalid_retry", "provider_error"])(
+    "falls back without model-authored meal numbers when a mixed-request workout supplement ends with %s",
+    async (scenario) => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "SERVER_CANONICAL_MEAL: tổng 2500 kcal.",
+      uiCard: {
+        cardType: "meal",
+        data: {
+          status: "complete",
+          targetCalories: 2500,
+          meals: [],
+          totals: { protein: 170, carb: 300, fat: 69, calories: 2501 },
+        },
+      },
+      meta: { evidenceAvailable: true },
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* invalidMixedSupplement() {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "tool_call",
+          toolCalls: [{
+            id: "mixed-plan-fallback",
+            name: "suggest_meal",
+            args: {
+              targetCalories: 2500,
+              proteinGrams: 170,
+              carbGrams: 300,
+              fatGrams: 69,
+              mealsPerDay: 4,
+            },
+          }],
+        };
+        return;
+      }
+      if (providerTurn === 3 && scenario === "provider_error") {
+        const error = new Error("Gemini temporarily unavailable");
+        error.status = 503;
+        throw error;
+      }
+      yield {
+        type: "text",
+        content: providerTurn === 2
+          ? "Mức nạp mỗi ngày là 2700. Lịch tập 4 ngày với Dumbbell Floor Press."
+          : "Ăn mỗi ngày 2800. Lịch tập 4 ngày với Goblet Squat.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tạo thực đơn 2500 kcal và lịch tập 4 ngày với tạ đơn",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29fa",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(3);
+    expect(answer.content).toContain("SERVER_CANONICAL_MEAL");
+    expect(answer.content).not.toMatch(/2700|2800/i);
+    expect(answer.content).toMatch(/chưa thể bổ sung giáo án|yêu cầu riêng phần lịch tập/iu);
+    },
+  );
+
+  it("retries a deficit-only follow-up that silently changes the workout plan", async () => {
+    const { user, accessToken } = await createTestUser();
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Scoped deficit update",
+      messages: [
+        {
+          role: "user",
+          content: "Lập kế hoạch giảm mỡ với mức thâm hụt 300 kcal.",
+        },
+        {
+          role: "assistant",
+          content:
+            "Mức thâm hụt là 300 kcal. Lịch tập giữ ở 4 buổi mỗi tuần.",
+        },
+      ],
+      messageCount: 2,
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* scopedDeficitFollowUp(
+      messages,
+    ) {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "text",
+          content:
+            "Đã đổi mức thâm hụt thành 700 kcal và giảm lịch tập từ 4 buổi xuống 3 buổi.",
+        };
+        return;
+      }
+      expect(messages.at(-1).content).toMatch(
+        /chỉ thay đổi mức thâm hụt.*không viết lại lịch tập/iu,
+      );
+      yield {
+        type: "text",
+        content:
+          "Đã đổi mức thâm hụt từ 300 kcal thành 700 kcal. Chỉ mức thâm hụt thay đổi; lịch tập và mọi phần khác giữ nguyên. Mức thâm hụt sâu có thể ảnh hưởng phục hồi; nếu bạn muốn, mình sẽ đánh giá riêng trước khi đổi lịch tập.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      conversationId: conversation._id.toString(),
+      message:
+        "Giữ nguyên toàn bộ kế hoạch vừa rồi nhưng đổi mức thâm hụt từ 300 kcal thành 700 kcal. Giải thích phần nào đã thay đổi.",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f6",
+    });
+    const updated = await ChatConversation.findById(conversation._id).lean();
+    const answer = updated.messages.at(-1);
+
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(2);
+    expect(answer.content).toMatch(/chỉ mức thâm hụt thay đổi/iu);
+    expect(answer.content).toMatch(/lịch tập.*giữ nguyên/iu);
+    expect(answer.content).not.toMatch(/giảm lịch tập từ 4 buổi xuống 3 buổi/iu);
+  });
+
+  it("enforces a generic keep-everything-else invariant outside deficit changes", async () => {
+    const { user, accessToken } = await createTestUser();
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Scoped training frequency update",
+      messages: [
+        {
+          role: "user",
+          content: "Lập lịch tập 4 buổi mỗi tuần và giữ nguyên thực đơn hiện tại.",
+        },
+        {
+          role: "assistant",
+          content: "Lịch tập hiện có 4 buổi mỗi tuần; thực đơn và macro đã chốt.",
+        },
+      ],
+      messageCount: 2,
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* scopedFrequencyFollowUp(
+      messages,
+    ) {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "text",
+          content:
+            "Đã giảm số buổi tập từ 4 xuống 3 và giảm protein 20g mỗi ngày.",
+        };
+        return;
+      }
+      expect(messages.at(-1).content).toMatch(
+        /chỉ thay đổi số buổi tập từ 4 thành 3.*mọi phần khác giữ nguyên/iu,
+      );
+      yield {
+        type: "text",
+        content:
+          "Đã đổi số buổi tập từ 4 thành 3. Chỉ số buổi tập thay đổi; mọi phần khác trong kế hoạch giữ nguyên.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      conversationId: conversation._id.toString(),
+      message:
+        "Giữ nguyên toàn bộ kế hoạch vừa rồi, chỉ giảm số buổi tập từ 4 xuống 3.",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f8",
+    });
+    const updated = await ChatConversation.findById(conversation._id).lean();
+    const answer = updated.messages.at(-1);
+
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(2);
+    expect(answer.content).toMatch(/chỉ số buổi tập thay đổi/iu);
+    expect(answer.content).not.toMatch(/giảm protein/iu);
+  });
+
+  it("uses a bounded scope-preserving fallback when the correction retry loses the provider", async () => {
+    const { user, accessToken } = await createTestUser();
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Scoped deficit provider fallback",
+      messages: [
+        { role: "user", content: "Lập kế hoạch với thâm hụt 300 kcal." },
+        { role: "assistant", content: "Lịch tập 4 buổi, thâm hụt 300 kcal." },
+      ],
+      messageCount: 2,
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* failedScopeCorrection() {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "text",
+          content:
+            "Đã đổi thành 700 kcal và giảm lịch tập từ 4 buổi xuống 3 buổi.",
+        };
+        return;
+      }
+      throw Object.assign(new Error("provider unavailable"), {
+        code: "GEMINI_HTTP_ERROR",
+        status: 503,
+      });
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      conversationId: conversation._id.toString(),
+      message:
+        "Giữ nguyên toàn bộ kế hoạch vừa rồi nhưng đổi mức thâm hụt từ 300 kcal thành 700 kcal. Giải thích phần nào đã thay đổi.",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f7",
+    });
+    const updated = await ChatConversation.findById(conversation._id).lean();
+    const answer = updated.messages.at(-1);
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('"type":"done"');
+    expect(response.text).not.toContain('"type":"error"');
+    expect(providerTurn).toBe(2);
+    expect(answer.content).toMatch(/chỉ mức thâm hụt thay đổi/iu);
+    expect(answer.content).toMatch(/lịch tập.*giữ nguyên/iu);
+    expect(answer.content).not.toMatch(/giảm lịch tập từ 4 buổi xuống 3 buổi/iu);
   });
 
   it("uses the successful read-only tool result when final synthesis fails", async () => {
@@ -1366,6 +1675,62 @@ describe("AI answer trace and feedback review", () => {
     expect(response.text).toContain('"type":"done"');
     expect(response.text).not.toContain('"type":"error"');
     expect(answer.content).toContain("Incline Push Up");
+  });
+
+  it("keeps a safe exercise tool result when equipment correction then loses the provider", async () => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.search_exercises.execute = vi.fn().mockResolvedValue({
+      text: "Tìm thấy 1 bài tập:\n1. Dumbbell Floor Press (Cơ ngực) — Nằm trên sàn và dùng tạ đơn.",
+      uiCard: null,
+      meta: { evidenceAvailable: true },
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* toolCorrectionThenFailure() {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "tool_call",
+          toolCalls: [{
+            id: "safe-exercise-before-correction",
+            name: "search_exercises",
+            args: { muscleGroup: "ngực", limit: 1 },
+          }],
+        };
+        return;
+      }
+      if (providerTurn === 2) {
+        yield {
+          type: "text",
+          content: "Hãy tập Barbell Bench Press và Cable Chest Fly.",
+        };
+        return;
+      }
+      throw Object.assign(new Error("provider unavailable"), {
+        code: "GEMINI_HTTP_ERROR",
+        status: 503,
+      });
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tìm bài tập ngực, tôi chỉ có tạ đơn và dây kháng lực",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f8",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers["x-ai-conversation-id"]).toBe(
+      String(conversation._id),
+    );
+    expect(providerTurn).toBe(3);
+    expect(answer.content).toContain("Dumbbell Floor Press");
+    expect(answer.content).not.toMatch(/chưa thể tạo lịch tập/i);
   });
 
   it("rejects prose when a canonical exercise lookup skips the required tool", async () => {

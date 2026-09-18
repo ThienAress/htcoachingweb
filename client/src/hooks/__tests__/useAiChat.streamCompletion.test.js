@@ -66,6 +66,7 @@ const streamResponse = (...events) => {
   let index = 0;
   return {
     ok: true,
+    headers: { get: () => null },
     body: {
       getReader: () => ({
         read: async () => index < chunks.length
@@ -75,6 +76,15 @@ const streamResponse = (...events) => {
     },
   };
 };
+
+const streamResponseWithConversationHeader = (conversationId, ...events) => ({
+  ...streamResponse(...events),
+  headers: {
+    get: (name) => name.toLowerCase() === "x-ai-conversation-id"
+      ? conversationId
+      : null,
+  },
+});
 
 const deferred = () => {
   let resolve;
@@ -754,6 +764,89 @@ describe("AI chat SSE completion", () => {
     expect(view.messages.filter(
       (message) => message.role === "assistant" && message.content === "Đã khắc phục.",
     )).toHaveLength(1);
+  });
+
+  it("retries a pre-conversation provider error without clearing earlier local context", async () => {
+    openAiChatStream
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Câu trả lời local trước đó." },
+        { type: "done", conversationId: null },
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        { type: "error", message: "Provider tạm thời lỗi", retryable: true },
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Đã thử lại thành công." },
+        { type: "done", conversationId: null },
+      ));
+
+    const hook = renderHook();
+    await hook.sendMessage("Câu hỏi đầu tiên");
+    await renderHook().sendMessage("Câu hỏi bị lỗi trước conversation event");
+    renderHook().retryLastMessage();
+
+    await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(renderHook().isLoading).toBe(false));
+
+    expect(renderHook().messages.map(({ role, content }) => ({ role, content }))).toEqual([
+      { role: "user", content: "Câu hỏi đầu tiên" },
+      { role: "assistant", content: "Câu trả lời local trước đó." },
+      { role: "user", content: "Câu hỏi bị lỗi trước conversation event" },
+      { role: "assistant", content: "Đã thử lại thành công." },
+    ]);
+  });
+
+  it("binds the acquired conversation from headers before an SSE error can be retried", async () => {
+    getAiConversationById.mockResolvedValue({ data: { messages: [] } });
+    openAiChatStream
+      .mockResolvedValueOnce(streamResponseWithConversationHeader(
+        "conversation-acquired",
+        { type: "error", message: "Provider tạm thời lỗi", retryable: true },
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Đã thử lại thành công." },
+        { type: "done", conversationId: "conversation-acquired" },
+      ));
+
+    const hook = renderHook({ persistenceEnabled: true });
+    await hook.sendMessage("Câu hỏi bị lỗi trước conversation event");
+    renderHook({ persistenceEnabled: true }).retryLastMessage();
+
+    await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(2));
+    expect(openAiChatStream.mock.calls.map(([payload]) => payload.conversationId))
+      .toEqual([null, "conversation-acquired"]);
+    expect(renderHook({ persistenceEnabled: true }).conversationId)
+      .toBe("conversation-acquired");
+  });
+
+  it("keeps local context retryable after a transport EOF before conversation acquisition", async () => {
+    openAiChatStream
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Câu trả lời local trước đó." },
+        { type: "done", conversationId: null },
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Phần dở dang." },
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Đã thử lại thành công." },
+        { type: "done", conversationId: null },
+      ));
+
+    const hook = renderHook();
+    await hook.sendMessage("Câu hỏi đầu tiên");
+    await renderHook().sendMessage("Câu hỏi bị ngắt kết nối");
+    renderHook().retryLastMessage();
+
+    await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(renderHook().isLoading).toBe(false));
+    expect(renderHook().messages.map(({ role, content }) => ({ role, content })))
+      .toEqual([
+        { role: "user", content: "Câu hỏi đầu tiên" },
+        { role: "assistant", content: "Câu trả lời local trước đó." },
+        { role: "user", content: "Câu hỏi bị ngắt kết nối" },
+        { role: "assistant", content: "Đã thử lại thành công." },
+      ]);
   });
 
   it("drops a rolled-back failed turn on an ordinary next send, even if history arrives late", async () => {

@@ -12,12 +12,12 @@ afterEach(() => vi.restoreAllMocks());
 describe("AI prompt contract telemetry", () => {
   it("keeps an explicit version and deterministic core prompt fingerprint", () => {
     expect(getAiPromptContractMetadata()).toEqual({
-      version: "2026-09-17.v2",
+      version: "2026-09-18.v3",
       hash: AI_PROMPT_CONTRACT_HASH,
     });
-    expect(AI_PROMPT_CONTRACT_VERSION).toBe("2026-09-17.v2");
+    expect(AI_PROMPT_CONTRACT_VERSION).toBe("2026-09-18.v3");
     expect(AI_PROMPT_CONTRACT_HASH).toBe(
-      "6b43d0b8d2dc60062f0e09320b5426dfb30d00b24f1d7e9be54acec69b478b83",
+      "68c9954485c0946680d36159d77ca9f87c1c9ee24abd12fdabc2ac45402db840",
     );
   });
 

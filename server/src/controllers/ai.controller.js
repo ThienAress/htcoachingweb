@@ -55,6 +55,17 @@ import {
   validateWorkoutEquipmentOutput,
 } from "../services/ai/equipmentConstraint.js";
 import {
+  buildScopeCorrectionInstruction,
+  buildScopePreservationFallback,
+  parseScopePreservationRequest,
+  validateScopePreservationOutput,
+} from "../services/ai/scopePreservation.js";
+import {
+  MIXED_WORKOUT_CORRECTION_INSTRUCTION,
+  MIXED_WORKOUT_FALLBACK,
+  validateMixedWorkoutSupplementOutput,
+} from "../services/ai/mixedWorkoutMealGuard.js";
+import {
   boundAssistantOutputWithSources,
   sanitizeAssistantOutput,
 } from "../services/ai/assistantOutput.js";
@@ -144,7 +155,7 @@ const requiredToolMissingResponse = (toolName) => {
   if (toolName === "calculate_tdee") {
     return {
       text:
-        "Mình chưa đủ dữ liệu có cấu trúc để tính TDEE chính xác. Bạn vui lòng cung cấp giới tính, tuổi, chiều cao, cân nặng, mục tiêu, vận động ngoài buổi tập, số bước và tần suất/thời lượng/cường độ tập.",
+        "TDEE là một ước tính và mình chưa đủ dữ liệu có cấu trúc để tính cho bạn. Vui lòng cung cấp tối đa 5 nhóm: (1) giới tính, tuổi, chiều cao và cân nặng; (2) mục tiêu; (3) công việc, di chuyển và số bước; (4) số buổi, thời lượng và cường độ tập; (5) thiết bị, kinh nghiệm và chấn thương nếu bạn cũng muốn lập giáo án.",
       uiCard: null,
     };
   }
@@ -658,6 +669,7 @@ export const chatStream = async (req, res) => {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("X-Accel-Buffering", "no");
+      res.setHeader("X-AI-Conversation-Id", String(conversation._id));
       res.flushHeaders();
       const quota = serializeRequestQuota(req, "ai_chat");
       if (quota) {
@@ -692,6 +704,7 @@ export const chatStream = async (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
+  res.setHeader("X-AI-Conversation-Id", String(conversation._id));
   res.flushHeaders();
   const quota = serializeRequestQuota(req, "ai_chat");
   if (quota) {
@@ -1046,6 +1059,11 @@ export const chatStream = async (req, res) => {
       routingDecision.preferredTool,
       routedTools,
     );
+    const mixedWorkoutMealRequest =
+      routingDecision.reasonCodes.includes("workout_creation") &&
+      routedRequiredToolName === "suggest_meal";
+    const mixedWorkoutMealInstruction =
+      "Thực đơn từ công cụ là dữ liệu chuẩn và đã được hiển thị. Không viết lại hoặc thay đổi món, định lượng, macro hay tổng kcal; chỉ bổ sung giáo án tập luyện bằng văn bản theo đúng số ngày và thiết bị user yêu cầu.";
     let requiredToolConsumed = false;
     const getRequiredToolNameForIteration = () => {
       if (compoundTdeeMeal) {
@@ -1069,7 +1087,11 @@ export const chatStream = async (req, res) => {
       return routedTools;
     };
     let lastSuccessfulReadOnlyToolResult = null;
+    let canonicalMixedWorkoutMealText = "";
+    let mixedWorkoutRetryCount = 0;
     let equipmentRetryCount = 0;
+    let scopeRetryCount = 0;
+    const scopePreservationRequest = parseScopePreservationRequest(message);
 
     const executeServerRequiredTool = async (toolName, args) => {
       const call = {
@@ -1100,6 +1122,16 @@ export const chatStream = async (req, res) => {
           args,
           toolResult,
         );
+        if (
+          toolRegistry[toolName]?.readOnly === true &&
+          toolRegistry[toolName]?.requiresConfirmation !== true &&
+          safeToolText
+        ) {
+          lastSuccessfulReadOnlyToolResult = {
+            toolName,
+            text: safeToolText,
+          };
+        }
       }
       res.write(`data: ${JSON.stringify({ type: "tool_result" })}\n\n`);
       if (toolResult.uiCard) {
@@ -1182,9 +1214,32 @@ export const chatStream = async (req, res) => {
         const mealContent = guardedMeal.protocolLeak || !guardedMeal.content
           ? requiredToolMissingResponse("suggest_meal").text
           : guardedMeal.content;
-        responseModel = "server_meal_v1";
-        fullResponse = await deliverAssistantResponse(mealContent);
         requiredToolConsumed = true;
+        if (mixedWorkoutMealRequest) {
+          canonicalMixedWorkoutMealText = mealContent;
+          llmMessages.push(
+            {
+              role: "assistant",
+              content: "",
+              tool_calls: [directMeal.call],
+            },
+            {
+              role: "tool",
+              content: serializeToolResultForModel({
+                toolName: "suggest_meal",
+                text: directMeal.safeToolText,
+                status: resolveToolResultStatus(directMeal.toolResult),
+              }),
+              name: "suggest_meal",
+              id: directMeal.call.id,
+              toolResultEnvelope: true,
+            },
+            { role: "user", content: mixedWorkoutMealInstruction },
+          );
+        } else {
+          responseModel = "server_meal_v1";
+          fullResponse = await deliverAssistantResponse(mealContent);
+        }
       }
     }
 
@@ -1552,6 +1607,33 @@ export const chatStream = async (req, res) => {
       }
       } catch (providerError) {
         if (
+          scopeRetryCount > 0 &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          fullResponse = await deliverAssistantResponse(
+            enforceEvidenceBoundary(
+              buildScopePreservationFallback(scopePreservationRequest),
+            ),
+          );
+          needsToolCall = false;
+          break;
+        }
+        if (
+          mixedWorkoutRetryCount > 0 &&
+          canonicalMixedWorkoutMealText &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          fullResponse = await deliverAssistantResponse(
+            enforceEvidenceBoundary(
+              `${canonicalMixedWorkoutMealText}\n\n${MIXED_WORKOUT_FALLBACK}`,
+            ),
+          );
+          needsToolCall = false;
+          break;
+        }
+        if (
           lastSuccessfulReadOnlyToolResult &&
           !abortController.signal.aborted &&
           !deadlineExceeded
@@ -1561,6 +1643,17 @@ export const chatStream = async (req, res) => {
           );
           fullResponse = await deliverAssistantResponse(
             enforceEvidenceBoundary(safeFallback),
+          );
+          needsToolCall = false;
+          break;
+        }
+        if (
+          equipmentRetryCount > 0 &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          fullResponse = await deliverAssistantResponse(
+            enforceEvidenceBoundary(equipmentLimitFallback),
           );
           needsToolCall = false;
           break;
@@ -1588,6 +1681,15 @@ export const chatStream = async (req, res) => {
 
       if (abortController.signal.aborted) break;
       if (iterationCalledTool && iterationCanonicalMealText) {
+        if (mixedWorkoutMealRequest) {
+          canonicalMixedWorkoutMealText = iterationCanonicalMealText;
+          llmMessages.push({
+            role: "user",
+            content: mixedWorkoutMealInstruction,
+          });
+          needsToolCall = true;
+          continue;
+        }
         const guardedMeal = sanitizeAssistantOutput(
           iterationCanonicalMealText,
         );
@@ -1666,8 +1768,60 @@ export const chatStream = async (req, res) => {
           throw malformedOutputError;
         }
 
-        const candidateContent = guarded.content ||
+        const modelCandidateContent = guarded.content ||
           "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.";
+        if (canonicalMixedWorkoutMealText) {
+          const mixedWorkoutCheck = validateMixedWorkoutSupplementOutput(
+            modelCandidateContent,
+          );
+          if (!mixedWorkoutCheck.valid) {
+            if (mixedWorkoutRetryCount < 1) {
+              mixedWorkoutRetryCount += 1;
+              llmMessages.push({ role: "assistant", content: iterationText });
+              llmMessages.push({
+                role: "user",
+                content: MIXED_WORKOUT_CORRECTION_INSTRUCTION,
+              });
+              needsToolCall = true;
+              continue;
+            }
+            fullResponse = await deliverAssistantResponse(
+              enforceEvidenceBoundary(
+                `${canonicalMixedWorkoutMealText}\n\n${MIXED_WORKOUT_FALLBACK}`,
+              ),
+            );
+            needsToolCall = false;
+            break;
+          }
+        }
+        const candidateContent = canonicalMixedWorkoutMealText
+          ? `${canonicalMixedWorkoutMealText}\n\n${modelCandidateContent}`
+          : modelCandidateContent;
+        const scopeCheck = validateScopePreservationOutput(
+          scopePreservationRequest,
+          candidateContent,
+        );
+        if (!scopeCheck.valid) {
+          if (scopeRetryCount < 1) {
+            scopeRetryCount += 1;
+            llmMessages.push({ role: "assistant", content: iterationText });
+            llmMessages.push({
+              role: "user",
+              content: buildScopeCorrectionInstruction(
+                scopePreservationRequest,
+              ),
+            });
+            needsToolCall = true;
+            continue;
+          }
+          fullResponse = await deliverAssistantResponse(
+            enforceEvidenceBoundary(
+              buildScopePreservationFallback(scopePreservationRequest),
+            ),
+          );
+          needsToolCall = false;
+          break;
+        }
         const equipmentCheck = validateWorkoutEquipmentOutput(
           message,
           candidateContent,
@@ -1698,6 +1852,41 @@ export const chatStream = async (req, res) => {
         const finalContent = enforceEvidenceBoundary(candidateContent);
         fullResponse = await deliverAssistantResponse(finalContent);
       }
+    }
+
+    if (
+      !abortController.signal.aborted &&
+      !fullResponse &&
+      mixedWorkoutRetryCount > 0 &&
+      canonicalMixedWorkoutMealText
+    ) {
+      fullResponse = await deliverAssistantResponse(
+        enforceEvidenceBoundary(
+          `${canonicalMixedWorkoutMealText}\n\n${MIXED_WORKOUT_FALLBACK}`,
+        ),
+      );
+    }
+
+    if (
+      !abortController.signal.aborted &&
+      !fullResponse &&
+      scopeRetryCount > 0
+    ) {
+      fullResponse = await deliverAssistantResponse(
+        enforceEvidenceBoundary(
+          buildScopePreservationFallback(scopePreservationRequest),
+        ),
+      );
+    }
+
+    if (
+      !abortController.signal.aborted &&
+      !fullResponse &&
+      equipmentRetryCount > 0
+    ) {
+      fullResponse = await deliverAssistantResponse(
+        enforceEvidenceBoundary(equipmentLimitFallback),
+      );
     }
 
     if (deadlineExceeded) {
@@ -1847,6 +2036,7 @@ export const chatStream = async (req, res) => {
         type: "error",
         message: errorMessage,
         retryable: rollbackSucceeded,
+        conversationId: conversation._id,
       })}\n\n`);
       res.end();
     }

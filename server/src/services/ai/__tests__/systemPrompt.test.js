@@ -354,6 +354,46 @@ describe("TDEE estimate prompt contract", () => {
       calibration: prompt.includes("ít nhất 14 ngày"),
     }).toEqual({ wholeDay: true, noDefaults: true, calibration: true });
   });
+
+  it("frames TDEE as an estimate and prioritizes intake questions by request type", () => {
+    const prompt = buildSystemPrompt();
+
+    expect({
+      estimate: prompt.includes("TDEE là ước tính"),
+      maxFive: prompt.includes("tối đa 5 nhóm câu hỏi ưu tiên"),
+      mealOnly: prompt.includes("Chỉ hỏi dị ứng hoặc chế độ ăn khi user yêu cầu thực đơn"),
+      workoutFirst: prompt.includes("thiết bị, kinh nghiệm tập và chấn thương"),
+    }).toEqual({ estimate: true, maxFive: true, mealOnly: true, workoutFirst: true });
+  });
+});
+
+describe("Plan scope and workout quality prompt contract", () => {
+  it("preserves an explicit invariant before offering coaching advice", () => {
+    const prompt = buildSystemPrompt();
+    const request = "Giữ nguyên toàn bộ kế hoạch vừa rồi nhưng đổi mức thâm hụt từ 300 kcal thành 700 kcal. Giải thích phần nào đã thay đổi.";
+
+    expect(request.toLowerCase()).toContain("giữ nguyên toàn bộ kế hoạch");
+    expect({
+      onlyChangeAuthorizedPart: prompt.includes("chỉ thay đúng X"),
+      separateAdvisory: prompt.includes("tách riêng khỏi kết quả đã yêu cầu"),
+      permissionBeforeOverride: prompt.includes("xin phép trước khi áp dụng"),
+    }).toEqual({
+      onlyChangeAuthorizedPart: true,
+      separateAdvisory: true,
+      permissionBeforeOverride: true,
+    });
+  });
+
+  it("requires a real multi-day workout structure and unambiguous deload wording", () => {
+    const prompt = buildSystemPrompt();
+
+    expect({
+      days: prompt.includes("ngày/buổi, bài, hiệp, lần, RPE và thời gian nghỉ"),
+      equipment: prompt.includes("phù hợp trình độ và thiết bị"),
+      deload: prompt.includes("giảm khoảng 30%"),
+      notRemainingThirty: prompt.includes("còn 30%"),
+    }).toEqual({ days: true, equipment: true, deload: true, notRemainingThirty: false });
+  });
 });
 
 describe("Meal calculation and constraint prompt contract", () => {
