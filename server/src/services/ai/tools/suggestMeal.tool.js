@@ -70,6 +70,17 @@ const allowedFood = (food, constraints) => {
   return !constraints.excludedAllergens.some((allergen) => allergens.has(allergen));
 };
 
+const buildSafetyEvidence = ({
+  requireSafetyMetadata,
+  excludedTerms,
+  excludedAllergens,
+}) => ({
+  status: requireSafetyMetadata === true ? "verified" : "not_requested",
+  reviewedCatalogRequired: requireSafetyMetadata === true,
+  allergenConstraintsApplied: excludedAllergens.length > 0,
+  excludedFoodConstraintsApplied: excludedTerms.length > 0,
+});
+
 const normalizeFood = (food) => {
   const protein = asFinite(food?.protein);
   const carb = asFinite(food?.carb);
@@ -351,6 +362,7 @@ const scopedFollowUp = (input, previousMealPlan, catalog, constraints) => {
       data: {
         status: "complete", targetCalories: input.targetCalories, targetToleranceCalories: input.targetToleranceCalories,
         macros, totals, meals: adjustedMeals, adjustments, price,
+        safety: buildSafetyEvidence(constraints),
         targets: { proteinGrams: input.proteinGrams, carbGrams: input.carbGrams, fatGrams: input.fatGrams, minimumProteinGrams: input.minimumProteinGrams },
         nutritionMethod: "server_calculated_4p_4c_9f",
       },
@@ -430,6 +442,11 @@ export async function suggestMeal(params, {
       data: {
         status: "complete", targetCalories: input.targetCalories, targetToleranceCalories: input.targetToleranceCalories,
         macros, totals, meals, price,
+        safety: buildSafetyEvidence({
+          requireSafetyMetadata,
+          excludedTerms,
+          excludedAllergens,
+        }),
         targets: { proteinGrams: input.proteinGrams, carbGrams: input.carbGrams, fatGrams: input.fatGrams, minimumProteinGrams: input.minimumProteinGrams },
         nutritionMethod: "server_calculated_4p_4c_9f",
       },

@@ -52,6 +52,12 @@ describe("suggest_meal deterministic nutrition contract", () => {
 
     expect(result.uiCard.data).toMatchObject({
       targetCalories: 2500,
+      safety: {
+        status: "not_requested",
+        reviewedCatalogRequired: false,
+        allergenConstraintsApplied: false,
+        excludedFoodConstraintsApplied: false,
+      },
       meals: expect.arrayContaining([expect.objectContaining({ foods: expect.any(Array), totals: expect.any(Object) })]),
     });
     expect(result.uiCard.data.meals).toHaveLength(4);
@@ -111,6 +117,12 @@ describe("suggest_meal deterministic nutrition contract", () => {
     }, toolContext());
 
     expect(result.uiCard.data.status).toBe("complete");
+    expect(result.uiCard.data.safety).toEqual({
+      status: "verified",
+      reviewedCatalogRequired: true,
+      allergenConstraintsApplied: true,
+      excludedFoodConstraintsApplied: true,
+    });
     const labels = result.uiCard.data.meals.flatMap((meal) => meal.foods.map((food) => food.name.toLowerCase()));
     expect(new Set(labels)).toEqual(new Set(["ức gà", "cơm trắng", "dầu ô liu"]));
   });
@@ -168,6 +180,12 @@ describe("suggest_meal deterministic nutrition contract", () => {
     }, toolContext({ previousMealPlan }));
 
     expect(result.uiCard.data.status).toBe("complete");
+    expect(result.uiCard.data.safety).toEqual({
+      status: "verified",
+      reviewedCatalogRequired: true,
+      allergenConstraintsApplied: false,
+      excludedFoodConstraintsApplied: false,
+    });
     expect(Math.abs(result.uiCard.data.totals.calories - 2200)).toBeLessThanOrEqual(100);
     expect(result.uiCard.data.totals.protein).toBeGreaterThanOrEqual(170);
     expect(result.uiCard.data.meals.flatMap((meal) => meal.foods)

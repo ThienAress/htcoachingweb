@@ -70,6 +70,25 @@ fitness rủi ro thấp phải hữu ích, lỗi provider phải phục hồi c�
 - AC-018: Release gate chạy 11 prompt live hai lượt liên tiếp và assert semantic
   invariants về kcal/macro, hard constraints, grounded source, equipment và continuity.
 
+## REQ-008 — Workout, follow-up và acceptance phải đúng semantic contract
+
+- AC-019: Yêu cầu tạo draft workout không được route sang danh sách bài tập phẳng
+  hoặc `get_workout_plan`; output phải giữ equipment/beginner constraints và không
+  emit card sai ngữ nghĩa.
+- AC-020: Exercise lookup loại fixture nội bộ, de-duplicate, lọc equipment trước
+  final limit và công khai `catalogInsufficient` nếu không đủ số kết quả user yêu cầu.
+- AC-021: Follow-up có invariant "giữ nguyên mọi thứ trừ X" chỉ được thay X.
+  Khuyến nghị coaching xung đột với invariant phải nằm ở advisory riêng và cần user
+  đồng ý trước khi áp dụng.
+- AC-022: Retry ở mọi timing boundary giữ conversation identity; web search outcome
+  phân biệt guest-policy block, provider error, no-supported-source và grounded.
+- AC-023: Bộ 11 prompt có deterministic semantic/card oracle. Staging catalog
+  readiness phải đo Exercise, Food safety metadata và fresh price provenance; thiếu
+  dữ liệu phải fail closed với reason rõ ràng, không bịa hoặc tự đánh dấu PASS.
+- AC-024: TDEE được mô tả là ước tính; khi thiếu dữ liệu, tối đa 5 câu ưu tiên giới
+  tính, tuổi, chiều cao, cân nặng, mục tiêu và bằng chứng vận động/thiết bị cần cho
+  phần user thực sự yêu cầu.
+
 ## Testing Strategy
 
 Từng behavior dùng RED → GREEN qua public seam ổn định: tool unit, controller

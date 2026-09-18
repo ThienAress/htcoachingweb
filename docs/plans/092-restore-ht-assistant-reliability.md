@@ -20,8 +20,8 @@
 - **Category**: bug | reliability | tests | operations
 - **Planned at**: 2026-09-16
 - **Lifecycle**: IN PROGRESS
-- **Verification**: STEP 5 LOCAL GREEN; RELEASE BUILD + LIVE STAGING RERUN PENDING
-- **Rollout**: NOT STARTED
+- **Verification**: STEP 6 LOCAL GREEN; STEP 7 LIVE STAGING PENDING
+- **Rollout**: STAGING OBSERVED; PRODUCTION NOT STARTED
 - **Owner**: root
 - **Updated at**: 2026-09-18
 
@@ -85,6 +85,18 @@ những cải tiến mới chỉ khi chúng chứng minh không làm tăng tỷ 
 - Câu giáo án tại nhà vi phạm ràng buộc nhẹ: dù user chỉ có tạ đơn và
   dây kháng lực, output chọn hai bài press cần ghế mà không nêu phương án
   sàn/thay thế.
+- Manual staging round 2 ngày 2026-09-18 cho thấy transport/retry đã tốt hơn,
+  nhưng semantic/card gate vẫn RED: workout creation bị gộp vào
+  `search_exercises`, card danh sách phẳng chỉ hiện một bài; staging chỉ có 31
+  Exercise (3 bài ngực) so với production 1.374 Exercise (171 bài ngực); một
+  document `__plan079_displaced__...` vẫn có thể lọt public/AI lookup.
+- Câu follow-up đổi deficit `300 -> 700 kcal` có coaching advisory hợp lý nhưng
+  vi phạm explicit invariant "giữ nguyên toàn bộ kế hoạch" khi tự sửa lịch tập.
+  Runtime phải giữ nguyên phần user khóa và tách khuyến nghị thành advisory cần
+  user đồng ý trước khi áp dụng.
+- Câu Ronaldo route đúng `web_required`; guest bị chặn search theo policy hiện
+  hành. Acceptance phải phân biệt guest-policy block với authenticated
+  `provider_error`, `no_supported_source` và `grounded`, không gọi chung là model fail.
 
 ## Commands You Will Need
 
@@ -124,6 +136,14 @@ những cải tiến mới chỉ khi chúng chứng minh không làm tăng tỷ 
 - Safe metrics phân biệt `provider_attempted`, `provider_succeeded`,
   `provider_unavailable`, `provider_rate_limited` và `provider_not_required` mà không
   log raw prompt hoặc dữ liệu sức khỏe.
+- Tách workout creation khỏi exercise lookup; draft workout text không được gắn
+  `ExerciseListCard`, còn `get_workout_plan` tiếp tục chỉ đọc saved plan có auth.
+- Loại staging displaced fixtures khỏi exercise lookup, lọc equipment trước final
+  result limit và trả metadata `catalog_insufficient` khi không đủ số lượng yêu cầu.
+- Semantic output contracts cho 11 prompt: scope preservation, numeric/card/source,
+  context continuity và question-priority; không dùng router pass thay UX pass.
+- Staging catalog readiness/dry-run contract cho Exercise/Food/allergen/price; chỉ
+  apply khi target/confirmation/digest hợp lệ và không bịa provenance còn thiếu.
 
 **Out of scope**:
 
@@ -244,7 +264,41 @@ conversation memory, output/eval tests và staging acceptance assertions.
 **Verify**: RED → GREEN focused tests cho numeric invariant, mandatory read-only tool execution,
 search outcome và equipment constraint; `npm run test:ai-eval` exit 0.
 
-### Step 6: Chứng minh lại bằng live staging trước production
+### Step 6: Đóng tám gap semantic/card/data sau manual staging round 2
+
+1. Tách `WORKOUT_CREATION_PATTERN` khỏi `search_exercises`. Draft plan mới dùng
+   model prior + equipment output guard và không emit flat exercise card;
+   `get_workout_plan` vẫn là private saved-plan lookup.
+2. `search_exercises` loại displaced fixtures bằng query và defense-in-depth,
+   lấy đủ field cho equipment matching, lọc trước final limit, de-duplicate và
+   báo `requestedCount/resultCount/catalogInsufficient` thay vì giả đủ dữ liệu.
+3. Thêm invariant cho follow-up explicit: giữ nguyên mọi phần ngoài field user
+   cho phép đổi; advisory coaching được nêu riêng và chỉ áp dụng sau đồng ý.
+4. Giữ web search authenticated-only; response/trace phải phân biệt guest policy,
+   provider error, no supported source và grounded, không quy chụp thành model limit.
+5. Bổ sung regression cho sync/retry timing: lỗi trước/sau conversation event đều
+   reconcile cùng conversation, không clear history hay tạo conversation mới ngoài ý muốn.
+6. Staging catalog readiness kiểm Exercise coverage, Food safety provenance và
+   fresh price coverage. Sync/apply vẫn fail closed nếu thiếu nguồn hoặc chưa có
+   xác nhận target/digest; runtime trả lý do dữ liệu thiếu rõ ràng.
+7. Thêm semantic output/card oracle cho 11 prompt ở deterministic seam; router-only
+   eval không còn đủ điều kiện gọi là acceptance.
+8. Siết chất lượng Q5/Q10/Q11: đủ ngày/cấu trúc, beginner/equipment phù hợp, diễn
+   đạt deload không mơ hồ, TDEE là ước tính và câu hỏi ưu tiên dữ liệu cần thiết.
+
+**Behavior**: Manual suite phân biệt được lỗi runtime, dữ liệu và policy; workout
+không còn card sai ngữ nghĩa, follow-up không âm thầm đổi scope, retry không mất
+conversation và mọi PASS đều có semantic invariant tương ứng.
+
+**Blast radius**: router/prompt/controller/hook, exercise/meal tools, eval/acceptance,
+staging readiness scripts và focused tests. Không đổi schema, auth, quota hay provider.
+
+**Depends on**: Step 5 và manual staging round 2 evidence.
+
+**Verify**: từng slice RED → GREEN; focused server/client + `npm run test:ai-eval`;
+tool validator, protected-file hashes và `git diff --check` pass.
+
+### Step 7: Chứng minh lại bằng live staging trước production
 
 Chạy full QA dưới Node `22.23.1`, sau đó chạy chính 11 prompt user-visible trên staging với
 provider thật hai lượt liên tiếp ở hai conversation mới. Acceptance phải lưu request ID,
@@ -261,7 +315,7 @@ fork ngoài ý muốn; mọi request giải thích được vì sao có/không g
 
 **Verify**: focused + full QA pass; hai staging runs pass `11/11`, cleanup `residue=0`.
 
-### Step 7: Roll out nhỏ và quan sát trước khi mở rộng tính năng
+### Step 8: Roll out nhỏ và quan sát trước khi mở rộng tính năng
 
 Tạo release candidate chỉ chứa Plan 092, giữ immutable rollback target là release trước thay
 đổi. Sau deploy, chạy smoke prompt subset và quan sát tối thiểu provider errors, false refusal,
@@ -273,7 +327,7 @@ privacy/safety của phiên bản mới.
 
 **Blast radius**: release/operations; không migration hay data rewrite.
 
-**Depends on**: Step 6 và owner approval cho deploy.
+**Depends on**: Step 7 và owner approval cho deploy.
 
 **Verify**: exact deploy identity, production smoke và observation report đều pass.
 
@@ -302,10 +356,21 @@ privacy/safety của phiên bản mới.
 - [x] Metrics giải thích được provider attempt/success/failure, unavailable/rate-limited và static safety không cần provider.
 - [ ] Focused tests, AI eval, full unit, client build, security và agent validation pass dưới Node 22.23.1.
 - [ ] Hai lượt staging live liên tiếp pass `11/11`, cleanup residue 0.
-- [ ] Câu 1, 7 và 8 pass deterministic kcal/macro + hard-constraint oracle; không
+- [x] Câu 1, 7 và 8 pass deterministic kcal/macro + hard-constraint oracle; không
   còn dùng prompt text như guard duy nhất.
-- [ ] Câu 9 có canonical search outcome trace và chỉ claim phần có grounded support.
-- [ ] Câu 10 giữ đúng equipment constraint hoặc nêu rõ biến thể thay thế.
+- [x] Câu 9 có canonical search outcome trace và chỉ claim phần có grounded support.
+- [x] Câu 10 giữ đúng equipment constraint hoặc nêu rõ biến thể thay thế.
+- [x] Workout creation không chọn `search_exercises` và không emit flat exercise card;
+  exercise lookup loại displaced fixtures, filter-before-limit và báo catalog thiếu.
+- [x] Follow-up `300 -> 700 kcal` giữ nguyên workout plan; advisory thay đổi volume
+  chỉ được đề xuất riêng, không tự áp dụng.
+- [x] Retry lỗi trước/sau conversation event đều giữ đúng conversation identity.
+- [x] Q9 guest/authenticated có outcome phân loại đúng; authenticated search có đúng
+  một canonical attempt, guest không bị mô tả sai là provider/model failure.
+- [x] Deterministic semantic contracts cover đủ 11 prompt; route-only pass không được
+  nâng thành UX acceptance.
+- [x] Staging catalog readiness nêu exact gap Exercise/Food/allergen/price và fail
+  closed nếu thiếu provenance; không apply dữ liệu thật ngoài confirmation contract.
 - [x] Năm file protected và feature local của user không bị thay đổi bởi implementation.
 - [ ] Production chỉ rollout sau approval riêng và có rollback target được xác minh.
 
@@ -348,9 +413,33 @@ privacy/safety của phiên bản mới.
   `server/.local-data/` đã được xóa.
 - `ChatConversation.answerTrace.webSearchOutcome` là field optional có default
   `not_called`; document cũ vẫn tương thích và không cần migration/backfill.
-- Chưa deploy exact candidate mới lên staging, nên Step 6 vẫn PENDING. Release build
+- Chưa deploy exact candidate mới lên staging, nên Step 7 vẫn PENDING. Release build
   lifecycle vẫn giữ blocker đã ghi ngày 2026-09-17 do local thiếu `VITE_API_URL`;
   không nâng compile-only thành release evidence và chưa đủ điều kiện production.
+- Step 6 local GREEN sau vòng RED → GREEN cuối: scope guard xử lý phủ định tự nhiên,
+  runtime-enforce cả invariant tổng quát “giữ nguyên mọi thứ ngoài field được phép đổi”
+  (đã có controller integration ngoài trường hợp thâm hụt) và chặn mutation dinh dưỡng
+  ngoài phạm vi. Mixed meal/workout chỉ nhận supplement workout-only, retry đúng một lần
+  rồi ghép canonical meal với fallback tĩnh; query bodyweight dùng cùng predicate với
+  readiness và đã được chứng minh bằng Exercise schema thật trên MongoMemory, không còn
+  `DocumentArray CastError`.
+- Broad review phát hiện và đã đóng hai gap cuối: generic locked-scope trước đây chỉ được
+  runtime-enforce cho thâm hụt; semantic meal oracle trước đây chưa cộng lại
+  `foods → meal → plan`. Regression được xác nhận RED trước fix rồi GREEN; evaluator v18
+  giờ fail khi item và totals mâu thuẫn thay vì tin top-level totals.
+- Independent re-review cuối PASS: scope parser/validator nhận cả cách nói giảm số buổi
+  và thay bài tập bằng text; fallback giữ invariant, mutation thêm bị chặn. Meal numeric
+  evaluator đã tách thành module riêng và toàn bộ file mới dưới 300 dòng.
+- Node `22.23.1`: full server PASS `275` files / `2929` tests; full client PASS
+  `173` files / `825` tests; AI eval v18 PASS `73/73`, gồm `11` semantic fixtures và
+  không giả runtime capture thành live acceptance; release/workflow contracts PASS `29/29`.
+- Vite compile-only PASS `2957` modules. Lint `0` error / `1` warning hiện hữu ngoài scope
+  tại `TrainerTransferPanel.jsx`; UI regression gate `0` finding mới. Tool validator
+  PASS `11` tools / `0` orphan; secret scan, repository-boundary scan, agent validation
+  và `git diff --check` PASS.
+- Focused Playwright local/mock chạy đủ `7/7` assertions PASS nhưng command rerun không
+  tự thoát sau teardown và phải interrupt; không nâng lượt này thành exit-0 evidence.
+  Step 7 vẫn cần exact candidate được deploy staging và hai lượt live `11/11` liên tiếp.
 
 ## STOP Conditions
 

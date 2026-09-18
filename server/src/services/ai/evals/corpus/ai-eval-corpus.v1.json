@@ -1,7 +1,272 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "2026-09-reliability-v16",
+  "corpusVersion": "2026-09-reliability-v18",
   "scenarios": [
+    {
+      "id": "semantic-q1-breakfast-numeric",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "cards": [{
+            "cardType": "meal",
+            "data": {
+              "status": "complete",
+              "totals": { "protein": 30, "carb": 50, "fat": 20, "calories": 500 },
+              "meals": [{
+                "totals": { "protein": 30, "carb": 50, "fat": 20, "calories": 500 },
+                "foods": [{
+                  "foodId": "breakfast-complete",
+                  "name": "Bữa sáng mẫu",
+                  "macros": { "protein": 30, "carb": 50, "fat": 20 },
+                  "calories": 500
+                }]
+              }]
+            }
+          }]
+        }
+      },
+      "expected": {
+        "rules": [{
+          "type": "meal_numeric",
+          "targetCalories": 500,
+          "toleranceCalories": 25,
+          "minimumProteinGrams": 30
+        }]
+      }
+    },
+    {
+      "id": "semantic-q2-bodyweight-exercise-card",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "cards": [{
+            "cardType": "exercise",
+            "data": {
+              "requestedCount": 5,
+              "resultCount": 5,
+              "catalogInsufficient": false,
+              "exercises": [
+                { "name": "Wall Push-up" },
+                { "name": "Kneeling Push-up" },
+                { "name": "Incline Push-up" },
+                { "name": "Push-up" },
+                { "name": "Chest Tap Push-up" }
+              ]
+            }
+          }]
+        }
+      },
+      "expected": {
+        "rules": [{
+          "type": "exercise_card",
+          "requestedCount": 5,
+          "forbiddenTerms": ["barbell", "machine", "cable"]
+        }]
+      }
+    },
+    {
+      "id": "semantic-q3-four-day-workout",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "text": "Buổi 1: Upper, 3 hiệp x 10 lần, RPE 8, nghỉ 90 giây. Buổi 2: Lower, 3 hiệp x 10 lần, RPE 8, nghỉ 90 giây. Buổi 3: Upper, 3 hiệp x 10 lần, RPE 8, nghỉ 90 giây. Buổi 4: Lower, 3 hiệp x 10 lần, RPE 8, nghỉ 90 giây.",
+          "cards": []
+        }
+      },
+      "expected": {
+        "rules": [
+          { "type": "workout_structure", "minDays": 4 },
+          { "type": "no_flat_exercise_card" }
+        ]
+      }
+    },
+    {
+      "id": "semantic-q4-deficit-scope-preserved",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "text": "Đã đổi mức thâm hụt từ 300 kcal thành 700 kcal. Chỉ mức thâm hụt thay đổi; toàn bộ thực đơn và lịch tập giữ nguyên. Thâm hụt sâu có thể ảnh hưởng phục hồi; bạn có muốn mình đánh giá lại lịch tập không?"
+        }
+      },
+      "expected": {
+        "rules": [{ "type": "preserve_scope", "changedValue": "700 kcal" }]
+      }
+    },
+    {
+      "id": "semantic-q5-seven-day-coverage",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "text": "Ngày 1:\n- Ăn uống: ba bữa chính đủ protein, rau và tinh bột.\n- Tập luyện: sức mạnh toàn thân 30 phút.\nNgày 2:\n- Ăn uống: ba bữa chính đủ protein, rau và tinh bột.\n- Tập luyện: đi bộ phục hồi 30 phút.\nNgày 3:\n- Ăn uống: ba bữa chính đủ protein, rau và tinh bột.\n- Tập luyện: sức mạnh toàn thân 30 phút.\nNgày 4:\n- Ăn uống: ba bữa chính đủ protein, rau và tinh bột.\n- Tập luyện: đi bộ phục hồi 30 phút.\nNgày 5:\n- Ăn uống: ba bữa chính đủ protein, rau và tinh bột.\n- Tập luyện: sức mạnh toàn thân 30 phút.\nNgày 6:\n- Ăn uống: ba bữa chính đủ protein, rau và tinh bột.\n- Tập luyện: đi bộ phục hồi 30 phút.\nNgày 7:\n- Ăn uống: ba bữa chính đủ protein, rau và tinh bột.\n- Tập luyện: nghỉ phục hồi."
+        }
+      },
+      "expected": {
+        "rules": [{ "type": "seven_day_coverage", "requireMealAndTraining": true }]
+      }
+    },
+    {
+      "id": "semantic-q6-retry-context-continuity",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "trace": {
+            "conversationId": "conversation-1",
+            "retryConversationId": "conversation-1",
+            "turnId": "turn-6",
+            "retryTurnId": "turn-6"
+          }
+        }
+      },
+      "expected": {
+        "rules": [{
+          "type": "retry_continuity",
+          "conversationId": "conversation-1",
+          "turnId": "turn-6"
+        }]
+      }
+    },
+    {
+      "id": "semantic-q7-hard-constraint-meal",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "cards": [{
+            "cardType": "meal",
+            "data": {
+              "status": "complete",
+              "totals": { "protein": 170, "carb": 280, "fat": 77.8, "calories": 2500.2 },
+              "meals": [
+                {
+                  "totals": { "protein": 42.5, "carb": 70, "fat": 19.45, "calories": 625.05 },
+                  "foods": [{ "foodId": "q7-meal-1", "name": "Bữa 1", "macros": { "protein": 42.5, "carb": 70, "fat": 19.45 }, "calories": 625.05 }]
+                },
+                {
+                  "totals": { "protein": 42.5, "carb": 70, "fat": 19.45, "calories": 625.05 },
+                  "foods": [{ "foodId": "q7-meal-2", "name": "Bữa 2", "macros": { "protein": 42.5, "carb": 70, "fat": 19.45 }, "calories": 625.05 }]
+                },
+                {
+                  "totals": { "protein": 42.5, "carb": 70, "fat": 19.45, "calories": 625.05 },
+                  "foods": [{ "foodId": "q7-meal-3", "name": "Bữa 3", "macros": { "protein": 42.5, "carb": 70, "fat": 19.45 }, "calories": 625.05 }]
+                },
+                {
+                  "totals": { "protein": 42.5, "carb": 70, "fat": 19.45, "calories": 625.05 },
+                  "foods": [{ "foodId": "q7-meal-4", "name": "Bữa 4", "macros": { "protein": 42.5, "carb": 70, "fat": 19.45 }, "calories": 625.05 }]
+                }
+              ],
+              "price": { "status": "verified" },
+              "safety": {
+                "status": "verified",
+                "allergenConstraintsApplied": true
+              }
+            }
+          }]
+        }
+      },
+      "expected": {
+        "rules": [
+          { "type": "meal_numeric", "targetCalories": 2500, "toleranceCalories": 100, "minimumProteinGrams": 170 },
+          { "type": "meal_safety_price", "priceRequired": true }
+        ]
+      }
+    },
+    {
+      "id": "semantic-q8-scoped-meal-adjustment",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "cards": [{
+            "cardType": "meal",
+            "data": {
+              "status": "complete",
+              "totals": { "protein": 170, "carb": 200, "fat": 80, "calories": 2200 },
+              "meals": [
+                {
+                  "totals": { "protein": 42.5, "carb": 50, "fat": 20, "calories": 550 },
+                  "foods": [{ "foodId": "rice", "name": "Cơm trắng", "macros": { "protein": 42.5, "carb": 50, "fat": 20 }, "calories": 550 }]
+                },
+                {
+                  "totals": { "protein": 42.5, "carb": 50, "fat": 20, "calories": 550 },
+                  "foods": [{ "foodId": "q8-meal-2", "name": "Bữa 2", "macros": { "protein": 42.5, "carb": 50, "fat": 20 }, "calories": 550 }]
+                },
+                {
+                  "totals": { "protein": 42.5, "carb": 50, "fat": 20, "calories": 550 },
+                  "foods": [{ "foodId": "q8-meal-3", "name": "Bữa 3", "macros": { "protein": 42.5, "carb": 50, "fat": 20 }, "calories": 550 }]
+                },
+                {
+                  "totals": { "protein": 42.5, "carb": 50, "fat": 20, "calories": 550 },
+                  "foods": [{ "foodId": "q8-meal-4", "name": "Bữa 4", "macros": { "protein": 42.5, "carb": 50, "fat": 20 }, "calories": 550 }]
+                }
+              ],
+              "adjustments": [{ "foodId": "rice", "name": "Cơm trắng" }]
+            }
+          }]
+        }
+      },
+      "expected": {
+        "rules": [
+          { "type": "meal_numeric", "targetCalories": 2200, "toleranceCalories": 100, "minimumProteinGrams": 170 },
+          { "type": "scoped_meal_adjustment", "allowedFoodIds": ["rice", "oil"] }
+        ]
+      }
+    },
+    {
+      "id": "semantic-q9-grounded-public-person-search",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "text": "Thông tin đã xác minh từ [nguồn công khai](https://example.org/ronaldo-training).",
+          "trace": { "webSearchOutcome": "grounded" },
+          "cards": []
+        }
+      },
+      "expected": {
+        "rules": [{ "type": "web_search" }]
+      }
+    },
+    {
+      "id": "semantic-q10-equipment-safe-workout",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "text": "Buổi 1: Dumbbell Floor Press trên sàn — 3 hiệp x 10 lần, RPE 8, nghỉ 90 giây. Buổi 2: Goblet Squat — 3 hiệp x 10 lần, RPE 8, nghỉ 90 giây. Buổi 3: Resistance Band Row — 3 hiệp x 12 lần, RPE 8, nghỉ 60 giây. Buổi 4: Dumbbell Romanian Deadlift — 3 hiệp x 10 lần, RPE 8, nghỉ 90 giây. Tuần deload giảm khoảng 30% volume.",
+          "cards": []
+        }
+      },
+      "expected": {
+        "rules": [
+          {
+            "type": "workout_structure",
+            "minDays": 4,
+            "request": "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực.",
+            "requireDeload": true
+          },
+          { "type": "no_flat_exercise_card" }
+        ]
+      }
+    },
+    {
+      "id": "semantic-q11-prioritized-intake",
+      "evaluator": "semantic_output_contract",
+      "evidenceKind": "oracle_fixture",
+      "input": {
+        "output": {
+          "text": "TDEE là ước tính; mình cần tối đa 5 nhóm thông tin sau:\n1. Giới tính, tuổi, chiều cao và cân nặng hiện tại?\n2. Mục tiêu của bạn là giảm mỡ, tăng cơ hay giữ cân?\n3. Công việc, số bước và số buổi tập mỗi tuần?\n4. Kinh nghiệm tập và thiết bị hiện có?\n5. Bạn có chấn thương nào cần lưu ý không?"
+        }
+      },
+      "expected": {
+        "rules": [{ "type": "intake_questions", "requestType": "workout" }]
+      }
+    },
     {
       "id": "general-stable-lisa-direct",
       "evaluator": "request_router_contract",
@@ -243,7 +508,7 @@
           "risk": "low",
           "knowledgeBaseEligible": true,
           "webSearchRequired": false,
-          "preferredTool": "search_exercises",
+          "preferredTool": null,
           "maxWebSearchCalls": 0
         }
       }

@@ -30,6 +30,27 @@ export default function ExerciseListCard({ data }) {
         ))}
       </div>
 
+      {data.catalogInsufficient === true && (
+        <p
+          role="status"
+          className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:text-amber-200"
+        >
+          Hiện tìm thấy {data.resultCount ?? data.exercises.length}/
+          {data.requestedCount ?? data.exercises.length} bài phù hợp với bộ lọc và thiết bị bạn đã nêu.
+        </p>
+      )}
+
+      {data.scanIncomplete === true && data.catalogInsufficient !== true && (
+        <p
+          role="status"
+          className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-800 dark:text-amber-200"
+        >
+          Kết quả hiện chưa đủ {data.requestedCount ?? data.exercises.length} bài
+          và chưa quét hết thư viện trong giới hạn an toàn. Hãy thu hẹp nhóm cơ
+          hoặc tiêu chí để tìm chính xác hơn.
+        </p>
+      )}
+
       <Link
         to="/exercises/"
         className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors mt-1"

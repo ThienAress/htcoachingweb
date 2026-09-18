@@ -252,7 +252,7 @@ test("AC-009 docs keep pre-cohort readiness outside the exact-nine proof", async
   assert.match(releaseSpec, /nine-purpose inventory bên trong certified window/);
   assert.match(runbook, /Trong certified metrics window, bảy chat attempts cùng hai/);
   for (const source of [adr, rollout, releaseSpec, runbook]) {
-    assert.match(source, /raw evidence schema v2/i);
+    assert.match(source, /raw evidence schema v3/i);
     assert.match(source, /release-candidate schema v3/i);
   }
 });

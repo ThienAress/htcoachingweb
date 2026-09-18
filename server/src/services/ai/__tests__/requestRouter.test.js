@@ -756,6 +756,38 @@ describe("AI request evidence router", () => {
   });
 
   it.each([
+    "Tạo cho tôi lịch tập tăng cơ 4 ngày mỗi tuần",
+    "Lập lịch tập tại nhà 4 ngày với tạ đơn và dây kháng lực",
+    "Cho tôi một lịch tập tăng cơ 4 ngày mỗi tuần",
+    "Mình cần giáo án tăng cơ 4 ngày tại nhà",
+    "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, chỉ có tạ đơn và dây kháng lực",
+  ])("keeps workout creation as a draft response instead of an exercise lookup: %s", (message) => {
+    const decision = routeAiRequest(message);
+
+    expect(decision).toMatchObject({
+      domain: "fitness",
+      evidence: "internal_kb",
+      preferredTool: null,
+      reasonCodes: expect.arrayContaining(["workout_creation"]),
+    });
+    expect(getAllowedToolNamesForRoute(decision)).toEqual([]);
+  });
+
+  it("keeps the canonical meal tool while excluding flat exercise lookup for a mixed plan", () => {
+    const decision = routeAiRequest(
+      "Tạo thực đơn 2500 kcal và lịch tập 4 ngày với tạ đơn",
+    );
+
+    expect(decision).toMatchObject({
+      domain: "fitness",
+      evidence: "internal_kb",
+      preferredTool: "suggest_meal",
+      reasonCodes: expect.arrayContaining(["workout_creation"]),
+    });
+    expect(getAllowedToolNamesForRoute(decision)).toEqual(["suggest_meal"]);
+  });
+
+  it.each([
     "Nghiên cứu mới nhất về kỹ thuật squat",
     "Cho tôi nguồn về cách squat đúng kỹ thuật",
     "Latest research on deadlift technique",
