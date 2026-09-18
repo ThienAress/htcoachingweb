@@ -3,6 +3,44 @@ import Food from "../../../models/Food.js";
 import { getFoodMarketPriceMap } from "../../foodPrice.service.js";
 
 const FOOD_PROJECTION = "_id label protein carb fat allergenProfile";
+const OFFICIAL_ALLERGEN_SOURCE_HOSTS = new Set([
+  "fdc.nal.usda.gov",
+  "www.fda.gov",
+  "www.fsis.usda.gov",
+]);
+const EXCLUDED_FOOD_ALIASES = Object.freeze([
+  ["allergen", "milk", [
+    "whey", "bột whey", "whey protein", "casein", "sữa", "phô mai",
+    "pho mát", "bơ sữa", "bơ động vật",
+  ]],
+  ["allergen", "egg", ["trứng", "lòng đỏ", "lòng trắng"]],
+  ["allergen", "fish", ["cá"]],
+  ["allergen", "crustacean_shellfish", ["tôm", "cua", "tép", "ghẹ"]],
+  ["allergen", "tree_nut", [
+    "hạt điều", "hạt dẻ", "hạnh nhân", "óc chó", "mắc ca", "macadamia",
+    "pistachio", "hazelnut",
+  ]],
+  ["allergen", "peanut", ["đậu phộng", "lạc"]],
+  ["allergen", "wheat", ["lúa mì", "bột mì"]],
+  ["allergen", "soy", [
+    "đậu nành", "đậu tương", "đậu phụ", "đậu hũ", "tofu",
+  ]],
+  ["allergen", "sesame", ["mè", "vừng"]],
+  ["specific", "beef", ["thịt bò", "bò"]],
+  ["specific", "chicken", ["thịt gà", "ức gà", "gà"]],
+  ["specific", "pork", ["thịt heo", "thịt lợn", "heo", "lợn"]],
+  ["specific", "duck", ["thịt vịt", "vịt"]],
+  ["specific", "goat", ["thịt dê", "dê"]],
+  ["specific", "lamb", ["thịt cừu", "cừu"]],
+]);
+const SPECIFIC_FOOD_LABEL_PHRASES = Object.freeze({
+  beef: ["thịt bò", "bò"],
+  chicken: ["thịt gà", "ức gà", "gà"],
+  pork: ["thịt heo", "thịt lợn", "heo", "lợn"],
+  duck: ["thịt vịt", "vịt"],
+  goat: ["thịt dê", "dê"],
+  lamb: ["thịt cừu", "cừu"],
+});
 const MACRO_CALORIES = (macro) => 4 * macro.protein + 4 * macro.carb + 9 * macro.fat;
 const round = (value) => Number(value.toFixed(1));
 
@@ -48,37 +86,147 @@ const normalizeParams = (params = {}) => {
     excludedFoods: Array.isArray(params.excludedFoods) ? params.excludedFoods : [],
     excludedAllergens: Array.isArray(params.excludedAllergens) ? params.excludedAllergens : [],
     lactoseFree: params.lactoseFree === true,
+    requirePackageLabelSafety: params.requirePackageLabelSafety === true,
     budgetVndPerDay: params.budgetVndPerDay == null ? null : asFinite(params.budgetVndPerDay),
     allowedAdjustmentFoodIds: Array.isArray(params.allowedAdjustmentFoodIds) ? params.allowedAdjustmentFoodIds : [],
     allowedAdjustmentFoodNames: Array.isArray(params.allowedAdjustmentFoodNames) ? params.allowedAdjustmentFoodNames : [],
   };
 };
 
-const hasReviewedProfile = (food) => food.allergenProfile?.reviewStatus === "reviewed" &&
-  typeof food.allergenProfile?.sourceType === "string" &&
-  food.allergenProfile?.reviewedAt &&
-  Array.isArray(food.allergenProfile?.contains) && Array.isArray(food.allergenProfile?.mayContain);
+const hasReviewedProfile = (food) => {
+  const profile = food?.allergenProfile;
+  const reviewedAt = new Date(profile?.reviewedAt);
+  try {
+    const sourceUrl = new URL(String(profile?.sourceUrl || ""));
+    return profile?.reviewStatus === "reviewed" &&
+      ["official_database", "package_label", "manufacturer"].includes(
+        profile.sourceType,
+      ) &&
+      sourceUrl.protocol === "https:" &&
+      !sourceUrl.username &&
+      !sourceUrl.password &&
+      (profile.sourceType !== "official_database" ||
+        OFFICIAL_ALLERGEN_SOURCE_HOSTS.has(sourceUrl.hostname.toLowerCase())) &&
+      !Number.isNaN(reviewedAt.getTime()) && reviewedAt <= new Date() &&
+      Array.isArray(profile.contains) &&
+      Array.isArray(profile.mayContain) &&
+      Array.isArray(profile.reviewedScopes) &&
+      Array.isArray(profile.specificContains);
+  } catch {
+    return false;
+  }
+};
+
+const hasPackageLevelProfile = (food) =>
+  hasReviewedProfile(food) &&
+  ["package_label", "manufacturer"].includes(food.allergenProfile?.sourceType);
+
+const normalizeLabelPhrase = (value) =>
+  String(value || "")
+    .normalize("NFKC")
+    .toLocaleLowerCase("vi")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+const normalizeAlias = (value) =>
+  normalizeLabelPhrase(value)
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/đ/gu, "d");
+
+const hasExactPhrase = (value, normalizedPhrase) => {
+  const label = normalizeLabelPhrase(value);
+  return Boolean(label && normalizedPhrase) &&
+    ` ${label} `.includes(` ${normalizedPhrase} `);
+};
+
+const canonicalExcludedFood = (value) => {
+  const alias = normalizeAlias(value);
+  for (const [kind, key, aliases] of EXCLUDED_FOOD_ALIASES) {
+    if (aliases.some((candidate) => normalizeAlias(candidate) === alias)) {
+      return { kind, key };
+    }
+  }
+  return null;
+};
+
+const resolveExcludedFoodConstraints = (foods, values) => {
+  const allergens = new Set();
+  const specificFoods = new Set();
+  const exactTerms = new Set();
+  const unresolvedTerms = [];
+  for (const value of values) {
+    const canonical = canonicalExcludedFood(value);
+    if (canonical?.kind === "allergen") {
+      allergens.add(canonical.key);
+      continue;
+    }
+    if (canonical?.kind === "specific") {
+      specificFoods.add(canonical.key);
+      continue;
+    }
+    const term = normalizeLabelPhrase(value);
+    if (term && foods.some((food) => hasExactPhrase(food.label, term))) {
+      exactTerms.add(term);
+    } else {
+      unresolvedTerms.push(String(value));
+    }
+  }
+  return {
+    allergens: [...allergens],
+    specificFoods: [...specificFoods],
+    exactTerms: [...exactTerms],
+    unresolvedTerms,
+  };
+};
 
 const allowedFood = (food, constraints) => {
-  const label = String(food.label || "").toLocaleLowerCase("vi");
+  if (constraints.requirePackageLabelSafety && !hasPackageLevelProfile(food)) return false;
   if (constraints.requireSafetyMetadata && !hasReviewedProfile(food)) return false;
-  if (constraints.excludedTerms.some((term) => label.includes(term))) return false;
+  if (constraints.excludedTerms.some((term) => hasExactPhrase(food.label, term))) return false;
   const allergens = new Set([
     ...(food.allergenProfile?.contains || []),
     ...(food.allergenProfile?.mayContain || []),
   ]);
-  return !constraints.excludedAllergens.some((allergen) => allergens.has(allergen));
+  if (constraints.excludedAllergens.some((allergen) => allergens.has(allergen))) return false;
+  const excludedSpecificFoods = constraints.excludedSpecificFoods || [];
+  if (excludedSpecificFoods.length === 0) return true;
+  const profile = food.allergenProfile;
+  if ((profile?.reviewedScopes || []).includes("specific_foods")) {
+    const specificContains = new Set(profile.specificContains || []);
+    return !excludedSpecificFoods.some((key) => specificContains.has(key));
+  }
+  return !excludedSpecificFoods.some((key) =>
+    (SPECIFIC_FOOD_LABEL_PHRASES[key] || [])
+      .some((phrase) => hasExactPhrase(food.label, normalizeLabelPhrase(phrase))),
+  );
 };
+
+const PRODUCT_LABEL_WARNING =
+  "Dữ liệu này chỉ xác minh thành phần chung; hãy kiểm tra nhãn sản phẩm và xác nhận với nhà sản xuất vì nguy cơ nhiễm chéo có thể khác theo từng sản phẩm.";
 
 const buildSafetyEvidence = ({
   requireSafetyMetadata,
   excludedTerms,
   excludedAllergens,
+  excludedFoodsRequested = false,
+  foods = [],
 }) => ({
-  status: requireSafetyMetadata === true ? "verified" : "not_requested",
+  status: requireSafetyMetadata !== true
+    ? "not_requested"
+    : foods.every(hasPackageLevelProfile)
+      ? "verified"
+      : "ingredient_verified",
   reviewedCatalogRequired: requireSafetyMetadata === true,
   allergenConstraintsApplied: excludedAllergens.length > 0,
-  excludedFoodConstraintsApplied: excludedTerms.length > 0,
+  excludedFoodConstraintsApplied: excludedFoodsRequested,
+  ...(requireSafetyMetadata === true && !foods.every(hasPackageLevelProfile)
+    ? {
+        crossContactStatus: "product_label_required",
+        warning: PRODUCT_LABEL_WARNING,
+      }
+    : {}),
 });
 
 const normalizeFood = (food) => {
@@ -281,7 +429,7 @@ const scopedFollowUp = (input, previousMealPlan, catalog, constraints) => {
         "Không thể chỉnh thực đơn cũ vì một món không còn trong dữ liệu thực phẩm hiện hành.",
       );
     }
-    if (!hasReviewedProfile(catalogFood)) {
+    if (constraints.requireSafetyMetadata && !hasReviewedProfile(catalogFood)) {
       return missingData(
         "scoped_adjustment_safety_metadata_missing",
         "Không thể xác minh lại an toàn thực phẩm cho toàn bộ thực đơn cũ.",
@@ -355,14 +503,21 @@ const scopedFollowUp = (input, previousMealPlan, catalog, constraints) => {
   const price = input.budgetVndPerDay == null
     ? { status: "not_requested" }
     : { status: "unverified", budgetVndPerDay: input.budgetVndPerDay, reason: "scoped_adjustment_price_not_revalidated" };
+  const safety = buildSafetyEvidence({
+    ...constraints,
+    foods: [...new Map(
+      validatedItems.map((food) => [food.foodId, catalogById.get(food.foodId)]),
+    ).values()],
+  });
+  const safetyText = safety.warning ? `\n\n**Lưu ý dị ứng:** ${safety.warning}` : "";
   return {
-    text: `# THỰC ĐƠN ĐÃ ĐIỀU CHỈNH\nMục tiêu ${input.targetCalories} kcal/ngày. Tổng server tính: ${totals.calories} kcal | ${totals.protein}g P | ${totals.carb}g C | ${totals.fat}g F.\n\n${adjustmentText}${adjustedMeals.map(describeMeal).join("\n\n")}${price.status === "unverified" ? " Ngân sách chưa thể xác minh sau khi điều chỉnh." : ""}`,
+    text: `# THỰC ĐƠN ĐÃ ĐIỀU CHỈNH\nMục tiêu ${input.targetCalories} kcal/ngày. Tổng server tính: ${totals.calories} kcal | ${totals.protein}g P | ${totals.carb}g C | ${totals.fat}g F.\n\n${adjustmentText}${adjustedMeals.map(describeMeal).join("\n\n")}${price.status === "unverified" ? " Ngân sách chưa thể xác minh sau khi điều chỉnh." : ""}${safetyText}`,
     uiCard: {
       cardType: "meal",
       data: {
         status: "complete", targetCalories: input.targetCalories, targetToleranceCalories: input.targetToleranceCalories,
         macros, totals, meals: adjustedMeals, adjustments, price,
-        safety: buildSafetyEvidence(constraints),
+        safety,
         targets: { proteinGrams: input.proteinGrams, carbGrams: input.carbGrams, fatGrams: input.fatGrams, minimumProteinGrams: input.minimumProteinGrams },
         nutritionMethod: "server_calculated_4p_4c_9f",
       },
@@ -396,26 +551,65 @@ export async function suggestMeal(params, {
       "Không thể chỉnh thực đơn cũ vì chưa có kế hoạch có cấu trúc để đối chiếu.",
     );
   }
-  const excludedTerms = input.excludedFoods.map((value) => String(value).trim().toLocaleLowerCase("vi")).filter(Boolean);
-  const excludedAllergens = [...new Set([...input.excludedAllergens, ...(input.lactoseFree ? ["milk"] : [])])];
-  const requireSafetyMetadata = excludedTerms.length > 0 || excludedAllergens.length > 0;
+  const requestedExcludedFoods = [...new Set(input.excludedFoods
+    .map((value) => String(value).trim())
+    .filter(Boolean))];
+  const explicitExcludedAllergens = [
+    ...input.excludedAllergens,
+    ...(input.lactoseFree ? ["milk"] : []),
+  ];
+  const requireSafetyMetadata = requestedExcludedFoods.length > 0 ||
+    explicitExcludedAllergens.length > 0 ||
+    input.requirePackageLabelSafety;
   let catalog;
   try {
     catalog = (await findFoods()).map(normalizeFood).filter(Boolean);
   } catch {
     return missingData("catalog_unavailable", "Chưa thể xác minh dữ liệu thực phẩm để tạo thực đơn an toàn.");
   }
+  const resolvedExcludedFoods = resolveExcludedFoodConstraints(
+    catalog,
+    requestedExcludedFoods,
+  );
+  if (resolvedExcludedFoods.unresolvedTerms.length > 0) {
+    return missingData(
+      "excluded_food_unverifiable",
+      "Chưa thể đối chiếu một thực phẩm cần loại trừ với taxonomy hoặc catalog đã kiểm duyệt.",
+    );
+  }
+  const excludedTerms = resolvedExcludedFoods.exactTerms;
+  const excludedAllergens = [...new Set([
+    ...explicitExcludedAllergens,
+    ...resolvedExcludedFoods.allergens,
+  ])];
+  const excludedSpecificFoods = resolvedExcludedFoods.specificFoods;
   const scopedResult = scopedFollowUp(input, previousMealPlan, catalog, {
     excludedTerms,
     excludedAllergens,
-    requireSafetyMetadata: true,
+    excludedSpecificFoods,
+    excludedFoodsRequested: requestedExcludedFoods.length > 0,
+    requireSafetyMetadata,
+    requirePackageLabelSafety: input.requirePackageLabelSafety,
   });
   if (scopedResult) return scopedResult;
   const target = targetMacros(input);
   if (!target) return missingData("impossible_constraints", "Mục tiêu kcal và protein hiện không thể đồng thời đáp ứng an toàn. Bạn hãy điều chỉnh mục tiêu.");
-  const eligibleFoods = catalog.filter((food) => allowedFood(food, { excludedTerms, excludedAllergens, requireSafetyMetadata }));
+  const eligibleFoods = catalog.filter((food) => allowedFood(food, {
+    excludedTerms,
+    excludedAllergens,
+    excludedSpecificFoods,
+    requireSafetyMetadata,
+    requirePackageLabelSafety: input.requirePackageLabelSafety,
+  }));
   if (eligibleFoods.length < 3) {
-    return missingData(requireSafetyMetadata ? "safety_metadata_missing" : "catalog_insufficient", "Chưa đủ dữ liệu thực phẩm đã kiểm duyệt để đáp ứng các ràng buộc an toàn này.");
+    return missingData(
+      input.requirePackageLabelSafety
+        ? "package_label_safety_missing"
+        : requireSafetyMetadata
+          ? "safety_metadata_missing"
+          : "catalog_insufficient",
+      "Chưa đủ dữ liệu thực phẩm đã kiểm duyệt để đáp ứng các ràng buộc an toàn này.",
+    );
   }
   const plan = choosePlan(eligibleFoods, target);
   if (!plan) return missingData("catalog_insufficient", "Chưa đủ thực phẩm phù hợp để đáp ứng chính xác mục tiêu dinh dưỡng này.");
@@ -435,18 +629,22 @@ export async function suggestMeal(params, {
     : price.status === "verified"
       ? ` Chi phí ước tính đã xác minh từ dữ liệu giá: ${price.estimatedTotalVnd.toLocaleString("vi-VN")}đ/ngày${price.isWithinBudget ? ", trong ngân sách." : ", vượt ngân sách."}`
       : "";
+  const safety = buildSafetyEvidence({
+    requireSafetyMetadata,
+    excludedTerms,
+    excludedAllergens,
+    excludedFoodsRequested: requestedExcludedFoods.length > 0,
+    foods: corrected.plan.foods,
+  });
+  const safetyText = safety.warning ? `\n\n**Lưu ý dị ứng:** ${safety.warning}` : "";
   return {
-    text: `# THỰC ĐƠN ${input.mealsPerDay} BỮA\nMục tiêu ${input.targetCalories} kcal/ngày. Tổng server tính: ${totals.calories} kcal | ${totals.protein}g P | ${totals.carb}g C | ${totals.fat}g F.\n\n${meals.map(describeMeal).join("\n\n")}${priceText}`,
+    text: `# THỰC ĐƠN ${input.mealsPerDay} BỮA\nMục tiêu ${input.targetCalories} kcal/ngày. Tổng server tính: ${totals.calories} kcal | ${totals.protein}g P | ${totals.carb}g C | ${totals.fat}g F.\n\n${meals.map(describeMeal).join("\n\n")}${priceText}${safetyText}`,
     uiCard: {
       cardType: "meal",
       data: {
         status: "complete", targetCalories: input.targetCalories, targetToleranceCalories: input.targetToleranceCalories,
         macros, totals, meals, price,
-        safety: buildSafetyEvidence({
-          requireSafetyMetadata,
-          excludedTerms,
-          excludedAllergens,
-        }),
+        safety,
         targets: { proteinGrams: input.proteinGrams, carbGrams: input.carbGrams, fatGrams: input.fatGrams, minimumProteinGrams: input.minimumProteinGrams },
         nutritionMethod: "server_calculated_4p_4c_9f",
       },

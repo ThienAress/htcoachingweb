@@ -8,6 +8,7 @@ import {
 const reviewedProfile = (contains = []) => ({
   reviewStatus: "reviewed",
   sourceType: "official_database",
+  sourceUrl: "https://fdc.nal.usda.gov/food-search/?query=whole%20food",
   reviewedAt: new Date("2026-09-01T00:00:00.000Z"),
   contains,
   mayContain: [],
@@ -61,6 +62,8 @@ describe("staging AI catalog readiness", () => {
       metrics: {
         beginnerBodyweightChest: 5,
         safeMealFoods: 3,
+        ingredientVerifiedSafeMealFoods: 3,
+        crossContactVerifiedSafeMealFoods: 0,
         freshPricedSafeMealFoods: 3,
         safeMacroGroups: ["carb", "fat", "protein"],
       },
@@ -200,6 +203,32 @@ describe("staging AI catalog readiness", () => {
     expect(result.ready).toBe(false);
     expect(result.gaps).toContain("food_fresh_price_macro_groups_incomplete");
     expect(result.metrics.freshPricedSafeMacroGroups).toEqual(["fat", "protein"]);
+  });
+
+  it.each([
+    ["unsupported source type", { sourceType: "blog" }],
+    ["non-HTTPS source", { sourceUrl: "http://fdc.nal.usda.gov/food/1" }],
+    ["untrusted host", { sourceUrl: "https://example.test/food/1" }],
+    ["future review date", { reviewedAt: new Date("2026-09-19T00:00:00.000Z") }],
+  ])("rejects %s allergen provenance", (_label, override) => {
+    const foods = [
+      food("protein", "Ức gà", { protein: 22, carb: 0, fat: 2.6 }, {
+        ...reviewedProfile(),
+        ...override,
+      }),
+      food("carb", "Cơm trắng", { protein: 2.7, carb: 28, fat: 0.3 }),
+      food("fat", "Dầu olive", { protein: 0, carb: 0, fat: 100 }),
+    ];
+
+    const result = evaluateStagingAiCatalogReadiness({
+      exercises: chestExercises,
+      foods,
+      priceObservations: foods.map(({ _id }) => price(_id)),
+      now: new Date("2026-09-18T00:00:00.000Z"),
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.metrics.safeMealFoods).toBe(2);
   });
 
   it("reads only projected catalog fields and a bounded fresh price window", async () => {

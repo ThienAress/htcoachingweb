@@ -44,6 +44,7 @@ const mealArgs = {
   excludedFoods: ["whey"],
   excludedAllergens: ["peanut"],
   lactoseFree: true,
+  requirePackageLabelSafety: true,
   budgetVndPerDay: 150000,
 };
 

@@ -3,6 +3,22 @@ name: Staging Live Acceptance
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Acceptance or an explicitly reviewed staging maintenance operation
+        required: true
+        default: acceptance
+        type: choice
+        options:
+          - acceptance
+          - search-cohort-rollback-preflight
+          - search-cohort-rollback-apply
+          - ai-catalog-preflight
+          - ai-catalog-apply
+          - ai-catalog-rollback-preflight
+          - ai-catalog-rollback-apply
+      expected_plan_digest:
+        description: Exact SHA-256 digest emitted by the matching maintenance preflight
+        required: false
       release_sha:
         description: Exact 40-character Git SHA deployed to staging
         required: true
@@ -17,10 +33,10 @@ on:
         required: true
       rollback_client_deploy_id:
         description: Known-good production Netlify deploy ID
-        required: true
+        required: false
       rollback_server_deploy_id:
         description: Known-good production Render deploy ID
-        required: true
+        required: false
   repository_dispatch:
     types: [staging-deployed]
 
@@ -76,6 +92,12 @@ jobs:
             if (data.head_sha !== sha || data.conclusion !== "success") {
               throw new Error("CI run is not successful for RELEASE_SHA");
             }
+            if (data.head_branch !== "staging") {
+              throw new Error("CI run must originate from the staging branch");
+            }
+            if (data.head_repository?.full_name !== context.repo.owner + "/" + context.repo.repo) {
+              throw new Error("CI run head repository is not trusted");
+            }
             const { data: workflow } = await github.rest.actions.getWorkflow({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -84,6 +106,24 @@ jobs:
             if (workflow.path !== ".github/workflows/ci.yml") {
               throw new Error("CI run must come from the canonical CI workflow");
             }
+      - name: Validate operation-specific inputs
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$STAGING_MAINTENANCE_OPERATION" == "acceptance" ]] && \
+             [[ -z "$ROLLBACK_CLIENT_DEPLOY_ID" || -z "$ROLLBACK_SERVER_DEPLOY_ID" ]]; then
+            echo "Acceptance requires both production rollback deploy IDs" >&2
+            exit 1
+          fi
+          if [[ "$STAGING_MAINTENANCE_OPERATION" == *-apply ]] && \
+             [[ ! "$EXPECTED_PLAN_DIGEST" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "Maintenance apply requires an exact lowercase SHA-256 plan digest" >&2
+            exit 1
+          fi
+        env:
+          STAGING_MAINTENANCE_OPERATION: ${{ inputs.operation }}
+          EXPECTED_PLAN_DIGEST: ${{ inputs.expected_plan_digest }}
       - name: Install server dependencies
         run: npm ci --prefix server
       - name: Verify exact Netlify and Render staging deploys
@@ -91,10 +131,72 @@ jobs:
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_STAGING_SITE_ID: ${{ secrets.NETLIFY_STAGING_SITE_ID }}
+          STAGING_CLIENT_DEPLOY_ID: ${{ inputs.staging_client_deploy_id || github.event.client_payload.staging_client_deploy_id }}
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+          STAGING_SERVER_DEPLOY_ID: ${{ inputs.staging_server_deploy_id || github.event.client_payload.staging_server_deploy_id }}
           DEPLOY_IDENTITY_OUTPUT: artifacts/staging-deploy-identity.json
+      - name: Run reviewed staging catalog maintenance
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation != 'acceptance' }}
+        working-directory: server
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ../artifacts
+          case "$STAGING_MAINTENANCE_OPERATION" in
+            search-cohort-rollback-preflight)
+              npm run --silent preflight:rollback-search-index-cohort:staging > "$STAGING_MAINTENANCE_OUTPUT"
+              ;;
+            search-cohort-rollback-apply)
+              npm run --silent rollback:search-index-cohort:staging > "$STAGING_MAINTENANCE_OUTPUT"
+              ;;
+            ai-catalog-preflight)
+              npm run --silent preflight:ai-catalog:staging > "$STAGING_MAINTENANCE_OUTPUT"
+              ;;
+            ai-catalog-apply)
+              npm run --silent sync:ai-catalog:staging > "$STAGING_MAINTENANCE_OUTPUT"
+              ;;
+            ai-catalog-rollback-preflight)
+              npm run --silent preflight:rollback-ai-catalog:staging > "$STAGING_MAINTENANCE_OUTPUT"
+              ;;
+            ai-catalog-rollback-apply)
+              npm run --silent rollback:ai-catalog:staging > "$STAGING_MAINTENANCE_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported staging maintenance operation" >&2
+              exit 1
+              ;;
+          esac
+        env:
+          STAGING_MAINTENANCE_OPERATION: ${{ inputs.operation }}
+          STAGING_MAINTENANCE_OUTPUT: ../artifacts/staging-maintenance.json
+          APP_ENV: staging
+          MONGO_URI: ${{ secrets.STAGING_MONGO_URI }}
+          MIGRATION_TARGET_DATABASE: htcoaching_staging
+          CLIENT_URL: https://staging--htcoachingweb.netlify.app
+          PUBLIC_API_ORIGIN: https://htcoachingweb-staging.onrender.com
+          ALLOWED_ORIGINS: https://staging--htcoachingweb.netlify.app
+          BACKGROUND_JOBS_ENABLED: "false"
+          EMAIL_DELIVERY_MODE: disabled
+          F1_RETENTION_ENFORCE: "false"
+          STAGING_SEARCH_INDEX_COHORT_EXPECTED_PLAN_DIGEST: ${{ inputs.expected_plan_digest }}
+          STAGING_AI_CATALOG_EXPECTED_PLAN_DIGEST: ${{ inputs.expected_plan_digest }}
+          CONFIRM_STAGING_SEARCH_INDEX_COHORT_ROLLBACK: "yes"
+          CONFIRM_STAGING_AI_CATALOG_ROLLOUT: "yes"
+          CONFIRM_STAGING_AI_CATALOG_ROLLBACK: "yes"
+      - name: Reverify deploy identity after staging catalog maintenance
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.operation != 'acceptance' }}
+        run: npm run verify:staging-deploys
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_STAGING_SITE_ID: ${{ secrets.NETLIFY_STAGING_SITE_ID }}
+          STAGING_CLIENT_DEPLOY_ID: ${{ inputs.staging_client_deploy_id }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
+          STAGING_SERVER_DEPLOY_ID: ${{ inputs.staging_server_deploy_id }}
+          DEPLOY_IDENTITY_OUTPUT: artifacts/staging-deploy-identity-post-maintenance.json
       - name: Run write-enabled staging acceptance with mandatory cleanup
+        if: ${{ inputs.operation == 'acceptance' || github.event_name == 'repository_dispatch' }}
         working-directory: server
         run: npm run acceptance:staging
         env:
@@ -112,10 +214,12 @@ jobs:
           CONFIRM_STAGING_ACCEPTANCE: "yes"
           STAGING_ACCEPTANCE_OUTPUT: ../artifacts/staging-acceptance.json
       - name: Install live AI browser runtime
+        if: ${{ inputs.operation == 'acceptance' || github.event_name == 'repository_dispatch' }}
         run: |
           npm ci
           npx playwright install --with-deps chromium
       - name: Run authenticated staging AI acceptance with verified cleanup
+        if: ${{ inputs.operation == 'acceptance' || github.event_name == 'repository_dispatch' }}
         working-directory: server
         run: npm run acceptance:staging:ai
         env:
@@ -135,6 +239,7 @@ jobs:
           STAGING_AI_ACCEPTANCE_OUTPUT: ../artifacts/staging-ai-acceptance.json
           STAGING_AI_ACCEPTANCE_RECOVERY_OUTPUT: ../artifacts/staging-ai-recovery-intent.json
       - name: Reverify deploy identity after live AI acceptance
+        if: ${{ inputs.operation == 'acceptance' || github.event_name == 'repository_dispatch' }}
         run: npm run verify:staging-deploys
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
@@ -143,10 +248,12 @@ jobs:
           RENDER_STAGING_SERVICE_ID: ${{ secrets.RENDER_STAGING_SERVICE_ID }}
           DEPLOY_IDENTITY_OUTPUT: artifacts/staging-deploy-identity-post-ai.json
       - name: Verify current release and off-device recovery evidence
+        if: ${{ inputs.operation == 'acceptance' || github.event_name == 'repository_dispatch' }}
         run: |
           npm run verify:backup-release
           npm run verify:disaster-recovery
       - name: Create exact release candidate manifest
+        if: ${{ inputs.operation == 'acceptance' || github.event_name == 'repository_dispatch' }}
         run: npm run create:release-candidate
         env:
           RELEASE_BRANCH: staging
@@ -161,10 +268,21 @@ jobs:
           BACKUP_READINESS_MANIFEST: docs/operations/production/backup-readiness.json
           RELEASE_CANDIDATE_OUTPUT: artifacts/release-candidate.json
       - name: Retain per-release acceptance and candidate evidence
-        if: always()
+        if: ${{ always() && (inputs.operation == 'acceptance' || github.event_name == 'repository_dispatch') }}
         uses: actions/upload-artifact@v6
         with:
           name: release-candidate-${{ github.run_id }}
           path: artifacts/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain staging maintenance evidence
+        if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.operation != 'acceptance' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: staging-maintenance-${{ github.run_id }}
+          path: |
+            artifacts/staging-maintenance.json
+            artifacts/staging-deploy-identity.json
+            artifacts/staging-deploy-identity-post-maintenance.json
           if-no-files-found: error
           retention-days: 30

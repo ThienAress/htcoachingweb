@@ -149,9 +149,20 @@ const evaluators = {
   },
   meal_safety_price: (output, rule, failures) => {
     const meal = cardData(output, "meal");
-    if (meal?.safety?.status !== "verified" ||
-        meal?.safety?.allergenConstraintsApplied !== true) {
+    const safety = meal?.safety;
+    const ingredientLimited = safety?.status === "ingredient_verified" &&
+      safety?.crossContactStatus === "product_label_required";
+    if (!["verified", "ingredient_verified"].includes(safety?.status) ||
+        safety?.allergenConstraintsApplied !== true) {
       failures.push("meal allergy constraint was not checked");
+    }
+    if (rule.requirePackageLabelSafety === true && safety?.status !== "verified") {
+      failures.push("meal allergy constraint requires package-label verification");
+    }
+    if (ingredientLimited &&
+        (!String(safety?.warning || "").trim() ||
+          !observedText(output).includes(String(safety.warning)))) {
+      failures.push("ingredient-level allergen evidence lacks a visible product-label warning");
     }
     if (rule.priceRequired === true && meal?.price?.status !== "verified") {
       failures.push("meal price lacks verified provenance");

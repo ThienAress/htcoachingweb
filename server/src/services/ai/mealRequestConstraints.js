@@ -91,7 +91,7 @@ const boundedAllergenList = (values) => boundedStringList(values, 9, 40)
   .filter((value) => ALLOWED_ALLERGENS.has(value));
 
 const explicitAllergens = (text) => {
-  if (!/\b(?:di ung|allerg)/.test(text)) return [];
+  if (!/\b(?:di ung|allerg(?:y|ies|ic)?|khong co|khong chua|khong nhiem cheo)\b/.test(text)) return [];
   return ALLERGEN_ALIASES
     .filter(([, aliases]) => aliases.some((alias) =>
       new RegExp(`\\b${alias.replace(/\s+/g, "\\s+")}\\b`).test(text)))
@@ -216,6 +216,10 @@ export const buildCanonicalMealToolRequest = (
   const lactoseFree = previous.lactoseFree === true ||
     modelArgs.lactoseFree === true ||
     /\b(?:khong dung nap lactose|lactose free)\b/.test(text);
+  const requirePackageLabelSafety =
+    previous.requirePackageLabelSafety === true ||
+    modelArgs.requirePackageLabelSafety === true ||
+    /\b(?:nhan san pham|bao bi|nha san xuat|khong nhiem cheo|cross contact|cross contamination)\b/.test(text);
   const budgetVndPerDay = explicitBudget(text) ??
     selectNumber(modelArgs.budgetVndPerDay, 30_000, 2_000_000) ??
     selectNumber(previous.budgetVndPerDay, 30_000, 2_000_000);
@@ -250,6 +254,7 @@ export const buildCanonicalMealToolRequest = (
       excludedAllergens,
     }),
     ...(lactoseFree && { lactoseFree: true }),
+    ...(requirePackageLabelSafety && { requirePackageLabelSafety: true }),
     ...(Number.isFinite(budgetVndPerDay) && {
       budgetVndPerDay,
     }),

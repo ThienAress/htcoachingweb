@@ -75,7 +75,7 @@ test("official action runtimes are upgraded while application Node remains 22.23
     }
   }
 
-  assert.equal(inspectedActions, 71, "the action-runtime inventory changed; review the new call site");
+  assert.equal(inspectedActions, 72, "the action-runtime inventory changed; review the new call site");
   assert.equal(setupNodeSteps, 20, "the setup-node inventory changed; review its Node/cache contract");
 
   const [nodeVersion, nvmrc, rootPackage] = await Promise.all([
@@ -125,6 +125,59 @@ test("staging live acceptance is explicitly write-enabled only behind staging lo
   assert.match(workflow, /\.github\/workflows\/ci\.yml/);
   assert.match(safety, /const STAGING_DATABASE = "htcoaching_staging"/);
   assert.match(safety, /STAGING_OPERATION_DATABASE_REQUIRED/);
+});
+
+test("staging acceptance maintenance modes are explicit and preserve acceptance as default", async () => {
+  const workflow = await read(".github/workflows/staging-acceptance.yml");
+  assert.match(workflow, /operation:[\s\S]*default: acceptance/);
+  assert.match(workflow, /release_sha:[\s\S]*?required: true/);
+  assert.match(workflow, /ci_run_url:[\s\S]*?required: true/);
+  assert.match(workflow, /staging_client_deploy_id:[\s\S]*?required: true/);
+  assert.match(workflow, /staging_server_deploy_id:[\s\S]*?required: true/);
+  for (const operation of [
+    "search-cohort-rollback-preflight",
+    "search-cohort-rollback-apply",
+    "ai-catalog-preflight",
+    "ai-catalog-apply",
+    "ai-catalog-rollback-preflight",
+    "ai-catalog-rollback-apply",
+  ]) assert.match(workflow, new RegExp(operation));
+  assert.match(workflow, /MIGRATION_TARGET_DATABASE: htcoaching_staging/);
+  assert.match(workflow, /STAGING_MAINTENANCE_OUTPUT: \.\.\/artifacts\/staging-maintenance\.json/);
+  assert.match(workflow, /STAGING_SEARCH_INDEX_COHORT_EXPECTED_PLAN_DIGEST:/);
+  assert.match(workflow, /STAGING_AI_CATALOG_EXPECTED_PLAN_DIGEST:/);
+  assert.match(workflow, /CONFIRM_STAGING_SEARCH_INDEX_COHORT_ROLLBACK: "yes"/);
+  assert.match(workflow, /CONFIRM_STAGING_AI_CATALOG_ROLLOUT: "yes"/);
+  assert.match(workflow, /CONFIRM_STAGING_AI_CATALOG_ROLLBACK: "yes"/);
+  assert.match(workflow, /if: \$\{\{ inputs\.operation == 'acceptance'/);
+  assert.match(workflow, /data\.head_branch !== "staging"/);
+  assert.match(workflow, /data\.head_repository\?\.full_name !== context\.repo\.owner \+ "\/" \+ context\.repo\.repo/);
+  const inputValidation = workflow.match(
+    /- name: Validate operation-specific inputs[\s\S]*?(?=\n      - name: Install server dependencies)/,
+  )?.[0];
+  assert.ok(inputValidation, "operation-specific input validation step is missing");
+  assert.match(inputValidation, /STAGING_MAINTENANCE_OPERATION/);
+  assert.match(inputValidation, /ROLLBACK_CLIENT_DEPLOY_ID/);
+  assert.match(inputValidation, /ROLLBACK_SERVER_DEPLOY_ID/);
+  assert.match(inputValidation, /Acceptance requires both production rollback deploy IDs/);
+  const deployVerification = workflow.match(
+    /- name: Verify exact Netlify and Render staging deploys[\s\S]*?(?=\n      - name: Run reviewed staging catalog maintenance)/,
+  )?.[0];
+  assert.ok(deployVerification, "staging deploy verification step is missing");
+  assert.doesNotMatch(deployVerification, /^\s+if:/m);
+  assert.match(deployVerification, /STAGING_CLIENT_DEPLOY_ID/);
+  assert.match(deployVerification, /STAGING_SERVER_DEPLOY_ID/);
+  const maintenanceReverification = workflow.match(
+    /- name: Reverify deploy identity after staging catalog maintenance[\s\S]*?(?=\n      - name: Run write-enabled staging acceptance)/,
+  )?.[0];
+  assert.ok(maintenanceReverification, "post-maintenance deploy verification step is missing");
+  assert.match(maintenanceReverification, /inputs\.operation != 'acceptance'/);
+  assert.match(maintenanceReverification, /npm run verify:staging-deploys/);
+  assert.match(
+    maintenanceReverification,
+    /DEPLOY_IDENTITY_OUTPUT: artifacts\/staging-deploy-identity-post-maintenance\.json/,
+  );
+  assert.match(workflow, /path: \|[\s\S]*artifacts\/staging-maintenance\.json[\s\S]*artifacts\/staging-deploy-identity\.json[\s\S]*artifacts\/staging-deploy-identity-post-maintenance\.json/);
 });
 
 test("legacy AC-009 recovery is manual, staging-only and retains provider proof", async () => {
