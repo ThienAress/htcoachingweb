@@ -231,4 +231,43 @@ describe("evaluateSemanticOutput", () => {
 
     expect(failures).toEqual([]);
   });
+
+  it("accepts ingredient-level evidence only with an explicit product-label warning", () => {
+    const limited = mealCard();
+    limited.data.safety = {
+      status: "ingredient_verified",
+      allergenConstraintsApplied: true,
+      crossContactStatus: "product_label_required",
+      warning: "Hãy kiểm tra nhãn sản phẩm và xác nhận với nhà sản xuất trước khi dùng.",
+    };
+
+    expect(evaluateSemanticOutput({
+      output: { text: limited.data.safety.warning, cards: [limited] },
+      rules: [{ type: "meal_safety_price", priceRequired: true }],
+    })).toEqual([]);
+
+    expect(evaluateSemanticOutput({
+      output: { text: "Đã kiểm tra dị ứng.", cards: [limited] },
+      rules: [{ type: "meal_safety_price", priceRequired: true }],
+    })).toContain("ingredient-level allergen evidence lacks a visible product-label warning");
+  });
+
+  it("rejects ingredient-only evidence when package-label safety is required", () => {
+    const limited = mealCard();
+    limited.data.safety = {
+      status: "ingredient_verified",
+      allergenConstraintsApplied: true,
+      crossContactStatus: "product_label_required",
+      warning: "Hãy kiểm tra nhãn sản phẩm trước khi dùng.",
+    };
+
+    expect(evaluateSemanticOutput({
+      output: { text: limited.data.safety.warning, cards: [limited] },
+      rules: [{
+        type: "meal_safety_price",
+        priceRequired: true,
+        requirePackageLabelSafety: true,
+      }],
+    })).toContain("meal allergy constraint requires package-label verification");
+  });
 });

@@ -154,6 +154,7 @@ export const toolRegistry = {
           description: "Dị ứng cần loại trừ; tool chỉ dùng Food đã kiểm duyệt metadata.",
         },
         lactoseFree: { type: "boolean", description: "Loại trừ thực phẩm có sữa; chỉ dùng khi user yêu cầu không lactose." },
+        requirePackageLabelSafety: { type: "boolean", description: "Chỉ true khi user yêu cầu xác minh an toàn ở cấp nhãn/sản phẩm hoặc không nhiễm chéo; thiếu nguồn nhãn phải fail closed." },
         budgetVndPerDay: { type: "integer", minimum: 30000, maximum: 2000000, description: "Ngân sách VND/ngày; chỉ công bố đạt ngân sách khi dữ liệu giá đủ nguồn." },
         allowedAdjustmentFoodIds: {
           type: "array",

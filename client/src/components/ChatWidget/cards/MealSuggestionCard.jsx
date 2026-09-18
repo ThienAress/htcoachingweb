@@ -1,8 +1,8 @@
-import { Utensils } from "lucide-react";
+import { AlertTriangle, Utensils } from "lucide-react";
 
 export default function MealSuggestionCard({ data }) {
   if (!data?.meals?.length) return null;
-  const { targetCalories, macros, meals } = data;
+  const { targetCalories, macros, meals, safety } = data;
 
   return (
     <div className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border border-orange-500/20 rounded-xl p-4 space-y-3 w-full">
@@ -22,6 +22,21 @@ export default function MealSuggestionCard({ data }) {
           <span className="text-blue-400">P: {macros.protein}g</span>
           <span className="text-yellow-400">C: {macros.carb}g</span>
           <span className="text-pink-400">F: {macros.fat}g</span>
+        </div>
+      )}
+
+      {safety?.warning && (
+        <div
+          role="note"
+          aria-label="Lưu ý dị ứng"
+          className="flex gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 p-2.5 text-[11px] leading-relaxed text-amber-100"
+        >
+          <AlertTriangle
+            size={15}
+            aria-hidden="true"
+            className="mt-0.5 shrink-0 text-amber-300"
+          />
+          <p>{safety.warning}</p>
         </div>
       )}
 

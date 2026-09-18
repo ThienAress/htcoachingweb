@@ -142,7 +142,10 @@ export const getFoodMarketPriceMap = async (
 };
 
 export const listFoodPriceObservations = async (foodId) =>
-  FoodPriceObservation.find({ foodId }).sort({ observedAt: -1 }).lean();
+  FoodPriceObservation.find({ foodId })
+    .select("-_stagingAiCatalogRollout")
+    .sort({ observedAt: -1 })
+    .lean();
 
 export const createFoodPriceObservation = async (foodId, input) => {
   if (!(await Food.exists({ _id: foodId }))) {

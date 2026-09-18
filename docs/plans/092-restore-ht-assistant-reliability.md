@@ -20,7 +20,7 @@
 - **Category**: bug | reliability | tests | operations
 - **Planned at**: 2026-09-16
 - **Lifecycle**: IN PROGRESS
-- **Verification**: STEP 6 LOCAL GREEN; STEP 7 LIVE STAGING PENDING
+- **Verification**: STEP 6 RUNTIME GREEN; STAGING CATALOG ROLLOUT IN PROGRESS
 - **Rollout**: STAGING OBSERVED; PRODUCTION NOT STARTED
 - **Owner**: root
 - **Updated at**: 2026-09-18
@@ -97,6 +97,14 @@ những cải tiến mới chỉ khi chúng chứng minh không làm tăng tỷ 
 - Câu Ronaldo route đúng `web_required`; guest bị chặn search theo policy hiện
   hành. Acceptance phải phân biệt guest-policy block với authenticated
   `provider_error`, `no_supported_source` và `grounded`, không gọi chung là model fail.
+- Automated staging run `35341405572` đã PASS `9/9` flow nghiệp vụ và cleanup
+  `residue=0`, nhưng AI acceptance dừng trước provider với
+  `STAGING_AI_CATALOG_NOT_READY`: còn 3 Plan 079 displaced fixtures, `0/5`
+  beginner bodyweight chest Exercise, `0/3` Food có allergen review và `0/3`
+  Food có fresh price. Đây là catalog prerequisite failure, không phải Gemini.
+- Plan 043 sync hiện không thể đóng gap này: endpoint Exercise `limit=5000` trả
+  `400`, public Food không cung cấp reviewed allergen provenance và script không
+  sync `FoodPriceObservation`. Không được hạ readiness gate hoặc rerun mù.
 
 ## Commands You Will Need
 
@@ -111,6 +119,7 @@ những cải tiến mới chỉ khi chúng chứng minh không làm tăng tỷ 
 | Security | `npm run security:secrets && npm run security:data-boundaries` | exit 0 |
 | Agent docs | `npm run agents:validate` | exit 0 |
 | Staging live | `npm run acceptance:staging:ai --prefix server` | incident suite pass và cleanup residue 0 |
+| Catalog rollout | `npm run preflight:ai-catalog:staging --prefix server` | dry-run trả exact digest + bounded writes, không mutation |
 | Diff hygiene | `git diff --check` | exit 0 |
 
 ## Scope
@@ -144,6 +153,16 @@ những cải tiến mới chỉ khi chúng chứng minh không làm tăng tỷ 
   context continuity và question-priority; không dùng router pass thay UX pass.
 - Staging catalog readiness/dry-run contract cho Exercise/Food/allergen/price; chỉ
   apply khi target/confirmation/digest hợp lệ và không bịa provenance còn thiếu.
+- Rollback Plan 079 bằng contract có sẵn, sau đó rollout catalog AI staging-only:
+  5 Exercise exact-ID từ production public API, 3 Food Plan 043 exact-label chỉ
+  cập nhật allergen profile có nguồn, và 3 price observations đã kiểm chứng.
+  Rollout phải transactional, idempotent, có ownership marker/snapshot, rollback,
+  collision/drift guard và post-verify bằng readiness checker hiện hữu.
+- Maintenance modes trong `.github/workflows/staging-acceptance.yml` cho preflight/
+  apply rollback Plan 079 và preflight/apply/rollback catalog AI; acceptance vẫn là
+  mode mặc định và artifact không chứa URI/token/secret.
+- Runbook vận hành, allergen semantics và refresh giá nằm tại
+  `docs/operations/runbooks/staging-ai-catalog-rollout.md`.
 
 **Out of scope**:
 
@@ -279,8 +298,12 @@ search outcome và equipment constraint; `npm run test:ai-eval` exit 0.
 5. Bổ sung regression cho sync/retry timing: lỗi trước/sau conversation event đều
    reconcile cùng conversation, không clear history hay tạo conversation mới ngoài ý muốn.
 6. Staging catalog readiness kiểm Exercise coverage, Food safety provenance và
-   fresh price coverage. Sync/apply vẫn fail closed nếu thiếu nguồn hoặc chưa có
-   xác nhận target/digest; runtime trả lý do dữ liệu thiếu rõ ràng.
+   fresh price coverage. Trước live acceptance, rollback exact Plan 079 cohort để
+   loại displaced fixtures, rồi chạy `stagingAiCatalogRollout` theo preflight →
+   reviewed SHA-256 digest → confirmed apply. Rollout chỉ cho database
+   `htcoaching_staging`, dùng transaction, ownership marker và snapshot rollback;
+   collision/content drift/provenance thiếu đều fail closed. Post-state bắt buộc
+   `inspectStagingAiCatalogReadiness().ready=true`.
 7. Thêm semantic output/card oracle cho 11 prompt ở deterministic seam; router-only
    eval không còn đủ điều kiện gọi là acceptance.
 8. Siết chất lượng Q5/Q10/Q11: đủ ngày/cấu trúc, beginner/equipment phù hợp, diễn
@@ -296,10 +319,13 @@ staging readiness scripts và focused tests. Không đổi schema, auth, quota h
 **Depends on**: Step 5 và manual staging round 2 evidence.
 
 **Verify**: từng slice RED → GREEN; focused server/client + `npm run test:ai-eval`;
-tool validator, protected-file hashes và `git diff --check` pass.
+focused rollout contract/plan/Mongo tests; tool validator, protected-file hashes và
+`git diff --check` pass. Preflight artifact phải liệt kê exact counts/digest nhưng
+không chứa credential.
 
 ### Step 7: Chứng minh lại bằng live staging trước production
 
+Chỉ bắt đầu sau khi search-cohort rollback và AI catalog apply đều post-verify xanh.
 Chạy full QA dưới Node `22.23.1`, sau đó chạy chính 11 prompt user-visible trên staging với
 provider thật hai lượt liên tiếp ở hai conversation mới. Acceptance phải lưu request ID,
 route/evidence/tool outcome, provider outcome, latency và cleanup receipt nhưng không raw prompt
@@ -371,6 +397,8 @@ privacy/safety của phiên bản mới.
   nâng thành UX acceptance.
 - [x] Staging catalog readiness nêu exact gap Exercise/Food/allergen/price và fail
   closed nếu thiếu provenance; không apply dữ liệu thật ngoài confirmation contract.
+- [ ] Plan 079 rollback và Plan 092 AI catalog rollout có preflight digest, exact
+  confirmation, transaction, idempotency, rollback snapshot và readiness post-verify.
 - [x] Năm file protected và feature local của user không bị thay đổi bởi implementation.
 - [ ] Production chỉ rollout sau approval riêng và có rollback target được xác minh.
 
@@ -440,6 +468,13 @@ privacy/safety của phiên bản mới.
 - Focused Playwright local/mock chạy đủ `7/7` assertions PASS nhưng command rerun không
   tự thoát sau teardown và phải interrupt; không nâng lượt này thành exit-0 evidence.
   Step 7 vẫn cần exact candidate được deploy staging và hai lượt live `11/11` liên tiếp.
+- Final contract review phát hiện và đã đóng ba gap trước release: follow-up chỉ đổi
+  kcal không còn tự ép allergen metadata; `excludedFoods` được canonicalize sang
+  allergen/specific-food metadata hoặc exact catalog phrase và fail closed khi không
+  thể đối chiếu; bounded preflight writes của Food giờ mang provenance allowlist để
+  operator review mà không lộ marker snapshot. Regression Node `22.23.1` PASS: meal/
+  memory/evaluator `49/49`, catalog/readiness `76/76`, Food/Exercise integration
+  `36/36`, Meal card `2/2` và workflow contract `12/12`.
 
 ## STOP Conditions
 

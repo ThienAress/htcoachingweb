@@ -12,7 +12,8 @@
     { "id": "TASK-006", "title": "Prove the incident suite on live staging", "planStep": "Step 7" },
     { "id": "TASK-007", "title": "Roll out with an observed rollback boundary", "planStep": "Step 8" },
     { "id": "TASK-008", "title": "Close post-staging semantic, card and conversation gaps", "planStep": "Step 6" },
-    { "id": "TASK-009", "title": "Make staging catalog readiness explicit and fail closed", "planStep": "Step 6" }
+    { "id": "TASK-009", "title": "Make staging catalog readiness explicit and fail closed", "planStep": "Step 6" },
+    { "id": "TASK-010", "title": "Roll out and rollback the exact staging AI catalog cohort", "planStep": "Step 6" }
   ],
   "requirements": [
     {
@@ -75,7 +76,7 @@
         { "id": "AC-020", "mustHave": true, "taskIds": ["TASK-008"], "verifications": [{ "type": "test", "path": "server/src/services/ai/tools/__tests__/searchExercises.tool.test.js" }, { "type": "test", "path": "server/src/services/ai/tools/__tests__/searchExercises.tool.integration.test.js" }] },
         { "id": "AC-021", "mustHave": true, "taskIds": ["TASK-008"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/scopePreservation.test.js" }, { "type": "test", "path": "server/src/services/ai/__tests__/systemPrompt.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }, { "type": "command", "command": "npm run test:ai-eval" }] },
         { "id": "AC-022", "mustHave": true, "taskIds": ["TASK-008"], "verifications": [{ "type": "test", "path": "client/src/hooks/__tests__/useAiChat.streamCompletion.test.js" }, { "type": "test", "path": "server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js" }] },
-        { "id": "AC-023", "mustHave": true, "taskIds": ["TASK-008", "TASK-009"], "verifications": [{ "type": "test", "path": "server/src/services/ai/evals/__tests__/semanticOutputEvaluator.test.js" }, { "type": "test", "path": "server/src/scripts/__tests__/stagingAiCatalogReadiness.test.js" }, { "type": "command", "command": "npm run acceptance:staging:ai --prefix server" }] },
+        { "id": "AC-023", "mustHave": true, "taskIds": ["TASK-008", "TASK-009", "TASK-010"], "verifications": [{ "type": "test", "path": "server/src/services/ai/evals/__tests__/semanticOutputEvaluator.test.js" }, { "type": "test", "path": "server/src/scripts/__tests__/stagingAiCatalogReadiness.test.js" }, { "type": "test", "path": "server/src/scripts/__tests__/stagingAiCatalogRollout.contract.test.js" }, { "type": "test", "path": "server/src/scripts/__tests__/stagingAiCatalogRollout.plan.test.js" }, { "type": "test", "path": "server/src/scripts/__tests__/stagingAiCatalogRollout.mongo.test.js" }, { "type": "command", "command": "npm run acceptance:staging:ai --prefix server" }] },
         { "id": "AC-024", "mustHave": true, "taskIds": ["TASK-008"], "verifications": [{ "type": "test", "path": "server/src/services/ai/__tests__/systemPrompt.test.js" }, { "type": "command", "command": "npm run test:ai-eval" }] }
       ]
     }

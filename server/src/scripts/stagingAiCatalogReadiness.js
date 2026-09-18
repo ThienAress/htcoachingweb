@@ -7,6 +7,16 @@ const PRICE_SOURCE_HOSTS = Object.freeze({
   winmart: new Set(["winmart.vn", "www.winmart.vn"]),
   coop_online: new Set(["cooponline.vn", "www.cooponline.vn"]),
 });
+const ALLERGEN_SOURCE_HOSTS = new Set([
+  "fdc.nal.usda.gov",
+  "www.fda.gov",
+  "www.fsis.usda.gov",
+]);
+const ALLERGEN_SOURCE_TYPES = new Set([
+  "official_database",
+  "manufacturer",
+  "package_label",
+]);
 
 const normalize = (value) =>
   String(value || "")
@@ -22,17 +32,35 @@ const isDisplacedFixture = (exercise) =>
   Boolean(exercise?._stagingSearchIndexCohortDisplaced) ||
   normalize(exercise?.name).startsWith("__plan079_displaced__");
 
-const hasReviewedAllergenProfile = (food) => {
+const hasSupportedAllergenSource = (profile) => {
+  try {
+    const url = new URL(String(profile?.sourceUrl || ""));
+    return ALLERGEN_SOURCE_TYPES.has(profile?.sourceType) &&
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      (
+        profile.sourceType !== "official_database" ||
+        ALLERGEN_SOURCE_HOSTS.has(url.hostname.toLowerCase())
+      );
+  } catch {
+    return false;
+  }
+};
+
+const hasReviewedAllergenProfile = (food, now) => {
   const profile = food?.allergenProfile;
+  const reviewedAt = new Date(profile?.reviewedAt);
   return profile?.reviewStatus === "reviewed" &&
-    typeof profile.sourceType === "string" &&
-    Boolean(profile.reviewedAt) &&
+    hasSupportedAllergenSource(profile) &&
+    !Number.isNaN(reviewedAt.getTime()) &&
+    reviewedAt <= now &&
     Array.isArray(profile.contains) &&
     Array.isArray(profile.mayContain);
 };
 
-const isSafeForAcceptanceMeal = (food) => {
-  if (!hasReviewedAllergenProfile(food)) return false;
+const isSafeForAcceptanceMeal = (food, now) => {
+  if (!hasReviewedAllergenProfile(food, now)) return false;
   const allergens = new Set([
     ...(food.allergenProfile.contains || []),
     ...(food.allergenProfile.mayContain || []),
@@ -89,7 +117,9 @@ export const evaluateStagingAiCatalogReadiness = ({
     (exercise) => !isDisplacedFixture(exercise) &&
       isBeginnerBodyweightChestExercise(exercise),
   );
-  const safeFoods = foods.filter(isSafeForAcceptanceMeal);
+  const safeFoods = foods.filter((food) => isSafeForAcceptanceMeal(food, now));
+  const crossContactVerifiedSafeFoods = safeFoods.filter(({ allergenProfile }) =>
+    ["package_label", "manufacturer"].includes(allergenProfile?.sourceType));
   const safeFoodIds = new Set(safeFoods.map(({ _id }) => String(_id)));
   const freshPricedFoodIds = new Set(
     priceObservations
@@ -142,6 +172,8 @@ export const evaluateStagingAiCatalogReadiness = ({
       beginnerBodyweightChest: beginnerBodyweightChest.length,
       foodCount: foods.length,
       safeMealFoods: safeFoods.length,
+      ingredientVerifiedSafeMealFoods: safeFoods.length,
+      crossContactVerifiedSafeMealFoods: crossContactVerifiedSafeFoods.length,
       freshPricedSafeMealFoods: freshPricedFoodIds.size,
       safeMacroGroups,
       freshPricedSafeMacroGroups,

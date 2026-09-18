@@ -144,6 +144,9 @@ const sanitizeMealArgs = (args) => {
     ...(excludedFoods.length > 0 && { excludedFoods }),
     ...(excludedAllergens.length > 0 && { excludedAllergens }),
     ...(input.lactoseFree === true && { lactoseFree: true }),
+    ...(input.requirePackageLabelSafety === true && {
+      requirePackageLabelSafety: true,
+    }),
     ...(budgetVndPerDay !== null && { budgetVndPerDay }),
   };
 };

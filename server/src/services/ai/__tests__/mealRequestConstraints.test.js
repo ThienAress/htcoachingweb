@@ -108,6 +108,20 @@ describe("canonical meal request constraints", () => {
     expect(request.args.excludedAllergens).not.toContain("not-an-allergen");
   });
 
+  it.each([
+    "Create a 2500 kcal meal plan. I have a milk allergy.",
+    "Create a 2500 kcal meal plan. I am allergic to milk.",
+    "Create a 2500 kcal meal plan. My allergies include milk.",
+  ])("không làm rơi dị ứng tiếng Anh khi model args thiếu allergen: %s", (message) => {
+    const request = buildCanonicalMealToolRequest(message, {
+      proteinGrams: 170,
+      carbGrams: 280,
+      fatGrams: 78,
+    });
+
+    expect(request.args.excludedAllergens).toContain("milk");
+  });
+
   it("dừng adjustment scope trước mệnh đề giữ nguyên", () => {
     const request = buildCanonicalMealToolRequest(
       "Hạ còn 2.200 kcal, chỉ đổi cơm và dầu, giữ nguyên lượng gà.",
@@ -123,5 +137,18 @@ describe("canonical meal request constraints", () => {
     );
 
     expect(request.args.allowedAdjustmentFoodIds).toEqual(["rice", "oil"]);
+  });
+
+  it("bật fail-closed cấp nhãn khi user yêu cầu không nhiễm chéo", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Tạo thực đơn 2.500 kcal không có đậu phộng và phải xác minh không nhiễm chéo trên nhãn sản phẩm.",
+      { proteinGrams: 170, carbGrams: 280, fatGrams: 78 },
+    );
+
+    expect(request.args).toMatchObject({
+      targetCalories: 2500,
+      excludedAllergens: ["peanut"],
+      requirePackageLabelSafety: true,
+    });
   });
 });

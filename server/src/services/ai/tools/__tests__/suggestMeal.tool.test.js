@@ -2,13 +2,20 @@ import { describe, expect, it, vi } from "vitest";
 
 import { suggestMeal } from "../suggestMeal.tool.js";
 
-const reviewed = (contains = [], specificContains = []) => ({
+const reviewed = (
+  contains = [],
+  specificContains = [],
+  sourceType = "official_database",
+) => ({
   reviewStatus: "reviewed",
   contains,
   mayContain: [],
   reviewedScopes: specificContains.length ? ["specific_foods"] : [],
   specificContains,
-  sourceType: "official_database",
+  sourceType,
+  sourceUrl: sourceType === "official_database"
+    ? "https://fdc.nal.usda.gov/food-search/?query=whole%20food"
+    : "https://manufacturer.example.test/product-label",
   reviewedAt: new Date("2026-09-01"),
 });
 
@@ -118,13 +125,113 @@ describe("suggest_meal deterministic nutrition contract", () => {
 
     expect(result.uiCard.data.status).toBe("complete");
     expect(result.uiCard.data.safety).toEqual({
-      status: "verified",
+      status: "ingredient_verified",
       reviewedCatalogRequired: true,
       allergenConstraintsApplied: true,
       excludedFoodConstraintsApplied: true,
+      crossContactStatus: "product_label_required",
+      warning: expect.stringMatching(/nhãn sản phẩm/i),
     });
+    expect(result.text).toMatch(/nhãn sản phẩm/i);
     const labels = result.uiCard.data.meals.flatMap((meal) => meal.foods.map((food) => food.name.toLowerCase()));
     expect(new Set(labels)).toEqual(new Set(["ức gà", "cơm trắng", "dầu ô liu"]));
+  });
+
+  it.each(["whey", "bột whey"])(
+    "canonicalize loại trừ %s sang metadata milk thay vì chỉ so substring nhãn",
+    async (excludedFood) => {
+      const result = await suggestMeal({
+        ...params,
+        excludedFoods: [excludedFood],
+      }, toolContext({
+        findFoods: vi.fn().mockResolvedValue([
+          catalog[0],
+          catalog[1],
+          catalog[2],
+          {
+            _id: "protein-powder",
+            label: "Bột protein",
+            protein: 90,
+            carb: 1,
+            fat: 1,
+            allergenProfile: reviewed(["milk"]),
+          },
+        ]),
+      }));
+
+      expect(result.uiCard.data.status).toBe("complete");
+      expect(result.uiCard.data.safety).toMatchObject({
+        allergenConstraintsApplied: true,
+        excludedFoodConstraintsApplied: true,
+      });
+      expect(result.uiCard.data.meals.flatMap((meal) => meal.foods)
+        .some((food) => food.name === "Bột protein")).toBe(false);
+    },
+  );
+
+  it("fail closed khi không thể đối chiếu thực phẩm loại trừ với taxonomy hoặc catalog", async () => {
+    const result = await suggestMeal({
+      ...params,
+      excludedFoods: ["món bí ẩn"],
+    }, toolContext());
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data",
+      reason: "excluded_food_unverifiable",
+      meals: [],
+    });
+  });
+
+  it("dùng exact catalog phrase cho mục loại trừ ngoài taxonomy, không fuzzy match", async () => {
+    const result = await suggestMeal({
+      ...params,
+      excludedFoods: ["khoai lang"],
+    }, toolContext({
+      findFoods: vi.fn().mockResolvedValue([
+        ...catalog,
+        {
+          _id: "sweet-potato",
+          label: "Khoai lang luộc",
+          protein: 1.6,
+          carb: 20,
+          fat: 0.1,
+          allergenProfile: reviewed(),
+        },
+      ]),
+    }));
+
+    expect(result.uiCard.data.status).toBe("complete");
+    expect(result.uiCard.data.safety.excludedFoodConstraintsApplied).toBe(true);
+    expect(result.uiCard.data.meals.flatMap((meal) => meal.foods)
+      .some((food) => food.name === "Khoai lang luộc")).toBe(false);
+  });
+
+  it("ưu tiên specific_foods metadata rồi fallback exact phrase khi scope chưa review", async () => {
+    const result = await suggestMeal({
+      ...params,
+      excludedFoods: ["gà"],
+    }, toolContext({
+      findFoods: vi.fn().mockResolvedValue([
+        catalog[0],
+        catalog[1],
+        catalog[2],
+        catalog[3],
+        {
+          _id: "hidden-chicken",
+          label: "Protein nạc",
+          protein: 90,
+          carb: 1,
+          fat: 1,
+          allergenProfile: reviewed([], ["chicken"]),
+        },
+      ]),
+    }));
+
+    expect(result.uiCard.data.status).toBe("complete");
+    const labels = result.uiCard.data.meals.flatMap((meal) =>
+      meal.foods.map((food) => food.name));
+    expect(labels).not.toContain("Protein nạc");
+    expect(labels).not.toContain("Ức gà");
   });
 
   it("không claim ngân sách đã xác minh khi thiếu price provenance", async () => {
@@ -149,6 +256,65 @@ describe("suggest_meal deterministic nutrition contract", () => {
     }));
 
     expect(result.uiCard.data).toMatchObject({ status: "missing_data", reason: "safety_metadata_missing" });
+  });
+
+  it.each([
+    ["source type ngoài allowlist", { sourceType: "blog" }],
+    ["URL không dùng HTTPS", { sourceUrl: "http://fdc.nal.usda.gov/food/1" }],
+    ["host official database không tin cậy", { sourceUrl: "https://example.test/food/1" }],
+    ["ngày review ở tương lai", { reviewedAt: new Date("2999-01-01T00:00:00.000Z") }],
+  ])("fail closed với %s ngay tại meal tool", async (_label, override) => {
+    const invalidFat = {
+      ...catalog[2],
+      allergenProfile: { ...catalog[2].allergenProfile, ...override },
+    };
+    const result = await suggestMeal({
+      ...params,
+      excludedAllergens: ["peanut"],
+    }, toolContext({
+      findFoods: vi.fn().mockResolvedValue([catalog[0], catalog[1], invalidFat]),
+    }));
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data",
+      reason: "safety_metadata_missing",
+    });
+  });
+
+  it("fail closed khi user yêu cầu xác minh cấp nhãn nhưng catalog chỉ có dữ liệu thành phần", async () => {
+    const result = await suggestMeal({
+      ...params,
+      excludedAllergens: ["peanut"],
+      requirePackageLabelSafety: true,
+    }, toolContext());
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data",
+      reason: "package_label_safety_missing",
+    });
+  });
+
+  it("chỉ claim verified khi mọi món có nguồn cấp nhãn hoặc nhà sản xuất", async () => {
+    const packageCatalog = catalog.map((food) => ({
+      ...food,
+      allergenProfile: {
+        ...food.allergenProfile,
+        sourceType: "package_label",
+        sourceUrl: `https://manufacturer.example.test/${food._id}`,
+      },
+    }));
+    const result = await suggestMeal({
+      ...params,
+      excludedAllergens: ["peanut"],
+      requirePackageLabelSafety: true,
+    }, toolContext({
+      findFoods: vi.fn().mockResolvedValue(packageCatalog),
+    }));
+
+    expect(result.uiCard.data.safety).toMatchObject({
+      status: "verified",
+      allergenConstraintsApplied: true,
+    });
   });
 
   it("trả missing-data an toàn khi minimum protein khiến mục tiêu kcal bất khả thi", async () => {
@@ -181,8 +347,8 @@ describe("suggest_meal deterministic nutrition contract", () => {
 
     expect(result.uiCard.data.status).toBe("complete");
     expect(result.uiCard.data.safety).toEqual({
-      status: "verified",
-      reviewedCatalogRequired: true,
+      status: "not_requested",
+      reviewedCatalogRequired: false,
       allergenConstraintsApplied: false,
       excludedFoodConstraintsApplied: false,
     });
