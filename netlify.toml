@@ -3,6 +3,9 @@
   command = "npm run build:netlify"
   publish = "dist"
 
+[context.staging]
+  ignore = "exit 1"
+
 [context.staging.environment]
   VITE_TODAY_PLATFORM_ENABLED = "true"
   VITE_API_URL = "https://htcoachingweb-staging.onrender.com/api"
