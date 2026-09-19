@@ -82,6 +82,27 @@ describe("staging AI catalog rollout contract", () => {
     expect(new Set(STAGING_AI_CATALOG_EXERCISES.map(({ id }) => id)).size).toBe(5);
   });
 
+  it("accepts the reviewed production name for the kneeling push-up source", () => {
+    const exercises = STAGING_AI_CATALOG_EXERCISES.map(({ id, name }) => ({
+      _id: id,
+      name,
+      muscleGroup: "Cơ ngực",
+      description: "Bodyweight push-up không cần dụng cụ, phù hợp cho người mới.",
+      instructions: [],
+    }));
+    exercises[0].name = "Kneeling Push-up (male)";
+    const foods = STAGING_AI_CATALOG_FOODS.map((entry, index) => ({
+      _id: String(index + 1).padStart(24, "0"),
+      label: entry.label,
+      protein: entry.macroGroup === "protein" ? 31 : 2,
+      carb: entry.macroGroup === "carb" ? 17 : 8,
+      fat: entry.macroGroup === "fat" ? 15 : 1,
+      calories: 100,
+    }));
+
+    expect(() => createStagingAiCatalogSource({ exercises, foods })).not.toThrow();
+  });
+
   it("separates food identity evidence from allergen taxonomy evidence", () => {
     const exercises = STAGING_AI_CATALOG_EXERCISES.map(({ id, name }) => ({
       _id: id,

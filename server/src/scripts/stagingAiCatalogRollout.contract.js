@@ -29,7 +29,7 @@ const USDA_FSIS_BIG_9_SOURCE =
 
 export const STAGING_AI_CATALOG_EXERCISES = Object.freeze(
   [
-    ["6a4b4c41a5de82055378b184", "Kneeling Push-up"],
+    ["6a4b4c41a5de82055378b184", "Kneeling Push-up (male)"],
     ["6a4b4c8ea5de82055378b335", "Push-up"],
     ["6a4b4c90a5de82055378b33f", "Push-up (wall)"],
     ["6a4b4c90a5de82055378b342", "Push-up (wall) V. 2"],
