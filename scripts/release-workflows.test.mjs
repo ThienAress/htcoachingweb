@@ -180,6 +180,16 @@ test("staging acceptance maintenance modes are explicit and preserve acceptance 
   assert.match(workflow, /path: \|[\s\S]*artifacts\/staging-maintenance\.json[\s\S]*artifacts\/staging-deploy-identity\.json[\s\S]*artifacts\/staging-deploy-identity-post-maintenance\.json/);
 });
 
+test("Netlify staging always builds an exact release SHA", async () => {
+  const config = await read("netlify.toml");
+  const staging = config.match(
+    /\[context\.staging\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/,
+  )?.[1];
+
+  assert.ok(staging, "netlify.toml must define the exact staging deploy context");
+  assert.match(staging, /^\s*ignore = "exit 1"$/m);
+});
+
 test("legacy AC-009 recovery is manual, staging-only and retains provider proof", async () => {
   const workflow = await read(".github/workflows/staging-ai-recovery.yml");
   assert.match(workflow, /workflow_dispatch:/);
