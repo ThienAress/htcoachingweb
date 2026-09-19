@@ -167,6 +167,42 @@ describe("staging AI acceptance evidence", () => {
     });
   });
 
+  it("accepts current catalog producer diagnostics without changing evidence schema v3", () => {
+    const evidence = buildSafeEvidence({
+      catalogReadiness: {
+        ready: true,
+        gaps: [],
+        metrics: {
+          exerciseCount: 26,
+          displacedFixtures: 0,
+          beginnerBodyweightChest: 5,
+          foodCount: 21,
+          safeMealFoods: 3,
+          ingredientVerifiedSafeMealFoods: 3,
+          crossContactVerifiedSafeMealFoods: 0,
+          freshPricedSafeMealFoods: 3,
+          safeMacroGroups: ["carb", "fat", "protein"],
+          freshPricedSafeMacroGroups: ["carb", "fat", "protein"],
+        },
+      },
+    });
+
+    expect(evidence.catalogReadiness).toEqual({
+      ready: true,
+      gaps: [],
+      metrics: {
+        exerciseCount: 26,
+        displacedFixtures: 0,
+        beginnerBodyweightChest: 5,
+        foodCount: 21,
+        safeMealFoods: 3,
+        freshPricedSafeMealFoods: 3,
+        safeMacroGroups: ["carb", "fat", "protein"],
+        freshPricedSafeMacroGroups: ["carb", "fat", "protein"],
+      },
+    });
+  });
+
   it("retains a sanitized root operation code when cleanup wraps the failure", () => {
     const operationError = Object.assign(new Error("private browser detail"), {
       code: "STAGING_AI_CONTROL_BARRIER_FAILED",
