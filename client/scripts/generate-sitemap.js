@@ -220,6 +220,7 @@ export const generateSitemap = async ({
   const storyRoutes = toRoutes(content.stories, "/ket-qua-khach-hang/", 0.8);
   const trainerRoutes = toRoutes(content.trainers, "/huan-luyen-vien/", 0.8);
   const blogRoutes = toRoutes(content.blogs, "/blog/", 0.7);
+  const strictSeoCohort = policy.netlifyProduction;
   let recipeDetails = content.recipes;
   try {
     recipeDetails = await fetchPrerenderRecipesImpl(
@@ -232,7 +233,7 @@ export const generateSitemap = async ({
         }),
     );
   } catch (error) {
-    if (policy.requireDynamic) throw error;
+    if (strictSeoCohort) throw error;
     logger.warn(
       "Pinned Recipe details could not be hydrated; falling back to list projection: " +
         error.message,
@@ -242,7 +243,7 @@ export const generateSitemap = async ({
     recipes: recipeDetails,
     exercises: content.exercises,
   }, {
-    strict: policy.requireDynamic,
+    strict: strictSeoCohort,
   });
   const selectedExercises = selectedCohort.exercises;
   const exerciseRoutes = toExerciseRoutes(selectedExercises);
