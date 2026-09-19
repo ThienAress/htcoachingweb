@@ -70,9 +70,14 @@ const CATALOG_COUNT_KEYS = [
   "safeMealFoods",
   "freshPricedSafeMealFoods",
 ];
+const CATALOG_DIAGNOSTIC_COUNT_KEYS = [
+  "ingredientVerifiedSafeMealFoods",
+  "crossContactVerifiedSafeMealFoods",
+];
 const MACRO_GROUPS = new Set(["protein", "carb", "fat"]);
 const CATALOG_METRIC_KEYS = new Set([
   ...CATALOG_COUNT_KEYS,
+  ...CATALOG_DIAGNOSTIC_COUNT_KEYS,
   "safeMacroGroups",
   "freshPricedSafeMacroGroups",
 ]);
@@ -92,6 +97,18 @@ const safeCatalogReadiness = (value) => {
   const counts = Object.fromEntries(
     CATALOG_COUNT_KEYS.map((key) => [key, safeCount(metrics[key])]),
   );
+  const hasDiagnosticCounts = CATALOG_DIAGNOSTIC_COUNT_KEYS.some((key) =>
+    Object.hasOwn(metrics, key));
+  const diagnosticCounts = Object.fromEntries(
+    CATALOG_DIAGNOSTIC_COUNT_KEYS.map((key) => [key, safeCount(metrics[key])]),
+  );
+  const invalidDiagnosticCounts = hasDiagnosticCounts && (
+    CATALOG_DIAGNOSTIC_COUNT_KEYS.some((key) => !Object.hasOwn(metrics, key)) ||
+    Object.values(diagnosticCounts).some((count) => count === null) ||
+    diagnosticCounts.ingredientVerifiedSafeMealFoods !== counts.safeMealFoods ||
+    diagnosticCounts.crossContactVerifiedSafeMealFoods >
+      diagnosticCounts.ingredientVerifiedSafeMealFoods
+  );
   const invalidMacroGroups = (groups) =>
     !Array.isArray(groups) ||
     new Set(groups).size !== groups.length ||
@@ -102,6 +119,7 @@ const safeCatalogReadiness = (value) => {
     Array.isArray(value.metrics) ||
     Object.keys(metrics).some((key) => !CATALOG_METRIC_KEYS.has(key)) ||
     Object.values(counts).some((count) => count === null) ||
+    invalidDiagnosticCounts ||
     invalidMacroGroups(metrics.safeMacroGroups) ||
     invalidMacroGroups(metrics.freshPricedSafeMacroGroups);
   const gaps = [...new Set(rawGaps.filter((gap) => CATALOG_GAPS.has(gap)))];
