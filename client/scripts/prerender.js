@@ -21,7 +21,10 @@ import {
   routesFromPrerenderManifest,
 } from "./prerender-routes.js";
 import { createNoindexFallbackShell } from "./prerender-shell.js";
-import { validatePrerenderSnapshot } from "./prerender-validation.js";
+import {
+  resolvePrerenderRequirements,
+  validatePrerenderSnapshot,
+} from "./prerender-validation.js";
 import {
   SEARCH_INDEX_EXERCISES,
   SEARCH_INDEX_RECIPE_SLUGS,
@@ -107,7 +110,7 @@ const stopServer = (server) =>
     server.close((error) => (error ? reject(error) : resolve()));
   });
 
-const renderRoute = async (browser, route, recipeCache) => {
+const renderRoute = async (browser, route, recipeCache, policy) => {
   const page = await browser.newPage();
   const expectedCanonical = canonicalUrlForRoute(route, SITE_URL);
   const diagnostics = [];
@@ -226,16 +229,13 @@ const renderRoute = async (browser, route, recipeCache) => {
         })
         .filter(Boolean),
     }));
-    const normalizedRoute = route.length > 1 ? route.replace(/\/+$/, "") : route;
-    const validationOptions = normalizedRoute === "/"
-      ? { expectedServiceOffers }
-      : normalizedRoute === "/exercises"
-        ? { requiredLinkHrefs: expectedExerciseHubLinks }
-        : normalizedRoute === "/cong-thuc-nau-an"
-          ? { requiredLinkHrefs: expectedRecipeHubLinks }
-          : normalizedRoute.startsWith("/exercises/")
-            ? { requireSettledExerciseReviews: true }
-          : undefined;
+    const validationOptions = resolvePrerenderRequirements({
+      route,
+      requireApprovedSeoCohort: policy.netlifyProduction,
+      expectedServiceOffers,
+      expectedExerciseHubLinks,
+      expectedRecipeHubLinks,
+    });
     let snapshot = await captureSnapshot();
     let validationErrors = validatePrerenderSnapshot(
       snapshot,
@@ -401,7 +401,7 @@ const prerender = async () => {
         console.log("Prerendering route: " + route);
         return {
           route,
-          success: await renderRoute(browser, route, responseCache),
+          success: await renderRoute(browser, route, responseCache, policy),
         };
       },
     );

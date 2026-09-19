@@ -37,6 +37,33 @@ const offerContractKey = (offer) => {
     : "";
 };
 
+export const resolvePrerenderRequirements = ({
+  route,
+  requireApprovedSeoCohort = false,
+  expectedServiceOffers,
+  expectedExerciseHubLinks,
+  expectedRecipeHubLinks,
+}) => {
+  const normalizedRoute =
+    route.length > 1 ? route.replace(/\/+$/, "") : route;
+
+  if (normalizedRoute === "/") return { expectedServiceOffers };
+  if (normalizedRoute === "/exercises") {
+    return requireApprovedSeoCohort
+      ? { requiredLinkHrefs: expectedExerciseHubLinks }
+      : undefined;
+  }
+  if (normalizedRoute === "/cong-thuc-nau-an") {
+    return requireApprovedSeoCohort
+      ? { requiredLinkHrefs: expectedRecipeHubLinks }
+      : undefined;
+  }
+  if (normalizedRoute.startsWith("/exercises/")) {
+    return { requireSettledExerciseReviews: true };
+  }
+  return undefined;
+};
+
 export const validatePrerenderSnapshot = (
   snapshot,
   expectedCanonical,
