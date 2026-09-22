@@ -6,11 +6,13 @@ import { getToolSchemas, toolRegistry } from "../toolRegistry.js";
 const originalSearchKnowledge = toolRegistry.search_knowledge.execute;
 const originalSearchKnowledgeConfirmation =
   toolRegistry.search_knowledge.requiresConfirmation;
+const originalSearchKnowledgeReadOnly = toolRegistry.search_knowledge.readOnly;
 
 afterEach(() => {
   toolRegistry.search_knowledge.execute = originalSearchKnowledge;
   toolRegistry.search_knowledge.requiresConfirmation =
     originalSearchKnowledgeConfirmation;
+  toolRegistry.search_knowledge.readOnly = originalSearchKnowledgeReadOnly;
 });
 
 describe("AI tool runtime validation", () => {
@@ -53,6 +55,23 @@ describe("AI tool runtime validation", () => {
       allowed: allowed.includes("search_knowledge"),
       blocked: blocked.includes("search_knowledge"),
     }).toEqual({ allowed: true, blocked: false });
+  });
+
+  it("never exposes mutating or confirmation-required tools to the chat model", () => {
+    toolRegistry.search_knowledge.readOnly = false;
+    expect(
+      getToolSchemas({ isAuthenticated: true }).map(
+        (schema) => schema.function.name,
+      ),
+    ).not.toContain("search_knowledge");
+
+    toolRegistry.search_knowledge.readOnly = true;
+    toolRegistry.search_knowledge.requiresConfirmation = true;
+    expect(
+      getToolSchemas({ isAuthenticated: true }).map(
+        (schema) => schema.function.name,
+      ),
+    ).not.toContain("search_knowledge");
   });
 
   it("preserves only the canonical web-search outcome across the tool boundary", async () => {

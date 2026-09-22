@@ -34,12 +34,14 @@ import {
   validateAiMemoryConsent,
   validateAiMemoryKind,
   validateAiMemoryUpdate,
+  validateAiMealReplacement,
   validateAiToolConfirmation,
 } from "../middlewares/validation.js";
 import {
   cancelAiTool,
   confirmAiTool,
 } from "../controllers/aiToolConfirmation.controller.js";
+import { replaceMealItem } from "../controllers/aiMeal.controller.js";
 
 const router = express.Router();
 
@@ -101,6 +103,17 @@ router.post(
   csrfProtection,
   validateAiToolConfirmation,
   cancelAiTool,
+);
+
+router.post(
+  "/conversations/:id/meal-replacements",
+  optionalAiAuth,
+  ensureAiActor,
+  csrfProtection,
+  aiGuestChatLimiter,
+  aiChatLimiter,
+  validateAiMealReplacement,
+  replaceMealItem,
 );
 
 // Multi-conversation support

@@ -862,7 +862,26 @@ describe("AI request evidence router", () => {
       "TDEE và thực đơn khác nhau như thế nào?",
     );
 
-    expect(getAllowedToolNamesForRoute(decision)).toEqual(["calculate_tdee"]);
+    expect(decision).toMatchObject({
+      domain: "fitness",
+      evidence: "internal_kb",
+      preferredTool: null,
+    });
+    expect(getAllowedToolNamesForRoute(decision)).not.toContain("calculate_tdee");
+  });
+
+  it.each([
+    "TDEE là gì?",
+    "BMR khác TDEE thế nào?",
+  ])("keeps TDEE knowledge questions out of the calculator intake: %s", (message) => {
+    const decision = routeAiRequest(message);
+
+    expect(decision).toMatchObject({
+      domain: "fitness",
+      evidence: "internal_kb",
+      preferredTool: null,
+    });
+    expect(getAllowedToolNamesForRoute(decision)).not.toContain("calculate_tdee");
   });
 
   it("does not open the compound tool sequence for a high-stakes request", () => {

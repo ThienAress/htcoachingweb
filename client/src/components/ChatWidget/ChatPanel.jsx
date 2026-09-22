@@ -360,9 +360,9 @@ export default function ChatPanel({ initiallyOpen = false }) {
     sendFollowingMessage(action.value, buildCurrentContext());
   }, [buildCurrentContext, sendFollowingMessage]);
 
-  const handleTdeeSubmit = useCallback((text) => {
+  const handleTdeeSubmit = useCallback(({ text, structuredAction }) => {
     setShowTdeeForm(false);
-    sendFollowingMessage(text, buildCurrentContext());
+    sendFollowingMessage(text, buildCurrentContext(), { structuredAction });
   }, [buildCurrentContext, sendFollowingMessage]);
 
   const handleSwitchConversation = async (id) => {
@@ -736,6 +736,9 @@ export default function ChatPanel({ initiallyOpen = false }) {
                               onEdit={user && !isReconciling ? handleEditMessage : undefined}
                               isThinking={isLastAssistant}
                               onFeedback={user ? handleFeedback : undefined}
+                              onCardAction={handleTdeeSubmit}
+                              cardActionsDisabled={isLoading}
+                              conversationId={conversationId}
                             />
                           </div>
                         );

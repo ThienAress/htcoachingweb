@@ -10,7 +10,9 @@ beforeEach(resetMetricsForTests);
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   delete process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_SEARCH_MODEL;
 });
 
 describe("Google grounding source boundary", () => {
@@ -47,6 +49,19 @@ describe("Google grounding source boundary", () => {
     expect(result.text).toContain(
       "[World Health Organization (evil.example)](<https://evil.example/phish>)",
     );
+    expect(result.uiCard).toMatchObject({
+      cardType: "webSources",
+      data: {
+        topic: "fitness research",
+        searchedAt: expect.any(String),
+        sources: [
+          {
+            title: "World Health Organization (evil.example)",
+            uri: "https://evil.example/phish",
+          },
+        ],
+      },
+    });
   });
 
   it("does not render a provider-authored link or URL from a supported segment", async () => {
@@ -153,6 +168,7 @@ describe("Google grounding source boundary", () => {
 
     expect(result).toMatchObject({
       text: expect.stringMatching(/chưa tìm thấy nguồn/i),
+      uiCard: null,
       meta: {
         evidenceAvailable: false,
         sourceCount: 0,
@@ -219,6 +235,8 @@ describe("Google grounding source boundary", () => {
       evidenceAvailable: true,
       sourceCount: 1,
       searchOutcome: "grounded",
+      diagnosticCode: "grounded",
+      providerRequestMade: true,
       sources: [
         {
           title: "Trusted \\[source\\] txt.exe (example.com)",
@@ -243,6 +261,7 @@ describe("Google grounding source boundary", () => {
 
   it("counts a rejected grounding request without logging its query", async () => {
     process.env.GEMINI_API_KEY = "test-key";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -271,6 +290,8 @@ describe("Google grounding source boundary", () => {
         evidenceAvailable: false,
         sourceCount: 0,
         searchOutcome: "provider_error",
+        diagnosticCode: "upstream_error",
+        providerRequestMade: true,
       },
     });
     expect(result.text).not.toMatch(/kiến thức có sẵn|hỏi trực tiếp/i);
@@ -280,6 +301,179 @@ describe("Google grounding source boundary", () => {
       "provider.gemini_search_grounding_prompt_tokens": 5,
       "provider.gemini_search_grounding_output_tokens": 1,
       "provider.gemini_search_grounding_total_tokens": 6,
+      "provider.gemini_search_grounding_upstream_error": 1,
+    });
+    expect(JSON.stringify(warnSpy.mock.calls)).not.toContain(
+      "synthetic private query",
+    );
+  });
+
+  it("reports a missing provider configuration without making a Gemini request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await searchKnowledge({ query: "fitness research" });
+
+    expect({
+      providerCalls: fetchMock.mock.calls.length,
+      meta: result.meta,
+      counters: getMetricsSnapshot().counters,
+    }).toMatchObject({
+      providerCalls: 0,
+      meta: {
+        searchOutcome: "provider_error",
+        diagnosticCode: "not_configured",
+        providerRequestMade: false,
+      },
+      counters: {
+        "provider.gemini_search_grounding_requests": 0,
+        "provider.gemini_search_grounding_not_configured": 1,
+      },
+    });
+  });
+
+  it.each([
+    [400, "request_rejected", "provider.gemini_search_grounding_request_rejected"],
+    [404, "request_rejected", "provider.gemini_search_grounding_request_rejected"],
+    [401, "permission_denied", "provider.gemini_search_grounding_permission_denied"],
+    [403, "permission_denied", "provider.gemini_search_grounding_permission_denied"],
+    [429, "rate_limited", "provider.gemini_search_grounding_rate_limited"],
+    [502, "upstream_error", "provider.gemini_search_grounding_upstream_error"],
+    [422, "http_error", "provider.gemini_search_grounding_http_error"],
+  ])(
+    "classifies HTTP %i without exposing provider details",
+    async (status, diagnosticCode, metricName) => {
+      process.env.GEMINI_API_KEY = "test-key";
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          new Response('{"error":{"message":"synthetic provider detail"}}', {
+            status,
+            headers: { "Content-Type": "application/json" },
+          }),
+        ),
+      );
+
+      const result = await searchKnowledge({ query: "fitness research" });
+      const counters = getMetricsSnapshot().counters;
+
+      expect({
+        textLeaksProviderDetail: result.text.includes("synthetic provider detail"),
+        meta: result.meta,
+        requestCount: counters["provider.gemini_search_grounding_requests"],
+        failureCount: counters["provider.gemini_search_grounding_failed"],
+        dispositionCount: counters[metricName],
+      }).toEqual({
+        textLeaksProviderDetail: false,
+        meta: {
+          evidenceAvailable: false,
+          sourceCount: 0,
+          sources: [],
+          searchOutcome: "provider_error",
+          diagnosticCode,
+          providerRequestMade: true,
+        },
+        requestCount: 1,
+        failureCount: 1,
+        dispositionCount: 1,
+      });
+    },
+  );
+
+  it("classifies a network failure and never logs the query", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const query = "synthetic query that must stay private";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError(`network failure for ${query}`);
+      }),
+    );
+
+    const result = await searchKnowledge({ query });
+
+    expect({
+      meta: result.meta,
+      queryLeaked: JSON.stringify(warnSpy.mock.calls).includes(query),
+      counters: getMetricsSnapshot().counters,
+    }).toMatchObject({
+      meta: {
+        searchOutcome: "provider_error",
+        diagnosticCode: "network_error",
+        providerRequestMade: true,
+      },
+      queryLeaked: false,
+      counters: {
+        "provider.gemini_search_grounding_failed": 1,
+        "provider.gemini_search_grounding_network_error": 1,
+      },
+    });
+  });
+
+  it("classifies a successful HTTP response with invalid JSON", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response("not-json", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    const result = await searchKnowledge({ query: "fitness research" });
+
+    expect({
+      meta: result.meta,
+      counters: getMetricsSnapshot().counters,
+    }).toMatchObject({
+      meta: {
+        searchOutcome: "provider_error",
+        diagnosticCode: "invalid_response",
+        providerRequestMade: true,
+      },
+      counters: {
+        "provider.gemini_search_grounding_failed": 1,
+        "provider.gemini_search_grounding_invalid_response": 1,
+      },
+    });
+  });
+
+  it("records an aborted grounding request before propagating cancellation", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const controller = new AbortController();
+    controller.abort(new Error("synthetic abort"));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw controller.signal.reason;
+      }),
+    );
+    let caught;
+
+    try {
+      await searchKnowledge(
+        { query: "fitness research" },
+        { signal: controller.signal },
+      );
+    } catch (error) {
+      caught = error;
+    }
+
+    expect({
+      caught: caught?.message,
+      counters: getMetricsSnapshot().counters,
+    }).toMatchObject({
+      caught: "synthetic abort",
+      counters: {
+        "provider.gemini_search_grounding_requests": 1,
+        "provider.gemini_search_grounding_failed": 1,
+        "provider.gemini_search_grounding_aborted": 1,
+      },
     });
   });
 
@@ -321,12 +515,17 @@ describe("Google grounding source boundary", () => {
     );
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(requestBody.systemInstruction.parts[0].text).toMatch(
-      /bằng chứng web công khai[\s\S]*mọi chủ đề an toàn/i,
-    );
-    expect(requestBody.systemInstruction.parts[0].text).not.toMatch(
-      /trợ lý tra cứu thông tin fitness/i,
-    );
+    expect({
+      instruction: requestBody.systemInstruction.parts[0].text,
+      tools: requestBody.tools,
+      mapsToolPresent: JSON.stringify(requestBody.tools).includes("googleMaps"),
+    }).toEqual({
+      instruction: expect.stringMatching(
+        /bằng chứng web công khai[\s\S]*mọi chủ đề an toàn/i,
+      ),
+      tools: [{ googleSearch: {} }],
+      mapsToolPresent: false,
+    });
   });
 
   it("marks a source-free answer as unavailable evidence", async () => {
@@ -354,6 +553,8 @@ describe("Google grounding source boundary", () => {
         evidenceAvailable: false,
         sourceCount: 0,
         searchOutcome: "no_supported_source",
+        diagnosticCode: "no_supported_source",
+        providerRequestMade: true,
       },
     });
   });
@@ -465,6 +666,14 @@ describe("Google grounding source boundary", () => {
     expect({
       providerCalls: fetchMock.mock.calls.length,
       evidence: result.meta,
+      requestCount:
+        getMetricsSnapshot().counters[
+          "provider.gemini_search_grounding_requests"
+        ],
+      privacyBlockedCount:
+        getMetricsSnapshot().counters[
+          "provider.gemini_search_grounding_privacy_blocked"
+        ],
     }).toEqual({
       providerCalls: 0,
       evidence: {
@@ -472,7 +681,11 @@ describe("Google grounding source boundary", () => {
         sourceCount: 0,
         sources: [],
         searchOutcome: "not_called",
+        diagnosticCode: "privacy_blocked",
+        providerRequestMade: false,
       },
+      requestCount: 0,
+      privacyBlockedCount: 1,
     });
   });
 
@@ -523,6 +736,8 @@ describe("Google grounding source boundary", () => {
         sourceCount: 0,
         sources: [],
         searchOutcome: "not_called",
+        diagnosticCode: "privacy_blocked",
+        providerRequestMade: false,
       },
     });
   });
@@ -546,6 +761,8 @@ describe("Google grounding source boundary", () => {
         sourceCount: 0,
         sources: [],
         searchOutcome: "not_called",
+        diagnosticCode: "privacy_blocked",
+        providerRequestMade: false,
       },
     });
   });
@@ -588,6 +805,8 @@ describe("Google grounding source boundary", () => {
           sourceCount: 0,
           sources: [],
           searchOutcome: "not_called",
+          diagnosticCode: "privacy_blocked",
+          providerRequestMade: false,
         },
       });
     },

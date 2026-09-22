@@ -113,7 +113,7 @@ const BLOG_TOOL_PATTERN =
 const TDEE_ACTION_PATTERN =
   /\b(?:tinh|uoc tinh|calculate|estimate)\b[\s\S]{0,80}\b(?:tdee|bmr|calo|calorie)|\b(?:tdee|bmr|calo moi ngay|calorie needs?)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|my|for me)\b/;
 const MEAL_ACTION_PATTERN =
-  /\b(?:goi y|tao|lap|xay dung|de xuat|suggest|create|build|make)\b[\s\S]{0,80}\b(?:thuc don|bua an|meal plan|meals?)\b|\b(?:thuc don|bua an|meal plan)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|my|for me)\b/;
+  /\b(?:goi y|tao|lap|xay dung|de xuat|suggest|create|build|make)\b[\s\S]{0,80}\b(?:thuc don|bua an|meal plan|meals?)\b|\b(?:thuc don|bua an|meal plan)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|vua roi|truoc do|gan nhat|my|for me)\b/;
 const TDEE_MEAL_TOOL_SEQUENCE = Object.freeze([
   "calculate_tdee",
   "suggest_meal",
@@ -492,9 +492,11 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
           ? "get_training_schedule"
           : WORKOUT_PLAN_TOOL_PATTERN.test(normalized)
             ? "get_workout_plan"
-            : TDEE_TOOL_PATTERN.test(normalized)
+            : TDEE_TOOL_PATTERN.test(normalized) &&
+                TDEE_ACTION_PATTERN.test(normalized)
               ? "calculate_tdee"
-              : MEAL_TOOL_PATTERN.test(normalized)
+              : MEAL_TOOL_PATTERN.test(normalized) &&
+                  MEAL_ACTION_PATTERN.test(normalized)
                 ? "suggest_meal"
                 : workoutCreation
                   ? null

@@ -6,19 +6,28 @@ import { prepareExternalKnowledgeQuery } from "../knowledgePrivacy.js";
 import {
   recordGeminiRequest,
   recordGeminiResult,
+  recordGeminiSearchGroundingDisposition,
 } from "../../../observability/providerUsageMetrics.js";
 import { safeLog } from "../../../utils/safeLogger.js";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-// Ưu tiên GEMINI_SEARCH_MODEL từ Doppler, fallback gemini-2.5-flash (hỗ trợ Google Search grounding)
-const SEARCH_MODEL = process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash";
+const DEFAULT_SEARCH_MODEL = "gemini-2.5-flash";
+const SAFE_MODEL_IDENTIFIER = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/i;
+const resolveSearchModel = () =>
+  String(process.env.GEMINI_SEARCH_MODEL || DEFAULT_SEARCH_MODEL).trim() ||
+  DEFAULT_SEARCH_MODEL;
 
 const MAX_GROUNDING_SOURCES = 3;
 const MAX_GROUNDING_SUPPORTS = 12;
 const MAX_GROUNDING_URL_CHARACTERS = 2048;
 const MAX_GROUNDING_TITLE_CHARACTERS = 160;
 const MAX_GROUNDED_SEGMENT_CHARACTERS = 4000;
-const unavailableEvidence = (text, searchOutcome) => ({
+const MAX_CARD_TOPIC_CHARACTERS = 160;
+const unavailableEvidence = (
+  text,
+  searchOutcome,
+  diagnostics = null,
+) => ({
   text,
   uiCard: null,
   meta: {
@@ -26,8 +35,57 @@ const unavailableEvidence = (text, searchOutcome) => ({
     sourceCount: 0,
     sources: [],
     searchOutcome,
+    ...(diagnostics
+      ? {
+          diagnosticCode: diagnostics.code,
+          providerRequestMade: diagnostics.providerRequestMade,
+        }
+      : {}),
   },
 });
+
+const classifyHttpFailure = (status) => {
+  if ([400, 404].includes(status)) return "request_rejected";
+  if ([401, 403].includes(status)) return "permission_denied";
+  if (status === 429) return "rate_limited";
+  if (status >= 500) return "upstream_error";
+  return "http_error";
+};
+
+const recordSearchFailureLog = ({ code, model, status }) => {
+  const modelLabel = String(model || DEFAULT_SEARCH_MODEL);
+  safeLog.warn(
+    "ai.search_grounding_unavailable",
+    "Search grounding unavailable",
+    {
+      diagnosticCode: code,
+      model:
+        modelLabel.length <= 100 && SAFE_MODEL_IDENTIFIER.test(modelLabel)
+          ? modelLabel
+          : "invalid_model_identifier",
+      ...(Number.isInteger(status) ? { status } : {}),
+    },
+  );
+};
+
+const normalizeCardTopic = (value) =>
+  String(value || "")
+    .replace(/[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_CARD_TOPIC_CHARACTERS) || "Nguồn cho câu trả lời";
+
+const buildWebSourcesCard = ({ topic, sources }) =>
+  sources.length > 0
+    ? {
+        cardType: "webSources",
+        data: {
+          topic: normalizeCardTopic(topic),
+          searchedAt: new Date().toISOString(),
+          sources,
+        },
+      }
+    : null;
 
 const escapeMarkdownLabel = (value) =>
   String(value || "")
@@ -177,26 +235,36 @@ const buildGroundedEvidence = (candidate, candidateText) => {
  * Tra cứu thông tin thực tế bằng Google Search Grounding
  * @param {{ query: string }} params
  * @param {{ signal?: AbortSignal }} context
- * @returns {{ text: string, uiCard: null, meta: { evidenceAvailable: boolean, sourceCount: number, sources: Array<{title: string, uri: string}> } }}
+ * @returns {{ text: string, uiCard: object|null, meta: { evidenceAvailable: boolean, sourceCount: number, sources: Array<{title: string, uri: string}> } }}
  */
 export async function searchKnowledge({ query }, context = {}) {
   const preparedQuery = prepareExternalKnowledgeQuery(query, {
     allowedPublicPersonNames: context.allowedPublicPersonNames,
   });
   if (!preparedQuery.eligible) {
+    recordGeminiSearchGroundingDisposition("privacy_blocked");
     return unavailableEvidence(
       "Mình không thể gửi dữ liệu cá nhân hoặc thông tin sức khỏe riêng lên web để tra cứu. Bạn có thể hỏi lại theo hướng thông tin chung, không kèm dữ liệu riêng.",
       "not_called",
+      { code: "privacy_blocked", providerRequestMade: false },
     );
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
+    recordGeminiSearchGroundingDisposition("not_configured");
+    recordSearchFailureLog({
+      code: "not_configured",
+      model: resolveSearchModel(),
+    });
     return unavailableEvidence(
       "Hiện không thể xác minh thông tin bằng nguồn web. Vui lòng thử lại sau.",
       "provider_error",
+      { code: "not_configured", providerRequestMade: false },
     );
   }
+
+  const searchModel = resolveSearchModel();
 
   const body = {
     contents: [{ role: "user", parts: [{ text: preparedQuery.query }] }],
@@ -212,7 +280,9 @@ export async function searchKnowledge({ query }, context = {}) {
     },
   };
 
-  const url = `${GEMINI_BASE_URL}/models/${SEARCH_MODEL}:generateContent?key=${apiKey}`;
+  const url =
+    `${GEMINI_BASE_URL}/models/${encodeURIComponent(searchModel)}` +
+    `:generateContent?key=${apiKey}`;
   let providerOutcomeRecorded = false;
 
   try {
@@ -231,31 +301,52 @@ export async function searchKnowledge({ query }, context = {}) {
         usage: errorData?.usageMetadata,
       });
       providerOutcomeRecorded = true;
-      // Nếu model không hỗ trợ grounding → fallback message
-      if (response.status === 400) {
+      const diagnosticCode = classifyHttpFailure(response.status);
+      recordGeminiSearchGroundingDisposition(diagnosticCode);
+      recordSearchFailureLog({
+        code: diagnosticCode,
+        model: searchModel,
+        status: response.status,
+      });
+      if (diagnosticCode === "request_rejected") {
         return unavailableEvidence(
           "Hiện không thể xác minh thông tin bằng nguồn web với model tìm kiếm này.",
           "provider_error",
+          { code: diagnosticCode, providerRequestMade: true },
         );
       }
-      // Quota exceeded / rate limit
-      if (response.status === 429) {
-        safeLog.warn("ai.search_rate_limited", "Search provider rate limited");
+      if (diagnosticCode === "rate_limited") {
         return unavailableEvidence(
           "Hiện không thể xác minh thông tin vì tra cứu web đang tạm giới hạn.",
           "provider_error",
+          { code: diagnosticCode, providerRequestMade: true },
         );
       }
-      safeLog.warn("ai.search_provider_error", "Search provider returned error", {
-        status: response.status,
-      });
       return unavailableEvidence(
         "Hiện không thể xác minh thông tin bằng nguồn web. Vui lòng thử lại sau.",
         "provider_error",
+        { code: diagnosticCode, providerRequestMade: true },
       );
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      recordGeminiResult("search_grounding", { success: false });
+      providerOutcomeRecorded = true;
+      recordGeminiSearchGroundingDisposition("invalid_response");
+      recordSearchFailureLog({
+        code: "invalid_response",
+        model: searchModel,
+        status: response.status,
+      });
+      return unavailableEvidence(
+        "Hiện không thể xác minh thông tin vì dịch vụ tra cứu trả dữ liệu không hợp lệ.",
+        "provider_error",
+        { code: "invalid_response", providerRequestMade: true },
+      );
+    }
     const candidate = data.candidates?.[0];
 
     // Chỉ phần text có groundingSupports trỏ tới HTTPS chunk hợp lệ mới được
@@ -276,9 +367,16 @@ export async function searchKnowledge({ query }, context = {}) {
       usage: data.usageMetadata,
     });
     providerOutcomeRecorded = true;
+    const diagnosticCode = sources.length > 0
+      ? "grounded"
+      : "no_supported_source";
+    recordGeminiSearchGroundingDisposition(diagnosticCode);
     return {
       text: result,
-      uiCard: null,
+      uiCard: buildWebSourcesCard({
+        topic: preparedQuery.query,
+        sources,
+      }),
       meta: {
         evidenceAvailable: sources.length > 0,
         sourceCount: sources.length,
@@ -286,16 +384,26 @@ export async function searchKnowledge({ query }, context = {}) {
         searchOutcome: sources.length > 0
           ? "grounded"
           : "no_supported_source",
+        diagnosticCode,
+        providerRequestMade: true,
       },
     };
   } catch (error) {
-    if (context.signal?.aborted) throw error;
     if (!providerOutcomeRecorded) {
       recordGeminiResult("search_grounding", { success: false });
+      providerOutcomeRecorded = true;
     }
+    if (context.signal?.aborted) {
+      recordGeminiSearchGroundingDisposition("aborted");
+      recordSearchFailureLog({ code: "aborted", model: searchModel });
+      throw error;
+    }
+    recordGeminiSearchGroundingDisposition("network_error");
+    recordSearchFailureLog({ code: "network_error", model: searchModel });
     return unavailableEvidence(
       "Hiện không thể xác minh thông tin do kết nối tra cứu web bị lỗi.",
       "provider_error",
+      { code: "network_error", providerRequestMade: true },
     );
   }
 }

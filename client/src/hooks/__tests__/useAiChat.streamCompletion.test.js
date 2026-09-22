@@ -49,7 +49,7 @@ vi.mock("../../services/ai.service", () => ({
   openAiChatStream,
 }));
 
-import useAiChat from "../useAiChat";
+import useAiChat, { mapAiMessages } from "../useAiChat";
 
 const renderHook = (options = { persistenceEnabled: false }) => {
   hookRuntime.cursor = 0;
@@ -102,6 +102,71 @@ describe("AI chat SSE completion", () => {
     hookRuntime.cursor = 0;
     vi.resetAllMocks();
     getAiConversations.mockResolvedValue({ data: [] });
+  });
+
+  it("preserves a persisted TDEE action for reload and retry", () => {
+    const structuredAction = {
+      type: "calculate_tdee",
+      payload: {
+        gender: "male",
+        age: 28,
+        heightCm: 175,
+        weightKg: 75,
+        dailyMovement: "mixed",
+        steps: "between_5000_7999",
+        trainingFrequency: "three_four",
+        trainingDuration: "between_45_60",
+        trainingIntensity: "moderate",
+        goal: "maintenance",
+      },
+    };
+
+    expect(mapAiMessages([{
+      _id: "u-tdee",
+      role: "user",
+      content: "Tính TDEE từ thông tin tôi đã xác nhận",
+      structuredAction,
+    }])).toEqual([
+      expect.objectContaining({
+        _id: "u-tdee",
+        structuredAction,
+      }),
+    ]);
+  });
+
+  it("sends a structured TDEE action outside the untrusted page context", async () => {
+    const structuredAction = {
+      type: "calculate_tdee",
+      payload: {
+        gender: "male",
+        age: 28,
+        heightCm: 175,
+        weightKg: 75,
+        dailyMovement: "mixed",
+        steps: "between_5000_7999",
+        trainingFrequency: "three_four",
+        trainingDuration: "between_45_60",
+        trainingIntensity: "moderate",
+        goal: "maintenance",
+      },
+    };
+    openAiChatStream.mockResolvedValue(
+      streamResponse({ type: "done", conversationId: "conversation-1" }),
+    );
+
+    await renderHook().sendMessage(
+      "Tính TDEE từ thông tin tôi đã xác nhận",
+      { page: "/tdee-calculator" },
+      { structuredAction },
+    );
+
+    expect(openAiChatStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: { page: "/tdee-calculator" },
+        structuredAction,
+      }),
+      expect.objectContaining({ signal: expect.anything() }),
+    );
   });
 
   it("marks a clean EOF without done incomplete while keeping received text", async () => {
@@ -531,7 +596,9 @@ describe("AI chat SSE completion", () => {
       })
       .mockResolvedValueOnce(streamResponse({
         type: "done",
-        conversationId: "conversation-branch",
+        conversationId: action === "retry"
+          ? "conversation-1"
+          : "conversation-branch",
       }));
 
     const initialHook = renderHook({ persistenceEnabled: true });
@@ -553,12 +620,16 @@ describe("AI chat SSE completion", () => {
     await request;
     resolveReconcile({ data: { messages: reconciledMessages } });
 
-    await vi.waitFor(() => expect(forkAiConversation).toHaveBeenCalled());
     await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(2));
+    if (action === "edit") {
+      expect(forkAiConversation).toHaveBeenCalledTimes(1);
+    } else {
+      expect(forkAiConversation).not.toHaveBeenCalled();
+    }
 
     expect({
       callsBeforeReconcile,
-      forkArgs: forkAiConversation.mock.calls[0],
+      forkArgs: forkAiConversation.mock.calls[0] || null,
       streamPayloads: openAiChatStream.mock.calls.map(
         ([payload]) => ({
           conversationId: payload.conversationId,
@@ -571,14 +642,16 @@ describe("AI chat SSE completion", () => {
         streams: 1,
         conversationId: "conversation-1",
       },
-      forkArgs: ["conversation-1", "u2"],
+      forkArgs: action === "edit" ? ["conversation-1", "u2"] : null,
       streamPayloads: [
         {
           conversationId: "conversation-1",
           message: "Câu hỏi đang dừng",
         },
         {
-          conversationId: "conversation-branch",
+          conversationId: action === "edit"
+            ? "conversation-branch"
+            : "conversation-1",
           message: nextText,
         },
       ],
@@ -627,7 +700,9 @@ describe("AI chat SSE completion", () => {
       })
       .mockResolvedValueOnce(streamResponse({
         type: "done",
-        conversationId: "conversation-branch",
+        conversationId: action === "retry"
+          ? "conversation-1"
+          : "conversation-branch",
       }));
 
     const hook = renderHook({ persistenceEnabled: true });
@@ -647,12 +722,17 @@ describe("AI chat SSE completion", () => {
     } else {
       renderHook({ persistenceEnabled: true }).retryLastMessage();
     }
-    await vi.waitFor(() => expect(forkAiConversation).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(2));
 
     expect(reconciled.map(({ _id }) => _id)).toEqual(["u1", "a1", "u2", "a2"]);
     expect(reconciled.at(-1).content).toBe("Đoạn đã nhận và server còn ghi thêm.");
     expect(reconciled.at(-1).localId).toMatch(/^assistant-/);
-    expect(forkAiConversation.mock.calls[0]).toEqual(["conversation-1", "u2"]);
+    expect(forkAiConversation.mock.calls[0] || null).toEqual(
+      action === "edit" ? ["conversation-1", "u2"] : null,
+    );
+    expect(openAiChatStream.mock.calls[1][0].conversationId).toBe(
+      action === "edit" ? "conversation-branch" : "conversation-1",
+    );
   });
 
   it("reconciles an EOF error before retrying without creating a new conversation", async () => {
@@ -684,7 +764,7 @@ describe("AI chat SSE completion", () => {
       ))
       .mockResolvedValueOnce(streamResponse({
         type: "done",
-        conversationId: "conversation-branch",
+        conversationId: "conversation-1",
       }));
 
     const hook = renderHook({ persistenceEnabled: true });
@@ -698,14 +778,14 @@ describe("AI chat SSE completion", () => {
 
     expect({
       errorOutcome,
-      forkArgs: forkAiConversation.mock.calls[0],
+      forkCount: forkAiConversation.mock.calls.length,
       streamConversationIds: openAiChatStream.mock.calls.map(
         ([payload]) => payload.conversationId,
       ),
     }).toEqual({
       errorOutcome: "error",
-      forkArgs: ["conversation-1", "u2"],
-      streamConversationIds: ["conversation-1", "conversation-branch"],
+      forkCount: 0,
+      streamConversationIds: ["conversation-1", "conversation-1"],
     });
   });
 

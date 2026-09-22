@@ -410,6 +410,8 @@ export function getToolSchemas({
   return Object.values(toolRegistry)
     .filter(
       (tool) =>
+        tool.readOnly === true &&
+        tool.requiresConfirmation !== true &&
         (isAuthenticated || (!tool.requiresAuth && tool.guestEnabled !== false)) &&
         (allowWebSearch || tool.name !== "search_knowledge"),
     )

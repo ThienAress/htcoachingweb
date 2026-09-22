@@ -47,11 +47,15 @@ const mealArgs = {
   requirePackageLabelSafety: true,
   budgetVndPerDay: 150000,
 };
+const MEAL_PLAN_ID = "11111111-1111-4111-8111-111111111111";
+const NEXT_MEAL_PLAN_ID = "22222222-2222-4222-8222-222222222222";
 
 const mealCard = {
   cardType: "meal",
   data: {
     status: "complete",
+    mealPlanId: MEAL_PLAN_ID,
+    mealRevision: 1,
     targetCalories: 2500,
     targetToleranceCalories: 100,
     nutritionMethod: "server_calculated_4p_4c_9f",
@@ -135,7 +139,89 @@ describe("AI conversation working memory", () => {
           foods: [{ foodId: "chicken", amountGrams: 137.5 }],
         }],
       },
+      mealPlanId: MEAL_PLAN_ID,
       revision: 1,
+    });
+  });
+
+  it("replays a persisted meal card without incrementing its revision", () => {
+    const stored = updateConversationMemory(
+      {},
+      "suggest_meal",
+      mealArgs,
+      { uiCard: mealCard },
+    );
+    const rebuilt = deriveConversationMemory(
+      [
+        {
+          role: "assistant",
+          toolCalls: [{ id: "meal-current", name: "suggest_meal", args: mealArgs }],
+        },
+        {
+          role: "tool",
+          toolName: "suggest_meal",
+          toolCallId: "meal-current",
+          uiCard: mealCard,
+        },
+        { role: "user", content: "Cảm ơn nhé" },
+      ],
+      stored,
+    );
+
+    expect(rebuilt.lastMeal).toMatchObject({
+      mealPlanId: MEAL_PLAN_ID,
+      revision: 1,
+    });
+  });
+
+  it("reconstructs the latest meal identity after TDEE invalidates an older plan", () => {
+    const nextMealCard = {
+      ...mealCard,
+      data: {
+        ...mealCard.data,
+        mealPlanId: NEXT_MEAL_PLAN_ID,
+        mealRevision: 1,
+        targetCalories: 2333,
+      },
+    };
+    const nextMealArgs = { ...mealArgs, targetCalories: 2333 };
+    const rebuilt = deriveConversationMemory([
+      {
+        role: "assistant",
+        toolCalls: [{ id: "meal-old", name: "suggest_meal", args: mealArgs }],
+      },
+      {
+        role: "tool",
+        toolName: "suggest_meal",
+        toolCallId: "meal-old",
+        uiCard: mealCard,
+      },
+      {
+        role: "assistant",
+        toolCalls: [{ id: "tdee-new", name: "calculate_tdee", args: tdeeArgs }],
+      },
+      {
+        role: "tool",
+        toolName: "calculate_tdee",
+        toolCallId: "tdee-new",
+        uiCard: tdeeCard,
+      },
+      {
+        role: "assistant",
+        toolCalls: [{ id: "meal-new", name: "suggest_meal", args: nextMealArgs }],
+      },
+      {
+        role: "tool",
+        toolName: "suggest_meal",
+        toolCallId: "meal-new",
+        uiCard: nextMealCard,
+      },
+    ]);
+
+    expect(rebuilt.lastMeal).toMatchObject({
+      mealPlanId: NEXT_MEAL_PLAN_ID,
+      revision: 1,
+      targetCalories: 2333,
     });
   });
 

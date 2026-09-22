@@ -181,9 +181,13 @@ export default function ChatWidget() {
   );
 
   const handleTdeeSubmit = useCallback(
-    (text) => {
+    ({ text, structuredAction }) => {
       setShowTdeeForm(false);
-      sendFollowingMessage(text, { lastPage: location.pathname });
+      sendFollowingMessage(
+        text,
+        { lastPage: location.pathname },
+        { structuredAction },
+      );
     },
     [sendFollowingMessage, location.pathname]
   );
@@ -331,7 +335,13 @@ export default function ChatWidget() {
 
             {messages.map((msg, i) => (
               <div key={msg._id || msg.localId || `${msg.role}-${i}`} className="chat-card-enter" style={{ animationDelay: `${i * 30}ms` }}>
-                <ChatBubble message={msg} onFeedback={handleFeedback} />
+                <ChatBubble
+                  message={msg}
+                  onFeedback={handleFeedback}
+                  onCardAction={handleTdeeSubmit}
+                  cardActionsDisabled={isLoading}
+                  conversationId={conversationId}
+                />
               </div>
             ))}
 
