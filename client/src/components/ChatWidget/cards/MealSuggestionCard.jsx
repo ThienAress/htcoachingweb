@@ -1,61 +1,268 @@
-import { AlertTriangle, Utensils } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  CheckCircle2,
+  RefreshCw,
+  Utensils,
+} from "lucide-react";
 
-export default function MealSuggestionCard({ data }) {
-  if (!data?.meals?.length) return null;
-  const { targetCalories, macros, meals, safety } = data;
+import { replaceAiMealItem } from "../../../services/ai.service";
+import {
+  getReconciledMealData,
+  resolveMealReplacementAttempt,
+} from "../mealReplacementRuntime";
+
+import AssistantCard, {
+  CardFooter,
+  CardList,
+  CardNotice,
+  CardSection,
+  IndexBadge,
+} from "./AssistantCard";
+
+const formatNumber = (value) =>
+  Number.isFinite(Number(value))
+    ? Number(value).toLocaleString("vi-VN")
+    : "—";
+
+const getMealTotals = (meal) => {
+  if (meal?.totals) return meal.totals;
+  return (meal?.foods || []).reduce(
+    (totals, food) => ({
+      calories: totals.calories + (Number(food.calories) || 0),
+      protein: totals.protein + (Number(food.macros?.protein) || 0),
+    }),
+    { calories: 0, protein: 0 },
+  );
+};
+
+export default function MealSuggestionCard({
+  conversationId,
+  data,
+  disabled = false,
+}) {
+  const [mealData, setMealData] = useState(data);
+  const [selection, setSelection] = useState({ mealIndex: 0, foodIndex: 0 });
+  const [replacementState, setReplacementState] = useState("idle");
+  const [replacementMessage, setReplacementMessage] = useState("");
+  const pendingReplacementRef = useRef(null);
+
+  useEffect(() => {
+    setMealData(data);
+    setReplacementState("idle");
+    setReplacementMessage("");
+    pendingReplacementRef.current = null;
+  }, [data]);
+
+  const canReplace = Boolean(
+    conversationId &&
+    mealData?.mealPlanId &&
+    Number.isSafeInteger(mealData?.mealRevision) &&
+    mealData?.meals?.[selection.mealIndex]?.foods?.[selection.foodIndex]?.foodId,
+  );
+  const selectedFood = canReplace
+    ? mealData.meals[selection.mealIndex].foods[selection.foodIndex]
+    : null;
+  const isReplacing = replacementState === "loading";
+
+  const handleReplacement = async () => {
+    if (!canReplace || disabled || isReplacing) return;
+    setReplacementState("loading");
+    setReplacementMessage("");
+    const intent = {
+      mealPlanId: mealData.mealPlanId,
+      expectedRevision: mealData.mealRevision,
+      mealIndex: selection.mealIndex,
+      foodIndex: selection.foodIndex,
+    };
+    const attempt = resolveMealReplacementAttempt({
+      intent,
+      pendingAttempt: pendingReplacementRef.current,
+    });
+    pendingReplacementRef.current = attempt;
+    try {
+      const response = await replaceAiMealItem(conversationId, attempt);
+      const nextData = response?.data?.card?.data;
+      if (!nextData?.meals?.length) throw new Error("Invalid replacement response");
+      setMealData(nextData);
+      pendingReplacementRef.current = null;
+      setReplacementState("success");
+      setReplacementMessage(
+        `Đã đổi ${nextData.replacement?.before?.name || "món đã chọn"} thành ${
+          nextData.replacement?.after?.name || "món tương đương"
+        }.`,
+      );
+    } catch (error) {
+      const reconciledData = getReconciledMealData(error, intent);
+      if (reconciledData) {
+        setMealData(reconciledData);
+        pendingReplacementRef.current = null;
+        setReplacementState("success");
+        setReplacementMessage(
+          "Thực đơn đã được đồng bộ với kết quả mới nhất. Bạn chọn lại món nếu muốn đổi tiếp nhé.",
+        );
+        return;
+      }
+      const uncertainOutcome =
+        error.code !== "ERR_CANCELED" &&
+        (!error.response || Number(error.response?.status) >= 500);
+      if (!uncertainOutcome) pendingReplacementRef.current = null;
+      setReplacementState("error");
+      setReplacementMessage(
+        uncertainOutcome
+          ? "Chưa xác nhận được kết quả đổi món. Nhấn lại để hệ thống kiểm tra an toàn."
+          : error.response?.data?.message ||
+              "Chưa thể đổi món tương đương lúc này. Bạn thử lại nhé.",
+      );
+    }
+  };
+
+  if (!mealData?.meals?.length) return null;
+
+  const {
+    targetCalories,
+    targetToleranceCalories = 100,
+    macros,
+    meals,
+    totals,
+    safety,
+  } = mealData;
+  const calorieTotal = totals?.calories ?? targetCalories;
+  const macroSummary = totals || macros;
+  const replacementNote = isReplacing
+    ? "Đang đối chiếu món tương đương an toàn"
+    : selectedFood
+      ? `Đang chọn: ${selectedFood.name}`
+      : `Sai số mục tiêu ±${formatNumber(targetToleranceCalories)} kcal`;
 
   return (
-    <div className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border border-orange-500/20 rounded-xl p-4 space-y-3 w-full">
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2">
-          <Utensils size={16} className="text-orange-400" />
-          <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">Gợi ý thực đơn</span>
-        </div>
-        <span className="text-[10px] text-gray-400 bg-white/5 px-2 py-0.5 rounded-full">
-          {targetCalories} kcal/ngày
-        </span>
-      </div>
-
-      {/* Macro summary */}
-      {macros && (
-        <div className="flex gap-3 text-[11px]">
-          <span className="text-blue-400">P: {macros.protein}g</span>
-          <span className="text-yellow-400">C: {macros.carb}g</span>
-          <span className="text-pink-400">F: {macros.fat}g</span>
-        </div>
-      )}
-
-      {safety?.warning && (
-        <div
-          role="note"
-          aria-label="Lưu ý dị ứng"
-          className="flex gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 p-2.5 text-[11px] leading-relaxed text-amber-100"
-        >
-          <AlertTriangle
-            size={15}
-            aria-hidden="true"
-            className="mt-0.5 shrink-0 text-amber-300"
+    <AssistantCard
+      eyebrow="THỰC ĐƠN GỢI Ý"
+      icon={Utensils}
+      iconTone="amber"
+      subtitle="Khẩu phần được tính từ dữ liệu thực phẩm trong hệ thống"
+      title={`Một ngày · ${meals.length} bữa`}
+      value={`${formatNumber(calorieTotal)} kcal`}
+      valueNote={
+        macroSummary
+          ? `P ${formatNumber(macroSummary.protein)}g · C ${formatNumber(macroSummary.carb)}g · F ${formatNumber(macroSummary.fat)}g`
+          : ""
+      }
+      footer={
+        canReplace ? (
+          <CardFooter
+            action={isReplacing ? "Đang đổi món..." : "Đổi món tương đương"}
+            disabled={disabled || isReplacing}
+            icon={RefreshCw}
+            note={replacementNote}
+            onClick={handleReplacement}
           />
-          <p>{safety.warning}</p>
-        </div>
+        ) : (
+          <CardFooter
+            action="Mở công cụ thực đơn"
+            icon={ArrowUpRight}
+            note={`Sai số mục tiêu ±${formatNumber(targetToleranceCalories)} kcal`}
+            to="/mealplan/"
+          />
+        )
+      }
+    >
+      {safety?.warning && (
+        <CardSection>
+          <CardNotice
+            aria-label="Lưu ý dị ứng"
+            icon={AlertTriangle}
+            role="note"
+            tone="amber"
+          >
+            {safety.warning}
+          </CardNotice>
+        </CardSection>
       )}
 
-      {/* Meals */}
-      <div className="space-y-2">
-        {meals.map((meal, i) => (
-          <div key={i} className="bg-black/20 rounded-lg p-2.5">
-            <p className="text-xs font-semibold text-orange-300 mb-1.5">{meal.label}</p>
-            <div className="space-y-1">
-              {meal.foods.map((food, j) => (
-                <div key={j} className="flex items-center justify-between text-[11px]">
-                  <span className="text-gray-300 truncate">{food.name}</span>
-                  <span className="text-gray-500 shrink-0 ml-2">{food.calories} kcal</span>
+      {replacementMessage && (
+        <CardSection>
+          <CardNotice
+            icon={replacementState === "success" ? CheckCircle2 : AlertTriangle}
+            role={replacementState === "error" ? "alert" : "status"}
+            tone={replacementState === "error" ? "amber" : "cyan"}
+          >
+            {replacementMessage}
+          </CardNotice>
+        </CardSection>
+      )}
+
+      <CardSection>
+        <CardList>
+          {meals.map((meal, index) => {
+            const mealTotals = getMealTotals(meal);
+            const foodSummary = (meal.foods || [])
+              .map((food) =>
+                `${food.name}${food.amountGrams ? ` ${formatNumber(food.amountGrams)}g` : ""}`,
+              )
+              .join(" · ");
+
+            return (
+              <li
+                key={`${meal.label || "meal"}-${index}`}
+                className="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
+              >
+                <IndexBadge tone="amber">
+                  {String(index + 1).padStart(2, "0")}
+                </IndexBadge>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-5 text-slate-900 dark:text-zinc-100">
+                    {meal.label || `Bữa ${index + 1}`}
+                  </p>
+                  {canReplace ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5" aria-label={`Chọn món trong ${meal.label || `bữa ${index + 1}`}`} role="group">
+                      {(meal.foods || []).map((food, foodIndex) => {
+                        const selected =
+                          selection.mealIndex === index &&
+                          selection.foodIndex === foodIndex;
+                        return (
+                          <button
+                            aria-pressed={selected}
+                            className={`min-h-11 rounded-xl border px-2.5 py-2 text-left text-xs leading-4 transition-[border-color,color,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none ${
+                              selected
+                                ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200"
+                                : "border-slate-200 text-slate-600 hover:border-emerald-500 dark:border-white/10 dark:text-zinc-300 dark:hover:border-emerald-400"
+                            }`}
+                            disabled={disabled || isReplacing}
+                            key={`${food.foodId || food.name}-${foodIndex}`}
+                            onClick={() => setSelection({ mealIndex: index, foodIndex })}
+                            type="button"
+                          >
+                            <span className="font-medium">{food.name}</span>
+                            {food.amountGrams ? (
+                              <span className="ml-1 text-slate-500 dark:text-zinc-400">
+                                {formatNumber(food.amountGrams)}g
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-pretty text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                      {foodSummary}
+                    </p>
+                  )}
                 </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+                <span className="shrink-0 text-right text-[13px] font-medium text-cyan-700 dark:text-cyan-300">
+                  {formatNumber(mealTotals.calories)} kcal
+                  {Number.isFinite(Number(mealTotals.protein)) && (
+                    <small className="mt-1 block text-xs font-normal text-slate-500 dark:text-zinc-400">
+                      {formatNumber(mealTotals.protein)}g protein
+                    </small>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </CardList>
+      </CardSection>
+    </AssistantCard>
   );
 }

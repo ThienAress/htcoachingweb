@@ -12,6 +12,7 @@ import {
   createAiChatStreamPacer,
   stopAiChatStreamSession,
 } from "./aiChatStreamPacer.js";
+import { isAllowedAiUiCard } from "../components/ChatWidget/aiCardPolicy.js";
 
 const STREAM_FLUSH_MS = 80;
 
@@ -24,6 +25,7 @@ export function mapAiMessages(rawMessages = []) {
         role: "user",
         content: message.content || "",
         image: message.image || null,
+        structuredAction: message.structuredAction || null,
         timestamp: message.timestamp,
       });
     } else if (message.role === "assistant") {
@@ -32,10 +34,10 @@ export function mapAiMessages(rawMessages = []) {
         role: "assistant",
         content: message.content || "",
         feedback: message.feedback || null,
-        uiCards: [],
+        uiCards: isAllowedAiUiCard(message.uiCard) ? [message.uiCard] : [],
         timestamp: message.timestamp,
       });
-    } else if (message.role === "tool" && message.uiCard) {
+    } else if (message.role === "tool" && isAllowedAiUiCard(message.uiCard)) {
       const lastAssistant = [...result]
         .reverse()
         .find((item) => item.role === "assistant");
@@ -43,38 +45,6 @@ export function mapAiMessages(rawMessages = []) {
     }
   }
   return result;
-}
-
-export function mergeEphemeralConfirmationCards(
-  persistedMessages,
-  localMessages,
-  localAssistantId,
-) {
-  const ephemeralCards = (localMessages || [])
-    .filter((message) => message.localId === localAssistantId)
-    .flatMap((message) => message.uiCards || [])
-    .filter((card) => card.cardType === "confirmation");
-  if (ephemeralCards.length === 0) return persistedMessages;
-
-  const targetIndex = [...persistedMessages]
-    .map((message, index) => ({ message, index }))
-    .reverse()
-    .find(({ message }) => message.role === "assistant")?.index;
-  if (targetIndex === undefined) return persistedMessages;
-
-  return persistedMessages.map((message, index) =>
-    index === targetIndex
-      ? {
-          ...message,
-          uiCards: [
-            ...(message.uiCards || []),
-            ...ephemeralCards.filter(
-              (card) => !(message.uiCards || []).includes(card),
-            ),
-          ],
-        }
-      : message,
-  );
 }
 
 function mergePersistedMessageIdentity(persistedMessages, localMessages) {
@@ -136,6 +106,9 @@ function mergePersistedMessageIdentity(persistedMessages, localMessages) {
     return {
       ...persistedMessage,
       ...(localMessage.localId ? { localId: localMessage.localId } : {}),
+      ...(localMessage.structuredAction && !persistedMessage.structuredAction
+        ? { structuredAction: localMessage.structuredAction }
+        : {}),
     };
   });
 
@@ -264,13 +237,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
               mapAiMessages(response.data.messages),
               localMessages,
             );
-            const messages = assistantLocalId
-              ? mergeEphemeralConfirmationCards(
-                  persistedMessages,
-                  localMessages,
-                  assistantLocalId,
-                )
-              : persistedMessages;
+            const messages = persistedMessages;
             latestMessages = messages;
             updateView(viewKey, {
               messages,
@@ -342,6 +309,8 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         isLoading: false,
         activeTool: null,
         terminalOutcome: outcome,
+        retryableFailedLocalId:
+          outcome === "cancelled" ? session.userLocalId : null,
       });
       if (reconcile) {
         void reconcileConversation(
@@ -511,9 +480,14 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
 
   const sendMessage = useCallback(
     async (text, context = {}, options = {}) => {
+      const structuredAction =
+        options.structuredAction || context.structuredAction || null;
+      const replaceMessage = options.replaceMessage || null;
+      const requestContext = { ...context };
+      delete requestContext.structuredAction;
       const normalizedText =
         String(text || "").trim() ||
-        (context.image ? "Hãy phân tích hình ảnh này." : "");
+        (requestContext.image ? "Hãy phân tích hình ảnh này." : "");
       if (!normalizedText) return;
 
       const registry = registryRef.current;
@@ -549,23 +523,44 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
 
       const timestamp = new Date().toISOString();
       updateView(viewKey, (view) => {
+        const replaceMessageIndex = replaceMessage
+          ? view.messages.findIndex((message) => (
+              (replaceMessage.localId &&
+                message.localId === replaceMessage.localId) ||
+              (replaceMessage._id && message._id === replaceMessage._id)
+            ))
+          : -1;
+        let baseMessages = view.messages;
+        if (replaceMessageIndex >= 0) {
+          let replacementEnd = replaceMessageIndex + 1;
+          while (
+            replacementEnd < view.messages.length &&
+            view.messages[replacementEnd].role !== "user"
+          ) {
+            replacementEnd += 1;
+          }
+          baseMessages = [
+            ...view.messages.slice(0, replaceMessageIndex),
+            ...view.messages.slice(replacementEnd),
+          ];
+        }
         const failedUserIndex = view.terminalOutcome === "error" &&
           view.retryableFailedLocalId &&
           targetConversationId === view.conversationId
-          ? view.messages.findIndex(
+          ? baseMessages.findIndex(
               (message) =>
                 message.localId === view.retryableFailedLocalId &&
                 message.role === "user" &&
                 !message._id,
             )
           : -1;
-        const lastUserIndex = view.messages.findLastIndex(
+        const lastUserIndex = baseMessages.findLastIndex(
           (message) => message.role === "user",
         );
         const previousMessages = failedUserIndex >= 0 &&
           failedUserIndex === lastUserIndex
-          ? view.messages.slice(0, failedUserIndex)
-          : view.messages;
+          ? baseMessages.slice(0, failedUserIndex)
+          : baseMessages;
         return {
           messages: [
             ...previousMessages,
@@ -573,7 +568,8 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
               localId: userLocalId,
               role: "user",
               content: normalizedText,
-              image: context.image || null,
+              image: requestContext.image || null,
+              structuredAction,
               timestamp,
             },
             {
@@ -612,7 +608,11 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
             message: normalizedText,
             conversationId: targetConversationId,
             requestId,
-            context,
+            context: requestContext,
+            ...(structuredAction && { structuredAction }),
+            ...(options.retryOfMessageId && {
+              retryOfMessageId: options.retryOfMessageId,
+            }),
           },
           { signal: controller.signal },
         );
@@ -685,7 +685,10 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
               }));
             } else if (event.type === "tool_result") {
               updateView(activeSession.viewKey, { activeTool: null });
-            } else if (event.type === "ui_card") {
+            } else if (
+              event.type === "ui_card" &&
+              isAllowedAiUiCard(event)
+            ) {
               updateView(activeSession.viewKey, (view) => ({
                 messages: view.messages.map((message) =>
                   message.localId === assistantLocalId
@@ -805,7 +808,13 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
   );
 
   const branchAndSend = useCallback(
-    async (messageId, text, context = {}, sourceMessage = null) => {
+    async (
+      messageId,
+      text,
+      context = {},
+      sourceMessage = null,
+      { retrySameConversation = false } = {},
+    ) => {
       const sourceViewKey = registryRef.current.getSelectedKey();
       const sourceNavigationSequence = navigationSequenceRef.current;
       const sourceConversationId =
@@ -832,6 +841,39 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         }
         clearHistory();
         return sendMessage(text, context, { targetConversationId: null });
+      }
+
+      if (retrySameConversation) {
+        const reconciledMessages = await reconcileConversation(
+          sourceConversationId,
+          sourceViewKey,
+          sourceMessage?.localId || null,
+        );
+        if (!sourceIsActive()) return;
+        if (!reconciledMessages) {
+          updateView(sourceViewKey, {
+            error:
+              "Tin nhắn chưa đồng bộ xong. Vui lòng chờ một chút rồi thử lại.",
+          });
+          return;
+        }
+        const reconciledSource = sourceMessage?.localId
+          ? reconciledMessages.find(
+              (message) => message.localId === sourceMessage.localId,
+            )
+          : sourceMessage?._id
+            ? reconciledMessages.find(
+                (message) => message._id === sourceMessage._id,
+              )
+            : null;
+        await sendMessage(text, context, {
+          targetConversationId: sourceConversationId,
+          replaceMessage: sourceMessage,
+          ...(reconciledSource?._id && {
+            retryOfMessageId: reconciledSource._id,
+          }),
+        });
+        return;
       }
 
       let resolvedMessageId = messageId;
@@ -944,11 +986,20 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
             .reverse()
             .find((message) => message.role === "user");
       if (target) {
+        const selectedView = registryRef.current.getSelectedView();
+        const retrySameConversation = Boolean(
+          selectedView.retryableFailedLocalId &&
+          target.localId === selectedView.retryableFailedLocalId,
+        );
         void branchAndSend(
           target._id,
           target.content,
-          { image: target.image },
+          {
+            image: target.image,
+            structuredAction: target.structuredAction,
+          },
           target,
+          { retrySameConversation },
         );
       }
     },

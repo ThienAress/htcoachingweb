@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { suggestMeal } from "../suggestMeal.tool.js";
+import { replaceMealFood, suggestMeal } from "../suggestMeal.tool.js";
 
 const reviewed = (
   contains = [],
@@ -402,6 +402,132 @@ describe("suggest_meal deterministic nutrition contract", () => {
     expect(result.uiCard.data).toMatchObject({
       status: "missing_data",
       reason: "scoped_adjustment_safety_conflict",
+      meals: [],
+    });
+  });
+});
+
+describe("meal replacement deterministic contract", () => {
+  const replacementCatalog = [
+    ...catalog,
+    {
+      _id: "turkey",
+      label: "Ức gà tây",
+      protein: 31,
+      carb: 0,
+      fat: 3.6,
+      allergenProfile: reviewed(),
+    },
+    {
+      _id: "unsafe-turkey",
+      label: "Ức gà tây sốt đậu phộng",
+      protein: 31,
+      carb: 0,
+      fat: 3.6,
+      allergenProfile: reviewed(["peanut"]),
+    },
+  ];
+  const previousMealPlan = {
+    status: "complete",
+    targetCalories: 1500,
+    targetToleranceCalories: 100,
+    nutritionMethod: "server_calculated_4p_4c_9f",
+    meals: Array.from({ length: 4 }, (_, index) => ({
+      label: `Bữa ${index + 1}`,
+      foods: [
+        {
+          foodId: "chicken",
+          name: "Ức gà",
+          amountGrams: 100,
+          macros: { protein: 31, carb: 0, fat: 3.6 },
+          calories: 156.4,
+        },
+        {
+          foodId: "rice",
+          name: "Cơm trắng",
+          amountGrams: 100,
+          macros: { protein: 2.7, carb: 28, fat: 0.3 },
+          calories: 125.5,
+        },
+        {
+          foodId: "oil",
+          name: "Dầu ô liu",
+          amountGrams: 10,
+          macros: { protein: 0, carb: 0, fat: 10 },
+          calories: 90,
+        },
+      ],
+      totals: { protein: 33.7, carb: 28, fat: 13.9, calories: 371.9 },
+    })),
+    totals: { protein: 134.8, carb: 112, fat: 55.6, calories: 1487.6 },
+    targets: {
+      proteinGrams: 135,
+      carbGrams: 112,
+      fatGrams: 56,
+      minimumProteinGrams: 130,
+    },
+  };
+  const replacementParams = {
+    targetCalories: 1500,
+    proteinGrams: 135,
+    carbGrams: 112,
+    fatGrams: 56,
+    mealsPerDay: 4,
+    targetToleranceCalories: 100,
+    minimumProteinGrams: 130,
+    excludedAllergens: ["peanut"],
+  };
+
+  it("changes only the selected food and preserves meal count, safety and nutrition bounds", async () => {
+    const result = await replaceMealFood(replacementParams, {
+      previousMealPlan,
+      mealIndex: 1,
+      foodIndex: 0,
+      findFoods: vi.fn().mockResolvedValue(replacementCatalog),
+    });
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "complete",
+      targetCalories: 1500,
+      safety: {
+        allergenConstraintsApplied: true,
+      },
+      replacement: {
+        mealIndex: 1,
+        foodIndex: 0,
+        before: { foodId: "chicken", name: "Ức gà" },
+        after: { foodId: "turkey", name: "Ức gà tây" },
+      },
+    });
+    expect(result.uiCard.data.meals).toHaveLength(4);
+    expect(result.uiCard.data.meals[1].foods[0].foodId).toBe("turkey");
+    expect(result.uiCard.data.meals[1].foods[0].name).not.toMatch(/đậu phộng/i);
+    expect(result.uiCard.data.meals.flatMap((meal) => meal.foods)
+      .filter((_food, index) => index !== 3)
+      .map((food) => food.foodId))
+      .toEqual(previousMealPlan.meals.flatMap((meal) => meal.foods)
+        .filter((_food, index) => index !== 3)
+        .map((food) => food.foodId));
+    expect(Math.abs(result.uiCard.data.totals.calories - 1500)).toBeLessThanOrEqual(100);
+    expect(result.uiCard.data.totals.protein).toBeGreaterThanOrEqual(130);
+  });
+
+  it("fails closed when the reviewed catalog has no safe equivalent", async () => {
+    const result = await replaceMealFood(replacementParams, {
+      previousMealPlan,
+      mealIndex: 0,
+      foodIndex: 0,
+      findFoods: vi.fn().mockResolvedValue([
+        catalog[0],
+        catalog[1],
+        catalog[2],
+        replacementCatalog.at(-1),
+      ]),
+    });
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data",
+      reason: "replacement_unavailable",
       meals: [],
     });
   });

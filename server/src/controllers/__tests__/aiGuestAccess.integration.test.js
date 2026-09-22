@@ -477,6 +477,64 @@ describe("AI guest access", () => {
     expect(afterRetry.messages.at(-1)?.content).toBe("Phản hồi đã phục hồi.");
   });
 
+  it("restores the persisted tail when a same-conversation retry fails", async () => {
+    const first = await guestRequest({
+      message: "Xin chào",
+      requestId: "a36e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
+    });
+    const conversationId = first.text.match(/"conversationId":"([^"]+)"/)?.[1];
+    const guestCookie = readGuestCookie(first);
+    const conversation = await ChatConversation.findById(conversationId)
+      .select("+guestKey");
+    conversation.messages.push(
+      { role: "user", content: "Cho tôi thêm động lực tập luyện" },
+      { role: "assistant", content: "Phần trả lời đã lưu" },
+      {
+        role: "tool",
+        content: "Kết quả công cụ đã lưu",
+        toolName: "suggest_meal",
+        toolCallId: "retry-rollback-tool",
+        toolStatus: "success",
+      },
+    );
+    conversation.messageCount = 4;
+    conversation.lastMessagePreview = "Phần trả lời đã lưu";
+    conversation.lastMessageAt = new Date("2026-09-20T00:00:00.000Z");
+    conversation.workingMemory = { preservedMarker: "before-retry" };
+    await conversation.save();
+    const retryTarget = conversation.messages.at(-3);
+    const original = await ChatConversation.findById(conversationId).lean();
+
+    llmStream.mockImplementationOnce(async function* failedRetry() {
+      throw new Error("synthetic retry provider failure");
+    });
+    const failed = await guestRequest(
+      {
+        message: retryTarget.content,
+        conversationId,
+        retryOfMessageId: retryTarget._id,
+        requestId: "a36e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
+      },
+      guestCookie,
+    );
+    const restored = await ChatConversation.findById(conversationId)
+      .select("+activeStreamId +recentRequestIds")
+      .lean();
+
+    expect(failed.text).toContain('"type":"error"');
+    expect(failed.text).toContain('"retryable":true');
+    expect(restored.messages.map(({ role, content }) => ({ role, content })))
+      .toEqual(original.messages.map(({ role, content }) => ({ role, content })));
+    expect(restored.messageCount).toBe(original.messageCount);
+    expect(restored.lastMessagePreview).toBe(original.lastMessagePreview);
+    expect(restored.lastMessageAt).toEqual(original.lastMessageAt);
+    expect(restored.workingMemory).toEqual({ preservedMarker: "before-retry" });
+    expect(restored.activeStreamId).toBeNull();
+    expect(rawRequestIdsFromStorage(restored.recentRequestIds)).not.toContain(
+      "a36e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
+    );
+  });
+
   it("preserves earlier turns when a later request fails and retries with the same key", async () => {
     const firstRequestId = "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b1";
     const retryRequestId = "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b2";

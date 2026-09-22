@@ -55,6 +55,21 @@ const feedbackReviewSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const structuredActionSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ["calculate_tdee"],
+      required: true,
+    },
+    payload: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true,
+    },
+  },
+  { _id: false },
+);
+
 const chatMessageSchema = new mongoose.Schema(
   {
     role: {
@@ -64,6 +79,10 @@ const chatMessageSchema = new mongoose.Schema(
     },
     content: { type: String, default: "", maxlength: 20000 },
     image: { type: String, default: null, maxlength: 420000 },
+    structuredAction: {
+      type: structuredActionSchema,
+      default: null,
+    },
     toolCalls: { type: mongoose.Schema.Types.Mixed, default: null },
     toolName: { type: String, default: null, maxlength: 100 },
     toolCallId: { type: String, default: null, maxlength: 200 },

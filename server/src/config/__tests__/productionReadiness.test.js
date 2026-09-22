@@ -28,6 +28,7 @@ const validEnvironment = () => ({
   RESEND_API_KEY: "resend-" + "g".repeat(32),
   AI_PROVIDER: "gemini",
   GEMINI_API_KEY: "gemini-" + "h".repeat(32),
+  GEMINI_SEARCH_MODEL: "gemini-2.5-flash",
   GEMINI_PAID_SERVICE_CONFIRMED: "true",
   GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED: "false",
   FOOD_REFERENCE_LOOKUP_ENABLED: "false",
@@ -73,8 +74,28 @@ describe("production readiness configuration", () => {
         cspEnforced: true,
         defaultAdminTrainerMode: "admin_email",
         cloudinaryBackupEnabled: false,
+        geminiSearchModel: "gemini-2.5-flash",
       }),
     );
+  });
+
+  it("rejects a path-like Gemini Search model identifier", () => {
+    const env = validEnvironment();
+    env.GEMINI_SEARCH_MODEL = "models/gemini-2.5-flash?key=secret";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect({
+      codes: result.errors.map((finding) => finding.code),
+      summaryModel: result.summary.geminiSearchModel,
+      leaksInvalidValue: JSON.stringify(result).includes(
+        "models/gemini-2.5-flash?key=secret",
+      ),
+    }).toEqual({
+      codes: expect.arrayContaining(["GEMINI_SEARCH_MODEL_INVALID"]),
+      summaryModel: "invalid",
+      leaksInvalidValue: false,
+    });
   });
 
   it("rejects an invalid explicit default admin trainer ID", () => {

@@ -26,6 +26,8 @@ const MEAL_ALLERGENS = new Set([
   "soy",
   "sesame",
 ]);
+const MEAL_PLAN_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const asPlainObject = (value) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -37,6 +39,33 @@ const boundedNumber = (value, min, max) => {
   return Number.isFinite(number) && number >= min && number <= max
     ? number
     : null;
+};
+
+const sanitizeMealReplacementOperation = (value) => {
+  const operation = asPlainObject(value);
+  const expectedRevision = boundedNumber(
+    operation.expectedRevision,
+    1,
+    1_000_000,
+  );
+  const mealIndex = boundedNumber(operation.mealIndex, 0, 5);
+  const foodIndex = boundedNumber(operation.foodIndex, 0, 11);
+  if (
+    !MEAL_PLAN_ID_PATTERN.test(String(operation.operationId || "")) ||
+    !MEAL_PLAN_ID_PATTERN.test(String(operation.mealPlanId || "")) ||
+    !Number.isInteger(expectedRevision) ||
+    !Number.isInteger(mealIndex) ||
+    !Number.isInteger(foodIndex)
+  ) {
+    return null;
+  }
+  return {
+    operationId: operation.operationId,
+    mealPlanId: operation.mealPlanId,
+    expectedRevision,
+    mealIndex,
+    foodIndex,
+  };
 };
 
 const sanitizeTdeeInput = (args, toolResult) => {
@@ -258,17 +287,24 @@ export function updateConversationMemory(
     }
   } else if (toolName === "suggest_meal") {
     const meal = sanitizeMealArgs(args);
-    const plan = sanitizeMealPlan(asPlainObject(toolResult?.uiCard).data);
+    const cardData = asPlainObject(asPlainObject(toolResult?.uiCard).data);
+    const plan = sanitizeMealPlan(cardData);
     if (meal && plan) {
-      const previousRevision = boundedNumber(
-        asPlainObject(memory.lastMeal).revision,
-        0,
+      const mealPlanId = MEAL_PLAN_ID_PATTERN.test(
+        String(cardData.mealPlanId || ""),
+      )
+        ? cardData.mealPlanId
+        : null;
+      const mealRevision = boundedNumber(
+        cardData.mealRevision,
+        1,
         1_000_000,
-      ) || 0;
+      ) || 1;
       memory.lastMeal = {
         ...meal,
         plan,
-        revision: previousRevision + 1,
+        ...(mealPlanId && { mealPlanId }),
+        revision: mealRevision,
         updatedAt: new Date(),
       };
     }
@@ -295,10 +331,20 @@ export function deriveConversationMemory(messages = [], initialMemory = {}) {
     } else {
       const plan = sanitizeMealPlan(storedMeal.plan);
       const revision = boundedNumber(storedMeal.revision, 0, 1_000_000) || 0;
+      const mealPlanId = MEAL_PLAN_ID_PATTERN.test(
+        String(storedMeal.mealPlanId || ""),
+      )
+        ? storedMeal.mealPlanId
+        : null;
+      const lastReplacementOperation = sanitizeMealReplacementOperation(
+        storedMeal.lastReplacementOperation,
+      );
       memory.lastMeal = {
         ...meal,
         ...(plan && { plan }),
+        ...(mealPlanId && { mealPlanId }),
         revision,
+        ...(lastReplacementOperation && { lastReplacementOperation }),
         ...(storedMeal.updatedAt && { updatedAt: storedMeal.updatedAt }),
       };
     }

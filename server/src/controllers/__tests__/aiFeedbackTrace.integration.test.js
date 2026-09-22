@@ -48,6 +48,18 @@ import { chatStream } from "../ai.controller.js";
 let app;
 const originalSuggestMealExecute = toolRegistry.suggest_meal.execute;
 const originalSearchExercisesExecute = toolRegistry.search_exercises.execute;
+const CONFIRMED_TDEE_PAYLOAD = Object.freeze({
+  gender: "male",
+  age: 30,
+  heightCm: 180,
+  weightKg: 80,
+  goal: "maintenance",
+  dailyMovement: "mostly_seated",
+  steps: "under_5000",
+  trainingFrequency: "none",
+  trainingDuration: "none",
+  trainingIntensity: "none",
+});
 
 beforeAll(async () => {
   await setupTestDB();
@@ -55,6 +67,22 @@ beforeAll(async () => {
   app = createTestApp();
   app.use("/api/ai", aiRoutes);
 });
+
+const submitConfirmedTdee = async ({ accessToken, userId, requestId }) => {
+  const response = await withAuth(
+    request(app).post("/api/ai/chat"),
+    accessToken,
+  ).send({
+    message: "Xác nhận và tính TDEE",
+    structuredAction: {
+      type: "calculate_tdee",
+      payload: CONFIRMED_TDEE_PAYLOAD,
+    },
+    requestId,
+  });
+  const conversation = await ChatConversation.findOne({ userId }).lean();
+  return { response, conversation };
+};
 
 beforeEach(() => {
   llmStreamMock.mockReset();
@@ -249,16 +277,10 @@ describe("AI answer trace and feedback review", () => {
     expect(streamedText).toContain("SERVER_DIRECT_MEAL");
   });
 
-  it("does not accept prose in place of the mandatory TDEE tool", async () => {
+  it("uses the TDEE intake form instead of accepting model prose", async () => {
     const { user, accessToken } = await createTestUser();
-    let requiredToolName;
-    llmStreamMock.mockImplementationOnce(async function* inventedTdee(
-      _messages,
-      _tools,
-      options,
-    ) {
-      requiredToolName = options.requiredToolName;
-      yield { type: "text", content: "TDEE của bạn chắc chắn là 2500 kcal." };
+    llmStreamMock.mockImplementationOnce(() => {
+      throw new Error("chat model must not run before TDEE confirmation");
     });
 
     const response = await withAuth(
@@ -273,12 +295,84 @@ describe("AI answer trace and feedback review", () => {
       (item) => item.role === "assistant" && item.content,
     );
 
-    expect(requiredToolName).toBe("calculate_tdee");
-    expect(answer.content).toMatch(/TDEE là một ước tính.*chưa đủ dữ liệu/is);
-    expect(answer.content).toMatch(/tối đa 5 nhóm/i);
-    expect(answer.content).not.toMatch(/TDEE chính xác/i);
+    expect(llmStreamMock).not.toHaveBeenCalled();
+    expect(response.text).toContain('"cardType":"tdeeForm"');
+    expect(answer.content).toMatch(/bổ sung.*xác nhận.*tính TDEE/is);
     expect(answer.content).not.toContain("2500");
     expect(response.status).toBe(200);
+  });
+
+  it("requires form confirmation even when the TDEE request already contains every field", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementationOnce(() => {
+      throw new Error("chat model must not run before TDEE confirmation");
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message:
+        "Tính TDEE: tôi là nam, 28 tuổi, cao 175cm, nặng 75kg, làm văn phòng ngồi nhiều, 6500 bước mỗi ngày, tập 3-4 buổi, 45 phút mỗi buổi, cường độ vừa, mục tiêu giảm mỡ",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de108",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const intakeCard = conversation.messages.find(
+      (item) => item.uiCard?.cardType === "tdeeForm",
+    )?.uiCard;
+    const calculatedTdee = conversation.messages.find(
+      (item) => item.role === "tool" && item.toolName === "calculate_tdee",
+    );
+
+    expect({
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      intakeCardType: intakeCard?.cardType,
+      missingFields: intakeCard?.data?.missingFields,
+      calculatedTdee,
+    }).toEqual({
+      status: 200,
+      modelCalls: 0,
+      intakeCardType: "tdeeForm",
+      missingFields: [],
+      calculatedTdee: undefined,
+    });
+  });
+
+  it.each([
+    ["TDEE là gì?", "TDEE là tổng năng lượng"],
+    ["BMR khác TDEE thế nào?", "BMR là năng lượng nền"],
+  ])("answers TDEE knowledge without opening an intake form: %s", async (message, answerText) => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementationOnce(async function* tdeeKnowledgeAnswer() {
+      yield { type: "text", content: answerText };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message,
+      requestId: message.startsWith("TDEE")
+        ? "164ff640-9fd0-4be6-bcd8-d1e9342de109"
+        : "164ff640-9fd0-4be6-bcd8-d1e9342de110",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const persistedAnswer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect({
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      hasIntakeCard: response.text.includes('"cardType":"tdeeForm"'),
+      answer: persistedAnswer?.content,
+    }).toEqual({
+      status: 200,
+      modelCalls: 1,
+      hasIntakeCard: false,
+      answer: answerText,
+    });
   });
 
   it.each(["provider_error", "double_invalid", "empty_final"])(
@@ -359,18 +453,10 @@ describe("AI answer trace and feedback review", () => {
     expect(JSON.stringify(answer.answerTrace)).not.toContain("Lisa");
   });
 
-  it("exposes only TDEE before a compound meal request has canonical results", async () => {
-    const { accessToken } = await createTestUser();
-    let exposedTools = [];
-    llmStreamMock.mockImplementationOnce(async function* compoundToolResponse(
-      _messages,
-      tools,
-    ) {
-      exposedTools = tools.map((tool) => tool.function.name);
-      yield {
-        type: "text",
-        content: "Mình cần số đo của bạn để tính TDEE trước khi gợi ý thực đơn.",
-      };
+  it("requires TDEE form confirmation before a compound meal request", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementationOnce(() => {
+      throw new Error("chat model must not run before TDEE confirmation");
     });
 
     const response = await withAuth(
@@ -381,64 +467,50 @@ describe("AI answer trace and feedback review", () => {
       requestId: "bfa5d0a6-a3b7-4d9e-9109-bf15df156f92",
     });
 
-    expect({ status: response.status, exposedTools }).toEqual({
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const intakeCard = conversation.messages.find(
+      (item) => item.uiCard?.cardType === "tdeeForm",
+    )?.uiCard;
+    const toolCalls = conversation.messages.flatMap(
+      (item) => item.toolCalls || [],
+    );
+
+    expect({
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      intakeCardType: intakeCard?.cardType,
+      toolCalls,
+    }).toEqual({
       status: 200,
-      exposedTools: ["calculate_tdee"],
+      modelCalls: 0,
+      intakeCardType: "tdeeForm",
+      toolCalls: [],
     });
   });
 
-  it("runs a compound meal only after successful TDEE and replaces invented macros", async () => {
+  it("uses confirmed TDEE macros for the subsequent meal request", async () => {
     const { user, accessToken } = await createTestUser();
-    const toolNamesByTurn = [];
-    const validTdeeArgs = {
-      gender: "male",
-      age: 30,
-      heightCm: 180,
-      weightKg: 80,
-      goal: "maintenance",
-      dailyMovement: "mostly_seated",
-      steps: "under_5000",
-      trainingFrequency: "none",
-      trainingDuration: "none",
-      trainingIntensity: "none",
-    };
-    llmStreamMock.mockImplementation(async function* compoundResponse(_messages, tools) {
-      toolNamesByTurn.push(tools.map((tool) => tool.function.name));
-      if (toolNamesByTurn.length === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [
-            { id: "tdee-1", name: "calculate_tdee", args: validTdeeArgs },
-            {
-              id: "premature-meal",
-              name: "suggest_meal",
-              args: { targetCalories: 6000, proteinGrams: 500, carbGrams: 1000, fatGrams: 300 },
-            },
-          ],
-        };
-      } else if (toolNamesByTurn.length === 2) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "meal-1",
-            name: "suggest_meal",
-            args: { targetCalories: 6000, proteinGrams: 500, carbGrams: 1000, fatGrams: 300, mealsPerDay: 4 },
-          }],
-        };
-      } else {
-        yield { type: "text", content: "TDEE và thực đơn đã được tính theo số liệu chuẩn." };
-      }
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not choose canonical meal macros");
     });
-
+    const confirmed = await submitConfirmedTdee({
+      accessToken,
+      userId: user._id,
+      requestId: "bfa5d0a6-a3b7-4d9e-9109-bf15df156f90",
+    });
     const response = await withAuth(
       request(app).post("/api/ai/chat"),
       accessToken,
     ).send({
-      message: "Tính TDEE rồi gợi ý thực đơn cho tôi",
+      message: "Gợi ý thực đơn Moderate-carb cho tôi với 4 bữa",
+      conversationId: confirmed.conversation._id,
       requestId: "bfa5d0a6-a3b7-4d9e-9109-bf15df156f93",
     });
 
-    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const conversation = await ChatConversation.findById(
+      confirmed.conversation._id,
+    ).lean();
     const tdeeCard = conversation.messages.find((message) =>
       message.role === "tool" && message.toolName === "calculate_tdee",
     )?.uiCard;
@@ -447,14 +519,16 @@ describe("AI answer trace and feedback review", () => {
     const moderateMacros = tdeeCard?.data?.macros?.["Moderate-carb"];
 
     expect({
+      confirmedStatus: confirmed.response.status,
       status: response.status,
-      toolNamesByTurn,
+      modelCalls: llmStreamMock.mock.calls.length,
       mealCalls: conversation.messages.flatMap((message) => message.toolCalls || [])
         .filter((call) => call.name === "suggest_meal").length,
       mealArgs: mealCall?.args,
     }).toEqual({
+      confirmedStatus: 200,
       status: 200,
-      toolNamesByTurn: [["calculate_tdee"], ["suggest_meal"]],
+      modelCalls: 0,
       mealCalls: 1,
       mealArgs: {
         targetCalories: tdeeCard?.data?.targetCalories,
@@ -519,172 +593,108 @@ describe("AI answer trace and feedback review", () => {
       requestId: "7ef20414-8c01-47d4-b339-e8b5db8463b9",
       expectedMacros: { proteinGrams: 160, carbGrams: 267, fatGrams: 47 },
     },
-  ])("keeps explicit $plan preference when model invents meal macros", async ({
+  ])("keeps explicit $plan preference after TDEE confirmation", async ({
     plan,
     message,
     requestId,
     expectedMacros,
   }) => {
     const { user, accessToken } = await createTestUser();
-    let providerTurn = 0;
-    llmStreamMock.mockImplementation(async function* compoundResponse() {
-      providerTurn++;
-      if (providerTurn === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "tdee-1",
-            name: "calculate_tdee",
-            args: {
-              gender: "male",
-              age: 30,
-              heightCm: 180,
-              weightKg: 80,
-              goal: "maintenance",
-              dailyMovement: "mostly_seated",
-              steps: "under_5000",
-              trainingFrequency: "none",
-              trainingDuration: "none",
-              trainingIntensity: "none",
-            },
-          }],
-        };
-      } else if (providerTurn === 2) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "meal-1",
-            name: "suggest_meal",
-            args: {
-              targetCalories: 6000,
-              proteinGrams: 500,
-              carbGrams: 1000,
-              fatGrams: 300,
-              mealsPerDay: 4,
-            },
-          }],
-        };
-      } else {
-        yield { type: "text", content: "Đã tạo thực đơn theo TDEE." };
-      }
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not choose canonical meal macros");
     });
-
+    const confirmed = await submitConfirmedTdee({
+      accessToken,
+      userId: user._id,
+      requestId: `${requestId.slice(0, -1)}0`,
+    });
+    const mealMessage = (
+      message || `Tính TDEE rồi gợi ý thực đơn ${plan} cho tôi`
+    ).replace(/^Tính TDEE rồi\s*/i, "");
     const response = await withAuth(
       request(app).post("/api/ai/chat"),
       accessToken,
     ).send({
-      message: message || `Tính TDEE rồi gợi ý thực đơn ${plan} cho tôi`,
+      message: mealMessage,
+      conversationId: confirmed.conversation._id,
       requestId,
     });
-    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const conversation = await ChatConversation.findById(
+      confirmed.conversation._id,
+    ).lean();
     const mealCall = conversation.messages.flatMap((item) => item.toolCalls || [])
       .find((call) => call.name === "suggest_meal");
 
-    expect({ status: response.status, providerTurn, mealArgs: mealCall?.args }).toEqual({
+    expect({
+      confirmedStatus: confirmed.response.status,
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      mealArgs: mealCall?.args,
+    }).toEqual({
+      confirmedStatus: 200,
       status: 200,
-      providerTurn: 2,
-      mealArgs: { targetCalories: 2136, ...expectedMacros, mealsPerDay: 4 },
+      modelCalls: 0,
+      mealArgs: { targetCalories: 2136, ...expectedMacros, mealsPerDay: 3 },
     });
   });
 
-  it("never unlocks a compound meal after TDEE validation fails", async () => {
+  it("rejects an incomplete confirmed TDEE payload before any meal can run", async () => {
     const { user, accessToken } = await createTestUser();
-    const toolNamesByTurn = [];
-    llmStreamMock.mockImplementation(async function* invalidTdeeResponse(_messages, tools) {
-      toolNamesByTurn.push(tools.map((tool) => tool.function.name));
-      if (toolNamesByTurn.length === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{ id: "invalid-tdee", name: "calculate_tdee", args: {} }],
-        };
-      } else {
-        yield { type: "text", content: "Mình cần đủ số đo và mức vận động trước." };
-      }
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not repair an invalid TDEE action");
     });
 
     const response = await withAuth(
       request(app).post("/api/ai/chat"),
       accessToken,
     ).send({
-      message: "Tính TDEE rồi gợi ý thực đơn Low-carb cho tôi",
+      message: "Xác nhận và tính TDEE",
+      structuredAction: { type: "calculate_tdee", payload: {} },
       requestId: "bfa5d0a6-a3b7-4d9e-9109-bf15df156f94",
     });
     const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
 
     expect({
       status: response.status,
-      toolNamesByTurn,
-      mealCalls: conversation.messages.flatMap((message) => message.toolCalls || [])
-        .filter((call) => call.name === "suggest_meal").length,
+      modelCalls: llmStreamMock.mock.calls.length,
+      conversation,
     }).toEqual({
-      status: 200,
-      toolNamesByTurn: [["calculate_tdee"], ["calculate_tdee"]],
-      mealCalls: 0,
+      status: 400,
+      modelCalls: 0,
+      conversation: null,
     });
   });
 
   it("uses stored canonical TDEE macros for an explicit High-carb meal follow-up", async () => {
     const { user, accessToken } = await createTestUser();
-    let providerTurn = 0;
-    llmStreamMock.mockImplementation(async function* twoTurnMealResponse() {
-      providerTurn++;
-      if (providerTurn === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "initial-tdee",
-            name: "calculate_tdee",
-            args: {
-              gender: "male",
-              age: 30,
-              heightCm: 180,
-              weightKg: 80,
-              goal: "maintenance",
-              dailyMovement: "mostly_seated",
-              steps: "under_5000",
-              trainingFrequency: "none",
-              trainingDuration: "none",
-              trainingIntensity: "none",
-            },
-          }],
-        };
-      } else if (providerTurn === 3) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "follow-up-meal",
-            name: "suggest_meal",
-            args: {
-              targetCalories: 6000,
-              proteinGrams: 500,
-              carbGrams: 1000,
-              fatGrams: 300,
-              mealsPerDay: 4,
-            },
-          }],
-        };
-      } else {
-        yield { type: "text", content: "Đã tính xong." };
-      }
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not choose canonical meal macros");
     });
-
-    await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
-      message: "Tính TDEE cho tôi",
+    const confirmed = await submitConfirmedTdee({
+      accessToken,
+      userId: user._id,
       requestId: "d4acfe6d-a083-46e4-9479-b84cc7601301",
     });
-    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
     const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
       message: "Gợi ý thực đơn High-carb cho tôi với 4 bữa",
-      conversationId: conversation._id,
+      conversationId: confirmed.conversation._id,
       requestId: "d4acfe6d-a083-46e4-9479-b84cc7601302",
     });
-    const updated = await ChatConversation.findById(conversation._id).lean();
+    const updated = await ChatConversation.findById(
+      confirmed.conversation._id,
+    ).lean();
     const mealCall = updated.messages.flatMap((item) => item.toolCalls || [])
       .find((call) => call.name === "suggest_meal");
 
-    expect({ status: response.status, providerTurn, mealArgs: mealCall?.args }).toEqual({
+    expect({
+      confirmedStatus: confirmed.response.status,
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      mealArgs: mealCall?.args,
+    }).toEqual({
+      confirmedStatus: 200,
       status: 200,
-      providerTurn: 2,
+      modelCalls: 0,
       mealArgs: {
         targetCalories: 2136,
         proteinGrams: 160,
@@ -2226,6 +2236,7 @@ describe("AI answer trace and feedback review", () => {
     expect(answer.content).not.toContain("Unsupported speculation");
     expect(answer.content).not.toContain("bench press mỗi ngày");
     expect(answer.content).toContain("https://example.com/ronaldo-training");
+    expect(response.text).toContain('"cardType":"webSources"');
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
       evidenceMode: "web_required",
@@ -2239,6 +2250,19 @@ describe("AI answer trace and feedback review", () => {
     });
     expect(callId).toMatch(/^server-search_knowledge-/);
     expect(conversation.messages[toolResultIndex]?.toolCallId).toBe(callId);
+    expect(conversation.messages[toolResultIndex]?.uiCard).toMatchObject({
+      cardType: "webSources",
+      data: {
+        topic: "Ronaldo thường tập những bài gì trong phòng gym?",
+        searchedAt: expect.any(String),
+        sources: [
+          {
+            title: "Nguồn chính thức (example.com)",
+            uri: "https://example.com/ronaldo-training",
+          },
+        ],
+      },
+    });
   });
 
   it("distinguishes a provider error from a source-free grounded search", async () => {
@@ -2886,6 +2910,74 @@ describe("AI answer trace and feedback review", () => {
         reviewedBy: null,
         reviewedAt: null,
       },
+    });
+  });
+
+  it("preserves retained feedback when a concurrent retry later rolls back", async () => {
+    const { user, accessToken } = await createTestUser();
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Concurrent retry feedback",
+      messages: [
+        { role: "user", content: "Câu hỏi được giữ lại" },
+        { role: "assistant", content: "Câu trả lời được giữ lại" },
+        { role: "user", content: "Tôi cần thêm động lực tập luyện" },
+        { role: "assistant", content: "Câu trả lời cũ của lượt retry" },
+      ],
+      messageCount: 4,
+    });
+    const retainedAssistant = conversation.messages[1];
+    const retryTarget = conversation.messages[2];
+    let markProviderReached;
+    let failProvider;
+    const providerReached = new Promise((resolve) => {
+      markProviderReached = resolve;
+    });
+    const providerGate = new Promise((resolve) => {
+      failProvider = resolve;
+    });
+    llmStreamMock.mockImplementationOnce(async function* failedRetryStream() {
+      markProviderReached();
+      await providerGate;
+      throw new Error("synthetic retry failure after feedback");
+    });
+
+    const retryPromise = withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: retryTarget.content,
+      conversationId: conversation._id,
+      retryOfMessageId: retryTarget._id,
+      requestId: "6fb18db6-c3eb-44ce-b717-d68376009141",
+    }).then((response) => response);
+
+    await providerReached;
+    const feedback = await withAuth(
+      request(app).post(
+        `/api/ai/conversations/${conversation._id}/feedback`,
+      ),
+      accessToken,
+    ).send({ messageId: retainedAssistant._id, feedback: "down" });
+    failProvider();
+    const failedRetry = await retryPromise;
+    const restored = await ChatConversation.findById(conversation._id).lean();
+    const retained = restored.messages.find(
+      ({ _id }) => String(_id) === String(retainedAssistant._id),
+    );
+
+    expect({
+      feedbackStatus: feedback.status,
+      retryFailed: failedRetry.text.includes('"type":"error"'),
+      retryable: failedRetry.text.includes('"retryable":true'),
+      feedback: retained?.feedback,
+      reviewStatus: retained?.feedbackReview?.status,
+    }).toEqual({
+      feedbackStatus: 200,
+      retryFailed: true,
+      retryable: true,
+      feedback: "down",
+      reviewStatus: "pending",
     });
   });
 

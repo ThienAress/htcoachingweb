@@ -50,6 +50,7 @@ import {
   updateConversationMemory,
 } from "../services/ai/conversationMemory.js";
 import { buildCanonicalMealToolRequest } from "../services/ai/mealRequestConstraints.js";
+import { buildTdeeIntakeResponse } from "../services/ai/tdeeIntake.js";
 import {
   hasLimitedDumbbellBandConstraint,
   validateWorkoutEquipmentOutput,
@@ -82,10 +83,6 @@ import {
   AI_RUNTIME_POLICY,
   boundAiToolCalls,
 } from "../services/ai/runtimePolicy.js";
-import {
-  createAiToolConfirmation,
-  serializeAiToolConfirmationCard,
-} from "../services/ai/toolConfirmation.service.js";
 import {
   buildChatSummary,
   MAX_RECENT_REQUEST_IDS,
@@ -148,6 +145,27 @@ const canonicalExerciseArgs = (message, args = {}) => {
     ...(args.muscleGroup && { muscleGroup: args.muscleGroup }),
     searchQuery: intent,
     ...(Number.isInteger(args.limit) && { limit: args.limit }),
+  };
+};
+
+const attachMealIdentity = (toolName, toolResult) => {
+  if (
+    toolName !== "suggest_meal" ||
+    toolResult?.uiCard?.cardType !== "meal" ||
+    toolResult.uiCard.data?.status !== "complete"
+  ) {
+    return toolResult;
+  }
+  return {
+    ...toolResult,
+    uiCard: {
+      ...toolResult.uiCard,
+      data: {
+        ...toolResult.uiCard.data,
+        mealPlanId: crypto.randomUUID(),
+        mealRevision: 1,
+      },
+    },
   };
 };
 
@@ -230,7 +248,7 @@ const canReuseTdeeForMealFollowUp = (message) => {
     .toLowerCase()
     .replace(/\b(?:low|moderate|high)[\s-]*carb\b/g, " ")
     .replace(/\b[1-6]\s*(?:bua|meals?)(?:\s*(?:\/|moi|trong)\s*ngay)?\b/g, " ")
-    .replace(/\b(?:goi|y|thuc|don|len|lam|tao|doi|chuyen|cho|toi|minh|ban|giup|voi|theo|che|do|hay|nhe|an|bua|meal|plan|please)\b/g, " ")
+    .replace(/\b(?:goi|y|thuc|don|len|lam|tao|doi|chuyen|cho|toi|minh|ban|giup|voi|theo|che|do|hay|nhe|an|bua|meal|plan|please|khong|muon|chi|la|vi|du|phu|hop|chon|thay|ma|nhung|not|avoid|instead|of|rather|than|example|want|suitable|but)\b/g, " ")
     .replace(/[^a-z0-9]/g, "");
   // Chỉ dùng TDEE cũ cho lời hỏi tiếp thuần variant/số bữa. Mọi số đo,
   // calo, mục tiêu hoặc hoạt động mới phải được model xử lý như yêu cầu mới.
@@ -305,6 +323,7 @@ const serializePublicChatMessage = (message) => {
     role: source.role,
     content: source.content || "",
     image: source.image || null,
+    structuredAction: source.structuredAction || null,
     uiCard: source.uiCard || null,
     feedback: source.feedback || null,
     timestamp: source.timestamp,
@@ -339,15 +358,226 @@ const contextUpdate = (context) => {
   return update;
 };
 
+const buildRetryUserMessage = ({ message, image, structuredAction, timestamp }) => ({
+  role: "user",
+  content: message,
+  image,
+  structuredAction: structuredAction || null,
+  timestamp,
+});
+
+const canonicalRetryValue = (value) => {
+  const source = value?.toObject?.() || value;
+  if (source === undefined || source === null) return null;
+  if (Array.isArray(source)) return source.map(canonicalRetryValue);
+  if (typeof source !== "object") return source;
+  return Object.fromEntries(
+    Object.keys(source)
+      .sort()
+      .map((key) => [key, canonicalRetryValue(source[key])]),
+  );
+};
+
+const retryValuesEqual = (left, right) =>
+  JSON.stringify(canonicalRetryValue(left)) ===
+  JSON.stringify(canonicalRetryValue(right));
+
+const acquireRetryConversation = async ({
+  ownerFilter,
+  conversationTtlMs,
+  conversationId,
+  retryOfMessageId,
+  requestKey,
+  requestLookupKeys,
+  message,
+  image,
+  structuredAction,
+  context,
+  streamId,
+}) => {
+  const existing = await ChatConversation.findOne({
+    _id: conversationId,
+    ...ownerFilter,
+  })
+    .select("+guestKey +activeStreamId +activeStreamStartedAt +recentRequestIds")
+    .lean();
+
+  if (!existing) throw httpError(404, "Không tìm thấy cuộc trò chuyện");
+  if (existing.recentRequestIds?.some((value) => requestLookupKeys.includes(value))) {
+    return { conversation: existing, duplicate: true };
+  }
+  const staleBefore = new Date(Date.now() - STREAM_STALE_MS);
+  const activeStreamIsFresh = existing.activeStreamId &&
+    (!existing.activeStreamStartedAt || existing.activeStreamStartedAt >= staleBefore);
+  if (activeStreamIsFresh) {
+    throw httpError(409, "Cuộc trò chuyện đang xử lý một tin nhắn khác");
+  }
+
+  const targetIndex = existing.messages.findIndex(
+    (candidate) =>
+      String(candidate._id) === String(retryOfMessageId) &&
+      candidate.role === "user",
+  );
+  if (targetIndex < 0) {
+    throw httpError(409, "Tin nhắn cần retry không còn trong cuộc trò chuyện");
+  }
+
+  const targetMessage = existing.messages[targetIndex];
+  if (targetMessage.content !== message) {
+    throw httpError(409, "Nội dung retry không khớp tin nhắn gốc");
+  }
+  if ((targetMessage.image || null) !== (image || null) ||
+      !retryValuesEqual(targetMessage.structuredAction, structuredAction)) {
+    throw httpError(409, "Dữ liệu retry không khớp tin nhắn gốc");
+  }
+  if (existing.messages.slice(targetIndex + 1).some(({ role }) => role === "user")) {
+    throw httpError(409, "Chỉ có thể retry lượt cuối cùng của cuộc trò chuyện");
+  }
+
+  const retainedMessages = existing.messages.slice(0, targetIndex);
+  const removedTail = existing.messages.slice(targetIndex);
+  const snapshotMessages = existing.messages;
+  const currentWorkingMemory =
+    existing.workingMemory?.toObject?.() || existing.workingMemory || {};
+  const removedToolNames = new Set(
+    removedTail
+      .filter((item) => item.role === "tool")
+      .map((item) => item.toolName),
+  );
+  let nextWorkingMemory = currentWorkingMemory;
+  if (removedToolNames.has("calculate_tdee")) {
+    const memoryWithoutRemovedState = { ...currentWorkingMemory };
+    delete memoryWithoutRemovedState.lastTdee;
+    delete memoryWithoutRemovedState.lastMeal;
+    nextWorkingMemory = deriveConversationMemory(
+      retainedMessages,
+      memoryWithoutRemovedState,
+    );
+  } else if (removedToolNames.has("suggest_meal")) {
+    const memoryWithoutRemovedMeal = { ...currentWorkingMemory };
+    delete memoryWithoutRemovedMeal.lastMeal;
+    nextWorkingMemory = deriveConversationMemory(
+      retainedMessages,
+      memoryWithoutRemovedMeal,
+    );
+  }
+  const retryRollback = {
+    removedTail,
+    messageCount: Number(existing.messageCount || 0),
+    lastMessagePreview: existing.lastMessagePreview || "",
+    lastMessageAt: existing.lastMessageAt || null,
+    context: existing.context?.toObject?.() || existing.context || {},
+    workingMemory: currentWorkingMemory,
+    expiresAt: existing.expiresAt || null,
+  };
+  const timestamp = new Date();
+  const retryUserMessage = ChatConversation.hydrate(existing).messages.create(
+    buildRetryUserMessage({ message, image, structuredAction, timestamp }),
+  ).toObject();
+  const nextMessages = [
+    ...retainedMessages,
+    retryUserMessage,
+  ].slice(-MAX_STORED_CHAT_MESSAGES);
+  const removedAssistantCount = existing.messages
+    .slice(targetIndex)
+    .filter(({ role }) => role === "assistant").length;
+  const nextMessageCount = Math.max(
+    0,
+    Number(existing.messageCount || 0) - 1 - removedAssistantCount + 1,
+  );
+  const rawOwnerFilter = existing.userId
+    ? { userId: existing.userId }
+    : { guestKey: existing.guestKey };
+  const retrySnapshotFilter = {
+    _id: existing._id,
+    ...rawOwnerFilter,
+    __v: existing.__v,
+    messages: snapshotMessages,
+    messageCount: Number(existing.messageCount || 0),
+    $or: [
+      { activeStreamId: null },
+      { activeStreamId: { $exists: false } },
+      {
+        activeStreamId: { $ne: null },
+        activeStreamStartedAt: { $lt: staleBefore },
+      },
+    ],
+    recentRequestIds: { $nin: requestLookupKeys },
+  };
+  retrySnapshotFilter.workingMemory = Object.hasOwn(existing, "workingMemory")
+    ? currentWorkingMemory
+    : { $exists: false };
+  if (existing.updatedAt) retrySnapshotFilter.updatedAt = existing.updatedAt;
+  // The exact snapshot prevents a stale retry from replacing a turn that
+  // acquired/finalized after the initial read. Keep the active-stream guard
+  // above as the cheap contention check for legacy documents.
+  const acquisition = await ChatConversation.collection.updateOne(
+    retrySnapshotFilter,
+    {
+      $set: {
+        messages: nextMessages,
+        messageCount: nextMessageCount,
+        activeStreamId: streamId,
+        activeStreamStartedAt: timestamp,
+        expiresAt: new Date(Date.now() + conversationTtlMs),
+        updatedAt: timestamp,
+        lastMessagePreview: message.slice(0, 120),
+        lastMessageAt: timestamp,
+        workingMemory: nextWorkingMemory,
+        ...contextUpdate(context),
+      },
+      $push: {
+        recentRequestIds: {
+          $each: [requestKey],
+          $slice: -MAX_RECENT_REQUEST_IDS,
+        },
+      },
+      $inc: { __v: 1 },
+    },
+  );
+
+  if (acquisition.matchedCount !== 1) {
+    const winner = await ChatConversation.findOne({
+      _id: existing._id,
+      ...ownerFilter,
+      recentRequestIds: { $in: requestLookupKeys },
+    }).select("+activeStreamId +recentRequestIds");
+    if (winner) return { conversation: winner, duplicate: true };
+    throw httpError(409, "Cuộc trò chuyện vừa thay đổi. Vui lòng thử lại");
+  }
+  const activeSnapshot = await ChatConversation.collection.findOne({
+    _id: existing._id,
+    ...rawOwnerFilter,
+    activeStreamId: streamId,
+    recentRequestIds: requestKey,
+  });
+  if (!activeSnapshot) {
+    throw httpError(409, "Cuộc trò chuyện vừa thay đổi. Vui lòng thử lại");
+  }
+  const conversation = ChatConversation.hydrate(activeSnapshot);
+  retryRollback.activeMessageCount = Number(conversation.messageCount || 0);
+  retryRollback.activeMessagesLength = conversation.messages.length;
+  retryRollback.retainedMessageCount = Math.max(0, conversation.messages.length - 1);
+  retryRollback.activeWorkingMemory = activeSnapshot.workingMemory;
+  retryRollback.activeContext = activeSnapshot.context;
+  retryRollback.activeContextExists = Object.hasOwn(activeSnapshot, "context");
+  retryRollback.activeLastMessagePreview = activeSnapshot.lastMessagePreview;
+  retryRollback.activeLastMessageAt = activeSnapshot.lastMessageAt;
+  conversation.$locals.retryRollback = retryRollback;
+  return { conversation, duplicate: false, replaced: true };
+};
+
 async function acquireConversation({
   ownerFilter,
   ownerDocument,
   conversationTtlMs,
   conversationId,
+  retryOfMessageId,
   requestKey,
   requestLookupKeys,
   message,
   image,
+  structuredAction,
   context,
   streamId,
 }) {
@@ -363,8 +593,25 @@ async function acquireConversation({
     role: "user",
     content: message,
     image,
+    structuredAction: structuredAction || null,
     timestamp,
   };
+
+  if (conversationId && retryOfMessageId) {
+    return acquireRetryConversation({
+      ownerFilter,
+      conversationTtlMs,
+      conversationId,
+      retryOfMessageId,
+      requestKey,
+      requestLookupKeys,
+      message,
+      image,
+      structuredAction,
+      context,
+      streamId,
+    });
+  }
 
   if (!conversationId) {
     try {
@@ -502,6 +749,64 @@ async function releaseFailedConversation({
     throw new Error("Failed chat request has no owned user message");
   }
 
+  const retryRollback = conversation.$locals?.retryRollback;
+  if (retryRollback) {
+    const restoreMessageCount = Math.max(
+      0,
+      Number(retryRollback.messageCount || 0),
+    );
+    const retryTail = Array.isArray(retryRollback.removedTail)
+      ? retryRollback.removedTail
+      : [];
+    const activeContextFilter = retryRollback.activeContextExists
+      ? { context: retryRollback.activeContext }
+      : { context: { $exists: false } };
+    const update = await ChatConversation.updateOne(
+      {
+        _id: conversation._id,
+        ...ownerFilter,
+        activeStreamId: streamId,
+        recentRequestIds: requestKey,
+        [`messages.${retryRollback.retainedMessageCount}._id`]: failedUserMessage._id,
+        messages: { $size: retryRollback.activeMessagesLength },
+        messageCount: retryRollback.activeMessageCount,
+        workingMemory: retryRollback.activeWorkingMemory,
+        ...activeContextFilter,
+        lastMessagePreview: retryRollback.activeLastMessagePreview,
+        lastMessageAt: retryRollback.activeLastMessageAt,
+      },
+      [
+        {
+          $set: {
+            messages: {
+              $concatArrays: [
+                { $slice: ["$messages", retryRollback.retainedMessageCount] },
+                retryTail,
+              ],
+            },
+            messageCount: restoreMessageCount,
+            activeStreamId: null,
+            activeStreamStartedAt: null,
+            lastMessagePreview: retryRollback.lastMessagePreview,
+            lastMessageAt: retryRollback.lastMessageAt,
+            context: retryRollback.context,
+            workingMemory: retryRollback.workingMemory,
+            expiresAt: retryRollback.expiresAt,
+            recentRequestIds: {
+              $filter: {
+                input: "$recentRequestIds",
+                as: "recentRequestId",
+                cond: { $ne: ["$$recentRequestId", requestKey] },
+              },
+            },
+          },
+        },
+      ],
+      { updatePipeline: true, runValidators: true },
+    );
+    return update.modifiedCount === 1;
+  }
+
   const update = await ChatConversation.updateOne(
     {
       _id: conversation._id,
@@ -552,7 +857,15 @@ export const chatStream = async (req, res) => {
     await refundAiQuota(req, "request_invalid");
     return res.status(400).json({ success: false, message: parsed.error });
   }
-  const { message, conversationId, context, image, requestId } = parsed.value;
+  const {
+    message,
+    conversationId,
+    retryOfMessageId,
+    context,
+    image,
+    requestId,
+    structuredAction,
+  } = parsed.value;
   const requestKeyContract = buildConversationRequestKey({
     userId,
     guestKey,
@@ -636,10 +949,12 @@ export const chatStream = async (req, res) => {
       ownerDocument,
       conversationTtlMs,
       conversationId,
+      retryOfMessageId,
       requestKey: requestKeyContract.writeKey,
       requestLookupKeys: requestKeyContract.lookupKeys,
       message,
       image,
+      structuredAction,
       context: canonicalContext,
       streamId,
     });
@@ -885,6 +1200,56 @@ export const chatStream = async (req, res) => {
       return;
     }
 
+    if (
+      routingDecision.preferredTool === "calculate_tdee" &&
+      !structuredAction
+    ) {
+      const intake = buildTdeeIntakeResponse(message);
+      incrementMetric("provider.gemini_chat_not_required");
+      responseModel = "server_tdee_intake_v1";
+      aiLogger.chatStart(actorId, conversation._id);
+      res.write(
+        `data: ${JSON.stringify({ type: "ui_card", ...intake.uiCard })}\n\n`,
+      );
+      fullResponse = await deliverAssistantResponse(intake.text);
+      generatedMessages.push({
+        role: "assistant",
+        content: fullResponse,
+        uiCard: intake.uiCard,
+        answerTrace: buildAnswerTrace(),
+        timestamp: new Date(),
+      });
+      const finalization = await finalizeConversation({
+        conversationId: conversation._id,
+        ownerFilter,
+        conversationTtlMs,
+        streamId,
+        generatedMessages,
+        assistantPreview: fullResponse,
+        workingMemory: conversationMemory,
+      });
+      if (req.stagingAiAcceptance && finalization.modifiedCount !== 1) {
+        blockStagingAcceptanceSettlement(req);
+      }
+      finalized = true;
+      aiLogger.chatEnd(actorId, conversation._id, {
+        iterations: 0,
+        toolCalls: 0,
+        durationMs: Date.now() - chatStartTime,
+        kbHits: 0,
+      });
+      if (!abortController.signal.aborted) {
+        res.write(
+          `data: ${JSON.stringify({
+            type: "done",
+            conversationId: conversation._id,
+          })}\n\n`,
+        );
+        res.end();
+      }
+      return;
+    }
+
     const resolvedPageContext = await resolvePageContext(
       conversation.context,
       { expandContent: shouldExpandPageContent(message) },
@@ -1048,7 +1413,7 @@ export const chatStream = async (req, res) => {
     const requestedDietPlan = routeAllowedToolNameSet.has("suggest_meal")
       ? explicitDietPlan(message)
       : null;
-    const rememberedTdeeResult = !compoundTdeeMeal && requestedDietPlan &&
+    const rememberedTdeeResult = !compoundTdeeMeal &&
       canReuseTdeeForMealFollowUp(message) &&
       conversationMemory.lastTdee?.result
       ? { uiCard: { cardType: "tdee", data: conversationMemory.lastTdee.result } }
@@ -1101,7 +1466,7 @@ export const chatStream = async (req, res) => {
       };
       res.write(`data: ${JSON.stringify({ type: "tool_start" })}\n\n`);
       const startedAt = Date.now();
-      const toolResult = await executeTool(toolName, args, {
+      let toolResult = await executeTool(toolName, args, {
         userId,
         signal: abortController.signal,
         timeoutMs: TOOL_TIMEOUT_MS,
@@ -1116,6 +1481,7 @@ export const chatStream = async (req, res) => {
       toolCallCount += 1;
       aiLogger.toolCall(actorId, toolName, durationMs, toolSucceeded);
       if (toolSucceeded) {
+        toolResult = attachMealIdentity(toolName, toolResult);
         conversationMemory = updateConversationMemory(
           conversationMemory,
           toolName,
@@ -1164,7 +1530,18 @@ export const chatStream = async (req, res) => {
     let protocolRetryCount = 0;
     aiLogger.chatStart(actorId, conversation._id);
 
-    if (routedRequiredToolName === "search_knowledge") {
+    if (structuredAction?.type === "calculate_tdee") {
+      const directTdee = await executeServerRequiredTool(
+        "calculate_tdee",
+        structuredAction.payload,
+      );
+      responseModel = "server_tdee_v1";
+      requiredToolConsumed = true;
+      const guardedTdee = sanitizeAssistantOutput(directTdee.safeToolText);
+      fullResponse = await deliverAssistantResponse(
+        guardedTdee.content || requiredToolMissingResponse("calculate_tdee").text,
+      );
+    } else if (routedRequiredToolName === "search_knowledge") {
       webSearchAttemptCount = 1;
       webSearchExecutionCount = 1;
       const directSearch = await executeServerRequiredTool(
@@ -1457,18 +1834,6 @@ export const chatStream = async (req, res) => {
                 execution;
               let toolResult = execution.result;
               if (abortController.signal.aborted) break;
-              if (toolResult.needsConfirmation) {
-                const challenge = await createAiToolConfirmation({
-                  userId,
-                  toolName: call.name,
-                  parameters: call.args,
-                });
-                if (abortController.signal.aborted) break;
-                toolResult = {
-                  ...toolResult,
-                  uiCard: serializeAiToolConfirmationCard(challenge),
-                };
-              }
               const safeToolText = normalizePublicToolText(toolResult.text);
               const modelToolContent = serializeToolResultForModel({
                 toolName: call.name,
@@ -1535,6 +1900,7 @@ export const chatStream = async (req, res) => {
               }
               aiLogger.toolCall(actorId, call.name, toolDuration, toolSucceeded);
               if (toolSucceeded) {
+                toolResult = attachMealIdentity(call.name, toolResult);
                 conversationMemory = updateConversationMemory(
                   conversationMemory,
                   call.name,
@@ -1576,10 +1942,7 @@ export const chatStream = async (req, res) => {
                 toolName: call.name,
                 toolCallId: call.id,
                 toolStatus,
-                uiCard:
-                  toolResult.uiCard?.cardType === "confirmation"
-                    ? null
-                    : toolResult.uiCard,
+                uiCard: toolResult.uiCard,
                 timestamp: new Date(),
               });
             }

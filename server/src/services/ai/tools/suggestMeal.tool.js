@@ -525,6 +525,232 @@ const scopedFollowUp = (input, previousMealPlan, catalog, constraints) => {
   };
 };
 
+const rebuildMeal = (meal, catalogById) => {
+  if (!Array.isArray(meal?.foods) || meal.foods.length < 1) return null;
+  const foods = [];
+  for (const item of meal.foods) {
+    const foodId = String(item?.foodId || "");
+    const amountGrams = asFinite(item?.amountGrams);
+    const catalogFood = catalogById.get(foodId);
+    if (!catalogFood || !Number.isFinite(amountGrams) || amountGrams <= 0) {
+      return null;
+    }
+    const macros = foodMacro(catalogFood, amountGrams);
+    foods.push({
+      foodId,
+      name: catalogFood.label,
+      amountGrams,
+      macros,
+      calories: round(MACRO_CALORIES(macros)),
+    });
+  }
+  const macros = addMacros(foods.map((food) => food.macros));
+  return {
+    label: String(meal.label || ""),
+    foods,
+    totals: { ...macros, calories: round(MACRO_CALORIES(macros)) },
+  };
+};
+
+const replacementMacroWithinBounds = (before, after) =>
+  ["protein", "carb", "fat"].every((macro) => {
+    const tolerance = Math.max(macro === "fat" ? 2 : 3, before[macro] * 0.05);
+    return Math.abs(after[macro] - before[macro]) <= tolerance;
+  });
+
+/**
+ * Đổi đúng một food item trong plan hiện tại. Không gọi model và không dựng lại
+ * các bữa còn lại; candidate phải qua cùng safety constraints với suggestMeal.
+ */
+export async function replaceMealFood(params, {
+  previousMealPlan,
+  mealIndex,
+  foodIndex,
+  findFoods = defaultFindFoods,
+} = {}) {
+  const input = normalizeParams(params);
+  const sourceMeals = Array.isArray(previousMealPlan?.meals)
+    ? previousMealPlan.meals
+    : [];
+  if (
+    !input ||
+    !Number.isInteger(mealIndex) ||
+    !Number.isInteger(foodIndex) ||
+    mealIndex < 0 ||
+    foodIndex < 0 ||
+    sourceMeals.length !== input.mealsPerDay ||
+    !sourceMeals[mealIndex]?.foods?.[foodIndex]
+  ) {
+    return missingData(
+      "replacement_invalid_plan",
+      "Không thể đổi món vì dữ liệu thực đơn hiện tại chưa đầy đủ.",
+    );
+  }
+
+  let catalog;
+  try {
+    catalog = (await findFoods()).map(normalizeFood).filter(Boolean);
+  } catch {
+    return missingData(
+      "catalog_unavailable",
+      "Chưa thể xác minh dữ liệu thực phẩm để đổi món an toàn.",
+    );
+  }
+
+  const requestedExcludedFoods = [...new Set(input.excludedFoods
+    .map((value) => String(value).trim())
+    .filter(Boolean))];
+  const explicitExcludedAllergens = [
+    ...input.excludedAllergens,
+    ...(input.lactoseFree ? ["milk"] : []),
+  ];
+  const requireSafetyMetadata = requestedExcludedFoods.length > 0 ||
+    explicitExcludedAllergens.length > 0 ||
+    input.requirePackageLabelSafety;
+  const resolvedExcludedFoods = resolveExcludedFoodConstraints(
+    catalog,
+    requestedExcludedFoods,
+  );
+  if (resolvedExcludedFoods.unresolvedTerms.length > 0) {
+    return missingData(
+      "excluded_food_unverifiable",
+      "Chưa thể xác minh lại thực phẩm cần loại trừ khi đổi món.",
+    );
+  }
+  const constraints = {
+    excludedTerms: resolvedExcludedFoods.exactTerms,
+    excludedAllergens: [...new Set([
+      ...explicitExcludedAllergens,
+      ...resolvedExcludedFoods.allergens,
+    ])],
+    excludedSpecificFoods: resolvedExcludedFoods.specificFoods,
+    excludedFoodsRequested: requestedExcludedFoods.length > 0,
+    requireSafetyMetadata,
+    requirePackageLabelSafety: input.requirePackageLabelSafety,
+  };
+  const catalogById = new Map(catalog.map((food) => [String(food._id), food]));
+  const meals = sourceMeals.map((meal) => rebuildMeal(meal, catalogById));
+  if (
+    meals.some((meal) => !meal) ||
+    meals.flatMap((meal) => meal.foods).some((food) =>
+      !allowedFood(catalogById.get(food.foodId), constraints))
+  ) {
+    return missingData(
+      "replacement_safety_conflict",
+      "Không thể đổi món vì thực đơn hiện tại không còn khớp ràng buộc an toàn.",
+    );
+  }
+
+  const selectedFood = meals[mealIndex].foods[foodIndex];
+  const selectedCalories = selectedFood.calories;
+  const existingIds = new Set(
+    meals.flatMap((meal) => meal.foods.map((food) => food.foodId)),
+  );
+  const beforeSummary = summarizeMeals(meals);
+  const candidates = catalog
+    .filter((food) =>
+      !existingIds.has(String(food._id)) && allowedFood(food, constraints))
+    .map((food) => {
+      const caloriesPer100g = MACRO_CALORIES(food);
+      if (!Number.isFinite(caloriesPer100g) || caloriesPer100g <= 0) return null;
+      const amountGrams = round((selectedCalories / caloriesPer100g) * 100);
+      if (amountGrams < 1 || amountGrams > 3000) return null;
+      const macros = foodMacro(food, amountGrams);
+      const replacement = {
+        foodId: String(food._id),
+        name: food.label,
+        amountGrams,
+        macros,
+        calories: round(MACRO_CALORIES(macros)),
+      };
+      const nextMeals = meals.map((meal, currentMealIndex) => {
+        if (currentMealIndex !== mealIndex) return meal;
+        const foods = meal.foods.map((item, currentFoodIndex) =>
+          currentFoodIndex === foodIndex ? replacement : item);
+        const mealMacros = addMacros(foods.map((item) => item.macros));
+        return {
+          ...meal,
+          foods,
+          totals: {
+            ...mealMacros,
+            calories: round(MACRO_CALORIES(mealMacros)),
+          },
+        };
+      });
+      const summary = summarizeMeals(nextMeals);
+      if (
+        Math.abs(summary.totals.calories - input.targetCalories) >
+          input.targetToleranceCalories ||
+        summary.totals.protein < input.minimumProteinGrams ||
+        !replacementMacroWithinBounds(beforeSummary.macros, summary.macros)
+      ) {
+        return null;
+      }
+      const score = ["protein", "carb", "fat"].reduce(
+        (total, macro) =>
+          total + Math.abs(summary.macros[macro] - beforeSummary.macros[macro]),
+        Math.abs(summary.totals.calories - beforeSummary.totals.calories),
+      );
+      return { food, replacement, meals: nextMeals, summary, score };
+    })
+    .filter(Boolean)
+    .sort((left, right) =>
+      left.score - right.score || left.food.label.localeCompare(right.food.label, "vi"));
+
+  const selected = candidates[0];
+  if (!selected) {
+    return missingData(
+      "replacement_unavailable",
+      "Chưa có món tương đương an toàn và đủ sát mục tiêu dinh dưỡng để thay thế.",
+    );
+  }
+
+  const replacementFoods = [
+    ...new Map(
+      selected.meals.flatMap((meal) => meal.foods)
+        .map((food) => [food.foodId, catalogById.get(food.foodId)]),
+    ).values(),
+  ];
+  const safety = buildSafetyEvidence({ ...constraints, foods: replacementFoods });
+  const price = input.budgetVndPerDay == null
+    ? { status: "not_requested" }
+    : {
+        status: "unverified",
+        budgetVndPerDay: input.budgetVndPerDay,
+        reason: "replacement_price_not_revalidated",
+      };
+  const replacement = {
+    mealIndex,
+    foodIndex,
+    before: selectedFood,
+    after: selected.replacement,
+  };
+  return {
+    text: `Đã đổi ${selectedFood.name} thành ${selected.replacement.name} và giữ thực đơn trong sai số mục tiêu.`,
+    uiCard: {
+      cardType: "meal",
+      data: {
+        status: "complete",
+        targetCalories: input.targetCalories,
+        targetToleranceCalories: input.targetToleranceCalories,
+        macros: selected.summary.macros,
+        totals: selected.summary.totals,
+        meals: selected.meals,
+        replacement,
+        price,
+        safety,
+        targets: {
+          proteinGrams: input.proteinGrams,
+          carbGrams: input.carbGrams,
+          fatGrams: input.fatGrams,
+          minimumProteinGrams: input.minimumProteinGrams,
+        },
+        nutritionMethod: "server_calculated_4p_4c_9f",
+      },
+    },
+  };
+}
+
 /**
  * Deterministically creates a meal card whose nutrition is calculated by this server.
  * @param {object} params Tool parameters.

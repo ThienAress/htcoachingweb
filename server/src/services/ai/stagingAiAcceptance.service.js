@@ -42,9 +42,28 @@ const chatBinding = (request) => {
   if (!UUID.test(request?.requestId || "")) throw reject();
   const parsed = parseChatRequest(request);
   if (parsed.error || parsed.value.image) throw reject();
-  const { message, conversationId, requestId, context } = parsed.value;
+  const {
+    message,
+    conversationId,
+    retryOfMessageId,
+    requestId,
+    context,
+    structuredAction,
+  } = parsed.value;
   if (conversationId !== null && !OBJECT_ID.test(conversationId)) throw reject();
-  return { conversationId, requestId, payloadDigest: digest({ message, conversationId, requestId, context }) };
+  if (retryOfMessageId !== null && !OBJECT_ID.test(retryOfMessageId)) throw reject();
+  return {
+    conversationId,
+    requestId,
+    payloadDigest: digest({
+      message,
+      conversationId,
+      retryOfMessageId,
+      requestId,
+      context,
+      structuredAction,
+    }),
+  };
 };
 const searchBinding = (request) => {
   const requestId = request?.requestId;

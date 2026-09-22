@@ -33,6 +33,32 @@ export const deleteAiConversation = async (id) => {
   return res.data;
 };
 
+export const replaceAiMealItem = async (
+  conversationId,
+  { operationId, mealPlanId, expectedRevision, mealIndex, foodIndex },
+) => {
+  const path = `/ai/conversations/${conversationId}/meal-replacements`;
+  const payload = {
+    operationId,
+    mealPlanId,
+    expectedRevision,
+    mealIndex,
+    foodIndex,
+  };
+  try {
+    const res = await api.post(path, payload);
+    return res.data;
+  } catch (error) {
+    const status = error.response?.status;
+    const uncertainOutcome =
+      error.code !== "ERR_CANCELED" &&
+      (!error.response || (Number.isInteger(status) && status >= 500));
+    if (!uncertainOutcome) throw error;
+    const res = await api.post(path, payload);
+    return res.data;
+  }
+};
+
 export const forkAiConversation = async (conversationId, messageId) => {
   const res = await api.post(`/ai/conversations/${conversationId}/fork`, {
     messageId,
@@ -73,16 +99,6 @@ export const deleteAiMemoryKind = async (kind) => {
 
 export const clearAiMemory = async () => {
   const res = await api.delete("/ai/memory");
-  return res.data;
-};
-
-export const confirmAiToolAction = async (token) => {
-  const res = await api.post("/ai/tool-confirmations/confirm", { token });
-  return res.data;
-};
-
-export const cancelAiToolAction = async (token) => {
-  const res = await api.post("/ai/tool-confirmations/cancel", { token });
   return res.data;
 };
 

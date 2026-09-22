@@ -1,57 +1,83 @@
-import { BookOpen, Clock, ExternalLink } from "lucide-react";
+import { ArrowUpRight, BookOpen, Library } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const CATEGORY_COLORS = {
-  "tap-luyen": "bg-blue-500/10 text-blue-400",
-  "dinh-duong": "bg-orange-500/10 text-orange-400",
-  "hieu-co-the": "bg-purple-500/10 text-purple-400",
-  "tu-duy-loi-song": "bg-pink-500/10 text-pink-400",
-};
+import AssistantCard, {
+  CardFooter,
+  CardList,
+  CardSection,
+  Tag,
+} from "./AssistantCard";
 
 export default function BlogListCard({ data }) {
   if (!data?.posts?.length) return null;
 
-  return (
-    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 space-y-2 w-full">
-      <div className="flex items-center gap-2 mb-1">
-        <BookOpen size={16} className="text-emerald-400" />
-        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-          {data.query ? `Bài viết: "${data.query}"` : "Bài viết mới nhất"}
-        </span>
-      </div>
+  const totalReadTime = data.posts.reduce(
+    (sum, post) => sum + (Number(post.readTime) || 0),
+    0,
+  );
 
-      <div className="space-y-2">
-        {data.posts.map((post, i) => (
-          <Link
-            key={i}
-            to={`/blog/${post.slug}/`}
-            className="flex gap-3 bg-black/20 rounded-lg p-2.5 hover:bg-white/5 transition-colors group"
-          >
-            {post.coverImage && (
-              <img
-                src={post.coverImage}
-                alt={post.title}
-                className="w-16 h-12 rounded-md object-cover shrink-0"
-              />
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-white font-medium truncate group-hover:text-emerald-300 transition-colors">
-                {post.title}
-              </p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`text-[9px] px-1.5 py-0.5 rounded ${CATEGORY_COLORS[post.category] || "bg-gray-500/10 text-gray-400"}`}>
-                  {post.categoryLabel}
-                </span>
-                <span className="flex items-center gap-0.5 text-[10px] text-gray-500">
-                  <Clock size={10} />
-                  {post.readTime} phút
-                </span>
-              </div>
-            </div>
-            <ExternalLink size={14} className="text-gray-500 group-hover:text-emerald-400 shrink-0 mt-1 transition-colors" />
-          </Link>
-        ))}
-      </div>
-    </div>
+  return (
+    <AssistantCard
+      eyebrow="BÀI VIẾT PHÙ HỢP"
+      icon={BookOpen}
+      iconTone="cyan"
+      subtitle="Ưu tiên nội dung sát câu hỏi thay vì bài mới nhất"
+      title={data.query || "Bài viết mới nhất"}
+      value={`${data.posts.length} bài`}
+      valueNote={totalReadTime ? `${totalReadTime} phút đọc` : ""}
+      footer={
+        <CardFooter
+          action="Mở thư viện bài viết"
+          icon={Library}
+          note="Xếp theo độ liên quan"
+          to="/blog/"
+        />
+      }
+    >
+      <CardSection>
+        <CardList>
+          {data.posts.map((post, index) => (
+            <li
+              className="py-3 first:pt-0 last:pb-0"
+              key={post.slug || `${post.title}-${index}`}
+            >
+              <Link
+                className="group flex min-h-16 items-center gap-3 focus-visible:rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+                to={`/blog/${post.slug}/`}
+              >
+                {post.coverImage ? (
+                  <img
+                    alt=""
+                    className="h-12 w-14 shrink-0 rounded-xl object-cover"
+                    height="48"
+                    loading="lazy"
+                    src={post.coverImage}
+                    width="56"
+                  />
+                ) : (
+                  <span className="grid h-12 w-14 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300">
+                    <BookOpen aria-hidden="true" size={18} strokeWidth={1.8} />
+                  </span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-pretty text-sm font-medium leading-5 text-slate-900 transition-colors duration-200 group-hover:text-emerald-700 dark:text-zinc-100 dark:group-hover:text-emerald-300 motion-reduce:transition-none">
+                    {post.title}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <Tag accent>{post.categoryLabel}</Tag>
+                    {post.readTime && <Tag>{post.readTime} phút</Tag>}
+                  </div>
+                </div>
+                <ArrowUpRight
+                  aria-hidden="true"
+                  className="shrink-0 text-slate-400 transition-colors duration-200 group-hover:text-emerald-600 dark:text-zinc-500 dark:group-hover:text-emerald-300 motion-reduce:transition-none"
+                  size={17}
+                />
+              </Link>
+            </li>
+          ))}
+        </CardList>
+      </CardSection>
+    </AssistantCard>
   );
 }

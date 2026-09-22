@@ -9,6 +9,7 @@ import {
   recordGeminiChatDisposition,
   recordGeminiRequest,
   recordGeminiResult,
+  recordGeminiSearchGroundingDisposition,
   recordNetlifyBuildUsage,
   recordResendUsage,
   recordSePayApiUsage,
@@ -82,6 +83,9 @@ describe("bounded provider usage metrics", () => {
     expect(() => recordGeminiChatDisposition("user-id")).toThrow(
       "Unknown Gemini",
     );
+    expect(() => recordGeminiSearchGroundingDisposition("user-id")).toThrow(
+      "Unknown Gemini search grounding",
+    );
     expect(() => recordResendUsage("recipient@example.com")).toThrow(
       "Unknown Resend",
     );
@@ -95,6 +99,22 @@ describe("bounded provider usage metrics", () => {
       "provider.cloudinary_delete_failures": 1,
       "provider.sepay_api_failures": 1,
       "provider.netlify_build_failed": 1,
+    });
+  });
+
+  it("keeps a successful chat request independent from a failed search grounding request", () => {
+    recordGeminiRequest("chat");
+    recordGeminiResult("chat", { success: true });
+    recordGeminiRequest("search_grounding");
+    recordGeminiResult("search_grounding", { success: false });
+    recordGeminiSearchGroundingDisposition("permission_denied");
+
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_succeeded": 1,
+      "provider.gemini_chat_failed": 0,
+      "provider.gemini_search_grounding_succeeded": 0,
+      "provider.gemini_search_grounding_failed": 1,
+      "provider.gemini_search_grounding_permission_denied": 1,
     });
   });
 });

@@ -2,27 +2,36 @@ import React, { memo, useCallback, useState, useRef, useEffect } from "react";
 import { Bot, User, ThumbsUp, ThumbsDown, Copy, Check, RotateCcw, Pencil } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import TdeeResultCard from "./cards/TdeeResultCard";
+import TdeeFormCard from "./cards/TdeeFormCard";
 import ExerciseListCard from "./cards/ExerciseListCard";
 import MealSuggestionCard from "./cards/MealSuggestionCard";
 import TrainerInfoCard from "./cards/TrainerInfoCard";
 import WalletSummaryCard from "./cards/WalletSummaryCard";
 import WorkoutPlanCard from "./cards/WorkoutPlanCard";
 import BlogListCard from "./cards/BlogListCard";
-import ConfirmationCard from "./cards/ConfirmationCard";
+import WebSourcesCard from "./cards/WebSourcesCard";
+import TrainingScheduleCard from "./cards/TrainingScheduleCard";
+import CheckinHistoryCard from "./cards/CheckinHistoryCard";
+import GymInfoCard from "./cards/GymInfoCard";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { isAllowedAiUiCard } from "./aiCardPolicy";
 import { getChatScrollBehavior } from "./chatPanelRuntime";
 import { persistOptimisticFeedback } from "./feedbackRuntime";
 
 const CARD_COMPONENTS = {
   tdee: TdeeResultCard,
+  tdeeForm: TdeeFormCard,
   exercise: ExerciseListCard,
   meal: MealSuggestionCard,
   trainer: TrainerInfoCard,
   wallet: WalletSummaryCard,
   workoutPlan: WorkoutPlanCard,
   blogList: BlogListCard,
-  confirmation: ConfirmationCard,
+  webSources: WebSourcesCard,
+  trainingSchedule: TrainingScheduleCard,
+  checkinHistory: CheckinHistoryCard,
+  gymInfo: GymInfoCard,
 };
 
 const ThinkingDots = () => (
@@ -37,7 +46,16 @@ const ThinkingDots = () => (
   </div>
 );
 
-const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinking, onFeedback }) {
+const ChatBubble = memo(function ChatBubble({
+  message,
+  onRetry,
+  onEdit,
+  isThinking,
+  onFeedback,
+  onCardAction,
+  cardActionsDisabled = false,
+  conversationId,
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const isUser = message.role === "user";
@@ -50,6 +68,11 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.content || "");
   const editRef = useRef(null);
+  const visibleUiCards = (message.uiCards || []).filter(
+    (card) =>
+      isAllowedAiUiCard(card) &&
+      Object.hasOwn(CARD_COMPONENTS, card.cardType),
+  );
 
   // Auto-focus và đặt cursor cuối khi mở edit
   useEffect(() => {
@@ -156,7 +179,7 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
   }, [navigate, location.pathname]);
 
   if (message.role === "tool") return null;
-  if (!isUser && !message.content && !message.uiCards?.length) {
+  if (!isUser && !message.content && visibleUiCards.length === 0) {
     if (!isThinking) return null;
     return (
       <div className="flex gap-2.5 thinking-bubble-enter">
@@ -341,18 +364,26 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
         )}
 
         {/* UI Cards */}
-        {message.uiCards?.map((card, i) => {
+        {visibleUiCards.map((card, i) => {
           const CardComponent = CARD_COMPONENTS[card.cardType];
-          if (!CardComponent) return null;
           return (
-            <div key={i} className="chat-card-enter w-full" style={{ animationDelay: `${i * 100}ms` }}>
-              <CardComponent data={card.data} />
+            <div
+              key={i}
+              className="chat-card-enter w-full max-w-2xl"
+              style={{ animationDelay: `${i * 100}ms` }}
+            >
+              <CardComponent
+                data={card.data}
+                disabled={cardActionsDisabled}
+                conversationId={conversationId}
+                onSubmit={card.cardType === "tdeeForm" ? onCardAction : undefined}
+              />
             </div>
           );
         })}
 
         {/* Feedback buttons (chỉ cho assistant messages có nội dung) */}
-        {!isUser && onFeedback && message._id && !isThinking && !message.isError && (message.content || message.uiCards?.length > 0) && (
+        {!isUser && onFeedback && message._id && !isThinking && !message.isError && (message.content || visibleUiCards.length > 0) && (
           <div className="mt-1 flex flex-wrap items-center gap-1">
             <button
               type="button"
