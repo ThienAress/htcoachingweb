@@ -153,6 +153,7 @@ describe("AI answer trace and feedback review", () => {
               carbGrams: 250,
               fatGrams: 91.1,
               mealsPerDay: 4,
+              calorieScope: "per_day",
             },
           }],
         };
@@ -536,6 +537,7 @@ describe("AI answer trace and feedback review", () => {
         carbGrams: moderateMacros?.carb,
         fatGrams: moderateMacros?.fat,
         mealsPerDay: 4,
+        calorieScope: "per_day",
       },
     });
   });
@@ -634,7 +636,12 @@ describe("AI answer trace and feedback review", () => {
       confirmedStatus: 200,
       status: 200,
       modelCalls: 0,
-      mealArgs: { targetCalories: 2136, ...expectedMacros, mealsPerDay: 3 },
+      mealArgs: {
+        targetCalories: 2136,
+        ...expectedMacros,
+        mealsPerDay: 3,
+        calorieScope: "per_day",
+      },
     });
   });
 
@@ -701,6 +708,7 @@ describe("AI answer trace and feedback review", () => {
         carbGrams: 267,
         fatGrams: 47,
         mealsPerDay: 4,
+        calorieScope: "per_day",
       },
     });
   });
@@ -773,6 +781,7 @@ describe("AI answer trace and feedback review", () => {
         carbGrams: 150,
         fatGrams: 27,
         mealsPerDay: 3,
+        calorieScope: "per_day",
       },
     },
   ])("leaves standalone meal arguments unchanged with $scenario", async ({
@@ -785,6 +794,7 @@ describe("AI answer trace and feedback review", () => {
       carbGrams: 200,
       fatGrams: 67,
       mealsPerDay: 3,
+      calorieScope: "per_day",
     },
   }) => {
     const { user, accessToken } = await createTestUser();
@@ -1083,22 +1093,7 @@ describe("AI answer trace and feedback review", () => {
       tools,
     ) {
       providerTurn += 1;
-      if (providerTurn === 1) {
-        expect(tools.map((tool) => tool.function.name)).toContain(
-          "search_exercises",
-        );
-        yield {
-          type: "tool_call",
-          toolCalls: [
-            {
-              id: "empty-exercise-lookup",
-              name: "search_exercises",
-              args: { searchQuery: "bài chưa tồn tại", limit: 1 },
-            },
-          ],
-        };
-        return;
-      }
+      expect(tools).toEqual([]);
       yield {
         type: "text",
         content: "Bản nháp model-prior không có bằng chứng nội bộ.",
@@ -1118,7 +1113,7 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(providerTurn).toBe(2);
+    expect(providerTurn).toBe(1);
     expect(answer.content).toBe(
       "Bản nháp model-prior không có bằng chứng nội bộ.",
     );
@@ -1219,19 +1214,12 @@ describe("AI answer trace and feedback review", () => {
       description: "Biến thể chống đẩy phù hợp để bắt đầu.",
     });
     let providerTurn = 0;
-    llmStreamMock.mockImplementation(async function* catalogBackedAnswer() {
+    llmStreamMock.mockImplementation(async function* catalogBackedAnswer(
+      _messages,
+      tools,
+    ) {
       providerTurn += 1;
-      if (providerTurn === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "exercise-catalog-hit",
-            name: "search_exercises",
-            args: { muscleGroup: "ngực", limit: 5 },
-          }],
-        };
-        return;
-      }
+      expect(tools).toEqual([]);
       yield {
         type: "text",
         content: "Bạn có thể bắt đầu với Incline Push Up.",
@@ -1251,7 +1239,7 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(providerTurn).toBe(2);
+    expect(providerTurn).toBe(1);
     expect(answer.content).toMatch(/Incline Push Up/);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
@@ -1649,19 +1637,12 @@ describe("AI answer trace and feedback review", () => {
       description: "Biến thể chống đẩy cho người mới.",
     });
     let providerTurn = 0;
-    llmStreamMock.mockImplementation(async function* toolThenFailure() {
+    llmStreamMock.mockImplementation(async function* toolThenFailure(
+      _messages,
+      tools,
+    ) {
       providerTurn += 1;
-      if (providerTurn === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "tool-backed-fallback",
-            name: "search_exercises",
-            args: { muscleGroup: "ngực", limit: 5 },
-          }],
-        };
-        return;
-      }
+      expect(tools).toEqual([]);
       throw Object.assign(new Error("provider unavailable"), {
         code: "GEMINI_HTTP_ERROR",
         status: 503,
@@ -1684,7 +1665,9 @@ describe("AI answer trace and feedback review", () => {
     expect(response.status).toBe(200);
     expect(response.text).toContain('"type":"done"');
     expect(response.text).not.toContain('"type":"error"');
+    expect(providerTurn).toBe(1);
     expect(answer.content).toContain("Incline Push Up");
+    expect(response.text).toContain('"cardType":"exercise"');
   });
 
   it("keeps a safe exercise tool result when equipment correction then loses the provider", async () => {
@@ -1695,20 +1678,13 @@ describe("AI answer trace and feedback review", () => {
       meta: { evidenceAvailable: true },
     });
     let providerTurn = 0;
-    llmStreamMock.mockImplementation(async function* toolCorrectionThenFailure() {
+    llmStreamMock.mockImplementation(async function* toolCorrectionThenFailure(
+      _messages,
+      tools,
+    ) {
       providerTurn += 1;
       if (providerTurn === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "safe-exercise-before-correction",
-            name: "search_exercises",
-            args: { muscleGroup: "ngực", limit: 1 },
-          }],
-        };
-        return;
-      }
-      if (providerTurn === 2) {
+        expect(tools).toEqual([]);
         yield {
           type: "text",
           content: "Hãy tập Barbell Bench Press và Cable Chest Fly.",
@@ -1738,12 +1714,12 @@ describe("AI answer trace and feedback review", () => {
     expect(response.headers["x-ai-conversation-id"]).toBe(
       String(conversation._id),
     );
-    expect(providerTurn).toBe(3);
+    expect(providerTurn).toBe(2);
     expect(answer.content).toContain("Dumbbell Floor Press");
     expect(answer.content).not.toMatch(/chưa thể tạo lịch tập/i);
   });
 
-  it("rejects prose when a canonical exercise lookup skips the required tool", async () => {
+  it("executes a canonical exercise lookup without depending on model function calls", async () => {
     const { user, accessToken } = await createTestUser();
     let exposedTools = [];
     llmStreamMock.mockImplementationOnce(async function* directExerciseAnswer(
@@ -1770,16 +1746,57 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(exposedTools).toContain("search_exercises");
-    expect(answer.content).toMatch(/chưa thể đối chiếu thư viện bài tập/i);
-    expect(answer.content).not.toMatch(/chống đẩy tường/i);
+    expect(exposedTools).toEqual([]);
+    expect(answer.content).not.toMatch(/chưa thể đối chiếu thư viện bài tập/i);
+    expect(answer.content).toMatch(/chống đẩy tường/i);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
-      evidenceMode: "internal_kb",
+      evidenceMode: "model_prior",
       kbEntryIds: [],
       webSearchUsed: false,
       webSearchOutcome: "not_called",
     });
+  });
+
+  it("Q12: persists four band-only catalog exercises and keeps their card when synthesis returns 503", async () => {
+    const { user, accessToken } = await createTestUser();
+    await Exercise.insertMany([
+      "Band Chest Press",
+      "Band Chest Fly",
+      "Band Standing Press",
+      "Band Push Up",
+    ].map((name) => ({
+      name,
+      muscleGroup: "Ngực",
+      description: "Thực hiện chỉ với dây kháng lực.",
+    })));
+    llmStreamMock.mockImplementationOnce(async function* providerUnavailable(
+      _messages,
+      tools,
+    ) {
+      expect(tools).toEqual([]);
+      throw Object.assign(new Error("provider unavailable"), { status: 503 });
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tìm 4 bài tập ngực, tôi chỉ dùng dây kháng lực",
+      requestId: "8e9c966b-0e23-40a7-81a5-0d056845fa12",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const toolCalls = conversation.messages.flatMap((item) => item.toolCalls || [])
+      .filter((call) => call.name === "search_exercises");
+    const card = conversation.messages.find((item) => item.uiCard?.cardType === "exercise")?.uiCard;
+
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(1);
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0].args).toMatchObject({ muscleGroup: "Ngực", limit: 4 });
+    expect(card?.data).toMatchObject({ requestedCount: 4, resultCount: 4 });
+    expect(card?.data?.exercises).toHaveLength(4);
+    expect(response.text).toContain('"cardType":"exercise"');
   });
 
   it("keeps a low-risk fitness KB miss on the answer-first model path", async () => {
@@ -2755,6 +2772,11 @@ describe("AI answer trace and feedback review", () => {
   it("sanitizes a tool-result fallback before it reaches the browser", async () => {
     const { accessToken } = await createTestUser();
     let providerTurn = 0;
+    toolRegistry.search_exercises.execute = vi.fn().mockResolvedValue({
+      text: "search_exercises function_call action_input",
+      uiCard: null,
+      meta: { evidenceAvailable: true },
+    });
     searchKnowledgeBaseMock.mockResolvedValueOnce([
       {
         _id: "507f191e810c19729de860eb",
@@ -2769,25 +2791,8 @@ describe("AI answer trace and feedback review", () => {
       tools,
     ) {
       providerTurn += 1;
-      if (providerTurn === 1) {
-        expect(tools.map((tool) => tool.function.name)).toContain(
-          "search_exercises",
-        );
-        yield {
-          type: "tool_call",
-          toolCalls: [
-            {
-              id: "exercise-fallback",
-              name: "search_exercises",
-              args: {
-                searchQuery: "function_call search_exercises action_input",
-                limit: 1,
-              },
-            },
-          ],
-        };
-      }
-      // Turn 2 intentionally returns no text, forcing the tool-result fallback.
+      expect(tools).toEqual([]);
+      // No model text forces the sanitized server tool-result fallback.
     });
 
     const response = await withAuth(
@@ -2806,13 +2811,13 @@ describe("AI answer trace and feedback review", () => {
       .join("");
 
     expect(response.status).toBe(200);
-    expect(providerTurn).toBe(2);
+    expect(providerTurn).toBe(1);
     expect(response.text).not.toMatch(
       /search_exercises|function_call|action_input/i,
     );
     expect(streamedText).not.toMatch(/search_exercises|function_call|action_input/i);
     expect(streamedText).toBe(
-      "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.",
+      "Mình chưa thể đối chiếu thư viện bài tập cho yêu cầu này. Bạn thử nêu nhóm cơ và thiết bị hiện có nhé.",
     );
   });
 

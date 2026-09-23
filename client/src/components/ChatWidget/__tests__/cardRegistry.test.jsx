@@ -72,7 +72,7 @@ describe("HT Assistant card registry", () => {
           },
         ],
       },
-      "NGUỒN WEB ĐÃ XÁC MINH",
+      "Nguồn tham khảo",
     ],
     [
       "exercise",

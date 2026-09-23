@@ -144,9 +144,11 @@ export function extractTdeePrefill(message) {
       : null;
   if (trainingFrequency) prefill.trainingFrequency = trainingFrequency;
 
-  const duration = ascii.match(
-    /(\d{1,3})\s*(?:phut|p)\s*(?:\/\s*buoi|moi buoi)/i,
-  )?.[1];
+  // Chỉ nhận thời lượng khi gắn rõ với buổi tập; tránh bắt nhầm "nấu 60 phút".
+  const durationMatch = ascii.match(
+    /\b(?:moi|trung binh moi)\s+buoi\b[^\d\n]{0,24}(\d{1,3})\s*(?:phut|p)\b|\b(\d{1,3})\s*(?:phut|p)\s*(?:\/\s*buoi|moi\s+buoi)\b/i,
+  );
+  const duration = durationMatch?.[1] || durationMatch?.[2];
   const trainingDuration = mapTrainingDuration(duration);
   if (trainingDuration) prefill.trainingDuration = trainingDuration;
 

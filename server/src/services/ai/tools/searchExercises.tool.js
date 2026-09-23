@@ -4,7 +4,7 @@ import Exercise, {
   deriveTechnicalDifficultyRating,
 } from "../../../models/Exercise.js";
 import { escapeRegex } from "../../../utils/escapeRegex.js";
-import { validateWorkoutEquipmentOutput } from "../equipmentConstraint.js";
+import { hasBandOnlyConstraint, validateWorkoutEquipmentOutput } from "../equipmentConstraint.js";
 import {
   getExerciseCatalogText,
   isNoEquipmentCompatibleExercise,
@@ -123,6 +123,16 @@ const isCompatibleWithLimitedDumbbellAndBandEquipment = (
     ).valid;
 };
 
+const isCompatibleWithBandOnlyEquipment = (exercise) => {
+  const equipmentText = getExerciseCatalogText(exercise);
+  return RESISTANCE_BAND_PATTERN.test(equipmentText) &&
+    !EXPLICITLY_UNAVAILABLE_EQUIPMENT_PATTERN.test(equipmentText) &&
+    validateWorkoutEquipmentOutput(
+      "Tôi chỉ có dây kháng lực",
+      equipmentText,
+    ).valid;
+};
+
 const isDisplacedStagingExercise = (exercise) =>
   Boolean(exercise?._stagingSearchIndexCohortDisplaced) ||
   DISPLACED_STAGING_NAME_PATTERN.test(String(exercise?.name || ""));
@@ -143,7 +153,7 @@ const deduplicateExercisesByName = (exercises) => {
  * @returns {{ text: string, uiCard: object }}
  */
 export async function searchExercises(params) {
-  const { muscleGroup, searchQuery, limit = 5 } = params;
+  const { muscleGroup, searchQuery, exerciseName, limit = 5 } = params;
   const query = {};
 
   const normalizedSearchQuery = normalizeIntent(searchQuery);
@@ -152,6 +162,7 @@ export async function searchExercises(params) {
   const limitedDumbbellAndBandEquipment = hasLimitedDumbbellAndBandConstraint(
     normalizedSearchQuery,
   );
+  const bandOnlyEquipment = hasBandOnlyConstraint(normalizedSearchQuery);
   const muscleAlias = findMuscleGroupAlias(muscleGroup, searchQuery);
   const normalizedMuscleGroup = normalizeIntent(muscleGroup);
   const searchIsOnlyMuscleGroup = Boolean(
@@ -189,13 +200,15 @@ export async function searchExercises(params) {
     }
   }
 
+  if (exerciseName) query.name = { $regex: escapeRegex(exerciseName, 100), $options: "i" };
+
   query.$and = [
     { _stagingSearchIndexCohortDisplaced: { $exists: false } },
     { name: { $not: DISPLACED_STAGING_NAME_PATTERN } },
   ];
 
   const resultLimit = Math.min(Math.max(Number(limit) || 5, 1), 10);
-  const candidateLimit = noEquipmentIntent || limitedDumbbellAndBandEquipment || beginnerIntent
+  const candidateLimit = noEquipmentIntent || limitedDumbbellAndBandEquipment || bandOnlyEquipment || beginnerIntent
     ? MAX_FILTERED_CANDIDATES
       : Math.min(
           Math.max(resultLimit * 3, 15),
@@ -213,7 +226,9 @@ export async function searchExercises(params) {
   );
   const equipmentCompatibleCandidates = noEquipmentIntent
     ? candidates.filter(isNoEquipmentCompatibleExercise)
-    : limitedDumbbellAndBandEquipment
+    : bandOnlyEquipment
+      ? candidates.filter(isCompatibleWithBandOnlyEquipment)
+      : limitedDumbbellAndBandEquipment
       ? candidates.filter((exercise) =>
         isCompatibleWithLimitedDumbbellAndBandEquipment(
           exercise,
@@ -249,7 +264,7 @@ export async function searchExercises(params) {
         catalogInsufficient,
         scanIncomplete,
         equipmentConstraintApplied:
-          noEquipmentIntent || limitedDumbbellAndBandEquipment,
+          noEquipmentIntent || limitedDumbbellAndBandEquipment || bandOnlyEquipment,
         excludedForEquipmentCount,
       },
     };
@@ -296,7 +311,7 @@ export async function searchExercises(params) {
       catalogInsufficient,
       scanIncomplete,
       equipmentConstraintApplied:
-        noEquipmentIntent || limitedDumbbellAndBandEquipment,
+        noEquipmentIntent || limitedDumbbellAndBandEquipment || bandOnlyEquipment,
       excludedForEquipmentCount,
     },
   };

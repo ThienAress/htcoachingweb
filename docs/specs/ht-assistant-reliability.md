@@ -89,6 +89,24 @@ fitness rủi ro thấp phải hữu ích, lỗi provider phải phục hồi c�
   tính, tuổi, chiều cao, cân nặng, mục tiêu và bằng chứng vận động/thiết bị cần cho
   phần user thực sự yêu cầu.
 
+## REQ-009 — Sửa hẹp các lỗi sau đợt 15 câu staging
+
+- AC-025: Citation hiển thị chip/tên nguồn gọn, không in hostname trung chuyển
+  Vertex; giữ URL nguồn hợp lệ, không giả publisher, và gắn nguồn đúng lượt chat
+  cả khi streaming lẫn đọc lại lịch sử. Không gọi dịch vụ favicon bên ngoài.
+- AC-026: Server thực thi exercise lookup read-only khi được router cho phép;
+  giữ số bài, tên bài và giới hạn thiết bị. Catalog thiếu không tạo card giả;
+  vẫn cho phép tư vấn nền tảng phù hợp, không yêu cầu lại dữ kiện đã cung cấp.
+- AC-027: Phân biệt một bữa với cả ngày trong meal request, card và memory.
+  Bữa đơn 650 kcal không bị ngưỡng cả ngày chặn; không dùng scope bữa đơn để
+  bỏ qua kiểm tra cả ngày, dị ứng hoặc đổi món. Chuyển scope không kế thừa
+  nhầm macro và số bữa; tổng số liệu vẫn phải nhất quán.
+- AC-028: TDEE nhận cả “60 phút/buổi” và “mỗi buổi khoảng 60 phút”; không lấy
+  thời gian nấu ăn làm vận động và không tự điền dữ kiện sức khỏe còn thiếu.
+- AC-029: Provider chỉ thử lại stream rỗng trong budget/deadline hiện có trước
+  khi nhận text/function call; không replay output, lỗi safety hoặc completion
+  có chủ ý. Không tăng hạn mức hay đổi model/provider.
+
 ## Testing Strategy
 
 Từng behavior dùng RED → GREEN qua public seam ổn định: tool unit, controller

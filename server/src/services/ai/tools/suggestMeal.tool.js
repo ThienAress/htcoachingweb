@@ -69,6 +69,7 @@ const asFinite = (value) => {
 
 const normalizeParams = (params = {}) => {
   const targetCalories = asFinite(params.targetCalories);
+  const calorieScope = params.calorieScope === "per_meal" ? "per_meal" : "per_day";
   const proteinGrams = asFinite(params.proteinGrams);
   const carbGrams = asFinite(params.carbGrams);
   const fatGrams = asFinite(params.fatGrams);
@@ -78,10 +79,13 @@ const normalizeParams = (params = {}) => {
   if (
     ![targetCalories, proteinGrams, carbGrams, fatGrams, minimumProteinGrams, targetToleranceCalories]
       .every((value) => Number.isFinite(value) && value >= 0) ||
+    targetCalories < (calorieScope === "per_meal" ? 500 : 800) ||
+    targetCalories > 6000 ||
+    (calorieScope === "per_meal" && mealsPerDay !== 1) ||
     !Number.isInteger(mealsPerDay) || mealsPerDay < 1 || mealsPerDay > 6
   ) return null;
   return {
-    targetCalories, proteinGrams, carbGrams, fatGrams, mealsPerDay,
+    targetCalories, calorieScope, proteinGrams, carbGrams, fatGrams, mealsPerDay,
     targetToleranceCalories, minimumProteinGrams,
     excludedFoods: Array.isArray(params.excludedFoods) ? params.excludedFoods : [],
     excludedAllergens: Array.isArray(params.excludedAllergens) ? params.excludedAllergens : [],
@@ -515,7 +519,7 @@ const scopedFollowUp = (input, previousMealPlan, catalog, constraints) => {
     uiCard: {
       cardType: "meal",
       data: {
-        status: "complete", targetCalories: input.targetCalories, targetToleranceCalories: input.targetToleranceCalories,
+        status: "complete", targetCalories: input.targetCalories, calorieScope: input.calorieScope, targetToleranceCalories: input.targetToleranceCalories,
         macros, totals, meals: adjustedMeals, adjustments, price,
         safety,
         targets: { proteinGrams: input.proteinGrams, carbGrams: input.carbGrams, fatGrams: input.fatGrams, minimumProteinGrams: input.minimumProteinGrams },
@@ -732,6 +736,7 @@ export async function replaceMealFood(params, {
       data: {
         status: "complete",
         targetCalories: input.targetCalories,
+        calorieScope: input.calorieScope,
         targetToleranceCalories: input.targetToleranceCalories,
         macros: selected.summary.macros,
         totals: selected.summary.totals,
@@ -868,7 +873,7 @@ export async function suggestMeal(params, {
     uiCard: {
       cardType: "meal",
       data: {
-        status: "complete", targetCalories: input.targetCalories, targetToleranceCalories: input.targetToleranceCalories,
+        status: "complete", targetCalories: input.targetCalories, calorieScope: input.calorieScope, targetToleranceCalories: input.targetToleranceCalories,
         macros, totals, meals, price,
         safety,
         targets: { proteinGrams: input.proteinGrams, carbGrams: input.carbGrams, fatGrams: input.fatGrams, minimumProteinGrams: input.minimumProteinGrams },

@@ -488,6 +488,37 @@ privacy/safety của phiên bản mới.
 
 ## Maintenance Notes
 
+### Follow-up 2026-09-23 — ổn định 15 câu staging, không rewrite
+
+Complexity COMPLEX; local implementation only, no commit/push/deploy or live data changes.
+Preserve the user's four sitemap files and generated dependency manifest. Do not change
+auth, quota, conversation ownership, confirmation actions or provider/model configuration.
+
+1. Citation presentation: compact inline source chips with monogram and readable links,
+   compact source disclosure; hide the Google grounding transport host without inventing
+   publisher identity or fetching arbitrary redirects. Preserve HTTPS and spoofing guards.
+   Scope: ChatBubble, WebSourcesCard, citation helpers and their tests; searchKnowledge source
+   labels only if needed. Verify focused rendered client and grounding boundary tests.
+2. Exercise lookup: server-required read-only search preserves original count/equipment;
+   band-only filtering excludes machines. Keep generic fitness helpful on catalog miss;
+   do not fabricate catalog cards. Scope controller, equipment/tool helpers and integration tests.
+3. Meal: recognize natural single-meal wording and support single-meal calorie range without
+   weakening full-day constraints. Preserve existing replacement API and allergy guards.
+   Scope requestRouter, meal request/validation/tool tests; verify meals and router regression.
+4. TDEE: recognize both duration word orders, not arbitrary minutes unrelated to training.
+   Preserve missing-data form and no inferred health values. Scope tdeeIntake and unit tests.
+5. Provider: bounded recovery before usable output, common deadline and abort; never replay
+   delivered output/tool calls. Preserve existing HTTP retry budget and successful tool fallback.
+   Scope gemini.provider and provider tests, no new upstream/model or unbounded retry.
+
+Root owns integration/controller and final review. Independent citation, meal/intake and
+provider work may be delegated with disjoint file ownership. Verify RED → GREEN per slice,
+then AI-focused server/client suites, compile, UI regression and security/tool/agent gates.
+Live 15-prompt retest remains pending until an explicitly authorized staging release.
+Do not equate local tests with resolution of live transient outages; Render incident log
+correlation remains a proof gap. Earlier test commands failed from Node version and cache
+permissions, not assertion failures; these are not baseline passes or valid RED evidence.
+
 - Không dùng “tests pass” làm đồng nghĩa với “UX pass”; incident corpus và live provider gate là
   hai lớp bắt buộc khác nhau.
 - Mọi evidence/tool mới phải chứng minh degradation path vẫn hữu ích cho low-risk trước khi bật.

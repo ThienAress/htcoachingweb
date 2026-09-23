@@ -1094,4 +1094,12 @@ describe("AI request routing prompt block", () => {
     });
     expect(getAllowedToolNamesForRoute(decision)).toEqual([]);
   });
+
+  it("routes an explicit single Vietnamese dinner request to the meal tool", () => {
+    const decision = routeAiRequest(
+      "Cho tôi một bữa tối món Việt khoảng 650 kcal (sai số ±50), ít nhất 40g protein, 75g carb và 20g fat, chỉ 1 bữa, không dùng whey. Hãy ghi khối lượng từng món, tổng kcal và macro trong card thực đơn.",
+    );
+    expect(decision.preferredTool).toBe("suggest_meal");
+    expect(getAllowedToolNamesForRoute(decision)).toEqual(["suggest_meal"]);
+  });
 });

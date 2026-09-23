@@ -78,6 +78,15 @@ const mealCard = {
 };
 
 describe("AI conversation working memory", () => {
+  it("persists a validated single-meal calorie scope", () => {
+    const oneMealArgs = { ...mealArgs, targetCalories: 650, mealsPerDay: 1, calorieScope: "per_meal" };
+    const oneMealCard = {
+      ...mealCard,
+      data: { ...mealCard.data, targetCalories: 650, calorieScope: "per_meal" },
+    };
+    const memory = updateConversationMemory({}, "suggest_meal", oneMealArgs, { uiCard: oneMealCard });
+    expect(memory.lastMeal).toMatchObject({ calorieScope: "per_meal", plan: { calorieScope: "per_meal", targetCalories: 650 } });
+  });
   it("stores validated TDEE inputs and structured results", () => {
     const memory = updateConversationMemory(
       {},

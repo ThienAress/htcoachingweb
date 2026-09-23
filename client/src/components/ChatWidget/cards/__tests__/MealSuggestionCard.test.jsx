@@ -43,6 +43,12 @@ describe("MealSuggestionCard", () => {
     expect(html).not.toContain('aria-label="Lưu ý dị ứng"');
   });
 
+  it("hiển thị nhãn một bữa cho scope per_meal", () => {
+    const html = renderCard({ ...data, targetCalories: 650, calorieScope: "per_meal" });
+    expect(html).toContain("Một bữa");
+    expect(html).not.toContain("Một ngày · 1 bữa");
+  });
+
   it("cho chọn đúng một food item và giữ nút đổi món ở footer", () => {
     const html = renderCard(
       {

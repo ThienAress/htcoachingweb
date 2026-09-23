@@ -245,6 +245,184 @@ describe("geminiLLMStream retry", () => {
     });
   });
 
+  it("recovers from an empty 200 stream within the shared retry budget", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("", {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }))
+      .mockResolvedValueOnce(new Response(
+        'data: {"candidates":[{"content":{"parts":[{"text":"Recovered empty stream"}]}}]}\n\n',
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).resolves.toEqual([{ type: "text", content: "Recovered empty stream" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 2,
+      "provider.gemini_chat_failed": 1,
+      "provider.gemini_chat_succeeded": 1,
+    });
+  });
+
+  it("bounds repeated empty streams and keeps the empty-stream error", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn().mockImplementation(async () => new Response("", {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).rejects.toMatchObject({ code: "GEMINI_STREAM_EMPTY" });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 3,
+      "provider.gemini_chat_failed": 3,
+    });
+  });
+
+  it("accepts a valid SSE event at EOF without a trailing newline", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      'data: {"candidates":[{"content":{"parts":[{"text":"No newline"}]}}]}',
+      { status: 200, headers: { "Content-Type": "text/event-stream" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+    ))).resolves.toEqual([{ type: "text", content: "No newline" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["malformed SSE data", 'data: {not-json}\n\n'],
+    ["safety finish", 'data: {"candidates":[{"finishReason":"SAFETY"}]}\n\n'],
+    ["blocked prompt", 'data: {"promptFeedback":{"blockReason":"SAFETY"}}\n\n'],
+  ])("does not retry %s", async (_label, body) => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(body, {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).rejects.toMatchObject({ code: "GEMINI_STREAM_EMPTY" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry after partial text followed by a stream error", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      'data: {"candidates":[{"content":{"parts":[{"text":"Partial"}]}}]}\n\ndata: {"error":{"code":500,"message":"failed"}}\n\n',
+      { status: 200, headers: { "Content-Type": "text/event-stream" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+    ))).rejects.toMatchObject({ code: "GEMINI_STREAM_ERROR" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not emit a function call when a later stream error arrives", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      'data: {"candidates":[{"content":{"parts":[{"functionCall":{"id":"call-1","name":"lookup","args":{}}}]}}]}\n\ndata: {"error":{"code":500,"message":"failed"}}\n\n',
+      { status: 200, headers: { "Content-Type": "text/event-stream" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Lookup" }],
+      [{ type: "function", function: { name: "lookup", parameters: { type: "object" } } }],
+    ))).rejects.toMatchObject({ code: "GEMINI_STREAM_ERROR" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares retry budget across HTTP 503, empty stream, and success", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("", { status: 503 }))
+      .mockResolvedValueOnce(new Response("", {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }))
+      .mockResolvedValueOnce(new Response(
+        'data: {"candidates":[{"content":{"parts":[{"text":"Recovered"}]}}]}\n\n',
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).resolves.toEqual([{ type: "text", content: "Recovered" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("counts empty then repeated HTTP 503 failures exactly once per request", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("", {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }))
+      .mockResolvedValue(new Response('{"error":{"status":"UNAVAILABLE"}}', { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).rejects.toMatchObject({ code: "GEMINI_HTTP_ERROR", status: 503 });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 3,
+      "provider.gemini_chat_failed": 3,
+    });
+  });
+
+  it("aborts while waiting after an empty stream without issuing another request", async () => {
+    process.env.GEMINI_API_KEY = "synthetic-test-key";
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue(new Response("", {
+      status: 200,
+      headers: { "Content-Type": "text/event-stream" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const stream = collectStream(geminiLLMStream(
+      [{ role: "user", content: "Hi" }],
+      [],
+      { signal: controller.signal, retryBaseDelayMs: 1000, retryJitterRatio: 0 },
+    ));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    controller.abort(new Error("synthetic caller abort"));
+
+    await expect(stream).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 1,
+      "provider.gemini_chat_failed": 1,
+    });
+  });
+
   it("retries 429 only when Retry-After is valid", async () => {
     process.env.GEMINI_API_KEY = "synthetic-test-key";
     const success = () => new Response(
@@ -497,7 +675,7 @@ describe("geminiLLMStream retry", () => {
 
   it("fails closed when the SSE body has no valid candidate", async () => {
     process.env.GEMINI_API_KEY = "test-api-key";
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () =>
       new Response(
         `data: ${JSON.stringify({ usageMetadata: { totalTokenCount: 4 } })}\n\n`,
         { status: 200, headers: { "Content-Type": "text/event-stream" } },
@@ -508,9 +686,9 @@ describe("geminiLLMStream retry", () => {
       collectStream(geminiLLMStream([{ role: "user", content: "Hi" }])),
     ).rejects.toMatchObject({ code: "GEMINI_STREAM_EMPTY" });
     expect(getMetricsSnapshot().counters).toMatchObject({
-      "provider.gemini_chat_requests": 1,
+      "provider.gemini_chat_requests": 3,
       "provider.gemini_chat_succeeded": 0,
-      "provider.gemini_chat_failed": 1,
+      "provider.gemini_chat_failed": 3,
     });
   });
 
@@ -817,6 +995,32 @@ describe("geminiLLMStream retry", () => {
     expect(chunks).toEqual([
       { type: "text", content: "Fallback response" },
     ]);
+  });
+
+  it("uses the same minimal fallback request body when retrying an empty stream", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ error: { code: 400, status: "INVALID_ARGUMENT" } }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      ))
+      .mockResolvedValueOnce(new Response("", {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }))
+      .mockResolvedValueOnce(new Response(
+        'data: {"candidates":[{"content":{"parts":[{"text":"Fallback recovered"}]}}]}\n\n',
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(collectStream(geminiLLMStream(
+      [{ role: "system", content: "Instructions" }, { role: "user", content: "Hello" }],
+      [],
+      { retryBaseDelayMs: 0 },
+    ))).resolves.toEqual([{ type: "text", content: "Fallback recovered" }]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[1][1].body).toBe(fetchMock.mock.calls[2][1].body);
   });
 
   it("falls back without tools when the minimal tool request is still rejected", async () => {

@@ -122,6 +122,7 @@ export default function MealSuggestionCard({
 
   const {
     targetCalories,
+    calorieScope,
     targetToleranceCalories = 100,
     macros,
     meals,
@@ -142,7 +143,7 @@ export default function MealSuggestionCard({
       icon={Utensils}
       iconTone="amber"
       subtitle="Khẩu phần được tính từ dữ liệu thực phẩm trong hệ thống"
-      title={`Một ngày · ${meals.length} bữa`}
+      title={calorieScope === "per_meal" ? "Một bữa" : `Một ngày · ${meals.length} bữa`}
       value={`${formatNumber(calorieTotal)} kcal`}
       valueNote={
         macroSummary
