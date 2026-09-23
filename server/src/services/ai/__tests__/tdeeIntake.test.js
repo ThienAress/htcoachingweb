@@ -66,4 +66,26 @@ describe("TDEE structured intake", () => {
     expect(response.text).toMatch(/bổ sung/i);
     expect(response.text).not.toMatch(/đã tính|kcal/i);
   });
+
+  it("maps the natural Vietnamese duration order used in chat", () => {
+    const prefill = extractTdeePrefill(
+      "Nam 28 tuổi, cao 175 cm, nặng 78 kg, tập 3-4 buổi/tuần, mỗi buổi khoảng 60 phút, cường độ vừa",
+    );
+
+    expect(prefill.trainingDuration).toBe("between_45_60");
+  });
+
+  it("does not treat an unrelated cooking duration as training evidence", () => {
+    const prefill = extractTdeePrefill("Tôi tập 3 buổi/tuần, món ăn cần nấu khoảng 60 phút");
+    expect(prefill).toMatchObject({ trainingFrequency: "three_four" });
+    expect(prefill).not.toHaveProperty("trainingDuration");
+  });
+
+  it.each([
+    ["Tôi tập 50 phút/buổi", "between_45_60"],
+    ["Trung bình mỗi buổi khoảng 60 phút", "between_45_60"],
+    ["Mỗi buổi tập 45 phút", "between_30_45"],
+  ])("recognizes explicit training duration phrasing: %s", (message, expected) => {
+    expect(extractTdeePrefill(message).trainingDuration).toBe(expected);
+  });
 });

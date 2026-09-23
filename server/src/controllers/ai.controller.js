@@ -51,8 +51,9 @@ import {
 } from "../services/ai/conversationMemory.js";
 import { buildCanonicalMealToolRequest } from "../services/ai/mealRequestConstraints.js";
 import { buildTdeeIntakeResponse } from "../services/ai/tdeeIntake.js";
+import { buildExerciseRequest, isExerciseCatalogRequest } from "../services/ai/exerciseRequest.js";
 import {
-  hasLimitedDumbbellBandConstraint,
+  hasBandOnlyConstraint,
   validateWorkoutEquipmentOutput,
 } from "../services/ai/equipmentConstraint.js";
 import {
@@ -127,25 +128,7 @@ const resolveRequiredReadOnlyToolName = (toolName, routedTools) => {
 };
 
 const canonicalExerciseArgs = (message, args = {}) => {
-  const normalized = String(message || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/gi, "d")
-    .toLowerCase();
-  const intent = [
-    String(args.searchQuery || args.muscleGroup || "bài tập").trim(),
-    /\b(?:nguoi moi|moi bat dau|beginner)\b/.test(normalized)
-      ? "người mới"
-      : "",
-    hasLimitedDumbbellBandConstraint(message)
-      ? "chỉ có tạ đơn và dây kháng lực"
-      : "",
-  ].filter(Boolean).join(" ").slice(0, 100);
-  return {
-    ...(args.muscleGroup && { muscleGroup: args.muscleGroup }),
-    searchQuery: intent,
-    ...(Number.isInteger(args.limit) && { limit: args.limit }),
-  };
+  return buildExerciseRequest(message, args);
 };
 
 const attachMealIdentity = (toolName, toolResult) => {
@@ -208,6 +191,7 @@ const requiredToolMissingResponse = (toolName) => {
 
 const hasCompleteCanonicalMealArgs = (args) =>
   Number.isFinite(args?.targetCalories) &&
+  args.targetCalories >= (args.calorieScope === "per_meal" ? 500 : 800) &&
   Number.isFinite(args?.proteinGrams) && args.proteinGrams > 0 &&
   Number.isFinite(args?.carbGrams) && args.carbGrams >= 0 &&
   Number.isFinite(args?.fatGrams) && args.fatGrams >= 0 &&
@@ -1321,6 +1305,26 @@ export const chatStream = async (req, res) => {
         ]),
       });
     }
+    if (
+      routingDecision.evidence === "internal_kb" &&
+      routingDecision.domain === "fitness" &&
+      routingDecision.risk === "low" &&
+      routingDecision.preferredTool === "search_exercises" &&
+      kbEntryIds.length === 0 &&
+      !isExerciseCatalogRequest(retrievalQuery)
+    ) {
+      routingDecision = Object.freeze({
+        ...routingDecision,
+        evidence: "model_prior",
+        knowledgeBaseEligible: false,
+        preferredTool: null,
+        maxWebSearchCalls: 0,
+        reasonCodes: Object.freeze([
+          ...routingDecision.reasonCodes,
+          "exercise_technique_model_prior_no_catalog_hit",
+        ]),
+      });
+    }
     internalEvidenceAvailable = kbEntryIds.length > 0;
     internalEvidenceRequired =
       routingDecision.evidence === "internal_kb" &&
@@ -1540,6 +1544,28 @@ export const chatStream = async (req, res) => {
       const guardedTdee = sanitizeAssistantOutput(directTdee.safeToolText);
       fullResponse = await deliverAssistantResponse(
         guardedTdee.content || requiredToolMissingResponse("calculate_tdee").text,
+      );
+    } else if (routedRequiredToolName === "search_exercises" && isExerciseCatalogRequest(retrievalQuery)) {
+      const directExercise = await executeServerRequiredTool(
+        "search_exercises",
+        canonicalExerciseArgs(retrievalQuery),
+      );
+      requiredToolConsumed = true;
+      internalEvidenceAvailable ||= directExercise.toolSucceeded &&
+        directExercise.toolResult.meta?.evidenceAvailable === true;
+      if (!internalEvidenceAvailable && routingDecision.risk === "low") {
+        routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
+      }
+      llmMessages.push(
+        { role: "assistant", content: "", tool_calls: [directExercise.call] },
+        {
+          role: "tool", name: "search_exercises", id: directExercise.call.id,
+          content: serializeToolResultForModel({
+            toolName: "search_exercises", text: directExercise.safeToolText,
+            status: resolveToolResultStatus(directExercise.toolResult),
+          }),
+          toolResultEnvelope: true,
+        },
       );
     } else if (routedRequiredToolName === "search_knowledge") {
       webSearchAttemptCount = 1;
@@ -2195,7 +2221,9 @@ export const chatStream = async (req, res) => {
             llmMessages.push({ role: "assistant", content: iterationText });
             llmMessages.push({
               role: "user",
-              content: EQUIPMENT_CORRECTION_INSTRUCTION,
+              content: hasBandOnlyConstraint(message)
+                ? "Hãy viết lại câu trả lời, chỉ dùng dây kháng lực hoặc bodyweight. Không dùng máy, thanh đòn, tạ đơn, ghế hoặc xà. Không nêu quy trình nội bộ."
+                : EQUIPMENT_CORRECTION_INSTRUCTION,
             });
             needsToolCall = true;
             continue;

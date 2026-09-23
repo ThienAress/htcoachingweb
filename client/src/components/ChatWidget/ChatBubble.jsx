@@ -13,11 +13,13 @@ import WebSourcesCard from "./cards/WebSourcesCard";
 import TrainingScheduleCard from "./cards/TrainingScheduleCard";
 import CheckinHistoryCard from "./cards/CheckinHistoryCard";
 import GymInfoCard from "./cards/GymInfoCard";
+import CitationChip from "./CitationChip";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { isAllowedAiUiCard } from "./aiCardPolicy";
 import { getChatScrollBehavior } from "./chatPanelRuntime";
 import { persistOptimisticFeedback } from "./feedbackRuntime";
+import { getSafeCitationSources } from "./citation";
 
 const CARD_COMPONENTS = {
   tdee: TdeeResultCard,
@@ -73,6 +75,12 @@ const ChatBubble = memo(function ChatBubble({
       isAllowedAiUiCard(card) &&
       Object.hasOwn(CARD_COMPONENTS, card.cardType),
   );
+  const citationSources = getSafeCitationSources(
+    visibleUiCards
+      .filter((card) => card.cardType === "webSources")
+      .flatMap((card) => card.data?.sources || []),
+  );
+  const citationByUri = new Map(citationSources.map((source) => [source.uri, source]));
 
   // Auto-focus và đặt cursor cuối khi mở edit
   useEffect(() => {
@@ -257,6 +265,8 @@ const ChatBubble = memo(function ChatBubble({
                   components={{
                   p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200">{children}</p>,
                   a: ({ href, children }) => {
+                    const citation = citationByUri.get(href);
+                    if (citation) return <CitationChip source={citation} />;
                     if (href?.includes("#") && href?.startsWith("/")) {
                       return (
                         <button

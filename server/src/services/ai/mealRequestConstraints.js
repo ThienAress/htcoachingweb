@@ -27,25 +27,23 @@ const firstMatchNumber = (text, pattern, min, max) => {
   return match ? finiteInRange(localizedInteger(match[1]), min, max) : null;
 };
 
-const explicitCalories = (text) => {
+const explicitCalories = (text, minimumCalories) => {
   const matches = text.matchAll(/\b(\d{1,2}(?:[.,]\d{3})+|\d{3,4})\s*(?:kcal|calo)\b/g);
   for (const match of matches) {
-    const value = finiteInRange(localizedInteger(match[1]), 800, 6000);
-    if (value !== null) return value;
+    const value = finiteInRange(localizedInteger(match[1]), minimumCalories, 6000);
+    return { found: true, value };
   }
-  return null;
+  return { found: false, value: null };
 };
 
-const explicitMinimumProtein = (text) => firstMatchNumber(
-  text,
-  /\b(?:it nhat|toi thieu|minimum)\s*(\d{1,3}(?:[.,]\d+)?)\s*(?:g|gram)\s*protein\b/,
-  0,
-  500,
-);
+const explicitMinimumProtein = (text) => {
+  const match = text.match(/\b(?:it nhat|toi thieu|minimum)\s*(\d{1,3}(?:[.,]\d+)?)\s*(?:g|gram)\s*protein\b/);
+  return match ? finiteInRange(match[1].replace(",", "."), 0, 500) : null;
+};
 
 const explicitTolerance = (text) => firstMatchNumber(
   text,
-  /\bsai so(?: toi da)?\s*(\d{1,3})\s*(?:kcal|calo)\b/,
+  /\bsai so(?: toi da)?\s*(?:[±+\-]\s*)?(\d{1,3}(?:[.,]\d+)?)\s*(?:kcal|calo)?\b/,
   0,
   300,
 );
@@ -56,6 +54,24 @@ const explicitMealCount = (text) => firstMatchNumber(
   1,
   6,
 );
+
+const explicitCalorieScope = (text) =>
+  /\b(?:ca|moi|1|mot)\s+ngay\b|\bper\s+day\b|\bdaily\b/.test(text)
+    ? "per_day"
+    : /\b(?:chi\s+)?(?:1|mot)\s+bua\b/.test(text) ||
+  /\b(?:bua\s+(?:sang|trua|toi)|per\s+meal|single\s+meal)\b/.test(text)
+    ? "per_meal"
+    : undefined;
+
+const isMealFollowUp = (text, previous) =>
+  Boolean(previous?.plan || previous?.targetCalories) &&
+  /\b(?:giu|doi|thay|dieu chinh|them|bot|mon nay|bua nay|vua roi)\b/.test(text);
+
+const explicitMacro = (text, names, maximum) => {
+  const match = text.match(new RegExp(`\\b(\\d{1,3}(?:[.,]\\d+)?)\\s*(?:g|gram)\\s*(?:${names})\\b`));
+  if (!match) return null;
+  return finiteInRange(match[1].replace(",", "."), 0, maximum);
+};
 
 const explicitBudget = (text) => firstMatchNumber(
   text,
@@ -165,32 +181,52 @@ export const buildCanonicalMealToolRequest = (
   lastMeal = null,
 ) => {
   const text = normalizeText(message);
-  const previous = lastMeal && typeof lastMeal === "object" ? lastMeal : {};
-  const requestedCalories = explicitCalories(text);
+  const saved = lastMeal && typeof lastMeal === "object" ? lastMeal : {};
+  const explicitScope = explicitCalorieScope(text);
+  const followUp = isMealFollowUp(text, saved);
+  const calorieScope = explicitScope === "per_day" ? "per_day"
+    : followUp ? (saved.calorieScope === "per_meal" ? "per_meal" : "per_day")
+      : explicitScope ?? "per_day";
+  // A new meal cannot inherit a whole day's macros or count. Retain safety
+  // exclusions across the scope transition, but not numerical targets.
+  const previous = (saved.calorieScope || "per_day") === calorieScope ? saved : {
+    excludedFoods: saved.excludedFoods, excludedAllergens: saved.excludedAllergens,
+    lactoseFree: saved.lactoseFree, requirePackageLabelSafety: saved.requirePackageLabelSafety,
+  };
+  const minimumCalories = calorieScope === "per_meal" ? 500 : 800;
+  const requestedCalories = explicitCalories(text, minimumCalories);
   const requestedMinimumProtein = explicitMinimumProtein(text);
-  const modelTargetCalories = selectNumber(modelArgs.targetCalories, 800, 6000);
-  const targetCalories = requestedCalories ??
-    modelTargetCalories ??
-    selectNumber(previous.targetCalories, 800, 6000);
+  const requestedProtein = explicitMacro(text, "protein", 500);
+  const requestedCarb = explicitMacro(text, "carb(?:s|ohydrate)?", 1000);
+  const requestedFat = explicitMacro(text, "fat", 300);
+  const modelTargetCalories = selectNumber(modelArgs.targetCalories, minimumCalories, 6000);
+  const targetCalories = requestedCalories.found
+    ? requestedCalories.value
+    : modelTargetCalories ??
+    selectNumber(previous.targetCalories, minimumCalories, 6000);
   const minimumProteinGrams = requestedMinimumProtein ??
     selectNumber(modelArgs.minimumProteinGrams, 0, 500) ??
     selectNumber(previous.plan?.targets?.minimumProteinGrams, 0, 500) ??
     selectNumber(previous.proteinGrams, 0, 500);
-  const suppliedProtein = selectNumber(modelArgs.proteinGrams, 0, 500) ??
+  const suppliedProtein = requestedProtein ??
+    selectNumber(modelArgs.proteinGrams, 0, 500) ??
     selectNumber(previous.proteinGrams, 0, 500) ??
     minimumProteinGrams;
   const proteinGrams = Math.max(
     suppliedProtein ?? 0,
     minimumProteinGrams ?? 0,
   );
-  const suppliedCarb = selectNumber(modelArgs.carbGrams, 0, 1000) ??
+  const suppliedCarb = requestedCarb ??
+    selectNumber(modelArgs.carbGrams, 0, 1000) ??
     selectNumber(previous.carbGrams, 0, 1000);
-  const suppliedFat = selectNumber(modelArgs.fatGrams, 0, 300) ??
+  const suppliedFat = requestedFat ??
+    selectNumber(modelArgs.fatGrams, 0, 300) ??
     selectNumber(previous.fatGrams, 0, 300);
   const scope = adjustmentScope(text, previous.plan);
-  const shouldRebalance = !scope.scopedAdjustment &&
-    requestedCalories !== null &&
-    requestedCalories !== modelTargetCalories;
+  const shouldRebalance = calorieScope !== "per_meal" &&
+    !scope.scopedAdjustment &&
+    requestedCalories.value !== null &&
+    requestedCalories.value !== modelTargetCalories;
   const balanced = shouldRebalance
     ? balanceFlexibleMacros(
         targetCalories,
@@ -229,15 +265,18 @@ export const buildCanonicalMealToolRequest = (
   const persistedMinimumProtein = requestedMinimumProtein ??
     selectNumber(modelArgs.minimumProteinGrams, 0, 500) ??
     selectNumber(previous.minimumProteinGrams, 0, 500);
+  const mealsPerDay = explicitMealCount(text) ??
+    (calorieScope === "per_meal" ? 1 : undefined) ??
+    selectNumber(modelArgs.mealsPerDay, 1, 6) ??
+    selectNumber(previous.mealsPerDay, 1, 6) ??
+    (calorieScope === "per_meal" ? 1 : 3);
   const args = {
     targetCalories,
+    calorieScope,
     proteinGrams,
     carbGrams: balanced.carb,
     fatGrams: balanced.fat,
-    mealsPerDay: explicitMealCount(text) ??
-      selectNumber(modelArgs.mealsPerDay, 1, 6) ??
-      selectNumber(previous.mealsPerDay, 1, 6) ??
-      3,
+    mealsPerDay,
     ...(targetToleranceCalories !== undefined && {
       targetToleranceCalories,
     }),

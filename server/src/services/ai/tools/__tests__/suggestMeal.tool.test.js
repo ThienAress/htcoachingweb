@@ -54,6 +54,21 @@ const toolContext = (overrides = {}) => ({
 });
 
 describe("suggest_meal deterministic nutrition contract", () => {
+  it("permits a 650 kcal single-meal target only with explicit scope", async () => {
+    const result = await suggestMeal({ targetCalories: 650, calorieScope: "per_meal", proteinGrams: 40, carbGrams: 75, fatGrams: 20, mealsPerDay: 1, targetToleranceCalories: 50, minimumProteinGrams: 40, excludedFoods: ["whey"] }, toolContext());
+    expect(result.uiCard.data.status).toBe("complete");
+    expect(result.uiCard.data.meals).toHaveLength(1);
+  });
+
+  it("rejects 650 kcal when it is a whole-day target", async () => {
+    const result = await suggestMeal({ targetCalories: 650, proteinGrams: 40, carbGrams: 75, fatGrams: 20, mealsPerDay: 1 }, toolContext());
+    expect(result.uiCard.data.reason).toBe("invalid_constraints");
+  });
+
+  it("rejects a per-meal target that attempts to generate multiple meals", async () => {
+    const result = await suggestMeal({ targetCalories: 650, calorieScope: "per_meal", proteinGrams: 40, carbGrams: 75, fatGrams: 20, mealsPerDay: 2 }, toolContext());
+    expect(result.uiCard.data.reason).toBe("invalid_constraints");
+  });
   it("trả 4 bữa 2.500 ±100 kcal, ít nhất 170g protein và kcal khớp 4P + 4C + 9F", async () => {
     const result = await suggestMeal(params, toolContext());
 

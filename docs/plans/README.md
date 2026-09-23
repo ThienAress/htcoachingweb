@@ -6,7 +6,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
-| 092 | Khôi phục HT Assistant ổn định trước khi mở rộng tiếp | P0 | L | 090, 090A | IN PROGRESS / STAGING CATALOG ROLLOUT — STEP 7 PENDING |
+| 092 | Khôi phục HT Assistant ổn định trước khi mở rộng tiếp | P0 | L | 090, 090A | IN PROGRESS / 2026-09-23: five bounded fixes after 15-question staging review; release pending |
 | 091 | Modernize GitHub Actions and close release operations | P1 | M | 090A | DONE / FOCUSED — LOCAL WORKFLOW PATCH; NOT COMMITTED |
 | 090A | Rollout guarded Knowledge Base embeddings trên staging | P1 | L | 090, PR #114 | DONE / PRODUCTION VERIFIED — AC-009 PASS; OBSERVATION KEEP |
 | 090 | Biến HT Assistant thành fitness-first và grounding KB bằng evidence | P1 | L | 031, 052 | DONE / PRODUCTION VERIFIED — AC-009 PASS; OBSERVATION KEEP |

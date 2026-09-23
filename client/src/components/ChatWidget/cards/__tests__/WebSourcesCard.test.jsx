@@ -49,4 +49,37 @@ describe("WebSourcesCard", () => {
       }),
     ).toBe("");
   });
+
+  it("giữ href redirect legacy nhưng không lộ hostname điều hướng trong nhãn", () => {
+    const html = renderCard({
+      sources: [{
+        title: "CDC — Creatine guidance (vertexaisearch.cloud.google.com)",
+        uri: "https://vertexaisearch.cloud.google.com/grounding/redirect?target=cdc",
+      }],
+    });
+
+    expect(html).toContain("CDC — Creatine guidance");
+    expect(html.replace(/href="[^"]+"/g, "")).not.toContain("vertexaisearch.cloud.google.com");
+    expect(html).toContain('href="https://vertexaisearch.cloud.google.com/grounding/redirect?target=cdc"');
+  });
+
+  it("keeps the actual host beside a spoofable publisher name", () => {
+    const html = renderCard({
+      sources: [{ title: "World Health Organization", uri: "https://evil.example/advice" }],
+    });
+
+    expect(html).toContain("World Health Organization (evil.example)");
+  });
+
+  it("uses a neutral label when a legacy redirect only supplies its transport hostname", () => {
+    const html = renderCard({
+      sources: [{
+        title: "vertexaisearch.cloud.google.com",
+        uri: "https://vertexaisearch.cloud.google.com/grounding/redirect?target=cdc",
+      }],
+    });
+
+    expect(html).toContain(">Nguồn<");
+    expect(html.replace(/href="[^"]+"/g, "")).not.toContain("vertexaisearch.cloud.google.com");
+  });
 });

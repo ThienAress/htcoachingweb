@@ -137,6 +137,17 @@ describe("AI tool runtime validation", () => {
     expect(result.meta.invalidFields).toContain("age");
   });
 
+  it("rejects a sub-800 whole-day meal target at the execution boundary", async () => {
+    const result = await executeTool(
+      "suggest_meal",
+      { targetCalories: 650, proteinGrams: 40, carbGrams: 75, fatGrams: 20, mealsPerDay: 1 },
+      { userId: "authenticated-user", allowedToolNames: ["suggest_meal"] },
+    );
+
+    expect(result.meta.validationFailed).toBe(true);
+    expect(result.meta.invalidFields).toContain("targetCalories");
+  });
+
   it("enforces the server routing allowlist again at the execution boundary", async () => {
     const originalExecute = toolRegistry.check_wallet.execute;
     toolRegistry.check_wallet.execute = () => {

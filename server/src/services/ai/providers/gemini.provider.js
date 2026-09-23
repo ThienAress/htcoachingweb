@@ -81,6 +81,21 @@ const getTransientRetryDelayMs = (
   return Math.max(0, Math.floor(delayMs));
 };
 
+const getEmptyStreamRetryDelayMs = (
+  attempt,
+  { deadlineAt, retryBaseDelayMs, retryJitterRatio },
+) => {
+  const exponentialDelay = Math.min(
+    retryBaseDelayMs * (2 ** Math.max(0, attempt - 1)),
+    GEMINI_RETRY_MAX_DELAY_MS,
+  );
+  const delayMs = exponentialDelay +
+    Math.floor(exponentialDelay * retryJitterRatio * Math.random());
+  const remainingMs = deadlineAt - Date.now();
+  if (delayMs + GEMINI_RETRY_DEADLINE_RESERVE_MS >= remainingMs) return null;
+  return Math.max(0, Math.floor(delayMs));
+};
+
 const waitForRetry = (delayMs, signal) => {
   if (signal.aborted) return Promise.reject(signal.reason);
   if (delayMs <= 0) return Promise.resolve();
@@ -398,6 +413,7 @@ async function* streamGemini(
   const url = `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
   const retryBudget = { remaining: GEMINI_TRANSIENT_MAX_ATTEMPTS - 1 };
+  let requestBody = body;
   let response = await fetchGeminiResponse(
     url,
     body,
@@ -434,6 +450,7 @@ async function* streamGemini(
         ...(toolConfig && { toolConfig }),
         generationConfig: body.generationConfig,
       };
+      requestBody = retryBody;
 
       let retryResponse = await fetchGeminiResponse(
         url,
@@ -456,6 +473,7 @@ async function* streamGemini(
         );
         const toolFreeRetryBody = { ...retryBody };
         delete toolFreeRetryBody.tools;
+        requestBody = toolFreeRetryBody;
         retryResponse = await fetchGeminiResponse(
           url,
           toolFreeRetryBody,
@@ -487,85 +505,141 @@ async function* streamGemini(
     }
   }
 
-  // Parse SSE stream
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  const thoughtBuffer = []; // Buffer thought parts để gửi kèm tool_call
-  const pendingToolCalls = [];
-  const usage = {
+  let thoughtBuffer = [];
+  let pendingToolCalls = [];
+  let usage = {
     promptTokenCount: 0,
     candidatesTokenCount: 0,
     totalTokenCount: 0,
   };
   let receivedOutput = false;
   let terminalStreamError = false;
+  let emptyStreamAttempt = 1;
 
   while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+    // Parse one response. Empty normal EOF is the only stream condition that
+    // can be retried: no text or tool call has reached the agent loop yet.
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    thoughtBuffer = [];
+    pendingToolCalls = [];
+    usage = {
+      promptTokenCount: 0,
+      candidatesTokenCount: 0,
+      totalTokenCount: 0,
+    };
+    receivedOutput = false;
+    terminalStreamError = false;
+    let sawTerminalCompletion = false;
+    let sawMalformedData = false;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = done ? "" : lines.pop() || "";
 
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      const jsonStr = line.slice(6).trim();
-      if (!jsonStr || jsonStr === "[DONE]") continue;
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr || jsonStr === "[DONE]") continue;
 
-      try {
-        const data = JSON.parse(jsonStr);
-        for (const field of Object.keys(usage)) {
-          usage[field] = Math.max(
-            usage[field],
-            Number(data.usageMetadata?.[field]) || 0,
-          );
-        }
+        try {
+          const data = JSON.parse(jsonStr);
+          for (const field of Object.keys(usage)) {
+            usage[field] = Math.max(
+              usage[field],
+              Number(data.usageMetadata?.[field]) || 0,
+            );
+          }
 
-        // Gemini trả error trong stream body (HTTP 200 nhưng có lỗi)
-        if (data.error) {
-          safeLog.warn("ai.gemini_stream_error", "Provider stream error");
-          terminalStreamError = true;
-          continue;
-        }
-
-        const candidate = data.candidates?.[0];
-        if (!candidate?.content?.parts) continue;
-
-        for (const part of candidate.content.parts) {
-          const thoughtSignature =
-            part.thoughtSignature || part.thought_signature;
-
-          // Buffer thought parts — KHÔNG gửi ra UI nhưng CẦN echo lại cho Gemini
-          if (part.thought) {
-            thoughtBuffer.push({
-              thought: true,
-              ...(part.text && { text: part.text }),
-              ...(thoughtSignature && { thoughtSignature }),
-            });
+          // Gemini trả error trong stream body (HTTP 200 nhưng có lỗi)
+          if (data.error) {
+            safeLog.warn("ai.gemini_stream_error", "Provider stream error");
+            terminalStreamError = true;
             continue;
           }
 
-          if (part.text) {
-            receivedOutput = true;
-            yield { type: "text", content: part.text };
-          }
+          const candidate = data.candidates?.[0];
+          sawTerminalCompletion ||= Boolean(candidate?.finishReason || data.promptFeedback?.blockReason);
+          if (!candidate?.content?.parts) continue;
 
-          if (part.functionCall) {
-            receivedOutput = true;
-            pendingToolCalls.push({
-              id: part.functionCall.id || part.id || `gemini_${Date.now()}`,
-              name: part.functionCall.name,
-              args: part.functionCall.args || {},
-              ...(thoughtSignature && { thoughtSignature }),
-            });
+          for (const part of candidate.content.parts) {
+            const thoughtSignature =
+              part.thoughtSignature || part.thought_signature;
+
+            // Buffer thought parts — KHÔNG gửi ra UI nhưng CẦN echo lại cho Gemini
+            if (part.thought) {
+              thoughtBuffer.push({
+                thought: true,
+                ...(part.text && { text: part.text }),
+                ...(thoughtSignature && { thoughtSignature }),
+              });
+              continue;
+            }
+
+            if (part.text) {
+              receivedOutput = true;
+              yield { type: "text", content: part.text };
+            }
+
+            if (part.functionCall) {
+              receivedOutput = true;
+              pendingToolCalls.push({
+                id: part.functionCall.id || part.id || `gemini_${Date.now()}`,
+                name: part.functionCall.name,
+                args: part.functionCall.args || {},
+                ...(thoughtSignature && { thoughtSignature }),
+              });
+            }
           }
+        } catch {
+          sawMalformedData = true;
         }
-      } catch {
-        // JSON parse error — skip malformed chunk
+      }
+      if (done) break;
+    }
+
+    if (!terminalStreamError && !receivedOutput && !sawTerminalCompletion &&
+        !sawMalformedData && retryBudget.remaining > 0) {
+      const retryDelayMs = getEmptyStreamRetryDelayMs(
+        emptyStreamAttempt,
+        retryOptions,
+      );
+      if (retryDelayMs !== null) {
+        recordGeminiResult("chat", { success: false });
+        safeLog.warn(
+          "ai.gemini_empty_stream_retry",
+          "Retrying provider after an empty stream",
+          { attempt: emptyStreamAttempt, retryDelayMs },
+        );
+        retryBudget.remaining -= 1;
+        try {
+          await waitForRetry(retryDelayMs, signal);
+        } catch (error) {
+          if (error && typeof error === "object") error[GEMINI_OUTCOME_RECORDED] = true;
+          throw error;
+        }
+        emptyStreamAttempt += 1;
+        response = await fetchGeminiResponse(
+          url,
+          requestBody,
+          signal,
+          retryOptions,
+          retryBudget,
+        );
+        if (!response.ok) {
+          recordGeminiResult("chat", { success: false });
+          recordGeminiHttpDisposition(response.status);
+          const error = operationalError("GEMINI_HTTP_ERROR", response.status);
+          error[GEMINI_OUTCOME_RECORDED] = true;
+          throw error;
+        }
+        continue;
       }
     }
+    break;
   }
 
   if (terminalStreamError || !receivedOutput) {

@@ -1406,7 +1406,7 @@
       "expected": {
         "pathEquals": {
           "parameters.additionalProperties": false,
-          "parameters.properties.targetCalories.minimum": 800,
+          "parameters.properties.targetCalories.minimum": 500,
           "parameters.properties.targetCalories.maximum": 6000,
           "parameters.properties.mealsPerDay.maximum": 6
         }

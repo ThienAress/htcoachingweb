@@ -215,6 +215,43 @@ describe("searchExercises query normalization", () => {
       excludedForEquipmentCount: 2,
     });
   });
+  it('keeps a specific name filter alongside generic equipment qualifiers', async () => {
+    await searchExercises({muscleGroup:'Lưng', exerciseName:'Lat Pulldown', searchQuery:'bài tập Lưng lat pulldown người mới'});
+    expect(findMock.mock.calls[0][0].name).toEqual({$regex:'Lat Pulldown', $options:'i'});
+  });
+
+  it("keeps a band-only request away from machine and bodyweight entries", async () => {
+    mockExerciseQuery([
+      {
+        name: "Band Row",
+        muscleGroup: "Lưng",
+        description: "Kéo dây kháng lực về phía bụng.",
+      },
+      {
+        name: "Assisted Pull-up",
+        muscleGroup: "Cơ lưng",
+        description: "Điều chỉnh máy hỗ trợ để kéo người lên.",
+      },
+      {
+        name: "Inverted Row",
+        muscleGroup: "Lưng",
+        description: "Dùng trọng lượng cơ thể dưới thanh ngang.",
+      },
+    ]);
+
+    const result = await searchExercises({
+      searchQuery: "Tìm bài tập lưng cho người mới, chỉ dùng dây kháng lực",
+      limit: 4,
+    });
+
+    expect(result.uiCard.data.exercises.map(({ name }) => name)).toEqual([
+      "Band Row",
+    ]);
+    expect(result.meta).toMatchObject({
+      equipmentConstraintApplied: true,
+      excludedForEquipmentCount: 2,
+    });
+  });
 
   it("filters ambiguous presses and bodyweight exercises that require unavailable setup", async () => {
     mockExerciseQuery([

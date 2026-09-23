@@ -27,6 +27,16 @@ const validateTdeeTrainingEvidence = (parameters) => {
     : [];
 };
 
+const validateMealCalorieScope = (parameters) => {
+  const perMeal = parameters.calorieScope === "per_meal";
+  const calories = Number(parameters.targetCalories);
+  if (!Number.isFinite(calories)) return [];
+  if ((!perMeal && calories < 800) || (perMeal && parameters.mealsPerDay != null && parameters.mealsPerDay !== 1)) {
+    return ["targetCalories", ...(perMeal ? ["mealsPerDay"] : [])];
+  }
+  return [];
+};
+
 export const toolRegistry = {
   calculate_tdee: {
     name: "calculate_tdee",
@@ -113,6 +123,7 @@ export const toolRegistry = {
       properties: {
         muscleGroup: { type: "string", minLength: 1, maxLength: 50, description: "Nhóm cơ muốn tìm. VD: Ngực, Lưng, Chân, Vai, Tay, Bụng" },
         searchQuery: { type: "string", minLength: 1, maxLength: 100, description: "Tên bài tập muốn tìm. VD: plank, squat, bench press" },
+        exerciseName: { type: "string", minLength: 1, maxLength: 100, description: "Tên bài cụ thể đã được nêu, tách khỏi nhóm cơ và giới hạn thiết bị." },
         limit: { type: "integer", minimum: 1, maximum: 10, description: "Số lượng kết quả tối đa (mặc định 5)" },
       },
     },
@@ -133,7 +144,8 @@ export const toolRegistry = {
       type: "object",
       additionalProperties: false,
       properties: {
-        targetCalories: { type: "number", minimum: 800, maximum: 6000, description: "Tổng calo mục tiêu mỗi ngày" },
+        targetCalories: { type: "number", minimum: 500, maximum: 6000, description: "Calo mục tiêu. Mặc định là tổng mỗi ngày (tối thiểu 800); chỉ có thể dùng 500-799 khi calorieScope=per_meal." },
+        calorieScope: { type: "string", enum: ["per_day", "per_meal"], description: "per_day mặc định. per_meal chỉ khi user yêu cầu rõ một bữa cụ thể; không dùng để hạ mục tiêu cả ngày." },
         proteinGrams: { type: "number", minimum: 0, maximum: 500, description: "Gram protein mục tiêu" },
         carbGrams: { type: "number", minimum: 0, maximum: 1000, description: "Gram carb mục tiêu" },
         fatGrams: { type: "number", minimum: 0, maximum: 300, description: "Gram fat mục tiêu" },
@@ -174,6 +186,7 @@ export const toolRegistry = {
       required: ["targetCalories", "proteinGrams", "carbGrams", "fatGrams"],
     },
     execute: suggestMeal,
+    validateParameters: validateMealCalorieScope,
     readOnly: true,
     parallelSafe: true,
     requiresAuth: false,

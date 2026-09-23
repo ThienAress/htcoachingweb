@@ -13,9 +13,20 @@
     { "id": "TASK-007", "title": "Roll out with an observed rollback boundary", "planStep": "Step 8" },
     { "id": "TASK-008", "title": "Close post-staging semantic, card and conversation gaps", "planStep": "Step 6" },
     { "id": "TASK-009", "title": "Make staging catalog readiness explicit and fail closed", "planStep": "Step 6" },
-    { "id": "TASK-010", "title": "Roll out and rollback the exact staging AI catalog cohort", "planStep": "Step 6" }
+    { "id": "TASK-010", "title": "Roll out and rollback the exact staging AI catalog cohort", "planStep": "Step 6" },
+    { "id": "TASK-011", "title": "Close five bounded regressions from 15-question staging review", "planStep": "Step 6" }
   ],
   "requirements": [
+    {
+      "id": "REQ-009",
+      "acceptanceCriteria": [
+        { "id":"AC-025", "mustHave":true, "taskIds":["TASK-011"], "verifications":[{"type":"test","path":"client/src/components/ChatWidget/__tests__/citationRendering.test.jsx"},{"type":"test","path":"client/src/components/ChatWidget/__tests__/chatCitationBinding.test.js"}] },
+        { "id":"AC-026", "mustHave":true, "taskIds":["TASK-011"], "verifications":[{"type":"test","path":"server/src/controllers/__tests__/aiFeedbackTrace.integration.test.js"},{"type":"test","path":"server/src/services/ai/__tests__/exerciseRequest.test.js"}] },
+        { "id":"AC-027", "mustHave":true, "taskIds":["TASK-011"], "verifications":[{"type":"test","path":"server/src/services/ai/__tests__/mealRequestConstraints.test.js"},{"type":"test","path":"server/src/services/ai/tools/__tests__/suggestMeal.tool.test.js"}] },
+        { "id":"AC-028", "mustHave":true, "taskIds":["TASK-011"], "verifications":[{"type":"test","path":"server/src/services/ai/__tests__/tdeeIntake.test.js"}] },
+        { "id":"AC-029", "mustHave":true, "taskIds":["TASK-011"], "verifications":[{"type":"test","path":"server/src/services/ai/providers/__tests__/gemini.provider.test.js"}] }
+      ]
+    },
     {
       "id": "REQ-001",
       "acceptanceCriteria": [

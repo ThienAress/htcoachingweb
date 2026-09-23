@@ -135,14 +135,22 @@ const boundedStringList = (values, maxItems, maxLength) => [
 
 const sanitizeMealArgs = (args) => {
   const input = asPlainObject(args);
+  const calorieScope = input.calorieScope === "per_meal" ? "per_meal" : "per_day";
   const required = {
-    targetCalories: boundedNumber(input.targetCalories, 800, 6000),
+    targetCalories: boundedNumber(
+      input.targetCalories,
+      calorieScope === "per_meal" ? 500 : 800,
+      6000,
+    ),
     proteinGrams: boundedNumber(input.proteinGrams, 0, 500),
     carbGrams: boundedNumber(input.carbGrams, 0, 1000),
     fatGrams: boundedNumber(input.fatGrams, 0, 300),
     mealsPerDay: boundedNumber(input.mealsPerDay ?? 3, 1, 6),
   };
-  if (Object.values(required).some((value) => value === null)) return null;
+  if (
+    Object.values(required).some((value) => value === null) ||
+    (calorieScope === "per_meal" && required.mealsPerDay !== 1)
+  ) return null;
 
   const targetToleranceCalories = boundedNumber(
     input.targetToleranceCalories,
@@ -168,6 +176,7 @@ const sanitizeMealArgs = (args) => {
 
   return {
     ...required,
+    calorieScope,
     ...(targetToleranceCalories !== null && { targetToleranceCalories }),
     ...(minimumProteinGrams !== null && { minimumProteinGrams }),
     ...(excludedFoods.length > 0 && { excludedFoods }),
@@ -206,6 +215,7 @@ const addMealMacros = (values) => values.reduce((total, macro) => ({
 
 const sanitizeMealPlan = (value) => {
   const source = asPlainObject(value);
+  const calorieScope = source.calorieScope === "per_meal" ? "per_meal" : "per_day";
   if (
     source.status !== "complete" ||
     source.nutritionMethod !== "server_calculated_4p_4c_9f" ||
@@ -245,13 +255,21 @@ const sanitizeMealPlan = (value) => {
   }
 
   const totalsMacro = addMealMacros(meals.map((meal) => meal.totals));
-  const targetCalories = boundedNumber(source.targetCalories, 800, 6000);
+  const targetCalories = boundedNumber(
+    source.targetCalories,
+    calorieScope === "per_meal" ? 500 : 800,
+    6000,
+  );
   const targetToleranceCalories = boundedNumber(
     source.targetToleranceCalories ?? 100,
     0,
     300,
   );
-  if (targetCalories === null || targetToleranceCalories === null) return null;
+  if (
+    targetCalories === null ||
+    targetToleranceCalories === null ||
+    (calorieScope === "per_meal" && meals.length !== 1)
+  ) return null;
   const targets = asPlainObject(source.targets);
   const minimumProteinGrams = boundedNumber(
     targets.minimumProteinGrams,
@@ -261,6 +279,7 @@ const sanitizeMealPlan = (value) => {
   return {
     status: "complete",
     targetCalories,
+    calorieScope,
     targetToleranceCalories,
     nutritionMethod: "server_calculated_4p_4c_9f",
     meals,

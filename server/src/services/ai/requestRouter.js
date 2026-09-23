@@ -95,7 +95,7 @@ const WORKOUT_PLAN_TARGET_PATTERN =
 const TDEE_TOOL_PATTERN =
   /\b(tinh tdee|tdee cua toi|tdee|bmr|calo moi ngay|calorie needs?|an bao nhieu calo)\b/;
 const MEAL_TOOL_PATTERN =
-  /\b(thuc don|bua an|meal plan|meal|meals|goi y mon an|lich an)\b/;
+  /\b(thuc don|bua an|bua sang|bua trua|bua toi|meal plan|meal|meals|goi y mon an|lich an)\b/;
 const WALLET_TOOL_PATTERN =
   /\b(vi cua toi|vi toi|so du vi|lich su nap tien|nap tien|giao dich vi)\b/;
 const CHECKIN_TOOL_PATTERN =
@@ -113,7 +113,7 @@ const BLOG_TOOL_PATTERN =
 const TDEE_ACTION_PATTERN =
   /\b(?:tinh|uoc tinh|calculate|estimate)\b[\s\S]{0,80}\b(?:tdee|bmr|calo|calorie)|\b(?:tdee|bmr|calo moi ngay|calorie needs?)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|my|for me)\b/;
 const MEAL_ACTION_PATTERN =
-  /\b(?:goi y|tao|lap|xay dung|de xuat|suggest|create|build|make)\b[\s\S]{0,80}\b(?:thuc don|bua an|meal plan|meals?)\b|\b(?:thuc don|bua an|meal plan)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|vua roi|truoc do|gan nhat|my|for me)\b/;
+  /\b(?:goi y|tao|lap|xay dung|de xuat|cho toi|cho minh|suggest|create|build|make)\b[\s\S]{0,80}\b(?:thuc don|bua an|bua sang|bua trua|bua toi|meal plan|meals?)\b|\b(?:thuc don|bua an|bua sang|bua trua|bua toi|meal plan)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|vua roi|truoc do|gan nhat|my|for me)\b/;
 const TDEE_MEAL_TOOL_SEQUENCE = Object.freeze([
   "calculate_tdee",
   "suggest_meal",
@@ -496,6 +496,8 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
                 TDEE_ACTION_PATTERN.test(normalized)
               ? "calculate_tdee"
               : MEAL_TOOL_PATTERN.test(normalized) &&
+                  !explicitEvidence &&
+                  !researchClaim &&
                   MEAL_ACTION_PATTERN.test(normalized)
                 ? "suggest_meal"
                 : workoutCreation
