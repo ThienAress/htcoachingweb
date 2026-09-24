@@ -7,6 +7,56 @@ const INTERNAL_PROTOCOL_PATTERN =
 const INTERNAL_CAPABILITY_NARRATION_PATTERN =
   /(?:được\s+)?trang\s+bị.*(?:công\s+cụ|tools?)|(?:công\s+cụ|tools?).*(?:kết\s+nối|dữ\s+liệu\s+thực\s+tế|nội\s+bộ)/i;
 
+const JSON_FENCE_PATTERN = /^```(?:json)?\s*([\s\S]*?)\s*```$/i;
+const PROTOCOL_RESIDUE_PATTERN = /^[\s{}[\],:]*$/;
+
+const getStructuredCandidate = (value) => {
+  const source = String(value || "").trim();
+  const fenced = source.match(JSON_FENCE_PATTERN);
+  return (fenced?.[1] ?? source).trim();
+};
+
+const containsPseudoActionEnvelope = (value) => {
+  const candidate = getStructuredCandidate(value);
+  if (!candidate) return false;
+  let parsed;
+  try {
+    parsed = JSON.parse(candidate);
+  } catch {
+    return false;
+  }
+  const visit = (node) => {
+    if (Array.isArray(node)) return node.some(visit);
+    if (!node || typeof node !== "object") return false;
+    if (
+      typeof node.action === "string" &&
+      Object.prototype.hasOwnProperty.call(node, "action_input")
+    ) return true;
+    if (
+      Object.prototype.hasOwnProperty.call(node, "functionCall") ||
+      Object.prototype.hasOwnProperty.call(node, "tool_call") ||
+      Object.prototype.hasOwnProperty.call(node, "toolCall")
+    ) return true;
+    return Object.values(node).some(visit);
+  };
+  return visit(parsed);
+};
+
+const looksLikeMalformedStructuredOutput = (value) => {
+  const candidate = getStructuredCandidate(value);
+  if (!candidate) return false;
+  if (/^[{}[\]]$/.test(candidate)) return true;
+  if (/^<\/?(?:tool_call|function_call)\b/i.test(candidate)) return true;
+  const startsLikeJsonContainer = candidate.startsWith("{") || /^\[\s*\{/.test(candidate);
+  if (!startsLikeJsonContainer) return false;
+  try {
+    JSON.parse(candidate);
+    return false;
+  } catch {
+    return true;
+  }
+};
+
 const isToolNarration = (paragraph) => {
   const text = paragraph
     .replace(/^_+|_+$/g, "")
@@ -23,6 +73,10 @@ const isToolNarration = (paragraph) => {
 
 export function sanitizeAssistantOutput(value) {
   const source = String(value || "").replace(/\r\n/g, "\n").trim();
+  if (!source) return { content: "", protocolLeak: true };
+  if (looksLikeMalformedStructuredOutput(source) || containsPseudoActionEnvelope(source)) {
+    return { content: "", protocolLeak: true };
+  }
   const hasPseudoAction = PSEUDO_ACTION_PATTERN.test(source);
   PSEUDO_ACTION_PATTERN.lastIndex = 0;
 
@@ -30,7 +84,9 @@ export function sanitizeAssistantOutput(value) {
   PSEUDO_ACTION_PATTERN.lastIndex = 0;
   const paragraphs = withoutActions.split(/\n{2,}/);
   const safeParagraphs = paragraphs.filter(
-    (paragraph) => !isToolNarration(paragraph),
+    (paragraph) =>
+      !isToolNarration(paragraph) &&
+      !(hasPseudoAction && PROTOCOL_RESIDUE_PATTERN.test(paragraph.trim())),
   );
   const removedInternalNarration =
     safeParagraphs.length !== paragraphs.length;

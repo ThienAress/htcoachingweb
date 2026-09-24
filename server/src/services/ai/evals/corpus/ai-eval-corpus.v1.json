@@ -105,7 +105,7 @@
       "expected": {
         "pathEquals": {
           "parameters.additionalProperties": false,
-          "parameters.properties.targetCalories.minimum": 800,
+          "parameters.properties.targetCalories.minimum": 500,
           "parameters.properties.targetCalories.maximum": 6000,
           "parameters.properties.mealsPerDay.maximum": 6
         }
@@ -161,6 +161,104 @@
           "maxCharacters": 500
         }
       }
+    },
+    {
+      "id": "router-stable-fitness-answer-first",
+      "evaluator": "request_router_contract",
+      "input": { "message": "Creatine có tác dụng gì?" },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "internal_kb",
+          "risk": "low",
+          "knowledgeBaseEligible": true,
+          "webSearchRequired": false
+        }
+      }
+    },
+    {
+      "id": "router-planning-not-public-person",
+      "evaluator": "request_router_contract",
+      "input": { "message": "Hãy tạo lịch tập tăng cơ 4 ngày mỗi tuần" },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "evidence": "internal_kb",
+          "risk": "low",
+          "webSearchRequired": false,
+          "reasonCodes": ["workout_creation"]
+        }
+      }
+    },
+    {
+      "id": "router-public-person-source-required",
+      "evaluator": "request_router_contract",
+      "input": { "message": "Ronaldo thường tập những bài gì?" },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "freshness": "stable",
+          "evidence": "web_required",
+          "risk": "low",
+          "knowledgeBaseEligible": false,
+          "webSearchRequired": true,
+          "preferredTool": "search_knowledge",
+          "maxWebSearchCalls": 1
+        }
+      }
+    },
+    {
+      "id": "router-high-stakes-no-externalization",
+      "evaluator": "request_router_contract",
+      "input": { "message": "Tôi bị đau đầu gối, nên tập gì?" },
+      "expected": {
+        "pathEquals": {
+          "domain": "fitness",
+          "evidence": "model_prior",
+          "risk": "high_stakes",
+          "knowledgeBaseEligible": false,
+          "webSearchRequired": false
+        }
+      }
+    },
+    {
+      "id": "router-general-model-prior",
+      "evaluator": "request_router_contract",
+      "input": { "message": "Lisa là ai?" },
+      "expected": {
+        "pathEquals": {
+          "domain": "general",
+          "freshness": "stable",
+          "evidence": "model_prior",
+          "risk": "low",
+          "knowledgeBaseEligible": false,
+          "webSearchRequired": false
+        }
+      }
+    },
+    {
+      "id": "semantic-meal-numeric-invariant",
+      "evaluator": "semantic_output_contract",
+      "input": {
+        "output": {
+          "cards": [{
+            "cardType": "meal",
+            "data": {
+              "status": "complete",
+              "totals": { "protein": 170, "carb": 250, "fat": 90, "calories": 2490 },
+              "meals": [{ "foods": [{ "macros": { "protein": 170, "carb": 250, "fat": 90 }, "calories": 2490 }] }]
+            }
+          }]
+        }
+      },
+      "expected": { "rules": [{ "type": "meal_numeric", "targetCalories": 2500, "toleranceCalories": 100, "minimumProteinGrams": 170 }] }
+    },
+    {
+      "id": "semantic-workout-no-flat-card",
+      "evaluator": "semantic_output_contract",
+      "input": { "output": { "text": "Ngày 1: Dumbbell floor press, 3 hiệp x 10 lần, RPE 7.", "cards": [] } },
+      "expected": { "rules": [{ "type": "no_flat_exercise_card" }, { "type": "workout_equipment", "forbiddenTerms": ["barbell", "cable"] }] }
     }
   ]
 }

@@ -93,8 +93,29 @@ const sanitizeMealArgs = (args) => {
     carbGrams: boundedNumber(input.carbGrams, 0, 1000),
     fatGrams: boundedNumber(input.fatGrams, 0, 300),
     mealsPerDay: boundedNumber(input.mealsPerDay ?? 3, 1, 6),
+    targetToleranceCalories: boundedNumber(input.targetToleranceCalories ?? 100, 0, 300),
+    minimumProteinGrams: boundedNumber(input.minimumProteinGrams ?? input.proteinGrams, 0, 500),
   };
   return Object.values(result).some((value) => value === null) ? null : result;
+};
+
+const sanitizeMealPlan = (value) => {
+  const source = asPlainObject(value);
+  if (source.status !== "complete" || source.nutritionMethod !== "server_calculated_4p_4c_9f" || !Array.isArray(source.meals) || source.meals.length < 1 || source.meals.length > 6) return null;
+  const meals = source.meals.map((meal, mealIndex) => {
+    const item = asPlainObject(meal);
+    if (!Array.isArray(item.foods) || item.foods.length < 1 || item.foods.length > 12) return null;
+    const foods = item.foods.map((food) => {
+      const entry = asPlainObject(food);
+      const amountGrams = boundedNumber(entry.amountGrams, 0.1, 5000);
+      const macros = asPlainObject(entry.macros);
+      if (!entry.foodId || !entry.name || amountGrams === null ||
+        [macros.protein, macros.carb, macros.fat].some((value) => boundedNumber(value, 0, 1000) === null)) return null;
+      return { foodId: String(entry.foodId), name: String(entry.name).slice(0, 120), amountGrams, macros: { protein: Number(macros.protein), carb: Number(macros.carb), fat: Number(macros.fat) } };
+    });
+    return foods.includes(null) ? null : { label: String(item.label || `Bữa ${mealIndex + 1}`).slice(0, 80), foods };
+  });
+  return meals.includes(null) ? null : { status: "complete", nutritionMethod: source.nutritionMethod, calorieScope: source.calorieScope === "per_meal" ? "per_meal" : "per_day", meals };
 };
 
 export function updateConversationMemory(
@@ -113,13 +134,21 @@ export function updateConversationMemory(
     }
   } else if (toolName === "suggest_meal") {
     const meal = sanitizeMealArgs(args);
-    if (meal) memory.lastMeal = { ...meal, updatedAt: new Date() };
+    const plan = sanitizeMealPlan(toolResult?.uiCard?.data);
+    if (meal) memory.lastMeal = { ...meal, ...(plan && { plan }), updatedAt: new Date() };
   }
   return memory;
 }
 
 export function deriveConversationMemory(messages = [], initialMemory = {}) {
   let memory = { ...asPlainObject(initialMemory) };
+  if (memory.lastMeal) {
+    const storedMeal = asPlainObject(memory.lastMeal);
+    const meal = sanitizeMealArgs(storedMeal);
+    const plan = sanitizeMealPlan(storedMeal.plan);
+    if (!meal) delete memory.lastMeal;
+    else memory.lastMeal = { ...storedMeal, ...meal, ...(plan && { plan }) };
+  }
   const storedTdee = asPlainObject(memory.lastTdee);
   if (memory.lastTdee) {
     const input = sanitizeTdeeInput(storedTdee.input);

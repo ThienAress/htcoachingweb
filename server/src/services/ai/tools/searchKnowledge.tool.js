@@ -14,6 +14,16 @@ import {
 const MAX_GROUNDING_SOURCES = 3;
 const MAX_GROUNDING_URL_CHARACTERS = 2048;
 const MAX_GROUNDING_TITLE_CHARACTERS = 160;
+const unavailable = (text, searchOutcome) => ({
+  text,
+  uiCard: null,
+  meta: {
+    evidenceAvailable: false,
+    sourceCount: 0,
+    sources: [],
+    searchOutcome,
+  },
+});
 
 const escapeMarkdownLabel = (value) =>
   String(value || "")
@@ -60,7 +70,7 @@ export const normalizeGroundingSources = (chunks) => {
 export async function searchKnowledge({ query }, context = {}) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return { text: "Không thể tìm kiếm: chưa cấu hình GEMINI_API_KEY.", uiCard: null };
+    return unavailable("Không thể tìm kiếm: chưa cấu hình GEMINI_API_KEY.", "provider_error");
   }
 
   const body = {
@@ -98,17 +108,17 @@ export async function searchKnowledge({ query }, context = {}) {
       providerOutcomeRecorded = true;
       // Nếu model không hỗ trợ grounding → fallback message
       if (response.status === 400) {
-        return { text: "Tìm kiếm không khả dụng với model hiện tại. Mình trả lời dựa trên kiến thức có sẵn.", uiCard: null };
+        return unavailable("Tìm kiếm không khả dụng với model hiện tại.", "no_supported_source");
       }
       // Quota exceeded / rate limit
       if (response.status === 429) {
         safeLog.warn("ai.search_rate_limited", "Search provider rate limited");
-        return { text: "Chức năng tìm kiếm đang tạm giới hạn. Bạn cứ hỏi trực tiếp — mình sẽ trả lời dựa trên kiến thức có sẵn nhé!", uiCard: null };
+        return unavailable("Chức năng tìm kiếm đang tạm giới hạn. Bạn thử lại sau nhé.", "provider_error");
       }
       safeLog.warn("ai.search_provider_error", "Search provider returned error", {
         status: response.status,
       });
-      return { text: "Không thể tìm kiếm lúc này. Bạn hỏi trực tiếp, mình trả lời dựa trên kiến thức có sẵn nhé!", uiCard: null };
+      return unavailable("Không thể tìm kiếm lúc này. Bạn thử lại sau nhé.", "provider_error");
     }
 
     const data = await response.json();
@@ -127,7 +137,7 @@ export async function searchKnowledge({ query }, context = {}) {
 
     let result = text;
     if (sources.length === 0) {
-      result = "Xin lỗi, hiện tại mình chưa tìm thấy thông tin chính xác về vấn đề này. Bạn có câu hỏi nào khác về tập luyện hay dinh dưỡng không?";
+      result = "Hiện chưa tìm thấy nguồn hỗ trợ đủ rõ để xác minh thông tin này.";
     } else {
       const sourceLinks = sources
         .map((s) => `[${s.title}](<${s.uri}>)`)
@@ -140,11 +150,20 @@ export async function searchKnowledge({ query }, context = {}) {
       usage: data.usageMetadata,
     });
     providerOutcomeRecorded = true;
-    return { text: result, uiCard: null };
+    return {
+      text: result,
+      uiCard: null,
+      meta: {
+        evidenceAvailable: sources.length > 0,
+        sourceCount: sources.length,
+        sources,
+        searchOutcome: sources.length > 0 ? "grounded" : "no_supported_source",
+      },
+    };
   } catch {
     if (!providerOutcomeRecorded) {
       recordGeminiResult("search_grounding", { success: false });
     }
-    return { text: "Lỗi kết nối khi tìm kiếm. Vui lòng thử lại.", uiCard: null };
+    return unavailable("Lỗi kết nối khi tìm kiếm. Vui lòng thử lại.", "provider_error");
   }
 }

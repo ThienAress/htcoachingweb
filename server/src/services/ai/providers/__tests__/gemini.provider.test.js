@@ -25,6 +25,173 @@ afterEach(() => {
 beforeEach(resetMetricsForTests);
 
 describe("geminiLLMStream retry", () => {
+  it("recovers from a transient 503 before streaming the answer", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    const successEvent = {
+      candidates: [{ content: { parts: [{ text: "Recovered after 503" }] } }],
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { status: "UNAVAILABLE" } }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(`data: ${JSON.stringify(successEvent)}\n\n`, {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const chunks = await collectStream(
+      geminiLLMStream([{ role: "user", content: "Hi" }], [], {
+        retryBaseDelayMs: 0,
+      }),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(chunks).toEqual([{ type: "text", content: "Recovered after 503" }]);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 2,
+      "provider.gemini_chat_failed": 1,
+      "provider.gemini_chat_succeeded": 1,
+    });
+  });
+
+  it("retries 429 only when Retry-After is valid", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: { status: "RESOURCE_EXHAUSTED" } }), {
+          status: 429,
+          headers: { "Content-Type": "application/json", "Retry-After": "0" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response('data: {"candidates":[{"content":{"parts":[{"text":"Recovered after rate limit"}]}}]}\n\n', {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const chunks = await collectStream(
+      geminiLLMStream([{ role: "user", content: "Hi" }], [], {
+        retryBaseDelayMs: 0,
+      }),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(chunks).toEqual([{ type: "text", content: "Recovered after rate limit" }]);
+  });
+
+  it("does not retry 429 without a valid Retry-After header", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { status: "RESOURCE_EXHAUSTED" } }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const chunks = await collectStream(
+      geminiLLMStream([{ role: "user", content: "Hi" }], [], {
+        retryBaseDelayMs: 0,
+      }),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(chunks[0].content).toMatch(/rate limit/i);
+  });
+
+  it("exhausts transient retries with a temporary provider message", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { status: "UNAVAILABLE" } }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      collectStream(
+        geminiLLMStream([{ role: "user", content: "Hi" }], [], {
+          retryBaseDelayMs: 0,
+          retryMaxAttempts: 3,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "GEMINI_TRANSIENT_EXHAUSTED", status: 503 });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(getMetricsSnapshot().counters).toMatchObject({
+      "provider.gemini_chat_requests": 3,
+      "provider.gemini_chat_failed": 3,
+    });
+  });
+
+  it("aborts while waiting between transient retries", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { status: "UNAVAILABLE" } }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ));
+    const controller = new AbortController();
+    const pending = collectStream(
+      geminiLLMStream([{ role: "user", content: "Hi" }], [], {
+        signal: controller.signal,
+        retryBaseDelayMs: 1000,
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.abort();
+
+    await expect(pending).resolves.toEqual([]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies a network failure after bounded retries as transient exhaustion", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    const fetchMock = vi.fn().mockRejectedValue(new Error("socket closed"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      collectStream(
+        geminiLLMStream([{ role: "user", content: "Hi" }], [], {
+          retryBaseDelayMs: 0,
+          retryMaxAttempts: 2,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "GEMINI_TRANSIENT_EXHAUSTED" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry transient HTTP failures after a user turn containing a write tool call", async () => {
+    process.env.GEMINI_API_KEY = "test-api-key";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { status: "UNAVAILABLE" } }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      collectStream(
+        geminiLLMStream([
+          { role: "user", content: "Confirm action" },
+          { role: "assistant", tool_calls: [{ name: "write_plan", args: {} }] },
+          { role: "tool", name: "write_plan", content: "done" },
+        ], [], { retryBaseDelayMs: 0 }),
+      ),
+    ).rejects.toMatchObject({ code: "GEMINI_TRANSIENT_EXHAUSTED" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("sends function responses back to Gemini as user turns", async () => {
     process.env.GEMINI_API_KEY = "test-api-key";
 

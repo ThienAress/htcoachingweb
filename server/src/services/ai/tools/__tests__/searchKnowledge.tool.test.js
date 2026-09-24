@@ -74,6 +74,11 @@ describe("Google grounding source boundary", () => {
       "provider.gemini_search_grounding_output_tokens": 6,
       "provider.gemini_search_grounding_total_tokens": 30,
     });
+    expect(result.meta).toMatchObject({
+      evidenceAvailable: true,
+      searchOutcome: "grounded",
+      sourceCount: 1,
+    });
   });
 
   it("counts a rejected grounding request without logging its query", async () => {
@@ -106,6 +111,22 @@ describe("Google grounding source boundary", () => {
       "provider.gemini_search_grounding_prompt_tokens": 5,
       "provider.gemini_search_grounding_output_tokens": 1,
       "provider.gemini_search_grounding_total_tokens": 6,
+    });
+  });
+
+  it("returns an explicit no-supported-source outcome when grounding has no sources", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(
+      JSON.stringify({ candidates: [{ content: { parts: [{ text: "No source" }] } }] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )));
+
+    const result = await searchKnowledge({ query: "synthetic" });
+
+    expect(result.meta).toMatchObject({
+      evidenceAvailable: false,
+      searchOutcome: "no_supported_source",
+      sourceCount: 0,
     });
   });
 });

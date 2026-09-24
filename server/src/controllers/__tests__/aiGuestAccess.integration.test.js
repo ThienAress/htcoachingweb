@@ -118,6 +118,19 @@ describe("AI guest access", () => {
     expect(second.status).toBe(404);
   });
 
+  it("executes one canonical web search for an authenticated public-person claim", async () => {
+    const { accessToken } = await createTestUser();
+    const response = await request(app)
+      .post("/api/ai/chat")
+      .set("Cookie", [`accessToken=${accessToken}`, `csrfToken=${TEST_CSRF}`])
+      .set("X-CSRF-Token", TEST_CSRF)
+      .send({ message: "Ronaldo thường tập những bài gì?" });
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("chưa cấu hình GEMINI_API_KEY");
+    expect(llmStream).not.toHaveBeenCalled();
+  });
+
   it("returns 401 for an invalid access token instead of downgrading to guest", async () => {
     const response = await request(app)
       .post("/api/ai/chat")
@@ -203,5 +216,58 @@ describe("AI guest access", () => {
     expect(failed.text).toContain('"remaining":5');
     expect(bucketAfterFailure.usageEvents).toHaveLength(0);
     expect(retried.text).toContain('"remaining":4');
+  });
+
+  it("classifies exhausted transient provider errors, refunds quota and keeps the conversation reusable", async () => {
+    llmStream.mockImplementationOnce(async function* transientProviderFailure() {
+      throw Object.assign(new Error("synthetic provider outage"), {
+        code: "GEMINI_TRANSIENT_EXHAUSTED",
+        status: 503,
+      });
+    });
+
+    const failed = await guestRequest({
+      message: "Lập lịch tập tăng cơ cho tôi",
+      requestId: "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
+    });
+    const conversationId = failed.text.match(/"conversationId":"([^"]+)"/)?.[1];
+    const cookie = readGuestCookie(failed);
+    const rolledBack = await ChatConversation.findById(conversationId).lean();
+    const bucketAfterFailure = await ServiceUsageBucket.findOne()
+      .select("+usageEvents")
+      .lean();
+    const retried = await guestRequest({
+      message: "Lập lịch tập tăng cơ cho tôi",
+      conversationId,
+      requestId: "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
+    }, cookie);
+
+    expect(failed.status).toBe(200);
+    expect(failed.text).toContain("Dịch vụ AI đang tạm gián đoạn");
+    expect(failed.text).toContain('"remaining":5');
+    expect(rolledBack.messages).toHaveLength(0);
+    expect(rolledBack.messageCount).toBe(0);
+    expect(bucketAfterFailure.usageEvents).toHaveLength(0);
+    expect(retried.status).toBe(200);
+    expect(retried.text).toContain('"remaining":4');
+    expect(retried.text).toContain(`"conversationId":"${conversationId}"`);
+  });
+
+  it("does not persist an orphan brace and refunds the malformed turn", async () => {
+    llmStream.mockImplementation(async function* malformedProviderOutput() {
+      yield { type: "text", content: "{" };
+    });
+
+    const response = await guestRequest({
+      message: "Xin chào",
+      requestId: "a36e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
+    });
+    const conversationId = response.text.match(/"conversationId":"([^"]+)"/)?.[1];
+    const conversation = await ChatConversation.findById(conversationId).lean();
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain("Phản hồi AI chưa hoàn chỉnh");
+    expect(conversation.messages).toHaveLength(0);
+    expect(conversation.messageCount).toBe(0);
   });
 });

@@ -3,6 +3,44 @@ import { describe, expect, it } from "vitest";
 import { sanitizeAssistantOutput } from "../assistantOutput.js";
 
 describe("AI assistant output guard", () => {
+  it.each([
+    "",
+    "   \n\t",
+    "{",
+    "}",
+    '{"action":',
+    '[{"action":',
+    "```json\n{\n```",
+  ])("blocks orphan or incomplete provider protocol fragments: %s", (value) => {
+    expect(sanitizeAssistantOutput(value)).toEqual({
+      content: "",
+      protocolLeak: true,
+    });
+  });
+
+  it.each([
+    '{"action":"search_exercises","action_input":{"muscleGroup":"Ngực"}}',
+    '[{"action":"search_exercises","action_input":{"muscleGroup":"Ngực"}}]',
+    '{"functionCall":{"name":"unknown_operation","args":{"value":1}}}',
+    "<tool_call><name>unknown_operation</name></tool_call>",
+  ])("blocks structured provider protocol residue: %s", (value) => {
+    expect(sanitizeAssistantOutput(value)).toEqual({
+      content: "",
+      protocolLeak: true,
+    });
+  });
+
+  it.each([
+    "Dùng dấu { và } để minh họa một tập hợp.",
+    "Bạn đã hoàn thành rồi!",
+    "[Thư viện bài tập](/exercises) có thêm hướng dẫn chi tiết.",
+  ])("keeps ordinary prose and punctuation: %s", (value) => {
+    expect(sanitizeAssistantOutput(value)).toEqual({
+      content: value,
+      protocolLeak: false,
+    });
+  });
+
   it("removes tool narration while preserving the actual answer", () => {
     const result = sanitizeAssistantOutput(
       "Để trả lời chính xác, mình cần kiểm tra thông tin từ hệ thống nhé!\n\n" +

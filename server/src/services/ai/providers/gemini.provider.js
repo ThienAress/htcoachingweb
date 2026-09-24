@@ -10,12 +10,23 @@ import {
   canonicalizeToolResultForModel,
   serializeToolResultForModel,
 } from "../tools/toolResultBoundary.js";
+import { toolRegistry } from "../tools/toolRegistry.js";
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 45000;
+const GEMINI_RETRY_MAX_ATTEMPTS = 3;
+const GEMINI_RETRY_BASE_DELAY_MS = 250;
+const GEMINI_RETRY_MAX_DELAY_MS = 5000;
+const GEMINI_RETRYABLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 const GEMINI_UNSUPPORTED_SCHEMA_KEYS = new Set(["additionalProperties"]);
 const GEMINI_OUTCOME_RECORDED = Symbol("geminiOutcomeRecorded");
+
+const createAbortError = (reason) => {
+  const error = new Error(reason?.message || "Gemini request aborted");
+  error.name = "AbortError";
+  return error;
+};
 
 const recordGeminiFailure = (error) => {
   recordGeminiResult("chat", { success: false });
@@ -41,6 +52,152 @@ async function readProviderError(response) {
     code: payload?.error?.code || null,
     providerStatus: payload?.error?.status || null,
   };
+}
+
+const clampRetryAttempts = (value) => {
+  const parsed = value == null ? GEMINI_RETRY_MAX_ATTEMPTS : Number(value);
+  const safe = Number.isFinite(parsed) ? parsed : GEMINI_RETRY_MAX_ATTEMPTS;
+  return Math.min(Math.max(safe, 1), GEMINI_RETRY_MAX_ATTEMPTS);
+};
+
+const clampRetryDelay = (value) => {
+  const parsed = value == null ? GEMINI_RETRY_BASE_DELAY_MS : Number(value);
+  const safe = Number.isFinite(parsed) && parsed >= 0
+    ? parsed
+    : GEMINI_RETRY_BASE_DELAY_MS;
+  return Math.min(safe, GEMINI_RETRY_MAX_DELAY_MS);
+};
+
+const parseRetryAfterMs = (headers) => {
+  const raw = headers?.get?.("retry-after")?.trim();
+  if (!raw) return null;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(Math.round(seconds * 1000), GEMINI_RETRY_MAX_DELAY_MS);
+  }
+  const dateMs = Date.parse(raw);
+  if (!Number.isFinite(dateMs)) return null;
+  return Math.min(Math.max(dateMs - Date.now(), 0), GEMINI_RETRY_MAX_DELAY_MS);
+};
+
+const createTransientProviderError = (status, retryAfterMs = null) => {
+  const error = new Error("Gemini provider transient failure exhausted");
+  error.code = status === 429
+    ? "GEMINI_RATE_LIMIT_EXHAUSTED"
+    : "GEMINI_TRANSIENT_EXHAUSTED";
+  error.status = status;
+  if (retryAfterMs !== null) error.retryAfterMs = retryAfterMs;
+  error[GEMINI_OUTCOME_RECORDED] = true;
+  return error;
+};
+
+const waitForRetry = (delayMs, signal) => new Promise((resolve, reject) => {
+  if (signal?.aborted) {
+    reject(createAbortError(signal.reason));
+    return;
+  }
+  const timer = setTimeout(() => {
+    signal?.removeEventListener("abort", abort);
+    resolve();
+  }, delayMs);
+  const abort = () => {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
+    reject(createAbortError(signal.reason));
+  };
+  signal?.addEventListener("abort", abort, { once: true });
+});
+
+const retryDelayFor = ({ status, headers, attempt, baseDelayMs }) => {
+  if (status === 429) return parseRetryAfterMs(headers);
+  const exponential = baseDelayMs * (2 ** Math.max(attempt - 1, 0));
+  const jitter = baseDelayMs > 0 ? Math.random() * baseDelayMs : 0;
+  return Math.min(Math.round(exponential + jitter), GEMINI_RETRY_MAX_DELAY_MS);
+};
+
+async function fetchGeminiWithRetry({
+  url,
+  body,
+  signal,
+  retryMaxAttempts,
+  retryBaseDelayMs,
+}) {
+  const maxAttempts = clampRetryAttempts(retryMaxAttempts);
+  const baseDelayMs = clampRetryDelay(retryBaseDelayMs);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let response;
+    try {
+      recordGeminiRequest("chat");
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (error) {
+      if (signal.aborted) throw error;
+      recordGeminiResult("chat", { success: false });
+      if (attempt >= maxAttempts) {
+        throw createTransientProviderError(null);
+      }
+      const delayMs = retryDelayFor({
+        status: 503,
+        headers: null,
+        attempt,
+        baseDelayMs,
+      });
+      safeLog.warn("ai.gemini_retry_scheduled", "Retrying transient provider request", {
+        attempt,
+        maxAttempts,
+        status: null,
+        delayMs,
+      });
+      await waitForRetry(delayMs, signal);
+      continue;
+    }
+
+    if (response.ok) {
+      return { response, providerError: null, retryExhausted: false };
+    }
+
+    const retryable = GEMINI_RETRYABLE_STATUS_CODES.has(response.status) ||
+      response.status === 429;
+    const retryAfterMs = response.status === 429
+      ? parseRetryAfterMs(response.headers)
+      : null;
+    const canRetry = retryable &&
+      (response.status !== 429 || retryAfterMs !== null) &&
+      attempt < maxAttempts;
+    const providerError = await readProviderError(response);
+
+    if (!canRetry) {
+      recordGeminiResult("chat", { success: false });
+      return {
+        response,
+        providerError,
+        retryExhausted: retryable && (response.status !== 429 || retryAfterMs !== null),
+        retryAfterMs,
+      };
+    }
+
+    const delayMs = retryDelayFor({
+      status: response.status,
+      headers: response.headers,
+      attempt,
+      baseDelayMs,
+    });
+    recordGeminiResult("chat", { success: false });
+    safeLog.warn("ai.gemini_retry_scheduled", "Retrying transient provider request", {
+      attempt,
+      maxAttempts,
+      status: response.status,
+      delayMs,
+    });
+    await waitForRetry(delayMs, signal);
+  }
+
+  throw createTransientProviderError(503);
 }
 
 function createLinkedSignal(externalSignal, timeoutMs) {
@@ -219,7 +376,7 @@ export function formatToolsForProvider(tools) {
  * @param {Array} tools - Tool schemas (OpenAI format)
  * @yields {{ type: "text"|"tool_call", content?: string, toolCalls?: Array }}
  */
-async function* streamGemini(messages, tools, signal) {
+async function* streamGemini(messages, tools, signal, retryOptions = {}) {
   // Đọc API key tại runtime (không phải lúc import) để đảm bảo .env đã load
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -230,6 +387,14 @@ async function* streamGemini(messages, tools, signal) {
 
   const { systemInstruction, contents } = convertMessages(messages);
   const geminiTools = formatToolsForProvider(tools);
+  const hasWriteToolHistory = messages.some((item) =>
+    item.role === "assistant" &&
+    Array.isArray(item.tool_calls) &&
+    item.tool_calls.some((call) => toolRegistry[call.name]?.readOnly !== true),
+  );
+  const effectiveRetryOptions = hasWriteToolHistory
+    ? { ...retryOptions, retryMaxAttempts: 1 }
+    : retryOptions;
 
   const body = {
     contents,
@@ -245,25 +410,30 @@ async function* streamGemini(messages, tools, signal) {
   const url = `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
   let response;
+  let providerError = null;
+  let retryExhausted = false;
   try {
-    recordGeminiRequest("chat");
-    response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+    const initialFetch = await fetchGeminiWithRetry({
+      url,
+      body,
       signal,
+      retryMaxAttempts: effectiveRetryOptions.retryMaxAttempts,
+      retryBaseDelayMs: effectiveRetryOptions.retryBaseDelayMs,
     });
+    response = initialFetch.response;
+    providerError = initialFetch.providerError;
+    retryExhausted = initialFetch.retryExhausted;
   } catch (err) {
-    recordGeminiFailure(err);
+    if (!err?.[GEMINI_OUTCOME_RECORDED]) recordGeminiFailure(err);
     if (signal.aborted) throw err;
-    safeLog.error("ai.gemini_fetch_failed", err);
-    yield { type: "text", content: "⚠️ Không thể kết nối tới Gemini API. Kiểm tra kết nối mạng." };
-    return;
+    safeLog.warn("ai.gemini_fetch_exhausted", "Gemini provider request exhausted transient retries");
+    throw err;
   }
 
   if (!response.ok) {
-    recordGeminiResult("chat", { success: false });
-    const providerError = await readProviderError(response);
+    if (retryExhausted) {
+      throw createTransientProviderError(response.status, providerError?.retryAfterMs);
+    }
     safeLog.warn("ai.gemini_http_error", "Provider returned an error", {
       status: response.status,
       ...providerError,
@@ -293,14 +463,16 @@ async function* streamGemini(messages, tools, signal) {
       };
 
       let retryResponse;
+      let retryResult;
       try {
-        recordGeminiRequest("chat");
-        retryResponse = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(retryBody),
+        retryResult = await fetchGeminiWithRetry({
+          url,
+          body: retryBody,
           signal,
+          retryMaxAttempts: effectiveRetryOptions.retryMaxAttempts,
+          retryBaseDelayMs: effectiveRetryOptions.retryBaseDelayMs,
         });
+        retryResponse = retryResult.response;
       } catch (err) {
         recordGeminiFailure(err);
         if (signal.aborted) throw err;
@@ -309,7 +481,6 @@ async function* streamGemini(messages, tools, signal) {
       }
 
       if (!retryResponse.ok && retryResponse.status === 400 && geminiTools) {
-        recordGeminiResult("chat", { success: false });
         safeLog.warn(
           "ai.gemini_tool_free_retry",
           "Retrying provider without tools after minimal retry failed",
@@ -317,13 +488,14 @@ async function* streamGemini(messages, tools, signal) {
         const toolFreeRetryBody = { ...retryBody };
         delete toolFreeRetryBody.tools;
         try {
-          recordGeminiRequest("chat");
-          retryResponse = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(toolFreeRetryBody),
+          retryResult = await fetchGeminiWithRetry({
+            url,
+            body: toolFreeRetryBody,
             signal,
+            retryMaxAttempts: effectiveRetryOptions.retryMaxAttempts,
+            retryBaseDelayMs: effectiveRetryOptions.retryBaseDelayMs,
           });
+          retryResponse = retryResult.response;
         } catch (err) {
           recordGeminiFailure(err);
           if (signal.aborted) throw err;
@@ -333,8 +505,13 @@ async function* streamGemini(messages, tools, signal) {
       }
 
       if (!retryResponse.ok) {
-        recordGeminiResult("chat", { success: false });
-        const retryError = await readProviderError(retryResponse);
+        if (retryResult?.retryExhausted) {
+          throw createTransientProviderError(
+            retryResponse.status,
+            retryResult.retryAfterMs,
+          );
+        }
+        const retryError = retryResult?.providerError || await readProviderError(retryResponse);
         safeLog.warn("ai.gemini_retry_failed", "Minimal provider retry failed", {
           status: retryResponse.status,
           ...retryError,
@@ -468,7 +645,7 @@ export async function* geminiLLMStream(messages, tools, options = {}) {
   const linked = createLinkedSignal(options.signal, timeoutMs);
 
   try {
-    yield* streamGemini(messages, tools, linked.signal);
+    yield* streamGemini(messages, tools, linked.signal, options);
   } catch (error) {
     if (!error?.[GEMINI_OUTCOME_RECORDED]) {
       recordGeminiFailure(error);

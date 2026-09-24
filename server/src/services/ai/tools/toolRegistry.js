@@ -25,6 +25,16 @@ const validateTdeeTrainingEvidence = (parameters) => {
     : [];
 };
 
+const validateMealCalorieScope = (parameters) => {
+  const perMeal = parameters.calorieScope === "per_meal";
+  const calories = Number(parameters.targetCalories);
+  if (!Number.isFinite(calories)) return [];
+  if ((!perMeal && calories < 800) || (perMeal && parameters.mealsPerDay !== 1)) {
+    return ["targetCalories", ...(perMeal ? ["mealsPerDay"] : [])];
+  }
+  return [];
+};
+
 export const toolRegistry = {
   calculate_tdee: {
     name: "calculate_tdee",
@@ -131,15 +141,26 @@ export const toolRegistry = {
       type: "object",
       additionalProperties: false,
       properties: {
-        targetCalories: { type: "number", minimum: 800, maximum: 6000, description: "Tổng calo mục tiêu mỗi ngày" },
+        targetCalories: { type: "number", minimum: 500, maximum: 6000, description: "Calo mục tiêu; 500-799 chỉ dùng cho một bữa rõ ràng" },
+        calorieScope: { type: "string", enum: ["per_day", "per_meal"], description: "Phạm vi target kcal" },
         proteinGrams: { type: "number", minimum: 0, maximum: 500, description: "Gram protein mục tiêu" },
         carbGrams: { type: "number", minimum: 0, maximum: 1000, description: "Gram carb mục tiêu" },
         fatGrams: { type: "number", minimum: 0, maximum: 300, description: "Gram fat mục tiêu" },
         mealsPerDay: { type: "integer", minimum: 1, maximum: 6, description: "Số bữa ăn mỗi ngày (1-6, mặc định 3)" },
+        targetToleranceCalories: { type: "number", minimum: 0, maximum: 300, description: "Sai số kcal tối đa" },
+        minimumProteinGrams: { type: "number", minimum: 0, maximum: 500, description: "Protein tối thiểu" },
+        excludedFoods: { type: "array", maxItems: 12, items: { type: "string", minLength: 1, maxLength: 100 } },
+        excludedAllergens: { type: "array", maxItems: 9, uniqueItems: true, items: { type: "string", enum: ["milk", "egg", "fish", "crustacean_shellfish", "tree_nut", "peanut", "wheat", "soy", "sesame"] } },
+        lactoseFree: { type: "boolean" },
+        requirePackageLabelSafety: { type: "boolean" },
+        budgetVndPerDay: { type: "integer", minimum: 30000, maximum: 2000000 },
+        allowedAdjustmentFoodIds: { type: "array", maxItems: 20, uniqueItems: true, items: { type: "string", minLength: 1, maxLength: 100 } },
+        allowedAdjustmentFoodNames: { type: "array", maxItems: 20, uniqueItems: true, items: { type: "string", minLength: 1, maxLength: 120 } },
       },
       required: ["targetCalories", "proteinGrams", "carbGrams", "fatGrams"],
     },
     execute: suggestMeal,
+    validateParameters: validateMealCalorieScope,
     readOnly: true,
     parallelSafe: true,
     requiresAuth: false,

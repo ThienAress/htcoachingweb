@@ -1,124 +1,27 @@
-// Suggest Meal Tool — Gợi ý thực đơn từ Food database
+// Server-authoritative meal calculator. Provider prose is never a nutrition source.
 import Food from "../../../models/Food.js";
+import { getFoodMarketPriceMap } from "../../foodPrice.service.js";
 
-/**
- * Gợi ý thực đơn dựa trên macro mục tiêu
- * @param {{ targetCalories, proteinGrams, carbGrams, fatGrams, mealsPerDay? }} params
- * @returns {{ text: string, uiCard: null }}
- */
-export async function suggestMeal(params) {
-  const { targetCalories, proteinGrams, carbGrams, fatGrams, mealsPerDay = 3 } = params;
+const kcal = ({ protein, carb, fat }) => 4 * protein + 4 * carb + 9 * fat;
+const round = (value) => Number(Number(value).toFixed(1));
+const labels = (count) => count <= 3 ? ["Bữa sáng", "Bữa trưa", "Bữa tối"].slice(0, count) : count === 4 ? ["Bữa sáng", "Bữa trưa", "Bữa phụ chiều", "Bữa tối"] : Array.from({ length: count }, (_, index) => `Bữa ${index + 1}`);
+const missing = (reason, text) => ({ text, uiCard: { cardType: "meal", data: { status: "missing_data", reason, meals: [], totals: null } } });
+const number = (value) => { if (value === null || value === undefined || value === "") return null; const parsed = Number(value); return Number.isFinite(parsed) ? parsed : null; };
+const macrosFor = (food, grams) => ({ protein: round(food.protein * grams / 100), carb: round(food.carb * grams / 100), fat: round(food.fat * grams / 100) });
+const sumMacros = (items) => items.reduce((total, item) => ({ protein: round(total.protein + item.protein), carb: round(total.carb + item.carb), fat: round(total.fat + item.fat) }), { protein: 0, carb: 0, fat: 0 });
+const normalizeFood = (food, index) => { const values = [number(food?.protein), number(food?.carb), number(food?.fat)]; if (!food?._id || !String(food.label || "").trim() || values.some((value) => value === null || value < 0)) return null; return { ...food, _id: String(food._id || `food-${index}`), label: String(food.label).trim(), protein: values[0], carb: values[1], fat: values[2] }; };
+const normalized = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").toLowerCase().trim();
+const allergenAliases = new Map([["whey", "milk"], ["sua", "milk"], ["lactose", "milk"], ["dau phong", "peanut"], ["lac", "peanut"], ["trung", "egg"], ["ca", "fish"], ["tom", "crustacean_shellfish"], ["cua", "crustacean_shellfish"], ["dau nanh", "soy"], ["dau phu", "soy"], ["lua mi", "wheat"], ["me", "sesame"]]);
+const reviewedProfile = (food) => { const profile = food?.allergenProfile; const reviewedAt = new Date(profile?.reviewedAt); return profile?.reviewStatus === "reviewed" && Array.isArray(profile.contains) && Array.isArray(profile.mayContain) && ["package_label", "manufacturer", "official_database"].includes(profile.sourceType) && /^https:\/\//.test(profile.sourceUrl || "") && Number.isFinite(reviewedAt.getTime()) && reviewedAt <= new Date(); };
+const packageProfile = (food) => reviewedProfile(food) && ["package_label", "manufacturer"].includes(food.allergenProfile.sourceType);
+const resolveExclusions = (values, foods) => { const allergens = new Set(); const exact = new Set(); const unresolved = []; for (const value of values) { const key = normalized(value); const allergen = allergenAliases.get(key); if (allergen) { allergens.add(allergen); continue; } if (foods.some((food) => normalized(food.label).includes(key))) exact.add(key); else unresolved.push(value); } return { allergens: [...allergens], exact: [...exact], unresolved }; };
+const normalizeInput = (params = {}) => { const calorieScope = params.calorieScope === "per_meal" ? "per_meal" : "per_day"; const targetCalories = number(params.targetCalories); const proteinGrams = number(params.proteinGrams); const carbGrams = number(params.carbGrams); const fatGrams = number(params.fatGrams); const targetToleranceCalories = number(params.targetToleranceCalories ?? 100); const minimumProteinGrams = number(params.minimumProteinGrams ?? proteinGrams); const mealsPerDay = Number(params.mealsPerDay ?? 3); const minimumCalories = calorieScope === "per_meal" ? 500 : 800; if ([targetCalories, proteinGrams, carbGrams, fatGrams, targetToleranceCalories, minimumProteinGrams].some((value) => value === null || value < 0) || targetCalories < minimumCalories || targetCalories > 6000 || targetToleranceCalories > 300 || !Number.isInteger(mealsPerDay) || mealsPerDay < 1 || mealsPerDay > 6 || (calorieScope === "per_meal" && mealsPerDay !== 1)) return null; return { targetCalories, calorieScope, proteinGrams, carbGrams, fatGrams, targetToleranceCalories, minimumProteinGrams, mealsPerDay, excludedFoods: Array.isArray(params.excludedFoods) ? params.excludedFoods : [], excludedAllergens: Array.isArray(params.excludedAllergens) ? params.excludedAllergens : [], lactoseFree: params.lactoseFree === true, requirePackageLabelSafety: params.requirePackageLabelSafety === true, budgetVndPerDay: params.budgetVndPerDay == null ? null : number(params.budgetVndPerDay), allowedAdjustmentFoodIds: Array.isArray(params.allowedAdjustmentFoodIds) ? params.allowedAdjustmentFoodIds.map(String) : [], allowedAdjustmentFoodNames: Array.isArray(params.allowedAdjustmentFoodNames) ? params.allowedAdjustmentFoodNames.map(normalized) : [] }; };
+const allowed = (food, constraints) => { if (!food) return false; if (constraints.requirePackageLabelSafety && !packageProfile(food)) return false; if (constraints.requireSafetyMetadata && !reviewedProfile(food)) return false; if (constraints.exact.some((term) => normalized(food.label).includes(term))) return false; const foodAllergens = new Set([...(food.allergenProfile?.contains || []), ...(food.allergenProfile?.mayContain || [])]); return !constraints.allergens.some((item) => foodAllergens.has(item)); };
+const solve = (foods, target) => { const proteins = [...foods].sort((a, b) => b.protein - a.protein).slice(0, 12); const carbs = [...foods].sort((a, b) => b.carb - a.carb).slice(0, 12); const fats = [...foods].sort((a, b) => b.fat - a.fat).slice(0, 12); let best = null; for (const p of proteins) for (const c of carbs) for (const f of fats) { if (new Set([p._id, c._id, f._id]).size !== 3) continue; const rows = [[p.protein / 100, c.protein / 100, f.protein / 100, target.protein], [p.carb / 100, c.carb / 100, f.carb / 100, target.carb], [p.fat / 100, c.fat / 100, f.fat / 100, target.fat]]; for (let column = 0; column < 3; column += 1) { let pivot = column; for (let row = column + 1; row < 3; row += 1) if (Math.abs(rows[row][column]) > Math.abs(rows[pivot][column])) pivot = row; if (Math.abs(rows[pivot][column]) < 0.000001) { pivot = -1; break; } [rows[column], rows[pivot]] = [rows[pivot], rows[column]]; const divisor = rows[column][column]; rows[column] = rows[column].map((value) => value / divisor); for (let row = 0; row < 3; row += 1) if (row !== column) { const factor = rows[row][column]; rows[row] = rows[row].map((value, index) => value - factor * rows[column][index]); } } if (rows.some((row) => !Number.isFinite(row[3]))) continue; const amounts = rows.map((row) => Math.round(row[3])); if (amounts.some((value) => value < 1 || value > 3000)) continue; const planMacros = sumMacros([macrosFor(p, amounts[0]), macrosFor(c, amounts[1]), macrosFor(f, amounts[2])]); const score = Math.abs(kcal(planMacros) - kcal(target)) + Math.max(0, target.protein - planMacros.protein) * 100; if (!best || score < best.score) best = { foods: [p, c, f], amounts, score }; } return best; };
+const buildMeals = (plan, input) => labels(input.mealsPerDay).map((label, mealIndex) => { const foods = plan.foods.map((food, foodIndex) => { const base = Math.floor((plan.amounts[foodIndex] / input.mealsPerDay) * 10) / 10; const grams = mealIndex === input.mealsPerDay - 1 ? round(plan.amounts[foodIndex] - base * (input.mealsPerDay - 1)) : base; const macros = macrosFor(food, grams); return { foodId: food._id, name: food.label, amountGrams: grams, macros, calories: round(kcal(macros)) }; }); const totals = sumMacros(foods.map((food) => food.macros)); return { label, foods, totals: { ...totals, calories: round(kcal(totals)) } }; });
+const summarize = (meals) => { const macros = sumMacros(meals.map((meal) => meal.totals)); return { macros, totals: { ...macros, calories: round(kcal(macros)) } }; };
+const safetyEvidence = (input, foods, constraints = input) => ({ status: input.requireSafetyMetadata ? (foods.every(packageProfile) ? "verified" : "ingredient_verified") : "not_requested", reviewedCatalogRequired: input.requireSafetyMetadata, allergenConstraintsApplied: (constraints.allergens || []).length > 0, excludedFoodConstraintsApplied: (constraints.exact || []).length > 0, ...(input.requireSafetyMetadata && !foods.every(packageProfile) ? { crossContactStatus: "product_label_required", warning: "Dữ liệu chỉ xác minh thành phần chung; hãy kiểm tra nhãn sản phẩm để xác nhận nguy cơ nhiễm chéo." } : {}) });
+const priceEvidence = async (plan, input, getPriceMap) => { if (input.budgetVndPerDay == null) return { status: "not_requested" }; const map = await getPriceMap(plan.foods.map((food) => food._id)); const entries = plan.foods.map((food, index) => ({ price: map.get(String(food._id)), grams: plan.amounts[index] })); if (entries.some(({ price }) => price?.coverageStatus !== "sufficient" || !Number.isFinite(price.typicalVndPer100g))) return { status: "unverified", budgetVndPerDay: input.budgetVndPerDay, reason: "insufficient_price_provenance" }; const estimatedTotalVnd = Math.round(entries.reduce((sum, entry) => sum + entry.price.typicalVndPer100g * entry.grams / 100, 0)); return { status: "verified", budgetVndPerDay: input.budgetVndPerDay, estimatedTotalVnd, isWithinBudget: estimatedTotalVnd <= input.budgetVndPerDay }; };
+const scopedFollowUp = (input, previousPlan, catalog, constraints) => { if (!previousPlan?.meals || (input.allowedAdjustmentFoodIds.length === 0 && input.allowedAdjustmentFoodNames.length === 0)) return null; const allowedIds = new Set(input.allowedAdjustmentFoodIds); const allowedNames = new Set(input.allowedAdjustmentFoodNames); const byId = new Map(catalog.map((food) => [String(food._id), food])); const meals = previousPlan.meals.map((meal) => ({ label: meal.label, foods: meal.foods.map((item) => { const food = byId.get(String(item.foodId)); if (!food || !Number.isFinite(number(item.amountGrams))) return null; const macros = macrosFor(food, number(item.amountGrams)); return { foodId: food._id, name: food.label, amountGrams: number(item.amountGrams), macros, calories: round(kcal(macros)) }; }) })).map((meal) => { const totals = sumMacros(meal.foods.filter(Boolean).map((food) => food.macros)); return { ...meal, totals: { ...totals, calories: round(kcal(totals)) } }; }); if (meals.some((meal) => meal.foods.some((food) => !food || !allowed(byId.get(String(food.foodId)), constraints)))) return missing("scoped_adjustment_safety_conflict", "Không thể chỉnh thực đơn cũ vì dữ liệu hiện tại không còn khớp ràng buộc an toàn."); const adjustable = meals.flatMap((meal) => meal.foods).filter((food) => allowedIds.has(String(food.foodId)) || allowedNames.has(normalized(food.name))); if (adjustable.length === 0) return missing("scoped_adjustment_missing_scope", "Không thể xác định món được phép điều chỉnh trong thực đơn có cấu trúc."); const current = summarize(meals); const scale = input.targetCalories / Math.max(current.totals.calories, 1); const adjusted = meals.map((meal) => ({ ...meal, foods: meal.foods.map((food) => { const isAdjustable = allowedIds.has(String(food.foodId)) || allowedNames.has(normalized(food.name)); const grams = isAdjustable ? round(food.amountGrams * scale) : food.amountGrams; const macros = macrosFor(byId.get(String(food.foodId)), grams); return { ...food, amountGrams: grams, macros, calories: round(kcal(macros)) }; }) })).map((meal) => { const totals = sumMacros(meal.foods.map((food) => food.macros)); return { ...meal, totals: { ...totals, calories: round(kcal(totals)) } }; }); const summary = summarize(adjusted); if (Math.abs(summary.totals.calories - input.targetCalories) > input.targetToleranceCalories || summary.totals.protein < input.minimumProteinGrams) return missing("scoped_adjustment_constraints_not_met", "Không thể giữ ràng buộc protein và đạt mục tiêu mới chỉ bằng các món được phép đổi."); return { text: `Đã điều chỉnh thực đơn: ${summary.totals.calories} kcal, ${summary.totals.protein}g protein.`, uiCard: { cardType: "meal", data: { status: "complete", targetCalories: input.targetCalories, calorieScope: input.calorieScope, targetToleranceCalories: input.targetToleranceCalories, macros: summary.macros, totals: summary.totals, meals: adjusted, targets: { proteinGrams: input.proteinGrams, carbGrams: input.carbGrams, fatGrams: input.fatGrams, minimumProteinGrams: input.minimumProteinGrams }, nutritionMethod: "server_calculated_4p_4c_9f", safety: safetyEvidence(input, adjusted.flatMap((meal) => meal.foods.map((food) => byId.get(String(food.foodId)))), constraints) } } }; };
 
-  // Lấy thực phẩm từ DB
-  const projection = "label protein carb fat calories";
-  const proteinFoods = await Food.find({ protein: { $gte: 12 } })
-    .select(projection)
-    .lean();
-  const carbFoods = await Food.find({ carb: { $gte: 15 } })
-    .select(projection)
-    .lean();
-  const fatFoods = await Food.find({ fat: { $gte: 8 } })
-    .select(projection)
-    .lean();
-
-  // Fallback data nếu DB trống
-  const proteinList = proteinFoods.length > 0 ? proteinFoods : [
-    { label: "Ức gà áp chảo", protein: 22, carb: 0, fat: 2.5, calories: 120 },
-    { label: "Thịt bò nạc", protein: 26, carb: 0, fat: 5, calories: 150 },
-    { label: "Cá hồi áp chảo", protein: 20, carb: 0, fat: 13, calories: 200 },
-    { label: "Trứng gà luộc", protein: 13, carb: 1, fat: 10, calories: 155 },
-    { label: "Tôm hấp", protein: 24, carb: 0, fat: 0.8, calories: 99 },
-  ];
-
-  const carbList = carbFoods.length > 0 ? carbFoods : [
-    { label: "Khoai lang luộc", protein: 1.6, carb: 20, fat: 0.1, calories: 86 },
-    { label: "Cơm lứt", protein: 2.6, carb: 23, fat: 0.9, calories: 110 },
-    { label: "Yến mạch luộc", protein: 13.5, carb: 56, fat: 7, calories: 379 },
-    { label: "Bánh mì đen", protein: 9, carb: 48, fat: 1.5, calories: 250 },
-    { label: "Bông cải xanh luộc", protein: 3, carb: 7, fat: 0, calories: 34 },
-  ];
-
-  const fatList = fatFoods.length > 0 ? fatFoods : [
-    { label: "Hạnh nhân", protein: 21, carb: 22, fat: 49, calories: 579 },
-    { label: "Hạt điều", protein: 18, carb: 30, fat: 44, calories: 553 },
-    { label: "Quả bơ", protein: 2, carb: 9, fat: 15, calories: 160 },
-    { label: "Dầu ô liu", protein: 0, carb: 0, fat: 100, calories: 884 },
-  ];
-
-  // Helper xáo trộn thực phẩm để đa dạng thực đơn qua các bữa
-  const shuffleArray = (array) => [...array].sort(() => Math.random() - 0.5);
-  const shuffledProteins = shuffleArray(proteinList);
-  const shuffledCarbs = shuffleArray(carbList);
-  const shuffledFats = shuffleArray(fatList);
-
-  const perMealP = Math.round(proteinGrams / mealsPerDay);
-  const perMealC = Math.round(carbGrams / mealsPerDay);
-  const perMealF = Math.round(fatGrams / mealsPerDay);
-
-  let responseText = `# THỰC ĐƠN GỢI Ý (${mealsPerDay} BỮA/NGÀY)\n`;
-  responseText += `Mục tiêu calo: **${targetCalories} kcal/ngày**\n`;
-  responseText += `Phân bổ Macro: **${proteinGrams}g Protein | ${carbGrams}g Carb | ${fatGrams}g Fat**\n\n`;
-
-  for (let i = 0; i < mealsPerDay; i++) {
-    const mealLabel = getMealLabel(i, mealsPerDay);
-    responseText += `### ${mealLabel}\n`;
-
-    const pFood = shuffledProteins[i % shuffledProteins.length];
-    const cFood = shuffledCarbs[i % shuffledCarbs.length];
-    const fFood = shuffledFats[i % shuffledFats.length];
-
-    // 1. Tính toán lượng Protein chính (gánh khoảng 85% protein bữa đó)
-    let weightP = Math.round(((perMealP * 0.85) / pFood.protein) * 100);
-    weightP = Math.max(50, Math.min(250, Math.round(weightP / 10) * 10));
-
-    const actP_P = Math.round((pFood.protein * weightP) / 100);
-    const actC_P = Math.round((pFood.carb * weightP) / 100);
-    const actF_P = Math.round((pFood.fat * weightP) / 100);
-    responseText += `- **${weightP}g ${pFood.label}** (${actP_P}g P, ${actC_P}g C, ${actF_P}g F)\n`;
-
-    // 2. Tính toán lượng Carb chính (bù đắp phần carb còn thiếu)
-    let weightC = 0;
-    if (perMealC > 5) {
-      const cNeeded = perMealC - actC_P;
-      weightC = Math.round((Math.max(5, cNeeded) / cFood.carb) * 100);
-      weightC = Math.max(30, Math.min(300, Math.round(weightC / 10) * 10));
-
-      const actP_C = Math.round((cFood.protein * weightC) / 100);
-      const actC_C = Math.round((cFood.carb * weightC) / 100);
-      const actF_C = Math.round((cFood.fat * weightC) / 100);
-      responseText += `- **${weightC}g ${cFood.label}** (${actP_C}g P, ${actC_C}g C, ${actF_C}g F)\n`;
-    }
-
-    // 3. Tính toán lượng Fat chính (bù đắp phần fat còn thiếu)
-    let weightF = 0;
-    if (perMealF > 3) {
-      const fNeeded = perMealF - actF_P;
-      if (fNeeded > 1) {
-        weightF = Math.round((fNeeded / fFood.fat) * 100);
-        weightF = Math.max(10, Math.min(80, Math.round(weightF / 5) * 5));
-
-        const actP_F = Math.round((fFood.protein * weightF) / 100);
-        const actC_F = Math.round((fFood.carb * weightF) / 100);
-        const actF_F = Math.round((fFood.fat * weightF) / 100);
-        responseText += `- **${weightF}g ${fFood.label}** (${actP_F}g P, ${actC_F}g C, ${actF_F}g F)\n`;
-      }
-    }
-
-    responseText += `\n`;
-  }
-
-  responseText += `### MỘT VÀI LƯU Ý "TRY HARD" CHO BẠN:\n`;
-  responseText += `1. **Gia vị:** Hạn chế đường, sốt mayonnaise, tương cà. Ưu tiên muối, tiêu, ớt, tỏi, chanh để giữ hương vị mà không thêm calo rỗng.\n`;
-  responseText += `2. **Chế biến:** Ưu tiên hấp, luộc, áp chảo, nướng. Tránh chiên ngập dầu.\n`;
-  responseText += `3. **Linh hoạt:** Nếu thấy quá ngán, bạn có thể đổi ${proteinList[0].label.toLowerCase()} lấy ức gà tây, cá hồi lấy cá thu hoặc tôm, miễn là giữ được lượng Protein và kiểm soát Carb.\n`;
-  responseText += `4. **Theo dõi:** Hãy lắng nghe cơ thể. Nếu cảm thấy quá đuối trong buổi tập, hãy tăng nhẹ lượng Carb vào bữa trước khi tập.\n`;
-
-  return { text: responseText, uiCard: null };
-}
-
-function getMealLabel(index, total) {
-  if (total <= 3) return ["Bữa sáng", "Bữa trưa", "Bữa tối"][index] || `Bữa ${index + 1}`;
-  if (total === 4) return ["Bữa sáng", "Bữa trưa", "Bữa phụ chiều (Trước tập)", "Bữa tối"][index];
-  if (total === 5) return ["Bữa sáng", "Bữa phụ sáng", "Bữa trưa", "Bữa phụ chiều", "Bữa tối"][index];
-  return `Bữa ${index + 1}`;
-}
+export async function suggestMeal(params, { findFoods = () => Food.find({}).select("_id label protein carb fat allergenProfile").lean(), getPriceMap = getFoodMarketPriceMap, previousMealPlan = null } = {}) { const input = normalizeInput(params); if (!input) return missing("invalid_constraints", "Chưa đủ ràng buộc số để tạo thực đơn chính xác."); let catalog; try { catalog = (await findFoods()).map(normalizeFood).filter(Boolean); } catch { return missing("catalog_unavailable", "Chưa thể xác minh dữ liệu thực phẩm hiện hành."); } const resolved = resolveExclusions(input.excludedFoods, catalog); if (resolved.unresolved.length > 0) return missing("excluded_food_unverifiable", "Chưa thể đối chiếu thực phẩm cần loại trừ với catalog đã kiểm duyệt."); const constraints = { exact: resolved.exact, allergens: [...new Set([...input.excludedAllergens, ...resolved.allergens, ...(input.lactoseFree ? ["milk"] : [])])], requireSafetyMetadata: input.excludedFoods.length > 0 || input.excludedAllergens.length > 0 || input.lactoseFree || input.requirePackageLabelSafety, requirePackageLabelSafety: input.requirePackageLabelSafety }; const eligible = catalog.filter((food) => allowed(food, constraints)); if (eligible.length < 3) return missing("safety_metadata_missing", "Chưa đủ dữ liệu thực phẩm đã kiểm duyệt để đáp ứng ràng buộc an toàn."); const scoped = scopedFollowUp(input, previousMealPlan, catalog, constraints); if (scoped) return scoped; const protein = Math.max(input.proteinGrams, input.minimumProteinGrams); const remaining = input.targetCalories - 4 * protein; const flexible = 4 * input.carbGrams + 9 * input.fatGrams; if (remaining < -input.targetToleranceCalories || flexible <= 0) return missing("impossible_constraints", "Mục tiêu kcal và protein hiện không thể đồng thời đáp ứng."); const target = { protein, carb: remaining * (4 * input.carbGrams / flexible) / 4, fat: (remaining - remaining * (4 * input.carbGrams / flexible)) / 9 }; const plan = solve(eligible, target); if (!plan) return missing("constraints_not_met", "Chưa đủ dữ liệu thực phẩm để đáp ứng chính xác các ràng buộc."); const meals = buildMeals(plan, input); const summary = summarize(meals); if (Math.abs(summary.totals.calories - input.targetCalories) > input.targetToleranceCalories || summary.totals.protein < input.minimumProteinGrams) return missing("constraints_not_met", "Chưa thể tạo thực đơn trong sai số kcal và protein tối thiểu."); let price; try { price = await priceEvidence(plan, input, getPriceMap); } catch { price = { status: "unverified", budgetVndPerDay: input.budgetVndPerDay, reason: "price_lookup_unavailable" }; } const safety = safetyEvidence(input, plan.foods, constraints); const budgetText = price.status === "unverified" ? " Ngân sách chưa thể xác minh do thiếu nguồn giá hiện hành." : price.status === "verified" ? ` Chi phí ước tính: ${price.estimatedTotalVnd.toLocaleString("vi-VN")}đ/ngày.` : ""; return { text: `Đã tạo thực đơn ${input.mealsPerDay} bữa từ dữ liệu máy chủ: ${summary.totals.calories} kcal, ${summary.totals.protein}g protein.${budgetText}`, uiCard: { cardType: "meal", data: { status: "complete", targetCalories: input.targetCalories, calorieScope: input.calorieScope, targetToleranceCalories: input.targetToleranceCalories, macros: summary.macros, totals: summary.totals, meals, price, safety, targets: { proteinGrams: input.proteinGrams, carbGrams: input.carbGrams, fatGrams: input.fatGrams, minimumProteinGrams: input.minimumProteinGrams }, nutritionMethod: "server_calculated_4p_4c_9f" } } }; }

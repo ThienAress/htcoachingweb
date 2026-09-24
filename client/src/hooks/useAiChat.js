@@ -8,6 +8,7 @@ import {
   openAiChatStream,
 } from "../services/ai.service";
 import { createAiChatSessionRegistry } from "./aiChatSessionRegistry.js";
+import { resolveAiChatRetry } from "./aiChatRetry.js";
 
 const STREAM_FLUSH_MS = 80;
 
@@ -346,6 +347,9 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         options.targetConversationId === undefined
           ? selectedConversationId
           : options.targetConversationId;
+      const retryingFailedTurn = options.retryingFailedTurn === true;
+      const failedUserLocalId = options.failedUserLocalId;
+      const failedAssistantLocalId = options.failedAssistantLocalId;
       const controller = new AbortController();
       const session = registry.registerSession({
         id: sessionId,
@@ -362,7 +366,12 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
       const timestamp = new Date().toISOString();
       updateView(viewKey, (view) => ({
         messages: [
-          ...view.messages,
+          ...(retryingFailedTurn
+            ? view.messages.filter((message) =>
+                message.localId !== failedUserLocalId &&
+                message.localId !== failedAssistantLocalId,
+              )
+            : view.messages),
           {
             localId: `user-${sessionId}`,
             role: "user",
@@ -381,6 +390,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         isLoading: true,
         activeTool: null,
         error: null,
+        retryableFailedTurn: null,
         loaded: true,
       }));
       session.flushTimer = setInterval(
@@ -415,6 +425,8 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        let receivedDone = false;
+        let streamError = null;
         while (isActive()) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -468,10 +480,10 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
                 ),
               }));
             } else if (event.type === "error") {
-              updateView(activeSession.viewKey, {
-                error: event.message || "Có lỗi xảy ra",
-              });
+              streamError = event.message || "Có lỗi xảy ra";
             } else if (event.type === "done") {
+              receivedDone = true;
+              if (streamError) break;
               flushPendingText(sessionId);
               assignConversation(event.conversationId);
               const completedSession = registry.getSession(sessionId);
@@ -504,16 +516,21 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
             }
           }
         }
+        if ((!receivedDone || streamError) && !controller.signal.aborted) {
+          throw new Error(streamError || "Phản hồi AI chưa hoàn chỉnh");
+        }
       } catch (requestError) {
         const activeSession = registry.getSession(sessionId);
         if (requestError.name !== "AbortError" && activeSession) {
           updateView(activeSession.viewKey, (view) => ({
             error: requestError.message || "Không thể kết nối tới server",
+            retryableFailedTurn: {
+              userLocalId: `user-${sessionId}`,
+              assistantLocalId,
+            },
             messages: view.messages.filter(
               (message) =>
-                message.localId !== assistantLocalId ||
-                message.content ||
-                message.uiCards?.length,
+                message.localId !== assistantLocalId,
             ),
           }));
         }
@@ -583,15 +600,28 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
   const retryLastMessage = useCallback(
     (messageId) => {
       const target = messageId
-        ? messagesRef.current.find((message) => message._id === messageId)
+        ? messagesRef.current.find((message) =>
+            message._id === messageId || message.localId === messageId,
+          )
         : [...messagesRef.current]
             .reverse()
             .find((message) => message.role === "user");
       if (target) {
-        void branchAndSend(target._id, target.content, { image: target.image });
+        const view = registryRef.current.getSelectedView();
+        const retry = resolveAiChatRetry({ view, target });
+        if (retry?.mode === "same_conversation") {
+          void sendMessage(target.content, { image: target.image }, {
+            targetConversationId: retry.conversationId,
+            retryingFailedTurn: true,
+            failedUserLocalId: retry.failedUserLocalId,
+            failedAssistantLocalId: retry.failedAssistantLocalId,
+          });
+          return;
+        }
+        void branchAndSend(retry?.messageId, target.content, { image: target.image });
       }
     },
-    [branchAndSend],
+    [branchAndSend, sendMessage],
   );
 
   const editMessage = useCallback(

@@ -6,11 +6,13 @@ import { getToolSchemas, toolRegistry } from "../toolRegistry.js";
 const originalSearchKnowledge = toolRegistry.search_knowledge.execute;
 const originalSearchKnowledgeConfirmation =
   toolRegistry.search_knowledge.requiresConfirmation;
+const originalSearchExercises = toolRegistry.search_exercises.execute;
 
 afterEach(() => {
   toolRegistry.search_knowledge.execute = originalSearchKnowledge;
   toolRegistry.search_knowledge.requiresConfirmation =
     originalSearchKnowledgeConfirmation;
+  toolRegistry.search_exercises.execute = originalSearchExercises;
 });
 
 describe("AI tool runtime validation", () => {
@@ -81,6 +83,33 @@ describe("AI tool runtime validation", () => {
 
     expect(result.meta.validationFailed).toBe(true);
     expect(result.meta.invalidFields).toContain("parameters");
+  });
+
+  it("enforces the server route allowlist at execution time", async () => {
+    const result = await executeTool(
+      "search_blog",
+      { query: "protein" },
+      { allowedToolNames: ["search_exercises"] },
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.meta.routeBlocked).toBe(true);
+  });
+
+  it("preserves read-only evidence metadata for answer-first fallback", async () => {
+    toolRegistry.search_exercises.execute = async () => ({
+      text: "Không tìm thấy bài tập phù hợp.",
+      uiCard: null,
+      meta: { evidenceAvailable: false, resultCount: 0 },
+    });
+
+    const result = await executeTool(
+      "search_exercises",
+      { muscleGroup: "Ngực" },
+      {},
+    );
+
+    expect(result.meta).toMatchObject({ evidenceAvailable: false, resultCount: 0 });
   });
 
   it("times out a tool that does not settle", async () => {

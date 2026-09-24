@@ -105,6 +105,15 @@ export async function executeTool(toolName, parameters, context = {}) {
     };
   }
 
+  if (Array.isArray(context.allowedToolNames) && !context.allowedToolNames.includes(toolName)) {
+    return {
+      text: "Công cụ này không phù hợp với yêu cầu hiện tại.",
+      uiCard: null,
+      error: null,
+      meta: { toolName, validationFailed: true, routeBlocked: true, invalidFields: ["toolName"] },
+    };
+  }
+
   // Guest capability must also be enforced at execution time. Tool schemas are
   // advisory input to the provider; a malformed or hallucinated tool call must
   // not bypass the guest allowlist.
@@ -177,12 +186,23 @@ export async function executeTool(toolName, parameters, context = {}) {
       };
     }
     const result = execution.result;
+    const resultMeta = result.meta || {};
+    const evidenceMeta = toolName === "search_knowledge"
+      ? {
+          evidenceAvailable: resultMeta.evidenceAvailable === true,
+          sourceCount: Array.isArray(resultMeta.sources) ? resultMeta.sources.length : 0,
+          sources: Array.isArray(resultMeta.sources) ? resultMeta.sources.slice(0, 3) : [],
+          searchOutcome: resultMeta.searchOutcome || "provider_error",
+        }
+      : toolName === "search_exercises"
+        ? { evidenceAvailable: resultMeta.evidenceAvailable === true, resultCount: resultMeta.resultCount || 0 }
+        : {};
 
     return {
       text: result.text,
       uiCard: result.uiCard || null,
       error: null,
-      meta: { toolName, timeCost },
+      meta: { ...resultMeta, ...evidenceMeta, toolName, timeCost },
     };
   } catch (err) {
     if (context.signal?.aborted) {

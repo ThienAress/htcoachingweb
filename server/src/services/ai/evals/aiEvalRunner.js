@@ -10,6 +10,8 @@ import {
   getToolSchemas,
   toolRegistry,
 } from "../tools/toolRegistry.js";
+import { routeAiRequest } from "../requestRouter.js";
+import { evaluateSemanticOutput } from "./semanticOutputEvaluator.js";
 import { serializeToolResultForModel } from "../tools/toolResultBoundary.js";
 
 const SCHEMA_VERSION = 1;
@@ -127,6 +129,14 @@ const evaluators = {
       ...compareText(result.content, expected.text || {}),
     ];
   },
+  request_router_contract: ({ input, expected }) => {
+    const decision = routeAiRequest(input.message, {
+      contextualQuery: input.contextualQuery || input.message,
+    });
+    return comparePathEquals(decision, expected.pathEquals);
+  },
+  semantic_output_contract: ({ input, expected }) =>
+    evaluateSemanticOutput({ output: input.output, rules: expected.rules }),
 };
 
 export const AI_EVAL_EVALUATORS = Object.freeze(Object.keys(evaluators));
