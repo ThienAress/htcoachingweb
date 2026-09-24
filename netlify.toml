@@ -2,11 +2,13 @@
   base = "client"
   command = "npm run build:netlify"
   publish = "dist"
+  environment = { NODE_VERSION = "22.23.1" }
 
 [context.staging]
   ignore = "exit 1"
 
 [context.staging.environment]
+  NODE_VERSION = "22.23.1"
   VITE_TODAY_PLATFORM_ENABLED = "true"
   VITE_API_URL = "https://htcoachingweb-staging.onrender.com/api"
   REQUIRE_DYNAMIC_ROUTES = "true"
