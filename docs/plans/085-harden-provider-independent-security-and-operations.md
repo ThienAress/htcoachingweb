@@ -13,10 +13,10 @@
 - **Category**: security | privacy | recovery | observability | dependencies
 - **Planned at**: 2026-09-06
 - **Lifecycle**: DONE
-- **Verification**: FOCUSED
-- **Rollout**: NOT STARTED
+- **Verification**: PRODUCTION
+- **Rollout**: LIVE
 - **Owner**: root
-- **Updated at**: 2026-09-06
+- **Updated at**: 2026-09-07
 
 ## Why This Matters
 
@@ -87,7 +87,8 @@ review. Cập nhật lifecycle/evidence theo kết quả thật; không đổi r
 - [x] Restore verifier kiểm toàn bộ GridFS/PDF invariants.
 - [x] Cloudinary sensitive backup versions bị policy/readiness block.
 - [x] Auth và năm provider có bounded usage counters, test và runbook.
-- [x] AI/security/QA/governance checks phản ánh evidence thật; không chạm provider/production.
+- [x] AI/security/QA/governance checks phản ánh evidence thật; implementation phase
+  không chạm provider/production và rollout sau đó đi qua Plan 084.
 
 ## Verification Evidence
 
@@ -104,6 +105,12 @@ review. Cập nhật lifecycle/evidence theo kết quả thật; không đổi r
   `git diff --check` đều PASS. Governance có một test symlink SKIP do Windows Developer Mode.
 - Review độc lập không còn finding Medium/High. Residual Low: GridFS verifier dùng RAM theo tổng
   PDF; restore drill phải STOP nếu không đủ memory headroom và nâng sang cursor/streaming trước.
+- Candidate `b510a0753637c8cdbe47980423f31d397a7842ec` pass staging acceptance,
+  production promotion/observation và production smoke 11/11. Backup release,
+  disaster-recovery verification và Recovery Readiness run `34122279148` đều pass.
+- Các gate phải trả phí hoặc cần external-state riêng vẫn chủ động hoãn: Atlas PITR,
+  global Cloudinary backup và provider paid features. Việc này không phủ định rollout
+  của code fail-closed/readiness/observability hiện đã live.
 
 ## STOP Conditions
 

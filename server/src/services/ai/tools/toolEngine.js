@@ -18,6 +18,38 @@ const toolValidators = new Map(
 );
 const DEFAULT_TOOL_TIMEOUT_MS = 15000;
 const CONFIRMED_TOOL_EXECUTION = Symbol("confirmedToolExecution");
+const MAX_EVIDENCE_SOURCES = 3;
+const stripUnsafeMetadataText = (value) =>
+  String(value ?? "").replace(
+    /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u202A-\u202E\u2066-\u2069]/g,
+    "",
+  );
+
+const normalizeEvidenceSources = (sources) => {
+  if (!Array.isArray(sources)) return [];
+  const normalized = [];
+  const seen = new Set();
+  for (const source of sources) {
+    try {
+      const url = new URL(String(source?.uri || ""));
+      if (url.protocol !== "https:" || url.username || url.password) continue;
+      url.hash = "";
+      const uri = url.href.slice(0, 2048);
+      if (!uri || seen.has(uri)) continue;
+      const title = stripUnsafeMetadataText(source?.title)
+        .replace(/[\r\n]+/g, " ")
+        .trim()
+        .slice(0, 160);
+      if (!title) continue;
+      seen.add(uri);
+      normalized.push({ title, uri });
+      if (normalized.length === MAX_EVIDENCE_SOURCES) break;
+    } catch {
+      // Tool metadata is untrusted; malformed sources do not cross the boundary.
+    }
+  }
+  return normalized;
+};
 
 const validationFailure = (toolName, invalidFields) => ({
   text:
@@ -37,7 +69,9 @@ export const isSuccessfulToolResult = (result) =>
   !result.needsConfirmation &&
   !result.meta?.validationFailed &&
   !result.meta?.timedOut &&
-  !result.meta?.internalError;
+  !result.meta?.internalError &&
+  (result.uiCard?.cardType !== "meal" ||
+    result.uiCard?.data?.status === "complete");
 
 const createAbortError = (reason) => {
   const error = new Error(reason?.message || "Tool execution aborted");
@@ -105,12 +139,20 @@ export async function executeTool(toolName, parameters, context = {}) {
     };
   }
 
-  if (Array.isArray(context.allowedToolNames) && !context.allowedToolNames.includes(toolName)) {
+  if (
+    Array.isArray(context.allowedToolNames) &&
+    !context.allowedToolNames.includes(toolName)
+  ) {
     return {
       text: "Công cụ này không phù hợp với yêu cầu hiện tại.",
       uiCard: null,
       error: null,
-      meta: { toolName, validationFailed: true, routeBlocked: true, invalidFields: ["toolName"] },
+      meta: {
+        toolName,
+        validationFailed: true,
+        routeBlocked: true,
+        invalidFields: ["toolName"],
+      },
     };
   }
 
@@ -186,23 +228,61 @@ export async function executeTool(toolName, parameters, context = {}) {
       };
     }
     const result = execution.result;
-    const resultMeta = result.meta || {};
-    const evidenceMeta = toolName === "search_knowledge"
-      ? {
-          evidenceAvailable: resultMeta.evidenceAvailable === true,
-          sourceCount: Array.isArray(resultMeta.sources) ? resultMeta.sources.length : 0,
-          sources: Array.isArray(resultMeta.sources) ? resultMeta.sources.slice(0, 3) : [],
-          searchOutcome: resultMeta.searchOutcome || "provider_error",
+    const normalizedSources =
+      toolName === "search_knowledge"
+        ? normalizeEvidenceSources(result?.meta?.sources)
+        : [];
+    const searchOutcomes = new Set([
+      "not_called",
+      "provider_error",
+      "no_supported_source",
+      "grounded",
+    ]);
+    const evidenceMeta =
+      toolName === "search_knowledge"
+        ? {
+          evidenceAvailable:
+            result?.meta?.evidenceAvailable === true &&
+            normalizedSources.length > 0,
+          sourceCount: normalizedSources.length,
+          sources: normalizedSources,
+          searchOutcome: searchOutcomes.has(result?.meta?.searchOutcome)
+            ? result.meta.searchOutcome
+            : result?.meta?.evidenceAvailable === true &&
+                normalizedSources.length > 0
+              ? "grounded"
+              : "provider_error",
         }
-      : toolName === "search_exercises"
-        ? { evidenceAvailable: resultMeta.evidenceAvailable === true, resultCount: resultMeta.resultCount || 0 }
-        : {};
+          : toolName === "search_exercises"
+          ? {
+              evidenceAvailable: result?.meta?.evidenceAvailable === true,
+              requestedCount: Math.min(
+                Math.max(Number(result?.meta?.requestedCount) || 0, 0),
+                10,
+              ),
+              resultCount: Math.min(
+                Math.max(Number(result?.meta?.resultCount) || 0, 0),
+                10,
+              ),
+              catalogInsufficient:
+                result?.meta?.catalogInsufficient === true,
+              equipmentConstraintApplied:
+                result?.meta?.equipmentConstraintApplied === true,
+              excludedForEquipmentCount: Math.min(
+                Math.max(
+                  Number(result?.meta?.excludedForEquipmentCount) || 0,
+                  0,
+                ),
+                30,
+              ),
+            }
+          : {};
 
     return {
       text: result.text,
       uiCard: result.uiCard || null,
       error: null,
-      meta: { ...resultMeta, ...evidenceMeta, toolName, timeCost },
+      meta: { toolName, timeCost, ...evidenceMeta },
     };
   } catch (err) {
     if (context.signal?.aborted) {

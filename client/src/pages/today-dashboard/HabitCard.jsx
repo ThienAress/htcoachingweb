@@ -30,6 +30,7 @@ export const HabitListItem = ({
   onStatus,
   canEdit = true,
   isPending = false,
+  selfManaged = false,
 }) => {
   const actionDisabled = disabled || !habit.scheduledToday;
   const scheduleMessageId = `habit-schedule-status-${habit._id}`;
@@ -39,8 +40,15 @@ export const HabitListItem = ({
         <div>
           <h3 className="font-semibold text-white">{habit.title}</h3>
           <p className="mt-1 text-xs text-slate-400">
-            {habit.createdByRole === "trainer" ? "HLV giao" : "Tự tạo"}
-            {habit.visibility === "private" ? " · Riêng tư" : " · Đã chia sẻ"}
+            {selfManaged
+              ? "Tự tạo"
+              : habit.createdByRole === "trainer"
+                ? "HLV giao"
+                : "Tự tạo"}
+            {!selfManaged &&
+              (habit.visibility === "private"
+                ? " · Riêng tư"
+                : " · Đã chia sẻ")}
           </p>
         </div>
         <span className="whitespace-nowrap text-sm font-semibold text-orange-300">
@@ -99,7 +107,13 @@ export const HabitListItem = ({
   );
 };
 
-export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
+export const HabitCard = ({
+  dateKey,
+  journal,
+  canEdit,
+  onChanged,
+  selfManaged = false,
+}) => {
   const queryClient = useQueryClient();
   const [correctionReason, setCorrectionReason] = useState("");
   const [notice, setNotice] = useState("");
@@ -107,7 +121,7 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
   const [failedDefinition, setFailedDefinition] = useState(null);
   const [failedCompletion, setFailedCompletion] = useState(null);
   const completions = journal?.habitCompletions || [];
-  const isSubmitted = journal?.status === "submitted";
+  const isSubmitted = !selfManaged && journal?.status === "submitted";
   const habitsQuery = useQuery({
     queryKey: ["coaching-habits", "my", dateKey],
     queryFn: async () => {
@@ -125,8 +139,12 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
     onSuccess: (_response, variables) => {
       const successMessage =
         variables.kind === "create"
-          ? "Đã tạo thói quen khách hàng."
-          : "Đã cập nhật thói quen khách hàng.";
+          ? selfManaged
+            ? "Đã tạo thói quen."
+            : "Đã tạo thói quen khách hàng."
+          : selfManaged
+            ? "Đã cập nhật thói quen."
+            : "Đã cập nhật thói quen khách hàng.";
       setNotice(successMessage);
       toast.success(successMessage);
       setFailedDefinition(null);
@@ -221,9 +239,15 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
   const habits = habitsQuery.data?.items || [];
   const activeInRange = habits.filter(
     (habit) =>
-      habit.status === "active" && isHabitWithinDateRange(habit, dateKey),
+      habit.status === "active" &&
+      isHabitWithinDateRange(habit, dateKey) &&
+      (!selfManaged || habit.createdByRole === "user"),
   );
-  const paused = habits.filter((habit) => habit.status === "paused");
+  const paused = habits.filter(
+    (habit) =>
+      habit.status === "paused" &&
+      (!selfManaged || habit.createdByRole === "user"),
+  );
   const mutationError = definitionMutation.error || completionMutation.error;
   const stale = mutationError?.response?.status === 409;
   return (
@@ -239,7 +263,7 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
             id="daily-habits-title"
             className="text-xl font-bold text-white sm:text-2xl"
           >
-            Thói quen khách hàng
+            {selfManaged ? "Thói quen của tôi" : "Thói quen khách hàng"}
           </h3>
         </div>
       </div>
@@ -291,6 +315,7 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
                 onStatus={changeStatus}
                 canEdit={canEdit}
                 isPending={isPending}
+                selfManaged={selfManaged}
               />
             );
           })}
@@ -320,7 +345,12 @@ export const HabitCard = ({ dateKey, journal, canEdit, onChanged }) => {
         </div>
       )}
 
-      <CreateHabitForm dateKey={dateKey} disabled={!canEdit || isPending} onCreate={createHabit} />
+      <CreateHabitForm
+        dateKey={dateKey}
+        disabled={!canEdit || isPending}
+        onCreate={createHabit}
+        selfManaged={selfManaged}
+      />
       <div className="mt-4" aria-live="polite">
         {notice && <p className="text-sm text-green-300">{notice}</p>}
         {(localError || mutationError) && (

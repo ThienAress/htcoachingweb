@@ -393,6 +393,20 @@ export const validateProductionEnvironment = (
     );
   }
   validateSecret(env, findings, "GEMINI_API_KEY", { minimum: 20 });
+  const geminiSearchModel = String(
+    env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash",
+  ).trim();
+  const geminiSearchModelValid =
+    geminiSearchModel.length <= 100 &&
+    /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/i.test(geminiSearchModel);
+  if (!geminiSearchModelValid) {
+    addFinding(
+      findings,
+      "errors",
+      "GEMINI_SEARCH_MODEL_INVALID",
+      "GEMINI_SEARCH_MODEL must be a plain Gemini model identifier.",
+    );
+  }
   validateBooleanSetting(env, findings, "GEMINI_PAID_SERVICE_CONFIRMED", {
     required: true,
   });
@@ -684,6 +698,9 @@ export const validateProductionEnvironment = (
       geminiPaidServiceConfirmed:
         String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() ===
         "true",
+      geminiSearchModel: geminiSearchModelValid
+        ? geminiSearchModel
+        : "invalid",
       geminiMealScanDataUseMode,
       mealScanProvider,
       foodReferenceLookupEnabled,

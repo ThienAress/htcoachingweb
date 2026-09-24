@@ -6,6 +6,7 @@ import {
   createProgressRange,
 } from "./progressReadModel.service.js";
 import { loadProgressSources } from "./progressSources.service.js";
+import { resolveCustomerDashboardAccess } from "./customerDashboardAccess.service.js";
 
 export const progressError = (statusCode, message, codeName) => {
   const error = new Error(message);
@@ -22,9 +23,19 @@ export const getClientProgress = async ({
   endDateKey = null,
 }) => {
   const startedAt = Date.now();
-  const client = await User.findById(clientId).select("_id email").lean();
+  const client = await User.findById(clientId).select("_id email role").lean();
   if (!client) {
     throw progressError(404, "Không tìm thấy khách hàng", "PROGRESS_CLIENT_NOT_FOUND");
+  }
+  const access = trainerId
+    ? { accessMode: "coaching" }
+    : await resolveCustomerDashboardAccess({ id: clientId, role: client.role });
+  if (access.accessMode === "blocked") {
+    throw progressError(
+      403,
+      "Bạn cần có gói coaching hoặc HT Fitness+ còn hiệu lực để xem tiến trình",
+      "PROGRESS_ENTITLEMENT_REQUIRED",
+    );
   }
   let range;
   try {
@@ -41,8 +52,15 @@ export const getClientProgress = async ({
     email: client.email,
     range,
     trainerId,
+    accessMode: access.accessMode,
   });
-  const data = buildProgressReadModel({ range, ...sources });
+  const data = {
+    ...buildProgressReadModel({ range, ...sources }),
+    accessMode: access.accessMode,
+  };
+  if (access.accessMode === "self_managed") {
+    data.bodyProgress.source.includedStatuses = ["self_saved"];
+  }
   observeMetric("progress.aggregation_latency_ms", Date.now() - startedAt);
   return data;
 };

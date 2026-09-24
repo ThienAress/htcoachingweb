@@ -172,4 +172,33 @@ describe("Exercise review API", () => {
       reviews: await ExerciseReview.countDocuments({ exerciseId }),
     }).toEqual({ readStatus: 200, status: 404, reviews: 0 });
   });
+
+  it("keeps staging AI catalog fixtures readable but blocks new reviews", async () => {
+    const exerciseId = new Exercise()._id;
+    await Exercise.collection.insertOne({
+      _id: exerciseId,
+      name: "Staging AI catalog fixture",
+      muscleGroup: "Kiểm thử",
+      _stagingAiCatalogRollout: {
+        managed: true,
+        key: "plan-092-staging-ai-catalog",
+      },
+    });
+    const { accessToken } = await createTestUser({
+      email: "staging-ai-catalog-review@example.test",
+    });
+    const endpoint = `/api/exercises/${exerciseId}/reviews`;
+    const readResponse = await request(app).get(endpoint);
+
+    const response = await withAuth(
+      request(app).put(endpoint),
+      accessToken,
+    ).send({ rating: 5, comment: "Không được ghi vào fixture tạm." });
+
+    expect({
+      readStatus: readResponse.status,
+      status: response.status,
+      reviews: await ExerciseReview.countDocuments({ exerciseId }),
+    }).toEqual({ readStatus: 200, status: 404, reviews: 0 });
+  });
 });

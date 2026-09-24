@@ -66,7 +66,10 @@ export const journalToWellnessValues = (journal) => ({
   sharedNote: journal?.notes?.shared || "",
 });
 
-export const wellnessValuesToPatch = (values) => {
+export const wellnessValuesToPatch = (
+  values,
+  { selfManaged = false } = {},
+) => {
   const parsed = wellnessFormSchema.parse(values);
   return {
     wellness: {
@@ -81,7 +84,7 @@ export const wellnessValuesToPatch = (values) => {
       painArea: parsed.painArea.trim(),
     },
     notes: {
-      shared: parsed.sharedNote.trim(),
+      shared: selfManaged ? "" : parsed.sharedNote.trim(),
     },
   };
 };

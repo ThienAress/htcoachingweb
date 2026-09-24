@@ -74,6 +74,34 @@ const createEligibleCustomer = async (suffix = "one") => {
   return { client, trainer };
 };
 
+const createLegacyLeadCustomer = async (suffix = "legacy") => {
+  const lead = await createTestUser({
+    email: `morning-lead-${suffix}@example.com`,
+    role: "admin",
+  });
+  const client = await createTestUser({
+    email: `morning-legacy-client-${suffix}@example.com`,
+    name: `Khách legacy ${suffix}`,
+    role: "user",
+  });
+  await Promise.all([
+    NotificationPreference.create({
+      recipientId: client.user._id,
+      morningHealthEmail: true,
+    }),
+    Order.create({
+      userId: client.user._id,
+      name: client.user.name,
+      email: client.user.email,
+      package: "PT",
+      sessions: 3,
+      totalSessions: 3,
+      status: "approved",
+    }),
+  ]);
+  return { client, lead };
+};
+
 beforeAll(setupTestDB);
 beforeEach(() => {
   Object.assign(process.env, enabledEnv);
@@ -139,6 +167,79 @@ describe("morning health reminder cron", () => {
     );
     expect(sendMorningHealthReminderMail).not.toHaveBeenCalled();
     expect(await MorningHealthReminderDelivery.countDocuments()).toBe(0);
+  });
+
+  it("sends to an opted-in legacy customer only when the configured lead is valid", async () => {
+    const { client, lead } = await createLegacyLeadCustomer();
+
+    const result = await checkAndSendMorningHealthReminders(
+      new Date("2026-08-29T00:15:00.000Z"),
+      { ...enabledEnv, DEFAULT_ADMIN_TRAINER_ID: String(lead.user._id) },
+    );
+
+    expect(result).toEqual(expect.objectContaining({ sent: 1, failed: 0 }));
+    expect(sendMorningHealthReminderMail).toHaveBeenCalledWith(
+      client.user.email,
+      expect.any(Object),
+    );
+  });
+
+  it("excludes a client with an invalid explicit coach instead of falling back to the lead", async () => {
+    const { client, lead } = await createLegacyLeadCustomer("invalid-coach");
+    const nonCoach = await createTestUser({
+      email: "morning-non-coach@example.com",
+      role: "user",
+    });
+    await Order.updateOne(
+      { userId: client.user._id },
+      { $set: { trainerId: nonCoach.user._id } },
+    );
+
+    const result = await checkAndSendMorningHealthReminders(
+      new Date("2026-08-29T00:15:00.000Z"),
+      { ...enabledEnv, DEFAULT_ADMIN_TRAINER_ID: String(lead.user._id) },
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        sent: 0,
+        failed: 0,
+        skipReasons: { invalid_assignment: 1 },
+      }),
+    );
+    expect(sendMorningHealthReminderMail).not.toHaveBeenCalled();
+  });
+
+  it("excludes conflicting active effective coaches without aborting the tick", async () => {
+    const { client, lead } = await createLegacyLeadCustomer("conflict");
+    const otherTrainer = await createTestUser({
+      email: "morning-conflict-trainer@example.com",
+      role: "trainer",
+    });
+    await Order.create({
+      userId: client.user._id,
+      trainerId: otherTrainer.user._id,
+      name: client.user.name,
+      email: client.user.email,
+      package: "PT extra",
+      sessions: 2,
+      totalSessions: 2,
+      status: "approved",
+    });
+
+    const result = await checkAndSendMorningHealthReminders(
+      new Date("2026-08-29T00:15:00.000Z"),
+      { ...enabledEnv, DEFAULT_ADMIN_TRAINER_ID: String(lead.user._id) },
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        sent: 0,
+        failed: 0,
+        skipReasons: { assignment_conflict: 1 },
+      }),
+    );
+    expect(sendMorningHealthReminderMail).not.toHaveBeenCalled();
   });
 
   it("records a provider failure and retries the same delivery after backoff", async () => {

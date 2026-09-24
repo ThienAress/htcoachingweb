@@ -38,7 +38,7 @@ const Home = () => {
         "@type": "Organization",
         "name": "HTCOACHING",
         "url": "https://htcoachingweb.io.vn/",
-        "logo": "https://htcoachingweb.io.vn/og-image.png",
+        "logo": "https://htcoachingweb.io.vn/branding/ht-v2/organization-logo.png",
         "description": "Nền tảng huấn luyện cá nhân dành cho HLV freelance và học viên. Cung cấp công cụ tính TDEE, gợi ý meal plan, quản lý giáo án và theo dõi tiến độ tập luyện.",
         "sameAs": [
           "https://www.facebook.com/thienvo123456"

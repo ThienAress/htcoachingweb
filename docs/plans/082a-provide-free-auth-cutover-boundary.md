@@ -15,9 +15,9 @@
 - **Depends on**: 082
 - **Category**: security | operations
 - **Planned at**: 2026-09-07
-- **Lifecycle**: IN PROGRESS
-- **Verification**: NONE
-- **Rollout**: NOT STARTED
+- **Lifecycle**: DONE
+- **Verification**: PRODUCTION
+- **Rollout**: LIVE
 - **Owner**: root
 - **Updated at**: 2026-09-07
 
@@ -150,12 +150,25 @@ no database restore.
 
 ## Done Criteria
 
-- [ ] AC-010 through AC-013 pass and map to traceability evidence.
-- [ ] Existing refresh/logout/CSRF/cookie behavior is unchanged when disabled.
-- [ ] Legacy bridge contains no Plan-082 session-format code.
-- [ ] Staging bridge → candidate → reopen rehearsal passes without overlap.
-- [ ] Fresh CI/provider/acceptance/candidate SHA evidence passes.
-- [ ] Compatible recovery path exists before the full production candidate.
+- [x] AC-010 through AC-013 pass and map to traceability evidence.
+- [x] Existing refresh/logout/CSRF/cookie behavior is unchanged when disabled.
+- [x] Legacy bridge contains no Plan-082 session-format code.
+- [x] Staging bridge → candidate → reopen rehearsal passes without overlap.
+- [x] Fresh CI/provider/acceptance/candidate SHA evidence passes.
+- [x] Compatible recovery path exists before the full production candidate.
+
+## Execution Evidence
+
+- Staging deployed legacy bridge `21b3063…`, candidate
+  `b510a0753637c8cdbe47980423f31d397a7842ec`, then reopened Auth; acceptance run
+  `34097426230` passed 9 flows including refresh replay/logout with cleanup
+  `verified=true` and residue `0`.
+- Production repeated the bridge/candidate boundary, promotion gate `34098516851`
+  passed, and `AUTH_CUTOVER_MAINTENANCE=false` was verified as steady state afterward.
+- Production monitor `34120007250`, post-deploy observation `34120215203` and later
+  main monitor `34122279206` passed. Current backend deploy
+  `dep-daf82d740ujc73a2mfr0` continues to serve the candidate.
+- No database migration/backfill or test-user write was required by the Auth cutover.
 
 ## STOP Conditions
 

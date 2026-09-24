@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { sanitizeAssistantOutput } from "../assistantOutput.js";
+import {
+  boundAssistantOutputWithSources,
+  sanitizeAssistantOutput,
+} from "../assistantOutput.js";
 
 describe("AI assistant output guard", () => {
   it.each([
@@ -62,6 +65,54 @@ describe("AI assistant output guard", () => {
     expect(result).toEqual({ content: "", protocolLeak: true });
   });
 
+  it.each([
+    '{"action":"search_exercises","action_input":{"muscleGroup":"Ngực"}}',
+    '[{"action":"search_exercises","action_input":{"muscleGroup":"Ngực"}}]',
+  ])("blocks nested pseudo tool action envelopes without orphan braces: %s", (value) => {
+    expect(sanitizeAssistantOutput(value)).toEqual({
+      content: "",
+      protocolLeak: true,
+    });
+  });
+
+  it.each([
+    '{"functionCall":{"name":"unknown_operation","args":{"value":1}}}',
+    "<tool_call><name>unknown_operation</name></tool_call>",
+  ])("blocks unknown provider protocol shapes: %s", (value) => {
+    expect(sanitizeAssistantOutput(value)).toEqual({
+      content: "",
+      protocolLeak: true,
+    });
+  });
+
+  it.each([
+    "",
+    "   \n\t",
+    "{",
+    "}",
+    '{"action":',
+    '[{"action":',
+    "```json\n{\n```",
+  ])("blocks orphan or incomplete provider protocol fragments: %s", (value) => {
+    expect(sanitizeAssistantOutput(value)).toEqual({
+      content: "",
+      protocolLeak: true,
+    });
+  });
+
+  it.each([
+    "Dùng dấu { và } để minh họa một tập hợp.",
+    "Bạn đã hoàn thành rồi!",
+    "[Thư viện bài tập](/exercises) có thêm hướng dẫn chi tiết.",
+    "[5 bài tập](/exercises) phù hợp cho người mới.",
+    "[Lưu ý] Hãy ưu tiên kỹ thuật đúng.",
+  ])("keeps ordinary prose and punctuation: %s", (value) => {
+    expect(sanitizeAssistantOutput(value)).toEqual({
+      content: value,
+      protocolLeak: false,
+    });
+  });
+
   it("removes explanations that expose internal tool mechanics", () => {
     const result = sanitizeAssistantOutput(
       'Cảm ơn bạn đã khen! Mình được trang bị các công cụ (tools) để kết nối với dữ liệu thực tế.\n\n' +
@@ -84,5 +135,48 @@ describe("AI assistant output guard", () => {
     expect(result.content).toBe(
       "Bạn có thể dùng công cụ tính TDEE miễn phí trên HTCOACHING.",
     );
+  });
+
+  it("keeps a complete evidence link when the model places it past the output limit", () => {
+    const source = {
+      title: "Nguồn kiểm chứng",
+      uri: "https://example.com/evidence/ronaldo-training",
+    };
+    const result = boundAssistantOutputWithSources(
+      `${"A".repeat(200)} ${source.uri}`,
+      { sources: [source], maxCharacters: 200 },
+    );
+
+    expect(result.length).toBeLessThanOrEqual(200);
+    expect(result).toContain(`[Nguồn kiểm chứng](<${source.uri}>)`);
+  });
+
+  it("recomputes missing citations after the final cutoff without leaving a partial URI", () => {
+    const sources = [
+      { title: "Nguồn A", uri: "https://a.example/evidence" },
+      { title: "Nguồn B", uri: "https://b.example/evidence" },
+    ];
+    const prefixLength = 180;
+    const value = `${"A".repeat(prefixLength)} [Nguồn A](<${sources[0].uri}>) ${"B".repeat(80)}`;
+    const result = boundAssistantOutputWithSources(value, {
+      sources,
+      maxCharacters: 240,
+    });
+
+    expect(result.length).toBeLessThanOrEqual(240);
+    expect(result).toContain(`[Nguồn A](<${sources[0].uri}>)`);
+    expect(result).toContain(`[Nguồn B](<${sources[1].uri}>)`);
+    expect(result).not.toMatch(/https?:\/\/[^\s>)]*$/);
+  });
+
+  it("does not split a composed grapheme when bounding an answer", () => {
+    const prefix = "A".repeat(10);
+    const result = boundAssistantOutputWithSources(
+      `${prefix}👨‍👩‍👧‍👦 trailing text`,
+      { maxCharacters: 11 },
+    );
+
+    expect(result).toBe(prefix);
+    expect(result).not.toMatch(/[\uD800-\uDBFF]$/u);
   });
 });

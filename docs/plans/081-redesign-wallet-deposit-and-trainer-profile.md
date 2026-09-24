@@ -16,10 +16,10 @@
 - **Category**: feature
 - **Planned at**: 2026-09-05
 - **Lifecycle**: DONE
-- **Verification**: LOCAL FULL
-- **Rollout**: NOT STARTED
+- **Verification**: PRODUCTION
+- **Rollout**: LIVE
 - **Owner**: root
-- **Updated at**: 2026-09-05
+- **Updated at**: 2026-09-07
 
 ## Why This Matters
 
@@ -184,7 +184,8 @@ invariants intact and machine-readable verification evidence.
 - [x] No sample content, runtime HTML import, debug log or hardcoded secret is added.
 - [x] Focused tests, client lint/build, UI/security/agent/diff gates have recorded results.
 - [x] `docs/plans/README.md`, plan state and traceability match actual lifecycle.
-- [x] Rollout remains NOT STARTED; no deploy/restart or production write occurred.
+- [x] Implementation phase performed no deploy/restart or production write; the reviewed
+  candidate was later promoted through staging and production under Plan 084.
 
 ## Verification Evidence
 
@@ -224,6 +225,13 @@ trong surface Plan 081.
 - Re-run full client unit 147 files/660 tests, client lint, UI regression gate và client
   release build: exit 0. Browser sạch chuyển `/wallet` về `/login`, nên review render có
   xác thực vẫn cần smoke test bằng phiên người dùng trước rollout.
+
+### Release verification ngày 2026-09-07
+
+- Candidate `b510a0753637c8cdbe47980423f31d397a7842ec` pass CI, staging acceptance 9 flows,
+  cleanup `verified=true`, residue `0`, production promotion và post-deploy observation.
+- Production providers phục vụ đúng candidate; production smoke pass 11/11. Không có
+  migration/backfill Wallet, thay đổi ledger hay thao tác ghi khách hàng/HLV trong rollout.
 
 ## STOP Conditions
 

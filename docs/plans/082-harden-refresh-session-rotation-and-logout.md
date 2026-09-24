@@ -17,10 +17,10 @@
 - **Category**: security
 - **Planned at**: 2026-09-05
 - **Lifecycle**: DONE
-- **Verification**: LOCAL FULL
-- **Rollout**: NOT STARTED
+- **Verification**: PRODUCTION
+- **Rollout**: LIVE
 - **Owner**: root
-- **Updated at**: 2026-09-05
+- **Updated at**: 2026-09-07
 
 ## Why This Matters
 
@@ -178,7 +178,11 @@ actually executed.
 - E2E was not run because no frontend behavior changed and no authenticated browser environment was needed.
 - No migration or environment connection/write was used for Plan 082 verification, and no deploy, commit or push
   was performed. The later, separately authorized public-showcase sync is recorded in its own runbook.
-- Rollout remains `NOT STARTED`; promotion must follow the refresh-session cutover runbook.
+- The later rollout followed the refresh-session cutover runbook: staging rehearsed
+  bridge → candidate → reopen, acceptance validated refresh/replay/logout, and production
+  promoted the same candidate with the maintenance boundary returned to `false`.
+- Candidate `b510a0753637c8cdbe47980423f31d397a7842ec` passed the production promotion,
+  monitor and post-deploy observation gates; production smoke passed 11/11.
 - The refresh integration test is 391 lines because the atomic rotation, replay, expiry and legacy-cutover
   cases intentionally share one costly MongoMemory/public-router fixture; production service code remains
   below the project 300-line guideline.
@@ -195,9 +199,9 @@ actually executed.
 
 - Deployment must drain/restart old instances together; mixed old/new Auth code is unsupported. Existing
   sessions re-authenticate once after their access token expires (at most 15 minutes).
-- The release-specific procedure is `docs/operations/runbooks/refresh-session-cutover.md`. Rollout remains
-  `NOT STARTED` until staging proves the drain boundary and a Plan-082-compatible recovery target or
-  forward-fix path is recorded. Do not use the generic pre-082 Render rollback ID for this cutover.
+- The release-specific procedure is `docs/operations/runbooks/refresh-session-cutover.md`. The initial
+  rollout satisfied its drain and compatible-recovery gates; future rollouts must repeat the procedure
+  and must not use a generic pre-082 Render rollback ID.
 - A future P2 multi-device feature should introduce a dedicated refresh-session collection rather than
   stretching these single-session `User` fields into an array.
 - P2 should also coordinate refresh across tabs/direct SSE callers, restore `/user/me` through refresh on

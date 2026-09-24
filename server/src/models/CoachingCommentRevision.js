@@ -20,7 +20,7 @@ const coachingCommentRevisionSchema = new mongoose.Schema(
     },
     actorRole: {
       type: String,
-      enum: ["trainer", "user"],
+      enum: ["trainer", "user", "admin"],
       required: true,
     },
     action: {

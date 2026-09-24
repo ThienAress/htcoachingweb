@@ -18,7 +18,8 @@ const TodayJournal = () => {
   );
   const activeReport =
     location.hash === "#weekly-report" ? "weekly" : selectedReport;
-  const { data, dateKey, handleJournalChanged } = useOutletContext();
+  const { accessMode, data, dateKey, handleJournalChanged } = useOutletContext();
+  const selfManaged = accessMode === "self_managed";
   const journal = data.sections.journal.day;
 
   useEffect(() => {
@@ -70,19 +71,19 @@ const TodayJournal = () => {
     <div className="space-y-5">
       <nav
         className="rounded-2xl border border-slate-800 bg-slate-950 p-2"
-        aria-label="Loại nhật ký báo cáo"
+        aria-label={selfManaged ? "Loại nhật ký tự quản lý" : "Loại nhật ký báo cáo"}
       >
         <div className="grid gap-2 sm:grid-cols-2" role="tablist">
           {[
             {
               id: "daily",
-              label: "Nhật ký báo cáo ngày",
+              label: selfManaged ? "Nhật ký hằng ngày" : "Nhật ký báo cáo ngày",
               description: "Sức khỏe, thói quen và hoạt động trong ngày",
               icon: CalendarDays,
             },
             {
               id: "weekly",
-              label: "Nhật ký báo cáo tuần",
+              label: selfManaged ? "Số đo hằng tuần" : "Nhật ký báo cáo tuần",
               description: "Các số đo cơ thể theo từng kỳ trong tháng",
               icon: CalendarRange,
             },
@@ -138,8 +139,9 @@ const TodayJournal = () => {
             journal={journal}
             canEdit={data.capabilities.canEditJournal}
             onChanged={handleJournalChanged}
+            selfManaged={selfManaged}
           />
-          <ActivityTimeline dateKey={dateKey} enabled />
+          {!selfManaged && <ActivityTimeline dateKey={dateKey} enabled />}
         </div>
       )}
 
@@ -152,7 +154,11 @@ const TodayJournal = () => {
           tabIndex={-1}
           className="scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
         >
-          <WeeklyCheckinCard dateKey={dateKey} userId={user?._id} />
+          <WeeklyCheckinCard
+            dateKey={dateKey}
+            selfManaged={selfManaged}
+            userId={user?._id}
+          />
         </div>
       )}
     </div>

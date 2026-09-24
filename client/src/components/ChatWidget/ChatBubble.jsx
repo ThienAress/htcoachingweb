@@ -2,26 +2,38 @@ import React, { memo, useCallback, useState, useRef, useEffect } from "react";
 import { Bot, User, ThumbsUp, ThumbsDown, Copy, Check, RotateCcw, Pencil } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import TdeeResultCard from "./cards/TdeeResultCard";
+import TdeeFormCard from "./cards/TdeeFormCard";
 import ExerciseListCard from "./cards/ExerciseListCard";
 import MealSuggestionCard from "./cards/MealSuggestionCard";
 import TrainerInfoCard from "./cards/TrainerInfoCard";
 import WalletSummaryCard from "./cards/WalletSummaryCard";
 import WorkoutPlanCard from "./cards/WorkoutPlanCard";
 import BlogListCard from "./cards/BlogListCard";
-import ConfirmationCard from "./cards/ConfirmationCard";
+import WebSourcesCard from "./cards/WebSourcesCard";
+import TrainingScheduleCard from "./cards/TrainingScheduleCard";
+import CheckinHistoryCard from "./cards/CheckinHistoryCard";
+import GymInfoCard from "./cards/GymInfoCard";
+import CitationChip from "./CitationChip";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { isAllowedAiUiCard } from "./aiCardPolicy";
 import { getChatScrollBehavior } from "./chatPanelRuntime";
+import { persistOptimisticFeedback } from "./feedbackRuntime";
+import { getSafeCitationSources } from "./citation";
 
 const CARD_COMPONENTS = {
   tdee: TdeeResultCard,
+  tdeeForm: TdeeFormCard,
   exercise: ExerciseListCard,
   meal: MealSuggestionCard,
   trainer: TrainerInfoCard,
   wallet: WalletSummaryCard,
   workoutPlan: WorkoutPlanCard,
   blogList: BlogListCard,
-  confirmation: ConfirmationCard,
+  webSources: WebSourcesCard,
+  trainingSchedule: TrainingScheduleCard,
+  checkinHistory: CheckinHistoryCard,
+  gymInfo: GymInfoCard,
 };
 
 const ThinkingDots = () => (
@@ -36,17 +48,39 @@ const ThinkingDots = () => (
   </div>
 );
 
-const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinking, onFeedback }) {
+const ChatBubble = memo(function ChatBubble({
+  message,
+  onRetry,
+  onEdit,
+  isThinking,
+  onFeedback,
+  onCardAction,
+  cardActionsDisabled = false,
+  conversationId,
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const isUser = message.role === "user";
   const [feedbackState, setFeedbackState] = useState(message.feedback || null);
+  const [feedbackPending, setFeedbackPending] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
   const [copied, setCopied] = useState(false);
   const [hasRetried, setHasRetried] = useState(false);
   const [showRetryApology, setShowRetryApology] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.content || "");
   const editRef = useRef(null);
+  const visibleUiCards = (message.uiCards || []).filter(
+    (card) =>
+      isAllowedAiUiCard(card) &&
+      Object.hasOwn(CARD_COMPONENTS, card.cardType),
+  );
+  const citationSources = getSafeCitationSources(
+    visibleUiCards
+      .filter((card) => card.cardType === "webSources")
+      .flatMap((card) => card.data?.sources || []),
+  );
+  const citationByUri = new Map(citationSources.map((source) => [source.uri, source]));
 
   // Auto-focus và đặt cursor cuối khi mở edit
   useEffect(() => {
@@ -56,6 +90,11 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
       editRef.current.setSelectionRange(len, len);
     }
   }, [isEditing]);
+
+  useEffect(() => {
+    setFeedbackState(message.feedback || null);
+    setFeedbackError("");
+  }, [message._id, message.feedback]);
 
   const handleCopy = useCallback(() => {
     if (!message.content) return;
@@ -74,6 +113,25 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
     setHasRetried(true);
     onRetry?.(message._id);
   }, [hasRetried, message._id, onRetry]);
+
+  const handleFeedbackChange = useCallback(async (nextFeedback) => {
+    if (feedbackPending || !message._id) return;
+    const previousFeedback = feedbackState;
+    setFeedbackPending(true);
+    setFeedbackError("");
+    try {
+      await persistOptimisticFeedback({
+        previous: previousFeedback,
+        next: nextFeedback,
+        apply: setFeedbackState,
+        persist: (value) => onFeedback(message._id, value),
+      });
+    } catch {
+      setFeedbackError("Không thể lưu phản hồi. Lựa chọn trước đã được khôi phục.");
+    } finally {
+      setFeedbackPending(false);
+    }
+  }, [feedbackPending, feedbackState, message._id, onFeedback]);
 
   const handleEditOpen = useCallback(() => {
     setEditText(message.content || "");
@@ -129,7 +187,7 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
   }, [navigate, location.pathname]);
 
   if (message.role === "tool") return null;
-  if (!isUser && !message.content && !message.uiCards?.length) {
+  if (!isUser && !message.content && visibleUiCards.length === 0) {
     if (!isThinking) return null;
     return (
       <div className="flex gap-2.5 thinking-bubble-enter">
@@ -207,6 +265,8 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
                   components={{
                   p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200">{children}</p>,
                   a: ({ href, children }) => {
+                    const citation = citationByUri.get(href);
+                    if (citation) return <CitationChip source={citation} />;
                     if (href?.includes("#") && href?.startsWith("/")) {
                       return (
                         <button
@@ -314,49 +374,62 @@ const ChatBubble = memo(function ChatBubble({ message, onRetry, onEdit, isThinki
         )}
 
         {/* UI Cards */}
-        {message.uiCards?.map((card, i) => {
+        {visibleUiCards.map((card, i) => {
           const CardComponent = CARD_COMPONENTS[card.cardType];
-          if (!CardComponent) return null;
           return (
-            <div key={i} className="chat-card-enter w-full" style={{ animationDelay: `${i * 100}ms` }}>
-              <CardComponent data={card.data} />
+            <div
+              key={i}
+              className="chat-card-enter w-full max-w-2xl"
+              style={{ animationDelay: `${i * 100}ms` }}
+            >
+              <CardComponent
+                data={card.data}
+                disabled={cardActionsDisabled}
+                conversationId={conversationId}
+                onSubmit={card.cardType === "tdeeForm" ? onCardAction : undefined}
+              />
             </div>
           );
         })}
 
         {/* Feedback buttons (chỉ cho assistant messages có nội dung) */}
-        {!isUser && onFeedback && !isThinking && !message.isError && (message.content || message.uiCards?.length > 0) && (
-          <div className="flex items-center gap-1 mt-1">
+        {!isUser && onFeedback && message._id && !isThinking && !message.isError && (message.content || visibleUiCards.length > 0) && (
+          <div className="mt-1 flex flex-wrap items-center gap-1">
             <button
-              onClick={() => {
-                const val = feedbackState === "up" ? null : "up";
-                setFeedbackState(val);
-                onFeedback?.(message._id, val);
-              }}
-              className={`p-1 rounded-md transition-colors ${
+              type="button"
+              disabled={feedbackPending}
+              aria-pressed={feedbackState === "up"}
+              aria-label="Đánh giá câu trả lời hữu ích"
+              onClick={() => handleFeedbackChange(feedbackState === "up" ? null : "up")}
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
                 feedbackState === "up"
                   ? "text-emerald-400 bg-emerald-500/10"
                   : "text-gray-400 hover:text-gray-300 hover:bg-white/5"
-              }`}
+              } disabled:cursor-not-allowed disabled:opacity-50`}
               title="Phản hồi tốt"
             >
               <ThumbsUp size={12} />
             </button>
             <button
-              onClick={() => {
-                const val = feedbackState === "down" ? null : "down";
-                setFeedbackState(val);
-                onFeedback?.(message._id, val);
-              }}
-              className={`p-1 rounded-md transition-colors ${
+              type="button"
+              disabled={feedbackPending}
+              aria-pressed={feedbackState === "down"}
+              aria-label="Đánh giá câu trả lời chưa tốt"
+              onClick={() => handleFeedbackChange(feedbackState === "down" ? null : "down")}
+              className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
                 feedbackState === "down"
                   ? "text-red-400 bg-red-500/10"
                   : "text-gray-400 hover:text-gray-300 hover:bg-white/5"
-              }`}
+              } disabled:cursor-not-allowed disabled:opacity-50`}
               title="Phản hồi chưa tốt"
             >
               <ThumbsDown size={12} />
             </button>
+            {feedbackError && (
+              <span role="alert" className="ml-1 text-[11px] text-red-500 dark:text-red-300">
+                {feedbackError}
+              </span>
+            )}
           </div>
         )}
       </div>

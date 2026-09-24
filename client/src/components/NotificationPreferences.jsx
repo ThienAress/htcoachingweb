@@ -6,6 +6,7 @@ import {
   getNotificationPreferences,
   updateNotificationPreferences,
 } from "../services/notification.service";
+import { getInitialEmailSelectionError } from "./notificationPreferences.utils";
 
 const IN_APP_OPTIONS = [
   ["inAppEnabled", "Bật thông báo trong ứng dụng"],
@@ -15,6 +16,7 @@ const IN_APP_OPTIONS = [
 ];
 const EMAIL_OPTIONS = [
   ["morningHealthEmail", "Nhắc cập nhật Mục tiêu sức khỏe mỗi sáng"],
+  ["checkinEmail", "Thông báo check-in buổi tập"],
 ];
 
 const PreferenceToggle = ({ label, checked, onChange, disabled }) => (
@@ -41,6 +43,7 @@ export const NotificationPreferences = ({
   const options = isEmailChannel ? EMAIL_OPTIONS : IN_APP_OPTIONS;
   const [draft, setDraft] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const query = useQuery({
     queryKey,
     queryFn: async () => (await getNotificationPreferences()).data.data,
@@ -54,10 +57,11 @@ export const NotificationPreferences = ({
       const next = response.data.data;
       setDraft(next);
       setSaved(true);
+      if (isEmailChannel) setIsEditing(false);
       queryClient.setQueryData(queryKey, next);
       toast.success(
         isEmailChannel
-          ? "Đã lưu tùy chọn email"
+          ? "Đã lưu email thông báo"
           : "Đã lưu tùy chọn thông báo",
       );
     },
@@ -79,15 +83,26 @@ export const NotificationPreferences = ({
   const preferences = draft || query.data;
   const save = () => {
     if (!preferences) return;
+    const selectionError = isEmailChannel
+      ? getInitialEmailSelectionError(preferences)
+      : "";
+    if (selectionError) {
+      toast.error(selectionError);
+      return;
+    }
     setSaved(false);
-    mutation.mutate({
+    const payload = {
       expectedRevision: preferences.revision,
       inAppEnabled: preferences.inAppEnabled,
       comments: preferences.comments,
       journal: preferences.journal,
       weekly: preferences.weekly,
-      morningHealthEmail: preferences.morningHealthEmail === true,
-    });
+    };
+    if (isEmailChannel) {
+      payload.morningHealthEmail = preferences.morningHealthEmail === true;
+      payload.checkinEmail = preferences.checkinEmail === true;
+    }
+    mutation.mutate(payload);
   };
 
   if (query.isLoading) {
@@ -106,14 +121,20 @@ export const NotificationPreferences = ({
   }
   if (!preferences) return null;
 
+  const emailEligible = !isEmailChannel || preferences.emailEligible === true;
+  const emailLocked =
+    isEmailChannel && preferences.customerEmailConfigured === true && !isEditing;
+  const fieldsDisabled =
+    mutation.isPending || !emailEligible || emailLocked;
+
   return (
     <div className={compact ? "space-y-1" : "mt-4 space-y-2"}>
       {options.map(([key, label]) => (
         <PreferenceToggle
           key={key}
           label={label}
-          checked={preferences[key]}
-          disabled={mutation.isPending}
+          checked={preferences[key] === true}
+          disabled={fieldsDisabled}
           onChange={(checked) => {
             setSaved(false);
             setDraft((current) => ({
@@ -126,16 +147,39 @@ export const NotificationPreferences = ({
       <div className="flex flex-wrap items-center gap-3 pt-2">
         <button
           type="button"
-          onClick={save}
-          disabled={mutation.isPending}
+          onClick={() => {
+            if (emailLocked) {
+              setSaved(false);
+              setIsEditing(true);
+              return;
+            }
+            save();
+          }}
+          disabled={mutation.isPending || !emailEligible}
           className="min-h-11 rounded-lg bg-orange-500 px-4 text-sm font-bold text-slate-950 hover:bg-orange-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 disabled:opacity-40"
         >
           {mutation.isPending
             ? "Đang lưu..."
             : isEmailChannel
-              ? "Lưu tùy chọn email"
+              ? emailLocked
+                ? "Cập nhật"
+                : "Lưu"
               : "Lưu tùy chọn"}
         </button>
+        {isEmailChannel && isEditing && preferences.customerEmailConfigured && (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(query.data);
+              setSaved(false);
+              setIsEditing(false);
+            }}
+            disabled={mutation.isPending}
+            className="min-h-11 rounded-lg border border-slate-600 px-4 text-sm font-semibold text-slate-300 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 disabled:opacity-40"
+          >
+            Hủy
+          </button>
+        )}
         <span className="text-xs text-slate-400" aria-live="polite">
           {saved
             ? "Đã lưu."
@@ -144,6 +188,11 @@ export const NotificationPreferences = ({
               : ""}
         </span>
       </div>
+      {isEmailChannel && !emailEligible && (
+        <p className="text-xs leading-5 text-amber-300" role="status">
+          Bạn cần có gói coaching còn hiệu lực và đã được phân công HLV để sử dụng mục này.
+        </p>
+      )}
     </div>
   );
 };

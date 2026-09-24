@@ -4,7 +4,7 @@ import { NutritionCard } from "./NutritionCard";
 import { DashboardToolShortcut } from "./TodayDashboardSections";
 
 const TodayNutrition = () => {
-  const { data, dateKey, handleJournalChanged } = useOutletContext();
+  const { accessMode, data, dateKey, handleJournalChanged } = useOutletContext();
   return (
     <div>
       <DashboardToolShortcut
@@ -19,6 +19,7 @@ const TodayNutrition = () => {
         journal={data.sections.journal.day}
         canEdit={data.capabilities.canEditJournal}
         onChanged={handleJournalChanged}
+        selfManaged={accessMode === "self_managed"}
       />
     </div>
   );

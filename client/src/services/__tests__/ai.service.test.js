@@ -24,6 +24,7 @@ import {
   getAiMemory,
   getAiMemoryExport,
   openAiChatStream,
+  replaceAiMealItem,
   setAiMemoryConsent,
   upsertAiMemory,
 } from "../ai.service.js";
@@ -32,6 +33,7 @@ describe("openAiChatStream", () => {
   let csrfToken;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.restoreAllMocks();
     csrfToken = "stale-token";
     Cookies.get.mockImplementation(() => csrfToken);
@@ -64,6 +66,11 @@ describe("openAiChatStream", () => {
   });
 
   it("refreshes an expired session and retries with the rotated CSRF token", async () => {
+    const payload = {
+      message: "Xin chào",
+      conversationId: "conversation-1",
+      requestId: "request-1",
+    };
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response("", { status: 401 }))
@@ -73,11 +80,15 @@ describe("openAiChatStream", () => {
       csrfToken = "rotated-token";
     });
 
-    const response = await openAiChatStream({ message: "Xin chào" });
+    const response = await openAiChatStream(payload);
 
     expect(response.status).toBe(200);
     expect(api.post).toHaveBeenCalledWith("/auth/refresh", {});
     expect(fetchMock.mock.calls[1][1].headers["X-CSRF-Token"]).toBe("rotated-token");
+    expect(fetchMock.mock.calls.map(([, options]) => options.body)).toEqual([
+      JSON.stringify(payload),
+      JSON.stringify(payload),
+    ]);
   });
 
   it("preserves the same request body after refresh so conversation retry is idempotent", async () => {
@@ -120,5 +131,61 @@ describe("openAiChatStream", () => {
     });
     expect(api.delete).toHaveBeenNthCalledWith(1, "/ai/memory/response_style");
     expect(api.delete).toHaveBeenNthCalledWith(2, "/ai/memory");
+  });
+
+  it("replaces one meal item through the owner-scoped deterministic endpoint", async () => {
+    api.post.mockResolvedValue({
+      data: { success: true, data: { card: { cardType: "meal" } } },
+    });
+
+    const result = await replaceAiMealItem("conversation-1", {
+      operationId: "22222222-2222-4222-8222-222222222222",
+      mealPlanId: "11111111-1111-4111-8111-111111111111",
+      expectedRevision: 3,
+      mealIndex: 1,
+      foodIndex: 2,
+    });
+
+    expect(api.post).toHaveBeenCalledWith(
+      "/ai/conversations/conversation-1/meal-replacements",
+      {
+        operationId: "22222222-2222-4222-8222-222222222222",
+        mealPlanId: "11111111-1111-4111-8111-111111111111",
+        expectedRevision: 3,
+        mealIndex: 1,
+        foodIndex: 2,
+      },
+    );
+    expect(result).toMatchObject({ success: true });
+  });
+
+  it("retries an uncertain meal replacement once with the same operation id", async () => {
+    const uncertainError = Object.assign(new Error("Network Error"), {
+      code: "ERR_NETWORK",
+    });
+    api.post
+      .mockRejectedValueOnce(uncertainError)
+      .mockResolvedValueOnce({
+        data: {
+          success: true,
+          data: { card: { cardType: "meal", data: { mealRevision: 2 } } },
+        },
+      });
+    const payload = {
+      operationId: "33333333-3333-4333-8333-333333333333",
+      mealPlanId: "11111111-1111-4111-8111-111111111111",
+      expectedRevision: 1,
+      mealIndex: 0,
+      foodIndex: 1,
+    };
+
+    const result = await replaceAiMealItem("conversation-1", payload);
+
+    expect(api.post).toHaveBeenCalledTimes(2);
+    expect(api.post.mock.calls.map(([, body]) => body)).toEqual([
+      payload,
+      payload,
+    ]);
+    expect(result).toMatchObject({ success: true });
   });
 });

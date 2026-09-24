@@ -1,5 +1,7 @@
 import Order from "../models/Order.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
+import { resolveDefaultAdminTrainer } from "./defaultAdminTrainer.service.js";
+import { isCoachAssignmentError } from "./effectiveCoach.service.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -58,21 +60,28 @@ export const listActiveTrainerAssignments = async ({
 } = {}) => {
   const safe = pagination(page, limit);
   const normalizedSearch = String(search || "").trim().slice(0, 100);
+  let leadId = null;
+  try {
+    leadId = (await resolveDefaultAdminTrainer())._id;
+  } catch (error) {
+    if (!isCoachAssignmentError(error)) throw error;
+  }
   const pipeline = [
     {
       $match: {
         userId: { $ne: null },
-        trainerId: { $ne: null },
+        ...(leadId ? {} : { trainerId: { $ne: null } }),
         $or: [
           { status: "pending" },
           { status: "approved", sessions: { $gt: 0 } },
         ],
       },
     },
+    { $set: { effectiveTrainerId: { $ifNull: ["$trainerId", leadId] } } },
     { $sort: { updatedAt: -1 } },
     {
       $group: {
-        _id: { clientId: "$userId", trainerId: "$trainerId" },
+        _id: { clientId: "$userId", trainerId: "$effectiveTrainerId" },
         latestOrderId: { $first: "$_id" },
         latestStatus: { $first: "$status" },
         updatedAt: { $first: "$updatedAt" },

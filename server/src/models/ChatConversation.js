@@ -1,6 +1,75 @@
 import mongoose from "mongoose";
 import { AI_TOOL_RESULT_STATUSES } from "../constants/aiToolResult.js";
 
+const answerTraceSchema = new mongoose.Schema(
+  {
+    routeDomain: {
+      type: String,
+      enum: ["ht_service", "fitness", "adjacent", "general"],
+      required: true,
+    },
+    evidenceMode: {
+      type: String,
+      enum: ["internal_kb", "web_required", "model_prior"],
+      required: true,
+    },
+    kbEntryIds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "KnowledgeEntry" }],
+      default: [],
+      validate: {
+        validator: (value) => value.length <= 10,
+        message: "Answer trace chỉ được chứa tối đa 10 Knowledge Entry IDs",
+      },
+    },
+    webSearchUsed: { type: Boolean, default: false },
+    webSearchOutcome: {
+      type: String,
+      enum: [
+        "not_called",
+        "provider_error",
+        "no_supported_source",
+        "grounded",
+      ],
+      default: "not_called",
+    },
+    model: { type: String, required: true, maxlength: 100 },
+    promptVersion: { type: String, required: true, maxlength: 100 },
+  },
+  { _id: false },
+);
+
+const feedbackReviewSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ["none", "pending", "resolved", "dismissed"],
+      default: "none",
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    reviewedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
+const structuredActionSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ["calculate_tdee"],
+      required: true,
+    },
+    payload: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true,
+    },
+  },
+  { _id: false },
+);
+
 const chatMessageSchema = new mongoose.Schema(
   {
     role: {
@@ -10,6 +79,10 @@ const chatMessageSchema = new mongoose.Schema(
     },
     content: { type: String, default: "", maxlength: 20000 },
     image: { type: String, default: null, maxlength: 420000 },
+    structuredAction: {
+      type: structuredActionSchema,
+      default: null,
+    },
     toolCalls: { type: mongoose.Schema.Types.Mixed, default: null },
     toolName: { type: String, default: null, maxlength: 100 },
     toolCallId: { type: String, default: null, maxlength: 200 },
@@ -28,6 +101,14 @@ const chatMessageSchema = new mongoose.Schema(
     feedback: {
       type: String,
       enum: ["up", "down", null],
+      default: null,
+    },
+    feedbackReview: {
+      type: feedbackReviewSchema,
+      default: null,
+    },
+    answerTrace: {
+      type: answerTraceSchema,
       default: null,
     },
     timestamp: { type: Date, default: Date.now },

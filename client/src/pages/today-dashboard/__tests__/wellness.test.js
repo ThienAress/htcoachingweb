@@ -95,6 +95,17 @@ describe("wellness form contract", () => {
     ]).toEqual([3, 6, 9, 0, null]);
   });
 
+  it("không đưa ghi chú chia sẻ HLV vào payload tự quản lý", () => {
+    const values = {
+      ...journalToWellnessValues(null),
+      sharedNote: "Nội dung không được gửi cho HLV",
+    };
+
+    expect(
+      wellnessValuesToPatch(values, { selfManaged: true }).notes.shared,
+    ).toBe("");
+  });
+
   it("keeps semantic labels specific to each wellness field", () => {
     expect([
       wellnessSemanticLabel("energy", 3),

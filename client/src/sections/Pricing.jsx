@@ -420,7 +420,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
 
   const handleLoginRedirect = () => {
     setShowLoginPrompt(false);
-    navigate("/login", { state: { from: "/pricing" } });
+    navigate("/login", { state: { from: "/#pricing" } });
   };
 
   const showGiftModal = (gifts) => {
@@ -860,7 +860,7 @@ const Pricing = ({ isHeroAnimDone = false }) => {
                 <button
                   onClick={() => {
                     setShowTrainerLoginPrompt(false);
-                    navigate("/login", { state: { from: "/pricing" } });
+                    navigate("/login", { state: { from: "/#pricing" } });
                   }}
                   className="w-full py-3 bg-gradient-to-r from-primary to-primary-dark text-white font-bold rounded-lg flex items-center justify-center gap-2 hover:scale-105 transition"
                 >

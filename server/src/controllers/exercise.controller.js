@@ -64,6 +64,7 @@ const serializeExercise = (exercise) => {
   delete data._testCatalogFixture;
   delete data._stagingSearchIndexCohortFixture;
   delete data._stagingSearchIndexCohortDisplaced;
+  delete data._stagingAiCatalogRollout;
   return {
     ...data,
     technicalDifficultyRating: deriveTechnicalDifficultyRating(

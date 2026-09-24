@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
-import Order from "../models/Order.js";
 import {
   getMonthWeekPeriod,
   getVietnamDateKey,
   parseDateKey,
 } from "../utils/dateKey.js";
 import { resolveClientTrainer } from "./trainingScheduleCommand.service.js";
+import { resolveCustomerDashboardAccess } from "./customerDashboardAccess.service.js";
+import { assertEffectiveCoachAccess } from "./effectiveCoach.service.js";
 
 export const weeklyCheckinError = (statusCode, message, codeName) => {
   const error = new Error(message);
@@ -65,14 +66,35 @@ export const assertWeeklyCheckinEditWindow = (
 
 export const resolveWeeklyCheckinWriteAccess = async ({
   clientId,
+  clientRole = "user",
   session = null,
 }) => {
+  const access = await resolveCustomerDashboardAccess({
+    id: clientId,
+    role: clientRole,
+  }, { session });
+  if (access.accessMode === "self_managed") {
+    return {
+      mode: "self_managed",
+      trainerId: null,
+      orderId: null,
+      clientName: "",
+    };
+  }
+  if (access.accessMode === "blocked") {
+    throw weeklyCheckinError(
+      403,
+      "Bạn cần có gói coaching hoặc HT Fitness+ còn hiệu lực để lưu số đo",
+      "WEEKLY_CHECKIN_ENTITLEMENT_REQUIRED",
+    );
+  }
   const assignment = await resolveClientTrainer({
     clientId,
     session,
     includeClientName: true,
   });
   return {
+    mode: "coaching",
     trainerId: assignment.trainerId,
     orderId: assignment.order._id,
     clientName: assignment.clientName,
@@ -88,20 +110,15 @@ export const assertTrainerWeeklyCheckinRead = async ({
     throw weeklyCheckinError(400, "clientId không hợp lệ", "INVALID_CLIENT");
   }
   if (actor.role === "admin") return { adminRead: true };
-  let query = Order.findOne({
-    userId: clientId,
-    trainerId: actor.id,
-    status: "approved",
-    sessions: { $gt: 0 },
-  }).select("_id");
-  if (session) query = query.session(session);
-  const order = await query.lean();
-  if (!order) {
+  try {
+    const { order } = await assertEffectiveCoachAccess({ actor, clientId, session });
+    return { adminRead: false, orderId: order._id };
+  } catch (error) {
+    if (error.statusCode !== 403) throw error;
     throw weeklyCheckinError(
       403,
       "Khách hàng không thuộc phạm vi quản lý hiện tại",
       "WEEKLY_CHECKIN_FORBIDDEN",
     );
   }
-  return { adminRead: false, orderId: order._id };
 };

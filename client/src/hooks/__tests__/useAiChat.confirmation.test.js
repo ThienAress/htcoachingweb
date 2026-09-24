@@ -1,62 +1,82 @@
 import { describe, expect, it } from "vitest";
 
-import { mergeEphemeralConfirmationCards } from "../useAiChat";
+import { isAllowedAiUiCard } from "../../components/ChatWidget/aiCardPolicy";
+import { mapAiMessages } from "../useAiChat";
 
-describe("AI ephemeral confirmation reconciliation", () => {
-  it("keeps the current one-time card after persisted history reconciliation", () => {
-    const persisted = [
-      { role: "user", content: "Do it" },
-      { role: "assistant", content: "Please confirm", uiCards: [] },
-    ];
-    const local = [
-      {
-        role: "assistant",
-        localId: "current-assistant",
-        content: "",
-        uiCards: [
-          {
-            cardType: "confirmation",
-            data: { token: "opaque", expiresAt: "2026-08-13T01:00:00.000Z" },
-          },
-        ],
-      },
-    ];
-
-    const merged = mergeEphemeralConfirmationCards(
-      persisted,
-      local,
-      "current-assistant",
-    );
-
-    expect(merged[1].uiCards).toEqual(local[0].uiCards);
-    expect(persisted[1].uiCards).toEqual([]);
-  });
-
-  it("does not resurrect ordinary cards or old confirmation history", () => {
-    const persisted = [{ role: "assistant", content: "Done", uiCards: [] }];
-    const local = [
-      { role: "assistant", uiCards: [{ cardType: "tdee", data: {} }] },
-    ];
+describe("AI read-only card policy", () => {
+  it("hydrates a persisted assistant intake card after sync or reload", () => {
+    const card = {
+      cardType: "tdeeForm",
+      data: { prefill: { gender: "male", age: 28 } },
+    };
 
     expect(
-      mergeEphemeralConfirmationCards(persisted, local, "current-assistant"),
-    ).toBe(persisted);
+      mapAiMessages([
+        {
+          _id: "assistant-1",
+          role: "assistant",
+          content: "Bổ sung thông tin còn thiếu.",
+          uiCard: card,
+        },
+      ])[0],
+    ).toMatchObject({
+      role: "assistant",
+      uiCards: [card],
+    });
   });
 
-  it("does not move an older pending card onto the newest response", () => {
-    const persisted = [{ role: "assistant", content: "Newest", uiCards: [] }];
-    const local = [
+  it("rejects mutation confirmation cards from every client ingestion path", () => {
+    const confirmationCard = {
+      cardType: "confirmation",
+      data: { token: "opaque", expiresAt: "2026-08-13T01:00:00.000Z" },
+    };
+    const mapped = mapAiMessages([
       {
+        _id: "assistant-1",
         role: "assistant",
-        localId: "older-assistant",
-        uiCards: [
-          { cardType: "confirmation", data: { token: "older" } },
+        content: "Please confirm",
+        uiCard: confirmationCard,
+      },
+      {
+        _id: "tool-1",
+        role: "tool",
+        content: "Pending",
+        uiCard: confirmationCard,
+      },
+    ]);
+
+    expect({
+      allowed: isAllowedAiUiCard(confirmationCard),
+      hydratedCards: mapped[0].uiCards,
+    }).toEqual({ allowed: false, hydratedCards: [] });
+  });
+
+  it("rejects unknown card types instead of trusting SSE cardType", () => {
+    expect(
+      isAllowedAiUiCard({
+        cardType: "future_mutation",
+        data: { action: "delete" },
+      }),
+    ).toBe(false);
+  });
+
+  it("hydrates a persisted web source card from the tool message", () => {
+    const card = {
+      cardType: "webSources",
+      data: {
+        topic: "Creatine",
+        searchedAt: "2026-09-20T03:42:00.000Z",
+        sources: [
+          { title: "NIH (ods.od.nih.gov)", uri: "https://ods.od.nih.gov/creatine" },
         ],
       },
-    ];
+    };
 
-    expect(
-      mergeEphemeralConfirmationCards(persisted, local, "current-assistant"),
-    ).toBe(persisted);
+    const mapped = mapAiMessages([
+      { _id: "assistant-1", role: "assistant", content: "Có bằng chứng." },
+      { _id: "tool-1", role: "tool", content: "Evidence", uiCard: card },
+    ]);
+
+    expect(mapped[0].uiCards).toEqual([card]);
   });
 });

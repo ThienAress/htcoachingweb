@@ -19,6 +19,7 @@ import {
 } from "../../__tests__/setup.js";
 import { protect } from "../../middlewares/auth.middleware.js";
 import ChatConversation from "../../models/ChatConversation.js";
+import Food from "../../models/Food.js";
 import KnowledgeEntry from "../../models/KnowledgeEntry.js";
 import {
   chatStream,
@@ -39,6 +40,19 @@ import {
 } from "../../observability/metrics.js";
 
 let app;
+
+const CONFIRMED_TDEE_PAYLOAD = Object.freeze({
+  gender: "male",
+  age: 30,
+  heightCm: 175,
+  weightKg: 75,
+  dailyMovement: "mostly_seated",
+  steps: "under_5000",
+  trainingFrequency: "five_plus",
+  trainingDuration: "between_45_60",
+  trainingIntensity: "moderate",
+  goal: "fat_loss",
+});
 
 const createSuggestionConversation = (userId) =>
   ChatConversation.create({
@@ -198,12 +212,16 @@ describe("Phase 2 AI conversation integrity", () => {
     expect(busy.status).toBe(409);
   });
 
-  it("persists structured TDEE memory after a successful tool call", async () => {
+  it("persists structured TDEE memory after confirmed structured input", async () => {
     const { user, accessToken } = await createTestUser();
+    const structuredAction = {
+      type: "calculate_tdee",
+      payload: CONFIRMED_TDEE_PAYLOAD,
+    };
     await withAuth(
       request(app).post("/api/ai/chat").send({
-        message:
-          "Tính TDEE cho nam 30 tuổi, cao 175cm, nặng 75kg, làm văn phòng ngồi nhiều, khoảng 4000 bước/ngày, tập 5 buổi/tuần, 50 phút/buổi cường độ vừa, mục tiêu giảm mỡ",
+        message: "Xác nhận và tính TDEE",
+        structuredAction,
         requestId: "e26e93e8-8d21-4be2-9c6e-2ebf3cc340b5",
       }),
       accessToken,
@@ -227,19 +245,122 @@ describe("Phase 2 AI conversation integrity", () => {
         goal: "fat_loss",
       },
     });
+    expect(conversation.messages[0].structuredAction).toEqual(structuredAction);
+
+    const history = await withAuth(
+      request(app).get("/api/ai/history"),
+      accessToken,
+    );
+    expect(history.status).toBe(200);
+    expect(history.body.data.messages[0].structuredAction).toEqual(
+      structuredAction,
+    );
+  });
+
+  it("prefills a partial TDEE form, persists it, then calculates only from confirmed structured data", async () => {
+    const { user, accessToken } = await createTestUser();
+    const intakeResponse = await withAuth(
+      request(app).post("/api/ai/chat").send({
+        message:
+          "Tôi là nam, 28 tuổi, 1 tuần tập 3-4 buổi, tính giúp tôi TDEE",
+        requestId: "a46e93e8-8d21-4be2-9c6e-2ebf3cc340b8",
+      }),
+      accessToken,
+    );
+
+    expect(intakeResponse.status).toBe(200);
+    expect(intakeResponse.text).toContain('"cardType":"tdeeForm"');
+    expect(intakeResponse.text).toContain('"trainingFrequency":"three_four"');
+    expect(intakeResponse.text).not.toContain('"activityLevel"');
+
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    expect(
+      conversation.messages.find(
+        (item) => item.role === "assistant" && item.uiCard?.cardType === "tdeeForm",
+      )?.uiCard,
+    ).toMatchObject({
+      cardType: "tdeeForm",
+      data: {
+        prefill: {
+          gender: "male",
+          age: 28,
+          trainingFrequency: "three_four",
+        },
+      },
+    });
+
+    const structuredAction = {
+      type: "calculate_tdee",
+      payload: {
+        gender: "male",
+        age: 28,
+        heightCm: 175,
+        weightKg: 75,
+        dailyMovement: "mixed",
+        steps: "between_5000_7999",
+        trainingFrequency: "three_four",
+        trainingDuration: "between_45_60",
+        trainingIntensity: "moderate",
+        goal: "maintenance",
+      },
+    };
+    const calculationResponse = await withAuth(
+      request(app).post("/api/ai/chat").send({
+        message: "Tính TDEE từ thông tin tôi đã xác nhận",
+        conversationId: conversation._id,
+        requestId: "b46e93e8-8d21-4be2-9c6e-2ebf3cc340b9",
+        structuredAction,
+      }),
+      accessToken,
+    );
+
+    expect(calculationResponse.status).toBe(200);
+    expect(calculationResponse.text).toContain('"cardType":"tdee"');
+    const updated = await ChatConversation.findById(conversation._id).lean();
+    expect(updated.workingMemory.lastTdee.input).toMatchObject({
+      ...structuredAction.payload,
+      activityLevel: "moderate",
+    });
   });
 
   it("reuses TDEE memory when the next turn requests a four-meal plan", async () => {
     const { user, accessToken } = await createTestUser();
     await withAuth(
       request(app).post("/api/ai/chat").send({
-        message:
-          "Tính TDEE cho nam 30 tuổi, cao 175cm, nặng 75kg, làm văn phòng ngồi nhiều, khoảng 4000 bước/ngày, tập 5 buổi/tuần, 50 phút/buổi cường độ vừa, mục tiêu giảm mỡ",
+        message: "Xác nhận và tính TDEE",
+        structuredAction: {
+          type: "calculate_tdee",
+          payload: CONFIRMED_TDEE_PAYLOAD,
+        },
         requestId: "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b6",
       }),
       accessToken,
     );
     const conversation = await ChatConversation.findOne({ userId: user._id });
+    await Food.insertMany([
+      {
+        label: "Ức gà kiểm thử",
+        protein: 31,
+        carb: 0,
+        fat: 3.6,
+        calories: 156.4,
+      },
+      {
+        label: "Cơm kiểm thử",
+        protein: 2.7,
+        carb: 28,
+        fat: 0.3,
+        calories: 125.5,
+      },
+      {
+        label: "Dầu kiểm thử",
+        protein: 0,
+        carb: 0,
+        fat: 100,
+        calories: 900,
+      },
+    ]);
 
     const response = await withAuth(
       request(app).post("/api/ai/chat").send({
@@ -253,6 +374,11 @@ describe("Phase 2 AI conversation integrity", () => {
 
     expect(response.text).not.toContain("cần tính TDEE trước");
     expect(updated.workingMemory.lastMeal.mealsPerDay).toBe(4);
+    expect(
+      updated.messages.find(
+        (message) => message.uiCard?.cardType === "meal",
+      )?.uiCard?.data?.mealRevision,
+    ).toBe(1);
   });
 
   it("forks before a user message instead of rewriting server history", async () => {
@@ -281,6 +407,255 @@ describe("Phase 2 AI conversation integrity", () => {
     ).lean();
     expect(branch.forkedFromConversationId.toString()).toBe(source._id.toString());
     expect((await ChatConversation.findById(source._id)).messages).toHaveLength(2);
+  });
+
+  it("replaces a retry tail atomically instead of appending a ghost turn", async () => {
+    const { user, accessToken } = await createTestUser();
+    const source = await ChatConversation.create({
+      userId: user._id,
+      title: "Retry contract",
+      messages: [
+        { role: "user", content: "Câu hỏi trước" },
+        { role: "assistant", content: "Câu trả lời trước" },
+        { role: "user", content: "Câu hỏi cần retry" },
+        { role: "assistant", content: "Phần trả lời dở dang" },
+      ],
+      messageCount: 4,
+    });
+    const retryTarget = source.messages[2];
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat").send({
+        message: "Câu hỏi cần retry",
+        conversationId: source._id,
+        retryOfMessageId: retryTarget._id,
+        requestId: "e26e93e8-8d21-4be2-9c6e-2ebf3cc340b5",
+      }),
+      accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('"type":"done"');
+    const updated = await ChatConversation.findById(source._id).lean();
+    expect(updated.messages.filter(
+      (message) => message.role === "user" && message.content === "Câu hỏi cần retry",
+    )).toHaveLength(1);
+    expect(updated.messages.some(
+      (message) => message.content === "Phần trả lời dở dang",
+    )).toBe(false);
+    expect(updated.messages.filter((message) => message.role === "assistant").length)
+      .toBe(2);
+  });
+
+  it("rejects a stale retry CAS without deleting a turn completed by another tab", async () => {
+    const { user, accessToken } = await createTestUser();
+    const source = await ChatConversation.create({
+      userId: user._id,
+      title: "Concurrent retry contract",
+      messages: [
+        { role: "user", content: "Câu hỏi trước" },
+        { role: "assistant", content: "Câu trả lời trước" },
+        { role: "user", content: "Câu hỏi cần retry" },
+        { role: "assistant", content: "Câu trả lời cần giữ nếu CAS thua" },
+      ],
+      messageCount: 4,
+    });
+    const retryTarget = source.messages[2];
+    const originalCollectionUpdate =
+      ChatConversation.collection.updateOne.bind(ChatConversation.collection);
+    let releaseRetryAcquire;
+    let markRetryAcquireReached;
+    let intercepted = false;
+    const retryAcquireReached = new Promise((resolve) => {
+      markRetryAcquireReached = resolve;
+    });
+    const retryAcquireGate = new Promise((resolve) => {
+      releaseRetryAcquire = resolve;
+    });
+    vi.spyOn(ChatConversation.collection, "updateOne")
+      .mockImplementation(async (filter, update, options) => {
+        if (
+          !intercepted &&
+          String(filter?._id) === String(source._id) &&
+          Array.isArray(filter?.messages) &&
+          update?.$set?.activeStreamId
+        ) {
+          intercepted = true;
+          markRetryAcquireReached();
+          await retryAcquireGate;
+        }
+        return originalCollectionUpdate(filter, update, options);
+      });
+
+    const retryPromise = withAuth(
+      request(app).post("/api/ai/chat").send({
+        message: retryTarget.content,
+        conversationId: source._id,
+        retryOfMessageId: retryTarget._id,
+        requestId: "e36e93e8-8d21-4be2-9c6e-2ebf3cc340b5",
+      }),
+      accessToken,
+    ).then((response) => response);
+
+    await retryAcquireReached;
+    const concurrent = await withAuth(
+      request(app).post("/api/ai/chat").send({
+        message: "Lượt mới hoàn tất từ tab khác",
+        conversationId: source._id,
+        requestId: "e46e93e8-8d21-4be2-9c6e-2ebf3cc340b5",
+      }),
+      accessToken,
+    );
+    releaseRetryAcquire();
+    const retried = await retryPromise;
+    const stored = await ChatConversation.findById(source._id).lean();
+
+    expect({
+      concurrentStatus: concurrent.status,
+      retryStatus: retried.status,
+      keptConcurrentTurn: stored.messages.some(
+        ({ role, content }) =>
+          role === "user" && content === "Lượt mới hoàn tất từ tab khác",
+      ),
+      keptOriginalTail: stored.messages.some(
+        ({ content }) => content === "Câu trả lời cần giữ nếu CAS thua",
+      ),
+    }).toEqual({
+      concurrentStatus: 200,
+      retryStatus: 409,
+      keptConcurrentTurn: true,
+      keptOriginalTail: true,
+    });
+  });
+
+  it("keeps memory-only TDEE state when retrying a meal tail", async () => {
+    const { user, accessToken } = await createTestUser();
+    const retainedMessages = Array.from({ length: 37 }, (_, index) => ({
+      role: index % 2 === 0 ? "user" : "assistant",
+      content: `Lịch sử gần đây ${index + 1}`,
+    }));
+    const source = await ChatConversation.create({
+      userId: user._id,
+      title: "Memory-only TDEE retry",
+      messages: [
+        ...retainedMessages,
+        { role: "user", content: "Tôi cần thêm động lực tập luyện" },
+        {
+          role: "assistant",
+          content: "",
+          toolCalls: [{ id: "old-meal", name: "suggest_meal", args: {} }],
+        },
+        {
+          role: "tool",
+          content: "Thực đơn cũ",
+          toolName: "suggest_meal",
+          toolCallId: "old-meal",
+          toolStatus: "success",
+        },
+      ],
+      messageCount: 39,
+      workingMemory: {
+        lastTdee: {
+          input: {
+            ...CONFIRMED_TDEE_PAYLOAD,
+            activityLevel: "moderate",
+          },
+          result: {
+            bmr: 1700,
+            tdee: 2600,
+            targetCalories: 2300,
+            adjustment: -300,
+            macros: {},
+          },
+        },
+        lastMeal: {
+          targetCalories: 2300,
+          proteinGrams: 170,
+          carbGrams: 240,
+          fatGrams: 73,
+          mealsPerDay: 4,
+        },
+      },
+    });
+    const retryTarget = source.messages[37];
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat").send({
+        message: retryTarget.content,
+        conversationId: source._id,
+        retryOfMessageId: retryTarget._id,
+        requestId: "e56e93e8-8d21-4be2-9c6e-2ebf3cc340b5",
+      }),
+      accessToken,
+    );
+    const updated = await ChatConversation.findById(source._id).lean();
+
+    expect({
+      status: response.status,
+      targetCalories: updated.workingMemory.lastTdee?.result?.targetCalories,
+      lastMeal: updated.workingMemory.lastMeal,
+    }).toEqual({
+      status: 200,
+      targetCalories: 2300,
+      lastMeal: undefined,
+    });
+  });
+
+  it("rejects a retry payload mismatch and permits a genuinely stale stream", async () => {
+    const { user, accessToken } = await createTestUser();
+    const structuredAction = {
+      type: "calculate_tdee",
+      payload: CONFIRMED_TDEE_PAYLOAD,
+    };
+    const source = await ChatConversation.create({
+      userId: user._id,
+      title: "Retry payload contract",
+      messages: [{
+        role: "user",
+        content: "Tính TDEE từ dữ liệu đã xác nhận",
+        structuredAction,
+      }],
+      messageCount: 1,
+    });
+    const target = source.messages[0];
+
+    const mismatched = await withAuth(
+      request(app).post("/api/ai/chat").send({
+        message: target.content,
+        conversationId: source._id,
+        retryOfMessageId: target._id,
+        structuredAction: {
+          ...structuredAction,
+          payload: { ...CONFIRMED_TDEE_PAYLOAD, calorieAdjustment: 100 },
+        },
+        requestId: "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
+      }),
+      accessToken,
+    );
+    expect(mismatched.status).toBe(409);
+    expect((await ChatConversation.findById(source._id)).messages).toHaveLength(1);
+
+    await ChatConversation.updateOne(
+      { _id: source._id },
+      {
+        $set: {
+          activeStreamId: "legacy-stale-stream",
+          activeStreamStartedAt: new Date(Date.now() - 11 * 60 * 1000),
+        },
+      },
+    );
+    const retried = await withAuth(
+      request(app).post("/api/ai/chat").send({
+        message: target.content,
+        conversationId: source._id,
+        retryOfMessageId: target._id,
+        structuredAction,
+        requestId: "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
+      }),
+      accessToken,
+    );
+    expect(retried.status).toBe(200);
+    expect(retried.text).toContain('"type":"done"');
   });
 });
 
@@ -385,6 +760,18 @@ describe("Phase 2 Knowledge Base lifecycle", () => {
       request(app).post("/api/knowledge-base").send({
         question: "Protein là gì?",
         answer: "Protein hỗ trợ xây dựng và duy trì mô cơ.",
+        category: "nutrition",
+        evidenceLevel: "source_backed",
+        freshnessClass: "stable",
+        sources: [
+          {
+            type: "professional",
+            title: "Synthetic nutrition reference",
+            publisher: "Synthetic Sports Nutrition Group",
+            url: "https://example.org/nutrition/protein",
+            evidenceTier: "professional",
+          },
+        ],
         status: "published",
       }),
       accessToken,

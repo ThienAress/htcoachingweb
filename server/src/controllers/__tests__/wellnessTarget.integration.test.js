@@ -6,6 +6,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import request from "supertest";
 import {
@@ -61,6 +62,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   delete process.env.TODAY_WELLNESS_TARGET_WRITES_ENABLED;
   delete process.env.TODAY_WELLNESS_TARGET_RETENTION_ENFORCE;
   await clearCollections();
@@ -185,8 +187,10 @@ describe("Wellness target API", () => {
     expect(response.body.data.updatedByRole).toBe("admin");
   });
 
-  it("uses the admin as trainer-at-creation when an active order has no trainer", async () => {
+  it("uses the designated lead rather than the admin operator for an unassigned order", async () => {
     const admin = await createTestUser({ role: "admin" });
+    const lead = await createTestUser({ role: "admin" });
+    vi.stubEnv("DEFAULT_ADMIN_TRAINER_ID", String(lead.user._id));
     const client = await createTestUser();
     await createOrder({ clientId: client.user._id });
 
@@ -196,9 +200,10 @@ describe("Wellness target API", () => {
       targets,
     });
 
-    const saved = await WellnessTarget.findOne({ clientId: client.user._id });
+    const saved = await WellnessTarget.findOne({ clientId: client.user._id }).select("+updatedByActorId");
     expect(response.status).toBe(201);
-    expect(String(saved?.trainerIdAtCreation)).toBe(String(admin.user._id));
+    expect(String(saved?.trainerIdAtCreation)).toBe(String(lead.user._id));
+    expect(String(saved?.updatedByActorId)).toBe(String(admin.user._id));
   });
 
   it("lets an assigned trainer read the latest target for a client", async () => {

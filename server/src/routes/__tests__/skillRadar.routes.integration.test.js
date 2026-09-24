@@ -53,7 +53,10 @@ describe("GET /api/admin/skill-radar", () => {
     expect(response.body.success).toBe(true);
     expect(response.body.data.summary.total).toBe(27);
     expect(response.body.data.items).toHaveLength(27);
-    expect(response.body.data.items[0]).toEqual(
+    const skillsShItem = response.body.data.items.find(
+      ({ skillsShUrl }) => typeof skillsShUrl === "string",
+    );
+    expect(skillsShItem).toEqual(
       expect.objectContaining({
         id: expect.any(String),
         repoUrl: expect.stringMatching(/^https:\/\/github\.com\//),

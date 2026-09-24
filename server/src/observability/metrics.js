@@ -1,4 +1,17 @@
+import { randomUUID } from "node:crypto";
 import { getHeapStatistics } from "node:v8";
+
+const RUNTIME_INSTANCE_ID = randomUUID();
+// Captured once at process boot.  Do not read process.env at request time: a
+// receipt must describe the same deployed process as its metrics snapshot.
+const RUNTIME_RELEASE_SHA = String(
+  process.env.RENDER_GIT_COMMIT || (process.env.NODE_ENV === "test" ? "a".repeat(40) : ""),
+);
+
+export const getRuntimeIdentity = () => Object.freeze({
+  runtimeInstanceId: RUNTIME_INSTANCE_ID,
+  runtimeReleaseSha: RUNTIME_RELEASE_SHA,
+});
 
 const COUNTER_NAMES = new Set([
   "http.requests",
@@ -22,6 +35,9 @@ const COUNTER_NAMES = new Set([
   "provider.gemini_chat_requests",
   "provider.gemini_chat_succeeded",
   "provider.gemini_chat_failed",
+  "provider.gemini_chat_unavailable",
+  "provider.gemini_chat_rate_limited",
+  "provider.gemini_chat_not_required",
   "provider.gemini_chat_prompt_tokens",
   "provider.gemini_chat_output_tokens",
   "provider.gemini_chat_total_tokens",
@@ -37,6 +53,18 @@ const COUNTER_NAMES = new Set([
   "provider.gemini_search_grounding_prompt_tokens",
   "provider.gemini_search_grounding_output_tokens",
   "provider.gemini_search_grounding_total_tokens",
+  "provider.gemini_search_grounding_privacy_blocked",
+  "provider.gemini_search_grounding_not_configured",
+  "provider.gemini_search_grounding_request_rejected",
+  "provider.gemini_search_grounding_permission_denied",
+  "provider.gemini_search_grounding_rate_limited",
+  "provider.gemini_search_grounding_upstream_error",
+  "provider.gemini_search_grounding_http_error",
+  "provider.gemini_search_grounding_invalid_response",
+  "provider.gemini_search_grounding_network_error",
+  "provider.gemini_search_grounding_aborted",
+  "provider.gemini_search_grounding_no_supported_source",
+  "provider.gemini_search_grounding_grounded",
   "provider.gemini_embedding_requests",
   "provider.gemini_embedding_succeeded",
   "provider.gemini_embedding_failed",
@@ -70,6 +98,9 @@ const COUNTER_NAMES = new Set([
   "kb.embedding_failures",
   "kb.search_no_hits",
   "kb.vector_fallbacks",
+  "kb.vector_root_fallbacks",
+  "kb.vector_variant_fallbacks",
+  "kb.vector_combined_fallbacks",
   "checkin.idempotency_hits",
   "checkin.transaction_aborts",
   "coaching.revision_conflicts",
@@ -329,6 +360,8 @@ export const getMetricsSnapshot = ({
   const memory = getMemorySnapshot({ memoryUsage, heapStatistics });
   return {
     generatedAt: new Date(nowMs).toISOString(),
+    runtimeInstanceId: RUNTIME_INSTANCE_ID,
+    runtimeReleaseSha: RUNTIME_RELEASE_SHA,
     uptimeSeconds: Math.round(process.uptime()),
     memory,
     counters: Object.fromEntries(counters),

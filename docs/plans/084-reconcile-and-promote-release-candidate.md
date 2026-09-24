@@ -15,9 +15,9 @@
 - **Depends on**: 077, 078, 079, 080, 081, 082, 082A, 083
 - **Category**: release | security | tests | operations
 - **Planned at**: 2026-09-05
-- **Lifecycle**: IN PROGRESS
-- **Verification**: NONE
-- **Rollout**: NOT STARTED
+- **Lifecycle**: DONE
+- **Verification**: PRODUCTION
+- **Rollout**: LIVE
 - **Owner**: root
 - **Updated at**: 2026-09-07
 
@@ -28,7 +28,7 @@ Working tree hiện chứa nhiều thay đổi cross-layer từ nhiều task, tr
 đã kiểm tra. Plan này khóa provenance, tích hợp trên staging mới nhất, tạo evidence mới và giữ staging
 là gate bắt buộc trước production.
 
-## Current State
+## Initial State
 
 - Branch hiện tại `codex/product-security-features-20260901`, HEAD `833ed32f75d9126a7afa6da3f29aaf0f634447af`.
 - Snapshot ban đầu: `origin/staging` có 24 commit phía trước merge-base và branch hiện tại có một commit
@@ -149,14 +149,30 @@ build không hợp lệ vì staging đã chứng minh thao tác đó hủy deplo
 
 ## Done Criteria
 
-- [ ] Mọi file candidate có provenance; `.codex-worktrees/` và secret không nằm trong commit.
-- [ ] Plan 078 cùng Plans 077–083 phản ánh lifecycle/evidence thật.
-- [ ] Candidate chứa exact `origin/staging` mới nhất và không conflict/hygiene issue.
-- [ ] Local full QA, release build, E2E, security/governance/ops và recovery gates pass.
-- [ ] CI, Netlify staging và Render staging cùng exact SHA.
-- [ ] Staging acceptance pass, cleanup residue bằng 0 và smoke critical flows pass.
-- [ ] Protected production gate pass; exact SHA được deploy và quan sát read-only tối thiểu 30 phút.
-- [ ] Plan/index/state/traceability được cập nhật với evidence và rollout cuối.
+- [x] Mọi file candidate có provenance; `.codex-worktrees/` và secret không nằm trong commit.
+- [x] Plan 078 cùng Plans 077–083 phản ánh lifecycle/evidence thật.
+- [x] Candidate chứa exact `origin/staging` mới nhất và không conflict/hygiene issue.
+- [x] Local full QA, release build, E2E, security/governance/ops và recovery gates pass.
+- [x] CI, Netlify staging và Render staging cùng exact SHA.
+- [x] Staging acceptance pass, cleanup residue bằng 0 và smoke critical flows pass.
+- [x] Protected production gate pass; exact SHA được deploy và quan sát read-only tối thiểu 30 phút.
+- [x] Plan/index/state/traceability được cập nhật với evidence và rollout cuối.
+
+## Release Evidence
+
+- Exact candidate: `b510a0753637c8cdbe47980423f31d397a7842ec`.
+- Staging acceptance run `34097426230` passed 9 flows; cleanup
+  `verified=true`, residue `0`. Netlify deploy `6a9e6b59fe1cf3a4adf332fb` and Render
+  deploy `dep-daf6l49t0dsc73cq07q0` served the same candidate.
+- Production promotion gate `34098516851`, production monitor `34120007250` and
+  post-deploy observation `34120215203` passed. Production Netlify deploy
+  `6a9e7a095056d3f4716b86be` was published/locked and Render deploy
+  `dep-daf82d740ujc73a2mfr0` served the candidate.
+- PR #102 merged staging to main. Main CI `34122279111`, Recovery Readiness
+  `34122279148` and Production Monitor `34122279206` all passed; staging is an
+  ancestor of main and their trees match.
+- Plan 080 remains `NOT STARTED`: its Cloudflare Worker is separate external state and
+  was deliberately not inferred from repository/provider rollout.
 
 ## STOP Conditions
 

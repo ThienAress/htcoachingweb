@@ -15,6 +15,9 @@ vi.mock("@tanstack/react-query", () => ({
       journal: true,
       weekly: true,
       morningHealthEmail: false,
+      checkinEmail: false,
+      customerEmailConfigured: true,
+      emailEligible: true,
       revision: 1,
     },
     isLoading: false,
@@ -40,6 +43,7 @@ vi.mock("../../services/notification.service", () => ({
 }));
 
 import { NotificationPreferences } from "../NotificationPreferences";
+import { getInitialEmailSelectionError } from "../notificationPreferences.utils";
 
 describe("NotificationPreferences", () => {
   beforeEach(() => {
@@ -48,14 +52,15 @@ describe("NotificationPreferences", () => {
     mocks.error.mockClear();
   });
 
-  it("shows only the morning health email opt-in on the account email channel", () => {
+  it("shows both email opt-ins and locks a saved preference behind Cập nhật", () => {
     const html = renderToStaticMarkup(
       <NotificationPreferences userId="user-1" channel="email" />,
     );
 
     expect(html).toContain("Nhắc cập nhật Mục tiêu sức khỏe mỗi sáng");
+    expect(html).toContain("Thông báo check-in buổi tập");
     expect(html).not.toContain("Bật thông báo trong ứng dụng");
-    expect(html).toContain("Lưu tùy chọn email");
+    expect(html).toContain("Cập nhật");
   });
 
   it("keeps the email opt-in out of existing in-app notification surfaces", () => {
@@ -65,6 +70,23 @@ describe("NotificationPreferences", () => {
 
     expect(html).toContain("Bật thông báo trong ứng dụng");
     expect(html).not.toContain("Nhắc cập nhật Mục tiêu sức khỏe mỗi sáng");
+  });
+
+  it("requires an initial email choice but allows a saved user to opt out", () => {
+    expect(
+      getInitialEmailSelectionError({
+        customerEmailConfigured: false,
+        morningHealthEmail: false,
+        checkinEmail: false,
+      }),
+    ).toBe("Hãy chọn ít nhất một email thông báo trước khi lưu");
+    expect(
+      getInitialEmailSelectionError({
+        customerEmailConfigured: true,
+        morningHealthEmail: false,
+        checkinEmail: false,
+      }),
+    ).toBe("");
   });
 
   it("uses global success and error feedback after the preference request", () => {
@@ -77,7 +99,7 @@ describe("NotificationPreferences", () => {
       response: { data: { message: "Không lưu được" } },
     });
 
-    expect(mocks.success).toHaveBeenCalledWith("Đã lưu tùy chọn email");
+    expect(mocks.success).toHaveBeenCalledWith("Đã lưu email thông báo");
     expect(mocks.error).toHaveBeenCalledWith("Không lưu được");
   });
 });

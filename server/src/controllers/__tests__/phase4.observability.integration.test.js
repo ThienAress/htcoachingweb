@@ -47,12 +47,13 @@ afterAll(async () => {
 });
 
 describe("Phase 4 operational endpoints", () => {
-  it("preserves valid request IDs and replaces unsafe values", async () => {
+  it("preserves canonical request IDs and replaces untrusted values", async () => {
+    const requestId = "d0b30fbe-81bb-4d15-9c61-b4d07cb67bc1";
     const accepted = await request(app)
       .get("/api/ping")
-      .set("X-Request-Id", "release-check-123");
+      .set("X-Request-Id", requestId);
     expect(accepted.status).toBe(200);
-    expect(accepted.headers["x-request-id"]).toBe("release-check-123");
+    expect(accepted.headers["x-request-id"]).toBe(requestId);
 
     const replaced = await request(app)
       .get("/api/ping")
@@ -60,6 +61,14 @@ describe("Phase 4 operational endpoints", () => {
     expect(replaced.headers["x-request-id"]).toMatch(
       /^[0-9a-f]{8}-[0-9a-f-]{27}$/,
     );
+
+    const sensitiveLooking = await request(app)
+      .get("/api/ping")
+      .set("X-Request-Id", "123456789012");
+    expect(sensitiveLooking.headers["x-request-id"]).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f-]{27}$/,
+    );
+    expect(sensitiveLooking.headers["x-request-id"]).not.toBe("123456789012");
   });
 
   it("reports readiness without authentication", async () => {

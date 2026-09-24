@@ -301,7 +301,7 @@ const CustomerStoryDetail = ({ previewData }) => {
           "name": "HTCOACHING",
           "logo": {
             "@type": "ImageObject",
-            "url": "https://htcoachingweb.io.vn/og-image.png"
+            "url": "https://htcoachingweb.io.vn/branding/ht-v2/organization-logo.png"
           }
         },
         "description": `Khám phá hành trình ${story.duration || ""} thay đổi vóc dáng của ${story.name}${story.age ? ` (${story.age} tuổi` : ""}${story.job ? `, ${story.job})` : story.age ? ")" : ""}. ${story.result ? `Kết quả: ${story.result}.` : ""}`,

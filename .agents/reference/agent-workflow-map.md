@@ -43,6 +43,7 @@
 | `$audit` | model | codebase health workflow |
 | `$audit-playbook` | model | audit reference |
 | `$cleanup-delivery` | model | final cleanup primitive |
+| `$codex-session-governor` | model | bounded session telemetry và model/checkpoint recommendations |
 | `$code-review` | model | three-axis review |
 | `$debugging` | model | bug diagnosis primitive |
 | `$domain-modeling` | model | glossary/ADR discipline |

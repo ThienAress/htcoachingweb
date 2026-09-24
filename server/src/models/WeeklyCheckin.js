@@ -19,6 +19,8 @@ const bodySchema = new mongoose.Schema(
   {
     weightKg: boundedNumber(30, 350),
     waistCm: boundedNumber(30, 300),
+    hipCm: boundedNumber(30, 300),
+    abdomenCm: boundedNumber(30, 300),
     bodyFatPercent: boundedNumber(1, 80),
     skeletalMusclePercent: boundedNumber(1, 80),
     energy: boundedNumber(1, 10, true),

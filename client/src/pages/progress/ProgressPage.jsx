@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { CalendarDays, RefreshCw } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import SEO from "../../components/SEO";
 import { useAuth } from "../../context/AuthContext";
 import Footer from "../../sections/Footer/Footer";
@@ -40,9 +40,11 @@ const RefreshButton = ({ query }) => (
 );
 
 const ProgressPage = ({ embedded = false }) => {
+  const location = useLocation();
   const { user } = useAuth();
   const [days, setDays] = useState(30);
-  const [activeSection, setActiveSection] = useState(null);
+  const [selection, setSelection] = useState({ hash: location.hash, section: location.hash === "#composition" ? "composition" : null });
+  const activeSection = selection.hash === location.hash ? selection.section : location.hash === "#composition" ? "composition" : null;
   const query = useQuery({
     queryKey: ["progress", user?._id, days],
     queryFn: async () => (await getMyProgress(days)).data.data,
@@ -56,7 +58,7 @@ const ProgressPage = ({ embedded = false }) => {
   const ranges = progressRangeOptions(activeSection);
   const handleSectionChange = (section) => {
     setDays((current) => normalizeProgressDaysForSection(section, current));
-    setActiveSection(section);
+    setSelection({ hash: location.hash, section });
   };
 
   const PageContainer = embedded ? "div" : "main";

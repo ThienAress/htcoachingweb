@@ -1,42 +1,79 @@
-import { Dumbbell, ExternalLink } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowUpRight, Dumbbell } from "lucide-react";
+
+import AssistantCard, {
+  CardFooter,
+  CardList,
+  CardNotice,
+  CardSection,
+  IndexBadge,
+  Tag,
+} from "./AssistantCard";
 
 export default function ExerciseListCard({ data }) {
   if (!data?.exercises?.length) return null;
 
+  const resultCount = data.resultCount ?? data.exercises.length;
+  const requestedCount = data.requestedCount ?? data.exercises.length;
+  const muscleGroups = [
+    ...new Set(data.exercises.map((exercise) => exercise.muscleGroup).filter(Boolean)),
+  ];
+
   return (
-    <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-4 space-y-2 w-full">
-      <div className="flex items-center gap-2 mb-1">
-        <Dumbbell size={16} className="text-blue-400" />
-        <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
-          Bài tập — {data.searchedFor}
-        </span>
-      </div>
+    <AssistantCard
+      eyebrow="THƯ VIỆN BÀI TẬP"
+      icon={Dumbbell}
+      subtitle="Kết quả có sẵn trong dữ liệu HTCOACHING"
+      title={data.searchedFor || "Bài tập phù hợp"}
+      value={`${resultCount} bài`}
+      valueNote={muscleGroups.slice(0, 3).join(" · ")}
+      footer={
+        <CardFooter
+          action="Xem đủ bài tập"
+          icon={ArrowUpRight}
+          note={`Hiện ${resultCount}/${requestedCount} kết quả`}
+          to="/exercises/"
+        />
+      }
+    >
+      <CardSection>
+        <CardList>
+          {data.exercises.map((exercise, index) => (
+            <li
+              className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+              key={`${exercise.name}-${index}`}
+            >
+              <IndexBadge>{String(index + 1).padStart(2, "0")}</IndexBadge>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium leading-5 text-slate-900 dark:text-zinc-100">
+                  {exercise.name}
+                </p>
+                {exercise.description && (
+                  <p className="mt-1 line-clamp-2 text-pretty text-xs leading-5 text-slate-500 dark:text-zinc-400">
+                    {exercise.description}
+                  </p>
+                )}
+              </div>
+              {exercise.muscleGroup && <Tag accent>{exercise.muscleGroup}</Tag>}
+            </li>
+          ))}
+        </CardList>
+      </CardSection>
 
-      <div className="space-y-1.5">
-        {data.exercises.map((ex, i) => (
-          <div key={i} className="flex items-center gap-2 bg-black/20 rounded-lg px-3 py-2">
-            <span className="text-xs font-bold text-blue-400 w-5">{i + 1}</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-white font-medium truncate">{ex.name}</p>
-              {ex.description && (
-                <p className="text-[11px] text-gray-400 truncate">{ex.description}</p>
-              )}
-            </div>
-            <span className="text-[10px] text-gray-500 bg-white/5 px-1.5 py-0.5 rounded shrink-0">
-              {ex.muscleGroup}
-            </span>
-          </div>
-        ))}
-      </div>
+      {data.catalogInsufficient === true && (
+        <CardSection>
+          <CardNotice role="status" tone="amber">
+            Hiện tìm thấy {resultCount}/{requestedCount} bài phù hợp với bộ lọc và thiết bị bạn đã nêu.
+          </CardNotice>
+        </CardSection>
+      )}
 
-      <Link
-        to="/exercises/"
-        className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors mt-1"
-      >
-        <ExternalLink size={12} />
-        Xem thêm tại thư viện bài tập
-      </Link>
-    </div>
+      {data.scanIncomplete === true && data.catalogInsufficient !== true && (
+        <CardSection>
+          <CardNotice role="status" tone="amber">
+            Kết quả hiện chưa đủ {requestedCount} bài và chưa quét hết thư viện trong giới hạn an toàn. Hãy thu hẹp nhóm cơ hoặc tiêu chí để tìm chính xác hơn.
+          </CardNotice>
+        </CardSection>
+      )}
+    </AssistantCard>
   );
 }

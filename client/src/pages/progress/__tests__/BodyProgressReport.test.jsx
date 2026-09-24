@@ -7,6 +7,30 @@ const renderReport = (bodyProgress) =>
   renderToStaticMarkup(<BodyProgressReport bodyProgress={bodyProgress} />);
 
 describe("BodyProgressReport", () => {
+  it("shows hip, abdomen and unitless ratio history without fabricating missing points", () => {
+    const html = renderReport({
+      hipCm: { unit: "cm", current: { dateKey: "2026-09-07", value: 100 }, delta: -1, series: [{ dateKey: "2026-09-07", value: 100 }] },
+      abdomenCm: { unit: "cm", current: { dateKey: "2026-09-07", value: 88 }, delta: null, series: [{ dateKey: "2026-09-07", value: 88 }] },
+      waistHipRatio: { unit: "", current: { dateKey: "2026-09-07", value: 0.8 }, delta: -0.02, series: [{ dateKey: "2026-09-07", value: 0.8 }] },
+    });
+    expect(html).toContain("Vòng hông");
+    expect(html).toContain("Vòng bụng");
+    expect(html).toContain("Tỷ lệ eo/hông");
+    expect(html).toContain("100 cm");
+    expect(html).toContain("88 cm");
+    expect(html).toContain("−0,02");
+    expect(html).not.toContain("0,8%");
+    expect(html).not.toContain(">0 cm<");
+  });
+  it("renders a ratio chart without a percent unit or empty unit parentheses", () => {
+    const html = renderReport({ waistHipRatio: {
+      unit: "", current: { dateKey: "2026-09-07", value: 0.825 }, delta: null,
+      series: [{ dateKey: "2026-09-07", value: 0.825 }],
+    } });
+    expect(html).toContain("0,825");
+    expect(html).not.toContain("eo/hông ()");
+    expect(html).not.toContain("0,825%");
+  });
   it("renders current values, deltas and the canonical source semantics", () => {
     const html = renderReport({
       source: {
@@ -41,7 +65,7 @@ describe("BodyProgressReport", () => {
     expect(html).toContain("−2 cm");
     expect(html).toContain("Báo cáo tuần đã gửi hoặc được duyệt");
     expect((html.match(/data-body-metric-chart="true"/g) || [])).toHaveLength(1);
-    expect((html.match(/role="tab"/g) || [])).toHaveLength(4);
+    expect((html.match(/role="tab"/g) || [])).toHaveLength(7);
     expect(html).toContain('aria-selected="true"');
     expect(html).toContain("Giải thích biểu đồ");
     expect(html).toContain("Biểu đồ chỉ hiển thị những kỳ đã có số đo");
@@ -110,8 +134,8 @@ describe("BodyProgressReport", () => {
       },
     });
 
-    expect((html.match(/role="tab"/g) || [])).toHaveLength(4);
-    expect((html.match(/Chưa có dữ liệu/g) || [])).toHaveLength(5);
+    expect((html.match(/role="tab"/g) || [])).toHaveLength(7);
+    expect((html.match(/Chưa có dữ liệu/g) || [])).toHaveLength(8);
     expect(html).not.toContain('data-body-metric-chart="true"');
   });
 });

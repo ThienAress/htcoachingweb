@@ -5,9 +5,13 @@ import {
   getChatQuotaPresentation,
   getChatQuotaStatusLine,
   getChatScrollBehavior,
+  getAssistantStreamAnnouncement,
+  getChatErrorAnnouncementProps,
+  isChatNearBottom,
   isTdeeQuickAction,
   persistChatTheme,
   resolveInitialChatTheme,
+  runChatActionWithAutoFollow,
 } from "../chatPanelRuntime.js";
 
 const createStorage = (entries = {}) => {
@@ -175,5 +179,73 @@ describe("chat panel runtime", () => {
         matchMedia: vi.fn(() => ({ matches: false })),
       }),
     ).toBe("smooth");
+  });
+
+  it("uses instant scrolling for progressive text and only follows near the bottom", () => {
+    expect(
+      getChatScrollBehavior(
+        { matchMedia: vi.fn(() => ({ matches: false })) },
+        { streaming: true },
+      ),
+    ).toBe("auto");
+    expect(
+      isChatNearBottom({ scrollHeight: 1000, scrollTop: 650, clientHeight: 300 }),
+    ).toBe(true);
+    expect(
+      isChatNearBottom({ scrollHeight: 1000, scrollTop: 200, clientHeight: 300 }),
+    ).toBe(false);
+  });
+
+  it("restores auto-follow before a user-initiated chat action runs", () => {
+    const followRef = { current: false };
+    const action = vi.fn(() => followRef.current);
+
+    const result = runChatActionWithAutoFollow(
+      followRef,
+      action,
+      "Câu hỏi mới",
+      { lastPage: "/" },
+    );
+
+    expect(result).toBe(true);
+    expect(action).toHaveBeenCalledWith("Câu hỏi mới", { lastPage: "/" });
+  });
+
+  it("announces only stream start and completion instead of every text frame", () => {
+    expect(
+      getAssistantStreamAnnouncement({ isLoading: false, wasLoading: false }),
+    ).toBe("");
+    expect(
+      getAssistantStreamAnnouncement({ isLoading: true, wasLoading: false }),
+    ).toBe("HT Assistant đang soạn câu trả lời.");
+    expect(
+      getAssistantStreamAnnouncement({
+        isLoading: false,
+        wasLoading: true,
+        terminalOutcome: "completed",
+      }),
+    ).toBe("HT Assistant đã trả lời xong.");
+    expect(
+      getAssistantStreamAnnouncement({
+        isLoading: false,
+        wasLoading: true,
+        terminalOutcome: "cancelled",
+      }),
+    ).toBe("");
+    expect(
+      getAssistantStreamAnnouncement({
+        isLoading: false,
+        wasLoading: true,
+        terminalOutcome: "error",
+      }),
+    ).toBe("");
+  });
+
+  it("marks visible chat errors as atomic assertive alerts", () => {
+    expect(getChatErrorAnnouncementProps()).toEqual({
+      role: "alert",
+      "aria-live": "assertive",
+      "aria-atomic": "true",
+    });
   });
 });

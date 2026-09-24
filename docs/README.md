@@ -19,6 +19,10 @@ nguồn canonical trước khi thay đổi code.
 ## Điểm vào chính
 
 - [Implementation plans](./plans/README.md)
+- [HLV chính mặc định và effective coach](./specs/default-lead-coach.md)
+- [Rollout HLV chính mặc định](./operations/runbooks/default-lead-coach.md)
+- [Bàn giao resolver HLV chính — Plan089](./reports/089-effective-coach-delivery.md)
+- [Session Governor và model recommendations](./specs/codex-session-governor.md)
 - [Today Dashboard spec](./specs/today-dashboard.md)
 - [Wellness targets spec](./specs/wellness-targets.md)
 - [Trainer client workspace spec](./specs/trainer-client-workspace.md)
@@ -39,6 +43,8 @@ nguồn canonical trước khi thay đổi code.
 - [Sitewide AI Assistant context and guest access spec](./specs/sitewide-ai-assistant.md)
 - [Explicit AI Memory pilot spec](./specs/ai-explicit-memory.md)
 - [HT Assistant hardening và scale readiness spec](./specs/ai-assistant-hardening-and-scale-readiness.md)
+- [HT Assistant fitness-first và Knowledge Base có bằng chứng](./specs/fitness-first-ai-and-knowledge-quality.md)
+- [Rollout embedding Knowledge Base trên staging](./specs/knowledge-base-embedding-staging-rollout.md)
 - [Service access policy spec](./specs/service-access-policy.md)
 - [Containerized backend runtime spec](./specs/containerized-backend-runtime.md)
 - [TDEE, độ phức tạp bài tập và Tiến trình cơ thể spec](./specs/tdee-exercise-body-progress.md)
@@ -47,6 +53,7 @@ nguồn canonical trước khi thay đổi code.
 - [Biểu đồ Mức độ thực hiện và Sức khỏe trung bình](./specs/progress-compliance-wellness-charts.md)
 - [Ảnh chữ ký Bên A và kỳ báo cáo tuần linh hoạt](./specs/contract-signature-upload-and-reporting-periods.md)
 - [Promotion release và acceptance staging có ghi dữ liệu an toàn](./specs/release-promotion-and-staging-acceptance.md)
+- [GitHub Actions runtime và release closure](./specs/github-actions-runtime-and-release-closure.md)
 - [Tự động đối soát chuyển khoản và cộng ví qua SePay spec](./specs/automatic-wallet-deposit-settlement.md)
 - [Thưởng nạp ví theo bậc và thiết kế lại Profile HLV](./specs/wallet-deposit-bonus-and-trainer-profile-redesign.md)
 - [P1 security hardening và nghiệp vụ HLV](./specs/security-hardening-and-trainer-operations.md)
@@ -55,11 +62,16 @@ nguồn canonical trước khi thay đổi code.
 - [Chuẩn hóa pattern kỹ thuật upstream đã xác minh](./specs/upstream-engineering-pattern-adoption.md)
 - [Catalog tính năng, phản hồi thao tác và nhóm Mục tiêu sức khỏe](./specs/customer-feature-catalog-submit-feedback-and-health-goals.md)
 - [Email buổi sáng nhắc cập nhật Mục tiêu sức khỏe](./specs/morning-health-email-reminder.md)
+- [Email thông báo khách hàng và Dashboard tự quản lý](./specs/customer-notifications-and-fitness-dashboard.md)
+- [Nhận diện HTCOACHING và kết quả đo thành phần cơ thể](./specs/brand-system-and-body-assessments.md)
+- [Bàn giao Plan 087: nhận diện và kết quả đo](./reports/087-brand-body-assessment-delivery.md)
+- [Rollout index kết quả đo thành phần cơ thể](./operations/runbooks/body-assessment-indexes.md)
 - [Service access and quota matrix 2026-08-07](./reports/service-access-matrix-2026-08-07.md)
 - [SEO indexing remediation evidence 2026-08-10](./reports/seo-indexing-remediation-2026-08-10.md)
 - [Architecture Decision Records](./architecture/adr/README.md)
 - [AI Technology Radar](./architecture/ai-technology-radar.md)
 - [Release checklist](./operations/release-checklist.md)
+- [Production release report 2026-09-16](./operations/production/production-release-report-2026-09-16.md)
 - [Cập nhật tính năng khi upgrade dịch vụ](./operations/provider-upgrade-playbook.md)
 - [Quy định JSON hướng dẫn và độ phức tạp bài tập](./operations/exercise-setup-json-rules.md)
 - [Danh sách bài tập và mô tả trên production](./operations/production-exercises-for-setup.md)
@@ -86,6 +98,7 @@ nguồn canonical trước khi thay đổi code.
 - [Release promotion và live staging acceptance](./operations/runbooks/release-promotion.md)
 - [Refresh-session cutover (Plan 082)](./operations/runbooks/refresh-session-cutover.md)
 - [Provider usage monitoring](./operations/runbooks/provider-usage-monitoring.md)
+- [Staging Knowledge Base re-embed và rollback](./operations/runbooks/staging-knowledge-base-reembed.md)
 
 ## Quy ước
 

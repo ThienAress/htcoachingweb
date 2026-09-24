@@ -7,6 +7,7 @@ import {
   createTrainingOccurrence,
   rescheduleTrainingOccurrence,
 } from "../services/trainingScheduleCommand.service.js";
+import { effectiveCoachOrderFilter } from "../services/effectiveCoach.service.js";
 import { safeLog } from "../utils/safeLogger.js";
 
 const FIXED_EXERCISE_TYPES = [
@@ -63,22 +64,13 @@ export const getMySchedules = async (req, res) => {
 
 export const getMyClients = async (req, res) => {
   try {
-    let orderQuery = {
-      trainerId: req.user.id,
+    const orderQuery = {
       status: "approved",
       sessions: { $gt: 0 },
+      ...(req.user.role === "admin"
+        ? await effectiveCoachOrderFilter({ trainerId: req.user.id })
+        : { trainerId: req.user.id }),
     };
-    if (req.user.role === "admin") {
-      orderQuery = {
-        status: "approved",
-        sessions: { $gt: 0 },
-        $or: [
-          { trainerId: req.user.id },
-          { trainerId: null },
-          { trainerId: { $exists: false } },
-        ],
-      };
-    }
     const orders = await Order.find(orderQuery)
       .populate("userId", "name email phone")
       .lean();

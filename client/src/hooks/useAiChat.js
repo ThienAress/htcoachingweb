@@ -8,7 +8,11 @@ import {
   openAiChatStream,
 } from "../services/ai.service";
 import { createAiChatSessionRegistry } from "./aiChatSessionRegistry.js";
-import { resolveAiChatRetry } from "./aiChatRetry.js";
+import {
+  createAiChatStreamPacer,
+  stopAiChatStreamSession,
+} from "./aiChatStreamPacer.js";
+import { isAllowedAiUiCard } from "../components/ChatWidget/aiCardPolicy.js";
 
 const STREAM_FLUSH_MS = 80;
 
@@ -21,6 +25,7 @@ export function mapAiMessages(rawMessages = []) {
         role: "user",
         content: message.content || "",
         image: message.image || null,
+        structuredAction: message.structuredAction || null,
         timestamp: message.timestamp,
       });
     } else if (message.role === "assistant") {
@@ -29,10 +34,10 @@ export function mapAiMessages(rawMessages = []) {
         role: "assistant",
         content: message.content || "",
         feedback: message.feedback || null,
-        uiCards: [],
+        uiCards: isAllowedAiUiCard(message.uiCard) ? [message.uiCard] : [],
         timestamp: message.timestamp,
       });
-    } else if (message.role === "tool" && message.uiCard) {
+    } else if (message.role === "tool" && isAllowedAiUiCard(message.uiCard)) {
       const lastAssistant = [...result]
         .reverse()
         .find((item) => item.role === "assistant");
@@ -42,31 +47,75 @@ export function mapAiMessages(rawMessages = []) {
   return result;
 }
 
-export function mergeEphemeralConfirmationCards(
-  persistedMessages,
-  localMessages,
-  localAssistantId,
-) {
-  const ephemeralCards = (localMessages || [])
-    .filter((message) => message.localId === localAssistantId)
-    .flatMap((message) => message.uiCards || [])
-    .filter((card) => card.cardType === "confirmation");
-  if (ephemeralCards.length === 0) return persistedMessages;
+function mergePersistedMessageIdentity(persistedMessages, localMessages) {
+  const usedLocalIndexes = new Set();
+  const localIndexByPersistedIndex = new Map();
+  const merged = persistedMessages.map((persistedMessage, persistedIndex) => {
+    let localIndex = localMessages.findIndex(
+      (message, index) =>
+        !usedLocalIndexes.has(index) &&
+        message._id &&
+        String(message._id) === String(persistedMessage._id),
+    );
+    if (localIndex < 0) {
+      localIndex = localMessages.findIndex(
+        (message, index) =>
+          !usedLocalIndexes.has(index) &&
+          !message._id &&
+          message.role === persistedMessage.role &&
+          message.content === persistedMessage.content &&
+          (message.role !== "user" ||
+            (message.image || null) === (persistedMessage.image || null)),
+      );
+    }
+    if (
+      localIndex < 0 &&
+      persistedMessage.role === "assistant" &&
+      persistedMessage.content
+    ) {
+      // Stop may persist a longer prefix; only reconcile within its user turn.
+      const precedingUserIndex = persistedMessages.findLastIndex(
+        (message, index) =>
+          index < persistedIndex && message.role === "user",
+      );
+      const localUserIndex = localIndexByPersistedIndex.get(precedingUserIndex);
+      if (localUserIndex !== undefined) {
+        const nextLocalUserIndex = localMessages.findIndex(
+          (message, index) =>
+            index > localUserIndex && message.role === "user",
+        );
+        const turnEnd = nextLocalUserIndex < 0
+          ? localMessages.length
+          : nextLocalUserIndex;
+        localIndex = localMessages.findIndex(
+          (message, index) =>
+            index > localUserIndex &&
+            index < turnEnd &&
+            !usedLocalIndexes.has(index) &&
+            message.role === "assistant" &&
+            Boolean(message.content) &&
+            persistedMessage.content.startsWith(message.content),
+        );
+      }
+    }
+    if (localIndex < 0) return persistedMessage;
 
-  const targetIndex = [...persistedMessages]
-    .map((message, index) => ({ message, index }))
-    .reverse()
-    .find(({ message }) => message.role === "assistant")?.index;
-  if (targetIndex === undefined) return persistedMessages;
+    usedLocalIndexes.add(localIndex);
+    localIndexByPersistedIndex.set(persistedIndex, localIndex);
+    const localMessage = localMessages[localIndex];
+    return {
+      ...persistedMessage,
+      ...(localMessage.localId ? { localId: localMessage.localId } : {}),
+      ...(localMessage.structuredAction && !persistedMessage.structuredAction
+        ? { structuredAction: localMessage.structuredAction }
+        : {}),
+    };
+  });
 
-  return persistedMessages.map((message, index) =>
-    index === targetIndex
-      ? {
-          ...message,
-          uiCards: [...(message.uiCards || []), ...ephemeralCards],
-        }
-      : message,
-  );
+  localMessages.forEach((message, index) => {
+    if (!usedLocalIndexes.has(index)) merged.push(message);
+  });
+  return merged;
 }
 
 export default function useAiChat({ persistenceEnabled = true } = {}) {
@@ -84,7 +133,7 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
   const requestSequenceRef = useRef(0);
   const quotaSequenceRef = useRef(0);
   const messagesRef = useRef([]);
-  const reconcileTimersRef = useRef(new Map());
+  const reconcileQueueRef = useRef(new Map());
 
   const refreshViews = useCallback(() => {
     if (mountedRef.current) setViewRevision((revision) => revision + 1);
@@ -112,11 +161,14 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
   }, []);
 
   const flushPendingText = useCallback(
-    (sessionId) => {
+    (sessionId, { drainAll = false } = {}) => {
       const session = registryRef.current.getSession(sessionId);
-      if (!session?.pendingText) return;
-      session.displayedText += session.pendingText;
-      session.pendingText = "";
+      if (!session) return;
+      const nextText = drainAll
+        ? session.streamPacer.takeAll()
+        : session.streamPacer.takeNext();
+      if (!nextText) return;
+      session.displayedText += nextText;
       const content = session.displayedText;
       updateView(session.viewKey, (view) => ({
         messages: view.messages.map((message) =>
@@ -125,71 +177,157 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
             : message,
         ),
       }));
+      if (!session.streamPacer.hasPending() && session.resolveDrain) {
+        const resolveDrain = session.resolveDrain;
+        session.resolveDrain = null;
+        resolveDrain();
+      }
     },
     [updateView],
   );
 
-  const scheduleReconcile = useCallback(
-    (conversationId) => {
-      if (!persistenceEnabled || !conversationId) return;
-      const timers = reconcileTimersRef.current;
-      clearTimeout(timers.get(conversationId));
-      const timer = setTimeout(async () => {
-        timers.delete(conversationId);
-        if (
-          !mountedRef.current ||
-          registryRef.current.getSessionForView(conversationId)
-        ) {
-          return;
+  const waitForPendingTextDrain = useCallback((sessionId) => {
+    const session = registryRef.current.getSession(sessionId);
+    if (!session?.streamPacer.hasPending()) return Promise.resolve();
+    return new Promise((resolve) => {
+      session.resolveDrain = resolve;
+    });
+  }, []);
+
+  const reconcileConversation = useCallback(
+    (conversationId, viewKey, assistantLocalId = null) => {
+      if (!persistenceEnabled || !conversationId || !viewKey) {
+        return Promise.resolve(null);
+      }
+      const queue = reconcileQueueRef.current;
+      const previous = queue.get(conversationId);
+      if (
+        previous &&
+        (!assistantLocalId || previous.assistantLocalId === assistantLocalId)
+      ) {
+        return previous.promise;
+      }
+      const generation = (previous?.generation || 0) + 1;
+
+      if (registryRef.current.getView(viewKey)) {
+        updateView(viewKey, { isReconciling: true });
+      }
+      let reconcile;
+      reconcile = (async () => {
+        if (previous) {
+          await previous.promise.catch(() => null);
         }
-        try {
-          const response = await getAiConversationById(conversationId);
-          if (
-            mountedRef.current &&
-            !registryRef.current.getSessionForView(conversationId) &&
-            response.data
-          ) {
-            updateView(conversationId, {
-              messages: mapAiMessages(response.data.messages),
+        const retryDelays = [0, 120, 280];
+        let latestMessages = null;
+        for (const delay of retryDelays) {
+          if (delay) {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+          if (!mountedRef.current || !registryRef.current.getView(viewKey)) {
+            return null;
+          }
+          try {
+            const response = await getAiConversationById(conversationId);
+            if (!response.data || !registryRef.current.getView(viewKey)) {
+              continue;
+            }
+            const localMessages =
+              registryRef.current.getView(viewKey)?.messages || [];
+            const persistedMessages = mergePersistedMessageIdentity(
+              mapAiMessages(response.data.messages),
+              localMessages,
+            );
+            const messages = persistedMessages;
+            latestMessages = messages;
+            updateView(viewKey, {
+              messages,
               loaded: true,
             });
+            const targetAssistant = assistantLocalId
+              ? messages.find(
+                  (message) => message.localId === assistantLocalId,
+                )
+              : null;
+            if (
+              !assistantLocalId ||
+              !targetAssistant ||
+              targetAssistant._id != null
+            ) {
+              return messages;
+            }
+          } catch {
+            // A stopped stream can take a moment to finalize on the server.
           }
-        } catch {
-          // The user can reload the conversation from the sidebar.
         }
-      }, 180);
-      timers.set(conversationId, timer);
+        return latestMessages;
+      })().finally(() => {
+        const current = queue.get(conversationId);
+        if (
+          current?.generation === generation &&
+          current.promise === reconcile
+        ) {
+          queue.delete(conversationId);
+          if (registryRef.current.getView(viewKey)) {
+            updateView(viewKey, { isReconciling: false });
+          }
+        }
+      });
+      queue.set(conversationId, {
+        generation,
+        assistantLocalId,
+        promise: reconcile,
+      });
+      return reconcile;
     },
     [persistenceEnabled, updateView],
   );
 
   const stopSession = useCallback(
-    (session, { flush = true, reconcile = true } = {}) => {
+    (session, { flush = true, outcome = "cancelled", reconcile = true } = {}) => {
       if (!session) return;
-      if (flush) flushPendingText(session.id);
-      session.controller.abort();
+      const pendingText = stopAiChatStreamSession(session, {
+        drainPending: flush,
+      });
+      if (pendingText) {
+        session.displayedText += pendingText;
+        const content = session.displayedText;
+        updateView(session.viewKey, (view) => ({
+          messages: view.messages.map((message) =>
+            message.localId === session.assistantLocalId
+              ? { ...message, content }
+              : message,
+          ),
+        }));
+      }
+      const viewKey = session.viewKey;
+      const conversationId =
+        session.targetConversationId ||
+        registryRef.current.getView(viewKey)?.conversationId;
       registryRef.current.removeSession(session.id);
       clearSessionTimer(session);
-      updateView(session.viewKey, {
+      updateView(viewKey, {
         isLoading: false,
         activeTool: null,
+        terminalOutcome: outcome,
+        retryableFailedLocalId:
+          outcome === "cancelled" ? session.userLocalId : null,
       });
-      if (flush && reconcile) {
-        scheduleReconcile(
-          session.targetConversationId ||
-            registryRef.current.getView(session.viewKey)?.conversationId,
+      if (reconcile) {
+        void reconcileConversation(
+          conversationId,
+          viewKey,
+          session.assistantLocalId,
         );
       }
     },
-    [clearSessionTimer, flushPendingText, scheduleReconcile, updateView],
+    [clearSessionTimer, reconcileConversation, updateView],
   );
 
   const cancelRequest = useCallback(
-    (flush = true) => {
+    () => {
       const selectedKey = registryRef.current.getSelectedKey();
       stopSession(registryRef.current.getSessionForView(selectedKey), {
-        flush,
-        reconcile: flush,
+        flush: true,
       });
     },
     [stopSession],
@@ -197,19 +335,14 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
 
   useEffect(() => {
     mountedRef.current = true;
-    const timers = reconcileTimersRef.current;
     const registry = registryRef.current;
     return () => {
       mountedRef.current = false;
       registry.listSessions().forEach((session) => {
-        session.controller.abort();
-        clearSessionTimer(session);
-        registry.removeSession(session.id);
+        stopSession(session, { flush: false, reconcile: false });
       });
-      timers.forEach((timer) => clearTimeout(timer));
-      timers.clear();
     };
-  }, [clearSessionTimer]);
+  }, [stopSession]);
 
   useEffect(() => {
     setQuota(null);
@@ -299,7 +432,9 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
   const removeConversation = useCallback(
     async (id) => {
       const session = registryRef.current.getSessionForView(id);
-      if (session) stopSession(session, { flush: false, reconcile: false });
+      if (session) {
+        stopSession(session, { flush: false, reconcile: false });
+      }
       try {
         await deleteAiConversation(id);
         if (!mountedRef.current) return;
@@ -327,11 +462,32 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
     refreshViews();
   }, [refreshViews]);
 
+  const updateMessageFeedback = useCallback(
+    (conversationId, messageId, feedback) => {
+      const key = String(conversationId || "");
+      const view = registryRef.current.getView(key);
+      if (!view || !messageId) return;
+      updateView(key, (current) => ({
+        messages: current.messages.map((message) =>
+          message._id === messageId
+            ? { ...message, feedback: feedback || null }
+            : message,
+        ),
+      }));
+    },
+    [updateView],
+  );
+
   const sendMessage = useCallback(
     async (text, context = {}, options = {}) => {
+      const structuredAction =
+        options.structuredAction || context.structuredAction || null;
+      const replaceMessage = options.replaceMessage || null;
+      const requestContext = { ...context };
+      delete requestContext.structuredAction;
       const normalizedText =
         String(text || "").trim() ||
-        (context.image ? "Hãy phân tích hình ảnh này." : "");
+        (requestContext.image ? "Hãy phân tích hình ảnh này." : "");
       if (!normalizedText) return;
 
       const registry = registryRef.current;
@@ -341,58 +497,98 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
       navigationSequenceRef.current += 1;
       const sessionId = crypto.randomUUID();
       const requestId = crypto.randomUUID();
+      const userLocalId = `user-${sessionId}`;
       const assistantLocalId = `assistant-${sessionId}`;
       const selectedConversationId = registry.getSelectedView().conversationId;
       const targetConversationId =
         options.targetConversationId === undefined
           ? selectedConversationId
           : options.targetConversationId;
-      const retryingFailedTurn = options.retryingFailedTurn === true;
-      const failedUserLocalId = options.failedUserLocalId;
-      const failedAssistantLocalId = options.failedAssistantLocalId;
       const controller = new AbortController();
       const session = registry.registerSession({
         id: sessionId,
         controller,
+        userLocalId,
         assistantLocalId,
         targetConversationId,
         viewKey,
-        pendingText: "",
+        streamPacer: createAiChatStreamPacer(),
         displayedText: "",
         flushTimer: null,
+        resolveDrain: null,
+        networkComplete: false,
+        serverErrorReceived: false,
         requestSequence: ++requestSequenceRef.current,
       });
 
       const timestamp = new Date().toISOString();
-      updateView(viewKey, (view) => ({
-        messages: [
-          ...(retryingFailedTurn
-            ? view.messages.filter((message) =>
-                message.localId !== failedUserLocalId &&
-                message.localId !== failedAssistantLocalId,
-              )
-            : view.messages),
-          {
-            localId: `user-${sessionId}`,
-            role: "user",
-            content: normalizedText,
-            image: context.image || null,
-            timestamp,
-          },
-          {
-            localId: assistantLocalId,
-            role: "assistant",
-            content: "",
-            uiCards: [],
-            timestamp,
-          },
-        ],
-        isLoading: true,
-        activeTool: null,
-        error: null,
-        retryableFailedTurn: null,
-        loaded: true,
-      }));
+      updateView(viewKey, (view) => {
+        const replaceMessageIndex = replaceMessage
+          ? view.messages.findIndex((message) => (
+              (replaceMessage.localId &&
+                message.localId === replaceMessage.localId) ||
+              (replaceMessage._id && message._id === replaceMessage._id)
+            ))
+          : -1;
+        let baseMessages = view.messages;
+        if (replaceMessageIndex >= 0) {
+          let replacementEnd = replaceMessageIndex + 1;
+          while (
+            replacementEnd < view.messages.length &&
+            view.messages[replacementEnd].role !== "user"
+          ) {
+            replacementEnd += 1;
+          }
+          baseMessages = [
+            ...view.messages.slice(0, replaceMessageIndex),
+            ...view.messages.slice(replacementEnd),
+          ];
+        }
+        const failedUserIndex = view.terminalOutcome === "error" &&
+          view.retryableFailedLocalId &&
+          targetConversationId === view.conversationId
+          ? baseMessages.findIndex(
+              (message) =>
+                message.localId === view.retryableFailedLocalId &&
+                message.role === "user" &&
+                !message._id,
+            )
+          : -1;
+        const lastUserIndex = baseMessages.findLastIndex(
+          (message) => message.role === "user",
+        );
+        const previousMessages = failedUserIndex >= 0 &&
+          failedUserIndex === lastUserIndex
+          ? baseMessages.slice(0, failedUserIndex)
+          : baseMessages;
+        return {
+          messages: [
+            ...previousMessages,
+            {
+              localId: userLocalId,
+              role: "user",
+              content: normalizedText,
+              image: requestContext.image || null,
+              structuredAction,
+              timestamp,
+            },
+            {
+              localId: assistantLocalId,
+              role: "assistant",
+              content: "",
+              uiCards: [],
+              timestamp,
+            },
+          ],
+          isLoading: true,
+          activeTool: null,
+          error: null,
+          terminalOutcome: null,
+          retryableFailedLocalId: null,
+          isReconciling: false,
+          loaded: true,
+        };
+      });
       session.flushTimer = setInterval(
         () => flushPendingText(sessionId),
         STREAM_FLUSH_MS,
@@ -412,24 +608,47 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
             message: normalizedText,
             conversationId: targetConversationId,
             requestId,
-            context,
+            context: requestContext,
+            ...(structuredAction && { structuredAction }),
+            ...(options.retryOfMessageId && {
+              retryOfMessageId: options.retryOfMessageId,
+            }),
           },
           { signal: controller.signal },
         );
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
           applySessionQuota(session, data.meta?.quota);
-          throw new Error(data.message || `HTTP ${response.status}`);
+          const responseError = new Error(
+            data.message || `HTTP ${response.status}`,
+          );
+          responseError.status = response.status;
+          responseError.code = data.code;
+          throw responseError;
         }
+        assignConversation(
+          response.headers?.get?.("X-AI-Conversation-Id"),
+        );
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        let receivedDone = false;
-        let streamError = null;
         while (isActive()) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            const activeSession = registry.getSession(sessionId);
+            if (
+              activeSession &&
+              !activeSession.networkComplete &&
+              !activeSession.serverErrorReceived
+            ) {
+              flushPendingText(sessionId, { drainAll: true });
+              throw new Error(
+                "Câu trả lời chưa hoàn tất do kết nối bị gián đoạn. Vui lòng gửi lại câu hỏi để thử lại.",
+              );
+            }
+            break;
+          }
           buffer += decoder.decode(value, { stream: true });
           const events = buffer.split("\n\n");
           buffer = events.pop() || "";
@@ -448,15 +667,16 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
             if (event.type === "quota") {
               applySessionQuota(activeSession, event.quota);
             } else if (event.type === "text") {
-              activeSession.pendingText += String(event.content || "");
+              activeSession.streamPacer.append(event.content);
             } else if (event.type === "conversation") {
               assignConversation(event.conversationId);
               void loadConversations();
             } else if (event.type === "tool_start") {
-              activeSession.pendingText = "";
+              activeSession.streamPacer.cancel();
+              activeSession.streamPacer = createAiChatStreamPacer();
               activeSession.displayedText = "";
               updateView(activeSession.viewKey, (view) => ({
-                activeTool: event.tool,
+                activeTool: event.tool || "processing",
                 messages: view.messages.map((message) =>
                   message.localId === assistantLocalId
                     ? { ...message, content: "" }
@@ -465,7 +685,10 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
               }));
             } else if (event.type === "tool_result") {
               updateView(activeSession.viewKey, { activeTool: null });
-            } else if (event.type === "ui_card") {
+            } else if (
+              event.type === "ui_card" &&
+              isAllowedAiUiCard(event)
+            ) {
               updateView(activeSession.viewKey, (view) => ({
                 messages: view.messages.map((message) =>
                   message.localId === assistantLocalId
@@ -480,70 +703,95 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
                 ),
               }));
             } else if (event.type === "error") {
-              streamError = event.message || "Có lỗi xảy ra";
+              assignConversation(event.conversationId);
+              activeSession.serverErrorReceived = true;
+              activeSession.terminalOutcome = "error";
+              updateView(activeSession.viewKey, {
+                error: event.message || "Có lỗi xảy ra",
+                terminalOutcome: "error",
+                retryableFailedLocalId:
+                  event.retryable === true ? activeSession.userLocalId : null,
+              });
             } else if (event.type === "done") {
-              receivedDone = true;
-              if (streamError) break;
+              activeSession.networkComplete = true;
+              activeSession.terminalOutcome = "completed";
+              activeSession.streamPacer.markComplete();
               flushPendingText(sessionId);
               assignConversation(event.conversationId);
+              await waitForPendingTextDrain(sessionId);
               const completedSession = registry.getSession(sessionId);
-              if (
-                persistenceEnabled &&
-                event.conversationId &&
-                completedSession
-              ) {
-                const current = await getAiConversationById(
+              if (completedSession) {
+                updateView(completedSession.viewKey, {
+                  terminalOutcome: "completed",
+                });
+                void reconcileConversation(
                   event.conversationId,
+                  completedSession.viewKey,
+                  completedSession.assistantLocalId,
                 );
-                if (isActive() && current.data) {
-                  const persistedMessages = mapAiMessages(
-                    current.data.messages,
-                  );
-                  const localMessages = registry.getView(
-                    completedSession.viewKey,
-                  )?.messages;
-                  updateView(completedSession.viewKey, {
-                    messages: mergeEphemeralConfirmationCards(
-                      persistedMessages,
-                      localMessages,
-                      completedSession.assistantLocalId,
-                    ),
-                    loaded: true,
-                  });
-                }
               }
               void loadConversations();
             }
           }
         }
-        if ((!receivedDone || streamError) && !controller.signal.aborted) {
-          throw new Error(streamError || "Phản hồi AI chưa hoàn chỉnh");
-        }
       } catch (requestError) {
         const activeSession = registry.getSession(sessionId);
         if (requestError.name !== "AbortError" && activeSession) {
+          activeSession.terminalOutcome = "error";
+          const staleConversation =
+            requestError.status === 404 &&
+            Boolean(activeSession.targetConversationId);
+          const retryableTransportError = !staleConversation && (
+            requestError.status === undefined ||
+            requestError.status === 408 ||
+            requestError.status === 409 ||
+            requestError.status === 429 ||
+            requestError.status >= 500
+          );
+          activeSession.staleConversation = staleConversation;
           updateView(activeSession.viewKey, (view) => ({
-            error: requestError.message || "Không thể kết nối tới server",
-            retryableFailedTurn: {
-              userLocalId: `user-${sessionId}`,
-              assistantLocalId,
-            },
+            error: staleConversation
+              ? "Cuộc trò chuyện này không còn tồn tại. Hãy bắt đầu cuộc trò chuyện mới rồi gửi lại câu hỏi."
+              : requestError.message || "Không thể kết nối tới server",
+            terminalOutcome: "error",
+            retryableFailedLocalId: retryableTransportError
+              ? activeSession.userLocalId
+              : null,
             messages: view.messages.filter(
               (message) =>
-                message.localId !== assistantLocalId,
+                message.localId !== assistantLocalId ||
+                message.content ||
+                message.uiCards?.length,
             ),
           }));
         }
       } finally {
         const activeSession = registry.getSession(sessionId);
         if (activeSession) {
-          flushPendingText(sessionId);
+          if (!activeSession.networkComplete) {
+            flushPendingText(sessionId, { drainAll: true });
+          }
           registry.removeSession(sessionId);
           clearSessionTimer(activeSession);
           updateView(activeSession.viewKey, {
             isLoading: false,
             activeTool: null,
+            terminalOutcome:
+              activeSession.terminalOutcome ||
+              (activeSession.networkComplete ? "completed" : "error"),
           });
+          if (activeSession.staleConversation) {
+            void loadConversations();
+          } else if (!activeSession.networkComplete) {
+            void reconcileConversation(
+              activeSession.targetConversationId ||
+                registry.getView(activeSession.viewKey)?.conversationId,
+              activeSession.viewKey,
+              activeSession.serverErrorReceived
+                ? null
+                : activeSession.assistantLocalId,
+            );
+          }
         }
       }
     },
@@ -552,27 +800,152 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
       applySessionQuota,
       flushPendingText,
       loadConversations,
-      persistenceEnabled,
       refreshViews,
+      reconcileConversation,
       updateView,
+      waitForPendingTextDrain,
     ],
   );
 
   const branchAndSend = useCallback(
-    async (messageId, text, context = {}) => {
+    async (
+      messageId,
+      text,
+      context = {},
+      sourceMessage = null,
+      { retrySameConversation = false } = {},
+    ) => {
+      const sourceViewKey = registryRef.current.getSelectedKey();
+      const sourceNavigationSequence = navigationSequenceRef.current;
       const sourceConversationId =
         registryRef.current.getSelectedView().conversationId;
-      if (!sourceConversationId || !messageId) {
+      const sourceIsActive = () =>
+        mountedRef.current &&
+        navigationSequenceRef.current === sourceNavigationSequence &&
+        registryRef.current.getSelectedKey() === sourceViewKey &&
+        Boolean(registryRef.current.getView(sourceViewKey));
+      if (!sourceConversationId) {
+        const view = registryRef.current.getView(sourceViewKey);
+        const lastUser = [...(view?.messages || [])]
+          .reverse()
+          .find((message) => message.role === "user");
+        if (
+          view?.terminalOutcome === "error" &&
+          sourceMessage?.localId &&
+          view.retryableFailedLocalId === sourceMessage.localId &&
+          lastUser?.localId === sourceMessage.localId &&
+          !registryRef.current.getSessionForView(sourceViewKey)
+        ) {
+          await sendMessage(text, context, { targetConversationId: null });
+          return;
+        }
         clearHistory();
         return sendMessage(text, context, { targetConversationId: null });
+      }
+
+      if (retrySameConversation) {
+        const reconciledMessages = await reconcileConversation(
+          sourceConversationId,
+          sourceViewKey,
+          sourceMessage?.localId || null,
+        );
+        if (!sourceIsActive()) return;
+        if (!reconciledMessages) {
+          updateView(sourceViewKey, {
+            error:
+              "Tin nhắn chưa đồng bộ xong. Vui lòng chờ một chút rồi thử lại.",
+          });
+          return;
+        }
+        const reconciledSource = sourceMessage?.localId
+          ? reconciledMessages.find(
+              (message) => message.localId === sourceMessage.localId,
+            )
+          : sourceMessage?._id
+            ? reconciledMessages.find(
+                (message) => message._id === sourceMessage._id,
+              )
+            : null;
+        await sendMessage(text, context, {
+          targetConversationId: sourceConversationId,
+          replaceMessage: sourceMessage,
+          ...(reconciledSource?._id && {
+            retryOfMessageId: reconciledSource._id,
+          }),
+        });
+        return;
+      }
+
+      let resolvedMessageId = messageId;
+      if (!resolvedMessageId) {
+        const messages = await reconcileConversation(
+          sourceConversationId,
+          sourceViewKey,
+        );
+        if (
+          !sourceIsActive() ||
+          !messages
+        ) {
+          return;
+        }
+        const resolved = sourceMessage?.localId
+          ? messages.find(
+              (message) => message.localId === sourceMessage.localId,
+            )
+          : [...messages]
+              .reverse()
+              .find(
+                (message) =>
+                  message.role === "user" &&
+                  message.content === sourceMessage?.content,
+              );
+        resolvedMessageId = resolved?._id;
+      }
+      if (!resolvedMessageId) {
+        const view = registryRef.current.getView(sourceViewKey);
+        const lastUser = [...(view?.messages || [])]
+          .reverse()
+          .find((message) => message.role === "user");
+        if (
+          view?.terminalOutcome === "error" &&
+          sourceMessage?.localId &&
+          view.retryableFailedLocalId === sourceMessage.localId &&
+          lastUser?.localId === sourceMessage.localId &&
+          !registryRef.current.getSessionForView(sourceViewKey)
+        ) {
+          updateView(sourceViewKey, (current) => ({
+            messages: current.messages.slice(
+              0,
+              current.messages.findIndex(
+                (message) => message.localId === sourceMessage.localId,
+              ),
+            ),
+            retryableFailedLocalId: null,
+          }));
+          await sendMessage(text, context, {
+            targetConversationId: sourceConversationId,
+          });
+          return;
+        }
+        updateView(sourceViewKey, {
+          error:
+            "Tin nhắn chưa đồng bộ xong. Vui lòng chờ một chút rồi thử lại.",
+        });
+        return;
       }
 
       try {
         const response = await forkAiConversation(
           sourceConversationId,
-          messageId,
+          resolvedMessageId,
         );
-        if (!response.data || !mountedRef.current) return;
+        if (
+          !response.data ||
+          !sourceIsActive()
+        ) {
+          return;
+        }
+        navigationSequenceRef.current += 1;
         const key = registryRef.current.selectConversation(
           response.data.conversationId,
         );
@@ -586,48 +959,62 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
           targetConversationId: response.data.conversationId,
         });
       } catch (requestError) {
-        const key = registryRef.current.getSelectedKey();
-        updateView(key, {
+        if (!sourceIsActive()) {
+          return;
+        }
+        updateView(sourceViewKey, {
           error:
             requestError.response?.data?.message ||
             "Không thể tạo nhánh cuộc trò chuyện",
         });
       }
     },
-    [clearHistory, refreshViews, sendMessage, updateView],
+    [
+      clearHistory,
+      reconcileConversation,
+      refreshViews,
+      sendMessage,
+      updateView,
+    ],
   );
 
   const retryLastMessage = useCallback(
     (messageId) => {
       const target = messageId
-        ? messagesRef.current.find((message) =>
-            message._id === messageId || message.localId === messageId,
-          )
+        ? messagesRef.current.find((message) => message._id === messageId)
         : [...messagesRef.current]
             .reverse()
             .find((message) => message.role === "user");
       if (target) {
-        const view = registryRef.current.getSelectedView();
-        const retry = resolveAiChatRetry({ view, target });
-        if (retry?.mode === "same_conversation") {
-          void sendMessage(target.content, { image: target.image }, {
-            targetConversationId: retry.conversationId,
-            retryingFailedTurn: true,
-            failedUserLocalId: retry.failedUserLocalId,
-            failedAssistantLocalId: retry.failedAssistantLocalId,
-          });
-          return;
-        }
-        void branchAndSend(retry?.messageId, target.content, { image: target.image });
+        const selectedView = registryRef.current.getSelectedView();
+        const retrySameConversation = Boolean(
+          selectedView.retryableFailedLocalId &&
+          target.localId === selectedView.retryableFailedLocalId,
+        );
+        void branchAndSend(
+          target._id,
+          target.content,
+          {
+            image: target.image,
+            structuredAction: target.structuredAction,
+          },
+          target,
+          { retrySameConversation },
+        );
       }
     },
-    [branchAndSend, sendMessage],
+    [branchAndSend],
   );
 
   const editMessage = useCallback(
     (messageId, newText) => {
       if (newText?.trim()) {
-        void branchAndSend(messageId, newText.trim());
+        const sourceMessage = messageId
+          ? messagesRef.current.find((message) => message._id === messageId)
+          : [...messagesRef.current]
+              .reverse()
+              .find((message) => message.role === "user" && !message._id);
+        void branchAndSend(messageId, newText.trim(), {}, sourceMessage);
       }
     },
     [branchAndSend],
@@ -638,6 +1025,8 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
     isLoading: selectedView.isLoading,
     activeTool: selectedView.activeTool,
     error: selectedView.error,
+    terminalOutcome: selectedView.terminalOutcome || null,
+    isReconciling: Boolean(selectedView.isReconciling),
     quota,
     conversationId: selectedView.conversationId,
     conversations,
@@ -651,5 +1040,6 @@ export default function useAiChat({ persistenceEnabled = true } = {}) {
     cancelRequest,
     retryLastMessage,
     editMessage,
+    updateMessageFeedback,
   };
 }

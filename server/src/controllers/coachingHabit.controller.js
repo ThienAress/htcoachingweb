@@ -78,6 +78,7 @@ export const listMyHabits = async (req, res) => {
   try {
     const data = await listMyCoachingHabits({
       clientId: req.user.id,
+      clientRole: req.user.role,
       dateKey: req.query.dateKey,
     });
     return res.json({ success: true, data });

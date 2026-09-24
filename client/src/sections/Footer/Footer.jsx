@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Facebook, Instagram, Youtube, Award, ShieldCheck } from "lucide-react";
-import logo from "../../assets/images/logo/logo.svg";
+import BrandLogo from "../../components/BrandLogo";
 import { useAuth } from "../../context/AuthContext";
 import LoginModal from "../../pages/MealPlan/LoginModal";
 
@@ -27,11 +27,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10 mb-12 md:mb-16">
           {/* About */}
           <div>
-            <img
-              src={logo}
-              alt="Elite Fitness"
-              className="h-20 md:h-24 mb-4 object-contain"
-            />
+            <BrandLogo variant="footer" surface="dark" className="mb-6 py-5" />
             <p className="text-gray-300 text-sm leading-relaxed mb-4">
               {t("footer.slogan")}
             </p>

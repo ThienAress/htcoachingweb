@@ -35,6 +35,9 @@ describe("progressReadModel", () => {
     });
     expect(result.weightTrend).toEqual({ points: [], changeKg: null });
     expect(result.bodyProgress).toEqual({
+      hipCm: { unit: "cm", current: null, delta: null, series: [] },
+      abdomenCm: { unit: "cm", current: null, delta: null, series: [] },
+      waistHipRatio: { unit: "", current: null, delta: null, series: [] },
       source: {
         type: "weekly_checkin",
         includedStatuses: ["submitted", "reviewed"],

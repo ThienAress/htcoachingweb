@@ -40,6 +40,19 @@ Tránh dùng “client” nếu không rõ đang nói HTTP client hay Coaching C
 Nguồn canonical hiện có để xác định quan hệ coaching đang hoạt động giữa Coaching Customer và Trainer.
 Snapshot trainer trong dữ liệu lịch sử không tự cấp quyền hiện tại.
 
+### Default Lead Coach / HLV chính mặc định
+
+Tài khoản được chủ hệ thống chỉ định để phụ trách khách coaching chưa phân công
+cho HLV khác. Có thể đồng thời mang role admin; không đồng nghĩa mọi admin đều
+là HLV phụ trách. Định danh bằng User ID, không dùng email làm quan hệ dữ liệu.
+
+### Effective Coach / HLV phụ trách thực tế
+
+HLV được phân công rõ trên đơn coaching; với đơn cũ chưa phân công, áp dụng HLV
+chính mặc định hợp lệ trong giai đoạn tương thích. Đơn đã phân công không bị
+fallback ghi đè. Quyền quản trị và người nhận thông báo coaching là hai khái niệm
+khác nhau. Đây là quy ước đã chốt; runtime được triển khai theo spec riêng.
+
 ### F1 Customer
 
 Hồ sơ nghiệp vụ F1 dùng cho intake/assessment/program. Chỉ liên hệ với User khi có reference rõ ràng;
@@ -88,6 +101,22 @@ hoặc mức phù hợp của bài đó với một Coaching Customer cụ thể
 
 Chuỗi phép đo cơ thể có nguồn và thời điểm rõ ràng dùng để xem giá trị hiện tại cùng xu hướng. Dữ liệu thiếu không
 được suy ra thành zero, điểm số hoặc chỉ số máy đo chưa được ghi nhận.
+
+### Body Assessment
+
+Kết quả đo thành phần cơ thể do HLV ghi nhận cho học viên theo kỳ, có ngày đo thực tế.
+Khác báo cáo tuần tự nhập và Wellness Target. Nháp không hiển thị cho học viên;
+chỉ kết quả đã gửi được dùng để xem/so sánh, lịch sử sửa không phải lần đo mới.
+
+### Segmental Lean Mass / Khối nạc từng vùng
+
+Khối lượng nạc do thiết bị báo cho từng vùng cơ thể, không đồng nghĩa với riêng cơ xương.
+Phần trăm tham chiếu của thiết bị có thể vượt 100 và không phải tỷ lệ mỡ toàn thân.
+
+### Waist–hip ratio / Tỷ lệ eo-hông
+
+Thương số vòng eo chia vòng hông cùng lần ghi nhận, không đơn vị; không trộn số đo
+giữa các kỳ và không dùng vòng bụng thay vòng eo của dữ liệu cũ.
 
 ## Documentation vocabulary
 

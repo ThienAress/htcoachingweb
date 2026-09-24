@@ -7,6 +7,20 @@ const GEMINI_SURFACES = new Set([
   "embedding",
   "kb_suggestion",
 ]);
+const GEMINI_SEARCH_GROUNDING_DISPOSITIONS = new Set([
+  "privacy_blocked",
+  "not_configured",
+  "request_rejected",
+  "permission_denied",
+  "rate_limited",
+  "upstream_error",
+  "http_error",
+  "invalid_response",
+  "network_error",
+  "aborted",
+  "no_supported_source",
+  "grounded",
+]);
 const positiveInteger = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
@@ -34,6 +48,20 @@ export const recordGeminiResult = (surface, { success, usage = {} } = {}) => {
   for (const [unit, amount] of Object.entries(values)) {
     if (amount > 0) incrementMetric(`provider.gemini_${surface}_${unit}`, amount);
   }
+};
+
+export const recordGeminiChatDisposition = (outcome) => {
+  if (!new Set(["unavailable", "rate_limited", "not_required"]).has(outcome)) {
+    throw new Error("Unknown Gemini chat disposition");
+  }
+  incrementMetric(`provider.gemini_chat_${outcome}`);
+};
+
+export const recordGeminiSearchGroundingDisposition = (outcome) => {
+  if (!GEMINI_SEARCH_GROUNDING_DISPOSITIONS.has(outcome)) {
+    throw new Error("Unknown Gemini search grounding disposition");
+  }
+  incrementMetric(`provider.gemini_search_grounding_${outcome}`);
 };
 
 export const recordResendUsage = (outcome) => {

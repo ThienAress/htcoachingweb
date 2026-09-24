@@ -138,5 +138,44 @@ export const prefersReducedMotion = (browser = globalThis.window) => {
   }
 };
 
-export const getChatScrollBehavior = (browser = globalThis.window) =>
-  prefersReducedMotion(browser) ? "auto" : "smooth";
+export const getChatScrollBehavior = (
+  browser = globalThis.window,
+  { streaming = false } = {},
+) => (streaming || prefersReducedMotion(browser) ? "auto" : "smooth");
+
+export const isChatNearBottom = (container, thresholdPixels = 80) => {
+  const scrollHeight = Number(container?.scrollHeight);
+  const scrollTop = Number(container?.scrollTop);
+  const clientHeight = Number(container?.clientHeight);
+  if (![scrollHeight, scrollTop, clientHeight].every(Number.isFinite)) {
+    return true;
+  }
+  const threshold = Math.min(
+    Math.max(Number(thresholdPixels) || 0, 0),
+    240,
+  );
+  return scrollHeight - scrollTop - clientHeight <= threshold;
+};
+
+export const runChatActionWithAutoFollow = (followRef, action, ...args) => {
+  followRef.current = true;
+  return action(...args);
+};
+
+export const getChatErrorAnnouncementProps = () => ({
+  role: "alert",
+  "aria-live": "assertive",
+  "aria-atomic": "true",
+});
+
+export const getAssistantStreamAnnouncement = ({
+  isLoading = false,
+  wasLoading = false,
+  terminalOutcome = null,
+} = {}) => {
+  if (isLoading) return "HT Assistant đang soạn câu trả lời.";
+  if (wasLoading && terminalOutcome === "completed") {
+    return "HT Assistant đã trả lời xong.";
+  }
+  return "";
+};

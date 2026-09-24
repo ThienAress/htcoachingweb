@@ -19,6 +19,7 @@ import { errorHandler } from "../../middlewares/errorHandler.js";
 import AuditLog from "../../models/AuditLog.js";
 import CoachingHabit from "../../models/CoachingHabit.js";
 import DailyJournal from "../../models/DailyJournal.js";
+import FitnessSubscription from "../../models/FitnessSubscription.js";
 import Order from "../../models/Order.js";
 import TrainingSchedule from "../../models/TrainingSchedule.js";
 import WeeklyCheckin from "../../models/WeeklyCheckin.js";
@@ -26,6 +27,7 @@ import progressRoutes from "../../routes/progress.routes.js";
 import {
   addDaysToDateKey,
   getAppDayOfWeek,
+  getMonthWeekPeriod,
   getVietnamDateKey,
   getVietnamDayRangeUtc,
 } from "../../utils/dateKey.js";
@@ -66,6 +68,19 @@ afterEach(clearCollections);
 afterAll(teardownTestDB);
 
 describe("Progress Hub API", () => {
+  it("loads circumference-only reports and derives ratio from the same record", async () => {
+    const { client, trainer } = await createAssigned("circumference-only");
+    await WeeklyCheckin.create({ clientId: client.user._id, weekStartDateKey: getMonthWeekPeriod(today).startDateKey,
+      status: "submitted", body: { waistCm: 80, hipCm: 100, abdomenCm: 86 } });
+    const own = await withAuth(request(app).get("/api/progress?days=30"), client.accessToken);
+    const coach = await withAuth(request(app).get(`/api/progress/trainer/clients/${client.user._id}?days=30`), trainer.accessToken);
+    expect(own.status).toBe(200);
+    expect(own.body.data.bodyProgress).toMatchObject({
+      hipCm: { current: { value: 100 } }, abdomenCm: { current: { value: 86 } },
+      waistHipRatio: { unit: "", current: { value: 0.8 } },
+    });
+    expect(coach.body.data.bodyProgress).toEqual(own.body.data.bodyProgress);
+  });
   it("accepts a six-month range for the authenticated client", async () => {
     const assigned = await createAssigned("six-month-range");
 
@@ -76,6 +91,56 @@ describe("Progress Hub API", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.data.range.days).toBe(180);
+  });
+
+  it("builds Fitness+ progress from self-saved draft data only", async () => {
+    const client = await createTestUser({
+      email: "progress-fitness-self-managed@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_max",
+      planTitle: "Toàn diện",
+      billingCycle: "month",
+      amount: 299000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+    await Promise.all([
+      DailyJournal.create({
+        clientId: client.user._id,
+        trainerIdAtCreation: client.user._id,
+        dateKey: today,
+        status: "draft",
+        wellness: { energy: 8 },
+        revision: 1,
+      }),
+      WeeklyCheckin.create({
+        clientId: client.user._id,
+        trainerIdAtCreation: client.user._id,
+        weekStartDateKey: getMonthWeekPeriod(today).startDateKey,
+        status: "draft",
+        body: { weightKg: 70, waistCm: 80 },
+        revision: 1,
+      }),
+    ]);
+
+    const response = await withAuth(
+      request(app).get("/api/progress?days=30"),
+      client.accessToken,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({
+      accessMode: "self_managed",
+      wellness: { energy: { latest: 8 } },
+      bodyProgress: {
+        weightKg: { current: { value: 70 } },
+        waistCm: { current: { value: 80 } },
+      },
+    });
+    expect(response.body.data.compliance.scheduleAttendance.percent).toBeNull();
   });
 
   it("keeps the complete six-month body series beyond the old 20-report cap", async () => {
@@ -365,7 +430,7 @@ describe("Progress Hub API", () => {
 
     expect(invalid.status).toBe(400);
     expect(denied.status).toBe(403);
-    expect(ownHistory.status).toBe(200);
+    expect(ownHistory.status).toBe(403);
     expect(revoked.status).toBe(403);
   });
 });

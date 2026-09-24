@@ -2,6 +2,7 @@ import { Target } from "lucide-react";
 
 import { TrainerHabitManager } from "./TrainerHabitManager";
 import { TrainerWellnessTargetCard } from "./TrainerWellnessTargetCard";
+import { TrainerBodyAssessment } from "../../components/body-assessment/TrainerBodyAssessment";
 
 export const TrainerHealthGoalsSection = ({ clientId, dateKey }) => (
   <section
@@ -26,6 +27,7 @@ export const TrainerHealthGoalsSection = ({ clientId, dateKey }) => (
     </header>
     <div className="space-y-4">
       <TrainerWellnessTargetCard clientId={clientId} />
+      <TrainerBodyAssessment key={clientId} clientId={clientId} dateKey={dateKey} />
       <TrainerHabitManager clientId={clientId} dateKey={dateKey} />
     </div>
   </section>

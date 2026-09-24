@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import mongoose from "mongoose";
 
 import AuditLog from "../models/AuditLog.js";
-import Order from "../models/Order.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
 import TrainingSchedule from "../models/TrainingSchedule.js";
 import TrainingScheduleCommand from "../models/TrainingScheduleCommand.js";
@@ -13,7 +12,7 @@ import {
   buildSlotStarts,
   normalizeOccurrenceInput,
 } from "./trainingOccurrence.service.js";
-import { resolveDefaultAdminTrainer } from "./defaultAdminTrainer.service.js";
+import { resolveEffectiveClientCoach } from "./effectiveCoach.service.js";
 
 const REQUEST_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -57,6 +56,7 @@ const getRequestContext = (requestContext = {}) => ({
 
 const findReplay = async ({
   actorId,
+  source,
   requestId,
   commandType,
   payloadFingerprint,
@@ -81,6 +81,19 @@ const findReplay = async ({
     let scheduleQuery = TrainingSchedule.findById(command.scheduleId);
     if (session) scheduleQuery = scheduleQuery.session(session);
     schedule = await scheduleQuery;
+  }
+  const currentActor = await User.findById(actorId).select("_id role").session(session || null);
+  if (!currentActor || !["client", "trainer"].includes(source)) {
+    throw commandError(403, "Bạn không có quyền thao tác lịch tập này", "SCHEDULE_FORBIDDEN");
+  }
+  if (source === "trainer") await validateTrainerAccount(actorId, session || null);
+  if (schedule) {
+    assertScheduleAccess(schedule, { id: actorId, role: currentActor.role }, source);
+    // Operational admins retain their management scope; a historical command
+    // never grants a former coach access to the current client relationship.
+    if (source === "trainer" && currentActor.role !== "admin") {
+      await requireTrainerClientRelationship({ trainerId: actorId, clientId: schedule.clientId, session });
+    }
   }
   incrementMetric("schedule.idempotency_hits");
   return {
@@ -154,34 +167,17 @@ const validateTrainerAccount = async (trainerId, session) => {
 const requireTrainerClientRelationship = async ({
   trainerId,
   clientId,
-  actor,
   session,
 }) => {
-  const query = {
-    userId: clientId,
-    status: "approved",
-    sessions: { $gt: 0 },
-  };
-  if (actor.role === "admin" && String(trainerId) === String(actor.id)) {
-    query.$or = [
-      { trainerId },
-      { trainerId: null },
-      { trainerId: { $exists: false } },
-    ];
-  } else {
-    query.trainerId = trainerId;
-  }
-  const order = await Order.findOne(query)
-    .sort({ createdAt: -1 })
-    .session(session);
-  if (!order) {
+  const assignment = await resolveEffectiveClientCoach({ clientId, session });
+  if (String(assignment.trainerId) !== String(trainerId)) {
     throw commandError(
       403,
       "Khách hàng không thuộc phạm vi quản lý hoặc đã hết buổi tập",
       "TRAINER_CLIENT_FORBIDDEN",
     );
   }
-  return order;
+  return assignment.order;
 };
 
 export const resolveClientTrainer = async ({
@@ -189,25 +185,10 @@ export const resolveClientTrainer = async ({
   session = null,
   includeClientName = false,
 }) => {
-  let query = Order.findOne({
-    userId: clientId,
-    status: "approved",
-    sessions: { $gt: 0 },
-  }).sort({ createdAt: -1 });
-  if (session) query = query.session(session);
-  const order = await query;
-  if (!order) {
-    throw commandError(
-      403,
-      "Bạn chưa có gói tập đã duyệt còn buổi",
-      "NO_ACTIVE_ORDER",
-    );
-  }
-  let trainerId = order.trainerId;
-  if (!trainerId) {
-    const configuredTrainer = await resolveDefaultAdminTrainer({ session });
-    trainerId = configuredTrainer._id;
-  }
+  const { order, trainerId } = await resolveEffectiveClientCoach({
+    clientId,
+    session,
+  });
   if (!includeClientName) return { trainerId, order };
 
   let clientQuery = User.findById(clientId).select("name");
@@ -248,6 +229,7 @@ const normalizeTextFields = (input, current = {}) => {
 const duplicateConflict = async ({
   error,
   actorId,
+  source,
   requestId,
   commandType,
   payloadFingerprint,
@@ -255,6 +237,7 @@ const duplicateConflict = async ({
   if (error.code !== 11000) throw error;
   const replay = await findReplay({
     actorId,
+    source,
     requestId,
     commandType,
     payloadFingerprint,
@@ -291,6 +274,7 @@ export const createTrainingOccurrence = async ({
   });
   const prior = await findReplay({
     actorId: actor.id,
+    source,
     requestId: input.requestId,
     commandType: "create",
     payloadFingerprint,
@@ -303,6 +287,7 @@ export const createTrainingOccurrence = async ({
     await session.withTransaction(async () => {
       const replay = await findReplay({
         actorId: actor.id,
+        source,
         requestId: input.requestId,
         commandType: "create",
         payloadFingerprint,
@@ -341,7 +326,6 @@ export const createTrainingOccurrence = async ({
         await requireTrainerClientRelationship({
           trainerId,
           clientId,
-          actor,
           session,
         });
       }
@@ -404,6 +388,7 @@ export const createTrainingOccurrence = async ({
     return await duplicateConflict({
       error,
       actorId: actor.id,
+      source,
       requestId: input.requestId,
       commandType: "create",
       payloadFingerprint,
@@ -454,6 +439,7 @@ export const rescheduleTrainingOccurrence = async ({
   });
   const prior = await findReplay({
     actorId: actor.id,
+    source,
     requestId: input.requestId,
     commandType: "reschedule",
     payloadFingerprint,
@@ -466,6 +452,7 @@ export const rescheduleTrainingOccurrence = async ({
     await session.withTransaction(async () => {
       const replay = await findReplay({
         actorId: actor.id,
+        source,
         requestId: input.requestId,
         commandType: "reschedule",
         payloadFingerprint,
@@ -548,7 +535,6 @@ export const rescheduleTrainingOccurrence = async ({
         await requireTrainerClientRelationship({
           trainerId,
           clientId,
-          actor,
           session,
         });
       }
@@ -658,6 +644,7 @@ export const rescheduleTrainingOccurrence = async ({
     return await duplicateConflict({
       error,
       actorId: actor.id,
+      source,
       requestId: input.requestId,
       commandType: "reschedule",
       payloadFingerprint,
@@ -692,6 +679,7 @@ const transitionTrainingOccurrence = async ({
   });
   const prior = await findReplay({
     actorId: actor.id,
+    source,
     requestId: input.requestId,
     commandType,
     payloadFingerprint,
@@ -704,6 +692,7 @@ const transitionTrainingOccurrence = async ({
     await session.withTransaction(async () => {
       const replay = await findReplay({
         actorId: actor.id,
+        source,
         requestId: input.requestId,
         commandType,
         payloadFingerprint,
@@ -814,6 +803,7 @@ const transitionTrainingOccurrence = async ({
     return await duplicateConflict({
       error,
       actorId: actor.id,
+      source,
       requestId: input.requestId,
       commandType,
       payloadFingerprint,
@@ -851,6 +841,7 @@ export const cancelAllTrainerOccurrences = async ({
   });
   const prior = await findReplay({
     actorId: actor.id,
+    source: "trainer",
     requestId: input.requestId,
     commandType: "cancel_all",
     payloadFingerprint,
@@ -863,6 +854,7 @@ export const cancelAllTrainerOccurrences = async ({
     await session.withTransaction(async () => {
       const replay = await findReplay({
         actorId: actor.id,
+        source: "trainer",
         requestId: input.requestId,
         commandType: "cancel_all",
         payloadFingerprint,
@@ -937,6 +929,7 @@ export const cancelAllTrainerOccurrences = async ({
     return await duplicateConflict({
       error,
       actorId: actor.id,
+      source: "trainer",
       requestId: input.requestId,
       commandType: "cancel_all",
       payloadFingerprint,

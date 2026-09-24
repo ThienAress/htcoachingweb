@@ -2,8 +2,13 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { evaluateBackupReadiness } from "./lib/backup-readiness.mjs";
-import { validateDeploymentIdentityEvidence } from "./lib/deployment-identity.mjs";
-import { evaluateReleaseCandidate } from "./lib/release-evidence.mjs";
+import {
+  validateDeploymentIdentityEvidence,
+} from "./lib/deployment-identity.mjs";
+import {
+  evaluateReleaseCandidate,
+  validateStagingAiAcceptanceEvidence,
+} from "./lib/release-evidence.mjs";
 
 const required = (name) => {
   const value = String(process.env[name] || "").trim();
@@ -15,16 +20,30 @@ const readJson = async (file) =>
   JSON.parse(await readFile(path.resolve(file), "utf8"));
 
 const main = async () => {
-  const [acceptance, deployment, backupManifest] = await Promise.all([
+  const [
+    acceptance,
+    aiAcceptanceEvidence,
+    deploymentBefore,
+    deploymentAfter,
+    backupManifest,
+  ] = await Promise.all([
     readJson(required("STAGING_ACCEPTANCE_EVIDENCE")),
+    readJson(required("STAGING_AI_ACCEPTANCE_EVIDENCE")),
     readJson(required("STAGING_DEPLOY_IDENTITY_EVIDENCE")),
+    readJson(required("STAGING_DEPLOY_IDENTITY_POST_AI_EVIDENCE")),
     readJson(required("BACKUP_READINESS_MANIFEST")),
   ]);
   const backup = evaluateBackupReadiness(backupManifest);
   const releaseSha = required("RELEASE_SHA").toLowerCase();
-  validateDeploymentIdentityEvidence(deployment, { expectedSha: releaseSha });
+  validateDeploymentIdentityEvidence(deploymentBefore, { expectedSha: releaseSha });
+  validateDeploymentIdentityEvidence(deploymentAfter, { expectedSha: releaseSha });
+  const aiAcceptance = validateStagingAiAcceptanceEvidence(aiAcceptanceEvidence, {
+    expectedSha: releaseSha,
+  });
+  const runUrl = required("ACCEPTANCE_RUN_URL");
+  const artifactName = required("ACCEPTANCE_ARTIFACT_NAME");
   const candidate = {
-    schemaVersion: 1,
+    schemaVersion: 3,
     kind: "release-candidate",
     release: {
       sha: releaseSha,
@@ -38,22 +57,39 @@ const main = async () => {
     },
     staging: {
       client: {
-        deployId: deployment.client.deployId,
-        sha: deployment.client.sha,
+        deployId: deploymentAfter.client.deployId,
+        sha: deploymentAfter.client.sha,
       },
       server: {
-        deployId: deployment.server.deployId,
-        sha: deployment.server.sha,
+        deployId: deploymentAfter.server.deployId,
+        sha: deploymentAfter.server.sha,
       },
       acceptance: {
         status: acceptance.success === true ? "passed" : "failed",
         runId: acceptance.runId,
-        runUrl: required("ACCEPTANCE_RUN_URL"),
-        artifactName: required("ACCEPTANCE_ARTIFACT_NAME"),
+        runUrl,
+        artifactName,
         database: acceptance.database,
         cleanup: {
           verified: acceptance.cleanup?.verified === true,
           residue: Number(acceptance.cleanup?.residue ?? -1),
+        },
+      },
+      aiAcceptance: {
+        ...aiAcceptance,
+        runUrl,
+        artifactName,
+      },
+      verificationWindow: {
+        before: {
+          deployCheckedAt: deploymentBefore.checkedAt,
+          clientDeployId: deploymentBefore.client.deployId,
+          serverDeployId: deploymentBefore.server.deployId,
+        },
+        after: {
+          deployCheckedAt: deploymentAfter.checkedAt,
+          clientDeployId: deploymentAfter.client.deployId,
+          serverDeployId: deploymentAfter.server.deployId,
         },
       },
     },

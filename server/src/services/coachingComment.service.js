@@ -26,7 +26,7 @@ const assertRevision = (revision) => {
   }
 };
 const assertActor = (actor) => {
-  if (!["user", "trainer"].includes(actor.role)) {
+  if (!["user", "trainer", "admin"].includes(actor.role)) {
     throw commentError(403, "Role không được bình luận", "COMMENT_ROLE_FORBIDDEN");
   }
 };
@@ -43,7 +43,7 @@ const result = (comment, viewerId, idempotentReplay = false) => ({
 });
 const actorForTarget = (actor, target) => ({
   ...actor,
-  role: target.access.scope === "trainer" ? "trainer" : "user",
+  role: target.access.scope === "trainer" ? (actor.role === "admin" ? "admin" : "trainer") : "user",
 });
 
 export const createCoachingComment = async ({
@@ -82,6 +82,7 @@ export const createCoachingComment = async ({
   let didCreate = false;
   try {
     await session.withTransaction(async () => {
+      const target = await resolveCoachingCommentTarget({ actor, targetType, targetId, write: true, session });
       const replay = await findCommentReplay({
         actorId: actor.id,
         requestId,
@@ -93,13 +94,6 @@ export const createCoachingComment = async ({
         output = replay;
         return;
       }
-      const target = await resolveCoachingCommentTarget({
-        actor,
-        targetType,
-        targetId,
-        write: true,
-        session,
-      });
       const commandActor = actorForTarget(actor, target);
       const [comment] = await CoachingComment.create(
         [
@@ -127,7 +121,7 @@ export const createCoachingComment = async ({
         session,
       });
       const recipientId =
-        commandActor.role === "trainer"
+        target.access.scope === "trainer"
           ? target.clientId
           : target.access.trainerId;
       if (recipientId) {
@@ -161,6 +155,7 @@ export const createCoachingComment = async ({
     });
   } catch (error) {
     if (error?.code !== 11000) throw error;
+    await resolveCoachingCommentTarget({ actor, targetType, targetId, write: true });
     const replay = await findCommentReplay({
       actorId: actor.id,
       requestId,
@@ -221,6 +216,8 @@ const mutateComment = async ({
   let didSave = false;
   try {
     await session.withTransaction(async () => {
+      const replayTarget = await resolveCoachingCommentTarget({ actor, targetType: existing.targetType, targetId: existing.targetId, write: true, session });
+      assertCommentAuthor(actorForTarget(actor, replayTarget), existing);
       const replay = await findCommentReplay({
         actorId: actor.id,
         requestId,
@@ -278,6 +275,8 @@ const mutateComment = async ({
     });
   } catch (error) {
     if (error?.code !== 11000) throw error;
+    const replayTarget = await resolveCoachingCommentTarget({ actor, targetType: existing.targetType, targetId: existing.targetId, write: true });
+    assertCommentAuthor(actorForTarget(actor, replayTarget), existing);
     const replay = await findCommentReplay({
       actorId: actor.id,
       requestId,

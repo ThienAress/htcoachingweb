@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { assertIndexableDetailHtml } from "../verify-search-index-build.js";
+import {
+  assertIndexableDetailHtml,
+  resolveSearchIndexBuildContract,
+} from "../verify-search-index-build.js";
 
 const recipeRoute = "/cong-thuc-nau-an/mon-an-kiem-chung";
 const exerciseRoute = "/exercises/64b000000000000000000000/bai-tap-kiem-chung";
@@ -59,5 +62,71 @@ describe("search index build structured-data verifier", () => {
     expect(() =>
       assertIndexableDetailHtml(route, detailHtml(route, jsonLd)),
     ).toThrow(/rendered SEO contract failed/i);
+  });
+});
+
+describe("search index build environment contract", () => {
+  const stagingRecipe = "/cong-thuc-nau-an/staging-recipe";
+  const stagingExercise =
+    "/exercises/64b000000000000000000001/staging-exercise";
+  const manifestRoutes = ["/", stagingRecipe, stagingExercise];
+
+  it("uses the actual prerender cohort outside Netlify production", () => {
+    expect(
+      resolveSearchIndexBuildContract({
+        policy: {
+          skip: false,
+          requireDynamic: true,
+          netlifyProduction: false,
+        },
+        manifestRoutes,
+      }),
+    ).toEqual({
+      manifestDetails: [stagingRecipe, stagingExercise],
+      detailRoutes: [stagingRecipe, stagingExercise],
+      recipeRoutes: [stagingRecipe],
+      exerciseRoutes: [stagingExercise],
+      requireApprovedHubLinks: false,
+    });
+  });
+
+  it("keeps the approved cohort mandatory for Netlify production", () => {
+    const contract = resolveSearchIndexBuildContract({
+      policy: {
+        skip: false,
+        requireDynamic: true,
+        netlifyProduction: true,
+      },
+      manifestRoutes,
+    });
+
+    expect(contract.manifestDetails).toEqual([
+      stagingRecipe,
+      stagingExercise,
+    ]);
+    expect(contract.recipeRoutes).toHaveLength(10);
+    expect(contract.exerciseRoutes).toHaveLength(10);
+    expect(contract.detailRoutes).not.toContain(stagingRecipe);
+    expect(contract.detailRoutes).not.toContain(stagingExercise);
+    expect(contract.requireApprovedHubLinks).toBe(true);
+  });
+
+  it("requires an empty detail cohort for a static-only build", () => {
+    expect(
+      resolveSearchIndexBuildContract({
+        policy: {
+          skip: true,
+          requireDynamic: false,
+          netlifyProduction: false,
+        },
+        manifestRoutes,
+      }),
+    ).toEqual({
+      manifestDetails: [stagingRecipe, stagingExercise],
+      detailRoutes: [],
+      recipeRoutes: [],
+      exerciseRoutes: [],
+      requireApprovedHubLinks: false,
+    });
   });
 });

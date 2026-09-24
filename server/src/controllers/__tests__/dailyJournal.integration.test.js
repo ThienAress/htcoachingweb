@@ -21,6 +21,7 @@ import { errorHandler } from "../../middlewares/errorHandler.js";
 import DailyJournal from "../../models/DailyJournal.js";
 import DailyJournalRevision from "../../models/DailyJournalRevision.js";
 import InAppNotification from "../../models/InAppNotification.js";
+import FitnessSubscription from "../../models/FitnessSubscription.js";
 import Order from "../../models/Order.js";
 import dailyJournalRoutes from "../../routes/dailyJournal.routes.js";
 import {
@@ -334,6 +335,159 @@ describe("Daily Journal mutation contract", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(response.body.code).toBe("NO_ACTIVE_ORDER");
+    expect(response.body.code).toBe("JOURNAL_ENTITLEMENT_REQUIRED");
+  });
+
+  it("does not treat a trainer with Fitness+ as a customer dashboard user", async () => {
+    const trainer = await createTestUser({
+      email: "journal-trainer-fitness-role@example.com",
+      role: "trainer",
+    });
+    await FitnessSubscription.create({
+      userId: trainer.user._id,
+      planCode: "fitness_plus_essential",
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+
+    const response = await putJournal(
+      trainer.accessToken,
+      getVietnamDateKey(),
+      {
+        expectedRevision: 0,
+        requestId: "c4444444-4444-4444-8444-444444444444",
+        patch: { wellness: { stress: 3 } },
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe("JOURNAL_ENTITLEMENT_REQUIRED");
+  });
+
+  it("lets HT Fitness+ users self-save without creating trainer reports", async () => {
+    const client = await createTestUser({
+      email: "journal-fitness-self-managed@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_essential",
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+    const dateKey = getVietnamDateKey();
+    const saved = await putJournal(client.accessToken, dateKey, {
+      expectedRevision: 0,
+      requestId: "c1111111-1111-4111-8111-111111111111",
+      patch: {
+        wellness: { energy: 7, stress: 3 },
+        notes: { shared: "Không được chuyển thành báo cáo HLV" },
+      },
+    });
+    const submitted = await postAction(
+      client.accessToken,
+      dateKey,
+      "submit",
+      {
+        expectedRevision: 1,
+        requestId: "c2222222-2222-4222-8222-222222222222",
+        patch: { wellness: { energy: 8 } },
+      },
+    );
+    const journal = await DailyJournal.findOne({ clientId: client.user._id });
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.data.notes.shared).toBe("");
+    expect(journal.trainerIdAtCreation).toBeNull();
+    expect(submitted.status).toBe(403);
+    expect(submitted.body.code).toBe("SELF_MANAGED_JOURNAL_ACTION_FORBIDDEN");
+    expect(await InAppNotification.countDocuments()).toBe(0);
+  });
+
+  it("rejects an idempotent replay after the Fitness+ entitlement expires", async () => {
+    const client = await createTestUser({
+      email: "journal-fitness-expired-replay@example.com",
+    });
+    const subscription = await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_essential",
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+    const dateKey = getVietnamDateKey();
+    const body = {
+      expectedRevision: 0,
+      requestId: "c5555555-5555-4555-8555-555555555555",
+      patch: { wellness: { energy: 7 } },
+    };
+
+    const saved = await putJournal(client.accessToken, dateKey, body);
+    await FitnessSubscription.updateOne(
+      { _id: subscription._id },
+      { $set: { status: "expired" } },
+    );
+    const replay = await putJournal(client.accessToken, dateKey, body);
+
+    expect(saved.status).toBe(200);
+    expect(replay.status).toBe(403);
+    expect(replay.body.code).toBe("JOURNAL_ENTITLEMENT_REQUIRED");
+    expect(await DailyJournalRevision.countDocuments()).toBe(1);
+  });
+
+  it("converts a prior coaching submission to a self-managed draft on save", async () => {
+    const client = await createTestUser({
+      email: "journal-fitness-transition@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_essential",
+      planTitle: "Nền tảng",
+      billingCycle: "month",
+      amount: 99000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+    });
+    const dateKey = getVietnamDateKey();
+    await DailyJournal.create({
+      clientId: client.user._id,
+      trainerIdAtCreation: client.user._id,
+      dateKey,
+      status: "submitted",
+      submittedAt: new Date(),
+      correctionCount: 1,
+      nutrition: { submittedAt: new Date() },
+      wellness: { energy: 5 },
+      revision: 2,
+    });
+
+    const response = await putJournal(client.accessToken, dateKey, {
+      expectedRevision: 2,
+      requestId: "c3333333-3333-4333-8333-333333333333",
+      patch: { wellness: { energy: 9 } },
+    });
+    const journal = await DailyJournal.findOne({ clientId: client.user._id });
+
+    expect(response.status).toBe(200);
+    expect(journal).toMatchObject({
+      status: "draft",
+      submittedAt: null,
+      correctionCount: 0,
+      revision: 3,
+      wellness: { energy: 9 },
+      nutrition: { submittedAt: null },
+    });
+    expect(await InAppNotification.countDocuments()).toBe(0);
   });
 });

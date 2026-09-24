@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { buildSystemPrompt } from "./systemPrompt.js";
 
-export const AI_PROMPT_CONTRACT_VERSION = "2026-08-18.v1";
+export const AI_PROMPT_CONTRACT_VERSION = "2026-09-18.v3";
 
 const corePrompt = buildSystemPrompt();
 export const AI_PROMPT_CONTRACT_HASH = createHash("sha256")

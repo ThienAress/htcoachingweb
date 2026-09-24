@@ -77,10 +77,12 @@ const loadCoachingDays = async (clientId, range) => {
   }));
 };
 
-const loadJournals = async (clientId, range) => {
+const loadJournals = async (clientId, range, accessMode) => {
   const documents = await DailyJournal.find({
     clientId,
-    status: "submitted",
+    ...(accessMode === "self_managed"
+      ? { status: { $in: ["draft", "submitted"] } }
+      : { status: "submitted" }),
     dateKey: { $gte: range.startDateKey, $lte: range.endDateKey },
   })
     .select("dateKey wellness nutrition habitCompletions")
@@ -131,7 +133,13 @@ const loadJournals = async (clientId, range) => {
   });
 };
 
-const loadHabits = async (clientId, range, bounds, trainerId = null) => {
+const loadHabits = async (
+  clientId,
+  range,
+  bounds,
+  trainerId = null,
+  accessMode = "coaching",
+) => {
   const filter = {
     clientId,
     createdAt: { $lt: bounds.end },
@@ -143,6 +151,7 @@ const loadHabits = async (clientId, range, bounds, trainerId = null) => {
       { createdByRole: "user", visibility: "shared" },
     ];
   }
+  if (accessMode === "self_managed") filter.createdByRole = "user";
   const documents = await CoachingHabit.find(filter)
     .select("lineageKey version status schedule createdAt")
     .sort({ createdAt: 1 })
@@ -157,32 +166,43 @@ const loadHabits = async (clientId, range, bounds, trainerId = null) => {
   }));
 };
 
-const loadWeeklyCheckins = async (clientId, range) => {
+const loadWeeklyCheckins = async (clientId, range, accessMode) => {
   const documents = await WeeklyCheckin.find({
     clientId,
     weekStartDateKey: {
       $gte: addDaysToDateKey(range.startDateKey, -14),
       $lte: range.endDateKey,
     },
-    status: { $in: ["submitted", "reviewed"] },
+    ...(accessMode === "self_managed"
+      ? {
+          status: { $in: ["draft", "submitted", "reviewed"] },
+        }
+      : { status: { $in: ["submitted", "reviewed"] } }),
     $or: [
       { "body.weightKg": { $type: "number" } },
       { "body.waistCm": { $type: "number" } },
+      { "body.hipCm": { $type: "number" } },
+      { "body.abdomenCm": { $type: "number" } },
       { "body.bodyFatPercent": { $type: "number" } },
       { "body.skeletalMusclePercent": { $type: "number" } },
     ],
   })
     .select(
-      "weekStartDateKey status body.weightKg body.waistCm body.bodyFatPercent body.skeletalMusclePercent",
+      "weekStartDateKey status body.weightKg body.waistCm body.hipCm body.abdomenCm body.bodyFatPercent body.skeletalMusclePercent",
     )
     .sort({ weekStartDateKey: 1 })
     .limit(MAX_PROGRESS_WEEKLY_CHECKINS)
     .lean();
   return documents.map((item) => ({
     weekStartDateKey: item.weekStartDateKey,
-    status: item.status,
+    status:
+      accessMode === "self_managed" && item.status === "draft"
+        ? "self_saved"
+        : item.status,
     weightKg: item.body?.weightKg,
     waistCm: item.body?.waistCm,
+    hipCm: item.body?.hipCm,
+    abdomenCm: item.body?.abdomenCm,
     bodyFatPercent: item.body?.bodyFatPercent,
     skeletalMusclePercent: item.body?.skeletalMusclePercent,
   }));
@@ -193,6 +213,7 @@ export const loadProgressSources = async ({
   email,
   range,
   trainerId = null,
+  accessMode = "coaching",
 }) => {
   const bounds = utcBounds(range);
   const [
@@ -203,12 +224,12 @@ export const loadProgressSources = async ({
     habits,
     weeklyCheckins,
   ] = await Promise.all([
-    loadSchedules(clientId, range, bounds),
-    loadWorkouts(clientId, email, bounds),
-    loadCoachingDays(clientId, range),
-    loadJournals(clientId, range),
-    loadHabits(clientId, range, bounds, trainerId),
-    loadWeeklyCheckins(clientId, range),
+    accessMode === "self_managed" ? [] : loadSchedules(clientId, range, bounds),
+    accessMode === "self_managed" ? [] : loadWorkouts(clientId, email, bounds),
+    accessMode === "self_managed" ? [] : loadCoachingDays(clientId, range),
+    loadJournals(clientId, range, accessMode),
+    loadHabits(clientId, range, bounds, trainerId, accessMode),
+    loadWeeklyCheckins(clientId, range, accessMode),
   ]);
   return {
     schedules,

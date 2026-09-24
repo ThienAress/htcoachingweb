@@ -1,6 +1,5 @@
 import Order from "../models/Order.js";
 import User from "../models/User.js";
-import { SERVICE_ACCESS_TIERS } from "../constants/serviceAccessPolicies.js";
 import {
   incrementMetric,
   observeMetric,
@@ -11,7 +10,7 @@ import { calculateTodaySummary } from "./todayDashboardSummary.service.js";
 import {
   isJournalDateEditable,
 } from "./dailyJournalAccess.service.js";
-import { resolveServiceAccessCandidates } from "./serviceAccessPolicy.service.js";
+import { resolveCustomerDashboardAccess } from "./customerDashboardAccess.service.js";
 import {
   TODAY_SOURCE_DEFINITIONS,
   errorTodaySection,
@@ -23,19 +22,20 @@ import {
 const id = (value) => (value ? String(value) : null);
 
 export const getTodayProgressPromptEligibility = async (actor) => {
-  const candidates = await resolveServiceAccessCandidates(actor);
-  const tiers = new Set(candidates.map(({ tier }) => tier));
+  const access = await resolveCustomerDashboardAccess(actor);
   return {
     eligible:
-      tiers.has(SERVICE_ACCESS_TIERS.COACHING_CUSTOMER) &&
-      !tiers.has(SERVICE_ACCESS_TIERS.TRAINER) &&
-      !tiers.has(SERVICE_ACCESS_TIERS.ADMIN),
+      access.hasCoaching &&
+      !access.hasTrainerAccess,
+    accessMode: access.accessMode,
+    hasActiveCustomerPlan: access.hasActiveCustomerPlan,
+    hasCoaching: access.hasCoaching,
   };
 };
 
 const resolveEligibility = async (userId) => {
   const [user, orders] = await Promise.all([
-    User.findById(userId).select("email").lean(),
+    User.findById(userId).select("email role").lean(),
     Order.find({ userId })
       .select("_id status sessions trainerId createdAt")
       .sort({ createdAt: -1 })
@@ -50,11 +50,15 @@ const resolveEligibility = async (userId) => {
   }
 
   const email = String(user.email || "").trim().toLowerCase();
+  const dashboardAccess = await resolveCustomerDashboardAccess({
+    id: userId,
+    role: user.role,
+  });
   const orderIds = orders.map((order) => order._id);
   const activeOrder = orders.find(
     (order) => order.status === "approved" && Number(order.sessions) > 0,
   );
-  if (activeOrder) {
+  if (activeOrder && dashboardAccess.accessMode === "coaching") {
     try {
       const assignment = await resolveClientTrainer({ clientId: userId });
       const trainer = await User.findById(assignment.trainerId)
@@ -73,6 +77,7 @@ const resolveEligibility = async (userId) => {
             : null,
         },
         canViewSources: true,
+        accessMode: "coaching",
         email,
         orderIds,
       };
@@ -91,6 +96,7 @@ const resolveEligibility = async (userId) => {
           trainer: null,
         },
         canViewSources: true,
+        accessMode: "coaching",
         email,
         orderIds,
       };
@@ -109,9 +115,23 @@ const resolveEligibility = async (userId) => {
       : hasHistory
         ? "inactive"
         : "never_coached";
+  if (dashboardAccess.accessMode === "self_managed") {
+    return {
+      public: {
+        status: "active",
+        orderId: null,
+        trainer: null,
+      },
+      canViewSources: true,
+      accessMode: "self_managed",
+      email,
+      orderIds,
+    };
+  }
   return {
     public: { status, orderId: null, trainer: null },
-    canViewSources: status === "inactive",
+    canViewSources: false,
+    accessMode: "blocked",
     email,
     orderIds,
   };
@@ -122,20 +142,20 @@ const aggregateSources = async (context) => {
   const names = Object.keys(loaders);
   const results = await Promise.allSettled(Object.values(loaders));
   const partialErrors = [];
-  const sections = Object.fromEntries(
-    results.map((result, index) => {
+  const sections = getEmptyTodaySections();
+  results.forEach((result, index) => {
       const name = names[index];
       if (result.status === "fulfilled") {
-        return [name, readyTodaySection(name, result.value)];
+        sections[name] = readyTodaySection(name, result.value);
+        return;
       }
       incrementMetric("today_dashboard.partial_errors");
       partialErrors.push({
         section: name,
         code: TODAY_SOURCE_DEFINITIONS[name].code,
       });
-      return [name, errorTodaySection(name)];
-    }),
-  );
+      sections[name] = errorTodaySection(name);
+    });
   return { sections, partialErrors };
 };
 
@@ -158,6 +178,7 @@ export const getTodayDashboard = async ({
       orderIds: eligibility.orderIds,
       range: getVietnamDayRangeUtc(dateKey),
       actorScope,
+      includeCoachingSources: eligibility.accessMode === "coaching",
     }));
   }
 
@@ -167,6 +188,7 @@ export const getTodayDashboard = async ({
   );
   const canWriteJournal =
     actorScope === "client" &&
+    eligibility.accessMode !== "blocked" &&
     eligibility.public.status === "active" &&
     process.env.TODAY_JOURNAL_WRITES_ENABLED === "true" &&
     isJournalDateEditable(dateKey) &&
@@ -176,6 +198,7 @@ export const getTodayDashboard = async ({
     sections.journal.day?.status === "draft";
   return {
     contractVersion: 2,
+    accessMode: eligibility.accessMode,
     dateKey,
     timeZone: APP_TIME_ZONE,
     eligibility: eligibility.public,
@@ -203,6 +226,7 @@ export const getTodayDashboard = async ({
       canEditJournal: canWriteJournal,
       canSubmitDay: canWriteJournal && journalIsDraft,
       canComment:
+        eligibility.accessMode === "coaching" &&
         eligibility.public.status === "active" &&
         process.env.TODAY_COMMENT_WRITES_ENABLED === "true",
     },

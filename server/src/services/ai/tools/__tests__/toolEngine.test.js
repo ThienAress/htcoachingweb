@@ -6,13 +6,13 @@ import { getToolSchemas, toolRegistry } from "../toolRegistry.js";
 const originalSearchKnowledge = toolRegistry.search_knowledge.execute;
 const originalSearchKnowledgeConfirmation =
   toolRegistry.search_knowledge.requiresConfirmation;
-const originalSearchExercises = toolRegistry.search_exercises.execute;
+const originalSearchKnowledgeReadOnly = toolRegistry.search_knowledge.readOnly;
 
 afterEach(() => {
   toolRegistry.search_knowledge.execute = originalSearchKnowledge;
   toolRegistry.search_knowledge.requiresConfirmation =
     originalSearchKnowledgeConfirmation;
-  toolRegistry.search_exercises.execute = originalSearchExercises;
+  toolRegistry.search_knowledge.readOnly = originalSearchKnowledgeReadOnly;
 });
 
 describe("AI tool runtime validation", () => {
@@ -23,7 +23,11 @@ describe("AI tool runtime validation", () => {
       isSuccessfulToolResult({ error: null, meta: { internalError: "synthetic" } }),
       isSuccessfulToolResult({ error: "failed" }),
       isSuccessfulToolResult({ error: null, needsConfirmation: true }),
-    ]).toEqual([false, false, false, false, false]);
+      isSuccessfulToolResult({
+        error: null,
+        uiCard: { cardType: "meal", data: { status: "missing_data" } },
+      }),
+    ]).toEqual([false, false, false, false, false, false]);
   });
 
   it("only exposes public, bounded-cost tools to guest chat", () => {
@@ -35,6 +39,65 @@ describe("AI tool runtime validation", () => {
     expect(guestToolNames).not.toContain("get_workout_plan");
     expect(guestToolNames).not.toContain("search_knowledge");
     expect(guestToolNames).toContain("search_blog");
+  });
+
+  it("only exposes web search when the authenticated request route allows it", () => {
+    const allowed = getToolSchemas({
+      isAuthenticated: true,
+      allowWebSearch: true,
+    }).map((schema) => schema.function.name);
+    const blocked = getToolSchemas({
+      isAuthenticated: true,
+      allowWebSearch: false,
+    }).map((schema) => schema.function.name);
+
+    expect({
+      allowed: allowed.includes("search_knowledge"),
+      blocked: blocked.includes("search_knowledge"),
+    }).toEqual({ allowed: true, blocked: false });
+  });
+
+  it("never exposes mutating or confirmation-required tools to the chat model", () => {
+    toolRegistry.search_knowledge.readOnly = false;
+    expect(
+      getToolSchemas({ isAuthenticated: true }).map(
+        (schema) => schema.function.name,
+      ),
+    ).not.toContain("search_knowledge");
+
+    toolRegistry.search_knowledge.readOnly = true;
+    toolRegistry.search_knowledge.requiresConfirmation = true;
+    expect(
+      getToolSchemas({ isAuthenticated: true }).map(
+        (schema) => schema.function.name,
+      ),
+    ).not.toContain("search_knowledge");
+  });
+
+  it("preserves only the canonical web-search outcome across the tool boundary", async () => {
+    toolRegistry.search_knowledge.execute = async () => ({
+      text: "Không có nguồn phù hợp.",
+      uiCard: null,
+      meta: {
+        evidenceAvailable: false,
+        sourceCount: 0,
+        sources: [],
+        searchOutcome: "no_supported_source",
+        unsafeInternalDetail: "must-not-cross",
+      },
+    });
+
+    const result = await executeTool(
+      "search_knowledge",
+      { query: "Ronaldo routine" },
+      { userId: "authenticated-user" },
+    );
+
+    expect(result.meta).toMatchObject({
+      searchOutcome: "no_supported_source",
+      evidenceAvailable: false,
+    });
+    expect(result.meta).not.toHaveProperty("unsafeInternalDetail");
   });
 
   it("rejects a guest-only-disabled tool even when the provider calls it", async () => {
@@ -74,6 +137,46 @@ describe("AI tool runtime validation", () => {
     expect(result.meta.invalidFields).toContain("age");
   });
 
+  it("rejects a sub-800 whole-day meal target at the execution boundary", async () => {
+    const result = await executeTool(
+      "suggest_meal",
+      { targetCalories: 650, proteinGrams: 40, carbGrams: 75, fatGrams: 20, mealsPerDay: 1 },
+      { userId: "authenticated-user", allowedToolNames: ["suggest_meal"] },
+    );
+
+    expect(result.meta.validationFailed).toBe(true);
+    expect(result.meta.invalidFields).toContain("targetCalories");
+  });
+
+  it("enforces the server routing allowlist again at the execution boundary", async () => {
+    const originalExecute = toolRegistry.check_wallet.execute;
+    toolRegistry.check_wallet.execute = () => {
+      throw new Error("executor must not be reached");
+    };
+
+    try {
+      const result = await executeTool(
+        "check_wallet",
+        {},
+        {
+          userId: "authenticated-user",
+          allowedToolNames: ["search_exercises"],
+        },
+      );
+
+      expect(result).toMatchObject({
+        error: null,
+        meta: {
+          toolName: "check_wallet",
+          validationFailed: true,
+          routeBlocked: true,
+        },
+      });
+    } finally {
+      toolRegistry.check_wallet.execute = originalExecute;
+    }
+  });
+
   it("rejects additional properties supplied by the model", async () => {
     const result = await executeTool(
       "search_exercises",
@@ -83,33 +186,6 @@ describe("AI tool runtime validation", () => {
 
     expect(result.meta.validationFailed).toBe(true);
     expect(result.meta.invalidFields).toContain("parameters");
-  });
-
-  it("enforces the server route allowlist at execution time", async () => {
-    const result = await executeTool(
-      "search_blog",
-      { query: "protein" },
-      { allowedToolNames: ["search_exercises"] },
-    );
-
-    expect(result.error).toBeNull();
-    expect(result.meta.routeBlocked).toBe(true);
-  });
-
-  it("preserves read-only evidence metadata for answer-first fallback", async () => {
-    toolRegistry.search_exercises.execute = async () => ({
-      text: "Không tìm thấy bài tập phù hợp.",
-      uiCard: null,
-      meta: { evidenceAvailable: false, resultCount: 0 },
-    });
-
-    const result = await executeTool(
-      "search_exercises",
-      { muscleGroup: "Ngực" },
-      {},
-    );
-
-    expect(result.meta).toMatchObject({ evidenceAvailable: false, resultCount: 0 });
   });
 
   it("times out a tool that does not settle", async () => {

@@ -3,6 +3,14 @@ const plain = (document) =>
     ? document.toObject()
     : document;
 
+export const deriveWeeklyWaistHipRatio = (body = {}) => {
+  const { waistCm, hipCm } = body || {};
+  const valid = (value) => typeof value === "number" && Number.isFinite(value) && value >= 30 && value <= 300;
+  return valid(waistCm) && valid(hipCm)
+    ? Math.round((waistCm / hipCm) * 1000) / 1000
+    : null;
+};
+
 export const toWeeklyCheckinDto = (document) => {
   const value = plain(document);
   if (!value) return null;
@@ -11,7 +19,12 @@ export const toWeeklyCheckinDto = (document) => {
     clientId: value.clientId,
     weekStartDateKey: value.weekStartDateKey,
     timeZone: value.timeZone,
-    body: value.body || {},
+    body: {
+      ...(value.body || {}),
+      hipCm: value.body?.hipCm ?? null,
+      abdomenCm: value.body?.abdomenCm ?? null,
+      waistHipRatio: deriveWeeklyWaistHipRatio(value.body),
+    },
     status: value.status,
     submittedAt: value.submittedAt || null,
     trainerReview: value.trainerReview || null,

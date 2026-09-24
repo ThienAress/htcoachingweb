@@ -6,6 +6,7 @@ import {
   expect,
   it,
 } from "vitest";
+import mongoose from "mongoose";
 
 import {
   clearCollections,
@@ -22,6 +23,7 @@ import TrainerSubscription from "../../models/TrainerSubscription.js";
 import FitnessSubscription from "../../models/FitnessSubscription.js";
 import {
   resolveRequestServicePolicy,
+  resolveServiceAccessCandidates,
   resolveServiceAccessTier,
   getAdminServiceAccessPolicyMatrix,
 } from "../serviceAccessPolicy.service.js";
@@ -251,6 +253,39 @@ describe("resolveServiceAccessTier", () => {
     expect(
       await resolveServiceAccessTier({ id: user._id, role: "user" }),
     ).toBe(SERVICE_ACCESS_TIERS.COACHING_CUSTOMER);
+  });
+
+  it("resolves entitlement safely when it is the first operation in a transaction", async () => {
+    const { user } = await createTestUser({
+      email: "tier-transaction-safe@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: user._id,
+      planCode: SERVICE_ACCESS_TIERS.FITNESS_PLUS_SMART,
+      planTitle: "Tăng tốc",
+      billingCycle: "month",
+      amount: 199000,
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 86_400_000),
+      status: "active",
+      isActive: true,
+    });
+    const session = await mongoose.startSession();
+    let candidates;
+    try {
+      await session.withTransaction(async () => {
+        candidates = await resolveServiceAccessCandidates(
+          { id: user._id, role: "user" },
+          { session },
+        );
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    expect(candidates.map(({ tier }) => tier)).toContain(
+      SERVICE_ACCESS_TIERS.FITNESS_PLUS_SMART,
+    );
   });
 
   it("selects the strongest active entitlement for each service", async () => {

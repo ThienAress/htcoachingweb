@@ -13,6 +13,8 @@ import { getCheckinHistory } from "./getCheckinHistory.tool.js";
 import { getTrainingSchedule } from "./getTrainingSchedule.tool.js";
 import { getGymInfo } from "./getGymInfo.tool.js";
 
+export const SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS = 300;
+
 const validateTdeeTrainingEvidence = (parameters) => {
   const noTraining = parameters.trainingFrequency === "none";
   const noDuration = parameters.trainingDuration === "none";
@@ -29,7 +31,7 @@ const validateMealCalorieScope = (parameters) => {
   const perMeal = parameters.calorieScope === "per_meal";
   const calories = Number(parameters.targetCalories);
   if (!Number.isFinite(calories)) return [];
-  if ((!perMeal && calories < 800) || (perMeal && parameters.mealsPerDay !== 1)) {
+  if ((!perMeal && calories < 800) || (perMeal && parameters.mealsPerDay != null && parameters.mealsPerDay !== 1)) {
     return ["targetCalories", ...(perMeal ? ["mealsPerDay"] : [])];
   }
   return [];
@@ -121,6 +123,7 @@ export const toolRegistry = {
       properties: {
         muscleGroup: { type: "string", minLength: 1, maxLength: 50, description: "Nhóm cơ muốn tìm. VD: Ngực, Lưng, Chân, Vai, Tay, Bụng" },
         searchQuery: { type: "string", minLength: 1, maxLength: 100, description: "Tên bài tập muốn tìm. VD: plank, squat, bench press" },
+        exerciseName: { type: "string", minLength: 1, maxLength: 100, description: "Tên bài cụ thể đã được nêu, tách khỏi nhóm cơ và giới hạn thiết bị." },
         limit: { type: "integer", minimum: 1, maximum: 10, description: "Số lượng kết quả tối đa (mặc định 5)" },
       },
     },
@@ -141,21 +144,44 @@ export const toolRegistry = {
       type: "object",
       additionalProperties: false,
       properties: {
-        targetCalories: { type: "number", minimum: 500, maximum: 6000, description: "Calo mục tiêu; 500-799 chỉ dùng cho một bữa rõ ràng" },
-        calorieScope: { type: "string", enum: ["per_day", "per_meal"], description: "Phạm vi target kcal" },
+        targetCalories: { type: "number", minimum: 500, maximum: 6000, description: "Calo mục tiêu. Mặc định là tổng mỗi ngày (tối thiểu 800); chỉ có thể dùng 500-799 khi calorieScope=per_meal." },
+        calorieScope: { type: "string", enum: ["per_day", "per_meal"], description: "per_day mặc định. per_meal chỉ khi user yêu cầu rõ một bữa cụ thể; không dùng để hạ mục tiêu cả ngày." },
         proteinGrams: { type: "number", minimum: 0, maximum: 500, description: "Gram protein mục tiêu" },
         carbGrams: { type: "number", minimum: 0, maximum: 1000, description: "Gram carb mục tiêu" },
         fatGrams: { type: "number", minimum: 0, maximum: 300, description: "Gram fat mục tiêu" },
         mealsPerDay: { type: "integer", minimum: 1, maximum: 6, description: "Số bữa ăn mỗi ngày (1-6, mặc định 3)" },
-        targetToleranceCalories: { type: "number", minimum: 0, maximum: 300, description: "Sai số kcal tối đa" },
-        minimumProteinGrams: { type: "number", minimum: 0, maximum: 500, description: "Protein tối thiểu" },
-        excludedFoods: { type: "array", maxItems: 12, items: { type: "string", minLength: 1, maxLength: 100 } },
-        excludedAllergens: { type: "array", maxItems: 9, uniqueItems: true, items: { type: "string", enum: ["milk", "egg", "fish", "crustacean_shellfish", "tree_nut", "peanut", "wheat", "soy", "sesame"] } },
-        lactoseFree: { type: "boolean" },
-        requirePackageLabelSafety: { type: "boolean" },
-        budgetVndPerDay: { type: "integer", minimum: 30000, maximum: 2000000 },
-        allowedAdjustmentFoodIds: { type: "array", maxItems: 20, uniqueItems: true, items: { type: "string", minLength: 1, maxLength: 100 } },
-        allowedAdjustmentFoodNames: { type: "array", maxItems: 20, uniqueItems: true, items: { type: "string", minLength: 1, maxLength: 120 } },
+        targetToleranceCalories: { type: "number", minimum: 0, maximum: 300, description: "Sai số kcal tối đa chấp nhận được; mặc định 100 kcal" },
+        minimumProteinGrams: { type: "number", minimum: 0, maximum: 500, description: "Protein tối thiểu bắt buộc; mặc định bằng proteinGrams" },
+        excludedFoods: {
+          type: "array",
+          maxItems: 12,
+          items: { type: "string", minLength: 1, maxLength: 100 },
+          description: "Thực phẩm cần loại trừ. Chỉ dùng khi user nêu rõ.",
+        },
+        excludedAllergens: {
+          type: "array",
+          maxItems: 9,
+          uniqueItems: true,
+          items: { type: "string", enum: ["milk", "egg", "fish", "crustacean_shellfish", "tree_nut", "peanut", "wheat", "soy", "sesame"] },
+          description: "Dị ứng cần loại trừ; tool chỉ dùng Food đã kiểm duyệt metadata.",
+        },
+        lactoseFree: { type: "boolean", description: "Loại trừ thực phẩm có sữa; chỉ dùng khi user yêu cầu không lactose." },
+        requirePackageLabelSafety: { type: "boolean", description: "Chỉ true khi user yêu cầu xác minh an toàn ở cấp nhãn/sản phẩm hoặc không nhiễm chéo; thiếu nguồn nhãn phải fail closed." },
+        budgetVndPerDay: { type: "integer", minimum: 30000, maximum: 2000000, description: "Ngân sách VND/ngày; chỉ công bố đạt ngân sách khi dữ liệu giá đủ nguồn." },
+        allowedAdjustmentFoodIds: {
+          type: "array",
+          maxItems: 20,
+          uniqueItems: true,
+          items: { type: "string", minLength: 1, maxLength: 100 },
+          description: "Follow-up scope: chỉ điều chỉnh gram của các Food ID canonical này.",
+        },
+        allowedAdjustmentFoodNames: {
+          type: "array",
+          maxItems: 20,
+          uniqueItems: true,
+          items: { type: "string", minLength: 1, maxLength: 120 },
+          description: "Follow-up scope dự phòng: chỉ điều chỉnh gram của tên món canonical này.",
+        },
       },
       required: ["targetCalories", "proteinGrams", "carbGrams", "fatGrams"],
     },
@@ -189,14 +215,13 @@ export const toolRegistry = {
   search_knowledge: {
     name: "search_knowledge",
     description:
-      "Tra cứu thông tin thực tế từ internet bằng Google Search. " +
-      "⚠️ CHỈ GỌI KHI: thông tin KHÔNG có trong phần 'Kiến thức đã verified' ở system prompt. " +
-      "Nếu system prompt đã có câu trả lời → DÙNG NGAY, KHÔNG gọi tool này. " +
-      "GỌI KHI: user hỏi dữ liệu mới/có thể thay đổi, yêu cầu nguồn, hoặc thông tin cụ thể " +
-      "mà model không đủ chắc chắn và không tìm thấy trong kiến thức verified. " +
-      "VÍ DỤ nên gọi: 'Mr. Olympia 2024 ai thắng', 'bài nghiên cứu mới về creatine'. " +
-      "KHÔNG GỌI KHI: câu hỏi đã được trả lời bởi KB, kiến thức gym phổ thông, " +
-      "hoặc tiểu sử ổn định mà model biết chắc.",
+      "Tra cứu bằng chứng web công khai cho mọi chủ đề an toàn. " +
+      "CHỈ GỌI khi routing của server ghi web_required và function này được cung cấp; " +
+      "gọi tối đa đúng 1 lần trong request. Dùng cho dữ liệu mới/có thể thay đổi, " +
+      "yêu cầu nguồn, nghiên cứu/số liệu hoặc claim về thói quen, thành tích, phát ngôn của người thật. " +
+      "KHÔNG GỌI cho general knowledge ổn định, dữ kiện HTCOACHING/KB đã được cung cấp, " +
+      "hoặc kỹ thuật bài tập đã có tool nội bộ. Không có nguồn nghĩa là chưa thể xác minh, " +
+      "không được fallback sang trí nhớ model để khẳng định.",
     parameters: {
       type: "object",
       additionalProperties: false,
@@ -204,7 +229,7 @@ export const toolRegistry = {
         query: {
           type: "string",
           minLength: 2,
-          maxLength: 300,
+          maxLength: SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS,
           description: "Câu truy vấn tìm kiếm. Viết rõ ràng, đầy đủ ngữ cảnh. VD: 'Chris Bumstead Mr Olympia thành tích các năm', 'Đăng béo influencer fitness Việt Nam là ai'",
         },
       },
@@ -391,11 +416,17 @@ export const toolRegistry = {
 };
 
 // Lấy danh sách tool schemas cho LLM API (OpenAI/Gemini format)
-export function getToolSchemas({ isAuthenticated = true } = {}) {
+export function getToolSchemas({
+  isAuthenticated = true,
+  allowWebSearch = true,
+} = {}) {
   return Object.values(toolRegistry)
     .filter(
       (tool) =>
-        isAuthenticated || (!tool.requiresAuth && tool.guestEnabled !== false),
+        tool.readOnly === true &&
+        tool.requiresConfirmation !== true &&
+        (isAuthenticated || (!tool.requiresAuth && tool.guestEnabled !== false)) &&
+        (allowWebSearch || tool.name !== "search_knowledge"),
     )
     .map((tool) => ({
       type: "function",

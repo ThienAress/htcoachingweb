@@ -1,5 +1,10 @@
 # Spec: Báo cáo coaching, điều hướng tiến trình và thông báo đúng ngữ cảnh
 
+> Phần bốn số đo của release này được mở rộng bởi Plan 087 và
+> [spec kết quả đo thành phần cơ thể](./brand-system-and-body-assessments.md):
+> thêm hông/bụng optional, nhóm form và mục published assessment riêng.
+> Lifecycle/correction/consent của báo cáo cũ không đổi.
+
 ## Objective
 
 Tinh gọn báo cáo tuần thành dữ liệu cơ thể có thể đo, làm thang tự đánh giá sức khỏe dễ hiểu,
