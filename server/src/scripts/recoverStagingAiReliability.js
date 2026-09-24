@@ -41,6 +41,7 @@ export const validateReliabilityRecoveryConfig = (env, intent) => {
   if (databaseName(env.MONGO_URI) !== "htcoaching_staging") add("DATABASE_EXACT");
   if (env.CLIENT_URL !== EXPECTED_CLIENT_URL) add("CLIENT_URL_EXACT");
   if (env.PUBLIC_API_ORIGIN !== EXPECTED_API_ORIGIN) add("PUBLIC_API_ORIGIN_EXACT");
+  if (env.CONFIRM_STAGING_AI_RELIABILITY_RECOVERY !== "yes") add("CONFIRMATION_EXACT");
   if (!SHA.test(env.RENDER_GIT_COMMIT || "") || env.RENDER_GIT_COMMIT !== intent.releaseSha) add("RENDER_GIT_COMMIT_INTENT_EXACT");
   if (env.RELEASE_SHA !== intent.releaseSha) add("RELEASE_SHA_INTENT_EXACT");
   return { valid: findings.length === 0, findings };
@@ -60,7 +61,7 @@ export const recoverStagingAiReliability = async ({ env = process.env, intent: r
   if (!db || db.databaseName !== "htcoaching_staging") throw fail("STAGING_AI_RELIABILITY_RECOVERY_DATABASE_INVALID");
   const available = await availableCollections(db);
   const control = available.has("staging_ai_acceptance_claims") ? db.collection("staging_ai_acceptance_claims") : null;
-  if (control && await control.findOne({ runId: intent.runId, recordType: { $in: ["capability", "run"] } })) {
+  if (control && await control.findOne({ $or: [{ runId: intent.runId }, { _id: intent.runId }] })) {
     throw fail("STAGING_AI_RELIABILITY_RECOVERY_CONTROL_RESIDUE");
   }
   const userFilter = { _id: { $in: [new mongoose.Types.ObjectId(intent.userId), new mongoose.Types.ObjectId(intent.adminUserId)] } };
