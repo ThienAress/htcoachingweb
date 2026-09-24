@@ -235,6 +235,8 @@ test("Netlify staging always builds an exact release SHA", async () => {
 
   assert.ok(staging, "netlify.toml must define the exact staging deploy context");
   assert.match(staging, /^\s*ignore = "exit 1"$/m);
+  assert.match(config, /\[context\.staging\.environment\][\s\S]*?NODE_VERSION = "22\.23\.1"/);
+  assert.match(config, /environment\s*=\s*\{\s*NODE_VERSION\s*=\s*"22\.23\.1"\s*\}/);
 });
 
 test("legacy AC-009 recovery is manual, staging-only and retains provider proof", async () => {
