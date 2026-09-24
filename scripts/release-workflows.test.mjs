@@ -125,6 +125,8 @@ test("staging live acceptance is explicitly write-enabled only behind staging lo
   assert.match(workflow, /\.github\/workflows\/ci\.yml/);
   assert.match(safety, /const STAGING_DATABASE = "htcoaching_staging"/);
   assert.match(safety, /STAGING_OPERATION_DATABASE_REQUIRED/);
+  assert.match(workflow, /uses: actions\/checkout@v5[\s\S]*?ref: staging/);
+  assert.match(workflow, /test "\$\(git rev-parse HEAD\)" = "\$RELEASE_SHA"/);
 });
 
 test("staging release recovery gate runs before any write-enabled acceptance", async () => {
