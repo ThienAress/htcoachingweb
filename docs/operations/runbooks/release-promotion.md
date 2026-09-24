@@ -111,6 +111,18 @@ toàn bộ closed schema không chứa secret) để kiểm tra residue, rồi d
 dùng query rộng. Chỉ rerun sau khi cleanup verifier trả 0. Chạy thủ công, trong
 đúng môi trường staging và chỉ khi SHA của deploy vẫn khớp intent:
 
+Với Plan 092 reliability round, dùng intent tương ứng và CLI bounded sau khi
+xác minh đúng SHA/origin/database. CLI chỉ xóa đúng hai synthetic actor cùng
+các collection theo `userId`, giữ nguyên foreign data, và fail closed khi còn
+active stream hoặc control residue:
+
+```powershell
+$env:CONFIRM_STAGING_AI_RELIABILITY_RECOVERY = "yes"
+$env:STAGING_AI_RELIABILITY_RECOVERY_INTENT = "../artifacts/staging-ai-reliability-recovery-round-1.json"
+$env:STAGING_AI_RELIABILITY_RECOVERY_REPORT_OUTPUT = "../artifacts/staging-ai-reliability-recovery-report-round-1.json"
+npm run recover:acceptance:staging:ai:reliability --prefix server
+```
+
 Nếu runner mất file trước bước upload artifact, mở log của step AI acceptance và
 copy nguyên một dòng JSON bắt đầu bằng
 `{"schemaVersion":1,"kind":"staging-ai-chat-recovery-intent"` vào

@@ -127,6 +127,7 @@
     "acceptance:staging": "node src/scripts/stagingAcceptance.js",
     "acceptance:staging:ai": "node src/scripts/stagingAiChatAcceptance.js",
     "acceptance:staging:ai:reliability": "node src/scripts/stagingAiReliabilityAcceptance.js",
+    "recover:acceptance:staging:ai:reliability": "node src/scripts/recoverStagingAiReliability.js",
     "verify:acceptance:staging:ai:fixture-rejection": "node src/scripts/stagingAiChatAcceptance.rejectionEvidence.js",
     "recover:acceptance:staging:ai": "node src/scripts/stagingAiChatAcceptance.recover.js",
     "integrations:staging": "node src/scripts/stagingIntegrations.js",
