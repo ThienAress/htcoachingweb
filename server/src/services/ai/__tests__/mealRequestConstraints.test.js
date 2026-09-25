@@ -3,6 +3,19 @@ import { describe, expect, it } from "vitest";
 import { buildCanonicalMealToolRequest } from "../mealRequestConstraints.js";
 
 describe("single-meal calorie scope", () => {
+  it("derives flexible macros for the 500 kcal breakfast when only minimum protein is specified", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Gợi ý cho tôi một bữa sáng món Việt khoảng 500 kcal, tối thiểu 30g protein và dễ chuẩn bị",
+    );
+    expect(request.args).toMatchObject({
+      targetCalories: 500, calorieScope: "per_meal", mealsPerDay: 1,
+      proteinGrams: 30, minimumProteinGrams: 30,
+    });
+    expect(request.args.carbGrams).toBeGreaterThan(0);
+    expect(request.args.fatGrams).toBeGreaterThan(0);
+    expect(Math.abs(4 * request.args.proteinGrams + 4 * request.args.carbGrams +
+      9 * request.args.fatGrams - 500)).toBeLessThanOrEqual(1);
+  });
   it('starts a fresh dinner without inheriting whole-day macros/count', () => {
     const request = buildCanonicalMealToolRequest('Cho tôi một bữa tối 650 kcal, 40g protein, 75g carb và 20g fat', {}, {
       calorieScope: 'per_day', targetCalories: 2200, proteinGrams: 170,

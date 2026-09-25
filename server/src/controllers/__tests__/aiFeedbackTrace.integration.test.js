@@ -278,6 +278,52 @@ describe("AI answer trace and feedback review", () => {
     expect(streamedText).toContain("SERVER_DIRECT_MEAL");
   });
 
+  it("saves the same complete breakfast card that it streams for a 500 kcal request", async () => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "Bữa sáng 500 kcal với ít nhất 30g protein.",
+      uiCard: { cardType: "meal", data: { status: "complete", totals: {
+        protein: 30, carb: 52.3, fat: 19, calories: 500,
+      }, meals: [{ label: "Bữa sáng", foods: [] }] } },
+    });
+    llmStreamMock.mockImplementation(() => { throw new Error("chat model must not run"); });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Gợi ý cho tôi một bữa sáng món Việt khoảng 500 kcal, tối thiểu 30g protein và dễ chuẩn bị",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de110",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const card = conversation.messages.find((item) => item.uiCard?.cardType === "meal")?.uiCard;
+    const streamedCard = response.text
+      .split("\n\n")
+      .filter((event) => event.startsWith("data: "))
+      .map((event) => JSON.parse(event.slice(6)))
+      .find((event) => event.type === "ui_card" && event.cardType === "meal");
+    expect(response.status).toBe(200);
+    expect(toolRegistry.suggest_meal.execute).toHaveBeenCalledTimes(1);
+    expect(llmStreamMock).not.toHaveBeenCalled();
+    expect(card).toMatchObject({ cardType: "meal", data: { status: "complete" } });
+    expect({ cardType: streamedCard?.cardType, data: streamedCard?.data }).toEqual({
+      cardType: card.cardType, data: card.data,
+    });
+  });
+
+  it("persists a missing-data card when a required meal tool was not called", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* noMealTool() {
+      yield { type: "text", content: "MODEL_UNVERIFIED_MEAL" };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Gợi ý thực đơn 2.000 kcal cho tôi",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de111",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const card = conversation.messages.find((item) => item.uiCard?.cardType === "meal")?.uiCard;
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('"reason":"required_tool_not_called"');
+    expect(card?.data?.reason).toBe("required_tool_not_called");
+    expect(conversation.messages.some((item) => item.role === "tool")).toBe(false);
+  });
+
   it("uses the TDEE intake form instead of accepting model prose", async () => {
     const { user, accessToken } = await createTestUser();
     llmStreamMock.mockImplementationOnce(() => {

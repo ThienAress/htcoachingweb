@@ -223,11 +223,14 @@ export const buildCanonicalMealToolRequest = (
     selectNumber(modelArgs.fatGrams, 0, 300) ??
     selectNumber(previous.fatGrams, 0, 300);
   const scope = adjustmentScope(text, previous.plan);
+  const completeSingleMealMacros = calorieScope === "per_meal" &&
+    Number.isFinite(targetCalories) && proteinGrams > 0 &&
+    suppliedCarb === undefined && suppliedFat === undefined;
   const shouldRebalance = calorieScope !== "per_meal" &&
     !scope.scopedAdjustment &&
     requestedCalories.value !== null &&
     requestedCalories.value !== modelTargetCalories;
-  const balanced = shouldRebalance
+  const balanced = shouldRebalance || completeSingleMealMacros
     ? balanceFlexibleMacros(
         targetCalories,
         proteinGrams,
