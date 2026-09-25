@@ -1015,6 +1015,7 @@ export const chatStream = async (req, res) => {
     abortController.abort(new Error("AI response deadline exceeded"));
   }, CHAT_DEADLINE_MS);
   const generatedMessages = [];
+  let responseUiCard = null;
   let conversationMemory = deriveConversationMemory(
     conversation.messages,
     conversation.workingMemory,
@@ -2058,6 +2059,7 @@ export const chatStream = async (req, res) => {
             res.write(
               `data: ${JSON.stringify({ type: "ui_card", ...missing.uiCard })}\n\n`,
             );
+            responseUiCard = missing.uiCard;
           }
           fullResponse = await deliverAssistantResponse(
             enforceEvidenceBoundary(missing.text),
@@ -2096,6 +2098,7 @@ export const chatStream = async (req, res) => {
           res.write(
             `data: ${JSON.stringify({ type: "ui_card", ...missing.uiCard })}\n\n`,
           );
+          responseUiCard = missing.uiCard;
         }
         fullResponse = await deliverAssistantResponse(
           enforceEvidenceBoundary(missing.text),
@@ -2315,6 +2318,7 @@ export const chatStream = async (req, res) => {
       generatedMessages.push({
         role: "assistant",
         content: fullResponse,
+        uiCard: responseUiCard,
         answerTrace: buildAnswerTrace(),
         timestamp: new Date(),
       });
@@ -2456,6 +2460,7 @@ export const chatStream = async (req, res) => {
             fullResponse,
             MAX_ASSISTANT_RESPONSE_CHARACTERS,
           ),
+          uiCard: responseUiCard,
           answerTrace: buildAnswerTrace(),
           timestamp: new Date(),
         });
