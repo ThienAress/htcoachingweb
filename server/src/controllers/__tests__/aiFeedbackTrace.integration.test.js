@@ -44,6 +44,7 @@ import ChatConversation from "../../models/ChatConversation.js";
 import Exercise from "../../models/Exercise.js";
 import { toolRegistry } from "../../services/ai/tools/toolRegistry.js";
 import { evaluateSemanticOutput } from "../../services/ai/evals/semanticOutputEvaluator.js";
+import { getPublicPersonLookupNames, prepareExternalKnowledgeQuery } from "../../services/ai/knowledgePrivacy.js";
 import { chatStream } from "../ai.controller.js";
 
 let app;
@@ -2450,6 +2451,35 @@ describe("AI answer trace and feedback review", () => {
         ],
       },
     });
+  });
+
+  it("keeps the privacy-approved canonical source query for a long public-person workout request", async () => {
+    const { user, accessToken } = await createTestUser();
+    vi.stubEnv("GEMINI_API_KEY", "synthetic-test-key");
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      '{"candidates":[{"content":{"parts":[{"text":"No supported source"}]}}]}',
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy liệt kê những bài tập hoặc kiểu buổi tập từng được ghi nhận là anh ấy thực hiện. Tách rõ: (1) thông tin có nguồn xác minh, (2) phần chỉ là gợi ý bài tập lấy cảm hứng từ anh ấy. Đính kèm nguồn và không bịa một lịch tập chính xác nếu không có bằng chứng.",
+      requestId: "f2b62bbf-6d47-4621-9da2-eef5ddd55127",
+    });
+    const providerQuery = JSON.parse(fetchMock.mock.calls[0][1].body)
+      .contents[0].parts[0].text;
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const message = "Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy liệt kê những bài tập hoặc kiểu buổi tập từng được ghi nhận là anh ấy thực hiện. Tách rõ: (1) thông tin có nguồn xác minh, (2) phần chỉ là gợi ý bài tập lấy cảm hứng từ anh ấy. Đính kèm nguồn và không bịa một lịch tập chính xác nếu không có bằng chứng.";
+    expect(providerQuery).toBe(prepareExternalKnowledgeQuery(message, {
+      allowedPublicPersonNames: getPublicPersonLookupNames(message),
+    }).query.slice(0, 300));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).generationConfig.thinkingConfig)
+      .toEqual({ thinkingBudget: 0 });
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "web_required",
+      webSearchOutcome: "no_supported_source" });
+    expect(answer.content).toMatch(/chưa thể xác minh.*nguồn/i);
   });
 
   it("distinguishes a provider error from a source-free grounded search", async () => {
