@@ -35,7 +35,7 @@ export const providerDelta = (before, after, releaseSha) => {
 };
 
 export const buildSafeReliabilityEvidence = (state) => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   kind: "staging-ai-reliability-acceptance",
   releaseSha: SHA.test(state.releaseSha || "") ? state.releaseSha : null,
   runId: UUID.test(state.runId || "") ? state.runId : null,

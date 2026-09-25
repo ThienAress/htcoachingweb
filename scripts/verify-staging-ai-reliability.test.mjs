@@ -44,7 +44,7 @@ const round = (index) => {
   prompts.find((item) => item.number === 6).conversationId = prompts.find((item) => item.number === 11).conversationId;
   prompts.find((item) => item.number === 8).conversationId = prompts.find((item) => item.number === 7).conversationId;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind: "staging-ai-reliability-acceptance",
     releaseSha: SHA,
     runId: uuid(index),
@@ -102,6 +102,7 @@ test("accepts Q8 only with the exact unavailable constraint proof", () => {
   for (const evidence of [first, second]) {
     const q8 = evidence.prompts.find((item) => item.number === 8);
     q8.semanticOutcome = "constraint_unavailable";
+    q8.tools = [{ name: "suggest_meal", status: "success" }];
     q8.constraintProof = {
       reason: "scoped_adjustment_food_absent",
       priorPlanFingerprint: "a".repeat(64),
@@ -116,6 +117,9 @@ test("accepts Q8 only with the exact unavailable constraint proof", () => {
   assert.throws(() => verifyStagingAiReliabilityRounds(first, second, SHA));
   first.prompts.find((item) => item.number === 8).constraintProof.planPreserved = true;
   first.prompts.find((item) => item.number === 8).constraintProof.afterPlanFingerprint = "b".repeat(64);
+  assert.throws(() => verifyStagingAiReliabilityRounds(first, second, SHA));
+  first.prompts.find((item) => item.number === 8).constraintProof.afterPlanFingerprint = "a".repeat(64);
+  first.prompts.find((item) => item.number === 8).tools = [];
   assert.throws(() => verifyStagingAiReliabilityRounds(first, second, SHA));
 });
 

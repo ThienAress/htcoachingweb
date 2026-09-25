@@ -85,6 +85,9 @@ const validatePrompt = (prompt, planned, name) => {
   assert(prompt.semanticPassed === true && prompt.persisted === true, `${name} was not accepted`);
   if (prompt.semanticOutcome === "constraint_unavailable") {
     assert(prompt.number === 8, `${name} used unavailable outcome outside Q8`);
+    assert(prompt.tools.length === 1 && prompt.tools[0].name === "suggest_meal" &&
+      prompt.tools[0].status === "success" && prompt.webSearchOutcome === "not_called",
+    `${name} did not observe the exact scoped meal tool outcome`);
     exactKeys(prompt.constraintProof, ["reason", "priorPlanFingerprint", "afterPlanFingerprint", "planPreserved"],
       `${name} constraint proof`);
     assert(prompt.constraintProof.reason === "scoped_adjustment_food_absent" &&
@@ -104,7 +107,7 @@ const validateRound = (evidence, expectedSha, index, plan) => {
     "schemaVersion", "kind", "releaseSha", "runId", "status", "startedAt",
     "completedAt", "runtimeFingerprint", "syntheticIds", "prompts", "cleanup",
   ], name);
-  assert(evidence.schemaVersion === 1 && evidence.kind === "staging-ai-reliability-acceptance" &&
+  assert(evidence.schemaVersion === 2 && evidence.kind === "staging-ai-reliability-acceptance" &&
     evidence.status === "passed", `${name} did not pass`);
   assert(evidence.releaseSha === expectedSha && UUID.test(evidence.runId), `${name} identity is invalid`);
   assert(HEX64.test(evidence.runtimeFingerprint), `${name} runtime fingerprint is invalid`);
