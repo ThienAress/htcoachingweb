@@ -6,7 +6,7 @@ import path from "node:path";
 import { reliabilityPlan } from "../stagingAiReliabilityAcceptance.plan.js";
 import { readChatSse } from "../stagingAiReliabilityAcceptance.http.js";
 import { buildSafeReliabilityEvidence } from "../stagingAiReliabilityAcceptance.evidence.js";
-import { assertReliabilityConfig, reliabilityCardsEqual, runStagingAiReliabilityAcceptance } from "../stagingAiReliabilityAcceptance.js";
+import { assertReliabilityConfig, assertReliabilityRuntimeRoute, reliabilityCardsEqual, runStagingAiReliabilityAcceptance } from "../stagingAiReliabilityAcceptance.js";
 
 const SHA = "a".repeat(40);
 const OID = "a".repeat(24);
@@ -40,6 +40,23 @@ const sse = (events, headers = { "content-type": "text/event-stream" }) =>
   new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers });
 
 describe("one-round reliability acceptance", () => {
+  test("accepts model prior only for low-risk fitness KB misses without a required tool", () => {
+    const plan = reliabilityPlan()[2];
+    const trace = { routeDomain: "fitness", evidenceMode: "model_prior", kbEntryIds: [],
+      webSearchUsed: false, webSearchOutcome: "not_called" };
+    expect(() => assertReliabilityRuntimeRoute(trace, plan)).not.toThrow();
+    for (const invalid of [
+      { ...trace, routeDomain: "general" },
+      { ...trace, kbEntryIds: [OID] },
+      { ...trace, webSearchUsed: true },
+      { ...trace, webSearchOutcome: "grounded" },
+    ]) {
+      expect(() => assertReliabilityRuntimeRoute(invalid, plan))
+        .toThrowError("STAGING_AI_RELIABILITY_ROUTE_FAILED");
+    }
+    expect(() => assertReliabilityRuntimeRoute(trace, reliabilityPlan()[1]))
+      .toThrowError("STAGING_AI_RELIABILITY_ROUTE_FAILED");
+  });
   test("compares persisted cards semantically despite object key order", () => {
     expect(reliabilityCardsEqual(
       { cardType: "meal", data: { totals: { protein: 120, calories: 2200 }, status: "complete" } },

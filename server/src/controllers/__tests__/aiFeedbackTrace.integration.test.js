@@ -111,6 +111,27 @@ afterAll(async () => {
 });
 
 describe("AI answer trace and feedback review", () => {
+  it("traces a low-risk four-day workout as model prior after a KB miss", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* workoutFromPrior() {
+      yield { type: "text", content:
+        "Buổi 1: Upper 45 phút. Buổi 2: Lower 45 phút. Buổi 3: Upper 45 phút. Buổi 4: Lower 45 phút." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Hãy tạo lịch tập tăng cơ 4 ngày mỗi tuần, mỗi buổi tối đa 60 phút",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de112",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(searchKnowledgeBaseMock).toHaveBeenCalled();
+    expect(answer.answerTrace).toMatchObject({
+      routeDomain: "fitness", evidenceMode: "model_prior", kbEntryIds: [],
+      webSearchUsed: false, webSearchOutcome: "not_called",
+    });
+    expect(conversation.messages.some((item) => item.role === "tool" || item.uiCard)).toBe(false);
+  });
+
   it("treats a complete meal tool result as the final answer authority", async () => {
     const { user, accessToken } = await createTestUser();
     toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
