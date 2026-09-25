@@ -65,6 +65,16 @@ export const buildSafeReliabilityEvidence = (state) => ({
     latencyMs: Number.isSafeInteger(item.latencyMs) && item.latencyMs >= 0 ? item.latencyMs : null,
     semanticPassed: item.semanticPassed === true,
     persisted: item.persisted === true,
+    semanticOutcome: item.semanticOutcome === "constraint_unavailable" ? "constraint_unavailable" : "complete",
+    constraintProof: item.constraintProof?.reason === "scoped_adjustment_food_absent" &&
+      HEX64.test(item.constraintProof?.priorPlanFingerprint || "") &&
+      item.constraintProof?.afterPlanFingerprint === item.constraintProof?.priorPlanFingerprint &&
+      item.constraintProof?.planPreserved === true
+      ? { reason: "scoped_adjustment_food_absent",
+        priorPlanFingerprint: item.constraintProof.priorPlanFingerprint,
+        afterPlanFingerprint: item.constraintProof.afterPlanFingerprint,
+        planPreserved: true }
+      : null,
   })),
   cleanup: state.cleanup && {
     verified: state.cleanup.verified === true,

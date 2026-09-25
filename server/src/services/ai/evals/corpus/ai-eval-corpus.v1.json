@@ -213,7 +213,7 @@
       "expected": {
         "rules": [
           { "type": "meal_numeric", "targetCalories": 2200, "toleranceCalories": 100, "minimumProteinGrams": 170 },
-          { "type": "scoped_meal_adjustment", "allowedFoodIds": ["rice", "oil"] }
+          { "type": "scoped_meal_adjustment", "allowedFoodIds": ["rice", "oil"], "allowedFoodNames": ["Cơm trắng", "Dầu ô liu"] }
         ]
       }
     },

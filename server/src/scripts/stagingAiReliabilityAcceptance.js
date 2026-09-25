@@ -37,6 +37,30 @@ const canonicalJson = (value) => Array.isArray(value)
     : JSON.stringify(value);
 
 export const reliabilityCardsEqual = (left, right) => canonicalJson(left) === canonicalJson(right);
+const mealPlanFingerprint = (plan) => crypto.createHash("sha256")
+  .update(canonicalJson(plan)).digest("hex");
+const normalizedFoodName = (value) => String(value || "")
+  .normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/giu, "d").toLowerCase();
+
+export const assertScopedMealUnavailable = ({ priorPlan, currentPlan, card, text }) => {
+  check(priorPlan?.status === "complete" && Array.isArray(priorPlan.meals) &&
+    priorPlan.meals.length > 0, "STAGING_AI_RELIABILITY_SCOPED_PLAN_INVALID");
+  const foods = priorPlan.meals.flatMap((meal) => meal?.foods || []);
+  check(foods.length > 0 && foods.every((food) => typeof food?.name === "string"),
+    "STAGING_AI_RELIABILITY_SCOPED_PLAN_INVALID");
+  if (foods.some((food) => /\b(?:com|dau)\b/u.test(normalizedFoodName(food.name)))) return null;
+  const fingerprint = mealPlanFingerprint(priorPlan);
+  const afterFingerprint = mealPlanFingerprint(currentPlan);
+  check(afterFingerprint === fingerprint &&
+    card?.cardType === "meal" && card.data?.status === "missing_data" &&
+    card.data?.reason === "scoped_adjustment_food_absent" &&
+    !Array.isArray(card.data?.adjustments) &&
+    String(text || "").includes("Thực đơn cũ không có món bạn cho phép điều chỉnh"),
+  "STAGING_AI_RELIABILITY_SCOPED_UNAVAILABLE_INVALID");
+  return { reason: "scoped_adjustment_food_absent", priorPlanFingerprint: fingerprint,
+    afterPlanFingerprint: afterFingerprint,
+    planPreserved: true };
+};
 export const assertReliabilityRuntimeRoute = (trace, plan) => {
   if (plan.expectedPath.domain !== undefined) {
     check(trace?.routeDomain === plan.expectedPath.domain, "STAGING_AI_RELIABILITY_ROUTE_FAILED");
@@ -91,10 +115,12 @@ export const assertReliabilityConfig = (env = process.env) => {
   return { releaseSha: env.RELEASE_SHA, output, recoveryOutput };
 };
 
-const inspectTurn = async ({ db, userId, conversationId, requestId, message, stream, plan }) => {
+const inspectTurn = async ({ db, userId, conversationId, requestId, message, stream, plan,
+  priorMealPlan }) => {
   const conversation = await db.collection("chatconversations").findOne(
     { _id: new mongoose.Types.ObjectId(conversationId), userId },
-    { projection: { userId: 1, activeStreamId: 1, recentRequestIds: 1, messages: 1 } },
+    { projection: { userId: 1, activeStreamId: 1, recentRequestIds: 1, messages: 1,
+      "workingMemory.lastMeal.plan": 1 } },
   );
   check(conversation && conversation.activeStreamId == null &&
     conversation.recentRequestIds?.includes(requestId),
@@ -132,7 +158,13 @@ const inspectTurn = async ({ db, userId, conversationId, requestId, message, str
     error.cardDiagnostic = cardMismatch(stream.cards, persistedCards);
     throw error;
   }
-  const failures = evaluateSemanticOutput({
+  const constraintProof = plan.number === 8 ? assertScopedMealUnavailable({
+    priorPlan: priorMealPlan,
+    currentPlan: conversation.workingMemory?.lastMeal?.plan,
+    card: stream.cards.length === 1 ? stream.cards[0] : null,
+    text: assistant.content,
+  }) : null;
+  const failures = constraintProof ? [] : evaluateSemanticOutput({
     output: { text: assistant.content, cards: stream.cards, trace }, rules: plan.rules,
   });
   if (failures.length > 0) {
@@ -156,8 +188,9 @@ const inspectTurn = async ({ db, userId, conversationId, requestId, message, str
     !/^(?:có lỗi xảy ra|dịch vụ ai đang tạm gián đoạn|ht assistant phản hồi quá lâu|mình chưa thể hoàn tất yêu cầu này|mình chưa thể tạo lịch tập đáp ứng)/iu
       .test(assistant.content.trim()),
     "STAGING_AI_RELIABILITY_OUTPUT_FAILED");
-  return { trace, tools, modelClass: /^gemini[-\w.]{1,90}$/i.test(trace.model || "")
-    ? "gemini_configured" : "static_or_other" };
+  return { trace, tools, semanticOutcome: constraintProof ? "constraint_unavailable" : "complete",
+    constraintProof, modelClass: /^gemini[-\w.]{1,90}$/i.test(trace.model || "")
+      ? "gemini_configured" : "static_or_other" };
 };
 
 export const runStagingAiReliabilityAcceptance = async ({ env = process.env, deps = {} } = {}) => {
@@ -239,6 +272,15 @@ export const runStagingAiReliabilityAcceptance = async ({ env = process.env, dep
               "STAGING_AI_RELIABILITY_CONTEXT_FAILED");
           }
           const started = Date.now();
+          let priorMealPlan = null;
+          if (number === 8 && !deps.inspectTurn) {
+            const before = await db.collection("chatconversations").findOne({
+              _id: new mongoose.Types.ObjectId(preceding), userId,
+            }, { projection: { "workingMemory.lastMeal.plan": 1 } });
+            priorMealPlan = before?.workingMemory?.lastMeal?.plan || null;
+            check(priorMealPlan?.status === "complete",
+              "STAGING_AI_RELIABILITY_SCOPED_PLAN_INVALID");
+          }
           const request = { message: item.message, requestId, conversationId: preceding };
           state.prompts.push({ number: item.number, scenarioId: item.scenarioId, requestId,
             conversationId: preceding || null, contextSource: number === 4 ? "synthetic_300_kcal_plan"
@@ -258,7 +300,8 @@ export const runStagingAiReliabilityAcceptance = async ({ env = process.env, dep
           observed.conversationId = stream.conversationId;
           observed.latencyMs = Date.now() - started;
           const persisted = await (deps.inspectTurn || inspectTurn)({ db, userId,
-            conversationId: stream.conversationId, requestId, message: item.message, stream, plan: item });
+            conversationId: stream.conversationId, requestId, message: item.message, stream, plan: item,
+            priorMealPlan });
           observed.persisted = true;
           observed.semanticPassed = true;
           observed.routeDomain = persisted.trace.routeDomain;
@@ -266,6 +309,8 @@ export const runStagingAiReliabilityAcceptance = async ({ env = process.env, dep
           observed.webSearchOutcome = persisted.trace.webSearchOutcome;
           observed.tools = persisted.tools;
           observed.modelClass = persisted.modelClass;
+          observed.semanticOutcome = persisted.semanticOutcome || "complete";
+          observed.constraintProof = persisted.constraintProof || null;
           const nextSnapshot = await (deps.fetchMetrics || fetchMetrics)(adminApi);
           observed.providerWindowDelta = providerDelta(snapshot, nextSnapshot, config.releaseSha);
           snapshot = nextSnapshot;

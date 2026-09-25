@@ -44,6 +44,7 @@ const validatePrompt = (prompt, planned, name) => {
     "number", "scenarioId", "requestId", "conversationId", "contextSource",
     "routeDomain", "evidenceMode", "webSearchOutcome", "tools", "modelClass",
     "providerWindowDelta", "latencyMs", "semanticPassed", "persisted",
+    "semanticOutcome", "constraintProof",
   ], name);
   assert(prompt.number === planned.number && prompt.scenarioId === planned.scenarioId,
     `${name} does not match the incident corpus`);
@@ -52,7 +53,15 @@ const validatePrompt = (prompt, planned, name) => {
   assert(["fitness", "general", "adjacent", "ht_service"].includes(prompt.routeDomain), `${name} route is invalid`);
   assert(["internal_kb", "model_prior", "web_required"].includes(prompt.evidenceMode), `${name} evidence is invalid`);
   if (planned.expectedPath.domain) assert(prompt.routeDomain === planned.expectedPath.domain, `${name} route drifted`);
-  if (planned.expectedPath.evidence) assert(prompt.evidenceMode === planned.expectedPath.evidence, `${name} evidence drifted`);
+  if (planned.expectedPath.evidence) {
+    const lowRiskFitnessKbMiss = planned.expectedPath.evidence === "internal_kb" &&
+      planned.expectedPath.domain === "fitness" && planned.expectedPath.risk === "low" &&
+      !planned.expectedPath.preferredTool && prompt.evidenceMode === "model_prior" &&
+      prompt.webSearchOutcome === "not_called" &&
+      Array.isArray(prompt.tools) && prompt.tools.length === 0;
+    assert(prompt.evidenceMode === planned.expectedPath.evidence || lowRiskFitnessKbMiss,
+      `${name} evidence drifted`);
+  }
   assert(["not_called", "provider_error", "no_supported_source", "grounded"].includes(prompt.webSearchOutcome),
     `${name} web outcome is invalid`);
   if (planned.expectedPath.webSearchRequired === true) {
@@ -74,6 +83,19 @@ const validatePrompt = (prompt, planned, name) => {
   assert(Number.isSafeInteger(prompt.latencyMs) && prompt.latencyMs >= 0 && prompt.latencyMs <= 180_000,
     `${name} latency is invalid`);
   assert(prompt.semanticPassed === true && prompt.persisted === true, `${name} was not accepted`);
+  if (prompt.semanticOutcome === "constraint_unavailable") {
+    assert(prompt.number === 8, `${name} used unavailable outcome outside Q8`);
+    exactKeys(prompt.constraintProof, ["reason", "priorPlanFingerprint", "afterPlanFingerprint", "planPreserved"],
+      `${name} constraint proof`);
+    assert(prompt.constraintProof.reason === "scoped_adjustment_food_absent" &&
+      HEX64.test(prompt.constraintProof.priorPlanFingerprint) &&
+      prompt.constraintProof.afterPlanFingerprint === prompt.constraintProof.priorPlanFingerprint &&
+      prompt.constraintProof.planPreserved === true,
+    `${name} constraint proof is invalid`);
+  } else {
+    assert(prompt.semanticOutcome === "complete" && prompt.constraintProof === null,
+      `${name} semantic outcome is invalid`);
+  }
 };
 
 const validateRound = (evidence, expectedSha, index, plan) => {
