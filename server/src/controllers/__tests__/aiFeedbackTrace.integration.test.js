@@ -235,6 +235,33 @@ describe("AI answer trace and feedback review", () => {
     expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_workout_v1" });
   });
 
+  it("repairs ambiguous deload wording in a structured four-day request", async () => {
+    const { user, accessToken } = await createTestUser();
+    const message = "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
+    const incompleteDeload = [
+      "Buổi 1: Hít đất 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
+      "Buổi 2: Squat trọng lượng cơ thể 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
+      "Buổi 3: Hít đất 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
+      "Buổi 4: Split squat 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
+      "Tuần deload giữ lại còn 30% volume.",
+    ].join(" ");
+    llmStreamMock.mockImplementation(async function* ambiguousDeloadDraft() {
+      yield { type: "text", content: incompleteDeload };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message, requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de116",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(2);
+    expect(evaluateSemanticOutput({
+      output: { text: answer.content, cards: [] },
+      rules: [{ type: "workout_structure", minDays: 4, request: message, requireDeload: true }],
+    })).toEqual([]);
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_workout_v1" });
+  });
+
   it("traces a low-risk four-day workout as model prior after a KB miss", async () => {
     const { user, accessToken } = await createTestUser();
     llmStreamMock.mockImplementation(async function* workoutFromPrior() {
