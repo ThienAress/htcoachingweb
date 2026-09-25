@@ -107,13 +107,17 @@ const evaluators = {
   preserve_scope: (output, rule, failures) => {
     const text = observedText(output);
     const normalized = text.toLocaleLowerCase("vi");
+    const nonNegatedWorkoutText = text.replace(
+      /(?:không|chưa)\s+(?:tự\s+)?(?:giảm|tăng|đổi|thay(?:\s+đổi)?)\b[^.!?;,\n]{0,35}(?:lịch tập|khối lượng tập|volume|số buổi)/giu,
+      "",
+    );
     if (rule.changedValue && !normalized.includes(String(rule.changedValue).toLocaleLowerCase("vi"))) {
       failures.push(`scope response omitted the requested value: ${rule.changedValue}`);
     }
     if (!/(?:chỉ|duy nhất)[^.!?\n]{0,80}(?:thay đổi|đổi)|(?:mọi|toàn bộ)[^.!?\n]{0,80}(?:giữ nguyên|không đổi)/iu.test(text)) {
       failures.push("scope response did not explicitly preserve the locked plan");
     }
-    if (/(?:giảm|tăng|đổi|thay)[^.!?\n]{0,35}(?:lịch tập|khối lượng tập|volume|số buổi)/iu.test(text) &&
+    if (/(?:giảm|tăng|đổi|thay)[^.!?;,\n]{0,35}(?:lịch tập|khối lượng tập|volume|số buổi)/iu.test(nonNegatedWorkoutText) &&
         !/(?:bạn có muốn|nếu bạn đồng ý|xin phép|có muốn mình)/iu.test(text)) {
       failures.push("coaching advisory changed the requested plan without permission");
     }
