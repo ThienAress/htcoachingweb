@@ -102,6 +102,16 @@ describe("one-round reliability acceptance", () => {
       .some((value) => serialized.includes(value))).toBe(false);
   });
 
+  test("card mismatch evidence contains only bounded shape metadata", () => {
+    const evidence = buildSafeReliabilityEvidence({
+      runId: "11111111-1111-4111-8111-111111111111", releaseSha: SHA,
+      cardDiagnostic: { streamedCount: 1, persistedCount: 0,
+        streamed: [{ type: "meal", fieldCount: 3 }], persisted: [], matchedCount: 0 },
+    });
+    expect(evidence.cardDiagnostic).toEqual({ streamedCount: 1, persistedCount: 0,
+      streamed: [{ type: "meal", fieldCount: 3 }], persisted: [], matchedCount: 0 });
+  });
+
   test("known post-SSE failure still performs exact cleanup and writes safe evidence", async () => {
     const env = await stagingEnv();
     const cleanup = vi.fn();
