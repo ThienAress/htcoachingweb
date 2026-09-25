@@ -293,11 +293,18 @@ describe("AI answer trace and feedback review", () => {
     });
     const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
     const card = conversation.messages.find((item) => item.uiCard?.cardType === "meal")?.uiCard;
+    const streamedCard = response.text
+      .split("\n\n")
+      .filter((event) => event.startsWith("data: "))
+      .map((event) => JSON.parse(event.slice(6)))
+      .find((event) => event.type === "ui_card" && event.cardType === "meal");
     expect(response.status).toBe(200);
     expect(toolRegistry.suggest_meal.execute).toHaveBeenCalledTimes(1);
     expect(llmStreamMock).not.toHaveBeenCalled();
-    expect(response.text).toContain('"cardType":"meal"');
-    expect(card?.data?.status).toBe("complete");
+    expect(card).toMatchObject({ cardType: "meal", data: { status: "complete" } });
+    expect({ cardType: streamedCard?.cardType, data: streamedCard?.data }).toEqual({
+      cardType: card.cardType, data: card.data,
+    });
   });
 
   it("persists a missing-data card when a required meal tool was not called", async () => {
