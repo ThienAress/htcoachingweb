@@ -100,6 +100,17 @@ export const createTrackedKnowledgeFixture = async ({ collection, api, marker, s
     fixture = await createKnowledgeFixture({ api, marker, sourceUrl, requestId, payload });
   } catch (error) {
     if (error?.remoteOutcomeKnown === true && error.requestId === requestId &&
+        error.httpStatus === 201 && mongoose.isObjectIdOrHexString(error.fixtureId)) {
+      const created = await collection.updateOne({
+        _id: journal._id, state: "pending", requestId,
+      }, {
+        $set: {
+          state: "terminal", outcome: "created", settledAt: new Date(),
+          knowledgeEntryId: String(error.fixtureId), responseStatus: 201, responseCode: null,
+        },
+      }, { timeoutMS: 1_000 });
+      if (created.acknowledged !== true || created.modifiedCount !== 1) throw unknown();
+    } else if (error?.remoteOutcomeKnown === true && error.requestId === requestId &&
         error.httpStatus === 400 && error.responseCode === "KNOWLEDGE_QUERY_SENSITIVE") {
       const rejected = await collection.updateOne(journal, {
         $set: {
@@ -119,6 +130,31 @@ export const createTrackedKnowledgeFixture = async ({ collection, api, marker, s
   }, { timeoutMS: 1_000 });
   if (settled.acknowledged !== true || settled.modifiedCount !== 1) throw unknown();
   return fixture;
+};
+
+// A 201 response can persist the exact entry while its asynchronous embedding
+// is not ready. The unique marker-bound entry is durable proof of creation, so
+// recovery may repair only this exact pending journal before bounded cleanup.
+export const repairPendingFixtureCreateJournal = async ({ collection, knowledgeCollection,
+  runId, releaseSha, marker }) => {
+  const journal = await assertFixtureCreatePending({ collection, runId, releaseSha, marker });
+  const normalizedQuestion = normalizeKnowledgeQuestion(knowledgeFixtureQueries(marker).question);
+  const entries = await knowledgeCollection.find({ normalizedQuestion }, {
+    projection: { _id: 1, status: 1, reviewStatus: 1 },
+  }).toArray();
+  if (entries.length !== 1 || entries[0].status !== "published" || entries[0].reviewStatus !== "reviewed") {
+    throw unknown();
+  }
+  const repaired = await collection.updateOne({
+    _id: journal._id, state: "pending", requestId: journal.requestId,
+  }, {
+    $set: {
+      state: "terminal", outcome: "created", settledAt: new Date(),
+      knowledgeEntryId: String(entries[0]._id), responseStatus: 201, responseCode: null,
+    },
+  }, { timeoutMS: 1_000 });
+  if (repaired.acknowledged !== true || repaired.modifiedCount !== 1) throw unknown();
+  return assertFixtureCreateTerminal({ collection, runId, releaseSha, marker });
 };
 
 export const deleteTerminalFixtureJournal = async (options) => {

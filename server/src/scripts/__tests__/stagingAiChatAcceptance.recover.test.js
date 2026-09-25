@@ -113,6 +113,34 @@ describe("AC-009 hard-kill recovery", () => {
       .findOne({ _id: RUN_ID, state: "revoked" })).toBeTruthy();
   });
 
+  it("repairs a v2 pending journal when exactly one marker-bound published entry proves creation", async () => {
+    const actor = new mongoose.Types.ObjectId();
+    const { question } = knowledgeFixtureQueries(intent().marker);
+    const normalizedQuestion = normalizeKnowledgeQuestion(question);
+    await db.collection("users").insertOne({
+      _id: actor, email: `ac009-admin.${RUN_ID}@example.invalid`, role: "admin",
+    });
+    await db.collection("staging_ai_acceptance_claims").replaceOne({ _id: `${RUN_ID}:fixture-create` }, {
+      _id: `${RUN_ID}:fixture-create`, recordType: "fixture_create", journalVersion: 2,
+      runId: RUN_ID, releaseSha: SHA, actorId: String(actor),
+      questionDigest: createHash("sha256").update(normalizedQuestion).digest("hex"),
+      requestId: "1cba3e75-db0d-40dc-aa88-186ab6901fe9", payloadDigest: "c".repeat(64),
+      state: "pending", outcome: null, startedAt: new Date("2026-09-15T00:00:04.000Z"),
+      settledAt: null, knowledgeEntryId: null, responseStatus: null, responseCode: null,
+    }, { upsert: true });
+    const entryId = new mongoose.Types.ObjectId();
+    await db.collection("knowledgeentries").insertOne({
+      _id: entryId, normalizedQuestion, status: "published", reviewStatus: "reviewed",
+      embeddingStatus: "failed",
+    });
+    const report = await recoverStagingAiChatAcceptance({
+      env: env(), intent: intent(), db, capability: capability(), ...fastRecovery(),
+    });
+    expect(report).toMatchObject({ verified: true, residue: 0, alreadyClean: false });
+    expect(await db.collection("users").findOne({ _id: actor })).toBeNull();
+    expect(await db.collection("knowledgeentries").findOne({ _id: entryId })).toBeNull();
+  });
+
   it("recovers a legacy pending journal only with exact operator-attested Render rejection evidence", async () => {
     const actor = new mongoose.Types.ObjectId();
     await db.collection("users").insertOne({

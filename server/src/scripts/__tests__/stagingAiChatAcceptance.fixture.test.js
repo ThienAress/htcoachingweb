@@ -42,15 +42,28 @@ describe("AC-009 durable fixture-create journal", () => {
     });
   });
 
-  it.each(["timeout", "malformed 201"])("keeps pending after %s rather than certifying a terminal POST", async (kind) => {
+  it("keeps pending after a timeout rather than certifying a terminal POST", async () => {
     const config = options();
     const api = { request: vi.fn(async () => {
-      if (kind === "timeout") throw new Error("synthetic response lost");
-      return {};
+      throw new Error("synthetic response lost");
     }) };
     await expect(createTrackedKnowledgeFixture({ ...config, api })).rejects.toBeInstanceOf(Error);
     expect(await collection.findOne({ _id: fixtureCreateJournalId(config.runId) }))
       .toMatchObject({ state: "pending", settledAt: null, knowledgeEntryId: null });
+  });
+
+  it("settles a malformed 201 when the response contains the exact persisted entry ID", async () => {
+    const config = options();
+    const entryId = String(new mongoose.Types.ObjectId());
+    const api = { request: vi.fn().mockResolvedValue({ data: {
+      _id: entryId, status: "published", reviewStatus: "reviewed", embeddingStatus: "failed",
+    } }) };
+    await expect(createTrackedKnowledgeFixture({ ...config, api })).rejects.toMatchObject({
+      code: "STAGING_AI_KB_FIXTURE_FAILED", remoteOutcomeKnown: true, httpStatus: 201,
+    });
+    expect(await assertFixtureCreateSettled(config)).toMatchObject({
+      outcome: "created", knowledgeEntryId: entryId, responseStatus: 201,
+    });
   });
 
   it("persists a terminal rejection only for an exact known pre-write response", async () => {
