@@ -1461,6 +1461,8 @@ export const chatStream = async (req, res) => {
       routingDecision.reasonCodes.includes("workout_creation") &&
       !mixedWorkoutMealRequest &&
       /\b4\s*(?:ngày|buổi)/iu.test(message);
+    const structuredFourDayFallbackRequested = fourDayWorkoutRequested &&
+      /người mới|rpe|deload|thời gian nghỉ|tối đa\s*60|6\s*tuần/iu.test(message);
     const sevenDayPlanRequested =
       routingDecision.risk === "low" &&
       routingDecision.reasonCodes.includes("workout_creation") &&
@@ -2303,15 +2305,19 @@ export const chatStream = async (req, res) => {
             needsToolCall = true;
             continue;
           }
-          const safeEquipmentFallback =
-            lastSuccessfulReadOnlyToolResult?.toolName === "search_exercises"
-              ? guardToolFallbackForDelivery(
-                  lastSuccessfulReadOnlyToolResult.text,
-                )
-              : equipmentLimitFallback;
-          fullResponse = await deliverAssistantResponse(
-            enforceEvidenceBoundary(safeEquipmentFallback),
-          );
+          if (structuredFourDayFallbackRequested) {
+            fullResponse = await deliverFourDayWorkoutFallback();
+          } else {
+            const safeEquipmentFallback =
+              lastSuccessfulReadOnlyToolResult?.toolName === "search_exercises"
+                ? guardToolFallbackForDelivery(
+                    lastSuccessfulReadOnlyToolResult.text,
+                  )
+                : equipmentLimitFallback;
+            fullResponse = await deliverAssistantResponse(
+              enforceEvidenceBoundary(safeEquipmentFallback),
+            );
+          }
           needsToolCall = false;
           break;
         }
