@@ -57,13 +57,15 @@ deploy IDs và hai production known-good rollback deploy IDs. Workflow sẽ:
 
 1. checkout exact SHA và xác minh CI run cùng SHA đã success;
 2. dùng provider GET API xác minh deploy IDs/SHA/status;
-3. chạy `acceptance:staging` với exact database lock;
-4. chạy `acceptance:staging:ai` bằng browser live và capability request-scoped chỉ
+3. kiểm current release backup và off-device recovery **trước mọi acceptance ghi dữ liệu**;
+4. chạy `acceptance:staging` với exact database lock;
+5. chạy `acceptance:staging:ai` bằng browser live và capability request-scoped chỉ
    hoạt động trên staging; positive KB/provider lane không mock response;
-5. luôn cleanup cả hai acceptance lane và yêu cầu từng report có residue `0`;
-6. xác minh lại exact deploy IDs/SHA sau live AI smoke;
-7. chạy current backup + off-device recovery gates;
-8. tạo artifact `release-candidate-<run_id>`.
+6. chạy bộ Plan 092 gồm 11 prompt user-visible hai lượt liên tiếp, mỗi lượt có
+   synthetic actor và cleanup riêng; chỉ giữ metadata/semantic result trong artifact;
+7. luôn cleanup mọi acceptance lane và yêu cầu từng report có residue `0`;
+8. xác minh lại exact deploy IDs/SHA sau live AI smoke;
+9. tạo artifact `release-candidate-<run_id>`.
 
 AC-009 raw evidence schema v3 và release-candidate schema v3 phải giữ inventory
 request/receipt đóng, outcome terminal, boot UUID fingerprint và exact SHA đủ để
@@ -108,6 +110,18 @@ trong `staging-ai-recovery-intent.json` được ghi trước khi connect/mutati
 toàn bộ closed schema không chứa secret) để kiểm tra residue, rồi dọn theo IDs/marker đã đăng ký; không
 dùng query rộng. Chỉ rerun sau khi cleanup verifier trả 0. Chạy thủ công, trong
 đúng môi trường staging và chỉ khi SHA của deploy vẫn khớp intent:
+
+Với Plan 092 reliability round, dùng intent tương ứng và CLI bounded sau khi
+xác minh đúng SHA/origin/database. CLI chỉ xóa đúng hai synthetic actor cùng
+các collection theo `userId`, giữ nguyên foreign data, và fail closed khi còn
+active stream hoặc control residue:
+
+```powershell
+$env:CONFIRM_STAGING_AI_RELIABILITY_RECOVERY = "yes"
+$env:STAGING_AI_RELIABILITY_RECOVERY_INTENT = "../artifacts/staging-ai-reliability-recovery-round-1.json"
+$env:STAGING_AI_RELIABILITY_RECOVERY_REPORT_OUTPUT = "../artifacts/staging-ai-reliability-recovery-report-round-1.json"
+npm run recover:acceptance:staging:ai:reliability --prefix server
+```
 
 Nếu runner mất file trước bước upload artifact, mở log của step AI acceptance và
 copy nguyên một dòng JSON bắt đầu bằng
@@ -226,6 +240,13 @@ node scripts/release-gate.mjs --mode=candidate `
 Gate fail nếu backup hiện tại stale/khác ID, off-device recovery chưa ready,
 cleanup không sạch, CI/deploy SHA drift hoặc rollback ID thiếu. Gate không deploy;
 owner dùng kết quả PASS để phê duyệt thao tác deploy riêng.
+
+Với Plan 092, gate còn phải đọc đúng hai file
+`staging-ai-reliability-round-1.json` và `staging-ai-reliability-round-2.json`
+trong cùng artifact của acceptance run, xác minh mỗi lượt có 11 semantic result
+PASS, synthetic actor/conversation tách biệt, cleanup `residue=0` và exact SHA.
+Release-candidate schema v3 tự nó chưa chứa proof này; không được coi manifest
+đứng riêng là kết luận Plan 092 live PASS.
 
 ## 4. Production observation
 

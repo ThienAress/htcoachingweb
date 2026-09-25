@@ -91,6 +91,24 @@ describe("openAiChatStream", () => {
     ]);
   });
 
+  it("preserves the same request body after refresh so conversation retry is idempotent", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("", { status: 401 }))
+      .mockResolvedValueOnce(new Response("", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    api.post.mockResolvedValue({ data: {} });
+    const payload = {
+      message: "Lịch tập cho tôi",
+      conversationId: "conversation-1",
+      requestId: "a26e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
+    };
+
+    await openAiChatStream(payload);
+
+    expect(fetchMock.mock.calls[0][1].body).toBe(JSON.stringify(payload));
+    expect(fetchMock.mock.calls[1][1].body).toBe(JSON.stringify(payload));
+  });
+
   it("uses owner-scoped AI memory routes with bounded payloads", async () => {
     api.get.mockResolvedValue({ data: { success: true, data: {} } });
     api.put.mockResolvedValue({ data: { success: true, data: {} } });
