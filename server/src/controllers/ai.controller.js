@@ -1462,7 +1462,7 @@ export const chatStream = async (req, res) => {
       !mixedWorkoutMealRequest &&
       /\b4\s*(?:ngày|buổi)/iu.test(message);
     const structuredFourDayFallbackRequested = fourDayWorkoutRequested &&
-      /người mới|rpe|deload|thời gian nghỉ|tối đa\s*60|6\s*tuần/iu.test(message);
+      /rpe|deload|thời gian nghỉ|tối đa\s*60|6\s*tuần/iu.test(message);
     const sevenDayPlanRequested =
       routingDecision.risk === "low" &&
       routingDecision.reasonCodes.includes("workout_creation") &&
@@ -2321,9 +2321,12 @@ export const chatStream = async (req, res) => {
           needsToolCall = false;
           break;
         }
+        const workoutStructureRules = structuredFourDayFallbackRequested
+          ? [{ type: "workout_structure", minDays: 4, request: message, requireDeload: true }]
+          : [{ type: "workout_structure", minDays: 4 }];
         if (fourDayWorkoutRequested && evaluateSemanticOutput({
           output: { text: candidateContent, cards: [] },
-          rules: [{ type: "workout_structure", minDays: 4 }],
+          rules: workoutStructureRules,
         }).length > 0) {
           if (workoutStructureRetryCount < 1) {
             workoutStructureRetryCount += 1;
