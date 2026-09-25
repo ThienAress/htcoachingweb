@@ -38,11 +38,13 @@ const round = (index) => {
     latencyMs: 100,
     semanticPassed: true,
     persisted: true,
+    semanticOutcome: "complete",
+    constraintProof: null,
   }));
   prompts.find((item) => item.number === 6).conversationId = prompts.find((item) => item.number === 11).conversationId;
   prompts.find((item) => item.number === 8).conversationId = prompts.find((item) => item.number === 7).conversationId;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind: "staging-ai-reliability-acceptance",
     releaseSha: SHA,
     runId: uuid(index),
@@ -91,5 +93,50 @@ test("rejects a failed semantic result or reused synthetic conversation across r
   assert.throws(() => verifyStagingAiReliabilityRounds(first, second, SHA));
   first.prompts[3].semanticPassed = true;
   second.prompts[0].conversationId = first.prompts[0].conversationId;
+  assert.throws(() => verifyStagingAiReliabilityRounds(first, second, SHA));
+});
+
+test("accepts Q8 only with the exact unavailable constraint proof", () => {
+  const first = round(1);
+  const second = round(2);
+  for (const evidence of [first, second]) {
+    const q8 = evidence.prompts.find((item) => item.number === 8);
+    q8.semanticOutcome = "constraint_unavailable";
+    q8.tools = [{ name: "suggest_meal", status: "success" }];
+    q8.constraintProof = {
+      reason: "scoped_adjustment_food_absent",
+      priorPlanFingerprint: "a".repeat(64),
+      afterPlanFingerprint: "a".repeat(64),
+      planPreserved: true,
+    };
+  }
+  assert.deepEqual(verifyStagingAiReliabilityRounds(first, second, SHA), {
+    releaseSha: SHA, rounds: 2, promptsPerRound: 11,
+  });
+  first.prompts.find((item) => item.number === 8).constraintProof.planPreserved = false;
+  assert.throws(() => verifyStagingAiReliabilityRounds(first, second, SHA));
+  first.prompts.find((item) => item.number === 8).constraintProof.planPreserved = true;
+  first.prompts.find((item) => item.number === 8).constraintProof.afterPlanFingerprint = "b".repeat(64);
+  assert.throws(() => verifyStagingAiReliabilityRounds(first, second, SHA));
+  first.prompts.find((item) => item.number === 8).constraintProof.afterPlanFingerprint = "a".repeat(64);
+  first.prompts.find((item) => item.number === 8).tools = [];
+  assert.throws(() => verifyStagingAiReliabilityRounds(first, second, SHA));
+});
+
+test("accepts a low-risk fitness KB miss only without web or tool use", () => {
+  const first = round(1);
+  const second = round(2);
+  for (const evidence of [first, second]) {
+    for (const number of [3, 5, 10, 11]) {
+      evidence.prompts.find((item) => item.number === number).evidenceMode = "model_prior";
+    }
+  }
+  assert.deepEqual(verifyStagingAiReliabilityRounds(first, second, SHA), {
+    releaseSha: SHA, rounds: 2, promptsPerRound: 11,
+  });
+  first.prompts.find((item) => item.number === 2).evidenceMode = "model_prior";
+  assert.throws(() => verifyStagingAiReliabilityRounds(first, second, SHA));
+  first.prompts.find((item) => item.number === 2).evidenceMode = "internal_kb";
+  first.prompts.find((item) => item.number === 3).tools = [{ name: "search_exercises", status: "success" }];
   assert.throws(() => verifyStagingAiReliabilityRounds(first, second, SHA));
 });

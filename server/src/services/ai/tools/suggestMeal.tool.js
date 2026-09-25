@@ -425,6 +425,12 @@ const scopedFollowUp = (input, previousMealPlan, catalog, constraints) => {
     !food.foodId || !food.name || !Number.isFinite(food.amountGrams) || food.amountGrams <= 0 ||
     Object.values(food.macros).some((value) => !Number.isFinite(value) || value < 0),
   )) return missingData("scoped_adjustment_invalid_plan", "Không thể chỉnh thực đơn cũ vì dữ liệu kế hoạch có cấu trúc chưa đầy đủ.");
+  if (!items.some((food) => allowedIds.has(food.foodId) || allowedNames.has(normalizedName(food.name)))) {
+    return missingData(
+      "scoped_adjustment_food_absent",
+      "Thực đơn cũ không có món bạn cho phép điều chỉnh, nên mình chưa thể đổi tổng kcal mà vẫn giữ nguyên các món khác.",
+    );
+  }
   for (const food of items) {
     const catalogFood = catalogById.get(food.foodId);
     if (!catalogFood) {

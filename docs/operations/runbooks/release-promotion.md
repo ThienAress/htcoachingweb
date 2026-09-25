@@ -63,6 +63,11 @@ deploy IDs và hai production known-good rollback deploy IDs. Workflow sẽ:
    hoạt động trên staging; positive KB/provider lane không mock response;
 6. chạy bộ Plan 092 gồm 11 prompt user-visible hai lượt liên tiếp, mỗi lượt có
    synthetic actor và cleanup riêng; chỉ giữ metadata/semantic result trong artifact;
+   riêng Q8 được ghi `constraint_unavailable` khi Q7 không có cơm/dầu: runner phải
+   chứng minh card `scoped_adjustment_food_absent`, plan trước/sau cùng fingerprint
+   trong reliability evidence schema v2,
+   không có món cho phép điều chỉnh trong plan, cùng conversation và cleanup `0`;
+   nếu Q7 có món đó, Q8 vẫn phải qua numeric và scoped-adjustment oracle bình thường;
 7. luôn cleanup mọi acceptance lane và yêu cầu từng report có residue `0`;
 8. xác minh lại exact deploy IDs/SHA sau live AI smoke;
 9. tạo artifact `release-candidate-<run_id>`.

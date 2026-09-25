@@ -331,6 +331,9 @@ provider thật hai lượt liên tiếp ở hai conversation mới. Acceptance 
 route/evidence/tool outcome, provider outcome, latency và cleanup receipt nhưng không raw prompt
 trong log. Oracle phải assert cả semantic invariants (tổng kcal/macro, hard constraints,
 source, equipment, context continuity), không chỉ assert route hoặc response không rỗng.
+Q8 có nhánh nghiệm thu `constraint_unavailable` khi Q7 không có cơm/dầu: phải trả
+reason exact, giữ nguyên structured plan và chứng minh fingerprint trước/sau bằng
+artifact allowlist; không đánh dấu numeric PASS cho plan không thể điều chỉnh.
 
 **Behavior**: Không generic error, không refusal sai, không orphan fragment, không conversation
 fork ngoài ý muốn; mọi request giải thích được vì sao có/không gọi provider/tool.

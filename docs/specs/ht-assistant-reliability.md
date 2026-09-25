@@ -79,7 +79,9 @@ fitness rủi ro thấp phải hữu ích, lỗi provider phải phục hồi c�
   final limit và công khai `catalogInsufficient` nếu không đủ số kết quả user yêu cầu.
 - AC-021: Follow-up có invariant "giữ nguyên mọi thứ trừ X" chỉ được thay X.
   Khuyến nghị coaching xung đột với invariant phải nằm ở advisory riêng và cần user
-  đồng ý trước khi áp dụng.
+  đồng ý trước khi áp dụng. Nếu các món được phép đổi không tồn tại trong plan đã lưu,
+  trả `missing_data/scoped_adjustment_food_absent`, giải thích không thể đạt target
+  bằng đúng món đó và giữ nguyên plan cũ; không thay món khác để làm xanh numeric gate.
 - AC-022: Retry ở mọi timing boundary giữ conversation identity; web search outcome
   phân biệt guest-policy block, provider error, no-supported-source và grounded.
 - AC-023: Bộ 11 prompt có deterministic semantic/card oracle. Staging catalog

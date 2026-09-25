@@ -6,7 +6,7 @@ import path from "node:path";
 import { reliabilityPlan } from "../stagingAiReliabilityAcceptance.plan.js";
 import { readChatSse } from "../stagingAiReliabilityAcceptance.http.js";
 import { buildSafeReliabilityEvidence } from "../stagingAiReliabilityAcceptance.evidence.js";
-import { assertReliabilityConfig, assertReliabilityRuntimeRoute, reliabilityCardsEqual, runStagingAiReliabilityAcceptance } from "../stagingAiReliabilityAcceptance.js";
+import { assertReliabilityConfig, assertReliabilityRuntimeRoute, assertScopedMealUnavailable, reliabilityCardsEqual, runStagingAiReliabilityAcceptance } from "../stagingAiReliabilityAcceptance.js";
 
 const SHA = "a".repeat(40);
 const OID = "a".repeat(24);
@@ -40,6 +40,27 @@ const sse = (events, headers = { "content-type": "text/event-stream" }) =>
   new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers });
 
 describe("one-round reliability acceptance", () => {
+  test("accepts Q8 unavailable only when the saved plan is unchanged and has no rice/oil", () => {
+    const priorPlan = { status: "complete", meals: [{ foods: [
+      { foodId: "chicken", name: "Ức gà", amountGrams: 150 },
+      { foodId: "potato", name: "Khoai tây", amountGrams: 200 },
+    ] }] };
+    const card = { cardType: "meal", data: {
+      status: "missing_data", reason: "scoped_adjustment_food_absent",
+    } };
+    const text = "Thực đơn cũ không có món bạn cho phép điều chỉnh, nên mình chưa thể đổi tổng kcal mà vẫn giữ nguyên các món khác.";
+    expect(assertScopedMealUnavailable({ priorPlan, currentPlan: structuredClone(priorPlan), card, text }))
+      .toMatchObject({ reason: "scoped_adjustment_food_absent", planPreserved: true });
+    expect(() => assertScopedMealUnavailable({ priorPlan,
+      currentPlan: { ...priorPlan, meals: [] }, card, text })).toThrow();
+    expect(() => assertScopedMealUnavailable({ priorPlan, currentPlan: priorPlan,
+      card: { ...card, data: { ...card.data, reason: "catalog_unavailable" } }, text })).toThrow();
+    expect(assertScopedMealUnavailable({
+      priorPlan: { status: "complete", meals: [{ foods: [{ name: "Cơm trắng" }] }] },
+      currentPlan: priorPlan, card, text,
+    })).toBeNull();
+  });
+
   test("accepts model prior only for low-risk fitness KB misses without a required tool", () => {
     const plan = reliabilityPlan()[2];
     const trace = { routeDomain: "fitness", evidenceMode: "model_prior", kbEntryIds: [],

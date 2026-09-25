@@ -173,10 +173,11 @@ const evaluators = {
     }
   },
   scoped_meal_adjustment: (output, rule, failures) => {
-    const adjustments = asArray(
-      cardData(output, "meal")?.adjustments,
-      "meal.adjustments",
-    );
+    const adjustments = cardData(output, "meal")?.adjustments;
+    if (!Array.isArray(adjustments) || adjustments.length === 0) {
+      failures.push("scoped meal adjustments are missing");
+      return;
+    }
     const allowedIds = new Set(asArray(rule.allowedFoodIds || [], "scoped_meal_adjustment.allowedFoodIds"));
     const allowedNames = new Set(asArray(rule.allowedFoodNames || [], "scoped_meal_adjustment.allowedFoodNames"));
     const unauthorized = adjustments.filter((item) =>
