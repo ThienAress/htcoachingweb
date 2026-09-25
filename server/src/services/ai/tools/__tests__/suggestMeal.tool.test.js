@@ -395,6 +395,23 @@ describe("suggest_meal deterministic nutrition contract", () => {
     });
   });
 
+  it("explains when a scoped follow-up names foods absent from the saved plan", async () => {
+    const previousMealPlan = {
+      status: "complete",
+      meals: [{ label: "Bữa sáng", foods: [
+        { foodId: "chicken", name: "Ức gà", amountGrams: 150, macros: { protein: 46.5, carb: 0, fat: 5.4 } },
+      ] }],
+    };
+    const result = await suggestMeal({
+      ...params, targetCalories: 2200,
+      allowedAdjustmentFoodNames: ["Cơm trắng", "Dầu ô liu"],
+    }, toolContext({ previousMealPlan }));
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data", reason: "scoped_adjustment_food_absent", meals: [],
+    });
+    expect(result.text).toMatch(/không có món bạn cho phép điều chỉnh/i);
+  });
+
   it("fail closed khi follow-up thêm dị ứng nhưng plan cũ còn món vi phạm", async () => {
     const previousMealPlan = {
       status: "complete",

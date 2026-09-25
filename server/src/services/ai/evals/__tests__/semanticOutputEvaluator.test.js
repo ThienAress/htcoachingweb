@@ -43,6 +43,13 @@ const sevenDayPlan = Array.from({ length: 7 }, (_, index) => [
 ].join("\n")).join("\n");
 
 describe("evaluateSemanticOutput", () => {
+  it("reports a missing scoped adjustment as a closed failure instead of throwing", () => {
+    expect(evaluateSemanticOutput({ output: { cards: [{
+      cardType: "meal", data: { status: "missing_data", reason: "scoped_adjustment_impossible" },
+    }] }, rules: [{ type: "scoped_meal_adjustment", allowedFoodIds: ["rice", "oil"] }] }))
+      .toEqual(["scoped meal adjustments are missing"]);
+  });
+
   it("accepts a negated workout mutation in the server's deficit-only fallback", () => {
     const request = parseScopePreservationRequest(
       "Giữ nguyên toàn bộ kế hoạch vừa rồi nhưng đổi mức thâm hụt từ 300 kcal thành 700 kcal. Giải thích phần nào đã thay đổi.",
