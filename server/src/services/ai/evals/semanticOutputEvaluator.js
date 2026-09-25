@@ -67,8 +67,8 @@ const daySectionsFromText = (text) => {
 };
 
 const markdownUrls = (text) => [
-  ...String(text || "").matchAll(/\[[^\]]+\]\((https:\/\/[^\s)]+)\)/gi),
-].map((match) => match[1]);
+  ...String(text || "").matchAll(/\[[^\]]+\]\((?:<(https:\/\/[^\s<>]+)>|(https:\/\/[^\s)]+))\)/gi),
+].map((match) => match[1] || match[2]);
 
 const numberedQuestionCount = (text) => {
   const numbered = new Set();

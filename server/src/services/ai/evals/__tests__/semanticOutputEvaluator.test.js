@@ -43,6 +43,19 @@ const sevenDayPlan = Array.from({ length: 7 }, (_, index) => [
 ].join("\n")).join("\n");
 
 describe("evaluateSemanticOutput", () => {
+  it("recognizes a grounded citation emitted with an angle-bracket URL", () => {
+    expect(evaluateSemanticOutput({ output: {
+      text: "Ronaldo tập sức mạnh theo nguồn.\n\n📎 *Nguồn: [Verified article (trusted.example)](<https://trusted.example/ronaldo>)*",
+      trace: { webSearchOutcome: "grounded" },
+    }, rules: [{ type: "web_search" }] })).toEqual([]);
+    expect(evaluateSemanticOutput({ output: {
+      text: "Ronaldo tập sức mạnh theo nguồn. [bad](http://example.org/no-https)",
+      trace: { webSearchOutcome: "grounded" },
+    }, rules: [{ type: "web_search" }] })).toContain(
+      "web search was not grounded by a supported source",
+    );
+  });
+
   it("reports a missing scoped adjustment as a closed failure instead of throwing", () => {
     expect(evaluateSemanticOutput({ output: { cards: [{
       cardType: "meal", data: { status: "missing_data", reason: "scoped_adjustment_impossible" },
