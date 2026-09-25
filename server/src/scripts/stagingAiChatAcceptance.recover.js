@@ -15,6 +15,7 @@ import {
   assertFixtureCreateTerminal,
   deletePendingFixtureJournal,
   deleteTerminalFixtureJournal,
+  repairPendingFixtureCreateJournal,
 } from "./stagingAiChatAcceptance.fixture.js";
 import { validateFixtureRejectionEvidence } from "./stagingAiChatAcceptance.rejectionEvidence.js";
 
@@ -175,22 +176,32 @@ export const recoverStagingAiChatAcceptance = async ({
     try {
       fixtureJournal = await assertFixtureCreateTerminal(fixtureProof);
     } catch (error) {
-      if (!fixtureRejectionEvidence) throw error;
-      rejectedPendingJournal = await assertFixtureCreatePending(fixtureProof);
-      // Operator attestation is only a compatibility escape hatch for v1,
-      // which never persisted its HTTP request identity. V2 unknown stays unknown.
-      if (rejectedPendingJournal.journalVersion !== 1) throw error;
-      const evidence = validateFixtureRejectionEvidence(fixtureRejectionEvidence, intent);
-      if (evidence.recoveryCodeSha !== env.GITHUB_SHA || evidence.operatorActor !== env.GITHUB_ACTOR ||
-          String(evidence.sourceWorkflowRunId) !== env.STAGING_AI_SOURCE_WORKFLOW_RUN_ID) {
-        throw fail("STAGING_AI_RECOVERY_FIXTURE_REJECTION_INVALID", "Fixture rejection evidence is not bound to this manual workflow run");
+      if (!fixtureRejectionEvidence) {
+        try {
+          fixtureJournal = await repairPendingFixtureCreateJournal({
+            ...fixtureProof,
+            knowledgeCollection: db.collection("knowledgeentries"),
+          });
+        } catch {
+          throw error;
+        }
+      } else {
+        rejectedPendingJournal = await assertFixtureCreatePending(fixtureProof);
+        // Operator attestation is only a compatibility escape hatch for v1,
+        // which never persisted request identity. V2 rejection remains unknown.
+        if (rejectedPendingJournal.journalVersion !== 1) throw error;
+        const evidence = validateFixtureRejectionEvidence(fixtureRejectionEvidence, intent);
+        if (evidence.recoveryCodeSha !== env.GITHUB_SHA || evidence.operatorActor !== env.GITHUB_ACTOR ||
+            String(evidence.sourceWorkflowRunId) !== env.STAGING_AI_SOURCE_WORKFLOW_RUN_ID) {
+          throw fail("STAGING_AI_RECOVERY_FIXTURE_REJECTION_INVALID", "Fixture rejection evidence is not bound to this manual workflow run");
+        }
+        const startedAt = new Date(rejectedPendingJournal.startedAt).getTime();
+        const observedAt = new Date(evidence.observedAt).getTime();
+        if (observedAt < startedAt || observedAt > startedAt + 60_000) {
+          throw fail("STAGING_AI_RECOVERY_FIXTURE_REJECTION_INVALID", "Provider rejection is outside the exact pending journal window");
+        }
+        attestedFixtureRejectionEvidence = evidence;
       }
-      const startedAt = new Date(rejectedPendingJournal.startedAt).getTime();
-      const observedAt = new Date(evidence.observedAt).getTime();
-      if (observedAt < startedAt || observedAt > startedAt + 60_000) {
-        throw fail("STAGING_AI_RECOVERY_FIXTURE_REJECTION_INVALID", "Provider rejection is outside the exact pending journal window");
-      }
-      attestedFixtureRejectionEvidence = evidence;
     }
   } else if (!priorVerifiedReport) {
     await assertFixtureCreateTerminal(fixtureProof);
