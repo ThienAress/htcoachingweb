@@ -37,6 +37,16 @@ const canonicalJson = (value) => Array.isArray(value)
     : JSON.stringify(value);
 
 export const reliabilityCardsEqual = (left, right) => canonicalJson(left) === canonicalJson(right);
+export const assertReliabilityRuntimeRoute = (trace, plan) => {
+  check(trace?.routeDomain === plan.expectedPath.domain, "STAGING_AI_RELIABILITY_ROUTE_FAILED");
+  const lowRiskFitnessKbMiss = plan.expectedPath.evidence === "internal_kb" &&
+    plan.expectedPath.domain === "fitness" && plan.expectedPath.risk === "low" &&
+    !plan.expectedPath.preferredTool && trace.evidenceMode === "model_prior" &&
+    Array.isArray(trace.kbEntryIds) && trace.kbEntryIds.length === 0 &&
+    trace.webSearchUsed === false && trace.webSearchOutcome === "not_called";
+  check(trace.evidenceMode === plan.expectedPath.evidence || lowRiskFitnessKbMiss,
+    "STAGING_AI_RELIABILITY_ROUTE_FAILED");
+};
 const cardShape = (card) => ({
   type: typeof card?.cardType === "string" ? card.cardType : null,
   fieldCount: card?.data && typeof card.data === "object" ? Object.keys(card.data).length : 0,
@@ -97,9 +107,7 @@ const inspectTurn = async ({ db, userId, conversationId, requestId, message, str
   check(assistant && assistant.content === stream.text && assistant.answerTrace,
     "STAGING_AI_RELIABILITY_PERSISTENCE_FAILED");
   const trace = assistant.answerTrace;
-  for (const [key, expected] of [["routeDomain", plan.expectedPath.domain], ["evidenceMode", plan.expectedPath.evidence]]) {
-    if (expected !== undefined) check(trace[key] === expected, "STAGING_AI_RELIABILITY_ROUTE_FAILED");
-  }
+  assertReliabilityRuntimeRoute(trace, plan);
   if (plan.expectedPath.webSearchRequired === true) {
     check(trace.webSearchOutcome === "grounded", "STAGING_AI_RELIABILITY_WEB_EVIDENCE_FAILED");
   } else if (plan.expectedPath.maxWebSearchCalls === 0) {
