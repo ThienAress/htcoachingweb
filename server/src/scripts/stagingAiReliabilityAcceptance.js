@@ -30,6 +30,13 @@ const writeOnce = async (target, value) => {
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
 };
+const canonicalJson = (value) => Array.isArray(value)
+  ? `[${value.map(canonicalJson).join(",")}]`
+  : value && typeof value === "object"
+    ? `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`
+    : JSON.stringify(value);
+
+export const reliabilityCardsEqual = (left, right) => canonicalJson(left) === canonicalJson(right);
 const seedDeficitContext = async ({ userId, conversationId }) => {
   const conversation = new ChatConversation({
     _id: conversationId, userId,
@@ -98,7 +105,7 @@ const inspectTurn = async ({ db, userId, conversationId, requestId, message, str
     .map((item) => ({ cardType: item.uiCard.cardType, data: item.uiCard.data }));
   check(stream.cards.length === persistedCards.length &&
     stream.cards.every((card) => persistedCards.some((saved) =>
-      JSON.stringify(saved) === JSON.stringify(card))), "STAGING_AI_RELIABILITY_CARD_FAILED");
+      reliabilityCardsEqual(saved, card))), "STAGING_AI_RELIABILITY_CARD_FAILED");
   const failures = evaluateSemanticOutput({
     output: { text: assistant.content, cards: stream.cards, trace }, rules: plan.rules,
   });

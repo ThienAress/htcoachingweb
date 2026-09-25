@@ -6,7 +6,7 @@ import path from "node:path";
 import { reliabilityPlan } from "../stagingAiReliabilityAcceptance.plan.js";
 import { readChatSse } from "../stagingAiReliabilityAcceptance.http.js";
 import { buildSafeReliabilityEvidence } from "../stagingAiReliabilityAcceptance.evidence.js";
-import { assertReliabilityConfig, runStagingAiReliabilityAcceptance } from "../stagingAiReliabilityAcceptance.js";
+import { assertReliabilityConfig, reliabilityCardsEqual, runStagingAiReliabilityAcceptance } from "../stagingAiReliabilityAcceptance.js";
 
 const SHA = "a".repeat(40);
 const OID = "a".repeat(24);
@@ -40,6 +40,13 @@ const sse = (events, headers = { "content-type": "text/event-stream" }) =>
   new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers });
 
 describe("one-round reliability acceptance", () => {
+  test("compares persisted cards semantically despite object key order", () => {
+    expect(reliabilityCardsEqual(
+      { cardType: "meal", data: { totals: { protein: 120, calories: 2200 }, status: "complete" } },
+      { data: { status: "complete", totals: { calories: 2200, protein: 120 } }, cardType: "meal" },
+    )).toBe(true);
+  });
+
   test("uses exactly eleven corpus prompts and two live follow-up chains", () => {
     const plan = reliabilityPlan();
     expect({ count: plan.length, chains: plan.filter((item) => item.followUpTo)
