@@ -266,6 +266,13 @@ export async function searchKnowledge({ query }, context = {}) {
 
   const searchModel = resolveSearchModel();
 
+  const generationConfig = {
+    temperature: 0.1,
+    maxOutputTokens: 600,
+    ...( /^gemini-2\.5-flash(?:$|-)/iu.test(searchModel) && {
+      thinkingConfig: { thinkingBudget: 0 },
+    }),
+  };
   const body = {
     contents: [{ role: "user", parts: [{ text: preparedQuery.query }] }],
     tools: [{ googleSearch: {} }],
@@ -274,10 +281,7 @@ export async function searchKnowledge({ query }, context = {}) {
         text: "Bạn thu thập bằng chứng web công khai cho mọi chủ đề an toàn. Trả lời ngắn gọn bằng Tiếng Việt, chỉ nêu dữ kiện được nguồn hỗ trợ và không suy đoán. Ưu tiên nguồn chính thức, nguồn sơ cấp hoặc tổ chức chuyên môn phù hợp với chủ đề.",
       }],
     },
-    generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 600,
-    },
+    generationConfig,
   };
 
   const url =
