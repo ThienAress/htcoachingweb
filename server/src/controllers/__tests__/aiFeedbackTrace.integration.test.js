@@ -43,6 +43,7 @@ import {
 import ChatConversation from "../../models/ChatConversation.js";
 import Exercise from "../../models/Exercise.js";
 import { toolRegistry } from "../../services/ai/tools/toolRegistry.js";
+import { evaluateSemanticOutput } from "../../services/ai/evals/semanticOutputEvaluator.js";
 import { chatStream } from "../ai.controller.js";
 
 let app;
@@ -111,6 +112,48 @@ afterAll(async () => {
 });
 
 describe("AI answer trace and feedback review", () => {
+  it("repairs an incomplete four-day workout before streaming and saving it", async () => {
+    const { user, accessToken } = await createTestUser();
+    let turns = 0;
+    llmStreamMock.mockImplementation(async function* draftWorkout() {
+      turns += 1;
+      yield { type: "text", content: turns === 1
+        ? "Tập thân trên rồi thân dưới trong bốn buổi mỗi tuần."
+        : "Buổi 1: Hít đất 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây. Buổi 2: Squat 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây. Buổi 3: Hít đất 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây. Buổi 4: Squat 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Hãy tạo lịch tập tăng cơ 4 ngày mỗi tuần, mỗi buổi tối đa 60 phút",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de113",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect({ turns, status: response.status, saved: answer.content, streamed: response.text }).toMatchObject({
+      turns: 2, status: 200, saved: expect.stringContaining("Buổi 4"),
+      streamed: expect.stringContaining("Buổi 4"),
+    });
+    expect(answer.content).not.toContain("Tập thân trên rồi thân dưới");
+  });
+
+  it("uses an equipment-safe structured fallback when both workout drafts are incomplete", async () => {
+    const { user, accessToken } = await createTestUser();
+    const message = "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Tôi đi 10.000 bước/ngày, không muốn tập chân hai ngày liên tiếp. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
+    llmStreamMock.mockImplementation(async function* incompleteWorkout() {
+      yield { type: "text", content: "Tập bốn buổi mỗi tuần, xen kẽ thân trên và thân dưới." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message, requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de114",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(2);
+    expect(evaluateSemanticOutput({
+      output: { text: answer.content, cards: [] },
+      rules: [{ type: "workout_structure", minDays: 4, request: message, requireDeload: true }],
+    })).toEqual([]);
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_workout_v1" });
+  });
+
   it("traces a low-risk four-day workout as model prior after a KB miss", async () => {
     const { user, accessToken } = await createTestUser();
     llmStreamMock.mockImplementation(async function* workoutFromPrior() {
@@ -1339,7 +1382,7 @@ describe("AI answer trace and feedback review", () => {
       yield {
         type: "text",
         content:
-          "Buổi 1: Dumbbell Floor Press trên sàn. Buổi 2: Goblet Squat. Buổi 3: Resistance Band Row. Buổi 4: Dumbbell Romanian Deadlift.",
+          "Buổi 1: Dumbbell Floor Press trên sàn 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây. Buổi 2: Goblet Squat 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây. Buổi 3: Resistance Band Row 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây. Buổi 4: Dumbbell Romanian Deadlift 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
       };
     });
 
