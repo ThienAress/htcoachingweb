@@ -61,6 +61,9 @@ const CONFIRMED_TDEE_PAYLOAD = Object.freeze({
   trainingDuration: "none",
   trainingIntensity: "none",
 });
+const SEVEN_DAY_COMPLETE_TEXT = Array.from({ length: 7 }, (_, index) =>
+  `Ngày ${index + 1}: Ăn ba bữa với nguồn protein, rau và tinh bột phù hợp. Tập luyện ${index % 2 === 0 ? "sức mạnh toàn thân" : "đi bộ phục hồi"} 30 phút.`,
+).join("\n");
 
 beforeAll(async () => {
   await setupTestDB();
@@ -112,6 +115,63 @@ afterAll(async () => {
 });
 
 describe("AI answer trace and feedback review", () => {
+  it("repairs an incomplete seven-day meal and workout answer before delivery", async () => {
+    const { user, accessToken } = await createTestUser();
+    let turns = 0;
+    llmStreamMock.mockImplementation(async function* sevenDayDraft() {
+      turns += 1;
+      yield { type: "text", content: turns === 1
+        ? "Ngày 1: Ăn đủ rau. Tập đi bộ 30 phút."
+        : SEVEN_DAY_COMPLETE_TEXT };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Lập kế hoạch ăn uống và tập luyện chi tiết trong 7 ngày cho người mới muốn giảm mỡ.",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de115",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect({ turns, status: response.status, saved: answer.content, streamed: response.text }).toMatchObject({
+      turns: 2, status: 200, saved: SEVEN_DAY_COMPLETE_TEXT,
+      streamed: expect.stringContaining("Ngày 7"),
+    });
+    expect(answer.content).not.toContain("Ăn đủ rau. Tập đi bộ 30 phút.");
+  });
+
+  it("returns a complete general seven-day plan when both drafts omit days", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* incompleteSevenDay() {
+      yield { type: "text", content: "Ngày 1: Ăn đủ rau. Tập đi bộ 30 phút." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Lập kế hoạch ăn uống và tập luyện chi tiết trong 7 ngày cho người mới muốn giảm mỡ.",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de116",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(2);
+    expect(evaluateSemanticOutput({ output: { text: answer.content }, rules: [
+      { type: "seven_day_coverage", requireMealAndTraining: true },
+    ] })).toEqual([]);
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_seven_day_plan_v1" });
+  });
+
+  it("does not add meal-plan repair to a workout-only seven-day request", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* workoutOnly() {
+      yield { type: "text", content: "Lịch tập bảy ngày cần thêm thông tin về kinh nghiệm và thiết bị." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Lập lịch tập trong 7 ngày cho người mới.",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de117",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(1);
+    expect(answer.content).not.toContain("Ngày 7:");
+  });
+
   it("repairs an incomplete four-day workout before streaming and saving it", async () => {
     const { user, accessToken } = await createTestUser();
     let turns = 0;

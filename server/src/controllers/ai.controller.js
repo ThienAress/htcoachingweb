@@ -211,6 +211,19 @@ const FOUR_DAY_WORKOUT_FALLBACK = [
   "Buổi 4 (thân dưới): Split squat 3 hiệp x 8–10 lần mỗi bên, glute bridge 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
   "Sắp xếp Buổi 1–2 rồi nghỉ một ngày trước Buổi 3–4 để hai buổi chân không liền nhau. Tăng dần số lần trong 5 tuần khi kỹ thuật ổn định; tuần 6 deload, giảm khoảng 30% volume.",
 ].join("\n");
+const SEVEN_DAY_PLAN_CORRECTION_INSTRUCTION =
+  "Hãy viết lại kế hoạch đủ Ngày 1 đến Ngày 7. Mỗi ngày phải có mục ăn uống gồm các bữa và mục tập luyện hoặc phục hồi cho người mới. Không tự đặt kcal cá nhân khi thiếu dữ liệu; chỉ trả lời cuối cùng.";
+const SEVEN_DAY_PLAN_FALLBACK = [
+  "Đây là khung tham khảo 7 ngày cho người mới giảm mỡ; chưa thể ấn định kcal khi thiếu tuổi, chiều cao, cân nặng và mức vận động. Chọn thực phẩm hợp dị ứng và khẩu phần phù hợp.",
+  "Ngày 1: Ăn uống: sáng nguồn đạm + trái cây, trưa cơm + rau + đạm, tối rau + đạm + tinh bột vừa đủ. Tập luyện: toàn thân bodyweight 30 phút, 2 hiệp mỗi bài ở RPE 6–7, nghỉ 90 giây.",
+  "Ngày 2: Ăn uống: ba bữa với đạm, rau và tinh bột theo mức đói; uống nước đều. Tập luyện: đi bộ nhanh 30 phút và giãn cơ 10 phút.",
+  "Ngày 3: Ăn uống: sáng đạm + ngũ cốc, trưa rau + đạm + cơm, tối rau + đạm + trái cây. Tập luyện: squat, hít đất biến thể và glute bridge, mỗi bài 2 hiệp x 8–12 lần, RPE 6–7, nghỉ 90 giây.",
+  "Ngày 4: Ăn uống: ba bữa đều có đạm và rau; chọn món ít chế biến khi thuận tiện. Tập luyện: đi bộ 30 phút, phục hồi chủ động.",
+  "Ngày 5: Ăn uống: sáng đạm + trái cây, trưa cơm + rau + đạm, tối rau + đạm + tinh bột vừa đủ. Tập luyện: toàn thân bodyweight 30 phút, 2 hiệp x 8–12 lần mỗi bài, RPE 6–7, nghỉ 90 giây.",
+  "Ngày 6: Ăn uống: giữ ba bữa chính cân bằng; thêm bữa phụ nếu đói và phù hợp mục tiêu. Tập luyện: đi bộ hoặc đạp xe nhẹ 30 phút.",
+  "Ngày 7: Ăn uống: duy trì đạm, rau, trái cây và tinh bột phù hợp ở ba bữa. Tập luyện: nghỉ phục hồi hoặc đi bộ nhẹ 20 phút.",
+  "Theo dõi cảm giác hồi phục và xu hướng cân nặng ít nhất hai tuần; cung cấp số đo và lịch sinh hoạt để điều chỉnh khẩu phần an toàn hơn.",
+].join("\n");
 
 const explicitDietPlan = (message) => {
   const text = String(message || "");
@@ -1448,12 +1461,26 @@ export const chatStream = async (req, res) => {
       routingDecision.reasonCodes.includes("workout_creation") &&
       !mixedWorkoutMealRequest &&
       /\b4\s*(?:ngày|buổi)/iu.test(message);
+    const sevenDayPlanRequested =
+      routingDecision.risk === "low" &&
+      routingDecision.reasonCodes.includes("workout_creation") &&
+      !routedRequiredToolName &&
+      /\b7\s*ngày/iu.test(message) &&
+      /ăn uống|thực đơn|dinh dưỡng/iu.test(message) &&
+      /tập luyện|lịch tập/iu.test(message);
     const deliverFourDayWorkoutFallback = async () => {
       routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
       kbEntryIds = [];
       kbCitationSources = [];
       responseModel = "static_workout_v1";
       return deliverAssistantResponse(FOUR_DAY_WORKOUT_FALLBACK);
+    };
+    const deliverSevenDayPlanFallback = async () => {
+      routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
+      kbEntryIds = [];
+      kbCitationSources = [];
+      responseModel = "static_seven_day_plan_v1";
+      return deliverAssistantResponse(SEVEN_DAY_PLAN_FALLBACK);
     };
     const mixedWorkoutMealInstruction =
       "Thực đơn từ công cụ là dữ liệu chuẩn và đã được hiển thị. Không viết lại hoặc thay đổi món, định lượng, macro hay tổng kcal; chỉ bổ sung giáo án tập luyện bằng văn bản theo đúng số ngày và thiết bị user yêu cầu.";
@@ -1484,6 +1511,7 @@ export const chatStream = async (req, res) => {
     let mixedWorkoutRetryCount = 0;
     let equipmentRetryCount = 0;
     let workoutStructureRetryCount = 0;
+    let sevenDayPlanRetryCount = 0;
     let scopeRetryCount = 0;
     const scopePreservationRequest = parseScopePreservationRequest(message);
 
@@ -2021,6 +2049,16 @@ export const chatStream = async (req, res) => {
       }
       } catch (providerError) {
         if (
+          sevenDayPlanRequested &&
+          sevenDayPlanRetryCount > 0 &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          fullResponse = await deliverSevenDayPlanFallback();
+          needsToolCall = false;
+          break;
+        }
+        if (
           fourDayWorkoutRequested &&
           workoutStructureRetryCount > 0 &&
           !abortController.signal.aborted &&
@@ -2292,9 +2330,33 @@ export const chatStream = async (req, res) => {
           needsToolCall = false;
           break;
         }
+        if (sevenDayPlanRequested && evaluateSemanticOutput({
+          output: { text: candidateContent, cards: [] },
+          rules: [{ type: "seven_day_coverage", requireMealAndTraining: true }],
+        }).length > 0) {
+          if (sevenDayPlanRetryCount < 1) {
+            sevenDayPlanRetryCount += 1;
+            llmMessages.push({ role: "assistant", content: iterationText });
+            llmMessages.push({ role: "user", content: SEVEN_DAY_PLAN_CORRECTION_INSTRUCTION });
+            needsToolCall = true;
+            continue;
+          }
+          fullResponse = await deliverSevenDayPlanFallback();
+          needsToolCall = false;
+          break;
+        }
         const finalContent = enforceEvidenceBoundary(candidateContent);
         fullResponse = await deliverAssistantResponse(finalContent);
       }
+    }
+
+    if (
+      !abortController.signal.aborted &&
+      !fullResponse &&
+      sevenDayPlanRequested &&
+      sevenDayPlanRetryCount > 0
+    ) {
+      fullResponse = await deliverSevenDayPlanFallback();
     }
 
     if (
