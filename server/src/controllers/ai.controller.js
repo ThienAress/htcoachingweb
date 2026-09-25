@@ -224,6 +224,16 @@ const SEVEN_DAY_PLAN_FALLBACK = [
   "Ngày 7: Ăn uống: duy trì đạm, rau, trái cây và tinh bột phù hợp ở ba bữa. Tập luyện: nghỉ phục hồi hoặc đi bộ nhẹ 20 phút.",
   "Theo dõi cảm giác hồi phục và xu hướng cân nặng ít nhất hai tuần; cung cấp số đo và lịch sinh hoạt để điều chỉnh khẩu phần an toàn hơn.",
 ].join("\n");
+const WORKOUT_INTAKE_CORRECTION_INSTRUCTION =
+  "Hãy hỏi tối đa 5 nhóm dữ liệu còn thiếu trước khi tính calo hoặc lập giáo án: giới tính/tuổi/chiều cao/cân nặng; mục tiêu; công việc/số bước/số buổi; kinh nghiệm và thiết bị; chấn thương hoặc vấn đề xương khớp. TDEE chỉ là ước tính. Không hỏi dị ứng hay chế độ ăn nếu user chưa yêu cầu thực đơn.";
+const WORKOUT_INTAKE_FALLBACK = [
+  "TDEE là ước tính; mình chưa đủ dữ liệu để tính hoặc lập giáo án mà không đoán. Mình cần tối đa 5 nhóm thông tin quan trọng:",
+  "1. Giới tính, tuổi, chiều cao và cân nặng hiện tại?",
+  "2. Mục tiêu của bạn là giảm mỡ, tăng cơ hay giữ cân?",
+  "3. Công việc, số bước trung bình và số buổi tập mỗi tuần?",
+  "4. Kinh nghiệm tập và thiết bị hiện có?",
+  "5. Bạn có chấn thương hoặc vấn đề xương khớp nào cần lưu ý không?",
+].join("\n");
 
 const explicitDietPlan = (message) => {
   const text = String(message || "");
@@ -1470,6 +1480,9 @@ export const chatStream = async (req, res) => {
       /\b7\s*ngày/iu.test(message) &&
       /ăn uống|thực đơn|dinh dưỡng/iu.test(message) &&
       /tập luyện|lịch tập/iu.test(message);
+    const workoutIntakeRequested = routingDecision.risk === "low" &&
+      routingDecision.reasonCodes.includes("workout_creation") &&
+      /(?:dữ liệu.*đủ|đừng\s+đoán|nêu\s+dữ\s+liệu\s+còn\s+thiếu|tối đa\s*5\s*(?:câu|nhóm))/iu.test(message);
     const deliverFourDayWorkoutFallback = async () => {
       routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
       kbEntryIds = [];
@@ -1483,6 +1496,13 @@ export const chatStream = async (req, res) => {
       kbCitationSources = [];
       responseModel = "static_seven_day_plan_v1";
       return deliverAssistantResponse(SEVEN_DAY_PLAN_FALLBACK);
+    };
+    const deliverWorkoutIntakeFallback = async () => {
+      routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
+      kbEntryIds = [];
+      kbCitationSources = [];
+      responseModel = "static_workout_intake_v1";
+      return deliverAssistantResponse(WORKOUT_INTAKE_FALLBACK);
     };
     const mixedWorkoutMealInstruction =
       "Thực đơn từ công cụ là dữ liệu chuẩn và đã được hiển thị. Không viết lại hoặc thay đổi món, định lượng, macro hay tổng kcal; chỉ bổ sung giáo án tập luyện bằng văn bản theo đúng số ngày và thiết bị user yêu cầu.";
@@ -1514,6 +1534,7 @@ export const chatStream = async (req, res) => {
     let equipmentRetryCount = 0;
     let workoutStructureRetryCount = 0;
     let sevenDayPlanRetryCount = 0;
+    let workoutIntakeRetryCount = 0;
     let scopeRetryCount = 0;
     const scopePreservationRequest = parseScopePreservationRequest(message);
 
@@ -2285,6 +2306,21 @@ export const chatStream = async (req, res) => {
               buildScopePreservationFallback(scopePreservationRequest),
             ),
           );
+          needsToolCall = false;
+          break;
+        }
+        if (workoutIntakeRequested && evaluateSemanticOutput({
+          output: { text: candidateContent, cards: [] },
+          rules: [{ type: "intake_questions", requestType: "workout" }],
+        }).length > 0) {
+          if (workoutIntakeRetryCount < 1) {
+            workoutIntakeRetryCount += 1;
+            llmMessages.push({ role: "assistant", content: iterationText });
+            llmMessages.push({ role: "user", content: WORKOUT_INTAKE_CORRECTION_INSTRUCTION });
+            needsToolCall = true;
+            continue;
+          }
+          fullResponse = await deliverWorkoutIntakeFallback();
           needsToolCall = false;
           break;
         }

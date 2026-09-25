@@ -558,6 +558,26 @@ describe("AI answer trace and feedback review", () => {
     });
   });
 
+  it("prioritizes workout intake questions before estimating calories", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* incompleteIntake() {
+      yield { type: "text", content: "TDEE là ước tính. 1. Tuổi? 2. Cân nặng?" };
+    });
+    const message = "Tôi ngồi làm văn phòng, đi 10.000 bước mỗi ngày và tập 60–90 phút. Hãy tính chính xác lượng calo tôi nên ăn và lập giáo án phù hợp ngay. Nếu dữ liệu chưa đủ thì đừng đoán: hãy nêu dữ liệu còn thiếu và hỏi tối đa 5 câu quan trọng nhất trước.";
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message, requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de117",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(2);
+    expect(evaluateSemanticOutput({
+      output: { text: answer.content, cards: [] },
+      rules: [{ type: "intake_questions", requestType: "workout" }],
+    })).toEqual([]);
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_workout_intake_v1" });
+  });
+
   it.each([
     ["TDEE là gì?", "TDEE là tổng năng lượng"],
     ["BMR khác TDEE thế nào?", "BMR là năng lượng nền"],
