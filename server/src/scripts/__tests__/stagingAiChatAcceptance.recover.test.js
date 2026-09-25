@@ -12,7 +12,7 @@ import {
   validateRecoveryConfig,
   writeRecoveryReport,
 } from "../stagingAiChatAcceptance.recover.js";
-import { knowledgeFixtureQueries } from "../stagingAiChatAcceptance.http.js";
+import { buildKnowledgeFixturePayload, knowledgeFixtureQueries } from "../stagingAiChatAcceptance.http.js";
 import { normalizeKnowledgeQuestion } from "../../utils/knowledgeBase.js";
 
 const RUN_ID = "69095c11-7fc9-4047-9414-1b39a2d188e2";
@@ -76,6 +76,11 @@ const fixtureRejectionEvidence = (overrides = {}) => ({
   verified: true,
   ...overrides,
 });
+const canonicalJson = (value) => Array.isArray(value)
+  ? `[${value.map(canonicalJson).join(",")}]`
+  : value && typeof value === "object"
+    ? `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`
+    : JSON.stringify(value);
 const seedFixtureJournal = async () => db.collection("staging_ai_acceptance_claims").insertOne({
   _id: `${RUN_ID}:fixture-create`, recordType: "fixture_create", journalVersion: 1,
   runId: RUN_ID, releaseSha: SHA, actorId: String(new mongoose.Types.ObjectId()),
@@ -129,9 +134,17 @@ describe("AC-009 hard-kill recovery", () => {
       settledAt: null, knowledgeEntryId: null, responseStatus: null, responseCode: null,
     }, { upsert: true });
     const entryId = new mongoose.Types.ObjectId();
+    const retrievedAt = "2026-09-15T00:00:03.000Z";
+    const payload = buildKnowledgeFixturePayload({ marker: intent().marker,
+      sourceUrl: "https://www.who.int/news-room/fact-sheets/detail/physical-activity", retrievedAt });
     await db.collection("knowledgeentries").insertOne({
-      _id: entryId, normalizedQuestion, status: "published", reviewStatus: "reviewed",
-      embeddingStatus: "failed",
+      _id: entryId, ...payload, normalizedQuestion,
+      variants: payload.variants.map((text) => ({ text, embedding: [] })),
+      sources: payload.sources.map((source) => ({ ...source, retrievedAt: new Date(retrievedAt) })),
+      status: "draft", reviewStatus: "needs_review", embeddingStatus: "failed", createdBy: actor,
+    });
+    await db.collection("staging_ai_acceptance_claims").updateOne({ _id: `${RUN_ID}:fixture-create` }, {
+      $set: { payloadDigest: createHash("sha256").update(canonicalJson(payload)).digest("hex") },
     });
     const report = await recoverStagingAiChatAcceptance({
       env: env(), intent: intent(), db, capability: capability(), ...fastRecovery(),

@@ -25,7 +25,9 @@ const canonicalJson = (value) => Array.isArray(value)
   : value && typeof value === "object"
     ? `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`
     : JSON.stringify(value);
+const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const payloadDigest = (payload) => createHash("sha256").update(canonicalJson(payload)).digest("hex");
+const FIXTURE_SOURCE_URL = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";
 
 const hasExactKeys = (journal, keys) => journal && Object.keys(journal).length === keys.length &&
   Object.keys(journal).every((key) => keys.includes(key));
@@ -140,9 +142,27 @@ export const repairPendingFixtureCreateJournal = async ({ collection, knowledgeC
   const journal = await assertFixtureCreatePending({ collection, runId, releaseSha, marker });
   const normalizedQuestion = normalizeKnowledgeQuestion(knowledgeFixtureQueries(marker).question);
   const entries = await knowledgeCollection.find({ normalizedQuestion }, {
-    projection: { _id: 1, status: 1, reviewStatus: 1 },
+    projection: { _id: 1, question: 1, answer: 1, category: 1, tags: 1, variants: 1,
+      status: 1, reviewStatus: 1, embeddingStatus: 1, sources: 1, createdBy: 1 },
   }).toArray();
-  if (entries.length !== 1 || entries[0].status !== "published" || entries[0].reviewStatus !== "reviewed") {
+  const entry = entries[0];
+  const retrievedAt = entry?.sources?.[0]?.retrievedAt?.toISOString?.();
+  const expectedPayload = retrievedAt
+    ? buildKnowledgeFixturePayload({ marker, sourceUrl: FIXTURE_SOURCE_URL, retrievedAt })
+    : null;
+  const fieldsMatch = expectedPayload && entry.question === expectedPayload.question &&
+    entry.answer === expectedPayload.answer && entry.category === expectedPayload.category &&
+    JSON.stringify(entry.tags) === JSON.stringify(expectedPayload.tags) &&
+    entry.variants?.length === expectedPayload.variants.length &&
+    entry.variants.every((variant, index) => variant.text === expectedPayload.variants[index]) &&
+    entry.sources?.length === expectedPayload.sources.length &&
+    entry.sources.every((source, index) => source.url === expectedPayload.sources[index].url &&
+      source.title === expectedPayload.sources[index].title &&
+      source.publisher === expectedPayload.sources[index].publisher);
+  if (entries.length !== 1 || String(entry.createdBy) !== journal.actorId || !fieldsMatch ||
+      sha256(canonicalJson(expectedPayload)) !== journal.payloadDigest ||
+      entry.status !== "draft" || entry.reviewStatus !== "needs_review" ||
+      entry.embeddingStatus !== "failed") {
     throw unknown();
   }
   const repaired = await collection.updateOne({
@@ -150,7 +170,7 @@ export const repairPendingFixtureCreateJournal = async ({ collection, knowledgeC
   }, {
     $set: {
       state: "terminal", outcome: "created", settledAt: new Date(),
-      knowledgeEntryId: String(entries[0]._id), responseStatus: 201, responseCode: null,
+      knowledgeEntryId: String(entry._id), responseStatus: 201, responseCode: null,
     },
   }, { timeoutMS: 1_000 });
   if (repaired.acknowledged !== true || repaired.modifiedCount !== 1) throw unknown();
