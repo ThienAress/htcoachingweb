@@ -72,6 +72,7 @@ export const buildSafeReliabilityEvidence = (state) => ({
     collections: Object.fromEntries(CLEANUP_COLLECTIONS.map((name) => [name,
       Number.isSafeInteger(state.cleanup.collections?.[name]) ? state.cleanup.collections[name] : null])),
   },
+  ...(state.cardDiagnostic ? { cardDiagnostic: state.cardDiagnostic } : {}),
   ...(state.error ? { error: {
     code: SAFE_CODE.test(state.error.code || "") ? state.error.code : "STAGING_AI_RELIABILITY_FAILED",
   } } : {}),

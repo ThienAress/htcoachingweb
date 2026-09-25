@@ -37,6 +37,17 @@ const canonicalJson = (value) => Array.isArray(value)
     : JSON.stringify(value);
 
 export const reliabilityCardsEqual = (left, right) => canonicalJson(left) === canonicalJson(right);
+const cardShape = (card) => ({
+  type: typeof card?.cardType === "string" ? card.cardType : null,
+  fieldCount: card?.data && typeof card.data === "object" ? Object.keys(card.data).length : 0,
+});
+const cardMismatch = (streamCards, persistedCards) => ({
+  streamedCount: streamCards.length,
+  persistedCount: persistedCards.length,
+  streamed: streamCards.map(cardShape),
+  persisted: persistedCards.map(cardShape),
+  matchedCount: streamCards.filter((card) => persistedCards.some((saved) => reliabilityCardsEqual(saved, card))).length,
+});
 const seedDeficitContext = async ({ userId, conversationId }) => {
   const conversation = new ChatConversation({
     _id: conversationId, userId,
@@ -103,9 +114,14 @@ const inspectTurn = async ({ db, userId, conversationId, requestId, message, str
   }
   const persistedCards = turn.filter((item) => item.uiCard)
     .map((item) => ({ cardType: item.uiCard.cardType, data: item.uiCard.data }));
-  check(stream.cards.length === persistedCards.length &&
-    stream.cards.every((card) => persistedCards.some((saved) =>
-      reliabilityCardsEqual(saved, card))), "STAGING_AI_RELIABILITY_CARD_FAILED");
+  const cardsMatch = stream.cards.length === persistedCards.length &&
+    stream.cards.every((card) => persistedCards.some((saved) => reliabilityCardsEqual(saved, card)));
+  if (!cardsMatch) {
+    const error = new Error("Card count or semantic data differs between SSE and Mongo");
+    error.code = "STAGING_AI_RELIABILITY_CARD_FAILED";
+    error.cardDiagnostic = cardMismatch(stream.cards, persistedCards);
+    throw error;
+  }
   const failures = evaluateSemanticOutput({
     output: { text: assistant.content, cards: stream.cards, trace }, rules: plan.rules,
   });
@@ -251,6 +267,7 @@ export const runStagingAiReliabilityAcceptance = async ({ env = process.env, dep
   } catch (error) {
     operationError = error;
     state.error = error;
+    state.cardDiagnostic = error.cardDiagnostic || null;
     state.cleanup = error.cleanup || { verified: false, residue: null };
   } finally {
     if (connected) {
