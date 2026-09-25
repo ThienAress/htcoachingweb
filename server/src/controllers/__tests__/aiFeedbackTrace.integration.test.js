@@ -1382,7 +1382,7 @@ describe("AI answer trace and feedback review", () => {
       yield {
         type: "text",
         content:
-          "Buổi 1: Dumbbell Floor Press trên sàn. Buổi 2: Goblet Squat. Buổi 3: Resistance Band Row. Buổi 4: Dumbbell Romanian Deadlift.",
+          "Buổi 1: Dumbbell Floor Press trên sàn 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây. Buổi 2: Goblet Squat 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây. Buổi 3: Resistance Band Row 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây. Buổi 4: Dumbbell Romanian Deadlift 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
       };
     });
 
