@@ -135,7 +135,17 @@ const inspectTurn = async ({ db, userId, conversationId, requestId, message, str
   const failures = evaluateSemanticOutput({
     output: { text: assistant.content, cards: stream.cards, trace }, rules: plan.rules,
   });
-  check(failures.length === 0, "STAGING_AI_RELIABILITY_SEMANTIC_FAILED");
+  if (failures.length > 0) {
+    const error = new Error("Semantic output did not satisfy the reviewed oracle");
+    error.code = "STAGING_AI_RELIABILITY_SEMANTIC_FAILED";
+    error.semanticFailures = failures.slice(0, 8);
+    error.cardDiagnostic = {
+      cardCount: stream.cards.length,
+      mealStatus: stream.cards.find((card) => (card?.cardType || card?.type) === "meal")?.data?.status || null,
+      adjustmentCount: stream.cards.find((card) => (card?.cardType || card?.type) === "meal")?.data?.adjustments?.length || 0,
+    };
+    throw error;
+  }
   if (plan.number === 6) {
     check(/(?:10[., ]?000|mười nghìn|bước)/iu.test(assistant.content) &&
       /(?:60|90|phút|tập)/iu.test(assistant.content),
@@ -277,6 +287,8 @@ export const runStagingAiReliabilityAcceptance = async ({ env = process.env, dep
   } catch (error) {
     operationError = error;
     state.error = error;
+    state.semanticFailures = error.semanticFailures || null;
+    state.semanticCardDiagnostic = error.cardDiagnostic || null;
     state.cardDiagnostic = error.cardDiagnostic || null;
     state.cleanup = error.cleanup || { verified: false, residue: null };
   } finally {
