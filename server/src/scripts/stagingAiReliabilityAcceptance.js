@@ -38,7 +38,9 @@ const canonicalJson = (value) => Array.isArray(value)
 
 export const reliabilityCardsEqual = (left, right) => canonicalJson(left) === canonicalJson(right);
 export const assertReliabilityRuntimeRoute = (trace, plan) => {
-  check(trace?.routeDomain === plan.expectedPath.domain, "STAGING_AI_RELIABILITY_ROUTE_FAILED");
+  if (plan.expectedPath.domain !== undefined) {
+    check(trace?.routeDomain === plan.expectedPath.domain, "STAGING_AI_RELIABILITY_ROUTE_FAILED");
+  }
   const lowRiskFitnessKbMiss = plan.expectedPath.evidence === "internal_kb" &&
     plan.expectedPath.domain === "fitness" && plan.expectedPath.risk === "low" &&
     !plan.expectedPath.preferredTool && trace.evidenceMode === "model_prior" &&

@@ -57,6 +57,16 @@ describe("one-round reliability acceptance", () => {
     expect(() => assertReliabilityRuntimeRoute(trace, reliabilityPlan()[1]))
       .toThrowError("STAGING_AI_RELIABILITY_ROUTE_FAILED");
   });
+  test("does not require a domain when the follow-up route contract omits it", () => {
+    for (const number of [4, 6]) {
+      const plan = reliabilityPlan()[number - 1];
+      expect(plan.expectedPath.domain).toBeUndefined();
+      expect(() => assertReliabilityRuntimeRoute({
+        routeDomain: "fitness", evidenceMode: "model_prior", kbEntryIds: [],
+        webSearchUsed: false, webSearchOutcome: "not_called",
+      }, plan)).not.toThrow();
+    }
+  });
   test("compares persisted cards semantically despite object key order", () => {
     expect(reliabilityCardsEqual(
       { cardType: "meal", data: { totals: { protein: 120, calories: 2200 }, status: "complete" } },
