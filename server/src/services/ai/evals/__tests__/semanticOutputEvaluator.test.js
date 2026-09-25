@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { evaluateSemanticOutput } from "../semanticOutputEvaluator.js";
+import { buildScopePreservationFallback, parseScopePreservationRequest } from "../../scopePreservation.js";
 
 const workoutRequest =
   "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực.";
@@ -42,6 +43,27 @@ const sevenDayPlan = Array.from({ length: 7 }, (_, index) => [
 ].join("\n")).join("\n");
 
 describe("evaluateSemanticOutput", () => {
+  it("accepts a negated workout mutation in the server's deficit-only fallback", () => {
+    const request = parseScopePreservationRequest(
+      "Giữ nguyên toàn bộ kế hoạch vừa rồi nhưng đổi mức thâm hụt từ 300 kcal thành 700 kcal. Giải thích phần nào đã thay đổi.",
+    );
+    const text = buildScopePreservationFallback(request);
+    expect(evaluateSemanticOutput({ output: { text }, rules: [
+      { type: "preserve_scope", changedValue: "700 kcal" },
+    ] })).toEqual([]);
+  });
+
+  it("still rejects an unapproved workout change after a deficit-only request", () => {
+    for (const text of [
+      "Chỉ mức thâm hụt thay đổi thành 700 kcal; lịch tập và mọi phần khác giữ nguyên. Đồng thời giảm lịch tập từ 4 buổi xuống 3 buổi.",
+      "Chỉ mức thâm hụt thay đổi thành 700 kcal; mọi phần khác giữ nguyên. Mình chưa tự thay đổi lịch tập, nhưng giảm số buổi từ 4 xuống 3.",
+    ]) {
+      expect(evaluateSemanticOutput({ output: { text }, rules: [
+        { type: "preserve_scope", changedValue: "700 kcal" },
+      ] })).toContain("coaching advisory changed the requested plan without permission");
+    }
+  });
+
   it("accepts normalized oracle observations for the 11-question semantic rules", () => {
     const results = [
       evaluateSemanticOutput({
