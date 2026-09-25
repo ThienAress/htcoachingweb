@@ -50,6 +50,7 @@ import {
   updateConversationMemory,
 } from "../services/ai/conversationMemory.js";
 import { buildCanonicalMealToolRequest } from "../services/ai/mealRequestConstraints.js";
+import { evaluateSemanticOutput } from "../services/ai/evals/semanticOutputEvaluator.js";
 import { buildTdeeIntakeResponse } from "../services/ai/tdeeIntake.js";
 import { buildExerciseRequest, isExerciseCatalogRequest } from "../services/ai/exerciseRequest.js";
 import {
@@ -200,6 +201,16 @@ const hasCompleteCanonicalMealArgs = (args) =>
 
 const EQUIPMENT_CORRECTION_INSTRUCTION =
   "Hãy viết lại câu trả lời và giữ nguyên mục tiêu lịch tập. Chỉ dùng tạ đơn điều chỉnh, dây kháng lực hoặc bodyweight. Không dùng thanh đòn, máy, cáp hay ghế; dumbbell chest press phải ghi rõ biến thể floor press trên sàn. Chỉ trả lời cuối cùng, không nêu quy trình nội bộ.";
+const FOUR_DAY_WORKOUT_CORRECTION_INSTRUCTION =
+  "Hãy viết lại thành giáo án đủ Buổi 1, Buổi 2, Buổi 3, Buổi 4. Mỗi buổi nêu bài tập, số hiệp, số lần, RPE, thời gian nghỉ và tối đa 60 phút. Giữ nguyên ràng buộc thiết bị; không nêu quy trình nội bộ.";
+const FOUR_DAY_WORKOUT_FALLBACK = [
+  "Đây là mẫu giáo án 4 buổi để bắt đầu; điều chỉnh độ khó theo thể lực của bạn, mỗi buổi khoảng 45–55 phút.",
+  "Buổi 1 (thân trên): Hít đất 3 hiệp x 8–12 lần, kéo khuỷu về sau khi nằm sấp 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Buổi 2 (thân dưới): Squat trọng lượng cơ thể 3 hiệp x 10–15 lần, glute bridge 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Buổi 3 (thân trên): Hít đất biến thể phù hợp 3 hiệp x 8–12 lần, reverse snow angel 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Buổi 4 (thân dưới): Split squat 3 hiệp x 8–10 lần mỗi bên, glute bridge 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Sắp xếp Buổi 1–2 rồi nghỉ một ngày trước Buổi 3–4 để hai buổi chân không liền nhau. Tăng dần số lần trong 5 tuần khi kỹ thuật ổn định; tuần 6 deload, giảm khoảng 30% volume.",
+].join("\n");
 
 const explicitDietPlan = (message) => {
   const text = String(message || "");
@@ -1432,6 +1443,18 @@ export const chatStream = async (req, res) => {
     const mixedWorkoutMealRequest =
       routingDecision.reasonCodes.includes("workout_creation") &&
       routedRequiredToolName === "suggest_meal";
+    const fourDayWorkoutRequested =
+      routingDecision.risk === "low" &&
+      routingDecision.reasonCodes.includes("workout_creation") &&
+      !mixedWorkoutMealRequest &&
+      /\b4\s*(?:ngày|buổi)/iu.test(message);
+    const deliverFourDayWorkoutFallback = async () => {
+      routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
+      kbEntryIds = [];
+      kbCitationSources = [];
+      responseModel = "static_workout_v1";
+      return deliverAssistantResponse(FOUR_DAY_WORKOUT_FALLBACK);
+    };
     const mixedWorkoutMealInstruction =
       "Thực đơn từ công cụ là dữ liệu chuẩn và đã được hiển thị. Không viết lại hoặc thay đổi món, định lượng, macro hay tổng kcal; chỉ bổ sung giáo án tập luyện bằng văn bản theo đúng số ngày và thiết bị user yêu cầu.";
     let requiredToolConsumed = false;
@@ -1460,6 +1483,7 @@ export const chatStream = async (req, res) => {
     let canonicalMixedWorkoutMealText = "";
     let mixedWorkoutRetryCount = 0;
     let equipmentRetryCount = 0;
+    let workoutStructureRetryCount = 0;
     let scopeRetryCount = 0;
     const scopePreservationRequest = parseScopePreservationRequest(message);
 
@@ -1997,6 +2021,16 @@ export const chatStream = async (req, res) => {
       }
       } catch (providerError) {
         if (
+          fourDayWorkoutRequested &&
+          workoutStructureRetryCount > 0 &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          fullResponse = await deliverFourDayWorkoutFallback();
+          needsToolCall = false;
+          break;
+        }
+        if (
           scopeRetryCount > 0 &&
           !abortController.signal.aborted &&
           !deadlineExceeded
@@ -2243,9 +2277,33 @@ export const chatStream = async (req, res) => {
           needsToolCall = false;
           break;
         }
+        if (fourDayWorkoutRequested && evaluateSemanticOutput({
+          output: { text: candidateContent, cards: [] },
+          rules: [{ type: "workout_structure", minDays: 4 }],
+        }).length > 0) {
+          if (workoutStructureRetryCount < 1) {
+            workoutStructureRetryCount += 1;
+            llmMessages.push({ role: "assistant", content: iterationText });
+            llmMessages.push({ role: "user", content: FOUR_DAY_WORKOUT_CORRECTION_INSTRUCTION });
+            needsToolCall = true;
+            continue;
+          }
+          fullResponse = await deliverFourDayWorkoutFallback();
+          needsToolCall = false;
+          break;
+        }
         const finalContent = enforceEvidenceBoundary(candidateContent);
         fullResponse = await deliverAssistantResponse(finalContent);
       }
+    }
+
+    if (
+      !abortController.signal.aborted &&
+      !fullResponse &&
+      fourDayWorkoutRequested &&
+      workoutStructureRetryCount > 0
+    ) {
+      fullResponse = await deliverFourDayWorkoutFallback();
     }
 
     if (
