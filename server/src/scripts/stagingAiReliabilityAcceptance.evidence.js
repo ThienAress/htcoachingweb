@@ -73,6 +73,8 @@ export const buildSafeReliabilityEvidence = (state) => ({
       Number.isSafeInteger(state.cleanup.collections?.[name]) ? state.cleanup.collections[name] : null])),
   },
   ...(state.cardDiagnostic ? { cardDiagnostic: state.cardDiagnostic } : {}),
+  ...(state.semanticFailures ? { semanticFailures: state.semanticFailures } : {}),
+  ...(state.semanticCardDiagnostic ? { semanticCardDiagnostic: state.semanticCardDiagnostic } : {}),
   ...(state.error ? { error: {
     code: SAFE_CODE.test(state.error.code || "") ? state.error.code : "STAGING_AI_RELIABILITY_FAILED",
   } } : {}),
