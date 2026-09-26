@@ -631,6 +631,65 @@ describe("AI answer trace and feedback review", () => {
     expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_workout_intake_v1" });
   });
 
+  it("keeps supplied activity details in the same conversation after workout intake", async () => {
+    const { user, accessToken } = await createTestUser();
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Synthetic workout intake",
+      messages: [
+        { role: "user", content: "Tính lượng calo và lập giáo án khi tôi còn thiếu dữ liệu." },
+        { role: "assistant", content: "TDEE là ước tính; mình cần tuổi, chiều cao, cân nặng, kinh nghiệm và thiết bị trước khi lập giáo án." },
+      ],
+      messageCount: 2,
+    });
+    llmStreamMock.mockImplementation(async function* incompleteActivityAnswer() {
+      yield { type: "text", content: "Bạn cho mình thêm cân nặng nhé." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      conversationId: conversation._id.toString(),
+      message: "ngồi làm, 10000 bước 1 ngày, tập 60-90p",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de118",
+    });
+    const updated = await ChatConversation.findById(conversation._id).lean();
+    const answer = updated.messages.findLast((item) => item.role === "assistant" && item.content);
+    expect({
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      conversationId: updated._id.toString(),
+      mentionsSteps: /10[., ]?000\s*bước/iu.test(answer.content),
+      mentionsDuration: /60[–-]90\s*phút/iu.test(answer.content),
+      estimated: answer.content.includes("ước tính"),
+      trace: answer.answerTrace,
+    }).toMatchObject({
+      status: 200,
+      modelCalls: 0,
+      conversationId: conversation._id.toString(),
+      mentionsSteps: true,
+      mentionsDuration: true,
+      estimated: true,
+      trace: { evidenceMode: "model_prior", model: "server_activity_followup_v1" },
+    });
+  });
+
+  it("does not infer a workout intake from an activity note in a new conversation", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* activityNoteAnswer() {
+      yield { type: "text", content: "Mình đã ghi nhận mức vận động bạn vừa chia sẻ." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "ngồi làm, 10000 bước 1 ngày, tập 60-90p",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de119",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect({ status: response.status, modelCalls: llmStreamMock.mock.calls.length,
+      content: answer.content, model: answer.answerTrace.model }).toEqual({
+      status: 200, modelCalls: 1,
+      content: "Mình đã ghi nhận mức vận động bạn vừa chia sẻ.",
+      model: "gemini-3.1-flash-lite",
+    });
+  });
+
   it.each([
     ["TDEE là gì?", "TDEE là tổng năng lượng"],
     ["BMR khác TDEE thế nào?", "BMR là năng lượng nền"],

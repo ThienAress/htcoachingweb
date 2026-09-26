@@ -224,6 +224,23 @@ const SEVEN_DAY_PLAN_FALLBACK = [
   "Ngày 7: Ăn uống: duy trì đạm, rau, trái cây và tinh bột phù hợp ở ba bữa. Tập luyện: nghỉ phục hồi hoặc đi bộ nhẹ 20 phút.",
   "Theo dõi cảm giác hồi phục và xu hướng cân nặng ít nhất hai tuần; cung cấp số đo và lịch sinh hoạt để điều chỉnh khẩu phần an toàn hơn.",
 ].join("\n");
+const activityIntakeFollowup = (message, priorMessages, routingDecision) => {
+  if (routingDecision.risk !== "low" || routingDecision.webSearchRequired ||
+      routingDecision.preferredTool) return null;
+  const priorAssistant = priorMessages.findLast((item) => item.role === "assistant")?.content || "";
+  if (!/TDEE/iu.test(priorAssistant) || !/ước tính/iu.test(priorAssistant) ||
+      !/(?:tuổi|chiều cao|cân nặng|thiết bị|kinh nghiệm)/iu.test(priorAssistant) ||
+      !/(?:ngồi làm|làm văn phòng|ngồi nhiều)/iu.test(message)) return null;
+  const steps = /(?:^|\D)(\d{4,5})\s*bước/iu.exec(message)?.[1];
+  const minutes = /(\d{2,3})\s*[-–]\s*(\d{2,3})\s*(?:p\b|phút)/iu.exec(message);
+  const stepCount = Number(steps);
+  const from = Number(minutes?.[1]);
+  const to = Number(minutes?.[2]);
+  if (!Number.isInteger(stepCount) || stepCount < 1_000 || stepCount > 30_000 ||
+      !Number.isInteger(from) || from < 10 || !Number.isInteger(to) ||
+      to < from || to > 240) return null;
+  return `Mình ghi nhận bạn ngồi làm việc, đi ${stepCount.toLocaleString("vi-VN")} bước/ngày và tập ${from}–${to} phút. TDEE vẫn là ước tính; mình chưa thể ấn định kcal cá nhân hoặc lập giáo án phù hợp chỉ từ các dữ liệu này. Bạn cho mình thêm giới tính, tuổi, chiều cao, cân nặng, mục tiêu, kinh nghiệm tập, thiết bị hiện có và chấn thương nếu có nhé.`;
+};
 const WORKOUT_INTAKE_CORRECTION_INSTRUCTION =
   "Hãy hỏi tối đa 5 nhóm dữ liệu còn thiếu trước khi tính calo hoặc lập giáo án: giới tính/tuổi/chiều cao/cân nặng; mục tiêu; công việc/số bước/số buổi; kinh nghiệm và thiết bị; chấn thương hoặc vấn đề xương khớp. TDEE chỉ là ước tính. Không hỏi dị ứng hay chế độ ăn nếu user chưa yêu cầu thực đơn.";
 const WORKOUT_INTAKE_FALLBACK = [
@@ -1164,6 +1181,9 @@ export const chatStream = async (req, res) => {
     routingDecision = routeAiRequest(message, {
       contextualQuery: retrievalQuery,
     });
+    const activityFollowupResponse = !structuredAction
+      ? activityIntakeFollowup(message, priorMessages, routingDecision)
+      : null;
     const allowedPublicPersonNames =
       getPublicPersonLookupNames(retrievalQuery);
     const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
@@ -1610,7 +1630,11 @@ export const chatStream = async (req, res) => {
     let protocolRetryCount = 0;
     aiLogger.chatStart(actorId, conversation._id);
 
-    if (structuredAction?.type === "calculate_tdee") {
+    if (activityFollowupResponse) {
+      incrementMetric("provider.gemini_chat_not_required");
+      responseModel = "server_activity_followup_v1";
+      fullResponse = await deliverAssistantResponse(activityFollowupResponse);
+    } else if (structuredAction?.type === "calculate_tdee") {
       const directTdee = await executeServerRequiredTool(
         "calculate_tdee",
         structuredAction.payload,
