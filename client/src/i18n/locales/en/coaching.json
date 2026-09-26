@@ -155,6 +155,7 @@
     "signature_canvas_label": "Signature drawing area",
     "confirm_btn": "Confirm and sign agreement",
     "signing": "Completing agreement…",
+    "status_signing_reconciliation": "Please wait while the system verifies the outcome. The page will refresh the server state before allowing another signature attempt.",
     "signed_btn": "Agreement signed",
     "status_signed": "Completed on {{date}}",
     "signed_with_handwritten": "Both parties confirmed with handwritten signatures.",

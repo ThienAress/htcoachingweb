@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import {
   PLAN_043_FIXTURE_KEY,

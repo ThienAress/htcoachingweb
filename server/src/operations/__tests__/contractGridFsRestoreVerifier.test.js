@@ -5,6 +5,7 @@ import { verifyContractGridFsSnapshot } from "../contractGridFsRestoreVerifier.j
 import { validateRestoreTarget } from "../../scripts/verifyContractGridFsRestore.js";
 
 const FILE_ID = "64b000000000000000000001";
+const CLIENT_ID = "64b000000000000000000012";
 const pdf = Buffer.from("%PDF-1.7\nsynthetic restore canary\n%%EOF", "ascii");
 const hash = crypto.createHash("sha256").update(pdf).digest("hex");
 
@@ -26,6 +27,29 @@ const fixture = () => ({
 });
 
 describe("contract GridFS restore verifier", () => {
+  it("distinguishes a currently fenced signing candidate from an orphan", () => {
+    const input = fixture();
+    input.contracts = [];
+    input.now = new Date("2026-09-18T10:00:00Z");
+    input.signingContracts = [{ _id: "64b000000000000000000010", clientId: CLIENT_ID, status: "signing", signingAttemptId: "64b000000000000000000011" }];
+    input.signingAttempts = [{ _id: "64b000000000000000000011", contractId: "64b000000000000000000010", clientId: CLIENT_ID, candidateFileId: FILE_ID, candidateFileHash: hash, phase: "active", leaseUntil: new Date("2026-09-18T10:05:00Z") }];
+    Object.assign(input.files[0].metadata, { contractId: "64b000000000000000000010", signingAttemptId: "64b000000000000000000011" });
+    expect(verifyContractGridFsSnapshot(input).findings).toEqual([]);
+    input.signingAttempts[0].candidateFileHash = "a".repeat(64);
+    expect(verifyContractGridFsSnapshot(input).findings.map(row => row.code)).toContain("GRIDFS_PDF_HASH_MISMATCH");
+    input.signingAttempts[0].candidateFileHash = hash;
+    input.signingAttempts[0].leaseUntil = new Date("2026-09-18T09:55:00Z");
+    expect(verifyContractGridFsSnapshot(input).findings.map(row => row.code)).toContain("GRIDFS_ORPHAN_FILE");
+    input.signingAttempts[0].leaseUntil = new Date("2026-09-18T10:05:00Z");
+    input.signingContracts[0].signingAttemptId = "64b000000000000000000099";
+    expect(verifyContractGridFsSnapshot(input).findings.map(row => row.code)).toContain("GRIDFS_ORPHAN_FILE");
+  });
+  it("does not classify a signing contract linked to an aborted attempt as healthy", () => {
+    expect(verifyContractGridFsSnapshot({
+      signingContracts: [{ _id: "64b000000000000000000010", status: "signing", signingAttemptId: "64b000000000000000000011" }],
+      signingAttempts: [{ _id: "64b000000000000000000011", contractId: "64b000000000000000000010", phase: "aborted" }],
+    }).success).toBe(false);
+  });
   it("requires an explicitly isolated restore database", () => {
     expect(
       validateRestoreTarget({
@@ -67,6 +91,7 @@ describe("contract GridFS restore verifier", () => {
       files: 1,
       chunks: 3,
       checkedBytes: pdf.length,
+      trackedSigningCandidates: 0,
       findings: [],
     });
   });

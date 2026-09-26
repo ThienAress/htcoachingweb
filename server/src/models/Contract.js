@@ -72,6 +72,8 @@ const contractSchema = new mongoose.Schema(
 
     // Chữ ký HLV (base64)
     trainerSignature: String,
+    revision: { type: Number, default: 0, min: 0, validate: Number.isSafeInteger },
+    signingAttemptId: { type: mongoose.Schema.Types.ObjectId, ref: "ContractSigningAttempt", select: false },
 
     // State Machine: draft → sent → viewed → signing → signed → expired/cancelled
     status: {

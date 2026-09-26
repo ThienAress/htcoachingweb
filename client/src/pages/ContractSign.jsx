@@ -20,6 +20,7 @@ import {
   markAsViewed,
   signContract,
 } from "../services/contract.service";
+import { shouldRefetchSigningOutcome } from "../utils/contractConsistency";
 
 const ContractSign = () => {
   const { id } = useParams();
@@ -121,7 +122,12 @@ const ContractSign = () => {
       queryClient.invalidateQueries({ queryKey: ["account", "contracts"] });
       setSignatureImage("");
     },
-    onError: (requestError) => {
+    onError: async (requestError) => {
+      if (shouldRefetchSigningOutcome(requestError)) {
+        await queryClient
+          .refetchQueries({ queryKey: ["contract", id], exact: true })
+          .catch(() => undefined);
+      }
       toast.error(requestError.response?.data?.message || t("contract.toasts.error"));
     },
   });
@@ -164,6 +170,7 @@ const ContractSign = () => {
   }
 
   const isSigned = contract.status === "signed";
+  const isSigning = contract.status === "signing";
   const isExpired = contract.status === "expired";
   const isCancelled = contract.status === "cancelled";
   const canSign =
@@ -363,7 +370,24 @@ const ContractSign = () => {
           </section>
         )}
 
-        {!isSigned && !isExpired && !isCancelled && (
+        {isSigning && (
+          <section
+            className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-950"
+            aria-live="polite"
+          >
+            <div className="flex items-start gap-3">
+              <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin" />
+              <div>
+                <h2 className="font-semibold">{t("contract.signing")}</h2>
+                <p className="mt-1 text-sm leading-6">
+                  {t("contract.status_signing_reconciliation")}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {!isSigned && !isSigning && !isExpired && !isCancelled && (
           <section className="mt-5 space-y-5 rounded-xl border border-zinc-300 bg-zinc-50 p-4 shadow-sm sm:p-6">
             <div>
               <div className="flex items-center gap-2 text-emerald-800">

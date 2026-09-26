@@ -107,6 +107,7 @@ export const updateContract = async (req, res) => {
     );
     res.json({ success: true, data: contract });
   } catch (error) {
+    if (error.code && error.statusCode) return sendSigningError(res, error);
     const status = error.message.includes("không tồn tại") ? 404 : 400;
     res.status(status).json({ success: false, message: error.message });
   }
@@ -121,7 +122,7 @@ export const sendContract = async (req, res) => {
       req.params.id,
       req.ip,
       req.headers["user-agent"],
-      { trainerId: req.isAdmin ? null : req.user.id },
+      { trainerId: req.isAdmin ? null : req.user.id, expectedRevision: req.body.expectedRevision },
     );
 
     // Gửi email cho khách hàng
@@ -140,6 +141,7 @@ export const sendContract = async (req, res) => {
 
     res.json({ success: true, data: contract });
   } catch (error) {
+    if (error.code && error.statusCode) return sendSigningError(res, error);
     const status = error.message.includes("không tồn tại") ? 404 : 400;
     res.status(status).json({ success: false, message: error.message });
   }

@@ -33,6 +33,7 @@ import { NotificationCenter } from "../../components/NotificationCenter";
 import { getAccountWorkspaceItems } from "../../navigation/workspaceNavigation";
 import { TODAY_PLATFORM_ENABLED } from "../../config/featureFlags";
 import { getTodayProgressPromptEligibility } from "../../services/todayDashboard.service";
+import { useModalScrollLock } from "../../hooks/useModalScrollLock";
 
 function Header() {
   const navigate = useNavigate();
@@ -52,6 +53,7 @@ function Header() {
   };
 
   const [menuOpen, setMenuOpen] = useState(false);
+  useModalScrollLock(menuOpen);
   const [isScrolled, setIsScrolled] = useState(false);
   const headerRef = useRef(null);
   const mobileMenuButtonRef = useRef(null);
@@ -130,16 +132,6 @@ function Header() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // Khóa scroll khi menu mở
-  useEffect(() => {
-    if (menuOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => (document.body.style.overflow = "");
-  }, [menuOpen]);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -551,17 +543,18 @@ function Header() {
                     { label: t("nav_dropdown.meal_scan"), icon: ScanLine, path: "/quet-mon-an" },
                     { label: t("nav_dropdown.recipes"), icon: Utensils, path: "/cong-thuc-nau-an" },
                     { label: t("nav_dropdown.mealplan"), icon: CalendarDays, path: "/mealplan" },
-                  ].map((sub, i) => {
+                  ].map((sub) => {
                     const SubIcon = sub.icon;
                     return (
-                      <button
-                        key={i}
-                        onClick={() => { navigate(sub.path); setMenuOpen(false); }}
-                        className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/15 bg-slate-950/75 px-2 py-3 text-center transition-all hover:bg-slate-950/90 active:scale-95"
+                      <Link
+                        key={sub.path}
+                        to={sub.path}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/15 bg-slate-950/75 px-2 py-3 text-center transition-[background-color,transform] hover:bg-slate-950/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
                       >
                         <SubIcon size={24} className="text-white/90" strokeWidth={1.5} />
                         <span className="text-[11px] font-semibold leading-tight text-white">{sub.label}</span>
-                      </button>
+                      </Link>
                     );
                   })}
               </div>

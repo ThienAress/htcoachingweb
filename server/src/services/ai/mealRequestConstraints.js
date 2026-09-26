@@ -114,12 +114,22 @@ const explicitAllergens = (text) => {
     .map(([allergen]) => allergen);
 };
 
-const explicitExcludedFoods = (text) => {
-  const foods = [];
-  if (/\b(?:khong dung|khong an|tranh)\s+(?:bot\s+)?whey\b/.test(text)) {
-    foods.push("whey");
-  }
-  return foods;
+const EXPLICIT_EXCLUSION_PATTERNS = [
+  ["thịt gà", ["thit ga", "uc ga", "ga"]],
+  ["trứng", ["trung ga", "trung"]],
+  ["sữa", ["sua chua", "sua"]],
+  ["whey", ["bot whey", "whey"]],
+];
+const EXCLUSION_PREFIX = /(?:khong\s+(?:an|dung|su\s+dung)|tranh|loai\s+(?:bo|ra))\s+/;
+
+const explicitExcludedFoods = (text) => EXPLICIT_EXCLUSION_PATTERNS
+  .filter(([, aliases]) => aliases.some((alias) =>
+    new RegExp(`\\b${EXCLUSION_PREFIX.source}${alias}\\b`).test(text)))
+  .map(([food]) => food);
+
+const containsBoundedPhrase = (text, phrase) => {
+  if (!phrase) return false;
+  return ` ${text} `.includes(` ${phrase} `);
 };
 
 const adjustmentScope = (text, plan) => {
@@ -132,7 +142,8 @@ const adjustmentScope = (text, plan) => {
   const boundedScope = stopIndex >= 0
     ? sentenceScope.slice(0, stopIndex)
     : sentenceScope;
-  const scopeWords = new Set(boundedScope.match(/[a-z0-9]+/g) || []);
+  const normalizedScope = normalizeText(boundedScope);
+  const scopeWords = new Set(normalizedScope.match(/[a-z0-9]+/g) || []);
   const seen = new Set();
   const foods = (Array.isArray(plan?.meals) ? plan.meals : [])
     .flatMap((meal) => Array.isArray(meal?.foods) ? meal.foods : [])
@@ -142,11 +153,32 @@ const adjustmentScope = (text, plan) => {
       seen.add(key);
       return true;
     });
-  const selected = foods.filter((food) =>
-    normalizeText(food?.name)
-      .split(/\s+/)
-      .some((token) => token.length >= 2 && scopeWords.has(token)),
-  );
+  const normalizedFoods = foods.map((food) => ({
+    food,
+    name: normalizeText(food?.name),
+    id: normalizeText(food?.foodId),
+  }));
+  const tokenOwners = new Map();
+  for (const { name, id } of normalizedFoods) {
+    const tokens = new Set([
+      ...name.split(/\s+/),
+      ...id.split(/\s+/),
+    ].filter((token) => token.length >= 2));
+    for (const token of tokens) {
+      const owners = tokenOwners.get(token) || new Set();
+      owners.add(id || name);
+      tokenOwners.set(token, owners);
+    }
+  }
+  const selected = normalizedFoods
+    .filter(({ name, id }) => {
+      if (containsBoundedPhrase(normalizedScope, name) ||
+        containsBoundedPhrase(normalizedScope, id)) return true;
+      return [...new Set([...name.split(/\s+/), ...id.split(/\s+/)])]
+        .some((token) => token.length >= 2 && scopeWords.has(token) &&
+          tokenOwners.get(token)?.size === 1);
+    })
+    .map(({ food }) => food);
   return {
     scopedAdjustment: true,
     ids: selected.map((food) => String(food.foodId)).filter(Boolean),

@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import {
   EXERCISE_MANIFEST,
@@ -216,7 +217,10 @@ export const runPublicTestCatalogSync = async ({ argv = process.argv.slice(2), e
   const options = parseArgs(argv);
   const mongoUri = options.target === "local" ? LOCAL_MONGO_URI : env.MONGO_URI;
   assertSyncTarget({ target: options.target, env, mongoUri });
-  await mongoose.connect(mongoUri, { autoIndex: false });
+  await mongoose.connect(
+    mongoUri,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   try {
     const expectedDatabase = options.target === "local" ? LOCAL_DATABASE : STAGING_DATABASE;
     if (mongoose.connection.name !== expectedDatabase) {

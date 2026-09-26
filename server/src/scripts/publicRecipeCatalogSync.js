@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import Recipe from "../models/Recipe.js";
 import {
@@ -214,7 +215,10 @@ export const runPublicRecipeCatalogSync = async ({
   validateRecipeManifest();
   const recipes = await loadSourceCatalog(fetchImpl);
 
-  await mongoose.connect(mongoUri, { autoIndex: false });
+  await mongoose.connect(
+    mongoUri,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   try {
     const expectedDatabase =
       options.target === "local"

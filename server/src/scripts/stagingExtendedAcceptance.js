@@ -2,6 +2,7 @@ import "../config/env.js";
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import sharp from "sharp";
 
 import { assertStagingOperation } from "../config/stagingOperationSafety.js";
@@ -565,7 +566,10 @@ const main = async () => {
     new URL(process.env.PUBLIC_API_ORIGIN || "").origin === STAGING_API_ORIGIN,
     "Extended acceptance target is not the approved staging API",
   );
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   assert(
     mongoose.connection.db?.databaseName === "htcoaching_staging",
     "Extended acceptance connection is not using the staging database",

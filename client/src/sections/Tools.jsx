@@ -109,7 +109,11 @@ const Tools = ({ imagesByKey, legacyImage }) => {
         <div className="flex flex-col md:flex-row gap-5 md:gap-6 h-auto md:min-h-[550px] w-full">
 
           {/* TDEE Card (Thẻ bự) */}
-          <div ref={tdeeRef} className="relative rounded-3xl overflow-hidden w-full h-[400px] md:h-auto group shadow-xl">
+          <Link
+            ref={tdeeRef}
+            to={featuredTool.route}
+            className="group relative block h-[400px] w-full overflow-hidden rounded-3xl shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gray-50 md:h-auto"
+          >
             <img src={featuredTool.image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={t(featuredTool.titleKey)} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/10 transition-colors duration-300" />
 
@@ -124,15 +128,12 @@ const Tools = ({ imagesByKey, legacyImage }) => {
                 {t(featuredTool.descriptionKey)}
               </p>
               <div>
-                <Link
-                  to={featuredTool.route}
-                  className="inline-flex items-center gap-2 bg-primary text-white font-semibold hover:bg-[#d67b0b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 px-8 py-3.5 rounded-full transition-all duration-300 transform group-hover:translate-x-2 shadow-[0_0_15px_rgba(255,90,31,0.4)]"
-                >
+                <span className="inline-flex transform items-center gap-2 rounded-full bg-primary px-8 py-3.5 font-semibold text-white shadow-[0_0_15px_rgba(255,90,31,0.4)] transition-[background-color,transform] duration-300 group-hover:translate-x-2 group-hover:bg-orange-600">
                   {t(featuredTool.ctaKey)} <ArrowRight className="w-5 h-5" />
-                </Link>
+                </span>
               </div>
             </div>
-          </div>
+          </Link>
 
           {/* Side Cards Container (Thẻ nhỏ hiện ra) */}
           <div ref={sideCardsRef} className="grid grid-cols-2 auto-rows-[220px] md:auto-rows-[minmax(160px,1fr)] gap-5 md:gap-6 w-full md:w-1/2 h-auto opacity-100">
