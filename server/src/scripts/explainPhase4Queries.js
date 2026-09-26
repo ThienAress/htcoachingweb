@@ -1,5 +1,6 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import BlogPost from "../models/BlogPost.js";
 import Recipe from "../models/Recipe.js";
 import Order from "../models/Order.js";
@@ -23,7 +24,10 @@ const summarize = (name, explain) => {
   };
 };
 
-await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+await mongoose.connect(
+  process.env.MONGO_URI,
+  resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+);
 try {
   const sampleOrder = await Order.findOne().select("trainerId userId").lean();
   const samplePlan = await CoachingDay.findOne().select("userId").lean();

@@ -9,7 +9,8 @@ const validEnvironment = () => ({
   NODE_ENV: "production",
   MONGO_URI:
     "mongodb+srv://" +
-    "app:password@cluster.example/htcoaching?retryWrites=true&w=majority",
+    "app:password@cluster.example/htcoaching?retryWrites=true&retryReads=true" +
+    "&w=majority&journal=true&readPreference=primary&readConcernLevel=majority",
   JWT_SECRET: "jwt-" + "a".repeat(64),
   REFRESH_SECRET: "refresh-" + "b".repeat(64),
   LOG_HASH_SECRET: "log-" + "c".repeat(64),
@@ -170,6 +171,26 @@ describe("production readiness configuration", () => {
     expect(result.errors.map((finding) => finding.code)).toContain(
       "BACKGROUND_JOBS_ENABLED_REQUIRED",
     );
+  });
+
+  it.each([
+    ["w=1", "MONGO_DURABILITY_WRITE_CONCERN_DOWNGRADE"],
+    ["journal=false", "MONGO_DURABILITY_JOURNAL_DOWNGRADE"],
+    ["readPreference=secondaryPreferred", "MONGO_DURABILITY_READ_PREFERENCE_DOWNGRADE"],
+    ["readConcernLevel=local", "MONGO_DURABILITY_READ_CONCERN_DOWNGRADE"],
+    ["retryWrites=false", "MONGO_DURABILITY_RETRY_WRITES_DOWNGRADE"],
+  ])("rejects an explicit MongoDB durability downgrade: %s", (setting, code) => {
+    const env = validEnvironment();
+    const uri = new URL(env.MONGO_URI);
+    const [key, value] = setting.split("=");
+    uri.searchParams.set(key, value);
+    env.MONGO_URI = uri.toString();
+
+    expect(
+      validateProductionEnvironment(env, { strict: true }).errors.map(
+        (finding) => finding.code,
+      ),
+    ).toContain(code);
   });
 
   it("rejects a missing or invalid Auth cutover mode", () => {

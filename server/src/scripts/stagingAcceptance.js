@@ -5,6 +5,7 @@ import path from "node:path";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import { assertStagingOperation } from "../config/stagingOperationSafety.js";
 import { DEPOSIT_POLICY } from "../constants/depositPolicy.js";
 import AuditLog from "../models/AuditLog.js";
@@ -658,6 +659,10 @@ const testDeposit = async ({ client, tokens }) => {
   assert(ledgerCount === 2, "Deposit ledger must contain credit and reversal entries");
   const reconciliation = await reconcileWallets();
   assert(
+    reconciliation.coverageComplete,
+    "Acceptance wallet reconciliation scope was truncated",
+  );
+  assert(
     reconciliationIssueDelta(
       reconciliation.totalIssues,
       cleanup.walletReconciliationBaseline,
@@ -932,6 +937,10 @@ const verifyCleanup = async () => {
     }
   }
   const reconciliation = await reconcileWallets();
+  assert(
+    reconciliation.coverageComplete,
+    "Cleanup wallet reconciliation scope was truncated",
+  );
   counts.walletReconciliationIssueDelta = reconciliationIssueDelta(
     reconciliation.totalIssues,
     cleanup.walletReconciliationBaseline,
@@ -967,14 +976,20 @@ const main = async () => {
   const apiOrigin = new URL(process.env.PUBLIC_API_ORIGIN || "").origin;
   assert(apiOrigin === STAGING_API_ORIGIN, "Acceptance target is not the approved staging API");
 
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   assert(
     mongoose.connection.db?.databaseName === "htcoaching_staging",
     "Acceptance connection is not using the staging database",
   );
-  cleanup.walletReconciliationBaseline = (
-    await reconcileWallets()
-  ).totalIssues;
+  const walletReconciliationBaseline = await reconcileWallets();
+  assert(
+    walletReconciliationBaseline.coverageComplete,
+    "Baseline wallet reconciliation scope was truncated",
+  );
+  cleanup.walletReconciliationBaseline = walletReconciliationBaseline.totalIssues;
 
   const result = await runWithVerifiedCleanup({
     execute: executeFlows,

@@ -381,6 +381,47 @@ describe("suggest_meal deterministic nutrition contract", () => {
     expect(result.text).not.toMatch(/Ức gà: 137\.5g →/);
   });
 
+  it("only scales the food selected by the canonical full-name scope", async () => {
+    const scopedCatalog = [
+      { _id: "tofu", label: "Đậu phụ", protein: 8, carb: 2, fat: 4, allergenProfile: reviewed() },
+      { _id: "oil", label: "Dầu ô liu", protein: 0, carb: 0, fat: 100, allergenProfile: reviewed() },
+      { _id: "rice", label: "Cơm trắng", protein: 2.7, carb: 28, fat: 0.3, allergenProfile: reviewed() },
+    ];
+    const previousMealPlan = {
+      status: "complete",
+      meals: [{ label: "Bữa trưa", foods: [
+        { foodId: "tofu", name: "Đậu phụ", amountGrams: 200, macros: { protein: 16, carb: 4, fat: 8 } },
+        { foodId: "oil", name: "Dầu ô liu", amountGrams: 10, macros: { protein: 0, carb: 0, fat: 10 } },
+        { foodId: "rice", name: "Cơm trắng", amountGrams: 200, macros: { protein: 5.4, carb: 56, fat: 0.6 } },
+      ] }],
+    };
+    const result = await suggestMeal({
+      targetCalories: 2000,
+      proteinGrams: 20,
+      carbGrams: 60,
+      fatGrams: 18,
+      mealsPerDay: 1,
+      targetToleranceCalories: 100,
+      minimumProteinGrams: 20,
+      allowedAdjustmentFoodIds: ["tofu"],
+    }, toolContext({ findFoods: vi.fn().mockResolvedValue(scopedCatalog), previousMealPlan }));
+
+    expect(result.uiCard.data.status).toBe("complete");
+    const foods = result.uiCard.data.meals[0].foods;
+    expect(foods.find((food) => food.foodId === "tofu").amountGrams).not.toBe(200);
+    expect(foods.find((food) => food.foodId === "oil")).toMatchObject({
+      amountGrams: 10,
+      macros: { protein: 0, carb: 0, fat: 10 },
+    });
+    expect(foods.find((food) => food.foodId === "rice")).toMatchObject({
+      amountGrams: 200,
+      macros: { protein: 5.4, carb: 56, fat: 0.6 },
+    });
+    expect(result.uiCard.data.adjustments).toEqual([
+      expect.objectContaining({ foodId: "tofu" }),
+    ]);
+  });
+
   it("không tự dựng lại thực đơn khi follow-up scoped thiếu structured plan cũ", async () => {
     const result = await suggestMeal({
       ...params,

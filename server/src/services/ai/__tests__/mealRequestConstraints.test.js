@@ -118,6 +118,19 @@ const priorPlan = {
 };
 
 describe("canonical meal request constraints", () => {
+  it.each([
+    ["không ăn thịt gà", "thịt gà"],
+    ["không ăn trứng", "trứng"],
+    ["không ăn sữa", "sữa"],
+  ])("preserves the explicit food exclusion from raw prompt: %s", (exclusion, expected) => {
+    const request = buildCanonicalMealToolRequest(
+      `Lập thực đơn 2.500 kcal, ít nhất 170g protein, chia 4 bữa, ${exclusion}.`,
+      { carbGrams: 280, fatGrams: 78 },
+    );
+
+    expect(request.args.excludedFoods).toContain(expected);
+  });
+
   it("lấy hard constraints từ prompt 2.500 kcal thay vì tin args model", () => {
     const request = buildCanonicalMealToolRequest(
       "Lập cho tôi thực đơn món Việt trong 1 ngày khoảng 2.500 kcal (sai số tối đa 100 kcal), ít nhất 170g protein, chia 4 bữa. Tôi không dùng whey, không dung nạp lactose, dị ứng đậu phộng và ngân sách tối đa 150.000đ/ngày.",
@@ -178,6 +191,33 @@ describe("canonical meal request constraints", () => {
       },
     });
     expect(request.args.allowedAdjustmentFoodIds).not.toContain("chicken");
+  });
+
+  it("does not widen a full-name scope through an accent-stripped token collision", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Giữ nguyên các món, chỉ đổi lượng đậu phụ để đạt 2.000 kcal.",
+      {},
+      {
+        targetCalories: 1800,
+        proteinGrams: 120,
+        carbGrams: 180,
+        fatGrams: 60,
+        mealsPerDay: 3,
+        plan: {
+          meals: [{
+            label: "Bữa trưa",
+            foods: [
+              { foodId: "tofu", name: "Đậu phụ", amountGrams: 200, macros: { protein: 16, carb: 4, fat: 8 } },
+              { foodId: "oil", name: "Dầu ô liu", amountGrams: 10, macros: { protein: 0, carb: 0, fat: 10 } },
+              { foodId: "rice", name: "Cơm trắng", amountGrams: 200, macros: { protein: 5.4, carb: 56, fat: 0.6 } },
+            ],
+          }],
+        },
+      },
+    );
+
+    expect(request.args.allowedAdjustmentFoodIds).toEqual(["tofu"]);
+    expect(request.args.allowedAdjustmentFoodNames).toEqual(["Đậu phụ"]);
   });
 
   it("giữ constraint dị ứng dạng allowlist từ prompt, model args và memory", () => {

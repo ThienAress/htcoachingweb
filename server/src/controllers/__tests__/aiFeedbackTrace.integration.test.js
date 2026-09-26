@@ -450,6 +450,59 @@ describe("AI answer trace and feedback review", () => {
     expect(streamedText).toContain("SERVER_DIRECT_MEAL");
   });
 
+  it.each([
+    ["không ăn thịt gà", "thịt gà", "Ức gà"],
+    ["không ăn trứng", "trứng", "Trứng gà"],
+    ["không ăn sữa", "sữa", "Sữa chua"],
+  ])("carries the raw exclusion through direct controller, tool and persisted card: %s", async (exclusion, expectedExcludedFood, forbiddenLabel) => {
+    const { user, accessToken } = await createTestUser();
+    const reviewed = {
+      reviewStatus: "reviewed",
+      contains: [],
+      mayContain: [],
+      reviewedScopes: [],
+      specificContains: [],
+      sourceType: "official_database",
+      sourceUrl: "https://fdc.nal.usda.gov/food-search/?query=whole%20food",
+      reviewedAt: new Date("2026-09-01"),
+    };
+    const catalog = [
+      { _id: "chicken", label: "Ức gà", protein: 31, carb: 0, fat: 3.6, allergenProfile: reviewed },
+      { _id: "egg", label: "Trứng gà", protein: 13, carb: 1, fat: 11, allergenProfile: { ...reviewed, contains: ["egg"] } },
+      { _id: "milk", label: "Sữa chua", protein: 4, carb: 7, fat: 3, allergenProfile: { ...reviewed, contains: ["milk"] } },
+      { _id: "rice", label: "Cơm trắng", protein: 2.7, carb: 28, fat: 0.3, allergenProfile: reviewed },
+      { _id: "tofu", label: "Đậu phụ", protein: 8, carb: 2, fat: 4, allergenProfile: reviewed },
+      { _id: "oil", label: "Dầu ô liu", protein: 0, carb: 0, fat: 100, allergenProfile: reviewed },
+      { _id: "oats", label: "Yến mạch", protein: 13, carb: 68, fat: 7, allergenProfile: reviewed },
+      { _id: "turkey", label: "Ức gà tây", protein: 29, carb: 0, fat: 2, allergenProfile: reviewed },
+      { _id: "whey", label: "Whey protein", protein: 80, carb: 8, fat: 6, allergenProfile: { ...reviewed, contains: ["milk"] } },
+    ];
+    toolRegistry.suggest_meal.execute = vi.fn((params, context) =>
+      originalSuggestMealExecute(params, {
+        ...context,
+        findFoods: async () => catalog,
+      }));
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not run for a complete canonical meal request");
+    });
+
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: `Gợi ý thực đơn 2.500 kcal mỗi ngày, 170g protein, 300g carb, 70g fat, 4 bữa, ${exclusion}.`,
+      requestId: `164ff640-9fd0-4be6-bcd8-d1e9342de${expectedExcludedFood === "thịt gà" ? "201" : expectedExcludedFood === "trứng" ? "202" : "203"}`,
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const card = conversation.messages.find((item) => item.uiCard?.cardType === "meal")?.uiCard;
+    const capturedArgs = toolRegistry.suggest_meal.execute.mock.calls[0]?.[0];
+    const foods = card?.data?.meals?.flatMap((meal) => meal.foods.map((food) => food.name)) || [];
+
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).not.toHaveBeenCalled();
+    expect(capturedArgs.excludedFoods).toContain(expectedExcludedFood);
+    expect(card).toMatchObject({ cardType: "meal", data: { status: "complete" } });
+    expect(foods).not.toContain(forbiddenLabel);
+    expect(response.text).toContain('"cardType":"meal"');
+  });
+
   it("saves the same complete breakfast card that it streams for a 500 kcal request", async () => {
     const { user, accessToken } = await createTestUser();
     toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({

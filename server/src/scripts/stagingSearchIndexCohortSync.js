@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import {
   PLAN_043_FIXTURE_KEY,
@@ -70,7 +71,10 @@ export const loadSearchIndexCohortSource = async ({
 const defaultDependencies = {
   connect: (uri) => mongoose.connect(
     uri,
-    STAGING_SEARCH_COHORT_MONGO_CONNECT_OPTIONS,
+    {
+      ...resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+      ...STAGING_SEARCH_COHORT_MONGO_CONNECT_OPTIONS,
+    },
   ),
   disconnect: () => mongoose.disconnect(),
   assertConnectedTarget: ({ targetDatabase }) => {

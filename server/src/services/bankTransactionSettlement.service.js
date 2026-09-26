@@ -140,6 +140,27 @@ const settleAttempt = async (incomingId, config) => {
         return;
       }
 
+      // Recheck inside the wallet transaction: concurrent channel ingestion can
+      // leave two received records. A wallet conflict retries with the winner visible.
+      if (
+        !incoming.canonicalReferenceHash &&
+        (await IncomingBankTransaction.exists({
+          provider: incoming.provider,
+          fingerprintDigest: incoming.fingerprintDigest,
+          canonicalReferenceHash: null,
+          source: { $ne: incoming.source },
+          status: { $in: ["settled", "reversed"] },
+        }).session(session))
+      ) {
+        outcome = await markForReview({
+          incoming,
+          deposit,
+          reason: "POSSIBLE_CROSS_CHANNEL_DUPLICATE",
+          session,
+        });
+        return;
+      }
+
       const creditSnapshot = resolveDepositCreditSnapshot(deposit);
       const ledger = await applyWalletEntry({
         session,

@@ -8,9 +8,11 @@ export const createContract = (orderId) => api.post("/contracts", { orderId });
 
 export const getContractById = (id) => api.get(`/contracts/${id}`);
 
-export const updateContract = (id, data) => api.put(`/contracts/${id}`, data);
+export const updateContract = (id, data, expectedRevision) =>
+  api.put(`/contracts/${id}`, { ...data, expectedRevision });
 
-export const sendContractToClient = (id) => api.post(`/contracts/${id}/send`);
+export const sendContractToClient = (id, expectedRevision) =>
+  api.post(`/contracts/${id}/send`, { expectedRevision });
 
 export const signContract = (id, payload) =>
   api.post(`/contracts/${id}/sign`, payload);

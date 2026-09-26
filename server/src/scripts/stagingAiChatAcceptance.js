@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import User from "../models/User.js";
 import { normalizeKnowledgeQuestion } from "../utils/knowledgeBase.js";
@@ -150,7 +151,10 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
   let connected = false;
 
   try {
-    await mongoose.connect(env.MONGO_URI, { autoIndex: false });
+    await mongoose.connect(
+      env.MONGO_URI,
+      resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+    );
     connected = true;
     assert(mongoose.connection.db?.databaseName === "htcoaching_staging", "Connected database is not exactly htcoaching_staging");
     state.assertions.push({ name: "exact staging identity", passed: true });

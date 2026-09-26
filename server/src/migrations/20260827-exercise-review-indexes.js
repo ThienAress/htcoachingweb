@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import {
   assertConnectedMigrationTarget,
@@ -149,7 +150,10 @@ const main = async () => {
   const args = new Set(process.argv.slice(2));
   const apply = args.has("--apply");
   const authorization = authorizeExerciseReviewIndexTarget({ args, apply });
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   try {
     assertConnectedMigrationTarget(mongoose.connection, authorization);
     const reports = await inspectExerciseReviewIndexes();

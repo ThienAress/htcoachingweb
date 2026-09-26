@@ -1,17 +1,34 @@
 import { useEffect } from "react";
 
+const activeLocks = new WeakMap();
+
 export const lockDocumentScroll = (documentObject = globalThis.document) => {
   const style = documentObject?.body?.style;
   if (!style) return () => {};
 
-  const previousOverflow = style.overflow;
-  const previousOverscrollBehavior = style.overscrollBehavior;
+  let lock = activeLocks.get(documentObject);
+  if (!lock) {
+    lock = {
+      count: 0,
+      previousOverflow: style.overflow,
+      previousOverscrollBehavior: style.overscrollBehavior,
+    };
+    activeLocks.set(documentObject, lock);
+  }
+  lock.count += 1;
   style.overflow = "hidden";
   style.overscrollBehavior = "none";
 
+  let released = false;
   return () => {
-    style.overflow = previousOverflow;
-    style.overscrollBehavior = previousOverscrollBehavior;
+    if (released) return;
+    released = true;
+    lock.count -= 1;
+    if (lock.count > 0) return;
+
+    style.overflow = lock.previousOverflow;
+    style.overscrollBehavior = lock.previousOverscrollBehavior;
+    activeLocks.delete(documentObject);
   };
 };
 export const useModalScrollLock = (active) => {

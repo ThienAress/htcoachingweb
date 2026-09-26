@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import Food from "../models/Food.js";
 import FoodPriceObservation from "../models/FoodPriceObservation.js";
@@ -10,7 +11,10 @@ if (process.env.MEAL_PLAN_COVERAGE_AUDIT_ALLOW_LIVE !== "true") {
 }
 if (!process.env.MONGO_URI) throw new Error("MONGO_URI is required");
 
-await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+await mongoose.connect(
+  process.env.MONGO_URI,
+  resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+);
 
 try {
   const now = new Date();

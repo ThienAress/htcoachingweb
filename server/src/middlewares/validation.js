@@ -2123,7 +2123,22 @@ export const validateSignContract = [
   handleValidationErrors,
 ];
 
+export const validateContractRevision = (req, res, next) => {
+  const value = req.body?.expectedRevision;
+  if (!Number.isSafeInteger(value) || value < 0 || value === Number.MAX_SAFE_INTEGER) {
+    return res.status(400).json({ success: false, errorCode: "CONTRACT_REVISION_INVALID", message: "expectedRevision phải là số nguyên không âm hợp lệ" });
+  }
+  return next();
+};
+
+export const validateSendContract = [
+  validateContractRevision,
+  param("id").isMongoId().withMessage("ID hợp đồng không hợp lệ"),
+  handleValidationErrors,
+];
+
 export const validateUpdateContract = [
+  validateContractRevision,
   param("id").isMongoId().withMessage("ID hợp đồng không hợp lệ"),
   body("trainerInfo").optional().isObject().withMessage("trainerInfo phải là object"),
   body("trainerInfo.name").optional().isString().withMessage("Tên HLV không hợp lệ"),

@@ -9,6 +9,7 @@ import {
   validateCreateContract,
   validateSignContract,
   validateUpdateContract,
+  validateSendContract,
 } from "../middlewares/validation.js";
 import {
   createContract,
@@ -45,7 +46,7 @@ router.get("/:id", protect, getContractById);
 router.put("/:id", protect, requireTrainerAccess, csrfProtection, validateUpdateContract, updateContract);
 
 // Admin: Gửi hợp đồng cho khách hàng (draft → sent + email)
-router.post("/:id/send", protect, requireTrainerAccess, csrfProtection, sendContract);
+router.post("/:id/send", protect, requireTrainerAccess, csrfProtection, validateSendContract, sendContract);
 
 // Auth: Đánh dấu đã xem
 router.post("/:id/view", protect, csrfProtection, markAsViewed);

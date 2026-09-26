@@ -155,6 +155,7 @@
     "signature_canvas_label": "Khu vực vẽ chữ ký",
     "confirm_btn": "Xác nhận và ký hợp đồng",
     "signing": "Đang hoàn tất hợp đồng…",
+    "status_signing_reconciliation": "Vui lòng chờ hệ thống xác minh kết quả. Trang sẽ lấy lại trạng thái từ máy chủ trước khi cho phép ký lại.",
     "signed_btn": "Hợp đồng đã được ký",
     "status_signed": "Hoàn tất ngày {{date}}",
     "signed_with_handwritten": "Hai bên đã xác nhận bằng chữ ký vẽ tay.",
