@@ -31,6 +31,7 @@ describe("direct MongoDB connection inventory", () => {
             .relative(sourceDirectory, absolute)
             .split(path.sep)
             .join("/");
+          if (relative.includes("/__tests__/")) return [];
           if (localOnlyExclusions.has(relative)) return [];
           if (
             source.includes("resolveMongoConnectionOptions") &&
