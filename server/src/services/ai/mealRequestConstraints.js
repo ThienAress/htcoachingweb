@@ -213,19 +213,27 @@ const selectNumber = (value, min, max) => {
   return number === null ? undefined : number;
 };
 
-const balanceFlexibleMacros = (targetCalories, protein, carb, fat) => {
+const balanceFlexibleMacros = (
+  targetCalories,
+  protein,
+  carb,
+  fat,
+  { preserveCarb = false, preserveFat = false } = {},
+) => {
   if (!Number.isFinite(targetCalories) || !Number.isFinite(protein)) {
     return { carb, fat };
   }
   const remainingCalories = Math.max(0, targetCalories - 4 * protein);
-  if (Number.isFinite(carb) && Number.isFinite(fat)) return { carb, fat };
-  if (Number.isFinite(carb)) {
+  if (preserveCarb && preserveFat && Number.isFinite(carb) && Number.isFinite(fat)) {
+    return { carb, fat };
+  }
+  if (preserveCarb && Number.isFinite(carb)) {
     return {
       carb,
       fat: Number(Math.max(0, (remainingCalories - 4 * carb) / 9).toFixed(1)),
     };
   }
-  if (Number.isFinite(fat)) {
+  if (preserveFat && Number.isFinite(fat)) {
     return {
       carb: Number(Math.max(0, (remainingCalories - 9 * fat) / 4).toFixed(1)),
       fat,
@@ -310,6 +318,10 @@ export const buildCanonicalMealToolRequest = (
         proteinGrams,
         suppliedCarb,
         suppliedFat,
+        {
+          preserveCarb: requestedCarb !== null,
+          preserveFat: requestedFat !== null,
+        },
       )
     : { carb: suppliedCarb, fat: suppliedFat };
   const unresolvedScope = scope.scopedAdjustment && scope.ids.length === 0;
