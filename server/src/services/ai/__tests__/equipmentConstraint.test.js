@@ -64,6 +64,28 @@ describe("AI workout equipment constraint", () => {
     expect(result).toMatchObject({ applies: true, valid: true, reasonCodes: [] });
   });
 
+  it("chặn bodyweight khi prompt chỉ cho phép tạ đơn và dây kháng lực", () => {
+    const result = validateWorkoutEquipmentOutput(
+      prompt,
+      "Hít đất 3 hiệp x 10 lần và glute bridge 3 hiệp x 12 lần.",
+    );
+
+    expect(result).toMatchObject({
+      applies: true,
+      valid: false,
+      reasonCodes: ["unsupported_equipment"],
+    });
+  });
+
+  it("giữ tương thích khi người dùng nêu rõ bodyweight được phép", () => {
+    const result = validateWorkoutEquipmentOutput(
+      `${prompt} hoặc bodyweight`,
+      "Hít đất 3 hiệp x 10 lần và Dumbbell Floor Press.",
+    );
+
+    expect(result).toMatchObject({ applies: true, valid: true, reasonCodes: [] });
+  });
+
   it("không áp guard vào prompt không giới hạn thiết bị", () => {
     expect(
       validateWorkoutEquipmentOutput(

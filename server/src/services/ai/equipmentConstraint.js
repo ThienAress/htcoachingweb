@@ -1,6 +1,8 @@
 const LIMITED_EQUIPMENT_PATTERN = /\b(?:chi co|chi dung|only have|only use|have only)\b/;
 const DUMBBELL_PATTERN = /\b(?:ta don|dumbbells?)\b/;
 const RESISTANCE_BAND_PATTERN = /\b(?:day khang luc|resistance bands?)\b/;
+const BODYWEIGHT_PATTERN = /\b(?:bodyweight|body weight|trong luong co the|khong can dung cu|push[ -]?ups?|hit dat|glute bridge|reverse snow angel)\b/;
+const EXPLICIT_BODYWEIGHT_ALLOWED_PATTERN = /\b(?:bodyweight|body weight|trong luong co the|khong can dung cu)\b/;
 const BAND_ONLY_PATTERN = /\b(?:chi co|chi dung|only have|only use|have only)\s+(?:(?:mot|1)\s+)?(?:day khang luc|resistance bands?)\b/;
 const FORBIDDEN_EQUIPMENT_PATTERN =
   /\b(?:barbell|thanh don|cable|cap|machine|may tap|smith|bench press|ghe tap|incline press|decline press|pec deck|lat pulldown|leg press|xa don|pull[ -]?up bars?|pull[ -]?ups?|chin[ -]?ups?|keo xa|trx|suspension trainers?|kettlebells?|chair|ghe|plyo box|box jumps?|dip stations?|dips?)\b/;
@@ -9,7 +11,7 @@ const DUMBBELL_PRESS_PATTERN =
 const SAFE_PRESS_VARIANT_PATTERN =
   /\b(?:floor|san|standing|dung|overhead|shoulder|vai|resistance bands?|day khang luc)\b/;
 const NEGATED_EQUIPMENT_PATTERN =
-  /\b(?:khong|ko|tranh|loai bo|without|avoid|no)\b[^\n.;:]{0,35}\b(?:barbell|thanh don|cable|cap|machine|may tap|smith|bench|ghe|xa don|pull[ -]?up bars?|pull[ -]?ups?|chin[ -]?ups?|keo xa|trx|suspension trainers?|kettlebells?|chair|plyo box|box jumps?|dip stations?|dips?)\b/g;
+  /\b(?:khong|ko|tranh|loai bo|without|avoid|no)\b[^\n.;:]{0,35}\b(?:barbell|thanh don|cable|cap|machine|may tap|smith|bench|ghe|xa don|pull[ -]?up bars?|pull[ -]?ups?|chin[ -]?ups?|keo xa|trx|suspension trainers?|kettlebells?|chair|plyo box|box jumps?|dip stations?|dips?|bodyweight|body weight|trong luong co the|khong can dung cu)\b/g;
 
 const normalize = (value) =>
   String(value || "")
@@ -34,14 +36,20 @@ export const hasBandOnlyConstraint = (message) =>
 
 export const validateWorkoutEquipmentOutput = (message, answer) => {
   const bandOnly = hasBandOnlyConstraint(message);
-  if (!hasLimitedDumbbellBandConstraint(message) && !bandOnly) {
+  const limitedDumbbellBand = hasLimitedDumbbellBandConstraint(message);
+  const bodyweightAllowed = EXPLICIT_BODYWEIGHT_ALLOWED_PATTERN.test(normalize(message));
+  if (!limitedDumbbellBand && !bandOnly) {
     return Object.freeze({ applies: false, valid: true, reasonCodes: [] });
   }
 
   const violations = new Set();
   for (const rawLine of normalize(answer).split("\n")) {
     const line = rawLine.replace(NEGATED_EQUIPMENT_PATTERN, " ");
-    if (FORBIDDEN_EQUIPMENT_PATTERN.test(line) || (bandOnly && DUMBBELL_PATTERN.test(line))) {
+    if (
+      FORBIDDEN_EQUIPMENT_PATTERN.test(line) ||
+      (bandOnly && DUMBBELL_PATTERN.test(line)) ||
+      (limitedDumbbellBand && !bodyweightAllowed && BODYWEIGHT_PATTERN.test(line))
+    ) {
       violations.add("unsupported_equipment");
     }
     if (

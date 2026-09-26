@@ -16,6 +16,20 @@ describe("single-meal calorie scope", () => {
     expect(Math.abs(4 * request.args.proteinGrams + 4 * request.args.carbGrams +
       9 * request.args.fatGrams - 500)).toBeLessThanOrEqual(1);
   });
+  it("fills only the missing flexible macro for a per-meal request", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Cho tôi một bữa tối 500 kcal, 30g protein và 50g carb.",
+    );
+
+    expect(request.args).toMatchObject({
+      targetCalories: 500,
+      proteinGrams: 30,
+      carbGrams: 50,
+    });
+    expect(request.args.fatGrams).toBeGreaterThan(0);
+    expect(4 * request.args.proteinGrams + 4 * request.args.carbGrams +
+      9 * request.args.fatGrams).toBeCloseTo(500, 0);
+  });
   it('starts a fresh dinner without inheriting whole-day macros/count', () => {
     const request = buildCanonicalMealToolRequest('Cho tôi một bữa tối 650 kcal, 40g protein, 75g carb và 20g fat', {}, {
       calorieScope: 'per_day', targetCalories: 2200, proteinGrams: 170,

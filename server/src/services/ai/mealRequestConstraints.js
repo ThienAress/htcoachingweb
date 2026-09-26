@@ -120,12 +120,33 @@ const EXPLICIT_EXCLUSION_PATTERNS = [
   ["sữa", ["sua chua", "sua"]],
   ["whey", ["bot whey", "whey"]],
 ];
-const EXCLUSION_PREFIX = /(?:khong\s+(?:an|dung|su\s+dung)|tranh|loai\s+(?:bo|ra))\s+/;
+const EXCLUSION_PREFIX = /(?:khong\s+(?:an|dung|su\s+dung)|tranh|loai\s+(?:bo|ra))\s+/g;
+const EXCLUSION_STOP_WORDS = /\b(?:nhung|tuy\s+nhien|ma\s+van)\b/;
+const EXCLUSION_LIST_SEPARATOR = /\s*(?:,|\b(?:va|hoac|hay|cung|voi)\b)\s*/;
 
-const explicitExcludedFoods = (text) => EXPLICIT_EXCLUSION_PATTERNS
-  .filter(([, aliases]) => aliases.some((alias) =>
-    new RegExp(`\\b${EXCLUSION_PREFIX.source}${alias}\\b`).test(text)))
-  .map(([food]) => food);
+const explicitExcludedFoods = (text) => {
+  const excluded = new Set();
+  const sentences = String(text || "").split(/[.!?;]/u);
+  for (const sentence of sentences) {
+    const beforeContrast = sentence.split(EXCLUSION_STOP_WORDS, 1)[0];
+    const matches = [...beforeContrast.matchAll(EXCLUSION_PREFIX)];
+    for (const [index, match] of matches.entries()) {
+      const start = match.index + match[0].length;
+      const end = matches[index + 1]?.index ?? beforeContrast.length;
+      const body = beforeContrast.slice(start, end);
+      for (const item of body.split(EXCLUSION_LIST_SEPARATOR)) {
+        const normalizedItem = item.trim();
+        if (!normalizedItem) continue;
+        for (const [food, aliases] of EXPLICIT_EXCLUSION_PATTERNS) {
+          if (aliases.some((alias) => containsBoundedPhrase(normalizedItem, alias))) {
+            excluded.add(food);
+          }
+        }
+      }
+    }
+  }
+  return [...excluded];
+};
 
 const containsBoundedPhrase = (text, phrase) => {
   if (!phrase) return false;
@@ -143,7 +164,10 @@ const adjustmentScope = (text, plan) => {
     ? sentenceScope.slice(0, stopIndex)
     : sentenceScope;
   const normalizedScope = normalizeText(boundedScope);
-  const scopeWords = new Set(normalizedScope.match(/[a-z0-9]+/g) || []);
+  const scopeTerms = normalizedScope
+    .split(/\s*(?:,|\b(?:va|hoac|hay)\b)\s*/)
+    .map((term) => term.trim())
+    .filter((term) => term.length >= 3);
   const seen = new Set();
   const foods = (Array.isArray(plan?.meals) ? plan.meals : [])
     .flatMap((meal) => Array.isArray(meal?.foods) ? meal.foods : [])
@@ -158,25 +182,23 @@ const adjustmentScope = (text, plan) => {
     name: normalizeText(food?.name),
     id: normalizeText(food?.foodId),
   }));
-  const tokenOwners = new Map();
-  for (const { name, id } of normalizedFoods) {
-    const tokens = new Set([
-      ...name.split(/\s+/),
-      ...id.split(/\s+/),
-    ].filter((token) => token.length >= 2));
-    for (const token of tokens) {
-      const owners = tokenOwners.get(token) || new Set();
-      owners.add(id || name);
-      tokenOwners.set(token, owners);
-    }
-  }
   const selected = normalizedFoods
     .filter(({ name, id }) => {
       if (containsBoundedPhrase(normalizedScope, name) ||
         containsBoundedPhrase(normalizedScope, id)) return true;
-      return [...new Set([...name.split(/\s+/), ...id.split(/\s+/)])]
-        .some((token) => token.length >= 2 && scopeWords.has(token) &&
-          tokenOwners.get(token)?.size === 1);
+      // A short noun such as "cơm" or "dầu" may be the user's canonical
+      // label for a longer catalog name. Accept it only as a unique complete
+      // phrase/prefix; never select by an arbitrary token shared by multiple
+      // foods.
+      return scopeTerms.some((term) => {
+        const candidates = normalizedFoods.filter((candidate) =>
+          candidate.name === term || candidate.id === term ||
+          candidate.name.startsWith(`${term} `) ||
+          candidate.id.startsWith(`${term} `),
+        );
+        return candidates.length === 1 &&
+          (name === candidates[0].name && id === candidates[0].id);
+      });
     })
     .map(({ food }) => food);
   return {
@@ -196,6 +218,19 @@ const balanceFlexibleMacros = (targetCalories, protein, carb, fat) => {
     return { carb, fat };
   }
   const remainingCalories = Math.max(0, targetCalories - 4 * protein);
+  if (Number.isFinite(carb) && Number.isFinite(fat)) return { carb, fat };
+  if (Number.isFinite(carb)) {
+    return {
+      carb,
+      fat: Number(Math.max(0, (remainingCalories - 4 * carb) / 9).toFixed(1)),
+    };
+  }
+  if (Number.isFinite(fat)) {
+    return {
+      carb: Number(Math.max(0, (remainingCalories - 9 * fat) / 4).toFixed(1)),
+      fat,
+    };
+  }
   const suppliedFlexibleCalories = 4 * (carb || 0) + 9 * (fat || 0);
   const carbShare = suppliedFlexibleCalories > 0
     ? (4 * (carb || 0)) / suppliedFlexibleCalories
@@ -244,8 +279,11 @@ export const buildCanonicalMealToolRequest = (
     selectNumber(modelArgs.proteinGrams, 0, 500) ??
     selectNumber(previous.proteinGrams, 0, 500) ??
     minimumProteinGrams;
+  const defaultProtein = calorieScope === "per_meal" && Number.isFinite(targetCalories)
+    ? Number((targetCalories * 0.3 / 4).toFixed(1))
+    : undefined;
   const proteinGrams = Math.max(
-    suppliedProtein ?? 0,
+    suppliedProtein ?? defaultProtein ?? 0,
     minimumProteinGrams ?? 0,
   );
   const suppliedCarb = requestedCarb ??
@@ -257,11 +295,15 @@ export const buildCanonicalMealToolRequest = (
   const scope = adjustmentScope(text, previous.plan);
   const completeSingleMealMacros = calorieScope === "per_meal" &&
     Number.isFinite(targetCalories) && proteinGrams > 0 &&
-    suppliedCarb === undefined && suppliedFat === undefined;
+    (suppliedCarb === undefined || suppliedFat === undefined);
+  const hasCompleteSuppliedMacros = [suppliedProtein, suppliedCarb, suppliedFat]
+    .every(Number.isFinite);
   const shouldRebalance = calorieScope !== "per_meal" &&
     !scope.scopedAdjustment &&
     requestedCalories.value !== null &&
-    requestedCalories.value !== modelTargetCalories;
+    requestedCalories.value !== modelTargetCalories &&
+    (requestedProtein !== null || requestedCarb !== null ||
+      requestedFat !== null || !hasCompleteSuppliedMacros);
   const balanced = shouldRebalance || completeSingleMealMacros
     ? balanceFlexibleMacros(
         targetCalories,

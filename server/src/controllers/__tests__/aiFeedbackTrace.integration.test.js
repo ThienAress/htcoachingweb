@@ -451,6 +451,54 @@ describe("AI answer trace and feedback review", () => {
   });
 
   it.each([
+    ["không ăn thịt gà", "thịt gà"],
+    ["không ăn trứng", "trứng"],
+    ["không dùng sữa", "sữa"],
+  ])("executes a raw 500 kcal meal with an exclusion through the canonical direct path: %s", async (exclusion, expectedExcludedFood) => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "SERVER_DIRECT_MEAL: 500 kcal.",
+      uiCard: {
+        cardType: "meal",
+        data: {
+          status: "complete",
+          targetCalories: 500,
+          calorieScope: "per_meal",
+          meals: [{ label: "Bữa sáng", foods: [] }],
+          totals: { calories: 500, protein: 37.5, carb: 48.1, fat: 17.5 },
+        },
+      },
+    });
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not run for a complete canonical meal request");
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: `Gợi ý cho tôi một bữa ăn khoảng 500 kcal, ${exclusion}.`,
+      requestId: `164ff640-9fd0-4be6-bcd8-d1e9342de${expectedExcludedFood === "thịt gà" ? "301" : expectedExcludedFood === "trứng" ? "302" : "303"}`,
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const card = conversation.messages.find((item) => item.uiCard?.cardType === "meal")?.uiCard;
+    const capturedArgs = toolRegistry.suggest_meal.execute.mock.calls[0]?.[0];
+
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).not.toHaveBeenCalled();
+    expect(toolRegistry.suggest_meal.execute).toHaveBeenCalledTimes(1);
+    expect(capturedArgs).toMatchObject({
+      targetCalories: 500,
+      calorieScope: "per_meal",
+      mealsPerDay: 1,
+      excludedFoods: [expectedExcludedFood],
+    });
+    expect(["proteinGrams", "carbGrams", "fatGrams"].every((field) =>
+      Number.isFinite(capturedArgs[field]))).toBe(true);
+    expect(card).toMatchObject({ cardType: "meal", data: { status: "complete" } });
+  });
+
+  it.each([
     ["không ăn thịt gà", "thịt gà", "Ức gà"],
     ["không ăn trứng", "trứng", "Trứng gà"],
     ["không ăn sữa", "sữa", "Sữa chua"],
@@ -1554,6 +1602,10 @@ describe("AI answer trace and feedback review", () => {
     ).filter((food) => food.foodId === "chicken").every(
       (food) => food.amountGrams === 137.5,
     )).toBe(true);
+    const snapshot = (mealPlan) => mealPlan.meals.flatMap((meal) => meal.foods)
+      .filter((food) => !["rice", "oil"].includes(food.foodId))
+      .map(({ foodId, amountGrams, macros }) => ({ foodId, amountGrams, macros }));
+    expect(snapshot(updated.workingMemory.lastMeal.plan)).toEqual(snapshot(plan));
   });
 
   it("keeps internal evidence attribution when the exercise catalog returns a hit", async () => {
