@@ -62,7 +62,7 @@ const BENCH_REQUIRED_PATTERN = /\b(?:bench|ghe)\b/;
 const FLOOR_COMPATIBLE_PATTERN =
   /\b(?:floor|san|khong can ghe|no bench|without bench)\b/;
 const LIMITED_EQUIPMENT_SAFE_PATTERN =
-  /\b(?:dumbbells?|ta don|resistance bands?|day khang luc|bodyweight|push[ -]?up|hit dat|plank|burpee|mountain climber|crunch|sit[ -]?up|squat|lunge|calf raise)\b/;
+  /\b(?:dumbbells?|ta don|resistance bands?|day khang luc|squat|lunge|calf raise)\b/;
 const DISPLACED_STAGING_NAME_PATTERN = /^__plan079_displaced__/i;
 const MAX_FILTERED_CANDIDATES = 100;
 

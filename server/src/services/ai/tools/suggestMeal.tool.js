@@ -452,19 +452,26 @@ const scopedFollowUp = (input, previousMealPlan, catalog, constraints) => {
       );
     }
   }
+  const isAllowedFood = (food) =>
+    allowedIds.has(food.foodId) || allowedNames.has(normalizedName(food.name));
   const validatedMeals = meals.map((meal) => ({
     ...meal,
     foods: meal.foods.map((food) => {
       const catalogFood = catalogById.get(food.foodId);
-      return {
+      const canonicalFood = {
         ...food,
         name: catalogFood.label,
-        macros: foodMacro(catalogFood, food.amountGrams),
       };
+      // A scoped adjustment may rescale only the allowlisted foods. Preserve
+      // every fixed item's original grams and macros byte-for-byte so a
+      // catalog refresh cannot silently mutate the user's out-of-scope plan.
+      return isAllowedFood(canonicalFood)
+        ? { ...canonicalFood, macros: foodMacro(catalogFood, food.amountGrams) }
+        : canonicalFood;
     }),
   }));
   const validatedItems = validatedMeals.flatMap((meal) => meal.foods);
-  const isAllowed = (food) => allowedIds.has(food.foodId) || allowedNames.has(normalizedName(food.name));
+  const isAllowed = isAllowedFood;
   const fixedMacros = addMacros(validatedItems.filter((food) => !isAllowed(food)).map((food) => food.macros));
   const adjustableMacros = addMacros(validatedItems.filter(isAllowed).map((food) => food.macros));
   const adjustableCalories = MACRO_CALORIES(adjustableMacros);

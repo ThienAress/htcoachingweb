@@ -200,15 +200,15 @@ const hasCompleteCanonicalMealArgs = (args) =>
   args.mealsPerDay >= 1 && args.mealsPerDay <= 6;
 
 const EQUIPMENT_CORRECTION_INSTRUCTION =
-  "Hãy viết lại câu trả lời và giữ nguyên mục tiêu lịch tập. Chỉ dùng tạ đơn điều chỉnh, dây kháng lực hoặc bodyweight. Không dùng thanh đòn, máy, cáp hay ghế; dumbbell chest press phải ghi rõ biến thể floor press trên sàn. Chỉ trả lời cuối cùng, không nêu quy trình nội bộ.";
+  "Hãy viết lại câu trả lời và giữ nguyên mục tiêu lịch tập. Chỉ dùng tạ đơn điều chỉnh và dây kháng lực; chỉ dùng bodyweight nếu người dùng đã nêu rõ cho phép. Không dùng thanh đòn, máy, cáp, xà hay ghế. Dumbbell chest press phải ghi rõ biến thể floor press trên sàn. Chỉ trả lời cuối cùng, không nêu quy trình nội bộ.";
 const FOUR_DAY_WORKOUT_CORRECTION_INSTRUCTION =
   "Hãy viết lại thành giáo án đủ Buổi 1, Buổi 2, Buổi 3, Buổi 4. Mỗi buổi nêu bài tập, số hiệp, số lần, RPE, thời gian nghỉ và tối đa 60 phút. Giữ nguyên ràng buộc thiết bị; không nêu quy trình nội bộ.";
 const FOUR_DAY_WORKOUT_FALLBACK = [
   "Đây là mẫu giáo án 4 buổi để bắt đầu; điều chỉnh độ khó theo thể lực của bạn, mỗi buổi khoảng 45–55 phút.",
-  "Buổi 1 (thân trên): Hít đất 3 hiệp x 8–12 lần, kéo khuỷu về sau khi nằm sấp 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
-  "Buổi 2 (thân dưới): Squat trọng lượng cơ thể 3 hiệp x 10–15 lần, glute bridge 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
-  "Buổi 3 (thân trên): Hít đất biến thể phù hợp 3 hiệp x 8–12 lần, reverse snow angel 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
-  "Buổi 4 (thân dưới): Split squat 3 hiệp x 8–10 lần mỗi bên, glute bridge 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Buổi 1 (thân trên): Dumbbell Floor Press 3 hiệp x 8–12 lần, One-arm Dumbbell Row 3 hiệp x 10–12 lần mỗi bên, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Buổi 2 (thân dưới): Dumbbell Goblet Squat 3 hiệp x 10–15 lần, Dumbbell Romanian Deadlift 3 hiệp x 8–12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Buổi 3 (thân trên): Resistance Band Chest Press 3 hiệp x 10–15 lần, Standing Dumbbell Shoulder Press 3 hiệp x 8–12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Buổi 4 (thân dưới): Dumbbell Reverse Lunge 3 hiệp x 8–10 lần mỗi bên, Resistance Band Good Morning 3 hiệp x 10–15 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
   "Sắp xếp Buổi 1–2 rồi nghỉ một ngày trước Buổi 3–4 để hai buổi chân không liền nhau. Tăng dần số lần trong 5 tuần khi kỹ thuật ổn định; tuần 6 deload, giảm khoảng 30% volume.",
 ].join("\n");
 const SEVEN_DAY_PLAN_CORRECTION_INSTRUCTION =
