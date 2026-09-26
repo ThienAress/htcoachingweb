@@ -4,7 +4,7 @@ const tdeeCard = (page) => page.getByRole("link", {
   name: /ĐO LƯỢNG MỨC TIÊU THỤ NĂNG LƯỢNG/,
 });
 const preview = (page) => page.getByRole("dialog", {
-  name: "Tự điêu khắc phiên bản mạnh hơn",
+  name: /Bản xem thử chuyển động/,
 });
 
 test.describe("self-sculpting looping preview", () => {

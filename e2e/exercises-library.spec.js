@@ -64,6 +64,15 @@ test.describe("exercise library-first experience", () => {
 
     await page.getByRole("link", { name: "Quay lại thư viện" }).click();
 
+    // The preview-only transition intentionally intercepts exact `/exercises`
+    // links. Close it, then load the library route to continue this flow.
+    const preview = page.getByRole("dialog", {
+      name: /Bản xem thử chuyển động/,
+    });
+    await expect(preview).toBeVisible();
+    await preview.getByRole("button", { name: "Đóng xem thử" }).click();
+    await page.goto("/exercises/");
+
     await page.getByRole("button", { name: "Tạo lịch tập PDF" }).click();
     await expect(page.locator('[data-workout-planner="true"]')).toBeVisible();
     await expect(page.locator('[data-exercise-library="true"]')).toHaveCount(0);
