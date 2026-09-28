@@ -8,11 +8,11 @@
 - **Risk**: HIGH — evidence attribution, stale source và guest privacy
 - **Depends on**: 090, 090A, 092
 - **Category**: feature | reliability | security | tests
-- **Lifecycle**: IN PROGRESS
-- **Verification**: FOCUSED LOCAL — PASS (Node 24 cache; Node 22 unavailable offline)
-- **Rollout**: STAGING PENDING
+- **Lifecycle**: DONE
+- **Verification**: STAGING — PASS (CI full suite + readiness `200`)
+- **Rollout**: STAGING LIVE
 - **Owner**: root
-- **Updated at**: 2026-09-28
+- **Updated at**: 2026-09-29
 
 ## Objective
 
