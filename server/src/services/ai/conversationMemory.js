@@ -1,3 +1,5 @@
+import { parseMealRequirements } from "./mealConstraints.js";
+
 const TDEE_GENDERS = new Set(["male", "female"]);
 const ACTIVITY_LEVELS = new Set([
   "sedentary",
@@ -163,6 +165,7 @@ const sanitizeMealArgs = (args) => {
     500,
   );
   const excludedFoods = boundedStringList(input.excludedFoods, 12, 100);
+  const requiredFoods = parseMealRequirements(input.requiredFoods).phrases.slice(0, 8);
   const excludedAllergens = boundedStringList(
     input.excludedAllergens,
     9,
@@ -180,6 +183,7 @@ const sanitizeMealArgs = (args) => {
     ...(targetToleranceCalories !== null && { targetToleranceCalories }),
     ...(minimumProteinGrams !== null && { minimumProteinGrams }),
     ...(excludedFoods.length > 0 && { excludedFoods }),
+    ...(requiredFoods.length > 0 && { requiredFoods }),
     ...(excludedAllergens.length > 0 && { excludedAllergens }),
     ...(input.lactoseFree === true && { lactoseFree: true }),
     ...(input.requirePackageLabelSafety === true && {

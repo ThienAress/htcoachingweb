@@ -54,6 +54,38 @@ const toolContext = (overrides = {}) => ({
 });
 
 describe("suggest_meal deterministic nutrition contract", () => {
+  it("keeps every explicitly required food and rotates food distribution across meals", async () => {
+    const requiredCatalog = [
+      ...catalog,
+      { _id: "beef", label: "Thịt bò nạc", protein: 26, carb: 0, fat: 5, allergenProfile: reviewed() },
+      { _id: "fish", label: "Cá basa", protein: 22, carb: 0, fat: 4, allergenProfile: reviewed() },
+      { _id: "vegetable", label: "Rau muống", protein: 3, carb: 4, fat: 0, allergenProfile: reviewed() },
+      { _id: "tofu", label: "Đậu phụ", protein: 12, carb: 2, fat: 7, allergenProfile: reviewed() },
+      { _id: "potato", label: "Khoai tây", protein: 2, carb: 17, fat: 0.1, allergenProfile: reviewed() },
+    ];
+    const result = await suggestMeal({
+      targetCalories: 2200,
+      proteinGrams: 140,
+      carbGrams: 250,
+      fatGrams: 70,
+      mealsPerDay: 4,
+      requiredFoods: ["cơm", "cá", "rau", "đậu phụ"],
+    }, toolContext({ findFoods: vi.fn().mockResolvedValue(requiredCatalog) }));
+
+    expect(result.uiCard.data.status).toBe("complete");
+    expect(result.uiCard.data.constraints.requiredFoods).toEqual([
+      "com", "ca", "rau", "dau phu",
+    ]);
+    const labels = result.uiCard.data.meals.flatMap((meal) =>
+      meal.foods.map((food) => food.name));
+    expect(labels.join(" ")).toMatch(/Cơm trắng/iu);
+    expect(labels.join(" ")).toMatch(/Cá basa/iu);
+    expect(labels.join(" ")).toMatch(/Rau muống/iu);
+    expect(labels.join(" ")).toMatch(/Đậu phụ/iu);
+    expect(new Set(result.uiCard.data.meals.map((meal) =>
+      meal.foods.map((food) => food.name).join("|"))).size).toBeGreaterThan(1);
+  });
+
   it("permits a 650 kcal single-meal target only with explicit scope", async () => {
     const result = await suggestMeal({ targetCalories: 650, calorieScope: "per_meal", proteinGrams: 40, carbGrams: 75, fatGrams: 20, mealsPerDay: 1, targetToleranceCalories: 50, minimumProteinGrams: 40, excludedFoods: ["whey"] }, toolContext());
     expect(result.uiCard.data.status).toBe("complete");
