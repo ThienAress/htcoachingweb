@@ -1314,9 +1314,9 @@ export const chatStream = async (req, res) => {
       conversationMemory,
       personalMemory,
     });
-    // === KNOWLEDGE BASE SEARCH ===
-    // Tìm kiến thức đã review trước khi gọi LLM. KB vẫn là untrusted data.
-    if (routingDecision.knowledgeBaseEligible) {
+    const curatedKnowledgeEligible =
+      routingDecision.knowledgeBaseEligible || routingDecision.webSearchRequired;
+    if (curatedKnowledgeEligible) {
       const preparedRetrieval = prepareKnowledgeRetrievalQuery(retrievalQuery);
       if (preparedRetrieval.eligible) {
         try {
@@ -1329,6 +1329,31 @@ export const chatStream = async (req, res) => {
             kbCitationSources = getCitableKnowledgeSources(kbResults);
             aiLogger.kbMatch(actorId, kbResults.length, kbResults[0]?.similarity);
             systemPrompt += buildKnowledgeReferenceBlock(kbResults);
+            if (
+              routingDecision.webSearchRequired &&
+              kbCitationSources.length > 0
+            ) {
+              safeLog.info("ai.source_backed_kb_hit", {
+                domain: routingDecision.domain,
+                matchCount: kbResults.length,
+                citableSourceCount: kbCitationSources.length,
+                topSimilarity: Number.isFinite(Number(kbResults[0]?.similarity))
+                  ? Number(kbResults[0].similarity)
+                  : null,
+              });
+              routingDecision = Object.freeze({
+                ...routingDecision,
+                evidence: "internal_kb",
+                knowledgeBaseEligible: true,
+                webSearchRequired: false,
+                preferredTool: null,
+                maxWebSearchCalls: 0,
+                reasonCodes: Object.freeze([
+                  ...routingDecision.reasonCodes,
+                  "source_backed_kb_hit",
+                ]),
+              });
+            }
           }
         } catch (err) {
           // KB search lỗi không ảnh hưởng chat flow chính

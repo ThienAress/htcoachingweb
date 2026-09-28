@@ -596,6 +596,9 @@ export function getAllowedToolNamesForRoute(decision) {
   if (decision.risk === "disallowed" || decision.evidence === "model_prior") {
     return Object.freeze([]);
   }
+  if (decision.reasonCodes?.includes("source_backed_kb_hit")) {
+    return Object.freeze([]);
+  }
   if (decision.webSearchRequired) return Object.freeze(["search_knowledge"]);
   if (decision.reasonCodes?.includes("workout_creation")) {
     if (
