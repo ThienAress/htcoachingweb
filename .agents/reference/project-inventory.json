@@ -9,7 +9,7 @@
   "evalScenarios": 64,
   "testFiles": {
     "client": 174,
-    "server": 298,
+    "server": 299,
     "e2e": 28
   },
   "serverModules": {

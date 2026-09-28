@@ -106,6 +106,8 @@
     "rollback:search-index-cohort:staging": "node src/scripts/stagingSearchIndexCohortSync.js --target=staging --rollback --apply --confirm-search-index-cohort-rollback",
     "preflight:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging",
     "sync:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --apply --confirm-ai-catalog-rollout",
+    "preflight:kb-sync:staging": "node src/scripts/stagingKnowledgeBaseSync.js --target=staging",
+    "sync:kb-sync:staging": "node src/scripts/stagingKnowledgeBaseSync.js --target=staging --apply --confirm-staging-kb-sync",
     "preflight:rollback-ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --rollback",
     "rollback:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --rollback --apply --confirm-ai-catalog-rollback",
     "preflight:search-recipe-nutrition:staging": "node src/scripts/stagingRecipeNutritionSync.js --target=staging",

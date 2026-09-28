@@ -16,6 +16,8 @@ on:
           - ai-catalog-apply
           - ai-catalog-rollback-preflight
           - ai-catalog-rollback-apply
+          - kb-sync-preflight
+          - kb-sync-apply
       expected_plan_digest:
         description: Exact SHA-256 digest emitted by the matching maintenance preflight
         required: false
@@ -162,6 +164,12 @@ jobs:
             ai-catalog-rollback-apply)
               npm run --silent rollback:ai-catalog:staging > "$STAGING_MAINTENANCE_OUTPUT"
               ;;
+            kb-sync-preflight)
+              npm run --silent preflight:kb-sync:staging > "$STAGING_MAINTENANCE_OUTPUT"
+              ;;
+            kb-sync-apply)
+              npm run --silent sync:kb-sync:staging > "$STAGING_MAINTENANCE_OUTPUT"
+              ;;
             *)
               echo "Unsupported staging maintenance operation" >&2
               exit 1
@@ -181,6 +189,13 @@ jobs:
           F1_RETENTION_ENFORCE: "false"
           STAGING_SEARCH_INDEX_COHORT_EXPECTED_PLAN_DIGEST: ${{ inputs.expected_plan_digest }}
           STAGING_AI_CATALOG_EXPECTED_PLAN_DIGEST: ${{ inputs.expected_plan_digest }}
+          PRODUCTION_KB_READONLY_URI: ${{ secrets.PRODUCTION_ACCOUNT_SYNC_READONLY_URI }}
+          STAGING_KB_SYNC_REVIEWER_EMAIL: ${{ secrets.STAGING_ADMIN_EMAIL }}
+          STAGING_KB_SYNC_EXPECTED_PLAN_DIGEST: ${{ inputs.expected_plan_digest }}
+          STAGING_KB_SOURCE_ENV: production
+          STAGING_KB_SOURCE_READ_ONLY: "yes"
+          CONFIRM_STAGING_KB_SYNC: "yes"
+          KB_EMBEDDING_PROFILE: question-answering-v1
           CONFIRM_STAGING_SEARCH_INDEX_COHORT_ROLLBACK: "yes"
           CONFIRM_STAGING_AI_CATALOG_ROLLOUT: "yes"
           CONFIRM_STAGING_AI_CATALOG_ROLLBACK: "yes"
