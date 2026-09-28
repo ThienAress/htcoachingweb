@@ -4,6 +4,7 @@ import Exercise, {
   deriveTechnicalDifficultyRating,
 } from "../../../models/Exercise.js";
 import { escapeRegex } from "../../../utils/escapeRegex.js";
+import { safeLog } from "../../../utils/safeLogger.js";
 import { hasBandOnlyConstraint, validateWorkoutEquipmentOutput } from "../equipmentConstraint.js";
 import {
   getExerciseCatalogText,
@@ -54,15 +55,15 @@ const NO_EQUIPMENT_CATALOG_FIELDS = Object.freeze([
 ]);
 const LIMITED_EQUIPMENT_INTENT_PATTERN =
   /\b(?:chi co|chi dung|only have|only use|have only)\b/;
-const DUMBBELL_PATTERN = /\b(?:ta don|dumbbells?)\b/;
-const RESISTANCE_BAND_PATTERN = /\b(?:day khang luc|resistance bands?)\b/;
+const DUMBBELL_PATTERN = /\b(?:ta don|ta tay|dumbbells?)\b/;
+const RESISTANCE_BAND_PATTERN = /\b(?:day khang luc|day dan hoi|elastic bands?|mini bands?|loop bands?|resistance bands?)\b/;
 const EXPLICITLY_UNAVAILABLE_EQUIPMENT_PATTERN =
-  /\b(?:barbell|thanh don|cable|cap|machine|may|xa don|pull[ -]?up bars?|pull[ -]?ups?|chin[ -]?ups?|keo xa|trx|suspension trainers?|kettlebells?|plyo box|box jumps?|dip stations?|dips?)\b/;
+  /\b(?:barbell|thanh don|cable|cap|machine|may|xa don|pull[ -]?up bars?|pull[ -]?ups?|chin[ -]?ups?|keo xa|trx|suspension trainers?|kettlebells?|exercise balls?|stability balls?|swiss balls?|bong tap(?: the duc)?|plyo box|box jumps?|dip stations?|dips?)\b/;
 const BENCH_REQUIRED_PATTERN = /\b(?:bench|ghe)\b/;
 const FLOOR_COMPATIBLE_PATTERN =
   /\b(?:floor|san|khong can ghe|no bench|without bench)\b/;
 const LIMITED_EQUIPMENT_SAFE_PATTERN =
-  /\b(?:dumbbells?|ta don|resistance bands?|day khang luc|squat|lunge|calf raise)\b/;
+  /\b(?:dumbbells?|ta don|ta tay|resistance bands?|day khang luc|day dan hoi|elastic bands?|mini bands?|loop bands?|squat|lunge|calf raise)\b/;
 const DISPLACED_STAGING_NAME_PATTERN = /^__plan079_displaced__/i;
 const MAX_FILTERED_CANDIDATES = 100;
 
@@ -70,7 +71,7 @@ const normalizeIntent = (value) =>
   String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
+    .replace(/đ/gi, "d")
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, " ")
     .replace(/\s+/g, " ")
@@ -214,11 +215,29 @@ export async function searchExercises(params) {
           Math.max(resultLimit * 3, 15),
           MAX_FILTERED_CANDIDATES,
         );
-  const rawScan = await Exercise.find(query)
-    .sort({ name: 1 })
-    .limit(candidateLimit + 1)
-    .select("name muscleGroup description instructions videoUrl imageUrl technicalDifficulty _stagingSearchIndexCohortDisplaced")
-    .lean();
+  let rawScan;
+  try {
+    rawScan = await Exercise.find(query)
+      .sort({ name: 1 })
+      .limit(candidateLimit + 1)
+      .select("name muscleGroup description instructions videoUrl imageUrl technicalDifficulty _stagingSearchIndexCohortDisplaced")
+      .lean();
+  } catch (error) {
+    safeLog.error("ai.exercise_search_failed", error, {
+      equipmentConstraintApplied:
+        noEquipmentIntent || limitedDumbbellAndBandEquipment || bandOnlyEquipment,
+    });
+    return {
+      text: "Không thể tìm bài tập lúc này. Bạn thử lại sau nhé.",
+      uiCard: null,
+      error: "EXERCISE_SEARCH_ERROR",
+      meta: {
+        evidenceAvailable: false,
+        equipmentConstraintApplied:
+          noEquipmentIntent || limitedDumbbellAndBandEquipment || bandOnlyEquipment,
+      },
+    };
+  }
   const scanTruncated = rawScan.length > candidateLimit;
   const rawCandidates = rawScan.slice(0, candidateLimit);
   const candidates = deduplicateExercisesByName(

@@ -1,15 +1,15 @@
 const LIMITED_EQUIPMENT_PATTERN = /\b(?:chi co|chi dung|only have|only use|have only)\b/;
-const DUMBBELL_PATTERN = /\b(?:ta don|dumbbells?)\b/;
-const RESISTANCE_BAND_PATTERN = /\b(?:day khang luc|resistance bands?)\b/;
+const DUMBBELL_PATTERN = /\b(?:ta don|ta tay|dumbbells?)\b/;
+const RESISTANCE_BAND_PATTERN = /\b(?:day khang luc|day dan hoi|elastic bands?|mini bands?|loop bands?|resistance bands?)\b/;
 const BODYWEIGHT_PATTERN = /\b(?:bodyweight|body weight|trong luong co the|khong can dung cu|push[ -]?ups?|hit dat|glute bridge|reverse snow angel)\b/;
 const EXPLICIT_BODYWEIGHT_ALLOWED_PATTERN = /\b(?:bodyweight|body weight|trong luong co the|khong can dung cu)\b/;
-const BAND_ONLY_PATTERN = /\b(?:chi co|chi dung|only have|only use|have only)\s+(?:(?:mot|1)\s+)?(?:day khang luc|resistance bands?)\b/;
+const BAND_ONLY_PATTERN = /\b(?:chi co|chi dung|only have|only use|have only)\s+(?:(?:mot|1)\s+)?(?:day khang luc|day dan hoi|elastic bands?|mini bands?|loop bands?|resistance bands?)\b/;
 const FORBIDDEN_EQUIPMENT_PATTERN =
-  /\b(?:barbell|thanh don|cable|cap|machine|may tap|smith|bench press|ghe tap|incline press|decline press|pec deck|lat pulldown|leg press|xa don|pull[ -]?up bars?|pull[ -]?ups?|chin[ -]?ups?|keo xa|trx|suspension trainers?|kettlebells?|chair|ghe|plyo box|box jumps?|dip stations?|dips?)\b/;
+  /\b(?:barbell|thanh don|cable|cap|machine|may tap|smith|bench press|ghe tap|incline press|decline press|pec deck|lat pulldown|leg press|xa don|pull[ -]?up bars?|pull[ -]?ups?|chin[ -]?ups?|keo xa|trx|suspension trainers?|kettlebells?|chair|ghe|exercise balls?|stability balls?|swiss balls?|bong tap(?: the duc)?|plyo box|box jumps?|dip stations?|dips?)\b/;
 const DUMBBELL_PRESS_PATTERN =
-  /\b(?:dumbbells?|ta don)\b[^\n]{0,50}\b(?:press|day nguc)\b|\b(?:press|day nguc)\b[^\n]{0,50}\b(?:dumbbells?|ta don)\b/;
+  /\b(?:dumbbells?|ta don|ta tay)\b[^\n]{0,50}\b(?:press|day nguc)\b|\b(?:press|day nguc)\b[^\n]{0,50}\b(?:dumbbells?|ta don|ta tay)\b/;
 const SAFE_PRESS_VARIANT_PATTERN =
-  /\b(?:floor|san|standing|dung|overhead|shoulder|vai|resistance bands?|day khang luc)\b/;
+  /\b(?:floor|san|standing|dung|overhead|shoulder|vai|resistance bands?|day khang luc|day dan hoi|elastic bands?)\b/;
 const NEGATED_EQUIPMENT_PATTERN =
   /\b(?:khong|ko|tranh|loai bo|without|avoid|no)\b[^\n.;:]{0,35}\b(?:barbell|thanh don|cable|cap|machine|may tap|smith|bench|ghe|xa don|pull[ -]?up bars?|pull[ -]?ups?|chin[ -]?ups?|keo xa|trx|suspension trainers?|kettlebells?|chair|plyo box|box jumps?|dip stations?|dips?|bodyweight|body weight|trong luong co the|khong can dung cu)\b/g;
 

@@ -1,6 +1,10 @@
 // Suggest Meal Tool — server-authoritative meal math from the Food catalog.
 import Food from "../../../models/Food.js";
 import { getFoodMarketPriceMap } from "../../foodPrice.service.js";
+import {
+  foodMatchesMealPhrase,
+  parseMealRequirements,
+} from "../mealConstraints.js";
 
 const FOOD_PROJECTION = "_id label protein carb fat allergenProfile";
 const OFFICIAL_ALLERGEN_SOURCE_HOSTS = new Set([
@@ -88,6 +92,7 @@ const normalizeParams = (params = {}) => {
     targetCalories, calorieScope, proteinGrams, carbGrams, fatGrams, mealsPerDay,
     targetToleranceCalories, minimumProteinGrams,
     excludedFoods: Array.isArray(params.excludedFoods) ? params.excludedFoods : [],
+    requiredFoods: Array.isArray(params.requiredFoods) ? params.requiredFoods : [],
     excludedAllergens: Array.isArray(params.excludedAllergens) ? params.excludedAllergens : [],
     lactoseFree: params.lactoseFree === true,
     requirePackageLabelSafety: params.requirePackageLabelSafety === true,
@@ -286,24 +291,50 @@ const topFoods = (foods, scorer) => [...foods]
   .sort((left, right) => scorer(right) - scorer(left) || left.label.localeCompare(right.label, "vi"))
   .slice(0, 12);
 
-const choosePlan = (foods, target) => {
+const REQUIRED_FOOD_MIN_PER_MEAL_GRAMS = 40;
+
+const choosePlan = (foods, target, requiredFoods = [], mealsPerDay = 3) => {
   const proteins = topFoods(foods, (food) => food.protein - food.carb * 0.1 - food.fat * 0.1);
   const carbs = topFoods(foods, (food) => food.carb - food.protein * 0.05 - food.fat * 0.1);
   const fats = topFoods(foods, (food) => food.fat - food.protein * 0.05 - food.carb * 0.05);
+  const requiredIds = new Set(requiredFoods.map((food) => String(food._id)));
+  const requiredAmounts = requiredFoods.map(() => mealsPerDay * REQUIRED_FOOD_MIN_PER_MEAL_GRAMS);
+  const requiredMacros = addMacros(requiredFoods.map((food, index) =>
+    foodMacro(food, requiredAmounts[index]),
+  ));
+  const residualTarget = {
+    protein: target.protein - requiredMacros.protein,
+    carb: target.carb - requiredMacros.carb,
+    fat: target.fat - requiredMacros.fat,
+  };
+  if (Object.values(residualTarget).some((value) => value <= 0 || !Number.isFinite(value))) {
+    return null;
+  }
+  const candidateLists = [proteins, carbs, fats].map((list) =>
+    list.filter((food) => !requiredIds.has(String(food._id))),
+  );
   let best = null;
-  for (const proteinFood of proteins) for (const carbFood of carbs) for (const fatFood of fats) {
+  for (const proteinFood of candidateLists[0]) for (const carbFood of candidateLists[1]) for (const fatFood of candidateLists[2]) {
     const foodsForPlan = [proteinFood, carbFood, fatFood];
     if (new Set(foodsForPlan.map((food) => String(food._id))).size !== 3) continue;
     const amounts = solve3x3([
       foodsForPlan.map((food) => food.protein / 100),
       foodsForPlan.map((food) => food.carb / 100),
       foodsForPlan.map((food) => food.fat / 100),
-    ], [target.protein, target.carb, target.fat]);
+    ], [residualTarget.protein, residualTarget.carb, residualTarget.fat]);
     if (!amounts || amounts.some((amount) => amount < 1 || amount > 3000 || !Number.isFinite(amount))) continue;
     const roundedAmounts = amounts.map((amount) => Math.round(amount));
-    const totals = addMacros(foodsForPlan.map((food, index) => foodMacro(food, roundedAmounts[index])));
-    const score = Math.abs(MACRO_CALORIES(totals) - MACRO_CALORIES(target)) + Math.max(0, target.protein - totals.protein) * 100;
-    if (!best || score < best.score) best = { foods: foodsForPlan, amounts: roundedAmounts, score };
+    const selectedFoods = [...requiredFoods, ...foodsForPlan];
+    const selectedAmounts = [...requiredAmounts, ...roundedAmounts];
+    const totals = addMacros(selectedFoods.map((food, index) =>
+      foodMacro(food, selectedAmounts[index]),
+    ));
+    const score = Math.abs(MACRO_CALORIES(totals) - MACRO_CALORIES(target)) +
+      Math.max(0, target.protein - totals.protein) * 100 +
+      requiredFoods.length * 0.01;
+    if (!best || score < best.score) {
+      best = { foods: selectedFoods, amounts: selectedAmounts, score };
+    }
   }
   return best;
 };
@@ -315,18 +346,36 @@ const splitAmount = (amount, count) => {
   return values;
 };
 
+const splitAmountWithRotation = (amount, count, foodIndex) => {
+  if (count <= 1 || amount < count * 10) return splitAmount(amount, count);
+  const omittedMeal = foodIndex % count;
+  const activeCount = count - 1;
+  const base = Math.floor((amount / activeCount) * 10) / 10;
+  const values = Array(count).fill(base);
+  values[omittedMeal] = 0;
+  const remainder = round(amount - base * activeCount);
+  const lastActiveMeal = (omittedMeal + count - 1) % count;
+  values[lastActiveMeal] = round(values[lastActiveMeal] + remainder);
+  return values;
+};
+
 const buildStructuredMeals = (plan, mealsPerDay) =>
   mealLabels(mealsPerDay).map((label, mealIndex) => {
-    const foods = plan.foods.map((food, index) => {
-      const amountGrams = splitAmount(plan.amounts[index], mealsPerDay)[mealIndex];
+    const foods = plan.foods.flatMap((food, index) => {
+      const amountGrams = splitAmountWithRotation(
+        plan.amounts[index],
+        mealsPerDay,
+        index,
+      )[mealIndex];
+      if (amountGrams <= 0) return [];
       const macros = foodMacro(food, amountGrams);
-      return {
+      return [{
         foodId: String(food._id),
         name: food.label,
         amountGrams,
         macros,
         calories: round(MACRO_CALORIES(macros)),
-      };
+      }];
     });
     const macros = addMacros(foods.map((food) => food.macros));
     return {
@@ -845,6 +894,22 @@ export async function suggestMeal(params, {
     requireSafetyMetadata,
     requirePackageLabelSafety: input.requirePackageLabelSafety,
   }));
+  const requiredConstraints = parseMealRequirements(input.requiredFoods);
+  const requiredFoods = [];
+  for (const requirement of requiredConstraints.items) {
+    const matchedFood = eligibleFoods.find((food) =>
+      foodMatchesMealPhrase(food, requirement),
+    );
+    if (!matchedFood) {
+      return missingData(
+        "required_food_unavailable",
+        `Chưa tìm thấy thực phẩm bắt buộc "${requirement.rawPhrase || requirement.phrase}" trong catalog phù hợp; mình không tự thay bằng món khác.`,
+      );
+    }
+    if (!requiredFoods.some((food) => String(food._id) === String(matchedFood._id))) {
+      requiredFoods.push(matchedFood);
+    }
+  }
   if (eligibleFoods.length < 3) {
     return missingData(
       input.requirePackageLabelSafety
@@ -855,7 +920,7 @@ export async function suggestMeal(params, {
       "Chưa đủ dữ liệu thực phẩm đã kiểm duyệt để đáp ứng các ràng buộc an toàn này.",
     );
   }
-  const plan = choosePlan(eligibleFoods, target);
+  const plan = choosePlan(eligibleFoods, target, requiredFoods, input.mealsPerDay);
   if (!plan) return missingData("catalog_insufficient", "Chưa đủ thực phẩm phù hợp để đáp ứng chính xác mục tiêu dinh dưỡng này.");
   const corrected = correctProteinRounding(plan, input);
   const { meals, macros, totals } = corrected;
@@ -888,6 +953,10 @@ export async function suggestMeal(params, {
       data: {
         status: "complete", targetCalories: input.targetCalories, calorieScope: input.calorieScope, targetToleranceCalories: input.targetToleranceCalories,
         macros, totals, meals, price,
+        constraints: {
+          excludedFoods: requestedExcludedFoods,
+          requiredFoods: requiredConstraints.phrases,
+        },
         safety,
         targets: { proteinGrams: input.proteinGrams, carbGrams: input.carbGrams, fatGrams: input.fatGrams, minimumProteinGrams: input.minimumProteinGrams },
         nutritionMethod: "server_calculated_4p_4c_9f",

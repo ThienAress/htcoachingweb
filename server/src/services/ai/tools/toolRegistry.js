@@ -114,7 +114,7 @@ export const toolRegistry = {
   search_exercises: {
     name: "search_exercises",
     description:
-      "Tìm bài tập trong thư viện theo nhóm cơ hoặc tên bài tập. " +
+      "Tìm bài tập trong thư viện theo nhóm cơ, tên bài tập và giới hạn thiết bị user nêu. " +
       "GỌI KHI: user hỏi về bài tập, muốn tìm bài tập cho nhóm cơ cụ thể, hoặc hỏi cách tập. " +
       "Các nhóm cơ có: Ngực, Lưng, Chân, Vai, Tay, Bụng.",
     parameters: {
@@ -139,6 +139,8 @@ export const toolRegistry = {
     description:
       "Gợi ý thực đơn từ database thực phẩm dựa trên lượng calo và macro mục tiêu. " +
       "GỌI KHI: user muốn gợi ý thực đơn/lịch ăn VÀ đã biết lượng calo mục tiêu (thường sau khi đã tính TDEE). " +
+      "Nếu user nêu món bắt buộc hoặc món cần loại trừ, truyền từng cụm đầy đủ vào requiredFoods/excludedFoods; " +
+      "không thay món bắt buộc bằng món khác nếu catalog không đáp ứng. " +
       "KHÔNG GỌI KHI: chưa tính TDEE — hãy tính TDEE trước bằng tool calculate_tdee.",
     parameters: {
       type: "object",
@@ -157,6 +159,13 @@ export const toolRegistry = {
           maxItems: 12,
           items: { type: "string", minLength: 1, maxLength: 100 },
           description: "Thực phẩm cần loại trừ. Chỉ dùng khi user nêu rõ.",
+        },
+        requiredFoods: {
+          type: "array",
+          maxItems: 12,
+          uniqueItems: true,
+          items: { type: "string", minLength: 1, maxLength: 100 },
+          description: "Thực phẩm user yêu cầu phải xuất hiện; truyền từng cụm đầy đủ, ví dụ ['cơm', 'cá', 'rau', 'đậu phụ'].",
         },
         excludedAllergens: {
           type: "array",

@@ -414,6 +414,9 @@ export function buildSystemPrompt(context = {}) {
   }
   if (conversationMemory?.lastMeal) {
     contextBlock += `- Thực đơn gần nhất: ${conversationMemory.lastMeal.mealsPerDay} bữa/ngày, ${conversationMemory.lastMeal.targetCalories} kcal/ngày\n`;
+    if (conversationMemory.lastMeal.requiredFoods?.length > 0) {
+      contextBlock += `- Thực phẩm bắt buộc trong thực đơn gần nhất: ${conversationMemory.lastMeal.requiredFoods.join(", ")}\n`;
+    }
   }
   contextBlock += buildPersonalMemoryBlock(personalMemory);
   const requestRoutingBlock = buildRequestRoutingBlock(requestRouting, {
