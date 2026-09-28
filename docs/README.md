@@ -44,6 +44,7 @@ nguồn canonical trước khi thay đổi code.
 - [Explicit AI Memory pilot spec](./specs/ai-explicit-memory.md)
 - [HT Assistant hardening và scale readiness spec](./specs/ai-assistant-hardening-and-scale-readiness.md)
 - [HT Assistant fitness-first và Knowledge Base có bằng chứng](./specs/fitness-first-ai-and-knowledge-quality.md)
+- [Curated source-backed retrieval và citation](./specs/source-backed-retrieval-and-citation.md)
 - [Rollout embedding Knowledge Base trên staging](./specs/knowledge-base-embedding-staging-rollout.md)
 - [Service access policy spec](./specs/service-access-policy.md)
 - [Containerized backend runtime spec](./specs/containerized-backend-runtime.md)

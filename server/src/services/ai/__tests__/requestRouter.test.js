@@ -1036,6 +1036,24 @@ describe("AI request routing prompt block", () => {
     );
   });
 
+  it("locks every external tool after a citable curated KB hit", () => {
+    const baseDecision = routeAiRequest("Ronaldo thường tập gì?");
+    const decision = Object.freeze({
+      ...baseDecision,
+      evidence: "internal_kb",
+      knowledgeBaseEligible: true,
+      webSearchRequired: false,
+      preferredTool: null,
+      maxWebSearchCalls: 0,
+      reasonCodes: Object.freeze([
+        ...baseDecision.reasonCodes,
+        "source_backed_kb_hit",
+      ]),
+    });
+
+    expect(getAllowedToolNamesForRoute(decision)).toEqual([]);
+  });
+
   it("keeps low-risk fitness useful when internal enrichment has no hit", () => {
     const block = buildRequestRoutingBlock(
       routeAiRequest("Tìm 5 bài tập ngực cho người mới"),

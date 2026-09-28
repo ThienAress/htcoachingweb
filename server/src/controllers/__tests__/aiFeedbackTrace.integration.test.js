@@ -1443,6 +1443,69 @@ describe("AI answer trace and feedback review", () => {
     });
   });
 
+  it("uses a reviewed source-backed KB hit before web search", async () => {
+    const { user, accessToken } = await createTestUser();
+    const sourceUrl = "https://example.org/research/ronaldo-training";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    llmStreamMock.mockImplementationOnce(async function* curatedAnswer() {
+      yield { type: "text", content: "Nguồn đã duyệt ghi nhận các buổi tập sức mạnh." };
+    });
+    searchKnowledgeBaseMock.mockResolvedValueOnce([
+      {
+        _id: "507f191e810c19729de860ee",
+        question: "Ronaldo thường tập gì?",
+        answer: "Nguồn đã duyệt ghi nhận các buổi tập sức mạnh.",
+        category: "athlete",
+        similarity: 0.94,
+        status: "published",
+        evidenceLevel: "source_backed",
+        reviewStatus: "reviewed",
+        freshnessClass: "periodic",
+        reviewDueAt: "2099-01-01T00:00:00.000Z",
+        sources: [{
+          type: "research",
+          title: "Synthetic public training reference",
+          publisher: "Synthetic Sports Science Journal",
+          url: sourceUrl,
+          evidenceTier: "primary",
+        }],
+      },
+    ]);
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Ronaldo thường tập gì?",
+      requestId: "0ca66a61-4768-4cf7-862b-ce43154426af",
+    });
+
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+    expect(response.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(searchKnowledgeBaseMock).toHaveBeenCalledWith(
+      "Ronaldo thường tập gì?",
+      { limit: 3, threshold: 0.75 },
+    );
+    expect(conversation.messages.some((message) =>
+      message.toolCalls?.some((call) => call.name === "search_knowledge"),
+    )).toBe(false);
+    expect(answer.content).toContain(sourceUrl);
+    expect(answer.answerTrace).toMatchObject({
+      routeDomain: "fitness",
+      evidenceMode: "internal_kb",
+      webSearchUsed: false,
+      webSearchOutcome: "not_called",
+    });
+    expect(answer.answerTrace.kbEntryIds.map(String)).toEqual([
+      "507f191e810c19729de860ee",
+    ]);
+  });
+
   it("uses the previous user topic for a short Knowledge Base follow-up", async () => {
     const { user, accessToken } = await createTestUser();
     const conversation = await ChatConversation.create({
@@ -2573,7 +2636,10 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(searchKnowledgeBaseMock).not.toHaveBeenCalled();
+    expect(searchKnowledgeBaseMock).toHaveBeenCalledWith(
+      "Ronaldo thường tập những bài gì trong phòng gym?",
+      { limit: 3, threshold: 0.75 },
+    );
     expect(answer.content).toMatch(/chưa thể xác minh.*nguồn đáng tin cậy/i);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
