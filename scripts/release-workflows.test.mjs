@@ -75,8 +75,8 @@ test("official action runtimes are upgraded while application Node remains 22.23
     }
   }
 
-  assert.equal(inspectedActions, 71, "the action-runtime inventory changed; review the new call site");
-  assert.equal(setupNodeSteps, 20, "the setup-node inventory changed; review its Node/cache contract");
+  assert.equal(inspectedActions, 74, "the action-runtime inventory changed; review the new call site");
+  assert.equal(setupNodeSteps, 21, "the setup-node inventory changed; review its Node/cache contract");
 
   const [nodeVersion, nvmrc, rootPackage] = await Promise.all([
     read(".node-version"),
