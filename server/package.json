@@ -13,6 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "preflight:kb-reembed:staging": "node src/scripts/stagingKnowledgeBaseReembed.js --target=staging",
     "migrate:kb-reembed:staging": "node src/scripts/stagingKnowledgeBaseReembed.js --target=staging --apply",
+    "export:kb-source-review:production": "node src/scripts/knowledgeBaseSourceReview.js",
     "preflight:rollback-kb-reembed:staging": "node src/scripts/stagingKnowledgeBaseReembed.js --target=staging --rollback",
     "rollback:kb-reembed:staging": "node src/scripts/stagingKnowledgeBaseReembed.js --target=staging --rollback --apply",
     "migrate:phase1": "node src/migrations/20260719-phase1-integrity.js",
