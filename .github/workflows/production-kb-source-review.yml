@@ -1,0 +1,58 @@
+name: Production Knowledge Base Source Review
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: production-kb-source-review
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production-kb-source-maintenance
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Install server dependencies
+        run: npm ci --prefix server
+
+      - name: Export private source-review packet
+        working-directory: server
+        shell: bash
+        env:
+          PRODUCTION_KB_READONLY_URI: ${{ secrets.PRODUCTION_ACCOUNT_SYNC_READONLY_URI }}
+          KB_SOURCE_REVIEW_OUTPUT: ../artifacts/production-kb-source-review.json
+        run: |
+          set -euo pipefail
+          mkdir -p ../artifacts
+          npm run --silent export:kb-source-review:production > ../artifacts/production-kb-source-review-summary.json
+
+      - name: Retain export summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-kb-source-review-summary-${{ github.run_id }}
+          path: artifacts/production-kb-source-review-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Retain private review packet
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-kb-source-review-packet-${{ github.run_id }}
+          path: artifacts/production-kb-source-review.json
+          if-no-files-found: error
+          retention-days: 3

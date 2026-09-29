@@ -99,6 +99,7 @@ nguồn canonical trước khi thay đổi code.
 - [Refresh-session cutover (Plan 082)](./operations/runbooks/refresh-session-cutover.md)
 - [Provider usage monitoring](./operations/runbooks/provider-usage-monitoring.md)
 - [Staging Knowledge Base re-embed và rollback](./operations/runbooks/staging-knowledge-base-reembed.md)
+- [Production Knowledge Base source review](./operations/runbooks/production-knowledge-base-source-review.md)
 
 ## Quy ước
 
