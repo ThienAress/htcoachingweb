@@ -17,6 +17,12 @@ const source = {
   evidenceTier: "primary",
 };
 
+const normalizedSource = {
+  ...source,
+  publishedAt: new Date(source.publishedAt),
+  retrievedAt: new Date(source.retrievedAt),
+};
+
 const createManifest = (question, answer) => ({
   version: 1,
   updates: [
@@ -45,10 +51,10 @@ describe("production Knowledge Base source import", () => {
     );
 
     expect(plan).toHaveLength(1);
-    expect(plan[0].sources).toEqual([source]);
+    expect(plan[0].sources).toEqual([normalizedSource]);
     expect(buildSourceOnlyUpdate(plan[0].sources)).toEqual({
       $set: {
-        sources: [source],
+        sources: [normalizedSource],
         evidenceLevel: "source_backed",
         reviewStatus: "needs_review",
         reviewedBy: null,
