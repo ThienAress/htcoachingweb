@@ -4,13 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Read-only preflight or reviewed staging apply
+        description: Read-only preflight/apply for normal sync or review import
         required: true
         default: preflight
         type: choice
         options:
           - preflight
           - apply
+          - review-preflight
+          - review-apply
       release_sha:
         description: Exact commit currently deployed to staging
         required: true
@@ -52,7 +54,7 @@ jobs:
         run: npm ci --prefix server
 
       - name: Validate apply input
-        if: ${{ inputs.operation == 'apply' }}
+        if: ${{ inputs.operation == 'apply' || inputs.operation == 'review-apply' }}
         shell: bash
         env:
           EXPECTED_PLAN_DIGEST: ${{ inputs.expected_plan_digest }}
@@ -72,7 +74,9 @@ jobs:
           STAGING_KB_SOURCE_ENV: production
           STAGING_KB_SOURCE_READ_ONLY: "yes"
           STAGING_KB_SYNC_EXPECTED_PLAN_DIGEST: ${{ inputs.expected_plan_digest }}
+          STAGING_KB_REVIEW_IMPORT_EXPECTED_PLAN_DIGEST: ${{ inputs.expected_plan_digest }}
           CONFIRM_STAGING_KB_SYNC: "yes"
+          CONFIRM_STAGING_KB_REVIEW_IMPORT: "yes"
           KB_EMBEDDING_PROFILE: question-answering-v1
           CLIENT_URL: https://staging--htcoachingweb.netlify.app
           PUBLIC_API_ORIGIN: https://htcoachingweb-staging.onrender.com
@@ -88,8 +92,12 @@ jobs:
           mkdir -p ../artifacts
           if [[ "$OPERATION" == "preflight" ]]; then
             npm run --silent preflight:kb-sync:staging > ../artifacts/staging-kb-sync.json
-          else
+          elif [[ "$OPERATION" == "apply" ]]; then
             npm run --silent sync:kb-sync:staging > ../artifacts/staging-kb-sync.json
+          elif [[ "$OPERATION" == "review-preflight" ]]; then
+            npm run --silent preflight:kb-review-import:staging > ../artifacts/staging-kb-sync.json
+          else
+            npm run --silent sync:kb-review-import:staging > ../artifacts/staging-kb-sync.json
           fi
 
       - name: Retain secret-free sync evidence
