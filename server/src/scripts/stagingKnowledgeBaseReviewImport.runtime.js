@@ -297,6 +297,17 @@ const assertTargetPlanState = async (targetDb, plan, options) => {
   }
 };
 
+const assertTargetPostWriteState = (targetEntries, plan) => {
+  const targetById = new Map(targetEntries.map((entry) => [String(entry._id), entry]));
+  const failed = plan.operations.filter((operation) => {
+    const current = targetById.get(operation.sourceId);
+    return !current || fingerprint(comparableReviewEntry(current)) !== operation.expectedFingerprint;
+  });
+  if (failed.length) {
+    throw reviewImportError("KB_REVIEW_IMPORT_POST_VERIFY_FAILED");
+  }
+};
+
 export const applyReviewImportPlan = async ({ targetDb, targetClient, plan }) => {
   if (!targetClient?.startSession) {
     throw reviewImportError("KB_REVIEW_IMPORT_TRANSACTION_REQUIRED");
@@ -324,7 +335,8 @@ export const applyReviewImportPlan = async ({ targetDb, targetClient, plan }) =>
           }
           written += 1;
         }
-        await assertTargetPlanState(targetDb, plan, { session });
+        const targetEntries = await loadTargetReviewEntries(targetDb, { session });
+        assertTargetPostWriteState(targetEntries, plan);
         return { documentsWritten: written };
       },
       {
@@ -339,14 +351,7 @@ export const applyReviewImportPlan = async ({ targetDb, targetClient, plan }) =>
 
 export const verifyReviewImportPostState = async ({ targetDb, plan }) => {
   const targetEntries = await loadTargetReviewEntries(targetDb);
-  const targetById = new Map(targetEntries.map((entry) => [String(entry._id), entry]));
-  const failed = plan.operations.filter((operation) => {
-    const current = targetById.get(operation.sourceId);
-    return !current || fingerprint(comparableReviewEntry(current)) !== operation.expectedFingerprint;
-  });
-  if (failed.length) {
-    throw reviewImportError("KB_REVIEW_IMPORT_POST_VERIFY_FAILED");
-  }
+  assertTargetPostWriteState(targetEntries, plan);
   return {
     verifiedDocuments: plan.operations.length,
     targetDocuments: targetEntries.length,
