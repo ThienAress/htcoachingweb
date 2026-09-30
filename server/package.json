@@ -108,6 +108,8 @@
     "sync:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --apply --confirm-ai-catalog-rollout",
     "preflight:kb-sync:staging": "node src/scripts/stagingKnowledgeBaseSync.js --target=staging",
     "sync:kb-sync:staging": "node src/scripts/stagingKnowledgeBaseSync.js --target=staging --apply --confirm-staging-kb-sync",
+    "preflight:kb-review-import:staging": "node src/scripts/stagingKnowledgeBaseReviewImport.js --target=staging",
+    "sync:kb-review-import:staging": "node src/scripts/stagingKnowledgeBaseReviewImport.js --target=staging --apply --confirm-staging-kb-review-import",
     "preflight:rollback-ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --rollback",
     "rollback:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --rollback --apply --confirm-ai-catalog-rollback",
     "preflight:search-recipe-nutrition:staging": "node src/scripts/stagingRecipeNutritionSync.js --target=staging",
