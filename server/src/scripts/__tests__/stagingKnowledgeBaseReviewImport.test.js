@@ -8,7 +8,11 @@ import {
   validateReviewManifest,
   validateStagingKnowledgeBaseReviewImportAuthorization,
 } from "../stagingKnowledgeBaseReviewImport.contract.js";
-import { buildReviewImportPlan } from "../stagingKnowledgeBaseReviewImport.runtime.js";
+import {
+  applyReviewImportPlan,
+  buildReviewImportPlan,
+  verifyReviewImportPostState,
+} from "../stagingKnowledgeBaseReviewImport.runtime.js";
 
 const reviewerId = new ObjectId("507f1f77bcf86cd799439011");
 const baseEnv = {
@@ -58,6 +62,39 @@ const makeFixture = () => {
   };
 };
 
+const makeTransactionalTarget = () => {
+  const entries = [];
+  const collection = {
+    find: () => {
+      const cursor = {
+        sort: () => cursor,
+        limit: () => cursor,
+        toArray: async () => entries.map((entry) => ({ ...entry })),
+      };
+      return cursor;
+    },
+    updateOne: async (filter, update) => {
+      const index = entries.findIndex((entry) => String(entry._id) === String(filter._id));
+      if (index === -1) {
+        entries.push({ _id: filter._id, ...update.$set });
+        return { matchedCount: 0, upsertedCount: 1 };
+      }
+      entries[index] = { ...entries[index], ...update.$set };
+      return { matchedCount: 1, upsertedCount: 0 };
+    },
+  };
+  return {
+    entries,
+    targetDb: { collection: () => collection },
+    targetClient: {
+      startSession: () => ({
+        withTransaction: async (callback) => callback(),
+        endSession: async () => {},
+      }),
+    },
+  };
+};
+
 describe("staging Knowledge Base review import", () => {
   it("validates the checked-in 28-entry manifest without raw proposal fields", () => {
     const manifest = JSON.parse(
@@ -104,6 +141,37 @@ describe("staging Knowledge Base review import", () => {
     expect(plan.summary.updates).toBe(0);
     expect(plan.operations.every((operation) => operation.update.status === "draft")).toBe(true);
     expect(plan.operations.every((operation) => operation.update.reviewStatus === "needs_review")).toBe(true);
+  });
+
+  it("verifies the written state without treating inserts as target drift", async () => {
+    const manifest = makeFixture();
+    const sourceEntries = manifest.documents.map((document, index) => ({
+      _id: new ObjectId(document.sourceId),
+      question: `Original question ${index}`,
+      category: "training",
+      status: "draft",
+      reviewStatus: "needs_review",
+      source: null,
+      sources: [],
+    }));
+    const plan = buildReviewImportPlan({
+      manifest,
+      sourceEntries,
+      targetEntries: [],
+      reviewerId,
+      now: new Date("2026-09-30T00:00:00.000Z"),
+    });
+    const target = makeTransactionalTarget();
+    await expect(applyReviewImportPlan({
+      targetDb: target.targetDb,
+      targetClient: target.targetClient,
+      plan,
+    })).resolves.toEqual({ documentsWritten: 28 });
+    await expect(verifyReviewImportPostState({
+      targetDb: target.targetDb,
+      plan,
+    })).resolves.toMatchObject({ verifiedDocuments: 28, targetDocuments: 28 });
+    expect(target.entries).toHaveLength(28);
   });
 
   it("rejects a target question collision owned by another document", () => {
