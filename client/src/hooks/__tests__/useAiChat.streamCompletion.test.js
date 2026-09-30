@@ -49,7 +49,7 @@ vi.mock("../../services/ai.service", () => ({
   openAiChatStream,
 }));
 
-import useAiChat from "../useAiChat";
+import useAiChat, { mapAiMessages } from "../useAiChat";
 
 const renderHook = (options = { persistenceEnabled: false }) => {
   hookRuntime.cursor = 0;
@@ -66,6 +66,7 @@ const streamResponse = (...events) => {
   let index = 0;
   return {
     ok: true,
+    headers: { get: () => null },
     body: {
       getReader: () => ({
         read: async () => index < chunks.length
@@ -75,6 +76,15 @@ const streamResponse = (...events) => {
     },
   };
 };
+
+const streamResponseWithConversationHeader = (conversationId, ...events) => ({
+  ...streamResponse(...events),
+  headers: {
+    get: (name) => name.toLowerCase() === "x-ai-conversation-id"
+      ? conversationId
+      : null,
+  },
+});
 
 const deferred = () => {
   let resolve;
@@ -92,6 +102,71 @@ describe("AI chat SSE completion", () => {
     hookRuntime.cursor = 0;
     vi.resetAllMocks();
     getAiConversations.mockResolvedValue({ data: [] });
+  });
+
+  it("preserves a persisted TDEE action for reload and retry", () => {
+    const structuredAction = {
+      type: "calculate_tdee",
+      payload: {
+        gender: "male",
+        age: 28,
+        heightCm: 175,
+        weightKg: 75,
+        dailyMovement: "mixed",
+        steps: "between_5000_7999",
+        trainingFrequency: "three_four",
+        trainingDuration: "between_45_60",
+        trainingIntensity: "moderate",
+        goal: "maintenance",
+      },
+    };
+
+    expect(mapAiMessages([{
+      _id: "u-tdee",
+      role: "user",
+      content: "Tính TDEE từ thông tin tôi đã xác nhận",
+      structuredAction,
+    }])).toEqual([
+      expect.objectContaining({
+        _id: "u-tdee",
+        structuredAction,
+      }),
+    ]);
+  });
+
+  it("sends a structured TDEE action outside the untrusted page context", async () => {
+    const structuredAction = {
+      type: "calculate_tdee",
+      payload: {
+        gender: "male",
+        age: 28,
+        heightCm: 175,
+        weightKg: 75,
+        dailyMovement: "mixed",
+        steps: "between_5000_7999",
+        trainingFrequency: "three_four",
+        trainingDuration: "between_45_60",
+        trainingIntensity: "moderate",
+        goal: "maintenance",
+      },
+    };
+    openAiChatStream.mockResolvedValue(
+      streamResponse({ type: "done", conversationId: "conversation-1" }),
+    );
+
+    await renderHook().sendMessage(
+      "Tính TDEE từ thông tin tôi đã xác nhận",
+      { page: "/tdee-calculator" },
+      { structuredAction },
+    );
+
+    expect(openAiChatStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: { page: "/tdee-calculator" },
+        structuredAction,
+      }),
+      expect.objectContaining({ signal: expect.anything() }),
+    );
   });
 
   it("marks a clean EOF without done incomplete while keeping received text", async () => {
@@ -156,6 +231,113 @@ describe("AI chat SSE completion", () => {
       isLoading: false,
       terminalOutcome: "completed",
     });
+  });
+
+  it("keeps stale conversation context visible and asks for an explicit new chat on 404", async () => {
+    const priorMessages = [
+      { _id: "u1", role: "user", content: "Câu hỏi trước" },
+      { _id: "a1", role: "assistant", content: "Câu trả lời trước" },
+    ];
+    getAiHistory.mockResolvedValue({
+      data: { conversationId: "conversation-stale", messages: priorMessages },
+    });
+    openAiChatStream.mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ message: "Không tìm thấy cuộc trò chuyện" }),
+    });
+
+    const hook = renderHook({ persistenceEnabled: true });
+    await hook.loadHistory();
+    await renderHook({ persistenceEnabled: true }).sendMessage("Câu hỏi mới");
+    const view = renderHook({ persistenceEnabled: true });
+
+    expect(view.conversationId).toBe("conversation-stale");
+    expect(view.error).toMatch(/không còn tồn tại.*cuộc trò chuyện mới/i);
+    expect(view.messages.some(
+      (message) => message.role === "user" && message.content === "Câu hỏi mới",
+    )).toBe(true);
+    expect(forkAiConversation).not.toHaveBeenCalled();
+    expect(getAiConversationById).not.toHaveBeenCalled();
+  });
+
+  it("keeps a streamed suffix when navigating away from and back to the active conversation", async () => {
+    const encoder = new TextEncoder();
+    const releaseCompletion = deferred();
+    let reads = 0;
+    getAiHistory.mockResolvedValue({
+      data: {
+        conversationId: "conversation-a",
+        messages: [
+          { _id: "u-a", role: "user", content: "Câu hỏi A" },
+          { _id: "a-a", role: "assistant", content: "Câu trả lời A" },
+        ],
+      },
+    });
+    getAiConversationById.mockResolvedValue({
+      data: {
+        messages: [
+          { _id: "u-b", role: "user", content: "Câu hỏi B" },
+          {
+            _id: "a-b",
+            role: "assistant",
+            content: "AC009-PREFIX AC009-LATE-SUFFIX",
+          },
+        ],
+      },
+    });
+    openAiChatStream.mockResolvedValue({
+      ok: true,
+      body: {
+        getReader: () => ({
+          read: async () => {
+            reads += 1;
+            if (reads === 1) {
+              return {
+                done: false,
+                value: encoder.encode(
+                  'data: {"type":"conversation","conversationId":"conversation-b"}\n\n' +
+                  'data: {"type":"text","content":"AC009-PREFIX"}\n\n',
+                ),
+              };
+            }
+            if (reads === 2) return releaseCompletion.promise;
+            return { done: true };
+          },
+        }),
+      },
+    });
+
+    const hook = renderHook({ persistenceEnabled: true });
+    await hook.loadHistory();
+    renderHook({ persistenceEnabled: true }).clearHistory();
+    const request = renderHook({ persistenceEnabled: true })
+      .sendMessage("Câu hỏi B");
+    await vi.waitFor(() => expect(
+      renderHook({ persistenceEnabled: true }).conversationId,
+    ).toBe("conversation-b"));
+    await renderHook({ persistenceEnabled: true })
+      .switchConversation("conversation-a");
+    await renderHook({ persistenceEnabled: true })
+      .switchConversation("conversation-b");
+
+    releaseCompletion.resolve({
+      done: false,
+      value: encoder.encode(
+        'data: {"type":"text","content":" AC009-LATE-SUFFIX"}\n\n' +
+        'data: {"type":"done","conversationId":"conversation-b"}\n\n',
+      ),
+    });
+    await request;
+    await vi.waitFor(() => expect(
+      renderHook({ persistenceEnabled: true }).messages.at(-1)?.content,
+    ).toContain("AC009-LATE-SUFFIX"));
+    await vi.waitFor(() => expect(
+      renderHook({ persistenceEnabled: true }).isReconciling,
+    ).toBe(false));
+
+    expect(renderHook({ persistenceEnabled: true }).terminalOutcome)
+      .toBe("completed");
   });
 
   it("keeps a completed outcome when post-done history reconciliation retries", async () => {
@@ -414,7 +596,9 @@ describe("AI chat SSE completion", () => {
       })
       .mockResolvedValueOnce(streamResponse({
         type: "done",
-        conversationId: "conversation-branch",
+        conversationId: action === "retry"
+          ? "conversation-1"
+          : "conversation-branch",
       }));
 
     const initialHook = renderHook({ persistenceEnabled: true });
@@ -436,12 +620,16 @@ describe("AI chat SSE completion", () => {
     await request;
     resolveReconcile({ data: { messages: reconciledMessages } });
 
-    await vi.waitFor(() => expect(forkAiConversation).toHaveBeenCalled());
     await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(2));
+    if (action === "edit") {
+      expect(forkAiConversation).toHaveBeenCalledTimes(1);
+    } else {
+      expect(forkAiConversation).not.toHaveBeenCalled();
+    }
 
     expect({
       callsBeforeReconcile,
-      forkArgs: forkAiConversation.mock.calls[0],
+      forkArgs: forkAiConversation.mock.calls[0] || null,
       streamPayloads: openAiChatStream.mock.calls.map(
         ([payload]) => ({
           conversationId: payload.conversationId,
@@ -454,14 +642,16 @@ describe("AI chat SSE completion", () => {
         streams: 1,
         conversationId: "conversation-1",
       },
-      forkArgs: ["conversation-1", "u2"],
+      forkArgs: action === "edit" ? ["conversation-1", "u2"] : null,
       streamPayloads: [
         {
           conversationId: "conversation-1",
           message: "Câu hỏi đang dừng",
         },
         {
-          conversationId: "conversation-branch",
+          conversationId: action === "edit"
+            ? "conversation-branch"
+            : "conversation-1",
           message: nextText,
         },
       ],
@@ -510,7 +700,9 @@ describe("AI chat SSE completion", () => {
       })
       .mockResolvedValueOnce(streamResponse({
         type: "done",
-        conversationId: "conversation-branch",
+        conversationId: action === "retry"
+          ? "conversation-1"
+          : "conversation-branch",
       }));
 
     const hook = renderHook({ persistenceEnabled: true });
@@ -530,12 +722,17 @@ describe("AI chat SSE completion", () => {
     } else {
       renderHook({ persistenceEnabled: true }).retryLastMessage();
     }
-    await vi.waitFor(() => expect(forkAiConversation).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(2));
 
     expect(reconciled.map(({ _id }) => _id)).toEqual(["u1", "a1", "u2", "a2"]);
     expect(reconciled.at(-1).content).toBe("Đoạn đã nhận và server còn ghi thêm.");
     expect(reconciled.at(-1).localId).toMatch(/^assistant-/);
-    expect(forkAiConversation.mock.calls[0]).toEqual(["conversation-1", "u2"]);
+    expect(forkAiConversation.mock.calls[0] || null).toEqual(
+      action === "edit" ? ["conversation-1", "u2"] : null,
+    );
+    expect(openAiChatStream.mock.calls[1][0].conversationId).toBe(
+      action === "edit" ? "conversation-branch" : "conversation-1",
+    );
   });
 
   it("reconciles an EOF error before retrying without creating a new conversation", async () => {
@@ -567,7 +764,7 @@ describe("AI chat SSE completion", () => {
       ))
       .mockResolvedValueOnce(streamResponse({
         type: "done",
-        conversationId: "conversation-branch",
+        conversationId: "conversation-1",
       }));
 
     const hook = renderHook({ persistenceEnabled: true });
@@ -581,14 +778,14 @@ describe("AI chat SSE completion", () => {
 
     expect({
       errorOutcome,
-      forkArgs: forkAiConversation.mock.calls[0],
+      forkCount: forkAiConversation.mock.calls.length,
       streamConversationIds: openAiChatStream.mock.calls.map(
         ([payload]) => payload.conversationId,
       ),
     }).toEqual({
       errorOutcome: "error",
-      forkArgs: ["conversation-1", "u2"],
-      streamConversationIds: ["conversation-1", "conversation-branch"],
+      forkCount: 0,
+      streamConversationIds: ["conversation-1", "conversation-1"],
     });
   });
 
@@ -647,6 +844,89 @@ describe("AI chat SSE completion", () => {
     expect(view.messages.filter(
       (message) => message.role === "assistant" && message.content === "Đã khắc phục.",
     )).toHaveLength(1);
+  });
+
+  it("retries a pre-conversation provider error without clearing earlier local context", async () => {
+    openAiChatStream
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Câu trả lời local trước đó." },
+        { type: "done", conversationId: null },
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        { type: "error", message: "Provider tạm thời lỗi", retryable: true },
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Đã thử lại thành công." },
+        { type: "done", conversationId: null },
+      ));
+
+    const hook = renderHook();
+    await hook.sendMessage("Câu hỏi đầu tiên");
+    await renderHook().sendMessage("Câu hỏi bị lỗi trước conversation event");
+    renderHook().retryLastMessage();
+
+    await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(renderHook().isLoading).toBe(false));
+
+    expect(renderHook().messages.map(({ role, content }) => ({ role, content }))).toEqual([
+      { role: "user", content: "Câu hỏi đầu tiên" },
+      { role: "assistant", content: "Câu trả lời local trước đó." },
+      { role: "user", content: "Câu hỏi bị lỗi trước conversation event" },
+      { role: "assistant", content: "Đã thử lại thành công." },
+    ]);
+  });
+
+  it("binds the acquired conversation from headers before an SSE error can be retried", async () => {
+    getAiConversationById.mockResolvedValue({ data: { messages: [] } });
+    openAiChatStream
+      .mockResolvedValueOnce(streamResponseWithConversationHeader(
+        "conversation-acquired",
+        { type: "error", message: "Provider tạm thời lỗi", retryable: true },
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Đã thử lại thành công." },
+        { type: "done", conversationId: "conversation-acquired" },
+      ));
+
+    const hook = renderHook({ persistenceEnabled: true });
+    await hook.sendMessage("Câu hỏi bị lỗi trước conversation event");
+    renderHook({ persistenceEnabled: true }).retryLastMessage();
+
+    await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(2));
+    expect(openAiChatStream.mock.calls.map(([payload]) => payload.conversationId))
+      .toEqual([null, "conversation-acquired"]);
+    expect(renderHook({ persistenceEnabled: true }).conversationId)
+      .toBe("conversation-acquired");
+  });
+
+  it("keeps local context retryable after a transport EOF before conversation acquisition", async () => {
+    openAiChatStream
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Câu trả lời local trước đó." },
+        { type: "done", conversationId: null },
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Phần dở dang." },
+      ))
+      .mockResolvedValueOnce(streamResponse(
+        { type: "text", content: "Đã thử lại thành công." },
+        { type: "done", conversationId: null },
+      ));
+
+    const hook = renderHook();
+    await hook.sendMessage("Câu hỏi đầu tiên");
+    await renderHook().sendMessage("Câu hỏi bị ngắt kết nối");
+    renderHook().retryLastMessage();
+
+    await vi.waitFor(() => expect(openAiChatStream).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(renderHook().isLoading).toBe(false));
+    expect(renderHook().messages.map(({ role, content }) => ({ role, content })))
+      .toEqual([
+        { role: "user", content: "Câu hỏi đầu tiên" },
+        { role: "assistant", content: "Câu trả lời local trước đó." },
+        { role: "user", content: "Câu hỏi bị ngắt kết nối" },
+        { role: "assistant", content: "Đã thử lại thành công." },
+      ]);
   });
 
   it("drops a rolled-back failed turn on an ordinary next send, even if history arrives late", async () => {

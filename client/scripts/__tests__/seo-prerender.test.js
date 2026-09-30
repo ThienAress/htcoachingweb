@@ -3,7 +3,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { describe, expect, it } from "vitest";
 
-import { validatePrerenderSnapshot } from "../prerender-validation.js";
+import {
+  resolvePrerenderRequirements,
+  validatePrerenderSnapshot,
+} from "../prerender-validation.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appShell = fs.readFileSync(
@@ -111,6 +114,28 @@ describe("prerender SEO validation", () => {
         { requiredLinkHrefs },
       ),
     ).toEqual([]);
+  });
+
+  it("enforces the approved SEO cohort only for Netlify production", () => {
+    const expectedExerciseHubLinks = [
+      "/exercises/64b000000000000000000001/goblet-squat/",
+    ];
+
+    const stagingRequirements = resolvePrerenderRequirements({
+      route: "/exercises",
+      requireApprovedSeoCohort: false,
+      expectedExerciseHubLinks,
+    });
+    const productionRequirements = resolvePrerenderRequirements({
+      route: "/exercises",
+      requireApprovedSeoCohort: true,
+      expectedExerciseHubLinks,
+    });
+
+    expect({ stagingRequirements, productionRequirements }).toEqual({
+      stagingRequirements: undefined,
+      productionRequirements: { requiredLinkHrefs: expectedExerciseHubLinks },
+    });
   });
 
   it("waits for Exercise reviews to settle before accepting a detail page", () => {

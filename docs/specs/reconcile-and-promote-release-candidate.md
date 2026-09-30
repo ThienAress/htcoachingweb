@@ -39,7 +39,11 @@ exact 40-character SHA.
 ## REQ-005 — Production promotion và observation
 
 - AC-009: Production approval gate phải dùng đúng candidate artifact, rollback deploy IDs tương
-  thích Plan 082 và backup manifest đã xác minh.
+  thích Plan 082 và backup manifest đã xác minh. Candidate schema v3 giữ request-cohort
+  proof AC-009 đã validate, gồm structured before/after metrics snapshots để gate tự
+  recompute delta và chronology failure-settlement trước Retry/Edit recovery-admission;
+  artifact cũ thiếu terminal receipts, runtime binding, chronology hoặc snapshot
+  correspondence không được tự nâng cấp để promotion.
 - AC-010: Production chỉ deploy exact SHA đã pass staging; sau deploy phải quan sát read-only
   tối thiểu 30 phút và chỉ kết luận KEEP khi post-deploy gate pass.
 

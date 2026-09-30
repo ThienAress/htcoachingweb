@@ -9,6 +9,7 @@ import ChatPanelSidebar from "./ChatPanelSidebar";
 import ConversationNavigator from "./ConversationNavigator";
 import TdeeFormCard from "./cards/TdeeFormCard";
 import { createChatHistoryLoadGate } from "./chatHistoryLoadGate";
+import { bindTurnCitationCards } from "./chatCitationBinding";
 import {
   buildConversationQuestionItems,
   getConversationMessageKey,
@@ -103,9 +104,10 @@ export default function ChatPanel({ initiallyOpen = false }) {
     retryLastMessage, editMessage, updateMessageFeedback,
   } = useAiChat({ persistenceEnabled: Boolean(user) });
   const authenticatedUserId = user?._id || user?.id || null;
+  const displayMessages = useMemo(() => bindTurnCitationCards(messages), [messages]);
   const conversationQuestionItems = useMemo(
-    () => buildConversationQuestionItems(messages),
-    [messages],
+    () => buildConversationQuestionItems(displayMessages),
+    [displayMessages],
   );
   const getQuestionTarget = useCallback(
     (key) => questionTargetRefs.current.get(key) || null,
@@ -360,9 +362,9 @@ export default function ChatPanel({ initiallyOpen = false }) {
     sendFollowingMessage(action.value, buildCurrentContext());
   }, [buildCurrentContext, sendFollowingMessage]);
 
-  const handleTdeeSubmit = useCallback((text) => {
+  const handleTdeeSubmit = useCallback(({ text, structuredAction }) => {
     setShowTdeeForm(false);
-    sendFollowingMessage(text, buildCurrentContext());
+    sendFollowingMessage(text, buildCurrentContext(), { structuredAction });
   }, [buildCurrentContext, sendFollowingMessage]);
 
   const handleSwitchConversation = async (id) => {
@@ -715,15 +717,16 @@ export default function ChatPanel({ initiallyOpen = false }) {
                       ref={messagesContentRef}
                       className="flex flex-col gap-4 max-w-4xl mx-auto"
                     >
-                      {messages.map((msg, i) => {
+                      {displayMessages.map((msg, i) => {
                         const messageKey = getConversationMessageKey(msg, i);
                         const isLastAssistant =
                           msg.role === "assistant" &&
-                          i === messages.length - 1 &&
+                          i === displayMessages.length - 1 &&
                           isLoading;
                         return (
                           <div
                             key={messageKey}
+                            data-message-id={msg._id || undefined}
                             ref={msg.role === "user" ? (node) => {
                               if (node) questionTargetRefs.current.set(messageKey, node);
                               else questionTargetRefs.current.delete(messageKey);
@@ -735,6 +738,9 @@ export default function ChatPanel({ initiallyOpen = false }) {
                               onEdit={user && !isReconciling ? handleEditMessage : undefined}
                               isThinking={isLastAssistant}
                               onFeedback={user ? handleFeedback : undefined}
+                              onCardAction={handleTdeeSubmit}
+                              cardActionsDisabled={isLoading}
+                              conversationId={conversationId}
                             />
                           </div>
                         );

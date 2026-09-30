@@ -6,6 +6,7 @@ import { csrfProtection } from "../middlewares/csrf.js";
 import { enforceSharedServiceUsage } from "../middlewares/serviceUsageLedger.js";
 import { aiConfirmationLimiter } from "../middlewares/rateLimit.js";
 import { prepareAiChatRequest } from "../middlewares/aiChatRequest.js";
+import { prepareStagingAiAcceptance, settleStagingAiAcceptanceHandler } from "../middlewares/stagingAiAcceptance.js";
 import {
   aiChatLimiter,
   aiGuestChatLimiter,
@@ -33,12 +34,14 @@ import {
   validateAiMemoryConsent,
   validateAiMemoryKind,
   validateAiMemoryUpdate,
+  validateAiMealReplacement,
   validateAiToolConfirmation,
 } from "../middlewares/validation.js";
 import {
   cancelAiTool,
   confirmAiTool,
 } from "../controllers/aiToolConfirmation.controller.js";
+import { replaceMealItem } from "../controllers/aiMeal.controller.js";
 
 const router = express.Router();
 
@@ -49,11 +52,12 @@ router.post(
   ensureAiActor,
   csrfProtection,
   prepareAiChatRequest,
+  prepareStagingAiAcceptance,
   resolveServiceAccessTierMiddleware,
   aiGuestChatLimiter,
   aiChatLimiter,
   enforceSharedServiceUsage("ai_chat"),
-  chatStream,
+  settleStagingAiAcceptanceHandler(chatStream),
 );
 router.get("/history", protect, getHistory);
 router.delete("/history", protect, csrfProtection, clearHistory);
@@ -99,6 +103,17 @@ router.post(
   csrfProtection,
   validateAiToolConfirmation,
   cancelAiTool,
+);
+
+router.post(
+  "/conversations/:id/meal-replacements",
+  optionalAiAuth,
+  ensureAiActor,
+  csrfProtection,
+  aiGuestChatLimiter,
+  aiChatLimiter,
+  validateAiMealReplacement,
+  replaceMealItem,
 );
 
 // Multi-conversation support

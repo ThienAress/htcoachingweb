@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
+import { prepareStagingAiAcceptanceSearch, settleStagingAiAcceptanceHandler } from "../middlewares/stagingAiAcceptance.js";
 import {
   getEntries,
   createEntry,
@@ -27,7 +28,7 @@ router.use(protect, requireRoles("admin"));
 
 // Read-only routes (không cần CSRF)
 router.get("/", getEntries);
-router.get("/search", searchEntries);
+router.get("/search", prepareStagingAiAcceptanceSearch, settleStagingAiAcceptanceHandler(searchEntries));
 router.get("/stats", getStats);
 router.get("/categories", getCategories);
 router.get("/conversations", getAllConversations);

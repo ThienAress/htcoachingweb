@@ -84,6 +84,7 @@ let todayJournal = {
 };
 let savedMealPlans = [];
 let aiSwitchStreamCompleted = false;
+let pendingStopResponse = null;
 const PACED_AI_RESPONSE =
   "HT Assistant đang trả lời theo từng đoạn. " +
   "Tăng tải vừa sức và nghỉ đủ giữa các buổi tập. ".repeat(35) +
@@ -123,6 +124,23 @@ const sendJson = (res, body, status = 200) => {
   res.end(JSON.stringify(body));
 };
 
+const readJsonBody = (req) =>
+  new Promise((resolve, reject) => {
+    let rawBody = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk) => {
+      rawBody += chunk;
+    });
+    req.on("end", () => {
+      try {
+        resolve(rawBody ? JSON.parse(rawBody) : {});
+      } catch {
+        reject(new Error("Invalid JSON request body"));
+      }
+    });
+    req.on("error", reject);
+  });
+
 const handleApi = (req, res, path) => {
   const role = req.headers["x-e2e-role"];
   const aiScenario = req.headers["x-e2e-ai-scenario"];
@@ -130,7 +148,15 @@ const handleApi = (req, res, path) => {
   const isF1MediaUpload =
     path === "/api/f1-customers/" + F1_CUSTOMER_ID + "/media" &&
     req.method === "POST";
-  if (!["GET", "HEAD"].includes(req.method) && !isF1MediaUpload) {
+  const isProviderScenarioChat =
+    ["provider-failure", "provider-recovery"].includes(aiScenario) &&
+    path === "/api/ai/chat" &&
+    req.method === "POST";
+  if (
+    !["GET", "HEAD"].includes(req.method) &&
+    !isF1MediaUpload &&
+    !isProviderScenarioChat
+  ) {
     req.resume();
   }
 
@@ -1125,6 +1151,156 @@ const handleApi = (req, res, path) => {
     );
     return;
   }
+  if (
+    ["provider-failure", "provider-recovery"].includes(aiScenario) &&
+    path === "/api/ai/conversations/conversation-provider-failure" &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: {
+        conversationId: "conversation-provider-failure",
+        title: "E2E provider recovery",
+        messages: [],
+        context: {},
+      },
+    });
+  }
+  if (
+    aiScenario === "provider-failure" &&
+    path === "/api/ai/chat" &&
+    req.method === "POST"
+  ) {
+    return readJsonBody(req)
+      .then((body) => {
+        if (
+          typeof body.message !== "string" ||
+          !body.message.trim() ||
+          typeof body.requestId !== "string" ||
+          !body.requestId
+        ) {
+          return sendJson(res, { success: false, message: "Invalid chat request" }, 400);
+        }
+        res.writeHead(200, { "Content-Type": "text/event-stream" });
+        res.write(
+          'data: {"type":"conversation","conversationId":"conversation-provider-failure"}\n\n',
+        );
+        setTimeout(() => {
+          if (res.destroyed || res.writableEnded) return;
+          res.end(
+            'data: {"type":"error","message":"Nhà cung cấp AI tạm thời không khả dụng","retryable":true}\n\n',
+          );
+        }, 350);
+      })
+      .catch(() => sendJson(res, { success: false, message: "Invalid chat request" }, 400));
+  }
+  if (
+    aiScenario === "provider-recovery" &&
+    path === "/api/ai/chat" &&
+    req.method === "POST"
+  ) {
+    return readJsonBody(req)
+      .then((body) => {
+        if (
+          body.conversationId !== "conversation-provider-failure" ||
+          typeof body.message !== "string" ||
+          !body.message.trim() ||
+          typeof body.requestId !== "string" ||
+          !body.requestId
+        ) {
+          return sendJson(res, { success: false, message: "Invalid recovery request" }, 400);
+        }
+        res.writeHead(200, { "Content-Type": "text/event-stream" });
+        res.end(
+          [
+            {
+              type: "conversation",
+              conversationId: body.conversationId,
+            },
+            {
+              type: "text",
+              content:
+                "Phản hồi đã phục hồi có nguồn. [Nguồn Knowledge Base](/exercises)",
+            },
+            {
+              type: "done",
+              conversationId: body.conversationId,
+            },
+          ].map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+        );
+      })
+      .catch(() => sendJson(res, { success: false, message: "Invalid recovery request" }, 400));
+  }
+  if (path === "/api/e2e/stop-response/release" && req.method === "POST") {
+    const pending = pendingStopResponse;
+    pendingStopResponse = null;
+    const released = Boolean(
+      pending && !pending.res.destroyed && !pending.res.writableEnded,
+    );
+    if (released) {
+      pending.res.end(
+        [
+          { type: "text", content: "Suffix không được phát sau Stop." },
+          {
+            type: "done",
+            conversationId: "conversation-stop-response",
+          },
+        ].map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+      );
+    }
+    return sendJson(res, { success: true, released });
+  }
+  if (
+    aiScenario === "stop-response" &&
+    path === "/api/ai/conversations/conversation-stop-response" &&
+    req.method === "GET"
+  ) {
+    return sendJson(res, {
+      success: true,
+      data: {
+        conversationId: "conversation-stop-response",
+        title: "E2E stopped response",
+        messages: [
+          {
+            _id: "message-user-stop-response",
+            role: "user",
+            content: "Dừng câu trả lời đang phát",
+          },
+          {
+            _id: "message-assistant-stop-response",
+            role: "assistant",
+            content: "Đoạn phản hồi đã phát trước khi dừng.",
+          },
+        ],
+        context: {},
+      },
+    });
+  }
+  if (
+    aiScenario === "stop-response" &&
+    path === "/api/ai/chat" &&
+    req.method === "POST"
+  ) {
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    const pending = { res };
+    pendingStopResponse = pending;
+    res.on("close", () => {
+      if (pendingStopResponse === pending) pendingStopResponse = null;
+    });
+    res.write(
+      [
+        {
+          type: "conversation",
+          conversationId: "conversation-stop-response",
+        },
+        {
+          type: "text",
+          content: "Đoạn phản hồi đã phát trước khi dừng.",
+        },
+      ].map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+    );
+    return;
+  }
   if (aiScenario === "conversation-switch" && path === "/api/ai/history") {
     return sendJson(res, {
       success: true,
@@ -1204,7 +1380,8 @@ const handleApi = (req, res, path) => {
           {
             _id: "message-b-assistant",
             role: "assistant",
-            content: "Nội dung ổn định của phiên B",
+            content:
+              "Nội dung ổn định của phiên B. [Nguồn phiên B](/exercises)",
           },
         ],
         context: {},
@@ -1363,6 +1540,10 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, "127.0.0.1");
-const close = () => server.close(() => process.exit(0));
+const close = () => {
+  pendingStopResponse?.res.destroy();
+  pendingStopResponse = null;
+  server.close(() => process.exit(0));
+};
 process.on("SIGTERM", close);
 process.on("SIGINT", close);

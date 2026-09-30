@@ -104,6 +104,14 @@
     "sync:search-index-cohort:staging": "node src/scripts/stagingSearchIndexCohortSync.js --target=staging --apply --confirm-search-index-cohort",
     "preflight:rollback-search-index-cohort:staging": "node src/scripts/stagingSearchIndexCohortSync.js --target=staging --rollback",
     "rollback:search-index-cohort:staging": "node src/scripts/stagingSearchIndexCohortSync.js --target=staging --rollback --apply --confirm-search-index-cohort-rollback",
+    "preflight:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging",
+    "sync:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --apply --confirm-ai-catalog-rollout",
+    "preflight:kb-sync:staging": "node src/scripts/stagingKnowledgeBaseSync.js --target=staging",
+    "sync:kb-sync:staging": "node src/scripts/stagingKnowledgeBaseSync.js --target=staging --apply --confirm-staging-kb-sync",
+    "preflight:kb-review-import:staging": "node src/scripts/stagingKnowledgeBaseReviewImport.js --target=staging",
+    "sync:kb-review-import:staging": "node src/scripts/stagingKnowledgeBaseReviewImport.js --target=staging --apply --confirm-staging-kb-review-import",
+    "preflight:rollback-ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --rollback",
+    "rollback:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --rollback --apply --confirm-ai-catalog-rollback",
     "preflight:search-recipe-nutrition:staging": "node src/scripts/stagingRecipeNutritionSync.js --target=staging",
     "sync:search-recipe-nutrition:staging": "node src/scripts/stagingRecipeNutritionSync.js --target=staging --apply --confirm-search-recipe-nutrition",
     "preflight:recipe-catalog:local": "node src/scripts/publicRecipeCatalogSync.js --target=local",
@@ -121,6 +129,11 @@
     "seed:staging": "node src/scripts/stagingSeed.js",
     "cleanup:staging": "node src/scripts/stagingSeed.js --cleanup",
     "acceptance:staging": "node src/scripts/stagingAcceptance.js",
+    "acceptance:staging:ai": "node src/scripts/stagingAiChatAcceptance.js",
+    "acceptance:staging:ai:reliability": "node src/scripts/stagingAiReliabilityAcceptance.js",
+    "recover:acceptance:staging:ai:reliability": "node src/scripts/recoverStagingAiReliability.js",
+    "verify:acceptance:staging:ai:fixture-rejection": "node src/scripts/stagingAiChatAcceptance.rejectionEvidence.js",
+    "recover:acceptance:staging:ai": "node src/scripts/stagingAiChatAcceptance.recover.js",
     "integrations:staging": "node src/scripts/stagingIntegrations.js",
     "recovery:staging": "node src/scripts/stagingRecoveryDrill.js",
     "acceptance:staging:extended": "node src/scripts/stagingExtendedAcceptance.js"
@@ -154,7 +167,6 @@
     "morgan": "^1.12.0",
     "multer": "^2.3.0",
     "multer-storage-cloudinary": "^4.0.0",
-    "nodemailer": "^9.1.1",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "pdf-lib": "^1.17.1",
@@ -169,6 +181,9 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
+    "glob": {
+      "brace-expansion": "2.1.7"
+    },
     "fast-uri": "3.1.7",
     "postcss": "8.5.23",
     "nanoid": "3.3.18"

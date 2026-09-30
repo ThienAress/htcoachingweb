@@ -200,6 +200,54 @@ const validateMongoUri = (env, findings) => {
         "A mongodb:// production URI must explicitly enable TLS.",
       );
     }
+    const query = new Map(
+      [...parsed.searchParams.entries()].map(([key, setting]) => [
+        key.toLowerCase(),
+        String(setting).trim().toLowerCase(),
+      ]),
+    );
+    const rejectDowngrade = (keys, accepted, code, message) => {
+      const key = keys.find((candidate) => query.has(candidate));
+      if (key && !accepted.has(query.get(key))) {
+        addFinding(findings, "errors", code, message);
+      }
+    };
+    rejectDowngrade(
+      ["w"],
+      new Set(["majority"]),
+      "MONGO_DURABILITY_WRITE_CONCERN_DOWNGRADE",
+      "MongoDB write concern must not be explicitly weaker than majority.",
+    );
+    rejectDowngrade(
+      ["journal", "j"],
+      new Set(["true", "1"]),
+      "MONGO_DURABILITY_JOURNAL_DOWNGRADE",
+      "MongoDB journal acknowledgement must not be explicitly disabled.",
+    );
+    rejectDowngrade(
+      ["readpreference"],
+      new Set(["primary"]),
+      "MONGO_DURABILITY_READ_PREFERENCE_DOWNGRADE",
+      "MongoDB read preference must not be explicitly weaker than primary.",
+    );
+    rejectDowngrade(
+      ["readconcernlevel"],
+      new Set(["majority"]),
+      "MONGO_DURABILITY_READ_CONCERN_DOWNGRADE",
+      "MongoDB read concern must not be explicitly weaker than majority.",
+    );
+    rejectDowngrade(
+      ["retrywrites"],
+      new Set(["true", "1"]),
+      "MONGO_DURABILITY_RETRY_WRITES_DOWNGRADE",
+      "MongoDB retryable writes must not be explicitly disabled.",
+    );
+    rejectDowngrade(
+      ["retryreads"],
+      new Set(["true", "1"]),
+      "MONGO_DURABILITY_RETRY_READS_DOWNGRADE",
+      "MongoDB retryable reads must not be explicitly disabled.",
+    );
   } catch {
     addFinding(
       findings,
@@ -393,6 +441,20 @@ export const validateProductionEnvironment = (
     );
   }
   validateSecret(env, findings, "GEMINI_API_KEY", { minimum: 20 });
+  const geminiSearchModel = String(
+    env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash",
+  ).trim();
+  const geminiSearchModelValid =
+    geminiSearchModel.length <= 100 &&
+    /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/i.test(geminiSearchModel);
+  if (!geminiSearchModelValid) {
+    addFinding(
+      findings,
+      "errors",
+      "GEMINI_SEARCH_MODEL_INVALID",
+      "GEMINI_SEARCH_MODEL must be a plain Gemini model identifier.",
+    );
+  }
   validateBooleanSetting(env, findings, "GEMINI_PAID_SERVICE_CONFIRMED", {
     required: true,
   });
@@ -684,6 +746,9 @@ export const validateProductionEnvironment = (
       geminiPaidServiceConfirmed:
         String(env.GEMINI_PAID_SERVICE_CONFIRMED || "").toLowerCase() ===
         "true",
+      geminiSearchModel: geminiSearchModelValid
+        ? geminiSearchModel
+        : "invalid",
       geminiMealScanDataUseMode,
       mealScanProvider,
       foodReferenceLookupEnabled,

@@ -16,6 +16,12 @@ import {
   sendContractToClient,
   updateContract,
 } from "../../services/contract.service";
+import {
+  buildSavedDraftSendCommand,
+  getInitialDraftRevision,
+  getSavedDraftRevision,
+  isContractRevisionConflict,
+} from "../../utils/contractConsistency";
 
 const inputCls = "w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20";
 const errCls = "text-[11px] text-red-500 mt-0.5";
@@ -46,6 +52,10 @@ const ContractEditModal = ({ contract, onClose }) => {
   const [showConfirmSend, setShowConfirmSend] = useState(false);
   const [errors, setErrors] = useState({});
   const [isSignatureProcessing, setIsSignatureProcessing] = useState(false);
+  const [revisionConflict, setRevisionConflict] = useState(false);
+  const [draftRevision, setDraftRevision] = useState(() =>
+    getInitialDraftRevision(contract),
+  );
   const [trainerSignature, setTrainerSignature] = useState(
     contract.trainerSignature ?? null,
   );
@@ -132,33 +142,55 @@ const ContractEditModal = ({ contract, onClose }) => {
     trainerSignature: effectiveTrainerSignature,
   });
 
+  const handleMutationError = (error, fallbackMessage) => {
+    if (isContractRevisionConflict(error)) {
+      setRevisionConflict(true);
+      queryClient.invalidateQueries({ queryKey: ["contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["contract", contract._id] });
+      toast.error(
+        "Hợp đồng đã thay đổi ở nơi khác. Bản nháp đang nhập vẫn được giữ lại.",
+      );
+      return;
+    }
+    toast.error(error.response?.data?.message || fallbackMessage);
+  };
+
   const updateMut = useMutation({
-    mutationFn: (data) => updateContract(contract._id, data),
-    onSuccess: () => {
+    mutationFn: ({ data, expectedRevision }) =>
+      updateContract(contract._id, data, expectedRevision),
+    onSuccess: (response) => {
+      setDraftRevision(getSavedDraftRevision(response));
+      setRevisionConflict(false);
       toast.success("Đã lưu hợp đồng");
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       queryClient.invalidateQueries({ queryKey: ["contract", contract._id] });
     },
-    onError: (e) => toast.error(e.response?.data?.message || "Lỗi lưu"),
+    onError: (error) => handleMutationError(error, "Lỗi lưu"),
   });
 
   const sendMut = useMutation({
-    mutationFn: (id) => sendContractToClient(id),
+    mutationFn: ({ id, expectedRevision }) =>
+      sendContractToClient(id, expectedRevision),
     onSuccess: () => {
       toast.success("Đã gửi hợp đồng cho khách hàng 📧");
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       queryClient.invalidateQueries({ queryKey: ["contract", contract._id] });
       onClose();
     },
-    onError: (e) => toast.error(e.response?.data?.message || "Lỗi gửi"),
+    onError: (error) => handleMutationError(error, "Lỗi gửi"),
   });
 
   const handleSave = () => {
     if (isSignatureProcessing) {
       return toast.info("Đang xử lý ảnh chữ ký, vui lòng chờ một chút");
     }
+    if (revisionConflict) {
+      return toast.info(
+        "Hãy sao chép nội dung cần giữ, sau đó đóng và mở lại hợp đồng để lấy bản mới nhất.",
+      );
+    }
     if (!validate()) return;
-    updateMut.mutate(buildPayload());
+    updateMut.mutate({ data: buildPayload(), expectedRevision: draftRevision });
   };
 
   const handleSendClick = () => {
@@ -167,6 +199,11 @@ const ContractEditModal = ({ contract, onClose }) => {
     }
     if (isLoadingContractDetail) {
       return toast.info("Đang tải dữ liệu hợp đồng, vui lòng chờ một chút");
+    }
+    if (revisionConflict) {
+      return toast.info(
+        "Hãy sao chép nội dung cần giữ, sau đó đóng và mở lại hợp đồng để lấy bản mới nhất.",
+      );
     }
     if (!validate()) return;
     if (sections.length === 0) return toast.warn("Vui lòng thêm nội quy trước khi gửi");
@@ -180,7 +217,15 @@ const ContractEditModal = ({ contract, onClose }) => {
   const handleConfirmSend = () => {
     if (isSignatureProcessing) return;
     setShowConfirmSend(false);
-    updateMut.mutate(buildPayload(), { onSuccess: () => sendMut.mutate(contract._id) });
+    updateMut.mutate(
+      { data: buildPayload(), expectedRevision: draftRevision },
+      {
+        onSuccess: (response) =>
+          sendMut.mutate(
+            buildSavedDraftSendCommand(contract._id, response),
+          ),
+      },
+    );
   };
 
   // Handlers
@@ -219,6 +264,20 @@ const ContractEditModal = ({ contract, onClose }) => {
           <h2 id="contract-editor-title" className="text-lg font-bold text-zinc-800">Soạn Hợp Đồng</h2>
           <button type="button" onClick={onClose} aria-label="Đóng cửa sổ soạn hợp đồng" className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-zinc-100"><XCircle className="w-5 h-5 text-slate-400" /></button>
         </div>
+
+        {revisionConflict && (
+          <div
+            role="alert"
+            className="mx-4 mt-4 flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"
+          >
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            <p>
+              Hợp đồng đã được cập nhật hoặc phát hành ở nơi khác. Nội dung bạn đang
+              soạn vẫn còn trên màn hình; hãy sao chép phần cần giữ rồi đóng và mở lại
+              để xem bản mới nhất.
+            </p>
+          </div>
+        )}
 
         <div className="flex overflow-x-auto border-b border-zinc-100 px-4">
           {TABS.map(t => (
@@ -374,8 +433,8 @@ const ContractEditModal = ({ contract, onClose }) => {
         <div className="flex flex-col-reverse gap-3 border-t border-zinc-200 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
           <button type="button" onClick={onClose} className="min-h-11 rounded-lg px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-emerald-700">Đóng</button>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <button type="button" onClick={handleSave} disabled={isSignatureProcessing || updateMut.isPending} className="min-h-11 rounded-lg border border-zinc-200 px-4 py-2 text-sm hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:opacity-50">Lưu nháp</button>
-            <button type="button" onClick={handleSendClick} disabled={isSignatureProcessing || isLoadingContractDetail || updateMut.isPending || sendMut.isPending}
+            <button type="button" onClick={handleSave} disabled={revisionConflict || isSignatureProcessing || updateMut.isPending} className="min-h-11 rounded-lg border border-zinc-200 px-4 py-2 text-sm hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-emerald-700 disabled:opacity-50">Lưu nháp</button>
+            <button type="button" onClick={handleSendClick} disabled={revisionConflict || isSignatureProcessing || isLoadingContractDetail || updateMut.isPending || sendMut.isPending}
               className="flex min-h-11 items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm text-white hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:opacity-50">
               <Send className="w-4 h-4" />{sendMut.isPending ? "Đang gửi..." : "Lưu & Gửi"}
             </button>

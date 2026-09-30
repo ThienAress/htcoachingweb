@@ -1,8 +1,7 @@
 import mongoose from "mongoose";
 
-import { EMBEDDING_DIMENSION } from "../services/ai/embeddingProfile.js";
 import {
-  QUESTION_ANSWERING_EMBEDDING_VERSION,
+  buildKnowledgeVectorUpdateSet,
   buildStagingKnowledgeBaseReembedPlan,
   createKnowledgeContentHash,
   createKnowledgeVectorStateHash,
@@ -27,73 +26,11 @@ const PROJECTION = {
 const fail = (code, message = code) =>
   Object.assign(new Error(`${code}: ${message}`), { code });
 
-const isStoredVector = (value) =>
-  Array.isArray(value) &&
-  (value.length === 0 || value.length === EMBEDDING_DIMENSION) &&
-  value.every(Number.isFinite);
-
 const toDatabaseId = (id) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw fail("KB_REEMBED_ENTRY_ID_INVALID");
   }
   return new mongoose.Types.ObjectId(id);
-};
-
-const toDate = (value) => {
-  if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    throw fail("KB_REEMBED_VECTOR_STATE_DATE_INVALID");
-  }
-  return parsed;
-};
-
-const assertStoredState = (state) => {
-  if (
-    !isStoredVector(state?.embedding) ||
-    !Array.isArray(state?.variantEmbeddings) ||
-    !state.variantEmbeddings.every(isStoredVector) ||
-    !new Set(["pending", "ready", "failed"]).has(state.embeddingStatus) ||
-    (state.embeddingVersion !== null &&
-      (typeof state.embeddingVersion !== "string" ||
-        state.embeddingVersion.length > 100))
-  ) {
-    throw fail("KB_REEMBED_VECTOR_STATE_INVALID");
-  }
-  if (
-    state.embeddingVersion === QUESTION_ANSWERING_EMBEDDING_VERSION &&
-    (state.embeddingStatus !== "ready" ||
-      state.embedding.length !== EMBEDDING_DIMENSION ||
-      state.variantEmbeddings.some(
-        (item) => item.length !== EMBEDDING_DIMENSION,
-      ))
-  ) {
-    throw fail("KB_REEMBED_TARGET_VECTOR_STATE_INVALID");
-  }
-};
-
-const buildUpdateSet = (liveEntry, state) => {
-  assertStoredState(state);
-  const currentVariants = Array.isArray(liveEntry.variants)
-    ? liveEntry.variants
-    : [];
-  const variantEmbeddings = Array.isArray(state.variantEmbeddings)
-    ? state.variantEmbeddings
-    : [];
-  if (variantEmbeddings.length !== currentVariants.length) {
-    throw fail("KB_REEMBED_VARIANT_COUNT_DRIFT");
-  }
-  return {
-    embedding: [...state.embedding],
-    variants: currentVariants.map((variant, index) => ({
-      ...variant,
-      embedding: [...variantEmbeddings[index]],
-    })),
-    embeddingStatus: state.embeddingStatus,
-    embeddingVersion: state.embeddingVersion,
-    embeddingError: state.embeddingError,
-    embeddingUpdatedAt: toDate(state.embeddingUpdatedAt),
-  };
 };
 
 const assertLiveState = ({
@@ -170,7 +107,9 @@ const transactUpdates = async ({
           const nextState = rollback
             ? update.priorState
             : extractKnowledgeVectorState(update.targetEntry);
-          const updateSet = buildUpdateSet(liveEntry, nextState);
+          const updateSet = buildKnowledgeVectorUpdateSet(liveEntry, nextState, {
+            rollback,
+          });
           const result = await collection.updateOne(
             { _id: databaseId },
             { $set: updateSet },

@@ -2,6 +2,7 @@ import "../config/env.js";
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import { assertStagingOperation } from "../config/stagingOperationSafety.js";
 import ChatConversation from "../models/ChatConversation.js";
@@ -166,7 +167,10 @@ const main = async () => {
     new URL(process.env.PUBLIC_API_ORIGIN || "").origin === STAGING_API_ORIGIN,
     "Integration target is not the approved staging API",
   );
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   assert(
     mongoose.connection.db?.databaseName === "htcoaching_staging",
     "Integration connection is not using the staging database",

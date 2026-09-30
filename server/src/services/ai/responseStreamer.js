@@ -100,6 +100,9 @@ export async function streamAssistantText(value, options = {}) {
     options.write(chunks[index]);
     writtenFrames += 1;
     writtenCharacters += chunks[index].length;
+    if (index === 0 && typeof options.afterFirstFrame === "function") {
+      await options.afterFirstFrame();
+    }
     if (index < chunks.length - 1 && frameDelayMs > 0) {
       await waitForNextFrame(frameDelayMs, options.signal);
     }

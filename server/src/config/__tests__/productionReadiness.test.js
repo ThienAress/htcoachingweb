@@ -9,7 +9,8 @@ const validEnvironment = () => ({
   NODE_ENV: "production",
   MONGO_URI:
     "mongodb+srv://" +
-    "app:password@cluster.example/htcoaching?retryWrites=true&w=majority",
+    "app:password@cluster.example/htcoaching?retryWrites=true&retryReads=true" +
+    "&w=majority&journal=true&readPreference=primary&readConcernLevel=majority",
   JWT_SECRET: "jwt-" + "a".repeat(64),
   REFRESH_SECRET: "refresh-" + "b".repeat(64),
   LOG_HASH_SECRET: "log-" + "c".repeat(64),
@@ -28,6 +29,7 @@ const validEnvironment = () => ({
   RESEND_API_KEY: "resend-" + "g".repeat(32),
   AI_PROVIDER: "gemini",
   GEMINI_API_KEY: "gemini-" + "h".repeat(32),
+  GEMINI_SEARCH_MODEL: "gemini-2.5-flash",
   GEMINI_PAID_SERVICE_CONFIRMED: "true",
   GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED: "false",
   FOOD_REFERENCE_LOOKUP_ENABLED: "false",
@@ -73,8 +75,28 @@ describe("production readiness configuration", () => {
         cspEnforced: true,
         defaultAdminTrainerMode: "admin_email",
         cloudinaryBackupEnabled: false,
+        geminiSearchModel: "gemini-2.5-flash",
       }),
     );
+  });
+
+  it("rejects a path-like Gemini Search model identifier", () => {
+    const env = validEnvironment();
+    env.GEMINI_SEARCH_MODEL = "models/gemini-2.5-flash?key=secret";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect({
+      codes: result.errors.map((finding) => finding.code),
+      summaryModel: result.summary.geminiSearchModel,
+      leaksInvalidValue: JSON.stringify(result).includes(
+        "models/gemini-2.5-flash?key=secret",
+      ),
+    }).toEqual({
+      codes: expect.arrayContaining(["GEMINI_SEARCH_MODEL_INVALID"]),
+      summaryModel: "invalid",
+      leaksInvalidValue: false,
+    });
   });
 
   it("rejects an invalid explicit default admin trainer ID", () => {
@@ -149,6 +171,26 @@ describe("production readiness configuration", () => {
     expect(result.errors.map((finding) => finding.code)).toContain(
       "BACKGROUND_JOBS_ENABLED_REQUIRED",
     );
+  });
+
+  it.each([
+    ["w=1", "MONGO_DURABILITY_WRITE_CONCERN_DOWNGRADE"],
+    ["journal=false", "MONGO_DURABILITY_JOURNAL_DOWNGRADE"],
+    ["readPreference=secondaryPreferred", "MONGO_DURABILITY_READ_PREFERENCE_DOWNGRADE"],
+    ["readConcernLevel=local", "MONGO_DURABILITY_READ_CONCERN_DOWNGRADE"],
+    ["retryWrites=false", "MONGO_DURABILITY_RETRY_WRITES_DOWNGRADE"],
+  ])("rejects an explicit MongoDB durability downgrade: %s", (setting, code) => {
+    const env = validEnvironment();
+    const uri = new URL(env.MONGO_URI);
+    const [key, value] = setting.split("=");
+    uri.searchParams.set(key, value);
+    env.MONGO_URI = uri.toString();
+
+    expect(
+      validateProductionEnvironment(env, { strict: true }).errors.map(
+        (finding) => finding.code,
+      ),
+    ).toContain(code);
   });
 
   it("rejects a missing or invalid Auth cutover mode", () => {

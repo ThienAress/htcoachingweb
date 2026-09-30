@@ -6,8 +6,11 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
-| 090A | Rollout guarded Knowledge Base embeddings trên staging | P1 | L | 090, PR #114 | IN PROGRESS / FOCUSED — PR PENDING; FRESH BACKUP + LIVE STAGING PENDING |
-| 090 | Biến HT Assistant thành fitness-first và grounding KB bằng evidence | P1 | L | 031, 052 | BLOCKED / FOCUSED VERIFIED — STAGING ATLAS + LIVE PROVIDER + ROLLOUT NOT STARTED |
+| 093 | Ưu tiên Knowledge Base nguồn đã duyệt trước web search | P1 | M | 090, 090A, 092 | LOCAL VERIFIED / STAGING PENDING / 2026-09-29 |
+| 092 | Khôi phục HT Assistant ổn định trước khi mở rộng tiếp | P0 | L | 090, 090A | IN PROGRESS / 2026-09-23: five bounded fixes after 15-question staging review; release pending |
+| 091 | Modernize GitHub Actions and close release operations | P1 | M | 090A | DONE / FOCUSED — LOCAL WORKFLOW PATCH; NOT COMMITTED |
+| 090A | Rollout guarded Knowledge Base embeddings trên staging | P1 | L | 090, PR #114 | DONE / PRODUCTION VERIFIED — AC-009 PASS; OBSERVATION KEEP |
+| 090 | Biến HT Assistant thành fitness-first và grounding KB bằng evidence | P1 | L | 031, 052 | DONE / PRODUCTION VERIFIED — AC-009 PASS; OBSERVATION KEEP |
 | 089 | Thống nhất effective coach và HLV chính mặc định | P1 | L | 086, 087 | DONE / FOCUSED — FULL SERVER RADAR TEST FAIL; NOT DEPLOYED |
 | 088 | Session Governor: telemetry và model recommendations | P1 | M | — | DONE / FOCUSED — REPO-LOCAL |
 | 001 | Hoàn thiện vòng đời gói HLV và bảo vệ AI output | P1 | L | — | IMPLEMENTED / VERIFIED |

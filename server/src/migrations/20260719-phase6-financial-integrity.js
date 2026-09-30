@@ -1,5 +1,6 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import {
   assertConnectedMigrationTarget,
   assertMigrationEnvironment,
@@ -100,7 +101,7 @@ const assertFinancialPreflight = async () => {
     issueLimit: 1000,
     allowLegacyTrainerReference: true,
   });
-  if (reconciliation.totalIssues > 0) {
+  if (!reconciliation.coverageComplete || reconciliation.totalIssues > 0) {
     const error = new Error(
       "Phase 6 preflight failed: wallet reconciliation issues detected",
     );
@@ -225,7 +226,7 @@ export const runPhase6Migration = async () => {
     walletLimit: 100000,
     issueLimit: 1000,
   });
-  if (reconciliation.totalIssues > 0) {
+  if (!reconciliation.coverageComplete || reconciliation.totalIssues > 0) {
     const error = new Error(
       "Phase 6 post-migration reconciliation failed",
     );
@@ -248,7 +249,10 @@ const runFromCli = async () => {
     confirmationVariable: "CONFIRM_PHASE6_FINANCIAL_MIGRATION",
   });
 
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   try {
     assertConnectedMigrationTarget(mongoose.connection, authorization);
     const report = await runPhase6Migration();

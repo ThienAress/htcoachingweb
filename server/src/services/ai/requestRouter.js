@@ -68,6 +68,8 @@ const GENERIC_ROUTINE_SUBJECT_PATTERN =
   /^(?:ai|ban|toi|minh|em|i|bo toi|me toi|vo toi|chong toi|con toi|ban toi|anh toi|chi toi|em toi|my father|my mother|my wife|my husband|my child|my friend|nguoi moi|nguoi tap|hoc vien|khach hang|benh nhan|client|patient|customer|member|user|he|she|they|hlv|huan luyen vien|coach|ppl|push pull legs|van dong vien|cac van dong vien|cau thu|cac cau thu|trieu chung|dau hieu|vai|nguc|chan|lung|tay|bung|co bung|mong|nhom co|bai tap|tap chan|tap vai|tap nguc|tap lung|tap tay|squat|deadlift|bench press|plank|cardio|hiit|yoga|cach (?:tang|giam|siet)\b)(?:\b[\s\S]*)?$/;
 const GENERIC_PERSON_QUERY_PREFIX_PATTERN =
   /^(?:(?:mot|cac|nhung)\s+)?(?:nguoi moi|nguoi tap|hoc vien|khach hang|benh nhan|client|patient|customer|member|user)\b/;
+const GENERIC_PLANNING_REQUEST_PATTERN =
+  /^(?:(?:(?:hay|vui long|co the)\s+)*(?:(?:giup|ho tro)(?:\s+(?:toi|minh|em))?\s+)?(?:tao|lap|xay dung|goi y|de xuat|lam|soan|thiet ke|viet|len)\s+(?:(?:giup|cho)(?:\s+(?:toi|minh|em))?\s+)?|(?:(?:cho\s+(?:toi|minh|em))|(?:(?:toi|minh|em)\s+(?:muon|can)))\s+)(?:mot\s+)?(?:lich tap|ke hoach|giao an|thuc don|bua an|meal plan)\b/;
 const POLITE_QUERY_PREFIX_PATTERN =
   /^(?:(?:xin\s+)?(?:ban\s+)?cho\s+(?:toi|minh|em)\s+hoi|(?:toi|minh|em)\s+(?:muon\s+)?hoi|(?:xin\s+)?hoi)\s+/;
 const KNOWLEDGE_QUERY_PREFIX_PATTERN =
@@ -86,10 +88,14 @@ const DIRECT_FITNESS_TECHNIQUE_PATTERN =
   /\b(?:cach tap\s+(?:dung\b|the nao|nhu nao|hit dat|push up|pull up|keo xa|squat|deadlift|bench press|plank|hip thrust|lunge|row)|ky thuat\s+(?:hit dat|push up|pull up|keo xa|squat|deadlift|bench press|plank|hip thrust|lunge|row)|tap\s+(?:vai|nguc|chan|lung|tay|bung|co bung|mong|dau goi|khop goi|goi)\s+(?:nhu nao|the nao))\b/;
 const EXERCISE_LOOKUP_PATTERN =
   /\b(?:(?:vai|nguc|chan|lung|tay|bung|co bung|mong|ppl|push pull legs|nhom co|bai tap)\b[\s\S]{0,60}\b(?:tap|bai|exercise|workout)|tap\s+(?:vai|nguc|chan|lung|tay|bung|co bung|mong))\b/;
+const WORKOUT_CREATION_PATTERN =
+  /\b(?:tao|lap|xay dung|de xuat|goi y|lam|soan|thiet ke|viet|len)\b[\s\S]{0,120}\b(?:(?:lich(?: tap)?|giao an(?: tap)?|chuong trinh tap|workout plan)\b|ke hoach\b[\s\S]{0,80}\b(?:tap luyen|tang co|giam mo|workout))\b/;
+const WORKOUT_PLAN_TARGET_PATTERN =
+  /\b(?:lich tap|giao an(?: tap)?|chuong trinh tap|workout plan)\b|\bke hoach\b[\s\S]{0,80}\b(?:tap luyen|tang co|giam mo|workout)\b/;
 const TDEE_TOOL_PATTERN =
   /\b(tinh tdee|tdee cua toi|tdee|bmr|calo moi ngay|calorie needs?|an bao nhieu calo)\b/;
 const MEAL_TOOL_PATTERN =
-  /\b(thuc don|bua an|meal plan|meal|meals|goi y mon an|lich an)\b/;
+  /\b(thuc don|bua an|bua sang|bua trua|bua toi|meal plan|meal|meals|goi y mon an|lich an)\b/;
 const WALLET_TOOL_PATTERN =
   /\b(vi cua toi|vi toi|so du vi|lich su nap tien|nap tien|giao dich vi)\b/;
 const CHECKIN_TOOL_PATTERN =
@@ -107,7 +113,7 @@ const BLOG_TOOL_PATTERN =
 const TDEE_ACTION_PATTERN =
   /\b(?:tinh|uoc tinh|calculate|estimate)\b[\s\S]{0,80}\b(?:tdee|bmr|calo|calorie)|\b(?:tdee|bmr|calo moi ngay|calorie needs?)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|my|for me)\b/;
 const MEAL_ACTION_PATTERN =
-  /\b(?:goi y|tao|lap|xay dung|de xuat|suggest|create|build|make)\b[\s\S]{0,80}\b(?:thuc don|bua an|meal plan|meals?)\b|\b(?:thuc don|bua an|meal plan)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|my|for me)\b/;
+  /\b(?:goi y|tao|lap|xay dung|de xuat|cho toi|cho minh|suggest|create|build|make)\b[\s\S]{0,80}\b(?:thuc don|bua an|bua sang|bua trua|bua toi|meal plan|meals?)\b|\b(?:thuc don|bua an|bua sang|bua trua|bua toi|meal plan)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|vua roi|truoc do|gan nhat|my|for me)\b/;
 const TDEE_MEAL_TOOL_SEQUENCE = Object.freeze([
   "calculate_tdee",
   "suggest_meal",
@@ -274,6 +280,7 @@ const hasLikelyNamedPerson = (normalizedMessage, domain) => {
   if (domain === "ht_service") return false;
   const routedText = stripPoliteQueryPrefix(normalizedMessage);
   if (GENERIC_PERSON_QUERY_PREFIX_PATTERN.test(routedText)) return false;
+  if (GENERIC_PLANNING_REQUEST_PATTERN.test(routedText)) return false;
   const possessiveMatch = routedText.match(
     POSSESSIVE_PUBLIC_PERSON_CLAIM_PATTERN,
   );
@@ -460,6 +467,12 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
         POSSESSIVE_PUBLIC_PERSON_CLAIM_PATTERN.test(normalized)));
   const explicitEvidence = SOURCE_REQUEST_PATTERN.test(normalized);
   const researchClaim = RESEARCH_CLAIM_PATTERN.test(normalized);
+  const workoutCreation =
+    domain === "fitness" &&
+    !publicPersonClaim &&
+    (WORKOUT_CREATION_PATTERN.test(normalized) ||
+      (GENERIC_PLANNING_REQUEST_PATTERN.test(normalized) &&
+        WORKOUT_PLAN_TARGET_PATTERN.test(normalized)));
   const exerciseTechnique =
     domain === "fitness" &&
     !publicPersonClaim &&
@@ -479,10 +492,16 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
           ? "get_training_schedule"
           : WORKOUT_PLAN_TOOL_PATTERN.test(normalized)
             ? "get_workout_plan"
-            : TDEE_TOOL_PATTERN.test(normalized)
+            : TDEE_TOOL_PATTERN.test(normalized) &&
+                TDEE_ACTION_PATTERN.test(normalized)
               ? "calculate_tdee"
-              : MEAL_TOOL_PATTERN.test(normalized)
+              : MEAL_TOOL_PATTERN.test(normalized) &&
+                  !explicitEvidence &&
+                  !researchClaim &&
+                  MEAL_ACTION_PATTERN.test(normalized)
                 ? "suggest_meal"
+                : workoutCreation
+                  ? null
                 : TRAINER_TOOL_PATTERN.test(normalized)
                   ? "get_trainer_info"
                   : GYM_INFO_TOOL_PATTERN.test(normalized)
@@ -548,6 +567,7 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
   if (risk === "high_stakes" && !publicPersonClaim) {
     reasonCodes.push("high_stakes_no_externalization");
   }
+  if (workoutCreation) reasonCodes.push("workout_creation");
   if (exerciseTechnique) reasonCodes.push("exercise_technique");
   if (tdeeMealCompoundAction) reasonCodes.push("compound_tdee_meal");
   if (reasonCodes.length === 0) reasonCodes.push(`${domain}_stable`);
@@ -576,7 +596,21 @@ export function getAllowedToolNamesForRoute(decision) {
   if (decision.risk === "disallowed" || decision.evidence === "model_prior") {
     return Object.freeze([]);
   }
+  if (decision.reasonCodes?.includes("source_backed_kb_hit")) {
+    return Object.freeze([]);
+  }
   if (decision.webSearchRequired) return Object.freeze(["search_knowledge"]);
+  if (decision.reasonCodes?.includes("workout_creation")) {
+    if (
+      decision.preferredTool === "calculate_tdee" &&
+      decision.reasonCodes?.includes("compound_tdee_meal")
+    ) {
+      return TDEE_MEAL_TOOL_SEQUENCE;
+    }
+    return decision.preferredTool && decision.preferredTool !== "search_exercises"
+      ? Object.freeze([decision.preferredTool])
+      : Object.freeze([]);
+  }
   if (
     decision.preferredTool === "calculate_tdee" &&
     decision.reasonCodes?.includes("compound_tdee_meal")
@@ -646,6 +680,11 @@ export function buildRequestRoutingBlock(
     lines.push(
       "- Ưu tiên dữ kiện Knowledge Base/canonical tool đã được cung cấp; không gọi web search.",
     );
+    if (decision.domain === "fitness" && decision.risk === "low") {
+      lines.push(
+        "- Nếu Knowledge Base hoặc catalog không có kết quả, vẫn trả lời bằng kiến thức fitness phổ thông an toàn; nói rõ đây là gợi ý chung và không giả vờ đã tìm thấy dữ liệu nội bộ.",
+      );
+    }
     if (decision.preferredTool === "search_exercises") {
       lines.push(
         "- Dùng search_exercises cho kỹ thuật hoặc danh mục bài tập. Không dùng kết quả đó làm bằng chứng về routine của người thật.",

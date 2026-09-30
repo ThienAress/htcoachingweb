@@ -64,6 +64,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
   await clearCollections();
 });
 
@@ -256,14 +257,14 @@ describe("AI guest access", () => {
     });
 
     const failed = await guestRequest({
-      message: "Lập lịch tập cho tôi",
+      message: "Bạn có thể giúp tôi những gì?",
       requestId: "c26e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
     });
     const bucketAfterFailure = await ServiceUsageBucket.findOne()
       .select("+usageEvents")
       .lean();
     const retried = await guestRequest({
-      message: "Lập lịch tập cho tôi lần nữa",
+      message: "Bạn có thể giới thiệu thêm khả năng khác không?",
       requestId: "c26e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
     });
 
@@ -274,12 +275,78 @@ describe("AI guest access", () => {
     expect(retried.text).toContain('"remaining":4');
   });
 
+  it("classifies a guest public-person lookup as a policy block without calling web search", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await guestRequest({
+      message: "Ronaldo thường tập những bài gì trong phòng gym?",
+      requestId: "aa6e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
+    });
+    const conversation = await ChatConversation.findOne({ userId: null })
+      .select("+guestKey")
+      .lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(conversation.messages.some((message) =>
+      message.toolCalls?.some((call) => call.name === "search_knowledge"),
+    )).toBe(false);
+    expect(answer.content).toMatch(/chế độ khách.*đăng nhập.*tra cứu có nguồn/i);
+    expect(answer.answerTrace).toMatchObject({
+      evidenceMode: "web_required",
+      webSearchUsed: false,
+      webSearchOutcome: "not_called",
+    });
+  });
+
+  it.each([
+    {
+      status: 503,
+      expected: "Dịch vụ AI đang tạm gián đoạn",
+      excluded: "quá nhiều yêu cầu",
+    },
+    {
+      status: 429,
+      expected: "nhận quá nhiều yêu cầu từ nhà cung cấp",
+      excluded: "tạm gián đoạn",
+    },
+  ])("classifies provider HTTP $status without leaking diagnostics", async ({
+    status,
+    expected,
+    excluded,
+  }) => {
+    llmStream.mockImplementationOnce(async function* failedProviderStream() {
+      throw Object.assign(new Error("synthetic private provider diagnostic"), {
+        code: "GEMINI_HTTP_ERROR",
+        status,
+      });
+    });
+
+    const failed = await guestRequest({
+      message: "Bạn có thể giúp tôi những gì?",
+      requestId: status === 503
+        ? "c26e93e8-8d21-4be2-9c6e-2ebf3cc340c1"
+        : "c26e93e8-8d21-4be2-9c6e-2ebf3cc340c2",
+    });
+
+    expect(failed.text).toContain(expected);
+    expect(failed.text).not.toContain(excluded);
+    expect(failed.text).not.toContain("synthetic private provider diagnostic");
+  });
+
   it("retries the same request and conversation after a provider failure without a ghost message or charge", async () => {
     llmStream.mockImplementationOnce(async function* failedProviderStream() {
       throw new Error("synthetic secret provider diagnostic");
     });
     const requestId = "d26e93e8-8d21-4be2-9c6e-2ebf3cc340b1";
-    const failed = await guestRequest({ message: "Bài tập chân", requestId });
+    const failed = await guestRequest({
+      message: "Bạn có thể giúp tôi những gì?",
+      requestId,
+    });
     const conversationId = failed.text.match(/"conversationId":"([^"]+)"/)?.[1];
     const guestCookie = readGuestCookie(failed);
 
@@ -293,7 +360,7 @@ describe("AI guest access", () => {
     expect(guestCookie).toBeTruthy();
 
     const retried = await guestRequest(
-      { message: "Bài tập chân", conversationId, requestId },
+      { message: "Bạn có thể giúp tôi những gì?", conversationId, requestId },
       guestCookie,
     );
     const conversation = await ChatConversation.findById(conversationId)
@@ -325,7 +392,7 @@ describe("AI guest access", () => {
       .mockRejectedValueOnce(new Error("synthetic rollback failure"));
     try {
       const failed = await guestRequest({
-        message: "Bài tập chân",
+        message: "Bạn có thể giúp tôi những gì?",
         requestId: "d26e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
       });
 
@@ -373,6 +440,101 @@ describe("AI guest access", () => {
     expect(conversation.messageCount).toBe(0);
   });
 
+  it("rolls back an orphan protocol fragment and retries in the same conversation", async () => {
+    llmStream
+      .mockImplementationOnce(async function* malformedProviderResponse() {
+        yield { type: "text", content: "}" };
+      })
+      .mockImplementationOnce(async function* repeatedMalformedProviderResponse() {
+        yield { type: "text", content: "{" };
+      })
+      .mockImplementationOnce(async function* recoveredProviderResponse() {
+        yield { type: "text", content: "Phản hồi đã phục hồi." };
+      });
+    const requestId = "e26e93e8-8d21-4be2-9c6e-2ebf3cc340b3";
+    const failed = await guestRequest({ message: "Giúp tôi tập luyện", requestId });
+    const conversationId = failed.text.match(/"conversationId":"([^"]+)"/)?.[1];
+    const guestCookie = readGuestCookie(failed);
+    const afterFailure = await ChatConversation.findById(conversationId).lean();
+
+    expect(failed.text).toContain('"type":"error"');
+    expect(failed.text).toContain('"retryable":true');
+    expect(failed.text).not.toContain('"type":"done"');
+    expect(afterFailure.messages).toHaveLength(0);
+
+    const retried = await guestRequest(
+      { message: "Giúp tôi tập luyện", conversationId, requestId },
+      guestCookie,
+    );
+    const afterRetry = await ChatConversation.findById(conversationId).lean();
+
+    expect(retried.text).toContain('"type":"text"');
+    expect(retried.text).toContain('"type":"done"');
+    expect(afterRetry.messages.map(({ role }) => role)).toEqual([
+      "user",
+      "assistant",
+    ]);
+    expect(afterRetry.messages.at(-1)?.content).toBe("Phản hồi đã phục hồi.");
+  });
+
+  it("restores the persisted tail when a same-conversation retry fails", async () => {
+    const first = await guestRequest({
+      message: "Xin chào",
+      requestId: "a36e93e8-8d21-4be2-9c6e-2ebf3cc340b1",
+    });
+    const conversationId = first.text.match(/"conversationId":"([^"]+)"/)?.[1];
+    const guestCookie = readGuestCookie(first);
+    const conversation = await ChatConversation.findById(conversationId)
+      .select("+guestKey");
+    conversation.messages.push(
+      { role: "user", content: "Cho tôi thêm động lực tập luyện" },
+      { role: "assistant", content: "Phần trả lời đã lưu" },
+      {
+        role: "tool",
+        content: "Kết quả công cụ đã lưu",
+        toolName: "suggest_meal",
+        toolCallId: "retry-rollback-tool",
+        toolStatus: "success",
+      },
+    );
+    conversation.messageCount = 4;
+    conversation.lastMessagePreview = "Phần trả lời đã lưu";
+    conversation.lastMessageAt = new Date("2026-09-20T00:00:00.000Z");
+    conversation.workingMemory = { preservedMarker: "before-retry" };
+    await conversation.save();
+    const retryTarget = conversation.messages.at(-3);
+    const original = await ChatConversation.findById(conversationId).lean();
+
+    llmStream.mockImplementationOnce(async function* failedRetry() {
+      throw new Error("synthetic retry provider failure");
+    });
+    const failed = await guestRequest(
+      {
+        message: retryTarget.content,
+        conversationId,
+        retryOfMessageId: retryTarget._id,
+        requestId: "a36e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
+      },
+      guestCookie,
+    );
+    const restored = await ChatConversation.findById(conversationId)
+      .select("+activeStreamId +recentRequestIds")
+      .lean();
+
+    expect(failed.text).toContain('"type":"error"');
+    expect(failed.text).toContain('"retryable":true');
+    expect(restored.messages.map(({ role, content }) => ({ role, content })))
+      .toEqual(original.messages.map(({ role, content }) => ({ role, content })));
+    expect(restored.messageCount).toBe(original.messageCount);
+    expect(restored.lastMessagePreview).toBe(original.lastMessagePreview);
+    expect(restored.lastMessageAt).toEqual(original.lastMessageAt);
+    expect(restored.workingMemory).toEqual({ preservedMarker: "before-retry" });
+    expect(restored.activeStreamId).toBeNull();
+    expect(rawRequestIdsFromStorage(restored.recentRequestIds)).not.toContain(
+      "a36e93e8-8d21-4be2-9c6e-2ebf3cc340b2",
+    );
+  });
+
   it("preserves earlier turns when a later request fails and retries with the same key", async () => {
     const firstRequestId = "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b1";
     const retryRequestId = "f26e93e8-8d21-4be2-9c6e-2ebf3cc340b2";
@@ -385,14 +547,22 @@ describe("AI guest access", () => {
     });
 
     const failed = await guestRequest(
-      { message: "Bài tập chân", conversationId, requestId: retryRequestId },
+      {
+        message: "Bạn có thể giúp tôi những gì?",
+        conversationId,
+        requestId: retryRequestId,
+      },
       guestCookie,
     );
     const afterFailure = await ChatConversation.findById(conversationId)
       .select("+recentRequestIds")
       .lean();
     const retried = await guestRequest(
-      { message: "Bài tập chân", conversationId, requestId: retryRequestId },
+      {
+        message: "Bạn có thể giúp tôi những gì?",
+        conversationId,
+        requestId: retryRequestId,
+      },
       guestCookie,
     );
     const afterRetry = await ChatConversation.findById(conversationId)

@@ -1,3 +1,5 @@
+import { parseMealRequirements } from "./mealConstraints.js";
+
 const TDEE_GENDERS = new Set(["male", "female"]);
 const ACTIVITY_LEVELS = new Set([
   "sedentary",
@@ -15,6 +17,19 @@ const TDEE_EVIDENCE = {
   trainingIntensity: new Set(["none", "easy", "moderate", "vigorous"]),
 };
 const MACRO_PLANS = ["Low-carb", "Moderate-carb", "High-carb"];
+const MEAL_ALLERGENS = new Set([
+  "milk",
+  "egg",
+  "fish",
+  "crustacean_shellfish",
+  "tree_nut",
+  "peanut",
+  "wheat",
+  "soy",
+  "sesame",
+]);
+const MEAL_PLAN_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const asPlainObject = (value) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -26,6 +41,33 @@ const boundedNumber = (value, min, max) => {
   return Number.isFinite(number) && number >= min && number <= max
     ? number
     : null;
+};
+
+const sanitizeMealReplacementOperation = (value) => {
+  const operation = asPlainObject(value);
+  const expectedRevision = boundedNumber(
+    operation.expectedRevision,
+    1,
+    1_000_000,
+  );
+  const mealIndex = boundedNumber(operation.mealIndex, 0, 5);
+  const foodIndex = boundedNumber(operation.foodIndex, 0, 11);
+  if (
+    !MEAL_PLAN_ID_PATTERN.test(String(operation.operationId || "")) ||
+    !MEAL_PLAN_ID_PATTERN.test(String(operation.mealPlanId || "")) ||
+    !Number.isInteger(expectedRevision) ||
+    !Number.isInteger(mealIndex) ||
+    !Number.isInteger(foodIndex)
+  ) {
+    return null;
+  }
+  return {
+    operationId: operation.operationId,
+    mealPlanId: operation.mealPlanId,
+    expectedRevision,
+    mealIndex,
+    foodIndex,
+  };
 };
 
 const sanitizeTdeeInput = (args, toolResult) => {
@@ -85,16 +127,171 @@ const sanitizeTdeeResult = (toolResult) => {
     : null;
 };
 
+const boundedStringList = (values, maxItems, maxLength) => [
+  ...new Set(
+    (Array.isArray(values) ? values : [])
+      .map((value) => String(value || "").trim())
+      .filter((value) => value && value.length <= maxLength),
+  ),
+].slice(0, maxItems);
+
 const sanitizeMealArgs = (args) => {
   const input = asPlainObject(args);
-  const result = {
-    targetCalories: boundedNumber(input.targetCalories, 800, 6000),
+  const calorieScope = input.calorieScope === "per_meal" ? "per_meal" : "per_day";
+  const required = {
+    targetCalories: boundedNumber(
+      input.targetCalories,
+      calorieScope === "per_meal" ? 500 : 800,
+      6000,
+    ),
     proteinGrams: boundedNumber(input.proteinGrams, 0, 500),
     carbGrams: boundedNumber(input.carbGrams, 0, 1000),
     fatGrams: boundedNumber(input.fatGrams, 0, 300),
     mealsPerDay: boundedNumber(input.mealsPerDay ?? 3, 1, 6),
   };
-  return Object.values(result).some((value) => value === null) ? null : result;
+  if (
+    Object.values(required).some((value) => value === null) ||
+    (calorieScope === "per_meal" && required.mealsPerDay !== 1)
+  ) return null;
+
+  const targetToleranceCalories = boundedNumber(
+    input.targetToleranceCalories,
+    0,
+    300,
+  );
+  const minimumProteinGrams = boundedNumber(
+    input.minimumProteinGrams,
+    0,
+    500,
+  );
+  const excludedFoods = boundedStringList(input.excludedFoods, 12, 100);
+  const requiredFoods = parseMealRequirements(input.requiredFoods).phrases.slice(0, 8);
+  const excludedAllergens = boundedStringList(
+    input.excludedAllergens,
+    9,
+    40,
+  ).filter((allergen) => MEAL_ALLERGENS.has(allergen));
+  const budgetVndPerDay = boundedNumber(
+    input.budgetVndPerDay,
+    30_000,
+    2_000_000,
+  );
+
+  return {
+    ...required,
+    calorieScope,
+    ...(targetToleranceCalories !== null && { targetToleranceCalories }),
+    ...(minimumProteinGrams !== null && { minimumProteinGrams }),
+    ...(excludedFoods.length > 0 && { excludedFoods }),
+    ...(requiredFoods.length > 0 && { requiredFoods }),
+    ...(excludedAllergens.length > 0 && { excludedAllergens }),
+    ...(input.lactoseFree === true && { lactoseFree: true }),
+    ...(input.requirePackageLabelSafety === true && {
+      requirePackageLabelSafety: true,
+    }),
+    ...(budgetVndPerDay !== null && { budgetVndPerDay }),
+  };
+};
+
+const boundedText = (value, maxLength) => {
+  const text = String(value || "").trim();
+  return text && text.length <= maxLength ? text : null;
+};
+
+const sanitizeMealMacros = (value) => {
+  const source = asPlainObject(value);
+  const protein = boundedNumber(source.protein, 0, 500);
+  const carb = boundedNumber(source.carb, 0, 1000);
+  const fat = boundedNumber(source.fat, 0, 300);
+  return protein === null || carb === null || fat === null
+    ? null
+    : { protein, carb, fat };
+};
+
+const macroCalories = ({ protein, carb, fat }) =>
+  Number((4 * protein + 4 * carb + 9 * fat).toFixed(1));
+
+const addMealMacros = (values) => values.reduce((total, macro) => ({
+  protein: Number((total.protein + macro.protein).toFixed(1)),
+  carb: Number((total.carb + macro.carb).toFixed(1)),
+  fat: Number((total.fat + macro.fat).toFixed(1)),
+}), { protein: 0, carb: 0, fat: 0 });
+
+const sanitizeMealPlan = (value) => {
+  const source = asPlainObject(value);
+  const calorieScope = source.calorieScope === "per_meal" ? "per_meal" : "per_day";
+  if (
+    source.status !== "complete" ||
+    source.nutritionMethod !== "server_calculated_4p_4c_9f" ||
+    !Array.isArray(source.meals) ||
+    source.meals.length < 1 ||
+    source.meals.length > 6
+  ) return null;
+
+  const meals = [];
+  for (const rawMeal of source.meals) {
+    const meal = asPlainObject(rawMeal);
+    if (!Array.isArray(meal.foods) || meal.foods.length < 1 || meal.foods.length > 12) {
+      return null;
+    }
+    const foods = [];
+    for (const rawFood of meal.foods) {
+      const food = asPlainObject(rawFood);
+      const foodId = boundedText(food.foodId, 100);
+      const name = boundedText(food.name, 120);
+      const amountGrams = boundedNumber(food.amountGrams, 0.1, 5000);
+      const macros = sanitizeMealMacros(food.macros);
+      if (!foodId || !name || amountGrams === null || !macros) return null;
+      foods.push({
+        foodId,
+        name,
+        amountGrams,
+        macros,
+        calories: macroCalories(macros),
+      });
+    }
+    const macros = addMealMacros(foods.map((food) => food.macros));
+    meals.push({
+      label: boundedText(meal.label, 80) || `Bữa ${meals.length + 1}`,
+      foods,
+      totals: { ...macros, calories: macroCalories(macros) },
+    });
+  }
+
+  const totalsMacro = addMealMacros(meals.map((meal) => meal.totals));
+  const targetCalories = boundedNumber(
+    source.targetCalories,
+    calorieScope === "per_meal" ? 500 : 800,
+    6000,
+  );
+  const targetToleranceCalories = boundedNumber(
+    source.targetToleranceCalories ?? 100,
+    0,
+    300,
+  );
+  if (
+    targetCalories === null ||
+    targetToleranceCalories === null ||
+    (calorieScope === "per_meal" && meals.length !== 1)
+  ) return null;
+  const targets = asPlainObject(source.targets);
+  const minimumProteinGrams = boundedNumber(
+    targets.minimumProteinGrams,
+    0,
+    500,
+  );
+  return {
+    status: "complete",
+    targetCalories,
+    calorieScope,
+    targetToleranceCalories,
+    nutritionMethod: "server_calculated_4p_4c_9f",
+    meals,
+    totals: { ...totalsMacro, calories: macroCalories(totalsMacro) },
+    ...(minimumProteinGrams !== null && {
+      targets: { minimumProteinGrams },
+    }),
+  };
 };
 
 export function updateConversationMemory(
@@ -113,7 +310,27 @@ export function updateConversationMemory(
     }
   } else if (toolName === "suggest_meal") {
     const meal = sanitizeMealArgs(args);
-    if (meal) memory.lastMeal = { ...meal, updatedAt: new Date() };
+    const cardData = asPlainObject(asPlainObject(toolResult?.uiCard).data);
+    const plan = sanitizeMealPlan(cardData);
+    if (meal && plan) {
+      const mealPlanId = MEAL_PLAN_ID_PATTERN.test(
+        String(cardData.mealPlanId || ""),
+      )
+        ? cardData.mealPlanId
+        : null;
+      const mealRevision = boundedNumber(
+        cardData.mealRevision,
+        1,
+        1_000_000,
+      ) || 1;
+      memory.lastMeal = {
+        ...meal,
+        plan,
+        ...(mealPlanId && { mealPlanId }),
+        revision: mealRevision,
+        updatedAt: new Date(),
+      };
+    }
   }
   return memory;
 }
@@ -129,6 +346,32 @@ export function deriveConversationMemory(messages = [], initialMemory = {}) {
     if (input && result) memory.lastTdee = { ...storedTdee, input, result };
     else delete memory.lastTdee;
   }
+  if (memory.lastMeal) {
+    const storedMeal = asPlainObject(memory.lastMeal);
+    const meal = sanitizeMealArgs(storedMeal);
+    if (!meal) {
+      delete memory.lastMeal;
+    } else {
+      const plan = sanitizeMealPlan(storedMeal.plan);
+      const revision = boundedNumber(storedMeal.revision, 0, 1_000_000) || 0;
+      const mealPlanId = MEAL_PLAN_ID_PATTERN.test(
+        String(storedMeal.mealPlanId || ""),
+      )
+        ? storedMeal.mealPlanId
+        : null;
+      const lastReplacementOperation = sanitizeMealReplacementOperation(
+        storedMeal.lastReplacementOperation,
+      );
+      memory.lastMeal = {
+        ...meal,
+        ...(plan && { plan }),
+        ...(mealPlanId && { mealPlanId }),
+        revision,
+        ...(lastReplacementOperation && { lastReplacementOperation }),
+        ...(storedMeal.updatedAt && { updatedAt: storedMeal.updatedAt }),
+      };
+    }
+  }
   const pendingCalls = [];
 
   for (const rawMessage of messages) {
@@ -139,9 +382,12 @@ export function deriveConversationMemory(messages = [], initialMemory = {}) {
     }
     if (message.role !== "tool" || !message.toolName) continue;
 
-    const callIndex = pendingCalls.findIndex(
-      (call) => call.name === message.toolName,
-    );
+    const callIndex = message.toolCallId
+      ? pendingCalls.findIndex(
+          (call) =>
+            call.id === message.toolCallId && call.name === message.toolName,
+        )
+      : pendingCalls.findIndex((call) => call.name === message.toolName);
     if (callIndex < 0) continue;
     const [call] = pendingCalls.splice(callIndex, 1);
     memory = updateConversationMemory(

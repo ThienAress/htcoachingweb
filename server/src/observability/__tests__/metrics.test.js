@@ -4,6 +4,7 @@ import {
   getOperationalAlerts,
   getPrometheusMetrics,
   getMetricsSnapshot,
+  getRuntimeIdentity,
   incrementMetric,
   observeMetric,
   recordHttpRequest,
@@ -205,5 +206,19 @@ describe("bounded application metrics", () => {
     expect(source).toContain("htcoaching_auth_cutover_blocked");
     expect(source).toContain("htcoaching_provider_gemini_chat_total_tokens");
     expect(source).toContain("htcoaching_provider_resend_sent");
+    expect(source).toContain("htcoaching_kb_vector_root_fallbacks");
+    expect(source).toContain("htcoaching_kb_vector_variant_fallbacks");
+    expect(source).toContain("htcoaching_kb_vector_combined_fallbacks");
+  });
+
+  it("exposes one opaque runtime identity for process-local metric attribution", () => {
+    const first = getMetricsSnapshot();
+    const second = getMetricsSnapshot();
+    expect(first.runtimeInstanceId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(second.runtimeInstanceId).toBe(first.runtimeInstanceId);
+    expect(second.runtimeReleaseSha).toBe(getRuntimeIdentity().runtimeReleaseSha);
+    expect(Object.isFrozen(getRuntimeIdentity())).toBe(true);
   });
 });

@@ -88,21 +88,25 @@ export default function ChatPanelSidebar({
             return (
               <div
                 key={conv._id}
-                className={`group relative flex items-center rounded-xl cursor-pointer transition-colors px-3 py-2.5 ${
+                className={`group relative flex items-center rounded-xl transition-colors ${
                   conv._id === activeId
                     ? "bg-gray-200 dark:bg-white/10 text-gray-900 dark:text-white"
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/6"
                 }`}
-                onClick={() => onSwitch(conv._id)}
               >
-                <div className="flex-1 min-w-0 pr-12">
-                  <p className="text-[13px] font-medium truncate leading-tight">
+                <button
+                  type="button"
+                  aria-label={`Mở cuộc trò chuyện: ${title}`}
+                  onClick={() => onSwitch(conv._id)}
+                  className="w-full min-w-0 rounded-xl px-3 py-2.5 pr-15 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/70"
+                >
+                  <span className="block text-[13px] font-medium truncate leading-tight">
                     {title}
-                  </p>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-500 truncate mt-1">
+                  </span>
+                  <span className="block text-[11px] text-gray-500 dark:text-gray-500 truncate mt-1">
                     {formatRelativeTime(conv.updatedAt)}
-                  </p>
-                </div>
+                  </span>
+                </button>
                 <div className="absolute right-2 top-1.5 flex items-center gap-0.5">
                   {isPending && (
                     <span

@@ -44,6 +44,7 @@ nguồn canonical trước khi thay đổi code.
 - [Explicit AI Memory pilot spec](./specs/ai-explicit-memory.md)
 - [HT Assistant hardening và scale readiness spec](./specs/ai-assistant-hardening-and-scale-readiness.md)
 - [HT Assistant fitness-first và Knowledge Base có bằng chứng](./specs/fitness-first-ai-and-knowledge-quality.md)
+- [Curated source-backed retrieval và citation](./specs/source-backed-retrieval-and-citation.md)
 - [Rollout embedding Knowledge Base trên staging](./specs/knowledge-base-embedding-staging-rollout.md)
 - [Service access policy spec](./specs/service-access-policy.md)
 - [Containerized backend runtime spec](./specs/containerized-backend-runtime.md)
@@ -53,6 +54,7 @@ nguồn canonical trước khi thay đổi code.
 - [Biểu đồ Mức độ thực hiện và Sức khỏe trung bình](./specs/progress-compliance-wellness-charts.md)
 - [Ảnh chữ ký Bên A và kỳ báo cáo tuần linh hoạt](./specs/contract-signature-upload-and-reporting-periods.md)
 - [Promotion release và acceptance staging có ghi dữ liệu an toàn](./specs/release-promotion-and-staging-acceptance.md)
+- [GitHub Actions runtime và release closure](./specs/github-actions-runtime-and-release-closure.md)
 - [Tự động đối soát chuyển khoản và cộng ví qua SePay spec](./specs/automatic-wallet-deposit-settlement.md)
 - [Thưởng nạp ví theo bậc và thiết kế lại Profile HLV](./specs/wallet-deposit-bonus-and-trainer-profile-redesign.md)
 - [P1 security hardening và nghiệp vụ HLV](./specs/security-hardening-and-trainer-operations.md)
@@ -70,6 +72,7 @@ nguồn canonical trước khi thay đổi code.
 - [Architecture Decision Records](./architecture/adr/README.md)
 - [AI Technology Radar](./architecture/ai-technology-radar.md)
 - [Release checklist](./operations/release-checklist.md)
+- [Production release report 2026-09-16](./operations/production/production-release-report-2026-09-16.md)
 - [Cập nhật tính năng khi upgrade dịch vụ](./operations/provider-upgrade-playbook.md)
 - [Quy định JSON hướng dẫn và độ phức tạp bài tập](./operations/exercise-setup-json-rules.md)
 - [Danh sách bài tập và mô tả trên production](./operations/production-exercises-for-setup.md)
@@ -97,6 +100,7 @@ nguồn canonical trước khi thay đổi code.
 - [Refresh-session cutover (Plan 082)](./operations/runbooks/refresh-session-cutover.md)
 - [Provider usage monitoring](./operations/runbooks/provider-usage-monitoring.md)
 - [Staging Knowledge Base re-embed và rollback](./operations/runbooks/staging-knowledge-base-reembed.md)
+- [Staging Knowledge Base sync từ production](./operations/runbooks/staging-knowledge-base-production-sync.md)
 
 ## Quy ước
 

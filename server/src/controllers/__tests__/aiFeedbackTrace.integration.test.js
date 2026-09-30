@@ -41,9 +41,30 @@ import {
   withAuth,
 } from "../../__tests__/setup.js";
 import ChatConversation from "../../models/ChatConversation.js";
+import Exercise from "../../models/Exercise.js";
+import { toolRegistry } from "../../services/ai/tools/toolRegistry.js";
+import { evaluateSemanticOutput } from "../../services/ai/evals/semanticOutputEvaluator.js";
+import { getPublicPersonLookupNames, prepareExternalKnowledgeQuery } from "../../services/ai/knowledgePrivacy.js";
 import { chatStream } from "../ai.controller.js";
 
 let app;
+const originalSuggestMealExecute = toolRegistry.suggest_meal.execute;
+const originalSearchExercisesExecute = toolRegistry.search_exercises.execute;
+const CONFIRMED_TDEE_PAYLOAD = Object.freeze({
+  gender: "male",
+  age: 30,
+  heightCm: 180,
+  weightKg: 80,
+  goal: "maintenance",
+  dailyMovement: "mostly_seated",
+  steps: "under_5000",
+  trainingFrequency: "none",
+  trainingDuration: "none",
+  trainingIntensity: "none",
+});
+const SEVEN_DAY_COMPLETE_TEXT = Array.from({ length: 7 }, (_, index) =>
+  `Ngày ${index + 1}: Ăn ba bữa với nguồn protein, rau và tinh bột phù hợp. Tập luyện ${index % 2 === 0 ? "sức mạnh toàn thân" : "đi bộ phục hồi"} 30 phút.`,
+).join("\n");
 
 beforeAll(async () => {
   await setupTestDB();
@@ -52,7 +73,26 @@ beforeAll(async () => {
   app.use("/api/ai", aiRoutes);
 });
 
+const submitConfirmedTdee = async ({ accessToken, userId, requestId }) => {
+  const response = await withAuth(
+    request(app).post("/api/ai/chat"),
+    accessToken,
+  ).send({
+    message: "Xác nhận và tính TDEE",
+    structuredAction: {
+      type: "calculate_tdee",
+      payload: CONFIRMED_TDEE_PAYLOAD,
+    },
+    requestId,
+  });
+  const conversation = await ChatConversation.findOne({ userId }).lean();
+  return { response, conversation };
+};
+
 beforeEach(() => {
+  llmStreamMock.mockReset();
+  searchKnowledgeBaseMock.mockReset();
+  searchKnowledgeBaseMock.mockResolvedValue([]);
   llmStreamMock.mockImplementation(async function* streamMockResponse() {
     yield {
       type: "text",
@@ -63,6 +103,8 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  toolRegistry.suggest_meal.execute = originalSuggestMealExecute;
+  toolRegistry.search_exercises.execute = originalSearchExercisesExecute;
   vi.clearAllMocks();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -74,6 +116,712 @@ afterAll(async () => {
 });
 
 describe("AI answer trace and feedback review", () => {
+  it("repairs an incomplete seven-day meal and workout answer before delivery", async () => {
+    const { user, accessToken } = await createTestUser();
+    let turns = 0;
+    llmStreamMock.mockImplementation(async function* sevenDayDraft() {
+      turns += 1;
+      yield { type: "text", content: turns === 1
+        ? "Ngày 1: Ăn đủ rau. Tập đi bộ 30 phút."
+        : SEVEN_DAY_COMPLETE_TEXT };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Lập kế hoạch ăn uống và tập luyện chi tiết trong 7 ngày cho người mới muốn giảm mỡ.",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de115",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect({ turns, status: response.status, saved: answer.content, streamed: response.text }).toMatchObject({
+      turns: 2, status: 200, saved: SEVEN_DAY_COMPLETE_TEXT,
+      streamed: expect.stringContaining("Ngày 7"),
+    });
+    expect(answer.content).not.toContain("Ăn đủ rau. Tập đi bộ 30 phút.");
+  });
+
+  it("returns a complete general seven-day plan when both drafts omit days", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* incompleteSevenDay() {
+      yield { type: "text", content: "Ngày 1: Ăn đủ rau. Tập đi bộ 30 phút." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Lập kế hoạch ăn uống và tập luyện chi tiết trong 7 ngày cho người mới muốn giảm mỡ.",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de116",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(2);
+    expect(evaluateSemanticOutput({ output: { text: answer.content }, rules: [
+      { type: "seven_day_coverage", requireMealAndTraining: true },
+    ] })).toEqual([]);
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_seven_day_plan_v1" });
+  });
+
+  it("does not add meal-plan repair to a workout-only seven-day request", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* workoutOnly() {
+      yield { type: "text", content: "Lịch tập bảy ngày cần thêm thông tin về kinh nghiệm và thiết bị." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Lập lịch tập trong 7 ngày cho người mới.",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de117",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(1);
+    expect(answer.content).not.toContain("Ngày 7:");
+  });
+
+  it("repairs an incomplete four-day workout before streaming and saving it", async () => {
+    const { user, accessToken } = await createTestUser();
+    let turns = 0;
+    llmStreamMock.mockImplementation(async function* draftWorkout() {
+      turns += 1;
+      yield { type: "text", content: turns === 1
+        ? "Tập thân trên rồi thân dưới trong bốn buổi mỗi tuần."
+        : "Buổi 1: Hít đất 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây. Buổi 2: Squat 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây. Buổi 3: Hít đất 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây. Buổi 4: Squat 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Hãy tạo lịch tập tăng cơ 4 ngày mỗi tuần, mỗi buổi tối đa 60 phút",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de113",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect({ turns, status: response.status, saved: answer.content, streamed: response.text }).toMatchObject({
+      turns: 2, status: 200, saved: expect.stringContaining("Buổi 4"),
+      streamed: expect.stringContaining("Buổi 4"),
+    });
+    expect(answer.content).not.toContain("Tập thân trên rồi thân dưới");
+  });
+
+  it("uses an equipment-safe structured fallback when both workout drafts are incomplete", async () => {
+    const { user, accessToken } = await createTestUser();
+    const message = "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Tôi đi 10.000 bước/ngày, không muốn tập chân hai ngày liên tiếp. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
+    llmStreamMock.mockImplementation(async function* incompleteWorkout() {
+      yield { type: "text", content: "Tập bốn buổi mỗi tuần, xen kẽ thân trên và thân dưới." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message, requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de114",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(2);
+    expect(evaluateSemanticOutput({
+      output: { text: answer.content, cards: [] },
+      rules: [{ type: "workout_structure", minDays: 4, request: message, requireDeload: true }],
+    })).toEqual([]);
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_workout_v1" });
+  });
+
+  it("uses the structured four-day fallback when repeated model drafts violate equipment constraints", async () => {
+    const { user, accessToken } = await createTestUser();
+    const message = "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Tôi đi 10.000 bước/ngày, không muốn tập chân hai ngày liên tiếp. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
+    llmStreamMock.mockImplementation(async function* invalidEquipmentDrafts() {
+      yield { type: "text", content: "Buổi 1: Barbell bench press và máy kéo cáp." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message, requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de115",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(2);
+    expect(evaluateSemanticOutput({
+      output: { text: answer.content, cards: [] },
+      rules: [{ type: "workout_structure", minDays: 4, request: message, requireDeload: true }],
+    })).toEqual([]);
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_workout_v1" });
+  });
+
+  it("repairs ambiguous deload wording in a structured four-day request", async () => {
+    const { user, accessToken } = await createTestUser();
+    const message = "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
+    const incompleteDeload = [
+      "Buổi 1: Hít đất 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
+      "Buổi 2: Squat trọng lượng cơ thể 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
+      "Buổi 3: Hít đất 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
+      "Buổi 4: Split squat 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
+      "Tuần deload giữ lại còn 30% volume.",
+    ].join(" ");
+    llmStreamMock.mockImplementation(async function* ambiguousDeloadDraft() {
+      yield { type: "text", content: incompleteDeload };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message, requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de116",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(2);
+    expect(evaluateSemanticOutput({
+      output: { text: answer.content, cards: [] },
+      rules: [{ type: "workout_structure", minDays: 4, request: message, requireDeload: true }],
+    })).toEqual([]);
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_workout_v1" });
+  });
+
+  it("traces a low-risk four-day workout as model prior after a KB miss", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* workoutFromPrior() {
+      yield { type: "text", content:
+        "Buổi 1: Upper 45 phút. Buổi 2: Lower 45 phút. Buổi 3: Upper 45 phút. Buổi 4: Lower 45 phút." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Hãy tạo lịch tập tăng cơ 4 ngày mỗi tuần, mỗi buổi tối đa 60 phút",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de112",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(searchKnowledgeBaseMock).toHaveBeenCalled();
+    expect(answer.answerTrace).toMatchObject({
+      routeDomain: "fitness", evidenceMode: "model_prior", kbEntryIds: [],
+      webSearchUsed: false, webSearchOutcome: "not_called",
+    });
+    expect(conversation.messages.some((item) => item.role === "tool" || item.uiCard)).toBe(false);
+  });
+
+  it("treats a complete meal tool result as the final answer authority", async () => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "SERVER_CANONICAL_MEAL: 2500 kcal.",
+      uiCard: {
+        cardType: "meal",
+        data: {
+          status: "complete",
+          targetCalories: 2500,
+          targetToleranceCalories: 100,
+          nutritionMethod: "server_calculated_4p_4c_9f",
+          targets: { minimumProteinGrams: 170 },
+          meals: [{
+            label: "Bữa sáng",
+            foods: [{
+              foodId: "synthetic-food",
+              name: "Món kiểm thử",
+              amountGrams: 100,
+              macros: { protein: 170, carb: 250, fat: 91.1 },
+              calories: 2499.9,
+            }],
+            totals: { protein: 170, carb: 250, fat: 91.1, calories: 2499.9 },
+          }],
+          totals: { protein: 170, carb: 250, fat: 91.1, calories: 2499.9 },
+        },
+      },
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* mealThenRewrite() {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "tool_call",
+          toolCalls: [{
+            id: "canonical-meal",
+            name: "suggest_meal",
+            args: {
+              targetCalories: 2500,
+              proteinGrams: 170,
+              carbGrams: 250,
+              fatGrams: 91.1,
+              mealsPerDay: 4,
+              calorieScope: "per_day",
+            },
+          }],
+        };
+        return;
+      }
+      yield { type: "text", content: "MODEL_REWRITE: 3200 kcal và món khác." };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Gợi ý thực đơn cho tôi",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de101",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect({ status: response.status, providerTurn, answer: answer.content }).toEqual({
+      status: 200,
+      providerTurn: 1,
+      answer: "SERVER_CANONICAL_MEAL: 2500 kcal.",
+    });
+    expect(response.text).not.toContain("MODEL_REWRITE");
+  });
+
+  it("renders meal missing_data directly instead of allowing a model workaround", async () => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "SERVER_MEAL_MISSING: chưa đủ metadata dị ứng.",
+      uiCard: {
+        cardType: "meal",
+        data: {
+          status: "missing_data",
+          reason: "safety_metadata_missing",
+          meals: [],
+          totals: null,
+        },
+      },
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* missingThenUnsafeMeal() {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "tool_call",
+          toolCalls: [{
+            id: "missing-meal",
+            name: "suggest_meal",
+            args: {
+              targetCalories: 2500,
+              proteinGrams: 170,
+              carbGrams: 250,
+              fatGrams: 91.1,
+            },
+          }],
+        };
+        return;
+      }
+      yield { type: "text", content: "MODEL_UNSAFE_MEAL: cứ dùng sữa và đậu phộng." };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Gợi ý thực đơn cho tôi, tôi dị ứng sữa và đậu phộng",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de102",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect({ status: response.status, providerTurn, answer: answer.content }).toEqual({
+      status: 200,
+      providerTurn: 1,
+      answer: "SERVER_MEAL_MISSING: chưa đủ metadata dị ứng.",
+    });
+    expect(response.text).not.toContain("MODEL_UNSAFE_MEAL");
+  });
+
+  it("executes a complete explicit meal request without calling the chat model", async () => {
+    const { accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "SERVER_DIRECT_MEAL: 2500 kcal, 4 bữa, 170g protein.",
+      uiCard: {
+        cardType: "meal",
+        data: {
+          status: "missing_data",
+          reason: "synthetic_direct_test",
+          meals: [],
+          totals: null,
+        },
+      },
+    });
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not run for a complete canonical meal request");
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message:
+        "Lập thực đơn 2.500 kcal, sai số tối đa 100 kcal, ít nhất 170g protein, chia 4 bữa.",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de103",
+    });
+
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).not.toHaveBeenCalled();
+    expect(toolRegistry.suggest_meal.execute).toHaveBeenCalledTimes(1);
+    const streamedText = response.text
+      .split("\n\n")
+      .filter((event) => event.startsWith("data: "))
+      .map((event) => JSON.parse(event.slice(6)))
+      .filter((event) => event.type === "text")
+      .map((event) => event.content)
+      .join("");
+    expect(streamedText).toContain("SERVER_DIRECT_MEAL");
+  });
+
+  it.each([
+    ["không ăn thịt gà", "thịt gà"],
+    ["không ăn trứng", "trứng"],
+    ["không dùng sữa", "sữa"],
+  ])("executes a raw 500 kcal meal with an exclusion through the canonical direct path: %s", async (exclusion, expectedExcludedFood) => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "SERVER_DIRECT_MEAL: 500 kcal.",
+      uiCard: {
+        cardType: "meal",
+        data: {
+          status: "complete",
+          targetCalories: 500,
+          calorieScope: "per_meal",
+          meals: [{ label: "Bữa sáng", foods: [] }],
+          totals: { calories: 500, protein: 37.5, carb: 48.1, fat: 17.5 },
+        },
+      },
+    });
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not run for a complete canonical meal request");
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: `Gợi ý cho tôi một bữa ăn khoảng 500 kcal, ${exclusion}.`,
+      requestId: `164ff640-9fd0-4be6-bcd8-d1e9342de${expectedExcludedFood === "thịt gà" ? "301" : expectedExcludedFood === "trứng" ? "302" : "303"}`,
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const card = conversation.messages.find((item) => item.uiCard?.cardType === "meal")?.uiCard;
+    const capturedArgs = toolRegistry.suggest_meal.execute.mock.calls[0]?.[0];
+
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).not.toHaveBeenCalled();
+    expect(toolRegistry.suggest_meal.execute).toHaveBeenCalledTimes(1);
+    expect(capturedArgs).toMatchObject({
+      targetCalories: 500,
+      calorieScope: "per_meal",
+      mealsPerDay: 1,
+      excludedFoods: [expectedExcludedFood],
+    });
+    expect(["proteinGrams", "carbGrams", "fatGrams"].every((field) =>
+      Number.isFinite(capturedArgs[field]))).toBe(true);
+    expect(card).toMatchObject({ cardType: "meal", data: { status: "complete" } });
+  });
+
+  it.each([
+    ["không ăn thịt gà", "thịt gà", "Ức gà"],
+    ["không ăn trứng", "trứng", "Trứng gà"],
+    ["không ăn sữa", "sữa", "Sữa chua"],
+  ])("carries the raw exclusion through direct controller, tool and persisted card: %s", async (exclusion, expectedExcludedFood, forbiddenLabel) => {
+    const { user, accessToken } = await createTestUser();
+    const reviewed = {
+      reviewStatus: "reviewed",
+      contains: [],
+      mayContain: [],
+      reviewedScopes: [],
+      specificContains: [],
+      sourceType: "official_database",
+      sourceUrl: "https://fdc.nal.usda.gov/food-search/?query=whole%20food",
+      reviewedAt: new Date("2026-09-01"),
+    };
+    const catalog = [
+      { _id: "chicken", label: "Ức gà", protein: 31, carb: 0, fat: 3.6, allergenProfile: reviewed },
+      { _id: "egg", label: "Trứng gà", protein: 13, carb: 1, fat: 11, allergenProfile: { ...reviewed, contains: ["egg"] } },
+      { _id: "milk", label: "Sữa chua", protein: 4, carb: 7, fat: 3, allergenProfile: { ...reviewed, contains: ["milk"] } },
+      { _id: "rice", label: "Cơm trắng", protein: 2.7, carb: 28, fat: 0.3, allergenProfile: reviewed },
+      { _id: "tofu", label: "Đậu phụ", protein: 8, carb: 2, fat: 4, allergenProfile: reviewed },
+      { _id: "oil", label: "Dầu ô liu", protein: 0, carb: 0, fat: 100, allergenProfile: reviewed },
+      { _id: "oats", label: "Yến mạch", protein: 13, carb: 68, fat: 7, allergenProfile: reviewed },
+      { _id: "turkey", label: "Ức gà tây", protein: 29, carb: 0, fat: 2, allergenProfile: reviewed },
+      { _id: "whey", label: "Whey protein", protein: 80, carb: 8, fat: 6, allergenProfile: { ...reviewed, contains: ["milk"] } },
+    ];
+    toolRegistry.suggest_meal.execute = vi.fn((params, context) =>
+      originalSuggestMealExecute(params, {
+        ...context,
+        findFoods: async () => catalog,
+      }));
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not run for a complete canonical meal request");
+    });
+
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: `Gợi ý thực đơn 2.500 kcal mỗi ngày, 170g protein, 300g carb, 70g fat, 4 bữa, ${exclusion}.`,
+      requestId: `164ff640-9fd0-4be6-bcd8-d1e9342de${expectedExcludedFood === "thịt gà" ? "201" : expectedExcludedFood === "trứng" ? "202" : "203"}`,
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const card = conversation.messages.find((item) => item.uiCard?.cardType === "meal")?.uiCard;
+    const capturedArgs = toolRegistry.suggest_meal.execute.mock.calls[0]?.[0];
+    const foods = card?.data?.meals?.flatMap((meal) => meal.foods.map((food) => food.name)) || [];
+
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).not.toHaveBeenCalled();
+    expect(capturedArgs.excludedFoods).toContain(expectedExcludedFood);
+    expect(card).toMatchObject({ cardType: "meal", data: { status: "complete" } });
+    expect(foods).not.toContain(forbiddenLabel);
+    expect(response.text).toContain('"cardType":"meal"');
+  });
+
+  it("saves the same complete breakfast card that it streams for a 500 kcal request", async () => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "Bữa sáng 500 kcal với ít nhất 30g protein.",
+      uiCard: { cardType: "meal", data: { status: "complete", totals: {
+        protein: 30, carb: 52.3, fat: 19, calories: 500,
+      }, meals: [{ label: "Bữa sáng", foods: [] }] } },
+    });
+    llmStreamMock.mockImplementation(() => { throw new Error("chat model must not run"); });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Gợi ý cho tôi một bữa sáng món Việt khoảng 500 kcal, tối thiểu 30g protein và dễ chuẩn bị",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de110",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const card = conversation.messages.find((item) => item.uiCard?.cardType === "meal")?.uiCard;
+    const streamedCard = response.text
+      .split("\n\n")
+      .filter((event) => event.startsWith("data: "))
+      .map((event) => JSON.parse(event.slice(6)))
+      .find((event) => event.type === "ui_card" && event.cardType === "meal");
+    expect(response.status).toBe(200);
+    expect(toolRegistry.suggest_meal.execute).toHaveBeenCalledTimes(1);
+    expect(llmStreamMock).not.toHaveBeenCalled();
+    expect(card).toMatchObject({ cardType: "meal", data: { status: "complete" } });
+    expect({ cardType: streamedCard?.cardType, data: streamedCard?.data }).toEqual({
+      cardType: card.cardType, data: card.data,
+    });
+  });
+
+  it("persists a missing-data card when a required meal tool was not called", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* noMealTool() {
+      yield { type: "text", content: "MODEL_UNVERIFIED_MEAL" };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Gợi ý thực đơn 2.000 kcal cho tôi",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de111",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const card = conversation.messages.find((item) => item.uiCard?.cardType === "meal")?.uiCard;
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('"reason":"required_tool_not_called"');
+    expect(card?.data?.reason).toBe("required_tool_not_called");
+    expect(conversation.messages.some((item) => item.role === "tool")).toBe(false);
+  });
+
+  it("uses the TDEE intake form instead of accepting model prose", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementationOnce(() => {
+      throw new Error("chat model must not run before TDEE confirmation");
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tính TDEE của tôi",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de104",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(llmStreamMock).not.toHaveBeenCalled();
+    expect(response.text).toContain('"cardType":"tdeeForm"');
+    expect(answer.content).toMatch(/bổ sung.*xác nhận.*tính TDEE/is);
+    expect(answer.content).not.toContain("2500");
+    expect(response.status).toBe(200);
+  });
+
+  it("requires form confirmation even when the TDEE request already contains every field", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementationOnce(() => {
+      throw new Error("chat model must not run before TDEE confirmation");
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message:
+        "Tính TDEE: tôi là nam, 28 tuổi, cao 175cm, nặng 75kg, làm văn phòng ngồi nhiều, 6500 bước mỗi ngày, tập 3-4 buổi, 45 phút mỗi buổi, cường độ vừa, mục tiêu giảm mỡ",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de108",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const intakeCard = conversation.messages.find(
+      (item) => item.uiCard?.cardType === "tdeeForm",
+    )?.uiCard;
+    const calculatedTdee = conversation.messages.find(
+      (item) => item.role === "tool" && item.toolName === "calculate_tdee",
+    );
+
+    expect({
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      intakeCardType: intakeCard?.cardType,
+      missingFields: intakeCard?.data?.missingFields,
+      calculatedTdee,
+    }).toEqual({
+      status: 200,
+      modelCalls: 0,
+      intakeCardType: "tdeeForm",
+      missingFields: [],
+      calculatedTdee: undefined,
+    });
+  });
+
+  it("prioritizes workout intake questions before estimating calories", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* incompleteIntake() {
+      yield { type: "text", content: "TDEE là ước tính. 1. Tuổi? 2. Cân nặng?" };
+    });
+    const message = "Tôi ngồi làm văn phòng, đi 10.000 bước mỗi ngày và tập 60–90 phút. Hãy tính chính xác lượng calo tôi nên ăn và lập giáo án phù hợp ngay. Nếu dữ liệu chưa đủ thì đừng đoán: hãy nêu dữ liệu còn thiếu và hỏi tối đa 5 câu quan trọng nhất trước.";
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message, requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de117",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(2);
+    expect(evaluateSemanticOutput({
+      output: { text: answer.content, cards: [] },
+      rules: [{ type: "intake_questions", requestType: "workout" }],
+    })).toEqual([]);
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_workout_intake_v1" });
+  });
+
+  it("keeps supplied activity details in the same conversation after workout intake", async () => {
+    const { user, accessToken } = await createTestUser();
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Synthetic workout intake",
+      messages: [
+        { role: "user", content: "Tính lượng calo và lập giáo án khi tôi còn thiếu dữ liệu." },
+        { role: "assistant", content: "TDEE là ước tính; mình cần tuổi, chiều cao, cân nặng, kinh nghiệm và thiết bị trước khi lập giáo án." },
+      ],
+      messageCount: 2,
+    });
+    llmStreamMock.mockImplementation(async function* incompleteActivityAnswer() {
+      yield { type: "text", content: "Bạn cho mình thêm cân nặng nhé." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      conversationId: conversation._id.toString(),
+      message: "ngồi làm, 10000 bước 1 ngày, tập 60-90p",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de118",
+    });
+    const updated = await ChatConversation.findById(conversation._id).lean();
+    const answer = updated.messages.findLast((item) => item.role === "assistant" && item.content);
+    expect({
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      conversationId: updated._id.toString(),
+      mentionsSteps: /10[., ]?000\s*bước/iu.test(answer.content),
+      mentionsDuration: /60[–-]90\s*phút/iu.test(answer.content),
+      estimated: answer.content.includes("ước tính"),
+      trace: answer.answerTrace,
+    }).toMatchObject({
+      status: 200,
+      modelCalls: 0,
+      conversationId: conversation._id.toString(),
+      mentionsSteps: true,
+      mentionsDuration: true,
+      estimated: true,
+      trace: { evidenceMode: "model_prior", model: "server_activity_followup_v1" },
+    });
+  });
+
+  it("does not infer a workout intake from an activity note in a new conversation", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* activityNoteAnswer() {
+      yield { type: "text", content: "Mình đã ghi nhận mức vận động bạn vừa chia sẻ." };
+    });
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "ngồi làm, 10000 bước 1 ngày, tập 60-90p",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de119",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect({ status: response.status, modelCalls: llmStreamMock.mock.calls.length,
+      content: answer.content, model: answer.answerTrace.model }).toEqual({
+      status: 200, modelCalls: 1,
+      content: "Mình đã ghi nhận mức vận động bạn vừa chia sẻ.",
+      model: "gemini-3.1-flash-lite",
+    });
+  });
+
+  it.each([
+    ["TDEE là gì?", "TDEE là tổng năng lượng"],
+    ["BMR khác TDEE thế nào?", "BMR là năng lượng nền"],
+  ])("answers TDEE knowledge without opening an intake form: %s", async (message, answerText) => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementationOnce(async function* tdeeKnowledgeAnswer() {
+      yield { type: "text", content: answerText };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message,
+      requestId: message.startsWith("TDEE")
+        ? "164ff640-9fd0-4be6-bcd8-d1e9342de109"
+        : "164ff640-9fd0-4be6-bcd8-d1e9342de110",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const persistedAnswer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect({
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      hasIntakeCard: response.text.includes('"cardType":"tdeeForm"'),
+      answer: persistedAnswer?.content,
+    }).toEqual({
+      status: 200,
+      modelCalls: 1,
+      hasIntakeCard: false,
+      answer: answerText,
+    });
+  });
+
+  it.each(["provider_error", "double_invalid", "empty_final"])(
+    "guards an unsafe workout draft at the final delivery boundary: %s",
+    async (scenario) => {
+      const { user, accessToken } = await createTestUser();
+      toolRegistry.search_exercises.execute = vi.fn();
+      let providerTurn = 0;
+      llmStreamMock.mockImplementation(async function* unsafeFallbackFlow() {
+        providerTurn += 1;
+        if (providerTurn === 1) {
+          yield {
+            type: "text",
+            content: "Dumbbell Chest Press trên ghế và Cable Chest Fly — 4 hiệp.",
+          };
+          return;
+        }
+        if (scenario === "provider_error") {
+          throw Object.assign(new Error("synthetic provider outage"), { status: 503 });
+        }
+        if (scenario === "double_invalid" && providerTurn <= 3) {
+          yield { type: "text", content: "Dumbbell Chest Press — 4 hiệp." };
+        }
+      });
+
+      const response = await withAuth(
+        request(app).post("/api/ai/chat"),
+        accessToken,
+      ).send({
+        message:
+          "Tạo lịch tăng cơ 4 ngày/tuần, chỉ có tạ đơn và dây kháng lực.",
+        requestId: {
+          provider_error: "164ff640-9fd0-4be6-bcd8-d1e9342de105",
+          double_invalid: "164ff640-9fd0-4be6-bcd8-d1e9342de106",
+          empty_final: "164ff640-9fd0-4be6-bcd8-d1e9342de107",
+        }[scenario],
+      });
+      const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+      const answer = conversation.messages.find(
+        (item) => item.role === "assistant" && item.content,
+      );
+
+      expect(response.status).toBe(200);
+      expect(toolRegistry.search_exercises.execute).not.toHaveBeenCalled();
+      expect(response.text).not.toContain('"type":"ui_card"');
+      expect(answer.content).not.toContain("Dumbbell Chest Press");
+      expect(answer.content).toMatch(/chưa thể tạo lịch tập.*giới hạn thiết bị/i);
+    },
+  );
+
   it("answers stable general knowledge without Knowledge Base retrieval and stores bounded trace", async () => {
     const { user, accessToken } = await createTestUser();
 
@@ -104,18 +852,10 @@ describe("AI answer trace and feedback review", () => {
     expect(JSON.stringify(answer.answerTrace)).not.toContain("Lisa");
   });
 
-  it("exposes only TDEE before a compound meal request has canonical results", async () => {
-    const { accessToken } = await createTestUser();
-    let exposedTools = [];
-    llmStreamMock.mockImplementationOnce(async function* compoundToolResponse(
-      _messages,
-      tools,
-    ) {
-      exposedTools = tools.map((tool) => tool.function.name);
-      yield {
-        type: "text",
-        content: "Mình cần số đo của bạn để tính TDEE trước khi gợi ý thực đơn.",
-      };
+  it("requires TDEE form confirmation before a compound meal request", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementationOnce(() => {
+      throw new Error("chat model must not run before TDEE confirmation");
     });
 
     const response = await withAuth(
@@ -126,64 +866,50 @@ describe("AI answer trace and feedback review", () => {
       requestId: "bfa5d0a6-a3b7-4d9e-9109-bf15df156f92",
     });
 
-    expect({ status: response.status, exposedTools }).toEqual({
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const intakeCard = conversation.messages.find(
+      (item) => item.uiCard?.cardType === "tdeeForm",
+    )?.uiCard;
+    const toolCalls = conversation.messages.flatMap(
+      (item) => item.toolCalls || [],
+    );
+
+    expect({
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      intakeCardType: intakeCard?.cardType,
+      toolCalls,
+    }).toEqual({
       status: 200,
-      exposedTools: ["calculate_tdee"],
+      modelCalls: 0,
+      intakeCardType: "tdeeForm",
+      toolCalls: [],
     });
   });
 
-  it("runs a compound meal only after successful TDEE and replaces invented macros", async () => {
+  it("uses confirmed TDEE macros for the subsequent meal request", async () => {
     const { user, accessToken } = await createTestUser();
-    const toolNamesByTurn = [];
-    const validTdeeArgs = {
-      gender: "male",
-      age: 30,
-      heightCm: 180,
-      weightKg: 80,
-      goal: "maintenance",
-      dailyMovement: "mostly_seated",
-      steps: "under_5000",
-      trainingFrequency: "none",
-      trainingDuration: "none",
-      trainingIntensity: "none",
-    };
-    llmStreamMock.mockImplementation(async function* compoundResponse(_messages, tools) {
-      toolNamesByTurn.push(tools.map((tool) => tool.function.name));
-      if (toolNamesByTurn.length === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [
-            { id: "tdee-1", name: "calculate_tdee", args: validTdeeArgs },
-            {
-              id: "premature-meal",
-              name: "suggest_meal",
-              args: { targetCalories: 6000, proteinGrams: 500, carbGrams: 1000, fatGrams: 300 },
-            },
-          ],
-        };
-      } else if (toolNamesByTurn.length === 2) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "meal-1",
-            name: "suggest_meal",
-            args: { targetCalories: 6000, proteinGrams: 500, carbGrams: 1000, fatGrams: 300, mealsPerDay: 4 },
-          }],
-        };
-      } else {
-        yield { type: "text", content: "TDEE và thực đơn đã được tính theo số liệu chuẩn." };
-      }
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not choose canonical meal macros");
     });
-
+    const confirmed = await submitConfirmedTdee({
+      accessToken,
+      userId: user._id,
+      requestId: "bfa5d0a6-a3b7-4d9e-9109-bf15df156f90",
+    });
     const response = await withAuth(
       request(app).post("/api/ai/chat"),
       accessToken,
     ).send({
-      message: "Tính TDEE rồi gợi ý thực đơn cho tôi",
+      message: "Gợi ý thực đơn Moderate-carb cho tôi với 4 bữa",
+      conversationId: confirmed.conversation._id,
       requestId: "bfa5d0a6-a3b7-4d9e-9109-bf15df156f93",
     });
 
-    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const conversation = await ChatConversation.findById(
+      confirmed.conversation._id,
+    ).lean();
     const tdeeCard = conversation.messages.find((message) =>
       message.role === "tool" && message.toolName === "calculate_tdee",
     )?.uiCard;
@@ -192,14 +918,16 @@ describe("AI answer trace and feedback review", () => {
     const moderateMacros = tdeeCard?.data?.macros?.["Moderate-carb"];
 
     expect({
+      confirmedStatus: confirmed.response.status,
       status: response.status,
-      toolNamesByTurn,
+      modelCalls: llmStreamMock.mock.calls.length,
       mealCalls: conversation.messages.flatMap((message) => message.toolCalls || [])
         .filter((call) => call.name === "suggest_meal").length,
       mealArgs: mealCall?.args,
     }).toEqual({
+      confirmedStatus: 200,
       status: 200,
-      toolNamesByTurn: [["calculate_tdee"], ["suggest_meal"], []],
+      modelCalls: 0,
       mealCalls: 1,
       mealArgs: {
         targetCalories: tdeeCard?.data?.targetCalories,
@@ -207,6 +935,7 @@ describe("AI answer trace and feedback review", () => {
         carbGrams: moderateMacros?.carb,
         fatGrams: moderateMacros?.fat,
         mealsPerDay: 4,
+        calorieScope: "per_day",
       },
     });
   });
@@ -264,178 +993,120 @@ describe("AI answer trace and feedback review", () => {
       requestId: "7ef20414-8c01-47d4-b339-e8b5db8463b9",
       expectedMacros: { proteinGrams: 160, carbGrams: 267, fatGrams: 47 },
     },
-  ])("keeps explicit $plan preference when model invents meal macros", async ({
+  ])("keeps explicit $plan preference after TDEE confirmation", async ({
     plan,
     message,
     requestId,
     expectedMacros,
   }) => {
     const { user, accessToken } = await createTestUser();
-    let providerTurn = 0;
-    llmStreamMock.mockImplementation(async function* compoundResponse() {
-      providerTurn++;
-      if (providerTurn === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "tdee-1",
-            name: "calculate_tdee",
-            args: {
-              gender: "male",
-              age: 30,
-              heightCm: 180,
-              weightKg: 80,
-              goal: "maintenance",
-              dailyMovement: "mostly_seated",
-              steps: "under_5000",
-              trainingFrequency: "none",
-              trainingDuration: "none",
-              trainingIntensity: "none",
-            },
-          }],
-        };
-      } else if (providerTurn === 2) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "meal-1",
-            name: "suggest_meal",
-            args: {
-              targetCalories: 6000,
-              proteinGrams: 500,
-              carbGrams: 1000,
-              fatGrams: 300,
-              mealsPerDay: 4,
-            },
-          }],
-        };
-      } else {
-        yield { type: "text", content: "Đã tạo thực đơn theo TDEE." };
-      }
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not choose canonical meal macros");
     });
-
+    const confirmed = await submitConfirmedTdee({
+      accessToken,
+      userId: user._id,
+      requestId: `${requestId.slice(0, -1)}0`,
+    });
+    const mealMessage = (
+      message || `Tính TDEE rồi gợi ý thực đơn ${plan} cho tôi`
+    ).replace(/^Tính TDEE rồi\s*/i, "");
     const response = await withAuth(
       request(app).post("/api/ai/chat"),
       accessToken,
     ).send({
-      message: message || `Tính TDEE rồi gợi ý thực đơn ${plan} cho tôi`,
+      message: mealMessage,
+      conversationId: confirmed.conversation._id,
       requestId,
     });
-    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const conversation = await ChatConversation.findById(
+      confirmed.conversation._id,
+    ).lean();
     const mealCall = conversation.messages.flatMap((item) => item.toolCalls || [])
       .find((call) => call.name === "suggest_meal");
 
-    expect({ status: response.status, providerTurn, mealArgs: mealCall?.args }).toEqual({
+    expect({
+      confirmedStatus: confirmed.response.status,
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      mealArgs: mealCall?.args,
+    }).toEqual({
+      confirmedStatus: 200,
       status: 200,
-      providerTurn: 3,
-      mealArgs: { targetCalories: 2136, ...expectedMacros, mealsPerDay: 4 },
+      modelCalls: 0,
+      mealArgs: {
+        targetCalories: 2136,
+        ...expectedMacros,
+        mealsPerDay: 3,
+        calorieScope: "per_day",
+      },
     });
   });
 
-  it("never unlocks a compound meal after TDEE validation fails", async () => {
+  it("rejects an incomplete confirmed TDEE payload before any meal can run", async () => {
     const { user, accessToken } = await createTestUser();
-    const toolNamesByTurn = [];
-    llmStreamMock.mockImplementation(async function* invalidTdeeResponse(_messages, tools) {
-      toolNamesByTurn.push(tools.map((tool) => tool.function.name));
-      if (toolNamesByTurn.length === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{ id: "invalid-tdee", name: "calculate_tdee", args: {} }],
-        };
-      } else {
-        yield { type: "text", content: "Mình cần đủ số đo và mức vận động trước." };
-      }
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not repair an invalid TDEE action");
     });
 
     const response = await withAuth(
       request(app).post("/api/ai/chat"),
       accessToken,
     ).send({
-      message: "Tính TDEE rồi gợi ý thực đơn Low-carb cho tôi",
+      message: "Xác nhận và tính TDEE",
+      structuredAction: { type: "calculate_tdee", payload: {} },
       requestId: "bfa5d0a6-a3b7-4d9e-9109-bf15df156f94",
     });
     const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
 
     expect({
       status: response.status,
-      toolNamesByTurn,
-      mealCalls: conversation.messages.flatMap((message) => message.toolCalls || [])
-        .filter((call) => call.name === "suggest_meal").length,
+      modelCalls: llmStreamMock.mock.calls.length,
+      conversation,
     }).toEqual({
-      status: 200,
-      toolNamesByTurn: [["calculate_tdee"], ["calculate_tdee"]],
-      mealCalls: 0,
+      status: 400,
+      modelCalls: 0,
+      conversation: null,
     });
   });
 
   it("uses stored canonical TDEE macros for an explicit High-carb meal follow-up", async () => {
     const { user, accessToken } = await createTestUser();
-    let providerTurn = 0;
-    llmStreamMock.mockImplementation(async function* twoTurnMealResponse() {
-      providerTurn++;
-      if (providerTurn === 1) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "initial-tdee",
-            name: "calculate_tdee",
-            args: {
-              gender: "male",
-              age: 30,
-              heightCm: 180,
-              weightKg: 80,
-              goal: "maintenance",
-              dailyMovement: "mostly_seated",
-              steps: "under_5000",
-              trainingFrequency: "none",
-              trainingDuration: "none",
-              trainingIntensity: "none",
-            },
-          }],
-        };
-      } else if (providerTurn === 3) {
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "follow-up-meal",
-            name: "suggest_meal",
-            args: {
-              targetCalories: 6000,
-              proteinGrams: 500,
-              carbGrams: 1000,
-              fatGrams: 300,
-              mealsPerDay: 4,
-            },
-          }],
-        };
-      } else {
-        yield { type: "text", content: "Đã tính xong." };
-      }
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not choose canonical meal macros");
     });
-
-    await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
-      message: "Tính TDEE cho tôi",
+    const confirmed = await submitConfirmedTdee({
+      accessToken,
+      userId: user._id,
       requestId: "d4acfe6d-a083-46e4-9479-b84cc7601301",
     });
-    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
     const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
       message: "Gợi ý thực đơn High-carb cho tôi với 4 bữa",
-      conversationId: conversation._id,
+      conversationId: confirmed.conversation._id,
       requestId: "d4acfe6d-a083-46e4-9479-b84cc7601302",
     });
-    const updated = await ChatConversation.findById(conversation._id).lean();
+    const updated = await ChatConversation.findById(
+      confirmed.conversation._id,
+    ).lean();
     const mealCall = updated.messages.flatMap((item) => item.toolCalls || [])
       .find((call) => call.name === "suggest_meal");
 
-    expect({ status: response.status, providerTurn, mealArgs: mealCall?.args }).toEqual({
+    expect({
+      confirmedStatus: confirmed.response.status,
+      status: response.status,
+      modelCalls: llmStreamMock.mock.calls.length,
+      mealArgs: mealCall?.args,
+    }).toEqual({
+      confirmedStatus: 200,
       status: 200,
-      providerTurn: 4,
+      modelCalls: 0,
       mealArgs: {
         targetCalories: 2136,
         proteinGrams: 160,
         carbGrams: 267,
         fatGrams: 47,
         mealsPerDay: 4,
+        calorieScope: "per_day",
       },
     });
   });
@@ -508,6 +1179,7 @@ describe("AI answer trace and feedback review", () => {
         carbGrams: 150,
         fatGrams: 27,
         mealsPerDay: 3,
+        calorieScope: "per_day",
       },
     },
   ])("leaves standalone meal arguments unchanged with $scenario", async ({
@@ -520,6 +1192,7 @@ describe("AI answer trace and feedback review", () => {
       carbGrams: 200,
       fatGrams: 67,
       mealsPerDay: 3,
+      calorieScope: "per_day",
     },
   }) => {
     const { user, accessToken } = await createTestUser();
@@ -708,6 +1381,131 @@ describe("AI answer trace and feedback review", () => {
     expect(JSON.stringify(answer.answerTrace)).not.toContain("cột sống");
   });
 
+  it("appends a reviewed public KB citation when the provider omits its link", async () => {
+    const { user, accessToken } = await createTestUser();
+    const sourceUrl = "https://example.org/research/squat-technique";
+    llmStreamMock.mockImplementationOnce(async function* responseWithoutCitation() {
+      yield { type: "text", content: "Giữ cột sống trung lập khi squat." };
+    });
+    searchKnowledgeBaseMock.mockResolvedValueOnce([
+      {
+        _id: "507f191e810c19729de860ed",
+        question: "Cách squat đúng kỹ thuật?",
+        answer: "Giữ cột sống trung lập và kiểm soát biên độ phù hợp.",
+        category: "training",
+        similarity: 0.93,
+        status: "published",
+        evidenceLevel: "source_backed",
+        reviewStatus: "reviewed",
+        freshnessClass: "stable",
+        reviewDueAt: "2099-01-01T00:00:00.000Z",
+        sources: [
+          {
+            type: "research",
+            title: "Synthetic squat technique reference",
+            publisher: "Synthetic Sports Science Journal",
+            url: sourceUrl,
+            evidenceTier: "primary",
+          },
+        ],
+      },
+    ]);
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Cách squat đúng kỹ thuật là gì?",
+      requestId: "0ca66a61-4768-4cf7-862b-ce43154426ab",
+    });
+
+    const streamedText = response.text
+      .split("\n\n")
+      .filter((event) => event.startsWith("data: "))
+      .map((event) => JSON.parse(event.slice(6)))
+      .filter((event) => event.type === "text")
+      .map((event) => event.content)
+      .join("");
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+
+    expect({
+      status: response.status,
+      streamedText,
+      storedAnswer: answer.content,
+    }).toEqual({
+      status: 200,
+      streamedText: expect.stringContaining(sourceUrl),
+      storedAnswer: expect.stringContaining(sourceUrl),
+    });
+  });
+
+  it("uses a reviewed source-backed KB hit before web search", async () => {
+    const { user, accessToken } = await createTestUser();
+    const sourceUrl = "https://example.org/research/ronaldo-training";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    llmStreamMock.mockImplementationOnce(async function* curatedAnswer() {
+      yield { type: "text", content: "Nguồn đã duyệt ghi nhận các buổi tập sức mạnh." };
+    });
+    searchKnowledgeBaseMock.mockResolvedValueOnce([
+      {
+        _id: "507f191e810c19729de860ee",
+        question: "Ronaldo thường tập gì?",
+        answer: "Nguồn đã duyệt ghi nhận các buổi tập sức mạnh.",
+        category: "athlete",
+        similarity: 0.94,
+        status: "published",
+        evidenceLevel: "source_backed",
+        reviewStatus: "reviewed",
+        freshnessClass: "periodic",
+        reviewDueAt: "2099-01-01T00:00:00.000Z",
+        sources: [{
+          type: "research",
+          title: "Synthetic public training reference",
+          publisher: "Synthetic Sports Science Journal",
+          url: sourceUrl,
+          evidenceTier: "primary",
+        }],
+      },
+    ]);
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Ronaldo thường tập gì?",
+      requestId: "0ca66a61-4768-4cf7-862b-ce43154426af",
+    });
+
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+    expect(response.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(searchKnowledgeBaseMock).toHaveBeenCalledWith(
+      "Ronaldo thường tập gì?",
+      { limit: 3, threshold: 0.75 },
+    );
+    expect(conversation.messages.some((message) =>
+      message.toolCalls?.some((call) => call.name === "search_knowledge"),
+    )).toBe(false);
+    expect(answer.content).toContain(sourceUrl);
+    expect(answer.answerTrace).toMatchObject({
+      routeDomain: "fitness",
+      evidenceMode: "internal_kb",
+      webSearchUsed: false,
+      webSearchOutcome: "not_called",
+    });
+    expect(answer.answerTrace.kbEntryIds.map(String)).toEqual([
+      "507f191e810c19729de860ee",
+    ]);
+  });
+
   it("uses the previous user topic for a short Knowledge Base follow-up", async () => {
     const { user, accessToken } = await createTestUser();
     const conversation = await ChatConversation.create({
@@ -748,7 +1546,7 @@ describe("AI answer trace and feedback review", () => {
     );
   });
 
-  it("does not turn an empty canonical exercise lookup into model-prior advice", async () => {
+  it("uses safe model-prior advice when a low-risk exercise lookup has no hit", async () => {
     const { user, accessToken } = await createTestUser();
     let providerTurn = 0;
     llmStreamMock.mockImplementation(async function* emptyExerciseLookup(
@@ -756,22 +1554,7 @@ describe("AI answer trace and feedback review", () => {
       tools,
     ) {
       providerTurn += 1;
-      if (providerTurn === 1) {
-        expect(tools.map((tool) => tool.function.name)).toContain(
-          "search_exercises",
-        );
-        yield {
-          type: "tool_call",
-          toolCalls: [
-            {
-              id: "empty-exercise-lookup",
-              name: "search_exercises",
-              args: { searchQuery: "bài chưa tồn tại", limit: 1 },
-            },
-          ],
-        };
-        return;
-      }
+      expect(tools).toEqual([]);
       yield {
         type: "text",
         content: "Bản nháp model-prior không có bằng chứng nội bộ.",
@@ -791,9 +1574,138 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(providerTurn).toBe(2);
-    expect(answer.content).toMatch(/chưa tìm thấy.*thư viện bài tập/i);
-    expect(answer.content).not.toContain("model-prior");
+    expect(providerTurn).toBe(1);
+    expect(answer.content).toBe(
+      "Bản nháp model-prior không có bằng chứng nội bộ.",
+    );
+    expect(answer.answerTrace).toMatchObject({
+      routeDomain: "fitness",
+      evidenceMode: "model_prior",
+      kbEntryIds: [],
+      webSearchUsed: false,
+    });
+  });
+
+  it("adjusts a structured 2.500 kcal meal to 2.200 using only rice and oil", async () => {
+    const { user, accessToken } = await createTestUser();
+    const plan = {
+      status: "complete",
+      targetCalories: 2500,
+      targetToleranceCalories: 100,
+      nutritionMethod: "server_calculated_4p_4c_9f",
+      targets: { minimumProteinGrams: 170 },
+      meals: Array.from({ length: 4 }, (_, index) => ({
+        label: `Bữa ${index + 1}`,
+        foods: [
+          { foodId: "chicken", name: "Ức gà", amountGrams: 137.5, macros: { protein: 42.6, carb: 0, fat: 5 }, calories: 215.4 },
+          { foodId: "rice", name: "Cơm trắng", amountGrams: 250, macros: { protein: 6.8, carb: 70, fat: 0.8 }, calories: 314.4 },
+          { foodId: "oil", name: "Dầu ô liu", amountGrams: 12.5, macros: { protein: 0, carb: 0, fat: 12.5 }, calories: 112.5 },
+        ],
+        totals: { protein: 49.4, carb: 70, fat: 18.3, calories: 642.3 },
+      })),
+      totals: { protein: 197.6, carb: 280, fat: 73.2, calories: 2569.2 },
+    };
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Structured meal follow-up",
+      messages: [],
+      messageCount: 0,
+      workingMemory: {
+        lastMeal: {
+          targetCalories: 2500,
+          proteinGrams: 170,
+          carbGrams: 280,
+          fatGrams: 78,
+          mealsPerDay: 4,
+          plan,
+          revision: 1,
+        },
+      },
+    });
+    const reviewed = {
+      reviewStatus: "reviewed",
+      contains: [],
+      mayContain: [],
+      sourceType: "official_database",
+      reviewedAt: new Date("2026-09-01"),
+    };
+    toolRegistry.suggest_meal.execute = vi.fn((params, context) =>
+      originalSuggestMealExecute(params, {
+        ...context,
+        findFoods: async () => [
+          { _id: "chicken", label: "Ức gà", protein: 31, carb: 0, fat: 3.6, allergenProfile: reviewed },
+          { _id: "rice", label: "Cơm trắng", protein: 2.7, carb: 28, fat: 0.3, allergenProfile: reviewed },
+          { _id: "oil", label: "Dầu ô liu", protein: 0, carb: 0, fat: 100, allergenProfile: reviewed },
+        ],
+      }));
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message:
+        "Giữ nguyên các món và ít nhất 170g protein của thực đơn vừa rồi, nhưng hạ tổng xuống khoảng 2.200 kcal chỉ bằng cách đổi lượng cơm và dầu.",
+      conversationId: conversation._id,
+      requestId: "2edcc05d-dcbd-4b7a-99bc-50545c96139d",
+    });
+    const updated = await ChatConversation.findById(conversation._id).lean();
+    const capturedArgs = toolRegistry.suggest_meal.execute.mock.calls[0]?.[0];
+
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).not.toHaveBeenCalled();
+    expect(capturedArgs).toMatchObject({
+      targetCalories: 2200,
+      minimumProteinGrams: 170,
+      allowedAdjustmentFoodIds: ["rice", "oil"],
+      allowedAdjustmentFoodNames: ["Cơm trắng", "Dầu ô liu"],
+    });
+    expect(capturedArgs.allowedAdjustmentFoodIds).not.toContain("chicken");
+    expect(updated.workingMemory.lastMeal.plan.meals.flatMap(
+      (meal) => meal.foods,
+    ).filter((food) => food.foodId === "chicken").every(
+      (food) => food.amountGrams === 137.5,
+    )).toBe(true);
+    const snapshot = (mealPlan) => mealPlan.meals.flatMap((meal) => meal.foods)
+      .filter((food) => !["rice", "oil"].includes(food.foodId))
+      .map(({ foodId, amountGrams, macros }) => ({ foodId, amountGrams, macros }));
+    expect(snapshot(updated.workingMemory.lastMeal.plan)).toEqual(snapshot(plan));
+  });
+
+  it("keeps internal evidence attribution when the exercise catalog returns a hit", async () => {
+    const { user, accessToken } = await createTestUser();
+    await Exercise.create({
+      name: "Incline Push Up",
+      muscleGroup: "Cơ ngực",
+      description: "Biến thể chống đẩy phù hợp để bắt đầu.",
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* catalogBackedAnswer(
+      _messages,
+      tools,
+    ) {
+      providerTurn += 1;
+      expect(tools).toEqual([]);
+      yield {
+        type: "text",
+        content: "Bạn có thể bắt đầu với Incline Push Up.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tìm bài tập ngực cho người mới",
+      requestId: "26496538-8c69-48b1-865a-a0d74c547a75",
+    });
+
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(1);
+    expect(answer.content).toMatch(/Incline Push Up/);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
       evidenceMode: "internal_kb",
@@ -802,7 +1714,557 @@ describe("AI answer trace and feedback review", () => {
     });
   });
 
-  it("falls back to one web-evidence route when an internal fitness query has no KB hit", async () => {
+  it("creates a constrained workout as text without emitting a flat exercise card", async () => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.search_exercises.execute = vi.fn();
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* constrainedWorkout(
+      messages,
+      tools,
+      options,
+    ) {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        expect(options.requiredToolName).toBeNull();
+        expect(tools).toEqual([]);
+        yield {
+          type: "text",
+          content: "Buổi 1: Barbell Bench Press và Cable Chest Fly.",
+        };
+        return;
+      }
+      expect(messages.at(-1).content).toMatch(/chỉ dùng tạ đơn.*dây kháng lực/i);
+      yield {
+        type: "text",
+        content:
+          "Buổi 1: Dumbbell Floor Press trên sàn 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây. Buổi 2: Goblet Squat 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây. Buổi 3: Resistance Band Row 3 hiệp x 12 lần, RPE 7, nghỉ 90 giây. Buổi 4: Dumbbell Romanian Deadlift 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message:
+        "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực.",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f4",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(2);
+    expect(toolRegistry.search_exercises.execute).not.toHaveBeenCalled();
+    expect(response.text).not.toContain('"type":"ui_card"');
+    expect(conversation.messages.some((item) =>
+      item.role === "tool" || item.toolCalls?.length > 0,
+    )).toBe(false);
+    expect(answer.content).toContain("Dumbbell Floor Press");
+    expect(answer.content).not.toMatch(/barbell|cable/i);
+    expect(answer.answerTrace).toMatchObject({
+      routeDomain: "fitness",
+      evidenceMode: "model_prior",
+      webSearchUsed: false,
+    });
+  });
+
+  it("rejects meal rewrites and retries for a workout-only supplement in a mixed planning request", async () => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "SERVER_CANONICAL_MEAL: tổng 2500 kcal.",
+      uiCard: {
+        cardType: "meal",
+        data: {
+          status: "complete",
+          targetCalories: 2500,
+          meals: [],
+          totals: { protein: 170, carb: 300, fat: 69, calories: 2501 },
+        },
+      },
+      meta: { evidenceAvailable: true },
+    });
+    toolRegistry.search_exercises.execute = vi.fn();
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* mixedMealWorkout(
+      messages,
+      tools,
+    ) {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        expect(tools.map((tool) => tool.function.name)).toEqual([
+          "suggest_meal",
+        ]);
+        yield {
+          type: "tool_call",
+          toolCalls: [{
+            id: "mixed-plan-meal",
+            name: "suggest_meal",
+            args: {
+              targetCalories: 2500,
+              proteinGrams: 170,
+              carbGrams: 300,
+              fatGrams: 69,
+              mealsPerDay: 4,
+            },
+          }],
+        };
+        return;
+      }
+      if (providerTurn === 2) {
+        expect(tools).toEqual([]);
+        expect(messages.at(-1).content).toMatch(/chỉ bổ sung giáo án/i);
+        yield {
+          type: "text",
+          content:
+            "Bạn nên ăn mỗi ngày 2700. Giáo án 4 ngày: Buổi 1 Dumbbell Floor Press; Buổi 2 Goblet Squat.",
+        };
+        return;
+      }
+      expect(tools).toEqual([]);
+      expect(messages.at(-1).content).toMatch(/không nhắc lại.*thực đơn|workout-only/iu);
+      yield {
+        type: "text",
+        content:
+          "Giáo án 4 ngày: Buổi 1 Dumbbell Floor Press; Buổi 2 Goblet Squat; Buổi 3 One-arm Dumbbell Row; Buổi 4 Dumbbell Romanian Deadlift.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tạo thực đơn 2500 kcal và lịch tập 4 ngày với tạ đơn",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f9",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(3);
+    expect(toolRegistry.suggest_meal.execute).toHaveBeenCalledTimes(1);
+    expect(toolRegistry.search_exercises.execute).not.toHaveBeenCalled();
+    expect(answer.content).toContain("SERVER_CANONICAL_MEAL");
+    expect(answer.content).toContain("Giáo án 4 ngày");
+    expect(answer.content).not.toMatch(/ăn mỗi ngày 2700/i);
+    expect(response.text).toContain('"cardType":"meal"');
+    expect(response.text).not.toContain('"cardType":"exercise"');
+  });
+
+  it.each(["invalid_retry", "provider_error"])(
+    "falls back without model-authored meal numbers when a mixed-request workout supplement ends with %s",
+    async (scenario) => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.suggest_meal.execute = vi.fn().mockResolvedValue({
+      text: "SERVER_CANONICAL_MEAL: tổng 2500 kcal.",
+      uiCard: {
+        cardType: "meal",
+        data: {
+          status: "complete",
+          targetCalories: 2500,
+          meals: [],
+          totals: { protein: 170, carb: 300, fat: 69, calories: 2501 },
+        },
+      },
+      meta: { evidenceAvailable: true },
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* invalidMixedSupplement() {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "tool_call",
+          toolCalls: [{
+            id: "mixed-plan-fallback",
+            name: "suggest_meal",
+            args: {
+              targetCalories: 2500,
+              proteinGrams: 170,
+              carbGrams: 300,
+              fatGrams: 69,
+              mealsPerDay: 4,
+            },
+          }],
+        };
+        return;
+      }
+      if (providerTurn === 3 && scenario === "provider_error") {
+        const error = new Error("Gemini temporarily unavailable");
+        error.status = 503;
+        throw error;
+      }
+      yield {
+        type: "text",
+        content: providerTurn === 2
+          ? "Mức nạp mỗi ngày là 2700. Lịch tập 4 ngày với Dumbbell Floor Press."
+          : "Ăn mỗi ngày 2800. Lịch tập 4 ngày với Goblet Squat.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tạo thực đơn 2500 kcal và lịch tập 4 ngày với tạ đơn",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29fa",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(3);
+    expect(answer.content).toContain("SERVER_CANONICAL_MEAL");
+    expect(answer.content).not.toMatch(/2700|2800/i);
+    expect(answer.content).toMatch(/chưa thể bổ sung giáo án|yêu cầu riêng phần lịch tập/iu);
+    },
+  );
+
+  it("retries a deficit-only follow-up that silently changes the workout plan", async () => {
+    const { user, accessToken } = await createTestUser();
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Scoped deficit update",
+      messages: [
+        {
+          role: "user",
+          content: "Lập kế hoạch giảm mỡ với mức thâm hụt 300 kcal.",
+        },
+        {
+          role: "assistant",
+          content:
+            "Mức thâm hụt là 300 kcal. Lịch tập giữ ở 4 buổi mỗi tuần.",
+        },
+      ],
+      messageCount: 2,
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* scopedDeficitFollowUp(
+      messages,
+    ) {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "text",
+          content:
+            "Đã đổi mức thâm hụt thành 700 kcal và giảm lịch tập từ 4 buổi xuống 3 buổi.",
+        };
+        return;
+      }
+      expect(messages.at(-1).content).toMatch(
+        /chỉ thay đổi mức thâm hụt.*không viết lại lịch tập/iu,
+      );
+      yield {
+        type: "text",
+        content:
+          "Đã đổi mức thâm hụt từ 300 kcal thành 700 kcal. Chỉ mức thâm hụt thay đổi; lịch tập và mọi phần khác giữ nguyên. Mức thâm hụt sâu có thể ảnh hưởng phục hồi; nếu bạn muốn, mình sẽ đánh giá riêng trước khi đổi lịch tập.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      conversationId: conversation._id.toString(),
+      message:
+        "Giữ nguyên toàn bộ kế hoạch vừa rồi nhưng đổi mức thâm hụt từ 300 kcal thành 700 kcal. Giải thích phần nào đã thay đổi.",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f6",
+    });
+    const updated = await ChatConversation.findById(conversation._id).lean();
+    const answer = updated.messages.at(-1);
+
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(2);
+    expect(answer.content).toMatch(/chỉ mức thâm hụt thay đổi/iu);
+    expect(answer.content).toMatch(/lịch tập.*giữ nguyên/iu);
+    expect(answer.content).not.toMatch(/giảm lịch tập từ 4 buổi xuống 3 buổi/iu);
+  });
+
+  it("enforces a generic keep-everything-else invariant outside deficit changes", async () => {
+    const { user, accessToken } = await createTestUser();
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Scoped training frequency update",
+      messages: [
+        {
+          role: "user",
+          content: "Lập lịch tập 4 buổi mỗi tuần và giữ nguyên thực đơn hiện tại.",
+        },
+        {
+          role: "assistant",
+          content: "Lịch tập hiện có 4 buổi mỗi tuần; thực đơn và macro đã chốt.",
+        },
+      ],
+      messageCount: 2,
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* scopedFrequencyFollowUp(
+      messages,
+    ) {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "text",
+          content:
+            "Đã giảm số buổi tập từ 4 xuống 3 và giảm protein 20g mỗi ngày.",
+        };
+        return;
+      }
+      expect(messages.at(-1).content).toMatch(
+        /chỉ thay đổi số buổi tập từ 4 thành 3.*mọi phần khác giữ nguyên/iu,
+      );
+      yield {
+        type: "text",
+        content:
+          "Đã đổi số buổi tập từ 4 thành 3. Chỉ số buổi tập thay đổi; mọi phần khác trong kế hoạch giữ nguyên.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      conversationId: conversation._id.toString(),
+      message:
+        "Giữ nguyên toàn bộ kế hoạch vừa rồi, chỉ giảm số buổi tập từ 4 xuống 3.",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f8",
+    });
+    const updated = await ChatConversation.findById(conversation._id).lean();
+    const answer = updated.messages.at(-1);
+
+    expect(response.status).toBe(200);
+    expect(providerTurn).toBe(2);
+    expect(answer.content).toMatch(/chỉ số buổi tập thay đổi/iu);
+    expect(answer.content).not.toMatch(/giảm protein/iu);
+  });
+
+  it("uses a bounded scope-preserving fallback when the correction retry loses the provider", async () => {
+    const { user, accessToken } = await createTestUser();
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Scoped deficit provider fallback",
+      messages: [
+        { role: "user", content: "Lập kế hoạch với thâm hụt 300 kcal." },
+        { role: "assistant", content: "Lịch tập 4 buổi, thâm hụt 300 kcal." },
+      ],
+      messageCount: 2,
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* failedScopeCorrection() {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        yield {
+          type: "text",
+          content:
+            "Đã đổi thành 700 kcal và giảm lịch tập từ 4 buổi xuống 3 buổi.",
+        };
+        return;
+      }
+      throw Object.assign(new Error("provider unavailable"), {
+        code: "GEMINI_HTTP_ERROR",
+        status: 503,
+      });
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      conversationId: conversation._id.toString(),
+      message:
+        "Giữ nguyên toàn bộ kế hoạch vừa rồi nhưng đổi mức thâm hụt từ 300 kcal thành 700 kcal. Giải thích phần nào đã thay đổi.",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f7",
+    });
+    const updated = await ChatConversation.findById(conversation._id).lean();
+    const answer = updated.messages.at(-1);
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('"type":"done"');
+    expect(response.text).not.toContain('"type":"error"');
+    expect(providerTurn).toBe(2);
+    expect(answer.content).toMatch(/chỉ mức thâm hụt thay đổi/iu);
+    expect(answer.content).toMatch(/lịch tập.*giữ nguyên/iu);
+    expect(answer.content).not.toMatch(/giảm lịch tập từ 4 buổi xuống 3 buổi/iu);
+  });
+
+  it("uses the successful read-only tool result when final synthesis fails", async () => {
+    const { user, accessToken } = await createTestUser();
+    await Exercise.create({
+      name: "Incline Push Up",
+      muscleGroup: "Cơ ngực",
+      description: "Biến thể chống đẩy cho người mới.",
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* toolThenFailure(
+      _messages,
+      tools,
+    ) {
+      providerTurn += 1;
+      expect(tools).toEqual([]);
+      throw Object.assign(new Error("provider unavailable"), {
+        code: "GEMINI_HTTP_ERROR",
+        status: 503,
+      });
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tìm 5 bài tập ngực cho người mới",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f5",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('"type":"done"');
+    expect(response.text).not.toContain('"type":"error"');
+    expect(providerTurn).toBe(1);
+    expect(answer.content).toContain("Incline Push Up");
+    expect(response.text).toContain('"cardType":"exercise"');
+  });
+
+  it("keeps a safe exercise tool result when equipment correction then loses the provider", async () => {
+    const { user, accessToken } = await createTestUser();
+    toolRegistry.search_exercises.execute = vi.fn().mockResolvedValue({
+      text: "Tìm thấy 1 bài tập:\n1. Dumbbell Floor Press (Cơ ngực) — Nằm trên sàn và dùng tạ đơn.",
+      uiCard: null,
+      meta: { evidenceAvailable: true },
+    });
+    let providerTurn = 0;
+    llmStreamMock.mockImplementation(async function* toolCorrectionThenFailure(
+      _messages,
+      tools,
+    ) {
+      providerTurn += 1;
+      if (providerTurn === 1) {
+        expect(tools).toEqual([]);
+        yield {
+          type: "text",
+          content: "Hãy tập Barbell Bench Press và Cable Chest Fly.",
+        };
+        return;
+      }
+      throw Object.assign(new Error("provider unavailable"), {
+        code: "GEMINI_HTTP_ERROR",
+        status: 503,
+      });
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tìm bài tập ngực, tôi chỉ có tạ đơn và dây kháng lực",
+      requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f8",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers["x-ai-conversation-id"]).toBe(
+      String(conversation._id),
+    );
+    expect(providerTurn).toBe(2);
+    expect(answer.content).toContain("Dumbbell Floor Press");
+    expect(answer.content).not.toMatch(/chưa thể tạo lịch tập/i);
+  });
+
+  it("executes a canonical exercise lookup without depending on model function calls", async () => {
+    const { user, accessToken } = await createTestUser();
+    let exposedTools = [];
+    llmStreamMock.mockImplementationOnce(async function* directExerciseAnswer(
+      _messages,
+      tools,
+    ) {
+      exposedTools = tools.map((tool) => tool.function.name);
+      yield {
+        type: "text",
+        content: "Bạn có thể bắt đầu với chống đẩy tường và chống đẩy gối.",
+      };
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tìm 5 bài tập ngực cho người mới",
+      requestId: "26496538-8c69-48b1-865a-a0d74c547a74",
+    });
+
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+    expect(response.status).toBe(200);
+    expect(exposedTools).toEqual([]);
+    expect(answer.content).not.toMatch(/chưa thể đối chiếu thư viện bài tập/i);
+    expect(answer.content).toMatch(/chống đẩy tường/i);
+    expect(answer.answerTrace).toMatchObject({
+      routeDomain: "fitness",
+      evidenceMode: "model_prior",
+      kbEntryIds: [],
+      webSearchUsed: false,
+      webSearchOutcome: "not_called",
+    });
+  });
+
+  it("Q12: persists four band-only catalog exercises and keeps their card when synthesis returns 503", async () => {
+    const { user, accessToken } = await createTestUser();
+    await Exercise.insertMany([
+      "Band Chest Press",
+      "Band Chest Fly",
+      "Band Standing Press",
+      "Band Push Up",
+    ].map((name) => ({
+      name,
+      muscleGroup: "Ngực",
+      description: "Thực hiện chỉ với dây kháng lực.",
+    })));
+    llmStreamMock.mockImplementationOnce(async function* providerUnavailable(
+      _messages,
+      tools,
+    ) {
+      expect(tools).toEqual([]);
+      throw Object.assign(new Error("provider unavailable"), { status: 503 });
+    });
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tìm 4 bài tập ngực, tôi chỉ dùng dây kháng lực",
+      requestId: "8e9c966b-0e23-40a7-81a5-0d056845fa12",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const toolCalls = conversation.messages.flatMap((item) => item.toolCalls || [])
+      .filter((call) => call.name === "search_exercises");
+    const card = conversation.messages.find((item) => item.uiCard?.cardType === "exercise")?.uiCard;
+
+    expect(response.status).toBe(200);
+    expect(llmStreamMock).toHaveBeenCalledTimes(1);
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0].args).toMatchObject({ muscleGroup: "Ngực", limit: 4 });
+    expect(card?.data).toMatchObject({ requestedCount: 4, resultCount: 4 });
+    expect(card?.data?.exercises).toHaveLength(4);
+    expect(response.text).toContain('"cardType":"exercise"');
+  });
+
+  it("keeps a low-risk fitness KB miss on the answer-first model path", async () => {
     const { user, accessToken } = await createTestUser();
     let exposedTools = [];
     llmStreamMock.mockImplementationOnce(async function* noHitResponse(
@@ -826,13 +2288,13 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(exposedTools).toEqual(["search_knowledge"]);
+    expect(exposedTools).toEqual([]);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
-      evidenceMode: "web_required",
+      evidenceMode: "model_prior",
       webSearchUsed: false,
     });
-    expect(answer.content).toMatch(/chưa thể xác minh.*nguồn đáng tin cậy/i);
+    expect(answer.content).toBe("Unsupported model-prior draft.");
   });
 
   it("keeps a high-stakes fitness KB miss off web search and returns bounded education", async () => {
@@ -1174,41 +2636,24 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(searchKnowledgeBaseMock).not.toHaveBeenCalled();
+    expect(searchKnowledgeBaseMock).toHaveBeenCalledWith(
+      "Ronaldo thường tập những bài gì trong phòng gym?",
+      { limit: 3, threshold: 0.75 },
+    );
     expect(answer.content).toMatch(/chưa thể xác minh.*nguồn đáng tin cậy/i);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
       evidenceMode: "web_required",
-      webSearchUsed: false,
+      webSearchUsed: true,
+      webSearchOutcome: "provider_error",
     });
+    expect(llmStreamMock).not.toHaveBeenCalled();
   });
 
-  it("returns only grounded supported text directly after one provider turn", async () => {
+  it("returns only grounded supported text without a chat-model turn", async () => {
     const { user, accessToken } = await createTestUser();
-    let providerTurn = 0;
-    llmStreamMock.mockImplementation(async function* groundedResponse(
-      _messages,
-      tools,
-    ) {
-      providerTurn += 1;
-      if (providerTurn === 1) {
-        expect(tools.map((tool) => tool.function.name)).toEqual([
-          "search_knowledge",
-        ]);
-        yield {
-          type: "tool_call",
-          toolCalls: [
-            {
-              id: "search-call-1",
-              name: "search_knowledge",
-              args: { query: "Ronaldo common gym exercises official sources" },
-            },
-          ],
-        };
-        return;
-      }
-
-      throw new Error("Grounded web evidence must finish the request directly");
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not run before canonical web search");
     });
     vi.stubEnv("GEMINI_API_KEY", "synthetic-test-key");
     const fetchMock = vi.fn().mockResolvedValue({
@@ -1268,7 +2713,7 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "tool",
     );
     expect(response.status).toBe(200);
-    expect(providerTurn).toBe(1);
+    expect(llmStreamMock).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(answer.content).toContain(
       "Ronaldo tập sức mạnh và sức mạnh bùng nổ.",
@@ -1276,21 +2721,146 @@ describe("AI answer trace and feedback review", () => {
     expect(answer.content).not.toContain("Unsupported speculation");
     expect(answer.content).not.toContain("bench press mỗi ngày");
     expect(answer.content).toContain("https://example.com/ronaldo-training");
+    expect(response.text).toContain('"cardType":"webSources"');
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
       evidenceMode: "web_required",
       webSearchUsed: true,
+      webSearchOutcome: "grounded",
     });
-    expect({
-      toolCallIndex,
-      toolResultIndex,
-      callId: conversation.messages[toolCallIndex]?.toolCalls?.[0]?.id,
-      resultId: conversation.messages[toolResultIndex]?.toolCallId,
-    }).toEqual({
+    const callId = conversation.messages[toolCallIndex]?.toolCalls?.[0]?.id;
+    expect({ toolCallIndex, toolResultIndex }).toEqual({
       toolCallIndex: 1,
       toolResultIndex: 2,
-      callId: "search-call-1",
-      resultId: "search-call-1",
+    });
+    expect(callId).toMatch(/^server-search_knowledge-/);
+    expect(conversation.messages[toolResultIndex]?.toolCallId).toBe(callId);
+    expect(conversation.messages[toolResultIndex]?.uiCard).toMatchObject({
+      cardType: "webSources",
+      data: {
+        topic: "Ronaldo thường tập những bài gì trong phòng gym?",
+        searchedAt: expect.any(String),
+        sources: [
+          {
+            title: "Nguồn chính thức (example.com)",
+            uri: "https://example.com/ronaldo-training",
+          },
+        ],
+      },
+    });
+  });
+
+  it("keeps the privacy-approved canonical source query for a long public-person workout request", async () => {
+    const { user, accessToken } = await createTestUser();
+    vi.stubEnv("GEMINI_API_KEY", "synthetic-test-key");
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      '{"candidates":[{"content":{"parts":[{"text":"No supported source"}]}}]}',
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy liệt kê những bài tập hoặc kiểu buổi tập từng được ghi nhận là anh ấy thực hiện. Tách rõ: (1) thông tin có nguồn xác minh, (2) phần chỉ là gợi ý bài tập lấy cảm hứng từ anh ấy. Đính kèm nguồn và không bịa một lịch tập chính xác nếu không có bằng chứng.",
+      requestId: "f2b62bbf-6d47-4621-9da2-eef5ddd55127",
+    });
+    const providerQuery = JSON.parse(fetchMock.mock.calls[0][1].body)
+      .contents[0].parts[0].text;
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const message = "Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy liệt kê những bài tập hoặc kiểu buổi tập từng được ghi nhận là anh ấy thực hiện. Tách rõ: (1) thông tin có nguồn xác minh, (2) phần chỉ là gợi ý bài tập lấy cảm hứng từ anh ấy. Đính kèm nguồn và không bịa một lịch tập chính xác nếu không có bằng chứng.";
+    expect(providerQuery).toBe(prepareExternalKnowledgeQuery(message, {
+      allowedPublicPersonNames: getPublicPersonLookupNames(message),
+    }).query.slice(0, 300));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).generationConfig.thinkingConfig)
+      .toEqual({ thinkingBudget: 0 });
+    expect(answer.answerTrace).toMatchObject({ evidenceMode: "web_required",
+      webSearchOutcome: "no_supported_source" });
+    expect(answer.content).toMatch(/chưa thể xác minh.*nguồn/i);
+  });
+
+  it("distinguishes a provider error from a source-free grounded search", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementationOnce(async function* requiredSearchCall(
+      _messages,
+      tools,
+      options,
+    ) {
+      expect(tools.map((tool) => tool.function.name)).toEqual([
+        "search_knowledge",
+      ]);
+      expect(options.requiredToolName).toBe("search_knowledge");
+      yield {
+        type: "tool_call",
+        toolCalls: [{
+          id: "search-provider-error",
+          name: "search_knowledge",
+          args: { query: "untrusted query" },
+        }],
+      };
+    });
+    vi.stubEnv("GEMINI_API_KEY", "synthetic-test-key");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response('{"error":{"status":"UNAVAILABLE"}}', { status: 503 }),
+    ));
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Ronaldo thường tập những bài gì trong phòng gym?",
+      requestId: "3d98f7dd-92f3-49d2-8238-3ad0f378a461",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(answer.answerTrace).toMatchObject({
+      webSearchUsed: true,
+      webSearchOutcome: "provider_error",
+    });
+  });
+
+  it("records no_supported_source after the canonical search was attempted", async () => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementationOnce(async function* requiredSearchCall() {
+      yield {
+        type: "tool_call",
+        toolCalls: [{
+          id: "search-no-support",
+          name: "search_knowledge",
+          args: { query: "untrusted query" },
+        }],
+      };
+    });
+    vi.stubEnv("GEMINI_API_KEY", "synthetic-test-key");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response(
+        '{"candidates":[{"content":{"parts":[{"text":"Unsupported"}]}}]}',
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    ));
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Ronaldo thường tập những bài gì trong phòng gym?",
+      requestId: "3d98f7dd-92f3-49d2-8238-3ad0f378a462",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id })
+      .lean();
+    const answer = conversation.messages.find(
+      (item) => item.role === "assistant" && item.content,
+    );
+
+    expect(response.status).toBe(200);
+    expect(answer.answerTrace).toMatchObject({
+      webSearchUsed: true,
+      webSearchOutcome: "no_supported_source",
     });
   });
 
@@ -1306,32 +2876,8 @@ describe("AI answer trace and feedback review", () => {
       );
     const modelGeneratedPrivateQuery =
       "ronaldo official workout advice for hoang thien 170cm 80kg";
-    let providerTurn = 0;
-    llmStreamMock.mockImplementation(async function* canonicalQueryResponse(
-      _messages,
-      tools,
-    ) {
-      providerTurn += 1;
-      if (providerTurn === 1) {
-        expect(tools.map((tool) => tool.function.name)).toEqual([
-          "search_knowledge",
-        ]);
-        yield {
-          type: "tool_call",
-          toolCalls: [
-            {
-              id: "search-call-private-health",
-              name: "search_knowledge",
-              args: {
-                query: modelGeneratedPrivateQuery,
-              },
-            },
-          ],
-        };
-        return;
-      }
-
-      throw new Error("Grounded web evidence must finish the request directly");
+    llmStreamMock.mockImplementation(() => {
+      throw new Error("chat model must not generate the external query");
     });
     vi.stubEnv("GEMINI_API_KEY", "synthetic-test-key");
     const fetchMock = vi.fn().mockResolvedValue({
@@ -1391,7 +2937,7 @@ describe("AI answer trace and feedback review", () => {
     )?.toolCalls?.find((call) => call.name === "search_knowledge");
     const providerBody = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(response.status).toBe(200);
-    expect(providerTurn).toBe(1);
+    expect(llmStreamMock).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(providerBody.contents[0].parts[0].text).toBe(expectedSearchQuery);
     expect(providerBody.contents[0].parts[0].text).toHaveLength(300);
@@ -1494,24 +3040,31 @@ describe("AI answer trace and feedback review", () => {
       requestId: "895e406c-47d0-4700-bf7b-253793e6543d",
     },
   ])(
-    "exposes bounded web search for a privacy-safe changing fact: $message",
+    "executes bounded web search directly for a privacy-safe changing fact: $message",
     async ({ message, requestId }) => {
-      const { accessToken } = await createTestUser();
-      const exposedTools = [];
-      llmStreamMock.mockImplementationOnce(
-        async function* privacySafeFreshnessResponse(_messages, tools) {
-          exposedTools.push(...tools.map((tool) => tool.function.name));
-          yield { type: "text", content: "Unverified provider draft." };
-        },
-      );
+      const { user, accessToken } = await createTestUser();
+      vi.stubEnv("GEMINI_API_KEY", "");
 
       const response = await withAuth(
         request(app).post("/api/ai/chat"),
         accessToken,
       ).send({ message, requestId });
+      const conversation = await ChatConversation.findOne({ userId: user._id })
+        .lean();
+      const answer = conversation.messages.find(
+        (item) => item.role === "assistant" && item.content,
+      );
+      const searchCalls = conversation.messages.flatMap(
+        (item) => item.toolCalls || [],
+      ).filter((call) => call.name === "search_knowledge");
 
       expect(response.status).toBe(200);
-      expect(exposedTools).toEqual(["search_knowledge"]);
+      expect(llmStreamMock).not.toHaveBeenCalled();
+      expect(searchCalls).toHaveLength(1);
+      expect(answer.answerTrace).toMatchObject({
+        webSearchUsed: true,
+        webSearchOutcome: "provider_error",
+      });
     },
   );
 
@@ -1530,23 +3083,8 @@ describe("AI answer trace and feedback review", () => {
     "grounds a public-person changing fact with the exact canonical name: $person",
     async ({ message, person, requestId }) => {
       const { user, accessToken } = await createTestUser();
-      let providerTurn = 0;
-      llmStreamMock.mockImplementation(async function* publicPersonResponse(
-        _messages,
-        tools,
-      ) {
-        providerTurn += 1;
-        expect(tools.map((tool) => tool.function.name)).toEqual([
-          "search_knowledge",
-        ]);
-        yield {
-          type: "tool_call",
-          toolCalls: [{
-            id: "public-person-search",
-            name: "search_knowledge",
-            args: { query: `untrusted model query for ${person}` },
-          }],
-        };
+      llmStreamMock.mockImplementation(() => {
+        throw new Error("chat model must not generate a public-person query");
       });
       vi.stubEnv("GEMINI_API_KEY", "synthetic-test-key");
       const fetchMock = vi.fn().mockResolvedValue({
@@ -1585,7 +3123,7 @@ describe("AI answer trace and feedback review", () => {
       expect(response.status).toBe(200);
       expect(response.text).toContain('"type":"done"');
       expect(response.text).not.toContain('"type":"error"');
-      expect(providerTurn).toBe(1);
+      expect(llmStreamMock).not.toHaveBeenCalled();
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const providerBody = JSON.parse(fetchMock.mock.calls[0][1].body);
       expect(providerBody.contents[0].parts[0].text).toBe(message);
@@ -1731,6 +3269,11 @@ describe("AI answer trace and feedback review", () => {
   it("sanitizes a tool-result fallback before it reaches the browser", async () => {
     const { accessToken } = await createTestUser();
     let providerTurn = 0;
+    toolRegistry.search_exercises.execute = vi.fn().mockResolvedValue({
+      text: "search_exercises function_call action_input",
+      uiCard: null,
+      meta: { evidenceAvailable: true },
+    });
     searchKnowledgeBaseMock.mockResolvedValueOnce([
       {
         _id: "507f191e810c19729de860eb",
@@ -1745,25 +3288,8 @@ describe("AI answer trace and feedback review", () => {
       tools,
     ) {
       providerTurn += 1;
-      if (providerTurn === 1) {
-        expect(tools.map((tool) => tool.function.name)).toContain(
-          "search_exercises",
-        );
-        yield {
-          type: "tool_call",
-          toolCalls: [
-            {
-              id: "exercise-fallback",
-              name: "search_exercises",
-              args: {
-                searchQuery: "function_call search_exercises action_input",
-                limit: 1,
-              },
-            },
-          ],
-        };
-      }
-      // Turn 2 intentionally returns no text, forcing the tool-result fallback.
+      expect(tools).toEqual([]);
+      // No model text forces the sanitized server tool-result fallback.
     });
 
     const response = await withAuth(
@@ -1782,13 +3308,13 @@ describe("AI answer trace and feedback review", () => {
       .join("");
 
     expect(response.status).toBe(200);
-    expect(providerTurn).toBe(2);
+    expect(providerTurn).toBe(1);
     expect(response.text).not.toMatch(
       /search_exercises|function_call|action_input/i,
     );
     expect(streamedText).not.toMatch(/search_exercises|function_call|action_input/i);
     expect(streamedText).toBe(
-      "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.",
+      "Mình chưa thể đối chiếu thư viện bài tập cho yêu cầu này. Bạn thử nêu nhóm cơ và thiết bị hiện có nhé.",
     );
   });
 
@@ -1886,6 +3412,74 @@ describe("AI answer trace and feedback review", () => {
         reviewedBy: null,
         reviewedAt: null,
       },
+    });
+  });
+
+  it("preserves retained feedback when a concurrent retry later rolls back", async () => {
+    const { user, accessToken } = await createTestUser();
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Concurrent retry feedback",
+      messages: [
+        { role: "user", content: "Câu hỏi được giữ lại" },
+        { role: "assistant", content: "Câu trả lời được giữ lại" },
+        { role: "user", content: "Tôi cần thêm động lực tập luyện" },
+        { role: "assistant", content: "Câu trả lời cũ của lượt retry" },
+      ],
+      messageCount: 4,
+    });
+    const retainedAssistant = conversation.messages[1];
+    const retryTarget = conversation.messages[2];
+    let markProviderReached;
+    let failProvider;
+    const providerReached = new Promise((resolve) => {
+      markProviderReached = resolve;
+    });
+    const providerGate = new Promise((resolve) => {
+      failProvider = resolve;
+    });
+    llmStreamMock.mockImplementationOnce(async function* failedRetryStream() {
+      markProviderReached();
+      await providerGate;
+      throw new Error("synthetic retry failure after feedback");
+    });
+
+    const retryPromise = withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: retryTarget.content,
+      conversationId: conversation._id,
+      retryOfMessageId: retryTarget._id,
+      requestId: "6fb18db6-c3eb-44ce-b717-d68376009141",
+    }).then((response) => response);
+
+    await providerReached;
+    const feedback = await withAuth(
+      request(app).post(
+        `/api/ai/conversations/${conversation._id}/feedback`,
+      ),
+      accessToken,
+    ).send({ messageId: retainedAssistant._id, feedback: "down" });
+    failProvider();
+    const failedRetry = await retryPromise;
+    const restored = await ChatConversation.findById(conversation._id).lean();
+    const retained = restored.messages.find(
+      ({ _id }) => String(_id) === String(retainedAssistant._id),
+    );
+
+    expect({
+      feedbackStatus: feedback.status,
+      retryFailed: failedRetry.text.includes('"type":"error"'),
+      retryable: failedRetry.text.includes('"retryable":true'),
+      feedback: retained?.feedback,
+      reviewStatus: retained?.feedbackReview?.status,
+    }).toEqual({
+      feedbackStatus: 200,
+      retryFailed: true,
+      retryable: true,
+      feedback: "down",
+      reviewStatus: "pending",
     });
   });
 

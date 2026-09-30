@@ -32,11 +32,17 @@ Hành vi:
 
 - `ht_service`: ưu tiên system prompt, Knowledge Base và tool canonical; KB miss không tự chuyển sang web vì thông tin
   dịch vụ phải đến từ nguồn nội bộ server-authoritative.
-- `fitness`: ưu tiên Knowledge Base/tool canonical; chỉ chuyển sang web khi claim vốn cần nguồn mới, hoặc KB miss và
-  router không xác định được canonical tool phù hợp, đồng thời request có rủi ro thấp.
+- `fitness + stable + low`: ưu tiên Knowledge Base/tool canonical như lớp enrichment, nhưng KB/tool no-hit vẫn trả
+  lời hữu ích bằng model prior an toàn; không tự chuyển sang web và không từ chối chỉ vì catalog thiếu dữ kiện.
+- Fitness chỉ chuyển sang `web_required` khi chính claim cần freshness/nguồn hoặc nói về người thật. HT service,
+  high-stakes và dữ liệu server-authoritative tiếp tục giữ fail-closed/bounded guard riêng, không dùng fallback này.
 - `adjacent`: trả lời hữu ích ở mức vừa, không ép CTA fitness.
 - `general + stable + low`: trả lời trực tiếp, ngắn, không chạy RAG nội bộ hoặc web search không cần thiết.
 - `time_sensitive`, user yêu cầu nguồn, hoặc claim về thói quen/thành tích người thật: `web_required`.
+- Với request `web_required`, server được phép probe curated Knowledge Base trước bằng query đã qua privacy gate.
+  Chỉ khi có entry published/reviewed còn hạn và `source_backed` HTTPS evidence thì mới reclassify request thành
+  `internal_kb`, khóa web tool và gắn citation từ source đã duyệt. Curated miss hoặc evidence không đủ điều kiện
+  giữ nguyên `web_required`, sau đó áp dụng policy authenticated/guest và fail-closed hiện có.
 - Nếu `web_required` nhưng actor không có quyền search hoặc search lỗi: nêu chưa thể xác minh, không fallback sang
   khẳng định từ trí nhớ.
 - Web search chỉ được chạy bằng standalone `retrievalQuery` của user đã qua privacy gate ở server; bỏ qua query do
@@ -121,7 +127,8 @@ verified; chúng được biểu diễn là legacy để admin re-review dần.
 ## REQ-001 — Routing phải fitness-first nhưng vẫn hữu ích với kiến thức chung
 
 - AC-001: “Lisa là ai?” route `general + stable + model_prior`, trả lời trực tiếp theo giả định hợp lý, không chạy
-  KB/search; “Ronaldo thường tập gì?” route `fitness + web_required`; “Cách squat đúng?” ưu tiên internal evidence.
+  KB/search; “Ronaldo thường tập gì?” route `fitness + web_required`; “Cách squat đúng?” ưu tiên internal evidence
+  nhưng no-hit ở câu fitness ổn định/rủi ro thấp vẫn trả model prior thay vì ép web hoặc từ chối.
   Web call lưu/chạy query canonical đã privacy-check, không dùng model-generated args; query private không expose tool.
   Chỉ các đoạn có support-to-HTTPS mapping được trả cùng nguồn ngay sau một chat-model turn; link do provider tự
   viết không được coi là nguồn hoặc source-launder text.

@@ -191,6 +191,67 @@ describe("AI eval corpus contract", () => {
     expect(report).toMatchObject({ passed: 1, failed: 0, total: 1 });
   });
 
+  it("labels semantic oracle fixtures separately from runtime captures", async () => {
+    const report = await evaluateAiCorpus({
+      schemaVersion: 1,
+      corpusVersion: "semantic-test-v1",
+      scenarios: [{
+        id: "meal-output-is-server-consistent",
+        evaluator: "semantic_output_contract",
+        evidenceKind: "oracle_fixture",
+        input: {
+          output: {
+            cards: [{
+              cardType: "meal",
+              data: {
+                status: "complete",
+                totals: { protein: 30, carb: 50, fat: 20, calories: 500 },
+                meals: [{
+                  totals: { protein: 30, carb: 50, fat: 20, calories: 500 },
+                  foods: [{
+                    foodId: "breakfast-complete",
+                    name: "Bữa sáng mẫu",
+                    macros: { protein: 30, carb: 50, fat: 20 },
+                    calories: 500,
+                  }],
+                }],
+              },
+            }],
+          },
+        },
+        expected: {
+          rules: [{
+            type: "meal_numeric",
+            targetCalories: 500,
+            toleranceCalories: 25,
+            minimumProteinGrams: 30,
+          }],
+        },
+      }],
+    });
+
+    expect(report).toMatchObject({
+      passed: 1,
+      failed: 0,
+      total: 1,
+      semanticEvidence: { oracleFixtures: 1, runtimeCaptures: 0 },
+      results: [{ evidenceKind: "oracle_fixture" }],
+    });
+  });
+
+  it("rejects an unlabeled semantic fixture so it cannot be reported as live UX evidence", () => {
+    expect(() => validateAiEvalCorpus({
+      schemaVersion: 1,
+      corpusVersion: "semantic-test-v1",
+      scenarios: [{
+        id: "unlabeled-semantic-output",
+        evaluator: "semantic_output_contract",
+        input: { output: { text: "synthetic" } },
+        expected: { rules: [{ type: "seven_day_coverage" }] },
+      }],
+    })).toThrowError(/evidenceKind/);
+  });
+
   it("reports deterministic retrieval quality metrics for every required dimension", async () => {
     const report = await evaluateAiCorpus({
       schemaVersion: 1,
