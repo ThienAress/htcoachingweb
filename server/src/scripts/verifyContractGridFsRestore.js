@@ -1,7 +1,6 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
-import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import { getMongoDatabaseName } from "../config/migrationSafety.js";
 import { verifyContractGridFsRestore } from "../operations/contractGridFsRestoreVerifier.js";
@@ -38,10 +37,7 @@ const main = async () => {
   if (!target.valid) {
     throw new Error(`Restore verification rejected: ${target.errors.join(", ")}`);
   }
-  await mongoose.connect(
-    target.uri,
-    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
-  );
+  await mongoose.connect(target.uri, { autoIndex: false });
   try {
     if (mongoose.connection.db.databaseName !== target.targetDatabase) {
       throw new Error("Restore verification connected database mismatch");

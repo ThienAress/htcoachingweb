@@ -87,6 +87,10 @@ const validBodyPoint = (point) =>
   typeof point?.value === "number" &&
   Number.isFinite(point.value) &&
   point.value > 0;
+const bodyPointPeriodStart = (point) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(String(point?.periodStartDateKey || ""))
+    ? point.periodStartDateKey
+    : point.dateKey;
 
 export const bodyProgressHistoryRows = (bodyProgress = {}) => {
   const byDate = new Map();
@@ -103,6 +107,7 @@ export const bodyProgressHistoryRows = (bodyProgress = {}) => {
       if (!validBodyPoint(point)) continue;
       const row = byDate.get(point.dateKey) || {
         dateKey: point.dateKey,
+        periodStartDateKey: bodyPointPeriodStart(point),
         weightKg: null,
         waistCm: null,
         hipCm: null,
@@ -115,8 +120,10 @@ export const bodyProgressHistoryRows = (bodyProgress = {}) => {
       byDate.set(point.dateKey, row);
     }
   }
-  return [...byDate.values()].sort((left, right) =>
-    left.dateKey.localeCompare(right.dateKey),
+  return [...byDate.values()].sort(
+    (left, right) =>
+      left.periodStartDateKey.localeCompare(right.periodStartDateKey) ||
+      left.dateKey.localeCompare(right.dateKey),
   );
 };
 

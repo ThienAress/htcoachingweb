@@ -1,3 +1,5 @@
+import { parseMealRequirements } from "./mealConstraints.js";
+
 const normalizeText = (value) =>
   String(value || "")
     .normalize("NFD")
@@ -151,6 +153,52 @@ const explicitExcludedFoods = (text) => {
 const containsBoundedPhrase = (text, phrase) => {
   if (!phrase) return false;
   return ` ${text} `.includes(` ${phrase} `);
+};
+
+const REQUIRED_FOOD_PATTERN = /\b(?:bat buoc(?: phai)? co|phai co|nhat dinh co|mon bat buoc(?: la| gom)?|thuc pham bat buoc(?: la| gom)?|must include|required foods?(?: are| include)?)\s+([^.!?;]+)/g;
+const REQUIRED_FOOD_STOP = /\s*,?\s*\b(?:nhung|khong|tranh|loai bo|di ung|ghi|chia\s+[1-6]\s+bua|sai so|ngan sach|it nhat|toi thieu|[1-6]\s+meals?)\b/;
+const NEGATED_REQUIRED_FOOD_PREFIX = /\b(?:khong|khong can|khong nhat thiet)\s*$/;
+const BARE_REQUIRED_FOOD_PATTERN = /\bco\s+([^.!?;]+)/g;
+const NON_FOOD_BARE_PREFIX = /^(?:the|nen|can|duoc|khoang|it nhat|toi thieu|\d)\b/;
+
+const appendRequiredFoodMatches = (text, pattern, phrases, { bare = false } = {}) => {
+  for (const match of text.matchAll(pattern)) {
+    const prefix = text.slice(0, match.index);
+    if (NEGATED_REQUIRED_FOOD_PREFIX.test(prefix)) continue;
+    const clause = match[1]
+      .split(REQUIRED_FOOD_STOP, 1)[0]
+      .replace(/,+$/u, "")
+      .trim();
+    if (!clause || (bare && NON_FOOD_BARE_PREFIX.test(clause))) continue;
+    const items = clause
+      .split(/\s*(?:,|\b(?:va|hoac|and|or)\b)\s*/)
+      .filter(Boolean);
+    phrases.push(...parseMealRequirements(items).phrases);
+  }
+};
+
+const explicitRequiredFoods = (text) => {
+  const phrases = [];
+  appendRequiredFoodMatches(text, REQUIRED_FOOD_PATTERN, phrases);
+  if (/\b(?:thuc don|meal plan)\b/.test(text)) {
+    appendRequiredFoodMatches(text, BARE_REQUIRED_FOOD_PATTERN, phrases, {
+      bare: true,
+    });
+  }
+  return boundedStringList(phrases, 12, 100);
+};
+
+const requiredFoodReplacement = (text) => {
+  const match = text.match(
+    /\b(?:thay|doi)\s+(.+?)\s+(?:bang|thanh|sang)\s+([^.!?;,]+)/,
+  );
+  if (!match) return { removed: [], added: [] };
+  return {
+    removed: parseMealRequirements(
+      match[1].replace(/^(?:phan|mon|phần|món)\s+/iu, ""),
+    ).phrases,
+    added: parseMealRequirements(match[2]).phrases,
+  };
 };
 
 const adjustmentScope = (text, plan) => {
@@ -354,6 +402,21 @@ export const buildCanonicalMealToolRequest = (
   const persistedMinimumProtein = requestedMinimumProtein ??
     selectNumber(modelArgs.minimumProteinGrams, 0, 500) ??
     selectNumber(previous.minimumProteinGrams, 0, 500);
+  const replacement = requiredFoodReplacement(text);
+  const rememberedRequiredFoods = followUp
+    ? parseMealRequirements(boundedStringList(saved.requiredFoods)).phrases
+      .filter((phrase) => !replacement.removed.includes(phrase))
+    : [];
+  const modelRequiredFoods = parseMealRequirements(
+    boundedStringList(modelArgs.requiredFoods),
+  ).phrases.filter((phrase) => !replacement.removed.includes(phrase));
+  const requiredFoods = parseMealRequirements(boundedStringList([
+    ...rememberedRequiredFoods,
+    ...modelRequiredFoods,
+    ...explicitRequiredFoods(text),
+    ...replacement.added,
+  ], 12, 100)).phrases
+    .slice(0, 12);
   const mealsPerDay = explicitMealCount(text) ??
     (calorieScope === "per_meal" ? 1 : undefined) ??
     selectNumber(modelArgs.mealsPerDay, 1, 6) ??
@@ -377,6 +440,9 @@ export const buildCanonicalMealToolRequest = (
     }),
     ...(excludedFoods.length > 0 && {
       excludedFoods,
+    }),
+    ...(requiredFoods.length > 0 && {
+      requiredFoods,
     }),
     ...(excludedAllergens.length > 0 && {
       excludedAllergens,

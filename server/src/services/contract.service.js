@@ -9,8 +9,8 @@ import Contract from "../models/Contract.js";
 import Order from "../models/Order.js";
 import User from "../models/User.js";
 import { resolveOrderCoach } from "./effectiveCoach.service.js";
-import { contractError, revisionPredicate, throwDraftConflict } from "./contractRevision.service.js";
-import { reserveSigningAttempt, prepareSigningUpload, finalizeSigningAttempt, readCommittedSigning } from "./contractSigningAttempt.service.js";
+import { safeLog } from "../utils/safeLogger.js";
+import { enableContractEmailPreferences } from "./notificationPreference.service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,11 +61,11 @@ const hasCustomerEmailConsent = (sections = []) =>
 // GRIDFS HELPERS
 // ============================================================================
 
-async function savePdfToGridFS(pdfBytes, filename, reservation) {
+async function savePdfToGridFS(pdfBytes, filename) {
   const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: "contracts" });
   return new Promise((resolve, reject) => {
-    const uploadStream = bucket.openUploadStreamWithId(reservation.candidateFileId, filename, {
-      metadata: { contentType: "application/pdf", contractId: reservation.contract._id, signingAttemptId: reservation.attemptId },
+    const uploadStream = bucket.openUploadStream(filename, {
+      metadata: { contentType: "application/pdf" },
     });
     uploadStream.on("finish", () => resolve(uploadStream.id));
     uploadStream.on("error", reject);
@@ -76,6 +76,14 @@ async function savePdfToGridFS(pdfBytes, filename, reservation) {
 function getPdfStreamFromGridFS(fileId) {
   const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: "contracts" });
   return bucket.openDownloadStream(new mongoose.Types.ObjectId(fileId));
+}
+
+async function deletePdfFromGridFS(fileId) {
+  if (!fileId) return;
+  const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+    bucketName: "contracts",
+  });
+  await bucket.delete(new mongoose.Types.ObjectId(fileId));
 }
 
 // ============================================================================
@@ -424,7 +432,7 @@ function contractSigningError(contract) {
   const states = {
     draft: ["Hợp đồng chưa được gửi", "CONTRACT_NOT_SENT", 409],
     sent: ["Vui lòng xem hết hợp đồng trước khi ký", "CONTRACT_NOT_VIEWED", 409],
-    signing: ["Hợp đồng đang được ký bởi yêu cầu khác", "CONTRACT_SIGNING_IN_PROGRESS", 409],
+    signing: ["Hợp đồng đang được ký bởi yêu cầu khác", "CONTRACT_SIGNING", 409],
     signed: ["Hợp đồng đã được ký", "CONTRACT_ALREADY_SIGNED", 409],
     expired: ["Hợp đồng đã hết hạn", "CONTRACT_EXPIRED", 409],
     cancelled: ["Hợp đồng đã bị hủy", "CONTRACT_CANCELLED", 409],
@@ -528,34 +536,39 @@ export async function markAsViewed(
   ipAddress,
   userAgent,
 ) {
-  const contract = await Contract.findOneAndUpdate(
-    { _id: contractId, clientId, status: "sent" },
-    { $set: { status: "viewed" }, $push: { auditTrail: { action: "viewed", ipAddress, userAgent, timestamp: new Date() } } },
-    { returnDocument: "after" },
-  );
-  if (contract) return contract;
-  const current = await Contract.findOne({ _id: contractId, clientId });
-  if (!current) throw contractSigningError(null);
-  if (current.status === "draft") throw contractSigningError(current);
-  return current;
+  const contract = await Contract.findOne({ _id: contractId, clientId });
+  if (!contract) throw contractSigningError(null);
+  if (contract.status === "sent") {
+    contract.status = "viewed";
+    contract.auditTrail.push({
+      action: "viewed",
+      ipAddress,
+      userAgent,
+      timestamp: new Date(),
+    });
+    await contract.save();
+  }
+  return contract;
 }
 
 export async function sendToClient(
   contractId,
   ipAddress,
   userAgent,
-  { trainerId = null, expectedRevision } = {},
+  { trainerId = null } = {},
 ) {
   const ownerFilter = {
     _id: contractId,
     ...(trainerId ? { trainerId } : {}),
   };
-  const contract = await Contract.findOneAndUpdate(
-    { ...ownerFilter, status: "draft", ...revisionPredicate(expectedRevision), trainerSignature: { $type: "string", $ne: "" } },
-    { $set: { status: "sent" }, $inc: { revision: 1 }, $push: { auditTrail: { action: "sent", ipAddress, userAgent, timestamp: new Date() } } },
-    { returnDocument: "after", runValidators: true },
-  );
-  if (!contract) await throwDraftConflict(ownerFilter, expectedRevision, { requireSignature: true });
+  const contract = await Contract.findOne(ownerFilter);
+  if (!contract) throw new Error("Hợp đồng không tồn tại");
+  if (contract.status !== "draft") throw new Error("Chỉ có thể gửi hợp đồng ở trạng thái nháp");
+  if (!contract.trainerSignature) throw new Error("HLV chưa ký tên. Vui lòng ký trước khi gửi.");
+
+  contract.status = "sent";
+  contract.auditTrail.push({ action: "sent", ipAddress, userAgent, timestamp: new Date() });
+  await contract.save();
   return contract;
 }
 
@@ -574,35 +587,91 @@ export async function signContract({
     throw error;
   }
 
-  const reservation = await reserveSigningAttempt({ contractId, clientId });
+  const reserved = await Contract.findOneAndUpdate(
+    { _id: contractId, clientId, status: "viewed" },
+    { $set: { status: "signing" } },
+    { returnDocument: "after" },
+  );
 
-  if (!reservation) {
+  if (!reserved) {
     const existing = await Contract.findOne({ _id: contractId, clientId })
       .select("status")
       .lean();
     throw contractSigningError(existing);
   }
 
-  const reserved = reservation.contract;
+  let fileId;
   try {
     const pdfBytes = await generateSignedPdf(reserved, signatureImage);
     const fileHash = crypto.createHash("sha256").update(pdfBytes).digest("hex");
     const signedAt = new Date();
-    await prepareSigningUpload({ reservation, fileHash });
-    await savePdfToGridFS(
+    fileId = await savePdfToGridFS(
       pdfBytes,
       `hop-dong-${reserved._id}-${Date.now()}.pdf`,
-      reservation,
     );
-    return await finalizeSigningAttempt({ reservation, clientId, signatureImage, fileHash, signedAt, ipAddress, userAgent,
-      enableEmailPreferences: hasCustomerEmailConsent(reserved.customSections) });
+
+    const transactionSession = await mongoose.startSession();
+    let signed;
+    try {
+      await transactionSession.withTransaction(async () => {
+        signed = await Contract.findOneAndUpdate(
+          { _id: contractId, clientId, status: "signing" },
+          {
+            $set: {
+              status: "signed",
+              signatureImage,
+              signedAt,
+              signedPdfFileId: fileId,
+              fileHash,
+            },
+            $push: {
+              auditTrail: {
+                action: "signed",
+                ipAddress,
+                userAgent,
+                timestamp: signedAt,
+              },
+            },
+          },
+          {
+            returnDocument: "after",
+            runValidators: true,
+            session: transactionSession,
+          },
+        );
+
+        if (!signed) {
+          const error = new Error("Không thể hoàn tất ký hợp đồng");
+          error.code = "CONTRACT_SIGNING_CONFLICT";
+          error.statusCode = 409;
+          throw error;
+        }
+        if (hasCustomerEmailConsent(reserved.customSections)) {
+          await enableContractEmailPreferences({
+            recipientId: clientId,
+            session: transactionSession,
+          });
+        }
+      });
+    } finally {
+      await transactionSession.endSession();
+    }
+    return signed;
   } catch (error) {
-    // A timeout is not proof of rollback. The durable attempt remains intact;
-    // only fenced recovery may reset state or delete its unreferenced candidate.
-    const signed = await readCommittedSigning({ contractId, clientId, candidateFileId: reservation.candidateFileId }).catch(() => null);
-    if (signed) return signed;
-    if (error.code === "CONTRACT_SIGNING_CONFLICT") throw error;
-    throw contractError("CONTRACT_SIGNING_OUTCOME_UNKNOWN", 503, "Chưa xác định kết quả ký. Vui lòng tải lại hợp đồng; nếu chưa hoàn tất, hãy chờ phục hồi rồi ký lại.");
+    await Contract.updateOne(
+      { _id: contractId, clientId, status: "signing" },
+      { $set: { status: "viewed" } },
+    );
+    if (fileId) {
+      await deletePdfFromGridFS(fileId).catch((cleanupError) => {
+        safeLog.warn(
+          "contract.signed_pdf_cleanup_failed",
+          "Could not remove an orphaned signed PDF after signing failed",
+          { errorName: cleanupError?.name || "Error" },
+        );
+      });
+    }
+    throw error;
   }
 }
 
@@ -655,30 +724,21 @@ export async function updateContractDetails(
   updateData,
   { trainerId = null } = {},
 ) {
-  const ownerFilter = {
+  const contract = await Contract.findOne({
     _id: contractId,
     ...(trainerId ? { trainerId } : {}),
-  };
-  const revision = revisionPredicate(updateData.expectedRevision);
-  const changes = {};
-  const nestedFields = {
-    trainerInfo: ["name", "birthYear", "address", "phone", "email"],
-    clientInfo: ["name", "phone", "email"],
-    packageDetails: ["packageName", "sessions", "pricePerSession", "totalAmount", "startDate", "endDate"],
-  };
-  for (const [parent, fields] of Object.entries(nestedFields)) {
-    for (const field of fields) {
-      if (updateData[parent]?.[field] !== undefined) changes[`${parent}.${field}`] = updateData[parent][field];
-    }
-  }
-  if (updateData.customSections !== undefined) changes.customSections = updateData.customSections;
-  if (updateData.trainerSignature !== undefined) changes.trainerSignature = updateData.trainerSignature;
-  const contract = await Contract.findOneAndUpdate(
-    { ...ownerFilter, status: "draft", ...revision },
-    { $set: changes, $inc: { revision: 1 }, $push: { auditTrail: { action: "updated", timestamp: new Date() } } },
-    { returnDocument: "after", runValidators: true },
-  );
-  if (!contract) await throwDraftConflict(ownerFilter, updateData.expectedRevision);
+  });
+  if (!contract) throw new Error("Hợp đồng không tồn tại");
+  if (contract.status !== "draft") throw new Error("Chỉ có thể sửa hợp đồng ở trạng thái nháp");
+
+  if (updateData.trainerInfo) Object.assign(contract.trainerInfo, updateData.trainerInfo);
+  if (updateData.clientInfo) Object.assign(contract.clientInfo, updateData.clientInfo);
+  if (updateData.packageDetails) Object.assign(contract.packageDetails, updateData.packageDetails);
+  if (updateData.customSections !== undefined) contract.customSections = updateData.customSections;
+  if (updateData.trainerSignature !== undefined) contract.trainerSignature = updateData.trainerSignature;
+
+  contract.auditTrail.push({ action: "updated", timestamp: new Date() });
+  await contract.save();
   return contract;
 }
 
@@ -724,7 +784,7 @@ export async function getMyContracts(userId) {
 export async function expireOldContracts() {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const result = await Contract.updateMany(
-    { status: { $in: ["draft", "sent", "viewed"] }, createdAt: { $lt: sevenDaysAgo } },
+    { status: { $in: ["draft", "sent", "viewed", "signing"] }, createdAt: { $lt: sevenDaysAgo } },
     {
       $set: { status: "expired", isActive: false },
       $push: { auditTrail: { action: "expired", timestamp: new Date() } },

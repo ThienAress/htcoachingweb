@@ -7,6 +7,7 @@ import WeeklyCheckin from "../models/WeeklyCheckin.js";
 import WorkoutPlan from "../models/WorkoutPlan.js";
 import {
   addDaysToDateKey,
+  getMonthWeekPeriod,
   getVietnamDateKey,
   getVietnamDayRangeUtc,
 } from "../utils/dateKey.js";
@@ -20,6 +21,10 @@ const utcBounds = (range) => ({
   end: getVietnamDayRangeUtc(range.endDateKey).end,
 });
 const objectId = (value) => (value ? String(value) : "");
+const reportingPeriodStart = (dateKey) => {
+  const period = getMonthWeekPeriod(dateKey);
+  return period.startDateKey === dateKey ? period.rangeStartDateKey : dateKey;
+};
 
 const loadSchedules = async (clientId, range, bounds) => {
   const documents = await TrainingSchedule.find({
@@ -167,11 +172,16 @@ const loadHabits = async (
 };
 
 const loadWeeklyCheckins = async (clientId, range, accessMode) => {
+  const currentPeriod = getMonthWeekPeriod(range.endDateKey);
+  const queryEndDateKey =
+    currentPeriod.startDateKey > range.endDateKey
+      ? currentPeriod.startDateKey
+      : range.endDateKey;
   const documents = await WeeklyCheckin.find({
     clientId,
     weekStartDateKey: {
       $gte: addDaysToDateKey(range.startDateKey, -14),
-      $lte: range.endDateKey,
+      $lte: queryEndDateKey,
     },
     ...(accessMode === "self_managed"
       ? {
@@ -195,6 +205,7 @@ const loadWeeklyCheckins = async (clientId, range, accessMode) => {
     .lean();
   return documents.map((item) => ({
     weekStartDateKey: item.weekStartDateKey,
+    periodStartDateKey: reportingPeriodStart(item.weekStartDateKey),
     status:
       accessMode === "self_managed" && item.status === "draft"
         ? "self_saved"

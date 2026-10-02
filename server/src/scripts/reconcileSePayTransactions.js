@@ -1,6 +1,5 @@
 import "../config/env.js";
 import mongoose from "mongoose";
-import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import { assertStagingOperation } from "../config/stagingOperationSafety.js";
 import { runSePayReconciliation } from "../services/sepayReconciliation.service.js";
@@ -14,10 +13,7 @@ assertStagingOperation({
   confirmationVariable: "CONFIRM_SEPAY_SANDBOX_RECONCILIATION",
 });
 
-await mongoose.connect(
-  process.env.MONGO_URI,
-  resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
-);
+await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
 try {
   const result = await runSePayReconciliation();
   console.log(
