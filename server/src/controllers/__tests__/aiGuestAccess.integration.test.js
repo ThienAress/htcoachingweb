@@ -73,6 +73,44 @@ afterAll(async () => {
 });
 
 describe("AI guest access", () => {
+  it.each([
+    { endpoint: "chat", credential: "valid" },
+    { endpoint: "chat", credential: "invalid" },
+    { endpoint: "meal-replacements", credential: "valid" },
+    { endpoint: "meal-replacements", credential: "invalid" },
+  ])("requires refresh before $endpoint with only a $credential refresh cookie", async ({
+    endpoint,
+    credential,
+  }) => {
+    const { user, refreshToken } = await createTestUser();
+    const refreshCookieValue =
+      credential === "valid" ? refreshToken : "fixture-invalid-refresh";
+    const conversation = await ChatConversation.create({
+      userId: user._id,
+      title: "Synthetic refresh recovery",
+    });
+    const before = await ChatConversation.findById(conversation._id).lean();
+    const route = endpoint === "chat"
+      ? "/api/ai/chat"
+      : `/api/ai/conversations/${conversation._id}/meal-replacements`;
+
+    const response = await request(app)
+      .post(route)
+      .set("Cookie", [
+        `refreshToken=${refreshCookieValue}`,
+        `csrfToken=${TEST_CSRF}`,
+      ])
+      .set("X-CSRF-Token", TEST_CSRF)
+      .send({ message: "Tiếp tục", conversationId: String(conversation._id) });
+
+    expect(response.status).toBe(401);
+    expect(readGuestCookie(response)).toBeUndefined();
+    expect(llmStream).not.toHaveBeenCalled();
+    expect(await ServiceUsageBucket.countDocuments()).toBe(0);
+    expect(await ChatConversation.countDocuments()).toBe(1);
+    expect(await ChatConversation.findById(conversation._id).lean()).toEqual(before);
+  });
+
   it("requires exactly one conversation owner", async () => {
     await expect(
       ChatConversation.create({ title: "ownerless" }),

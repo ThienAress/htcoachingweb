@@ -1,7 +1,6 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
-import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import {
   assertKnowledgeReembedConnectedTarget,
@@ -60,10 +59,7 @@ const fail = (code, message = code) =>
   Object.assign(new Error(`${code}: ${message}`), { code });
 
 const defaultDependencies = {
-  connect: (uri) => mongoose.connect(
-    uri,
-    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
-  ),
+  connect: (uri) => mongoose.connect(uri, { autoIndex: false }),
   disconnect: () => mongoose.disconnect(),
   assertConnectedTarget: (authorization) =>
     assertKnowledgeReembedConnectedTarget(

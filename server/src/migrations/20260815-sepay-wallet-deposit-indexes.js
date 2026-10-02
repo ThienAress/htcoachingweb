@@ -7,7 +7,6 @@ import {
   assertMigrationEnvironment,
   getMongoDatabaseName,
 } from "../config/migrationSafety.js";
-import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import IncomingBankTransaction from "../models/IncomingBankTransaction.js";
 import ProviderSyncCursor from "../models/ProviderSyncCursor.js";
 
@@ -15,7 +14,6 @@ const CONFIRMATION_VARIABLE = "CONFIRM_SEPAY_WALLET_INDEX_MIGRATION";
 const TARGET_INDEX_NAMES = new Set([
   "uniq_incoming_provider_source_transaction",
   "uniq_incoming_provider_bank_reference",
-  "incoming_cross_channel_fingerprint",
   "incoming_status_created",
   "incoming_deposit_transaction_at",
   "incoming_user_transaction_at",
@@ -175,10 +173,7 @@ const main = async () => {
   const args = new Set(process.argv.slice(2));
   const apply = args.has("--apply");
   const authorization = authorizeTarget({ args, apply });
-  await mongoose.connect(
-    process.env.MONGO_URI,
-    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
-  );
+  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
   try {
     assertConnectedMigrationTarget(mongoose.connection, authorization);
     const reports = await inspectSePayWalletIndexes();

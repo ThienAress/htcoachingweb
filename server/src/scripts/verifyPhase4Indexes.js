@@ -1,14 +1,10 @@
 import "../config/env.js";
 import mongoose from "mongoose";
-import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import { PHASE4_INDEXES } from "../migrations/20260719-phase4-index-performance.js";
 
 if (!process.env.MONGO_URI) throw new Error("MONGO_URI is required");
 
-await mongoose.connect(
-  process.env.MONGO_URI,
-  resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
-);
+await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
 try {
   const missing = [];
   for (const [collectionName, _key, name] of PHASE4_INDEXES) {

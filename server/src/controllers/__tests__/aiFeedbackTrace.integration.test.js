@@ -1506,6 +1506,55 @@ describe("AI answer trace and feedback review", () => {
     ]);
   });
 
+  it("keeps current-source verification when a time-sensitive question matches old reviewed KB", async () => {
+    const { user, accessToken } = await createTestUser();
+    searchKnowledgeBaseMock.mockResolvedValueOnce([
+      {
+        _id: "507f191e810c19729de860ee",
+        question: "Ronaldo thường tập gì?",
+        answer: "Nguồn cũ ghi nhận các buổi tập sức mạnh.",
+        category: "athlete",
+        similarity: 0.94,
+        status: "published",
+        evidenceLevel: "source_backed",
+        reviewStatus: "reviewed",
+        freshnessClass: "periodic",
+        reviewDueAt: "2099-01-01T00:00:00.000Z",
+        sources: [{
+          type: "research",
+          title: "Synthetic historical training reference",
+          publisher: "Synthetic Sports Science Journal",
+          url: "https://example.org/research/historical-training",
+          evidenceTier: "primary",
+          publishedAt: "2010-01-01T00:00:00.000Z",
+          accessedAt: "2010-01-02T00:00:00.000Z",
+        }],
+      },
+    ]);
+
+    const response = await withAuth(
+      request(app).post("/api/ai/chat"),
+      accessToken,
+    ).send({
+      message: "Tin mới nhất hôm nay về lịch tập của Ronaldo?",
+      requestId: "e5ab6fd7-34ca-470a-a1d1-2a73bc9c8166",
+    });
+
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find(
+      (message) => message.role === "assistant" && message.content,
+    );
+    expect(response.status).toBe(200);
+    expect(searchKnowledgeBaseMock).toHaveBeenCalled();
+    expect(answer.answerTrace).toMatchObject({
+      evidenceMode: "web_required",
+      webSearchUsed: true,
+      webSearchOutcome: "provider_error",
+    });
+    expect(answer.content).toMatch(/chưa thể xác minh.*nguồn đáng tin cậy/i);
+    expect(llmStreamMock).not.toHaveBeenCalled();
+  });
+
   it("uses the previous user topic for a short Knowledge Base follow-up", async () => {
     const { user, accessToken } = await createTestUser();
     const conversation = await ChatConversation.create({

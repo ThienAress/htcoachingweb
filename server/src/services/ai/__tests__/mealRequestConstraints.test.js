@@ -132,6 +132,103 @@ const priorPlan = {
 };
 
 describe("canonical meal request constraints", () => {
+  it("keeps an explicit required food from the raw request", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Lập thực đơn 2.500 kcal, ít nhất 170g protein, chia 4 bữa, bắt buộc có cá hồi.",
+      { carbGrams: 280, fatGrams: 78 },
+    );
+
+    expect(request.args.requiredFoods).toEqual(["ca hoi"]);
+  });
+
+  it("keeps the required foods from the staged Vietnamese meal corpus", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Lập cho tôi thực đơn món Việt trong 1 ngày khoảng 2.200 kcal, ít nhất 140g protein, có cơm, cá, rau và đậu phụ; ghi grams và tổng macro.",
+      { carbGrams: 250, fatGrams: 71.1 },
+    );
+
+    expect(request.args.requiredFoods).toEqual(["com", "ca", "rau", "dau phu"]);
+  });
+
+  it("replaces a remembered required food instead of forcing the removed item", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Giữ nguyên thực đơn vừa lập, chỉ thay phần đậu phụ bằng cá. Giữ tổng năng lượng khoảng 2.200 kcal và ít nhất 140g protein; ghi rõ món và khối lượng trước/sau, tính lại tổng macro, không đổi các món còn lại.",
+      { requiredFoods: ["đậu phụ"] },
+      {
+        targetCalories: 2200,
+        proteinGrams: 140,
+        carbGrams: 250,
+        fatGrams: 71.1,
+        mealsPerDay: 3,
+        requiredFoods: ["com", "ca", "rau", "dau phu"],
+        plan: priorPlan,
+      },
+    );
+
+    expect(request.args.requiredFoods).toEqual(["com", "ca", "rau"]);
+  });
+
+  it("does not infer a required food from ordinary possibility wording", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Thực đơn 2.200 kcal có thể dùng nguyên liệu theo mùa.",
+      { proteinGrams: 140, carbGrams: 250, fatGrams: 71.1 },
+    );
+
+    expect(request.args.requiredFoods).toBeUndefined();
+  });
+
+  it("sanitizes model required foods without overriding exclusions", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Lập thực đơn 2.500 kcal, không ăn cá.",
+      {
+        proteinGrams: 170,
+        carbGrams: 280,
+        fatGrams: 78,
+        requiredFoods: ["  Cá hồi  ", "Ức gà", "x".repeat(101)],
+        excludedFoods: ["cá"],
+      },
+    );
+
+    expect(request.args.requiredFoods).toEqual(["ca hoi", "uc ga"]);
+    expect(request.args.excludedFoods).toEqual(["cá"]);
+  });
+
+  it("keeps remembered required foods only for a meal follow-up", () => {
+    const lastMeal = {
+      targetCalories: 2500,
+      proteinGrams: 170,
+      carbGrams: 280,
+      fatGrams: 78,
+      mealsPerDay: 4,
+      requiredFoods: ["ca hoi"],
+      plan: priorPlan,
+    };
+
+    const followUp = buildCanonicalMealToolRequest(
+      "Giữ thực đơn vừa rồi nhưng đổi tổng xuống 2.200 kcal.",
+      {},
+      lastMeal,
+    );
+    const fresh = buildCanonicalMealToolRequest(
+      "Lập thực đơn mới 2.200 kcal.",
+      { proteinGrams: 150, carbGrams: 250, fatGrams: 66.7 },
+      lastMeal,
+    );
+
+    expect({ followUp: followUp.args.requiredFoods, fresh: fresh.args.requiredFoods })
+      .toEqual({ followUp: ["ca hoi"], fresh: undefined });
+  });
+
+  it("preserves an allergen conflict so the meal tool can fail closed", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Lập thực đơn 2.500 kcal, bắt buộc có cá hồi nhưng tôi dị ứng cá.",
+      { proteinGrams: 170, carbGrams: 280, fatGrams: 78 },
+    );
+
+    expect(request.args.requiredFoods).toEqual(["ca hoi"]);
+    expect(request.args.excludedAllergens).toContain("fish");
+  });
+
   it.each([
     ["không ăn thịt gà", "thịt gà"],
     ["không ăn trứng", "trứng"],

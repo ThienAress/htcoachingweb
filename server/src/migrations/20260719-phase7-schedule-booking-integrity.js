@@ -1,7 +1,6 @@
 import "../config/env.js";
 import crypto from "node:crypto";
 import mongoose from "mongoose";
-import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import {
   assertConnectedMigrationTarget,
   assertMigrationEnvironment,
@@ -304,10 +303,7 @@ const runFromCli = async () => {
   const authorization = assertMigrationEnvironment({
     confirmationVariable: "CONFIRM_PHASE7_SCHEDULE_MIGRATION",
   });
-  await mongoose.connect(
-    process.env.MONGO_URI,
-    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
-  );
+  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
   try {
     // This assertion must pass before the slot-claim collection is rebuilt.
     assertConnectedMigrationTarget(mongoose.connection, authorization);

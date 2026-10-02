@@ -190,6 +190,10 @@ test.describe("AI chat", () => {
     }) => {
       test.setTimeout(60000);
       let aiScenario = "provider-failure";
+      let releaseFailure;
+      const failureGate = new Promise((resolve) => {
+        releaseFailure = resolve;
+      });
       const chatRequests = [];
       page.on("request", (request) => {
         if (
@@ -199,15 +203,22 @@ test.describe("AI chat", () => {
           chatRequests.push(JSON.parse(request.postData() || "{}"));
         }
       });
-      await page.route("**/api/**", (route) =>
-        route.continue({
+      await page.route("**/api/**", async (route) => {
+        if (
+          aiScenario === "provider-failure" &&
+          route.request().method() === "POST" &&
+          route.request().url().endsWith("/api/ai/chat")
+        ) {
+          await failureGate;
+        }
+        await route.continue({
           headers: {
             ...route.request().headers(),
             "x-e2e-role": "user",
             "x-e2e-ai-scenario": aiScenario,
           },
-        }),
-      );
+        });
+      });
 
       await page.goto("/");
       await page.getByRole("button", { name: "Mở HT Assistant" }).click();
@@ -219,6 +230,7 @@ test.describe("AI chat", () => {
 
       await expect(page.getByRole("button", { name: "Dừng phản hồi" })).toBeVisible();
       await expect(input).toBeDisabled();
+      releaseFailure();
       const error = page.getByRole("alert");
       await expect(error).toContainText("Nhà cung cấp AI tạm thời không khả dụng");
       await expect(input).toBeEnabled();

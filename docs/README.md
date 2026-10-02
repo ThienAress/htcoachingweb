@@ -44,7 +44,6 @@ nguồn canonical trước khi thay đổi code.
 - [Explicit AI Memory pilot spec](./specs/ai-explicit-memory.md)
 - [HT Assistant hardening và scale readiness spec](./specs/ai-assistant-hardening-and-scale-readiness.md)
 - [HT Assistant fitness-first và Knowledge Base có bằng chứng](./specs/fitness-first-ai-and-knowledge-quality.md)
-- [Curated source-backed retrieval và citation](./specs/source-backed-retrieval-and-citation.md)
 - [Rollout embedding Knowledge Base trên staging](./specs/knowledge-base-embedding-staging-rollout.md)
 - [Service access policy spec](./specs/service-access-policy.md)
 - [Containerized backend runtime spec](./specs/containerized-backend-runtime.md)
@@ -100,7 +99,6 @@ nguồn canonical trước khi thay đổi code.
 - [Refresh-session cutover (Plan 082)](./operations/runbooks/refresh-session-cutover.md)
 - [Provider usage monitoring](./operations/runbooks/provider-usage-monitoring.md)
 - [Staging Knowledge Base re-embed và rollback](./operations/runbooks/staging-knowledge-base-reembed.md)
-- [Staging Knowledge Base sync từ production](./operations/runbooks/staging-knowledge-base-production-sync.md)
 
 ## Quy ước
 

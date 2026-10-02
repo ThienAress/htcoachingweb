@@ -24,6 +24,7 @@ import Order from "../../models/Order.js";
 import TrainingSchedule from "../../models/TrainingSchedule.js";
 import WeeklyCheckin from "../../models/WeeklyCheckin.js";
 import progressRoutes from "../../routes/progress.routes.js";
+import { getClientProgress } from "../../services/progress.service.js";
 import {
   addDaysToDateKey,
   getAppDayOfWeek,
@@ -141,6 +142,101 @@ describe("Progress Hub API", () => {
       },
     });
     expect(response.body.data.compliance.scheduleAttendance.percent).toBeNull();
+  });
+
+  it("keeps legacy and canonical month-start reports distinct at the range boundary", async () => {
+    const assigned = await createAssigned("month-start-boundary");
+    await WeeklyCheckin.create([
+      {
+        clientId: assigned.client.user._id,
+        trainerIdAtCreation: assigned.trainer.user._id,
+        weekStartDateKey: "2026-09-28",
+        status: "submitted",
+        body: { weightKg: 73 },
+      },
+      {
+        clientId: assigned.client.user._id,
+        trainerIdAtCreation: assigned.trainer.user._id,
+        weekStartDateKey: "2026-10-01",
+        status: "submitted",
+        body: { weightKg: 72 },
+      },
+      {
+        clientId: assigned.client.user._id,
+        trainerIdAtCreation: assigned.trainer.user._id,
+        weekStartDateKey: "2026-10-02",
+        status: "draft",
+        body: { weightKg: 99 },
+      },
+      {
+        clientId: assigned.client.user._id,
+        trainerIdAtCreation: assigned.trainer.user._id,
+        weekStartDateKey: "2026-10-05",
+        status: "reviewed",
+        body: { weightKg: 71 },
+      },
+      {
+        clientId: assigned.client.user._id,
+        trainerIdAtCreation: assigned.trainer.user._id,
+        weekStartDateKey: "2026-10-12",
+        status: "submitted",
+        body: { weightKg: 70 },
+      },
+    ]);
+
+    const progress = await getClientProgress({
+      clientId: assigned.client.user._id,
+      days: 7,
+      now: new Date("2026-10-02T12:00:00+07:00"),
+    });
+
+    expect(progress.bodyProgress.weightKg.series).toEqual([
+      { dateKey: "2026-09-28", periodStartDateKey: "2026-09-28", value: 73 },
+      { dateKey: "2026-10-01", periodStartDateKey: "2026-10-01", value: 72 },
+      { dateKey: "2026-10-05", periodStartDateKey: "2026-10-01", value: 71 },
+    ]);
+  });
+
+  it("includes only the current canonical draft for self-managed progress at month start", async () => {
+    const client = await createTestUser({
+      email: "progress-month-start-self-managed@example.com",
+    });
+    await FitnessSubscription.create({
+      userId: client.user._id,
+      planCode: "fitness_plus_max",
+      planTitle: "Toàn diện",
+      billingCycle: "month",
+      amount: 299000,
+      startDate: new Date("2026-09-01T00:00:00+07:00"),
+      endDate: new Date("2026-11-01T00:00:00+07:00"),
+      status: "active",
+    });
+    await WeeklyCheckin.create([
+      {
+        clientId: client.user._id,
+        trainerIdAtCreation: client.user._id,
+        weekStartDateKey: "2026-10-05",
+        status: "draft",
+        body: { waistCm: 80 },
+      },
+      {
+        clientId: client.user._id,
+        trainerIdAtCreation: client.user._id,
+        weekStartDateKey: "2026-10-12",
+        status: "draft",
+        body: { waistCm: 79 },
+      },
+    ]);
+
+    const progress = await getClientProgress({
+      clientId: client.user._id,
+      days: 7,
+      now: new Date("2026-10-01T12:00:00+07:00"),
+    });
+
+    expect(progress.bodyProgress.waistCm.series).toEqual([
+      { dateKey: "2026-10-05", periodStartDateKey: "2026-10-01", value: 80 },
+    ]);
   });
 
   it("keeps the complete six-month body series beyond the old 20-report cap", async () => {

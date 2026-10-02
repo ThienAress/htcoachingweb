@@ -1331,6 +1331,7 @@ export const chatStream = async (req, res) => {
             systemPrompt += buildKnowledgeReferenceBlock(kbResults);
             if (
               routingDecision.webSearchRequired &&
+              routingDecision.freshness === "stable" &&
               kbCitationSources.length > 0
             ) {
               safeLog.info("ai.source_backed_kb_hit", {

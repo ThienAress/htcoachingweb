@@ -39,10 +39,6 @@ Hành vi:
 - `adjacent`: trả lời hữu ích ở mức vừa, không ép CTA fitness.
 - `general + stable + low`: trả lời trực tiếp, ngắn, không chạy RAG nội bộ hoặc web search không cần thiết.
 - `time_sensitive`, user yêu cầu nguồn, hoặc claim về thói quen/thành tích người thật: `web_required`.
-- Với request `web_required`, server được phép probe curated Knowledge Base trước bằng query đã qua privacy gate.
-  Chỉ khi có entry published/reviewed còn hạn và `source_backed` HTTPS evidence thì mới reclassify request thành
-  `internal_kb`, khóa web tool và gắn citation từ source đã duyệt. Curated miss hoặc evidence không đủ điều kiện
-  giữ nguyên `web_required`, sau đó áp dụng policy authenticated/guest và fail-closed hiện có.
 - Nếu `web_required` nhưng actor không có quyền search hoặc search lỗi: nêu chưa thể xác minh, không fallback sang
   khẳng định từ trí nhớ.
 - Web search chỉ được chạy bằng standalone `retrievalQuery` của user đã qua privacy gate ở server; bỏ qua query do

@@ -5,7 +5,6 @@ import { setTimeout as waitFor } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import mongoose from "mongoose";
-import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import { EXPECTED_API_ORIGIN, EXPECTED_CLIENT_URL } from "./stagingAiChatAcceptance.config.js";
 import { createExactCleanup } from "./stagingAiChatAcceptance.cleanup.js";
@@ -355,10 +354,7 @@ export const runRecoveryCli = async ({ env = process.env } = {}) => {
     !env.STAGING_AI_ACCEPTANCE_PRIOR_RECOVERY_REPORT,
   );
   await prepareRecoveryReportOutput(env.STAGING_AI_ACCEPTANCE_RECOVERY_REPORT_OUTPUT);
-  await mongoose.connect(
-    env.MONGO_URI,
-    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
-  );
+  await mongoose.connect(env.MONGO_URI, { autoIndex: false });
   try {
     const capability = await import("../services/ai/stagingAiAcceptance.service.js");
     let fixtureRejectionEvidence;

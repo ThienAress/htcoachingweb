@@ -82,6 +82,7 @@ describe("Progress presentation", () => {
     ).toEqual([
       {
         dateKey: "2026-07-06",
+        periodStartDateKey: "2026-07-06",
         weightKg: 70,
         waistCm: null,
         hipCm: null,
@@ -92,6 +93,7 @@ describe("Progress presentation", () => {
       },
       {
         dateKey: "2026-07-13",
+        periodStartDateKey: "2026-07-13",
         weightKg: null,
         waistCm: 78,
         hipCm: null,
@@ -102,6 +104,7 @@ describe("Progress presentation", () => {
       },
       {
         dateKey: "2026-07-20",
+        periodStartDateKey: "2026-07-20",
         weightKg: 69,
         waistCm: null,
         hipCm: null,
@@ -109,6 +112,54 @@ describe("Progress presentation", () => {
         waistHipRatio: null,
         bodyFatPercent: null,
         skeletalMusclePercent: null,
+      },
+    ]);
+  });
+
+  it("merges body metrics by raw identity while sorting by period coordinate", () => {
+    const rows = bodyProgressHistoryRows({
+      weightKg: {
+        series: [
+          {
+            dateKey: "2026-10-05",
+            periodStartDateKey: "2026-10-01",
+            value: 70,
+          },
+          {
+            dateKey: "2026-10-01",
+            periodStartDateKey: "2026-10-01",
+            value: 71,
+          },
+        ],
+      },
+      waistCm: {
+        series: [
+          {
+            dateKey: "2026-10-05",
+            periodStartDateKey: "2026-10-01",
+            value: 79,
+          },
+        ],
+      },
+    });
+
+    expect(rows.map(({ dateKey, periodStartDateKey, weightKg, waistCm }) => ({
+      dateKey,
+      periodStartDateKey,
+      weightKg,
+      waistCm,
+    }))).toEqual([
+      {
+        dateKey: "2026-10-01",
+        periodStartDateKey: "2026-10-01",
+        weightKg: 71,
+        waistCm: null,
+      },
+      {
+        dateKey: "2026-10-05",
+        periodStartDateKey: "2026-10-01",
+        weightKg: 70,
+        waistCm: 79,
       },
     ]);
   });
