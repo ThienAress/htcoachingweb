@@ -38,7 +38,9 @@ const ASCII_INJURY_DOMAIN_PATTERN =
 const ADJACENT_PATTERN =
   /\b(the thao|bong da|bong ro|chay bo|boi loi|yoga|giac ngu|ngu ngon|loi song|wellness)\b/;
 const TIME_SENSITIVE_PATTERN =
-  /\b(hom nay|bay gio|hien tai|moi nhat|gan day|nam nay|tuan nay|thang nay|sap toi|dang la|con la|current|currently|latest|today|this year|recently)\b/;
+  /\b(hom nay|bay gio|hien tai|moi nhat|cap nhat|gan day|nam nay|tuan nay|thang nay|sap toi|dang la|con la|current|currently|updated?|latest|today|this year|recently)\b/;
+const JOINT_DISCOMFORT_PATTERN =
+  /\b(?:dau goi|khop goi|khop vai|co tay|co chan|knee|shoulder|wrist|ankle)\b[\s\S]{0,80}\b(?:kho chiu|nhuc|discomfort|uncomfortable|ache)\b|\b(?:kho chiu|nhuc|discomfort|uncomfortable|ache)\b[\s\S]{0,80}\b(?:dau goi|khop goi|khop vai|co tay|co chan|knee|shoulder|wrist|ankle)\b/;
 const IMPLICIT_TIME_SENSITIVE_PATTERN =
   /\b(thoi tiet|weather|(?:hien\s+)?bao nhieu tuoi|how old|choi cho|plays? for|current (?:club|team)|dang luu dien|touring|on tour|tour dates?|song o dau|lives? where)\b/;
 const CURRENT_OFFICE_HOLDER_PATTERN =
@@ -58,7 +60,7 @@ const PERSONAL_DEICTIC_FITNESS_PATTERN =
 const PUBLIC_PERSON_DATE_OF_BIRTH_PATTERN =
   /\b(?:dob|date of birth|ngay sinh|sinh ngay|born)\b/;
 const SOURCE_REQUEST_PATTERN =
-  /\b(nguon|trich dan|citation|dan chung|bang chung|kiem chung|link bai|tai lieu tham khao|source|evidence)\b/;
+  /\b(nguon(?!\s+(?:dam|protein|chat beo|carb|nang luong)\b)|trich dan|citation|dan chung|bang chung|kiem chung|link bai|tai lieu tham khao|sources?(?!\s+of\s+(?:protein|fat|carbs?|energy)\b)|evidence)\b/;
 const RESEARCH_CLAIM_PATTERN =
   /\b(nghien cuu|study|systematic review|meta analysis|meta-analysis|thong ke|bao nhieu phan tram)\b/;
 const IDENTITY_QUERY_PATTERN = /\b(la ai|who is|gioi thieu ve)\b/;
@@ -113,7 +115,7 @@ const BLOG_TOOL_PATTERN =
 const TDEE_ACTION_PATTERN =
   /\b(?:tinh|uoc tinh|calculate|estimate)\b[\s\S]{0,80}\b(?:tdee|bmr|calo|calorie)|\b(?:tdee|bmr|calo moi ngay|calorie needs?)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|my|for me)\b/;
 const MEAL_ACTION_PATTERN =
-  /\b(?:goi y|tao|lap|xay dung|de xuat|cho toi|cho minh|suggest|create|build|make)\b[\s\S]{0,80}\b(?:thuc don|bua an|bua sang|bua trua|bua toi|meal plan|meals?)\b|\b(?:thuc don|bua an|bua sang|bua trua|bua toi|meal plan)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|vua roi|truoc do|gan nhat|my|for me)\b/;
+  /\b(?:goi y|tao|lap|xay dung|de xuat|cho toi|cho minh|suggest|create|build|make)\b[\s\S]{0,80}\b(?:thuc don|bua an|bua sang|bua trua|bua toi|meal plan|meals?)\b|\b(?:thuc don|bua an|bua sang|bua trua|bua toi|meal plan)\b[\s\S]{0,40}\b(?:cua toi|cua minh|cho toi|cho minh|vua roi|truoc do|gan nhat|my|for me|chi thay|chi doi|thay phan|doi phan)\b/;
 const TDEE_MEAL_TOOL_SEQUENCE = Object.freeze([
   "calculate_tdee",
   "suggest_meal",
@@ -455,7 +457,7 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
         ACCENTED_PAIN_OR_INJURY_PATTERN.test(safetyWithDiacritics) ||
         ASCII_PAIN_OR_INJURY_CONTEXT_PATTERN.test(asciiRiskText) ||
         PREGNANCY_CONTEXT_PATTERN.test(safetyNormalized) ||
-        personalHealth
+        personalHealth || JOINT_DISCOMFORT_PATTERN.test(safetyNormalized)
       ? "high_stakes"
       : "low";
   const identityQuery = IDENTITY_QUERY_PATTERN.test(normalized);

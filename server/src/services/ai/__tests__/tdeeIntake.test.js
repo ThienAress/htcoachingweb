@@ -81,6 +81,11 @@ describe("TDEE structured intake", () => {
     expect(prefill).not.toHaveProperty("trainingDuration");
   });
 
+  it("keeps an explicit training duration range without taking a cooking duration", () => {
+    expect(extractTdeePrefill("Tôi ngồi làm văn phòng, đi 10.000 bước mỗi ngày và tập 60–90 phút; hãy tính TDEE.").trainingDuration).toBe("over_60");
+    expect(extractTdeePrefill("Tôi tập 3 buổi/tuần và nấu ăn 60–90 phút")).not.toHaveProperty("trainingDuration");
+  });
+
   it.each([
     ["Tôi tập 50 phút/buổi", "between_45_60"],
     ["Trung bình mỗi buổi khoảng 60 phút", "between_45_60"],

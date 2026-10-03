@@ -229,6 +229,18 @@
       "rollout": "not_started",
       "owner": "root",
       "updatedAt": "2026-10-02"
+    },
+    {
+      "id": "094A",
+      "title": "Fix assistant sources and UI acceptance",
+      "path": "docs/plans/094a-fix-assistant-sources-and-ui-acceptance.md",
+      "priority": "P1",
+      "complexity": "complex",
+      "lifecycle": "in_progress",
+      "verification": "local_full",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-10-04"
     }
   ]
 }

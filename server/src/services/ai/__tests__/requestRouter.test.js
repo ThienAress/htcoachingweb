@@ -9,6 +9,38 @@ import {
 } from "../requestRouter.js";
 
 describe("AI request evidence router", () => {
+  it("keeps food protein sources and scoped meal changes on the canonical meal route", () => {
+    const meal = routeAiRequest("Tạo một bữa ăn khoảng 600 kcal món Việt, không ăn thịt gà; hãy thay bằng nguồn đạm khác và ghi rõ từng món, grams, tổng kcal và protein.");
+    const scoped = routeAiRequest("Giữ nguyên bữa ăn, chỉ thay đậu phụ bằng cá, khoảng 600 kcal.");
+    expect(meal).toMatchObject({ preferredTool: "suggest_meal", webSearchRequired: false });
+    expect(scoped).toMatchObject({ preferredTool: "suggest_meal", webSearchRequired: false });
+    expect(routeAiRequest("Tạo một bữa ăn 600 kcal từ nguồn đạm khác, hãy kèm nguồn khoa học.")).toMatchObject({ preferredTool: "search_knowledge", webSearchRequired: true });
+  });
+  it("does not treat a pair of dumbbells as a medical condition", () => {
+    expect(routeAiRequest("Tạo lịch tập tăng cơ 4 ngày/tuần cho người mới, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực; mỗi buổi tối đa 60 phút, kèm deload.")).toMatchObject({ risk: "low", webSearchRequired: false });
+    expect(routeAiRequest("Tạo lịch tập tăng cơ 4 ngày/tuần cho người mới, chỉ có đôi tạ đơn và tôi bị đau đầu gối.")).toMatchObject({ risk: "high_stakes", webSearchRequired: false });
+    expect(routeAiRequest("Tôi có đôi tạ đơn và bị nhức gối sau tập. Cho tôi nghiên cứu mới nhất.")).toMatchObject({ risk: "high_stakes", webSearchRequired: false });
+  });
+  it.each([
+    "Tôi có đôi tạ đơn nhưng đang bị nhức gối sau tập.",
+    "Tôi có đôi tạ đơn, vẫn bị nhức gối sau tập.",
+    "I have dumbbells but currently have knee pain after exercise.",
+    "Học viên có đôi tạ đơn nhưng bị nhức gối sau tập.",
+    "I have dumbbells but have rheumatoid arthritis. Show latest exercise research.",
+  ])("does not route modified inherited symptoms to public evidence: %s", (value) => {
+    expect(routeAiRequest(`${value} Cho tôi nghiên cứu mới nhất.`)).toMatchObject({
+      risk: "high_stakes", webSearchRequired: false, knowledgeBaseEligible: false,
+    });
+  });
+  it("recognizes updated public-source requests and private joint discomfort", () => {
+    const person = routeAiRequest("Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy trả lời có nguồn.");
+    const discomfort = routeAiRequest("Đầu gối tôi hơi khó chịu khi squat nhưng vẫn muốn tập chân. Tôi nên làm gì?");
+    expect({ person, discomfort, tools: getAllowedToolNamesForRoute(discomfort) }).toMatchObject({
+      person: { freshness: "time_sensitive", evidence: "web_required" },
+      discomfort: { risk: "high_stakes", evidence: "model_prior", knowledgeBaseEligible: false, webSearchRequired: false, preferredTool: null },
+      tools: [],
+    });
+  });
   it("rebuilds a short fitness follow-up into a standalone retrieval query", () => {
     const query = buildStandaloneRetrievalQuery("Còn bài nào khác?", [
       { role: "user", content: "Tôi muốn tìm bài tập ngực với tạ đơn." },

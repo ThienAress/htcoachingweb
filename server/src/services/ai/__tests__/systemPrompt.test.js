@@ -9,6 +9,18 @@ import {
 import { routeAiRequest } from "../requestRouter.js";
 
 describe("Knowledge Base prompt boundary", () => {
+  it("withholds unrelated source metadata even when the entry is reviewed", () => {
+    const entry = {
+      question: "Protein là gì?", answer: "Đạm hỗ trợ xây dựng mô.",
+      evidenceLevel: "source_backed", reviewStatus: "reviewed",
+      sources: [{ type: "research", evidenceTier: "primary", title: "Reference", publisher: "Synthetic journal", url: "https://example.org/protein" }],
+    };
+    const block = buildKnowledgeReferenceBlock([entry], { citationEntries: [] });
+    expect(block).toContain("Đạm hỗ trợ xây dựng mô");
+    expect(block).toContain("không trích nguồn của entry này");
+    expect(block).not.toContain("https://example.org/protein");
+    expect(block).not.toContain("CÓ THỂ DÙNG LÀM EVIDENCE/CITATION");
+  });
   it("treats reviewed KB content as untrusted reference data", () => {
     const block = buildKnowledgeReferenceBlock([
       {

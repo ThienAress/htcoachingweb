@@ -116,7 +116,7 @@ afterAll(async () => {
 });
 
 describe("AI answer trace and feedback review", () => {
-  it("repairs an incomplete seven-day meal and workout answer before delivery", async () => {
+  it("delivers a detailed seven-day reference without an incomplete model draft", async () => {
     const { user, accessToken } = await createTestUser();
     let turns = 0;
     llmStreamMock.mockImplementation(async function* sevenDayDraft() {
@@ -132,13 +132,14 @@ describe("AI answer trace and feedback review", () => {
     const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
     const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
     expect({ turns, status: response.status, saved: answer.content, streamed: response.text }).toMatchObject({
-      turns: 2, status: 200, saved: SEVEN_DAY_COMPLETE_TEXT,
+      turns: 0, status: 200, saved: expect.stringContaining("Ngày 7"),
       streamed: expect.stringContaining("Ngày 7"),
     });
     expect(answer.content).not.toContain("Ăn đủ rau. Tập đi bộ 30 phút.");
+    expect(answer.content).toMatch(/yến mạch 50 g[\s\S]*Wall Push-up/iu);
   });
 
-  it("returns a complete general seven-day plan when both drafts omit days", async () => {
+  it("keeps the seven-day reference complete without calling the model", async () => {
     const { user, accessToken } = await createTestUser();
     llmStreamMock.mockImplementation(async function* incompleteSevenDay() {
       yield { type: "text", content: "Ngày 1: Ăn đủ rau. Tập đi bộ 30 phút." };
@@ -150,7 +151,7 @@ describe("AI answer trace and feedback review", () => {
     const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
     const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
     expect(response.status).toBe(200);
-    expect(llmStreamMock).toHaveBeenCalledTimes(2);
+    expect(llmStreamMock).not.toHaveBeenCalled();
     expect(evaluateSemanticOutput({ output: { text: answer.content }, rules: [
       { type: "seven_day_coverage", requireMealAndTraining: true },
     ] })).toEqual([]);
@@ -197,7 +198,7 @@ describe("AI answer trace and feedback review", () => {
 
   it("uses an equipment-safe structured fallback when both workout drafts are incomplete", async () => {
     const { user, accessToken } = await createTestUser();
-    const message = "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Tôi đi 10.000 bước/ngày, không muốn tập chân hai ngày liên tiếp. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
+    const message = "Tạo lịch tăng cơ 4 ngày/tuần, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Tôi đi 10.000 bước/ngày, không muốn tập chân hai ngày liên tiếp. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
     llmStreamMock.mockImplementation(async function* incompleteWorkout() {
       yield { type: "text", content: "Tập bốn buổi mỗi tuần, xen kẽ thân trên và thân dưới." };
     });
@@ -217,7 +218,7 @@ describe("AI answer trace and feedback review", () => {
 
   it("uses the structured four-day fallback when repeated model drafts violate equipment constraints", async () => {
     const { user, accessToken } = await createTestUser();
-    const message = "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Tôi đi 10.000 bước/ngày, không muốn tập chân hai ngày liên tiếp. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
+    const message = "Tạo lịch tăng cơ 4 ngày/tuần, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Tôi đi 10.000 bước/ngày, không muốn tập chân hai ngày liên tiếp. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
     llmStreamMock.mockImplementation(async function* invalidEquipmentDrafts() {
       yield { type: "text", content: "Buổi 1: Barbell bench press và máy kéo cáp." };
     });
@@ -237,7 +238,7 @@ describe("AI answer trace and feedback review", () => {
 
   it("repairs ambiguous deload wording in a structured four-day request", async () => {
     const { user, accessToken } = await createTestUser();
-    const message = "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
+    const message = "Tạo lịch tăng cơ 4 ngày/tuần, mỗi buổi tối đa 60 phút, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực. Ghi bài, hiệp, lần, RPE, thời gian nghỉ, cách tăng tiến trong 6 tuần và tuần deload.";
     const incompleteDeload = [
       "Buổi 1: Hít đất 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
       "Buổi 2: Squat trọng lượng cơ thể 3 hiệp x 10 lần, RPE 7, nghỉ 90 giây.",
@@ -1381,7 +1382,7 @@ describe("AI answer trace and feedback review", () => {
     expect(JSON.stringify(answer.answerTrace)).not.toContain("cột sống");
   });
 
-  it("appends a reviewed public KB citation when the provider omits its link", async () => {
+  it("does not append a citation to ordinary exercise guidance", async () => {
     const { user, accessToken } = await createTestUser();
     const sourceUrl = "https://example.org/research/squat-technique";
     llmStreamMock.mockImplementationOnce(async function* responseWithoutCitation() {
@@ -1438,12 +1439,12 @@ describe("AI answer trace and feedback review", () => {
       storedAnswer: answer.content,
     }).toEqual({
       status: 200,
-      streamedText: expect.stringContaining(sourceUrl),
-      storedAnswer: expect.stringContaining(sourceUrl),
+      streamedText: expect.not.stringContaining(sourceUrl),
+      storedAnswer: expect.not.stringContaining(sourceUrl),
     });
   });
 
-  it("uses a reviewed source-backed KB hit before web search", async () => {
+  it("does not substitute a curated real-person KB claim when current web verification is unavailable", async () => {
     const { user, accessToken } = await createTestUser();
     const sourceUrl = "https://example.org/research/ronaldo-training";
     const fetchMock = vi.fn();
@@ -1487,23 +1488,19 @@ describe("AI answer trace and feedback review", () => {
     );
     expect(response.status).toBe(200);
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(searchKnowledgeBaseMock).toHaveBeenCalledWith(
-      "Ronaldo thường tập gì?",
-      { limit: 3, threshold: 0.75 },
-    );
+    expect(searchKnowledgeBaseMock).not.toHaveBeenCalled();
     expect(conversation.messages.some((message) =>
       message.toolCalls?.some((call) => call.name === "search_knowledge"),
-    )).toBe(false);
-    expect(answer.content).toContain(sourceUrl);
+    )).toBe(true);
+    expect(answer.content).not.toContain(sourceUrl);
+    expect(answer.content).toMatch(/chưa thể xác minh.*nguồn đáng tin cậy/iu);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
-      evidenceMode: "internal_kb",
-      webSearchUsed: false,
-      webSearchOutcome: "not_called",
+      evidenceMode: "web_required",
+      webSearchUsed: true,
+      webSearchOutcome: "provider_error",
     });
-    expect(answer.answerTrace.kbEntryIds.map(String)).toEqual([
-      "507f191e810c19729de860ee",
-    ]);
+    expect(answer.answerTrace.kbEntryIds).toEqual([]);
   });
 
   it("keeps current-source verification when a time-sensitive question matches old reviewed KB", async () => {
@@ -1545,7 +1542,7 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(searchKnowledgeBaseMock).toHaveBeenCalled();
+    expect(searchKnowledgeBaseMock).not.toHaveBeenCalled();
     expect(answer.answerTrace).toMatchObject({
       evidenceMode: "web_required",
       webSearchUsed: true,
@@ -1753,7 +1750,7 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(providerTurn).toBe(1);
+    expect(providerTurn).toBe(0);
     expect(answer.content).toMatch(/Incline Push Up/);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",
@@ -1795,7 +1792,7 @@ describe("AI answer trace and feedback review", () => {
       accessToken,
     ).send({
       message:
-        "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực.",
+        "Tạo lịch tăng cơ 4 ngày/tuần, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực.",
       requestId: "d56e4315-1e7f-4743-a813-b05ae08f29f4",
     });
     const conversation = await ChatConversation.findOne({ userId: user._id })
@@ -2143,7 +2140,7 @@ describe("AI answer trace and feedback review", () => {
     expect(answer.content).not.toMatch(/giảm lịch tập từ 4 buổi xuống 3 buổi/iu);
   });
 
-  it("uses the successful read-only tool result when final synthesis fails", async () => {
+  it("delivers a successful catalog result without a fallible model synthesis", async () => {
     const { user, accessToken } = await createTestUser();
     await Exercise.create({
       name: "Incline Push Up",
@@ -2179,12 +2176,12 @@ describe("AI answer trace and feedback review", () => {
     expect(response.status).toBe(200);
     expect(response.text).toContain('"type":"done"');
     expect(response.text).not.toContain('"type":"error"');
-    expect(providerTurn).toBe(1);
+    expect(providerTurn).toBe(0);
     expect(answer.content).toContain("Incline Push Up");
     expect(response.text).toContain('"cardType":"exercise"');
   });
 
-  it("keeps a safe exercise tool result when equipment correction then loses the provider", async () => {
+  it("keeps a safe canonical exercise result without allowing model equipment rewrites", async () => {
     const { user, accessToken } = await createTestUser();
     toolRegistry.search_exercises.execute = vi.fn().mockResolvedValue({
       text: "Tìm thấy 1 bài tập:\n1. Dumbbell Floor Press (Cơ ngực) — Nằm trên sàn và dùng tạ đơn.",
@@ -2228,7 +2225,7 @@ describe("AI answer trace and feedback review", () => {
     expect(response.headers["x-ai-conversation-id"]).toBe(
       String(conversation._id),
     );
-    expect(providerTurn).toBe(2);
+    expect(providerTurn).toBe(0);
     expect(answer.content).toContain("Dumbbell Floor Press");
     expect(answer.content).not.toMatch(/chưa thể tạo lịch tập/i);
   });
@@ -2272,7 +2269,7 @@ describe("AI answer trace and feedback review", () => {
     });
   });
 
-  it("Q12: persists four band-only catalog exercises and keeps their card when synthesis returns 503", async () => {
+  it("Q12: persists four band-only catalog exercises with no synthesis dependency", async () => {
     const { user, accessToken } = await createTestUser();
     await Exercise.insertMany([
       "Band Chest Press",
@@ -2305,7 +2302,7 @@ describe("AI answer trace and feedback review", () => {
     const card = conversation.messages.find((item) => item.uiCard?.cardType === "exercise")?.uiCard;
 
     expect(response.status).toBe(200);
-    expect(llmStreamMock).toHaveBeenCalledTimes(1);
+    expect(llmStreamMock).not.toHaveBeenCalled();
     expect(toolCalls).toHaveLength(1);
     expect(toolCalls[0].args).toMatchObject({ muscleGroup: "Ngực", limit: 4 });
     expect(card?.data).toMatchObject({ requestedCount: 4, resultCount: 4 });
@@ -2685,10 +2682,7 @@ describe("AI answer trace and feedback review", () => {
       (message) => message.role === "assistant" && message.content,
     );
     expect(response.status).toBe(200);
-    expect(searchKnowledgeBaseMock).toHaveBeenCalledWith(
-      "Ronaldo thường tập những bài gì trong phòng gym?",
-      { limit: 3, threshold: 0.75 },
-    );
+    expect(searchKnowledgeBaseMock).not.toHaveBeenCalled();
     expect(answer.content).toMatch(/chưa thể xác minh.*nguồn đáng tin cậy/i);
     expect(answer.answerTrace).toMatchObject({
       routeDomain: "fitness",

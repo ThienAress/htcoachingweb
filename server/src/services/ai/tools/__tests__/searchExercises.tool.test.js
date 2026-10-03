@@ -159,6 +159,105 @@ describe("searchExercises query normalization", () => {
     expect(result.text).not.toContain("Archer Push Up");
   });
 
+  it("uses the readiness predicate for beginner bodyweight chest results", async () => {
+    const beginnerDifficulty = {
+      coordination: 0,
+      stability: 0,
+      mobility: 0,
+      setup: 0,
+      errorConsequence: 0,
+    };
+    mockExerciseQuery([
+      {
+        name: "Plyo Push Up",
+        muscleGroup: "Cơ ngực",
+        description: "Bài bodyweight không cần dụng cụ.",
+      },
+      {
+        name: "Clap Push Up",
+        muscleGroup: "Cơ ngực",
+        description: "Bài bodyweight không cần dụng cụ.",
+      },
+      {
+        name: "Wall Push-up",
+        muscleGroup: "Cơ ngực",
+        description: "Bài bodyweight không cần dụng cụ cho người mới.",
+        instructions: [{
+          title: "Tư thế",
+          description: "Đặt hai tay ngang ngực và giữ thân người thành một đường thẳng.",
+        }],
+        technicalDifficulty: beginnerDifficulty,
+      },
+      {
+        name: "Kneeling Push-up",
+        muscleGroup: "Cơ ngực",
+        description: "Chống đẩy gối không cần dụng cụ.",
+      },
+      {
+        name: "Wide Push Up",
+        muscleGroup: "Cơ ngực",
+        description: "Bài bodyweight không cần dụng cụ.",
+        technicalDifficulty: {
+          coordination: 2,
+          stability: 2,
+          mobility: 2,
+          setup: 2,
+          errorConsequence: 2,
+        },
+      },
+      {
+        name: "Band Push Up",
+        muscleGroup: "Cơ ngực",
+        description: "Quấn dây kháng lực sau lưng.",
+      },
+    ]);
+
+    const result = await searchExercises({
+      searchQuery:
+        "Tìm 5 bài tập ngực không cần dụng cụ dành cho người mới, kèm hướng dẫn kỹ thuật.",
+      limit: 5,
+    });
+
+    expect(result.uiCard.data.exercises.map(({ name }) => name)).toEqual([
+      "Wall Push-up",
+      "Kneeling Push-up",
+    ]);
+    expect(result.meta).toMatchObject({
+      requestedCount: 5,
+      resultCount: 2,
+      catalogInsufficient: true,
+      excludedForBeginnerCount: 3,
+    });
+  });
+
+  it("keeps canonical card names and catalog technique together in tool text", async () => {
+    mockExerciseQuery([{
+      name: "Wall Push-up",
+      muscleGroup: "Cơ ngực",
+      description: "Biến thể chống đẩy tường cho người mới.",
+      instructions: [{
+        title: "Hạ người",
+        description: "Gập khuỷu tay có kiểm soát, giữ thân người thẳng.",
+      }],
+    }]);
+
+    const result = await searchExercises({
+      searchQuery: "bài tập ngực bodyweight cho beginner",
+      limit: 1,
+    });
+
+    expect(result).toMatchObject({
+      text: expect.stringMatching(
+        /Wall Push-up[\s\S]*Kỹ thuật:[\s\S]*Hạ người:[\s\S]*Gập khuỷu tay/iu,
+      ),
+      uiCard: {
+        data: {
+          exercises: [expect.objectContaining({ name: "Wall Push-up" })],
+        },
+      },
+    });
+  });
+
   it("maps an English muscle alias to Vietnamese and English catalog values", async () => {
     const chain = mockExerciseQuery();
     await searchExercises({ muscleGroup: "chest", limit: 2 });

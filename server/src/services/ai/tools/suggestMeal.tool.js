@@ -591,27 +591,30 @@ const scopedFollowUp = (input, previousMealPlan, catalog, constraints) => {
   };
 };
 
-const rebuildMeal = (meal, catalogById) => {
+const preserveStructuredMeal = (meal, catalogById) => {
   if (!Array.isArray(meal?.foods) || meal.foods.length < 1) return null;
   const foods = [];
   for (const item of meal.foods) {
     const foodId = String(item?.foodId || "");
     const amountGrams = asFinite(item?.amountGrams);
     const catalogFood = catalogById.get(foodId);
-    if (!catalogFood || !Number.isFinite(amountGrams) || amountGrams <= 0) {
+    const macros = {
+      protein: asFinite(item?.macros?.protein),
+      carb: asFinite(item?.macros?.carb),
+      fat: asFinite(item?.macros?.fat),
+    };
+    if (
+      !catalogFood || !foodId || !String(item?.name || "").trim() ||
+      !Number.isFinite(amountGrams) || amountGrams <= 0 ||
+      Object.values(macros).some((value) => !Number.isFinite(value) || value < 0)
+    ) {
       return null;
     }
-    const macros = foodMacro(catalogFood, amountGrams);
-    foods.push({
-      foodId,
-      name: catalogFood.label,
-      amountGrams,
-      macros,
-      calories: round(MACRO_CALORIES(macros)),
-    });
+    foods.push({ ...item });
   }
   const macros = addMacros(foods.map((food) => food.macros));
   return {
+    ...meal,
     label: String(meal.label || ""),
     foods,
     totals: { ...macros, calories: round(MACRO_CALORIES(macros)) },
@@ -625,27 +628,37 @@ const replacementMacroWithinBounds = (before, after) =>
   });
 
 /**
- * Đổi đúng một food item trong plan hiện tại. Không gọi model và không dựng lại
- * các bữa còn lại; candidate phải qua cùng safety constraints với suggestMeal.
+ * Đổi các occurrence đã resolve trong plan hiện tại. Không gọi model và không
+ * dựng lại các bữa còn lại; candidate phải qua cùng safety constraints với suggestMeal.
  */
 export async function replaceMealFood(params, {
   previousMealPlan,
   mealIndex,
   foodIndex,
+  replacementTargets = null,
+  requestedReplacementFoods = [],
+  preserveMacros = false,
   findFoods = defaultFindFoods,
 } = {}) {
   const input = normalizeParams(params);
   const sourceMeals = Array.isArray(previousMealPlan?.meals)
     ? previousMealPlan.meals
     : [];
+  const targets = Array.isArray(replacementTargets) && replacementTargets.length > 0
+    ? replacementTargets
+    : [{ mealIndex, foodIndex }];
+  const targetKeys = new Set(targets.map((target) =>
+    `${target?.mealIndex}:${target?.foodIndex}`));
   if (
     !input ||
-    !Number.isInteger(mealIndex) ||
-    !Number.isInteger(foodIndex) ||
-    mealIndex < 0 ||
-    foodIndex < 0 ||
     sourceMeals.length !== input.mealsPerDay ||
-    !sourceMeals[mealIndex]?.foods?.[foodIndex]
+    targetKeys.size !== targets.length ||
+    targets.some((target) =>
+      !Number.isInteger(target?.mealIndex) ||
+      !Number.isInteger(target?.foodIndex) ||
+      target.mealIndex < 0 ||
+      target.foodIndex < 0 ||
+      !sourceMeals[target.mealIndex]?.foods?.[target.foodIndex])
   ) {
     return missingData(
       "replacement_invalid_plan",
@@ -695,7 +708,7 @@ export async function replaceMealFood(params, {
     requirePackageLabelSafety: input.requirePackageLabelSafety,
   };
   const catalogById = new Map(catalog.map((food) => [String(food._id), food]));
-  const meals = sourceMeals.map((meal) => rebuildMeal(meal, catalogById));
+  const meals = sourceMeals.map((meal) => preserveStructuredMeal(meal, catalogById));
   if (
     meals.some((meal) => !meal) ||
     meals.flatMap((meal) => meal.foods).some((food) =>
@@ -707,32 +720,90 @@ export async function replaceMealFood(params, {
     );
   }
 
-  const selectedFood = meals[mealIndex].foods[foodIndex];
-  const selectedCalories = selectedFood.calories;
+  const selectedTargets = targets.map((target) => ({
+    ...target,
+    food: meals[target.mealIndex].foods[target.foodIndex],
+  }));
+  const selectedSourceIds = new Set(selectedTargets
+    .map((target) => target.food.foodId)
+    .filter(Boolean));
+  if (
+    selectedTargets.length > 1 &&
+    (selectedSourceIds.size !== 1 ||
+      selectedTargets.some((target) => !target.food.foodId))
+  ) {
+    return missingData(
+      "replacement_source_ambiguous",
+      "Có nhiều món cùng khớp mô tả nhưng khác mã thực phẩm; hãy nêu bữa cụ thể cần thay.",
+    );
+  }
+  const selectedSourceId = selectedTargets[0].food.foodId;
+  const replacementRequirements = parseMealRequirements(
+    Array.isArray(requestedReplacementFoods) ? requestedReplacementFoods : [],
+  );
+  const requestedCandidates = replacementRequirements.items.length > 0
+    ? catalog.filter((food) => replacementRequirements.items.some((requirement) =>
+        foodMatchesMealPhrase(food, requirement)))
+    : [];
+  if (replacementRequirements.items.length > 0 && requestedCandidates.length === 0) {
+    return missingData(
+      "replacement_target_unavailable",
+      "Không tìm thấy món thay thế bạn yêu cầu trong catalog thực phẩm hiện hành.",
+    );
+  }
+  if (
+    requestedCandidates.length > 0 &&
+    !requestedCandidates.some(hasReviewedProfile)
+  ) {
+    return missingData(
+      "replacement_safety_metadata_missing",
+      "Món thay thế được yêu cầu chưa có metadata an toàn đã kiểm duyệt.",
+    );
+  }
+  if (
+    requestedCandidates.some(hasReviewedProfile) &&
+    !requestedCandidates.some((food) => hasReviewedProfile(food) && allowedFood(food, constraints))
+  ) {
+    return missingData(
+      "replacement_safety_conflict",
+      "Món thay thế được yêu cầu xung đột với ràng buộc dị ứng hoặc loại trừ hiện tại.",
+    );
+  }
   const existingIds = new Set(
     meals.flatMap((meal) => meal.foods.map((food) => food.foodId)),
   );
   const beforeSummary = summarizeMeals(meals);
-  const candidates = catalog
+  const candidatePool = requestedCandidates.length > 0
+    ? requestedCandidates.filter((food) => String(food._id) !== selectedSourceId)
+    : catalog.filter((food) => !existingIds.has(String(food._id)));
+  const candidates = candidatePool
     .filter((food) =>
-      !existingIds.has(String(food._id)) && allowedFood(food, constraints))
+      hasReviewedProfile(food) && allowedFood(food, constraints))
     .map((food) => {
       const caloriesPer100g = MACRO_CALORIES(food);
       if (!Number.isFinite(caloriesPer100g) || caloriesPer100g <= 0) return null;
-      const amountGrams = round((selectedCalories / caloriesPer100g) * 100);
-      if (amountGrams < 1 || amountGrams > 3000) return null;
-      const macros = foodMacro(food, amountGrams);
-      const replacement = {
-        foodId: String(food._id),
-        name: food.label,
-        amountGrams,
-        macros,
-        calories: round(MACRO_CALORIES(macros)),
-      };
+      const replacements = selectedTargets.map((target) => {
+        const selectedCalories = round(MACRO_CALORIES(target.food.macros));
+        const amountGrams = round((selectedCalories / caloriesPer100g) * 100);
+        if (amountGrams < 1 || amountGrams > 3000) return null;
+        const macros = foodMacro(food, amountGrams);
+        return {
+          foodId: String(food._id),
+          name: food.label,
+          amountGrams,
+          macros,
+          calories: round(MACRO_CALORIES(macros)),
+        };
+      });
+      if (replacements.some((replacement) => !replacement)) return null;
+      const replacementsByLocation = new Map(selectedTargets.map((target, index) => [
+        `${target.mealIndex}:${target.foodIndex}`,
+        replacements[index],
+      ]));
       const nextMeals = meals.map((meal, currentMealIndex) => {
-        if (currentMealIndex !== mealIndex) return meal;
         const foods = meal.foods.map((item, currentFoodIndex) =>
-          currentFoodIndex === foodIndex ? replacement : item);
+          replacementsByLocation.get(`${currentMealIndex}:${currentFoodIndex}`) || item);
+        if (foods.every((item, index) => item === meal.foods[index])) return meal;
         const mealMacros = addMacros(foods.map((item) => item.macros));
         return {
           ...meal,
@@ -748,7 +819,8 @@ export async function replaceMealFood(params, {
         Math.abs(summary.totals.calories - input.targetCalories) >
           input.targetToleranceCalories ||
         summary.totals.protein < input.minimumProteinGrams ||
-        !replacementMacroWithinBounds(beforeSummary.macros, summary.macros)
+        ((replacementRequirements.items.length === 0 || preserveMacros === true) &&
+          !replacementMacroWithinBounds(beforeSummary.macros, summary.macros))
       ) {
         return null;
       }
@@ -757,7 +829,7 @@ export async function replaceMealFood(params, {
           total + Math.abs(summary.macros[macro] - beforeSummary.macros[macro]),
         Math.abs(summary.totals.calories - beforeSummary.totals.calories),
       );
-      return { food, replacement, meals: nextMeals, summary, score };
+      return { food, replacements, meals: nextMeals, summary, score };
     })
     .filter(Boolean)
     .sort((left, right) =>
@@ -785,14 +857,17 @@ export async function replaceMealFood(params, {
         budgetVndPerDay: input.budgetVndPerDay,
         reason: "replacement_price_not_revalidated",
       };
-  const replacement = {
-    mealIndex,
-    foodIndex,
-    before: selectedFood,
-    after: selected.replacement,
-  };
+  const replacements = selectedTargets.map((target, index) => ({
+    mealIndex: target.mealIndex,
+    foodIndex: target.foodIndex,
+    before: target.food,
+    after: selected.replacements[index],
+  }));
+  const replacementText = replacements.map((entry) =>
+    `${selected.meals[entry.mealIndex].label}: ${entry.before.name}: ${entry.before.amountGrams}g → ${entry.after.name}: ${entry.after.amountGrams}g`
+  ).join("; ");
   return {
-    text: `Đã đổi ${selectedFood.name} thành ${selected.replacement.name} và giữ thực đơn trong sai số mục tiêu.`,
+    text: `Đã thay ${replacementText}. Tổng server tính lại: ${selected.summary.totals.calories} kcal | ${selected.summary.totals.protein}g P | ${selected.summary.totals.carb}g C | ${selected.summary.totals.fat}g F. Các món còn lại được giữ nguyên.`,
     uiCard: {
       cardType: "meal",
       data: {
@@ -803,7 +878,8 @@ export async function replaceMealFood(params, {
         macros: selected.summary.macros,
         totals: selected.summary.totals,
         meals: selected.meals,
-        replacement,
+        replacement: replacements[0],
+        ...(replacements.length > 1 ? { replacements } : {}),
         price,
         safety,
         targets: {
@@ -818,6 +894,47 @@ export async function replaceMealFood(params, {
   };
 }
 
+export async function substituteMealFood(params, {
+  scopedSubstitution,
+  previousMealPlan,
+  findFoods = defaultFindFoods,
+} = {}) {
+  const status = scopedSubstitution?.status;
+  if (status === "ready") {
+    return replaceMealFood(params, {
+      previousMealPlan,
+      mealIndex: scopedSubstitution.mealIndex,
+      foodIndex: scopedSubstitution.foodIndex,
+      replacementTargets: scopedSubstitution.matches,
+      requestedReplacementFoods:
+        scopedSubstitution.requestedReplacementFoods,
+      preserveMacros: scopedSubstitution.preserveMacros === true,
+      findFoods,
+    });
+  }
+  const source = scopedSubstitution?.sourceFoods?.join(", ") || "món đã nêu";
+  const refusals = {
+    missing_plan: [
+      "replacement_missing_plan",
+      "Chưa có thực đơn có cấu trúc để thay đúng một món và giữ nguyên các món còn lại.",
+    ],
+    source_absent: [
+      "replacement_source_absent",
+      `Thực đơn hiện tại không có ${source}. Hãy nêu một món đang có trong thực đơn cần thay.`,
+    ],
+    source_ambiguous: [
+      "replacement_source_ambiguous",
+      `Thực đơn có nhiều phần ${source}. Hãy cho biết bữa cụ thể cần thay để mình không đổi nhầm món.`,
+    ],
+    invalid_request: [
+      "replacement_request_ambiguous",
+      "Hãy nêu đúng một món cần thay và món thay thế mong muốn.",
+    ],
+  };
+  const refusal = refusals[status];
+  return refusal ? missingData(...refusal) : null;
+}
+
 /**
  * Deterministically creates a meal card whose nutrition is calculated by this server.
  * @param {object} params Tool parameters.
@@ -827,7 +944,11 @@ export async function suggestMeal(params, {
   findFoods = defaultFindFoods,
   getPriceMap = getFoodMarketPriceMap,
   previousMealPlan = null,
+  scopedSubstitution = null,
 } = {}) {
+  if (scopedSubstitution) {
+    return substituteMealFood(params, { scopedSubstitution, previousMealPlan, findFoods });
+  }
   const input = normalizeParams(params);
   if (!input || (input.budgetVndPerDay !== null && input.budgetVndPerDay < 0)) {
     return missingData("invalid_constraints", "Không thể tạo thực đơn vì các ràng buộc dinh dưỡng chưa hợp lệ.");

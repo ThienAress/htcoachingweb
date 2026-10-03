@@ -52,6 +52,10 @@ import {
 import { buildCanonicalMealToolRequest } from "../services/ai/mealRequestConstraints.js";
 import { evaluateSemanticOutput } from "../services/ai/evals/semanticOutputEvaluator.js";
 import { buildTdeeIntakeResponse } from "../services/ai/tdeeIntake.js";
+import { answerNeedsKnowledgeCitation, selectCitationKnowledgeEntries, stripUnselectedKnowledgeCitations } from "../services/ai/answerSourcePolicy.js";
+import { buildJointDiscomfortResponse, JOINT_SAFETY_SOURCE } from "../services/ai/jointDiscomfortResponse.js";
+import { buildBoundedWorkoutDraft } from "../services/ai/workoutDraft.js";
+import { buildSevenDayReferencePlan } from "../services/ai/referencePlan.js";
 import { buildExerciseRequest, isExerciseCatalogRequest } from "../services/ai/exerciseRequest.js";
 import {
   hasBandOnlyConstraint,
@@ -210,19 +214,6 @@ const FOUR_DAY_WORKOUT_FALLBACK = [
   "Buổi 3 (thân trên): Resistance Band Chest Press 3 hiệp x 10–15 lần, Standing Dumbbell Shoulder Press 3 hiệp x 8–12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
   "Buổi 4 (thân dưới): Dumbbell Reverse Lunge 3 hiệp x 8–10 lần mỗi bên, Resistance Band Good Morning 3 hiệp x 10–15 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
   "Sắp xếp Buổi 1–2 rồi nghỉ một ngày trước Buổi 3–4 để hai buổi chân không liền nhau. Tăng dần số lần trong 5 tuần khi kỹ thuật ổn định; tuần 6 deload, giảm khoảng 30% volume.",
-].join("\n");
-const SEVEN_DAY_PLAN_CORRECTION_INSTRUCTION =
-  "Hãy viết lại kế hoạch đủ Ngày 1 đến Ngày 7. Mỗi ngày phải có mục ăn uống gồm các bữa và mục tập luyện hoặc phục hồi cho người mới. Không tự đặt kcal cá nhân khi thiếu dữ liệu; chỉ trả lời cuối cùng.";
-const SEVEN_DAY_PLAN_FALLBACK = [
-  "Đây là khung tham khảo 7 ngày cho người mới giảm mỡ; chưa thể ấn định kcal khi thiếu tuổi, chiều cao, cân nặng và mức vận động. Chọn thực phẩm hợp dị ứng và khẩu phần phù hợp.",
-  "Ngày 1: Ăn uống: sáng nguồn đạm + trái cây, trưa cơm + rau + đạm, tối rau + đạm + tinh bột vừa đủ. Tập luyện: toàn thân bodyweight 30 phút, 2 hiệp mỗi bài ở RPE 6–7, nghỉ 90 giây.",
-  "Ngày 2: Ăn uống: ba bữa với đạm, rau và tinh bột theo mức đói; uống nước đều. Tập luyện: đi bộ nhanh 30 phút và giãn cơ 10 phút.",
-  "Ngày 3: Ăn uống: sáng đạm + ngũ cốc, trưa rau + đạm + cơm, tối rau + đạm + trái cây. Tập luyện: squat, hít đất biến thể và glute bridge, mỗi bài 2 hiệp x 8–12 lần, RPE 6–7, nghỉ 90 giây.",
-  "Ngày 4: Ăn uống: ba bữa đều có đạm và rau; chọn món ít chế biến khi thuận tiện. Tập luyện: đi bộ 30 phút, phục hồi chủ động.",
-  "Ngày 5: Ăn uống: sáng đạm + trái cây, trưa cơm + rau + đạm, tối rau + đạm + tinh bột vừa đủ. Tập luyện: toàn thân bodyweight 30 phút, 2 hiệp x 8–12 lần mỗi bài, RPE 6–7, nghỉ 90 giây.",
-  "Ngày 6: Ăn uống: giữ ba bữa chính cân bằng; thêm bữa phụ nếu đói và phù hợp mục tiêu. Tập luyện: đi bộ hoặc đạp xe nhẹ 30 phút.",
-  "Ngày 7: Ăn uống: duy trì đạm, rau, trái cây và tinh bột phù hợp ở ba bữa. Tập luyện: nghỉ phục hồi hoặc đi bộ nhẹ 20 phút.",
-  "Theo dõi cảm giác hồi phục và xu hướng cân nặng ít nhất hai tuần; cung cấp số đo và lịch sinh hoạt để điều chỉnh khẩu phần an toàn hơn.",
 ].join("\n");
 const activityIntakeFollowup = (message, priorMessages, routingDecision) => {
   if (routingDecision.risk !== "low" || routingDecision.webSearchRequired ||
@@ -1067,6 +1058,7 @@ export const chatStream = async (req, res) => {
   }, CHAT_DEADLINE_MS);
   const generatedMessages = [];
   let responseUiCard = null;
+  let retrievedKnowledgeSources = [];
   let conversationMemory = deriveConversationMemory(
     conversation.messages,
     conversation.workingMemory,
@@ -1144,7 +1136,13 @@ export const chatStream = async (req, res) => {
         maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
       });
     }
-    if (kbCitationSources.length > 0) {
+    const needsKnowledgeCitation = answerNeedsKnowledgeCitation(routingDecision, candidate);
+    candidate = stripUnselectedKnowledgeCitations(candidate, {
+      retrievedSources: retrievedKnowledgeSources,
+      allowedSources: needsKnowledgeCitation ? kbCitationSources : [],
+    });
+    if (kbCitationSources.length > 0 && needsKnowledgeCitation) {
+      responseUiCard = { cardType: "webSources", data: { sources: kbCitationSources } };
       return boundAssistantOutputWithSources(candidate, {
         sources: kbCitationSources,
         maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
@@ -1314,8 +1312,7 @@ export const chatStream = async (req, res) => {
       conversationMemory,
       personalMemory,
     });
-    const curatedKnowledgeEligible =
-      routingDecision.knowledgeBaseEligible || routingDecision.webSearchRequired;
+    const curatedKnowledgeEligible = routingDecision.knowledgeBaseEligible;
     if (curatedKnowledgeEligible) {
       const preparedRetrieval = prepareKnowledgeRetrievalQuery(retrievalQuery);
       if (preparedRetrieval.eligible) {
@@ -1326,35 +1323,11 @@ export const chatStream = async (req, res) => {
           });
           if (kbResults.length > 0) {
             kbEntryIds = kbResults.map((result) => result._id);
-            kbCitationSources = getCitableKnowledgeSources(kbResults);
+            const citationEntries = selectCitationKnowledgeEntries(kbResults, retrievalQuery);
+            kbCitationSources = getCitableKnowledgeSources(citationEntries);
+            retrievedKnowledgeSources = getCitableKnowledgeSources(kbResults);
             aiLogger.kbMatch(actorId, kbResults.length, kbResults[0]?.similarity);
-            systemPrompt += buildKnowledgeReferenceBlock(kbResults);
-            if (
-              routingDecision.webSearchRequired &&
-              routingDecision.freshness === "stable" &&
-              kbCitationSources.length > 0
-            ) {
-              safeLog.info("ai.source_backed_kb_hit", {
-                domain: routingDecision.domain,
-                matchCount: kbResults.length,
-                citableSourceCount: kbCitationSources.length,
-                topSimilarity: Number.isFinite(Number(kbResults[0]?.similarity))
-                  ? Number(kbResults[0].similarity)
-                  : null,
-              });
-              routingDecision = Object.freeze({
-                ...routingDecision,
-                evidence: "internal_kb",
-                knowledgeBaseEligible: true,
-                webSearchRequired: false,
-                preferredTool: null,
-                maxWebSearchCalls: 0,
-                reasonCodes: Object.freeze([
-                  ...routingDecision.reasonCodes,
-                  "source_backed_kb_hit",
-                ]),
-              });
-            }
+            systemPrompt += buildKnowledgeReferenceBlock(kbResults, { citationEntries });
           }
         } catch (err) {
           // KB search lỗi không ảnh hưởng chat flow chính
@@ -1519,13 +1492,12 @@ export const chatStream = async (req, res) => {
       /\b4\s*(?:ngày|buổi)/iu.test(message);
     const structuredFourDayFallbackRequested = fourDayWorkoutRequested &&
       /rpe|deload|thời gian nghỉ|tối đa\s*60|6\s*tuần/iu.test(message);
-    const sevenDayPlanRequested =
+    const canUseStaticPlanning = priorMessages.every((item) => item.role !== "user") &&
+      personalMemory.length === 0 && Object.keys(conversationMemory).length === 0;
+    const sevenDayReferencePlan = canUseStaticPlanning &&
       routingDecision.risk === "low" &&
       routingDecision.reasonCodes.includes("workout_creation") &&
-      !routedRequiredToolName &&
-      /\b7\s*ngày/iu.test(message) &&
-      /ăn uống|thực đơn|dinh dưỡng/iu.test(message) &&
-      /tập luyện|lịch tập/iu.test(message);
+      !routedRequiredToolName ? buildSevenDayReferencePlan(message) : null;
     const workoutIntakeRequested = routingDecision.risk === "low" &&
       routingDecision.reasonCodes.includes("workout_creation") &&
       /(?:dữ liệu.*đủ|đừng\s+đoán|nêu\s+dữ\s+liệu\s+còn\s+thiếu|tối đa\s*5\s*(?:câu|nhóm))/iu.test(message);
@@ -1541,7 +1513,7 @@ export const chatStream = async (req, res) => {
       kbEntryIds = [];
       kbCitationSources = [];
       responseModel = "static_seven_day_plan_v1";
-      return deliverAssistantResponse(SEVEN_DAY_PLAN_FALLBACK);
+      return deliverAssistantResponse(sevenDayReferencePlan);
     };
     const deliverWorkoutIntakeFallback = async () => {
       routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
@@ -1579,12 +1551,11 @@ export const chatStream = async (req, res) => {
     let mixedWorkoutRetryCount = 0;
     let equipmentRetryCount = 0;
     let workoutStructureRetryCount = 0;
-    let sevenDayPlanRetryCount = 0;
     let workoutIntakeRetryCount = 0;
     let scopeRetryCount = 0;
     const scopePreservationRequest = parseScopePreservationRequest(message);
 
-    const executeServerRequiredTool = async (toolName, args) => {
+    const executeServerRequiredTool = async (toolName, args, scopedSubstitution = null) => {
       const call = {
         id: `server-${toolName}-${toolCallCount + 1}`,
         name: toolName,
@@ -1599,6 +1570,7 @@ export const chatStream = async (req, res) => {
         allowedToolNames: [toolName],
         allowedPublicPersonNames,
         previousMealPlan: conversationMemory.lastMeal?.plan || null,
+        scopedSubstitution,
       });
       const durationMs = Date.now() - startedAt;
       const safeToolText = normalizePublicToolText(toolResult.text);
@@ -1656,7 +1628,22 @@ export const chatStream = async (req, res) => {
     let protocolRetryCount = 0;
     aiLogger.chatStart(actorId, conversation._id);
 
-    if (activityFollowupResponse) {
+    const jointResponse = buildJointDiscomfortResponse(retrievalQuery, routingDecision);
+    const boundedWorkout = canUseStaticPlanning && routingDecision.risk === "low" &&
+      routingDecision.reasonCodes.includes("workout_creation") && !routedRequiredToolName &&
+      !mixedWorkoutMealRequest ? buildBoundedWorkoutDraft(message) : null;
+    if (jointResponse) {
+      responseModel = "server_joint_safety_v1";
+      responseUiCard = { cardType: "webSources", data: { sources: [JOINT_SAFETY_SOURCE] } };
+      fullResponse = await deliverAssistantResponse(jointResponse);
+    } else if (sevenDayReferencePlan) {
+      fullResponse = await deliverSevenDayPlanFallback();
+    } else if (boundedWorkout) {
+      kbEntryIds = []; kbCitationSources = [];
+      routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
+      responseModel = "server_workout_draft_v1";
+      fullResponse = await deliverAssistantResponse(boundedWorkout);
+    } else if (activityFollowupResponse) {
       incrementMetric("provider.gemini_chat_not_required");
       responseModel = "server_activity_followup_v1";
       fullResponse = await deliverAssistantResponse(activityFollowupResponse);
@@ -1682,17 +1669,18 @@ export const chatStream = async (req, res) => {
       if (!internalEvidenceAvailable && routingDecision.risk === "low") {
         routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
       }
-      llmMessages.push(
-        { role: "assistant", content: "", tool_calls: [directExercise.call] },
-        {
-          role: "tool", name: "search_exercises", id: directExercise.call.id,
-          content: serializeToolResultForModel({
-            toolName: "search_exercises", text: directExercise.safeToolText,
-            status: resolveToolResultStatus(directExercise.toolResult),
-          }),
-          toolResultEnvelope: true,
-        },
-      );
+      if (directExercise.toolSucceeded && internalEvidenceAvailable) {
+        responseModel = "server_exercise_catalog_v1";
+        fullResponse = await deliverAssistantResponse(directExercise.safeToolText);
+      } else {
+        kbEntryIds = []; kbCitationSources = [];
+        llmMessages.push(
+          { role: "assistant", content: "", tool_calls: [directExercise.call] },
+          { role: "tool", name: "search_exercises", id: directExercise.call.id,
+            content: serializeToolResultForModel({ toolName: "search_exercises", text: directExercise.safeToolText, status: resolveToolResultStatus(directExercise.toolResult) }),
+            toolResultEnvelope: true },
+        );
+      }
     } else if (routedRequiredToolName === "search_knowledge") {
       webSearchAttemptCount = 1;
       webSearchExecutionCount = 1;
@@ -1734,10 +1722,11 @@ export const chatStream = async (req, res) => {
         rememberedMealArgs || {},
         conversationMemory.lastMeal,
       );
-      if (hasCompleteCanonicalMealArgs(directMealRequest.args)) {
+      if (directMealRequest.scopedSubstitution || hasCompleteCanonicalMealArgs(directMealRequest.args)) {
         const directMeal = await executeServerRequiredTool(
           "suggest_meal",
           directMealRequest.args,
+          directMealRequest.scopedSubstitution,
         );
         const guardedMeal = sanitizeAssistantOutput(directMeal.safeToolText);
         const mealContent = guardedMeal.protocolLeak || !guardedMeal.content
@@ -2122,16 +2111,6 @@ export const chatStream = async (req, res) => {
       }
       } catch (providerError) {
         if (
-          sevenDayPlanRequested &&
-          sevenDayPlanRetryCount > 0 &&
-          !abortController.signal.aborted &&
-          !deadlineExceeded
-        ) {
-          fullResponse = await deliverSevenDayPlanFallback();
-          needsToolCall = false;
-          break;
-        }
-        if (
           fourDayWorkoutRequested &&
           workoutStructureRetryCount > 0 &&
           !abortController.signal.aborted &&
@@ -2425,33 +2404,9 @@ export const chatStream = async (req, res) => {
           needsToolCall = false;
           break;
         }
-        if (sevenDayPlanRequested && evaluateSemanticOutput({
-          output: { text: candidateContent, cards: [] },
-          rules: [{ type: "seven_day_coverage", requireMealAndTraining: true }],
-        }).length > 0) {
-          if (sevenDayPlanRetryCount < 1) {
-            sevenDayPlanRetryCount += 1;
-            llmMessages.push({ role: "assistant", content: iterationText });
-            llmMessages.push({ role: "user", content: SEVEN_DAY_PLAN_CORRECTION_INSTRUCTION });
-            needsToolCall = true;
-            continue;
-          }
-          fullResponse = await deliverSevenDayPlanFallback();
-          needsToolCall = false;
-          break;
-        }
         const finalContent = enforceEvidenceBoundary(candidateContent);
         fullResponse = await deliverAssistantResponse(finalContent);
       }
-    }
-
-    if (
-      !abortController.signal.aborted &&
-      !fullResponse &&
-      sevenDayPlanRequested &&
-      sevenDayPlanRetryCount > 0
-    ) {
-      fullResponse = await deliverSevenDayPlanFallback();
     }
 
     if (
@@ -2530,6 +2485,9 @@ export const chatStream = async (req, res) => {
       fullResponse = await deliverAssistantResponse(fallbackContent);
     }
     if (fullResponse) {
+      if (responseUiCard?.cardType === "webSources" && !abortController.signal.aborted) {
+        res.write(`data: ${JSON.stringify({ type: "ui_card", ...responseUiCard })}\n\n`);
+      }
       generatedMessages.push({
         role: "assistant",
         content: fullResponse,

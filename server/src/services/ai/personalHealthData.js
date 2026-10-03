@@ -83,7 +83,7 @@ const STRUCTURAL_NAMED_RECIPIENT_ASSERTION_PATTERN =
 const PRIVATE_ADVICE_CONTEXT_PATTERN =
   /\b(?:exercise|fitness|workout|training|cardio|squat|tap|bai tap|lich tap|the hinh|health|medical|treatment|advice|guidance|recommendations?|research|studies|sources?|current|latest|recently|changed)\b/i;
 const BENIGN_ASSERTION_OBJECT_PATTERN =
-  /^(?:(?:a|an|the|mot|chiec|cai)\s+)?(?:question|thac mac|cau hoi|time|thoi gian|dumbbells?|barbell|weights?|bands?|resistance|treadmill|home gym|gym|belt|straps?|lifting straps?|walk|creatine|protein|whey|pre[- ]workout|coach|trainer|(?:new\s+)?training(?:\s+(?:program|plan))?|workout(?:\s+(?:app|plan))?|app|phone|computer|idea|plan|dai lung|muc ta|thanh don|tempo|google|strava|may chay|ta don|ta tay|set\d+|neutral_oil|neutral_head|neutral_hospital|vacation|holiday|bus|train|my way|track)\b/i;
+  /^(?:(?:a|an|the|mot|chiec|cai)\s+)?(?:doi ta (?:don|tay)|day khang luc|question|thac mac|cau hoi|time|thoi gian|dumbbells?|barbell|weights?|bands?|resistance|treadmill|home gym|gym|belt|straps?|lifting straps?|walk|creatine|protein|whey|pre[- ]workout|coach|trainer|(?:new\s+)?training(?:\s+(?:program|plan))?|workout(?:\s+(?:app|plan))?|app|phone|computer|idea|plan|dai lung|muc ta|thanh don|tempo|google|strava|may chay|ta don|ta tay|set\d+|neutral_oil|neutral_head|neutral_hospital|vacation|holiday|bus|train|my way|track)\b/i;
 const DIRECT_SELF_HARM_DISCLOSURE_PATTERN =
   /\b(?:toi|minh|em|tui|ban toi|i|my friend)\b\s+(?:(?:dang|vua|se|muon|co the|am|is|are|want to|going to|plan to|might)\s+){0,4}(?:tu tu|tu sat|tu hai|ket lieu|muon chet|kill myself|hurt myself|end my life|take my life|want to die|self harm|overdose(?: myself)?|do not want to live(?: anymore)?)\b/i;
 const ENGLISH_DIRECT_SYMPTOM_PATTERN =
@@ -147,7 +147,7 @@ const GENERIC_SUBJECT_DATE_OF_BIRTH_PATTERN = new RegExp(
   "i",
 );
 
-const normalizeHealthText = (value) =>
+const normalizeHealthText = (value, { preserveClausePunctuation = false } = {}) =>
   String(value || "")
     .normalize("NFKC")
     .toLowerCase()
@@ -162,10 +162,11 @@ const normalizeHealthText = (value) =>
     .replaceAll("đầu", "neutral_head")
     .replaceAll("thi đấu", "thi_dau")
     .replaceAll("ở đâu", "vi_tri")
+    .replaceAll("đậu", preserveClausePunctuation ? "neutral_bean" : "đậu")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/đ/g, "d")
-    .replace(/[^a-z0-9\s_/-]/g, " ")
+    .replace(preserveClausePunctuation ? /[^a-z0-9\s_/.,;!?-]/g : /[^a-z0-9\s_/-]/g, " ")
     .replace(/\b(?:bat dau|ban dau|luc dau|dau tien|o dau|thi dau)\b/g, "neutral_phrase")
     .replace(/\s+/g, " ")
     .trim();
@@ -254,6 +255,24 @@ const containsPrivateStructuredClinicalValue = (value) => {
   );
 };
 
+// Equipment does not exempt a later symptom with an inherited subject. Keep
+// clause punctuation for this check; the ordinary health normalizer removes it.
+const INHERITED_PRIVATE_ASSERTION_PATTERN = new RegExp(
+  `(?:\\b(?:va|nhung|and|but)|[,;])\\s*(?:(?:dang|van|vua|da|thuong|hay|lai|currently|still|also|recently|now)\\s+){0,4}(?:${STRUCTURAL_PRIVATE_ASSERTION_VERB_SOURCE}|cam thay|feel(?:ing)?|am injured|dau(?!\\s+(?:phong|nanh|phu|que)\\b)|nhuc)\\b\\s*(?=([a-z][a-z0-9_/-]*(?:\\s+[a-z][a-z0-9_/-]*){0,2}))`,
+  "gi",
+);
+const INHERITED_PRIVATE_SUBJECT_PATTERN = new RegExp(
+  `\\b(?:${FIRST_PERSON_SUBJECT_SOURCE}|${PRIVATE_RECORD_SUBJECT_SOURCE}|i)\\b[^.!?\\n]*$`, "i",
+);
+const containsInheritedPrivateHealthAssertion = (value) => {
+  for (const match of value.matchAll(INHERITED_PRIVATE_ASSERTION_PATTERN)) {
+    const prefix = value.slice(Math.max(0, match.index - 120), match.index);
+    if (INHERITED_PRIVATE_SUBJECT_PATTERN.test(prefix) &&
+        !BENIGN_ASSERTION_OBJECT_PATTERN.test(match[1])) return true;
+  }
+  return false;
+};
+
 const containsUnlistedPrivateHealthAssertion = (value) => {
   for (const match of value.matchAll(STRUCTURAL_PRIVATE_TREATMENT_PATTERN)) {
     const object = String(match[1] || "").trim();
@@ -297,6 +316,9 @@ export function containsDateOfBirthInformation(value) {
 export function containsPersonalHealthData(value) {
   const normalized = maskNonMedicalStrokePhrases(normalizeHealthText(value));
   const assertionText = maskEducationalHealthQueryIntro(normalized);
+  const assertionClauses = maskEducationalHealthQueryIntro(maskNonMedicalStrokePhrases(
+    normalizeHealthText(value, { preserveClausePunctuation: true }),
+  ));
   const clinicalStructure = normalizeClinicalStructureText(value);
   if (!normalized) return false;
   if (
@@ -313,6 +335,7 @@ export function containsPersonalHealthData(value) {
     FIRST_PERSON_CLINICAL_STATUS_PATTERN.test(normalized) ||
     PERSONAL_TREATMENT_ACTION_PATTERN.test(normalized) ||
     CLINICIAN_PRESCRIBED_PERSONAL_PATTERN.test(normalized) ||
+    containsInheritedPrivateHealthAssertion(assertionClauses) ||
     containsUnlistedPrivateHealthAssertion(assertionText) ||
     containsPrivateStructuredClinicalValue(clinicalStructure)
   ) {

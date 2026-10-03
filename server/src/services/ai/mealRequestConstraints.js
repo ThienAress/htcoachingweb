@@ -1,4 +1,5 @@
 import { parseMealRequirements } from "./mealConstraints.js";
+import { resolveScopedMealSubstitution } from "./mealScopedSubstitution.js";
 
 const normalizeText = (value) =>
   String(value || "")
@@ -464,5 +465,6 @@ export const buildCanonicalMealToolRequest = (
     args,
     previousMealPlan: previous.plan || null,
     scopedAdjustment: scope.scopedAdjustment,
+    scopedSubstitution: resolveScopedMealSubstitution(message, previous.plan),
   };
 };

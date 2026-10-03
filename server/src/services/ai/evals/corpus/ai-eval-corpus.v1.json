@@ -475,7 +475,7 @@
       "expected": {
         "pathEquals": {
           "domain": "fitness",
-          "freshness": "stable",
+          "freshness": "time_sensitive",
           "evidence": "web_required",
           "risk": "low",
           "knowledgeBaseEligible": false,

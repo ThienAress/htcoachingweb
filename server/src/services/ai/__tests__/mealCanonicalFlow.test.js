@@ -76,4 +76,26 @@ describe("canonical meal request → suggest_meal flow", () => {
     expect(labels).not.toContain("Trứng gà");
     expect(labels).not.toContain("Sữa chua");
   });
+
+  it("routes an explicit 600 kcal single meal through server grams and excludes chicken", async () => {
+    const canonical = buildCanonicalMealToolRequest(
+      "Gợi ý một bữa 600 kcal, không dùng thịt gà; mọi món phải ghi rõ khối lượng gram.",
+    );
+    const result = await suggestMeal(canonical.args, {
+      findFoods: vi.fn().mockResolvedValue(catalog),
+      getPriceMap: vi.fn().mockResolvedValue(new Map()),
+    });
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "complete",
+      targetCalories: 600,
+      calorieScope: "per_meal",
+    });
+    const foods = result.uiCard.data.meals.flatMap((meal) => meal.foods);
+    expect(foods).not.toHaveLength(0);
+    expect(foods.every((food) =>
+      Number.isFinite(food.amountGrams) && food.amountGrams > 0)).toBe(true);
+    expect(foods.map((food) => food.foodId)).not.toContain("chicken");
+    expect(result.text).not.toMatch(/\b\d+\s*quả\b/iu);
+  });
 });

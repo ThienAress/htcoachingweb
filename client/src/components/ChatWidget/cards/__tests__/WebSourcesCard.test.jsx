@@ -68,7 +68,18 @@ describe("WebSourcesCard", () => {
       sources: [{ title: "World Health Organization", uri: "https://evil.example/advice" }],
     });
 
-    expect(html).toContain("World Health Organization (evil.example)");
+    expect(html).toContain(">evil.example</p>");
+    expect(html).toContain('title="World Health Organization"');
+  });
+
+  it("uses an honest round monogram avatar without fetching a remote favicon", () => {
+    const html = renderCard({
+      sources: [{ title: "Exercise guidance", uri: "https://www.who.int/news-room/fact-sheets/detail/physical-activity" }],
+    });
+
+    expect(html).toContain('aria-label="WHO"');
+    expect(html).toContain(">W<");
+    expect(html).not.toContain("favicon");
   });
 
   it("uses a neutral label when a legacy redirect only supplies its transport hostname", () => {
