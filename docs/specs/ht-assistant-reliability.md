@@ -109,6 +109,29 @@ fitness rủi ro thấp phải hữu ích, lỗi provider phải phục hồi c�
   khi nhận text/function call; không replay output, lỗi safety hoặc completion
   có chủ ý. Không tăng hạn mức hay đổi model/provider.
 
+## REQ-010 — Sửa hành vi và UI nguồn sau kiểm chứng UI ngày 2026-10-03
+
+- AC-030: Không tự nối nguồn vào intake, tính toán từ catalog, lỗi công cụ hoặc
+  tư vấn nền tảng không chứa claim cần chứng minh. Nguồn chỉ hiện khi user yêu cầu
+  hoặc câu trả lời cần evidence khoa học/hiện hành; nguồn phải hỗ trợ chủ đề/claim.
+  Không hạ `web_required` chỉ vì có một KB hit; không gắn nguồn KB vào `model_prior`.
+- AC-031: Nguồn được validate và bind đúng assistant turn, hiển thị chip gọn có avatar
+  và tên publisher; click mở nguồn. Avatar chữ là fallback; chỉ dùng logo có provenance
+  tin cậy, không giả logo và không gọi favicon service bên ngoài. Không biến mọi link
+  do model tự viết thành citation đã xác minh.
+- AC-032: Exercise lookup cho beginner/no-equipment dùng cùng predicate với readiness;
+  tên bài trong card/chữ khớp. Draft lịch 4 ngày dùng tạ đơn/dây có bài, sets/reps,
+  thời lượng và deload, không viện cớ thiếu thiết bị khi có thể đáp ứng an toàn.
+- AC-033: Follow-up thay đậu phụ bằng cá giữ tất cả món khác, tính lại grams/totals
+  theo dữ liệu server và tolerance hiện có; scoped refusal câu 7 vẫn giữ baseline.
+- AC-034: Câu hỏi khó chịu ở khớp được xử lý như ngữ cảnh sức khỏe; không khẳng định
+  bài nào không gây áp lực/đau nếu thiếu evidence; không đưa dữ liệu cá nhân ra web.
+  TDEE giữ thông tin khoảng 60–90 phút; kế hoạch 7 ngày là ví dụ có món/bài cụ thể,
+  không bịa calo cá nhân khi thiếu dữ kiện.
+- AC-035: Nội dung dùng ngôn ngữ ước tính/tham khảo đúng chỗ, có cơ sở khoa học;
+  không hạ các guard, tolerance hoặc oracle chỉ để đạt mục tiêu. Bộ 14 câu gốc +
+  replacement 5 hướng tới ≥14/15 PASS; báo riêng live UI, offline tests và release QA.
+
 ## Testing Strategy
 
 Từng behavior dùng RED → GREEN qua public seam ổn định: tool unit, controller

@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { replaceMealFood, suggestMeal } from "../suggestMeal.tool.js";
+import {
+  replaceMealFood,
+  substituteMealFood,
+  suggestMeal,
+} from "../suggestMeal.tool.js";
 
 const reviewed = (
   contains = [],
@@ -617,6 +621,30 @@ describe("meal replacement deterministic contract", () => {
     expect(result.uiCard.data.totals.protein).toBeGreaterThanOrEqual(130);
   });
 
+  it("executes a ready parsed substitution through the exported server seam", async () => {
+    const result = await substituteMealFood(replacementParams, {
+      previousMealPlan,
+      scopedSubstitution: {
+        status: "ready",
+        mealIndex: 1,
+        foodIndex: 0,
+        sourceFoods: ["uc ga"],
+        requestedReplacementFoods: ["uc ga tay"],
+      },
+      findFoods: vi.fn().mockResolvedValue(replacementCatalog),
+    });
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "complete",
+      replacement: {
+        mealIndex: 1,
+        foodIndex: 0,
+        before: { foodId: "chicken", amountGrams: 100 },
+        after: { foodId: "turkey", amountGrams: 100 },
+      },
+    });
+  });
+
   it("fails closed when the reviewed catalog has no safe equivalent", async () => {
     const result = await replaceMealFood(replacementParams, {
       previousMealPlan,
@@ -634,6 +662,279 @@ describe("meal replacement deterministic contract", () => {
       status: "missing_data",
       reason: "replacement_unavailable",
       meals: [],
+    });
+  });
+
+  it("replaces tofu with requested fish already present elsewhere and preserves every fixed item exactly", async () => {
+    const scopedCatalog = [
+      { _id: "tofu", label: "Đậu phụ", protein: 8, carb: 2, fat: 4, allergenProfile: reviewed() },
+      { _id: "fish", label: "Cá basa", protein: 20, carb: 0, fat: 5, allergenProfile: reviewed() },
+      { _id: "rice", label: "Cơm trắng", protein: 2.7, carb: 28, fat: 0.3, allergenProfile: reviewed() },
+      { _id: "oil", label: "Dầu ô liu", protein: 0, carb: 0, fat: 100, allergenProfile: reviewed() },
+      { _id: "vegetable", label: "Rau xanh", protein: 2, carb: 5, fat: 0.4, allergenProfile: reviewed() },
+    ];
+    const tofuPlan = {
+      meals: [{ label: "Cả ngày", foods: [
+        { foodId: "tofu", name: "Đậu phụ", amountGrams: 200, macros: { protein: 16, carb: 4, fat: 8 }, calories: 152 },
+        { foodId: "fish", name: "Cá basa", amountGrams: 100, macros: { protein: 20, carb: 0, fat: 5 }, calories: 125 },
+        { foodId: "rice", name: "Cơm trắng", amountGrams: 1000, macros: { protein: 27, carb: 280, fat: 3 }, calories: 1255 },
+        { foodId: "oil", name: "Dầu ô liu", amountGrams: 50, macros: { protein: 0, carb: 0, fat: 50 }, calories: 450 },
+        { foodId: "vegetable", name: "Rau xanh", amountGrams: 500, macros: { protein: 10, carb: 25, fat: 2 }, calories: 158 },
+      ] }],
+    };
+    const fixedBefore = tofuPlan.meals[0].foods.slice(1);
+
+    const result = await replaceMealFood({
+      targetCalories: 2200,
+      proteinGrams: 90,
+      carbGrams: 300,
+      fatGrams: 70,
+      mealsPerDay: 1,
+      targetToleranceCalories: 100,
+      minimumProteinGrams: 80,
+    }, {
+      previousMealPlan: tofuPlan,
+      mealIndex: 0,
+      foodIndex: 0,
+      requestedReplacementFoods: ["ca"],
+      findFoods: vi.fn().mockResolvedValue(scopedCatalog),
+    });
+
+    expect(result.uiCard.data.status).toBe("complete");
+    expect(result.uiCard.data.replacement).toMatchObject({
+      before: { foodId: "tofu", amountGrams: 200 },
+      after: { foodId: "fish", amountGrams: expect.any(Number) },
+    });
+    expect(result.uiCard.data.meals[0].foods.slice(1)).toEqual(fixedBefore);
+    expect(result.text).toMatch(/Đậu phụ: 200g → Cá basa: \d+(?:\.\d+)?g/);
+  });
+
+  it("fails closed when the requested replacement lacks reviewed metadata", async () => {
+    const result = await replaceMealFood(replacementParams, {
+      previousMealPlan,
+      mealIndex: 1,
+      foodIndex: 0,
+      requestedReplacementFoods: ["ức gà tây"],
+      findFoods: vi.fn().mockResolvedValue([
+        ...catalog,
+        { _id: "turkey-unreviewed", label: "Ức gà tây", protein: 31, carb: 0, fat: 3.6 },
+      ]),
+    });
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data",
+      reason: "replacement_safety_metadata_missing",
+    });
+  });
+
+  it("fails closed when an allergy rules out the requested replacement", async () => {
+    const result = await replaceMealFood({
+      ...replacementParams,
+      excludedAllergens: ["fish"],
+    }, {
+      previousMealPlan,
+      mealIndex: 1,
+      foodIndex: 0,
+      requestedReplacementFoods: ["cá"],
+      findFoods: vi.fn().mockResolvedValue([
+        ...replacementCatalog,
+        { _id: "fish", label: "Cá basa", protein: 20, carb: 0, fat: 5, allergenProfile: reviewed(["fish"]) },
+      ]),
+    });
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data",
+      reason: "replacement_safety_conflict",
+    });
+  });
+
+  it("keeps the existing tolerance and minimum-protein refusal for an impossible requested target", async () => {
+    const result = await replaceMealFood(replacementParams, {
+      previousMealPlan,
+      mealIndex: 1,
+      foodIndex: 0,
+      requestedReplacementFoods: ["cá"],
+      findFoods: vi.fn().mockResolvedValue([
+        ...catalog,
+        { _id: "fish", label: "Cá basa", protein: 20, carb: 0, fat: 5, allergenProfile: reviewed(["fish"]) },
+      ]),
+    });
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data",
+      reason: "replacement_unavailable",
+    });
+  });
+
+  it("does not silently choose another food when the requested target is absent", async () => {
+    const result = await replaceMealFood(replacementParams, {
+      previousMealPlan,
+      mealIndex: 1,
+      foodIndex: 0,
+      requestedReplacementFoods: ["cá thu"],
+      findFoods: vi.fn().mockResolvedValue(replacementCatalog),
+    });
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data",
+      reason: "replacement_target_unavailable",
+    });
+  });
+
+  it("turns an absent source resolution into an actionable scoped refusal", async () => {
+    const result = await substituteMealFood(replacementParams, {
+      previousMealPlan,
+      scopedSubstitution: {
+        status: "source_absent",
+        sourceFoods: ["dau phu"],
+        requestedReplacementFoods: ["ca"],
+      },
+      findFoods: vi.fn(),
+    });
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data",
+      reason: "replacement_source_absent",
+    });
+    expect(result.text).toMatch(/không có dau phu.*món đang có/iu);
+  });
+
+  it("replaces every same-id occurrence at equal energy and preserves all fixed foods exactly", async () => {
+    const scopedCatalog = [
+      { _id: "tofu", label: "Đậu phụ", protein: 12, carb: 2, fat: 7, allergenProfile: reviewed() },
+      { _id: "fish", label: "Cá basa", protein: 22, carb: 0, fat: 4, allergenProfile: reviewed() },
+      { _id: "rice", label: "Cơm trắng", protein: 2.7, carb: 28, fat: 0.3, allergenProfile: reviewed() },
+      { _id: "oil", label: "Dầu ô liu", protein: 0, carb: 0, fat: 100, allergenProfile: reviewed() },
+    ];
+    const tofuItem = {
+      foodId: "tofu",
+      name: "Đậu phụ",
+      amountGrams: 60,
+      macros: { protein: 7.2, carb: 1.2, fat: 4.2 },
+      calories: 71.4,
+    };
+    const fixedFoods = [
+      {
+        foodId: "rice",
+        name: "Cơm trắng",
+        amountGrams: 100,
+        macros: { protein: 2.7, carb: 28, fat: 0.3 },
+        calories: 125.5,
+      },
+      {
+        foodId: "oil",
+        name: "Dầu ô liu",
+        amountGrams: 30,
+        macros: { protein: 0, carb: 0, fat: 30 },
+        calories: 270,
+      },
+    ];
+    const multiPlan = {
+      meals: ["Bữa trưa", "Bữa tối"].map((label) => ({
+        label,
+        foods: [{ ...tofuItem }, ...fixedFoods.map((food) => ({ ...food }))],
+      })),
+    };
+    const fixedBefore = multiPlan.meals.map((meal) => meal.foods.slice(1));
+
+    const result = await substituteMealFood({
+      targetCalories: 934,
+      proteinGrams: 20,
+      carbGrams: 60,
+      fatGrams: 70,
+      mealsPerDay: 2,
+      targetToleranceCalories: 10,
+      minimumProteinGrams: 15,
+    }, {
+      previousMealPlan: multiPlan,
+      scopedSubstitution: {
+        status: "ready",
+        matches: [
+          { mealIndex: 0, foodIndex: 0 },
+          { mealIndex: 1, foodIndex: 0 },
+        ],
+        sourceFoodId: "tofu",
+        requestedReplacementFoods: ["ca"],
+      },
+      findFoods: vi.fn().mockResolvedValue(scopedCatalog),
+    });
+
+    expect(result.uiCard.data.status).toBe("complete");
+    expect(result.uiCard.data.replacements).toEqual([
+      expect.objectContaining({
+        mealIndex: 0,
+        foodIndex: 0,
+        before: tofuItem,
+        after: expect.objectContaining({ foodId: "fish", amountGrams: 57.6 }),
+      }),
+      expect.objectContaining({
+        mealIndex: 1,
+        foodIndex: 0,
+        before: tofuItem,
+        after: expect.objectContaining({ foodId: "fish", amountGrams: 57.6 }),
+      }),
+    ]);
+    expect(result.uiCard.data.meals.map((meal) => meal.foods.slice(1))).toEqual(fixedBefore);
+    expect(result.text).toMatch(/Bữa trưa.*Đậu phụ: 60g → Cá basa: 57\.6g.*Bữa tối.*Đậu phụ: 60g → Cá basa: 57\.6g.*934 kcal/iu);
+  });
+
+  it("keeps the macro-delta guard when the user explicitly preserves macros", async () => {
+    const tofuPlan = {
+      meals: [{
+        label: "Bữa trưa",
+        foods: [
+          {
+            foodId: "tofu",
+            name: "Đậu phụ",
+            amountGrams: 200,
+            macros: { protein: 16, carb: 4, fat: 8 },
+            calories: 152,
+          },
+          {
+            foodId: "rice",
+            name: "Cơm trắng",
+            amountGrams: 500,
+            macros: { protein: 13.5, carb: 140, fat: 1.5 },
+            calories: 627.5,
+          },
+          {
+            foodId: "oil",
+            name: "Dầu ô liu",
+            amountGrams: 20,
+            macros: { protein: 0, carb: 0, fat: 20 },
+            calories: 180,
+          },
+        ],
+      }],
+    };
+    const result = await substituteMealFood({
+      targetCalories: 960,
+      proteinGrams: 30,
+      carbGrams: 145,
+      fatGrams: 30,
+      mealsPerDay: 1,
+      targetToleranceCalories: 10,
+      minimumProteinGrams: 25,
+    }, {
+      previousMealPlan: tofuPlan,
+      scopedSubstitution: {
+        status: "ready",
+        mealIndex: 0,
+        foodIndex: 0,
+        requestedReplacementFoods: ["ca"],
+        preserveMacros: true,
+      },
+      findFoods: vi.fn().mockResolvedValue([
+        { _id: "tofu", label: "Đậu phụ", protein: 8, carb: 2, fat: 4, allergenProfile: reviewed() },
+        { _id: "fish", label: "Cá basa", protein: 22, carb: 0, fat: 4, allergenProfile: reviewed() },
+        { _id: "rice", label: "Cơm trắng", protein: 2.7, carb: 28, fat: 0.3, allergenProfile: reviewed() },
+        { _id: "oil", label: "Dầu ô liu", protein: 0, carb: 0, fat: 100, allergenProfile: reviewed() },
+      ]),
+    });
+
+    expect(result.uiCard.data).toMatchObject({
+      status: "missing_data",
+      reason: "replacement_unavailable",
     });
   });
 });

@@ -161,11 +161,41 @@ describe("canonical meal request constraints", () => {
         fatGrams: 71.1,
         mealsPerDay: 3,
         requiredFoods: ["com", "ca", "rau", "dau phu"],
-        plan: priorPlan,
+        plan: {
+          ...priorPlan,
+          meals: [{
+            ...priorPlan.meals[0],
+            foods: [
+              { foodId: "tofu", name: "Đậu phụ", amountGrams: 200, macros: { protein: 16, carb: 4, fat: 8 } },
+              ...priorPlan.meals[0].foods,
+            ],
+          }],
+        },
       },
     );
 
     expect(request.args.requiredFoods).toEqual(["com", "ca", "rau"]);
+    expect(request.scopedSubstitution).toEqual({
+      status: "ready",
+      mealIndex: 0,
+      foodIndex: 0,
+      sourceFoods: ["dau phu"],
+      requestedReplacementFoods: ["ca"],
+    });
+  });
+
+  it("keeps an explicit 600 kcal single-meal exclusion in the canonical server request", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Gợi ý một bữa 600 kcal, không dùng thịt gà; mọi món phải ghi rõ khối lượng gram.",
+      {},
+    );
+
+    expect(request.args).toMatchObject({
+      targetCalories: 600,
+      calorieScope: "per_meal",
+      mealsPerDay: 1,
+      excludedFoods: ["thịt gà"],
+    });
   });
 
   it("does not infer a required food from ordinary possibility wording", () => {

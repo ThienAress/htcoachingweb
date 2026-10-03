@@ -8,6 +8,7 @@ import { safeLog } from "../../../utils/safeLogger.js";
 import { hasBandOnlyConstraint, validateWorkoutEquipmentOutput } from "../equipmentConstraint.js";
 import {
   getExerciseCatalogText,
+  isBeginnerBodyweightChestExercise,
   isNoEquipmentCompatibleExercise,
   NO_EQUIPMENT_CATALOG_SEARCH_SOURCE,
 } from "../exerciseCatalogCompatibility.js";
@@ -46,7 +47,7 @@ const NO_EQUIPMENT_PATTERN =
 const BEGINNER_INTENT_PATTERN =
   /\b(?:nguoi moi|moi bat dau|beginner|beginners|newbie|newbies)\b/;
 const ADVANCED_EXERCISE_NAME_PATTERN =
-  /\b(?:archer|diamond|one arm|one-arm|pistol|plyometric|explosive|handstand|muscle up|muscle-up|dragon flag|planche)\b/;
+  /\b(?:archer|diamond|one arm|one-arm|pistol|plyometric|explosive|handstand|muscle up|muscle-up|dragon flag|planche|plyo|clap|clapping|clock push[ -]?up|push ?and ?pull)\b/;
 const NO_EQUIPMENT_CATALOG_FIELDS = Object.freeze([
   "name",
   "description",
@@ -146,6 +147,28 @@ const deduplicateExercisesByName = (exercises) => {
     names.add(normalizedName);
     return true;
   });
+};
+
+const compactCatalogCopy = (value, limit) => {
+  const compact = String(value || "").replace(/\s+/g, " ").trim();
+  return compact.length > limit ? `${compact.slice(0, limit - 1).trimEnd()}…` : compact;
+};
+
+const formatExerciseTechnique = (exercise) => {
+  const cues = [];
+  const description = compactCatalogCopy(exercise?.description, 280);
+  if (description) cues.push(description);
+  for (const instruction of Array.isArray(exercise?.instructions)
+    ? exercise.instructions.slice(0, 3)
+    : []) {
+    const title = compactCatalogCopy(instruction?.title, 80);
+    const detail = compactCatalogCopy(instruction?.description, 220);
+    if (title && detail) cues.push(`${title}: ${detail}`);
+    else if (title || detail) cues.push(title || detail);
+  }
+  return cues.length > 0
+    ? cues.join(" ")
+    : "Thư viện chưa có hướng dẫn kỹ thuật chi tiết cho bài này.";
 };
 
 /**
@@ -254,8 +277,14 @@ export async function searchExercises(params) {
           normalizedSearchQuery,
         ))
       : candidates;
+  const strictBeginnerBodyweightChestIntent = noEquipmentIntent &&
+    beginnerIntent &&
+    muscleAlias?.keys.includes("chest");
+  const beginnerCompatibleCandidates = strictBeginnerBodyweightChestIntent
+    ? equipmentCompatibleCandidates.filter(isBeginnerBodyweightChestExercise)
+    : equipmentCompatibleCandidates;
   const exercises = beginnerIntent
-    ? equipmentCompatibleCandidates
+    ? beginnerCompatibleCandidates
         .map((exercise, index) => ({ exercise, index }))
         .sort((left, right) =>
           getBeginnerRank(left.exercise) - getBeginnerRank(right.exercise) ||
@@ -265,6 +294,8 @@ export async function searchExercises(params) {
         .map(({ exercise }) => exercise)
     : equipmentCompatibleCandidates.slice(0, resultLimit);
   const excludedForEquipmentCount = candidates.length - equipmentCompatibleCandidates.length;
+  const excludedForBeginnerCount = equipmentCompatibleCandidates.length -
+    beginnerCompatibleCandidates.length;
   const scanIncomplete = scanTruncated && exercises.length < resultLimit;
   const catalogInsufficient = exercises.length < resultLimit && !scanIncomplete;
 
@@ -285,13 +316,16 @@ export async function searchExercises(params) {
         equipmentConstraintApplied:
           noEquipmentIntent || limitedDumbbellAndBandEquipment || bandOnlyEquipment,
         excludedForEquipmentCount,
+        excludedForBeginnerCount,
       },
     };
   }
 
   // Text cho LLM
   const exerciseList = exercises
-    .map((e, i) => `${i + 1}. ${e.name} (${e.muscleGroup})${e.description ? ` — ${e.description}` : ""}`)
+    .map((exercise, index) =>
+      `${index + 1}. ${exercise.name} (${exercise.muscleGroup})\n` +
+      `   Kỹ thuật: ${formatExerciseTechnique(exercise)}`)
     .join("\n");
 
   const availabilityNotice = catalogInsufficient
@@ -332,6 +366,7 @@ export async function searchExercises(params) {
       equipmentConstraintApplied:
         noEquipmentIntent || limitedDumbbellAndBandEquipment || bandOnlyEquipment,
       excludedForEquipmentCount,
+      excludedForBeginnerCount,
     },
   };
 }

@@ -19,7 +19,7 @@ import remarkGfm from "remark-gfm";
 import { isAllowedAiUiCard } from "./aiCardPolicy";
 import { getChatScrollBehavior } from "./chatPanelRuntime";
 import { persistOptimisticFeedback } from "./feedbackRuntime";
-import { getSafeCitationSources } from "./citation";
+import { getInlineCitationUris, getSafeCitationSources, normalizeCitationUri } from "./citation";
 
 const CARD_COMPONENTS = {
   tdee: TdeeResultCard,
@@ -81,6 +81,13 @@ const ChatBubble = memo(function ChatBubble({
       .flatMap((card) => card.data?.sources || []),
   );
   const citationByUri = new Map(citationSources.map((source) => [source.uri, source]));
+  const inlineCitationUris = getInlineCitationUris(message.content);
+  const allCitationSourcesAreInline = citationSources.length > 0 && citationSources.every(
+    (source) => inlineCitationUris.has(source.uri),
+  );
+  const displayUiCards = visibleUiCards.filter(
+    (card) => card.cardType !== "webSources" || !allCitationSourcesAreInline,
+  );
 
   // Auto-focus và đặt cursor cuối khi mở edit
   useEffect(() => {
@@ -265,7 +272,7 @@ const ChatBubble = memo(function ChatBubble({
                   components={{
                   p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-gray-800 dark:text-gray-200">{children}</p>,
                   a: ({ href, children }) => {
-                    const citation = citationByUri.get(href);
+                    const citation = citationByUri.get(normalizeCitationUri(href));
                     if (citation) return <CitationChip source={citation} />;
                     if (href?.includes("#") && href?.startsWith("/")) {
                       return (
@@ -374,7 +381,7 @@ const ChatBubble = memo(function ChatBubble({
         )}
 
         {/* UI Cards */}
-        {visibleUiCards.map((card, i) => {
+        {displayUiCards.map((card, i) => {
           const CardComponent = CARD_COMPONENTS[card.cardType];
           return (
             <div
@@ -393,7 +400,7 @@ const ChatBubble = memo(function ChatBubble({
         })}
 
         {/* Feedback buttons (chỉ cho assistant messages có nội dung) */}
-        {!isUser && onFeedback && message._id && !isThinking && !message.isError && (message.content || visibleUiCards.length > 0) && (
+        {!isUser && onFeedback && message._id && !isThinking && !message.isError && (message.content || displayUiCards.length > 0) && (
           <div className="mt-1 flex flex-wrap items-center gap-1">
             <button
               type="button"

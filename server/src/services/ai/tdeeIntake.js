@@ -148,7 +148,10 @@ export function extractTdeePrefill(message) {
   const durationMatch = ascii.match(
     /\b(?:moi|trung binh moi)\s+buoi\b[^\d\n]{0,24}(\d{1,3})\s*(?:phut|p)\b|\b(\d{1,3})\s*(?:phut|p)\s*(?:\/\s*buoi|moi\s+buoi)\b/i,
   );
-  const duration = durationMatch?.[1] || durationMatch?.[2];
+  const trainingRange = ascii.match(/\b(?:tap|workout|training|moi buoi)\s+(?:khoang\s+)?(\d{1,3})\s*[-–—]\s*(\d{1,3})\s*(?:phut|p)\b/i);
+  const duration = trainingRange && Number(trainingRange[1]) <= Number(trainingRange[2])
+    ? trainingRange[2]
+    : durationMatch?.[1] || durationMatch?.[2];
   const trainingDuration = mapTrainingDuration(duration);
   if (trainingDuration) prefill.trainingDuration = trainingDuration;
 

@@ -18,9 +18,29 @@ const NO_EQUIPMENT_SETUP_PATTERN =
 const EXPLICIT_NO_SETUP_PATTERN =
   /\b(?:khong can|khong dung|khong co|no|without)\s+(?:bench|ghe|chair|bar|xa|trx|band|day khang luc|dumbbell|ta don|machine|may|cable)\b/g;
 const ADVANCED_BODYWEIGHT_PATTERN =
-  /\b(?:archer|diamond|one arm|one-arm|pistol|plyometric|explosive|handstand|muscle up|muscle-up|dragon flag|planche|plyo|clap)\b/;
+  /\b(?:archer|diamond|one arm|one-arm|pistol|plyometric|explosive|handstand|muscle up|muscle-up|dragon flag|planche|plyo|clap|clapping|clock push[ -]?up|push ?and ?pull)\b/;
 const CHEST_MUSCLE_PATTERN =
   /(?:^|\s)(?:nguc|chest|pectoral)(?:$|\s)/;
+const TECHNICAL_DIFFICULTY_FIELDS = [
+  "coordination",
+  "stability",
+  "mobility",
+  "setup",
+  "errorConsequence",
+];
+
+const hasKnownNonBeginnerDifficulty = (exercise) => {
+  const difficulty = exercise?.technicalDifficulty;
+  if (!difficulty || TECHNICAL_DIFFICULTY_FIELDS.some((field) =>
+    !Number.isInteger(difficulty[field]) ||
+    difficulty[field] < 0 || difficulty[field] > 2)) {
+    return false;
+  }
+  return TECHNICAL_DIFFICULTY_FIELDS.reduce(
+    (total, field) => total + difficulty[field],
+    0,
+  ) > 5;
+};
 
 export const getExerciseCatalogText = (exercise) =>
   normalize([
@@ -46,5 +66,6 @@ export const isBeginnerBodyweightChestExercise = (exercise) => {
   const text = getExerciseCatalogText(exercise);
   return CHEST_MUSCLE_PATTERN.test(muscleGroup) &&
     isNoEquipmentCompatibleExercise(exercise) &&
-    !ADVANCED_BODYWEIGHT_PATTERN.test(text);
+    !ADVANCED_BODYWEIGHT_PATTERN.test(text) &&
+    !hasKnownNonBeginnerDifficulty(exercise);
 };
