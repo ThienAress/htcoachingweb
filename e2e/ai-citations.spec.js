@@ -148,9 +148,9 @@ test("keeps legacy tool-history sources bound to their final assistant turn", as
   ]));
 
   const chip = dialog.getByRole("link", {
-    name: "Mở nguồn CDC — Creatine guidance từ Nguồn trong thẻ mới",
+    name: "Mở nguồn CDC — Creatine guidance từ vertexaisearch.cloud.google.com trong thẻ mới",
   });
   await expect(chip).toHaveAttribute("href", legacyRedirectUri);
-  await expect(chip).not.toContainText("vertexaisearch.cloud.google.com");
+  await expect(chip).toContainText("vertexaisearch.cloud.google.com");
   await expect(dialog.getByText("Nguồn tham khảo", { exact: true })).toHaveCount(0);
 });

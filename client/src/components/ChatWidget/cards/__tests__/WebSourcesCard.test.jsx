@@ -50,7 +50,7 @@ describe("WebSourcesCard", () => {
     ).toBe("");
   });
 
-  it("giữ href redirect legacy nhưng không lộ hostname điều hướng trong nhãn", () => {
+  it("giữ href redirect legacy và hiện đúng hostname điều hướng trong nhãn", () => {
     const html = renderCard({
       sources: [{
         title: "CDC — Creatine guidance (vertexaisearch.cloud.google.com)",
@@ -59,7 +59,7 @@ describe("WebSourcesCard", () => {
     });
 
     expect(html).toContain("CDC — Creatine guidance");
-    expect(html.replace(/href="[^"]+"/g, "")).not.toContain("vertexaisearch.cloud.google.com");
+    expect(html).toContain(">vertexaisearch.cloud.google.com</p>");
     expect(html).toContain('href="https://vertexaisearch.cloud.google.com/grounding/redirect?target=cdc"');
   });
 
@@ -82,7 +82,7 @@ describe("WebSourcesCard", () => {
     expect(html).not.toContain("favicon");
   });
 
-  it("uses a neutral label when a legacy redirect only supplies its transport hostname", () => {
+  it("uses the actual host when a legacy redirect only supplies its transport hostname", () => {
     const html = renderCard({
       sources: [{
         title: "vertexaisearch.cloud.google.com",
@@ -90,7 +90,7 @@ describe("WebSourcesCard", () => {
       }],
     });
 
-    expect(html).toContain(">Nguồn<");
-    expect(html.replace(/href="[^"]+"/g, "")).not.toContain("vertexaisearch.cloud.google.com");
+    expect(html).toContain('aria-label="vertexaisearch.cloud.google.com"');
+    expect(html).toContain(">vertexaisearch.cloud.google.com</p>");
   });
 });

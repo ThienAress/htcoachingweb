@@ -660,12 +660,14 @@ describe("AI answer trace and feedback review", () => {
     });
   });
 
-  it("prioritizes workout intake questions before estimating calories", async () => {
+  it.each([
+    "Tôi ngồi làm văn phòng, đi 10.000 bước mỗi ngày và tập 60–90 phút. Hãy tính chính xác lượng calo tôi nên ăn và lập giáo án phù hợp ngay. Nếu dữ liệu chưa đủ thì đừng đoán: hãy nêu dữ liệu còn thiếu và hỏi tối đa 5 câu quan trọng nhất trước.",
+    "Tôi muốn biết mức calo và lịch tập phù hợp với mình. Nếu dữ liệu chưa đủ thì hãy hỏi tối đa 5 câu quan trọng nhất trước, không đoán.",
+  ])("prioritizes workout intake questions before estimating calories: %s", async (message) => {
     const { user, accessToken } = await createTestUser();
     llmStreamMock.mockImplementation(async function* incompleteIntake() {
       yield { type: "text", content: "TDEE là ước tính. 1. Tuổi? 2. Cân nặng?" };
     });
-    const message = "Tôi ngồi làm văn phòng, đi 10.000 bước mỗi ngày và tập 60–90 phút. Hãy tính chính xác lượng calo tôi nên ăn và lập giáo án phù hợp ngay. Nếu dữ liệu chưa đủ thì đừng đoán: hãy nêu dữ liệu còn thiếu và hỏi tối đa 5 câu quan trọng nhất trước.";
     const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
       message, requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de117",
     });
@@ -678,6 +680,23 @@ describe("AI answer trace and feedback review", () => {
       rules: [{ type: "intake_questions", requestType: "workout" }],
     })).toEqual([]);
     expect(answer.answerTrace).toMatchObject({ evidenceMode: "model_prior", model: "static_workout_intake_v1" });
+  });
+
+  it.each([
+    "Workout PPL có ưu nhược điểm gì? Nếu dữ liệu chưa đủ thì đừng đoán.",
+    "Tôi muốn biết workout ảnh hưởng đến calo như thế nào. Nếu dữ liệu chưa đủ thì đừng đoán.",
+  ])("does not turn a workout knowledge question into personal intake: %s", async (message) => {
+    const { user, accessToken } = await createTestUser();
+    llmStreamMock.mockImplementation(async function* workoutKnowledge() {
+      yield { type: "text", content: "PPL chia bài thành đẩy, kéo và chân; số buổi tùy khả năng hồi phục và lịch sinh hoạt." };
+    });
+    await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message,
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.find((item) => item.role === "assistant" && item.content);
+    expect(answer.content).toContain("PPL chia bài");
+    expect(llmStreamMock).toHaveBeenCalledTimes(1);
   });
 
   it("keeps supplied activity details in the same conversation after workout intake", async () => {

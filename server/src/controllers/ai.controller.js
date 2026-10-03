@@ -1499,7 +1499,10 @@ export const chatStream = async (req, res) => {
       routingDecision.reasonCodes.includes("workout_creation") &&
       !routedRequiredToolName ? buildSevenDayReferencePlan(message) : null;
     const workoutIntakeRequested = routingDecision.risk === "low" &&
-      routingDecision.reasonCodes.includes("workout_creation") &&
+      (routingDecision.reasonCodes.includes("workout_creation") ||
+        (routingDecision.domain === "fitness" &&
+          /(?:lịch\s+tập|giáo\s+án|training\s+plan)[^.!?\n]{0,60}(?:phù\s+hợp\s+với|riêng\s+cho)\s+(?:tôi|mình)/iu.test(message) &&
+          /(?:calo|calorie|tdee)/iu.test(message))) &&
       /(?:dữ liệu.*đủ|đừng\s+đoán|nêu\s+dữ\s+liệu\s+còn\s+thiếu|tối đa\s*5\s*(?:câu|nhóm))/iu.test(message);
     const deliverFourDayWorkoutFallback = async () => {
       routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });

@@ -3,7 +3,7 @@
 ## Status
 
 - Complexity: COMPLEX; risk: HIGH (AI output/sức khỏe, không sửa auth).
-- Lifecycle: IN PROGRESS; verification: LOCAL FULL; rollout: NOT STARTED.
+- Lifecycle: IN PROGRESS; verification: STAGING; rollout: LIVE (PR #190; acceptance chưa đạt).
 - Owner: root; updated at: 2026-10-04; depends on: 094.
 
 ## Why This Matters
@@ -93,3 +93,31 @@ Implementation local đã tích hợp. Client 926 tests, release build, targeted
 Báo cáo [096](../reports/096-ai-remediation-local-qa-2026-10-04.md) ghi exact commands,
 execution logs, bounded review và proof gaps. Chưa commit/push/deploy, chưa chạy
 15 câu live UI trên bản vá; không suy QA local thành mục tiêu 14/15 đã đạt.
+
+## Follow-up sau promotion #190 — 2026-10-04
+
+PR #190 đã merge SHA `2578b4fd9db492ce2b17dba84698446b5daf9639`;
+CI 5/5, Netlify READY và Render LIVE cùng SHA. Round3 thu đủ 15 lượt UI,
+13 conversations, cleanup verified/residue 0. Không chạy lại chỉ vì resume.
+Raw automated grade 9 PASS/6 FAIL chưa phải final semantic grade. Hai flags
+duration/WHO cần manual adjudication theo frozen rubric; không đổi rubric.
+
+Các bước tiếp theo (giữ scope và guard ở trên):
+
+1. Root chốt baseline report 097 từ captures/screenshots, tách semantic score
+   khỏi lỗi lexical harness và đề cập mô tả kneeling push-up mâu thuẫn.
+2. UI implementer owns `citation.js`, `CitationChip.jsx`, `SourceAvatar.jsx`
+   và citation tests: reproduce generic “Nguồn” trên redirect citation; hiển thị
+   host thật, không giả publisher từ title hoặc tải favicon bên ngoài.
+3. Root owns controller/intake regression: lời hỏi dữ kiện luôn nói TDEE là
+   ước tính, nhóm kinh nghiệm/thiết bị rõ; không tạo numeric target cá nhân.
+4. Read-only planners điều tra search timeout/cost bounds và chuẩn bị đề xuất
+   Food/Exercise có nguồn, exact records/fields, preview, rollback, verification.
+   Không tăng timeout/retry/quota hoặc gắn reviewed=true thiếu evidence.
+5. Chạy focused RED→GREEN, client/server affected checks, AI/UI/security gates;
+   local code mới chưa được deploy. Review bản vá và proposal trước promotion
+   tiếp theo. Mutation catalog thật cần explicit approval staging riêng theo
+   AGENTS.md; mọi thao tác production ngoài phạm vi.
+
+Done criteria vẫn ≥14/15 live; PARTIAL/dependency failure là non-PASS. Báo cáo
+và local remediation là checkpoint khi dữ liệu có nguồn hoặc approval còn thiếu.

@@ -237,8 +237,8 @@
       "priority": "P1",
       "complexity": "complex",
       "lifecycle": "in_progress",
-      "verification": "local_full",
-      "rollout": "not_started",
+      "verification": "staging",
+      "rollout": "live",
       "owner": "root",
       "updatedAt": "2026-10-04"
     }
