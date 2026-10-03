@@ -22,6 +22,37 @@ describe("grounded citation rendering", () => {
     expect(html).toContain('title="Training guide"');
   });
 
+  it("uses the matched citation URL host instead of an untrusted Markdown title for a redirect source", () => {
+    const redirectUri = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/source-token";
+    const html = renderBubble({
+      role: "assistant",
+      content: `Theo [nih.gov (vertexaisearch.cloud.google.com)](${redirectUri}).`,
+      uiCards: [{ cardType: "webSources", data: { sources: [{
+        title: "nih.gov (vertexaisearch.cloud.google.com)",
+        uri: redirectUri,
+      }] } }],
+    });
+
+    expect(html).toContain(">vertexaisearch.cloud.google.com<");
+    expect(html).toContain('aria-label="Mở nguồn nih.gov từ vertexaisearch.cloud.google.com trong thẻ mới"');
+    expect(html).toContain(">V<");
+  });
+
+  it("does not present an untrusted title as the source identity", () => {
+    const html = renderBubble({
+      role: "assistant",
+      content: "Theo [World Health Organization](https://www.evil.example/advice).",
+      uiCards: [{ cardType: "webSources", data: { sources: [{
+        title: "World Health Organization",
+        uri: "https://www.evil.example/advice",
+      }] } }],
+    });
+
+    expect(html).toContain(">evil.example<");
+    expect(html).toContain('title="World Health Organization"');
+    expect(html).not.toContain(">World Health Organization<");
+  });
+
   it("does not repeat the sources card when every validated source is already cited inline", () => {
     const html = renderBubble({
       role: "assistant",

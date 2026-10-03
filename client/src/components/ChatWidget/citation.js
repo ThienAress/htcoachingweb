@@ -1,5 +1,3 @@
-const REDIRECT_HOST = "vertexaisearch.cloud.google.com";
-
 const PUBLISHERS_BY_HOST = [
   ["ods.od.nih.gov", "NIH ODS"],
   ["pubmed.ncbi.nlm.nih.gov", "PubMed"],
@@ -46,20 +44,16 @@ export const normalizeCitationSource = (source) => {
     let title = cleanTitle(source?.title);
     if (!title || !host) return null;
 
-    // Older grounding payloads included the redirect host in the title. It is
-    // transport metadata, not a useful publisher label.
+    // Grounding metadata can append its redirect host to a title. Preserve a
+    // concise tooltip, while deriving the visible identity from the link URL.
     title = title
-      .replace(new RegExp(`\\s*\\(${REDIRECT_HOST.replaceAll(".", "\\.")}\\)\\s*$`, "i"), "")
+      .replace(/\s*\([^)]*vertexaisearch\.cloud\.google\.com[^)]*\)\s*$/i, "")
       .trim();
-    const isGroundingRedirect = host === REDIRECT_HOST;
-    if (isGroundingRedirect && (!title || title.toLowerCase() === REDIRECT_HOST)) {
-      title = "Nguồn";
-    }
     if (!title) return null;
-    const publisher = isGroundingRedirect ? "Nguồn" : getPublisher(host);
+    const publisher = getPublisher(host);
     return {
       title,
-      host: isGroundingRedirect ? "" : host,
+      host,
       publisher,
       uri: url.href,
       monogram: Array.from(publisher)[0]?.toUpperCase() || "•",

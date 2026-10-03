@@ -5,11 +5,30 @@ import path from "node:path";
 
 import { reliabilityPlan } from "../stagingAiReliabilityAcceptance.plan.js";
 import { readChatSse } from "../stagingAiReliabilityAcceptance.http.js";
-import { buildSafeReliabilityEvidence } from "../stagingAiReliabilityAcceptance.evidence.js";
+import { buildSafeReliabilityEvidence, providerDelta } from "../stagingAiReliabilityAcceptance.evidence.js";
 import { assertReliabilityConfig, assertReliabilityRuntimeRoute, assertScopedMealUnavailable, reliabilityCardsEqual, runStagingAiReliabilityAcceptance } from "../stagingAiReliabilityAcceptance.js";
 
 const SHA = "a".repeat(40);
 const OID = "a".repeat(24);
+const METRICS_RUNTIME = {
+  runtimeReleaseSha: SHA,
+  runtimeInstanceId: "11111111-1111-4111-8111-111111111111",
+  uptimeSeconds: 100,
+};
+const providerCounters = () => ({
+  "provider.gemini_chat_requests": 0,
+  "provider.gemini_chat_succeeded": 0,
+  "provider.gemini_chat_failed": 0,
+  "provider.gemini_chat_unavailable": 0,
+  "provider.gemini_chat_rate_limited": 0,
+  "provider.gemini_chat_not_required": 0,
+  ...Object.fromEntries([
+    "requests", "succeeded", "failed", "prompt_tokens", "output_tokens", "total_tokens",
+    "privacy_blocked", "not_configured", "request_rejected", "permission_denied",
+    "rate_limited", "upstream_error", "http_error", "invalid_response", "network_error",
+    "aborted", "no_supported_source", "grounded",
+  ].map((name) => [`provider.gemini_search_grounding_${name}`, 0])),
+});
 const folders = [];
 afterEach(async () => {
   await Promise.all(folders.splice(0).map((folder) => fs.rm(folder, { recursive: true, force: true })));
@@ -40,6 +59,60 @@ const sse = (events, headers = { "content-type": "text/event-stream" }) =>
   new Response(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers });
 
 describe("one-round reliability acceptance", () => {
+  test("records search grounding success and abort counters alongside chat deltas", () => {
+    const before = { ...METRICS_RUNTIME, counters: providerCounters() };
+    const after = {
+      ...METRICS_RUNTIME,
+      uptimeSeconds: 101,
+      counters: {
+        ...providerCounters(),
+        "provider.gemini_chat_requests": 1,
+        "provider.gemini_chat_succeeded": 1,
+        "provider.gemini_search_grounding_requests": 2,
+        "provider.gemini_search_grounding_succeeded": 1,
+        "provider.gemini_search_grounding_failed": 1,
+        "provider.gemini_search_grounding_aborted": 1,
+      },
+    };
+
+    expect(providerDelta(before, after, SHA)).toMatchObject({
+      "provider.gemini_chat_requests": 1,
+      "provider.gemini_chat_succeeded": 1,
+      "provider.gemini_search_grounding_requests": 2,
+      "provider.gemini_search_grounding_succeeded": 1,
+      "provider.gemini_search_grounding_failed": 1,
+      "provider.gemini_search_grounding_aborted": 1,
+      "provider.gemini_search_grounding_rate_limited": 0,
+    });
+  });
+
+  test.each(["before", "after", "both"])("rejects missing grounding counters in %s", (side) => {
+    const before = { ...METRICS_RUNTIME, counters: providerCounters() };
+    const after = { ...METRICS_RUNTIME, counters: providerCounters() };
+    const key = "provider.gemini_search_grounding_requests";
+    if (side !== "after") delete before.counters[key];
+    if (side !== "before") delete after.counters[key];
+    expect(() => providerDelta(before, after, SHA))
+      .toThrowError("Staging provider counters are inconclusive");
+  });
+
+  test.each([-1, 0.5, Number.MAX_SAFE_INTEGER + 1])("rejects invalid grounding counter %s", (value) => {
+    const before = { ...METRICS_RUNTIME, counters: providerCounters() };
+    const after = { ...METRICS_RUNTIME, counters: providerCounters() };
+    before.counters["provider.gemini_search_grounding_requests"] = value;
+    after.counters["provider.gemini_search_grounding_requests"] = value;
+    expect(() => providerDelta(before, after, SHA))
+      .toThrowError("Staging provider counters are inconclusive");
+  });
+
+  test("rejects counter regression even when runtime identity is unchanged", () => {
+    const before = { ...METRICS_RUNTIME, counters: providerCounters() };
+    const after = { ...METRICS_RUNTIME, counters: providerCounters() };
+    before.counters["provider.gemini_search_grounding_requests"] = 1;
+    expect(() => providerDelta(before, after, SHA))
+      .toThrowError("Staging provider counters are inconclusive");
+  });
+
   test("accepts Q8 unavailable only when the saved plan is unchanged and has no rice/oil", () => {
     const priorPlan = { status: "complete", meals: [{ foods: [
       { foodId: "chicken", name: "Ức gà", amountGrams: 150 },
@@ -211,14 +284,7 @@ describe("one-round reliability acceptance", () => {
     const env = await stagingEnv();
     const requests = [];
     const cleanup = vi.fn();
-    const counters = {
-      "provider.gemini_chat_requests": 0,
-      "provider.gemini_chat_succeeded": 0,
-      "provider.gemini_chat_failed": 0,
-      "provider.gemini_chat_unavailable": 0,
-      "provider.gemini_chat_rate_limited": 0,
-      "provider.gemini_chat_not_required": 0,
-    };
+    const counters = providerCounters();
     let sequence = 0;
     const result = await runStagingAiReliabilityAcceptance({ env, deps: {
       connection: { connection: { db: { databaseName: "htcoaching_staging" } },
