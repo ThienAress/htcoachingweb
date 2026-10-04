@@ -3,6 +3,18 @@
   "legacyCutoff": "076",
   "plans": [
     {
+      "id": "094B",
+      "title": "Resolve source provenance and retest staging",
+      "path": "docs/plans/094b-resolve-source-provenance-and-retest-staging.md",
+      "priority": "P1",
+      "complexity": "complex",
+      "lifecycle": "in_progress",
+      "verification": "focused",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-10-04"
+    },
+    {
       "id": "092",
       "title": "Restore HT Assistant reliability before further expansion",
       "path": "docs/plans/092-restore-ht-assistant-reliability.md",

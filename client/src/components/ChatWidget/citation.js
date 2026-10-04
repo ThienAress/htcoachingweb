@@ -2,9 +2,30 @@ const PUBLISHERS_BY_HOST = [
   ["ods.od.nih.gov", "NIH ODS"],
   ["pubmed.ncbi.nlm.nih.gov", "PubMed"],
   ["nih.gov", "NIH"],
+  ["bmj.com", "BMJ"],
   ["who.int", "WHO"],
   ["cdc.gov", "CDC"],
   ["jissn.biomedcentral.com", "JISSN"],
+];
+
+const GOOGLE_GROUNDING_ORIGIN = "https://vertexaisearch.cloud.google.com";
+const GOOGLE_GROUNDING_PATH = "/grounding-api-redirect/";
+const RESERVED_PUBLISHER_HOSTS = [
+  "localhost",
+  "local",
+  "internal",
+  "test",
+  "invalid",
+  "example",
+  "home",
+  "lan",
+  "localdomain",
+  "onion",
+  "arpa",
+  "corp",
+  "example.com",
+  "example.net",
+  "example.org",
 ];
 
 const stripUnsafeDisplayCharacters = (value) =>
@@ -23,6 +44,75 @@ const cleanTitle = (value) =>
 
 const getPublisher = (host) =>
   PUBLISHERS_BY_HOST.find(([knownHost]) => host === knownHost || host.endsWith(`.${knownHost}`))?.[1] || host;
+
+const hasUnsafeUrlCharacters = (value) => Array.from(value).some((character) => {
+  const code = character.codePointAt(0);
+  return code <= 32 || code === 127 || character === "\\";
+});
+
+const isGoogleGroundingRedirect = (uri) => {
+  if (typeof uri !== "string" || hasUnsafeUrlCharacters(uri)) return false;
+  try {
+    const url = new URL(uri);
+    if (
+      url.origin !== GOOGLE_GROUNDING_ORIGIN ||
+      url.username ||
+      url.password ||
+      url.port ||
+      url.search ||
+      url.hash ||
+      !url.pathname.startsWith(GOOGLE_GROUNDING_PATH)
+    ) return false;
+    return /^[A-Za-z0-9_-]+={0,2}$/.test(
+      url.pathname.slice(GOOGLE_GROUNDING_PATH.length),
+    );
+  } catch {
+    return false;
+  }
+};
+
+const isGoogleGroundingTransport = (uri) => {
+  if (typeof uri !== "string" || hasUnsafeUrlCharacters(uri)) return false;
+  try {
+    const url = new URL(uri);
+    return (
+      url.origin === GOOGLE_GROUNDING_ORIGIN &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      (url.pathname.startsWith("/grounding/") || url.pathname.startsWith(GOOGLE_GROUNDING_PATH))
+    );
+  } catch {
+    return false;
+  }
+};
+
+const isPublicPublisherHost = (value) => {
+  const host = String(value || "").toLowerCase();
+  if (
+    host.length > 253 ||
+    host === "localhost" ||
+    !host.includes(".") ||
+    RESERVED_PUBLISHER_HOSTS.some((reservedHost) =>
+      host === reservedHost || host.endsWith(`.${reservedHost}`),
+    )
+  ) return false;
+
+  const labels = host.split(".");
+  return labels.every((label) =>
+    /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label),
+  ) && /[a-z]/i.test(labels.at(-1));
+};
+
+const getProvenancePublisherHost = (source) => {
+  if (!isGoogleGroundingRedirect(source?.uri)) return null;
+  const provenance = source?.provenance;
+  if (!provenance || typeof provenance !== "object" || Array.isArray(provenance)) return null;
+  if (provenance.kind !== "google_grounding_redirect") return null;
+  if (typeof provenance.publisherHost !== "string") return null;
+  const publisherHost = provenance.publisherHost.toLowerCase();
+  return isPublicPublisherHost(publisherHost) ? publisherHost : null;
+};
 
 export const normalizeCitationUri = (value) => {
   try {
@@ -50,12 +140,17 @@ export const normalizeCitationSource = (source) => {
       .replace(/\s*\([^)]*vertexaisearch\.cloud\.google\.com[^)]*\)\s*$/i, "")
       .trim();
     if (!title) return null;
-    const publisher = getPublisher(host);
+    const provenanceHost = getProvenancePublisherHost(source);
+    const isUnresolvedRedirect = isGoogleGroundingTransport(source?.uri) && !provenanceHost;
+    const publisher = isUnresolvedRedirect
+      ? "Nguồn web"
+      : getPublisher(provenanceHost || host);
     return {
       title,
       host,
       publisher,
       uri: url.href,
+      avatar: isUnresolvedRedirect ? "globe" : "monogram",
       monogram: Array.from(publisher)[0]?.toUpperCase() || "•",
     };
   } catch {

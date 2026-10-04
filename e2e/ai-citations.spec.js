@@ -41,6 +41,34 @@ for (const viewport of [
   { name: "desktop", width: 1280, height: 900 },
   { name: "mobile", width: 390, height: 844 },
 ]) {
+  test(`renders publisher provenance while preserving the Google transport link (${viewport.name})`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    const uri = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/public-token";
+    const dialog = await openAssistant(page, createHistory([
+      { _id: "user-provenance", role: "user", content: "Cho tôi nguồn tham khảo." },
+      { _id: "assistant-provenance", role: "assistant",
+        content: `Tham khảo [bài nghiên cứu](<${uri}>).`,
+        uiCard: sourceCard([{ title: "Physical activity guidance", uri,
+          provenance: { kind: "google_grounding_redirect", publisherHost: "pmc.ncbi.nlm.nih.gov" } }]),
+      },
+    ]));
+    const chip = dialog.getByRole("link", { name: "Mở nguồn Physical activity guidance từ NIH trong thẻ mới" });
+    await expect(chip).toHaveAttribute("href", uri);
+    await expect(chip).toHaveAttribute("target", "_blank");
+    await expect(chip).toHaveAttribute("rel", "noopener noreferrer");
+    await expect(chip.getByRole("img", { name: "NIH", exact: true })).toBeVisible();
+    await expect(chip).toContainText("NIH");
+    await expect(dialog.getByText("Nguồn tham khảo", { exact: true })).toHaveCount(0);
+    await chip.focus();
+    await expect(chip).toBeFocused();
+    const box = await expectWithinViewport(chip, viewport.width);
+    if (viewport.name === "mobile") {
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+    }
+    await page.screenshot({ path: testInfo.outputPath(`citation-provenance-${viewport.name}.png`) });
+  });
+
   test(`renders final assistant citation metadata as a compact source link (${viewport.name})`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
     const dialog = await openAssistant(page, createHistory([
@@ -148,9 +176,9 @@ test("keeps legacy tool-history sources bound to their final assistant turn", as
   ]));
 
   const chip = dialog.getByRole("link", {
-    name: "Mở nguồn CDC — Creatine guidance từ vertexaisearch.cloud.google.com trong thẻ mới",
+    name: "Mở nguồn CDC — Creatine guidance từ Nguồn web trong thẻ mới",
   });
   await expect(chip).toHaveAttribute("href", legacyRedirectUri);
-  await expect(chip).toContainText("vertexaisearch.cloud.google.com");
+  await expect(chip).toContainText("Nguồn web");
   await expect(dialog.getByText("Nguồn tham khảo", { exact: true })).toHaveCount(0);
 });

@@ -1,3 +1,5 @@
+import { Globe } from "lucide-react";
+
 export default function SourceAvatar({ source, size = "sm" }) {
   const sizeClasses = size === "md"
     ? "h-7 min-w-7 text-xs"
@@ -10,7 +12,7 @@ export default function SourceAvatar({ source, size = "sm" }) {
       role="img"
       title={source.publisher}
     >
-      {source.monogram}
+      {source.avatar === "globe" ? <Globe aria-hidden="true" size={size === "md" ? 14 : 12} /> : source.monogram}
     </span>
   );
 }

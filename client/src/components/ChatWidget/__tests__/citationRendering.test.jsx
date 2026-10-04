@@ -22,7 +22,7 @@ describe("grounded citation rendering", () => {
     expect(html).toContain('title="Training guide"');
   });
 
-  it("uses the matched citation URL host instead of an untrusted Markdown title for a redirect source", () => {
+  it("uses validated redirect provenance for a grounded NIH source", () => {
     const redirectUri = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/source-token";
     const html = renderBubble({
       role: "assistant",
@@ -30,12 +30,18 @@ describe("grounded citation rendering", () => {
       uiCards: [{ cardType: "webSources", data: { sources: [{
         title: "nih.gov (vertexaisearch.cloud.google.com)",
         uri: redirectUri,
+        provenance: {
+          kind: "google_grounding_redirect",
+          publisherHost: "pmc.ncbi.nlm.nih.gov",
+        },
       }] } }],
     });
 
-    expect(html).toContain(">vertexaisearch.cloud.google.com<");
-    expect(html).toContain('aria-label="Mở nguồn nih.gov từ vertexaisearch.cloud.google.com trong thẻ mới"');
-    expect(html).toContain(">V<");
+    expect(html).toContain(">NIH<");
+    expect(html).toContain('aria-label="Mở nguồn nih.gov từ NIH trong thẻ mới"');
+    expect(html).not.toContain(">vertexaisearch.cloud.google.com<");
+    expect(html).not.toContain(">V<");
+    expect(html).toContain(`href="${redirectUri}"`);
   });
 
   it("does not present an untrusted title as the source identity", () => {
@@ -45,12 +51,63 @@ describe("grounded citation rendering", () => {
       uiCards: [{ cardType: "webSources", data: { sources: [{
         title: "World Health Organization",
         uri: "https://www.evil.example/advice",
+        provenance: {
+          kind: "google_grounding_redirect",
+          publisherHost: "who.int",
+        },
       }] } }],
     });
 
     expect(html).toContain(">evil.example<");
     expect(html).toContain('title="World Health Organization"');
     expect(html).not.toContain(">World Health Organization<");
+  });
+
+  it.each([
+    "127.0.0.1",
+    "who.123",
+    "localhost",
+    "publisher.onion",
+    "sub.example.org",
+    "who.int\\nspoof.example",
+  ])("uses the neutral fallback for malformed redirect provenance: %s", (publisherHost) => {
+    const redirectUri = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/source_token=";
+    const html = renderBubble({
+      role: "assistant",
+      content: `Theo [Nguồn giả](${redirectUri}).`,
+      uiCards: [{ cardType: "webSources", data: { sources: [{
+        title: "Spoofed WHO title",
+        uri: redirectUri,
+        provenance: { kind: "google_grounding_redirect", publisherHost },
+      }] } }],
+    });
+
+    expect({
+      neutralLabel: html.includes(">Nguồn web<"),
+      globeAvatar: html.includes("lucide-globe"),
+      spoofedPublisher: html.includes(">WHO<"),
+    }).toEqual({ neutralLabel: true, globeAvatar: true, spoofedPublisher: false });
+  });
+
+  it("does not coerce an object publisherHost into trusted provenance", () => {
+    const redirectUri = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/source_token";
+    const html = renderBubble({
+      role: "assistant",
+      content: `Theo [Nguồn giả](${redirectUri}).`,
+      uiCards: [{ cardType: "webSources", data: { sources: [{
+        title: "Spoofed publisher object",
+        uri: redirectUri,
+        provenance: {
+          kind: "google_grounding_redirect",
+          publisherHost: { toString: () => "who.int" },
+        },
+      }] } }],
+    });
+
+    expect({
+      neutralLabel: html.includes(">Nguồn web<"),
+      spoofedPublisher: html.includes(">WHO<"),
+    }).toEqual({ neutralLabel: true, spoofedPublisher: false });
   });
 
   it("does not repeat the sources card when every validated source is already cited inline", () => {
