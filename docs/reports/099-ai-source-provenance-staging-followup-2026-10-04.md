@@ -98,6 +98,46 @@ Preflight cuối exit0, dryRun=true, authentication verified=false;
 
 ## Deployment và live acceptance còn lại
 
+### Live round1 sau PR192
+
+PR192 merged SHA `8cca5a872320ea954ffb9efb1fe755c9a60f68d9`; CI PR và CI merge
+đều 5/5 PASS; full CI E2E 129/129. Netlify READY `6ac23e63f928bf00089c75d2`,
+Render LIVE `dep-db13t7m0tbcc739ctr50`; served HTML và 29 assets khớp immutable
+deploy, staging API origin đúng. Runtime SHA/boot ổn định toàn run. KB read-only
+26 published/2 hold, metadata/index PASS. Backup recovery còn trong hạn.
+
+Live15 collected đủ, synthetic cleanup verified=true/residue0. Frozen automated
+grade 12PASS/3FAIL; manual12PASS/1PARTIAL/2FAIL=80%, chưa đạt14/15. Case8 manual
+PASS vì45–55phút đáp ứng≤60; automated regex đòi literal60phút là false negative.
+Case14 automatedPASS nhưng manualPARTIAL vì response/card mất khoảng60–90, chỉ
+còn enumover_60. Case10/15 FAIL do provider Gemini HTTP503, mỗi câu đúng1request,
+0tokens/no source; bounded logs chứng minh upstream_error trước resolver.
+Không sửa rubric/grader và không gọi kết quả này90%.
+
+Follow-up giữ nguyên policy/caps và sửa TDEE range retention qua buildTdeeIntakeResponse;
+thêm regression ở service/HTTP seam, deploy SHA mới rồi labelled UI15 round kế tiếp.
+ObservedLocation publisher chưa có live proof trong round1 vì hai web queries thất bại.
+LOW deferred: text một bữa còn dùng nhãn kcal/ngày dù card đúng một bữa.
+
+### TDEE range remediation local
+
+Root sửa `tdeeIntake.js` dùng chung parser range gắn với tập, chỉ nhắc lại các
+endpoint số đã được user cung cấp trong response. Giữ nguyên prefill enum,
+missing-field guard, schema, request và calculation/confirmation behavior.
+Trace: buildTdeeIntakeResponse → controller static intake → text SSE → persisted
+assistant content → existing ChatBubble/history. Không externalize range, không
+log health input. Cooking/reversed range negative guards PASS.
+
+Service RED1/12 → GREEN12/12; final service+HTTP suite122/122 exit0
+(`tdee-range-integration-v2.log`), AIeval73/73, secrets/data-boundaries/governance
+exit0. HTTP test đầu tìm nguyên chuỗi trong wireSSE nên fail khi text bị chia frame;
+test sửa để parse/join text frames đúng consumer contract, targeted1PASS rồi full
+122PASS. Không đổi assertion expectedrange hoặc production streaming behavior.
+Root diff/security review: no auth/schema/quota/output injection or external sink
+change; interpolation chỉ chứa parsed integers. FE/build inputs không đổi soPR192,
+nên reuse releasebuild/client/rendered evidence còn hợp lệ theo layer; trustedCI
+kiểm full snapshot mới trước merge. Live remediation còn pending.
+
 Chưa deploy candidate tại thời điểm báo cáo pre-promotion. Sau PR/CI/merge cần xác
 minh exact 40-char merge SHA ở Netlify READY, Render LIVE, served HTML/assets/API
 origin và protected runtime metrics. Không test dưới deployment cũ.

@@ -3,7 +3,7 @@
 ## Status
 
 - Priority: P1; complexity: COMPLEX; risk: HIGH (AI output và outbound request).
-- Lifecycle: IN PROGRESS; verification: FOCUSED; rollout: NOT STARTED.
+- Lifecycle: IN PROGRESS; verification: FOCUSED; rollout: PENDING.
 - Owner: root / 01a0ffb5-31c7-7360-93e3-3de14e9289dc; updated at: 2026-10-04.
 - Depends on: 094A; category: bug; effort: M.
 
@@ -122,8 +122,25 @@ source relevance theo rubric; cleanup `verified=true`, residue0 bắt buộc.
 
 ## Evidence
 
+### Follow-up sau live round1 PR192
+
+PR192 merged8cca5a8, CI5/5, providers/served/runtime cùngSHA. UI15manual12PASS,
+1PARTIAL14 và2FAIL10/15 do upstreamGemini503; cleanupverified/residue0.
+Current branch `codex/ai-tdee-range-followup-20261004` từ clean8cca5a8.
+Mở rộng scope đúng AC034: root owns `tdeeIntake.js`, existing unit và HTTP intake
+tests. Shared local parser nhận range gắn với tập, giữ enum/form như trước; response
+text nhắc đúng hai endpoint user đã nói để khoảng60–90 không mất trên UI/history.
+Không thêm schema, calculation field, externalization hoặc FE/API request change.
+RED→GREEN tại buildTdeeIntakeResponse và POSTai/chat; negative cooking/reversed
+range phải không được nhắc. Reuse FE/build evidence vì không thay FE; server focused,
+AIeval/security/governance và trustedCI cho snapshot mới. Promotion SHA mới,
+refreshKB/recovery rồi labelled fullUI15round2; không ghép điểm hai vòng.
+Không retry trong một live turn, không đổi model/deadline/rubric/grader. Nếu503
+lặp, ghi upstream blocker theo evidence; không vá bằng nguồn từ model prior.
+
 Plan lưu trước implementation. Catalog receipt đã PASS riêng trên PR191;
 baseline UI15 và recovery ở report098. Local QA/review đã PASS ở
 [report099](../reports/099-ai-source-provenance-staging-followup-2026-10-04.md):
 936 client, 3390 server, 73 AI eval, 14 targeted E2E, release build, lint và
-security/governance gates. Full E2E chưa chạy; deployment/live UI15 còn pending.
+security/governance gates. Full E2E đã PASS129 trên CI PR192; deployment/live
+round1 chưa đạt target, follow-up TDEE và round kế tiếp pending như mô tả ở trên.
