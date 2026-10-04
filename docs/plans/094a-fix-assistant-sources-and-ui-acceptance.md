@@ -57,6 +57,8 @@ không migration/seed/production write hoặc thay baseline UI để làm CI xan
 ### Step 6: Tích hợp/review/verification
 
    Root tích hợp worker diffs, impact map, review độc lập;
+   REQ-011 được kiểm như compatibility gate kế thừa từ Plan094B; mapping trong
+   traceability không chứng minh acceptance live của bản mới đã PASS.
    QA full theo skill, AI eval/tool validator/UI gate/secrets/data-boundaries/docs privacy.
    Render local desktop/mobile và canonical E2E. Staging rollout/live UI cần đúng SHA
    của bản vá mới, không test lại alias cũ rồi gọi đó là kiểm chứng bản sửa.

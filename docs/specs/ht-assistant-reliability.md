@@ -132,6 +132,20 @@ fitness rủi ro thấp phải hữu ích, lỗi provider phải phục hồi c�
   không hạ các guard, tolerance hoặc oracle chỉ để đạt mục tiêu. Bộ 14 câu gốc +
   replacement 5 hướng tới ≥14/15 PASS; báo riêng live UI, offline tests và release QA.
 
+## REQ-011 — Publisher và phạm vi trả lời sau PR191
+
+- AC-036: Publisher của Google grounding redirect lấy từ Location HTTPS public
+  mà server quan sát tại exact provider endpoint; giữ URI click nguyên gốc.
+  Provenance chỉ mô tả redirect quan sát được, không bảo đảm độ đúng của bài.
+  Unresolved source dùng globe/“Nguồn web”; title của model không giả publisher.
+- AC-037: Một nguồn chỉ hiển thị một chip/link trong answer, tối đa ba URI unique;
+  các claim vẫn phải có grounding support. Khác bài cùng publisher không bị gộp.
+- AC-038: Câu nhận diện “X là ai” trả lời ngắn đúng phạm vi, tránh tự thêm statistics
+  hoặc tuổi biến động không được hỏi. User hỏi số liệu cụ thể vẫn được tra cứu có
+  nguồn; không hardcode một người nổi tiếng để qua test.
+- AC-039: Resolver ≤3 fixed-origin requests, không theo destination, budget nằm trong
+  deadline tool; timeout chỉ bỏ enrichment, không tăng cap hoặc làm lộ query/secret.
+
 ## Testing Strategy
 
 Từng behavior dùng RED → GREEN qua public seam ổn định: tool unit, controller

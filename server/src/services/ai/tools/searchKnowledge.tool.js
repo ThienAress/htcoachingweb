@@ -3,6 +3,7 @@
 // Dùng generateContent (non-streaming) vì kết quả được inject vào conversation
 
 import { prepareExternalKnowledgeQuery } from "../knowledgePrivacy.js";
+import { buildKnowledgeAnswerInstruction } from "../knowledgeAnswerScope.js";
 import {
   recordGeminiRequest,
   recordGeminiResult,
@@ -216,10 +217,17 @@ const buildGroundedEvidence = (candidate, candidateText) => {
     selectedSegments.push({ text: safeSegmentText, sources: supportSources });
   }
 
+  // URI equality is request-local and preserves the first supported occurrence.
+  // Different articles from the same publisher remain separate sources.
+  const citedUris = new Set();
   const text = selectedSegments
     .map(({ text: supportedText, sources }) => {
       const links = sources
-        .filter((source) => selectedSourceUris.has(source.uri))
+        .filter((source) => {
+          if (!selectedSourceUris.has(source.uri) || citedUris.has(source.uri)) return false;
+          citedUris.add(source.uri);
+          return true;
+        })
         .map((source) => `[${source.title}](<${source.uri}>)`)
         .join(" · ");
       return links
@@ -278,7 +286,7 @@ export async function searchKnowledge({ query }, context = {}) {
     tools: [{ googleSearch: {} }],
     systemInstruction: {
       parts: [{
-        text: "Bạn thu thập bằng chứng web công khai cho mọi chủ đề an toàn. Trả lời ngắn gọn bằng Tiếng Việt, chỉ nêu dữ kiện được nguồn hỗ trợ và không suy đoán. Ưu tiên nguồn chính thức, nguồn sơ cấp hoặc tổ chức chuyên môn phù hợp với chủ đề.",
+        text: buildKnowledgeAnswerInstruction(preparedQuery.query),
       }],
     },
     generationConfig,

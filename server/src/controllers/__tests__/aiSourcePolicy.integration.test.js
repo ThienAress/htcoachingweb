@@ -27,7 +27,7 @@ const submit = async (message) => {
   const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({ message });
   const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
   const answer = [...conversation.messages].reverse().find((item) => item.role === "assistant" && item.content);
-  return { response, answer };
+  return { response, answer, accessToken, conversationId: String(conversation._id), conversation };
 };
 
 beforeAll(async () => {
@@ -39,10 +39,39 @@ beforeEach(() => {
   llmMock.mockReset(); kbMock.mockReset(); kbMock.mockResolvedValue([publishedKb]);
   llmMock.mockImplementation(async function* () { yield { type: "text", content: "Mình cần biết mục tiêu, số đo và mức vận động trước khi đưa ra gợi ý." }; });
 });
-afterEach(async () => { toolRegistry.search_knowledge.execute = originalSearch; vi.unstubAllEnvs(); vi.clearAllMocks(); await clearCollections(); });
+afterEach(async () => { toolRegistry.search_knowledge.execute = originalSearch; vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.clearAllMocks(); await clearCollections(); });
 afterAll(async () => { await teardownTestDB(); });
 
 describe("selective source policy at the chat route", () => {
+  it("preserves server-observed publisher provenance from the tool through SSE and owned history", async () => {
+    const uri = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/public-token";
+    const fetchMock = vi.fn(async () => new Response(null, {
+      status: 302,
+      headers: { Location: "https://pmc.ncbi.nlm.nih.gov/articles/PMC1/" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const source = { title: "Public profile", uri,
+      provenance: { kind: "google_grounding_redirect", publisherHost: "forged.example" } };
+    toolRegistry.search_knowledge.execute = vi.fn(async () => ({
+      text: `Cristiano Ronaldo là cầu thủ bóng đá. [Nguồn](<${uri}>)`,
+      uiCard: { cardType: "webSources", data: { sources: [source] } },
+      meta: { evidenceAvailable: true, sources: [source], searchOutcome: "grounded" },
+    }));
+
+    const { response, answer, accessToken, conversationId, conversation } = await submit("Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy trả lời có nguồn.");
+    const history = await withAuth(request(app).get(`/api/ai/conversations/${conversationId}`), accessToken);
+    const streamedSources = frames(response).find(frame => frame.cardType === "webSources")?.data.sources;
+    const storedCardRow = conversation.messages.find(row => row.uiCard?.cardType === "webSources");
+    const storedSources = storedCardRow?.uiCard.data.sources;
+    const historySources = history.body.data?.messages.find(row => row._id === String(storedCardRow?._id))?.uiCard?.data.sources;
+    const expected = [{ title: "Public profile", uri,
+      provenance: { kind: "google_grounding_redirect", publisherHost: "pmc.ncbi.nlm.nih.gov" } }];
+
+    expect({ streamedSources, storedSources, historySources, historyStatus: history.status, requests: fetchMock.mock.calls.length,
+      persistedAnswerMatches: answer.content === text(response) && answer.content.includes(uri) })
+      .toEqual({ streamedSources: expected, storedSources: expected, historySources: expected, historyStatus: 200, requests: 1, persistedAnswerMatches: true });
+  });
+
   it("keeps public-source verification despite an irrelevant reviewed KB hit", async () => {
     const uri = "https://example.org/public/ronaldo";
     const search = vi.fn(async () => ({

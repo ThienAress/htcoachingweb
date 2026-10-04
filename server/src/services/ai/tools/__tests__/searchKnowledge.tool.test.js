@@ -16,6 +16,52 @@ afterEach(() => {
 });
 
 describe("Google grounding source boundary", () => {
+  it("keeps a public identity query unchanged and requests a concise grounded answer without unsolicited statistics", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const query = "Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy trả lời có nguồn.";
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "No supported claim." }] } }],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await searchKnowledge({ query }, { allowedPublicPersonNames: ["Cristiano Ronaldo"] });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect({
+      query: body.contents[0].parts[0].text,
+      instruction: body.systemInstruction.parts[0].text,
+      providerCalls: fetchMock.mock.calls.length,
+    }).toEqual({ query, instruction: expect.stringMatching(/2–3 câu[\s\S]*Không tự thêm tuổi/), providerCalls: 1 });
+  });
+
+  it("cites a source once across supported segments while retaining each supported claim", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const first = "Vận động đều đặn có lợi cho sức khỏe.";
+    const second = "Tăng dần thời lượng theo khả năng.";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{
+        content: { parts: [{ text: `${first}\n${second}\nUnsupported claim.` }] },
+        groundingMetadata: {
+          groundingChunks: [{ web: { title: "Guide", uri: "https://who.int/guide" } }],
+          groundingSupports: [
+            { segment: { text: first }, groundingChunkIndices: [0, 0] },
+            { segment: { text: second }, groundingChunkIndices: [0] },
+          ],
+        },
+      }],
+    }), { status: 200 })));
+
+    const result = await searchKnowledge({ query: "WHO physical activity guidance" });
+
+    expect({
+      firstClaim: result.text.includes(first),
+      secondClaim: result.text.includes(second),
+      ungroundedClaim: result.text.includes("Unsupported claim"),
+      sourceLinks: result.text.match(/\]\(<https:\/\/who.int\/guide>\)/g)?.length,
+      sourceCount: result.meta.sourceCount,
+    }).toEqual({ firstClaim: true, secondClaim: true, ungroundedClaim: false, sourceLinks: 1, sourceCount: 1 });
+  });
+
   it("shows the actual source host alongside an untrusted publisher title", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     vi.stubGlobal(

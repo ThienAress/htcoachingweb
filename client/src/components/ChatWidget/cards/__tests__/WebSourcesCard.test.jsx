@@ -50,17 +50,19 @@ describe("WebSourcesCard", () => {
     ).toBe("");
   });
 
-  it("giữ href redirect legacy và hiện đúng hostname điều hướng trong nhãn", () => {
+  it("dùng fallback trung tính cho redirect legacy chưa có provenance", () => {
+    const redirectUri = "https://vertexaisearch.cloud.google.com/grounding/redirect?source=cdc";
     const html = renderCard({
       sources: [{
         title: "CDC — Creatine guidance (vertexaisearch.cloud.google.com)",
-        uri: "https://vertexaisearch.cloud.google.com/grounding/redirect?target=cdc",
+        uri: redirectUri,
       }],
     });
 
     expect(html).toContain("CDC — Creatine guidance");
-    expect(html).toContain(">vertexaisearch.cloud.google.com</p>");
-    expect(html).toContain('href="https://vertexaisearch.cloud.google.com/grounding/redirect?target=cdc"');
+    expect(html).toContain(">Nguồn web</p>");
+    expect(html).toContain("lucide-globe");
+    expect(html).toContain(`href="${redirectUri}"`);
   });
 
   it("keeps the actual host beside a spoofable publisher name", () => {
@@ -82,7 +84,7 @@ describe("WebSourcesCard", () => {
     expect(html).not.toContain("favicon");
   });
 
-  it("uses the actual host when a legacy redirect only supplies its transport hostname", () => {
+  it("does not use a legacy transport hostname as publisher identity", () => {
     const html = renderCard({
       sources: [{
         title: "vertexaisearch.cloud.google.com",
@@ -90,7 +92,24 @@ describe("WebSourcesCard", () => {
       }],
     });
 
-    expect(html).toContain('aria-label="vertexaisearch.cloud.google.com"');
-    expect(html).toContain(">vertexaisearch.cloud.google.com</p>");
+    expect(html).toContain('aria-label="Nguồn web"');
+    expect(html).toContain(">Nguồn web</p>");
+    expect(html).toContain('title="vertexaisearch.cloud.google.com"');
+  });
+
+  it("deduplicates fragmented URI copies while retaining separate articles from one publisher", () => {
+    const html = renderCard({
+      sources: [
+        { title: "BMJ first article", uri: "https://www.bmj.com/article-a#abstract" },
+        { title: "BMJ duplicate fragment", uri: "https://www.bmj.com/article-a#methods" },
+        { title: "BMJ second article", uri: "https://www.bmj.com/article-b#summary" },
+      ],
+    });
+
+    expect(html.match(/<li/g)).toHaveLength(2);
+    expect(html).toContain("BMJ first article");
+    expect(html).toContain("BMJ second article");
+    expect(html).not.toContain("BMJ duplicate fragment");
+    expect(html.match(/>BMJ<\/p>/g)).toHaveLength(2);
   });
 });

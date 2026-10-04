@@ -6,6 +6,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
+| 094B | [Resolve source provenance and retest staging](./094b-resolve-source-provenance-and-retest-staging.md) | P1 | M | 094A | IN PROGRESS / FOCUSED QA / NOT DEPLOYED |
 | 094A | [Fix assistant sources and UI acceptance](./094a-fix-assistant-sources-and-ui-acceptance.md) | P1 | L | 094 | IN PROGRESS / PR #190 LIVE; UI15 ACCEPTANCE BELOW TARGET |
 | 094 | [Isolate the AI staging release](./094-isolate-ai-staging-release.md) | P0 | M | 092 | IN PROGRESS / AI + approved Progress hotfix; LOCAL QA; NOT DEPLOYED |
 | 092 | Khôi phục HT Assistant ổn định trước khi mở rộng tiếp | P0 | L | 090, 090A | IN PROGRESS / 2026-09-23: five bounded fixes after 15-question staging review; release pending |

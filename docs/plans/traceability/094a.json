@@ -96,6 +96,67 @@
         {"id":"AC-034","mustHave":true,"taskIds":["TASK-005"],"verifications":[{"type":"command","command":"cd server && npx vitest run src/services/ai/__tests__/tdeeIntake.test.js src/services/ai/__tests__/referencePlan.test.js"}]},
         {"id":"AC-035","mustHave":true,"taskIds":["TASK-006"],"verifications":[{"type":"command","command":"npm run test:unit"}]}
       ]
+    },
+    {
+      "id": "REQ-011",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-036",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-006"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "npm run test:unit"
+            },
+            {
+              "type": "command",
+              "command": "npm run test:e2e"
+            }
+          ]
+        },
+        {
+          "id": "AC-037",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-006"
+          ],
+          "verifications": [
+            {
+              "type": "test",
+              "path": "server/src/services/ai/tools/__tests__/searchKnowledge.tool.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-038",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-006"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "npm run test:unit:server"
+            }
+          ]
+        },
+        {
+          "id": "AC-039",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-006"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "npm run test:unit:server"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
