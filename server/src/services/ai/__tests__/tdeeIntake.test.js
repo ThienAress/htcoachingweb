@@ -86,6 +86,20 @@ describe("TDEE structured intake", () => {
     expect(extractTdeePrefill("Tôi tập 3 buổi/tuần và nấu ăn 60–90 phút")).not.toHaveProperty("trainingDuration");
   });
 
+  it("retains both stated training-range endpoints in the rendered intake response", () => {
+    const response = buildTdeeIntakeResponse("Tôi ngồi làm văn phòng, đi 10.000 bước mỗi ngày và tập 60–90 phút; hãy tính TDEE.");
+    expect(response.text).toContain("60–90 phút/buổi");
+    expect(response.text).not.toMatch(/kcal|đã tính/i);
+    expect(response.uiCard.data.prefill.trainingDuration).toBe("over_60");
+  });
+
+  it.each([
+    "Tôi tập 3 buổi/tuần và nấu ăn 60–90 phút; tính TDEE.",
+    "Tôi tập 90–60 phút; tính TDEE.",
+  ])("does not acknowledge an unrelated or reversed training range: %s", (message) => {
+    expect(buildTdeeIntakeResponse(message).text).not.toMatch(/\d+–\d+ phút\/buổi/);
+  });
+
   it.each([
     ["Tôi tập 50 phút/buổi", "between_45_60"],
     ["Trung bình mỗi buổi khoảng 60 phút", "between_45_60"],

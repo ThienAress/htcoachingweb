@@ -660,6 +660,32 @@ describe("AI answer trace and feedback review", () => {
     });
   });
 
+  it("retains a supplied TDEE duration range in SSE and persisted history", async () => {
+    const { user, accessToken } = await createTestUser();
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken).send({
+      message: "Tôi ngồi làm văn phòng, đi 10.000 bước mỗi ngày và tập 60–90 phút; hãy tính TDEE.",
+      requestId: "164ff640-9fd0-4be6-bcd8-d1e9342de120",
+    });
+    const conversation = await ChatConversation.findOne({ userId: user._id }).lean();
+    const answer = conversation.messages.findLast((item) => item.role === "assistant" && item.content);
+    const streamedText = response.text.split(/\r?\n/)
+      .filter((line) => line.startsWith("data: "))
+      .map((line) => JSON.parse(line.slice(6)))
+      .filter((event) => event.type === "text")
+      .map((event) => event.content).join("");
+    expect({
+      status: response.status,
+      streamedRange: streamedText.includes("60–90 phút/buổi"),
+      storedRange: answer?.content.includes("60–90 phút/buổi"),
+      durationBand: answer?.uiCard?.data?.prefill?.trainingDuration,
+      modelCalls: llmStreamMock.mock.calls.length,
+      calculated: /kcal|đã tính/i.test(answer?.content || ""),
+    }).toEqual({
+      status: 200, streamedRange: true, storedRange: true, durationBand: "over_60",
+      modelCalls: 0, calculated: false,
+    });
+  });
+
   it.each([
     "Tôi ngồi làm văn phòng, đi 10.000 bước mỗi ngày và tập 60–90 phút. Hãy tính chính xác lượng calo tôi nên ăn và lập giáo án phù hợp ngay. Nếu dữ liệu chưa đủ thì đừng đoán: hãy nêu dữ liệu còn thiếu và hỏi tối đa 5 câu quan trọng nhất trước.",
     "Tôi muốn biết mức calo và lịch tập phù hợp với mình. Nếu dữ liệu chưa đủ thì hãy hỏi tối đa 5 câu quan trọng nhất trước, không đoán.",

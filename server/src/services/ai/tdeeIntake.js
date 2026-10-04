@@ -79,6 +79,12 @@ const mapSteps = (rawValue) => {
   return "at_least_12000";
 };
 
+const extractTrainingDurationRange = (ascii) => {
+  const match = ascii.match(/\b(?:tap|workout|training|moi buoi)\s+(?:khoang\s+)?(\d{1,3})\s*[-–—]\s*(\d{1,3})\s*(?:phut|p)\b/i);
+  if (!match || Number(match[1]) > Number(match[2])) return null;
+  return { minimumMinutes: Number(match[1]), maximumMinutes: Number(match[2]) };
+};
+
 /**
  * Chỉ trích xuất dữ kiện user đã nói rõ. Activity level luôn được tool tính từ
  * toàn bộ evidence, không bao giờ suy ra từ số buổi tập đơn lẻ.
@@ -148,9 +154,9 @@ export function extractTdeePrefill(message) {
   const durationMatch = ascii.match(
     /\b(?:moi|trung binh moi)\s+buoi\b[^\d\n]{0,24}(\d{1,3})\s*(?:phut|p)\b|\b(\d{1,3})\s*(?:phut|p)\s*(?:\/\s*buoi|moi\s+buoi)\b/i,
   );
-  const trainingRange = ascii.match(/\b(?:tap|workout|training|moi buoi)\s+(?:khoang\s+)?(\d{1,3})\s*[-–—]\s*(\d{1,3})\s*(?:phut|p)\b/i);
-  const duration = trainingRange && Number(trainingRange[1]) <= Number(trainingRange[2])
-    ? trainingRange[2]
+  const trainingRange = extractTrainingDurationRange(ascii);
+  const duration = trainingRange
+    ? trainingRange.maximumMinutes
     : durationMatch?.[1] || durationMatch?.[2];
   const trainingDuration = mapTrainingDuration(duration);
   if (trainingDuration) prefill.trainingDuration = trainingDuration;
@@ -183,6 +189,10 @@ export const getMissingTdeeInputFields = (input = {}) =>
 
 export function buildTdeeIntakeResponse(message) {
   const prefill = extractTdeePrefill(message);
+  const trainingRange = extractTrainingDurationRange(toAscii(message));
+  const rangeAcknowledgement = trainingRange && prefill.trainingDuration !== "none"
+    ? `Mình ghi nhận thời lượng tập bạn đã cung cấp là ${trainingRange.minimumMinutes}–${trainingRange.maximumMinutes} phút/buổi. `
+    : "";
   const missingFields = getMissingTdeeInputFields(prefill);
   const missingLabels = missingFields.map((field) => FIELD_LABELS[field]);
   const text = missingLabels.length > 0
@@ -192,7 +202,7 @@ export function buildTdeeIntakeResponse(message) {
     : "Mình đã điền sẵn các dữ kiện bạn cung cấp. Bạn kiểm tra lại rồi nhấn “Xác nhận & tính TDEE”.";
 
   return {
-    text,
+    text: rangeAcknowledgement + text,
     uiCard: {
       cardType: "tdeeForm",
       data: { prefill, missingFields },
