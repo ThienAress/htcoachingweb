@@ -69,6 +69,11 @@ MongoDB teardown có SIGKILL warning ở batch 2 nhưng command đủ 10 batches
 
 ## Security coverage và independent review
 
+CI lần đầu fail ở generated inventory vì hai backend test mới đã vào Git index
+nhưng snapshot còn 296 file. Chạy canonical `npm run agents:inventory` cập nhật
+duy nhất server test count 296→298; `agents:validate` PASS trong
+`pr192-governance-indexed.log`. Không sửa rule hoặc UI debt baseline.
+
 Independent reviewer Astra/xhigh: PASS, không còn finding cần sửa; MED legacy
 fallback đã fix và có regression. Workers implementation Terra/medium; root tích
 hợp/review và chạy QA. Reviewer không cấp quyền release và không thay live acceptance.
