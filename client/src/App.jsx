@@ -18,7 +18,6 @@ import GlobalLoading from "./components/GlobalLoading";
 import DeferredChatPanel from "./components/ChatWidget/DeferredChatPanel";
 import WebVitalsReporter from "./components/WebVitalsReporter";
 import AnalyticsPageViewTracker from "./components/AnalyticsPageViewTracker";
-import SculptNavigationBoundary from "./components/transitions/SculptNavigationBoundary";
 
 // Lazy-loaded pages (Code Splitting)
 const Home = lazy(() => import("./pages/Home"));
@@ -376,10 +375,8 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <SculptNavigationBoundary>
-          <AnalyticsPageViewTracker />
-          <AppContent />
-        </SculptNavigationBoundary>
+        <AnalyticsPageViewTracker />
+        <AppContent />
       </AuthProvider>
     </BrowserRouter>
   );

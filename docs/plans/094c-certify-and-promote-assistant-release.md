@@ -13,14 +13,24 @@ User yêu cầu rút ra vấn đề cốt lõi, sửa tối thiểu rồi promot
 cầu ngày05/10. Không mặc định quyền migration, re-embed/publish hoặc catalog write
 production. Main protected yêu cầu một approving review; không bypass protection.
 Backup off-device mới cần xác minh destination và independent custody như runbook.
+Owner đã duyệt riêng proposal dữ liệu `gym-app` digest
+`d1c0ede94b5e0b4a807eccce98de496d858eb2cffccf3686d51fbb9249ce5750`, chỉ sau
+certified staging PASS: 26 KB/root embeddings, bỏ 110 variants có rollback,
+4 native food allergen profiles, 3 price observations giữ ngày gốc và root index/profile.
+Giữ 39 legacy KB và 2 holds. Owner chọn gỡ global Sculpture wrapper để links mở
+Exercises/TDEE bình thường, giữ component/assets.
 
 ## Current state và phạm vi
 
-- Staging9a9b1ae0fda22ce3e34ecaab62aa36a9cfe67541, UI15manual14/15,
-  frozenautomatic12/15; diagnostic không thay certified gate.
+- Historical staging9a9b1ae0fda22ce3e34ecaab62aa36a9cfe67541: UI15manual14/15,
+  frozenautomatic12/15; diagnostic không thay certified gate. PR194 merged,
+  exact staging4f2e9b6c3ba5506775ed207b8155eac34c46d8ed, trusted CI5/5 PASS,
+  Netlify ready6ac322770dcab6000899862b và Render live dep-db1i936gekts73dv8u90.
 - Case15 round2 aborted/0tokens do local tool deadline15s theo trace; không có
   bằng chứng HTTP503. Probe live mới trên9a9 thành công grounding nhưng trả chi tiết
-  ngoài identity scope; bản vá bounded selector hiện local107testsPASS, chưa deploy.
+  ngoài identity scope; bản vá bounded selector local107testsPASS, đã deploy4f2.
+  Hai probes4f2 chưa semantic PASS: một no_supported_source/621tokens, một
+  aborted/0tokens. Không quy cả hai lỗi cho selector hoặc provider outage.
 - Mainfe9ab8e4882c5f9476daf168b2022e263eb00854 diverged:15 main-only commits,
   gồm security dependency fix và workflow KB source/reembed. Phải giữ khi hợp nhất.
 - Candidate isolated branch `codex/assistant-production-release-20261005` đã merge
@@ -29,7 +39,8 @@ Backup off-device mới cần xác minh destination và independent custody như
   productionwrites0; trackedmanifest cập nhật evidence05/10, PITRfalse.
 - Production data read-only:67KB/39published/eligible0, legacy-symmetric-v1,
   không searchindex; reviewed safefoods0. Code-only promotion là NO-GO. Cần proposal
-  chính xác và quyền riêng cho datawrite trước khi thực hiện.
+  chính xác và quyền riêng cho datawrite trước khi thực hiện; proposal bounded
+  đã được owner duyệt, chưa execute.
 - Canonical release workflow yêu cầu AC009 authenticated AI acceptance và hai
   Plan092 live semantic rounds11/11 cùng exactSHA, cleanupverified/residue0.
 
@@ -38,7 +49,7 @@ nếu RED chứng minh bug; preserve main vào release candidate; backup evidenc
 CI/staging/candidate/production gate và read-only postdeploy observation.
 Out of scope: LOW meal label/citationarticle dedup/screenshot polish, rubric/corpus
 relaxation, timeout/retry/quota/model increases, schema/auth/payment changes mới,
-production data migration hoặc copy staging data.
+production data ngoài approved proposal hoặc copy staging data rộng.
 
 ## Steps và verification
 
@@ -102,10 +113,23 @@ Manifest `traceability/094c.json` map toàn bộ 39 AC kế thừa; hơn300 dòn
 - Sửa4AI files: tối đa3câu grounded verbatim, lọc trước3sourcecap, sourcevalidity
   trước sentencebudget, dedupe và tên50Cent/CaptainAmerica/ClubAmérica.
   RED đã quan sát; focused107tests/3filesPASS, AIevalPASS; independentreview
-  không có actionableBLOCK/HIGH/MED. Live trên bản vá cònPENDING.
+  không có actionableBLOCK/HIGH/MED. Live trên bản vá chưa semantic PASS.
 - Reconcile main:20workflow/dependency +31KBtestsPASS; strict staging releasebuild
-  PASS,12AIintegrationtestsPASS. TrustedCI và certifiedacceptance mới chưa chạy.
+  PASS,12AIintegrationtestsPASS. PR194 và merge4f2 CI đều5/5PASS; strict production
+  releasebuild cũng PASS sau xác minh đúng public API/cohort.
 - Backup05/10 rootfinalizePASS lúc03:36:06Z, downloadedcopyrestorePASS vàcleanup0;
   Drive/account owner-attested vì browser automation lỗi.
 - Production nativefoodIDs khácstaging;28KB stableIDs match nhưng28answers khác.
   Chưa copy stagingdata, chưa production mutation/deploy.
+- Canonical acceptance37263652031 trên4f2: general business9/9PASS, AC009FAIL,
+  Plan092rounds NOT RUN. Fixture semantic readiness PASS; browser lane đầu lỗi
+  chưa có safe operation code. Cleanup fail-closed vì mutation outcomeUnknown.
+  Recovery37264185169 verifiedtrue/residue0/alreadyCleantrue; run cũ vẫnFAIL.
+- Follow-up tối thiểu: gỡ App Sculpture wrapper/import và E2E normal navigation;
+  thêm sanitized operationCode/cleanupCode vào failed acceptance evidence.
+  Không đổi cleanup/oracle/caps/schemaVersion. Focused evidence tests68PASS;
+  navigation6PASS/exit0, UI regression0newhigh, strict production releasebuildPASS;
+  lintPASS/0errors/1existingwarning. Rendered desktop/mobile navigation reviewPASS.
+- Production transaction helper: independent security review không còn finding,
+  isolated28testsPASS. Chưa có trusted launcher, durable encrypted rollback,
+  live root index/config/Admin publication hoặc protected human approval.

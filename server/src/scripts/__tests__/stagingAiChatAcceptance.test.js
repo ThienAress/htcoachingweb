@@ -227,7 +227,35 @@ describe("staging AI acceptance evidence", () => {
     expect(evidence.error).toEqual({
       code: "STAGING_ACCEPTANCE_CLEANUP_FAILED",
       operationCode: "STAGING_AI_CONTROL_BARRIER_FAILED",
+      cleanupCode: "STAGING_AI_CLEANUP_OUTCOME_UNKNOWN",
     });
+  });
+
+  it("retains only fallback operation and safe cleanup codes from private aggregate errors", () => {
+    const operationError = new Error("private Playwright detail: token=must-not-leak");
+    const cleanupError = Object.assign(new Error("private cleanup detail"), {
+      code: "STAGING_AI_CLEANUP_OUTCOME_UNKNOWN",
+    });
+    const evidence = buildSafeEvidence({
+      releaseSha: SHA,
+      runId: randomUUID(),
+      syntheticIds: {},
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      status: "failed",
+      sourceUrl: "https://www.who.int/news-room/fact-sheets/detail/physical-activity",
+      error: Object.assign(
+        new AggregateError([operationError, cleanupError], "private aggregate detail"),
+        { code: "STAGING_ACCEPTANCE_CLEANUP_FAILED" },
+      ),
+    });
+
+    expect(evidence.error).toEqual({
+      code: "STAGING_ACCEPTANCE_CLEANUP_FAILED",
+      operationCode: "STAGING_AI_ACCEPTANCE_FAILED",
+      cleanupCode: "STAGING_AI_CLEANUP_OUTCOME_UNKNOWN",
+    });
+    expect(JSON.stringify(evidence.error)).not.toMatch(/private|Playwright|token=|must-not-leak/i);
   });
 
   it("fails metrics closed without matching runtime identity", () => {
