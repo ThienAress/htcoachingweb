@@ -16,6 +16,75 @@ afterEach(() => {
 });
 
 describe("Google grounding source boundary", () => {
+  it("enforces generic identity scope on grounded output before selecting source links", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const claims = [
+      "Anh đang chơi cho câu lạc bộ Al Nassr.",
+      "Anh đã ghi hơn 950 bàn thắng.",
+      "Anh giành được 5 Quả bóng vàng.",
+      "Cristiano Ronaldo, còn được gọi là CR7, là cầu thủ bóng đá người Bồ Đào Nha.",
+      "Anh được biết đến với khả năng dứt điểm và kỹ thuật chơi bóng.",
+    ];
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{
+        content: { parts: [{ text: claims.join("\n") }] },
+        groundingMetadata: {
+          groundingChunks: claims.map((_, index) => ({ web: {
+            title: "Public profile", uri: `https://public.example/profile-${Math.min(index, 3)}`,
+          } })),
+          groundingSupports: claims.map((text, index) => ({
+            segment: { text }, groundingChunkIndices: [index],
+          })),
+        },
+      }],
+    }), { status: 200 })));
+
+    const result = await searchKnowledge({ query: "Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy trả lời có nguồn." },
+      { allowedPublicPersonNames: ["Cristiano Ronaldo"] });
+
+    expect({
+      identity: result.text.includes(claims[3]), stableContribution: result.text.includes(claims[4]),
+      unsolicited: claims.slice(0, 3).some(claim => result.text.includes(claim)),
+      outcome: result.meta.searchOutcome, sources: result.meta.sources.map(source => source.uri),
+      links: result.text.match(/\]\(<https:/g)?.length,
+    }).toEqual({ identity: true, stableContribution: true, unsolicited: false,
+      outcome: "grounded", sources: ["https://public.example/profile-3"], links: 1 });
+  });
+
+  it("keeps explicitly requested statistics in the grounded answer", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const claim = "Theo nguồn này, anh đã ghi hơn 950 bàn thắng.";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: claim }] }, groundingMetadata: {
+        groundingChunks: [{ web: { title: "Statistics", uri: "https://public.example/statistics" } }],
+        groundingSupports: [{ segment: { text: claim }, groundingChunkIndices: [0] }],
+      } }],
+    }), { status: 200 })));
+
+    const result = await searchKnowledge({ query: "Cristiano Ronaldo là ai và ghi bao nhiêu bàn thắng?" },
+      { allowedPublicPersonNames: ["Cristiano Ronaldo"] });
+    expect(result.text).toContain(claim);
+  });
+
+  it("keeps only supported identity sentences within the sentence limit", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const unsupported = "Một nhận diện không có nguồn. Một vai trò không có nguồn. Một đóng góp không có nguồn.";
+    const supported = "Cristiano Ronaldo là cầu thủ bóng đá người Bồ Đào Nha. Anh được biết đến với khả năng dứt điểm. Anh còn được gọi là CR7. Anh sinh năm 1985.";
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: `${unsupported}\n${supported}` }] }, groundingMetadata: {
+        groundingChunks: [{ web: { title: "Public biography", uri: "https://public.example/ronaldo" } }],
+        groundingSupports: [
+          { segment: { text: unsupported }, groundingChunkIndices: [99] },
+          { segment: { text: supported }, groundingChunkIndices: [0] },
+        ],
+      } }],
+    }), { status: 200 })));
+
+    const result = await searchKnowledge({ query: "Cristiano Ronaldo là ai?" },
+      { allowedPublicPersonNames: ["Cristiano Ronaldo"] });
+    expect(result.text).toBe("Cristiano Ronaldo là cầu thủ bóng đá người Bồ Đào Nha. Anh được biết đến với khả năng dứt điểm. Anh còn được gọi là CR7.\n\n📎 *Nguồn: [Public biography (public.example)](<https://public.example/ronaldo>)*");
+  });
+
   it("keeps a public identity query unchanged and requests a concise grounded answer without unsolicited statistics", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const query = "Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy trả lời có nguồn.";

@@ -18,19 +18,23 @@ Backup off-device mới cần xác minh destination và independent custody như
 
 - Staging9a9b1ae0fda22ce3e34ecaab62aa36a9cfe67541, UI15manual14/15,
   frozenautomatic12/15; diagnostic không thay certified gate.
-- Case15 một grounding request aborted/0tokens; chưa chứng minh provider503
-  hoặc codebug. Search tool→engine linked signal→controller deadline cần trace.
+- Case15 round2 aborted/0tokens do local tool deadline15s theo trace; không có
+  bằng chứng HTTP503. Probe live mới trên9a9 thành công grounding nhưng trả chi tiết
+  ngoài identity scope; bản vá bounded selector hiện local107testsPASS, chưa deploy.
 - Mainfe9ab8e4882c5f9476daf168b2022e263eb00854 diverged:15 main-only commits,
   gồm security dependency fix và workflow KB source/reembed. Phải giữ khi hợp nhất.
-- Candidate isolated `.local-data/ai-progress-staging-20261003` chỉ dirty4docs;
-  root checkout có nhiều thay đổi ngoài scope, giữ nguyên.
-- Current backup20261004T034034Z có custody/restore PASS, gần hết hạn24h.
-  Manifest tracked trên candidate vẫn trỏ20260926, phải cập nhật evidence đã verified.
+- Candidate isolated branch `codex/assistant-production-release-20261005` đã merge
+  main tại7485f35, preserve main-only workflows/security; root dirty giữ nguyên.
+- Backup20261005T030928Z đã độc lập custody/restore PASS,83collections/4360documents,
+  productionwrites0; trackedmanifest cập nhật evidence05/10, PITRfalse.
+- Production data read-only:67KB/39published/eligible0, legacy-symmetric-v1,
+  không searchindex; reviewed safefoods0. Code-only promotion là NO-GO. Cần proposal
+  chính xác và quyền riêng cho datawrite trước khi thực hiện.
 - Canonical release workflow yêu cầu AC009 authenticated AI acceptance và hai
   Plan092 live semantic rounds11/11 cùng exactSHA, cleanupverified/residue0.
 
-In scope: trace/probe identity request, tối đa patch nhỏ ở search/tool cancellation
-seam nếu RED chứng minh bug; preserve main vào release candidate; backup evidence;
+In scope: trace/probe identity request, patch nhỏ ở grounded identity selector
+nếu RED chứng minh bug; preserve main vào release candidate; backup evidence;
 CI/staging/candidate/production gate và read-only postdeploy observation.
 Out of scope: LOW meal label/citationarticle dedup/screenshot polish, rubric/corpus
 relaxation, timeout/retry/quota/model increases, schema/auth/payment changes mới,
@@ -92,4 +96,16 @@ Production Promotion Gate protectedenvironment. Chuẩn bị PR/review concrete,
 
 Manifest `traceability/094c.json` map toàn bộ 39 AC kế thừa; hơn300 dòng vì schema bắt buộc map từng AC. Không đổi spec/oracle.
 
-- Điều tra độc lập: local tool deadline15s, caller disconnect/HTTP503 không phù hợp evidence;80 focused tests PASS; chưa sửa product code.
+- Điều tra độc lập: local tool deadline15s; không đổi caps/provider/retry/quota.
+- Một liveUI probe trên9a9: grounding1success/598tokens,3clickverifiedsources,
+  persisted/SSEdone/DOM và cleanup0; scopeFAIL vì unsolicitedstats/currentclub.
+- Sửa4AI files: tối đa3câu grounded verbatim, lọc trước3sourcecap, sourcevalidity
+  trước sentencebudget, dedupe và tên50Cent/CaptainAmerica/ClubAmérica.
+  RED đã quan sát; focused107tests/3filesPASS, AIevalPASS; independentreview
+  không có actionableBLOCK/HIGH/MED. Live trên bản vá cònPENDING.
+- Reconcile main:20workflow/dependency +31KBtestsPASS; strict staging releasebuild
+  PASS,12AIintegrationtestsPASS. TrustedCI và certifiedacceptance mới chưa chạy.
+- Backup05/10 rootfinalizePASS lúc03:36:06Z, downloadedcopyrestorePASS vàcleanup0;
+  Drive/account owner-attested vì browser automation lỗi.
+- Production nativefoodIDs khácstaging;28KB stableIDs match nhưng28answers khác.
+  Chưa copy stagingdata, chưa production mutation/deploy.
