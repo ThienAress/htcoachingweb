@@ -41,6 +41,33 @@ describe("bounded source selection", () => {
     ]).toEqual([false, false, false, false, false, false]);
   });
   it.each([
+    "Theo các khuyến nghị của Tổ chức Y tế Thế giới (WHO), người trưởng thành nên đạt ít nhất 150 phút vận động vừa mỗi tuần.",
+    "Theo khuyến nghị hiện hành của Tổ chức Y tế Thế giới (WHO), người trưởng thành nên vận động đều đặn.",
+    "Theo khuyến cáo từ Tổ chức Y tế Thế giới (WHO), người trưởng thành nên vận động đều đặn.",
+    "Theo những hướng dẫn chính thức của AAOS, không nên tập xuyên đau.",
+    "Theo các khuyến nghị của\nWHO, người trưởng thành nên vận động đều đặn.",
+    "Mức vận động tham khảo:\nTheo nguồn chính thức, người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
+    "## Mức vận động\nTheo nguồn chính thức, người trưởng thành nên vận động đều đặn.",
+  ])("retains a source for a declarative guideline attribution with modifiers: %s", (answer) => {
+    expect(answerNeedsKnowledgeCitation({ risk: "low", evidence: "internal_kb", reasonCodes: [] }, answer)).toBe(true);
+  });
+  it.each([
+    "Bạn muốn biết các khuyến nghị của WHO cho nhóm tuổi nào?",
+    "Theo các khuyến nghị của WHO, bạn muốn tìm thông tin cho nhóm tuổi nào?",
+    "Bạn có thể tìm thêm khuyến nghị của WHO.",
+    "Tôi đã đọc khuyến nghị của WHO rồi.",
+    "Khuyến nghị của WHO là chủ đề bạn muốn tìm hiểu?",
+    "Mình chưa tìm được các khuyến cáo từ WHO; bạn thử lại nhé.",
+    "Bạn hãy tìm theo các khuyến nghị của WHO.",
+    "Theo các khuyến nghị của WHO,\nbạn muốn tìm thông tin cho nhóm tuổi nào?",
+    "Để đối chiếu theo các khuyến nghị của WHO, bạn cho biết nhóm tuổi của mình nhé.",
+    "Khuyến nghị của WHO là nội dung mình cần xác minh thêm.",
+    "Theo các khuyến nghị của WHO, mình chưa xác minh được con số này.",
+    "Theo các khuyến nghị của WHO, bạn hãy cho biết nhóm tuổi của mình nhé.",
+  ])("does not cite a guideline mention without an affirmative recommendation: %s", (answer) => {
+    expect(answerNeedsKnowledgeCitation({ risk: "low", evidence: "internal_kb", reasonCodes: [] }, answer)).toBe(false);
+  });
+  it.each([
     "Bạn muốn biết khuyến nghị của WHO về chủ đề nào?",
     "Mình chưa **tìm** được khuyến nghị của WHO.",
     "Bạn muốn biết WHO khuyến nghị gì về vận động?",
