@@ -105,6 +105,35 @@ Production Promotion Gate protectedenvironment. Chuẩn bị PR/review concrete,
 
 ## Traceability và tiến độ thực tế
 
+Checkpoint389e: PR195 final CI37266234606 và canonical staging CI37266900816
+5/5PASS; Netlify6ac3323de9aece0009662e0b/Renderdep-db1j5d5g1s2s73aej4p0 exactSHA.
+Certified37267543038 FAIL trước browser lane đầu; hai Plan092 rounds NOT RUN.
+Recovery37268212744 verifiedtrue/residue0. Local diagnostic canonical browser
+giữ real response/gates, tái hiện source-anchor timeout trong khi exact request
+settled/completed và persisted answer thiếu WHO URL; cleanup/recovery0.
+Probe2 đã phân biệt citation-need predicate và source-selection qua safe metadata;
+bản vá selective guideline citation đang qua local verification. DraftPR196 vào
+main chưa review/merge; production untouched.
+
+Probe2 đã khoanh lỗi delivery: exact fixture trong answerTrace, source selection
+eligible1, response nhắc WHO/khuyến nghị nhưng answerNeedsKnowledgeCitation=false;
+persisted source/DOM anchor0. Fix được giới hạn vào `answerSourcePolicy.js`, focused
+tests cùng HTTP integration consumer: nhận diện attribution guideline của
+WHO/AAOS và formatting, giữ exact reviewed-source selection, risk/tool/fallback
+guards. Không đổi fixture/oracle, router, model, timeout, retry hoặc quota.
+Verify RED→GREEN public citation-policy test, actual SSE/source persistence
+integration, independent review, trustedCI/deploy và canonical acceptance exactSHA
+mới. Probe2 phải recoveryverified0 trước mọi live rerun.
+
+Local review phát hiện attribution v1 có thể gắn nguồn vào clarification/fallback.
+Final predicate normalize emphasis trước fallback, bỏ bare authority nounphrase
+và loại question-only clauses khỏi guideline attribution; claim trước follow-up
+vẫn giữ citation. RED9FAIL/29PASS qua exported policy và actual HTTP/SSE/history;
+focused5files GREEN381/381, AIevalPASS, tool/secrets/boundaries/agents scansPASS.
+Không dùng GREEN370 cũ cho snapshot mới. Independent final review PASS, thêm16
+read-only assertionsPASS; không còn confirmedBLOCK/HIGH/MED trong3AI files.
+Trusted CI/deploy/certified exactSHA mới còn phải hoàn tất; chưa production execution.
+
 Manifest `traceability/094c.json` map toàn bộ 39 AC kế thừa; hơn300 dòng vì schema bắt buộc map từng AC. Không đổi spec/oracle.
 
 - Điều tra độc lập: local tool deadline15s; không đổi caps/provider/retry/quota.

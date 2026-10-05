@@ -2,10 +2,56 @@
 
 ## Kết luận
 
-**Production NO-GO tại checkpoint này.** PR194 đã merge/deploy staging đúng
-`4f2e9b6c3ba5506775ed207b8155eac34c46d8ed`, trusted CI 5/5 PASS. Certified AC009
+**Production NO-GO tại checkpoint này.** PR195 đã merge/deploy staging đúng
+`389e7db90ffa256b36ee95d0f99814e8c7a8f045`, trusted CI 5/5 PASS. Certified AC009
 chưa đạt; hai Plan092 rounds chưa chạy. Recovery đã xác minh residue 0.
 Chưa có production deployment hoặc production data write trong đợt này.
+
+## Checkpoint sau PR195
+
+Owner chọn phương án1; global Sculpture interception đã được gỡ. PR195 final CI
+37266234606 và staging merge CI37266900816 đều5/5PASS; E2E129/129PASS.
+Netlify ready `6ac3323de9aece0009662e0b` và Render live `dep-db1j5d5g1s2s73aej4p0`
+cùng exact389e. Served assets/API/health đã đối chiếu. Live public desktop TDEE
+và mobile Exercises điều hướng đúng; mobile capture vẫn loading catalog nên chỉ
+chứng minh route/heading/no-preview, không phải toàn bộ catalog workflow.
+
+Certified run [37267543038](https://github.com/ThienAress/htcoachingweb/actions/runs/37267543038)
+FAIL trước browser lane đầu. Fixture semantic readiness và catalog PASS;
+general acceptance PASS; reliability rounds NOT RUN. Safe error fields mới vẫn
+fallback vì Playwright timeout và cleanup AggregateError lồng nhau chưa có code.
+Recovery [37268212744](https://github.com/ThienAress/htcoachingweb/actions/runs/37268212744)
+PASS: verifiedtrue/residue0/alreadyCleantrue. Không biến failed run thành PASS.
+
+Local live diagnostic trên389e tái hiện timeout tại source-anchor wait, response
+không mock. Exact synthetic request đã settled/completed; Mongo activeStreams0,
+UI một markdown body, không alert. Persisted answer thiếu expectedWHO URL;
+Probe2 khoanh root cause: exact fixture có trong answerTrace, eligibleSources1,
+response nhắc WHO/khuyến nghị nhưng citation-need predicate=false. Đây là lỗi
+delivery source policy; không có evidence provider abort hoặc render failure
+trong probe này. Cả hai diagnostic recovery verifiedtrue/residue0. Không đổi
+source oracle/caps; diagnostic không thay certified gate.
+
+## Guideline citation patch đang chuẩn bị deploy
+
+Diff runtime chỉ ở `answerSourcePolicy.js`: nhận diện full WHO name, emphasis
+và authority-recommends attribution. Normalize emphasis trước fallback; loại
+question-only clauses khỏi attribution và không nhận bare authority nounphrase.
+Claim có follow-up vẫn giữ source. Exact-question/reviewed-source selection,
+risk/tool/model_prior guards và existing research/reasonCode paths giữ nguyên.
+Không đổi provider, timeout, retry, quota, frozen fixtures/corpus/grader/oracle.
+
+Regression qua exported policy và actual HTTP route chứng minh source trong
+SSE/final persisted answer/owned history cho guideline claim; clarification và
+formatted fallback không có link/card dù exact KB đủ eligibility. Final RED
+9FAIL/29PASS; focused5files GREEN381/381 (exit0), AIeval/tool validator/secrets/
+boundaries/agents scansPASS. Reviewer v1 phát hiện một MED over-citation, đã sửa;
+final independent review PASS và 16 read-only assertions PASS, không còn confirmed
+BLOCK/HIGH/MED trong 3 AI files. Trusted CI/live/UI trên SHA mới vẫn NOT RUN tại checkpoint này.
+Build/client/E2E sẽ lấy trusted CI mới, không gán evidence389e cho patch dirty.
+
+Draft [PR196](https://github.com/ThienAress/htcoachingweb/pull/196) đã chuẩn bị vào
+main; chưa approving review, chưa merge. Main/environment protections được giữ.
 
 ## Live evidence và giới hạn
 
