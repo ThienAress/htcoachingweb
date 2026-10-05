@@ -1,0 +1,60 @@
+name: Production Knowledge Base Source Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Dry-run first; apply only after reviewing the manifest"
+        required: true
+        default: dry_run
+        type: choice
+        options:
+          - dry_run
+          - apply
+
+concurrency:
+  group: production-kb-source-apply
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production-kb-source-maintenance
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Install server dependencies
+        run: npm ci --prefix server
+
+      - name: Apply reviewed source candidates
+        working-directory: server
+        shell: bash
+        env:
+          PRODUCTION_KB_MAINTENANCE_URI: ${{ secrets.PRODUCTION_KB_MAINTENANCE_URI }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.mode }}" == "apply" ]]; then
+            npm run --silent apply:kb-source:production -- --apply | tee ../kb-source-import-summary.json
+          else
+            npm run --silent apply:kb-source:production | tee ../kb-source-import-summary.json
+          fi
+
+      - name: Retain import summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: production-kb-source-import-${{ github.run_id }}
+          path: kb-source-import-summary.json
+          if-no-files-found: error
+          retention-days: 30
