@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildKnowledgeAnswerInstruction } from "../knowledgeAnswerScope.js";
+import { buildKnowledgeAnswerInstruction, selectKnowledgeAnswerSegments } from "../knowledgeAnswerScope.js";
 
 const baseInstruction = "Bạn thu thập bằng chứng web công khai cho mọi chủ đề an toàn. Trả lời ngắn gọn bằng Tiếng Việt, chỉ nêu dữ kiện được nguồn hỗ trợ và không suy đoán. Ưu tiên nguồn chính thức, nguồn sơ cấp hoặc tổ chức chuyên môn phù hợp với chủ đề.";
 
@@ -12,6 +12,9 @@ describe("knowledge answer scope", () => {
     "nguyen van a la ai",
     "Who is Marie Curie?",
     "Giới thiệu về UNESCO",
+    "50 Cent là ai?",
+    "Who is Captain America?",
+    "Club América là ai?",
   ])("adds concise identity scope for a generic request: %s", (query) => {
     expect(buildKnowledgeAnswerInstruction(query)).toBe(
       `${baseInstruction}\n\n${identityInstruction}`,
@@ -23,6 +26,11 @@ describe("knowledge answer scope", () => {
     "Who is Serena Williams and how many Grand Slam titles has she won?",
     "Giới thiệu về Marie Curie, bao nhiêu giải thưởng và các mốc sự nghiệp",
     "Ronaldo là ai, bao nhiêu tuổi và sinh ngày nào?",
+    "Ronaldo là ai và đã nhận giải thưởng nào?",
+    "Who is Ronaldo and what awards has he won?",
+    "Who is Ronaldo and where was he born?",
+    "Ronaldo là ai và đang chơi cho đội nào?",
+    "Who is Ronaldo and which club does he play for?",
   ])("keeps explicit changing details in the requested scope: %s", (query) => {
     expect(buildKnowledgeAnswerInstruction(query)).toBe(baseInstruction);
   });
@@ -49,5 +57,32 @@ describe("knowledge answer scope", () => {
       queryInterpolated: false,
       appendedLast: true,
     });
+  });
+
+  it("deduplicates retained sentences before applying the identity sentence budget", () => {
+    const identity = "Ronaldo là cầu thủ bóng đá người Bồ Đào Nha.";
+    const contribution = "Anh là một cầu thủ đáng chú ý. Anh được biết đến với khả năng dứt điểm.";
+    const result = selectKnowledgeAnswerSegments("Ronaldo là ai?", [
+      { text: `${identity} Anh đã ghi 950 bàn thắng.` },
+      { text: `${identity} Anh giành 5 giải thưởng.` },
+      { text: contribution },
+      { text: "Anh thi đấu cho Al Nassr." },
+    ]);
+    expect(result.map(segment => segment.text)).toEqual([identity, contribution]);
+  });
+
+  it("excludes current-team phrasing without removing stable identity descriptions", () => {
+    expect(selectKnowledgeAnswerSegments("Who is Ronaldo?", [
+      { text: "He plays for Al Nassr." },
+      { text: "Anh thi đấu cho Al Nassr." },
+      { text: "Anh là một cầu thủ đáng chú ý." },
+    ]).map(segment => segment.text)).toEqual(["Anh là một cầu thủ đáng chú ý."]);
+  });
+
+  it("keeps numbers and detail keywords in the subject while excluding unsolicited statistics", () => {
+    expect(selectKnowledgeAnswerSegments("50 Cent là ai?", [
+      { text: "50 Cent là một rapper người Mỹ." },
+      { text: "Anh bán được 30 triệu album." },
+    ]).map(segment => segment.text)).toEqual(["50 Cent là một rapper người Mỹ."]);
   });
 });

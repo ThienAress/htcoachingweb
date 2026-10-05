@@ -1,0 +1,115 @@
+name: Staging Knowledge Base Re-embed
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Read-only preflight or guarded staging apply
+        required: true
+        default: preflight
+        type: choice
+        options:
+          - preflight
+          - apply
+      release_sha:
+        description: Exact commit currently deployed to staging
+        required: true
+        type: string
+      expected_plan_digest:
+        description: Exact digest returned by the matching preflight (apply only)
+        required: false
+        type: string
+      max_provider_calls:
+        description: Hard maximum number of Gemini embedding calls
+        required: true
+        default: "100"
+        type: string
+
+concurrency:
+  group: staging-kb-reembed
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reembed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging-live-acceptance
+    env:
+      OPERATION: ${{ inputs.operation }}
+      RELEASE_SHA: ${{ inputs.release_sha }}
+      EXPECTED_PLAN_DIGEST: ${{ inputs.expected_plan_digest }}
+      MAX_PROVIDER_CALLS: ${{ inputs.max_provider_calls }}
+      APP_ENV: staging
+      MIGRATION_TARGET_DATABASE: htcoaching_staging
+      MONGO_URI: ${{ secrets.STAGING_MONGO_URI }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      KB_REEMBED_SNAPSHOT_KEY: ${{ secrets.KB_REEMBED_SNAPSHOT_KEY }}
+      KB_EMBEDDING_PROFILE: question-answering-v1
+      CONFIRM_KB_REEMBED_STAGING: "yes"
+      CLIENT_URL: https://staging--htcoachingweb.netlify.app
+      PUBLIC_API_ORIGIN: https://htcoachingweb-staging.onrender.com
+      ALLOWED_ORIGINS: https://staging--htcoachingweb.netlify.app
+      BACKGROUND_JOBS_ENABLED: "false"
+      EMAIL_DELIVERY_MODE: disabled
+      F1_RETENTION_ENFORCE: "false"
+
+    steps:
+      - name: Checkout exact staging release
+        uses: actions/checkout@v5
+        with:
+          ref: staging
+
+      - name: Verify exact staging release
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$RELEASE_SHA" = "$(git rev-parse HEAD)"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      - name: Install server dependencies
+        run: npm ci --prefix server
+
+      - name: Validate operation inputs and required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$OPERATION" == "preflight" || "$OPERATION" == "apply" ]]
+          [[ "$MAX_PROVIDER_CALLS" =~ ^[0-9]+$ ]]
+          (( MAX_PROVIDER_CALLS >= 1 && MAX_PROVIDER_CALLS <= 5000 ))
+          if [[ "$OPERATION" == "apply" ]]; then
+            [[ "$EXPECTED_PLAN_DIGEST" =~ ^[0-9a-f]{64}$ ]]
+            test -n "$GEMINI_API_KEY"
+            test -n "$KB_REEMBED_SNAPSHOT_KEY"
+          fi
+
+      - name: Run guarded staging re-embed
+        working-directory: server
+        shell: bash
+        env:
+          KB_REEMBED_SNAPSHOT_DIR: ${{ runner.temp }}/kb-reembed-snapshot
+          KB_REEMBED_MAX_PROVIDER_CALLS: ${{ inputs.max_provider_calls }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$KB_REEMBED_SNAPSHOT_DIR" ../artifacts
+          if [[ "$OPERATION" == "preflight" ]]; then
+            npm run --silent preflight:kb-reembed:staging > ../artifacts/staging-kb-reembed.json
+          else
+            npm run --silent migrate:kb-reembed:staging -- --plan-digest="$EXPECTED_PLAN_DIGEST" > ../artifacts/staging-kb-reembed.json
+          fi
+
+      - name: Retain secret-free re-embed evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: staging-kb-reembed-${{ github.run_id }}
+          path: artifacts/staging-kb-reembed.json
+          if-no-files-found: ignore
+          retention-days: 30

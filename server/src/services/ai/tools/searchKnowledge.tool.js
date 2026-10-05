@@ -3,7 +3,10 @@
 // Dùng generateContent (non-streaming) vì kết quả được inject vào conversation
 
 import { prepareExternalKnowledgeQuery } from "../knowledgePrivacy.js";
-import { buildKnowledgeAnswerInstruction } from "../knowledgeAnswerScope.js";
+import {
+  buildKnowledgeAnswerInstruction,
+  selectKnowledgeAnswerSegments,
+} from "../knowledgeAnswerScope.js";
 import {
   recordGeminiRequest,
   recordGeminiResult,
@@ -169,7 +172,7 @@ const neutralizeSegmentLinks = (value) =>
     .replace(/[\\\[\]<>]/g, "\\$&")
     .trim();
 
-const buildGroundedEvidence = (candidate, candidateText) => {
+const buildGroundedEvidence = (candidate, candidateText, query) => {
   const chunks = Array.isArray(candidate?.groundingMetadata?.groundingChunks)
     ? candidate.groundingMetadata.groundingChunks
     : [];
@@ -181,14 +184,20 @@ const buildGroundedEvidence = (candidate, candidateText) => {
   const selectedSegments = [];
   const selectedSegmentTexts = new Set();
 
-  for (const support of supports) {
+  const scopedSegments = selectKnowledgeAnswerSegments(query, supports.map((support) => ({
+    support,
+    text: neutralizeSegmentLinks(normalizeSupportedSegment(support?.segment, candidateText)),
+  })).filter(({ support, text }) => text &&
+    (Array.isArray(support?.groundingChunkIndices) ? support.groundingChunkIndices : [])
+      .some((rawIndex) => Number.isInteger(Number(rawIndex)) &&
+        Number(rawIndex) >= 0 && Number(rawIndex) < chunks.length &&
+        normalizeGroundingSource(chunks[Number(rawIndex)]))));
+  for (const { support, text: safeSegmentText } of scopedSegments) {
     const segmentText = normalizeSupportedSegment(
       support?.segment,
       candidateText,
     );
     if (!segmentText || selectedSegmentTexts.has(segmentText)) continue;
-    const safeSegmentText = neutralizeSegmentLinks(segmentText);
-    if (!safeSegmentText) continue;
 
     const supportSources = [];
     for (const rawIndex of Array.isArray(support?.groundingChunkIndices)
@@ -367,7 +376,7 @@ export async function searchKnowledge({ query }, context = {}) {
       ?.filter((p) => p.text)
       ?.map((p) => p.text)
       ?.join("") || "Không tìm thấy thông tin phù hợp.";
-    const groundedEvidence = buildGroundedEvidence(candidate, candidateText);
+    const groundedEvidence = buildGroundedEvidence(candidate, candidateText, preparedQuery.query);
     const sources = groundedEvidence.sources;
     let result = groundedEvidence.text;
     if (sources.length === 0) {

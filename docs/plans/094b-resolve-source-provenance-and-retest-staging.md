@@ -3,7 +3,7 @@
 ## Status
 
 - Priority: P1; complexity: COMPLEX; risk: HIGH (AI output và outbound request).
-- Lifecycle: IN PROGRESS; verification: FOCUSED; rollout: PENDING.
+- Lifecycle: DONE; verification: STAGING; rollout: LIVE (staging only).
 - Owner: root / 01a0ffb5-31c7-7360-93e3-3de14e9289dc; updated at: 2026-10-04.
 - Depends on: 094A; category: bug; effort: M.
 
@@ -143,4 +143,12 @@ baseline UI15 và recovery ở report098. Local QA/review đã PASS ở
 [report099](../reports/099-ai-source-provenance-staging-followup-2026-10-04.md):
 936 client, 3390 server, 73 AI eval, 14 targeted E2E, release build, lint và
 security/governance gates. Full E2E đã PASS129 trên CI PR192; deployment/live
-round1 chưa đạt target, follow-up TDEE và round kế tiếp pending như mô tả ở trên.
+round1 chưa đạt target. PR193 `9a9b1ae0fda22ce3e34ecaab62aa36a9cfe67541`
+đã merge/deploy; CI PR và exactmerge5/5, providers/served/runtime sameSHA.
+Labelled round2manual14PASS/1FAIL=93,3%, mục tiêu≥14/15 đạt; frozenautomatic12/15
+giữ riêng với false-negative từ ngữ ở8/10. Range60–90 của14 rendered/persisted PASS.
+Publisher/avatar/click proof đạt trên10/13;15FAIL do grounding aborted, giữ nguyên
+non-PASS và chưa có successful live identity proof. Cleanupverified/residue0,
+KB26published/2hold read-onlyPASS và recoverycurrentready. Không rerun lấy điểm,
+không thaygrader/corpus/model/deadline/quota. Report099 giữ residualfailure và
+LOW labels/citationredundancy; chưa tạo certified production candidate.
