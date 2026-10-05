@@ -13,16 +13,16 @@ const safeErrorCode = (error) =>
 
 const safeEvidenceError = (error) => {
   const code = safeErrorCode(error);
-  const operationError = code === "STAGING_ACCEPTANCE_CLEANUP_FAILED" &&
+  const cleanupErrors = code === "STAGING_ACCEPTANCE_CLEANUP_FAILED" &&
     Array.isArray(error?.errors)
-    ? error.errors[0]
+    ? error.errors
     : null;
-  const operationCode = operationError ? safeErrorCode(operationError) : null;
+  const operationCode = cleanupErrors ? safeErrorCode(cleanupErrors[0]) : null;
+  const cleanupCode = cleanupErrors ? safeErrorCode(cleanupErrors[1]) : null;
   return {
     code,
-    ...(operationCode && operationCode !== "STAGING_AI_ACCEPTANCE_FAILED"
-      ? { operationCode }
-      : {}),
+    ...(operationCode ? { operationCode } : {}),
+    ...(cleanupCode ? { cleanupCode } : {}),
   };
 };
 

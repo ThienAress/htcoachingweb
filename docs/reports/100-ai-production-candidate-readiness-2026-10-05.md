@@ -1,91 +1,100 @@
 # Assistant production candidate — 2026-10-05
 
-## Kết luận hiện tại
+## Kết luận
 
-Backup mới đã xác minh recovery độc lập. Bản sửa identity scope đủ điều kiện đưa
-qua CI/staging để kiểm chứng live. **Production vẫn NO-GO**: chưa có certified
-acceptance cho bản vá và dữ liệu production chưa đáp ứng retrieval/catalog gates.
+**Production NO-GO tại checkpoint này.** PR194 đã merge/deploy staging đúng
+`4f2e9b6c3ba5506775ed207b8155eac34c46d8ed`, trusted CI 5/5 PASS. Certified AC009
+chưa đạt; hai Plan092 rounds chưa chạy. Recovery đã xác minh residue 0.
 Chưa có production deployment hoặc production data write trong đợt này.
 
-## Câu 15 và bản sửa tối thiểu
+## Live evidence và giới hạn
 
-Trace lần abort trước phù hợp local tool deadline15s, không chứng minh HTTP503.
-Một probe Playwright Chromium thật trên staging SHA
-`9a9b1ae0fda22ce3e34ecaab62aa36a9cfe67541` đã hoàn thành: một grounding request,
-598tokens, ba nguồn click-verified, có rendered/persisted answer và SSEdone;
-cleanup verified/residue0. Tuy nhiên scope FAIL: tự thêm club hiện tại,
-awards và số bàn thắng. Probe thành công không được đổi thành semanticPASS.
+UI15 round2 lịch sử trên SHA9a9: manual14/15, automatic12/15, diagnostic.
+Không gán kết quả này cho SHA4f2 hoặc production certification.
 
-Sửa `knowledgeAnswerScope.js` và `searchKnowledge.tool.js`, kèm hai testfiles:
-generic identity giữ tối đa ba câu grounded verbatim; loại chi tiết chưa hỏi
-trước global source budget; nguồn chỉ gắn với retained claim. Source validity
-được kiểm trước sentencebudget; dedupe không làm mất budget. Tên có số/keyword
-như50Cent/CaptainAmerica/ClubAmérica không bị coi là yêu cầu statistics.
-Explicit detail query giữ phạm vi chi tiết. Không đổi timeout/retry/model/quota,
-không đổi corpus/grader/oracle và không mở rộng LOW UI polish.
+Generic identity selector đã deploy: giữ tối đa ba câu grounded verbatim, bỏ
+unrequested details trước source budget; source phải hỗ trợ retained claim.
+Focused107tests/3files và AIevalPASS. Hai live probes4f2 chưa semantic PASS:
+probe1 grounding621tokens nhưng no_supported_source; probe2 aborted/0tokens.
+Không có bằng chứng mới cho HTTP503 hay quy toàn bộ lỗi cho selector.
 
-RED regression đã quan sát; final focused suite107tests/3filesPASS và AIevalPASS.
-Independent reviewer không có actionableBLOCK/HIGH/MED trong scope. Bản vá chưa
-có live proof tại checkpoint này. UI15round2 lịch sử vẫn manual14/15,
-automatic12/15 trên9a9; diagnostic không thay AC009/Plan092 certification.
+Netlify ready `6ac322770dcab6000899862b`, Render live
+`dep-db1i936gekts73dv8u90`: exact4f2, served assets/immutable deploy match,
+API staging đúng, health ready. Không thấy quota Netlify trong deployment này.
 
-## Candidate và QA
+Canonical acceptance [37263652031](https://github.com/ThienAress/htcoachingweb/actions/runs/37263652031):
+general business9/9PASS; AC009FAIL trước khi ghi browser lane đầu; reliability
+rounds NOT RUN. Ba capability JTIs chứng minh fixture đã qua root/variant semantic
+readiness. Artifact cũ thiếu safe operation code nên chưa phân biệt Playwright,
+HTTP hay registration failure. Cleanup fail-closed khi browser mutation chưa
+settled là behavior có chủ đích, không phải fixture-journal filter bug.
 
-Nhánh `codex/assistant-production-release-20261005` ở checkout cô lập;
-base7485f35 đã hợp nhất mainfe9ab8e, giữ main-only KB workflows và securityfixes.
-Root checkout nhiều dirtyfiles ngoài scope được giữ nguyên.
+Recovery [37264185169](https://github.com/ThienAress/htcoachingweb/actions/runs/37264185169)
+PASS: verifiedtrue/residue0, alreadyCleantrue, recoveredReceiptCount0. Recovery
+xác minh rồi gỡ journal/tombstone còn lại. Run acceptance cũ vẫn FAIL; không ghép
+kết quả hai runs để gọi certified PASS.
+
+## Follow-up tối thiểu đã được duyệt
+
+Owner chọn phương án1: gỡ `SculptNavigationBoundary` import/wrapper khỏi App;
+links Exercises/TDEE điều hướng bình thường, giữ assets/component preview.
+E2E kiểm page đích và không có preview: desktop/mobile, keyboard, reduced motion,
+Save-Data. Không đổi public routes, SEO metadata, API hoặc Assistant behavior.
+
+Failed AC009 evidence giờ giữ sanitized operationCode và cleanupCode, kể cả
+fallback cho uncoded browser error; không lưu message/stack/raw payload. Không
+đổi schemaVersion, cleanup, timeout, retries, provider, quota hoặc frozen oracle.
+Focused acceptance-evidence68testsPASS; navigation6testsPASS; UI regression gate
+0new high-confidence blockers. Strict production releasebuildPASS, lintPASS
+(0errors/1existingwarning), rendered desktop/mobile navigation reviewPASS.
+
+## QA đã có của4f2
 
 | Evidence | Kết quả |
 |---|---|
-| Reconcile workflow/dependency | 20testsPASS |
-| Reconcile KB scripts | 31testsPASS |
+| Reconcile workflow/dependency + KB | 20 +31testsPASS |
 | Grounding/scope/toolengine | 107testsPASS |
 | AI integration | 12testsPASS |
-| AIeval sau final scope patch | PASS |
-| Strict staging release build | PASS; staging API/sitemap/prerender origins |
-| Secret/data-boundary scans, tool validator | PASS ở local checkpoint |
-| Trusted CI của bản mới | PENDING |
-| Exact SHA deployed staging của bản mới | PENDING |
-| AC009 và hai Plan092rounds11/11 | PENDING |
+| AIeval | PASS |
+| Strict staging và production releasebuild | PASS trước follow-up |
+| Secret/boundary/docs privacy/agents/tool scans | PASS trước follow-up |
+| PR194 CI và merge CI37262141315 | 5/5PASS mỗi run |
+| AC009 / hai Plan092rounds | FAIL / NOT RUN |
 | Production promotion/observation | NOT RUN |
 
-Build production trước đó không đạt dynamiccohort gate; không gọi đó làPASS.
-Staging releasebuild không chứng minh production data readiness. Local evidence
-không thay trusted CI/artifact hoặc protected approval.
+Follow-up thay code/test làm relevant QA và candidate evidence cũ hết hiệu lực;
+phải CI/deploy/certify lại exactSHA mới. Local evidence không thay trusted artifact.
 
-## Recovery
+## Recovery và dữ liệu production
 
 Backup `production-logical-backup-20261005T030928Z-d59b34e648e1424e`:
-83collections/4360documents; encryptedintegrity, BSON/index/GridFS và isolated
-restorePASS. Recoverypoint03:11:21.938Z; rootfinalize03:36:06.442Z.
-Owner xác nhận archive-only transfer đến canonicalDrive; browser automation
-không quan sát được transfer. Downloaded size/checksum được helper kiểm chứng,
-khóa được lấy lại từ Bitwarden; không dùng localDPAPI trong offdevice drill.
-Cleanup0, productionwrites0, offDeviceRecoveryVerifiedtrue; PITRfalse.
-Xem [backup record](../operations/production/production-backup-record-2026-10-05.md).
+83collections/4360documents, recoverypoint03:11:21.938Z. Independent Bitwarden
+retrieval + downloaded archive checksum/AES/BSON/index/GridFS/isolated restore
+PASS, cleanup0, productionwrites0, offDeviceRecoveryVerifiedtrue; PITRfalse.
+Drive/account destination owner-attested vì browser automation không quan sát
+được transfer. Xem [backup record](../operations/production/production-backup-record-2026-10-05.md).
+Backup24h cần kiểm lại trước mutation/promotion.
 
-## Production data blocker
+Production readonly baseline:67KB/39published/eligible0, legacy-symmetric-v1,
+không searchindex;385foods/1374exercises, beginnerchest22, reviewed safefoods0.
+Owner đã duyệt bounded proposal digest
+`d1c0ede94b5e0b4a807eccce98de496d858eb2cffccf3686d51fbb9249ce5750`, **chỉ sau
+certified staging PASS**:26reviewed KB/rootvectors,110variants->[ ] có rollback,
+allergenProfile của4nativefoods,3priceobservations giữ ngày gốc, rootindex/profile.
+Giữ39legacy và2holds. Không ghi macros/calories hay claim cross-contact chưa có
+bằng chứng. Target sau publish:67total/65published/26eligible/2draft holds.
 
-Read-only audit exact `gym-app`:67KBtotal/39published/eligible0,
-legacy-symmetric-v1, embeddingready67 nhưng chưa review đủ và không searchindex.
-39legacy thiếu review/evidence;28source-backed vẫn needs_review.
-All28 stableIDs tồn tại đúng một lần; answer của28 khác staging editorial.
-Staging26published/2hold không tự được đưa sang production khi deploycode.
+Transaction helper local qua independent security review, isolated28testsPASS:
+CAS exactvalue/type/presence; KB __v tăng khi apply và rollback; foreignwrite chặn
+rollback; unknowncommit phải reconcile, không blind retry. Chưa có trusted
+launcher/encrypted durable artifacts/liveindex/config/Adminpublish; helper PASS
+không cấp production GO hoặc thay protected human approval.
 
-Catalog có385foods/1374exercises, beginnerchest22; reviewed safefoods0 và
-freshpriced safefoods0. Bốn foodIDs staging khác nativeproductionIDs, nên không
-copy theo stagingID. Cần kiểm nutrition/source/price correspondence rồi chuẩn bị
-proposal bounded cho26KB, haihold giữ nguyên, metadata bốn nativefoods và
-ba priceobservations. Chưa có quyền productiondata mutation; chưa apply.
+## Bước còn lại
 
-## Bước còn lại và ranh giới
-
-Push/PR vào staging theo quyền đã có; trusted CI5/5 rồi deploy cùng exactSHA.
-Chạy identityUI probe, AC009 và hai Plan092rounds11/11 với cleanup0 và artifact
-cùng SHA. Productiondata proposal phải được owner duyệt trước mutation.
-Main protected cần approvingreview; không bypass. Merge main tạoSHA mới phải
-stage/CI/acceptance lại SHA đó trước deployproduction. Sau promotion, chỉ GET/HEAD
-observation ít nhất30phút và postdeploygatePASS mới kết luậnKEEP.
-
-Runtime/deploy identity, recipe/APIalias connectivity và currentrecovery tuổi24h
-cần reverify trước promotion. Không biến unknown/stale/mismatch thànhPASS.
+CI/deploy follow-up exactSHA, canonical AC009 và hai Plan09211/11 cùng artifact,
+cleanup0. Chuẩn bị protected main PR; một approving review bắt buộc. Main merge
+SHA mới phải được CI/stage/certify trước production. Hoàn thiện reviewed data
+launcher/rollback/provenance/index/Admin publication trong approved scope rồi
+protected production gate, exactSHA deploy và GET/HEAD observation ít nhất30phút.
+Không bypass protections, nới oracle/caps hoặc mở rộng LOW polish để lấy PASS.

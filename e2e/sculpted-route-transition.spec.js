@@ -3,83 +3,53 @@ import { expect, test } from "@playwright/test";
 const tdeeCard = (page) => page.getByRole("link", {
   name: /ĐO LƯỢNG MỨC TIÊU THỤ NĂNG LƯỢNG/,
 });
-const preview = (page) => page.getByRole("dialog", {
-  name: /Bản xem thử chuyển động/,
-});
 
-test.describe("self-sculpting looping preview", () => {
-  test("stays open beyond a nominal five-second cycle without changing the route", async ({ page }) => {
-    await page.goto("/");
-    await expect(tdeeCard(page)).toBeVisible();
+async function expectDestination(page, path, heading) {
+  await expect(page).toHaveURL(new RegExp(`${path}/?$`));
+  await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: /Bản xem thử chuyển động/ })).toHaveCount(0);
+}
 
-    await tdeeCard(page).click();
-    await expect(preview(page)).toBeVisible();
-    await expect(page).toHaveURL(/\/$/);
+const tdeeHeading = /ĐO LƯỢNG CALO ĐỐT CHÁY TRONG 1 NGÀY/;
 
-    await page.waitForTimeout(6_200);
-
-    await expect(preview(page)).toBeVisible();
-    await expect(page.locator('[data-sculpt-mode="preview"]')).toBeVisible();
-    await expect(page.locator('[data-sculpt-timeline="enabled"]')).toBeVisible();
-    await expect(page).toHaveURL(/\/$/);
+test.describe("public tool navigation", () => {
+  test.afterEach(async ({ page }, testInfo) => {
+    await page.getByRole("heading", { level: 1 }).first().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("navigation.png") });
   });
 
-  test("closes cleanly and can reopen immediately without cooldown", async ({ page }) => {
+  test("desktop TDEE card opens the calculator", async ({ page }) => {
     await page.goto("/");
     await tdeeCard(page).click();
-    await preview(page).getByRole("button", { name: "Đóng xem thử" }).click();
-
-    await expect(preview(page)).toHaveCount(0);
-    await expect(page).toHaveURL(/\/$/);
-    expect(await page.evaluate(() => ({
-      inert: document.querySelector("main").closest("[inert]") !== null,
-      locked: document.body.style.overflow === "hidden",
-    }))).toEqual({ inert: false, locked: false });
-
-    await tdeeCard(page).click();
-    await expect(preview(page)).toBeVisible();
-    await expect(page).toHaveURL(/\/$/);
+    await expectDestination(page, "/tdee-calculator", tdeeHeading);
   });
 
-  test("Escape only closes the preview and releases the background", async ({ page }) => {
+  test("desktop exercise link opens the library", async ({ page }) => {
     await page.goto("/");
-    await tdeeCard(page).click();
-    await preview(page).getByRole("button", { name: "Đóng xem thử" }).press("Escape");
-
-    await expect(preview(page)).toHaveCount(0);
-    await expect(page).toHaveURL(/\/$/);
-    expect(await page.evaluate(() =>
-      document.querySelector("main").closest("[inert]") !== null,
-    )).toBe(false);
+    await page.getByRole("link", { name: "Hệ thống bài tập", exact: true }).first().click();
+    await expectDestination(page, "/exercises", "THƯ VIỆN BÀI TẬP");
   });
 
-  test("mobile exercise link opens the same preview and keeps the home route", async ({ page }) => {
+  test("mobile exercise link opens the library and releases the drawer", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
     await page.getByRole("button", { name: "Mở menu" }).click();
     await page.locator("#mobile-menu-drawer")
       .getByRole("link", { name: "Hệ thống bài tập", exact: true })
       .click();
-
-    await expect(preview(page)).toBeVisible();
-    await expect(page).toHaveURL(/\/$/);
-    await preview(page).getByRole("button", { name: "Đóng xem thử" }).click();
-    await expect(page).toHaveURL(/\/$/);
+    await expectDestination(page, "/exercises", "THƯ VIỆN BÀI TẬP");
+    await expect(page.getByRole("button", { name: "Mở menu" })).toBeVisible();
     expect(await page.evaluate(() => document.body.style.overflow === "hidden")).toBe(false);
   });
 
-  test("reduced motion opens a static preview without navigating", async ({ page }) => {
+  test("reduced motion preserves TDEE navigation", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     await tdeeCard(page).click();
-
-    await expect(preview(page)).toBeVisible();
-    await expect(preview(page)).toContainText("Chuyển động đã tắt theo cài đặt thiết bị");
-    await expect(page.locator('[data-sculpt-timeline="off"]')).toBeVisible();
-    await expect(page).toHaveURL(/\/$/);
+    await expectDestination(page, "/tdee-calculator", tdeeHeading);
   });
 
-  test("Save-Data opens a static preview without navigating", async ({ page }) => {
+  test("Save-Data preserves TDEE navigation", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "connection", {
         value: { saveData: true },
@@ -88,10 +58,13 @@ test.describe("self-sculpting looping preview", () => {
     });
     await page.goto("/");
     await tdeeCard(page).click();
+    await expectDestination(page, "/tdee-calculator", tdeeHeading);
+  });
 
-    await expect(preview(page)).toBeVisible();
-    await expect(preview(page)).toContainText("Chuyển động đã tắt theo cài đặt thiết bị");
-    await expect(page.locator('[data-sculpt-timeline="off"]')).toBeVisible();
-    await expect(page).toHaveURL(/\/$/);
+  test("keyboard activation opens the calculator", async ({ page }) => {
+    await page.goto("/");
+    await tdeeCard(page).focus();
+    await tdeeCard(page).press("Enter");
+    await expectDestination(page, "/tdee-calculator", tdeeHeading);
   });
 });
