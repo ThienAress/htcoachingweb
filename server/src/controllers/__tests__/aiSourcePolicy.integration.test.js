@@ -124,6 +124,10 @@ describe("selective source policy at the chat route", () => {
     "Theo WHO, người trưởng thành nên vận động đều đặn.\nBạn muốn bắt đầu bằng đi bộ không?",
     "Theo **nguồn chính thức**, người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
     "Theo khuyến nghị của\n**WHO**, người trưởng thành nên vận động đều đặn.",
+    "Theo các khuyến nghị hiện hành của Tổ chức Y tế Thế giới (WHO), người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
+    "Theo các khuyến nghị của\nWHO, người trưởng thành nên vận động đều đặn.",
+    "Mức vận động tham khảo:\nTheo nguồn chính thức, người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
+    "## Mức vận động\nTheo nguồn chính thức, người trưởng thành nên vận động đều đặn.",
   ])("keeps an attributed guideline source in SSE and owned history: %s", async (content) => {
     const question = "Tập luyện thể lực mỗi tuần bao nhiêu phút để khỏe mạnh?";
     const uri = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";
@@ -149,6 +153,14 @@ describe("selective source policy at the chat route", () => {
     "Mình chưa **tìm** được khuyến nghị theo nguồn chính thức.",
     "Mình chưa xác minh được theo nguồn chính thức.",
     "Bạn có thể tìm thêm theo nguồn chính thức.",
+    "Theo các khuyến nghị của WHO, bạn muốn tìm thông tin cho nhóm tuổi nào?",
+    "Bạn có thể tìm thêm khuyến nghị của WHO.",
+    "Bạn hãy tìm theo các khuyến nghị của WHO.",
+    "Theo các khuyến nghị của WHO,\nbạn muốn tìm thông tin cho nhóm tuổi nào?",
+    "Để đối chiếu theo các khuyến nghị của WHO, bạn cho biết nhóm tuổi của mình nhé.",
+    "Khuyến nghị của WHO là nội dung mình cần xác minh thêm.",
+    "Theo các khuyến nghị của WHO, mình chưa xác minh được con số này.",
+    "Theo các khuyến nghị của WHO, bạn hãy cho biết nhóm tuổi của mình nhé.",
   ])("keeps clarifications and formatted fallbacks uncited despite an eligible exact KB: %s", async (content) => {
     const question = "Tập luyện thể lực mỗi tuần bao nhiêu phút để khỏe mạnh?";
     const uri = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";

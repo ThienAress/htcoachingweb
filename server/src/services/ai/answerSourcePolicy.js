@@ -20,10 +20,14 @@ export const answerNeedsKnowledgeCitation = (decision, answer) => {
   if (decision.preferredTool || decision.reasonCodes?.includes("workout_creation")) return false;
   const plainAnswer = String(answer || "").replace(/[*_`]/g, "");
   if (/chưa (?:thể|đủ|tìm)|bổ sung (?:thông tin|dữ liệu|số đo)|giới hạn xử lý|thử lại/iu.test(plainAnswer)) return false;
-  const guidelineClaims = plainAnswer.split(/(?<=[.!?])\s*|\n+/u)
-    .map((clause) => clause.trim()).filter((clause) => !clause.endsWith("?"));
+  const guidelineClaims = plainAnswer.split(/(?<=[.!?;])\s*|\n(?=\s*theo\s)/iu)
+    .map((clause) => clause.trim()).filter((clause) =>
+      !clause.endsWith("?") &&
+      !/(?:chưa|cần|còn phải)\s+(?:xác minh|kiểm chứng)|(?:bạn|mình|tôi)\s+(?:hãy\s+)?(?:cho biết|cung cấp|muốn (?:biết|tìm))/iu.test(clause),
+    );
   const attributedGuideline = guidelineClaims.some((clause) =>
-    /^theo\s+nguồn chính thức\s*,\s*\S/iu.test(clause),
+    /^theo\s+nguồn chính thức\s*,\s*\S/iu.test(clause) ||
+    /^theo\s+(?:(?:các|những)\s+)?(?:khuyến nghị|khuyến cáo|hướng dẫn)[^.!?]{0,80}\b(?:WHO|AAOS|Tổ chức Y tế Thế giới|World Health Organization)\b/iu.test(clause),
   ) || /(?:theo(?:\s+(?:khuyến nghị|hướng dẫn)(?:\s+của)?)?\s+(?:WHO|AAOS|Tổ chức Y tế Thế giới|World Health Organization)\b|\b(?:WHO|AAOS|Tổ chức Y tế Thế giới|World Health Organization)(?:\s*\((?:WHO|AAOS)\))?\s+(?:khuyến nghị|recommends?))/iu.test(guidelineClaims.join(" "));
   return decision.reasonCodes?.some((reason) => ["source_requested", "research_claim"].includes(reason)) ||
     attributedGuideline ||

@@ -105,6 +105,31 @@ Production Promotion Gate protectedenvironment. Chuẩn bị PR/review concrete,
 
 ## Traceability và tiến độ thực tế
 
+Checkpoint a4b7: PR198/staging merge CI5/5PASS; Netlify ready
+6ac390942ce723000855d8f7 và Render live dep-db1p1qpsrm7s73cmu2i0 exact
+`a4b7ca0307b915da314117c1754af5f3700e7f1f`. Canonical37306960913 FAIL trước
+browser lane đầu; recovery37308002526 verifiedtrue/residue0. Hai diagnostic
+UI thật trên cùng SHA có completed persisted answer, exact fixture trong trace,
+eligibleSource1 nhưng citationpredicatefalse/sourceanchor0. Grammar-only probe
+cho thấy attribution WHO/khuyến nghị trong declarative clause; không có raw
+output trong artifact. Local recovery cả hai verifiedtrue/residue0. H2 delivery
+predicate supported; không coi completed chat là provider outage. Bản vá tiếp
+giới hạn modifiers của guideline attribution, giữ risk/tool/fallback/exact-source
+guards và negative clarifications. Frozen fixture/oracle/caps vẫn giữ nguyên.
+Final selective attribution patch local5files429/429PASS; independent19pureprobes
+PASS, không confirmedBLOCK/HIGH/MED. Review negatives giữ intake/chưa xác minh
+uncited; wrappedclaims/heading/intro giữ nguồn. AIeval73/73, tool/secrets/boundaries
+và agents scansPASS. TrustedCI/exactdeploy/canonicalacceptance mới còn pending.
+
+Publication fence counter regression RED2FAIL/11PASS; hydrate cùng raw projection
+fix, integrated4files71/71PASS và independent counter reviewPASS. Fence chưa live
+và chưa cấp production execution authority. Partialpublicationrollback isolated
+54/54PASS cũ không đủ raw BSON proof: independent review phát hiện Date/ISO và
+numeric subtype bị canonical digest collapse; root actualMongo price Int32/Double
+drift RED chứng minh rollback vẫn delete owned price. Phải bổ sung fresh typed
+snapshot/strictEJSON binding và raw CAS/readback/restoration; không suy subtype
+từ approved JSON snapshot. Chưa production writes/deploys.
+
 Checkpoint389e: PR195 final CI37266234606 và canonical staging CI37266900816
 5/5PASS; Netlify6ac3323de9aece0009662e0b/Renderdep-db1j5d5g1s2s73aej4p0 exactSHA.
 Certified37267543038 FAIL trước browser lane đầu; hai Plan092 rounds NOT RUN.
@@ -177,6 +202,17 @@ unknown outcome reconcile và exact partial-publish poststate rollback.
 Không execute publish trước authenticated request journal/durable encrypted
 poststate receipt; existing rollback hiện chỉ hỗ trợ draft prepublish và không
 được gọi như đã chứng minh partial-publication recovery.
+
+Publication fence implementation slice IN PROGRESS: ownership chỉ
+`server/src/controllers/knowledgeBase.controller.js`, một helper pure ở
+`server/src/services/knowledgePublicationFence.js` và unit/HTTP regression files
+riêng cho fence. Optional header strong `"kb-publish-v1-<64hex>"`; chỉ chấp nhận
+raw body `{status:"published"}`. Server đọc raw canonical projection/hydrate cùng
+document, so digest trước mutation/provider, gắn exact value/type/presence CAS
+vào document save; stale/CAS miss trả412. Không thay normal API clients hoặc schema.
+Node22/MongoMemory verification qua actual admin HTTP, auth/CSRF negatives,
+before/after-read drift, missing/null/scalar-array, concurrent publish và replay.
+Không DB/live/Git mutation bởi worker; root review/QA/certify trước production.
 
 Manifest `traceability/094c.json` map toàn bộ 39 AC kế thừa; hơn300 dòng vì schema bắt buộc map từng AC. Không đổi spec/oracle.
 
