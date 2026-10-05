@@ -122,6 +122,8 @@ describe("selective source policy at the chat route", () => {
     "Theo khuyến nghị của Tổ chức Y tế Thế giới (WHO), người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
     "**WHO** khuyến nghị người trưởng thành đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
     "Theo WHO, người trưởng thành nên vận động đều đặn.\nBạn muốn bắt đầu bằng đi bộ không?",
+    "Theo **nguồn chính thức**, người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
+    "Theo khuyến nghị của\n**WHO**, người trưởng thành nên vận động đều đặn.",
   ])("keeps an attributed guideline source in SSE and owned history: %s", async (content) => {
     const question = "Tập luyện thể lực mỗi tuần bao nhiêu phút để khỏe mạnh?";
     const uri = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";
@@ -143,6 +145,10 @@ describe("selective source policy at the chat route", () => {
     "Mình chưa **tìm** được khuyến nghị của WHO.",
     "Theo WHO, bạn muốn tìm khuyến nghị cho nhóm tuổi nào?",
     "**WHO** khuyến nghị gì cho nhóm tuổi của bạn?",
+    "Theo nguồn chính thức, bạn muốn biết khuyến nghị cho nhóm tuổi nào?",
+    "Mình chưa **tìm** được khuyến nghị theo nguồn chính thức.",
+    "Mình chưa xác minh được theo nguồn chính thức.",
+    "Bạn có thể tìm thêm theo nguồn chính thức.",
   ])("keeps clarifications and formatted fallbacks uncited despite an eligible exact KB: %s", async (content) => {
     const question = "Tập luyện thể lực mỗi tuần bao nhiêu phút để khỏe mạnh?";
     const uri = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";

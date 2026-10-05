@@ -134,6 +134,50 @@ Không dùng GREEN370 cũ cho snapshot mới. Independent final review PASS, th�
 read-only assertionsPASS; không còn confirmedBLOCK/HIGH/MED trong3AI files.
 Trusted CI/deploy/certified exactSHA mới còn phải hoàn tất; chưa production execution.
 
+Checkpoint8ace: PR197 mergeSHA `8ace88be3bc3dc6dd8db2cb032b080ab471a722e`.
+PR CI37271576780 và canonical mergeCI37272453782 đều5/5PASS. Netlify ready
+6ac3432711be63000834e360/Render live dep-db1k8ce0tbcc73b86ba0 cùng exact8ace;
+served index/assets match immutable deployment, staging APIhealthready.
+Certified37273273915 general9/9PASS, AC009FAIL trước lane đầu, Plan092NOT RUN.
+Bounded Render log window ghi chat_error/GEMINI_HTTP_ERROR/status503 nhưng chỉ
+time-window correlation, không per-request proof. Recovery37273889945 verified0.
+Một local canonical-browser diagnostic8ace không mock response: live capability
+settled/failed, không persisted answer/markdown, UIalert1; recoveryverified0.
+Final bounded canonical rerun37275066284 FAIL trước lane đầu; Plan092 NOT RUN.
+Bounded logs ghi chat_end/11602ms/iterations1/toolCalls0/kbHits3, không có proof
+HTTP503 cho run này. Root cause chưa xác định. Recovery37275732914 verifiedtrue,
+residue0/alreadyCleantrue. Không đổi caps/oracle hoặc biến failed run thành PASS.
+
+Follow-up deterministic: unchanged canonical buildKnowledgeFixturePayload có
+attribution "Theo nguồn chính thức" nhưng8ace needsCitation=false, strip WHO URL
+dù exact source eligible. Regression actual builder RED4FAIL/43PASS, review
+negatives RED4FAIL/48PASS; wrapped WHO/AAOS regression RED3FAIL/52PASS. Fix chỉ
+nhận official attribution ở đầu non-question clause, giữ WHO/AAOS joined clauses
+và fallback/risk/tool/exact-source guards. Final focused5files GREEN398/398,
+AIeval73/73, independent review không confirmedBLOCK/HIGH/MED. Bug này được tái
+hiện độc lập, chưa chứng minh gây canonical37275066284. CI/deploy/certify SHA mới
+vẫn bắt buộc trước production.
+
+Production prep independent architectural review chốt ba gaps: trusted artifact
+launcher, encrypted durable snapshot/receipts, conditional publish và rollback sau
+partial publication. Launcher chỉ đọc đã implement4files + offline integration;
+root verified90/90PASS (46launcher+36certification+8actualNode22subprocess).
+Scoped independent securityPASS; chưa live certification; giữ
+productionExecutionAuthorized=false. Node permission không phải network sandbox;
+canonical validators/support được kiểm exacttrackedblobs và không network/DB.
+
+Publish completion slice tối thiểu còn PLANNED: optional If-Match strong digest
+của raw canonical KB projection, chỉ body status=published; raw projection read
+và server-built atomic exact-value/type/presence predicate qua Mongoose save.
+Giữ auth/CSRF/server reviewer;412 trước provider khi stale, CASmiss cũng412.
+Không dùng chỉ__v vì raw writer và updatedAt drift không luôn tăng version.
+Verification bắt buộc: raw drift trước/sau read, missing/null và scalar/array,
+concurrent publish chỉ1success, wrongrole/CSRF, stale token sau successful publish,
+unknown outcome reconcile và exact partial-publish poststate rollback.
+Không execute publish trước authenticated request journal/durable encrypted
+poststate receipt; existing rollback hiện chỉ hỗ trợ draft prepublish và không
+được gọi như đã chứng minh partial-publication recovery.
+
 Manifest `traceability/094c.json` map toàn bộ 39 AC kế thừa; hơn300 dòng vì schema bắt buộc map từng AC. Không đổi spec/oracle.
 
 - Điều tra độc lập: local tool deadline15s; không đổi caps/provider/retry/quota.
