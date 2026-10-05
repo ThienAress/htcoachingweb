@@ -9,9 +9,11 @@ vi.mock("../../utils/safeLogger.js", () => ({ safeLog: { info: vi.fn(), warn: vi
 import { clearCollections, createTestApp, createTestUser, setupTestDB, teardownTestDB, withAuth } from "../../__tests__/setup.js";
 import ChatConversation from "../../models/ChatConversation.js";
 import { toolRegistry } from "../../services/ai/tools/toolRegistry.js";
+import { buildKnowledgeFixturePayload } from "../../scripts/stagingAiChatAcceptance.http.js";
 
 let app;
 const originalSearch = toolRegistry.search_knowledge.execute;
+const originalExercises = toolRegistry.search_exercises.execute;
 const irrelevantSource = "https://example.org/research/weight-loss";
 const publishedKb = {
   _id: "507f191e810c19729de860ed", question: "Giảm cân với nhịn ăn gián đoạn?",
@@ -39,7 +41,7 @@ beforeEach(() => {
   llmMock.mockReset(); kbMock.mockReset(); kbMock.mockResolvedValue([publishedKb]);
   llmMock.mockImplementation(async function* () { yield { type: "text", content: "Mình cần biết mục tiêu, số đo và mức vận động trước khi đưa ra gợi ý." }; });
 });
-afterEach(async () => { toolRegistry.search_knowledge.execute = originalSearch; vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.clearAllMocks(); await clearCollections(); });
+afterEach(async () => { toolRegistry.search_knowledge.execute = originalSearch; toolRegistry.search_exercises.execute = originalExercises; vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.clearAllMocks(); await clearCollections(); });
 afterAll(async () => { await teardownTestDB(); });
 
 describe("selective source policy at the chat route", () => {
@@ -117,6 +119,41 @@ describe("selective source policy at the chat route", () => {
     expect(answer.content).toBe(text(response));
     expect(answer.uiCard).toMatchObject({ cardType: "webSources", data: { sources: [{ uri }] } });
     expect(frames(response).filter((frame) => frame.cardType === "webSources")).toHaveLength(1);
+  });
+  it("does not attach a KB claim citation after an optional tool executes", async () => {
+    const uri = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";
+    const fixture = buildKnowledgeFixturePayload({ marker: "htcoaching-acceptance:00000000-0000-4000-8000-000000000000", sourceUrl: uri });
+    kbMock.mockResolvedValue([{ ...publishedKb, ...fixture }]);
+    toolRegistry.search_exercises.execute = vi.fn(async () => ({ text: "Bài tập tham khảo đã được tìm thấy.", meta: { evidenceAvailable: true } }));
+    let calls = 0;
+    llmMock.mockImplementation(async function* () {
+      if (calls++ === 0) yield { type: "tool_call", toolCalls: [{ id: "optional-exercise", name: "search_exercises", args: { searchQuery: "cardio" } }] };
+      else yield { type: "text", content: "Người trưởng thành nên đạt ít nhất 150 phút hoạt động thể lực cường độ vừa mỗi tuần." };
+    });
+    const { response, answer } = await submit(`${fixture.question} lane-retry`);
+    expect({ executed: toolRegistry.search_exercises.execute.mock.calls.length, sourceInSse: text(response).includes(uri), card: answer.uiCard })
+      .toEqual({ executed: 1, sourceInSse: false, card: null });
+  });
+  it.each(["retry", "edit", "paraphrase"])("cites only a complete reviewed claim after a non-exact question: %s", async (mode) => {
+    const uri = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";
+    const fixture = buildKnowledgeFixturePayload({
+      marker: "htcoaching-acceptance:00000000-0000-4000-8000-000000000000", sourceUrl: uri,
+    });
+    kbMock.mockResolvedValue([{ ...publishedKb, ...fixture, matchedQuestion: fixture.variants[0] }]);
+    const claim = "Người trưởng thành nên đạt ít nhất 150 phút hoạt động thể lực cường độ vừa mỗi tuần.";
+    const unsupported = "Trẻ em phải tập cường độ mạnh 999 phút mỗi ngày.";
+    llmMock.mockImplementation(async function* () { yield { type: "text", content: `${claim} ${unsupported}` }; });
+    const message = mode === "retry" ? `${fixture.question} lane-retry`
+      : mode === "edit" ? `${fixture.variants[0]} recovery-edit` : "Tập luyện thể lực mỗi tuần tối thiểu bao nhiêu phút?";
+    const { response, answer, accessToken, conversationId } = await submit(message);
+    const history = await withAuth(request(app).get(`/api/ai/conversations/${conversationId}`), accessToken);
+    const stored = history.body.data?.messages.find(row => row._id === String(answer._id));
+    const output = text(response);
+    expect({ sourceInSse: output.includes(uri), scopedBeforeUnreviewedClaim: output.indexOf(uri) > output.indexOf(claim) && output.indexOf(uri) < output.indexOf(unsupported),
+      noBlanketFooter: !output.includes("📎"), persistedSame: answer.content === output && stored?.content === output,
+      streamedCards: frames(response).filter(frame => frame.cardType === "webSources").length,
+      historyCard: stored?.uiCard?.data.sources[0]?.uri })
+      .toEqual({ sourceInSse: true, scopedBeforeUnreviewedClaim: true, noBlanketFooter: true, persistedSame: true, streamedCards: 1, historyCard: uri });
   });
   it.each([
     "Theo khuyến nghị của Tổ chức Y tế Thế giới (WHO), người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",

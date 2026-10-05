@@ -105,6 +105,32 @@ Production Promotion Gate protectedenvironment. Chuẩn bị PR/review concrete,
 
 ## Traceability và tiến độ thực tế
 
+Follow-up 1edd07b9: aligned diagnostic ghép đúng assistant/request recovery_retry
+với DOM: completed answer 818 ký tự, source/card 0; capability settled/completed,
+không proof provider outage. Source-selector RED độc lập: root chọn 1, cùng query
+cộng recovery suffix chọn 0. Recovery cuối verified=true/residue=0. Không dùng
+diagnostic làm certification. Fix scope: giữ exact-question selector; thêm delivery
+fallback chỉ cho trọn mệnh đề factual trùng reviewed answer, bỏ duy nhất formatting
+và attribution dẫn đầu đã nhận diện. Giữ nguyên số/đơn vị/đối tượng/phủ định;
+gắn link ngay mệnh đề được hỗ trợ, không footer bảo chứng toàn answer. Files:
+knowledgeClaimCitation.js + focused test, ai.controller.js, systemPrompt.js và
+aiSourcePolicy.integration.test.js. Verify RED route/SSE/persisted/owned GET,
+GREEN với negatives stale/unrelated/intake/changed fact và limits, independent
+review rồi trusted CI/exact staging/canonical acceptance. Không đổi frozen
+fixture/oracle/provider/caps hoặc production data. Paraphrase không trùng phải
+fail closed; không cam kết gate PASS trước khi có kết quả thực thi.
+Review phát hiện hai MED đã tái hiện riêng: token số bị thay marker Markdown vẫn
+được bind; optional tool đã execute vẫn nhận fallback citation. Fix chỉ unwrap
+cặp formatting cân bằng ở token boundary, giữ marker trong số; claim fallback
+mặc định tắt, chỉ normal model-final bật khi actual toolCallCount=0. Exact-source
+path cũ giữ nguyên. Local static CI-config build PASS (không production artifact);
+lượt build đầu thiếu VITE_API_URL đã dừng, không tính PASS. Final source tests và
+re-review phải hoàn tất trước merge staging.
+Final focused 5 files 153/153 PASS trên Node22.23.1; scientific-source negatives
+gồm số/đơn vị/dân số/cường độ/phủ định, stale/unreviewed/private bounds, tool route
+và truncation. Map clause-key chỉ trong một response, tối đa3 entries/128 clauses,
+first reviewed proof wins; không persistent cache, ownership hoặc cross-user key.
+
 Checkpoint a4b7: PR198/staging merge CI5/5PASS; Netlify ready
 6ac390942ce723000855d8f7 và Render live dep-db1p1qpsrm7s73cmu2i0 exact
 `a4b7ca0307b915da314117c1754af5f3700e7f1f`. Canonical37306960913 FAIL trước

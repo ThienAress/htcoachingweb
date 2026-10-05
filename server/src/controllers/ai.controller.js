@@ -53,6 +53,7 @@ import { buildCanonicalMealToolRequest } from "../services/ai/mealRequestConstra
 import { evaluateSemanticOutput } from "../services/ai/evals/semanticOutputEvaluator.js";
 import { buildTdeeIntakeResponse } from "../services/ai/tdeeIntake.js";
 import { answerNeedsKnowledgeCitation, selectCitationKnowledgeEntries, stripUnselectedKnowledgeCitations } from "../services/ai/answerSourcePolicy.js";
+import { bindSupportedKnowledgeClaims } from "../services/ai/knowledgeClaimCitation.js";
 import { buildJointDiscomfortResponse, JOINT_SAFETY_SOURCE } from "../services/ai/jointDiscomfortResponse.js";
 import { buildBoundedWorkoutDraft } from "../services/ai/workoutDraft.js";
 import { buildSevenDayReferencePlan } from "../services/ai/referencePlan.js";
@@ -1070,6 +1071,8 @@ export const chatStream = async (req, res) => {
   let routingDecision = null;
   let kbEntryIds = [];
   let kbCitationSources = [];
+  let kbReferenceEntries = [];
+  let toolCallCount = 0;
   let webSearchAttemptCount = 0;
   let webSearchExecutionCount = 0;
   let webSearchOutcome = "not_called";
@@ -1116,7 +1119,7 @@ export const chatStream = async (req, res) => {
     const streamed = await writeAssistantResponse(boundedContent);
     return boundedContent.slice(0, streamed.writtenCharacters);
   };
-  const enforceEvidenceBoundary = (candidate) => {
+  const enforceEvidenceBoundary = (candidate, { allowReviewedClaimCitation = false } = {}) => {
     const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
     if (urgentSafetyResponse) return urgentSafetyResponse;
     if (
@@ -1148,7 +1151,15 @@ export const chatStream = async (req, res) => {
         maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
       });
     }
-    return candidate;
+    if (!allowReviewedClaimCitation || toolCallCount > 0) return candidate;
+    const supported = bindSupportedKnowledgeClaims(candidate, {
+      entries: kbReferenceEntries, decision: routingDecision,
+      maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
+    });
+    if (supported.sources.length > 0) {
+      responseUiCard = { cardType: "webSources", data: { sources: supported.sources } };
+    }
+    return supported.content;
   };
   const equipmentLimitFallback =
     "Mình chưa thể tạo lịch tập đáp ứng chắc chắn giới hạn thiết bị này. Bạn thử lại và giữ yêu cầu chỉ dùng tạ đơn, dây kháng lực hoặc bodyweight nhé.";
@@ -1163,7 +1174,6 @@ export const chatStream = async (req, res) => {
   };
   try {
     const chatStartTime = Date.now();
-    let toolCallCount = 0;
     res.write(
       `data: ${JSON.stringify({
         type: "conversation",
@@ -1322,6 +1332,7 @@ export const chatStream = async (req, res) => {
             threshold: 0.75,
           });
           if (kbResults.length > 0) {
+            kbReferenceEntries = kbResults;
             kbEntryIds = kbResults.map((result) => result._id);
             const citationEntries = selectCitationKnowledgeEntries(kbResults, retrievalQuery);
             kbCitationSources = getCitableKnowledgeSources(citationEntries);
@@ -2407,7 +2418,7 @@ export const chatStream = async (req, res) => {
           needsToolCall = false;
           break;
         }
-        const finalContent = enforceEvidenceBoundary(candidateContent);
+        const finalContent = enforceEvidenceBoundary(candidateContent, { allowReviewedClaimCitation: true });
         fullResponse = await deliverAssistantResponse(finalContent);
       }
     }
