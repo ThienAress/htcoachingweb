@@ -105,6 +105,49 @@ Production Promotion Gate protectedenvironment. Chuẩn bị PR/review concrete,
 
 ## Traceability và tiến độ thực tế
 
+Follow-up 1edd07b9: aligned diagnostic ghép đúng assistant/request recovery_retry
+với DOM: completed answer 818 ký tự, source/card 0; capability settled/completed,
+không proof provider outage. Source-selector RED độc lập: root chọn 1, cùng query
+cộng recovery suffix chọn 0. Recovery cuối verified=true/residue=0. Không dùng
+diagnostic làm certification. Fix scope: giữ exact-question selector; thêm delivery
+fallback chỉ cho trọn mệnh đề factual trùng reviewed answer, bỏ duy nhất formatting
+và attribution dẫn đầu đã nhận diện. Giữ nguyên số/đơn vị/đối tượng/phủ định;
+gắn link ngay mệnh đề được hỗ trợ, không footer bảo chứng toàn answer. Files:
+knowledgeClaimCitation.js + focused test, ai.controller.js, systemPrompt.js và
+aiSourcePolicy.integration.test.js. Verify RED route/SSE/persisted/owned GET,
+GREEN với negatives stale/unrelated/intake/changed fact và limits, independent
+review rồi trusted CI/exact staging/canonical acceptance. Không đổi frozen
+fixture/oracle/provider/caps hoặc production data. Paraphrase không trùng phải
+fail closed; không cam kết gate PASS trước khi có kết quả thực thi.
+Review phát hiện hai MED đã tái hiện riêng: token số bị thay marker Markdown vẫn
+được bind; optional tool đã execute vẫn nhận fallback citation. Fix chỉ unwrap
+cặp formatting cân bằng ở token boundary, giữ marker trong số; claim fallback
+mặc định tắt, chỉ normal model-final bật khi actual toolCallCount=0. Exact-source
+path cũ giữ nguyên. Local static CI-config build PASS (không production artifact);
+lượt build đầu thiếu VITE_API_URL đã dừng, không tính PASS. Final source tests và
+re-review phải hoàn tất trước merge staging.
+Final focused 5 files 153/153 PASS trên Node22.23.1; scientific-source negatives
+gồm số/đơn vị/dân số/cường độ/phủ định, stale/unreviewed/private bounds, tool route
+và truncation. Map clause-key chỉ trong một response, tối đa3 entries/128 clauses,
+first reviewed proof wins; không persistent cache, ownership hoặc cross-user key.
+PR200 head1db8270 CI37326636437: client/secrets/E2E PASS; Docker build và health
+smoke PASS, critical scan FAIL cho perl-base5.36.0-7+deb12u3 với ba CVE có fix
+5.36.0-7+deb12u4. Bổ sung scope server/Dockerfile và scripts/docker-contract.test.mjs:
+shared security-base dùng nguyên immutable Node22.23.1/bookworm digest, cập nhật
+duy nhất perl-base tới exact Debian security version rồi dùng cho cả dependency
+và runtime stages. Không ignore CVE/nới scanner/tăng Nodeversion. Verify contract,
+independent review và trusted CI scan/health thật trên SHA mới; local Docker không
+available thì ghi NOT RUN, không thay bằng static test PASS.
+Docker contract RED1/3 trước sửa, GREEN3/3 sau shared-base patch; secret scan và
+data-boundaries PASS, diff-check PASS. Source của Debian Security Tracker xác nhận
+bookworm-security perl5.36.0-7+deb12u4 fixed cho CVE-2026-13221. Giữ nguyên Trivy
+critical gate; actual package/image build/scan/health local NOT RUN vì không có
+Docker. CI của head1db8270 đã hoàn tất4/5PASS, chỉDockerFAIL; không dùng run đó
+để chấp nhận Docker patch mới. Independent security review và freshCI bắt buộc.
+Independent scoped security review Astra/xhigh: PASS WITH WARNINGS, không có
+finding reachable; contract3/3PASS. Residual: chưa actual image build/scan/smoke,
+APT exact-version availability làm build fail-closed nếu bị gỡ, không fallback.
+
 Checkpoint a4b7: PR198/staging merge CI5/5PASS; Netlify ready
 6ac390942ce723000855d8f7 và Render live dep-db1p1qpsrm7s73cmu2i0 exact
 `a4b7ca0307b915da314117c1754af5f3700e7f1f`. Canonical37306960913 FAIL trước
