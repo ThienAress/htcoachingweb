@@ -2,10 +2,68 @@
 
 ## Kết luận
 
-**Production NO-GO tại checkpoint này.** PR195 đã merge/deploy staging đúng
-`389e7db90ffa256b36ee95d0f99814e8c7a8f045`, trusted CI 5/5 PASS. Certified AC009
-chưa đạt; hai Plan092 rounds chưa chạy. Recovery đã xác minh residue 0.
+**Production NO-GO tại checkpoint này.** PR197 đã merge/deploy staging đúng
+`8ace88be3bc3dc6dd8db2cb032b080ab471a722e`, trusted CI 5/5 PASS. Certified AC009
+chưa đạt; hai Plan092 rounds chưa chạy. Các failed run/probe đã recovery residue0;
+final bounded canonical rerun37275066284 FAIL và recovery37275732914 verified0.
 Chưa có production deployment hoặc production data write trong đợt này.
+
+## Checkpoint PR197 trên bản mới
+
+PR197 merge8ace; PR CI37271576780 và merge CI37272453782 đều5/5PASS. Netlify
+ready6ac3432711be63000834e360 và Render live dep-db1k8ce0tbcc73b86ba0 đúng8ace.
+Index/assets phục vụ khớp immutable deployment; APIstaging đúng, healthready,
+không thấy quotaerror trong Netlify deployment này.
+
+Canonical [37273273915](https://github.com/ThienAress/htcoachingweb/actions/runs/37273273915)
+general9/9PASS, KBfixture/catalogPASS nhưng AC009FAIL trước lane đầu; không tạo
+candidate và Plan092NOT RUN. Safe artifact chưa phân biệt browser timeout/provider.
+Bounded Render log window06:38:05–06:40:45Z có chat_error/GEMINI_HTTP_ERROR,
+status503; correlation theo thời gian, không attribution từng request.
+Recovery [37273889945](https://github.com/ThienAress/htcoachingweb/actions/runs/37273889945)
+verifiedtrue/residue0/alreadyCleantrue.
+
+Local live browser diagnostic8ace giữ canonical runner/gates và realresponse:
+live_kb_provider capability settled/failed, không assistant answer được lưu,
+UI markdown0/alert1, exactKBeligible1. Vì không có answer nên không thể kiểm
+hiệu quả guideline-source patch từ probe này. Canonical local recoveryverified0.
+Final rerun37275066284 chỉ sau cả hai recovery0; không đổi model/caps/oracle.
+Run này FAIL trước lane đầu, Plan092 NOT RUN. Bounded runtime logs ghi chat_end,
+11602ms/iterations1/toolCalls0/kbHits3; không có HTTP status chứng minh503 và
+root cause vẫn chưa xác định. Recovery37275732914 verifiedtrue/residue0,
+alreadyCleantrue. Các failed artifact giữ nguyên FAIL.
+
+## Official-source follow-up
+
+Unchanged canonical fixture builder trả "Theo nguồn chính thức…". Predicate8ace
+trả needsCitation=false và strip WHO URL dù exact source eligible. Đây là bug
+delivery được tái hiện độc lập; chưa chứng minh là nguyên nhân final canonical
+run failure. Fix giữ official attribution ở đầu non-question clause, normalize
+emphasis và giữ WHO/AAOS matching trên joined clauses để không mất soft linebreak.
+Risk/tool/fallback/exact-source guards, model/caps và frozen fixture/oracle không đổi.
+
+Regression actual builder RED4FAIL/43PASS; overcitation negatives RED4FAIL/48PASS;
+wrapped WHO/AAOS RED3FAIL/52PASS. Final focused5files GREEN398/398 (exit0),
+AIeval73/73 và independent3file review PASS, không confirmedBLOCK/HIGH/MED.
+HTTP tests kiểm SSE/persisted answer/owned history/card cho positives và negatives.
+Đây là local readiness; trusted CI/deploy/certify exactSHA mới vẫn chưa chạy.
+
+Read-only production certification launcher đã thêm authenticated GitHub GET,
+freshness/header/pagination và exactZIPdigest/extraction binding; validator chạy
+từ snapshot exacttrackedblobs và currentbackup, kiểm state/input lại sau chạy.
+Root verified90/90PASS, gồm8offlineintegration với subprocessNode22 thật;
+independent security review scopedPASS, không confirmedBLOCK/HIGH/MED.
+Không chạy live certification; productionExecutionAuthorizedfalse. Nodepermission
+không chặn network; canonical support được kiểm không network/provider/DB.
+
+Remaining data boundary: durable encrypted snapshot/receipt storage và conditional
+publish/partial-publication rollback chưa hoàn thiện. Current rollback helper chỉ
+hỗ trợ draft prepublish, không được dùng như proof sau publish một phần. Cần
+raw canonical projection digest + atomic exactvalue/type/presence fence ở existing
+authenticated Admin publish path, không chỉ__v; giữ server reviewer/auth/CSRF.
+Required mainreview=1 và production-approval reviewerThienAress được GitHub API
+xác minh; chưa approve/bypass. Backup release/disaster gatesready, age3.14h lúc
+06:19Z, cần tính lại trước execution.
 
 ## Checkpoint sau PR195
 

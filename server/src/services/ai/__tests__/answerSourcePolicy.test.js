@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { answerNeedsKnowledgeCitation, selectCitationKnowledgeEntries, stripUnselectedKnowledgeCitations } from "../answerSourcePolicy.js";
 import { buildJointDiscomfortResponse } from "../jointDiscomfortResponse.js";
+import { buildKnowledgeFixturePayload } from "../../../scripts/stagingAiChatAcceptance.http.js";
 
 describe("bounded source selection", () => {
   it("requires the exact root or reviewed matching variant, not vector proximity", () => {
@@ -22,6 +23,8 @@ describe("bounded source selection", () => {
     "**WHO** khuyến nghị người trưởng thành đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
     "Theo WHO, người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
     "Theo hướng dẫn của **AAOS**, không nên tập xuyên đau.",
+    "Theo khuyến nghị của\nWHO, người trưởng thành nên vận động đều đặn.",
+    "Theo hướng dẫn của\n**AAOS**, không nên tập xuyên đau.",
   ])("retains a reviewed citation when the answer attributes a guideline: %s", (answer) => {
     expect(answerNeedsKnowledgeCitation({ risk: "low", evidence: "internal_kb", reasonCodes: [] }, answer)).toBe(true);
   });
@@ -49,6 +52,33 @@ describe("bounded source selection", () => {
   it("retains an attributed claim before a follow-up question", () => {
     expect(answerNeedsKnowledgeCitation({ risk: "low", evidence: "internal_kb", reasonCodes: [] },
       "Theo WHO, người trưởng thành nên vận động đều đặn.\nBạn muốn bắt đầu bằng đi bộ không?"))
+      .toBe(true);
+  });
+  it("retains the explicit official-source attribution in the canonical KB fixture", () => {
+    const fixture = buildKnowledgeFixturePayload({
+      marker: "htcoaching-acceptance:00000000-0000-4000-8000-000000000000",
+      sourceUrl: "https://www.who.int/news-room/fact-sheets/detail/physical-activity",
+    });
+    expect(answerNeedsKnowledgeCitation({ risk: "low", evidence: "internal_kb", reasonCodes: [] }, fixture.answer)).toBe(true);
+  });
+  it.each([
+    "Theo nguồn chính thức, người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
+    "Theo **nguồn chính thức**, người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
+  ])("retains a reviewed source for an explicit official attribution: %s", (answer) => {
+    expect(answerNeedsKnowledgeCitation({ risk: "low", evidence: "internal_kb", reasonCodes: [] }, answer)).toBe(true);
+  });
+  it.each([
+    "Theo nguồn chính thức, bạn muốn biết khuyến nghị cho nhóm tuổi nào?",
+    "Mình chưa **tìm** được khuyến nghị theo nguồn chính thức.",
+    "Bạn muốn biết thông tin theo nguồn chính thức nào?",
+    "Mình chưa xác minh được theo nguồn chính thức.",
+    "Bạn có thể tìm thêm theo nguồn chính thức.",
+  ])("keeps official-source clarifications or fallback uncited: %s", (answer) => {
+    expect(answerNeedsKnowledgeCitation({ risk: "low", evidence: "internal_kb", reasonCodes: [] }, answer)).toBe(false);
+  });
+  it("keeps official attribution after an opening sentence and before a follow-up", () => {
+    expect(answerNeedsKnowledgeCitation({ risk: "low", evidence: "internal_kb", reasonCodes: [] },
+      "Đây là hướng dẫn tham khảo. Theo nguồn chính thức, người trưởng thành nên vận động đều đặn. Bạn muốn bắt đầu bằng đi bộ không?"))
       .toBe(true);
   });
   it("offers a cautious knee response with a verified general reference without externalizing personal input", () => {
