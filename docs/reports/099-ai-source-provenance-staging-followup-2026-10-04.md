@@ -1,5 +1,79 @@
 # HT Assistant source provenance follow-up — 2026-10-04
 
+## Kết quả cuối trên staging
+
+**Live UI15 round2: 14 PASS / 0 PARTIAL / 1 FAIL = 93,3%, đạt mục tiêu ≥14/15.**
+Frozen automated grade vẫn là 12 PASS / 3 FAIL; manual adjudication nhận ra hai
+false negative về từ ngữ ở câu 8 và 10, không sửa grader hoặc numeric/safety oracle.
+Reviewer độc lập Sol/high xác nhận câu 1–10; root review câu 10–15 và tích hợp.
+Đây là bộ 14 câu gốc + một replacement5 đã chốt, không phải exact-original15.
+
+[PR193](https://github.com/ThienAress/htcoachingweb/pull/193) đã merge sau CI 5/5.
+SHA mới nhất: `9a9b1ae0fda22ce3e34ecaab62aa36a9cfe67541`.
+[CI exact merge SHA](https://github.com/ThienAress/htcoachingweb/actions/runs/37202190462)
+5/5 PASS, gồm server/AI eval, client build/unit/lint/UI gate, E2E, secrets và Docker.
+[Staging monitor](https://github.com/ThienAress/htcoachingweb/actions/runs/37202190661)
+PASS; không cần recovery-residue job nên job đó SKIPPED.
+
+Netlify READY `6ac2464882be5d000829f802`, Render LIVE `dep-db14d0dg1s2s738gn090`
+cùng exact SHA. Served HTML và 29 assets khớp immutable deploy; bundle gọi đúng
+API staging và ready health PASS. Netlify `buildsStopped=false`, không quota error
+ở deploy này; chưa có bằng chứng chính xác số phút build còn lại. Protected runtime
+SHA/boot UUID ổn định trong toàn lượt UI. Không test bản vá cũ.
+
+KB kiểm lại read-only: 26 published / 2 hold, metadata/index PASS, zero writes.
+Backup current age 8,8 giờ, releaseReady và disasterRecoveryReady đều true;
+custody/restore đã xác minh, không yêu cầu nhập khóa lại. PITR vẫn false.
+
+| Câu | Manual | Bằng chứng chính |
+|---|---|---|
+| 1–3 | PASS | Một bữa; kcal/protein/grams và các ràng buộc loại thực phẩm đạt oracle |
+| 4 | PASS | 2.196 kcal / 140,2g protein; đủ cơm, cá, rau, đậu phụ |
+| 5 | PASS | Đổi đủ hai vị trí đậu phụ sang cá; vị trí khác giữ nguyên |
+| 6 | PASS | Bốn bữa; 2.500,2 kcal / 170,1g protein; giá verified 127.347đ; allergen guards |
+| 7 | PASS | Canonical missing_data khi baseline không có cơm/dầu; plan không đổi |
+| 8 | PASS | Bốn buổi đủ cấu trúc; 45–55 phút đáp ứng ≤60; progression/deload |
+| 9 | PASS | Đúng năm bài ngực beginner/bodyweight; card/text và canonical predicate đạt |
+| 10 | PASS | WHO ranges và cơ bắp ≥2 ngày; một grounded search; bài WHO gốc đúng claim |
+| 11 | PASS | Năm nhóm intake, không bịa kcal hoặc lịch tập cá nhân |
+| 12 | PASS | Bảy ngày minh họa cụ thể; trạng thái cân, tập/nghỉ và pain-stop |
+| 13 | PASS | Cautious knee response; AAOS chỉ hỗ trợ nguyên tắc an toàn; không web-search dữ liệu riêng |
+| 14 | PASS | Response persisted và rendered giữ đúng 60–90 phút/buổi; prefill đúng, chưa tính khi thiếu |
+| 15 | FAIL | Một grounding request bị aborted; không nguồn, không câu trả lời nhận diện đã xác minh |
+
+Câu 10 dẫn ba link BMJ/PMC/PubMed của cùng bài
+[WHO 2020 guideline](https://pubmed.ncbi.nlm.nih.gov/33239350/),
+DOI `10.1136/bjsports-2020-102955`. Nội dung gốc qua official NCBI BioC xác nhận
+150–300 / 75–150 phút và muscle-strengthening ≥2 ngày/tuần. Đây là một bài gốc,
+không phải ba nghiên cứu độc lập. [WHO fact sheet hiện tại](https://www.who.int/news-room/fact-sheets/detail/physical-activity)
+vẫn trỏ guideline này và ghi bản tiếp theo dự kiến 2030. Grader bỏ sót publisher
+BMJ/NIH/PubMed và cụm “tăng cường cơ bắp”; câu 8 bị bỏ sót vì regex đòi literal60.
+Manual PASS dựa rubric đã đóng băng, không thay yêu cầu nguồn hoặc mức phút.
+
+Live source UI đã có proof: câu10 hiện BMJ/NIH/PubMed, câu13 hiện AAOS hostname;
+avatar là monogram, không phải favicon/logo bên thứ ba. Bốn lần click mở đúng href,
+HTTPS + target/rel đạt, ≤3 nguồn mỗi câu và không lặp citation cùng URI. Câu13 mở
+đúng PDF200; [AAOS](https://orthoinfo.aaos.org/globalassets/pdfs/2023-rehab_knee.pdf)
+hỗ trợ nguyên tắc không tập xuyên đau và trao đổi chuyên môn. Nguồn không xuất hiện
+ở các câu ngoài policy; câu15 thiếu nguồn được giữ FAIL. BMJ/PMC có thể hiện
+403/reCAPTCHA sau khi điều hướng, nên click proof không đồng nghĩa mọi trang luôn đọc được.
+
+Lượt round2 giữ riêng tại `ui15-range-followup-round2/`, run
+`551c450a-cf8c-4a3a-ad6c-94ea13579865`, từ 12:31:10Z đến 12:35:26Z.
+`manual-grade.json` nối capture hash với frozen corpus/rubric/grader; tất cả giữ nguyên.
+Cleanup verified=true, residue0 trên chín collections. Không production writes/deploy.
+Round1 và các failure logs vẫn được giữ; không ghép điểm hai vòng.
+
+Remaining: câu15 lúc 12:34:37Z có diagnostic `aborted` / Gemini2.5flash, không
+HTTP status; metrics một request, zero tokens. Không gọi đó là HTTP503 hoặc kết luận
+provider outage. Chưa xác định được nguyên nhân nền của abort; không tăng retry,
+deadline, quota hoặc đổi model để lấy điểm. Identity scope của câu15 có regression
+local nhưng chưa được xác minh bằng live successful answer. LOW deferred: nhãn
+“kcal/ngày” ở single-meal text; ba link cùng bài WHO có thể rút gọn trong follow-up.
+Ảnh một số câu bị clip; rendered turn/card text có persisted-ID binding bổ sung proof.
+Raw price rows không có trong capture. Lượt UI là diagnostic acceptance, chưa tạo
+AC009 certified release-candidate hoặc quyền promotion production.
+
 ## Kết quả trước promotion
 
 Target: staging. Base: `ff7ff4408a1b8b1aae6e660f3586296019dd86d6`.
@@ -96,7 +170,7 @@ completed security scan and does not replace local security review. No paid/full
 Preflight cuối exit0, dryRun=true, authentication verified=false;
 `pr192-security-preflight-v2.log`. Lần đầu sandbox EACCES giữ riêng.
 
-## Deployment và live acceptance còn lại
+## Deployment và live acceptance
 
 ### Live round1 sau PR192
 
@@ -136,19 +210,19 @@ test sửa để parse/join text frames đúng consumer contract, targeted1PASS 
 Root diff/security review: no auth/schema/quota/output injection or external sink
 change; interpolation chỉ chứa parsed integers. FE/build inputs không đổi soPR192,
 nên reuse releasebuild/client/rendered evidence còn hợp lệ theo layer; trustedCI
-kiểm full snapshot mới trước merge. Live remediation còn pending.
+kiểm full snapshot mới trước merge. Live remediation câu14 đã PASS trên PR193 round2.
 
-Chưa deploy candidate tại thời điểm báo cáo pre-promotion. Sau PR/CI/merge cần xác
-minh exact 40-char merge SHA ở Netlify READY, Render LIVE, served HTML/assets/API
-origin và protected runtime metrics. Không test dưới deployment cũ.
+Ở checkpoint pre-promotion, deployment còn pending. Phần kết quả cuối đầu report
+đã ghi exact merge SHA, Netlify READY, Render LIVE, served HTML/assets/API origin,
+protected runtime và CI mới; round2 chỉ bắt đầu sau provider identity PASS.
 
 Hai catalog updates đã apply riêng trên PR191 với receipt transaction/post-state;
 không apply lại. Backup production logical 20261004 đã được kiểm custody và restore
 downloaded-copy độc lập; trước UI fixture kiểm current manifest freshness/recovery.
 PITR vẫn false, không tuyên bố continuous recovery.
 
-Refresh KB read-only: 26 published / 2 hold. UI15 corpus giữ 14 câu gốc và một
-replacement5, không gọi exact-original15. Frozen grader/rubric giữ nguyên. Kiểm
-sources/click/avatar/publisher và relevance thủ công cho case10/15; synthetic admin
-trên exact htcoaching_staging, terminal ownership, SHA/boot stability và cleanup
-verified=true/residue0 bắt buộc. Không có production deployment hoặc production writes.
+Refresh KB read-only đã PASS: 26 published / 2 hold. UI15 corpus giữ 14 câu gốc và
+một replacement5; frozen grader/rubric giữ nguyên. Source relevance và UI được
+adjudicate như bảng kết quả cuối. Synthetic Admin trên exact htcoaching_staging,
+terminal ownership, SHA/boot stability và cleanup verified=true/residue0 đã đạt.
+Không có production deployment hoặc production writes.
