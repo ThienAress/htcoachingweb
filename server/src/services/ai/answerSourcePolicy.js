@@ -18,9 +18,14 @@ export const selectCitationKnowledgeEntries = (results, question) => {
 export const answerNeedsKnowledgeCitation = (decision, answer) => {
   if (decision?.risk !== "low" || decision.evidence !== "internal_kb") return false;
   if (decision.preferredTool || decision.reasonCodes?.includes("workout_creation")) return false;
-  if (/chưa (?:thể|đủ|tìm)|bổ sung (?:thông tin|dữ liệu|số đo)|giới hạn xử lý|thử lại/iu.test(answer)) return false;
+  const plainAnswer = String(answer || "").replace(/[*_`]/g, "");
+  if (/chưa (?:thể|đủ|tìm)|bổ sung (?:thông tin|dữ liệu|số đo)|giới hạn xử lý|thử lại/iu.test(plainAnswer)) return false;
+  const guidelineClaims = plainAnswer.split(/(?<=[.!?])\s*|\n+/u)
+    .filter((clause) => !clause.trim().endsWith("?")).join(" ");
+  const attributedGuideline = /(?:theo(?:\s+(?:khuyến nghị|hướng dẫn)(?:\s+của)?)?\s+(?:WHO|AAOS|Tổ chức Y tế Thế giới|World Health Organization)\b|\b(?:WHO|AAOS|Tổ chức Y tế Thế giới|World Health Organization)(?:\s*\((?:WHO|AAOS)\))?\s+(?:khuyến nghị|recommends?))/iu.test(guidelineClaims);
   return decision.reasonCodes?.some((reason) => ["source_requested", "research_claim"].includes(reason)) ||
-    /theo (?:nghiên cứu|bằng chứng|khuyến nghị của (?:WHO|AAOS))|tổng quan hệ thống|phân tích gộp|systematic review|meta-analysis/iu.test(answer);
+    attributedGuideline ||
+    /theo (?:nghiên cứu|bằng chứng)|tổng quan hệ thống|phân tích gộp|systematic review|meta-analysis/iu.test(plainAnswer);
 };
 
 const normalizeSourceUri = (value) => {

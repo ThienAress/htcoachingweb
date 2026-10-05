@@ -118,6 +118,42 @@ describe("selective source policy at the chat route", () => {
     expect(answer.uiCard).toMatchObject({ cardType: "webSources", data: { sources: [{ uri }] } });
     expect(frames(response).filter((frame) => frame.cardType === "webSources")).toHaveLength(1);
   });
+  it.each([
+    "Theo khuyến nghị của Tổ chức Y tế Thế giới (WHO), người trưởng thành nên đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
+    "**WHO** khuyến nghị người trưởng thành đạt ít nhất 150 phút hoạt động vừa mỗi tuần.",
+    "Theo WHO, người trưởng thành nên vận động đều đặn.\nBạn muốn bắt đầu bằng đi bộ không?",
+  ])("keeps an attributed guideline source in SSE and owned history: %s", async (content) => {
+    const question = "Tập luyện thể lực mỗi tuần bao nhiêu phút để khỏe mạnh?";
+    const uri = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";
+    kbMock.mockResolvedValue([{ ...publishedKb, question, category: "general", answer: "Theo nguồn chính thức, người trưởng thành nên đạt ít nhất 150 phút hoạt động thể lực vừa mỗi tuần.",
+      sources: [{ type: "official", title: "Physical activity", publisher: "World Health Organization", url: uri, evidenceTier: "primary" }] }]);
+    llmMock.mockImplementation(async function* () { yield { type: "text", content }; });
+    const { response, answer, accessToken, conversationId } = await submit(question);
+    const history = await withAuth(request(app).get(`/api/ai/conversations/${conversationId}`), accessToken);
+    const storedAnswer = history.body.data?.messages.find(row => row._id === String(answer._id));
+    expect({ status: response.status, sourceInSse: text(response).includes(uri),
+      sourceInStoredAnswer: answer.content.includes(uri), sourceInHistory: storedAnswer?.content.includes(uri),
+      streamedCards: frames(response).filter(frame => frame.cardType === "webSources").length,
+      historyCard: storedAnswer?.uiCard?.data.sources[0]?.uri, evidenceMode: answer.answerTrace.evidenceMode })
+      .toEqual({ status: 200, sourceInSse: true, sourceInStoredAnswer: true, sourceInHistory: true,
+        streamedCards: 1, historyCard: uri, evidenceMode: "internal_kb" });
+  });
+  it.each([
+    "Bạn muốn biết khuyến nghị của WHO về chủ đề nào?",
+    "Mình chưa **tìm** được khuyến nghị của WHO.",
+    "Theo WHO, bạn muốn tìm khuyến nghị cho nhóm tuổi nào?",
+    "**WHO** khuyến nghị gì cho nhóm tuổi của bạn?",
+  ])("keeps clarifications and formatted fallbacks uncited despite an eligible exact KB: %s", async (content) => {
+    const question = "Tập luyện thể lực mỗi tuần bao nhiêu phút để khỏe mạnh?";
+    const uri = "https://www.who.int/news-room/fact-sheets/detail/physical-activity";
+    kbMock.mockResolvedValue([{ ...publishedKb, question, category: "general", answer: "Theo nguồn chính thức, người trưởng thành nên đạt ít nhất 150 phút hoạt động thể lực vừa mỗi tuần.",
+      sources: [{ type: "official", title: "Physical activity", publisher: "World Health Organization", url: uri, evidenceTier: "primary" }] }]);
+    llmMock.mockImplementation(async function* () { yield { type: "text", content }; });
+    const { response, answer } = await submit(question);
+    expect({ sourceInSse: text(response).includes(uri), sourceInStoredAnswer: answer.content.includes(uri),
+      sourceCard: answer.uiCard, streamedCards: frames(response).filter(frame => frame.cardType === "webSources").length })
+      .toEqual({ sourceInSse: false, sourceInStoredAnswer: false, sourceCard: null, streamedCards: 0 });
+  });
 
   it("keeps joint discomfort private and avoids catalog-based unloading claims", async () => {
     const { response, answer } = await submit("Đầu gối tôi hơi khó chịu khi squat nhưng vẫn muốn tập chân. Tôi nên làm gì?");
