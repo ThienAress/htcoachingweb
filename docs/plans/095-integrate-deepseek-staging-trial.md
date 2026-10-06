@@ -25,6 +25,9 @@
 - Exact deployment is pending verification; paid DeepSeek trial is not authorized yet.
 - Release sequence: commit Plan095 docs, fresh PR CI, protected merge, exact staging
   push CI, provider deploy identity and GET health. Preserve unrelated Plan094C edits.
+- Release blocker: fresh CI found GHSA-wq5f-xc86-pv6w in sharp. Scope extends only
+  to server manifest/lock patch0.35.5 and native dependencies; verify image regression,
+  canonical dependency audit and fresh CI. No image behavior or audit-policy changes.
 - Detailed provenance, earlier local failures, review gaps and remaining gates:
   [verification report](../reports/095-deepseek-pr202-ci-checkpoint-2026-10-06.md).
 

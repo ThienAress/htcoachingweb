@@ -19,6 +19,22 @@ Date: 2026-10-06. Scope: local implementation and PR CI; no DeepSeek live trial.
 
 ### Trusted CI continuation checkpoint — 2026-10-06
 
+Fresh documentation CI37486794056 failed server dependency audit before tests:
+sharp HIGH GHSA-wq5f-xc86-pv6w, patched0.35.5. GitHub advisory updated
+2026-10-06T13:43:58Z, after the previous successful CI. Canonical local server audit
+reproduced the same finding. Release remains blocked until dependency patch,
+image processing regression and fresh trusted CI pass; no audit waiver is added.
+Affected runtime consumer is `server/src/services/f1MediaImage.service.js`;
+existing `phase8.f1-integrity.integration.test.js` covers actual private image
+normalization/storage. Benchmarks and staging synthetic image creation also use sharp.
+
+Patch verification: sharp0.35.5/native librsvg2.63.2 loads on Node22.23.1;
+canonical server dependency audit PASS with no waivers. Lock comparison changed
+only sharp and its native package family (28 package records including root).
+Existing F1 integrity integration passed9/9; five direct in-memory cases passed:
+JPEG/PNG/WebP normalize to WebP and preserve dimensions/checksum contract,
+corrupt bytes and SVG are rejected. No production image or database was accessed.
+
 - [PR202](https://github.com/ThienAress/htcoachingweb/pull/202) remains OPEN/CLEAN,
   targeting `staging`, head `089cb700dde95716c1d7c546c09eb42e8a7bef8f`.
   Current staging ref is `0a25bba1bcc79bfb2a057c2dc40703eb9d8851aa`.
