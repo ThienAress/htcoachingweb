@@ -10,7 +10,7 @@
       "complexity": "complex",
       "lifecycle": "in_progress",
       "verification": "local_full",
-      "rollout": "not_started",
+      "rollout": "pending",
       "owner": "01a10d36-267c-7880-920b-1e51ee0d8f65",
       "updatedAt": "2026-10-06"
     },

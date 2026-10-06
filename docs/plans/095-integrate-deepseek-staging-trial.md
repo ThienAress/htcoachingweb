@@ -1,7 +1,8 @@
 # Plan 095: Integrate DeepSeek staging trial
 
 > Spec, plan and tasks approved by owner 2026-10-06 for local implementation.
-> Publish/deploy and paid UI trial still need separate approvals.
+> Owner approved commit, protected PR202 merge and staging deploy on 2026-10-06.
+> Paid UI trial still requires its key, fixture, call cap and cleanup scope.
 > Drift check: verify baseline HEAD and product diff before writing. Never copy
 > product edits from the dirty primary checkout or bypass release protection.
 
@@ -10,66 +11,22 @@
 - Priority: P1; Complexity: COMPLEX; Effort: L; Risk: HIGH.
 - Depends on: 094B baseline, not completion of 094C certification.
 - Category: feature; Planned at / Updated at: 2026-10-06.
-- Lifecycle: IN PROGRESS; Verification: LOCAL FULL; Rollout: NOT STARTED.
+- Lifecycle: IN PROGRESS; Verification: LOCAL FULL; Rollout: PENDING.
 - Owner: `01a10d36-267c-7880-920b-1e51ee0d8f65`.
 - Spec: [DeepSeek staging provider trial](../specs/deepseek-staging-provider-trial.md).
-- Local implementation authorized; no secret entry, paid API call or hosting mutation.
+- Current authority includes scoped commit/push, protected merge and staging deployment.
+- Deploy existing Gemini profile first; owner enters the DeepSeek key separately.
 
-### Local implementation checkpoint — 2026-10-06
+### Verification checkpoint — 2026-10-06
 
-- TASK-001/002/003 are implemented locally: provider SSE/tool contract, bounded
-  LLM KB selection/facade, strict staging gate and web-search fail-closed path.
-- Local unit/compile evidence covers provider, controller SSE, selector, Admin Search,
-  prompt labels, metrics and config. Independent security review and incremental
-  closure review are complete. A diagnostic staging-targeted release build passes;
-  canonical E2E exit and trusted CI/publish gates remain pending. This is not live
-  staging or production evidence.
-- Earlier local full checkpoint: server `310 files / 3,611 tests`, client `186 files / 939 tests`,
-  AI eval `73/73`, lint, compile-only Vite build, tool validation, UI regression,
-  secrets/data-boundary/docs-privacy/agent scans all pass. The focused local E2E
-  assertions pass `14/14`, but Playwright web-server teardown hangs on Windows and
-  exits only after interruption, so it is diagnostic rather than release evidence.
-  The earlier server count predates final regression closure and is not the fresh
-  full-server verdict. Client source has not changed since its recorded checks.
-- Independent security review found and root fixed deterministic-fallback model
-  attribution plus additive persisted KB retrieval evidence (`kbRetrieval`); no raw
-  prompt/KB content is stored. Earlier release-build probes were blocked by local
-  network/config: `EACCES`, cache mismatch and one omitted public `VITE_API_URL`.
-  The final Node `22.23.1` probe with all three public API URL variables targeting
-  staging passed (`44/44` prerender routes, bundle budget and search-index gate;
-  `10 Recipe + 0 Exercise` details). It used non-strict/fallback dynamic-route mode
-  after list-source timeouts; this is diagnostic staging-build evidence, not a
-  strict production build or trusted CI artifact. Generated tracked sitemaps were
-  restored to their pre-probe contents to keep the product diff scoped.
-- Final regression closure adds exact persisted entryId/rank/revision allowlist,
-  no-hit counts, legacy `kbRetrieval:null`, and public history/detail/fork exclusion.
-  Scope/equipment/mixed/tool-result fallback attribution is exercised directly.
-  A newly covered required-tool-missing reply also uses `server_tool_missing_v1`
-  instead of claiming the discarded provider draft as its source. No response text,
-  tool permissions, schema indexes or data lifecycle changed in that correction.
-- Fresh root checks after the additive trace: 214 focused server tests passed;
-  final missing-tool and successful sanitized tool-result regressions passed;
-  AI eval `73/73`, tool validation, secrets/data-boundary/docs-privacy and agent
-  validation passed. Terminal-default Node `24` was rejected by the existing runner
-  without loosening it. Node `22.23.1` full recheck passed batch1
-  (`32 files / 393 tests`) but batch2 failed six index/migration fixtures: MongoDB test temp on C:
-  fell below its 500 MiB disk minimum. Retained diagnostic rerun confirmed the same
-  six disk-space errors (`197 PASS / 6 FAIL`), not an assistant regression. A final
-  full recheck used process-scoped `TEMP`/`TMP` under
-  `.local-data/plan095-test-tmp-20261006` on D: (which had >85 GiB free);
-  no user backup/file deletion or MongoDB guard relaxation was performed.
-- Fresh canonical `npm run test:unit:server` completed all ten batches with exit0:
-  `310 files / 3,616 tests PASS` under Node `22.23.1` and temp storage on D:.
-  This supersedes the earlier `3,611` count for the final server source/test tree.
-- One bounded alternative E2E attempt kept independently owned Vite and mock API
-  servers healthy before the canonical focused command. Playwright announced
-  `15 tests / 1 worker`, then hung without a completion summary or exit0. Result:
-  `BLOCKED`, not PASS. Only test-owned processes were stopped; ports `4174/5100`
-  were confirmed released. No code/config/test changes, timeout relaxation or
-  further local retry. Resolve the canonical E2E gate in trusted CI before merge.
-- Incremental closure reviewer found no reachable new finding. Residual test gap:
-  provider-error required-tool-missing attribution has no separate assertion;
-  the normal missing-tool and successful tool-result branches are covered.
+- TASK-001/002/003 implemented; independent review and PR202 CI5/5 complete.
+- CI: server 3,616 tests, client 939 tests, AI eval73/73 and E2E129 PASS.
+- Static CI build PASS; existing staging health7/7 PASS after bounded retries.
+- Exact deployment is pending verification; paid DeepSeek trial is not authorized yet.
+- Release sequence: commit Plan095 docs, fresh PR CI, protected merge, exact staging
+  push CI, provider deploy identity and GET health. Preserve unrelated Plan094C edits.
+- Detailed provenance, earlier local failures, review gaps and remaining gates:
+  [verification report](../reports/095-deepseek-pr202-ci-checkpoint-2026-10-06.md).
 
 ## Why This Matters
 
@@ -81,25 +38,13 @@ Trial evidence is diagnostic, not AC009/Plan092 certification or production GO.
 
 ## Current State / Drift Check
 
-- Checkout `.local-data/ai-progress-staging-20261003`, HEAD
-  `c488118852988804362ff40ab9ad442d94fa3136`; root checkout has unrelated changes.
-- `providers/index.js:10`: only mock/Gemini; factory exports `llmStream`,
-  `formatTools`, `providerName`. Unknown production provider fails closed.
-- `gemini.provider.js:418`: output bound 2048 tokens; internal stream emits
-  `{type:"text",content}` or `{type:"tool_call",toolCalls:[{id,name,args}]}`.
-- `ai.controller.js:1814`: provider receives messages/tools, signal, deadline and
-  required tool. Tool engine remains authoritative for permissions/validation.
-- `ai.controller.js:1330` / `knowledgeBase.controller.js:855`: chat/Admin Search
-  Test use `searchKnowledgeBase`; chat does not yet pass cancellation to retrieval.
-- `knowledgeBase.controller.js:307`: duplicate check also uses vector search,
-  after generating embeddings. This write workflow is outside assistant trial.
-- `retrievalRuntime.js:37,66`: eligibility includes published, reviewed, current
-  embedding version/ready, evidence/category compatibility and review freshness.
-- `systemPrompt.js:273` and `KnowledgeBase.jsx:1264` label cosine `% match`.
-  New selection must not reuse that label or score.
-- `productionReadiness.js:387`: provider must be Gemini even with staging's
-  `NODE_ENV=production`. `stagingSafety.js` guards DB/origins/jobs/email.
-- `providerUsageMetrics.js`: Gemini-specific; DeepSeek must not increment it.
+- Checkout `.local-data/ai-progress-staging-20261003`, implementation HEAD
+  `089cb700dde95716c1d7c546c09eb42e8a7bef8f`; root checkout has unrelated changes.
+- PR202 targets staging base `0a25bba1bcc79bfb2a057c2dc40703eb9d8851aa`.
+- Provider/facade/config and additive retrieval traces are implemented. Contracts
+  below describe the current code; CI37455832149 checked this exact product diff.
+- Existing staging uses Gemini. No DeepSeek key/config activation or live trial
+  is established by the PR tests. KB writes/duplicate checks remain outside trial.
 
 Initial read-only commands: `git status --short`, `git diff --stat`,
 `git rev-parse HEAD`; compare product diff with this state. Preserve existing
