@@ -26,6 +26,28 @@ const positiveInteger = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
 };
 
+const DEEPSEEK_SURFACES = new Set(["chat", "kb_selection"]);
+const deepseekTokens = (value) =>
+  Number.isSafeInteger(value) && value > 0 && value <= 1_000_000 ? value : 0;
+
+export const recordDeepSeekRequest = (surface) => {
+  if (!DEEPSEEK_SURFACES.has(surface)) throw new Error("Unknown DeepSeek surface");
+  incrementMetric(`provider.deepseek_${surface}_requests`);
+};
+
+export const recordDeepSeekResult = (surface, { success, usage = {} } = {}) => {
+  if (!DEEPSEEK_SURFACES.has(surface)) throw new Error("Unknown DeepSeek surface");
+  incrementMetric(`provider.deepseek_${surface}_${success ? "succeeded" : "failed"}`);
+  const tokens = {
+    prompt_tokens: deepseekTokens(usage?.prompt_tokens),
+    output_tokens: deepseekTokens(usage?.completion_tokens),
+    total_tokens: deepseekTokens(usage?.total_tokens),
+  };
+  for (const [unit, amount] of Object.entries(tokens)) {
+    if (amount > 0) incrementMetric(`provider.deepseek_${surface}_${unit}`, amount);
+  }
+};
+
 export const recordGeminiRequest = (surface) => {
   if (!GEMINI_SURFACES.has(surface)) throw new Error("Unknown Gemini surface");
   incrementMetric(`provider.gemini_${surface}_requests`);

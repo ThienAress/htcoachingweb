@@ -6,6 +6,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
+| 095 | [Integrate DeepSeek staging trial](./095-integrate-deepseek-staging-trial.md) | P1 | L | 094B baseline | IN PROGRESS / SERVER3616 + CLIENT939 PASS; BUILD DIAGNOSTIC PASS; E2E WINDOWS BLOCKED; NO LIVE CALLS |
 | 094C | [Certify and promote assistant release](./094c-certify-and-promote-assistant-release.md) | P1 | M | 094B | IN PROGRESS / BOUNDED COLD-START READINESS + PRODUCTION GATES |
 | 094B | [Resolve source provenance and retest staging](./094b-resolve-source-provenance-and-retest-staging.md) | P1 | M | 094A | DONE / STAGING LIVE / UI15 14 PASS, 1 FAIL (93.3%) |
 | 094A | [Fix assistant sources and UI acceptance](./094a-fix-assistant-sources-and-ui-acceptance.md) | P1 | L | 094 | IN PROGRESS / PR #190 LIVE; UI15 ACCEPTANCE BELOW TARGET |

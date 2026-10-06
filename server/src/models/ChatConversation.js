@@ -1,6 +1,46 @@
 import mongoose from "mongoose";
 import { AI_TOOL_RESULT_STATUSES } from "../constants/aiToolResult.js";
 
+const kbRetrievalRefSchema = new mongoose.Schema(
+  {
+    entryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "KnowledgeEntry",
+      required: true,
+    },
+    rank: { type: Number, min: 1, max: 3, required: true },
+    revision: { type: Number, min: 0, required: true },
+  },
+  { _id: false },
+);
+
+const kbRetrievalTraceSchema = new mongoose.Schema(
+  {
+    method: {
+      type: String,
+      enum: ["vector", "llm_selection"],
+      required: true,
+    },
+    coverage: {
+      type: String,
+      enum: ["full", "privacy_blocked", "unknown"],
+      required: true,
+    },
+    eligibleCount: { type: Number, min: 0, max: 65, default: null },
+    safeCount: { type: Number, min: 0, max: 64, default: null },
+    excludedCount: { type: Number, min: 0, max: 64, default: null },
+    refs: {
+      type: [kbRetrievalRefSchema],
+      default: [],
+      validate: {
+        validator: (value) => value.length <= 3,
+        message: "Answer trace chỉ được chứa tối đa 3 KB retrieval refs",
+      },
+    },
+  },
+  { _id: false },
+);
+
 const answerTraceSchema = new mongoose.Schema(
   {
     routeDomain: {
@@ -21,6 +61,7 @@ const answerTraceSchema = new mongoose.Schema(
         message: "Answer trace chỉ được chứa tối đa 10 Knowledge Entry IDs",
       },
     },
+    kbRetrieval: { type: kbRetrievalTraceSchema, default: null },
     webSearchUsed: { type: Boolean, default: false },
     webSearchOutcome: {
       type: String,

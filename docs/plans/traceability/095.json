@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "planId": "095",
+  "specPath": "docs/specs/deepseek-staging-provider-trial.md",
+  "planPath": "docs/plans/095-integrate-deepseek-staging-trial.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Preserve conversational generation, memory and tools", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Retrieve bounded semantic KB evidence consistently", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Fail closed for web capability and unsafe configuration", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Verify and independently review before publishing", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Conduct approved bounded live UI staging trial", "planStep": "Step 5" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001", "TASK-005"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/ai/providers/__tests__/deepseek.provider.test.js src/controllers/__tests__/aiDeepseekTrial.integration.test.js" }] },
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/ai/providers/__tests__/deepseek.provider.test.js src/config/__tests__/deepseekTrial.test.js" }] },
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-001", "TASK-003"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/controllers/__tests__/aiDeepseekTrial.integration.test.js src/services/ai/providers/__tests__/gemini.provider.test.js" }] },
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/ai/providers/__tests__/deepseek.provider.test.js src/controllers/__tests__/aiDeepseekTrial.integration.test.js" }] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-005", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/ai/__tests__/deepseekKnowledgeSelection.test.js src/services/ai/__tests__/knowledgePrivacy.test.js" }] },
+        { "id": "AC-006", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/ai/__tests__/deepseekKnowledgeSelection.test.js" }] },
+        { "id": "AC-007", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/ai/__tests__/deepseekKnowledgeSelection.test.js src/services/ai/__tests__/knowledgeRetrieval.test.js" }] },
+        { "id": "AC-008", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/ai/__tests__/systemPrompt.test.js src/controllers/__tests__/aiSourcePolicy.integration.test.js src/services/ai/__tests__/knowledgeClaimCitation.test.js" }] },
+        { "id": "AC-009", "mustHave": true, "taskIds": ["TASK-002", "TASK-005"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/ai/__tests__/deepseekKnowledgeSelection.test.js src/services/ai/__tests__/knowledgeRetrieval.test.js" }] },
+        { "id": "AC-010", "mustHave": true, "taskIds": ["TASK-002", "TASK-004"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/controllers/__tests__/aiDeepseekTrial.integration.test.js && npm run security:data-boundaries" }] }
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "acceptanceCriteria": [
+        { "id": "AC-011", "mustHave": true, "taskIds": ["TASK-003", "TASK-005"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/services/ai/tools/__tests__/searchKnowledge.tool.test.js src/controllers/__tests__/aiDeepseekTrial.integration.test.js" }] },
+        { "id": "AC-012", "mustHave": true, "taskIds": ["TASK-001", "TASK-003"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/config/__tests__/deepseekTrial.test.js src/config/__tests__/productionReadiness.test.js src/config/__tests__/stagingSafety.test.js" }] },
+        { "id": "AC-013", "mustHave": true, "taskIds": ["TASK-001", "TASK-004"], "verifications": [{ "type": "command", "command": "npm run test:unit && npm run test:ai-eval" }] },
+        { "id": "AC-014", "mustHave": true, "taskIds": ["TASK-003", "TASK-004"], "verifications": [{ "type": "command", "command": "npm run test:unit:server" }] },
+        { "id": "AC-015", "mustHave": true, "taskIds": ["TASK-001", "TASK-003"], "verifications": [{ "type": "command", "command": "cd server && npx vitest run src/observability/__tests__/providerUsageMetrics.test.js src/controllers/__tests__/aiDeepseekTrial.integration.test.js" }] },
+        { "id": "AC-016", "mustHave": true, "taskIds": ["TASK-002", "TASK-004", "TASK-005"], "verifications": [{ "type": "command", "command": "npm run test:unit && npm run test:e2e" }] }
+      ]
+    }
+  ]
+}

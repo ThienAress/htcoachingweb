@@ -236,6 +236,9 @@ export async function executeTool(toolName, parameters, context = {}) {
                 normalizedSources.length > 0
               ? "grounded"
               : "provider_error",
+          ...(result?.meta?.diagnosticCode === "unsupported_capability"
+            ? { diagnosticCode: "unsupported_capability", providerRequestMade: result.meta.providerRequestMade === true }
+            : {}),
         }
           : toolName === "search_exercises"
           ? {

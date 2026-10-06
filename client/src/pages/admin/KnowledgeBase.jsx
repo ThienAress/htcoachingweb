@@ -23,6 +23,7 @@ import {
   createLatestRequestRuntime,
   filterConversationPairs,
   getKnowledgeQueryViewState,
+  getKnowledgeMatchLabel,
   getPairFeedback,
   getPairReviewStatus,
   getSuggestionSourcePair,
@@ -248,6 +249,8 @@ export default function KnowledgeBase() {
       ? searchResponse
       : null;
   const searchResults = currentSearchResponse?.results || [];
+  const searchRetrieval = currentSearchResponse?.retrieval;
+  const isSelectionSearch = searchRetrieval?.method === "llm_selection";
 
   useEffect(
     () => () => {
@@ -1179,7 +1182,9 @@ export default function KnowledgeBase() {
             <div>
               <p className="text-sm font-medium text-slate-700">Kiểm tra tìm kiếm ngữ nghĩa</p>
               <p className="mt-1 text-xs text-slate-500">
-                Chế độ production dùng đúng 3 kết quả và ngưỡng khớp 75% như HT Assistant.
+                {isSelectionSearch
+                  ? "Chế độ thử nghiệm chọn tối đa 3 mục phù hợp; không dùng ngưỡng điểm khớp."
+                  : "Chế độ production dùng đúng 3 kết quả và ngưỡng khớp 75% như HT Assistant."}
               </p>
             </div>
             <fieldset>
@@ -1206,7 +1211,7 @@ export default function KnowledgeBase() {
               </div>
             </fieldset>
           </div>
-          {searchMode === "exploratory" && (
+          {searchMode === "exploratory" && !isSelectionSearch && (
             <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
               Chế độ khám phá nới xuống 60% và lấy 5 kết quả; kết quả này không phản ánh hành vi production.
             </p>
@@ -1261,7 +1266,7 @@ export default function KnowledgeBase() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-xs font-bold text-indigo-600">#{i + 1}</span>
                       <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-medium">
-                        {(r.similarity * 100).toFixed(1)}% match
+                        {getKnowledgeMatchLabel(r, searchRetrieval, i + 1)}
                       </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${CATEGORY_COLORS[r.category]}`}>{r.category}</span>
                       <span className="text-xs text-slate-500">
@@ -1279,7 +1284,9 @@ export default function KnowledgeBase() {
             )}
             {currentSearchResponse && searchResults.length === 0 && !searching && (
               <p className="py-4 text-center text-sm text-slate-500">
-                Không tìm thấy kết quả nào (ngưỡng ≥ {Math.round(KNOWLEDGE_SEARCH_MODES[currentSearchResponse.mode].threshold * 100)}%)
+                {isSelectionSearch
+                  ? "Không có mục phù hợp trong tối đa 3 mục được chọn."
+                  : `Không tìm thấy kết quả nào (ngưỡng ≥ ${Math.round(KNOWLEDGE_SEARCH_MODES[currentSearchResponse.mode].threshold * 100)}%)`}
               </p>
             )}
           </div>

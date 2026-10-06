@@ -2015,6 +2015,7 @@ describe("AI answer trace and feedback review", () => {
     expect(answer.content).toContain("SERVER_CANONICAL_MEAL");
     expect(answer.content).not.toMatch(/2700|2800/i);
     expect(answer.content).toMatch(/chưa thể bổ sung giáo án|yêu cầu riêng phần lịch tập/iu);
+    expect(answer.answerTrace.model).toBe("static_mixed_workout_meal_v1");
     },
   );
 
@@ -2183,6 +2184,7 @@ describe("AI answer trace and feedback review", () => {
     expect(answer.content).toMatch(/chỉ mức thâm hụt thay đổi/iu);
     expect(answer.content).toMatch(/lịch tập.*giữ nguyên/iu);
     expect(answer.content).not.toMatch(/giảm lịch tập từ 4 buổi xuống 3 buổi/iu);
+    expect(answer.answerTrace.model).toBe("static_scope_preservation_v1");
   });
 
   it("delivers a successful catalog result without a fallible model synthesis", async () => {
@@ -3354,8 +3356,8 @@ describe("AI answer trace and feedback review", () => {
     });
   });
 
-  it("sanitizes a tool-result fallback before it reaches the browser", async () => {
-    const { accessToken } = await createTestUser();
+  it("sanitizes a successful tool-result fallback before it reaches the browser", async () => {
+    const { user, accessToken } = await createTestUser();
     let providerTurn = 0;
     toolRegistry.search_exercises.execute = vi.fn().mockResolvedValue({
       text: "search_exercises function_call action_input",
@@ -3376,6 +3378,11 @@ describe("AI answer trace and feedback review", () => {
       tools,
     ) {
       providerTurn += 1;
+      if (providerTurn === 1) {
+        yield { type: "tool_call", toolCalls: [{ id: "safe-result-fallback",
+          name: "search_exercises", args: { limit: 3 } }] };
+        return;
+      }
       expect(tools).toEqual([]);
       // No model text forces the sanitized server tool-result fallback.
     });
@@ -3396,14 +3403,16 @@ describe("AI answer trace and feedback review", () => {
       .join("");
 
     expect(response.status).toBe(200);
-    expect(providerTurn).toBe(1);
+    expect(providerTurn).toBe(2);
     expect(response.text).not.toMatch(
       /search_exercises|function_call|action_input/i,
     );
     expect(streamedText).not.toMatch(/search_exercises|function_call|action_input/i);
     expect(streamedText).toBe(
-      "Mình chưa thể đối chiếu thư viện bài tập cho yêu cầu này. Bạn thử nêu nhóm cơ và thiết bị hiện có nhé.",
+      "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.",
     );
+    const stored = await ChatConversation.findOne({ userId: user._id }).lean();
+    expect(stored.messages.at(-1).answerTrace.model).toBe("server_tool_result_fallback_v1");
   });
 
   it("keeps internal answer trace and reviewer IDs out of customer conversation APIs", async () => {
@@ -3413,6 +3422,9 @@ describe("AI answer trace and feedback review", () => {
       routeDomain: "fitness",
       evidenceMode: "internal_kb",
       kbEntryIds: [new mongoose.Types.ObjectId()],
+      kbRetrieval: { method: "llm_selection", coverage: "full", eligibleCount: 1,
+        safeCount: 1, excludedCount: 0, refs: [{ entryId: new mongoose.Types.ObjectId(),
+          rank: 1, revision: 1 }] },
       webSearchUsed: false,
       model: "internal-model-name",
       promptVersion: "internal-prompt-version",
@@ -3471,7 +3483,7 @@ describe("AI answer trace and feedback review", () => {
     expect(history.status).toBe(200);
     expect(branch.status).toBe(201);
     expect(serialized).not.toMatch(
-      /answerTrace|feedbackReview|internal-model-name|internal-prompt-version|INTERNAL_TOOL_QUERY_SENTINEL/i,
+      /answerTrace|kbRetrieval|llm_selection|feedbackReview|internal-model-name|internal-prompt-version|INTERNAL_TOOL_QUERY_SENTINEL/i,
     );
     expect(serialized).not.toContain(reviewerId.toString());
     expect(serialized).toContain("Giữ cột sống trung lập.");
