@@ -77,6 +77,23 @@ snapshot mới; cần quyền Git publication, trusted CI/exact deploy/canonical
 mới, không lấy local PASS làm production GO. Không dispatch acceptance nếu health
 unknown hoặc recovery expired. Plan index/machine state giữ IN PROGRESS/FOCUSED/PENDING.
 
+Follow-up dependency gate: PR201 health patch a020d94 đã publish theo owner approval.
+CI37401461224 client/server FAIL tại canonical audit: source-map-js HIGH
+GHSA-68fv-2mgg-jv7q và proxy-addr CRITICAL GHSA-jqcg-44mw-7w3h. Owner duyệt
+cập nhật đúng hai transitive dependencies và CI lại; không major update/waiver.
+Scope thêm client/server package.json + package-lock.json và existing
+scripts/dependency-audit-policy.test.mjs. Pin overrides proxy-addr2.0.8,
+source-map-js1.2.2 (official patched versions), mechanical lock update phải chỉ
+đổi hai package nodes; giữ server trustProxyHops numeric/config/CSRF/rate limit.
+Verify pins RED→GREEN, canonical client/server dependency audit, installs từ lock,
+independent security review và fresh trusted CI5jobs. Không merge từ failed CI.
+
+Dependency slice local: pin regression REDexit1 → focused37/37PASS; installed
+patch APIs10assertionsPASS; observability/auth helper6/6PASS; canonical client/server
+audit success=true/waived=[]; secrets/boundaries/diff-checkPASS. Independent
+security review PASS WITH WARNINGS/no reachable finding; unchanged numeric
+trust-path và sanitizer map:false không chứng minh live exploit. Fresh CI vẫn bắt buộc.
+
 ### Step 1: Xác minh identity
 
 Independent Sol/high investigation identity abort; root owns bounded liveUI

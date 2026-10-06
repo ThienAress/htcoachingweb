@@ -179,6 +179,8 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
+    "proxy-addr": "2.0.8",
+    "source-map-js": "1.2.2",
     "@grpc/grpc-js": "1.14.5",
     "glob": {
       "brace-expansion": "2.1.7"
