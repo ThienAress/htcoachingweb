@@ -11,11 +11,29 @@ beforeEach(resetMetricsForTests);
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   delete process.env.GEMINI_API_KEY;
   delete process.env.GEMINI_SEARCH_MODEL;
 });
 
 describe("Google grounding source boundary", () => {
+  it("fails closed for web search during the DeepSeek trial without egress", async () => {
+    const env = {
+      [ ["DEEP", "SEEK", "_API_KEY"].join("") ]: "d".repeat(32),
+      APP_ENV: "staging", AI_PROVIDER: "deepseek", AI_STAGING_PROVIDER_TRIAL: "deepseek",
+      AI_KB_RETRIEVAL_MODE: "llm_selection", DEEPSEEK_MODEL: "deepseek-flash",
+      MONGO_URI: "mongodb://localhost/htcoaching_staging",
+      CLIENT_URL: "https://staging--htcoachingweb.netlify.app", PUBLIC_API_ORIGIN: "https://htcoachingweb-staging.onrender.com",
+      ALLOWED_ORIGINS: "https://staging--htcoachingweb.netlify.app", BACKGROUND_JOBS_ENABLED: "false",
+      EMAIL_DELIVERY_MODE: "disabled", F1_RETENTION_ENFORCE: "false",
+    };
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock);
+    const result = await searchKnowledge({ query: "tin tức thể thao mới nhất" });
+    expect({ outcome: result.meta.searchOutcome, diagnostic: result.meta.diagnosticCode,
+      providerRequestMade: result.meta.providerRequestMade, calls: fetchMock.mock.calls.length })
+      .toEqual({ outcome: "not_called", diagnostic: "unsupported_capability", providerRequestMade: false, calls: 0 });
+  });
   it("enforces generic identity scope on grounded output before selecting source links", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const claims = [

@@ -5,6 +5,7 @@ import { parseSePayCutoverAt } from "./sepay.js";
 import { getMorningHealthReminderMode } from "./backgroundJobs.js";
 import { isTodayPlatformEnabled } from "./todayPlatform.js";
 import { evaluateCloudinaryBackupPolicy } from "./cloudinaryBackupPolicy.js";
+import { validateDeepseekTrialEnvironment } from "./deepseekTrial.js";
 
 const PLACEHOLDER_PATTERN =
   /(change[-_ ]?me|replace[-_ ]?me|placeholder|example|your[-_ ]|test[-_ ]secret|local[-_ ]secret)/i;
@@ -384,7 +385,9 @@ export const validateProductionEnvironment = (
     strictOnly: !strict,
   });
 
-  if (String(env.AI_PROVIDER || "").toLowerCase() !== "gemini") {
+  const deepseekTrial = validateDeepseekTrialEnvironment(env);
+  findings.errors.push(...deepseekTrial.errors);
+  if (!deepseekTrial.active && String(env.AI_PROVIDER || "").toLowerCase() !== "gemini") {
     addFinding(
       findings,
       "errors",
@@ -392,6 +395,7 @@ export const validateProductionEnvironment = (
       "AI_PROVIDER must equal gemini for the production profile.",
     );
   }
+  if (deepseekTrial.active) validateSecret(env, findings, "DEEPSEEK_API_KEY", { minimum: 20 });
   validateSecret(env, findings, "GEMINI_API_KEY", { minimum: 20 });
   const geminiSearchModel = String(
     env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash",
@@ -682,6 +686,8 @@ export const validateProductionEnvironment = (
     errors: findings.errors,
     warnings: findings.warnings,
     summary: {
+      assistantProvider: deepseekTrial.active ? "deepseek" : String(env.AI_PROVIDER || "").toLowerCase(),
+      deepseekStagingTrial: deepseekTrial.active,
       allowedOriginCount: allowedOrigins.length,
       hasExplicitTrustProxy: Boolean(String(env.TRUST_PROXY_HOPS || "").trim()),
       authCutoverMaintenanceEnabled: isAuthCutoverMaintenanceEnabled(env),

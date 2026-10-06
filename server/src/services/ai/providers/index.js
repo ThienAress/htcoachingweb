@@ -1,16 +1,19 @@
 // LLM Provider Factory — Swap provider bằng 1 dòng .env
-// AI_PROVIDER=mock | gemini | openai | claude
+// AI_PROVIDER=mock | gemini | deepseek (isolated staging trial only)
 
 import { mockLLMStream, formatToolsForProvider as mockFormatTools } from "./mock.provider.js";
 import { geminiLLMStream, formatToolsForProvider as geminiFormatTools } from "./gemini.provider.js";
+import { deepseekLLMStream, formatToolsForProvider as deepseekFormatTools } from "./deepseek.provider.js";
+import { assertDeepseekTrialEnvironment } from "../../../config/deepseekTrial.js";
 import { safeLog } from "../../../utils/safeLogger.js";
 
 const providers = {
   mock: { stream: mockLLMStream, formatTools: mockFormatTools },
   gemini: { stream: geminiLLMStream, formatTools: geminiFormatTools },
-  // openai: sẽ thêm khi production
-  // claude: sẽ thêm khi production
+  deepseek: { stream: deepseekLLMStream, formatTools: deepseekFormatTools },
 };
+
+assertDeepseekTrialEnvironment();
 
 const providerName =
   process.env.AI_PROVIDER ||

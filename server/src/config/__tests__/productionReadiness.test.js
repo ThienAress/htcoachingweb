@@ -57,6 +57,21 @@ const validEnvironment = () => ({
 });
 
 describe("production readiness configuration", () => {
+  it("allows DeepSeek only for the explicit isolated staging trial", () => {
+    const env = { ...validEnvironment(), APP_ENV: "staging", AI_PROVIDER: "deepseek",
+      AI_STAGING_PROVIDER_TRIAL: "deepseek", AI_KB_RETRIEVAL_MODE: "llm_selection",
+      DEEPSEEK_MODEL: "deepseek-flash", DEEPSEEK_API_KEY: "synthetic-" + "d".repeat(32),
+      MONGO_URI: "mongodb+srv://cluster.example/htcoaching_staging?retryWrites=true",
+      CLIENT_URL: "https://staging--htcoachingweb.netlify.app",
+      PUBLIC_API_ORIGIN: "https://htcoachingweb-staging.onrender.com",
+      ALLOWED_ORIGINS: "https://staging--htcoachingweb.netlify.app",
+      BACKGROUND_JOBS_ENABLED: "false", EMAIL_DELIVERY_MODE: "disabled" };
+    expect(validateProductionEnvironment(env, { strict: true }).errors).toEqual([]);
+  });
+  it("rejects trial flags in a production Gemini profile", () => {
+    const env = { ...validEnvironment(), APP_ENV: "production", AI_STAGING_PROVIDER_TRIAL: "deepseek" };
+    expect(validateProductionEnvironment(env).errors.map(item => item.code)).toContain("DEEPSEEK_TRIAL_STAGING_REQUIRED");
+  });
   it("accepts a complete explicit production profile", () => {
     const result = validateProductionEnvironment(validEnvironment(), {
       strict: true,

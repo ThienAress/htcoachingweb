@@ -37,7 +37,9 @@ import {
   moderateContent,
   moderateGuestContent,
 } from "../services/ai/contentModeration.js";
-import { searchKnowledgeBase } from "../services/ai/embedding.service.js";
+import { searchAssistantKnowledgeBase } from "../services/ai/knowledgeRetrieval.service.js";
+import { selectConversationHistory } from "../services/ai/conversationHistory.js";
+import { isDeepseekStagingTrial } from "../config/deepseekTrial.js";
 import { aiLogger } from "../services/ai/aiLogger.js";
 import { serializeRequestQuota } from "../services/serviceAccessPolicy.service.js";
 import {
@@ -1070,6 +1072,7 @@ export const chatStream = async (req, res) => {
   let fullResponse = "";
   let routingDecision = null;
   let kbEntryIds = [];
+  let kbRetrieval = null;
   let kbCitationSources = [];
   let kbReferenceEntries = [];
   let toolCallCount = 0;
@@ -1081,15 +1084,17 @@ export const chatStream = async (req, res) => {
   let internalEvidenceRequired = false;
   let internalEvidenceAvailable = false;
   let externalKnowledgeQuery = { eligible: false, reason: "not_required" };
-  let responseModel = String(
-    process.env.GEMINI_MODEL || "gemini-3.1-flash-lite",
-  ).slice(0, 100);
+  const deepseekTrial = isDeepseekStagingTrial();
+  let responseModel = deepseekTrial
+    ? "deepseek-flash"
+    : String(process.env.GEMINI_MODEL || "gemini-3.1-flash-lite").slice(0, 100);
   const buildAnswerTrace = () =>
     routingDecision
       ? {
           routeDomain: routingDecision.domain,
           evidenceMode: routingDecision.evidence,
           kbEntryIds: kbEntryIds.slice(0, 10),
+           kbRetrieval,
           webSearchUsed: webSearchOutcome !== "not_called",
           webSearchOutcome,
           model: responseModel,
@@ -1327,10 +1332,33 @@ export const chatStream = async (req, res) => {
       const preparedRetrieval = prepareKnowledgeRetrievalQuery(retrievalQuery);
       if (preparedRetrieval.eligible) {
         try {
-          const kbResults = await searchKnowledgeBase(preparedRetrieval.query, {
-            limit: 3,
-            threshold: 0.75,
-          });
+          const retrievalEnvelope = await searchAssistantKnowledgeBase(
+            preparedRetrieval.query,
+            deepseekTrial
+              ? {
+                  limit: 3,
+                  threshold: 0.75,
+                  signal: abortController.signal,
+                  deadlineAt: chatStartTime + CHAT_DEADLINE_MS,
+                }
+              : { limit: 3, threshold: 0.75 },
+          );
+          const kbResults = retrievalEnvelope.results;
+          if (deepseekTrial) {
+            const retrieval = retrievalEnvelope.retrieval || {};
+            kbRetrieval = {
+              method: retrieval.method || "llm_selection",
+              coverage: retrieval.coverage || "unknown",
+              eligibleCount: retrieval.eligibleCount ?? null,
+              safeCount: retrieval.safeCount ?? null,
+              excludedCount: retrieval.excludedCount ?? null,
+              refs: kbResults.slice(0, 3).map((result, index) => ({
+                entryId: result._id,
+                rank: result.retrievalRank || index + 1,
+                revision: result.revision ?? 0,
+              })),
+            };
+          }
           if (kbResults.length > 0) {
             kbReferenceEntries = kbResults;
             kbEntryIds = kbResults.map((result) => result._id);
@@ -1341,7 +1369,8 @@ export const chatStream = async (req, res) => {
             systemPrompt += buildKnowledgeReferenceBlock(kbResults, { citationEntries });
           }
         } catch (err) {
-          // KB search lỗi không ảnh hưởng chat flow chính
+          if (deepseekTrial) throw err;
+          // Vector KB search lỗi không ảnh hưởng chat flow chính
           safeLog.error("ai.kb_search_non_blocking_failed", err);
         }
       }
@@ -1436,7 +1465,7 @@ export const chatStream = async (req, res) => {
 
     const llmMessages = [
       { role: "system", content: systemPrompt },
-      ...conversation.messages.slice(-MAX_HISTORY_MESSAGES).map((m) => {
+      ...selectConversationHistory(conversation.messages, MAX_HISTORY_MESSAGES).map((m) => {
         const mapped = { role: m.role, content: m.content || "" };
         if (m.image) mapped.image = m.image;
         
@@ -1716,9 +1745,9 @@ export const chatStream = async (req, res) => {
       webSearchEvidenceAvailable =
         directSearch.toolResult.meta?.evidenceAvailable === true &&
         webSearchSources.length > 0;
-      responseModel = String(
-        process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash",
-      ).slice(0, 100);
+      responseModel = directSearch.toolResult.meta?.diagnosticCode === "unsupported_capability"
+        ? "server:capability_unavailable"
+        : String(process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash").slice(0, 100);
       fullResponse = await deliverAssistantResponse(
         enforceEvidenceBoundary(directSearch.safeToolText),
       );
@@ -1814,6 +1843,9 @@ export const chatStream = async (req, res) => {
         : llmStream(llmMessages, iterationTools, {
             signal: abortController.signal,
             requiredToolName: iterationRequiredToolName,
+            deadlineAt: chatStartTime + CHAT_DEADLINE_MS,
+            timeoutMs: Math.max(1, chatStartTime + CHAT_DEADLINE_MS - Date.now()),
+            surface: "chat",
           });
       try {
       for await (const chunk of providerStream) {
@@ -2124,6 +2156,9 @@ export const chatStream = async (req, res) => {
         }
       }
       } catch (providerError) {
+        if (deepseekTrial && String(providerError?.code || "").startsWith("DEEPSEEK_")) {
+          throw providerError;
+        }
         if (
           fourDayWorkoutRequested &&
           workoutStructureRetryCount > 0 &&
@@ -2139,6 +2174,7 @@ export const chatStream = async (req, res) => {
           !abortController.signal.aborted &&
           !deadlineExceeded
         ) {
+          responseModel = "static_scope_preservation_v1";
           fullResponse = await deliverAssistantResponse(
             enforceEvidenceBoundary(
               buildScopePreservationFallback(scopePreservationRequest),
@@ -2153,6 +2189,7 @@ export const chatStream = async (req, res) => {
           !abortController.signal.aborted &&
           !deadlineExceeded
         ) {
+          responseModel = "static_mixed_workout_meal_v1";
           fullResponse = await deliverAssistantResponse(
             enforceEvidenceBoundary(
               `${canonicalMixedWorkoutMealText}\n\n${MIXED_WORKOUT_FALLBACK}`,
@@ -2166,6 +2203,7 @@ export const chatStream = async (req, res) => {
           !abortController.signal.aborted &&
           !deadlineExceeded
         ) {
+          responseModel = "server_tool_result_fallback_v1";
           const safeFallback = guardToolFallbackForDelivery(
             lastSuccessfulReadOnlyToolResult.text,
           );
@@ -2180,6 +2218,7 @@ export const chatStream = async (req, res) => {
           !abortController.signal.aborted &&
           !deadlineExceeded
         ) {
+          responseModel = "static_equipment_limit_v1";
           fullResponse = await deliverAssistantResponse(
             enforceEvidenceBoundary(equipmentLimitFallback),
           );
@@ -2192,6 +2231,7 @@ export const chatStream = async (req, res) => {
           !abortController.signal.aborted &&
           !deadlineExceeded
         ) {
+          responseModel = "server_tool_missing_v1";
           const missing = requiredToolMissingResponse(iterationRequiredToolName);
           if (missing.uiCard) {
             res.write(
@@ -2231,6 +2271,7 @@ export const chatStream = async (req, res) => {
         break;
       }
       if (iterationRequiredToolName && !iterationCalledTool) {
+        responseModel = "server_tool_missing_v1";
         const missing = requiredToolMissingResponse(iterationRequiredToolName);
         if (missing.uiCard) {
           res.write(
@@ -2315,6 +2356,7 @@ export const chatStream = async (req, res) => {
               needsToolCall = true;
               continue;
             }
+            responseModel = "static_mixed_workout_meal_v1";
             fullResponse = await deliverAssistantResponse(
               enforceEvidenceBoundary(
                 `${canonicalMixedWorkoutMealText}\n\n${MIXED_WORKOUT_FALLBACK}`,
@@ -2344,6 +2386,7 @@ export const chatStream = async (req, res) => {
             needsToolCall = true;
             continue;
           }
+          responseModel = "static_scope_preservation_v1";
           fullResponse = await deliverAssistantResponse(
             enforceEvidenceBoundary(
               buildScopePreservationFallback(scopePreservationRequest),
@@ -2387,6 +2430,9 @@ export const chatStream = async (req, res) => {
           if (structuredFourDayFallbackRequested) {
             fullResponse = await deliverFourDayWorkoutFallback();
           } else {
+            responseModel = lastSuccessfulReadOnlyToolResult?.toolName === "search_exercises"
+              ? "server_tool_result_fallback_v1"
+              : "static_equipment_limit_v1";
             const safeEquipmentFallback =
               lastSuccessfulReadOnlyToolResult?.toolName === "search_exercises"
                 ? guardToolFallbackForDelivery(
@@ -2438,6 +2484,7 @@ export const chatStream = async (req, res) => {
       mixedWorkoutRetryCount > 0 &&
       canonicalMixedWorkoutMealText
     ) {
+      responseModel = "static_mixed_workout_meal_v1";
       fullResponse = await deliverAssistantResponse(
         enforceEvidenceBoundary(
           `${canonicalMixedWorkoutMealText}\n\n${MIXED_WORKOUT_FALLBACK}`,
@@ -2450,6 +2497,7 @@ export const chatStream = async (req, res) => {
       !fullResponse &&
       scopeRetryCount > 0
     ) {
+      responseModel = "static_scope_preservation_v1";
       fullResponse = await deliverAssistantResponse(
         enforceEvidenceBoundary(
           buildScopePreservationFallback(scopePreservationRequest),
@@ -2462,6 +2510,7 @@ export const chatStream = async (req, res) => {
       !fullResponse &&
       equipmentRetryCount > 0
     ) {
+      responseModel = "static_equipment_limit_v1";
       fullResponse = await deliverAssistantResponse(
         enforceEvidenceBoundary(equipmentLimitFallback),
       );
@@ -2496,6 +2545,7 @@ export const chatStream = async (req, res) => {
       const fallbackContent = enforceEvidenceBoundary(
         guardToolFallbackForDelivery(lastSuccessfulReadOnlyToolResult.text),
       );
+      responseModel = "server_tool_result_fallback_v1";
       fullResponse = await deliverAssistantResponse(fallbackContent);
     }
     if (fullResponse) {
@@ -2593,6 +2643,14 @@ export const chatStream = async (req, res) => {
       } else if (err?.code === "AI_MALFORMED_OUTPUT") {
         errorMessage =
           "HT Assistant nhận được phản hồi chưa hoàn chỉnh. Bạn vui lòng thử lại.";
+      } else if (deepseekTrial && err?.code === "DEEPSEEK_HTTP_ERROR" && err?.status === 429) {
+        errorMessage = "HT Assistant đang nhận quá nhiều yêu cầu từ DeepSeek. Bạn vui lòng thử lại sau ít phút.";
+      } else if (deepseekTrial && err?.code === "DEEPSEEK_HTTP_ERROR" && Number(err?.status) >= 500) {
+        errorMessage = "DeepSeek đang tạm gián đoạn. Bạn vui lòng thử lại sau.";
+      } else if (deepseekTrial && ["DEEPSEEK_TIMEOUT", "DEEPSEEK_DEADLINE_EXCEEDED"].includes(err?.code)) {
+        errorMessage = "DeepSeek phản hồi quá lâu. Bạn vui lòng thử lại.";
+      } else if (deepseekTrial && (err?.code === "KB_TRIAL_CORPUS_LIMIT" || err?.code?.startsWith("KB_TRIAL_"))) {
+        errorMessage = "Kho kiến thức thử nghiệm chưa thể tra cứu lúc này. Bạn vui lòng thử lại sau.";
       } else if (err?.code === "GEMINI_HTTP_ERROR" && err?.status === 429) {
         errorMessage =
           "HT Assistant đang nhận quá nhiều yêu cầu từ nhà cung cấp. Bạn vui lòng thử lại sau ít phút.";

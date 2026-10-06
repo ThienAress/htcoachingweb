@@ -281,7 +281,10 @@ export function buildKnowledgeReferenceBlock(results, { citationEntries = result
     const citationEligible = citationEntries.includes(result) && evidence.citable;
     const policy = citationEligible ? evidence.policy :
       "CHỈ LÀ NỀN THAM KHẢO — chưa chứng minh hỗ trợ trực tiếp câu hỏi hiện tại; không trích nguồn của entry này.";
-    return `### KB #${index + 1} (${similarity}% match; ${evidence.metadata}):\n${matchLabel}\nA: ${answer}\nEVIDENCE POLICY: ${citationEntries.includes(result) ? evidence.policy : policy}${citationEligible && evidence.sourceLines.length > 0 ? `\nSOURCES:\n${evidence.sourceLines.join("\n")}` : ""}`;
+    const retrievalLabel = result?.retrievalMethod === "llm_selection"
+      ? `llm_selection; hạng ${Number.isInteger(result.retrievalRank) && result.retrievalRank >= 1 && result.retrievalRank <= 3 ? result.retrievalRank : index + 1}`
+      : `${similarity}% match`;
+    return `### KB #${index + 1} (${retrievalLabel}; ${evidence.metadata}):\n${matchLabel}\nA: ${answer}\nEVIDENCE POLICY: ${citationEntries.includes(result) ? evidence.policy : policy}${citationEligible && evidence.sourceLines.length > 0 ? `\nSOURCES:\n${evidence.sourceLines.join("\n")}` : ""}`;
   });
 
   return `

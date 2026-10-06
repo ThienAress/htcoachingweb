@@ -13,6 +13,7 @@ import {
   recordGeminiSearchGroundingDisposition,
 } from "../../../observability/providerUsageMetrics.js";
 import { safeLog } from "../../../utils/safeLogger.js";
+import { isDeepseekStagingTrial } from "../../../config/deepseekTrial.js";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_SEARCH_MODEL = "gemini-2.5-flash";
@@ -255,6 +256,13 @@ const buildGroundedEvidence = (candidate, candidateText, query) => {
  * @returns {{ text: string, uiCard: object|null, meta: { evidenceAvailable: boolean, sourceCount: number, sources: Array<{title: string, uri: string}> } }}
  */
 export async function searchKnowledge({ query }, context = {}) {
+  if (isDeepseekStagingTrial()) {
+    return unavailableEvidence(
+      "Trong đợt thử DeepSeek, tra cứu web trực tiếp chưa được hỗ trợ; mình không muốn đưa nguồn cũ hoặc nguồn chưa xác minh vào câu trả lời.",
+      "not_called",
+      { code: "unsupported_capability", providerRequestMade: false },
+    );
+  }
   const preparedQuery = prepareExternalKnowledgeQuery(query, {
     allowedPublicPersonNames: context.allowedPublicPersonNames,
   });

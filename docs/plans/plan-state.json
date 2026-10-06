@@ -3,6 +3,18 @@
   "legacyCutoff": "076",
   "plans": [
     {
+      "id": "095",
+      "title": "Integrate DeepSeek staging trial",
+      "path": "docs/plans/095-integrate-deepseek-staging-trial.md",
+      "priority": "P1",
+      "complexity": "complex",
+      "lifecycle": "in_progress",
+      "verification": "local_full",
+      "rollout": "pending",
+      "owner": "01a10d36-267c-7880-920b-1e51ee0d8f65",
+      "updatedAt": "2026-10-06"
+    },
+    {
       "id": "094C",
       "title": "Certify and promote assistant release",
       "path": "docs/plans/094c-certify-and-promote-assistant-release.md",

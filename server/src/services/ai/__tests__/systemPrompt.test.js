@@ -9,6 +9,11 @@ import {
 import { routeAiRequest } from "../requestRouter.js";
 
 describe("Knowledge Base prompt boundary", () => {
+  it("labels LLM selection as rank, never a cosine confidence", () => {
+    const block = buildKnowledgeReferenceBlock([{ question: "Protein là gì?", answer: "Đạm hỗ trợ mô.", retrievalMethod: "llm_selection", retrievalRank: 2 }]);
+    expect(block).toContain("llm_selection; hạng 2");
+    expect(block).not.toContain("% match");
+  });
   it("withholds unrelated source metadata even when the entry is reviewed", () => {
     const entry = {
       question: "Protein là gì?", answer: "Đạm hỗ trợ xây dựng mô.",

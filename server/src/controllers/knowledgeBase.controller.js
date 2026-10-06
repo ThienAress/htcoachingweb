@@ -8,6 +8,7 @@ import {
   generateEmbedding,
   searchKnowledgeBase,
 } from "../services/ai/embedding.service.js";
+import { searchAssistantKnowledgeBase } from "../services/ai/knowledgeRetrieval.service.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import {
@@ -844,7 +845,7 @@ export const searchEntries = async (req, res) => {
       success: false,
       code: "KNOWLEDGE_QUERY_SENSITIVE",
       message:
-        "Search Test không gửi dữ liệu sức khỏe hoặc định danh cá nhân tới embedding provider",
+        "Search Test không gửi dữ liệu sức khỏe hoặc định danh cá nhân tới nhà cung cấp AI",
     });
   }
   const limit = clampInteger(req.query.limit, 3, 1, 10);
@@ -852,11 +853,31 @@ export const searchEntries = async (req, res) => {
   if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
     return res.status(400).json({ success: false, message: "Threshold không hợp lệ" });
   }
-  const results = await searchKnowledgeBase(preparedQuery.query, {
-    limit,
-    threshold,
-  });
-  return res.json({ success: true, data: results });
+  const controller = new AbortController();
+  const abortOnClose = () => {
+    if (!res.writableEnded) controller.abort();
+  };
+  res.once("close", abortOnClose);
+  try {
+    const result = await searchAssistantKnowledgeBase(preparedQuery.query, {
+      limit,
+      threshold,
+      signal: controller.signal,
+      deadlineAt: Date.now() + 15_000,
+    });
+    return res.json({ success: true, data: result.results, retrieval: result.retrieval });
+  } catch (error) {
+    if (error?.code?.startsWith("KB_TRIAL_") || error?.code?.startsWith("DEEPSEEK_")) {
+      return res.status(503).json({
+        success: false,
+        code: error.code,
+        message: "Không thể hoàn tất tìm kiếm KB ở chế độ thử nghiệm. Vui lòng thử lại sau.",
+      });
+    }
+    throw error;
+  } finally {
+    res.removeListener("close", abortOnClose);
+  }
 };
 
 export const getStats = async (_req, res) => {
