@@ -200,6 +200,14 @@ jobs:
         run: |
           npm run verify:backup-release
           npm run verify:disaster-recovery
+      - name: Verify staging health before write-enabled acceptance
+        if: ${{ inputs.operation == 'acceptance' || github.event_name == 'repository_dispatch' }}
+        timeout-minutes: 6
+        run: node scripts/staging-health.mjs
+        env:
+          ALLOW_REMOTE_STAGING_HEALTH: "true"
+          STAGING_CLIENT_URL: https://staging--htcoachingweb.netlify.app
+          STAGING_API_URL: https://htcoachingweb-staging.onrender.com
       - name: Run write-enabled staging acceptance with mandatory cleanup
         if: ${{ inputs.operation == 'acceptance' || github.event_name == 'repository_dispatch' }}
         working-directory: server

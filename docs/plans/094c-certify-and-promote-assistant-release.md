@@ -4,7 +4,7 @@
 
 - Priority P1; complexity COMPLEX; risk HIGH; effort M; depends on 094B.
 - Lifecycle IN PROGRESS; verification FOCUSED; rollout PENDING.
-- Owner root / 01a0ffb5-31c7-7360-93e3-3de14e9289dc; updated 2026-10-05.
+- Owner root / 01a0ffb5-31c7-7360-93e3-3de14e9289dc; updated 2026-10-06.
 
 ## Mục tiêu và quyền
 
@@ -52,6 +52,30 @@ relaxation, timeout/retry/quota/model increases, schema/auth/payment changes m�
 production data ngoài approved proposal hoặc copy staging data rộng.
 
 ## Steps và verification
+
+### Bounded cold-start readiness slice — 2026-10-06
+
+Canonical37356999066 exact1d08 FAIL ở legacy synthetic refresh, trước AC009/Plan092;
+cleanup verified=true/residue=0. Render Free runtime startup trùng timeout:
+database.connected18:36:15.240Z, server.started18:36:15.336Z, client abort18:36:19.593Z.
+Cold start được hỗ trợ mạnh nhưng thiếu ingress correlation; không sửa auth từ giả thuyết.
+Current GET readiness200 tại01:43/01:45Z; đây không phải acceptance PASS.
+
+In scope: `.github/workflows/staging-acceptance.yml` và
+`scripts/release-workflows.test.mjs`; tái sử dụng `scripts/staging-health.mjs`
+GET-only, approved staging origins, existing bounded health retry. Thêm health
+step sau recovery gate và ngay trước general write acceptance, operation guard
+giống acceptance, step timeout6phút. Fail closed khi health runner exit khác0.
+Không đổi auth timeout60s, provider/business retries, frozen corpus, grader,
+schema, quota, backup24h hoặc gói Render. User muốn hỗ trợ khi cần dashboard/login;
+không lặp patch thử-sai khi thiếu evidence.
+
+Verify RED→GREEN bằng Node22 `--test scripts/release-workflows.test.mjs`,
+`--test scripts/production-monitoring.test.mjs`, scoped independent review và
+GET-only staging health runner. Source edit làm CI/candidate cũ không hợp lệ cho
+snapshot mới; cần quyền Git publication, trusted CI/exact deploy/canonical acceptance
+mới, không lấy local PASS làm production GO. Không dispatch acceptance nếu health
+unknown hoặc recovery expired. Plan index/machine state giữ IN PROGRESS/FOCUSED/PENDING.
 
 ### Step 1: Xác minh identity
 

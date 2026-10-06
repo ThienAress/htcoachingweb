@@ -138,6 +138,26 @@ test("staging release recovery gate runs before any write-enabled acceptance", a
   assert.ok(recoveryGate > 0 && recoveryGate < stagingWrite && recoveryGate < aiWrite);
 });
 
+test("staging acceptance waits for bounded read-only health after recovery and before writes", async () => {
+  const workflow = await read(".github/workflows/staging-acceptance.yml");
+  const healthName = "- name: Verify staging health before write-enabled acceptance";
+  const health = workflow.match(
+    /- name: Verify staging health before write-enabled acceptance[\s\S]*?(?=\n      - name:|$)/,
+  )?.[0];
+  assert.ok(health, "cold staging must be ready before synthetic auth requests");
+  const recovery = workflow.indexOf("- name: Verify current release and off-device recovery evidence");
+  const warmup = workflow.indexOf(healthName);
+  const generalWrite = workflow.indexOf("- name: Run write-enabled staging acceptance with mandatory cleanup");
+  assert.ok(recovery < warmup && warmup < generalWrite);
+  assert.match(health, /if: \$\{\{ inputs\.operation == 'acceptance' \|\| github\.event_name == 'repository_dispatch' \}\}/);
+  assert.match(health, /timeout-minutes: 6/);
+  assert.match(health, /run: node scripts\/staging-health\.mjs/);
+  assert.match(health, /ALLOW_REMOTE_STAGING_HEALTH: "true"/);
+  assert.match(health, /STAGING_CLIENT_URL: https:\/\/staging--htcoachingweb\.netlify\.app/);
+  assert.match(health, /STAGING_API_URL: https:\/\/htcoachingweb-staging\.onrender\.com/);
+  assert.doesNotMatch(health, /continue-on-error|always\(\)|\|\|\s*true|secrets\.|MONGO_URI/);
+});
+
 test("staging reliability acceptance runs two exact, cleaned rounds before deploy reverification", async () => {
   const [workflow, serverPackage] = await Promise.all([
     read(".github/workflows/staging-acceptance.yml"),
