@@ -5,7 +5,9 @@
 - APPROVED spec + Plan095/tasks by owner; 2026-10-06. Local implementation authorized.
 - Complexity COMPLEX; risk HIGH: provider boundary, KB retrieval and release gates.
 - Owner task: `01a10d36-267c-7880-920b-1e51ee0d8f65`.
-- Đang implement local; chưa deploy, gọi API thật hoặc thay đổi cấu hình hosting.
+- PR202 đã lên staging tại `0977bd103c84a799d7cbb2186b61cc67b361f6e0` với Gemini.
+- Owner tiếp tục duyệt commit/deploy và UI15 bằng tài khoản admin staging ngày2026-10-06;
+  xác nhận key mua tại vibi.top và cung cấp tài liệu của gateway. Chưa chạy paid UI15.
 - Owner xác nhận DeepSeek thay Gemini làm bộ não hội thoại, giữ lịch sử/ngữ cảnh
   và tools. Phương án trial giữ bounded LLM-based KB selection; không tự chuyển
   sang chatbot FAQ, vector model mới hoặc provider trả phí thứ ba.
@@ -49,8 +51,11 @@ gọi Gemini, kể cả đường fallback. Không thay đổi production.
 ## REQ-001 — Provider thật, đảo ngược được
 
 - AC-001: Adapter DeepSeek giữ contract SSE/tool/history và cancellation hiện có;
-  dùng fixed HTTPS official origin `https://api.deepseek.com`, không theo redirect.
-- AC-002: Trial đề xuất `deepseek-flash`, non-thinking; chọn explicit output/context
+  dùng endpoint cố định của profile được chọn, không nhận URL tùy ý hoặc theo redirect.
+  Default official: `https://api.deepseek.com/chat/completions`; profile `vibi`:
+  `https://vibi.top/v1/chat/completions`, chỉ với toàn bộ guard staging hợp lệ.
+- AC-002: Official dùng `deepseek-flash`; `DEEPSEEK_ENDPOINT_PROFILE=vibi` bắt buộc
+  `deepseek-v4.1-flash` đã xác minh bằng catalog của key. Cả hai non-thinking; chọn explicit output/context
   bounds trong plan, không dùng max-token default rất lớn của upstream.
 - AC-003: Gemini provider/files/key/vector/profile cũ không bị xóa hoặc ghi đè;
   không auto-fallback DeepSeek → Gemini/mock trong thử nghiệm.
@@ -175,6 +180,10 @@ chỉ để đổi API. Không refactor các file lớn hoặc lấy product edi
 - Spec + plan/tasks/cap local approved theo gate `feature-spec`; tiến hành implementation local.
 
 ## Official API references
+
+- [Vibi client API configuration](https://vibi.top/docs-setup/en/docs/clients).
+  Gateway/key/model access đã xác minh bằng GET `/v1/models` ngày2026-10-06.
+  Catalog không chứng minh streaming/tool calling hoặc giá; phải kiểm tra riêng trước UI15.
 
 - [DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/).
 - [Models and pricing](https://api-docs.deepseek.com/quick_start/pricing/?tab=case-studies).

@@ -20,6 +20,22 @@ describe("explicit isolated DeepSeek trial", () => {
   it("does not alter the Gemini profile", () => {
     expect(validateDeepseekTrialEnvironment({ AI_PROVIDER: "gemini" })).toEqual({ valid: true, active: false, errors: [] });
   });
+  it("accepts the verified Vibi model only within the full staging profile", () => {
+    const env = {
+      ...trial(),
+      DEEPSEEK_ENDPOINT_PROFILE: "vibi",
+      DEEPSEEK_MODEL: "deepseek-v4.1-flash",
+    };
+    expect(isDeepseekStagingTrial(env)).toBe(true);
+    expect(isDeepseekStagingTrial({ ...env, APP_ENV: "production" })).toBe(false);
+    expect(isDeepseekStagingTrial({ ...env, DEEPSEEK_MODEL: "deepseek-flash" })).toBe(false);
+  });
+  it("does not treat a gateway-only configuration as the default Gemini profile", () => {
+    expect(validateDeepseekTrialEnvironment({
+      AI_PROVIDER: "gemini",
+      DEEPSEEK_ENDPOINT_PROFILE: "vibi",
+    }).valid).toBe(false);
+  });
   it.each([
     ["APP_ENV", "production"], ["APP_ENV", ""], ["AI_PROVIDER", "gemini"],
     ["AI_STAGING_PROVIDER_TRIAL", ""], ["AI_KB_RETRIEVAL_MODE", "vector"],

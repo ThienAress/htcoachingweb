@@ -12,6 +12,7 @@ const configureTrial = () => {
   const profile = {
     APP_ENV: "staging", AI_PROVIDER: "deepseek", AI_STAGING_PROVIDER_TRIAL: "deepseek",
     AI_KB_RETRIEVAL_MODE: "llm_selection", DEEPSEEK_MODEL: "deepseek-flash",
+    DEEPSEEK_ENDPOINT_PROFILE: "official",
     [deepseekSecretName]: "d".repeat(32), MONGO_URI: "mongodb://localhost/htcoaching_staging",
     CLIENT_URL: "https://staging--htcoachingweb.netlify.app", PUBLIC_API_ORIGIN: "https://htcoachingweb-staging.onrender.com",
     ALLOWED_ORIGINS: "https://staging--htcoachingweb.netlify.app", BACKGROUND_JOBS_ENABLED: "false",
@@ -49,7 +50,16 @@ afterEach(async () => { if (originalGym) toolRegistry.get_gym_info.execute = ori
 afterAll(async () => { vi.unstubAllEnvs(); await teardownTestDB(); });
 
 describe("real DeepSeek factory/provider at the owned chat SSE seam", () => {
-  it("persists conversational replies and sends prior turns on follow-up", async () => {
+  it.each([
+    ["official", "deepseek-flash", "https://api.deepseek.com/chat/completions"],
+    ["vibi", "deepseek-v4.1-flash", "https://vibi.top/v1/chat/completions"],
+  ])("persists conversational replies and sends prior turns on follow-up via %s", async (profile, model, endpoint) => {
+    vi.stubEnv("DEEPSEEK_ENDPOINT_PROFILE", profile);
+    vi.stubEnv("DEEPSEEK_MODEL", model);
+    fetchMock.mockImplementation(async (url) => {
+      if (url !== endpoint) throw new Error("Unexpected outbound request");
+      return stream("Mình hiểu ý bạn, chúng ta có thể trao đổi từng bước nhé.");
+    });
     const { user, accessToken } = await createTestUser();
     const first = await submit(accessToken, { message: "Chào bạn, hôm nay mình muốn trò chuyện một chút." });
     const id = frames(first).find(row => row.type === "done")?.conversationId;
@@ -57,9 +67,10 @@ describe("real DeepSeek factory/provider at the owned chat SSE seam", () => {
     const stored = await ChatConversation.findOne({ _id: id, userId: user._id }).lean();
     const sent = JSON.parse(fetchMock.mock.calls.at(-1)[1].body);
     expect({ done: frames(second).at(-1).type, model: stored.messages.at(-1).answerTrace.model,
+      sentModel: sent.model,
       prior: sent.messages.some(row => row.role === "assistant" && row.content === text(first)),
-      noGemini: fetchMock.mock.calls.every(([url]) => url === "https://api.deepseek.com/chat/completions") })
-      .toEqual({ done: "done", model: "deepseek-flash", prior: true, noGemini: true });
+      noGemini: fetchMock.mock.calls.every(([url]) => url === endpoint) })
+      .toEqual({ done: "done", model, sentModel: model, prior: true, noGemini: true });
   });
   it("uses selection and generation without embeddings for a KB paraphrase", async () => {
     const { user, accessToken } = await createTestUser();

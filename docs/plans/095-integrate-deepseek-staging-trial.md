@@ -2,7 +2,7 @@
 
 > Spec, plan and tasks approved by owner 2026-10-06 for local implementation.
 > Owner approved commit, protected PR202 merge and staging deploy on 2026-10-06.
-> Paid UI trial still requires its key, fixture, call cap and cleanup scope.
+> Owner subsequently authorized the visible UI15 trial with their staging admin account.
 > Drift check: verify baseline HEAD and product diff before writing. Never copy
 > product edits from the dirty primary checkout or bypass release protection.
 
@@ -11,8 +11,8 @@
 - Priority: P1; Complexity: COMPLEX; Effort: L; Risk: HIGH.
 - Depends on: 094B baseline, not completion of 094C certification.
 - Category: feature; Planned at / Updated at: 2026-10-06.
-- Lifecycle: IN PROGRESS; Verification: LOCAL FULL; Rollout: PENDING.
-- Owner: `01a10d36-267c-7880-920b-1e51ee0d8f65`.
+- Lifecycle: IN PROGRESS; Verification: FOCUSED; Rollout: PENDING.
+- Owner: `01a111c7-ce7e-7321-bb6e-5e0611b266b1`; gateway continuation updated2026-10-07.
 - Spec: [DeepSeek staging provider trial](../specs/deepseek-staging-provider-trial.md).
 - Current authority includes scoped commit/push, protected merge and staging deployment.
 - Deploy existing Gemini profile first; owner enters the DeepSeek key separately.
@@ -32,6 +32,47 @@
   [verification report](../reports/095-deepseek-pr202-ci-checkpoint-2026-10-06.md).
 
 ## Why This Matters
+
+### Step 6: Gateway continuation — 2026-10-06 (TASK-006)
+
+- Owner identified the purchased key as issued by vibi.top and supplied its docs.
+  GET `https://vibi.top/v1/models` returned200 and `deepseek-v4.1-flash`; official
+  DeepSeek401 was an endpoint mismatch, not proof that the gateway key was invalid.
+- Baseline is staging `0977bd103c84a799d7cbb2186b61cc67b361f6e0`, isolated checkout,
+  branch `codex/vibi-staging-gateway` on driveD. Existing primary/094C edits are out of scope.
+- Root owns new `server/src/config/deepseekEndpoint.js`, existing `deepseekTrial.js`,
+  `services/ai/providers/deepseek.provider.js`, their focused tests and canonical docs.
+  Review found hardcoded model attribution: root also owns the minimal resolver import/use
+  in `controllers/ai.controller.js` and the existing `aiDeepseekTrial.integration.test.js`.
+  Independent billing discovery is read-only; independent security review precedes release.
+- Add `DEEPSEEK_ENDPOINT_PROFILE=vibi` paired only with `deepseek-v4.1-flash` and
+  fixed `https://vibi.top/v1/chat/completions`. Preserve the default official pair.
+  Unknown profiles/model pairs fail before egress. Vibi requires the complete
+  existing staging profile even when the exported provider is called directly.
+- No arbitrary base URL, redirect, retry, fallback, dependency, schema, UI, quota,
+  timeout or production change. Backend-only egress needs no browser CSP/CORS change.
+- Verification: provider/config RED to GREEN; readiness/factory/controller/KB regressions;
+  trusted exact-commit CI release build, unit, AI eval, E2E and security gates before merge/deploy.
+- Live: owner's existing staging admin session, frozen14 original prompts plus replacement5,
+  preserve4→5 and6→7. Submit once per case; retain visible test chats as requested.
+  Conservative stop at USD1 measured decline and90 provider calls including any compatibility probes.
+  Wallet balance and token quota are distinct; never report Unlimited quota as wallet credit.
+- Stop on unsupported protocol, unknown pricing/balance, target drift, corpus overflow,
+  failed security/release gate, or budget boundary. No fabricated web-grounding PASS.
+- Done: guarded gateway tests and release gates pass, exact staging runtime verified,
+  UI15 outcomes and before/after gateway billing evidence reported; no production certification.
+- Focused evidence: initial gateway RED3/16, then seven files116/116 PASS. Independent
+  review found one model-attribution issue; HTTP/SSE regression reproduced Vibi trace
+  mismatch, resolver fix made the full controller file13/13 PASS, including static fallback labels.
+  No live generation calls yet; trusted CI and exact gateway deployment remain pending.
+- Resume 2026-10-07: current gateway/provider/config/controller set passed60/60 tests
+  across4 files on Node22.23.1; first sandbox attempt was blocked by localhost EACCES.
+  `agents:validate` and staged/unstaged diff checks passed. Vibi Wallet UI is signed in,
+  showing USD10 balance, USD0 used and0 API requests before the trial.
+  Fresh trusted CI, protected staging merge, exact deploy identity and UI15 remain pending.
+
+The gateway profile above supersedes the original official-only endpoint/model
+restriction below for this user-authorized staging continuation.
 
 Owner wants a conversational assistant, not a FAQ-only responder. DeepSeek must
 replace generation while preserving conversation memory, structured tools and

@@ -2,6 +2,8 @@ import {
   recordDeepSeekRequest,
   recordDeepSeekResult,
 } from "../../../observability/providerUsageMetrics.js";
+import { resolveDeepseekEndpoint } from "../../../config/deepseekEndpoint.js";
+import { isDeepseekStagingTrial } from "../../../config/deepseekTrial.js";
 import {
   byteLength,
   formatToolsForProvider,
@@ -12,7 +14,6 @@ import {
   validateToolCalls,
 } from "./deepseek.protocol.js";
 
-const URL = "https://api.deepseek.com/chat/completions";
 const INPUT_LIMIT = 128 * 1024;
 const FRAME_LIMIT = 64 * 1024;
 const RESPONSE_LIMIT = 256 * 1024;
@@ -83,9 +84,12 @@ export { formatToolsForProvider };
 
 export async function* deepseekLLMStream(messages, tools = [], options = {}) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
-  const model = process.env.DEEPSEEK_MODEL || "deepseek-flash";
   if (!apiKey) throw protocolError("DEEPSEEK_CONFIG_UNAVAILABLE");
-  if (model !== "deepseek-flash") throw protocolError("DEEPSEEK_CONFIG_INVALID");
+  const endpoint = resolveDeepseekEndpoint();
+  if (!endpoint || (endpoint.profile === "vibi" && !isDeepseekStagingTrial())) {
+    throw protocolError("DEEPSEEK_CONFIG_INVALID");
+  }
+  const model = endpoint.model;
   validateHistory(messages);
   const formattedTools = formatToolsForProvider(tools);
   if (options.requiredToolName && !formattedTools.some((tool) => tool.function.name === options.requiredToolName)) {
@@ -113,7 +117,7 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
     requested = true;
     let response;
     try {
-      response = await fetch(URL, {
+      response = await fetch(endpoint.url, {
         method: "POST", redirect: "error", signal: linked.signal,
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "text/event-stream" },
         body: payload,
