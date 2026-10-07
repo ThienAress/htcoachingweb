@@ -1,13 +1,16 @@
 import { validateStagingEnvironment } from "./stagingSafety.js";
+import { resolveDeepseekEndpoint } from "./deepseekEndpoint.js";
+
+export { DEEPSEEK_TRIAL_MODEL } from "./deepseekEndpoint.js";
 
 const CLIENT_ORIGIN = "https://staging--htcoachingweb.netlify.app";
 const API_ORIGIN = "https://htcoachingweb-staging.onrender.com";
-export const DEEPSEEK_TRIAL_MODEL = "deepseek-flash";
 
 export const isDeepseekTrialRequested = (env = process.env) =>
   env.AI_PROVIDER === "deepseek" ||
   Boolean(String(env.AI_STAGING_PROVIDER_TRIAL || "").trim()) ||
-  env.AI_KB_RETRIEVAL_MODE === "llm_selection";
+  env.AI_KB_RETRIEVAL_MODE === "llm_selection" ||
+  Boolean(env.DEEPSEEK_ENDPOINT_PROFILE);
 
 const exactOrigin = (value, expected) => {
   try {
@@ -26,7 +29,7 @@ export const validateDeepseekTrialEnvironment = (env = process.env) => {
   if (env.APP_ENV !== "staging") reject("DEEPSEEK_TRIAL_STAGING_REQUIRED");
   if (env.AI_PROVIDER !== "deepseek" || env.AI_STAGING_PROVIDER_TRIAL !== "deepseek" ||
       env.AI_KB_RETRIEVAL_MODE !== "llm_selection") reject("DEEPSEEK_TRIAL_PROFILE_MISMATCH");
-  if (env.DEEPSEEK_MODEL !== DEEPSEEK_TRIAL_MODEL) reject("DEEPSEEK_TRIAL_MODEL_INVALID");
+  if (!env.DEEPSEEK_MODEL || !resolveDeepseekEndpoint(env)) reject("DEEPSEEK_TRIAL_MODEL_INVALID");
   const key = String(env.DEEPSEEK_API_KEY || "");
   if (key.length < 20 || /\s/.test(key)) reject("DEEPSEEK_TRIAL_KEY_INVALID");
   if (!exactOrigin(env.CLIENT_URL, CLIENT_ORIGIN) || !exactOrigin(env.PUBLIC_API_ORIGIN, API_ORIGIN)) {

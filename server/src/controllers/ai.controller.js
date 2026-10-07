@@ -40,6 +40,7 @@ import {
 import { searchAssistantKnowledgeBase } from "../services/ai/knowledgeRetrieval.service.js";
 import { selectConversationHistory } from "../services/ai/conversationHistory.js";
 import { isDeepseekStagingTrial } from "../config/deepseekTrial.js";
+import { resolveDeepseekEndpoint } from "../config/deepseekEndpoint.js";
 import { aiLogger } from "../services/ai/aiLogger.js";
 import { serializeRequestQuota } from "../services/serviceAccessPolicy.service.js";
 import {
@@ -1086,7 +1087,7 @@ export const chatStream = async (req, res) => {
   let externalKnowledgeQuery = { eligible: false, reason: "not_required" };
   const deepseekTrial = isDeepseekStagingTrial();
   let responseModel = deepseekTrial
-    ? "deepseek-flash"
+    ? resolveDeepseekEndpoint().model
     : String(process.env.GEMINI_MODEL || "gemini-3.1-flash-lite").slice(0, 100);
   const buildAnswerTrace = () =>
     routingDecision
