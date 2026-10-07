@@ -4,6 +4,7 @@ import {
 } from "../../../observability/providerUsageMetrics.js";
 import { resolveDeepseekEndpoint } from "../../../config/deepseekEndpoint.js";
 import { isDeepseekStagingTrial } from "../../../config/deepseekTrial.js";
+import { recordDeepseekTelemetry } from "../../../observability/deepseekRequestTelemetry.js";
 import {
   byteLength,
   formatToolsForProvider,
@@ -34,17 +35,17 @@ const createSignal = (external, timeoutMs) => {
 
 const limitsFor = (options) => {
   const surface = options.surface || "chat";
-  if (!["chat", "kb_selection"].includes(surface)) throw protocolError("DEEPSEEK_OPTIONS_INVALID");
+  if (!["chat", "kb_selection", "web_grounding"].includes(surface)) throw protocolError("DEEPSEEK_OPTIONS_INVALID");
   if (options.responseFormat && !["text", "json_object"].includes(options.responseFormat)) {
     throw protocolError("DEEPSEEK_OPTIONS_INVALID");
   }
-  const limit = surface === "kb_selection" ? 256 : 2048;
+  const limit = surface === "kb_selection" ? 256 : surface === "web_grounding" ? 1200 : 2048;
   const requested = Number(options.maxOutputTokens);
   const maxTokens = Number.isFinite(requested) && requested > 0
     ? Math.min(Math.floor(requested), limit) : limit;
   const remaining = options.deadlineAt === undefined ? Infinity : Number(options.deadlineAt) - Date.now();
   const desired = Number(options.timeoutMs);
-  const surfaceTimeout = surface === "kb_selection" ? 15_000 : PROVIDER_TIMEOUT;
+  const surfaceTimeout = surface === "kb_selection" ? 15_000 : surface === "web_grounding" ? 20_000 : PROVIDER_TIMEOUT;
   const timeout = Math.min(surfaceTimeout, Number.isFinite(desired) && desired > 0 ? desired : surfaceTimeout, remaining);
   if (!Number.isFinite(timeout) || timeout <= 0) throw protocolError("DEEPSEEK_DEADLINE_EXCEEDED");
   return { surface, maxTokens, timeout: Math.floor(timeout) };
@@ -113,6 +114,12 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
   let reader;
   let requested = false;
   let settled = false;
+  const startedAt = performance.now();
+  let firstTokenAt = null;
+  let toolCount = 0;
+  let usage = {};
+  let errorCode = null;
+  let status = null;
   try {
     if (linked.signal.aborted) throw protocolError("DEEPSEEK_ABORTED");
     recordDeepSeekRequest(surface);
@@ -134,7 +141,7 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
     const decoder = new TextDecoder();
     const calls = new Map();
     const allowedNames = new Set(formattedTools.map((tool) => tool.function.name));
-    let responseBytes = 0, finish, done = false, textBytes = 0, usage = {};
+    let responseBytes = 0, finish, done = false, textBytes = 0;
     reader = response.body.getReader();
     while (true) {
       let part;
@@ -157,6 +164,9 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
         if (choice.delta !== undefined && (!choice.delta || typeof choice.delta !== "object" || Array.isArray(choice.delta))) {
           throw protocolError("DEEPSEEK_STREAM_ERROR");
         }
+        if (firstTokenAt === null && (choice.delta?.content || choice.delta?.tool_calls?.length)) {
+          firstTokenAt = performance.now();
+        }
         if (choice.delta?.content !== undefined) {
           if (typeof choice.delta.content !== "string") throw protocolError("DEEPSEEK_STREAM_ERROR");
           textBytes += byteLength(choice.delta.content);
@@ -175,12 +185,20 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
     if (finish === "stop" && (!textBytes || calls.size)) throw protocolError("DEEPSEEK_FINISH_INVALID");
     const toolCalls = finish === "tool_calls"
       ? validateToolCalls(calls, allowedNames, TOOL_ARGS_LIMIT) : null;
+    toolCount = toolCalls?.length || 0;
     recordDeepSeekResult(surface, { success: true, usage });
     settled = true;
     if (toolCalls) yield { type: "tool_call", toolCalls };
+  } catch (error) {
+    errorCode = error?.code;
+    status = error?.status;
+    throw error;
   } finally {
     await reader?.cancel?.().catch(() => {});
     linked.cleanup();
     if (requested && !settled) recordDeepSeekResult(surface, { success: false });
+    if (requested) recordDeepseekTelemetry({
+      surface, model, success: settled, startedAt, firstTokenAt, toolCount, usage, errorCode, status,
+    });
   }
 }

@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "planId": "096",
+  "specPath": "docs/specs/vibi-evidence-and-certification.md",
+  "planPath": "docs/plans/096-certify-vibi-with-grounded-evidence.md",
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "Approved step 1",
+      "planStep": "Step 1"
+    },
+    {
+      "id": "TASK-002",
+      "title": "Approved step 2",
+      "planStep": "Step 2"
+    },
+    {
+      "id": "TASK-003",
+      "title": "Approved step 3",
+      "planStep": "Step 3"
+    },
+    {
+      "id": "TASK-004",
+      "title": "Approved step 4",
+      "planStep": "Step 4"
+    },
+    {
+      "id": "TASK-005",
+      "title": "Approved step 5",
+      "planStep": "Step 5"
+    },
+    {
+      "id": "TASK-006",
+      "title": "Approved step 6",
+      "planStep": "Step 6"
+    },
+    {
+      "id": "TASK-007",
+      "title": "Approved step 7",
+      "planStep": "Step 7"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-001",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-001"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/requestRouter.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-002",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-002"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/tools/__tests__/searchKnowledge.tool.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-003",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-003"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "node .local-data/plan096-catalog/verify.mjs"
+            }
+          ]
+        },
+        {
+          "id": "AC-004",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-004"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "npm run ui:audit -- --baseline scripts/ui-audit/baseline.json --fail-on-new-high"
+            }
+          ]
+        },
+        {
+          "id": "AC-005",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-005"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "paid TALK01 on verified staging SHA"
+            }
+          ]
+        },
+        {
+          "id": "AC-006",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-006"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "paid exact-15 canonical on verified staging SHA"
+            }
+          ]
+        },
+        {
+          "id": "AC-007",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-007"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "npm run test:unit && npm run test:ai-eval && npm run test:e2e"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

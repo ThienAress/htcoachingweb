@@ -26,7 +26,7 @@ const positiveInteger = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
 };
 
-const DEEPSEEK_SURFACES = new Set(["chat", "kb_selection"]);
+const DEEPSEEK_SURFACES = new Set(["chat", "kb_selection", "web_grounding"]);
 const deepseekTokens = (value) =>
   Number.isSafeInteger(value) && value > 0 && value <= 1_000_000 ? value : 0;
 

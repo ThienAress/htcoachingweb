@@ -1,4 +1,5 @@
 import { containsPersonalHealthData } from "./personalHealthData.js";
+import { resolveWebPolicy } from "./capabilityPolicy.js";
 import {
   getPublicPersonLookupNames,
   isCallerVettedPublicDateOfBirth,
@@ -583,6 +584,7 @@ export function routeAiRequest(message, { contextualQuery = message } = {}) {
     urgency,
     knowledgeBaseEligible,
     webSearchRequired,
+    webPolicy: resolveWebPolicy({ domain, risk, urgency, evidence, webSearchRequired }),
     preferredTool: webSearchRequired
       ? "search_knowledge"
       : preferredInternalTool,

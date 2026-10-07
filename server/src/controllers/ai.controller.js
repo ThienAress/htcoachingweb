@@ -9,6 +9,7 @@ import {
   isSuccessfulToolResult,
 } from "../services/ai/tools/toolEngine.js";
 import { executeToolBatch } from "../services/ai/tools/toolBatchExecutor.js";
+import { WEB_GROUNDING_TIMEOUT_MS } from "../services/ai/capabilityPolicy.js";
 import {
   getToolSchemas,
   SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS,
@@ -1610,7 +1611,9 @@ export const chatStream = async (req, res) => {
       let toolResult = await executeTool(toolName, args, {
         userId,
         signal: abortController.signal,
-        timeoutMs: TOOL_TIMEOUT_MS,
+        timeoutMs: toolName === "search_knowledge" && deepseekTrial && process.env.AI_WEB_SEARCH_PROVIDER === "brave"
+          ? Math.min(WEB_GROUNDING_TIMEOUT_MS, Math.max(1, chatStartTime + CHAT_DEADLINE_MS - Date.now()))
+          : TOOL_TIMEOUT_MS,
         allowedToolNames: [toolName],
         allowedPublicPersonNames,
         previousMealPlan: conversationMemory.lastMeal?.plan || null,
@@ -1748,7 +1751,9 @@ export const chatStream = async (req, res) => {
         webSearchSources.length > 0;
       responseModel = directSearch.toolResult.meta?.diagnosticCode === "unsupported_capability"
         ? "server:capability_unavailable"
-        : String(process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash").slice(0, 100);
+        : deepseekTrial
+          ? webSearchEvidenceAvailable ? resolveDeepseekEndpoint().model : "server:web_evidence_unavailable"
+          : String(process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash").slice(0, 100);
       fullResponse = await deliverAssistantResponse(
         enforceEvidenceBoundary(directSearch.safeToolText),
       );
@@ -2005,7 +2010,10 @@ export const chatStream = async (req, res) => {
                   return executeTool(
                     toolName,
                     { query: externalKnowledgeQuery.query },
-                    context,
+                    deepseekTrial && process.env.AI_WEB_SEARCH_PROVIDER === "brave"
+                      ? { ...context, timeoutMs: Math.min(WEB_GROUNDING_TIMEOUT_MS,
+                        Math.max(1, chatStartTime + CHAT_DEADLINE_MS - Date.now())) }
+                      : context,
                   );
                 },
                 onStart: (call) => {

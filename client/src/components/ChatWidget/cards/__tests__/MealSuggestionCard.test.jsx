@@ -22,6 +22,22 @@ const renderCard = (cardData, props = {}) =>
   );
 
 describe("MealSuggestionCard", () => {
+  it("hiển thị riêng từng món và khẩu phần thay vì gộp thành một đoạn", () => {
+    const html = renderCard({
+      ...data,
+      meals: [{
+        label: "Bữa sáng",
+        foods: [
+          { name: "Ức gà", amountGrams: 180, calories: 300 },
+          { name: "Cơm trắng", amountGrams: 220, calories: 280 },
+        ],
+      }],
+    });
+
+    expect(html).toMatch(/<ul[^>]*aria-label="Món trong Bữa sáng"[^>]*>/);
+    expect(html).toMatch(/<li[^>]*>[^]*?Ức gà[^]*?180g[^]*?<\/li>\s*<li[^>]*>[^]*?Cơm trắng[^]*?220g/);
+  });
+
   it("hiển thị cảnh báo nhãn sản phẩm khi chỉ có bằng chứng thành phần", () => {
     const html = renderCard({
       ...data,
@@ -47,6 +63,42 @@ describe("MealSuggestionCard", () => {
     const html = renderCard({ ...data, targetCalories: 650, calorieScope: "per_meal" });
     expect(html).toContain("Một bữa");
     expect(html).not.toContain("Một ngày · 1 bữa");
+  });
+
+  it("giữ tổng kcal và macro do server tính cùng tổng riêng của bữa", () => {
+    const html = renderCard({
+      ...data,
+      totals: { calories: 2480, protein: 165, carb: 275, fat: 80 },
+      meals: [{ ...data.meals[0], totals: { calories: 620, protein: 42 } }],
+    });
+
+    expect(html).toContain("2.480 kcal");
+    expect(html).toContain("P 165g · C 275g · F 80g");
+    expect(html).toContain("620 kcal");
+    expect(html).toContain("42g protein");
+  });
+
+  it("không diễn giải tên món thành HTML", () => {
+    const html = renderCard({
+      ...data,
+      meals: [{ label: "Bữa sáng", foods: [{ name: "<img src=x onerror=alert(1)>" }] }],
+    });
+
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    expect(html).not.toContain("<img");
+  });
+
+  it("khóa lựa chọn và đổi món khi card bị disabled", () => {
+    const html = renderCard({
+      ...data,
+      mealPlanId: "11111111-1111-4111-8111-111111111111",
+      mealRevision: 2,
+      meals: [{ label: "Bữa sáng", foods: [{ foodId: "chicken", name: "Ức gà" }] }],
+    }, { conversationId: "conversation-1", disabled: true });
+    const buttons = html.match(/<button\b[^>]*>/g);
+
+    expect(buttons).toHaveLength(2);
+    expect(buttons.every((button) => button.includes('disabled=""'))).toBe(true);
   });
 
   it("cho chọn đúng một food item và giữ nút đổi món ở footer", () => {
