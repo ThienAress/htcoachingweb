@@ -337,3 +337,39 @@ injection/source guards and Step3 fail-closed config/capability. Guards not yet 
 are proof gaps, never PASS. Official contract:
 [Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/) and
 [Tool Calls](https://api-docs.deepseek.com/guides/tool_calls/), verified 2026-10-06.
+
+## Paid continuation — 2026-10-07
+
+- Task `01a11481-8519-7f43-a42e-d89e59b6f411` resumes the interrupted prior chat.
+- User authorizes real Vibi tests until remaining balance USD3; do not automatically
+  restore Gemini on failure. This replaces the previous USD1 spend stop for this slice.
+- Reuse existing PASS cases1–4, CI and deployed product SHA `fefd9be1b0d8bcac89ec8b1f87e3e83f4299e6a0`.
+- Historical case5 failed `KB_TRIAL_SELECTION_FAILED`; cases6–15 were not run.
+- Initial Wallet observation: USD9.93, total used USD0.0674, five requests.
+- Root owns live testing, staging profile activation and canonical documentation.
+  Independent agents own read-only selector investigation and new local evidence helpers.
+- Shared contract: `.local-data/vibi-paid-resume-20261007-contract.md` in primary workspace.
+- First verify staging identity/config/health and the historical failed conversation.
+- Reproduce the failed selector through a bounded real API probe or case5 retry;
+  preserve original failure evidence. Inspect only allowlisted metadata and synthetic data.
+- Patch only a demonstrated code defect, with a failing regression and focused verification;
+  complete applicable release gates before any changed code reaches staging.
+- Continue case5 and cases6–15 through UI with evidence of saved output and model provenance.
+- Stop new calls before balance USD3, on unaccounted cost, target drift or privacy/security failure.
+  Cap local diagnostic requests conservatively; no retries hidden inside provider calls.
+- Finish with per-case outcomes, exact paid usage when available, final runtime state,
+  unresolved limitations and retained user-visible test conversations.
+- Existing unrelated primary workspace edits, production and database rewrites remain out of scope.
+- Case6 attempt1 entered the historical chain because browser automation targeted the New
+  conversation button in the hidden mobile sidebar. Opening the visible sidebar and pressing
+  its visible button correctly creates a blank conversation. This is an operator test error,
+  not a demonstrated product defect. Preserve attempt1, exclude it from grading and repeat6.
+- Discard the unverified UI suppression hypothesis; no frontend change belongs in this release.
+  Retain its exploratory patch/test only as local diagnostic artifacts. Primary edits stay intact.
+- TALK01 exposed DEEPSEEK_HISTORY_INVALID after repeated server meal tools. Server-generated
+  tool IDs repeat between completed turns; strict provider global uniqueness rejects stored history.
+- Extend provider scope to normalize proven completed tool-call/result bindings into request-local
+  unique IDs without mutating persisted data. Duplicate overlapping IDs, orphans, name mismatch
+  and incomplete groups remain fatal. No schema rewrite, history truncation or weaker authorization.
+- Regression must show two completed turns with reused stored ID reach mocked HTTP with unique
+  paired IDs, while malformed histories still cause zero network requests.

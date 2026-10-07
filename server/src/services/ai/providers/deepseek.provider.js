@@ -8,6 +8,7 @@ import {
   byteLength,
   formatToolsForProvider,
   makeSseParser,
+  normalizeCompletedToolHistory,
   protocolError,
   toProviderMessages,
   validateHistory,
@@ -90,14 +91,15 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
     throw protocolError("DEEPSEEK_CONFIG_INVALID");
   }
   const model = endpoint.model;
-  validateHistory(messages);
+  const normalizedMessages = normalizeCompletedToolHistory(messages);
+  validateHistory(normalizedMessages);
   const formattedTools = formatToolsForProvider(tools);
   if (options.requiredToolName && !formattedTools.some((tool) => tool.function.name === options.requiredToolName)) {
     throw protocolError("DEEPSEEK_REQUIRED_TOOL_CONFIG_INVALID");
   }
   const { surface, maxTokens, timeout } = limitsFor(options);
   const body = {
-    model, messages: toProviderMessages(messages), tools: formattedTools.length ? formattedTools : undefined,
+    model, messages: toProviderMessages(normalizedMessages), tools: formattedTools.length ? formattedTools : undefined,
     stream: true, stream_options: { include_usage: true }, max_tokens: maxTokens,
     thinking: { type: "disabled" },
     ...(options.requiredToolName && { tool_choice: { type: "function", function: { name: options.requiredToolName } } }),

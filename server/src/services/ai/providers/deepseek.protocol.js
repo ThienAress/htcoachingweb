@@ -27,21 +27,29 @@ export const formatToolsForProvider = (tools = []) => {
   });
 };
 
-export const validateHistory = (messages) => {
+const inspectHistory = (messages, normalize = false) => {
   if (!Array.isArray(messages) || messages.length === 0) {
     throw protocolError("DEEPSEEK_HISTORY_INVALID");
   }
   const ids = new Set();
-  let waiting = new Map();
+  const reservedIds = new Set(messages.flatMap((message) => (
+    Array.isArray(message?.tool_calls) ? message.tool_calls.map((call) => call?.id) : []
+  )));
+  const waiting = new Map();
+  const normalized = [];
+  let nextId = 0;
   for (const message of messages) {
     if (!plainObject(message) || !["system", "user", "assistant", "tool"].includes(message.role)) {
       throw protocolError("DEEPSEEK_HISTORY_INVALID");
     }
     if (message.image !== undefined) throw protocolError("DEEPSEEK_INPUT_UNSUPPORTED");
     if (message.role === "tool") {
-      if (!validName(message.id) || !waiting.has(message.id) || waiting.get(message.id) !== message.name || typeof message.content !== "string") {
+      const pending = waiting.get(message.id);
+      if (!validName(message.id) || !pending || pending.name !== message.name ||
+        typeof message.content !== "string") {
         throw protocolError("DEEPSEEK_HISTORY_INVALID");
       }
+      normalized.push({ ...message, id: pending.id });
       waiting.delete(message.id);
       continue;
     }
@@ -54,16 +62,35 @@ export const validateHistory = (messages) => {
     if (message.role !== "assistant" && message.tool_calls !== undefined) {
       throw protocolError("DEEPSEEK_HISTORY_INVALID");
     }
-    for (const call of message.tool_calls || []) {
-      if (!validName(call?.id) || !validName(call?.name) || !plainObject(call.args) || ids.has(call.id) || waiting.has(call.id)) {
+    const toolCalls = Array.from(message.tool_calls || []).map((call) => {
+      if (!validName(call?.id) || !validName(call?.name) || !plainObject(call.args) ||
+        (!normalize && ids.has(call.id)) || waiting.has(call.id)) {
         throw protocolError("DEEPSEEK_HISTORY_INVALID");
       }
-      ids.add(call.id);
-      waiting.set(call.id, call.name);
-    }
+      let id = call.id;
+      if (ids.has(id)) {
+        // Reserve every stored ID so a remap cannot collide with a later group.
+        do {
+          nextId += 1;
+          id = `history_tool_${nextId}`;
+        } while (reservedIds.has(id));
+        reservedIds.add(id);
+      }
+      ids.add(id);
+      waiting.set(call.id, { name: call.name, id });
+      return { ...call, id };
+    });
+    normalized.push({ ...message, ...(message.tool_calls !== undefined && { tool_calls: toolCalls }) });
   }
   if (waiting.size) throw protocolError("DEEPSEEK_HISTORY_INVALID");
+  return normalized;
 };
+
+export const validateHistory = (messages) => {
+  inspectHistory(messages);
+};
+
+export const normalizeCompletedToolHistory = (messages) => inspectHistory(messages, true);
 
 export const toProviderMessages = (messages) => messages.map((message) => {
   if (message.role === "assistant" && message.tool_calls?.length) {
