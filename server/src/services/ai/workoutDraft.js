@@ -208,19 +208,23 @@ export const buildBoundedWorkoutDraft = (message) => {
   }));
   const lines = [
     `Đây là khung tham khảo cho người mới, không phải đơn tập cá nhân; mỗi buổi ${prescription.lower}–${prescription.upper} phút, gồm ${prescription.warmup} phút khởi động nhẹ.`,
-    ...sessions.map(({ label, exercises }, index) =>
-      `Buổi ${index + 1} (${label}): ${exercises.map((name, exerciseIndex) =>
-        formatExercise(name, exerciseIndex, prescription)).join("; ")}.`),
-    WEEKLY_SCHEDULES[days],
-    `Tiến độ: ${progressionByEquipment[equipmentProfile]}.`,
+    ...sessions.map(({ label, exercises }, index) => [
+      `### Buổi ${index + 1} (${label})`,
+      exercises.map((name, exerciseIndex) =>
+        `- ${formatExercise(name, exerciseIndex, prescription)}.`).join("\n"),
+    ].join("\n\n")),
+    `### Lịch trong tuần\n\n${WEEKLY_SCHEDULES[days]}`,
+    `### Tiến độ\n\nTiến độ: ${progressionByEquipment[equipmentProfile]}.`,
+    "### Lưu ý an toàn",
     "Dừng bài nếu đau nhói, chóng mặt hoặc triệu chứng tăng; khung này không dùng để tự xử lý chấn thương hay bệnh lý.",
   ];
   if (DELOAD_PATTERN.test(normalized)) {
     const deloadLabel = programWeeks ? `Tuần ${programWeeks} deload` : "Tuần deload";
-    lines.push(`${deloadLabel}, giảm khoảng 30% volume bằng cách bớt 1 hiệp ở phần lớn bài và giữ RPE 5–6.`);
+    lines.push("### Giảm tải",
+      `${deloadLabel}, giảm khoảng 30% volume bằng cách bớt 1 hiệp ở phần lớn bài và giữ RPE 5–6.`);
   }
 
-  const draft = lines.join("\n");
+  const draft = lines.join("\n\n");
   if (equipmentProfile === "dumbbellBand" || equipmentProfile === "band") {
     const validation = validateWorkoutEquipmentOutput(message, draft);
     if (!validation.valid) return null;

@@ -7,6 +7,15 @@ const acceptancePrompt =
   "Tạo lịch tập tăng cơ 4 ngày/tuần cho người mới, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực; mỗi buổi tối đa 60 phút, kèm deload.";
 
 describe("bounded workout draft", () => {
+  it("separates each session and exercise into readable Markdown blocks", () => {
+    const draft = buildBoundedWorkoutDraft(acceptancePrompt);
+    const sessions = [...draft.matchAll(/### Buổi \d[^\n]*\n\n((?:- [^\n]+\n?)+)/g)];
+
+    expect(sessions.map((session) => session[1].trim().split("\n").length)).toEqual([4, 4, 4, 4]);
+    expect(draft).toMatch(/\n\n### Tiến độ\n\n/);
+    expect(draft).toMatch(/\n\n### Giảm tải\n\nTuần deload/);
+  });
+
   it("builds a complete four-day beginner draft within the stated equipment", () => {
     const draft = buildBoundedWorkoutDraft(acceptancePrompt);
 
@@ -32,7 +41,7 @@ describe("bounded workout draft", () => {
     const draft = buildBoundedWorkoutDraft(
       "Tạo lịch 2 ngày mỗi tuần cho người mới, chỉ có tạ đơn, tối đa 30 phút mỗi buổi.",
     );
-    const firstSession = draft.split("\n").find((line) => line.startsWith("Buổi 1"));
+    const firstSession = draft.split("### Buổi 1")[1].split("### Buổi 2")[0];
 
     expect({
       estimate: draft.match(/mỗi buổi (\d+)[–-](\d+) phút/)?.slice(1),
@@ -47,7 +56,7 @@ describe("bounded workout draft", () => {
 
   it("keeps four exercises and three sets when the cap is 60 minutes", () => {
     const draft = buildBoundedWorkoutDraft(acceptancePrompt);
-    const firstSession = draft.split("\n").find((line) => line.startsWith("Buổi 1"));
+    const firstSession = draft.split("### Buổi 1")[1].split("### Buổi 2")[0];
 
     expect({
       exerciseCount: (firstSession.match(/hiệp/g) || []).length,

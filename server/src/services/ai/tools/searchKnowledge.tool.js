@@ -14,6 +14,7 @@ import {
 } from "../../../observability/providerUsageMetrics.js";
 import { safeLog } from "../../../utils/safeLogger.js";
 import { isDeepseekStagingTrial } from "../../../config/deepseekTrial.js";
+import { braveSearchKnowledge } from "./braveSearch.adapter.js";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const DEFAULT_SEARCH_MODEL = "gemini-2.5-flash";
@@ -257,6 +258,9 @@ const buildGroundedEvidence = (candidate, candidateText, query) => {
  */
 export async function searchKnowledge({ query }, context = {}) {
   if (isDeepseekStagingTrial()) {
+    if (process.env.AI_WEB_SEARCH_PROVIDER === "brave") {
+      return braveSearchKnowledge({ query }, context);
+    }
     return unavailableEvidence(
       "Trong đợt thử DeepSeek, tra cứu web trực tiếp chưa được hỗ trợ; mình không muốn đưa nguồn cũ hoặc nguồn chưa xác minh vào câu trả lời.",
       "not_called",

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { replaceAiMealItem } from "../../../services/ai.service";
+import MealFoodList from "./MealFoodList";
 import {
   getReconciledMealData,
   resolveMealReplacementAttempt,
@@ -198,11 +199,6 @@ export default function MealSuggestionCard({
         <CardList>
           {meals.map((meal, index) => {
             const mealTotals = getMealTotals(meal);
-            const foodSummary = (meal.foods || [])
-              .map((food) =>
-                `${food.name}${food.amountGrams ? ` ${formatNumber(food.amountGrams)}g` : ""}`,
-              )
-              .join(" · ");
 
             return (
               <li
@@ -213,52 +209,24 @@ export default function MealSuggestionCard({
                   {String(index + 1).padStart(2, "0")}
                 </IndexBadge>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium leading-5 text-slate-900 dark:text-zinc-100">
+                  <h4 className="text-sm font-medium leading-5 text-slate-900 dark:text-zinc-100">
                     {meal.label || `Bữa ${index + 1}`}
+                  </h4>
+                  <MealFoodList
+                    meal={meal}
+                    mealIndex={index}
+                    selection={selection}
+                    canReplace={canReplace}
+                    disabled={disabled || isReplacing}
+                    onSelect={setSelection}
+                  />
+                  <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-cyan-700 dark:text-cyan-300">
+                    <span>{formatNumber(mealTotals.calories)} kcal</span>
+                    {Number.isFinite(Number(mealTotals.protein)) && (
+                      <span>{formatNumber(mealTotals.protein)}g protein</span>
+                    )}
                   </p>
-                  {canReplace ? (
-                    <div className="mt-2 flex flex-wrap gap-1.5" aria-label={`Chọn món trong ${meal.label || `bữa ${index + 1}`}`} role="group">
-                      {(meal.foods || []).map((food, foodIndex) => {
-                        const selected =
-                          selection.mealIndex === index &&
-                          selection.foodIndex === foodIndex;
-                        return (
-                          <button
-                            aria-pressed={selected}
-                            className={`min-h-11 rounded-xl border px-2.5 py-2 text-left text-xs leading-4 transition-[border-color,color,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none ${
-                              selected
-                                ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200"
-                                : "border-slate-200 text-slate-600 hover:border-emerald-500 dark:border-white/10 dark:text-zinc-300 dark:hover:border-emerald-400"
-                            }`}
-                            disabled={disabled || isReplacing}
-                            key={`${food.foodId || food.name}-${foodIndex}`}
-                            onClick={() => setSelection({ mealIndex: index, foodIndex })}
-                            type="button"
-                          >
-                            <span className="font-medium">{food.name}</span>
-                            {food.amountGrams ? (
-                              <span className="ml-1 text-slate-500 dark:text-zinc-400">
-                                {formatNumber(food.amountGrams)}g
-                              </span>
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="mt-1 text-pretty text-xs leading-5 text-slate-500 dark:text-zinc-400">
-                      {foodSummary}
-                    </p>
-                  )}
                 </div>
-                <span className="shrink-0 text-right text-[13px] font-medium text-cyan-700 dark:text-cyan-300">
-                  {formatNumber(mealTotals.calories)} kcal
-                  {Number.isFinite(Number(mealTotals.protein)) && (
-                    <small className="mt-1 block text-xs font-normal text-slate-500 dark:text-zinc-400">
-                      {formatNumber(mealTotals.protein)}g protein
-                    </small>
-                  )}
-                </span>
               </li>
             );
           })}

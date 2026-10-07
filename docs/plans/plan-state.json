@@ -3,6 +3,18 @@
   "legacyCutoff": "076",
   "plans": [
     {
+      "id": "096",
+      "title": "Certify Vibi with grounded evidence",
+      "path": "docs/plans/096-certify-vibi-with-grounded-evidence.md",
+      "priority": "P1",
+      "complexity": "complex",
+      "lifecycle": "in_progress",
+      "verification": "none",
+      "rollout": "not_started",
+      "owner": "01a11481-8519-7f43-a42e-d89e59b6f411",
+      "updatedAt": "2026-10-07"
+    },
+    {
       "id": "095",
       "title": "Integrate DeepSeek staging trial",
       "path": "docs/plans/095-integrate-deepseek-staging-trial.md",
