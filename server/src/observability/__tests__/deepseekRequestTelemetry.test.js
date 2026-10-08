@@ -17,6 +17,7 @@ describe("DeepSeek request telemetry", () => {
       surface: "web_grounding", model: "deepseek-v4.1-flash", success: true,
       durationMs: expect.any(Number), ttftMs: 10, promptTokens: 21, outputTokens: 8,
       totalTokens: 29, toolCount: 1, retryCount: 0, providerErrorCode: null, httpStatus: null,
+      headersMs: null, firstByteMs: null, receivedBytes: 0, requestBytes: 0, reasoningObserved: false,
     });
     expect(JSON.stringify(logs.info.mock.calls)).not.toContain("private");
   });
@@ -32,5 +33,23 @@ describe("DeepSeek request telemetry", () => {
     expect(logs.info.mock.calls[1][1]).toMatchObject({
       surface: "unknown", model: "unknown", providerErrorCode: "DEEPSEEK_REQUEST_FAILED", totalTokens: 0,
     });
+  });
+  it("bounds transport timing and byte counts without accepting untrusted metadata", () => {
+    const start = performance.now() - 30;
+    recordDeepseekTelemetry({ surface: "chat", model: "deepseek-flash", startedAt: start,
+      firstTokenAt: null, headersAt: start + 4, firstByteAt: start + 8,
+      requestBytes: 1024, receivedBytes: 2_000_000, reasoningObserved: true, status: 200 });
+    expect(logs.info.mock.calls[0][1]).toMatchObject({
+      headersMs: 4, firstByteMs: 8, requestBytes: 1024, receivedBytes: 1_048_576,
+      reasoningObserved: true, httpStatus: 200, ttftMs: null,
+    });
+    recordDeepseekTelemetry({ startedAt: start, firstTokenAt: null,
+      headersAt: Infinity, firstByteAt: start - 1, requestBytes: 131073,
+      receivedBytes: NaN, reasoningObserved: "private" });
+    expect(logs.info.mock.calls[1][1]).toMatchObject({
+      headersMs: null, firstByteMs: null, requestBytes: 0, receivedBytes: 0,
+      reasoningObserved: false,
+    });
+    expect(JSON.stringify(logs.info.mock.calls)).not.toContain("private");
   });
 });

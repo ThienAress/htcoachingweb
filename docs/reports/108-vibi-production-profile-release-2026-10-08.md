@@ -136,3 +136,34 @@ explicit Gemini image provider; invalid profile/mock image override does not gai
 Focused suites PASS73 recovery tests +65 provider/Meal Scan tests; workflow18 and privacy86.
 AI tool validator, agent governance, secret/data/docs boundary gates PASS. CI/full build/E2E,
 trusted cleanup and release certification are pending; production remains NO-GO.
+
+## Provider deadline diagnosis follow-up — 2026-10-08
+
+Owner requested investigation after repeated chat/KB timeouts and attested8.83 USD
+at74 Vibi requests. A single bounded batch of3 direct public-provider probes used
+staging selectors and synthetic candidates only; no DB writes or deploy changes.
+Short, larger and repeated larger payloads all passed within1.25s, with first
+content1226/977/906ms, valid DONE, no reasoning frames, and10 completion tokens.
+The batch's provider log contains77 key requests; the latest3 consume5910 quota
+units. Current wallet is not asserted from an unlimited API-key quota endpoint.
+These probes are diagnostic evidence; original acceptance failures remain unchanged.
+
+Root cause of intermittent latency remains unconfirmed. A separate telemetry defect
+was reproduced through real localhost HTTP: received HTTP200 was logged as null and
+header/byte timing was unavailable. Regression RED5/5; minimal fix preserves actual
+HTTP status, records bounded header/first-byte/byte-count metadata and reasoning
+presence, and never retains raw request/output/reasoning. It does not change request
+shape, deadlines, provider, retries, API responses or counters.
+
+Local focused suites79 tests/7 files PASS; adjacent selection/retrieval/profile/recovery
+suites54 tests/4 files PASS. These overlap profile/recovery tests; do not sum as unique
+certification. Build/full tests/E2E require exact-SHA trusted CI before staging deploy.
+Production remains NO-GO until live staging acceptance and reliability gates PASS.
+
+Review: Standards PASS; Spec/Contract PASS for bounded operational diagnosis;
+Security/Operations PASS with residual upstream-delay proof gap. Entry point is
+provider HTTP/SSE -> numeric/timestamp/boolean metadata -> safeLog, with no prompt,
+credential or reasoning sink. LLM02 tested for private reasoning exclusion;
+LLM10 deadlines and caller abort tested on real HTTP without retry/fallback.
+No browser UI/SEO/schema/auth/data changes. Independent reviewer was not run in this
+turn; review is the root agent's assessment. External release review remains required.

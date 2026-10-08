@@ -116,6 +116,10 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
   let settled = false;
   const startedAt = performance.now();
   let firstTokenAt = null;
+  let headersAt = null;
+  let firstByteAt = null;
+  let receivedBytes = 0;
+  let reasoningObserved = false;
   let toolCount = 0;
   let usage = {};
   let errorCode = null;
@@ -134,6 +138,8 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
     } catch {
       throw mapAbort(linked.signal, options.signal) || protocolError("DEEPSEEK_NETWORK_ERROR");
     }
+    headersAt = performance.now();
+    status = response.status;
     if (!response.ok) throw protocolError("DEEPSEEK_HTTP_ERROR", response.status);
     if (!response.body) throw protocolError("DEEPSEEK_STREAM_INCOMPLETE");
 
@@ -146,6 +152,10 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
     while (true) {
       let part;
       try { part = await reader.read(); } catch { throw mapAbort(linked.signal, options.signal) || protocolError("DEEPSEEK_STREAM_ERROR"); }
+      if (part.value?.byteLength) {
+        firstByteAt ??= performance.now();
+        receivedBytes += part.value.byteLength;
+      }
       const chunk = part.done ? decoder.decode() : decoder.decode(part.value, { stream: true });
       responseBytes += byteLength(chunk);
       if (responseBytes > RESPONSE_LIMIT) throw protocolError("DEEPSEEK_RESPONSE_LIMIT");
@@ -163,6 +173,9 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
         if (!choice || typeof choice !== "object" || Array.isArray(choice)) throw protocolError("DEEPSEEK_STREAM_ERROR");
         if (choice.delta !== undefined && (!choice.delta || typeof choice.delta !== "object" || Array.isArray(choice.delta))) {
           throw protocolError("DEEPSEEK_STREAM_ERROR");
+        }
+        if (typeof choice.delta?.reasoning_content === "string" && choice.delta.reasoning_content.length > 0) {
+          reasoningObserved = true;
         }
         if (firstTokenAt === null && (choice.delta?.content || choice.delta?.tool_calls?.length)) {
           firstTokenAt = performance.now();
@@ -191,7 +204,7 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
     if (toolCalls) yield { type: "tool_call", toolCalls };
   } catch (error) {
     errorCode = error?.code;
-    status = error?.status;
+    status = error?.status ?? status;
     throw error;
   } finally {
     await reader?.cancel?.().catch(() => {});
@@ -199,6 +212,7 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
     if (requested && !settled) recordDeepSeekResult(surface, { success: false });
     if (requested) recordDeepseekTelemetry({
       surface, model, success: settled, startedAt, firstTokenAt, toolCount, usage, errorCode, status,
+      headersAt, firstByteAt, receivedBytes, requestBytes: byteLength(payload), reasoningObserved,
     });
   }
 }

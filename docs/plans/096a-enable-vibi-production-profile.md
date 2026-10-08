@@ -135,3 +135,47 @@ Step3A regression RED1/3 -> GREEN102/102 across5 focused acceptance/recovery fil
 including detection of real returned-answer drift. Agent/tool/secret/data-boundary gates PASS.
 Wallet balance after the latest run is not verified; further paid requests remain blocked.
 PR196 is ready for review with no approving reviews; production has not been deployed.
+
+### Step 3B: Diagnose intermittent provider deadlines at the streaming boundary
+
+Complexity COMPLEX. Owner authorized diagnosis/fix on2026-10-08 after repeated Vibi
+chat/KB timeouts. Use clean ee9f05e candidate worktree; no root checkout or production writes.
+Preserve failed acceptance37803285587 and37806911829; both exact-run cleanup proofs are0.
+Owner balance8.83 USD after74 requests authorizes one bounded diagnostic batch of at most3
+provider requests. Never extend provider deadlines, switch provider, retry silently or call
+these probes live acceptance. Keep production NO-GO until canonical gates pass.
+
+H1 upstream latency before usable output: predict late/no HTTP or SSE bytes in a direct
+fixed-endpoint probe with the same public provider function; record timings without content.
+H2 client SSE/parser/abort defect: predict valid timely loopback SSE is lost or a real
+fetch/body stall ignores deadline. Probe the public deepseekLLMStream with real local HTTP
+transport, forwarding only the configured egress boundary; do not mock parser/abort logic.
+H3 prompt volume/cache sensitivity: predict larger synthetic KB candidate context differs
+from a one-candidate control, then compare identical larger payload repeated once.
+H4 gateway ignores thinking-disabled or rewrites protocol: predict reasoning delta frames
+or incompatible frame shape despite the unchanged request thinking disabled. Observe only
+field-presence counts and timing; never retain reasoning/prompt/provider response content.
+
+First observe/measure; patch only a defect proven by a RED-capable public-seam regression.
+Files in scope after proof: deepseek.provider.js, deepseek.protocol.js, bounded provider
+telemetry and their focused tests; this plan/traceability and release incident evidence.
+No auth/quota/DB/catalog/API behavior changes. No speculative broad code edit.
+Verify with local provider transport tests and a bounded direct staging-profile probe
+saved under .local-data/release-resume-20261008; command exits nonzero on invalid JSON,
+wrong refs, deadline failure or observed reasoning. The diagnostic script enforces max3
+calls and writes only metadata. If all probes pass, mark root cause unconfirmed; do not
+claim timeout fixed from a successful sample. Read-only provider log snapshots preserve
+failure/cost evidence. Stop further paid calls when the batch ends pending current balance.
+
+Step3B local diagnosis: direct Vibi batch3/3 PASS, first content1226/977/906ms;
+short control288 prompt tokens, larger context5049 tokens repeated once, no reasoning
+frames, all HTTP200 and valid DONE. These are synthetic diagnostic samples, not
+acceptance or proof of incident resolution. The original timeouts remain FAILED.
+Real local HTTP tests confirmed deadlines/caller-abort and UTF8/SSE parsing behavior;
+telemetry failed5/5 because headers/bytes were absent and received HTTP200 was discarded.
+Minimal operational fix records bounded headersMs/firstByteMs/receivedBytes/requestBytes
+and reasoningObserved, preserves received HTTP status on stream errors, and retains all
+existing provider/deadline/output semantics. RED5/5 -> GREEN7/7, then expanded focused
+suites79/79. Broader related checks and exact-SHA staging rollout are pending.
+No raw prompt/response/reasoning retained; logging risk LLM02 covered by privacy regression.
+LLM10 consumption bounds unchanged and timeout/cancellation covered with real transport.
