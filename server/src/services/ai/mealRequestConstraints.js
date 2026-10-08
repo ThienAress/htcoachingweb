@@ -463,6 +463,12 @@ export const buildCanonicalMealToolRequest = (
 
   return {
     args,
+    validationMessage: requestedCalories.found && requestedCalories.value === null
+      ? `Công cụ hiện hỗ trợ mục tiêu từ ${minimumCalories} đến 6000 kcal ${
+        calorieScope === "per_meal" ? "cho một bữa" : "mỗi ngày"
+      }. Mục tiêu bạn nêu nằm ngoài giới hạn này nên tôi chưa thể tạo thực đơn có tổng được kiểm chứng. ` +
+        "Bạn có muốn chọn mục tiêu trong khoảng hỗ trợ không?"
+      : null,
     previousMealPlan: previous.plan || null,
     scopedAdjustment: scope.scopedAdjustment,
     scopedSubstitution: resolveScopedMealSubstitution(message, previous.plan),

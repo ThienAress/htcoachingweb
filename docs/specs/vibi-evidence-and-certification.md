@@ -2,7 +2,8 @@
 
 User duyệt triển khai bảy bước ngày 2026-10-07. Chat giữ Vibi
 `deepseek-v4.1-flash`; không chuyển về Gemini. Staging được test bằng tiền thật,
-dừng trước request mới khi wallet còn tối đa $3. Production chưa được duyệt.
+dừng trước request mới khi wallet còn tối đa $3. Owner duyệt release production ngày 2026-10-08 và chọn Vibi + Brave.
+Profile production được triển khai riêng theo Plan096A; staging isolation vẫn giữ nguyên.
 
 ## Contract dùng chung
 
@@ -46,7 +47,7 @@ Không phát paid search trước khi key/capability được kiểm chứng.
 - TALK01 giữ `normalizeCompletedToolHistory` trước `validateHistory`.
 - Certification: 15 prompt canonical mới, cùng model/SHA/rubric; follow-up giữ đúng
   parent mới trong run. Không reuse case, không thay prompt lỗi bằng prompt dễ hơn.
-- Release GO chỉ khi exact-15 15/15, TALK01 paid PASS, CI 5/5 cùng SHA, health PASS,
+- Release GO theo owner acceptance 15/15 PASS_WITH_NOTE và TALK01 history protocol PASS (notes bên dưới), CI 5/5 cùng SHA, health PASS,
   deploy đúng SHA và không có safety blocker. Thiếu evidence nghĩa là NO-GO.
 
 ## Ownership
@@ -69,3 +70,15 @@ Catalog worker: audit evidence và patch preparation trong `docs/audits/` và
 - AC-005: TALK01 mới có 3–5 completed tool groups qua nhiều request, không history rejection.
 - AC-006: Exact-15 mới có binding prompt/conversation/time/model/SHA và grading riêng.
 - AC-007: Metrics và gate có test; report không suy PASS từ evidence cũ.
+
+## Owner acceptance and production extension — 2026-10-08
+
+Owner accepts the fresh corpus as 15/15 PASS_WITH_NOTE (14 original prompts plus the approved case5 replacement).
+Case10 original rubric failure and raw/manual evidence remain unchanged; this is owner acceptance, not machine exact-15 certification.
+UI is owner-inspected PASS. TALK01 proves history protocol with three completed paired tool groups,
+two successful meals and one validation failure, including forked history. Billing remains unverified.
+Production requires explicit AI_PRODUCTION_PROVIDER_PROFILE=vibi, APP_ENV/NODE_ENV=production,
+exact gym-app database, configured HTTPS production origins, fixed Vibi model/endpoint,
+Brave provider and credentials, and no staging trial flag. Gemini credentials remain for other consumers.
+Unsupported 450 kcal breakfast returns an explanation before model/tool execution; nutritional bounds stay unchanged.
+Trusted CI, staging acceptance, recovery, cleanup, rollback and production observation remain required.

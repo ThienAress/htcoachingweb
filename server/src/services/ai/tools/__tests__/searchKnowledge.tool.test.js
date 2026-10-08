@@ -17,6 +17,16 @@ afterEach(() => {
 });
 
 describe("Google grounding source boundary", () => {
+  it("rejects an incomplete production opt-in before Gemini or Brave egress", async () => {
+    vi.stubEnv("AI_PROVIDER", "gemini");
+    vi.stubEnv("APP_ENV", "production");
+    vi.stubEnv("AI_PRODUCTION_PROVIDER_PROFILE", "vibi");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(searchKnowledge({ query: "latest sports news" }))
+      .rejects.toMatchObject({ code: "DEEPSEEK_PRODUCTION_CONFIG_INVALID" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("fails closed for web search during the DeepSeek trial without egress", async () => {
     const env = {
       [ ["DEEP", "SEEK", "_API_KEY"].join("") ]: "d".repeat(32),

@@ -13,7 +13,7 @@ import {
   recordGeminiSearchGroundingDisposition,
 } from "../../../observability/providerUsageMetrics.js";
 import { safeLog } from "../../../utils/safeLogger.js";
-import { isDeepseekStagingTrial } from "../../../config/deepseekTrial.js";
+import { assertDeepseekProfile } from "../../../config/deepseekProfile.js";
 import { braveSearchKnowledge } from "./braveSearch.adapter.js";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
@@ -257,7 +257,7 @@ const buildGroundedEvidence = (candidate, candidateText, query) => {
  * @returns {{ text: string, uiCard: object|null, meta: { evidenceAvailable: boolean, sourceCount: number, sources: Array<{title: string, uri: string}> } }}
  */
 export async function searchKnowledge({ query }, context = {}) {
-  if (isDeepseekStagingTrial()) {
+  if (assertDeepseekProfile().active) {
     if (process.env.AI_WEB_SEARCH_PROVIDER === "brave") {
       return braveSearchKnowledge({ query }, context);
     }

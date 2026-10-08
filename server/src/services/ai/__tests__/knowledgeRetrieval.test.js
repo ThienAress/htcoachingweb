@@ -26,6 +26,22 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("assistant retrieval facade", () => {
+  it("uses bounded selection in the explicit production profile with no vector fallback", async () => {
+    configureTrial();
+    const env = {
+      NODE_ENV: "production", APP_ENV: "production", AI_STAGING_PROVIDER_TRIAL: "",
+      AI_PRODUCTION_PROVIDER_PROFILE: "vibi", DEEPSEEK_ENDPOINT_PROFILE: "vibi",
+      DEEPSEEK_MODEL: "deepseek-v4.1-flash", MONGO_URI: "mongodb+srv://cluster.example/gym-app",
+      CLIENT_URL: "https://app.example.com", PUBLIC_API_ORIGIN: "https://api.example.com",
+      ALLOWED_ORIGINS: "https://app.example.com", AI_WEB_SEARCH_PROVIDER: "brave",
+      BRAVE_SEARCH_API_KEY: "synthetic-" + "b".repeat(32),
+    };
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    const result = { results: [], retrieval: { method: "llm_selection" } };
+    selection.mockResolvedValue(result);
+    expect(await searchAssistantKnowledgeBase("Protein?")).toEqual(result);
+    expect(vector).not.toHaveBeenCalled();
+  });
   it("preserves vector options and results outside the trial", async () => {
     const results = [{ question: "Protein?", similarity: 0.8 }]; vector.mockResolvedValue(results);
     const options = { limit: 3, threshold: 0.75 };

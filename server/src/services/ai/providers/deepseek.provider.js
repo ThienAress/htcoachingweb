@@ -3,7 +3,7 @@ import {
   recordDeepSeekResult,
 } from "../../../observability/providerUsageMetrics.js";
 import { resolveDeepseekEndpoint } from "../../../config/deepseekEndpoint.js";
-import { isDeepseekStagingTrial } from "../../../config/deepseekTrial.js";
+import { isDeepseekProfileActive } from "../../../config/deepseekProfile.js";
 import { recordDeepseekTelemetry } from "../../../observability/deepseekRequestTelemetry.js";
 import {
   byteLength,
@@ -88,7 +88,7 @@ export async function* deepseekLLMStream(messages, tools = [], options = {}) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw protocolError("DEEPSEEK_CONFIG_UNAVAILABLE");
   const endpoint = resolveDeepseekEndpoint();
-  if (!endpoint || (endpoint.profile === "vibi" && !isDeepseekStagingTrial())) {
+  if (!endpoint || (endpoint.profile === "vibi" && !isDeepseekProfileActive())) {
     throw protocolError("DEEPSEEK_CONFIG_INVALID");
   }
   const model = endpoint.model;

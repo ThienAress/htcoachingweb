@@ -5,7 +5,7 @@ import { parseSePayCutoverAt } from "./sepay.js";
 import { getMorningHealthReminderMode } from "./backgroundJobs.js";
 import { isTodayPlatformEnabled } from "./todayPlatform.js";
 import { evaluateCloudinaryBackupPolicy } from "./cloudinaryBackupPolicy.js";
-import { validateDeepseekTrialEnvironment } from "./deepseekTrial.js";
+import { validateDeepseekProfile } from "./deepseekProfile.js";
 
 const PLACEHOLDER_PATTERN =
   /(change[-_ ]?me|replace[-_ ]?me|placeholder|example|your[-_ ]|test[-_ ]secret|local[-_ ]secret)/i;
@@ -385,17 +385,20 @@ export const validateProductionEnvironment = (
     strictOnly: !strict,
   });
 
-  const deepseekTrial = validateDeepseekTrialEnvironment(env);
-  findings.errors.push(...deepseekTrial.errors);
-  if (!deepseekTrial.active && String(env.AI_PROVIDER || "").toLowerCase() !== "gemini") {
+  const deepseekProfile = validateDeepseekProfile(env);
+  findings.errors.push(...deepseekProfile.errors);
+  if (!deepseekProfile.active && String(env.AI_PROVIDER || "").toLowerCase() !== "gemini") {
     addFinding(
       findings,
       "errors",
       "AI_PROVIDER_NOT_PRODUCTION",
-      "AI_PROVIDER must equal gemini for the production profile.",
+      "AI_PROVIDER requires Gemini or the explicit validated Vibi profile.",
     );
   }
-  if (deepseekTrial.active) validateSecret(env, findings, "DEEPSEEK_API_KEY", { minimum: 20 });
+  if (deepseekProfile.active) validateSecret(env, findings, "DEEPSEEK_API_KEY", { minimum: 20 });
+  if (deepseekProfile.active && deepseekProfile.profile === "production") {
+    validateSecret(env, findings, "BRAVE_SEARCH_API_KEY", { minimum: 20 });
+  }
   validateSecret(env, findings, "GEMINI_API_KEY", { minimum: 20 });
   const geminiSearchModel = String(
     env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash",
@@ -686,8 +689,9 @@ export const validateProductionEnvironment = (
     errors: findings.errors,
     warnings: findings.warnings,
     summary: {
-      assistantProvider: deepseekTrial.active ? "deepseek" : String(env.AI_PROVIDER || "").toLowerCase(),
-      deepseekStagingTrial: deepseekTrial.active,
+      assistantProvider: deepseekProfile.active ? "deepseek" : String(env.AI_PROVIDER || "").toLowerCase(),
+      deepseekStagingTrial: deepseekProfile.active && deepseekProfile.profile === "staging",
+      deepseekProductionProfile: deepseekProfile.active && deepseekProfile.profile === "production",
       allowedOriginCount: allowedOrigins.length,
       hasExplicitTrustProxy: Boolean(String(env.TRUST_PROXY_HOPS || "").trim()),
       authCutoverMaintenanceEnabled: isAuthCutoverMaintenanceEnabled(env),

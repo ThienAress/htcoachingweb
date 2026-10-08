@@ -49,6 +49,17 @@ afterEach(async () => { toolRegistry.suggest_meal.execute = originalMeal; vi.cle
 afterAll(async () => { await teardownTestDB(); });
 
 describe("canonical remediation at the chat route", () => {
+  it("explains an unsupported breakfast target without executing model or meal tool", async () => {
+    const { accessToken } = await createTestUser();
+    const response = await submit(accessToken,
+      "Gợi ý một bữa sáng khoảng 450 kcal và ít nhất 30g protein, không dùng trứng; ghi món và grams.");
+    expect(response.status).toBe(200);
+    const content = events(response).filter((event) => event.type === "text").map((event) => event.content).join("");
+    expect(content).toContain("500");
+    expect(mealCard(response)).toBeUndefined();
+    expect(llmMock).not.toHaveBeenCalled();
+    expect(toolRegistry.suggest_meal.execute).not.toHaveBeenCalled();
+  });
   it("serves the 600 kcal excluded-chicken case as one server-calculated meal", async () => {
     const { accessToken } = await createTestUser();
     const response = await submit(accessToken, "Tạo một bữa ăn khoảng 600 kcal món Việt, không ăn thịt gà; hãy thay bằng nguồn đạm khác và ghi rõ từng món, grams, tổng kcal và protein.");
