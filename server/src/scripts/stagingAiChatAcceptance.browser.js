@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { waitForBrowserCheckpoint } from "./stagingAiChatAcceptance.browserCheckpoint.js";
 
 const assert = (condition, message, code = "STAGING_AI_BROWSER_ASSERTION_FAILED") => {
   if (!condition) {
@@ -210,7 +211,8 @@ export const runBrowserAcceptance = async ({
 
     await send(page, fixture.question);
     const citation = page.locator(`a[href="${sourceUrl}"]`).last();
-    await citation.waitFor({ state: "visible", timeout: 90_000 });
+    await waitForBrowserCheckpoint(citation, { state: "visible", timeout: 90_000 },
+      "STAGING_AI_INITIAL_CITATION_NOT_VISIBLE");
     const captureUiEvidence = async (expectedQuestion, cursor = 0) => {
       const questionDigest = crypto.createHash("sha256").update(expectedQuestion).digest("hex");
       const deadline = Date.now() + 10_000;
@@ -225,11 +227,10 @@ export const runBrowserAcceptance = async ({
       const renderedMessage = page.locator(
         `[data-message-id="${reconciled.assistantId}"] .markdown-body`,
       );
-      await renderedMessage.waitFor({ state: "visible", timeout: 10_000 });
-      await renderedMessage.locator(`a[href="${sourceUrl}"]`).waitFor({
-        state: "visible",
-        timeout: 10_000,
-      });
+      await waitForBrowserCheckpoint(renderedMessage, { state: "visible", timeout: 10_000 },
+        "STAGING_AI_PERSISTED_MESSAGE_NOT_VISIBLE");
+      await waitForBrowserCheckpoint(renderedMessage.locator(`a[href="${sourceUrl}"]`),
+        { state: "visible", timeout: 10_000 }, "STAGING_AI_PERSISTED_CITATION_NOT_VISIBLE");
       uiAssistantEvidence.push({
         ...reconciled,
         renderedMessageId: reconciled.assistantId,

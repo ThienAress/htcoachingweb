@@ -1,7 +1,13 @@
 const SOURCE_URL = "https://example.com/reference";
 const COMPLETE = "Synthetic answer with citation and final streamed suffix.";
 
-export const reconciliationBrowserFixture = ({ initiallyComplete = false, changedOnReturn = false } = {}) => {
+export const reconciliationBrowserFixture = ({
+  initiallyComplete = false, changedOnReturn = false, failedWaitPhase = null,
+} = {}) => {
+  const failWait = async phase => {
+    if (failedWaitPhase !== phase) return;
+    throw Object.assign(new Error("Synthetic locator contains private diagnostic text"), { name: "TimeoutError" });
+  };
   const handlers = new Map();
   let routeHandler;
   let question;
@@ -22,11 +28,14 @@ export const reconciliationBrowserFixture = ({ initiallyComplete = false, change
   };
   const citation = {
     last: () => citation,
-    waitFor: async () => {},
+    waitFor: async () => failWait("persisted_citation"),
     getAttribute: async () => SOURCE_URL,
   };
   const persisted = {
-    waitFor: async () => { reconciled = true; },
+    waitFor: async () => {
+      await failWait("persisted_message");
+      reconciled = true;
+    },
     locator: () => citation,
     innerText: async () => bodyText(),
   };
@@ -69,7 +78,7 @@ export const reconciliationBrowserFixture = ({ initiallyComplete = false, change
     locator: (selector) => {
       if (selector === ".markdown-body") return body;
       if (selector.startsWith("[data-message-id=")) return persisted;
-      return citation;
+      return { ...citation, last: () => ({ ...citation, waitFor: () => failWait("first_citation") }) };
     },
   };
   const context = {

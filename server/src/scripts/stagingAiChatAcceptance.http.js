@@ -134,8 +134,10 @@ export const knowledgeFixtureQueries = (marker) => {
   const label = [...suffix].map((hex) => alphabet[Number.parseInt(hex, 16)]).join("");
   return {
     label,
-    question: `Tập luyện thể lực mỗi tuần bao nhiêu phút để khỏe mạnh? Nhãn ${label}.`,
-    variant: `Theo nhãn ${label}, người trưởng thành nên tập thể dục bao lâu mỗi tuần?`,
+    question: `Tập luyện thể lực mỗi tuần bao nhiêu phút để khỏe mạnh? Nhãn ${label}. ` +
+      "Hãy nêu khuyến nghị WHO.",
+    variant: `Theo nhãn ${label}, người trưởng thành nên tập thể dục bao lâu mỗi tuần? ` +
+      "Hãy nêu khuyến nghị WHO.",
   };
 };
 
