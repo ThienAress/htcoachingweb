@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "planId": "096B",
+  "specPath": "docs/specs/staging-kb-timeout-recovery.md",
+  "planPath": "docs/plans/096b-recover-completed-kb-timeout.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Terminal read-only KB failure", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Historical operator recovery proof", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Trusted recovery and release continuation", "planStep": "Step 3" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        { "id": "AC-001", "mustHave": true, "taskIds": ["TASK-001"], "verifications": [
+          { "type": "command", "command": "cd server && npx vitest run src/controllers/__tests__/stagingKbTerminalFailure.integration.test.js" }
+        ] }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        { "id": "AC-002", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [
+          { "type": "command", "command": "cd server && npx vitest run src/scripts/__tests__/stagingKbFailureProof.test.js" }
+        ] },
+        { "id": "AC-003", "mustHave": true, "taskIds": ["TASK-002"], "verifications": [
+          { "type": "command", "command": "cd server && npx vitest run src/scripts/__tests__/stagingKbFailureRecovery.integration.test.js" }
+        ] },
+        { "id": "AC-004", "mustHave": true, "taskIds": ["TASK-003"], "verifications": [
+          { "type": "command", "command": "trusted staging-security recovery workflow: immutable proof archive and verified residue zero" }
+        ] }
+      ]
+    }
+  ]
+}

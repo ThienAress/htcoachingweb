@@ -1,3 +1,5 @@
+import { validateDeepseekProductionEnvironment } from "./deepseekProduction.js";
+
 const normalized = (value) => String(value || "").trim().toLowerCase();
 
 export const isStagingMealScanMock = (env = process.env) =>
@@ -13,6 +15,8 @@ export const isProductionMealScanDisabled = (env = process.env) =>
 export const resolveMealScanProvider = (env = process.env) => {
   if (isStagingMealScanMock(env)) return "mock";
   if (isProductionMealScanDisabled(env)) return "disabled";
+  if (normalized(env.MEAL_SCAN_PROVIDER) === "gemini" &&
+      validateDeepseekProductionEnvironment(env).active) return "gemini";
   if (env.NODE_ENV === "production") return normalized(env.AI_PROVIDER);
   return normalized(env.MEAL_SCAN_PROVIDER) || "mock";
 };

@@ -18,12 +18,15 @@ import {
   repairPendingFixtureCreateJournal,
 } from "./stagingAiChatAcceptance.fixture.js";
 import { validateFixtureRejectionEvidence } from "./stagingAiChatAcceptance.rejectionEvidence.js";
+import { deleteArchivedKbFailure } from "./stagingAiChatAcceptance.kbFailureRecovery.js";
+import { kbFailureProofDigest } from "./stagingAiChatAcceptance.kbFailure.js";
 
 const SHA = /^[a-f0-9]{40}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const INTENT_KEYS = ["schemaVersion", "kind", "releaseSha", "runId", "marker", "createdAt"];
 const REPORT_KEYS = ["schemaVersion", "kind", "releaseSha", "runId", "recoveredReceiptCount", "alreadyClean", "residue", "verified"];
 const REPORT_V2_KEYS = [...REPORT_KEYS, "fixtureRejectionProof"];
+const REPORT_V3_KEYS = [...REPORT_V2_KEYS, "kbFailureProof"];
 const FIXTURE_REJECTION_PROOF_KEYS = ["proofMethod", "evidenceDigest"];
 const RECEIPT_PURPOSES = new Map([
   ["live_kb_provider", ["ai_chat", "observe_only"]],
@@ -109,21 +112,27 @@ const validFixtureRejectionProof = (value) => value === null || (
 );
 const validateRecoveryReport = (value, expected) => {
   const isV1 = value?.schemaVersion === 1;
-  const reportKeys = isV1 ? REPORT_KEYS : REPORT_V2_KEYS;
+  const reportKeys = isV1 ? REPORT_KEYS : value?.schemaVersion === 3 ? REPORT_V3_KEYS : REPORT_V2_KEYS;
   if (!value || typeof value !== "object" || Array.isArray(value) ||
       Object.keys(value).length !== reportKeys.length ||
       Object.keys(value).some((key) => !reportKeys.includes(key)) ||
-      ![1, 2].includes(value.schemaVersion) || value.kind !== "staging-ai-chat-recovery-report" ||
+      ![1, 2, 3].includes(value.schemaVersion) || value.kind !== "staging-ai-chat-recovery-report" ||
       value.releaseSha !== expected.releaseSha || value.runId !== expected.runId ||
       !Number.isSafeInteger(value.recoveredReceiptCount) || value.recoveredReceiptCount < 0 ||
       typeof value.alreadyClean !== "boolean" || value.residue !== 0 || value.verified !== true ||
-      (!isV1 && !validFixtureRejectionProof(value.fixtureRejectionProof))) {
+      (!isV1 && !validFixtureRejectionProof(value.fixtureRejectionProof)) ||
+      (value.schemaVersion === 3 && (!value.kbFailureProof ||
+        Object.keys(value.kbFailureProof).length !== 3 ||
+        value.kbFailureProof.proofMethod !== "operator_attested_render_completed_readonly_kb" ||
+        !/^[a-f0-9]{64}$/.test(value.kbFailureProof.evidenceDigest || "") ||
+        !Number.isSafeInteger(value.kbFailureProof.artifactId) || value.kbFailureProof.artifactId < 1))) {
     throw fail("STAGING_AI_RECOVERY_REPORT_INVALID", "Existing recovery report is not valid for this exact run");
   }
   return value;
 };
-const safeReport = ({ intent, report, recoveredReceipts, alreadyClean, fixtureRejectionEvidence, priorVerifiedReport }) => ({
-  schemaVersion: 2,
+const safeReport = ({ intent, report, recoveredReceipts, alreadyClean, fixtureRejectionEvidence,
+  priorVerifiedReport, kbFailureProof }) => ({
+  schemaVersion: kbFailureProof || priorVerifiedReport?.schemaVersion === 3 ? 3 : 2,
   kind: "staging-ai-chat-recovery-report",
   releaseSha: intent.releaseSha,
   runId: intent.runId,
@@ -131,9 +140,11 @@ const safeReport = ({ intent, report, recoveredReceipts, alreadyClean, fixtureRe
   alreadyClean,
   residue: report.residue,
   verified: report.residue === 0,
-  fixtureRejectionProof: priorVerifiedReport?.schemaVersion === 2
+  fixtureRejectionProof: priorVerifiedReport?.schemaVersion >= 2
     ? priorVerifiedReport.fixtureRejectionProof
     : fixtureRejectionProof(fixtureRejectionEvidence),
+  ...(kbFailureProof || priorVerifiedReport?.schemaVersion === 3
+    ? { kbFailureProof: kbFailureProof || priorVerifiedReport.kbFailureProof } : {}),
 });
 
 export const recoverStagingAiChatAcceptance = async ({
@@ -143,6 +154,8 @@ export const recoverStagingAiChatAcceptance = async ({
   capability,
   priorVerifiedReport,
   fixtureRejectionEvidence,
+  kbFailureEvidence,
+  kbFailureArchive,
   cleanupOptions = {},
   recoveryQuiescenceMs = DEFAULT_RECOVERY_QUIESCENCE_MS,
   postCleanupQuiescenceMs = DEFAULT_POST_CLEANUP_QUIESCENCE_MS,
@@ -279,6 +292,13 @@ export const recoverStagingAiChatAcceptance = async ({
   };
 
   const initial = await inventory();
+  let kbFailureProof = null;
+  if (kbFailureEvidence) {
+    const deletion = await deleteArchivedKbFailure({ db, intent, evidence: kbFailureEvidence,
+      archive: kbFailureArchive, env });
+    kbFailureProof = { proofMethod: "operator_attested_render_completed_readonly_kb",
+      evidenceDigest: kbFailureProofDigest(kbFailureEvidence), artifactId: deletion.artifactId };
+  }
   const alreadyClean = initial.receipts.length === 0 && initial.users.length === 0 &&
     initial.knowledge.length === 0;
   await exact.cleanup();
@@ -305,6 +325,7 @@ export const recoverStagingAiChatAcceptance = async ({
     alreadyClean,
     fixtureRejectionEvidence: attestedFixtureRejectionEvidence,
     priorVerifiedReport,
+    kbFailureProof,
   });
 };
 
@@ -358,6 +379,12 @@ export const runRecoveryCli = async ({ env = process.env } = {}) => {
   try {
     const capability = await import("../services/ai/stagingAiAcceptance.service.js");
     let fixtureRejectionEvidence;
+    let kbFailureEvidence;
+    let kbFailureArchive;
+    if (env.STAGING_AI_KB_FAILURE_EVIDENCE) {
+      kbFailureEvidence = JSON.parse(await fs.readFile(path.resolve(env.STAGING_AI_KB_FAILURE_EVIDENCE), "utf8"));
+      kbFailureArchive = JSON.parse(await fs.readFile(path.resolve(env.STAGING_AI_KB_FAILURE_ARCHIVE), "utf8"));
+    }
     if (env.STAGING_AI_FIXTURE_REJECTION_EVIDENCE) {
       try {
         fixtureRejectionEvidence = JSON.parse(await fs.readFile(
@@ -374,6 +401,8 @@ export const runRecoveryCli = async ({ env = process.env } = {}) => {
       capability,
       priorVerifiedReport,
       fixtureRejectionEvidence,
+      kbFailureEvidence,
+      kbFailureArchive,
     });
     const persistedReport = await writeRecoveryReport(env.STAGING_AI_ACCEPTANCE_RECOVERY_REPORT_OUTPUT, report);
     process.stdout.write(`${JSON.stringify(persistedReport)}\n`);

@@ -282,3 +282,22 @@ build pre-082 chỉ vì ID đó có trong release candidate.
 Atlas PITR/continuous recovery, paid monitoring, canary, Kubernetes và container
 registry promotion chưa thuộc workflow này. `continuousRecoveryAvailable=false`
 phải tiếp tục được báo là warning trung thực.
+
+## Recover the registered completed KB timeout
+
+Owner approval2026-10-08 covers only acceptance37758558812 and the closed tuple in
+`docs/specs/staging-kb-timeout-recovery.md`. Dispatch `staging-security.yml` from
+staging with operation `recover-ai-residue`, recovery_acceptance_run_id37758558812,
+recovery_release_sha88b5d3078ca6abadcead29e079bd6a677f1aae09,
+recovery_kb_failure_request_id9d43dd56-557f-4eb1-98c0-426f77730cd0, and the existing
+exact recovery confirmation. Keep fixture_request_id empty for this incident.
+
+The trusted workflow reads the failed artifact, Render identity and all relevant
+completion events, then builds the closed proof from a read-only receipt projection.
+It uploads an immutable proof artifact and downloads it again before validating
+artifact ID/run/SHA and content digest. Only then may exact CAS remove the expired
+admitted read-only receipt. Canonical cleanup reports schema3 with proof digest and
+archive ID; schema1/2 recovery reports remain supported. Missing/malformed proof,
+archive or CAS conflict blocks cleanup. An interrupted removal without a verified
+recovery report remains a blocker; do not infer proof from empty receipt inventory.
+Do not retry live acceptance until the recovery report verifies residue0.

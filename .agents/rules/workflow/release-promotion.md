@@ -56,3 +56,14 @@ phải link về hai nguồn này, không tự định nghĩa contract khác.
   staging evidence thì `NO-GO FOR PRODUCTION`, dù local QA xanh.
 - Sau production: chỉ `KEEP` khi post-deploy gate pass; nếu monitor fail hoặc
   threshold breach thì theo rollback runbook.
+
+## Approved completed KB failure recovery (Plan096B)
+
+For acceptance37758558812 only, the owner approved operator-attested recovery of
+registered read-only KB receipt2e4b64d0-bc8a-4bc8-8f31-91d5c7eb54ca. The closed
+contract is docs/specs/staging-kb-timeout-recovery.md. It requires exact failed
+artifact/deploy/actor/expired receipt, complete unpaginated HTTP/provider completion
+inventories, revoked tombstone, immutable GitHub archive upload/download verification,
+and unchanged CAS binding before deleting that receipt. No admitted chat receipt,
+other incident, provider fallback or timeout change is authorized by this exception.
+The source run remains FAILED. Canonical cleanup and residue0 verification still apply.

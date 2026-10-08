@@ -6,6 +6,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
+| 096B | [Recover completed staging KB timeout](./096b-recover-completed-kb-timeout.md) | P0 | M | 096A | IN PROGRESS |
 | 096A | [Enable Vibi production profile](./096a-enable-vibi-production-profile.md) | P1 | M | 096 | IN PROGRESS |
 | 096 | [Certify Vibi with grounded evidence](./096-certify-vibi-with-grounded-evidence.md) | P1 | L | 095 + PR204 | IN PROGRESS / FRESH EXACT-15 APPROVED |
 | 095 | [Integrate DeepSeek staging trial](./095-integrate-deepseek-staging-trial.md) | P1 | L | 094B baseline | IN PROGRESS / PR202 STAGING LIVE; VIBI GATEWAY + UI15 AUTHORIZED; VERIFICATION PENDING |
