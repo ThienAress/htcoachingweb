@@ -20,9 +20,17 @@ Không phát paid search trước khi key/capability được kiểm chứng.
   riêng cho network + synthesis, luôn nằm trong deadline request hiện có.
 - Evidence hiện có `internal_kb`, `web_required`, `model_prior` vẫn tương thích.
   Capability/policy metadata thêm theo hướng additive, không đổi schema lưu trữ.
+- Fresh completion SSE `done.meta` gồm `provenance` và `capabilities`.
+  Provenance: `deterministic_server`, `internal_kb`, `model_prior`, `web_grounded`,
+  `capability_unavailable`; chỉ gắn web grounded khi evidence đã qua guard.
+  Duplicate-request acknowledgement giữ contract cũ vì không tạo câu trả lời mới.
+- WHO lookup thêm `site:who.int` sau privacy preparation; synthesis giữ câu hỏi
+  ban đầu. Claim dùng quote liên tục nguyên văn và dữ kiện nhận diện tách riêng;
+  không nới guard quote, số liệu hay scope để tăng tỷ lệ đạt.
 - `searchKnowledge({ query }, { signal, allowedPublicPersonNames })` giữ return:
   `{ text, uiCard, meta }`. Meta giữ `evidenceAvailable`, `sourceCount`, `sources`,
   `searchOutcome`, `diagnosticCode`, `providerRequestMade`.
+  `failureStage` additive phân biệt thiếu evidence ở retrieval hoặc synthesis.
 - External query phải qua `prepareExternalKnowledgeQuery`. Không gửi raw health,
   identity, conversation hay contact data. Nguồn external là dữ liệu không tin cậy.
 - URL citation HTTPS, không credential; evidence không tự biến thành instruction.

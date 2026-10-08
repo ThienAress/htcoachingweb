@@ -49,4 +49,19 @@ describe("external web evidence boundary", () => {
     expect(answer.text).toContain("Bồ Đào Nha");
     expect(answer.text).not.toContain("999");
   });
+
+  it("rejects a claim when any supplied support is not exact", () => {
+    const evidence = selectWebEvidence(body(result("https://uefa.com/profile", "Ronaldo", [
+      "Cristiano Ronaldo is a Portuguese footballer.",
+    ])), "Ronaldo");
+    const answer = buildCitedWebAnswer({ segments: [{
+      text: "Cristiano Ronaldo là cầu thủ bóng đá người Bồ Đào Nha.",
+      supports: [
+        { sourceId: "source_1", quote: "Cristiano Ronaldo is a Portuguese footballer." },
+        { sourceId: "source_1", quote: "This is a paraphrase that is not in the source." },
+      ],
+    }] }, evidence, "Cristiano Ronaldo là ai?");
+    expect(answer.text).toBe("");
+    expect(answer.sources).toHaveLength(0);
+  });
 });

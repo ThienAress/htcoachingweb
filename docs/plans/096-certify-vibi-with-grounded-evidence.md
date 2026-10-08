@@ -4,8 +4,8 @@
 
 - Priority: P1; Complexity: COMPLEX; Risk: HIGH; Effort: L.
 - Depends on: 095, deployed history repair PR204.
-- Lifecycle: IN PROGRESS; Verification: NONE; Rollout: NOT STARTED.
-- Owner: 01a11481-8519-7f43-a42e-d89e59b6f411; Updated at: 2026-10-07.
+- Lifecycle: IN PROGRESS; Verification: STAGING (code slice); Rollout: LIVE (code slice).
+- Owner: 01a1172c-d836-7250-8396-275f41a6f75d; Updated at: 2026-10-08.
 - Spec: `docs/specs/vibi-evidence-and-certification.md`.
 
 ## Vì sao và baseline
@@ -88,6 +88,33 @@ Duration/TTFT/tokens/tool/retry/error metadata không
 - [ ] Report chi tiết, cost/balance thật, side effects và rollback catalog.
 
 ## Execution log
+
+- 2026-10-08 resume: user yêu cầu sửa `no_supported_source` và hoàn tất phần còn
+  thiếu của bảy bước, không làm lại phần đã đạt. Report 106 đối chiếu sáu thread:
+  PR207 code slice đã deploy, WHO/Ronaldo FAIL; catalog chưa apply; presentation
+  chưa rendered acceptance; TALK01 chưa live; exact-15 vẫn chưa chứng nhận.
+  Tiếp tục trên candidate checkout, giữ nguyên thay đổi generated có sẵn.
+  Thứ tự: reproduce selector/synthesis RED → GREEN; chốt provenance additive;
+  fresh catalog preview/nguồn exact; rendered workout/meal; rollout staging và
+  focused live acceptance/TALK01 trong giới hạn ví $3; gate/report theo evidence.
+  User sau đó duyệt chạy corpus canonical 15 câu mới đúng một lần để đóng tiêu chí
+  chứng nhận ban đầu. Giữ 14 câu gốc và câu 5 replacement đã duyệt, không gọi là
+  exact original-15; không retry/best-of. TALK01 và rendered acceptance vẫn cần mới.
+  Không cấp GO exact-15 khi reuse evidence; ghi rõ certification scope thực tế.
+  Hypotheses search: H1 strict retrieval/query không có snippet phù hợp;
+  H2 selector bỏ nguồn hợp lệ; H3 quote/numeric validation loại synthesis;
+  H4 identity scope loại mọi claim. Probe lần lượt ở transport → selector → answer.
+  Verify: fixture adapter/webEvidence/provider tests; guards privacy/injection/URL;
+  local QA cho code đổi; live WHO/Ronaldo phải có supported citation, không fallback.
+
+- Resume QA: client 945 PASS; server complete inventory 319 files/3682 tests PASS,
+  qua diagnostic batch và verified remaining inventory sau launcher bị kẹt.
+  Focused owned SSE 25 PASS, gồm claim-bound KB provenance RED→GREEN sau review.
+  Build 44/44 routes/bundle PASS; E2E 128 PASS + một teardown timeout, affected
+  file rerun 6 PASS. Lint/security/dependency/tools/agents/UI gates PASS.
+  Catalog apply tám records và postimage/114 untouched records reconcile PASS.
+  Code mới chưa deploy; exact15/TALK01/rendered còn pending. User đã duyệt
+  commit/push/PR/merge/deploy staging; không kết luận certification đạt.
 
 - 2026-10-07: checkout sạch; redacted staging inventory không có search credential.
   Vibi profile xác minh `deepseek-v4.1-flash`; chưa gọi paid inference mới.

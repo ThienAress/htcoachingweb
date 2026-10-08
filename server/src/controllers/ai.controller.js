@@ -9,7 +9,8 @@ import {
   isSuccessfulToolResult,
 } from "../services/ai/tools/toolEngine.js";
 import { executeToolBatch } from "../services/ai/tools/toolBatchExecutor.js";
-import { WEB_GROUNDING_TIMEOUT_MS } from "../services/ai/capabilityPolicy.js";
+import { resolveAiCapabilities, resolveWebPolicy, WEB_GROUNDING_TIMEOUT_MS } from "../services/ai/capabilityPolicy.js";
+import { resolveResponseProvenance } from "../services/ai/responseProvenance.js";
 import {
   getToolSchemas,
   SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS,
@@ -1076,6 +1077,7 @@ export const chatStream = async (req, res) => {
   let kbEntryIds = [];
   let kbRetrieval = null;
   let kbCitationSources = [];
+  let deliveredInternalSourceCount = 0;
   let kbReferenceEntries = [];
   let toolCallCount = 0;
   let webSearchAttemptCount = 0;
@@ -1090,6 +1092,19 @@ export const chatStream = async (req, res) => {
   let responseModel = deepseekTrial
     ? resolveDeepseekEndpoint().model
     : String(process.env.GEMINI_MODEL || "gemini-3.1-flash-lite").slice(0, 100);
+  const buildDoneFrame = () => ({
+    type: "done",
+    conversationId: conversation._id,
+    meta: {
+      provenance: resolveResponseProvenance({
+        model: responseModel,
+        webSearchRequired: resolveWebPolicy(routingDecision) === "web_required",
+        webEvidenceAvailable: webSearchEvidenceAvailable,
+        internalSourceCount: deliveredInternalSourceCount,
+      }),
+      capabilities: resolveAiCapabilities(),
+    },
+  });
   const buildAnswerTrace = () =>
     routingDecision
       ? {
@@ -1127,6 +1142,7 @@ export const chatStream = async (req, res) => {
     return boundedContent.slice(0, streamed.writtenCharacters);
   };
   const enforceEvidenceBoundary = (candidate, { allowReviewedClaimCitation = false } = {}) => {
+    deliveredInternalSourceCount = 0;
     const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
     if (urgentSafetyResponse) return urgentSafetyResponse;
     if (
@@ -1153,10 +1169,12 @@ export const chatStream = async (req, res) => {
     });
     if (kbCitationSources.length > 0 && needsKnowledgeCitation) {
       responseUiCard = { cardType: "webSources", data: { sources: kbCitationSources } };
-      return boundAssistantOutputWithSources(candidate, {
+      const content = boundAssistantOutputWithSources(candidate, {
         sources: kbCitationSources,
         maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
       });
+      deliveredInternalSourceCount = kbCitationSources.filter((source) => content.includes(source.uri)).length;
+      return content;
     }
     if (!allowReviewedClaimCitation || toolCallCount > 0) return candidate;
     const supported = bindSupportedKnowledgeClaims(candidate, {
@@ -1165,6 +1183,7 @@ export const chatStream = async (req, res) => {
     });
     if (supported.sources.length > 0) {
       responseUiCard = { cardType: "webSources", data: { sources: supported.sources } };
+      deliveredInternalSourceCount = supported.sources.length;
     }
     return supported.content;
   };
@@ -1244,10 +1263,7 @@ export const chatStream = async (req, res) => {
       });
       if (!abortController.signal.aborted) {
         res.write(
-          `data: ${JSON.stringify({
-            type: "done",
-            conversationId: conversation._id,
-          })}\n\n`,
+          `data: ${JSON.stringify(buildDoneFrame())}\n\n`,
         );
         res.end();
       }
@@ -1294,10 +1310,7 @@ export const chatStream = async (req, res) => {
       });
       if (!abortController.signal.aborted) {
         res.write(
-          `data: ${JSON.stringify({
-            type: "done",
-            conversationId: conversation._id,
-          })}\n\n`,
+          `data: ${JSON.stringify(buildDoneFrame())}\n\n`,
         );
         res.end();
       }
@@ -2616,7 +2629,7 @@ export const chatStream = async (req, res) => {
       kbHits: kbEntryIds.length,
     });
     if (!abortController.signal.aborted) {
-      res.write(`data: ${JSON.stringify({ type: "done", conversationId: conversation._id })}\n\n`);
+      res.write(`data: ${JSON.stringify(buildDoneFrame())}\n\n`);
       res.end();
       if (req.stagingAiAcceptance) req.stagingAiAcceptanceOutcome = "completed";
     } else if (req.stagingAiAcceptance) {
