@@ -23,6 +23,11 @@
       "id": "TASK-004",
       "title": "Production rollout",
       "planStep": "Step 4"
+    },
+    {
+      "title": "Bounded provider transport diagnosis",
+      "id": "TASK-005",
+      "planStep": "Step 3"
     }
   ],
   "requirements": [
@@ -59,7 +64,8 @@
           "id": "AC-003",
           "mustHave": true,
           "taskIds": [
-            "TASK-003"
+            "TASK-003",
+            "TASK-005"
           ],
           "verifications": [
             {
@@ -69,6 +75,10 @@
             {
               "type": "command",
               "command": "cd server && npx vitest run src/scripts/__tests__/stagingBrowserReconciliation.test.js src/scripts/__tests__/stagingAiChatAcceptance.browser.test.js"
+            },
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/providers/__tests__/deepseek.transport.test.js src/observability/__tests__/deepseekRequestTelemetry.test.js"
             }
           ]
         },
