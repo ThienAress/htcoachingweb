@@ -1,5 +1,57 @@
 # Plan096 — audit kỹ thuật biến thể bài tập
 
+## Resume 08/10/2026 — exact media và targeted apply
+
+Phần bên dưới giữ baseline audit 07/10. Lượt resume đọc lại 122 records và public
+image/video URLs, đối chiếu sáu GIF gắn trực tiếp với exact ID/name. Contact sheets
+trích tám vị trí trong mỗi chu kỳ, có xem frames trước khi viết patch. Demo chỉ
+xác minh trình tự của catalog, không chứng minh phù hợp lâm sàng hay hiệu quả.
+
+| Variant | Linked demo | Kết luận kỹ thuật |
+|---|---|---|
+| Modified Hindu Push-up (male) | `epOSYUZ.gif` | Low push-up → hông về sau/pike → high plank; không cobra |
+| Pike-to-cobra Push-up | `XPUDTt7.gif` | Pike → quét ngực về trước → nâng ngực/hạ hông → pike |
+| Exercise Ball Pike Push Up | `sVvXT5J.gif` | Chân/cẳng chân trên bóng, push-up rồi cuộn bóng nâng hông |
+| Barbell Pendlay Row | `r0z6xzQ.gif` | Kéo từ sàn và reset sàn mỗi lần |
+| Inverted Row Bent Knees | `VPPtusI.gif` | Kéo thân dưới thanh, giữ gối gập/chân tựa sàn |
+| Suspended Row | `4OaumBr.gif` | Kéo thân về vòng/tay cầm treo được neo chắc chắn |
+
+Media source: `https://static.exercisedb.dev/media/<file>`; URL mỗi patch phải
+khớp field `imageUrl` của snapshot. Không dùng hướng dẫn khác cùng tên để suy
+Modified Hindu thành pike-to-cobra. Sáu REVIEW technique này được giải quyết bằng
+patch description/instructions; giữ name/muscleGroup/media/schema.
+
+SHA-256 GIF, theo cùng thứ tự bảng:
+
+```text
+99b29c6c660a6a1dd7bd2a1b02ee286d8b947f1615684a43cec8b13741072408
+3c61911621c24a980d88b8fe7924220410c253178bdf5ffc808fec41565a570d
+a3b605981c35a30cb5c93a1b984cfc4a0ea496dcd553d7dafe24717c5312d47a
+a9fc2b8e8615606a8f562440f2a1ee8b2e0acf24175f46790b0d5ea4b4b2e25e
+1723266a782312da6aa558fc677031bf383218ff232bcea2a84488cb9ab5134f
+77b1df0284603a99170be3f9ebbeee765f578aeeca00295aad880e99ebb04773
+```
+
+Apply hoàn tất `2026-10-08T03:38:58.171Z` trên `htcoaching_staging`: 8 records
+(hai patch ACE cũ + sáu exact media), transaction/CAS và receipt. Post-read
+`03:39:45.002Z` xác minh 8 postimages, mọi field không sửa và 114 records khác
+giữ nguyên. Không seed/cleanup hoặc ghi production.
+
+Local plan `resume-patches-20261008.json` digest
+`62c3c60c9e0e5543864cb1a12b7ed616cf63ed001ba7befbd3eec2fa2824a421`.
+Intent `resume-intent-20261008-a.json` và completion nằm cùng thư mục
+`.local-data/plan096-catalog/`; receipt digest
+`5f1e5814ddb606564f904110364f5cdee14254962e6a8536cfb65311bf0d5504`.
+Rollback dùng runner cũ, thêm `--plan=.../resume-patches-20261008.json` và exact
+receipt/digest; chỉ restore khi full postimage còn khớp, không rollback mù.
+
+Offline guard tests PASS cho cả 8: stale snapshot, wrong target/name/preimage,
+plan/receipt tamper và thiếu confirmation bị từ chối. Reconcile read-only PASS.
+Các row ngoài mẫu, Wide Hand/Chest-Supported/Seal và Pendlay không có exact media
+vẫn REVIEW; đây không phải audit certified toàn 102 row. MuscleGroup của
+Pike-to-cobra vẫn cần review riêng, không đổi trong scope technique này.
+Case9 live và rendered acceptance phải chạy trên candidate mới trước kết luận.
+
 ## Kết quả và phạm vi
 
 Snapshot **fresh staging**: `2026-10-07T06:50:58.040Z`, database

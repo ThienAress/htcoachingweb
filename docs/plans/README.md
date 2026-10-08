@@ -6,7 +6,7 @@ Generated on 2026-07-28. Execute plans in dependency order and pass every verifi
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |---|---|---:|---:|---|---|
-| 096 | [Certify Vibi with grounded evidence](./096-certify-vibi-with-grounded-evidence.md) | P1 | L | 095 + PR204 | IN PROGRESS / SEVEN STEPS APPROVED |
+| 096 | [Certify Vibi with grounded evidence](./096-certify-vibi-with-grounded-evidence.md) | P1 | L | 095 + PR204 | IN PROGRESS / FRESH EXACT-15 APPROVED |
 | 095 | [Integrate DeepSeek staging trial](./095-integrate-deepseek-staging-trial.md) | P1 | L | 094B baseline | IN PROGRESS / PR202 STAGING LIVE; VIBI GATEWAY + UI15 AUTHORIZED; VERIFICATION PENDING |
 | 094C | [Certify and promote assistant release](./094c-certify-and-promote-assistant-release.md) | P1 | M | 094B | IN PROGRESS / BOUNDED COLD-START READINESS + PRODUCTION GATES |
 | 094B | [Resolve source provenance and retest staging](./094b-resolve-source-provenance-and-retest-staging.md) | P1 | M | 094A | DONE / STAGING LIVE / UI15 14 PASS, 1 FAIL (93.3%) |

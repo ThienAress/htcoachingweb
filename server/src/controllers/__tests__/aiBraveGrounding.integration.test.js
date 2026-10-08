@@ -33,6 +33,9 @@ const configure = () => {
   for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
 };
 let app;
+const parseFrames = (response) => response.text.split("\n\n")
+  .filter((row) => row.startsWith("data: "))
+  .map((row) => JSON.parse(row.slice(6)));
 beforeAll(async () => {
   await setupTestDB();
   configure();
@@ -72,6 +75,10 @@ describe("Vibi + Brave through owned chat SSE", () => {
     const frames = response.text.split("\n\n").filter((row) => row.startsWith("data: "))
       .map((row) => JSON.parse(row.slice(6)));
     expect(frames.some((frame) => frame.type === "error")).toBe(false);
+    expect(frames.find((frame) => frame.type === "done").meta).toMatchObject({
+      provenance: "web_grounded",
+      capabilities: { chatProvider: "vibi", externalWebSearch: true, canSearchWeb: true },
+    });
     const text = frames.filter((frame) => frame.type === "text").map((frame) => frame.content).join("");
     expect(text).toContain("150–300");
     expect(text).toContain("who.int");
@@ -87,5 +94,36 @@ describe("Vibi + Brave through owned chat SSE", () => {
       .toBe(true);
     expect(frames.some((frame) => frame.type === "ui_card" && frame.cardType === "webSources"))
       .toBe(true);
+  });
+
+  it("reports unavailable provenance when a required lookup has no evidence", async () => {
+    const fetchMock = vi.fn(async () => new Response("{}"));
+    vi.stubGlobal("fetch", fetchMock);
+    const { accessToken } = await createTestUser();
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+      .send({ message: prompt });
+    expect(response.status).toBe(200);
+    const frames = parseFrames(response);
+    expect(frames.find((frame) => frame.type === "done").meta.provenance)
+      .toBe("capability_unavailable");
+    expect(frames.some((frame) => frame.type === "ui_card" && frame.cardType === "webSources"))
+      .toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    "Tính TDEE cho tôi",
+    "Tôi đang đau ngực dữ dội và khó thở khi tập, tôi nên làm gì?",
+  ])("includes deterministic provenance on the early response for %s", async (message) => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { accessToken } = await createTestUser();
+    const response = await withAuth(request(app).post("/api/ai/chat"), accessToken)
+      .send({ message });
+    expect(response.status).toBe(200);
+    const frames = parseFrames(response);
+    expect(frames.find((frame) => frame.type === "done").meta.provenance)
+      .toBe("deterministic_server");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -39,7 +39,8 @@ describe("Brave search adapter", () => {
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("https://api.search.brave.com/res/v1/llm/context");
     expect(options).toMatchObject({ method: "POST", redirect: "error" });
-    expect(JSON.parse(options.body)).toMatchObject({ enable_local: false, count: 6, maximum_number_of_tokens: 4096 });
+    expect(JSON.parse(options.body)).toMatchObject({ q: "site:who.int WHO physical activity guidelines",
+      enable_local: false, count: 6, maximum_number_of_tokens: 4096 });
     expect(synthesis).toHaveBeenCalledTimes(1);
     expect(result.meta).toMatchObject({ evidenceAvailable: true, searchOutcome: "grounded", sourceCount: 1 });
     expect(result.uiCard.data.sources).toEqual(answer.sources);
@@ -61,6 +62,15 @@ describe("Brave search adapter", () => {
     expect((await braveSearchKnowledge({ query: "WHO physical activity guidelines" })).meta.searchOutcome)
       .toBe("no_supported_source");
     expect(synthesis).not.toHaveBeenCalled();
+  });
+
+  it("restricts WHO lookups to the official publisher before selecting evidence", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(body)));
+    vi.stubGlobal("fetch", fetchMock);
+    synthesis.mockResolvedValue({ text: "Có nguồn.", sources: [{ title: "WHO", uri: "https://who.int/physical-activity" }] });
+    await braveSearchKnowledge({ query: "WHO physical activity guidelines" });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).q)
+      .toContain("site:who.int WHO");
   });
 
   it("does not fabricate an answer when synthesis fails, and propagates cancellation", async () => {

@@ -9,10 +9,10 @@
       "priority": "P1",
       "complexity": "complex",
       "lifecycle": "in_progress",
-      "verification": "none",
-      "rollout": "not_started",
-      "owner": "01a11481-8519-7f43-a42e-d89e59b6f411",
-      "updatedAt": "2026-10-07"
+      "verification": "focused",
+      "rollout": "pending",
+      "owner": "01a1172c-d836-7250-8396-275f41a6f75d",
+      "updatedAt": "2026-10-08"
     },
     {
       "id": "095",

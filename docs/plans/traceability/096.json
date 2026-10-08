@@ -53,7 +53,7 @@
           "verifications": [
             {
               "type": "command",
-              "command": "cd server && npx vitest run src/services/ai/__tests__/requestRouter.test.js"
+              "command": "cd server && npx vitest run src/services/ai/__tests__/requestRouter.test.js src/services/ai/__tests__/responseProvenance.test.js src/controllers/__tests__/aiResponseProvenance.integration.test.js"
             }
           ]
         },
@@ -66,7 +66,7 @@
           "verifications": [
             {
               "type": "command",
-              "command": "cd server && npx vitest run src/services/ai/tools/__tests__/searchKnowledge.tool.test.js"
+              "command": "cd server && npx vitest run src/services/ai/tools/__tests__/searchKnowledge.tool.test.js src/controllers/__tests__/aiBraveGrounding.integration.test.js"
             }
           ]
         },
