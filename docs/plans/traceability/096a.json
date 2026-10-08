@@ -28,6 +28,11 @@
       "title": "Bounded provider transport diagnosis",
       "id": "TASK-005",
       "planStep": "Step 3"
+    },
+    {
+      "id": "TASK-006",
+      "title": "Explicit WHO fixture and browser checkpoints",
+      "planStep": "Step 3"
     }
   ],
   "requirements": [
@@ -65,7 +70,8 @@
           "mustHave": true,
           "taskIds": [
             "TASK-003",
-            "TASK-005"
+            "TASK-005",
+            "TASK-006"
           ],
           "verifications": [
             {

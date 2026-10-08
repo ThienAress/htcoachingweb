@@ -167,3 +167,40 @@ credential or reasoning sink. LLM02 tested for private reasoning exclusion;
 LLM10 deadlines and caller abort tested on real HTTP without retry/fallback.
 No browser UI/SEO/schema/auth/data changes. Independent reviewer was not run in this
 turn; review is the root agent's assessment. External release review remains required.
+
+## Citation fixture diagnosis — 2026-10-09 local time
+
+Provider telemetry PR212 merged to staging31a4d6f. PR CI37813063025 and staging
+CI37814327224 passed5/5. Netlify6ac7ce3272e74a00079b6d04 and
+Renderdep-db3t0hh42hec73ev3kog verified ready/live at the same SHA; readiness200.
+Production PR196 now points to31a4d6f, but its recorded human review remains bound
+toee9f05e. Production has not been merged/deployed; Save-only configuration remains.
+
+Acceptance37815827151 failed before the first browser lane; business cleanup0.
+Five KB requests and one chat completed HTTP200, with chat3695ms and289 output
+tokens. No provider timeout was observed. AI cleanup initially inconclusive;
+trusted recovery37816720609 verified residue0/alreadyClean. Keep the source run FAILED.
+
+One owner-funded local diagnostic after8.78USD/83 requests observed native staging
+Playwright without response mocks: completed stream,63 text frames, weekly-minutes
+claim, no citation card/WHO URL, zero exact anchors, one markdown body and two
+persisted messages. The failed boundary is initial citation visibility. Its exact
+canonical recovery verified0 before any fixture question change. No raw answer,
+prompt, reasoning, screenshot or browser credential was retained. This does not
+prove every historical browser failure had this cause or certify provider reliability.
+
+The fixture asked a general weekly-exercise question while expecting a WHO link.
+Current production policy deliberately permits a plain stable answer without a citation
+when no authority is invoked. Make the synthetic questions explicitly request the WHO
+recommendation; keep internal KB/no-web routing and real privacy/publication validation.
+Do not change production routing/citation policy or weaken any source/inventory/isolation
+assertion. Separate bounded checkpoint codes now identify initial citation, persisted
+message and persisted citation failures without storing locator/error details.
+
+Regression RED4/7 -> GREEN110/110 in5 focused browser/acceptance/fixture/recovery files.
+Standards, Contract and Security/Operations review: scoped synthetic fixture plus
+exception-to-allowlisted-code mapping; no customer/auth/quota/provider/deadline changes.
+The original Vibi latency cause remains unconfirmed. Exact-SHA CI/deploy and fresh live
+acceptance/reliability are pending. The owner is asleep; wallet connector still reports
+Transport closed, so further paid requests require newly verifiable balance. Account
+wallet must not be inferred from API-key quota. Production remains NO-GO.

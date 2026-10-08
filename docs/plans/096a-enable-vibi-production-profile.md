@@ -179,3 +179,38 @@ existing provider/deadline/output semantics. RED5/5 -> GREEN7/7, then expanded f
 suites79/79. Broader related checks and exact-SHA staging rollout are pending.
 No raw prompt/response/reasoning retained; logging risk LLM02 covered by privacy regression.
 LLM10 consumption bounds unchanged and timeout/cancellation covered with real transport.
+
+### Step 3C: Align the live citation fixture and retain browser failure checkpoints
+
+Acceptance37815827151 on31a4d6f failed before its first browser lane. Five KB calls
+and one chat completed HTTP200; chat3695ms/output289, no provider timeout. Trusted
+recovery37816720609 verified residue0. Owner balance8.78USD after83 requests allowed
+one local diagnostic with unchanged native Playwright/runner/assertions/deadlines.
+Its stream completed with a weekly-minutes claim, zero citation cards, no WHO URL;
+the first-citation locator found zero links while persisted messages were present.
+Local diagnostic385eea90-778d-4d98-8e20-744463e3aebd remains failed; exact canonical
+recovery verified0 before changing fixture derivation. No raw answer was retained.
+
+H1 generic fixture/citation expectation mismatch: supported by successful plain
+answer without authority/citation and public source policy accepting that answer.
+H2 persisted-message visibility: weakened; two persisted message elements were present.
+H3 hidden/duplicate source anchor: rejected in local reproduction; exact anchor count0.
+H4 provider deadline: rejected for this run; completed output observed. Historical
+intermittent provider delay remains unconfirmed and the earlier failures are unchanged.
+
+Make both synthetic root/variant questions request the WHO recommendation explicitly,
+while retaining fitness/internal_kb/no_web routing and real KB privacy/publication guards.
+Do not force source_requested wording, which correctly routes external lookup, or alter
+production citation/routing policy. Preserve exact-nine inventory, source-link assertions,
+all isolation/Stop/recovery assertions and existing timeouts. Add content-free checkpoint
+codes for initial citation, persisted assistant and persisted citation visibility failures.
+Files: stagingAiChatAcceptance.http.js, browser.js, browserCheckpoint.js, existing public
+browser reconciliation tests/fixture, this plan/traceability and report108.
+
+Verification: public browser regressions RED4/7 -> focused GREEN110/110 across5 files,
+including real KB write guard validation and rejection of actual answer drift. Then
+secret/data/tool/agent gates, exact-SHA CI and paired staging deployment. Local diagnostic
+is not trusted certification; another paid run requires newly verifiable wallet balance.
+The owner is asleep and the wallet browser connector reports Transport closed. Continue
+local/CI work; keep production NO-GO until required live gates pass. Do not substitute
+API-key quota for account wallet or repeat the owner's fifteen cases.
