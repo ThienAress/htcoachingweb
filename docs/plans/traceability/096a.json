@@ -65,6 +65,10 @@
             {
               "type": "command",
               "command": "node scripts/check-backup-readiness.mjs --mode=release"
+            },
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/scripts/__tests__/stagingBrowserReconciliation.test.js src/scripts/__tests__/stagingAiChatAcceptance.browser.test.js"
             }
           ]
         },

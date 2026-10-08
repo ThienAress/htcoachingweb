@@ -58,6 +58,34 @@ Promote only after gates pass. Configure production Vibi + Brave internally, ret
    Capture previous provider settings and production rollback deploy IDs privately.
    Verify: protected promotion, paired production deploy SHA, health and >=30 min observation.
 
+### Step 3A: Capture the finalized conversation baseline before isolation
+
+Acceptance37784156355 failed after the live KB/provider lane with a generic browser assertion.
+Recover only this synthetic run using trusted staging-ai-recovery; require verified residue0.
+The browser currently captures stableBody before captureUiEvidence waits for persisted assistant identity.
+Scope: stagingAiChatAcceptance.browser.js, its reconciliation regression test and synthetic
+browser boundary fixture, plus this canonical plan/traceability and release checkpoint documents.
+Keep actual isolation assertions, request inventory, timeouts and failure grading intact.
+
+H1: citation precedes final streamed text; a partial baseline creates false isolation failure.
+Prediction: a synthetic browser with valid final reconciliation must reach the isolation checkpoint.
+Probe: stagingBrowserReconciliation.test.js through public runBrowserAcceptance; RED1/3 on2026-10-08.
+H2: an actual conversation isolation defect changes the completed answer after navigation.
+Probe: mutate only the answer on return; the guard must continue to reject that change.
+H3: control admission or navigation fails independently; existing generic error cannot distinguish it.
+Preserve fail-closed control barriers and add bounded codes to baseline/reconciliation assertions.
+The local race is reproduced; original incident linkage remains unconfirmed until fresh live evidence.
+
+Verify: run the focused Vitest command below -> all pass, including unchanged
+and actually changed completed-answer cases. Then exact-SHA CI and paired staging deployment;
+fresh trusted acceptance only after cleanup0 and a new verified wallet balance above3 USD.
+No production publish until required main approval and promotion gates pass.
+
+```powershell
+cd server
+npx vitest run src/scripts/__tests__/stagingBrowserReconciliation.test.js src/scripts/__tests__/stagingAiChatAcceptance.browser.test.js
+```
+
 ## Commands and verification
 
 - `cd server; npx vitest run src/config/__tests__/deepseekProfile.test.js` -> exit 0.
@@ -97,3 +125,13 @@ Wallet owner-confirmed8.98 USD after this run. Fifteen owner-accepted cases rema
 The owner approved scoped Plan096B recovery on2026-10-08. Production keys plus the
 four Vibi/Brave selectors are now saved and verified, with no deployment. The older
 checkpoint saying env unchanged/proposal unapproved describes historical state only.
+
+Checkpoint13:47UTC: recovery37782755084 verified0 closed the historical KB incident.
+Staging fac6438 CI37782647818 PASS5/5, Netlify6ac796ed55c88600081737ca and
+Renderdep-db3pi38m7kps73fjpecg ready/live. Acceptance37784156355 remains FAILED:
+live KB/provider PASS; browser assertion failed before isolation PASS; cleanup inconclusive.
+Normal trusted recovery37786369781 PASS with verified residue0 and alreadyClean=true.
+Step3A regression RED1/3 -> GREEN102/102 across5 focused acceptance/recovery files,
+including detection of real returned-answer drift. Agent/tool/secret/data-boundary gates PASS.
+Wallet balance after the latest run is not verified; further paid requests remain blocked.
+PR196 is ready for review with no approving reviews; production has not been deployed.
