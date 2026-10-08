@@ -84,3 +84,16 @@ Full QA, trusted staging acceptance and production rollout remain pending. Walle
 
 Local QA completed: server 3710/320 files, client 945, AI eval 73/73, release build 58/58,
 security/dependency/agent/UI gates PASS. No local E2E rerun; trusted CI E2E required.
+
+Live checkpoint09:56UTC: staging merge88b5d307 CI37756754770 PASS5/5 and paired deploy ready/live.
+PR196 updated to this SHA; CI37758737545 PASS, draft, approving review still required.
+Acceptance37758558812 FAIL on certified KB search DEEPSEEK_TIMEOUT/503; business cleanup0,
+AI cleanup6 then7 after recovery tombstone. Recovery37759297315 fails ADMITTED_UNKNOWN.
+Do not rerun acceptance, delete admitted receipts or release production before exact recovery proof.
+See report108 for scoped terminal-KB/recovery proposal; policy change/apply are not approved by this checkpoint.
+Production env snapshot encrypted and persisted restore verified; production remains unchanged.
+Wallet owner-confirmed8.98 USD after this run. Fifteen owner-accepted cases remain unchanged.
+
+The owner approved scoped Plan096B recovery on2026-10-08. Production keys plus the
+four Vibi/Brave selectors are now saved and verified, with no deployment. The older
+checkpoint saying env unchanged/proposal unapproved describes historical state only.

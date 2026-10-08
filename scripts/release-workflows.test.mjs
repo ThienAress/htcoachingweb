@@ -75,7 +75,8 @@ test("official action runtimes are upgraded while application Node remains 22.23
     }
   }
 
-  assert.equal(inspectedActions, 85, "the action-runtime inventory changed; review the new call site");
+  // Plan096B adds three SHA-pinned archive upload/download/provenance action call sites.
+  assert.equal(inspectedActions, 88, "the action-runtime inventory changed; review the new call site");
   assert.equal(setupNodeSteps, 24, "the setup-node inventory changed; review its Node/cache contract");
 
   const [nodeVersion, nvmrc, rootPackage] = await Promise.all([

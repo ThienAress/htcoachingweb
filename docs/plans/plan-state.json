@@ -3,6 +3,18 @@
   "legacyCutoff": "076",
   "plans": [
     {
+      "id": "096B",
+      "title": "Recover completed staging KB timeout with evidence",
+      "path": "docs/plans/096b-recover-completed-kb-timeout.md",
+      "priority": "P0",
+      "complexity": "complex",
+      "lifecycle": "in_progress",
+      "verification": "none",
+      "rollout": "not_started",
+      "owner": "01a1172c-d836-7250-8396-275f41a6f75d",
+      "updatedAt": "2026-10-08"
+    },
+    {
       "id": "096A",
       "title": "Enable the approved Vibi production profile",
       "path": "docs/plans/096a-enable-vibi-production-profile.md",
