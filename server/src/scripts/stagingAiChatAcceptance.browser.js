@@ -211,8 +211,6 @@ export const runBrowserAcceptance = async ({
     await send(page, fixture.question);
     const citation = page.locator(`a[href="${sourceUrl}"]`).last();
     await citation.waitFor({ state: "visible", timeout: 90_000 });
-    const stableCitation = await citation.getAttribute("href");
-    const stableBody = await assistantBodies.last().innerText();
     const captureUiEvidence = async (expectedQuestion, cursor = 0) => {
       const questionDigest = crypto.createHash("sha256").update(expectedQuestion).digest("hex");
       const deadline = Date.now() + 10_000;
@@ -222,7 +220,8 @@ export const runBrowserAcceptance = async ({
         if (reconciled) break;
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      assert(reconciled?.assistantId, "UI reconciliation did not expose assistant identity");
+      assert(reconciled?.assistantId, "UI reconciliation did not expose assistant identity",
+        "STAGING_AI_UI_RECONCILIATION_FAILED");
       const renderedMessage = page.locator(
         `[data-message-id="${reconciled.assistantId}"] .markdown-body`,
       );
@@ -236,8 +235,11 @@ export const runBrowserAcceptance = async ({
         renderedMessageId: reconciled.assistantId,
         renderedContentLength: (await renderedMessage.innerText()).length,
       });
+      return renderedMessage;
     };
-    await captureUiEvidence(fixture.question);
+    const completedMessage = await captureUiEvidence(fixture.question);
+    const stableCitation = await citation.getAttribute("href");
+    const stableBody = await completedMessage.innerText();
     recordLane({ name: "live-kb-provider", passed: true });
 
     await newConversation(page);
@@ -250,8 +252,10 @@ export const runBrowserAcceptance = async ({
     await pacedConversation.waitFor({ state: "visible", timeout: 10_000 });
     await conversationButton(page, fixture.question).click();
     await new Promise((resolve) => setTimeout(resolve, 500));
-    assert((await citation.getAttribute("href")) === stableCitation, "Conversation B citation changed while A was pending");
-    assert((await assistantBodies.last().innerText()) === stableBody, "Conversation B content changed while A was pending");
+    assert((await citation.getAttribute("href")) === stableCitation,
+      "Conversation B citation changed while A was pending", "STAGING_AI_ISOLATION_CITATION_CHANGED");
+    assert((await assistantBodies.last().innerText()) === stableBody,
+      "Conversation B content changed while A was pending", "STAGING_AI_ISOLATION_CONTENT_CHANGED");
     await pacedConversation.click();
     await waitForStableAssistantText(assistantBodies, prefix);
     const released = await controlCollection.updateOne({
