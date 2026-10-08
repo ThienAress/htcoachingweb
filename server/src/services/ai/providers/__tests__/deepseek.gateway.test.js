@@ -48,6 +48,25 @@ afterEach(() => {
 });
 
 describe("isolated Vibi DeepSeek gateway", () => {
+  it("uses the same fixed gateway only after complete production opt-in", async () => {
+    configure({
+      APP_ENV: "production", AI_STAGING_PROVIDER_TRIAL: "", AI_PRODUCTION_PROVIDER_PROFILE: "vibi",
+      MONGO_URI: "mongodb+srv://cluster.example/gym-app",
+      CLIENT_URL: "https://app.example.com", PUBLIC_API_ORIGIN: "https://api.example.com",
+      ALLOWED_ORIGINS: "https://app.example.com", AI_WEB_SEARCH_PROVIDER: "brave",
+      BRAVE_SEARCH_API_KEY: "synthetic-" + "b".repeat(32),
+    });
+    const fetchMock = vi.fn().mockResolvedValue(completeText());
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(collect(deepseekLLMStream([{ role: "user", content: "Synthetic probe" }])))
+      .resolves.toEqual([{ type: "text", content: "OK" }]);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://vibi.top/v1/chat/completions");
+    vi.stubEnv("BRAVE_SEARCH_API_KEY", "");
+    fetchMock.mockClear();
+    await expect(collect(deepseekLLMStream([{ role: "user", content: "Synthetic probe" }])))
+      .rejects.toMatchObject({ code: "DEEPSEEK_CONFIG_INVALID" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("streams through the verified fixed endpoint and model with unchanged limits", async () => {
     configure();
     const fetchMock = vi.fn().mockResolvedValue(completeText());

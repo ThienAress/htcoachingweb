@@ -3,6 +3,14 @@ import { describe, expect, it } from "vitest";
 import { buildCanonicalMealToolRequest } from "../mealRequestConstraints.js";
 
 describe("single-meal calorie scope", () => {
+  it("explains the unsupported 450 kcal breakfast without replacing the target", () => {
+    const request = buildCanonicalMealToolRequest(
+      "Gợi ý một bữa sáng khoảng 450 kcal và ít nhất 30g protein, không dùng trứng; ghi món và grams.",
+      { targetCalories: 550, proteinGrams: 30, carbGrams: 70, fatGrams: 10 },
+    );
+    expect(request.validationMessage).toContain("500");
+    expect(request.args.targetCalories).toBeNull();
+  });
   it("derives flexible macros for the 500 kcal breakfast when only minimum protein is specified", () => {
     const request = buildCanonicalMealToolRequest(
       "Gợi ý cho tôi một bữa sáng món Việt khoảng 500 kcal, tối thiểu 30g protein và dễ chuẩn bị",

@@ -41,7 +41,7 @@ import {
 } from "../services/ai/contentModeration.js";
 import { searchAssistantKnowledgeBase } from "../services/ai/knowledgeRetrieval.service.js";
 import { selectConversationHistory } from "../services/ai/conversationHistory.js";
-import { isDeepseekStagingTrial } from "../config/deepseekTrial.js";
+import { isDeepseekProfileActive } from "../config/deepseekProfile.js";
 import { resolveDeepseekEndpoint } from "../config/deepseekEndpoint.js";
 import { aiLogger } from "../services/ai/aiLogger.js";
 import { serializeRequestQuota } from "../services/serviceAccessPolicy.service.js";
@@ -1088,8 +1088,8 @@ export const chatStream = async (req, res) => {
   let internalEvidenceRequired = false;
   let internalEvidenceAvailable = false;
   let externalKnowledgeQuery = { eligible: false, reason: "not_required" };
-  const deepseekTrial = isDeepseekStagingTrial();
-  let responseModel = deepseekTrial
+  const deepseekProfileActive = isDeepseekProfileActive();
+  let responseModel = deepseekProfileActive
     ? resolveDeepseekEndpoint().model
     : String(process.env.GEMINI_MODEL || "gemini-3.1-flash-lite").slice(0, 100);
   const buildDoneFrame = () => ({
@@ -1349,7 +1349,7 @@ export const chatStream = async (req, res) => {
         try {
           const retrievalEnvelope = await searchAssistantKnowledgeBase(
             preparedRetrieval.query,
-            deepseekTrial
+            deepseekProfileActive
               ? {
                   limit: 3,
                   threshold: 0.75,
@@ -1359,7 +1359,7 @@ export const chatStream = async (req, res) => {
               : { limit: 3, threshold: 0.75 },
           );
           const kbResults = retrievalEnvelope.results;
-          if (deepseekTrial) {
+          if (deepseekProfileActive) {
             const retrieval = retrievalEnvelope.retrieval || {};
             kbRetrieval = {
               method: retrieval.method || "llm_selection",
@@ -1384,7 +1384,7 @@ export const chatStream = async (req, res) => {
             systemPrompt += buildKnowledgeReferenceBlock(kbResults, { citationEntries });
           }
         } catch (err) {
-          if (deepseekTrial) throw err;
+          if (deepseekProfileActive) throw err;
           // Vector KB search lỗi không ảnh hưởng chat flow chính
           safeLog.error("ai.kb_search_non_blocking_failed", err);
         }
@@ -1624,7 +1624,7 @@ export const chatStream = async (req, res) => {
       let toolResult = await executeTool(toolName, args, {
         userId,
         signal: abortController.signal,
-        timeoutMs: toolName === "search_knowledge" && deepseekTrial && process.env.AI_WEB_SEARCH_PROVIDER === "brave"
+        timeoutMs: toolName === "search_knowledge" && deepseekProfileActive && process.env.AI_WEB_SEARCH_PROVIDER === "brave"
           ? Math.min(WEB_GROUNDING_TIMEOUT_MS, Math.max(1, chatStartTime + CHAT_DEADLINE_MS - Date.now()))
           : TOOL_TIMEOUT_MS,
         allowedToolNames: [toolName],
@@ -1764,7 +1764,7 @@ export const chatStream = async (req, res) => {
         webSearchSources.length > 0;
       responseModel = directSearch.toolResult.meta?.diagnosticCode === "unsupported_capability"
         ? "server:capability_unavailable"
-        : deepseekTrial
+        : deepseekProfileActive
           ? webSearchEvidenceAvailable ? resolveDeepseekEndpoint().model : "server:web_evidence_unavailable"
           : String(process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash").slice(0, 100);
       fullResponse = await deliverAssistantResponse(
@@ -1784,7 +1784,11 @@ export const chatStream = async (req, res) => {
         rememberedMealArgs || {},
         conversationMemory.lastMeal,
       );
-      if (directMealRequest.scopedSubstitution || hasCompleteCanonicalMealArgs(directMealRequest.args)) {
+      if (directMealRequest.validationMessage) {
+        requiredToolConsumed = true;
+        responseModel = "server_meal_v1";
+        fullResponse = await deliverAssistantResponse(directMealRequest.validationMessage);
+      } else if (directMealRequest.scopedSubstitution || hasCompleteCanonicalMealArgs(directMealRequest.args)) {
         const directMeal = await executeServerRequiredTool(
           "suggest_meal",
           directMealRequest.args,
@@ -2023,7 +2027,7 @@ export const chatStream = async (req, res) => {
                   return executeTool(
                     toolName,
                     { query: externalKnowledgeQuery.query },
-                    deepseekTrial && process.env.AI_WEB_SEARCH_PROVIDER === "brave"
+                    deepseekProfileActive && process.env.AI_WEB_SEARCH_PROVIDER === "brave"
                       ? { ...context, timeoutMs: Math.min(WEB_GROUNDING_TIMEOUT_MS,
                         Math.max(1, chatStartTime + CHAT_DEADLINE_MS - Date.now())) }
                       : context,
@@ -2178,7 +2182,7 @@ export const chatStream = async (req, res) => {
         }
       }
       } catch (providerError) {
-        if (deepseekTrial && String(providerError?.code || "").startsWith("DEEPSEEK_")) {
+        if (deepseekProfileActive && String(providerError?.code || "").startsWith("DEEPSEEK_")) {
           throw providerError;
         }
         if (
@@ -2665,13 +2669,13 @@ export const chatStream = async (req, res) => {
       } else if (err?.code === "AI_MALFORMED_OUTPUT") {
         errorMessage =
           "HT Assistant nhận được phản hồi chưa hoàn chỉnh. Bạn vui lòng thử lại.";
-      } else if (deepseekTrial && err?.code === "DEEPSEEK_HTTP_ERROR" && err?.status === 429) {
+      } else if (deepseekProfileActive && err?.code === "DEEPSEEK_HTTP_ERROR" && err?.status === 429) {
         errorMessage = "HT Assistant đang nhận quá nhiều yêu cầu từ DeepSeek. Bạn vui lòng thử lại sau ít phút.";
-      } else if (deepseekTrial && err?.code === "DEEPSEEK_HTTP_ERROR" && Number(err?.status) >= 500) {
+      } else if (deepseekProfileActive && err?.code === "DEEPSEEK_HTTP_ERROR" && Number(err?.status) >= 500) {
         errorMessage = "DeepSeek đang tạm gián đoạn. Bạn vui lòng thử lại sau.";
-      } else if (deepseekTrial && ["DEEPSEEK_TIMEOUT", "DEEPSEEK_DEADLINE_EXCEEDED"].includes(err?.code)) {
+      } else if (deepseekProfileActive && ["DEEPSEEK_TIMEOUT", "DEEPSEEK_DEADLINE_EXCEEDED"].includes(err?.code)) {
         errorMessage = "DeepSeek phản hồi quá lâu. Bạn vui lòng thử lại.";
-      } else if (deepseekTrial && (err?.code === "KB_TRIAL_CORPUS_LIMIT" || err?.code?.startsWith("KB_TRIAL_"))) {
+      } else if (deepseekProfileActive && (err?.code === "KB_TRIAL_CORPUS_LIMIT" || err?.code?.startsWith("KB_TRIAL_"))) {
         errorMessage = "Kho kiến thức thử nghiệm chưa thể tra cứu lúc này. Bạn vui lòng thử lại sau.";
       } else if (err?.code === "GEMINI_HTTP_ERROR" && err?.status === 429) {
         errorMessage =

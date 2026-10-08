@@ -57,6 +57,21 @@ const validEnvironment = () => ({
 });
 
 describe("production readiness configuration", () => {
+  it("accepts the complete explicit production Vibi + Brave profile", () => {
+    const env = {
+      ...validEnvironment(), APP_ENV: "production", AI_PROVIDER: "deepseek",
+      AI_PRODUCTION_PROVIDER_PROFILE: "vibi", AI_KB_RETRIEVAL_MODE: "llm_selection",
+      DEEPSEEK_ENDPOINT_PROFILE: "vibi", DEEPSEEK_MODEL: "deepseek-v4.1-flash",
+      DEEPSEEK_API_KEY: "synthetic-" + "d".repeat(32),
+      AI_WEB_SEARCH_PROVIDER: "brave", BRAVE_SEARCH_API_KEY: "synthetic-" + "b".repeat(32),
+      MONGO_URI: "mongodb+srv://cluster.example/gym-app?retryWrites=true",
+    };
+    expect(validateProductionEnvironment(env, { strict: true }).errors).toEqual([]);
+    expect(validateProductionEnvironment(env).summary).toMatchObject({
+      deepseekStagingTrial: false, deepseekProductionProfile: true,
+    });
+    expect(validateProductionEnvironment({ ...env, AI_STAGING_PROVIDER_TRIAL: "deepseek" }).valid).toBe(false);
+  });
   it("allows DeepSeek only for the explicit isolated staging trial", () => {
     const env = { ...validEnvironment(), APP_ENV: "staging", AI_PROVIDER: "deepseek",
       AI_STAGING_PROVIDER_TRIAL: "deepseek", AI_KB_RETRIEVAL_MODE: "llm_selection",

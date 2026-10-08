@@ -45,6 +45,8 @@ beforeAll(async () => {
 });
 afterEach(async () => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  configure();
   await clearCollections();
 });
 afterAll(async () => {
@@ -53,7 +55,17 @@ afterAll(async () => {
 });
 
 describe("Vibi + Brave through owned chat SSE", () => {
-  it("searches once, synthesizes through Vibi and persists the actual citations and trace", async () => {
+  it.each(["staging", "production"])("searches once through Vibi + Brave in %s with citations and trace", async (environment) => {
+    configure();
+    if (environment === "production") {
+      const env = {
+        NODE_ENV: "production", APP_ENV: "production", AI_STAGING_PROVIDER_TRIAL: "",
+        AI_PRODUCTION_PROVIDER_PROFILE: "vibi", MONGO_URI: "mongodb+srv://cluster.example/gym-app",
+        CLIENT_URL: "https://app.example.com", PUBLIC_API_ORIGIN: "https://api.example.com",
+        ALLOWED_ORIGINS: "https://app.example.com", BRAVE_SEARCH_API_KEY: "synthetic-" + "b".repeat(32),
+      };
+      for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    }
     const fetchMock = vi.fn(async (url, options) => {
       if (url === "https://api.search.brave.com/res/v1/llm/context") {
         return new Response(JSON.stringify({ grounding: { generic: [{

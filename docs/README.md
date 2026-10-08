@@ -43,6 +43,7 @@ nguồn canonical trước khi thay đổi code.
 - [Sitewide AI Assistant context and guest access spec](./specs/sitewide-ai-assistant.md)
 - [Explicit AI Memory pilot spec](./specs/ai-explicit-memory.md)
 - [HT Assistant hardening và scale readiness spec](./specs/ai-assistant-hardening-and-scale-readiness.md)
+- [Vibi + Brave production profile](./specs/vibi-production-profile.md)
 - [Thử DeepSeek cho HT Assistant trên staging — spec approved](./specs/deepseek-staging-provider-trial.md)
 - [HT Assistant fitness-first và Knowledge Base có bằng chứng](./specs/fitness-first-ai-and-knowledge-quality.md)
 - [Rollout embedding Knowledge Base trên staging](./specs/knowledge-base-embedding-staging-rollout.md)
