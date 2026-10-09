@@ -21,6 +21,11 @@ Implementation: [Plan096A](../plans/096a-enable-vibi-production-profile.md).
 - AC-004: Production activation retains unrelated settings and Gemini credentials for
   other consumers, verifies paired exact-SHA deployment and >=30 minute observation.
   No production catalog writes or migration are included. Record rollback config privately.
+- AC-005: On 2026-10-09 the owner authorized increasing KB selection from 15 to
+  30 seconds. Admin KB search, selector and provider share this cap; shorter caller
+  deadlines and cancellation still apply. Chat keeps its 75-second overall deadline,
+  45-second provider cap and generic tools keep 15 seconds. No additional retries,
+  token/context limits or model changes. Certify this change on the new exact SHA.
 
 ## Cost and privacy
 

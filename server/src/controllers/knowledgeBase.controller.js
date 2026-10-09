@@ -9,6 +9,7 @@ import {
   searchKnowledgeBase,
 } from "../services/ai/embedding.service.js";
 import { searchAssistantKnowledgeBase } from "../services/ai/knowledgeRetrieval.service.js";
+import { KNOWLEDGE_SELECTION_TIMEOUT_MS } from "../services/ai/knowledgeSelectionPolicy.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
 import { trackDbQuery } from "../observability/queryTelemetry.js";
 import {
@@ -863,7 +864,7 @@ export const searchEntries = async (req, res) => {
       limit,
       threshold,
       signal: controller.signal,
-      deadlineAt: Date.now() + 15_000,
+      deadlineAt: Date.now() + KNOWLEDGE_SELECTION_TIMEOUT_MS,
     });
     return res.json({ success: true, data: result.results, retrieval: result.retrieval });
   } catch (error) {

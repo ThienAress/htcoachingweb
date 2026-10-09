@@ -2,6 +2,7 @@ import KnowledgeEntry from "../../models/KnowledgeEntry.js";
 import { normalizeKnowledgeQuestion } from "../../utils/knowledgeBase.js";
 import { deepseekLLMStream } from "./providers/deepseek.provider.js";
 import { EMBEDDING_VERSION } from "./embeddingProfile.js";
+import { KNOWLEDGE_SELECTION_TIMEOUT_MS } from "./knowledgeSelectionPolicy.js";
 import {
   buildKnowledgeRetrievalFilter,
   isKnowledgeRetrievalEligible,
@@ -14,7 +15,6 @@ import {
 const MAX_CANDIDATES = 64;
 const MAX_SAFE_BYTES = 64 * 1024;
 const MAX_RESPONSE_BYTES = 16 * 1024;
-const SELECT_TIMEOUT_MS = 15_000;
 const projection = "+variants.text question answer category tags sources status embeddingStatus embeddingVersion evidenceLevel reviewStatus freshnessClass reviewDueAt reviewedAt revision _id";
 
 const failure = (code, cause) => {
@@ -140,10 +140,10 @@ export async function searchDeepseekKnowledgeBase(query, options = {}) {
   if (!candidates.length) return { results: [], retrieval };
 
   const deadlineAt = options.deadlineAt;
-  const remaining = deadlineAt ? new Date(deadlineAt).getTime() - Date.now() : SELECT_TIMEOUT_MS;
+  const remaining = deadlineAt ? new Date(deadlineAt).getTime() - Date.now() : KNOWLEDGE_SELECTION_TIMEOUT_MS;
   if (!Number.isFinite(remaining) || remaining <= 0) throw failure("KB_TRIAL_SELECTION_DEADLINE");
   const refs = await readSelection(selectionMessages(prepared.query, candidates), {
-    responseFormat: "json_object", maxOutputTokens: 256, timeoutMs: Math.min(SELECT_TIMEOUT_MS, remaining),
+    responseFormat: "json_object", maxOutputTokens: 256, timeoutMs: Math.min(KNOWLEDGE_SELECTION_TIMEOUT_MS, remaining),
     surface: "kb_selection", signal: options.signal, deadlineAt,
   });
   const byRef = new Map(safe.map((entry, index) => [`kb_${index + 1}`, entry]));

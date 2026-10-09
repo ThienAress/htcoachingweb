@@ -27,7 +27,10 @@ no identifier exemption is introduced. Scientific claims were checked against th
 - This plan, index/state/traceability and the canonical knowledge-quality spec for clarified examples.
 - Private local diagnostic/publication helpers and metadata evidence; never commit production KB payloads.
 
-No auth, quota, rate-limit, provider timeout, model, schema or frontend changes.
+No auth, quota, rate-limit, model, schema or frontend changes. The owner authorized
+one timeout exception on 2026-10-09: KB selection may wait up to 30 seconds instead
+of 15. Share the cap across search controller, selection service and provider;
+preserve shorter caller deadlines/abort, chat/tool caps, retry and token/context bounds.
 Do not bypass privacy, editorial review, source validation, publication fences or branch protection.
 
 ## Steps and verification
@@ -57,6 +60,10 @@ Commit/push only scoped changes; use protected PR flow and exact-SHA CI. Prepare
 acceptance and two reliability rounds. Reuse approved UI15/manual evidence. Obtain fresh verified wallet
 evidence >3 USD before a paid batch; require cleanup verified residue0 after every run.
 Refresh the expired 24-hour production backup before acceptance writes or production rollout.
+For the authorized KB timeout change, require synthetic controller/service/provider
+regressions: response after 20 seconds succeeds, stall cancels at 30 seconds, shorter
+caller deadline and caller cancellation remain effective without retries. Historical
+15-second acceptance failures remain FAIL; certify a fresh exact SHA before release.
 Verify: candidate CI PASS, paired deploy identities match, machine acceptance/reliability PASS.
 
 ### Step 4: Release and publish the validated cohort
@@ -77,7 +84,8 @@ publication outcome, paired SHA and at least 30 minutes GET/HEAD observation PAS
 
 Stop dependent actions when an entry's privacy/source meaning cannot be established, concurrent edits invalidate
 its content hash, exact-SHA gates fail, credential access fails, or a paid batch lacks fresh balance evidence.
-Record the evidence and continue unaffected work. Never weaken a test/timeout or fabricate readiness.
+Record the evidence and continue unaffected work. Never weaken a gate or fabricate readiness;
+the owner-authorized 30-second KB cap is a bounded behavior change requiring fresh certification.
 
 ## Done criteria
 
