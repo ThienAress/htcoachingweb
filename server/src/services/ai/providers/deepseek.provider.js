@@ -5,6 +5,7 @@ import {
 import { resolveDeepseekEndpoint } from "../../../config/deepseekEndpoint.js";
 import { isDeepseekProfileActive } from "../../../config/deepseekProfile.js";
 import { recordDeepseekTelemetry } from "../../../observability/deepseekRequestTelemetry.js";
+import { KNOWLEDGE_SELECTION_TIMEOUT_MS } from "../knowledgeSelectionPolicy.js";
 import {
   byteLength,
   formatToolsForProvider,
@@ -45,7 +46,7 @@ const limitsFor = (options) => {
     ? Math.min(Math.floor(requested), limit) : limit;
   const remaining = options.deadlineAt === undefined ? Infinity : Number(options.deadlineAt) - Date.now();
   const desired = Number(options.timeoutMs);
-  const surfaceTimeout = surface === "kb_selection" ? 15_000 : surface === "web_grounding" ? 20_000 : PROVIDER_TIMEOUT;
+  const surfaceTimeout = surface === "kb_selection" ? KNOWLEDGE_SELECTION_TIMEOUT_MS : surface === "web_grounding" ? 20_000 : PROVIDER_TIMEOUT;
   const timeout = Math.min(surfaceTimeout, Number.isFinite(desired) && desired > 0 ? desired : surfaceTimeout, remaining);
   if (!Number.isFinite(timeout) || timeout <= 0) throw protocolError("DEEPSEEK_DEADLINE_EXCEEDED");
   return { surface, maxTokens, timeout: Math.floor(timeout) };

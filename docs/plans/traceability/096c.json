@@ -46,6 +46,14 @@
           "verifications": [
             { "type": "command", "command": "Private editorial receipt: 28 original entries and six separate draft dispositions with preserved variant hashes" }
           ]
+        },
+        {
+          "id": "AC-004",
+          "mustHave": true,
+          "taskIds": ["TASK-003"],
+          "verifications": [
+            { "type": "command", "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgeSelectionDeadline.test.js src/controllers/__tests__/knowledgeSelectionDeadline.test.js" }
+          ]
         }
       ]
     }

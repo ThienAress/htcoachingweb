@@ -13,6 +13,8 @@ Express/Mongoose publication validation calls the existing knowledge privacy ser
 Changes are limited to contextual grammar/concept/public-role disambiguation, synthetic regressions,
 and privately prepared editorial patches. Auth, CSRF, quota, schema, provider/model and deadlines
 remain governed by their existing contracts. Production payloads and credentials stay outside Git.
+The owner authorized a scoped KB selection timeout change from 15 to 30 seconds on
+2026-10-09; see AC-005 in [Vibi production profile](./vibi-production-profile.md).
 
 ## REQ-001 — Accept general educational knowledge while rejecting personal records
 
@@ -31,6 +33,10 @@ remain governed by their existing contracts. Production payloads and credentials
   exercise clearance, asthma and diabetes. Their future publication requires suitable sources and
   review; F1 clearance requires canonical internal policy. Same-topic variants and source URLs remain
   attached to the original cohort. Unsupported content is never represented as publish-ready.
+- AC-004: KB search controller, selector and provider share a 30-second selection cap.
+  A complete response after 20 seconds succeeds; a stalled request cancels at 30 seconds,
+  a shorter caller deadline wins, and caller abort cancels without retry. Existing
+  privacy, candidate eligibility, context/token bounds and error envelopes remain enforced.
 
 ## Files, style and verification
 
