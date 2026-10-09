@@ -37,12 +37,27 @@ The owner authorized a scoped KB selection timeout change from 15 to 30 seconds 
   A complete response after 20 seconds succeeds; a stalled request cancels at 30 seconds,
   a shorter caller deadline wins, and caller abort cancels without retry. Existing
   privacy, candidate eligibility, context/token bounds and error envelopes remain enforced.
+- AC-005: The authorized editorial batch uses admin-only metadata state and atomic
+  draft repair endpoints. State exposes content hash, revision, status, embedding
+  metadata and a full raw-BSON publication tag, never raw content or vectors. Repair
+  requires admin + CSRF, exact draft tag/hash/revision and an allowlisted educational
+  patch (question, answer, category, variants, tags, sources). Reject status/reviewer
+  assignment and stale state before provider work. Generate any required embeddings
+  before the single fenced save; provider failure preserves the original draft.
+  Full BSON drift during embedding generation fails with 412 even without a version
+  increment. Successful material repair increments revision once, resets review and
+  remains draft. Reconcile unknown outcomes by state before retry; publication still
+  uses the existing status-only If-Match path with a fresh tag. Six separate entries
+  remain draft until source/review requirements are satisfied.
 
 ## Files, style and verification
 
 - `server/src/services/ai/knowledgePrivacy.js` and `personalHealthData.js`: existing validation seams.
 - `knowledgeConceptContext.js` and `knowledgeGeneralSyntax.js`: narrow contextual helpers.
 - `server/src/services/ai/__tests__/knowledgePrivacy*.test.js`: synthetic positive/negative regressions.
+- `server/src/services/knowledgeEditorialRepair.service.js` and its focused tests:
+  metadata-only state, typed BSON fence and one-save repair; dedicated admin routes
+  and thin HTTP handlers follow the current authorization/CSRF layering.
 - [Plan 096C](../plans/096c-repair-draft-knowledge-publication.md): task and rollout ownership.
 
 Use existing service layering and bounded text processing. Run focused privacy/publication suites,

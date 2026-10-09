@@ -31,6 +31,10 @@ No auth, quota, rate-limit, model, schema or frontend changes. The owner authori
 one timeout exception on 2026-10-09: KB selection may wait up to 30 seconds instead
 of 15. Share the cap across search controller, selection service and provider;
 preserve shorter caller deadlines/abort, chat/tool caps, retry and token/context bounds.
+The existing publication contract requires current content/revision and full BSON
+fences. Investigation found ordinary editorial PUT cannot enforce a preflight snapshot.
+Add a narrow admin metadata state and fenced draft repair path to fulfil this already
+authorized cohort operation; keep existing ordinary update and status-only publish APIs.
 Do not bypass privacy, editorial review, source validation, publication fences or branch protection.
 
 ## Steps and verification
@@ -53,6 +57,28 @@ F1 exercise clearance, asthma and diabetes. Add suitable sources before their fu
 F1 clearance requires canonical internal policy. Do not publish unsupported drafts.
 Verify: focused privacy and publication suites exit 0, followed by metadata validation of 28/28 drafts
 or their prepared edits. Do not call unresolved entries ready merely to achieve the count.
+
+### Step 2B: Apply approved draft edits through an atomic revision fence
+
+Scope: knowledgeEditorialRepair.service.js, a dedicated thin controller, knowledgeBase
+routes, focused synthetic service/route integration tests and this spec/traceability.
+No new schema, dependency, frontend, model/provider or authorization semantics.
+
+Expose GET /api/knowledge-base/:id/editorial-state with metadata only. PUT
+/api/knowledge-base/:id/editorial-repair requires If-Match full raw BSON tag plus
+expectedHash/expectedRevision and allowlisted patch. Verify draft/tag/hash/revision
+before any provider call. Hydrate the raw snapshot, apply validated educational edits,
+prepare embeddings before mutation and make one save guarded by the original full
+typed BSON snapshot. Failure before save leaves the original draft intact; concurrent
+raw/Mongoose changes fail412. On success reset review, increment revision once and
+keep draft. Read state again before status-only conditional publish. Unknown response
+is reconciled by hash/revision/status; do not blindly retry or create duplicate drafts.
+
+Verify: synthetic state/repair route tests cover auth/CSRF, response projection,
+hash/revision/tag/status mismatch, provider failure with zero writes, drift during
+provider work without __v increment, concurrent Mongoose version change, successful
+repair and fresh conditional publication. Secret/data boundary and traceability checks
+must pass; exact CI/live certification is still required after this code change.
 
 ### Step 3: Push and certify the new exact SHA on staging
 

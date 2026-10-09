@@ -2,6 +2,7 @@ import { Router } from "express";
 import { protect, requireRoles } from "../middlewares/auth.middleware.js";
 import { csrfProtection } from "../middlewares/csrf.js";
 import { prepareStagingAiAcceptanceSearch, settleStagingAiAcceptanceHandler } from "../middlewares/stagingAiAcceptance.js";
+import { getEditorialState, repairEditorialDraft } from "../controllers/knowledgeEditorialRepair.controller.js";
 import {
   getEntries,
   createEntry,
@@ -33,10 +34,12 @@ router.get("/stats", getStats);
 router.get("/categories", getCategories);
 router.get("/conversations", getAllConversations);
 router.get("/conversations/:id", getFullConversation);
+router.get("/:id/editorial-state", getEditorialState);
 
 // Mutating routes (cần CSRF)
 router.post("/", csrfProtection, createEntry);
 router.put("/:id", csrfProtection, updateEntry);
+router.put("/:id/editorial-repair", csrfProtection, repairEditorialDraft);
 router.delete("/:id", csrfProtection, deleteEntry);
 router.post("/from-conversation", csrfProtection, createFromConversation);
 router.post("/ai-suggest", csrfProtection, suggestFromConversations);
