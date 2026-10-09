@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "planId": "096C",
+  "specPath": "docs/specs/knowledge-draft-publication-repair.md",
+  "planPath": "docs/plans/096c-repair-draft-knowledge-publication.md",
+  "tasks": [
+    { "id": "TASK-001", "title": "Inspect all drafts", "planStep": "Step 1" },
+    { "id": "TASK-002", "title": "Correct proven failures", "planStep": "Step 2" },
+    { "id": "TASK-003", "title": "Certify exact candidate", "planStep": "Step 3" },
+    { "id": "TASK-004", "title": "Release and publish cohort", "planStep": "Step 4" }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-001",
+          "mustHave": true,
+          "taskIds": ["TASK-001", "TASK-002"],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgePrivacy.generalTerms.test.js src/services/ai/__tests__/knowledgePrivacy.generalSyntax.test.js src/services/ai/__tests__/knowledgePrivacy.publicRole.test.js src/services/ai/__tests__/knowledgePrivacy.test.js src/services/ai/__tests__/personalHealthData.test.js src/controllers/__tests__/knowledgeBaseEvidence.routes.integration.test.js src/controllers/__tests__/knowledgePublicationFence.integration.test.js"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-002",
+          "mustHave": true,
+          "taskIds": ["TASK-003", "TASK-004"],
+          "verifications": [
+            { "type": "command", "command": "node scripts/check-backup-readiness.mjs --mode=release" },
+            { "type": "command", "command": "node scripts/release-gate.mjs --mode=candidate --manifest <candidate> --backup-manifest <currentRecovery> --expected-sha <40sha>" },
+            { "type": "command", "command": "node scripts/release-gate.mjs --mode=post-deploy --manifest <postDeploy> --candidate <candidate>" }
+          ]
+        },
+        {
+          "id": "AC-003",
+          "mustHave": true,
+          "taskIds": ["TASK-002", "TASK-004"],
+          "verifications": [
+            { "type": "command", "command": "Private editorial receipt: 28 original entries and six separate draft dispositions with preserved variant hashes" }
+          ]
+        }
+      ]
+    }
+  ]
+}

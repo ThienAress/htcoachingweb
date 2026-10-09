@@ -8,6 +8,18 @@ import {
   splitHealthClauses,
 } from "./personalHealthData.js";
 import { hasKnowledgeSourceCredentialParameters } from "../../utils/knowledgeBase.js";
+import {
+  isGeneralFitnessConceptReference,
+  normalizeAthleteRoleAbbreviations,
+  getDeclaredPublicAliases,
+  isGeneralNormalRangeQualifier,
+} from "./knowledgeConceptContext.js";
+import {
+  isBibliographicArticlePhrase,
+  isGeneralKnowledgeNounPhrase,
+  isGeneralKnowledgeSyntax,
+  maskVietnameseGeneralPhrases,
+} from "./knowledgeGeneralSyntax.js";
 
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const PHONE_PATTERN = /(?<!\d)(?:\+?84|0)(?:[\s.-]?\d){8,10}(?!\d)/g;
@@ -90,7 +102,7 @@ const PRIVATE_PUBLIC_ALIAS_AFTER_PATTERN = new RegExp(
   "i",
 );
 const PUBLIC_PERSON_TITLE_BEFORE_NAME_PATTERN =
-  /(?:^|[^\p{L}\p{N}_])(?:cầu thủ|vận động viên|vdv|ca sĩ|diễn viên|nhà thơ|nhà văn|tác giả|nhà khoa học|người nổi tiếng|public figure|athlete|footballer|singer|actor|author|scientist)\s+$/iu;
+  /(?:^|[^\p{L}\p{N}_])(?:cầu thủ|vận động viên|v[đd]v|ca sĩ|diễn viên|nhà thơ|nhà văn|tác giả|nhà khoa học|người nổi tiếng|public figure|athlete|footballer|singer|actor|author|scientist)\s+$/iu;
 const PUBLIC_PERSON_METADATA_SUFFIX_PATTERN =
   /\s+(?:dob|date of birth|ngày sinh)$/iu;
 const SOURCE_NAMED_HEALTH_ASSERTION_PATTERN =
@@ -460,7 +472,7 @@ const STANDALONE_PRIVATE_NAME_PATTERN =
 const boundedText = (value, maximum) => String(value || "").trim().slice(0, maximum);
 
 const normalizePrivacyText = (value) =>
-  String(value || "")
+  maskVietnameseGeneralPhrases(value)
     .normalize("NFKC")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -491,11 +503,14 @@ const containsPersonalBodyMetric = (value) => {
 };
 
 const hasClearNonPersonEntityContext = ({ text, index, name }) => {
+  if (PUBLIC_PERSON_TITLE_BEFORE_NAME_PATTERN.test(text.slice(0, index))) return false;
   const normalizedPrefix = normalizePrivacyText(text.slice(0, index));
   const normalizedSuffix = normalizePrivacyText(
     text.slice(index + String(name || "").length),
   );
   return (
+    isGeneralKnowledgeSyntax({ text, index, name }) ||
+    isGeneralFitnessConceptReference({ text, index, name }) ||
     LOCATION_ENTITY_BEFORE_PATTERN.test(normalizedPrefix) ||
     LOCATION_ENTITY_AFTER_PATTERN.test(normalizedSuffix) ||
     (LOCATION_MARKER_BEFORE_ENTITY_PATTERN.test(normalizedPrefix) &&
@@ -507,7 +522,7 @@ const hasClearNonPersonEntityContext = ({ text, index, name }) => {
 };
 
 const extractContextualPublicNames = (value) => {
-  const text = String(value || "");
+  const text = normalizeAthleteRoleAbbreviations(value);
   const names = new Set();
   for (const match of text.matchAll(LIKELY_PERSON_NAME_GLOBAL_PATTERN)) {
     if (!match[0] || match.index === undefined) continue;
@@ -649,6 +664,7 @@ const isLikelyPrivateNameCandidate = (value) => {
 const isSyntacticallyBoundPrivateNameCandidate = (value) => {
   const candidate = String(value || "").trim();
   if (!candidate) return false;
+  if (isGeneralKnowledgeNounPhrase(candidate)) return false;
   const normalizedCandidate = normalizePrivacyText(candidate).trim();
   if (
     CLEAR_NON_PERSON_IDENTITY_PHRASE_PATTERN.test(normalizedCandidate) &&
@@ -727,15 +743,24 @@ const extractPredicateBoundVietnameseNames = (value) => {
             (token) => !PRIVATE_NAME_CONNECTOR_TOKENS.has(token),
           )
         ) {
-          names.add(candidate);
-          addedSurnameCandidate = true;
+          if (!isGeneralKnowledgeSyntax({ text, index: firstNameWord.index, name: candidate })) {
+            names.add(candidate);
+            addedSurnameCandidate = true;
+          }
         }
       }
       if (
         !addedSurnameCandidate &&
-        COMMON_VIETNAMESE_GIVEN_NAMES.has(normalizeNameLexeme(lastWord[0]))
+        COMMON_VIETNAMESE_GIVEN_NAMES.has(normalizeNameLexeme(lastWord[0])) &&
+        !isGeneralNormalRangeQualifier({
+          prefix: prefix.slice(0, trimmedEnd),
+          predicate: predicate[0],
+          name: lastWord[0],
+        })
       ) {
-        names.add(lastWord[0]);
+        if (!isGeneralKnowledgeSyntax({ text, index: lastWord.index, name: lastWord[0] })) {
+          names.add(lastWord[0]);
+        }
       }
     }
   }
@@ -803,7 +828,7 @@ const extractStrongPrivateCueNames = (value) => {
 };
 
 const extractUnboundPrivateNames = (value, allowedPublicPersonNames = []) => {
-  const text = String(value || "");
+  const text = normalizeAthleteRoleAbbreviations(value);
   const names = new Set();
   const multiTokenNameRanges = [];
   const publicDateOfBirthLookup = containsPublicDateOfBirthBinding(
@@ -935,6 +960,7 @@ export function getPublicPersonLookupNames(value) {
   return [
     ...new Set([
       ...contextualNames,
+      ...getDeclaredPublicAliases(text, contextualNames),
       ...verifiedMononyms,
     ]),
   ];
@@ -1199,6 +1225,7 @@ const maskCallerVettedPublicNames = (value, allowedPublicPersonNames) => {
 const isStrongSourcePrivateName = (value, sourceText) => {
   const name = String(value || "").trim();
   if (!name) return false;
+  if (isBibliographicArticlePhrase(name)) return false;
   const tokens = normalizeNameLexeme(name).split(/\s+/).filter(Boolean);
   if (
     COMMON_VIETNAMESE_SURNAMES.has(tokens[0]) ||

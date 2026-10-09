@@ -1,3 +1,5 @@
+import { maskVietnameseGeneralPhrases } from "./knowledgeGeneralSyntax.js";
+
 const FIRST_PERSON_SUBJECT_SOURCE = "(?:toi|minh|em|tui|chung toi)";
 const PRIVATE_RECORD_SUBJECT_SOURCE =
   "(?:khach hang|hoc vien|benh nhan|nguoi nay|nguoi ben canh toi|mot nguoi|anh ay|co ay|bo toi|me toi|vo toi|chong toi|con toi|ban toi|anh toi|chi toi|em toi|client|patient|customer|member|user|someone next to me|someone|my father|my mother|my wife|my husband|my child|my kid|my son|my daughter|my friend|he|she|they)";
@@ -148,7 +150,7 @@ const GENERIC_SUBJECT_DATE_OF_BIRTH_PATTERN = new RegExp(
 );
 
 const normalizeHealthText = (value, { preserveClausePunctuation = false } = {}) =>
-  String(value || "")
+  maskVietnameseGeneralPhrases(value)
     .normalize("NFKC")
     .toLowerCase()
     .replaceAll("trẻ em", "children")
@@ -172,7 +174,7 @@ const normalizeHealthText = (value, { preserveClausePunctuation = false } = {}) 
     .trim();
 
 const normalizeClinicalStructureText = (value) =>
-  String(value || "")
+  maskVietnameseGeneralPhrases(value)
     .normalize("NFKC")
     .toLowerCase()
     .normalize("NFD")
