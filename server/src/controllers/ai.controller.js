@@ -9,9 +9,12 @@ import {
   isSuccessfulToolResult,
 } from "../services/ai/tools/toolEngine.js";
 import { executeToolBatch } from "../services/ai/tools/toolBatchExecutor.js";
+import { resolveAiCapabilities, resolveWebPolicy, WEB_GROUNDING_TIMEOUT_MS } from "../services/ai/capabilityPolicy.js";
+import { resolveResponseProvenance } from "../services/ai/responseProvenance.js";
 import {
   getToolSchemas,
   SEARCH_KNOWLEDGE_QUERY_MAX_CHARACTERS,
+  toolRegistry,
 } from "../services/ai/tools/toolRegistry.js";
 import {
   normalizePublicToolText,
@@ -36,7 +39,10 @@ import {
   moderateContent,
   moderateGuestContent,
 } from "../services/ai/contentModeration.js";
-import { searchKnowledgeBase } from "../services/ai/embedding.service.js";
+import { searchAssistantKnowledgeBase } from "../services/ai/knowledgeRetrieval.service.js";
+import { selectConversationHistory } from "../services/ai/conversationHistory.js";
+import { isDeepseekProfileActive } from "../config/deepseekProfile.js";
+import { resolveDeepseekEndpoint } from "../config/deepseekEndpoint.js";
 import { aiLogger } from "../services/ai/aiLogger.js";
 import { serializeRequestQuota } from "../services/serviceAccessPolicy.service.js";
 import {
@@ -48,6 +54,30 @@ import {
   deriveConversationMemory,
   updateConversationMemory,
 } from "../services/ai/conversationMemory.js";
+import { buildCanonicalMealToolRequest } from "../services/ai/mealRequestConstraints.js";
+import { evaluateSemanticOutput } from "../services/ai/evals/semanticOutputEvaluator.js";
+import { buildTdeeIntakeResponse } from "../services/ai/tdeeIntake.js";
+import { answerNeedsKnowledgeCitation, selectCitationKnowledgeEntries, stripUnselectedKnowledgeCitations } from "../services/ai/answerSourcePolicy.js";
+import { bindSupportedKnowledgeClaims } from "../services/ai/knowledgeClaimCitation.js";
+import { buildJointDiscomfortResponse, JOINT_SAFETY_SOURCE } from "../services/ai/jointDiscomfortResponse.js";
+import { buildBoundedWorkoutDraft } from "../services/ai/workoutDraft.js";
+import { buildSevenDayReferencePlan } from "../services/ai/referencePlan.js";
+import { buildExerciseRequest, isExerciseCatalogRequest } from "../services/ai/exerciseRequest.js";
+import {
+  hasBandOnlyConstraint,
+  validateWorkoutEquipmentOutput,
+} from "../services/ai/equipmentConstraint.js";
+import {
+  buildScopeCorrectionInstruction,
+  buildScopePreservationFallback,
+  parseScopePreservationRequest,
+  validateScopePreservationOutput,
+} from "../services/ai/scopePreservation.js";
+import {
+  MIXED_WORKOUT_CORRECTION_INSTRUCTION,
+  MIXED_WORKOUT_FALLBACK,
+  validateMixedWorkoutSupplementOutput,
+} from "../services/ai/mixedWorkoutMealGuard.js";
 import {
   boundAssistantOutputWithSources,
   sanitizeAssistantOutput,
@@ -65,10 +95,6 @@ import {
   AI_RUNTIME_POLICY,
   boundAiToolCalls,
 } from "../services/ai/runtimePolicy.js";
-import {
-  createAiToolConfirmation,
-  serializeAiToolConfirmationCard,
-} from "../services/ai/toolConfirmation.service.js";
 import {
   buildChatSummary,
   MAX_RECENT_REQUEST_IDS,
@@ -92,6 +118,136 @@ const CHAT_DEADLINE_MS = AI_RUNTIME_POLICY.chatDeadlineMs;
 const TOOL_TIMEOUT_MS = AI_RUNTIME_POLICY.toolTimeoutMs;
 const MAX_ASSISTANT_RESPONSE_CHARACTERS = 20000;
 const GUEST_REQUEST_KEY_VERSION = "guest-v1";
+const MANDATORY_READ_ONLY_TOOL_NAMES = new Set([
+  "calculate_tdee",
+  "suggest_meal",
+  "search_exercises",
+  "search_knowledge",
+]);
+
+const resolveRequiredReadOnlyToolName = (toolName, routedTools) => {
+  const tool = toolRegistry[toolName];
+  const isExposed = routedTools.some(
+    (schema) => schema?.function?.name === toolName,
+  );
+  return MANDATORY_READ_ONLY_TOOL_NAMES.has(toolName) &&
+    isExposed &&
+    tool?.readOnly === true &&
+    tool?.requiresConfirmation !== true
+    ? toolName
+    : null;
+};
+
+const canonicalExerciseArgs = (message, args = {}) => {
+  return buildExerciseRequest(message, args);
+};
+
+const attachMealIdentity = (toolName, toolResult) => {
+  if (
+    toolName !== "suggest_meal" ||
+    toolResult?.uiCard?.cardType !== "meal" ||
+    toolResult.uiCard.data?.status !== "complete"
+  ) {
+    return toolResult;
+  }
+  return {
+    ...toolResult,
+    uiCard: {
+      ...toolResult.uiCard,
+      data: {
+        ...toolResult.uiCard.data,
+        mealPlanId: crypto.randomUUID(),
+        mealRevision: 1,
+      },
+    },
+  };
+};
+
+const requiredToolMissingResponse = (toolName) => {
+  if (toolName === "calculate_tdee") {
+    return {
+      text:
+        "TDEE là một ước tính và mình chưa đủ dữ liệu có cấu trúc để tính cho bạn. Vui lòng cung cấp tối đa 5 nhóm: (1) giới tính, tuổi, chiều cao và cân nặng; (2) mục tiêu; (3) công việc, di chuyển và số bước; (4) số buổi, thời lượng và cường độ tập; (5) thiết bị, kinh nghiệm và chấn thương nếu bạn cũng muốn lập giáo án.",
+      uiCard: null,
+    };
+  }
+  if (toolName === "suggest_meal") {
+    return {
+      text:
+        "Mình chưa nhận được đủ dữ liệu có cấu trúc để tạo thực đơn chính xác. Bạn vui lòng nêu mục tiêu kcal, protein tối thiểu và số bữa.",
+      uiCard: {
+        cardType: "meal",
+        data: {
+          status: "missing_data",
+          reason: "required_tool_not_called",
+          meals: [],
+          totals: null,
+        },
+      },
+    };
+  }
+  if (toolName === "search_exercises") {
+    return {
+      text:
+        "Mình chưa thể đối chiếu thư viện bài tập cho yêu cầu này. Bạn thử nêu nhóm cơ và thiết bị hiện có nhé.",
+      uiCard: null,
+    };
+  }
+  return {
+    text:
+      "Mình chưa thể xác minh thông tin này bằng nguồn đáng tin cậy lúc này, nên chưa muốn khẳng định từ trí nhớ. Bạn thử lại sau nhé.",
+    uiCard: null,
+  };
+};
+
+const hasCompleteCanonicalMealArgs = (args) =>
+  Number.isFinite(args?.targetCalories) &&
+  args.targetCalories >= (args.calorieScope === "per_meal" ? 500 : 800) &&
+  Number.isFinite(args?.proteinGrams) && args.proteinGrams > 0 &&
+  Number.isFinite(args?.carbGrams) && args.carbGrams >= 0 &&
+  Number.isFinite(args?.fatGrams) && args.fatGrams >= 0 &&
+  Number.isInteger(args?.mealsPerDay) &&
+  args.mealsPerDay >= 1 && args.mealsPerDay <= 6;
+
+const EQUIPMENT_CORRECTION_INSTRUCTION =
+  "Hãy viết lại câu trả lời và giữ nguyên mục tiêu lịch tập. Chỉ dùng tạ đơn điều chỉnh và dây kháng lực; chỉ dùng bodyweight nếu người dùng đã nêu rõ cho phép. Không dùng thanh đòn, máy, cáp, xà hay ghế. Dumbbell chest press phải ghi rõ biến thể floor press trên sàn. Chỉ trả lời cuối cùng, không nêu quy trình nội bộ.";
+const FOUR_DAY_WORKOUT_CORRECTION_INSTRUCTION =
+  "Hãy viết lại thành giáo án đủ Buổi 1, Buổi 2, Buổi 3, Buổi 4. Mỗi buổi nêu bài tập, số hiệp, số lần, RPE, thời gian nghỉ và tối đa 60 phút. Giữ nguyên ràng buộc thiết bị; không nêu quy trình nội bộ.";
+const FOUR_DAY_WORKOUT_FALLBACK = [
+  "Đây là mẫu giáo án 4 buổi để bắt đầu; điều chỉnh độ khó theo thể lực của bạn, mỗi buổi khoảng 45–55 phút.",
+  "Buổi 1 (thân trên): Dumbbell Floor Press 3 hiệp x 8–12 lần, One-arm Dumbbell Row 3 hiệp x 10–12 lần mỗi bên, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Buổi 2 (thân dưới): Dumbbell Goblet Squat 3 hiệp x 10–15 lần, Dumbbell Romanian Deadlift 3 hiệp x 8–12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Buổi 3 (thân trên): Resistance Band Chest Press 3 hiệp x 10–15 lần, Standing Dumbbell Shoulder Press 3 hiệp x 8–12 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Buổi 4 (thân dưới): Dumbbell Reverse Lunge 3 hiệp x 8–10 lần mỗi bên, Resistance Band Good Morning 3 hiệp x 10–15 lần, RPE 7, nghỉ 90 giây giữa hiệp.",
+  "Sắp xếp Buổi 1–2 rồi nghỉ một ngày trước Buổi 3–4 để hai buổi chân không liền nhau. Tăng dần số lần trong 5 tuần khi kỹ thuật ổn định; tuần 6 deload, giảm khoảng 30% volume.",
+].join("\n");
+const activityIntakeFollowup = (message, priorMessages, routingDecision) => {
+  if (routingDecision.risk !== "low" || routingDecision.webSearchRequired ||
+      routingDecision.preferredTool) return null;
+  const priorAssistant = priorMessages.findLast((item) => item.role === "assistant")?.content || "";
+  if (!/TDEE/iu.test(priorAssistant) || !/ước tính/iu.test(priorAssistant) ||
+      !/(?:tuổi|chiều cao|cân nặng|thiết bị|kinh nghiệm)/iu.test(priorAssistant) ||
+      !/(?:ngồi làm|làm văn phòng|ngồi nhiều)/iu.test(message)) return null;
+  const steps = /(?:^|\D)(\d{4,5})\s*bước/iu.exec(message)?.[1];
+  const minutes = /(\d{2,3})\s*[-–]\s*(\d{2,3})\s*(?:p\b|phút)/iu.exec(message);
+  const stepCount = Number(steps);
+  const from = Number(minutes?.[1]);
+  const to = Number(minutes?.[2]);
+  if (!Number.isInteger(stepCount) || stepCount < 1_000 || stepCount > 30_000 ||
+      !Number.isInteger(from) || from < 10 || !Number.isInteger(to) ||
+      to < from || to > 240) return null;
+  return `Mình ghi nhận bạn ngồi làm việc, đi ${stepCount.toLocaleString("vi-VN")} bước/ngày và tập ${from}–${to} phút. TDEE vẫn là ước tính; mình chưa thể ấn định kcal cá nhân hoặc lập giáo án phù hợp chỉ từ các dữ liệu này. Bạn cho mình thêm giới tính, tuổi, chiều cao, cân nặng, mục tiêu, kinh nghiệm tập, thiết bị hiện có và chấn thương nếu có nhé.`;
+};
+const WORKOUT_INTAKE_CORRECTION_INSTRUCTION =
+  "Hãy hỏi tối đa 5 nhóm dữ liệu còn thiếu trước khi tính calo hoặc lập giáo án: giới tính/tuổi/chiều cao/cân nặng; mục tiêu; công việc/số bước/số buổi; kinh nghiệm và thiết bị; chấn thương hoặc vấn đề xương khớp. TDEE chỉ là ước tính. Không hỏi dị ứng hay chế độ ăn nếu user chưa yêu cầu thực đơn.";
+const WORKOUT_INTAKE_FALLBACK = [
+  "TDEE là ước tính; mình chưa đủ dữ liệu để tính hoặc lập giáo án mà không đoán. Mình cần tối đa 5 nhóm thông tin quan trọng:",
+  "1. Giới tính, tuổi, chiều cao và cân nặng hiện tại?",
+  "2. Mục tiêu của bạn là giảm mỡ, tăng cơ hay giữ cân?",
+  "3. Công việc, số bước trung bình và số buổi tập mỗi tuần?",
+  "4. Kinh nghiệm tập và thiết bị hiện có?",
+  "5. Bạn có chấn thương hoặc vấn đề xương khớp nào cần lưu ý không?",
+].join("\n");
 
 const explicitDietPlan = (message) => {
   const text = String(message || "");
@@ -124,7 +280,7 @@ const canReuseTdeeForMealFollowUp = (message) => {
     .toLowerCase()
     .replace(/\b(?:low|moderate|high)[\s-]*carb\b/g, " ")
     .replace(/\b[1-6]\s*(?:bua|meals?)(?:\s*(?:\/|moi|trong)\s*ngay)?\b/g, " ")
-    .replace(/\b(?:goi|y|thuc|don|len|lam|tao|doi|chuyen|cho|toi|minh|ban|giup|voi|theo|che|do|hay|nhe|an|bua|meal|plan|please)\b/g, " ")
+    .replace(/\b(?:goi|y|thuc|don|len|lam|tao|doi|chuyen|cho|toi|minh|ban|giup|voi|theo|che|do|hay|nhe|an|bua|meal|plan|please|khong|muon|chi|la|vi|du|phu|hop|chon|thay|ma|nhung|not|avoid|instead|of|rather|than|example|want|suitable|but)\b/g, " ")
     .replace(/[^a-z0-9]/g, "");
   // Chỉ dùng TDEE cũ cho lời hỏi tiếp thuần variant/số bữa. Mọi số đo,
   // calo, mục tiêu hoặc hoạt động mới phải được model xử lý như yêu cầu mới.
@@ -199,6 +355,7 @@ const serializePublicChatMessage = (message) => {
     role: source.role,
     content: source.content || "",
     image: source.image || null,
+    structuredAction: source.structuredAction || null,
     uiCard: source.uiCard || null,
     feedback: source.feedback || null,
     timestamp: source.timestamp,
@@ -233,15 +390,226 @@ const contextUpdate = (context) => {
   return update;
 };
 
+const buildRetryUserMessage = ({ message, image, structuredAction, timestamp }) => ({
+  role: "user",
+  content: message,
+  image,
+  structuredAction: structuredAction || null,
+  timestamp,
+});
+
+const canonicalRetryValue = (value) => {
+  const source = value?.toObject?.() || value;
+  if (source === undefined || source === null) return null;
+  if (Array.isArray(source)) return source.map(canonicalRetryValue);
+  if (typeof source !== "object") return source;
+  return Object.fromEntries(
+    Object.keys(source)
+      .sort()
+      .map((key) => [key, canonicalRetryValue(source[key])]),
+  );
+};
+
+const retryValuesEqual = (left, right) =>
+  JSON.stringify(canonicalRetryValue(left)) ===
+  JSON.stringify(canonicalRetryValue(right));
+
+const acquireRetryConversation = async ({
+  ownerFilter,
+  conversationTtlMs,
+  conversationId,
+  retryOfMessageId,
+  requestKey,
+  requestLookupKeys,
+  message,
+  image,
+  structuredAction,
+  context,
+  streamId,
+}) => {
+  const existing = await ChatConversation.findOne({
+    _id: conversationId,
+    ...ownerFilter,
+  })
+    .select("+guestKey +activeStreamId +activeStreamStartedAt +recentRequestIds")
+    .lean();
+
+  if (!existing) throw httpError(404, "Không tìm thấy cuộc trò chuyện");
+  if (existing.recentRequestIds?.some((value) => requestLookupKeys.includes(value))) {
+    return { conversation: existing, duplicate: true };
+  }
+  const staleBefore = new Date(Date.now() - STREAM_STALE_MS);
+  const activeStreamIsFresh = existing.activeStreamId &&
+    (!existing.activeStreamStartedAt || existing.activeStreamStartedAt >= staleBefore);
+  if (activeStreamIsFresh) {
+    throw httpError(409, "Cuộc trò chuyện đang xử lý một tin nhắn khác");
+  }
+
+  const targetIndex = existing.messages.findIndex(
+    (candidate) =>
+      String(candidate._id) === String(retryOfMessageId) &&
+      candidate.role === "user",
+  );
+  if (targetIndex < 0) {
+    throw httpError(409, "Tin nhắn cần retry không còn trong cuộc trò chuyện");
+  }
+
+  const targetMessage = existing.messages[targetIndex];
+  if (targetMessage.content !== message) {
+    throw httpError(409, "Nội dung retry không khớp tin nhắn gốc");
+  }
+  if ((targetMessage.image || null) !== (image || null) ||
+      !retryValuesEqual(targetMessage.structuredAction, structuredAction)) {
+    throw httpError(409, "Dữ liệu retry không khớp tin nhắn gốc");
+  }
+  if (existing.messages.slice(targetIndex + 1).some(({ role }) => role === "user")) {
+    throw httpError(409, "Chỉ có thể retry lượt cuối cùng của cuộc trò chuyện");
+  }
+
+  const retainedMessages = existing.messages.slice(0, targetIndex);
+  const removedTail = existing.messages.slice(targetIndex);
+  const snapshotMessages = existing.messages;
+  const currentWorkingMemory =
+    existing.workingMemory?.toObject?.() || existing.workingMemory || {};
+  const removedToolNames = new Set(
+    removedTail
+      .filter((item) => item.role === "tool")
+      .map((item) => item.toolName),
+  );
+  let nextWorkingMemory = currentWorkingMemory;
+  if (removedToolNames.has("calculate_tdee")) {
+    const memoryWithoutRemovedState = { ...currentWorkingMemory };
+    delete memoryWithoutRemovedState.lastTdee;
+    delete memoryWithoutRemovedState.lastMeal;
+    nextWorkingMemory = deriveConversationMemory(
+      retainedMessages,
+      memoryWithoutRemovedState,
+    );
+  } else if (removedToolNames.has("suggest_meal")) {
+    const memoryWithoutRemovedMeal = { ...currentWorkingMemory };
+    delete memoryWithoutRemovedMeal.lastMeal;
+    nextWorkingMemory = deriveConversationMemory(
+      retainedMessages,
+      memoryWithoutRemovedMeal,
+    );
+  }
+  const retryRollback = {
+    removedTail,
+    messageCount: Number(existing.messageCount || 0),
+    lastMessagePreview: existing.lastMessagePreview || "",
+    lastMessageAt: existing.lastMessageAt || null,
+    context: existing.context?.toObject?.() || existing.context || {},
+    workingMemory: currentWorkingMemory,
+    expiresAt: existing.expiresAt || null,
+  };
+  const timestamp = new Date();
+  const retryUserMessage = ChatConversation.hydrate(existing).messages.create(
+    buildRetryUserMessage({ message, image, structuredAction, timestamp }),
+  ).toObject();
+  const nextMessages = [
+    ...retainedMessages,
+    retryUserMessage,
+  ].slice(-MAX_STORED_CHAT_MESSAGES);
+  const removedAssistantCount = existing.messages
+    .slice(targetIndex)
+    .filter(({ role }) => role === "assistant").length;
+  const nextMessageCount = Math.max(
+    0,
+    Number(existing.messageCount || 0) - 1 - removedAssistantCount + 1,
+  );
+  const rawOwnerFilter = existing.userId
+    ? { userId: existing.userId }
+    : { guestKey: existing.guestKey };
+  const retrySnapshotFilter = {
+    _id: existing._id,
+    ...rawOwnerFilter,
+    __v: existing.__v,
+    messages: snapshotMessages,
+    messageCount: Number(existing.messageCount || 0),
+    $or: [
+      { activeStreamId: null },
+      { activeStreamId: { $exists: false } },
+      {
+        activeStreamId: { $ne: null },
+        activeStreamStartedAt: { $lt: staleBefore },
+      },
+    ],
+    recentRequestIds: { $nin: requestLookupKeys },
+  };
+  retrySnapshotFilter.workingMemory = Object.hasOwn(existing, "workingMemory")
+    ? currentWorkingMemory
+    : { $exists: false };
+  if (existing.updatedAt) retrySnapshotFilter.updatedAt = existing.updatedAt;
+  // The exact snapshot prevents a stale retry from replacing a turn that
+  // acquired/finalized after the initial read. Keep the active-stream guard
+  // above as the cheap contention check for legacy documents.
+  const acquisition = await ChatConversation.collection.updateOne(
+    retrySnapshotFilter,
+    {
+      $set: {
+        messages: nextMessages,
+        messageCount: nextMessageCount,
+        activeStreamId: streamId,
+        activeStreamStartedAt: timestamp,
+        expiresAt: new Date(Date.now() + conversationTtlMs),
+        updatedAt: timestamp,
+        lastMessagePreview: message.slice(0, 120),
+        lastMessageAt: timestamp,
+        workingMemory: nextWorkingMemory,
+        ...contextUpdate(context),
+      },
+      $push: {
+        recentRequestIds: {
+          $each: [requestKey],
+          $slice: -MAX_RECENT_REQUEST_IDS,
+        },
+      },
+      $inc: { __v: 1 },
+    },
+  );
+
+  if (acquisition.matchedCount !== 1) {
+    const winner = await ChatConversation.findOne({
+      _id: existing._id,
+      ...ownerFilter,
+      recentRequestIds: { $in: requestLookupKeys },
+    }).select("+activeStreamId +recentRequestIds");
+    if (winner) return { conversation: winner, duplicate: true };
+    throw httpError(409, "Cuộc trò chuyện vừa thay đổi. Vui lòng thử lại");
+  }
+  const activeSnapshot = await ChatConversation.collection.findOne({
+    _id: existing._id,
+    ...rawOwnerFilter,
+    activeStreamId: streamId,
+    recentRequestIds: requestKey,
+  });
+  if (!activeSnapshot) {
+    throw httpError(409, "Cuộc trò chuyện vừa thay đổi. Vui lòng thử lại");
+  }
+  const conversation = ChatConversation.hydrate(activeSnapshot);
+  retryRollback.activeMessageCount = Number(conversation.messageCount || 0);
+  retryRollback.activeMessagesLength = conversation.messages.length;
+  retryRollback.retainedMessageCount = Math.max(0, conversation.messages.length - 1);
+  retryRollback.activeWorkingMemory = activeSnapshot.workingMemory;
+  retryRollback.activeContext = activeSnapshot.context;
+  retryRollback.activeContextExists = Object.hasOwn(activeSnapshot, "context");
+  retryRollback.activeLastMessagePreview = activeSnapshot.lastMessagePreview;
+  retryRollback.activeLastMessageAt = activeSnapshot.lastMessageAt;
+  conversation.$locals.retryRollback = retryRollback;
+  return { conversation, duplicate: false, replaced: true };
+};
+
 async function acquireConversation({
   ownerFilter,
   ownerDocument,
   conversationTtlMs,
   conversationId,
+  retryOfMessageId,
   requestKey,
   requestLookupKeys,
   message,
   image,
+  structuredAction,
   context,
   streamId,
 }) {
@@ -257,8 +625,25 @@ async function acquireConversation({
     role: "user",
     content: message,
     image,
+    structuredAction: structuredAction || null,
     timestamp,
   };
+
+  if (conversationId && retryOfMessageId) {
+    return acquireRetryConversation({
+      ownerFilter,
+      conversationTtlMs,
+      conversationId,
+      retryOfMessageId,
+      requestKey,
+      requestLookupKeys,
+      message,
+      image,
+      structuredAction,
+      context,
+      streamId,
+    });
+  }
 
   if (!conversationId) {
     try {
@@ -396,6 +781,64 @@ async function releaseFailedConversation({
     throw new Error("Failed chat request has no owned user message");
   }
 
+  const retryRollback = conversation.$locals?.retryRollback;
+  if (retryRollback) {
+    const restoreMessageCount = Math.max(
+      0,
+      Number(retryRollback.messageCount || 0),
+    );
+    const retryTail = Array.isArray(retryRollback.removedTail)
+      ? retryRollback.removedTail
+      : [];
+    const activeContextFilter = retryRollback.activeContextExists
+      ? { context: retryRollback.activeContext }
+      : { context: { $exists: false } };
+    const update = await ChatConversation.updateOne(
+      {
+        _id: conversation._id,
+        ...ownerFilter,
+        activeStreamId: streamId,
+        recentRequestIds: requestKey,
+        [`messages.${retryRollback.retainedMessageCount}._id`]: failedUserMessage._id,
+        messages: { $size: retryRollback.activeMessagesLength },
+        messageCount: retryRollback.activeMessageCount,
+        workingMemory: retryRollback.activeWorkingMemory,
+        ...activeContextFilter,
+        lastMessagePreview: retryRollback.activeLastMessagePreview,
+        lastMessageAt: retryRollback.activeLastMessageAt,
+      },
+      [
+        {
+          $set: {
+            messages: {
+              $concatArrays: [
+                { $slice: ["$messages", retryRollback.retainedMessageCount] },
+                retryTail,
+              ],
+            },
+            messageCount: restoreMessageCount,
+            activeStreamId: null,
+            activeStreamStartedAt: null,
+            lastMessagePreview: retryRollback.lastMessagePreview,
+            lastMessageAt: retryRollback.lastMessageAt,
+            context: retryRollback.context,
+            workingMemory: retryRollback.workingMemory,
+            expiresAt: retryRollback.expiresAt,
+            recentRequestIds: {
+              $filter: {
+                input: "$recentRequestIds",
+                as: "recentRequestId",
+                cond: { $ne: ["$$recentRequestId", requestKey] },
+              },
+            },
+          },
+        },
+      ],
+      { updatePipeline: true, runValidators: true },
+    );
+    return update.modifiedCount === 1;
+  }
+
   const update = await ChatConversation.updateOne(
     {
       _id: conversation._id,
@@ -446,7 +889,15 @@ export const chatStream = async (req, res) => {
     await refundAiQuota(req, "request_invalid");
     return res.status(400).json({ success: false, message: parsed.error });
   }
-  const { message, conversationId, context, image, requestId } = parsed.value;
+  const {
+    message,
+    conversationId,
+    retryOfMessageId,
+    context,
+    image,
+    requestId,
+    structuredAction,
+  } = parsed.value;
   const requestKeyContract = buildConversationRequestKey({
     userId,
     guestKey,
@@ -530,10 +981,12 @@ export const chatStream = async (req, res) => {
       ownerDocument,
       conversationTtlMs,
       conversationId,
+      retryOfMessageId,
       requestKey: requestKeyContract.writeKey,
       requestLookupKeys: requestKeyContract.lookupKeys,
       message,
       image,
+      structuredAction,
       context: canonicalContext,
       streamId,
     });
@@ -563,6 +1016,7 @@ export const chatStream = async (req, res) => {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("X-Accel-Buffering", "no");
+      res.setHeader("X-AI-Conversation-Id", String(conversation._id));
       res.flushHeaders();
       const quota = serializeRequestQuota(req, "ai_chat");
       if (quota) {
@@ -597,6 +1051,7 @@ export const chatStream = async (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
+  res.setHeader("X-AI-Conversation-Id", String(conversation._id));
   res.flushHeaders();
   const quota = serializeRequestQuota(req, "ai_chat");
   if (quota) {
@@ -608,6 +1063,8 @@ export const chatStream = async (req, res) => {
     abortController.abort(new Error("AI response deadline exceeded"));
   }, CHAT_DEADLINE_MS);
   const generatedMessages = [];
+  let responseUiCard = null;
+  let retrievedKnowledgeSources = [];
   let conversationMemory = deriveConversationMemory(
     conversation.messages,
     conversation.workingMemory,
@@ -618,24 +1075,45 @@ export const chatStream = async (req, res) => {
   let fullResponse = "";
   let routingDecision = null;
   let kbEntryIds = [];
+  let kbRetrieval = null;
   let kbCitationSources = [];
+  let deliveredInternalSourceCount = 0;
+  let kbReferenceEntries = [];
+  let toolCallCount = 0;
   let webSearchAttemptCount = 0;
   let webSearchExecutionCount = 0;
+  let webSearchOutcome = "not_called";
   let webSearchEvidenceAvailable = false;
   let webSearchSources = [];
   let internalEvidenceRequired = false;
   let internalEvidenceAvailable = false;
   let externalKnowledgeQuery = { eligible: false, reason: "not_required" };
-  let responseModel = String(
-    process.env.GEMINI_MODEL || "gemini-3.1-flash-lite",
-  ).slice(0, 100);
+  const deepseekProfileActive = isDeepseekProfileActive();
+  let responseModel = deepseekProfileActive
+    ? resolveDeepseekEndpoint().model
+    : String(process.env.GEMINI_MODEL || "gemini-3.1-flash-lite").slice(0, 100);
+  const buildDoneFrame = () => ({
+    type: "done",
+    conversationId: conversation._id,
+    meta: {
+      provenance: resolveResponseProvenance({
+        model: responseModel,
+        webSearchRequired: resolveWebPolicy(routingDecision) === "web_required",
+        webEvidenceAvailable: webSearchEvidenceAvailable,
+        internalSourceCount: deliveredInternalSourceCount,
+      }),
+      capabilities: resolveAiCapabilities(),
+    },
+  });
   const buildAnswerTrace = () =>
     routingDecision
       ? {
           routeDomain: routingDecision.domain,
           evidenceMode: routingDecision.evidence,
           kbEntryIds: kbEntryIds.slice(0, 10),
-          webSearchUsed: webSearchExecutionCount > 0,
+           kbRetrieval,
+          webSearchUsed: webSearchOutcome !== "not_called",
+          webSearchOutcome,
           model: responseModel,
           promptVersion: AI_PROMPT_CONTRACT_VERSION,
         }
@@ -663,7 +1141,8 @@ export const chatStream = async (req, res) => {
     const streamed = await writeAssistantResponse(boundedContent);
     return boundedContent.slice(0, streamed.writtenCharacters);
   };
-  const enforceEvidenceBoundary = (candidate) => {
+  const enforceEvidenceBoundary = (candidate, { allowReviewedClaimCitation = false } = {}) => {
+    deliveredInternalSourceCount = 0;
     const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
     if (urgentSafetyResponse) return urgentSafetyResponse;
     if (
@@ -683,17 +1162,44 @@ export const chatStream = async (req, res) => {
         maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
       });
     }
-    if (kbCitationSources.length > 0) {
-      return boundAssistantOutputWithSources(candidate, {
+    const needsKnowledgeCitation = answerNeedsKnowledgeCitation(routingDecision, candidate);
+    candidate = stripUnselectedKnowledgeCitations(candidate, {
+      retrievedSources: retrievedKnowledgeSources,
+      allowedSources: needsKnowledgeCitation ? kbCitationSources : [],
+    });
+    if (kbCitationSources.length > 0 && needsKnowledgeCitation) {
+      responseUiCard = { cardType: "webSources", data: { sources: kbCitationSources } };
+      const content = boundAssistantOutputWithSources(candidate, {
         sources: kbCitationSources,
         maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
       });
+      deliveredInternalSourceCount = kbCitationSources.filter((source) => content.includes(source.uri)).length;
+      return content;
     }
-    return candidate;
+    if (!allowReviewedClaimCitation || toolCallCount > 0) return candidate;
+    const supported = bindSupportedKnowledgeClaims(candidate, {
+      entries: kbReferenceEntries, decision: routingDecision,
+      maxCharacters: MAX_ASSISTANT_RESPONSE_CHARACTERS,
+    });
+    if (supported.sources.length > 0) {
+      responseUiCard = { cardType: "webSources", data: { sources: supported.sources } };
+      deliveredInternalSourceCount = supported.sources.length;
+    }
+    return supported.content;
+  };
+  const equipmentLimitFallback =
+    "Mình chưa thể tạo lịch tập đáp ứng chắc chắn giới hạn thiết bị này. Bạn thử lại và giữ yêu cầu chỉ dùng tạ đơn, dây kháng lực hoặc bodyweight nhé.";
+  const genericToolFallback =
+    "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.";
+  const guardToolFallbackForDelivery = (candidate) => {
+    const guarded = sanitizeAssistantOutput(candidate);
+    if (guarded.protocolLeak || !guarded.content) return genericToolFallback;
+    return validateWorkoutEquipmentOutput(message, guarded.content).valid
+      ? guarded.content
+      : equipmentLimitFallback;
   };
   try {
     const chatStartTime = Date.now();
-    let toolCallCount = 0;
     res.write(
       `data: ${JSON.stringify({
         type: "conversation",
@@ -709,10 +1215,14 @@ export const chatStream = async (req, res) => {
     routingDecision = routeAiRequest(message, {
       contextualQuery: retrievalQuery,
     });
+    const activityFollowupResponse = !structuredAction
+      ? activityIntakeFollowup(message, priorMessages, routingDecision)
+      : null;
     const allowedPublicPersonNames =
       getPublicPersonLookupNames(retrievalQuery);
     const urgentSafetyResponse = getUrgentSafetyResponse(routingDecision);
     if (urgentSafetyResponse) {
+      incrementMetric("provider.gemini_chat_not_required");
       responseModel = "static_safety_v1";
       aiLogger.chatStart(actorId, conversation._id);
       const guardedSafetyResponse = sanitizeAssistantOutput(
@@ -753,10 +1263,54 @@ export const chatStream = async (req, res) => {
       });
       if (!abortController.signal.aborted) {
         res.write(
-          `data: ${JSON.stringify({
-            type: "done",
-            conversationId: conversation._id,
-          })}\n\n`,
+          `data: ${JSON.stringify(buildDoneFrame())}\n\n`,
+        );
+        res.end();
+      }
+      return;
+    }
+
+    if (
+      routingDecision.preferredTool === "calculate_tdee" &&
+      !structuredAction
+    ) {
+      const intake = buildTdeeIntakeResponse(message);
+      incrementMetric("provider.gemini_chat_not_required");
+      responseModel = "server_tdee_intake_v1";
+      aiLogger.chatStart(actorId, conversation._id);
+      res.write(
+        `data: ${JSON.stringify({ type: "ui_card", ...intake.uiCard })}\n\n`,
+      );
+      fullResponse = await deliverAssistantResponse(intake.text);
+      generatedMessages.push({
+        role: "assistant",
+        content: fullResponse,
+        uiCard: intake.uiCard,
+        answerTrace: buildAnswerTrace(),
+        timestamp: new Date(),
+      });
+      const finalization = await finalizeConversation({
+        conversationId: conversation._id,
+        ownerFilter,
+        conversationTtlMs,
+        streamId,
+        generatedMessages,
+        assistantPreview: fullResponse,
+        workingMemory: conversationMemory,
+      });
+      if (req.stagingAiAcceptance && finalization.modifiedCount !== 1) {
+        blockStagingAcceptanceSettlement(req);
+      }
+      finalized = true;
+      aiLogger.chatEnd(actorId, conversation._id, {
+        iterations: 0,
+        toolCalls: 0,
+        durationMs: Date.now() - chatStartTime,
+        kbHits: 0,
+      });
+      if (!abortController.signal.aborted) {
+        res.write(
+          `data: ${JSON.stringify(buildDoneFrame())}\n\n`,
         );
         res.end();
       }
@@ -788,51 +1342,95 @@ export const chatStream = async (req, res) => {
       conversationMemory,
       personalMemory,
     });
-    // === KNOWLEDGE BASE SEARCH ===
-    // Tìm kiến thức đã review trước khi gọi LLM. KB vẫn là untrusted data.
-    if (routingDecision.knowledgeBaseEligible) {
+    const curatedKnowledgeEligible = routingDecision.knowledgeBaseEligible;
+    if (curatedKnowledgeEligible) {
       const preparedRetrieval = prepareKnowledgeRetrievalQuery(retrievalQuery);
       if (preparedRetrieval.eligible) {
         try {
-          const kbResults = await searchKnowledgeBase(preparedRetrieval.query, {
-            limit: 3,
-            threshold: 0.75,
-          });
+          const retrievalEnvelope = await searchAssistantKnowledgeBase(
+            preparedRetrieval.query,
+            deepseekProfileActive
+              ? {
+                  limit: 3,
+                  threshold: 0.75,
+                  signal: abortController.signal,
+                  deadlineAt: chatStartTime + CHAT_DEADLINE_MS,
+                }
+              : { limit: 3, threshold: 0.75 },
+          );
+          const kbResults = retrievalEnvelope.results;
+          if (deepseekProfileActive) {
+            const retrieval = retrievalEnvelope.retrieval || {};
+            kbRetrieval = {
+              method: retrieval.method || "llm_selection",
+              coverage: retrieval.coverage || "unknown",
+              eligibleCount: retrieval.eligibleCount ?? null,
+              safeCount: retrieval.safeCount ?? null,
+              excludedCount: retrieval.excludedCount ?? null,
+              refs: kbResults.slice(0, 3).map((result, index) => ({
+                entryId: result._id,
+                rank: result.retrievalRank || index + 1,
+                revision: result.revision ?? 0,
+              })),
+            };
+          }
           if (kbResults.length > 0) {
+            kbReferenceEntries = kbResults;
             kbEntryIds = kbResults.map((result) => result._id);
-            kbCitationSources = getCitableKnowledgeSources(kbResults);
+            const citationEntries = selectCitationKnowledgeEntries(kbResults, retrievalQuery);
+            kbCitationSources = getCitableKnowledgeSources(citationEntries);
+            retrievedKnowledgeSources = getCitableKnowledgeSources(kbResults);
             aiLogger.kbMatch(actorId, kbResults.length, kbResults[0]?.similarity);
-            systemPrompt += buildKnowledgeReferenceBlock(kbResults);
+            systemPrompt += buildKnowledgeReferenceBlock(kbResults, { citationEntries });
           }
         } catch (err) {
-          // KB search lỗi không ảnh hưởng chat flow chính
+          if (deepseekProfileActive) throw err;
+          // Vector KB search lỗi không ảnh hưởng chat flow chính
           safeLog.error("ai.kb_search_non_blocking_failed", err);
         }
       }
     }
 
-    // Fitness rủi ro thấp không có KB hit/canonical tool phù hợp được chuyển
-    // sang evidence web có giới hạn. High-stakes không externalize query:
-    // chỉ còn model-prior giáo dục với guard sức khỏe của system prompt.
+    // Với fitness rủi ro thấp, KB là enrichment. KB miss không được biến một
+    // câu hỏi ổn định thành web lookup bắt buộc hoặc lời từ chối giả.
     if (
       routingDecision.evidence === "internal_kb" &&
       routingDecision.domain === "fitness" &&
       kbEntryIds.length === 0 &&
       !routingDecision.preferredTool
     ) {
-      const lowRiskWebFallback = routingDecision.risk === "low";
       routingDecision = Object.freeze({
         ...routingDecision,
-        evidence: lowRiskWebFallback ? "web_required" : "model_prior",
+        evidence: "model_prior",
         knowledgeBaseEligible: false,
-        webSearchRequired: lowRiskWebFallback,
-        preferredTool: lowRiskWebFallback ? "search_knowledge" : null,
-        maxWebSearchCalls: lowRiskWebFallback ? 1 : 0,
+        webSearchRequired: false,
+        preferredTool: null,
+        maxWebSearchCalls: 0,
         reasonCodes: Object.freeze([
           ...routingDecision.reasonCodes,
-          lowRiskWebFallback
-            ? "knowledge_base_no_hit"
+          routingDecision.risk === "low"
+            ? "knowledge_base_no_hit_model_prior"
             : "high_stakes_no_internal_evidence",
+        ]),
+      });
+    }
+    if (
+      routingDecision.evidence === "internal_kb" &&
+      routingDecision.domain === "fitness" &&
+      routingDecision.risk === "low" &&
+      routingDecision.preferredTool === "search_exercises" &&
+      kbEntryIds.length === 0 &&
+      !isExerciseCatalogRequest(retrievalQuery)
+    ) {
+      routingDecision = Object.freeze({
+        ...routingDecision,
+        evidence: "model_prior",
+        knowledgeBaseEligible: false,
+        preferredTool: null,
+        maxWebSearchCalls: 0,
+        reasonCodes: Object.freeze([
+          ...routingDecision.reasonCodes,
+          "exercise_technique_model_prior_no_catalog_hit",
         ]),
       });
     }
@@ -840,6 +1438,7 @@ export const chatStream = async (req, res) => {
     internalEvidenceRequired =
       routingDecision.evidence === "internal_kb" &&
       routingDecision.domain === "fitness" &&
+      routingDecision.risk !== "low" &&
       kbEntryIds.length === 0 &&
       routingDecision.preferredTool === "search_exercises";
     if (routingDecision.webSearchRequired) {
@@ -881,7 +1480,7 @@ export const chatStream = async (req, res) => {
 
     const llmMessages = [
       { role: "system", content: systemPrompt },
-      ...conversation.messages.slice(-MAX_HISTORY_MESSAGES).map((m) => {
+      ...selectConversationHistory(conversation.messages, MAX_HISTORY_MESSAGES).map((m) => {
         const mapped = { role: m.role, content: m.content || "" };
         if (m.image) mapped.image = m.image;
         
@@ -927,13 +1526,72 @@ export const chatStream = async (req, res) => {
     const requestedDietPlan = routeAllowedToolNameSet.has("suggest_meal")
       ? explicitDietPlan(message)
       : null;
-    const rememberedTdeeResult = !compoundTdeeMeal && requestedDietPlan &&
+    const rememberedTdeeResult = !compoundTdeeMeal &&
       canReuseTdeeForMealFollowUp(message) &&
       conversationMemory.lastTdee?.result
       ? { uiCard: { cardType: "tdee", data: conversationMemory.lastTdee.result } }
       : null;
     let completedTdeeResult = null;
     let completedCompoundMeal = false;
+    const routedRequiredToolName = resolveRequiredReadOnlyToolName(
+      routingDecision.preferredTool,
+      routedTools,
+    );
+    const mixedWorkoutMealRequest =
+      routingDecision.reasonCodes.includes("workout_creation") &&
+      routedRequiredToolName === "suggest_meal";
+    const fourDayWorkoutRequested =
+      routingDecision.risk === "low" &&
+      routingDecision.reasonCodes.includes("workout_creation") &&
+      !mixedWorkoutMealRequest &&
+      /\b4\s*(?:ngày|buổi)/iu.test(message);
+    const structuredFourDayFallbackRequested = fourDayWorkoutRequested &&
+      /rpe|deload|thời gian nghỉ|tối đa\s*60|6\s*tuần/iu.test(message);
+    const canUseStaticPlanning = priorMessages.every((item) => item.role !== "user") &&
+      personalMemory.length === 0 && Object.keys(conversationMemory).length === 0;
+    const sevenDayReferencePlan = canUseStaticPlanning &&
+      routingDecision.risk === "low" &&
+      routingDecision.reasonCodes.includes("workout_creation") &&
+      !routedRequiredToolName ? buildSevenDayReferencePlan(message) : null;
+    const workoutIntakeRequested = routingDecision.risk === "low" &&
+      (routingDecision.reasonCodes.includes("workout_creation") ||
+        (routingDecision.domain === "fitness" &&
+          /(?:lịch\s+tập|giáo\s+án|training\s+plan)[^.!?\n]{0,60}(?:phù\s+hợp\s+với|riêng\s+cho)\s+(?:tôi|mình)/iu.test(message) &&
+          /(?:calo|calorie|tdee)/iu.test(message))) &&
+      /(?:dữ liệu.*đủ|đừng\s+đoán|nêu\s+dữ\s+liệu\s+còn\s+thiếu|tối đa\s*5\s*(?:câu|nhóm))/iu.test(message);
+    const deliverFourDayWorkoutFallback = async () => {
+      routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
+      kbEntryIds = [];
+      kbCitationSources = [];
+      responseModel = "static_workout_v1";
+      return deliverAssistantResponse(FOUR_DAY_WORKOUT_FALLBACK);
+    };
+    const deliverSevenDayPlanFallback = async () => {
+      routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
+      kbEntryIds = [];
+      kbCitationSources = [];
+      responseModel = "static_seven_day_plan_v1";
+      return deliverAssistantResponse(sevenDayReferencePlan);
+    };
+    const deliverWorkoutIntakeFallback = async () => {
+      routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
+      kbEntryIds = [];
+      kbCitationSources = [];
+      responseModel = "static_workout_intake_v1";
+      return deliverAssistantResponse(WORKOUT_INTAKE_FALLBACK);
+    };
+    const mixedWorkoutMealInstruction =
+      "Thực đơn từ công cụ là dữ liệu chuẩn và đã được hiển thị. Không viết lại hoặc thay đổi món, định lượng, macro hay tổng kcal; chỉ bổ sung giáo án tập luyện bằng văn bản theo đúng số ngày và thiết bị user yêu cầu.";
+    let requiredToolConsumed = false;
+    const getRequiredToolNameForIteration = () => {
+      if (compoundTdeeMeal) {
+        return completedTdeeResult && !completedCompoundMeal &&
+          !requiredToolConsumed
+          ? resolveRequiredReadOnlyToolName("suggest_meal", routedTools)
+          : null;
+      }
+      return requiredToolConsumed ? null : routedRequiredToolName;
+    };
     const getIterationTools = () => {
       if (routingDecision.webSearchRequired &&
           webSearchAttemptCount >= routingDecision.maxWebSearchCalls) return [];
@@ -943,15 +1601,233 @@ export const chatStream = async (req, res) => {
           : completedTdeeResult ? "suggest_meal" : "calculate_tdee";
         return routedTools.filter((tool) => tool?.function?.name === nextToolName);
       }
+      if (routedRequiredToolName && requiredToolConsumed) return [];
       return routedTools;
     };
-    let lastToolResultText = ""; // Backup: dùng khi Gemini im luôn sau tool call
+    let lastSuccessfulReadOnlyToolResult = null;
+    let canonicalMixedWorkoutMealText = "";
+    let mixedWorkoutRetryCount = 0;
+    let equipmentRetryCount = 0;
+    let workoutStructureRetryCount = 0;
+    let workoutIntakeRetryCount = 0;
+    let scopeRetryCount = 0;
+    const scopePreservationRequest = parseScopePreservationRequest(message);
+
+    const executeServerRequiredTool = async (toolName, args, scopedSubstitution = null) => {
+      const call = {
+        id: `server-${toolName}-${toolCallCount + 1}`,
+        name: toolName,
+        args,
+      };
+      res.write(`data: ${JSON.stringify({ type: "tool_start" })}\n\n`);
+      const startedAt = Date.now();
+      let toolResult = await executeTool(toolName, args, {
+        userId,
+        signal: abortController.signal,
+        timeoutMs: toolName === "search_knowledge" && deepseekProfileActive && process.env.AI_WEB_SEARCH_PROVIDER === "brave"
+          ? Math.min(WEB_GROUNDING_TIMEOUT_MS, Math.max(1, chatStartTime + CHAT_DEADLINE_MS - Date.now()))
+          : TOOL_TIMEOUT_MS,
+        allowedToolNames: [toolName],
+        allowedPublicPersonNames,
+        previousMealPlan: conversationMemory.lastMeal?.plan || null,
+        scopedSubstitution,
+      });
+      const durationMs = Date.now() - startedAt;
+      const safeToolText = normalizePublicToolText(toolResult.text);
+      const toolStatus = resolveToolResultStatus(toolResult);
+      const toolSucceeded = isSuccessfulToolResult(toolResult);
+      toolCallCount += 1;
+      aiLogger.toolCall(actorId, toolName, durationMs, toolSucceeded);
+      if (toolSucceeded) {
+        toolResult = attachMealIdentity(toolName, toolResult);
+        conversationMemory = updateConversationMemory(
+          conversationMemory,
+          toolName,
+          args,
+          toolResult,
+        );
+        if (
+          toolRegistry[toolName]?.readOnly === true &&
+          toolRegistry[toolName]?.requiresConfirmation !== true &&
+          safeToolText
+        ) {
+          lastSuccessfulReadOnlyToolResult = {
+            toolName,
+            text: safeToolText,
+          };
+        }
+      }
+      res.write(`data: ${JSON.stringify({ type: "tool_result" })}\n\n`);
+      if (toolResult.uiCard) {
+        res.write(
+          `data: ${JSON.stringify({ type: "ui_card", ...toolResult.uiCard })}\n\n`,
+        );
+      }
+      generatedMessages.push(
+        {
+          role: "assistant",
+          content: "",
+          toolCalls: [call],
+          timestamp: new Date(),
+        },
+        {
+          role: "tool",
+          content: safeToolText,
+          toolName,
+          toolCallId: call.id,
+          toolStatus,
+          uiCard: toolResult.uiCard || null,
+          timestamp: new Date(),
+        },
+      );
+      return { call, toolResult, safeToolText, toolSucceeded };
+    };
 
     // === AGENT LOOP (Pattern từ Dify fc_agent_runner.py) ===
     let iteration = 0;
-    let needsToolCall = true;
     let protocolRetryCount = 0;
     aiLogger.chatStart(actorId, conversation._id);
+
+    const jointResponse = buildJointDiscomfortResponse(retrievalQuery, routingDecision);
+    const boundedWorkout = canUseStaticPlanning && routingDecision.risk === "low" &&
+      routingDecision.reasonCodes.includes("workout_creation") && !routedRequiredToolName &&
+      !mixedWorkoutMealRequest ? buildBoundedWorkoutDraft(message) : null;
+    if (jointResponse) {
+      responseModel = "server_joint_safety_v1";
+      responseUiCard = { cardType: "webSources", data: { sources: [JOINT_SAFETY_SOURCE] } };
+      fullResponse = await deliverAssistantResponse(jointResponse);
+    } else if (sevenDayReferencePlan) {
+      fullResponse = await deliverSevenDayPlanFallback();
+    } else if (boundedWorkout) {
+      kbEntryIds = []; kbCitationSources = [];
+      routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
+      responseModel = "server_workout_draft_v1";
+      fullResponse = await deliverAssistantResponse(boundedWorkout);
+    } else if (activityFollowupResponse) {
+      incrementMetric("provider.gemini_chat_not_required");
+      responseModel = "server_activity_followup_v1";
+      fullResponse = await deliverAssistantResponse(activityFollowupResponse);
+    } else if (structuredAction?.type === "calculate_tdee") {
+      const directTdee = await executeServerRequiredTool(
+        "calculate_tdee",
+        structuredAction.payload,
+      );
+      responseModel = "server_tdee_v1";
+      requiredToolConsumed = true;
+      const guardedTdee = sanitizeAssistantOutput(directTdee.safeToolText);
+      fullResponse = await deliverAssistantResponse(
+        guardedTdee.content || requiredToolMissingResponse("calculate_tdee").text,
+      );
+    } else if (routedRequiredToolName === "search_exercises" && isExerciseCatalogRequest(retrievalQuery)) {
+      const directExercise = await executeServerRequiredTool(
+        "search_exercises",
+        canonicalExerciseArgs(retrievalQuery),
+      );
+      requiredToolConsumed = true;
+      internalEvidenceAvailable ||= directExercise.toolSucceeded &&
+        directExercise.toolResult.meta?.evidenceAvailable === true;
+      if (!internalEvidenceAvailable && routingDecision.risk === "low") {
+        routingDecision = Object.freeze({ ...routingDecision, evidence: "model_prior" });
+      }
+      if (directExercise.toolSucceeded && internalEvidenceAvailable) {
+        responseModel = "server_exercise_catalog_v1";
+        fullResponse = await deliverAssistantResponse(directExercise.safeToolText);
+      } else {
+        kbEntryIds = []; kbCitationSources = [];
+        llmMessages.push(
+          { role: "assistant", content: "", tool_calls: [directExercise.call] },
+          { role: "tool", name: "search_exercises", id: directExercise.call.id,
+            content: serializeToolResultForModel({ toolName: "search_exercises", text: directExercise.safeToolText, status: resolveToolResultStatus(directExercise.toolResult) }),
+            toolResultEnvelope: true },
+        );
+      }
+    } else if (routedRequiredToolName === "search_knowledge") {
+      webSearchAttemptCount = 1;
+      webSearchExecutionCount = 1;
+      const directSearch = await executeServerRequiredTool(
+        "search_knowledge",
+        { query: externalKnowledgeQuery.query },
+      );
+      webSearchOutcome = [
+        "not_called",
+        "provider_error",
+        "no_supported_source",
+        "grounded",
+      ].includes(directSearch.toolResult.meta?.searchOutcome)
+        ? directSearch.toolResult.meta.searchOutcome
+        : "provider_error";
+      webSearchSources = Array.isArray(directSearch.toolResult.meta?.sources)
+        ? directSearch.toolResult.meta.sources
+        : [];
+      webSearchEvidenceAvailable =
+        directSearch.toolResult.meta?.evidenceAvailable === true &&
+        webSearchSources.length > 0;
+      responseModel = directSearch.toolResult.meta?.diagnosticCode === "unsupported_capability"
+        ? "server:capability_unavailable"
+        : deepseekProfileActive
+          ? webSearchEvidenceAvailable ? resolveDeepseekEndpoint().model : "server:web_evidence_unavailable"
+          : String(process.env.GEMINI_SEARCH_MODEL || "gemini-2.5-flash").slice(0, 100);
+      fullResponse = await deliverAssistantResponse(
+        enforceEvidenceBoundary(directSearch.safeToolText),
+      );
+      requiredToolConsumed = true;
+    } else if (!compoundTdeeMeal && routedRequiredToolName === "suggest_meal") {
+      const rememberedMealArgs = rememberedTdeeResult
+        ? canonicalCompoundMealArgs(
+            rememberedTdeeResult,
+            {},
+            requestedDietPlan,
+          )
+        : {};
+      const directMealRequest = buildCanonicalMealToolRequest(
+        message,
+        rememberedMealArgs || {},
+        conversationMemory.lastMeal,
+      );
+      if (directMealRequest.validationMessage) {
+        requiredToolConsumed = true;
+        responseModel = "server_meal_v1";
+        fullResponse = await deliverAssistantResponse(directMealRequest.validationMessage);
+      } else if (directMealRequest.scopedSubstitution || hasCompleteCanonicalMealArgs(directMealRequest.args)) {
+        const directMeal = await executeServerRequiredTool(
+          "suggest_meal",
+          directMealRequest.args,
+          directMealRequest.scopedSubstitution,
+        );
+        const guardedMeal = sanitizeAssistantOutput(directMeal.safeToolText);
+        const mealContent = guardedMeal.protocolLeak || !guardedMeal.content
+          ? requiredToolMissingResponse("suggest_meal").text
+          : guardedMeal.content;
+        requiredToolConsumed = true;
+        if (mixedWorkoutMealRequest) {
+          canonicalMixedWorkoutMealText = mealContent;
+          llmMessages.push(
+            {
+              role: "assistant",
+              content: "",
+              tool_calls: [directMeal.call],
+            },
+            {
+              role: "tool",
+              content: serializeToolResultForModel({
+                toolName: "suggest_meal",
+                text: directMeal.safeToolText,
+                status: resolveToolResultStatus(directMeal.toolResult),
+              }),
+              name: "suggest_meal",
+              id: directMeal.call.id,
+              toolResultEnvelope: true,
+            },
+            { role: "user", content: mixedWorkoutMealInstruction },
+          );
+        } else {
+          responseModel = "server_meal_v1";
+          fullResponse = await deliverAssistantResponse(mealContent);
+        }
+      }
+    }
+
+    let needsToolCall = !fullResponse;
 
     while (
       needsToolCall &&
@@ -964,7 +1840,13 @@ export const chatStream = async (req, res) => {
       let iterationCalledTool = false;
       let iterationCompletedWebSearch = false;
       let iterationGroundedWebText = "";
-      const iterationTools = getIterationTools();
+      let iterationCanonicalMealText = "";
+      const iterationRequiredToolName = getRequiredToolNameForIteration();
+      const iterationTools = iterationRequiredToolName
+        ? routedTools.filter(
+            (tool) => tool?.function?.name === iterationRequiredToolName,
+          )
+        : getIterationTools();
       const allowedToolNames = new Set(
         iterationTools.map((tool) => tool?.function?.name).filter(Boolean),
       );
@@ -981,7 +1863,14 @@ export const chatStream = async (req, res) => {
       if (pacedAcceptance) responseModel = "staging_acceptance_synthetic_v1";
       const providerStream = pacedAcceptance
         ? [{ type: "text", content: STAGING_AI_ACCEPTANCE_RESPONSE }]
-        : llmStream(llmMessages, iterationTools, { signal: abortController.signal });
+        : llmStream(llmMessages, iterationTools, {
+            signal: abortController.signal,
+            requiredToolName: iterationRequiredToolName,
+            deadlineAt: chatStartTime + CHAT_DEADLINE_MS,
+            timeoutMs: Math.max(1, chatStartTime + CHAT_DEADLINE_MS - Date.now()),
+            surface: "chat",
+          });
+      try {
       for await (const chunk of providerStream) {
         if (abortController.signal.aborted) break;
         switch (chunk.type) {
@@ -996,7 +1885,7 @@ export const chatStream = async (req, res) => {
               );
               break;
             }
-            iterationText += chunk.content;
+            if (!iterationRequiredToolName) iterationText += chunk.content;
             break;
 
           case "tool_call":
@@ -1005,8 +1894,13 @@ export const chatStream = async (req, res) => {
             // function call bị runtime policy từ chối để không lộ protocol nháp.
             iterationText = "";
             fullResponse = "";
+            const requiredCandidates = iterationRequiredToolName
+              ? chunk.toolCalls
+                  .filter((call) => call.name === iterationRequiredToolName)
+                  .slice(0, 1)
+              : chunk.toolCalls;
             const runtimeBoundedToolCalls = boundAiToolCalls(
-              chunk.toolCalls,
+              requiredCandidates,
               toolCallCount,
             );
             const eligibleToolCalls = runtimeBoundedToolCalls
@@ -1023,24 +1917,40 @@ export const chatStream = async (req, res) => {
                 webSearchAttemptCount += 1;
                 return true;
               })
-              .map((call) =>
-                call.name === "search_knowledge"
-                  ? {
-                      ...call,
-                      args: { query: externalKnowledgeQuery.query },
-                    }
-                  : (compoundTdeeMeal || rememberedTdeeResult) &&
-                      call.name === "suggest_meal"
-                    ? {
-                        ...call,
-                        args: canonicalCompoundMealArgs(
+              .map((call) => {
+                if (call.name === "search_knowledge") {
+                  return {
+                    ...call,
+                    args: { query: externalKnowledgeQuery.query },
+                  };
+                }
+                if (call.name === "search_exercises") {
+                  return {
+                    ...call,
+                    args: canonicalExerciseArgs(message, call.args),
+                  };
+                }
+                if (call.name === "suggest_meal") {
+                  const compoundArgs =
+                    (compoundTdeeMeal || rememberedTdeeResult)
+                      ? canonicalCompoundMealArgs(
                           completedTdeeResult || rememberedTdeeResult,
                           call.args,
                           requestedDietPlan,
-                        ),
-                      }
-                  : call,
-              );
+                        )
+                      : call.args;
+                  if (!compoundArgs) return { ...call, args: null };
+                  return {
+                    ...call,
+                    args: buildCanonicalMealToolRequest(
+                      message,
+                      compoundArgs,
+                      conversationMemory.lastMeal,
+                    ).args,
+                  };
+                }
+                return call;
+              });
             const boundedToolCalls = compoundTdeeMeal
               ? eligibleToolCalls.slice(0, 1).filter((call) => call.args)
               : eligibleToolCalls.filter((call) =>
@@ -1048,8 +1958,10 @@ export const chatStream = async (req, res) => {
                 );
             if (boundedToolCalls.length === 0) {
               needsToolCall = false;
-              iterationText +=
-                "Mình đã đạt giới hạn xử lý công cụ cho yêu cầu này. Bạn hãy thử lại với một yêu cầu ngắn gọn hơn.";
+              if (!iterationRequiredToolName) {
+                iterationText +=
+                  "Mình đã đạt giới hạn xử lý công cụ cho yêu cầu này. Bạn hãy thử lại với một yêu cầu ngắn gọn hơn.";
+              }
               safeLog.warn(
                 "ai.tool_call_budget_exhausted",
                 "Tool call budget exhausted",
@@ -1068,6 +1980,7 @@ export const chatStream = async (req, res) => {
             }
             needsToolCall = true;
             iterationCalledTool = true;
+            if (iterationRequiredToolName) requiredToolConsumed = true;
 
             // Gemini yêu cầu parallel function calls nằm trong cùng model turn,
             // sau đó mới tới các functionResponse trong một user turn.
@@ -1086,6 +1999,7 @@ export const chatStream = async (req, res) => {
                 timeoutMs: TOOL_TIMEOUT_MS,
                 allowedToolNames: [...allowedToolNames],
                 allowedPublicPersonNames,
+                previousMealPlan: conversationMemory.lastMeal?.plan || null,
               },
               {
                 executor: (toolName, parameters, context) => {
@@ -1105,6 +2019,7 @@ export const chatStream = async (req, res) => {
                         validationFailed: true,
                         invalidFields: ["query"],
                         privacyBlocked: true,
+                        searchOutcome: "not_called",
                       },
                     };
                   }
@@ -1112,7 +2027,10 @@ export const chatStream = async (req, res) => {
                   return executeTool(
                     toolName,
                     { query: externalKnowledgeQuery.query },
-                    context,
+                    deepseekProfileActive && process.env.AI_WEB_SEARCH_PROVIDER === "brave"
+                      ? { ...context, timeoutMs: Math.min(WEB_GROUNDING_TIMEOUT_MS,
+                        Math.max(1, chatStartTime + CHAT_DEADLINE_MS - Date.now())) }
+                      : context,
                   );
                 },
                 onStart: (call) => {
@@ -1129,18 +2047,6 @@ export const chatStream = async (req, res) => {
                 execution;
               let toolResult = execution.result;
               if (abortController.signal.aborted) break;
-              if (toolResult.needsConfirmation) {
-                const challenge = await createAiToolConfirmation({
-                  userId,
-                  toolName: call.name,
-                  parameters: call.args,
-                });
-                if (abortController.signal.aborted) break;
-                toolResult = {
-                  ...toolResult,
-                  uiCard: serializeAiToolConfirmationCard(challenge),
-                };
-              }
               const safeToolText = normalizePublicToolText(toolResult.text);
               const modelToolContent = serializeToolResultForModel({
                 toolName: call.name,
@@ -1148,8 +2054,20 @@ export const chatStream = async (req, res) => {
                 status: resolveToolResultStatus(toolResult),
               });
               const toolStatus = resolveToolResultStatus(toolResult);
+              if (call.name === "suggest_meal") {
+                iterationCanonicalMealText = safeToolText ||
+                  requiredToolMissingResponse("suggest_meal").text;
+              }
               if (call.name === "search_knowledge") {
                 iterationCompletedWebSearch = true;
+                webSearchOutcome = [
+                  "not_called",
+                  "provider_error",
+                  "no_supported_source",
+                  "grounded",
+                ].includes(toolResult.meta?.searchOutcome)
+                  ? toolResult.meta.searchOutcome
+                  : "provider_error";
                 webSearchSources = Array.isArray(toolResult.meta?.sources)
                   ? toolResult.meta.sources
                   : [];
@@ -1171,7 +2089,7 @@ export const chatStream = async (req, res) => {
                 }
               }
               if (
-                internalEvidenceRequired &&
+                routingDecision.evidence === "internal_kb" &&
                 call.name === routingDecision.preferredTool
               ) {
                 internalEvidenceAvailable =
@@ -1179,14 +2097,39 @@ export const chatStream = async (req, res) => {
                   (toolSucceeded &&
                     toolResult.meta?.evidenceAvailable === true);
               }
+              if (
+                call.name === "search_exercises" &&
+                routingDecision.risk === "low" &&
+                toolResult.meta?.evidenceAvailable !== true
+              ) {
+                routingDecision = Object.freeze({
+                  ...routingDecision,
+                  evidence: "model_prior",
+                  reasonCodes: Object.freeze([
+                    ...routingDecision.reasonCodes,
+                    "exercise_catalog_no_hit_model_prior",
+                  ]),
+                });
+              }
               aiLogger.toolCall(actorId, call.name, toolDuration, toolSucceeded);
               if (toolSucceeded) {
+                toolResult = attachMealIdentity(call.name, toolResult);
                 conversationMemory = updateConversationMemory(
                   conversationMemory,
                   call.name,
                   call.args,
                   toolResult,
                 );
+                if (
+                  toolRegistry[call.name]?.readOnly === true &&
+                  toolRegistry[call.name]?.requiresConfirmation !== true &&
+                  safeToolText
+                ) {
+                  lastSuccessfulReadOnlyToolResult = {
+                    toolName: call.name,
+                    text: safeToolText,
+                  };
+                }
               }
 
               // FE chỉ cần biết tool đã hoàn tất; tên/nội dung tool là protocol nội bộ.
@@ -1205,8 +2148,6 @@ export const chatStream = async (req, res) => {
                 id: call.id,
                 toolResultEnvelope: true,
               });
-              lastToolResultText = safeToolText; // Lưu backup
-
               // Lưu tool call vào conversation
               completedToolMessages.push({
                 role: "tool",
@@ -1214,10 +2155,7 @@ export const chatStream = async (req, res) => {
                 toolName: call.name,
                 toolCallId: call.id,
                 toolStatus,
-                uiCard:
-                  toolResult.uiCard?.cardType === "confirmation"
-                    ? null
-                    : toolResult.uiCard,
+                uiCard: toolResult.uiCard,
                 timestamp: new Date(),
               });
             }
@@ -1243,8 +2181,136 @@ export const chatStream = async (req, res) => {
             break;
         }
       }
+      } catch (providerError) {
+        if (deepseekProfileActive && String(providerError?.code || "").startsWith("DEEPSEEK_")) {
+          throw providerError;
+        }
+        if (
+          fourDayWorkoutRequested &&
+          workoutStructureRetryCount > 0 &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          fullResponse = await deliverFourDayWorkoutFallback();
+          needsToolCall = false;
+          break;
+        }
+        if (
+          scopeRetryCount > 0 &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          responseModel = "static_scope_preservation_v1";
+          fullResponse = await deliverAssistantResponse(
+            enforceEvidenceBoundary(
+              buildScopePreservationFallback(scopePreservationRequest),
+            ),
+          );
+          needsToolCall = false;
+          break;
+        }
+        if (
+          mixedWorkoutRetryCount > 0 &&
+          canonicalMixedWorkoutMealText &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          responseModel = "static_mixed_workout_meal_v1";
+          fullResponse = await deliverAssistantResponse(
+            enforceEvidenceBoundary(
+              `${canonicalMixedWorkoutMealText}\n\n${MIXED_WORKOUT_FALLBACK}`,
+            ),
+          );
+          needsToolCall = false;
+          break;
+        }
+        if (
+          lastSuccessfulReadOnlyToolResult &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          responseModel = "server_tool_result_fallback_v1";
+          const safeFallback = guardToolFallbackForDelivery(
+            lastSuccessfulReadOnlyToolResult.text,
+          );
+          fullResponse = await deliverAssistantResponse(
+            enforceEvidenceBoundary(safeFallback),
+          );
+          needsToolCall = false;
+          break;
+        }
+        if (
+          equipmentRetryCount > 0 &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          responseModel = "static_equipment_limit_v1";
+          fullResponse = await deliverAssistantResponse(
+            enforceEvidenceBoundary(equipmentLimitFallback),
+          );
+          needsToolCall = false;
+          break;
+        }
+        if (
+          iterationRequiredToolName &&
+          !iterationCalledTool &&
+          !abortController.signal.aborted &&
+          !deadlineExceeded
+        ) {
+          responseModel = "server_tool_missing_v1";
+          const missing = requiredToolMissingResponse(iterationRequiredToolName);
+          if (missing.uiCard) {
+            res.write(
+              `data: ${JSON.stringify({ type: "ui_card", ...missing.uiCard })}\n\n`,
+            );
+            responseUiCard = missing.uiCard;
+          }
+          fullResponse = await deliverAssistantResponse(
+            enforceEvidenceBoundary(missing.text),
+          );
+          needsToolCall = false;
+          break;
+        }
+        throw providerError;
+      }
 
       if (abortController.signal.aborted) break;
+      if (iterationCalledTool && iterationCanonicalMealText) {
+        if (mixedWorkoutMealRequest) {
+          canonicalMixedWorkoutMealText = iterationCanonicalMealText;
+          llmMessages.push({
+            role: "user",
+            content: mixedWorkoutMealInstruction,
+          });
+          needsToolCall = true;
+          continue;
+        }
+        const guardedMeal = sanitizeAssistantOutput(
+          iterationCanonicalMealText,
+        );
+        fullResponse = await deliverAssistantResponse(
+          guardedMeal.protocolLeak || !guardedMeal.content
+            ? requiredToolMissingResponse("suggest_meal").text
+            : guardedMeal.content,
+        );
+        needsToolCall = false;
+        break;
+      }
+      if (iterationRequiredToolName && !iterationCalledTool) {
+        responseModel = "server_tool_missing_v1";
+        const missing = requiredToolMissingResponse(iterationRequiredToolName);
+        if (missing.uiCard) {
+          res.write(
+            `data: ${JSON.stringify({ type: "ui_card", ...missing.uiCard })}\n\n`,
+          );
+          responseUiCard = missing.uiCard;
+        }
+        fullResponse = await deliverAssistantResponse(
+          enforceEvidenceBoundary(missing.text),
+        );
+        needsToolCall = false;
+        break;
+      }
       if (iterationCalledTool && iterationCompletedWebSearch) {
         let groundedContent = "";
         if (webSearchEvidenceAvailable) {
@@ -1263,25 +2329,217 @@ export const chatStream = async (req, res) => {
         break;
       }
       if (!iterationCalledTool && iterationText) {
-        const guarded = sanitizeAssistantOutput(iterationText);
-        if (guarded.protocolLeak && protocolRetryCount < 1) {
-          protocolRetryCount++;
-          llmMessages.push({ role: "assistant", content: iterationText });
-          llmMessages.push({
-            role: "user",
-            content:
-              "Không hiển thị JSON action, tên tool hoặc suy nghĩ nội bộ. Hãy gọi function phù hợp trực tiếp; nếu không cần function thì chỉ trả lời cuối cùng.",
+        if (
+          routingDecision.evidence === "internal_kb" &&
+          routingDecision.domain === "fitness" &&
+          routingDecision.risk === "low" &&
+          !internalEvidenceAvailable
+        ) {
+          routingDecision = Object.freeze({
+            ...routingDecision,
+            evidence: "model_prior",
+            reasonCodes: Object.freeze([
+              ...routingDecision.reasonCodes,
+              "internal_evidence_not_used_model_prior",
+            ]),
           });
-          needsToolCall = true;
-          continue;
+        }
+        const guarded = sanitizeAssistantOutput(iterationText);
+        if (guarded.protocolLeak) {
+          if (protocolRetryCount < 1) {
+            protocolRetryCount++;
+            llmMessages.push({ role: "assistant", content: iterationText });
+            llmMessages.push({
+              role: "user",
+              content:
+                "Không hiển thị JSON action, tên tool hoặc suy nghĩ nội bộ. Hãy gọi function phù hợp trực tiếp; nếu không cần function thì chỉ trả lời cuối cùng.",
+            });
+            needsToolCall = true;
+            continue;
+          }
+          const malformedOutputError = new Error(
+            "AI provider returned malformed protocol output",
+          );
+          malformedOutputError.code = "AI_MALFORMED_OUTPUT";
+          malformedOutputError.isOperational = true;
+          throw malformedOutputError;
         }
 
-        const finalContent = enforceEvidenceBoundary(
-            guarded.content ||
-              "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.",
+        const modelCandidateContent = guarded.content ||
+          "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.";
+        if (canonicalMixedWorkoutMealText) {
+          const mixedWorkoutCheck = validateMixedWorkoutSupplementOutput(
+            modelCandidateContent,
+          );
+          if (!mixedWorkoutCheck.valid) {
+            if (mixedWorkoutRetryCount < 1) {
+              mixedWorkoutRetryCount += 1;
+              llmMessages.push({ role: "assistant", content: iterationText });
+              llmMessages.push({
+                role: "user",
+                content: MIXED_WORKOUT_CORRECTION_INSTRUCTION,
+              });
+              needsToolCall = true;
+              continue;
+            }
+            responseModel = "static_mixed_workout_meal_v1";
+            fullResponse = await deliverAssistantResponse(
+              enforceEvidenceBoundary(
+                `${canonicalMixedWorkoutMealText}\n\n${MIXED_WORKOUT_FALLBACK}`,
+              ),
+            );
+            needsToolCall = false;
+            break;
+          }
+        }
+        const candidateContent = canonicalMixedWorkoutMealText
+          ? `${canonicalMixedWorkoutMealText}\n\n${modelCandidateContent}`
+          : modelCandidateContent;
+        const scopeCheck = validateScopePreservationOutput(
+          scopePreservationRequest,
+          candidateContent,
         );
+        if (!scopeCheck.valid) {
+          if (scopeRetryCount < 1) {
+            scopeRetryCount += 1;
+            llmMessages.push({ role: "assistant", content: iterationText });
+            llmMessages.push({
+              role: "user",
+              content: buildScopeCorrectionInstruction(
+                scopePreservationRequest,
+              ),
+            });
+            needsToolCall = true;
+            continue;
+          }
+          responseModel = "static_scope_preservation_v1";
+          fullResponse = await deliverAssistantResponse(
+            enforceEvidenceBoundary(
+              buildScopePreservationFallback(scopePreservationRequest),
+            ),
+          );
+          needsToolCall = false;
+          break;
+        }
+        if (workoutIntakeRequested && evaluateSemanticOutput({
+          output: { text: candidateContent, cards: [] },
+          rules: [{ type: "intake_questions", requestType: "workout" }],
+        }).length > 0) {
+          if (workoutIntakeRetryCount < 1) {
+            workoutIntakeRetryCount += 1;
+            llmMessages.push({ role: "assistant", content: iterationText });
+            llmMessages.push({ role: "user", content: WORKOUT_INTAKE_CORRECTION_INSTRUCTION });
+            needsToolCall = true;
+            continue;
+          }
+          fullResponse = await deliverWorkoutIntakeFallback();
+          needsToolCall = false;
+          break;
+        }
+        const equipmentCheck = validateWorkoutEquipmentOutput(
+          message,
+          candidateContent,
+        );
+        if (!equipmentCheck.valid) {
+          if (equipmentRetryCount < 1) {
+            equipmentRetryCount += 1;
+            llmMessages.push({ role: "assistant", content: iterationText });
+            llmMessages.push({
+              role: "user",
+              content: hasBandOnlyConstraint(message)
+                ? "Hãy viết lại câu trả lời, chỉ dùng dây kháng lực hoặc bodyweight. Không dùng máy, thanh đòn, tạ đơn, ghế hoặc xà. Không nêu quy trình nội bộ."
+                : EQUIPMENT_CORRECTION_INSTRUCTION,
+            });
+            needsToolCall = true;
+            continue;
+          }
+          if (structuredFourDayFallbackRequested) {
+            fullResponse = await deliverFourDayWorkoutFallback();
+          } else {
+            responseModel = lastSuccessfulReadOnlyToolResult?.toolName === "search_exercises"
+              ? "server_tool_result_fallback_v1"
+              : "static_equipment_limit_v1";
+            const safeEquipmentFallback =
+              lastSuccessfulReadOnlyToolResult?.toolName === "search_exercises"
+                ? guardToolFallbackForDelivery(
+                    lastSuccessfulReadOnlyToolResult.text,
+                  )
+                : equipmentLimitFallback;
+            fullResponse = await deliverAssistantResponse(
+              enforceEvidenceBoundary(safeEquipmentFallback),
+            );
+          }
+          needsToolCall = false;
+          break;
+        }
+        const workoutStructureRules = structuredFourDayFallbackRequested
+          ? [{ type: "workout_structure", minDays: 4, request: message, requireDeload: true }]
+          : [{ type: "workout_structure", minDays: 4 }];
+        if (fourDayWorkoutRequested && evaluateSemanticOutput({
+          output: { text: candidateContent, cards: [] },
+          rules: workoutStructureRules,
+        }).length > 0) {
+          if (workoutStructureRetryCount < 1) {
+            workoutStructureRetryCount += 1;
+            llmMessages.push({ role: "assistant", content: iterationText });
+            llmMessages.push({ role: "user", content: FOUR_DAY_WORKOUT_CORRECTION_INSTRUCTION });
+            needsToolCall = true;
+            continue;
+          }
+          fullResponse = await deliverFourDayWorkoutFallback();
+          needsToolCall = false;
+          break;
+        }
+        const finalContent = enforceEvidenceBoundary(candidateContent, { allowReviewedClaimCitation: true });
         fullResponse = await deliverAssistantResponse(finalContent);
       }
+    }
+
+    if (
+      !abortController.signal.aborted &&
+      !fullResponse &&
+      fourDayWorkoutRequested &&
+      workoutStructureRetryCount > 0
+    ) {
+      fullResponse = await deliverFourDayWorkoutFallback();
+    }
+
+    if (
+      !abortController.signal.aborted &&
+      !fullResponse &&
+      mixedWorkoutRetryCount > 0 &&
+      canonicalMixedWorkoutMealText
+    ) {
+      responseModel = "static_mixed_workout_meal_v1";
+      fullResponse = await deliverAssistantResponse(
+        enforceEvidenceBoundary(
+          `${canonicalMixedWorkoutMealText}\n\n${MIXED_WORKOUT_FALLBACK}`,
+        ),
+      );
+    }
+
+    if (
+      !abortController.signal.aborted &&
+      !fullResponse &&
+      scopeRetryCount > 0
+    ) {
+      responseModel = "static_scope_preservation_v1";
+      fullResponse = await deliverAssistantResponse(
+        enforceEvidenceBoundary(
+          buildScopePreservationFallback(scopePreservationRequest),
+        ),
+      );
+    }
+
+    if (
+      !abortController.signal.aborted &&
+      !fullResponse &&
+      equipmentRetryCount > 0
+    ) {
+      responseModel = "static_equipment_limit_v1";
+      fullResponse = await deliverAssistantResponse(
+        enforceEvidenceBoundary(equipmentLimitFallback),
+      );
     }
 
     if (deadlineExceeded) {
@@ -1295,13 +2553,15 @@ export const chatStream = async (req, res) => {
       !abortController.signal.aborted &&
       !fullResponse &&
       toolCallCount > 0 &&
-      lastToolResultText
+      lastSuccessfulReadOnlyToolResult?.text
     ) {
       safeLog.warn(
         "ai.tool_result_fallback",
         "Provider returned no text after tool call",
       );
-      const guardedFallback = sanitizeAssistantOutput(lastToolResultText);
+      const guardedFallback = sanitizeAssistantOutput(
+        lastSuccessfulReadOnlyToolResult.text,
+      );
       if (guardedFallback.protocolLeak) {
         safeLog.warn(
           "ai.tool_result_fallback_blocked",
@@ -1309,15 +2569,19 @@ export const chatStream = async (req, res) => {
         );
       }
       const fallbackContent = enforceEvidenceBoundary(
-        guardedFallback.content ||
-          "Mình chưa thể hoàn tất yêu cầu này. Bạn thử diễn đạt lại ngắn gọn hơn nhé.",
+        guardToolFallbackForDelivery(lastSuccessfulReadOnlyToolResult.text),
       );
+      responseModel = "server_tool_result_fallback_v1";
       fullResponse = await deliverAssistantResponse(fallbackContent);
     }
     if (fullResponse) {
+      if (responseUiCard?.cardType === "webSources" && !abortController.signal.aborted) {
+        res.write(`data: ${JSON.stringify({ type: "ui_card", ...responseUiCard })}\n\n`);
+      }
       generatedMessages.push({
         role: "assistant",
         content: fullResponse,
+        uiCard: responseUiCard,
         answerTrace: buildAnswerTrace(),
         timestamp: new Date(),
       });
@@ -1369,7 +2633,7 @@ export const chatStream = async (req, res) => {
       kbHits: kbEntryIds.length,
     });
     if (!abortController.signal.aborted) {
-      res.write(`data: ${JSON.stringify({ type: "done", conversationId: conversation._id })}\n\n`);
+      res.write(`data: ${JSON.stringify(buildDoneFrame())}\n\n`);
       res.end();
       if (req.stagingAiAcceptance) req.stagingAiAcceptanceOutcome = "completed";
     } else if (req.stagingAiAcceptance) {
@@ -1399,9 +2663,36 @@ export const chatStream = async (req, res) => {
       deadlineExceeded ? "provider_deadline" : "provider_stream",
     );
     if (!clientDisconnected && !res.writableEnded) {
-      const message = deadlineExceeded
-        ? "HT Assistant phản hồi quá lâu. Bạn vui lòng thử lại."
-        : "Có lỗi xảy ra, vui lòng thử lại";
+      let errorMessage = "Có lỗi xảy ra, vui lòng thử lại";
+      if (deadlineExceeded) {
+        errorMessage = "HT Assistant phản hồi quá lâu. Bạn vui lòng thử lại.";
+      } else if (err?.code === "AI_MALFORMED_OUTPUT") {
+        errorMessage =
+          "HT Assistant nhận được phản hồi chưa hoàn chỉnh. Bạn vui lòng thử lại.";
+      } else if (deepseekProfileActive && err?.code === "DEEPSEEK_HTTP_ERROR" && err?.status === 429) {
+        errorMessage = "HT Assistant đang nhận quá nhiều yêu cầu từ DeepSeek. Bạn vui lòng thử lại sau ít phút.";
+      } else if (deepseekProfileActive && err?.code === "DEEPSEEK_HTTP_ERROR" && Number(err?.status) >= 500) {
+        errorMessage = "DeepSeek đang tạm gián đoạn. Bạn vui lòng thử lại sau.";
+      } else if (deepseekProfileActive && ["DEEPSEEK_TIMEOUT", "DEEPSEEK_DEADLINE_EXCEEDED"].includes(err?.code)) {
+        errorMessage = "DeepSeek phản hồi quá lâu. Bạn vui lòng thử lại.";
+      } else if (deepseekProfileActive && (err?.code === "KB_TRIAL_CORPUS_LIMIT" || err?.code?.startsWith("KB_TRIAL_"))) {
+        errorMessage = "Kho kiến thức thử nghiệm chưa thể tra cứu lúc này. Bạn vui lòng thử lại sau.";
+      } else if (err?.code === "GEMINI_HTTP_ERROR" && err?.status === 429) {
+        errorMessage =
+          "HT Assistant đang nhận quá nhiều yêu cầu từ nhà cung cấp. Bạn vui lòng thử lại sau ít phút.";
+      } else if (
+        (err?.code === "GEMINI_HTTP_ERROR" && Number(err?.status) >= 500) ||
+        [
+          "GEMINI_NETWORK_ERROR",
+          "GEMINI_STREAM_ERROR",
+          "GEMINI_STREAM_EMPTY",
+          "GEMINI_TIMEOUT",
+        ]
+          .includes(err?.code)
+      ) {
+        errorMessage =
+          "Dịch vụ AI đang tạm gián đoạn. Bạn vui lòng thử lại sau.";
+      }
       if (refundedQuota) {
         res.write(
           `data: ${JSON.stringify({ type: "quota", quota: refundedQuota })}\n\n`,
@@ -1409,8 +2700,9 @@ export const chatStream = async (req, res) => {
       }
       res.write(`data: ${JSON.stringify({
         type: "error",
-        message,
+        message: errorMessage,
         retryable: rollbackSucceeded,
+        conversationId: conversation._id,
       })}\n\n`);
       res.end();
     }
@@ -1439,6 +2731,7 @@ export const chatStream = async (req, res) => {
             fullResponse,
             MAX_ASSISTANT_RESPONSE_CHARACTERS,
           ),
+          uiCard: responseUiCard,
           answerTrace: buildAnswerTrace(),
           timestamp: new Date(),
         });

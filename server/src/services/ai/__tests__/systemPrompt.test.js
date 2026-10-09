@@ -9,6 +9,23 @@ import {
 import { routeAiRequest } from "../requestRouter.js";
 
 describe("Knowledge Base prompt boundary", () => {
+  it("labels LLM selection as rank, never a cosine confidence", () => {
+    const block = buildKnowledgeReferenceBlock([{ question: "Protein là gì?", answer: "Đạm hỗ trợ mô.", retrievalMethod: "llm_selection", retrievalRank: 2 }]);
+    expect(block).toContain("llm_selection; hạng 2");
+    expect(block).not.toContain("% match");
+  });
+  it("withholds unrelated source metadata even when the entry is reviewed", () => {
+    const entry = {
+      question: "Protein là gì?", answer: "Đạm hỗ trợ xây dựng mô.",
+      evidenceLevel: "source_backed", reviewStatus: "reviewed",
+      sources: [{ type: "research", evidenceTier: "primary", title: "Reference", publisher: "Synthetic journal", url: "https://example.org/protein" }],
+    };
+    const block = buildKnowledgeReferenceBlock([entry], { citationEntries: [] });
+    expect(block).toContain("Đạm hỗ trợ xây dựng mô");
+    expect(block).toContain("không trích nguồn của entry này");
+    expect(block).not.toContain("https://example.org/protein");
+    expect(block).not.toContain("CÓ THỂ DÙNG LÀM EVIDENCE/CITATION");
+  });
   it("treats reviewed KB content as untrusted reference data", () => {
     const block = buildKnowledgeReferenceBlock([
       {
@@ -353,6 +370,64 @@ describe("TDEE estimate prompt contract", () => {
       noDefaults: prompt.includes("Không mặc định mục tiêu hoặc mức vận động"),
       calibration: prompt.includes("ít nhất 14 ngày"),
     }).toEqual({ wholeDay: true, noDefaults: true, calibration: true });
+  });
+
+  it("frames TDEE as an estimate and prioritizes intake questions by request type", () => {
+    const prompt = buildSystemPrompt();
+
+    expect({
+      estimate: prompt.includes("TDEE là ước tính"),
+      maxFive: prompt.includes("tối đa 5 nhóm câu hỏi ưu tiên"),
+      mealOnly: prompt.includes("Chỉ hỏi dị ứng hoặc chế độ ăn khi user yêu cầu thực đơn"),
+      workoutFirst: prompt.includes("thiết bị, kinh nghiệm tập và chấn thương"),
+    }).toEqual({ estimate: true, maxFive: true, mealOnly: true, workoutFirst: true });
+  });
+});
+
+describe("Plan scope and workout quality prompt contract", () => {
+  it("preserves an explicit invariant before offering coaching advice", () => {
+    const prompt = buildSystemPrompt();
+    const request = "Giữ nguyên toàn bộ kế hoạch vừa rồi nhưng đổi mức thâm hụt từ 300 kcal thành 700 kcal. Giải thích phần nào đã thay đổi.";
+
+    expect(request.toLowerCase()).toContain("giữ nguyên toàn bộ kế hoạch");
+    expect({
+      onlyChangeAuthorizedPart: prompt.includes("chỉ thay đúng X"),
+      separateAdvisory: prompt.includes("tách riêng khỏi kết quả đã yêu cầu"),
+      permissionBeforeOverride: prompt.includes("xin phép trước khi áp dụng"),
+    }).toEqual({
+      onlyChangeAuthorizedPart: true,
+      separateAdvisory: true,
+      permissionBeforeOverride: true,
+    });
+  });
+
+  it("requires a real multi-day workout structure and unambiguous deload wording", () => {
+    const prompt = buildSystemPrompt();
+
+    expect({
+      days: prompt.includes("ngày/buổi, bài, hiệp, lần, RPE và thời gian nghỉ"),
+      equipment: prompt.includes("phù hợp trình độ và thiết bị"),
+      deload: prompt.includes("giảm khoảng 30%"),
+      notRemainingThirty: prompt.includes("còn 30%"),
+    }).toEqual({ days: true, equipment: true, deload: true, notRemainingThirty: false });
+  });
+});
+
+describe("Meal calculation and constraint prompt contract", () => {
+  it("requires arithmetically consistent macros without silently breaking hard constraints", () => {
+    const prompt = buildSystemPrompt();
+
+    expect({
+      macroArithmetic: prompt.includes("4 × Protein + 4 × Carb + 9 × Fat"),
+      hardConstraints: prompt.includes("dị ứng, không dung nạp, ngân sách"),
+      followUpScope: prompt.includes("không được âm thầm đổi món hoặc ràng buộc khác"),
+      unsupportedPrecision: prompt.includes("không được bịa số liệu hoặc tự tuyên bố đã đáp ứng"),
+    }).toEqual({
+      macroArithmetic: true,
+      hardConstraints: true,
+      followUpScope: true,
+      unsupportedPrecision: true,
+    });
   });
 });
 

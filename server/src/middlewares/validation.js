@@ -89,6 +89,36 @@ export const validateAiMemoryUpdate = [
   handleValidationErrors,
 ];
 
+export const validateAiMealReplacement = [
+  param("id").isMongoId().withMessage("Mã cuộc trò chuyện không hợp lệ"),
+  body().custom((value) => {
+    const allowed = [
+      "operationId",
+      "mealPlanId",
+      "expectedRevision",
+      "mealIndex",
+      "foodIndex",
+    ];
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.keys(value).length !== allowed.length ||
+      allowed.some((key) => !Object.hasOwn(value, key)) ||
+      Object.keys(value).some((key) => !allowed.includes(key))
+    ) {
+      throw new Error("Payload đổi món không hợp lệ");
+    }
+    return true;
+  }),
+  body("operationId").isUUID(4).withMessage("Mã thao tác không hợp lệ"),
+  body("mealPlanId").isUUID(4).withMessage("Mã thực đơn không hợp lệ"),
+  body("expectedRevision").isInt({ min: 1, max: 1_000_000 }).toInt(),
+  body("mealIndex").isInt({ min: 0, max: 5 }).toInt(),
+  body("foodIndex").isInt({ min: 0, max: 11 }).toInt(),
+  handleValidationErrors,
+];
+
 export const validateMealPlanPreferencesUpdate = [
   body().custom((value) => {
     const required = ["allergyStatus", "allergens", "budgetVndPerDay"];

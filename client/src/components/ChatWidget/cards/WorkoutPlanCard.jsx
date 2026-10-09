@@ -1,94 +1,148 @@
-import { Dumbbell, CheckCircle, Clock, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
+import {
+  ArrowUpRight,
+  CheckCircle2,
+  ChevronDown,
+  ClipboardList,
+  Clock3,
+  MessageCircle,
+} from "lucide-react";
+
+import AssistantCard, {
+  CardFooter,
+  CardNotice,
+  CardSection,
+  CardSectionLabel,
+} from "./AssistantCard";
+
+const formatDate = (value) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Không rõ ngày" : date.toLocaleDateString("vi-VN");
+};
+
+const getExerciseCount = (plan) =>
+  plan.sections?.reduce(
+    (sum, section) => sum + (section.exercises?.length || 0),
+    0,
+  ) || 0;
 
 export default function WorkoutPlanCard({ data }) {
   if (!data?.plans?.length) return null;
 
-  return (
-    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 space-y-2 w-full">
-      <div className="flex items-center gap-2 mb-1">
-        <Dumbbell size={16} className="text-emerald-400" />
-        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Giáo án tập luyện</span>
-      </div>
+  const latestPlan = data.plans[0];
+  const latestExerciseCount = getExerciseCount(latestPlan);
 
-      <div className="space-y-2">
-        {data.plans.map((plan, i) => (
-          <PlanItem key={i} plan={plan} defaultOpen={i === 0} />
-        ))}
-      </div>
-    </div>
+  return (
+    <AssistantCard
+      eyebrow="GIÁO ÁN TẬP LUYỆN"
+      icon={ClipboardList}
+      subtitle={`${formatDate(latestPlan.planDate)} · ${latestExerciseCount} bài tập`}
+      title={latestPlan.title}
+      value={`${data.plans.length} buổi`}
+      valueNote="gần nhất"
+      footer={
+        <CardFooter
+          action="Mở giáo án"
+          icon={ArrowUpRight}
+          note={`${latestPlan.status === "completed" ? "Đã hoàn thành" : "Đang thực hiện"} · ${latestExerciseCount} bài`}
+          to="/workout-plans"
+        />
+      }
+    >
+      <CardSection className="!py-0">
+        <div className="divide-y divide-slate-200 dark:divide-white/10">
+          {data.plans.map((plan, index) => (
+            <PlanItem defaultOpen={index === 0} key={`${plan.planDate}-${index}`} plan={plan} />
+          ))}
+        </div>
+      </CardSection>
+    </AssistantCard>
   );
 }
 
 function PlanItem({ plan, defaultOpen }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
-
-  const planDate = new Date(plan.planDate).toLocaleDateString("vi-VN");
+  const panelId = useId();
   const isCompleted = plan.status === "completed";
-  const totalExercises = plan.sections?.reduce(
-    (sum, sec) => sum + (sec.exercises?.length || 0),
-    0
-  ) || 0;
+  const totalExercises = getExerciseCount(plan);
 
   return (
-    <div className="bg-black/20 rounded-lg overflow-hidden">
-      {/* Plan header — clickable */}
+    <div className="py-3 first:pt-4 last:pb-4">
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-2 p-2.5 text-left hover:bg-white/5 transition-colors"
+        aria-controls={panelId}
+        aria-expanded={isOpen}
+        className="flex min-h-11 w-full items-center gap-3 rounded-xl text-left transition-colors duration-200 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 dark:hover:text-emerald-300 motion-reduce:transition-none"
+        onClick={() => setIsOpen((open) => !open)}
+        type="button"
       >
         {isCompleted ? (
-          <CheckCircle size={14} className="text-emerald-400 shrink-0" />
+          <CheckCircle2
+            aria-hidden="true"
+            className="shrink-0 text-emerald-600 dark:text-emerald-300"
+            size={17}
+          />
         ) : (
-          <Clock size={14} className="text-yellow-400 shrink-0" />
+          <Clock3
+            aria-hidden="true"
+            className="shrink-0 text-amber-600 dark:text-amber-300"
+            size={17}
+          />
         )}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-white font-medium truncate">{plan.title}</p>
-          <p className="text-[10px] text-gray-400">
-            {planDate} · {totalExercises} bài tập
-          </p>
-        </div>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium leading-5">{plan.title}</span>
+          <span className="mt-1 block text-xs text-slate-500 dark:text-zinc-400">
+            {formatDate(plan.planDate)} · {totalExercises} bài tập
+          </span>
+        </span>
         <ChevronDown
-          size={14}
-          className={`text-gray-400 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          aria-hidden="true"
+          className={`shrink-0 text-slate-400 transition-transform duration-200 dark:text-zinc-500 motion-reduce:transition-none ${
+            isOpen ? "rotate-180" : ""
+          }`}
+          size={17}
         />
       </button>
 
-      {/* Sections — expandable */}
-      {isOpen && plan.sections?.length > 0 && (
-        <div className="px-2.5 pb-2.5 space-y-2">
-          {plan.sections.map((section, j) => (
-            <div key={j}>
-              <p className="text-[10px] font-bold text-emerald-400/80 uppercase tracking-wider mb-1">
-                {section.icon && <span className="mr-1">{section.icon}</span>}
-                {section.name}
-              </p>
-              <div className="space-y-0.5">
-                {section.exercises?.map((ex, k) => (
-                  <div key={k} className="flex items-center gap-2 text-[11px] py-0.5">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      ex.assessment === "pass" ? "bg-emerald-400" :
-                      ex.assessment === "fail" ? "bg-red-400" :
-                      "bg-gray-500"
-                    }`} />
-                    <span className="text-gray-300 flex-1 truncate">{ex.name}</span>
-                    {(ex.sets || ex.reps) && (
-                      <span className="text-gray-500 shrink-0">
-                        {[ex.sets && `${ex.sets}S`, ex.reps && `${ex.reps}R`].filter(Boolean).join(" × ")}
+      {isOpen && (
+        <div className="pt-4" id={panelId}>
+          {plan.sections?.map((section, sectionIndex) => (
+            <div
+              className="border-t border-slate-200 py-4 first:border-t-0 first:pt-0 dark:border-white/10"
+              key={`${section.name}-${sectionIndex}`}
+            >
+              <CardSectionLabel>{section.name}</CardSectionLabel>
+              <ul className="divide-y divide-slate-100 dark:divide-white/[0.07]">
+                {section.exercises?.map((exercise, exerciseIndex) => (
+                  <li
+                    className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                    key={`${exercise.name}-${exerciseIndex}`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`h-2 w-2 shrink-0 rounded-full ${
+                        exercise.assessment === "pass"
+                          ? "bg-emerald-500"
+                          : exercise.assessment === "fail"
+                            ? "bg-rose-500"
+                            : "bg-amber-500"
+                      }`}
+                    />
+                    <span className="min-w-0 flex-1 text-sm text-slate-800 dark:text-zinc-200">
+                      {exercise.name}
+                    </span>
+                    {(exercise.sets || exercise.reps) && (
+                      <span className="shrink-0 text-[13px] font-medium text-cyan-700 dark:text-cyan-300">
+                        {[exercise.sets, exercise.reps].filter(Boolean).join(" × ")}
                       </span>
                     )}
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           ))}
 
           {plan.trainerNote && (
-            <div className="mt-1.5 pt-1.5 border-t border-white/5">
-              <p className="text-[10px] text-gray-400">
-                💬 {plan.trainerNote.substring(0, 120)}{plan.trainerNote.length > 120 ? "..." : ""}
-              </p>
-            </div>
+            <CardNotice icon={MessageCircle}>{plan.trainerNote}</CardNotice>
           )}
         </div>
       )}

@@ -27,6 +27,16 @@ const validateTdeeTrainingEvidence = (parameters) => {
     : [];
 };
 
+const validateMealCalorieScope = (parameters) => {
+  const perMeal = parameters.calorieScope === "per_meal";
+  const calories = Number(parameters.targetCalories);
+  if (!Number.isFinite(calories)) return [];
+  if ((!perMeal && calories < 800) || (perMeal && parameters.mealsPerDay != null && parameters.mealsPerDay !== 1)) {
+    return ["targetCalories", ...(perMeal ? ["mealsPerDay"] : [])];
+  }
+  return [];
+};
+
 export const toolRegistry = {
   calculate_tdee: {
     name: "calculate_tdee",
@@ -104,7 +114,7 @@ export const toolRegistry = {
   search_exercises: {
     name: "search_exercises",
     description:
-      "Tìm bài tập trong thư viện theo nhóm cơ hoặc tên bài tập. " +
+      "Tìm bài tập trong thư viện theo nhóm cơ, tên bài tập và giới hạn thiết bị user nêu. " +
       "GỌI KHI: user hỏi về bài tập, muốn tìm bài tập cho nhóm cơ cụ thể, hoặc hỏi cách tập. " +
       "Các nhóm cơ có: Ngực, Lưng, Chân, Vai, Tay, Bụng.",
     parameters: {
@@ -113,6 +123,7 @@ export const toolRegistry = {
       properties: {
         muscleGroup: { type: "string", minLength: 1, maxLength: 50, description: "Nhóm cơ muốn tìm. VD: Ngực, Lưng, Chân, Vai, Tay, Bụng" },
         searchQuery: { type: "string", minLength: 1, maxLength: 100, description: "Tên bài tập muốn tìm. VD: plank, squat, bench press" },
+        exerciseName: { type: "string", minLength: 1, maxLength: 100, description: "Tên bài cụ thể đã được nêu, tách khỏi nhóm cơ và giới hạn thiết bị." },
         limit: { type: "integer", minimum: 1, maximum: 10, description: "Số lượng kết quả tối đa (mặc định 5)" },
       },
     },
@@ -128,20 +139,63 @@ export const toolRegistry = {
     description:
       "Gợi ý thực đơn từ database thực phẩm dựa trên lượng calo và macro mục tiêu. " +
       "GỌI KHI: user muốn gợi ý thực đơn/lịch ăn VÀ đã biết lượng calo mục tiêu (thường sau khi đã tính TDEE). " +
+      "Nếu user nêu món bắt buộc hoặc món cần loại trừ, truyền từng cụm đầy đủ vào requiredFoods/excludedFoods; " +
+      "không thay món bắt buộc bằng món khác nếu catalog không đáp ứng. " +
       "KHÔNG GỌI KHI: chưa tính TDEE — hãy tính TDEE trước bằng tool calculate_tdee.",
     parameters: {
       type: "object",
       additionalProperties: false,
       properties: {
-        targetCalories: { type: "number", minimum: 800, maximum: 6000, description: "Tổng calo mục tiêu mỗi ngày" },
+        targetCalories: { type: "number", minimum: 500, maximum: 6000, description: "Calo mục tiêu. Mặc định là tổng mỗi ngày (tối thiểu 800); chỉ có thể dùng 500-799 khi calorieScope=per_meal." },
+        calorieScope: { type: "string", enum: ["per_day", "per_meal"], description: "per_day mặc định. per_meal chỉ khi user yêu cầu rõ một bữa cụ thể; không dùng để hạ mục tiêu cả ngày." },
         proteinGrams: { type: "number", minimum: 0, maximum: 500, description: "Gram protein mục tiêu" },
         carbGrams: { type: "number", minimum: 0, maximum: 1000, description: "Gram carb mục tiêu" },
         fatGrams: { type: "number", minimum: 0, maximum: 300, description: "Gram fat mục tiêu" },
         mealsPerDay: { type: "integer", minimum: 1, maximum: 6, description: "Số bữa ăn mỗi ngày (1-6, mặc định 3)" },
+        targetToleranceCalories: { type: "number", minimum: 0, maximum: 300, description: "Sai số kcal tối đa chấp nhận được; mặc định 100 kcal" },
+        minimumProteinGrams: { type: "number", minimum: 0, maximum: 500, description: "Protein tối thiểu bắt buộc; mặc định bằng proteinGrams" },
+        excludedFoods: {
+          type: "array",
+          maxItems: 12,
+          items: { type: "string", minLength: 1, maxLength: 100 },
+          description: "Thực phẩm cần loại trừ. Chỉ dùng khi user nêu rõ.",
+        },
+        requiredFoods: {
+          type: "array",
+          maxItems: 12,
+          uniqueItems: true,
+          items: { type: "string", minLength: 1, maxLength: 100 },
+          description: "Thực phẩm user yêu cầu phải xuất hiện; truyền từng cụm đầy đủ, ví dụ ['cơm', 'cá', 'rau', 'đậu phụ'].",
+        },
+        excludedAllergens: {
+          type: "array",
+          maxItems: 9,
+          uniqueItems: true,
+          items: { type: "string", enum: ["milk", "egg", "fish", "crustacean_shellfish", "tree_nut", "peanut", "wheat", "soy", "sesame"] },
+          description: "Dị ứng cần loại trừ; tool chỉ dùng Food đã kiểm duyệt metadata.",
+        },
+        lactoseFree: { type: "boolean", description: "Loại trừ thực phẩm có sữa; chỉ dùng khi user yêu cầu không lactose." },
+        requirePackageLabelSafety: { type: "boolean", description: "Chỉ true khi user yêu cầu xác minh an toàn ở cấp nhãn/sản phẩm hoặc không nhiễm chéo; thiếu nguồn nhãn phải fail closed." },
+        budgetVndPerDay: { type: "integer", minimum: 30000, maximum: 2000000, description: "Ngân sách VND/ngày; chỉ công bố đạt ngân sách khi dữ liệu giá đủ nguồn." },
+        allowedAdjustmentFoodIds: {
+          type: "array",
+          maxItems: 20,
+          uniqueItems: true,
+          items: { type: "string", minLength: 1, maxLength: 100 },
+          description: "Follow-up scope: chỉ điều chỉnh gram của các Food ID canonical này.",
+        },
+        allowedAdjustmentFoodNames: {
+          type: "array",
+          maxItems: 20,
+          uniqueItems: true,
+          items: { type: "string", minLength: 1, maxLength: 120 },
+          description: "Follow-up scope dự phòng: chỉ điều chỉnh gram của tên món canonical này.",
+        },
       },
       required: ["targetCalories", "proteinGrams", "carbGrams", "fatGrams"],
     },
     execute: suggestMeal,
+    validateParameters: validateMealCalorieScope,
     readOnly: true,
     parallelSafe: true,
     requiresAuth: false,
@@ -378,6 +432,8 @@ export function getToolSchemas({
   return Object.values(toolRegistry)
     .filter(
       (tool) =>
+        tool.readOnly === true &&
+        tool.requiresConfirmation !== true &&
         (isAuthenticated || (!tool.requiresAuth && tool.guestEnabled !== false)) &&
         (allowWebSearch || tool.name !== "search_knowledge"),
     )

@@ -9,6 +9,38 @@ import {
 } from "../requestRouter.js";
 
 describe("AI request evidence router", () => {
+  it("keeps food protein sources and scoped meal changes on the canonical meal route", () => {
+    const meal = routeAiRequest("Tạo một bữa ăn khoảng 600 kcal món Việt, không ăn thịt gà; hãy thay bằng nguồn đạm khác và ghi rõ từng món, grams, tổng kcal và protein.");
+    const scoped = routeAiRequest("Giữ nguyên bữa ăn, chỉ thay đậu phụ bằng cá, khoảng 600 kcal.");
+    expect(meal).toMatchObject({ preferredTool: "suggest_meal", webSearchRequired: false });
+    expect(scoped).toMatchObject({ preferredTool: "suggest_meal", webSearchRequired: false });
+    expect(routeAiRequest("Tạo một bữa ăn 600 kcal từ nguồn đạm khác, hãy kèm nguồn khoa học.")).toMatchObject({ preferredTool: "search_knowledge", webSearchRequired: true });
+  });
+  it("does not treat a pair of dumbbells as a medical condition", () => {
+    expect(routeAiRequest("Tạo lịch tập tăng cơ 4 ngày/tuần cho người mới, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực; mỗi buổi tối đa 60 phút, kèm deload.")).toMatchObject({ risk: "low", webSearchRequired: false });
+    expect(routeAiRequest("Tạo lịch tập tăng cơ 4 ngày/tuần cho người mới, chỉ có đôi tạ đơn và tôi bị đau đầu gối.")).toMatchObject({ risk: "high_stakes", webSearchRequired: false });
+    expect(routeAiRequest("Tôi có đôi tạ đơn và bị nhức gối sau tập. Cho tôi nghiên cứu mới nhất.")).toMatchObject({ risk: "high_stakes", webSearchRequired: false });
+  });
+  it.each([
+    "Tôi có đôi tạ đơn nhưng đang bị nhức gối sau tập.",
+    "Tôi có đôi tạ đơn, vẫn bị nhức gối sau tập.",
+    "I have dumbbells but currently have knee pain after exercise.",
+    "Học viên có đôi tạ đơn nhưng bị nhức gối sau tập.",
+    "I have dumbbells but have rheumatoid arthritis. Show latest exercise research.",
+  ])("does not route modified inherited symptoms to public evidence: %s", (value) => {
+    expect(routeAiRequest(`${value} Cho tôi nghiên cứu mới nhất.`)).toMatchObject({
+      risk: "high_stakes", webSearchRequired: false, knowledgeBaseEligible: false,
+    });
+  });
+  it("recognizes updated public-source requests and private joint discomfort", () => {
+    const person = routeAiRequest("Cristiano Ronaldo là ai? Dựa trên nguồn công khai cập nhật, hãy trả lời có nguồn.");
+    const discomfort = routeAiRequest("Đầu gối tôi hơi khó chịu khi squat nhưng vẫn muốn tập chân. Tôi nên làm gì?");
+    expect({ person, discomfort, tools: getAllowedToolNamesForRoute(discomfort) }).toMatchObject({
+      person: { freshness: "time_sensitive", evidence: "web_required" },
+      discomfort: { risk: "high_stakes", evidence: "model_prior", knowledgeBaseEligible: false, webSearchRequired: false, preferredTool: null },
+      tools: [],
+    });
+  });
   it("rebuilds a short fitness follow-up into a standalone retrieval query", () => {
     const query = buildStandaloneRetrievalQuery("Còn bài nào khác?", [
       { role: "user", content: "Tôi muốn tìm bài tập ngực với tạ đơn." },
@@ -181,6 +213,16 @@ describe("AI request evidence router", () => {
     });
   });
 
+  it("does not mistake a Vietnamese person named Lập for a planning verb", () => {
+    expect(routeAiRequest("Lập thường tập gì?")).toMatchObject({
+      domain: "fitness",
+      evidence: "web_required",
+      webSearchRequired: true,
+      preferredTool: "search_knowledge",
+      reasonCodes: expect.arrayContaining(["public_person_claim"]),
+    });
+  });
+
   it("marks an unseen lowercase person claim for evidence-bound privacy handling", () => {
     expect(routeAiRequest("zoraqx quux thường tập gì?")).toMatchObject({
       domain: "fitness",
@@ -280,6 +322,16 @@ describe("AI request evidence router", () => {
     "PPL thường tập gì?",
     "HLV thường tập gì?",
     "Tập chân thường tập bài gì?",
+    "Hãy tạo lịch tập tăng cơ 4 ngày mỗi tuần, mỗi buổi tối đa 60 phút",
+    "Tạo cho tôi một lịch tập tăng cơ 4 ngày",
+    "Giúp tôi lập lịch tập tăng cơ 4 ngày",
+    "Có thể lập lịch tập tăng cơ 4 ngày không?",
+    "Lập giúp tôi lịch tập tăng cơ 4 ngày",
+    "Làm cho tôi lịch tập tăng cơ 4 ngày",
+    "Soạn cho tôi lịch tập tăng cơ 4 ngày",
+    "Thiết kế lịch tập tăng cơ 4 ngày cho tôi",
+    "Cho tôi một lịch tập tăng cơ 4 ngày",
+    "Tôi muốn lịch tập tăng cơ 4 ngày",
   ])("does not mistake a generic fitness subject for a public person: %s", (message) => {
     expect(routeAiRequest(message)).toMatchObject({
       domain: "fitness",
@@ -287,6 +339,9 @@ describe("AI request evidence router", () => {
       webSearchRequired: false,
       risk: "low",
     });
+    expect(routeAiRequest(message).reasonCodes).not.toContain(
+      "public_person_claim",
+    );
   });
 
   it.each([
@@ -733,6 +788,38 @@ describe("AI request evidence router", () => {
   });
 
   it.each([
+    "Tạo cho tôi lịch tập tăng cơ 4 ngày mỗi tuần",
+    "Lập lịch tập tại nhà 4 ngày với tạ đơn và dây kháng lực",
+    "Cho tôi một lịch tập tăng cơ 4 ngày mỗi tuần",
+    "Mình cần giáo án tăng cơ 4 ngày tại nhà",
+    "Tạo lịch tăng cơ 4 ngày/tuần cho người mới, chỉ có tạ đơn và dây kháng lực",
+  ])("keeps workout creation as a draft response instead of an exercise lookup: %s", (message) => {
+    const decision = routeAiRequest(message);
+
+    expect(decision).toMatchObject({
+      domain: "fitness",
+      evidence: "internal_kb",
+      preferredTool: null,
+      reasonCodes: expect.arrayContaining(["workout_creation"]),
+    });
+    expect(getAllowedToolNamesForRoute(decision)).toEqual([]);
+  });
+
+  it("keeps the canonical meal tool while excluding flat exercise lookup for a mixed plan", () => {
+    const decision = routeAiRequest(
+      "Tạo thực đơn 2500 kcal và lịch tập 4 ngày với tạ đơn",
+    );
+
+    expect(decision).toMatchObject({
+      domain: "fitness",
+      evidence: "internal_kb",
+      preferredTool: "suggest_meal",
+      reasonCodes: expect.arrayContaining(["workout_creation"]),
+    });
+    expect(getAllowedToolNamesForRoute(decision)).toEqual(["suggest_meal"]);
+  });
+
+  it.each([
     "Nghiên cứu mới nhất về kỹ thuật squat",
     "Cho tôi nguồn về cách squat đúng kỹ thuật",
     "Latest research on deadlift technique",
@@ -807,7 +894,26 @@ describe("AI request evidence router", () => {
       "TDEE và thực đơn khác nhau như thế nào?",
     );
 
-    expect(getAllowedToolNamesForRoute(decision)).toEqual(["calculate_tdee"]);
+    expect(decision).toMatchObject({
+      domain: "fitness",
+      evidence: "internal_kb",
+      preferredTool: null,
+    });
+    expect(getAllowedToolNamesForRoute(decision)).not.toContain("calculate_tdee");
+  });
+
+  it.each([
+    "TDEE là gì?",
+    "BMR khác TDEE thế nào?",
+  ])("keeps TDEE knowledge questions out of the calculator intake: %s", (message) => {
+    const decision = routeAiRequest(message);
+
+    expect(decision).toMatchObject({
+      domain: "fitness",
+      evidence: "internal_kb",
+      preferredTool: null,
+    });
+    expect(getAllowedToolNamesForRoute(decision)).not.toContain("calculate_tdee");
   });
 
   it("does not open the compound tool sequence for a high-stakes request", () => {
@@ -962,6 +1068,36 @@ describe("AI request routing prompt block", () => {
     );
   });
 
+  it("locks every external tool after a citable curated KB hit", () => {
+    const baseDecision = routeAiRequest("Ronaldo thường tập gì?");
+    const decision = Object.freeze({
+      ...baseDecision,
+      evidence: "internal_kb",
+      knowledgeBaseEligible: true,
+      webSearchRequired: false,
+      preferredTool: null,
+      maxWebSearchCalls: 0,
+      reasonCodes: Object.freeze([
+        ...baseDecision.reasonCodes,
+        "source_backed_kb_hit",
+      ]),
+    });
+
+    expect(getAllowedToolNamesForRoute(decision)).toEqual([]);
+  });
+
+  it("keeps low-risk fitness useful when internal enrichment has no hit", () => {
+    const block = buildRequestRoutingBlock(
+      routeAiRequest("Tìm 5 bài tập ngực cho người mới"),
+      { canUseWebSearch: true },
+    );
+
+    expect(block).toMatch(
+      /catalog không có kết quả[\s\S]*kiến thức fitness phổ thông an toàn[\s\S]*không giả vờ/i,
+    );
+    expect(block).not.toMatch(/BẮT BUỘC tra cứu/i);
+  });
+
   it("keeps high-stakes health guidance away from external retrieval", () => {
     const block = buildRequestRoutingBlock(
       routeAiRequest("Tôi bị HIV, nghiên cứu mới nhất nói nên tập gì?"),
@@ -1007,5 +1143,13 @@ describe("AI request routing prompt block", () => {
       maxWebSearchCalls: 0,
     });
     expect(getAllowedToolNamesForRoute(decision)).toEqual([]);
+  });
+
+  it("routes an explicit single Vietnamese dinner request to the meal tool", () => {
+    const decision = routeAiRequest(
+      "Cho tôi một bữa tối món Việt khoảng 650 kcal (sai số ±50), ít nhất 40g protein, 75g carb và 20g fat, chỉ 1 bữa, không dùng whey. Hãy ghi khối lượng từng món, tổng kcal và macro trong card thực đơn.",
+    );
+    expect(decision.preferredTool).toBe("suggest_meal");
+    expect(getAllowedToolNamesForRoute(decision)).toEqual(["suggest_meal"]);
   });
 });

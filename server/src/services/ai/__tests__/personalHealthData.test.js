@@ -6,6 +6,39 @@ import {
 } from "../personalHealthData.js";
 
 describe("personal health language boundary", () => {
+  it("recognizes the exact pair-of-dumbbells noun while retaining nearby private symptoms", () => {
+    const equipment = "Tạo lịch tập tăng cơ 4 ngày/tuần cho người mới, chỉ có đôi tạ đơn điều chỉnh và dây kháng lực; mỗi buổi tối đa 60 phút, kèm deload.";
+    expect(containsPersonalHealthData(equipment)).toBe(false);
+    expect(containsPersonalHealthData(`${equipment} Tôi bị lupus.`)).toBe(true);
+    expect(containsPersonalHealthData("Tôi có đôi chân đau sau chấn thương.")).toBe(true);
+    expect(containsPersonalHealthData("Tôi có đôi tạ đơn và bị nhức gối sau tập. Cho tôi nghiên cứu mới nhất.")).toBe(true);
+  });
+  it.each(["nhưng", "but", ",", ";"])("retains inherited personal symptoms after an equipment clause separated by %s", (separator) => {
+    expect(containsPersonalHealthData(`Tôi có đôi tạ đơn ${separator} bị nhức gối sau tập. Cho tôi nghiên cứu mới nhất.`)).toBe(true);
+  });
+  it.each([
+    "Tôi có đôi tạ đơn nhưng đang bị nhức gối sau tập.",
+    "Tôi có đôi tạ đơn, vẫn bị nhức gối sau tập.",
+    "Tôi có đôi tạ đơn và đau gối sau tập.",
+    "I have dumbbells but currently have knee pain after exercise.",
+    "Học viên có đôi tạ đơn nhưng bị nhức gối sau tập.",
+    "I have dumbbells but have rheumatoid arthritis. Show latest exercise research.",
+    "I have dumbbells and have protein but have rheumatoid arthritis.",
+    "Học viên có tạ đơn và dùng dây kháng lực nhưng bị nhức gối sau tập.",
+  ])("retains modified inherited symptoms: %s", (value) => {
+    expect(containsPersonalHealthData(`${value} Cho tôi nghiên cứu mới nhất.`)).toBe(true);
+  });
+  it.each([
+    "Tôi có đôi tạ đơn. Người mới nên đọc nghiên cứu nào?",
+    "Tôi có đôi tạ đơn và dầu olive. Cho tôi nghiên cứu về protein.",
+    "I have dumbbells and have protein. Show latest exercise research.",
+    "Gợi ý thực đơn cho tôi, tôi dị ứng sữa và đậu phộng",
+    "Goi y thuc don cho toi, toi di ung sua va dau phong",
+    "Lập thực đơn cho tôi với cơm và đậu que.",
+    "Học viên nam đang uống whey và dùng dây kháng lực",
+  ])("keeps separate generic questions and non-medical homographs public: %s", (value) => {
+    expect(containsPersonalHealthData(value)).toBe(false);
+  });
   it.each([
     "Lịch thi đấu Real Madrid",
     "lich thi dau Real Madrid",

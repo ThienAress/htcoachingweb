@@ -106,6 +106,10 @@
     "sync:search-index-cohort:staging": "node src/scripts/stagingSearchIndexCohortSync.js --target=staging --apply --confirm-search-index-cohort",
     "preflight:rollback-search-index-cohort:staging": "node src/scripts/stagingSearchIndexCohortSync.js --target=staging --rollback",
     "rollback:search-index-cohort:staging": "node src/scripts/stagingSearchIndexCohortSync.js --target=staging --rollback --apply --confirm-search-index-cohort-rollback",
+    "preflight:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging",
+    "sync:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --apply --confirm-ai-catalog-rollout",
+    "preflight:rollback-ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --rollback",
+    "rollback:ai-catalog:staging": "node src/scripts/stagingAiCatalogRollout.js --target=staging --rollback --apply --confirm-ai-catalog-rollback",
     "preflight:search-recipe-nutrition:staging": "node src/scripts/stagingRecipeNutritionSync.js --target=staging",
     "sync:search-recipe-nutrition:staging": "node src/scripts/stagingRecipeNutritionSync.js --target=staging --apply --confirm-search-recipe-nutrition",
     "preflight:recipe-catalog:local": "node src/scripts/publicRecipeCatalogSync.js --target=local",
@@ -124,6 +128,8 @@
     "cleanup:staging": "node src/scripts/stagingSeed.js --cleanup",
     "acceptance:staging": "node src/scripts/stagingAcceptance.js",
     "acceptance:staging:ai": "node src/scripts/stagingAiChatAcceptance.js",
+    "acceptance:staging:ai:reliability": "node src/scripts/stagingAiReliabilityAcceptance.js",
+    "recover:acceptance:staging:ai:reliability": "node src/scripts/recoverStagingAiReliability.js",
     "verify:acceptance:staging:ai:fixture-rejection": "node src/scripts/stagingAiChatAcceptance.rejectionEvidence.js",
     "recover:acceptance:staging:ai": "node src/scripts/stagingAiChatAcceptance.recover.js",
     "integrations:staging": "node src/scripts/stagingIntegrations.js",
@@ -164,7 +170,7 @@
     "pdf-lib": "^1.17.1",
     "resend": "^6.9.4",
     "sanitize-html": "^2.17.7",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "mongodb-memory-server": "^11.2.0",
@@ -173,6 +179,9 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
+    "proxy-addr": "2.0.8",
+    "source-map-js": "1.2.2",
+    "@grpc/grpc-js": "1.14.5",
     "glob": {
       "brace-expansion": "2.1.7"
     },

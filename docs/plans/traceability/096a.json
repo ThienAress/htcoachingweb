@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "planId": "096A",
+  "specPath": "docs/specs/vibi-production-profile.md",
+  "planPath": "docs/plans/096a-enable-vibi-production-profile.md",
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "Production profile",
+      "planStep": "Step 1"
+    },
+    {
+      "id": "TASK-002",
+      "title": "Unsupported meal target",
+      "planStep": "Step 2"
+    },
+    {
+      "id": "TASK-003",
+      "title": "Verified release gates",
+      "planStep": "Step 3"
+    },
+    {
+      "id": "TASK-004",
+      "title": "Production rollout",
+      "planStep": "Step 4"
+    },
+    {
+      "title": "Bounded provider transport diagnosis",
+      "id": "TASK-005",
+      "planStep": "Step 3"
+    },
+    {
+      "id": "TASK-006",
+      "title": "Explicit WHO fixture and browser checkpoints",
+      "planStep": "Step 3"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "acceptanceCriteria": [
+        {
+          "id": "AC-001",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-001"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/config/__tests__/deepseekProfile.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-002",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-002"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/__tests__/mealRequestConstraints.test.js src/controllers/__tests__/aiCanonicalRemediation.integration.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-003",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-003",
+            "TASK-005",
+            "TASK-006"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "node scripts/check-backup-readiness.mjs --mode=release"
+            },
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/scripts/__tests__/stagingBrowserReconciliation.test.js src/scripts/__tests__/stagingAiChatAcceptance.browser.test.js"
+            },
+            {
+              "type": "command",
+              "command": "cd server && npx vitest run src/services/ai/providers/__tests__/deepseek.transport.test.js src/observability/__tests__/deepseekRequestTelemetry.test.js"
+            }
+          ]
+        },
+        {
+          "id": "AC-004",
+          "mustHave": true,
+          "taskIds": [
+            "TASK-004"
+          ],
+          "verifications": [
+            {
+              "type": "command",
+              "command": "protected production promotion and 30-minute observation"
+            }
+          ]
+        },
+        {
+          "id": "AC-005",
+          "mustHave": true,
+          "taskIds": ["TASK-003"],
+          "verifications": [
+            { "type": "command", "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgeSelectionDeadline.test.js src/controllers/__tests__/knowledgeSelectionDeadline.test.js" }
+          ]
+        }
+      ]
+    }
+  ]
+}

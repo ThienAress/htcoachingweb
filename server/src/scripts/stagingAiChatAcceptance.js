@@ -13,6 +13,7 @@ import { createExactCleanup } from "./stagingAiChatAcceptance.cleanup.js";
 import { assertHealthyVectorTopology, buildSafeEvidence, metricDelta } from "./stagingAiChatAcceptance.evidence.js";
 import { createAccessToken, createApiClient, fetchMetrics, knowledgeFixtureQueries, normalizeQuery, searchKnowledgeFixture } from "./stagingAiChatAcceptance.http.js";
 import { createTrackedKnowledgeFixture, deleteSettledFixtureJournal } from "./stagingAiChatAcceptance.fixture.js";
+import { inspectStagingAiCatalogReadiness } from "./stagingAiCatalogReadiness.js";
 import {
   runBrowserAcceptance,
   STAGING_AI_CHAT_ATTEMPT_PLAN,
@@ -127,6 +128,7 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
     metricsDelta: {},
     metricsSnapshots: null,
     runtimeBinding: null,
+    catalogReadiness: null,
     cleanup: null,
     error: null,
   };
@@ -152,6 +154,14 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
     connected = true;
     assert(mongoose.connection.db?.databaseName === "htcoaching_staging", "Connected database is not exactly htcoaching_staging");
     state.assertions.push({ name: "exact staging identity", passed: true });
+    state.catalogReadiness = await inspectStagingAiCatalogReadiness({
+      db: mongoose.connection.db,
+    });
+    assert(
+      state.catalogReadiness.ready,
+      `Staging AI catalog is not ready: ${state.catalogReadiness.gaps.join(", ")}`,
+      "STAGING_AI_CATALOG_NOT_READY",
+    );
     const capability = await import("../services/ai/stagingAiAcceptance.service.js");
     const { chromium } = await import("@playwright/test");
     const exact = createExactCleanup({

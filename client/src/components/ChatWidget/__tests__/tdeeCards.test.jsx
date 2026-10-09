@@ -1,5 +1,6 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import TdeeFormCard from "../cards/TdeeFormCard";
@@ -19,26 +20,34 @@ describe("HT Assistant TDEE cards", () => {
         html.includes("Số bước trung bình") &&
         html.includes("Thời lượng mỗi buổi") &&
         html.includes("Cường độ buổi tập"),
-      disabledSubmit: /<button[^>]*disabled=""[^>]*>/.test(html),
-    }).toEqual({ noGenderDefault: true, noDefault: true, wholeDayEvidence: true, disabledSubmit: true });
+      canRequestValidation: html.includes("Xác nhận &amp; tính TDEE") &&
+        html.includes("Chỉ tính khi đủ dữ kiện bắt buộc"),
+    }).toEqual({
+      noGenderDefault: true,
+      noDefault: true,
+      wholeDayEvidence: true,
+      canRequestValidation: true,
+    });
   });
 
   it("hiển thị khoảng ước tính và hướng dẫn hiệu chỉnh 14 ngày", () => {
     const html = renderToStaticMarkup(
-      <TdeeResultCard
-        data={{
-          bmr: 1699,
-          tdee: 2633,
-          tdeeRange: { min: 2548, max: 2718 },
-          targetCalories: 2333,
-          targetCaloriesRange: { min: 2248, max: 2418 },
-          goal: "Giảm mỡ",
-          activityLevel: "Vận động vừa",
-          activity: { multiplier: 1.55, range: [1.5, 1.6] },
-          calibrationDays: 14,
-          macros: null,
-        }}
-      />,
+      <MemoryRouter>
+        <TdeeResultCard
+          data={{
+            bmr: 1699,
+            tdee: 2633,
+            tdeeRange: { min: 2548, max: 2718 },
+            targetCalories: 2333,
+            targetCaloriesRange: { min: 2248, max: 2418 },
+            goal: "Giảm mỡ",
+            activityLevel: "Vận động vừa",
+            activity: { multiplier: 1.55, range: [1.5, 1.6] },
+            calibrationDays: 14,
+            macros: null,
+          }}
+        />
+      </MemoryRouter>,
     );
 
     expect(html).toContain("2.548–2.718");

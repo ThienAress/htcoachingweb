@@ -49,6 +49,17 @@ const STAGING_AI_CLEANUP_COLLECTIONS = Object.freeze([
   "staging_ai_acceptance_claims",
   "users",
 ]);
+const STAGING_AI_CATALOG_METRICS = Object.freeze([
+  "beginnerBodyweightChest",
+  "displacedFixtures",
+  "exerciseCount",
+  "foodCount",
+  "freshPricedSafeMacroGroups",
+  "freshPricedSafeMealFoods",
+  "safeMacroGroups",
+  "safeMealFoods",
+]);
+const REQUIRED_MACRO_GROUPS = Object.freeze(["carb", "fat", "protein"]);
 
 const assert = (condition, message) => {
   if (!condition) throw new Error(message);
@@ -114,6 +125,57 @@ const exactStringList = (value, expected, name) => {
       [...value].sort().join("\n") === expected.join("\n"),
     `${name} does not contain the required values`,
   );
+};
+
+const validateCatalogReadiness = (value, name) => {
+  closedObject(value, ["ready", "gaps", "metrics"], name);
+  assert(value.ready === true, `${name} is not ready`);
+  assert(
+    Array.isArray(value.gaps) && value.gaps.length === 0,
+    `${name}.gaps must be empty`,
+  );
+  closedObject(value.metrics, STAGING_AI_CATALOG_METRICS, `${name}.metrics`);
+  exactStringList(
+    Object.keys(value.metrics),
+    STAGING_AI_CATALOG_METRICS,
+    `${name}.metrics`,
+  );
+  for (const key of [
+    "beginnerBodyweightChest",
+    "displacedFixtures",
+    "exerciseCount",
+    "foodCount",
+    "freshPricedSafeMealFoods",
+    "safeMealFoods",
+  ]) {
+    assert(
+      Number.isSafeInteger(value.metrics[key]) && value.metrics[key] >= 0,
+      `${name}.metrics.${key} is invalid`,
+    );
+  }
+  assert(value.metrics.displacedFixtures === 0,
+    `${name} contains displaced exercise fixtures`);
+  assert(value.metrics.beginnerBodyweightChest >= 5,
+    `${name} has insufficient beginner bodyweight chest coverage`);
+  assert(value.metrics.safeMealFoods >= 3,
+    `${name} has insufficient safe meal coverage`);
+  assert(value.metrics.freshPricedSafeMealFoods >= 3,
+    `${name} has insufficient fresh price coverage`);
+  assert(value.metrics.exerciseCount >= value.metrics.beginnerBodyweightChest,
+    `${name}.metrics exercise counts are inconsistent`);
+  assert(value.metrics.foodCount >= value.metrics.safeMealFoods,
+    `${name}.metrics food counts are inconsistent`);
+  exactStringList(
+    value.metrics.safeMacroGroups,
+    REQUIRED_MACRO_GROUPS,
+    `${name}.metrics.safeMacroGroups`,
+  );
+  exactStringList(
+    value.metrics.freshPricedSafeMacroGroups,
+    REQUIRED_MACRO_GROUPS,
+    `${name}.metrics.freshPricedSafeMacroGroups`,
+  );
+  return value;
 };
 
 const validateMetricsSnapshot = (value, name, { generatedAt, releaseSha, runtimeFingerprint }) => {
@@ -267,9 +329,10 @@ export const validateStagingAiAcceptanceEvidence = (evidence, { expectedSha } = 
   closedObject(evidence, [
     "schemaVersion", "kind", "releaseSha", "runId", "status", "startedAt",
     "completedAt", "syntheticIds", "sourceUrl", "assertions", "lanes",
-    "traceMetadata", "metricsDelta", "metricsSnapshots", "runtimeBinding", "cleanup",
+    "traceMetadata", "metricsDelta", "metricsSnapshots", "runtimeBinding",
+    "catalogReadiness", "cleanup",
   ], "Staging AI acceptance evidence");
-  assert(evidence.schemaVersion === 2, "Unsupported staging AI acceptance schemaVersion");
+  assert(evidence.schemaVersion === 3, "Unsupported staging AI acceptance schemaVersion");
   assert(evidence.kind === "staging-ai-chat-acceptance", "Staging AI acceptance kind is invalid");
   sha(evidence.releaseSha, "staging AI acceptance releaseSha");
   if (expectedSha) {
@@ -331,6 +394,10 @@ export const validateStagingAiAcceptanceEvidence = (evidence, { expectedSha } = 
     completedAt,
     expectedJtis: evidence.syntheticIds.capabilityJtis,
   });
+  validateCatalogReadiness(
+    evidence.catalogReadiness,
+    "staging AI acceptance catalogReadiness",
+  );
   const recomputedMetricsDelta = validateMetricsSnapshots(evidence.metricsSnapshots,
     "staging AI acceptance metricsSnapshots", runtimeBinding);
   closedObject(evidence.metricsDelta, STAGING_AI_METRICS, "staging AI acceptance metricsDelta");

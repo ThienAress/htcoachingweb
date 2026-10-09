@@ -101,6 +101,12 @@ describe("staging AI request capability", () => {
   it.each([
     { message: "Different text" }, { requestId: randomUUID() },
     { conversationId: new mongoose.Types.ObjectId().toString() },
+    { retryOfMessageId: new mongoose.Types.ObjectId().toString() },
+    { structuredAction: { type: "calculate_tdee", payload: {
+      gender: "male", age: 30, heightCm: 175, weightKg: 75,
+      dailyMovement: "mixed", steps: "under_5000", trainingFrequency: "none",
+      trainingDuration: "none", trainingIntensity: "none", goal: "maintenance",
+    } } },
     { context: { page: "/different" } },
     { context: { image: "data:image/png;base64,aGVsbG8=" } },
   ])("rejects modified parsed payload binding %#", async (change) => {

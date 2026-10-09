@@ -35,6 +35,11 @@ const PRODUCTION_API_BASE = "https://api.htcoachingweb.io.vn/api";
 const syncError = (code, message = code) =>
   Object.assign(new Error(`${code}: ${message}`), { code });
 
+export const STAGING_SEARCH_COHORT_MONGO_CONNECT_OPTIONS = Object.freeze({
+  autoIndex: false,
+  autoCreate: false,
+});
+
 export const loadSearchIndexCohortSource = async ({
   fetchImpl = globalThis.fetch,
 } = {}) =>
@@ -63,7 +68,10 @@ export const loadSearchIndexCohortSource = async ({
   );
 
 const defaultDependencies = {
-  connect: (uri) => mongoose.connect(uri, { autoIndex: false }),
+  connect: (uri) => mongoose.connect(
+    uri,
+    STAGING_SEARCH_COHORT_MONGO_CONNECT_OPTIONS,
+  ),
   disconnect: () => mongoose.disconnect(),
   assertConnectedTarget: ({ targetDatabase }) => {
     if (mongoose.connection.name !== targetDatabase) {
@@ -74,6 +82,17 @@ const defaultDependencies = {
   loadTargetState: loadStagingSearchIndexCohortState,
   applyPlan: applyStagingSearchIndexCohortPlan,
 };
+
+const safeWrite = (operation) => ({
+  type: operation.type,
+  id: String(operation.id),
+  ...(operation.document?.name ? { name: operation.document.name } : {}),
+  ...(operation.originalName ? { originalName: operation.originalName } : {}),
+  ...(operation.displacedName ? { displacedName: operation.displacedName } : {}),
+  ...(operation.replacementId
+    ? { replacementId: String(operation.replacementId) }
+    : {}),
+});
 
 export const runStagingSearchIndexCohortSync = async ({
   argv = process.argv.slice(2),
@@ -134,6 +153,7 @@ export const runStagingSearchIndexCohortSync = async ({
       success: true,
       planDigest,
       summary: plan.summary,
+      writes: plan.operations.map(safeWrite),
       result,
       verification,
     };

@@ -16,6 +16,6 @@ describe("progress circumference projection", () => {
     const result = buildProgressReadModel({ range, weeklyCheckins: [
       { weekStartDateKey: "2026-09-07", status: "submitted", waistCm: 80, hipCm: 100 },
     ] }).bodyProgress;
-    expect(result.waistHipRatio).toEqual({ unit: "", current: { dateKey: "2026-09-07", value: 0.8 }, delta: null, series: [{ dateKey: "2026-09-07", value: 0.8 }] });
+    expect(result.waistHipRatio).toEqual({ unit: "", current: { dateKey: "2026-09-07", periodStartDateKey: "2026-09-07", value: 0.8 }, delta: null, series: [{ dateKey: "2026-09-07", periodStartDateKey: "2026-09-07", value: 0.8 }] });
   });
 });

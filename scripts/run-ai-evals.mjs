@@ -14,6 +14,12 @@ try {
   console.log(
     `AI eval ${report.corpusVersion}: ${report.passed}/${report.total} passed`,
   );
+  if (report.semanticEvidence.oracleFixtures > 0) {
+    console.log(
+      `Semantic evidence: ${report.semanticEvidence.oracleFixtures} oracle fixtures; ` +
+      `${report.semanticEvidence.runtimeCaptures} runtime captures (live UX acceptance is separate)`,
+    );
+  }
   for (const result of report.results) {
     console.log(`${result.passed ? "PASS" : "FAIL"} ${result.id}`);
     for (const failure of result.failures) console.log(`  - ${failure}`);

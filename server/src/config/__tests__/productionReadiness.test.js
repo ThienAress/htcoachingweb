@@ -28,6 +28,7 @@ const validEnvironment = () => ({
   RESEND_API_KEY: "resend-" + "g".repeat(32),
   AI_PROVIDER: "gemini",
   GEMINI_API_KEY: "gemini-" + "h".repeat(32),
+  GEMINI_SEARCH_MODEL: "gemini-2.5-flash",
   GEMINI_PAID_SERVICE_CONFIRMED: "true",
   GEMINI_UNPAID_MEAL_SCAN_DATA_USE_ACCEPTED: "false",
   FOOD_REFERENCE_LOOKUP_ENABLED: "false",
@@ -56,6 +57,36 @@ const validEnvironment = () => ({
 });
 
 describe("production readiness configuration", () => {
+  it("accepts the complete explicit production Vibi + Brave profile", () => {
+    const env = {
+      ...validEnvironment(), APP_ENV: "production", AI_PROVIDER: "deepseek",
+      AI_PRODUCTION_PROVIDER_PROFILE: "vibi", AI_KB_RETRIEVAL_MODE: "llm_selection",
+      DEEPSEEK_ENDPOINT_PROFILE: "vibi", DEEPSEEK_MODEL: "deepseek-v4.1-flash",
+      DEEPSEEK_API_KEY: "synthetic-" + "d".repeat(32),
+      AI_WEB_SEARCH_PROVIDER: "brave", BRAVE_SEARCH_API_KEY: "synthetic-" + "b".repeat(32),
+      MONGO_URI: "mongodb+srv://cluster.example/gym-app?retryWrites=true",
+    };
+    expect(validateProductionEnvironment(env, { strict: true }).errors).toEqual([]);
+    expect(validateProductionEnvironment(env).summary).toMatchObject({
+      deepseekStagingTrial: false, deepseekProductionProfile: true,
+    });
+    expect(validateProductionEnvironment({ ...env, AI_STAGING_PROVIDER_TRIAL: "deepseek" }).valid).toBe(false);
+  });
+  it("allows DeepSeek only for the explicit isolated staging trial", () => {
+    const env = { ...validEnvironment(), APP_ENV: "staging", AI_PROVIDER: "deepseek",
+      AI_STAGING_PROVIDER_TRIAL: "deepseek", AI_KB_RETRIEVAL_MODE: "llm_selection",
+      DEEPSEEK_MODEL: "deepseek-flash", DEEPSEEK_API_KEY: "synthetic-" + "d".repeat(32),
+      MONGO_URI: "mongodb+srv://cluster.example/htcoaching_staging?retryWrites=true",
+      CLIENT_URL: "https://staging--htcoachingweb.netlify.app",
+      PUBLIC_API_ORIGIN: "https://htcoachingweb-staging.onrender.com",
+      ALLOWED_ORIGINS: "https://staging--htcoachingweb.netlify.app",
+      BACKGROUND_JOBS_ENABLED: "false", EMAIL_DELIVERY_MODE: "disabled" };
+    expect(validateProductionEnvironment(env, { strict: true }).errors).toEqual([]);
+  });
+  it("rejects trial flags in a production Gemini profile", () => {
+    const env = { ...validEnvironment(), APP_ENV: "production", AI_STAGING_PROVIDER_TRIAL: "deepseek" };
+    expect(validateProductionEnvironment(env).errors.map(item => item.code)).toContain("DEEPSEEK_TRIAL_STAGING_REQUIRED");
+  });
   it("accepts a complete explicit production profile", () => {
     const result = validateProductionEnvironment(validEnvironment(), {
       strict: true,
@@ -73,8 +104,28 @@ describe("production readiness configuration", () => {
         cspEnforced: true,
         defaultAdminTrainerMode: "admin_email",
         cloudinaryBackupEnabled: false,
+        geminiSearchModel: "gemini-2.5-flash",
       }),
     );
+  });
+
+  it("rejects a path-like Gemini Search model identifier", () => {
+    const env = validEnvironment();
+    env.GEMINI_SEARCH_MODEL = "models/gemini-2.5-flash?key=secret";
+
+    const result = validateProductionEnvironment(env, { strict: true });
+
+    expect({
+      codes: result.errors.map((finding) => finding.code),
+      summaryModel: result.summary.geminiSearchModel,
+      leaksInvalidValue: JSON.stringify(result).includes(
+        "models/gemini-2.5-flash?key=secret",
+      ),
+    }).toEqual({
+      codes: expect.arrayContaining(["GEMINI_SEARCH_MODEL_INVALID"]),
+      summaryModel: "invalid",
+      leaksInvalidValue: false,
+    });
   });
 
   it("rejects an invalid explicit default admin trainer ID", () => {

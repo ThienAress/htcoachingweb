@@ -13,16 +13,16 @@ const safeErrorCode = (error) =>
 
 const safeEvidenceError = (error) => {
   const code = safeErrorCode(error);
-  const operationError = code === "STAGING_ACCEPTANCE_CLEANUP_FAILED" &&
+  const cleanupErrors = code === "STAGING_ACCEPTANCE_CLEANUP_FAILED" &&
     Array.isArray(error?.errors)
-    ? error.errors[0]
+    ? error.errors
     : null;
-  const operationCode = operationError ? safeErrorCode(operationError) : null;
+  const operationCode = cleanupErrors ? safeErrorCode(cleanupErrors[0]) : null;
+  const cleanupCode = cleanupErrors ? safeErrorCode(cleanupErrors[1]) : null;
   return {
     code,
-    ...(operationCode && operationCode !== "STAGING_AI_ACCEPTANCE_FAILED"
-      ? { operationCode }
-      : {}),
+    ...(operationCode ? { operationCode } : {}),
+    ...(cleanupCode ? { cleanupCode } : {}),
   };
 };
 
@@ -53,6 +53,90 @@ const safeRuntimeBinding = (binding) => binding && typeof binding === "object" ?
   attempts: Array.isArray(binding.attempts) ? binding.attempts.map(safeAttempt) : [],
 } : null;
 
+const CATALOG_GAPS = new Set([
+  "exercise_displaced_fixture_present",
+  "exercise_beginner_bodyweight_chest_insufficient",
+  "food_reviewed_allergen_coverage_insufficient",
+  "food_safe_macro_groups_incomplete",
+  "food_fresh_price_coverage_insufficient",
+  "food_fresh_price_macro_groups_incomplete",
+  "catalog_readiness_payload_invalid",
+]);
+const CATALOG_COUNT_KEYS = [
+  "exerciseCount",
+  "displacedFixtures",
+  "beginnerBodyweightChest",
+  "foodCount",
+  "safeMealFoods",
+  "freshPricedSafeMealFoods",
+];
+const CATALOG_DIAGNOSTIC_COUNT_KEYS = [
+  "ingredientVerifiedSafeMealFoods",
+  "crossContactVerifiedSafeMealFoods",
+];
+const MACRO_GROUPS = new Set(["protein", "carb", "fat"]);
+const CATALOG_METRIC_KEYS = new Set([
+  ...CATALOG_COUNT_KEYS,
+  ...CATALOG_DIAGNOSTIC_COUNT_KEYS,
+  "safeMacroGroups",
+  "freshPricedSafeMacroGroups",
+]);
+const safeCount = (value) => Number.isSafeInteger(value) && value >= 0
+  ? value
+  : null;
+const safeMacroGroups = (value) => Array.isArray(value)
+  ? [...new Set(value.filter((item) => MACRO_GROUPS.has(item)))].sort()
+  : [];
+const safeCatalogReadiness = (value) => {
+  if (!value || typeof value !== "object") return null;
+  const rawGaps = Array.isArray(value.gaps) ? value.gaps : [];
+  const metrics = value.metrics && typeof value.metrics === "object" &&
+    !Array.isArray(value.metrics)
+    ? value.metrics
+    : {};
+  const counts = Object.fromEntries(
+    CATALOG_COUNT_KEYS.map((key) => [key, safeCount(metrics[key])]),
+  );
+  const hasDiagnosticCounts = CATALOG_DIAGNOSTIC_COUNT_KEYS.some((key) =>
+    Object.hasOwn(metrics, key));
+  const diagnosticCounts = Object.fromEntries(
+    CATALOG_DIAGNOSTIC_COUNT_KEYS.map((key) => [key, safeCount(metrics[key])]),
+  );
+  const invalidDiagnosticCounts = hasDiagnosticCounts && (
+    CATALOG_DIAGNOSTIC_COUNT_KEYS.some((key) => !Object.hasOwn(metrics, key)) ||
+    Object.values(diagnosticCounts).some((count) => count === null) ||
+    diagnosticCounts.ingredientVerifiedSafeMealFoods !== counts.safeMealFoods ||
+    diagnosticCounts.crossContactVerifiedSafeMealFoods >
+      diagnosticCounts.ingredientVerifiedSafeMealFoods
+  );
+  const invalidMacroGroups = (groups) =>
+    !Array.isArray(groups) ||
+    new Set(groups).size !== groups.length ||
+    groups.some((item) => !MACRO_GROUPS.has(item));
+  const invalidPayload = !Array.isArray(value.gaps) ||
+    rawGaps.some((gap) => !CATALOG_GAPS.has(gap)) ||
+    !value.metrics || typeof value.metrics !== "object" ||
+    Array.isArray(value.metrics) ||
+    Object.keys(metrics).some((key) => !CATALOG_METRIC_KEYS.has(key)) ||
+    Object.values(counts).some((count) => count === null) ||
+    invalidDiagnosticCounts ||
+    invalidMacroGroups(metrics.safeMacroGroups) ||
+    invalidMacroGroups(metrics.freshPricedSafeMacroGroups);
+  const gaps = [...new Set(rawGaps.filter((gap) => CATALOG_GAPS.has(gap)))];
+  if (invalidPayload) gaps.push("catalog_readiness_payload_invalid");
+  return {
+    ready: value.ready === true && gaps.length === 0,
+    gaps,
+    metrics: {
+      ...counts,
+      safeMacroGroups: safeMacroGroups(metrics.safeMacroGroups),
+      freshPricedSafeMacroGroups: safeMacroGroups(
+        metrics.freshPricedSafeMacroGroups,
+      ),
+    },
+  };
+};
+
 export const selectMetrics = (value = {}) =>
   Object.fromEntries(
     Object.entries(value).filter(
@@ -75,7 +159,7 @@ const safeMetricsSnapshots = (value) => ({
 });
 
 export const buildSafeEvidence = (input) => ({
-  schemaVersion: 2,
+  schemaVersion: 3,
   kind: "staging-ai-chat-acceptance",
   releaseSha: input.releaseSha,
   runId: input.runId,
@@ -108,6 +192,7 @@ export const buildSafeEvidence = (input) => ({
   metricsDelta: selectMetrics(input.metricsDelta),
   metricsSnapshots: safeMetricsSnapshots(input.metricsSnapshots),
   runtimeBinding: safeRuntimeBinding(input.runtimeBinding),
+  catalogReadiness: safeCatalogReadiness(input.catalogReadiness),
   cleanup: input.cleanup || null,
   ...(input.error ? { error: safeEvidenceError(input.error) } : {}),
 });

@@ -97,6 +97,37 @@ describe("BodyProgressReport", () => {
     expect(html).not.toContain(">0 cm<");
   });
 
+  it("preserves colliding raw report identities while labeling their shared period", () => {
+    const html = renderReport({
+      weightKg: {
+        unit: "kg",
+        current: {
+          dateKey: "2026-10-05",
+          periodStartDateKey: "2026-10-01",
+          value: 70,
+        },
+        delta: -1,
+        series: [
+          {
+            dateKey: "2026-10-01",
+            periodStartDateKey: "2026-10-01",
+            value: 71,
+          },
+          {
+            dateKey: "2026-10-05",
+            periodStartDateKey: "2026-10-01",
+            value: 70,
+          },
+        ],
+      },
+    });
+
+    expect((html.match(/role="button"/g) || [])).toHaveLength(2);
+    expect((html.match(/dateTime="2026-10-01"/g) || [])).toHaveLength(2);
+    expect(html).toContain("01/10/2026: 71 kg");
+    expect(html).toContain("01/10/2026: 70 kg");
+  });
+
   it("renders body fat and skeletal muscle as first-class measurements", () => {
     const html = renderReport({
       weightKg: { unit: "kg", current: null, delta: null, series: [] },

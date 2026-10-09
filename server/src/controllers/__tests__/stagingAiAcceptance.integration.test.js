@@ -357,9 +357,11 @@ describe("staging acceptance through the authenticated chat route", () => {
 
   it("substitutes a fixed safe response only after the normal retrieval path", async () => {
     const { user, accessToken } = await createTestUser();
-    retrieval.mockResolvedValue([{ _id: new mongoose.Types.ObjectId(), question: "Cách squat?",
-      answer: "Kiến thức tổng hợp thử nghiệm.", similarity: 0.95, category: "training" }]);
-    const body = await makeBody(user.id, "paced_response", { message: "Cách squat đúng?" });
+    retrieval.mockResolvedValue([{ _id: new mongoose.Types.ObjectId(), question: "Phân bổ protein trong ngày?",
+      answer: "Kiến thức tổng hợp thử nghiệm.", similarity: 0.95, category: "nutrition" }]);
+    const body = await makeBody(user.id, "paced_response", {
+      message: "Tôi nên phân bổ protein trong ngày như thế nào?",
+    });
     const pending = withAuth(request(app).post("/api/ai/chat"), accessToken)
       .set("Origin", env.CLIENT_URL).send(body).then((response) => response);
     const collection = mongoose.connection.db.collection(STAGING_AI_ACCEPTANCE_COLLECTION);
@@ -389,8 +391,16 @@ describe("staging acceptance through the authenticated chat route", () => {
       messages: conversation.messages, activeStreamId: conversation.activeStreamId,
       recentRequestIds: conversation.recentRequestIds, count: bucket.count, usageEvents: bucket.usageEvents,
       providerCalls: provider.mock.calls.length,
-    }).toEqual({ error: { type: "error", message: "Có lỗi xảy ra, vui lòng thử lại", retryable: true },
+    }).toEqual({ error: {
+      type: "error",
+      message: "Có lỗi xảy ra, vui lòng thử lại",
+      retryable: true,
+      conversationId: conversation._id.toString(),
+    },
       messages: [], activeStreamId: null, recentRequestIds: [], count: 0, usageEvents: [], providerCalls: 0 });
+    expect(failed.headers["x-ai-conversation-id"]).toBe(
+      conversation._id.toString(),
+    );
     const retry = await withAuth(request(app).post("/api/ai/chat"), accessToken)
       .send({ message: body.message, requestId: body.requestId, conversationId: conversation._id.toString() });
     expect({ done: events(retry.text).some((event) => event.type === "done"), providerCalls: provider.mock.calls.length })

@@ -2,7 +2,7 @@
 
 - **Status**: ACCEPTED
 - **Date**: 2026-09-15
-- **Amended**: 2026-09-16 — define the pre-cohort readiness boundary
+- **Amended**: 2026-09-18 — define pre-cohort and catalog-readiness evidence boundaries
 - **Owners**: release engineering / AI operations
 - **Supersedes**: none
 
@@ -57,10 +57,13 @@ the cohort `metrics-before` baseline; the exact-nine cohort begins only after th
 baseline. The barrier has a hard deadline, and timeout, restart, runtime/SHA drift
 or an inconclusive snapshot fails closed instead of advancing the baseline.
 
-Because readiness makes no release claim by itself, it adds no field, JTI or
-receipt to raw evidence schema v2 or release-candidate schema v3. Absolute fallback
-counters in `metrics-before` may include earlier readiness attempts; validators
-continue to certify only the recomputed delta inside the exact-nine window.
+Because pre-cohort vector readiness makes no release claim by itself, it adds no field, JTI or
+receipt. Raw evidence schema v3 adds a separate allowlisted
+`catalogReadiness` snapshot for Exercise/Food/allergen/fresh-price coverage; the
+validator requires it to pass and then keeps release-candidate schema v3 unchanged.
+Absolute fallback counters in `metrics-before` may include earlier readiness
+attempts; validators continue to certify only the recomputed delta inside the
+exact-nine window.
 
 The runner also creates a separate durable `fixture_create` journal before the
 admin Knowledge Base POST. It is not a tenth counter-producing cohort receipt.

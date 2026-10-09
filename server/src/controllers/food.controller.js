@@ -23,10 +23,18 @@ const optionalNutritionFields = (payload) =>
       ]),
   );
 
+const serializeFood = (food) => {
+  const data = typeof food?.toObject === "function" ? food.toObject() : food;
+  const {
+    _testCatalogFixture: _testFixture,
+    _stagingAiCatalogRollout: _stagingRollout,
+    ...publicFood
+  } = data || {};
+  return publicFood;
+};
+
 const withMarketPrices = async (foods) => {
-  const rows = foods.map((food) =>
-    typeof food.toObject === "function" ? food.toObject() : food,
-  );
+  const rows = foods.map(serializeFood);
   const prices = await getFoodMarketPriceMap(rows.map(({ _id }) => _id));
   return rows.map((food) => ({
     ...food,
@@ -292,7 +300,7 @@ export const updateFood = async (req, res) => {
       food.allergenProfile = normalizeFoodAllergenProfile(allergenProfile);
     }
     await food.save();
-    res.json({ success: true, data: food });
+    res.json({ success: true, data: serializeFood(food) });
   } catch (err) {
     if (err?.statusCode === 400) return metadataErrorResponse(res, err);
     if (err?.code?.startsWith("FOOD_SOURCE_")) {

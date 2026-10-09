@@ -157,6 +157,41 @@ describe("progressReadModel", () => {
     });
   });
 
+  it("filters and orders body records by period coordinate without collapsing raw identities", () => {
+    const result = buildProgressReadModel({
+      range: {
+        days: 7,
+        startDateKey: "2026-10-01",
+        endDateKey: "2026-10-02",
+      },
+      weeklyCheckins: [
+        {
+          weekStartDateKey: "2026-10-12",
+          periodStartDateKey: "2026-10-12",
+          status: "submitted",
+          weightKg: 69,
+        },
+        {
+          weekStartDateKey: "2026-10-05",
+          periodStartDateKey: "2026-10-01",
+          status: "reviewed",
+          weightKg: 70,
+        },
+        {
+          weekStartDateKey: "2026-10-01",
+          periodStartDateKey: "2026-10-01",
+          status: "submitted",
+          weightKg: 71,
+        },
+      ],
+    });
+
+    expect(result.bodyProgress.weightKg.series).toEqual([
+      { dateKey: "2026-10-01", periodStartDateKey: "2026-10-01", value: 71 },
+      { dateKey: "2026-10-05", periodStartDateKey: "2026-10-01", value: 70 },
+    ]);
+  });
+
   it("calculates only due assignments and never turns missing values into zero", () => {
     const result = buildProgressReadModel({
       range,

@@ -117,6 +117,12 @@ export const createKnowledgeFixture = async ({ api, marker, sourceUrl, requestId
   if (!entry?._id || entry.status !== "published" || entry.reviewStatus !== "reviewed" || entry.embeddingStatus !== "ready") {
     const error = new Error("Knowledge fixture was not published with a ready reviewed embedding");
     error.code = "STAGING_AI_KB_FIXTURE_FAILED";
+    if (entry?._id) {
+      error.remoteOutcomeKnown = true;
+      error.httpStatus = 201;
+      error.requestId = requestId;
+      error.fixtureId = String(entry._id);
+    }
     throw error;
   }
   return { id: String(entry._id), question, variant, embeddingVersion: entry.embeddingVersion };
@@ -128,8 +134,10 @@ export const knowledgeFixtureQueries = (marker) => {
   const label = [...suffix].map((hex) => alphabet[Number.parseInt(hex, 16)]).join("");
   return {
     label,
-    question: `Tập luyện thể lực mỗi tuần bao nhiêu phút để khỏe mạnh? Nhãn ${label}.`,
-    variant: `Theo nhãn ${label}, người trưởng thành nên tập thể dục bao lâu mỗi tuần?`,
+    question: `Tập luyện thể lực mỗi tuần bao nhiêu phút để khỏe mạnh? Nhãn ${label}. ` +
+      "Hãy nêu khuyến nghị WHO.",
+    variant: `Theo nhãn ${label}, người trưởng thành nên tập thể dục bao lâu mỗi tuần? ` +
+      "Hãy nêu khuyến nghị WHO.",
   };
 };
 
