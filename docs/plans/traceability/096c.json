@@ -7,7 +7,8 @@
     { "id": "TASK-001", "title": "Inspect all drafts", "planStep": "Step 1" },
     { "id": "TASK-002", "title": "Correct proven failures", "planStep": "Step 2" },
     { "id": "TASK-003", "title": "Certify exact candidate", "planStep": "Step 3" },
-    { "id": "TASK-004", "title": "Release and publish cohort", "planStep": "Step 4" }
+    { "id": "TASK-004", "title": "Release and publish cohort", "planStep": "Step 4" },
+    { "id": "TASK-005", "title": "Atomic draft editorial repair", "planStep": "Step 2" }
   ],
   "requirements": [
     {
@@ -53,6 +54,14 @@
           "taskIds": ["TASK-003"],
           "verifications": [
             { "type": "command", "command": "cd server && npx vitest run src/services/ai/__tests__/knowledgeSelectionDeadline.test.js src/controllers/__tests__/knowledgeSelectionDeadline.test.js" }
+          ]
+        },
+        {
+          "id": "AC-005",
+          "mustHave": true,
+          "taskIds": ["TASK-005"],
+          "verifications": [
+            { "type": "command", "command": "cd server && npx vitest run src/controllers/__tests__/knowledgeEditorialRepair.integration.test.js" }
           ]
         }
       ]
