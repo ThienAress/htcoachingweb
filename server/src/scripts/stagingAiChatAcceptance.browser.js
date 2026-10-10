@@ -299,7 +299,10 @@ export const runBrowserAcceptance = async ({
 
     const runFailureRecovery = async (kind) => {
       await newConversation(page);
-      const question = `${fixture.question} lane-${kind}`;
+      // The recovered answer must cite its reviewed source. Citation policy binds a
+      // source only to the exact root question or a reviewed variant, so the retry
+      // lane re-sends the exact root and the edit lane recovers to the exact variant.
+      const question = kind === "retry" ? fixture.question : `${fixture.question} lane-${kind}`;
       const before = await db.collection("serviceusagebuckets").findOne({ userId: ownerObjectId });
       await send(page, question);
       const alert = page.getByRole("alert");
@@ -346,7 +349,7 @@ export const runBrowserAcceptance = async ({
           if ((await candidate.inputValue()) === question) editor = candidate;
         }
         assert(editor, "Edit lane did not expose the failed user message editor");
-        recoveryQuestion = `${fixture.variant} recovery-edit`;
+        recoveryQuestion = fixture.variant;
         await editor.fill(recoveryQuestion);
         await page.getByRole("button", { name: "Cập nhật" }).click();
       }
