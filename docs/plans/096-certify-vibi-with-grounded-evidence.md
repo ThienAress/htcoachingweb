@@ -129,3 +129,13 @@ Duration/TTFT/tokens/tool/retry/error metadata không
   Independent review phát hiện email trong claim thành autolink không thuộc source;
   thêm regression qua ChatBubble và neutralize email trước citation.
   Release này chỉ chứng nhận phạm vi retest, không tuyên bố toàn plan đã hoàn tất.
+
+- 2026-10-10 live acceptance trên staging `773e6c6` (3 lượt, cùng kết quả): cổng backup,
+  9 flow không-AI và cleanup AI (residue 0) PASS; ba lane AI chưa chạy vì
+  `GET /api/knowledge-base/search` trả 503 sau ~30 giây. Log Vibi (nhóm `model - china`)
+  cho thấy prompt chọn KB ~6,2k token luôn có Token đầu 21–27 giây hoặc không có output
+  (40 giây, 1 phút 11 giây), trong khi prompt ~7,1k–8,4k token nhanh 0,7–1,8 giây; RPM/TPM
+  = 0. Kết luận: chậm ở upstream Vibi→DeepSeek, không phải code của repo. Admin Search Test
+  giữ hợp đồng 503 fail-closed. Chat giảm cấp khi chọn KB quá ngân sách 12 giây thành
+  KB miss (`kbRetrieval.coverage="unknown"`), các lỗi khác vẫn fail-closed. Plan 096 vẫn NO-GO
+  cho tới khi lane AI pass trên SHA triển khai.
