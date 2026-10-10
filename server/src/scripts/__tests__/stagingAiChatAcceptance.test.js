@@ -228,6 +228,8 @@ describe("staging AI acceptance evidence", () => {
       code: "STAGING_ACCEPTANCE_CLEANUP_FAILED",
       operationCode: "STAGING_AI_CONTROL_BARRIER_FAILED",
       cleanupCode: "STAGING_AI_CLEANUP_OUTCOME_UNKNOWN",
+      operationName: "Error",
+      cleanupName: "Error",
     });
   });
 
@@ -254,8 +256,35 @@ describe("staging AI acceptance evidence", () => {
       code: "STAGING_ACCEPTANCE_CLEANUP_FAILED",
       operationCode: "STAGING_AI_ACCEPTANCE_FAILED",
       cleanupCode: "STAGING_AI_CLEANUP_OUTCOME_UNKNOWN",
+      operationName: "Error",
+      cleanupName: "Error",
     });
     expect(JSON.stringify(evidence.error)).not.toMatch(/private|Playwright|token=|must-not-leak/i);
+  });
+
+  it("reports only allow-listed error class names and a bounded failed stage", () => {
+    const network = Object.assign(new Error("connect ECONNRESET private-host.example"), {
+      name: "MongoNetworkError",
+    });
+    const custom = Object.assign(new Error("secret"), { name: "Custom-Private Name" });
+    const evidence = buildSafeEvidence({
+      releaseSha: SHA,
+      runId: randomUUID(),
+      syntheticIds: {},
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      status: "failed",
+      sourceUrl: "https://www.who.int/news-room/fact-sheets/detail/physical-activity",
+      stage: "settled_receipts",
+      error: Object.assign(
+        new AggregateError([network, custom], "private aggregate detail"),
+        { code: "STAGING_ACCEPTANCE_CLEANUP_FAILED" },
+      ),
+    });
+
+    expect(evidence.error).toMatchObject({ operationName: "MongoNetworkError", cleanupName: "OtherError" });
+    expect(evidence.failedStage).toBe("settled_receipts");
+    expect(JSON.stringify(evidence)).not.toMatch(/private|ECONNRESET|secret|Custom-Private/i);
   });
 
   it("fails metrics closed without matching runtime identity", () => {
