@@ -239,6 +239,7 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
           },
         });
         exact.registerKnowledgeEntry(fixture.id);
+        state.stage = "kb_search";
         state.syntheticIds.kbEntryId = fixture.id;
         assert(fixture.embeddingVersion === env.EXPECTED_KB_EMBEDDING_VERSION, "Knowledge fixture embedding version is not the locked staging target");
         state.assertions.push({ name: "reviewed published KB embedding", passed: true });
@@ -284,6 +285,7 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
           assert(search?.data?.some((entry) => String(entry._id) === fixture.id), "Exact fixture was not found by healthy semantic search");
         }
 
+        state.stage = "browser_acceptance";
         exact.markMutationStart();
         const browserResult = await runBrowserAcceptance({
           chromium,
@@ -306,13 +308,16 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
           onLaneResult: (lane) => state.lanes.push(lane),
         });
         exact.markMutationSettled();
+        state.stage = "request_inventory";
         assertExactRequestInventory(attempts);
+        state.stage = "settled_receipts";
         const receiptAttempts = await waitForSettledReceipts({
           collection: mongoose.connection.db.collection(capability.STAGING_AI_ACCEPTANCE_COLLECTION), runId, attempts,
           runtimeInstanceId: runtime.runtimeInstanceId, releaseSha: config.releaseSha,
         });
         state.lanes.push({ name: "request-cohort-runtime-binding", passed: true });
 
+        state.stage = "provenance";
         const conversations = await mongoose.connection.db.collection("chatconversations")
           .find({ userId: syntheticId }, { projection: { messages: 1, activeStreamId: 1 } })
           .toArray();
@@ -349,6 +354,7 @@ export const runStagingAiChatAcceptance = async ({ env = process.env } = {}) => 
         assert(sourcedAnswers.length >= 3 && uiDbMatches.length >= 3 && uniqueAssistantIds.size === uiDbMatches.length && uiDbMatches.every(Boolean), "Positive/recovery UI assistant identities did not match unique persisted KB provenance/content");
         state.assertions.push({ name: "live UI and Mongo provenance correspondence", passed: true });
 
+        state.stage = "metrics";
         const afterMetrics = await fetchMetrics(adminApi);
         assert(afterMetrics.runtimeInstanceId === runtime.runtimeInstanceId &&
           afterMetrics.runtimeReleaseSha === runtime.runtimeReleaseSha,
