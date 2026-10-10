@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { waitControlStatus } from "./stagingAiChatAcceptance.controlBarrier.js";
 import { waitForBrowserCheckpoint } from "./stagingAiChatAcceptance.browserCheckpoint.js";
+import { classifyMissingCitation } from "./stagingAiChatAcceptance.citationDiagnosis.js";
 
 const assert = (condition, message, code = "STAGING_AI_BROWSER_ASSERTION_FAILED") => {
   if (!condition) {
@@ -349,7 +350,13 @@ export const runBrowserAcceptance = async ({
         await editor.fill(recoveryQuestion);
         await page.getByRole("button", { name: "Cập nhật" }).click();
       }
-      await page.locator(`a[href="${sourceUrl}"]`).last().waitFor({ timeout: 90_000 });
+      try {
+        await page.locator(`a[href="${sourceUrl}"]`).last().waitFor({ timeout: 90_000 });
+      } catch (error) {
+        throw await classifyMissingCitation({
+          error, db, ownerObjectId, fixtureId: fixture.id, sourceUrl,
+        });
+      }
       assert(requestIds.at(-1) !== failedId, "Recovery reused the failed requestId");
       await captureUiEvidence(recoveryQuestion, reconciliationCursor);
       recordLane({
