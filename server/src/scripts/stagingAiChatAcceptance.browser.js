@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { waitControlStatus } from "./stagingAiChatAcceptance.controlBarrier.js";
 import { waitForBrowserCheckpoint } from "./stagingAiChatAcceptance.browserCheckpoint.js";
 
 const assert = (condition, message, code = "STAGING_AI_BROWSER_ASSERTION_FAILED") => {
@@ -47,17 +48,6 @@ export const waitForStableAssistantText = async (locator, expected, options = {}
     await wait(Math.min(pollMs, Math.max(1, deadline - now())));
   }
   assert(false, "Paced response prefix did not become stable", "STAGING_AI_PACED_TEXT_UNSTABLE");
-};
-
-const waitControlStatus = async (collection, jti, status, timeoutMs = 15_000) => {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const control = await collection.findOne({ _id: jti }, { projection: { status: 1 } });
-    if (control?.status === status) return control;
-    if (["aborted", "timed_out", "completed"].includes(control?.status)) break;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  assert(false, `Staging control did not reach ${status}`, "STAGING_AI_CONTROL_BARRIER_FAILED");
 };
 
 export const waitForFailedRecoveryReceipt = async ({
