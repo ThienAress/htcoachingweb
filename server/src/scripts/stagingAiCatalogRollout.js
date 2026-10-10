@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import {
   STAGING_AI_CATALOG_MONGO_CONNECT_OPTIONS,
@@ -23,10 +24,10 @@ export { loadStagingAiCatalogSource };
 export { verifyStagingAiCatalogPostState };
 
 const defaultDependencies = {
-  connect: (uri) => mongoose.connect(
-    uri,
-    STAGING_AI_CATALOG_MONGO_CONNECT_OPTIONS,
-  ),
+  connect: (uri) => mongoose.connect(uri, {
+    ...resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+    ...STAGING_AI_CATALOG_MONGO_CONNECT_OPTIONS,
+  }),
   disconnect: () => mongoose.disconnect(),
   assertConnectedTarget: ({ targetDatabase }) => {
     if (mongoose.connection.name !== targetDatabase) {

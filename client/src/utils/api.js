@@ -70,14 +70,26 @@ api.interceptors.response.use(
     const requestUrl = originalRequest.url || "";
     const status = error.response?.status;
 
-    const isUserMeRequest = requestUrl === "/user/me";
-    const isRefreshRequest = requestUrl === "/auth/refresh";
-    const isLogoutRequest = requestUrl === "/auth/logout";
-
-    // /user/me bị 401 thì để AuthContext tự xử lý
-    if (status === 401 && isUserMeRequest) {
-      return Promise.reject(error);
-    }
+    const requestPath = (() => {
+      try {
+        return new URL(requestUrl, API_URL).pathname.replace(/\/$/u, "");
+      } catch {
+        return requestUrl.split("?", 1)[0].replace(/\/$/u, "");
+      }
+    })();
+    const apiBasePath = (() => {
+      try {
+        return new URL(API_URL, window.location.origin).pathname.replace(/\/$/u, "");
+      } catch {
+        return "";
+      }
+    })();
+    const isRoute = (route) =>
+      requestPath === route ||
+      (apiBasePath && requestPath === `${apiBasePath}${route}`);
+    const isRefreshRequest = isRoute("/auth/refresh");
+    const isLogoutRequest = isRoute("/auth/logout");
+    const isSessionCheck = isRoute("/user/me");
 
     // Không refresh cho logout / refresh itself
     if (status === 401 && !originalRequest._retry) {
@@ -87,9 +99,16 @@ api.interceptors.response.use(
 
       // Nếu đang có request khác refresh rồi → đóng băng, chờ trong queue
       if (isRefreshing) {
+        originalRequest._retry = true;
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then(() => api(originalRequest));
+        }).then(
+          () => api(originalRequest),
+          (refreshError) => {
+            if (!isSessionCheck) window.location.href = "/login";
+            return Promise.reject(refreshError);
+          },
+        );
       }
 
       originalRequest._retry = true;
@@ -102,7 +121,8 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        window.location.href = "/login";
+        // AuthProvider handles an anonymous session without leaving a public page.
+        if (!isSessionCheck) window.location.href = "/login";
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

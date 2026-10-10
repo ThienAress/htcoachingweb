@@ -139,6 +139,16 @@ incomingBankTransactionSchema.index(
   },
 );
 incomingBankTransactionSchema.index(
+  {
+    provider: 1,
+    fingerprintDigest: 1,
+    canonicalReferenceHash: 1,
+    status: 1,
+    source: 1,
+  },
+  { name: "incoming_cross_channel_fingerprint" },
+);
+incomingBankTransactionSchema.index(
   { status: 1, createdAt: -1 },
   { name: "incoming_status_created" },
 );

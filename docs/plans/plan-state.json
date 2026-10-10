@@ -325,6 +325,30 @@
       "rollout": "live",
       "owner": "root",
       "updatedAt": "2026-10-04"
+    },
+    {
+      "id": "108",
+      "title": "Build the self-sculpting looping preview by approval phases",
+      "path": "docs/plans/108-add-sculpted-route-transition.md",
+      "priority": "P1",
+      "complexity": "moderate",
+      "lifecycle": "in_progress",
+      "verification": "focused",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-10-10"
+    },
+    {
+      "id": "109",
+      "title": "Harden financial consistency and recovery",
+      "path": "docs/plans/109-harden-financial-consistency-and-recovery.md",
+      "priority": "P0",
+      "complexity": "complex",
+      "lifecycle": "in_progress",
+      "verification": "focused",
+      "rollout": "not_started",
+      "owner": "root",
+      "updatedAt": "2026-10-10"
     }
   ]
 }

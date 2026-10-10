@@ -1,8 +1,11 @@
+import mongoose from "mongoose";
+
 import Wallet from "../models/Wallet.js";
 import WalletTransaction from "../models/WalletTransaction.js";
 import DepositRequest from "../models/DepositRequest.js";
 import IncomingBankTransaction from "../models/IncomingBankTransaction.js";
 import TrainerSubscription from "../models/TrainerSubscription.js";
+import FitnessSubscription from "../models/FitnessSubscription.js";
 import { incrementMetric } from "../observability/metrics.js";
 import {
   resolveDepositCreditSnapshot,
@@ -22,25 +25,42 @@ const boundedInteger = (value, fallback, maximum) => {
   return Math.min(parsed, maximum);
 };
 
-export const reconcileWallets = async ({
-  walletLimit = 5000,
-  issueLimit = 1000,
-  allowLegacyTrainerReference = false,
-} = {}) => {
+const takeBoundedScope = (rows, limit) => ({
+  rows: rows.slice(0, limit),
+  truncated: rows.length > limit,
+});
+
+const queryWithSession = (query, session) => query.session(session);
+
+const reconcileWalletsInSnapshot = async ({
+  walletLimit,
+  issueLimit,
+  allowLegacyTrainerReference,
+  session,
+  startedAt,
+}) => {
   const safeWalletLimit = boundedInteger(walletLimit, 5000, 100000);
   const safeIssueLimit = boundedInteger(issueLimit, 1000, 10000);
   const issues = [];
   let totalIssues = 0;
+  const truncatedScopes = [];
 
   const recordIssue = (code, details = {}) => {
     totalIssues += 1;
     if (issues.length < safeIssueLimit) issues.push({ code, ...details });
   };
 
-  const wallets = await Wallet.find({})
+  const recordTruncatedScope = (scope, limit) => {
+    truncatedScopes.push(scope);
+    recordIssue("RECONCILIATION_SCOPE_TRUNCATED", { scope, limit });
+  };
+
+  const walletScope = takeBoundedScope(await queryWithSession(Wallet.find({})
     .sort({ _id: 1 })
-    .limit(safeWalletLimit)
-    .lean();
+    .limit(safeWalletLimit + 1)
+    .lean(), session), safeWalletLimit);
+  const wallets = walletScope.rows;
+  if (walletScope.truncated) recordTruncatedScope("wallets", safeWalletLimit);
   const walletIds = wallets.map((wallet) => wallet._id);
   const walletById = new Map(
     wallets.map((wallet) => [asId(wallet._id), wallet]),
@@ -48,14 +68,19 @@ export const reconcileWallets = async ({
   const sums = new Map();
   const latestBalances = new Map();
 
-  const transactions = walletIds.length
-    ? await WalletTransaction.find({
+  const transactionScope = walletIds.length
+    ? takeBoundedScope(await queryWithSession(WalletTransaction.find({
         walletId: { $in: walletIds },
         status: "success",
       })
         .sort({ walletId: 1, createdAt: 1, _id: 1 })
-        .lean()
-    : [];
+        .limit(safeWalletLimit + 1)
+        .lean(), session), safeWalletLimit)
+    : { rows: [], truncated: false };
+  const transactions = transactionScope.rows;
+  if (transactionScope.truncated) {
+    recordTruncatedScope("walletTransactions", safeWalletLimit);
+  }
 
   for (const transaction of transactions) {
     const walletId = asId(transaction.walletId);
@@ -129,8 +154,9 @@ export const reconcileWallets = async ({
     }
   }
 
-  const orphanTransactions = await WalletTransaction.aggregate([
+  const orphanWalletScope = takeBoundedScope(await WalletTransaction.aggregate([
     { $match: { status: "success" } },
+    { $sort: { _id: 1 } },
     {
       $lookup: {
         from: Wallet.collection.name,
@@ -141,8 +167,12 @@ export const reconcileWallets = async ({
     },
     { $match: { wallet: { $size: 0 } } },
     { $project: { _id: 1, walletId: 1 } },
-    { $limit: safeIssueLimit },
-  ]);
+    { $limit: safeIssueLimit + 1 },
+  ]).session(session), safeIssueLimit);
+  const orphanTransactions = orphanWalletScope.rows;
+  if (orphanWalletScope.truncated) {
+    recordTruncatedScope("orphanWalletTransactions", safeIssueLimit);
+  }
   for (const transaction of orphanTransactions) {
     recordIssue("LEDGER_WALLET_MISSING", {
       transactionId: asId(transaction._id),
@@ -150,37 +180,54 @@ export const reconcileWallets = async ({
     });
   }
 
-  const deposits = await DepositRequest.find({
+  const depositScope = takeBoundedScope(await queryWithSession(DepositRequest.find({
     status: { $in: ["success", "reversed"] },
   })
     .select(
       "_id amount bonusRate bonusAmount creditedAmount bonusTierKey policyVersion status",
     )
-    .limit(safeWalletLimit)
-    .lean();
+    .sort({ _id: 1 })
+    .limit(safeWalletLimit + 1)
+    .lean(), session), safeWalletLimit);
+  const deposits = depositScope.rows;
+  if (depositScope.truncated) recordTruncatedScope("deposits", safeWalletLimit);
   const depositIds = deposits.map((deposit) => deposit._id);
-  const depositEntries = deposits.length
-    ? await WalletTransaction.find({
+  const depositEntryScope = deposits.length
+    ? takeBoundedScope(await queryWithSession(WalletTransaction.find({
         referenceType: "deposit_request",
         referenceId: { $in: depositIds },
-      }).lean()
-    : [];
-  const incomingTransactions = deposits.length
-    ? await IncomingBankTransaction.find({
+      }).sort({ _id: 1 }).limit(safeWalletLimit + 1).lean(), session), safeWalletLimit)
+    : { rows: [], truncated: false };
+  const depositEntries = depositEntryScope.rows;
+  if (depositEntryScope.truncated) {
+    recordTruncatedScope("depositLedgerEntries", safeWalletLimit);
+  }
+  const incomingTransactionScope = deposits.length
+    ? takeBoundedScope(await queryWithSession(IncomingBankTransaction.find({
         depositRequestId: { $in: depositIds },
         status: { $in: ["settled", "reversed"] },
       })
         .select("_id depositRequestId amount creditedAmount status")
-        .lean()
-    : [];
-  const incomingEntries = incomingTransactions.length
-    ? await WalletTransaction.find({
+        .sort({ _id: 1 })
+        .limit(safeWalletLimit + 1)
+        .lean(), session), safeWalletLimit)
+    : { rows: [], truncated: false };
+  const incomingTransactions = incomingTransactionScope.rows;
+  if (incomingTransactionScope.truncated) {
+    recordTruncatedScope("incomingBankTransactions", safeWalletLimit);
+  }
+  const incomingEntryScope = incomingTransactions.length
+    ? takeBoundedScope(await queryWithSession(WalletTransaction.find({
         referenceType: "incoming_bank_transaction",
         referenceId: {
           $in: incomingTransactions.map((incoming) => incoming._id),
         },
-      }).lean()
-    : [];
+      }).sort({ _id: 1 }).limit(safeWalletLimit + 1).lean(), session), safeWalletLimit)
+    : { rows: [], truncated: false };
+  const incomingEntries = incomingEntryScope.rows;
+  if (incomingEntryScope.truncated) {
+    recordTruncatedScope("incomingLedgerEntries", safeWalletLimit);
+  }
   const entriesByDeposit = new Map();
   for (const entry of depositEntries) {
     const key = asId(entry.referenceId);
@@ -316,18 +363,27 @@ export const reconcileWallets = async ({
     }
   }
 
-  const subscriptions = await TrainerSubscription.find({})
+  const trainerSubscriptionScope = takeBoundedScope(await queryWithSession(TrainerSubscription.find({})
     .select("_id amount source purchaseRequestId")
-    .limit(safeWalletLimit)
-    .lean();
-  const subscriptionEntries = subscriptions.length
-    ? await WalletTransaction.find({
+    .sort({ _id: 1 })
+    .limit(safeWalletLimit + 1)
+    .lean(), session), safeWalletLimit);
+  const subscriptions = trainerSubscriptionScope.rows;
+  if (trainerSubscriptionScope.truncated) {
+    recordTruncatedScope("trainerSubscriptions", safeWalletLimit);
+  }
+  const trainerEntryScope = subscriptions.length
+    ? takeBoundedScope(await queryWithSession(WalletTransaction.find({
         referenceId: {
           $in: subscriptions.map((subscription) => subscription._id),
         },
         type: "purchase",
-      }).lean()
-    : [];
+      }).sort({ _id: 1 }).limit(safeWalletLimit + 1).lean(), session), safeWalletLimit)
+    : { rows: [], truncated: false };
+  const subscriptionEntries = trainerEntryScope.rows;
+  if (trainerEntryScope.truncated) {
+    recordTruncatedScope("trainerSubscriptionLedgerEntries", safeWalletLimit);
+  }
   const entriesBySubscription = new Map();
   for (const entry of subscriptionEntries) {
     const key = asId(entry.referenceId);
@@ -356,18 +412,210 @@ export const reconcileWallets = async ({
     }
   }
 
-  if (totalIssues > 0) {
-    incrementMetric("financial.reconciliation_mismatches", totalIssues);
+  const fitnessSubscriptionScope = takeBoundedScope(
+    await queryWithSession(
+      FitnessSubscription.find({})
+        .select("_id userId amount source purchaseRequestId")
+        .sort({ _id: 1 })
+        .limit(safeWalletLimit + 1)
+        .lean(),
+      session,
+    ),
+    safeWalletLimit,
+  );
+  const fitnessSubscriptions = fitnessSubscriptionScope.rows;
+  if (fitnessSubscriptionScope.truncated) {
+    recordTruncatedScope("fitnessSubscriptions", safeWalletLimit);
+  }
+  const fitnessEntryScope = fitnessSubscriptions.length
+    ? takeBoundedScope(await queryWithSession(
+        WalletTransaction.find({
+          referenceType: "fitness_subscription",
+          referenceId: {
+            $in: fitnessSubscriptions.map((subscription) => subscription._id),
+          },
+          type: "purchase",
+          status: "success",
+        })
+          .sort({ referenceId: 1, _id: 1 })
+          .limit(safeWalletLimit + 1)
+          .lean(),
+        session,
+      ), safeWalletLimit)
+    : { rows: [], truncated: false };
+  const fitnessEntries = fitnessEntryScope.rows;
+  if (fitnessEntryScope.truncated) {
+    recordTruncatedScope("fitnessSubscriptionLedgerEntries", safeWalletLimit);
+  }
+  const fitnessEntriesBySubscription = new Map();
+  for (const entry of fitnessEntries) {
+    const key = asId(entry.referenceId);
+    const values = fitnessEntriesBySubscription.get(key) || [];
+    values.push(entry);
+    fitnessEntriesBySubscription.set(key, values);
+  }
+  let fitnessAdminGrantsExcluded = 0;
+  for (const subscription of fitnessSubscriptions) {
+    if (subscription.source === "admin_grant") {
+      fitnessAdminGrantsExcluded += 1;
+      continue;
+    }
+    const subscriptionId = asId(subscription._id);
+    const entries = fitnessEntriesBySubscription.get(subscriptionId) || [];
+    if (!Number.isSafeInteger(subscription.amount) || subscription.amount <= 0) {
+      recordIssue("FITNESS_SUBSCRIPTION_AMOUNT_INVALID", { subscriptionId });
+    }
+    if (!String(subscription.purchaseRequestId || "").trim()) {
+      recordIssue("FITNESS_SUBSCRIPTION_PURCHASE_REQUEST_MISSING", {
+        subscriptionId,
+      });
+    }
+    if (entries.length === 0) {
+      recordIssue("FITNESS_SUBSCRIPTION_LEDGER_MISSING", { subscriptionId });
+      continue;
+    }
+    if (entries.length !== 1) {
+      recordIssue("FITNESS_SUBSCRIPTION_LEDGER_CARDINALITY", {
+        subscriptionId,
+        successfulEntries: entries.length,
+      });
+      continue;
+    }
+    const [entry] = entries;
+    if (entry.amount !== -subscription.amount) {
+      recordIssue("FITNESS_SUBSCRIPTION_LEDGER_AMOUNT_MISMATCH", {
+        subscriptionId,
+        transactionId: asId(entry._id),
+      });
+    }
+    if (asId(entry.userId) !== asId(subscription.userId)) {
+      recordIssue("FITNESS_SUBSCRIPTION_LEDGER_USER_MISMATCH", {
+        subscriptionId,
+        transactionId: asId(entry._id),
+      });
+    }
+    const expectedIdempotencyKey = `fitness-plus:${asId(subscription.userId)}:${subscription.purchaseRequestId}`;
+    if (entry.idempotencyKey !== expectedIdempotencyKey) {
+      recordIssue("FITNESS_SUBSCRIPTION_LEDGER_IDEMPOTENCY_MISMATCH", {
+        subscriptionId,
+        transactionId: asId(entry._id),
+      });
+    }
+  }
+
+  const orphanFitnessScope = takeBoundedScope(
+    await WalletTransaction.aggregate([
+      {
+        $match: {
+          referenceType: "fitness_subscription",
+          type: "purchase",
+          status: "success",
+        },
+      },
+      { $sort: { _id: 1 } },
+      {
+        $lookup: {
+          from: FitnessSubscription.collection.name,
+          localField: "referenceId",
+          foreignField: "_id",
+          as: "subscription",
+        },
+      },
+      { $match: { subscription: { $size: 0 } } },
+      { $project: { _id: 1, referenceId: 1 } },
+      { $limit: safeWalletLimit + 1 },
+    ]).session(session),
+    safeWalletLimit,
+  );
+  if (orphanFitnessScope.truncated) {
+    recordTruncatedScope("orphanFitnessLedgers", safeWalletLimit);
+  }
+  for (const entry of orphanFitnessScope.rows) {
+    recordIssue("FITNESS_SUBSCRIPTION_LEDGER_ORPHAN", {
+      transactionId: asId(entry._id),
+      subscriptionId: asId(entry.referenceId),
+    });
   }
 
   return {
+    startedAt,
     generatedAt: new Date().toISOString(),
     checkedWallets: wallets.length,
     checkedTransactions: transactions.length,
     checkedDeposits: deposits.length,
     checkedSubscriptions: subscriptions.length,
+    checkedTrainerSubscriptions: subscriptions.length,
+    checkedFitnessSubscriptions: fitnessSubscriptions.length,
+    coverageComplete: truncatedScopes.length === 0,
+    consistency: {
+      mode: "snapshot_transaction",
+      readConcern: "snapshot",
+      limits: {
+        walletLimit: safeWalletLimit,
+        issueLimit: safeIssueLimit,
+      },
+      truncatedScopes,
+      fitnessAdminGrantsExcluded,
+    },
     totalIssues,
     issuesTruncated: totalIssues > issues.length,
     issues,
   };
+};
+
+export const reconcileWallets = async ({
+  walletLimit = 5000,
+  issueLimit = 1000,
+  allowLegacyTrainerReference = false,
+  session: providedSession,
+} = {}) => {
+  const startedAt = new Date().toISOString();
+  const run = (session) =>
+    reconcileWalletsInSnapshot({
+      walletLimit,
+      issueLimit,
+      allowLegacyTrainerReference,
+      session,
+      startedAt,
+    });
+
+  if (providedSession) {
+    const readConcern = providedSession.transaction?.options?.readConcern;
+    if (
+      !providedSession.inTransaction?.() ||
+      readConcern?.level !== "snapshot"
+    ) {
+      const error = new Error(
+        "Wallet reconciliation requires an active snapshot transaction",
+      );
+      error.code = "RECONCILIATION_SNAPSHOT_REQUIRED";
+      throw error;
+    }
+    const report = await run(providedSession);
+    if (report.totalIssues > 0) {
+      incrementMetric("financial.reconciliation_mismatches", report.totalIssues);
+    }
+    return report;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    let report;
+    await session.withTransaction(
+      async () => {
+        report = await run(session);
+      },
+      {
+        readConcern: { level: "snapshot" },
+        writeConcern: { w: "majority", journal: true },
+        readPreference: "primary",
+      },
+    );
+    if (report.totalIssues > 0) {
+      incrementMetric("financial.reconciliation_mismatches", report.totalIssues);
+    }
+    return report;
+  } finally {
+    await session.endSession();
+  }
 };

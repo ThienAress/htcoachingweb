@@ -1,6 +1,7 @@
 import "../config/env.js";
 import crypto from "node:crypto";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import { BSON } from "mongodb";
 
 import { assertStagingOperation } from "../config/stagingOperationSafety.js";
@@ -48,7 +49,10 @@ const snapshotDigest = (snapshot) => {
 
 const main = async () => {
   assertStagingOperation({ confirmationVariable: "CONFIRM_STAGING_RECOVERY_DRILL" });
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   const db = mongoose.connection.db;
   assert(
     db?.databaseName === "htcoaching_staging",

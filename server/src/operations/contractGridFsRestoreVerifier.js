@@ -22,6 +22,9 @@ export const verifyContractGridFsSnapshot = ({
   contracts = [],
   files = [],
   chunks = [],
+  signingContracts = [],
+  signingAttempts = [],
+  now = new Date(),
 } = {}) => {
   const findingCounts = new Map();
   const addFinding = (code) =>
@@ -29,10 +32,39 @@ export const verifyContractGridFsSnapshot = ({
   const fileById = new Map(files.map((file) => [idString(file?._id), file]));
   const chunksByFile = new Map();
   let checkedBytes = 0;
+  const signingById = new Map(signingContracts.map(contract => [idString(contract._id), contract]));
+  const attemptsById = new Map(signingAttempts.map(attempt => [idString(attempt._id), attempt]));
+  const trackedCandidates = new Set();
+  for (const attempt of signingAttempts) {
+    if (attempt.phase !== "active") continue;
+    const contract = signingById.get(idString(attempt.contractId));
+    if (!contract || contract.status !== "signing" || idString(contract.signingAttemptId) !== idString(attempt._id) || idString(contract.clientId) !== idString(attempt.clientId) || !isObjectId(attempt.clientId) || !isObjectId(attempt.candidateFileId)) {
+      addFinding("CONTRACT_SIGNING_ATTEMPT_BINDING_INVALID");
+      continue;
+    }
+    if (!(new Date(attempt.leaseUntil).getTime() > new Date(now).getTime())) {
+      addFinding("CONTRACT_SIGNING_ATTEMPT_STALE");
+      continue;
+    }
+    const file = fileById.get(idString(attempt.candidateFileId));
+    if (file && (idString(file.metadata?.contractId) !== idString(attempt.contractId) || idString(file.metadata?.signingAttemptId) !== idString(attempt._id))) {
+      addFinding("CONTRACT_SIGNING_FILE_BINDING_INVALID");
+      continue;
+    }
+    trackedCandidates.add(idString(attempt.candidateFileId));
+  }
+  for (const contract of signingContracts) {
+    const attempt = attemptsById.get(idString(contract.signingAttemptId));
+    if (!attempt) {
+      addFinding("CONTRACT_SIGNING_ATTEMPT_MISSING");
+    } else if (attempt.phase !== "active" || idString(attempt.contractId) !== idString(contract._id) || idString(attempt.clientId) !== idString(contract.clientId)) {
+      addFinding("CONTRACT_SIGNING_ATTEMPT_BINDING_INVALID");
+    }
+  }
 
   for (const chunk of chunks) {
     const fileId = idString(chunk?.files_id);
-    if (!fileById.has(fileId)) addFinding("GRIDFS_ORPHAN_CHUNK");
+    if (!fileById.has(fileId) && !trackedCandidates.has(fileId)) addFinding("GRIDFS_ORPHAN_CHUNK");
     const grouped = chunksByFile.get(fileId) || [];
     grouped.push(chunk);
     chunksByFile.set(fileId, grouped);
@@ -128,8 +160,23 @@ export const verifyContractGridFsSnapshot = ({
     }
   }
 
+  // A completed in-flight candidate still needs valid bytes/hash/chunks. Only an
+  // incomplete upload (no files document yet) is exempt from completeness checks.
+  for (const attempt of signingAttempts) {
+    const fileId = idString(attempt.candidateFileId);
+    if (!trackedCandidates.has(fileId) || !fileById.has(fileId)) continue;
+    const result = verifyContractGridFsSnapshot({
+      contracts: [{ signedPdfFileId: fileId, fileHash: attempt.candidateFileHash }],
+      files: [fileById.get(fileId)], chunks: chunksByFile.get(fileId) || [],
+    });
+    checkedBytes += result.checkedBytes;
+    for (const finding of result.findings) {
+      findingCounts.set(finding.code, (findingCounts.get(finding.code) || 0) + finding.count);
+    }
+  }
+
   for (const file of files) {
-    if (!referencedFiles.has(idString(file?._id))) {
+    if (!referencedFiles.has(idString(file?._id)) && !trackedCandidates.has(idString(file?._id))) {
       addFinding("GRIDFS_ORPHAN_FILE");
     }
   }
@@ -142,13 +189,14 @@ export const verifyContractGridFsSnapshot = ({
     files: files.length,
     chunks: chunks.length,
     checkedBytes,
+    trackedSigningCandidates: trackedCandidates.size,
     findings,
   };
 };
 
 export const verifyContractGridFsRestore = async (db) => {
   if (!db?.collection) throw new Error("MongoDB database handle is required");
-  const [contracts, files, chunks] = await Promise.all([
+  const [contracts, files, chunks, signingContracts, signingAttempts] = await Promise.all([
     db
       .collection("contracts")
       .find({ status: "signed" })
@@ -164,6 +212,8 @@ export const verifyContractGridFsRestore = async (db) => {
       .find({})
       .project({ files_id: 1, n: 1, data: 1 })
       .toArray(),
+    db.collection("contracts").find({ status: "signing" }).project({ signingAttemptId: 1, clientId: 1, status: 1 }).toArray(),
+    db.collection("contractsigningattempts").find({}).project({ contractId: 1, clientId: 1, candidateFileId: 1, candidateFileHash: 1, phase: 1, leaseUntil: 1 }).toArray(),
   ]);
-  return verifyContractGridFsSnapshot({ contracts, files, chunks });
+  return verifyContractGridFsSnapshot({ contracts, files, chunks, signingContracts, signingAttempts });
 };
