@@ -1,4 +1,4 @@
-const PRODUCTION_API_BASE = "https://api.htcoachingweb.io.vn/api";
+export const PRODUCTION_API_BASE = "https://api.htcoachingweb.io.vn/api";
 const RECIPE_PAGE_SIZE = 50;
 const EXERCISE_PAGE_SIZE = 500;
 const DYNAMIC_PAGE_CONCURRENCY = 4;

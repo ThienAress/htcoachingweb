@@ -196,12 +196,14 @@ export const fetchPrerenderPageData = async (
 export const createPrerenderResponseCache = (
   recipes,
   pageData = {},
+  options = {},
 ) => ({
   recipes: new Map(recipes.map((recipe) => [String(recipe.slug), recipe])),
   storyList: pageData.storyList || null,
   stories: pageData.stories || new Map(),
   blogs: pageData.blogs || new Map(),
   exercises: pageData.exercises || new Map(),
+  allowExternalRecipeFallback: options.allowExternalRecipeFallback === true,
 });
 
 const jsonResponse = (status, body) => ({
@@ -342,7 +344,7 @@ export const responseForPrerenderRequest = (requestUrl, cache) => {
 
   const slug = decodeURIComponent(pathname.slice(markerIndex + marker.length));
   const recipe = cache.recipes.get(slug);
-  return recipe
-    ? jsonResponse(200, { success: true, data: recipe })
-    : jsonResponse(404, { success: false, message: "Recipe not found" });
+  if (recipe) return jsonResponse(200, { success: true, data: recipe });
+  if (cache.allowExternalRecipeFallback) return null;
+  return jsonResponse(404, { success: false, message: "Recipe not found" });
 };
