@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import { validateStagingOperation } from "../config/stagingOperationSafety.js";
 import { EXPECTED_API_ORIGIN, EXPECTED_CLIENT_URL } from "./stagingAiChatAcceptance.config.js";
 
@@ -110,7 +111,7 @@ export const runReliabilityRecoveryCli = async ({ env = process.env } = {}) => {
   const intent = parseReliabilityRecoveryIntent(JSON.parse(await fs.readFile(path.resolve(intentPath), "utf8")));
   const config = validateReliabilityRecoveryConfig(env, intent);
   if (!config.valid) throw fail("STAGING_AI_RELIABILITY_RECOVERY_REJECTED", config.findings.join(", "));
-  await mongoose.connect(env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(env.MONGO_URI, resolveMongoConnectionOptions({ durable: true, autoIndex: false }));
   try {
     const report = await recoverStagingAiReliability({ env, intent, db: mongoose.connection.db });
     await fs.mkdir(path.dirname(path.resolve(reportPath)), { recursive: true });

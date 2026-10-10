@@ -1,10 +1,14 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import { verifyTrainingScheduleIntegrity } from "../services/trainingScheduleIntegrity.service.js";
 
 const main = async () => {
   if (!process.env.MONGO_URI) throw new Error("MONGO_URI is required");
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   try {
     const report = await verifyTrainingScheduleIntegrity();
     console.log(JSON.stringify(report, null, 2));

@@ -1,5 +1,6 @@
 import "../config/env.js";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import {
   assertConnectedMigrationTarget,
   assertMigrationEnvironment,
@@ -188,7 +189,10 @@ const runFromCli = async () => {
   const authorization = assertMigrationEnvironment({
     confirmationVariable: "CONFIRM_PHASE1_INTEGRITY_MIGRATION",
   });
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   try {
     assertConnectedMigrationTarget(mongoose.connection, authorization);
     await runPhase1IntegrityMigration();

@@ -1,6 +1,7 @@
 import { pathToFileURL } from "node:url";
 
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 
 import {
   assertConnectedMigrationTarget,
@@ -155,7 +156,10 @@ export const authorizeCoachingMediaDryRunTarget = ({
 const main = async () => {
   const args = new Set(process.argv.slice(2));
   const authorization = authorizeCoachingMediaDryRunTarget({ args });
-  await mongoose.connect(process.env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(
+    process.env.MONGO_URI,
+    resolveMongoConnectionOptions({ durable: true, autoIndex: false }),
+  );
   try {
     assertConnectedMigrationTarget(mongoose.connection, authorization);
     const candidates = await inspectLegacyCoachingFeedbackMedia();

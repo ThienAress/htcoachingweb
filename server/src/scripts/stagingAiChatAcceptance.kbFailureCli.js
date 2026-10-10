@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import mongoose from "mongoose";
+import { resolveMongoConnectionOptions } from "../config/mongoConnectionOptions.js";
 import { parseRecoveryIntent, validateRecoveryConfig } from "./stagingAiChatAcceptance.recover.js";
 import { buildCompletedKbFailureProof, REGISTERED_KB_FAILURE } from "./stagingAiChatAcceptance.kbFailure.js";
 
@@ -53,7 +54,7 @@ export const runKbFailureProofCli = async ({ env = process.env } = {}) => {
   const sourceReport = await readJson(env.STAGING_AI_SOURCE_REPORT);
   const deployIdentity = await readJson(env.STAGING_DEPLOY_IDENTITY_EVIDENCE);
   const logs = await readRenderKbFailureLogs({ env, intent, sourceReport, deployIdentity });
-  await mongoose.connect(env.MONGO_URI, { autoIndex: false });
+  await mongoose.connect(env.MONGO_URI, resolveMongoConnectionOptions({ durable: true, autoIndex: false }));
   try {
     assert(mongoose.connection.db.databaseName === "htcoaching_staging");
     const receipt = await mongoose.connection.db.collection("staging_ai_acceptance_claims")
