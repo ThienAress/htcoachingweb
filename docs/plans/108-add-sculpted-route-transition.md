@@ -387,7 +387,7 @@ desktop/mobile cleanup; client QA gates, bundle budget và `git diff --check`.
 ## Port log
 
 - 2026-10-10 port: số cũ 090/091 trùng plan đã có trên staging nên đổi thành 108/109; đã port
-từ working tree root (backup ngoài repo tại D:/htcoachingweb-backup-20261010) sang branch
+từ working tree root (backup cục bộ ngoài repo) sang branch
 `codex/plans-108-109-port-20261010` từ `origin/staging` (883681e). Chưa commit/push/deploy.
 - Code transition đã có sẵn trên staging; phần còn thiếu thực tế là mount `SculptNavigationBoundary` trong
   `App.jsx`, opt-out `data-sculpt-transition="off"` ở ExerciseDetailPage và e2e spec cho preview lặp.

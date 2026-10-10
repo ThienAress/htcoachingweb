@@ -353,7 +353,7 @@ boundary/docs/agent gates and `git diff --check` pass or blockers are recorded.
 ## Port log
 
 - 2026-10-10 port: số cũ 090/091 trùng plan đã có trên staging nên đổi thành 108/109; đã port
-từ working tree root (backup ngoài repo tại D:/htcoachingweb-backup-20261010) sang branch
+từ working tree root (backup cục bộ ngoài repo) sang branch
 `codex/plans-108-109-port-20261010` từ `origin/staging` (883681e). Chưa commit/push/deploy.
 - Conflict `stagingSearchIndexCohortSync.js` giải quyết bằng cách gộp resolver durable với
   `autoCreate:false` của staging. Sáu script staging AI mới (recoverStagingAiReliability, stagingAiCatalogRollout,
