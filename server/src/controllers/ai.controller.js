@@ -40,6 +40,8 @@ import {
   moderateGuestContent,
 } from "../services/ai/contentModeration.js";
 import { searchAssistantKnowledgeBase } from "../services/ai/knowledgeRetrieval.service.js";
+import { CHAT_KNOWLEDGE_SELECTION_TIMEOUT_MS } from "../services/ai/knowledgeSelectionPolicy.js";
+import { isKnowledgeSelectionTimeout } from "../services/ai/knowledgeSelectionFailure.js";
 import { selectConversationHistory } from "../services/ai/conversationHistory.js";
 import { isDeepseekProfileActive } from "../config/deepseekProfile.js";
 import { resolveDeepseekEndpoint } from "../config/deepseekEndpoint.js";
@@ -1354,7 +1356,10 @@ export const chatStream = async (req, res) => {
                   limit: 3,
                   threshold: 0.75,
                   signal: abortController.signal,
-                  deadlineAt: chatStartTime + CHAT_DEADLINE_MS,
+                  deadlineAt: Math.min(
+                    chatStartTime + CHAT_DEADLINE_MS,
+                    Date.now() + CHAT_KNOWLEDGE_SELECTION_TIMEOUT_MS,
+                  ),
                 }
               : { limit: 3, threshold: 0.75 },
           );
@@ -1384,9 +1389,22 @@ export const chatStream = async (req, res) => {
             systemPrompt += buildKnowledgeReferenceBlock(kbResults, { citationEntries });
           }
         } catch (err) {
-          if (deepseekProfileActive) throw err;
-          // Vector KB search lỗi không ảnh hưởng chat flow chính
-          safeLog.error("ai.kb_search_non_blocking_failed", err);
+          if (deepseekProfileActive) {
+            // Upstream chậm: giảm cấp thành KB miss, các lỗi khác vẫn fail-closed.
+            if (abortController.signal.aborted || !isKnowledgeSelectionTimeout(err)) throw err;
+            safeLog.error("ai.kb_selection_timeout_degraded", err);
+            kbRetrieval = {
+              method: "llm_selection",
+              coverage: "unknown",
+              eligibleCount: null,
+              safeCount: null,
+              excludedCount: null,
+              refs: [],
+            };
+          } else {
+            // Vector KB search lỗi không ảnh hưởng chat flow chính
+            safeLog.error("ai.kb_search_non_blocking_failed", err);
+          }
         }
       }
     }

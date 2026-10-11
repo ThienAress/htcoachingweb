@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 
 import {
   normalizeDynamicRouteApiUrl,
+  PRODUCTION_API_BASE,
   resolveDynamicRoutePolicy,
 } from "./dynamic-routes.js";
 import {
@@ -329,9 +330,6 @@ const prerender = async () => {
         "Skipping recipe prerender because public content could not be cached: " +
           error.message,
       );
-      routesToPrerender = routesToPrerender.filter(
-        (route) => !route.startsWith("/cong-thuc-nau-an/"),
-      );
     }
     try {
       pageData = await fetchPrerenderPageData(
@@ -349,7 +347,10 @@ const prerender = async () => {
       );
     }
   }
-  const responseCache = createPrerenderResponseCache(recipes, pageData);
+  const responseCache = createPrerenderResponseCache(recipes, pageData, {
+    allowExternalRecipeFallback:
+      !policy.requireDynamic && apiUrl !== PRODUCTION_API_BASE,
+  });
   console.log(
     "Prerender dynamic route mode: " +
       (policy.requireDynamic ? "strict" : policy.skip ? "static" : "fallback"),

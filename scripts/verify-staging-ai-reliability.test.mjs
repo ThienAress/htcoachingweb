@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { reliabilityPlan } from "../server/src/scripts/stagingAiReliabilityAcceptance.plan.js";
 import { verifyStagingAiReliabilityRounds } from "./verify-staging-ai-reliability.mjs";
+import { PROVIDER_KEYS } from "../server/src/scripts/stagingAiReliabilityAcceptance.evidence.js";
 
 const SHA = "a".repeat(40);
 const CLEANUP_COLLECTIONS = [
@@ -10,14 +11,8 @@ const CLEANUP_COLLECTIONS = [
   "serviceusagebuckets", "aimemories", "aimemorypreferences", "aitoolconfirmations",
   "aimoderationstates", "users",
 ];
-const COUNTERS = {
-  "provider.gemini_chat_requests": 1,
-  "provider.gemini_chat_succeeded": 1,
-  "provider.gemini_chat_failed": 0,
-  "provider.gemini_chat_unavailable": 0,
-  "provider.gemini_chat_rate_limited": 0,
-  "provider.gemini_chat_not_required": 0,
-};
+const COUNTERS = Object.fromEntries(PROVIDER_KEYS.map((key) => [key,
+  key === "provider.gemini_chat_requests" || key === "provider.gemini_chat_succeeded" ? 1 : 0]));
 const uuid = (number) => `00000000-0000-4000-8000-${String(number).padStart(12, "0")}`;
 const oid = (number) => number.toString(16).padStart(24, "0");
 

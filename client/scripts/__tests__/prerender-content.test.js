@@ -59,6 +59,19 @@ describe("prerender content cache", () => {
     ).toMatchObject({ status: 401 });
   });
 
+  it("allows a non-production recipe request to retry outside the cache", () => {
+    const cache = createPrerenderResponseCache([], {}, {
+      allowExternalRecipeFallback: true,
+    });
+
+    expect(
+      responseForPrerenderRequest(
+        "https://htcoachingweb-staging.onrender.com/api/recipes/detail/recipe-one",
+        cache,
+      ),
+    ).toBeNull();
+  });
+
   it("retries public detail fetches and serves deterministic prerender responses", async () => {
     let storyAttempts = 0;
     const fetchApi = vi.fn(async (path) => {

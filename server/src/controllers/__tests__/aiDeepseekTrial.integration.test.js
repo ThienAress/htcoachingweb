@@ -7,6 +7,10 @@ import { EMBEDDING_VERSION } from "../../services/ai/embeddingProfile.js";
 import { toolRegistry } from "../../services/ai/tools/toolRegistry.js";
 
 vi.mock("../../utils/safeLogger.js", () => ({ safeLog: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock("../../services/ai/knowledgeSelectionPolicy.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  CHAT_KNOWLEDGE_SELECTION_TIMEOUT_MS: 400,
+}));
 const configureTrial = () => {
   const deepseekSecretName = ["DEEP", "SEEK", "_API_KEY"].join("");
   const profile = {
@@ -107,6 +111,31 @@ describe("real DeepSeek factory/provider at the owned chat SSE seam", () => {
       retrieval: JSON.parse(JSON.stringify(stored.messages.at(-1).answerTrace.kbRetrieval)) })
       .toEqual({ end: "done", calls: 2, retrieval: { method: "llm_selection",
         coverage: "full", eligibleCount: 1, safeCount: 1, excludedCount: 0, refs: [] } });
+  });
+  it("degrades a slow KB selector to a KB miss instead of failing the chat turn", async () => {
+    const { user, accessToken } = await createTestUser();
+    await KnowledgeEntry.collection.insertOne(fixture(user._id));
+    fetchMock.mockImplementation((_url, options) => {
+      if (!JSON.parse(options.body).response_format) return Promise.resolve(stream("Mình có thể trao đổi nguyên tắc chung."));
+      return new Promise((_resolve, reject) => {
+        options.signal.addEventListener("abort", () => reject(options.signal.reason), { once: true });
+      });
+    });
+    const res = await submit(accessToken, { message: "Protein có vai trò gì trong cơ thể?" });
+    const stored = await ChatConversation.findOne({ userId: user._id }).lean();
+    expect({ end: frames(res).at(-1).type,
+      ids: stored.messages.at(-1).answerTrace.kbEntryIds.length,
+      retrieval: JSON.parse(JSON.stringify(stored.messages.at(-1).answerTrace.kbRetrieval)) })
+      .toEqual({ end: "done", ids: 0, retrieval: { method: "llm_selection",
+        coverage: "unknown", eligibleCount: null, safeCount: null, excludedCount: null, refs: [] } });
+  });
+  it("keeps non-timeout selector failures fail-closed", async () => {
+    const { user, accessToken } = await createTestUser();
+    await KnowledgeEntry.collection.insertOne(fixture(user._id));
+    fetchMock.mockImplementation(async (_url, options) => JSON.parse(options.body).response_format
+      ? stream("not json") : stream("Mình có thể trao đổi nguyên tắc chung."));
+    const res = await submit(accessToken, { message: "Protein có vai trò gì trong cơ thể?" });
+    expect(frames(res).at(-1).type).toBe("error");
   });
   it("hydrates legacy traces without a migration or required retrieval metadata", async () => {
     const { user } = await createTestUser();

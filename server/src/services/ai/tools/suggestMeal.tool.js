@@ -1,6 +1,8 @@
 // Suggest Meal Tool — server-authoritative meal math from the Food catalog.
 import Food from "../../../models/Food.js";
+import { randomInt } from "node:crypto";
 import { getFoodMarketPriceMap } from "../../foodPrice.service.js";
+import { buildVarietyPlan } from "../mealVarietyPlanner.js";
 import {
   foodMatchesMealPhrase,
   parseMealRequirements,
@@ -97,6 +99,7 @@ const normalizeParams = (params = {}) => {
     lactoseFree: params.lactoseFree === true,
     requirePackageLabelSafety: params.requirePackageLabelSafety === true,
     budgetVndPerDay: params.budgetVndPerDay == null ? null : asFinite(params.budgetVndPerDay),
+    variationSeed: Number.isInteger(params.variationSeed) ? params.variationSeed : randomInt(1, 2 ** 31),
     allowedAdjustmentFoodIds: Array.isArray(params.allowedAdjustmentFoodIds) ? params.allowedAdjustmentFoodIds : [],
     allowedAdjustmentFoodNames: Array.isArray(params.allowedAdjustmentFoodNames) ? params.allowedAdjustmentFoodNames : [],
   };
@@ -362,11 +365,10 @@ const splitAmountWithRotation = (amount, count, foodIndex) => {
 const buildStructuredMeals = (plan, mealsPerDay) =>
   mealLabels(mealsPerDay).map((label, mealIndex) => {
     const foods = plan.foods.flatMap((food, index) => {
-      const amountGrams = splitAmountWithRotation(
-        plan.amounts[index],
-        mealsPerDay,
-        index,
-      )[mealIndex];
+      const fixedMeal = plan.mealIndexes?.[index];
+      const amountGrams = Number.isInteger(fixedMeal)
+        ? (fixedMeal === mealIndex ? plan.amounts[index] : 0)
+        : splitAmountWithRotation(plan.amounts[index], mealsPerDay, index)[mealIndex];
       if (amountGrams <= 0) return [];
       const macros = foodMacro(food, amountGrams);
       return [{
@@ -1041,7 +1043,14 @@ export async function suggestMeal(params, {
       "Chưa đủ dữ liệu thực phẩm đã kiểm duyệt để đáp ứng các ràng buộc an toàn này.",
     );
   }
-  const plan = choosePlan(eligibleFoods, target, requiredFoods, input.mealsPerDay);
+  const plan = buildVarietyPlan({
+    foods: eligibleFoods,
+    target,
+    requiredFoods,
+    mealsPerDay: input.mealsPerDay,
+    seed: input.variationSeed,
+    math: { solve3x3, foodMacro, addMacros, requiredMinPerMeal: REQUIRED_FOOD_MIN_PER_MEAL_GRAMS },
+  }) || choosePlan(eligibleFoods, target, requiredFoods, input.mealsPerDay);
   if (!plan) return missingData("catalog_insufficient", "Chưa đủ thực phẩm phù hợp để đáp ứng chính xác mục tiêu dinh dưỡng này.");
   const corrected = correctProteinRounding(plan, input);
   const { meals, macros, totals } = corrected;

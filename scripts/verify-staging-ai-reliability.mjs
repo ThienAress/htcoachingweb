@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 import { reliabilityPlan } from "../server/src/scripts/stagingAiReliabilityAcceptance.plan.js";
+import { PROVIDER_KEYS } from "../server/src/scripts/stagingAiReliabilityAcceptance.evidence.js";
 
 const SHA = /^[a-f0-9]{40}$/;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -13,15 +14,6 @@ const CLEANUP_COLLECTIONS = [
   "serviceusagebuckets", "aimemories", "aimemorypreferences", "aitoolconfirmations",
   "aimoderationstates", "users",
 ];
-const PROVIDER_KEYS = [
-  "provider.gemini_chat_requests",
-  "provider.gemini_chat_succeeded",
-  "provider.gemini_chat_failed",
-  "provider.gemini_chat_unavailable",
-  "provider.gemini_chat_rate_limited",
-  "provider.gemini_chat_not_required",
-];
-
 const assert = (condition, message) => {
   if (!condition) throw new Error(message);
 };

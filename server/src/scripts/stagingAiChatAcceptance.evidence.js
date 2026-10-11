@@ -11,6 +11,18 @@ const safeErrorCode = (error) =>
     ? String(error.code)
     : "STAGING_AI_ACCEPTANCE_FAILED";
 
+const SAFE_ERROR_NAMES = new Set([
+  "Error", "TypeError", "RangeError", "AssertionError", "TimeoutError", "AbortError", "AggregateError",
+  "MongoServerError", "MongoNetworkError", "MongoNetworkTimeoutError", "MongoServerSelectionError",
+  "MongoNotConnectedError", "MongoTopologyClosedError", "MongoBulkWriteError", "MongoWriteConcernError",
+]);
+
+// Class names only: never messages, stacks or causes.
+const safeErrorName = (error) => {
+  const name = String(error?.name || "");
+  return SAFE_ERROR_NAMES.has(name) ? name : "OtherError";
+};
+
 const safeEvidenceError = (error) => {
   const code = safeErrorCode(error);
   const cleanupErrors = code === "STAGING_ACCEPTANCE_CLEANUP_FAILED" &&
@@ -23,6 +35,8 @@ const safeEvidenceError = (error) => {
     code,
     ...(operationCode ? { operationCode } : {}),
     ...(cleanupCode ? { cleanupCode } : {}),
+    ...(cleanupErrors ? { operationName: safeErrorName(cleanupErrors[0]) } : {}),
+    ...(cleanupErrors ? { cleanupName: safeErrorName(cleanupErrors[1]) } : {}),
   };
 };
 
@@ -195,6 +209,7 @@ export const buildSafeEvidence = (input) => ({
   catalogReadiness: safeCatalogReadiness(input.catalogReadiness),
   cleanup: input.cleanup || null,
   ...(input.error ? { error: safeEvidenceError(input.error) } : {}),
+  ...(input.error && /^[a-z_]{1,40}$/.test(String(input.stage || "")) ? { failedStage: input.stage } : {}),
 });
 
 export const metricDelta = (before, after) => {
